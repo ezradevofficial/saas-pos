@@ -1,5 +1,7 @@
 <?php
 
+use App\Core\Tenancy\Http\RequireTenant;
+use App\Core\Tenancy\Http\ResetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // TEN-01: every request starts without a tenant; routes that need one
+        // use `tenant` after auth.
+        $middleware->prepend(ResetTenantContext::class);
+        $middleware->alias(['tenant' => RequireTenant::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
