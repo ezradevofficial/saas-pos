@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -28,5 +29,15 @@ class HealthTest extends TestCase
         $role = DB::selectOne('select rolsuper, rolbypassrls from pg_roles where rolname = current_user');
         $this->assertFalse($role->rolsuper);
         $this->assertFalse($role->rolbypassrls);
+    }
+
+    public function test_runtime_role_cannot_create_objects_in_the_public_schema(): void
+    {
+        $this->assertFalse(DB::selectOne("select has_schema_privilege(current_user, 'public', 'CREATE') as can")->can);
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('permission denied for schema public');
+
+        DB::transaction(fn () => DB::statement('create table planted (id int)'));
     }
 }

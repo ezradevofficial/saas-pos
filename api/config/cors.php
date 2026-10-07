@@ -29,6 +29,7 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    // Bearer tokens only: no cookies cross origins.
+    'supports_credentials' => false,
 
 ];
