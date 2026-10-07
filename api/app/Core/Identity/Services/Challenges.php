@@ -8,6 +8,7 @@ use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Identity\Support\LoginIdentifier;
 use App\Core\Identity\Support\PhoneNumber;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -112,36 +113,66 @@ class Challenges
     }
 
     /**
-     * A challenge of $purpose that can still be used or resent, or null.
+     * An unconsumed challenge of $purpose, or null. Only a contact
+     * verification challenge stays open once expired, so it can be resent
+     * (sends are capped); an expired two-factor or password-reset challenge
+     * can never be used again.
      */
     public function findOpen(string $id, string $purpose): ?VerificationChallenge
     {
-        if (! Str::isUuid($id)) {
+        $challenge = $this->findUnconsumed($id, $purpose);
+
+        if ($challenge !== null && $purpose !== VerificationChallenge::PURPOSE_VERIFY_CONTACT && $challenge->expires_at->isPast()) {
             return null;
         }
 
-        $challenge = VerificationChallenge::find($id);
+        return $challenge;
+    }
 
-        return $challenge !== null && $challenge->purpose === $purpose && $challenge->consumed_at === null
-            ? $challenge
-            : null;
+    /** The user's latest unexpired, unconsumed challenge of $purpose, or null. */
+    public function latestOpen(User $user, string $purpose): ?VerificationChallenge
+    {
+        return VerificationChallenge::where('user_id', $user->id)
+            ->where('purpose', $purpose)
+            ->whereNull('consumed_at')
+            ->where('expires_at', '>', now())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
-     * Check a code and consume the challenge. Every attempt counts, and is
-     * committed before the answer is known, so failures cannot be rolled back.
+     * Check a code and consume the challenge (check() then consume()).
      *
-     * @throws ApiException 422 invalid_code
+     * @param  (Closure(VerificationChallenge, string): bool)|null  $check
+     *
+     * @throws ApiException 422 invalid_code, 429 too_many_requests
      */
-    public function verify(string $id, string $code, string $purpose): VerificationChallenge
+    public function verify(string $id, string $code, string $purpose, ?Closure $check = null): VerificationChallenge
     {
-        $challenge = $this->findOpen($id, $purpose) ?? throw self::failure('auth.code.invalid');
+        $challenge = $this->check($id, $code, $purpose, $check);
+        $this->consume($challenge);
 
-        $failures = self::failureKey($challenge);
+        return $challenge->refresh();
+    }
 
-        if (RateLimiter::tooManyAttempts($failures, self::MAX_FAILURES_PER_HOUR)) {
-            throw self::tooMany(RateLimiter::availableIn($failures));
-        }
+    /**
+     * Check a code without consuming the challenge. Every attempt counts, and
+     * is committed before the answer is known, so failures cannot be rolled
+     * back. A caller that goes on must consume() before acting on the code.
+     *
+     * $check replaces the stored-code comparison (a TOTP challenge has no
+     * stored code); it runs after the attempt is counted.
+     *
+     * @param  (Closure(VerificationChallenge, string): bool)|null  $check
+     *
+     * @throws ApiException 422 invalid_code, 429 too_many_requests
+     */
+    public function check(string $id, string $code, string $purpose, ?Closure $check = null): VerificationChallenge
+    {
+        $challenge = $this->findUnconsumed($id, $purpose) ?? throw self::failure('auth.code.invalid');
+
+        $this->assertWithinFailureBudget($challenge->user_id, $purpose);
 
         if ($challenge->expires_at->isPast()) {
             throw self::failure('auth.code.expired');
@@ -156,13 +187,28 @@ class Challenges
             throw self::failure('auth.code.attempts');
         }
 
-        if (! hash_equals($challenge->code_hash, self::hash($challenge->id, $code))) {
-            RateLimiter::hit($failures, 3600);
+        $valid = $check !== null
+            ? $check($challenge, $code)
+            : hash_equals($challenge->code_hash, self::hash($challenge->id, $code));
+
+        if (! $valid) {
+            $this->recordFailedCode($challenge->user_id, $purpose);
 
             throw self::failure('auth.code.invalid');
         }
 
-        // Single use, even under concurrent requests.
+        return $challenge;
+    }
+
+    /**
+     * Mark a checked challenge used. A conditional update, so of concurrent
+     * requests holding the same valid code only one gets through; run it in
+     * the transaction that acts on the code so a later failure undoes it.
+     *
+     * @throws ApiException 422 invalid_code when it was already consumed
+     */
+    public function consume(VerificationChallenge $challenge): void
+    {
         $consumed = VerificationChallenge::whereKey($challenge->id)
             ->whereNull('consumed_at')
             ->update(['consumed_at' => now()]);
@@ -170,8 +216,34 @@ class Challenges
         if ($consumed === 0) {
             throw self::failure('auth.code.invalid');
         }
+    }
 
-        return $challenge->refresh();
+    /**
+     * Refuse once the user has failed 10 codes of $purpose in the hour, so
+     * codes checked without a challenge (TOTP enrolment) share the budget.
+     *
+     * @throws ApiException 429 too_many_requests
+     */
+    public function assertWithinFailureBudget(string $userId, string $purpose): void
+    {
+        $key = self::failureKey($userId, $purpose);
+
+        if (RateLimiter::tooManyAttempts($key, self::MAX_FAILURES_PER_HOUR)) {
+            throw self::tooMany(RateLimiter::availableIn($key));
+        }
+    }
+
+    public function recordFailedCode(string $userId, string $purpose): void
+    {
+        RateLimiter::hit(self::failureKey($userId, $purpose), 3600);
+    }
+
+    /** The 422 invalid_code error, with $key's message. */
+    public static function failure(string $key = 'auth.code.invalid'): ApiException
+    {
+        $message = __($key);
+
+        return new ApiException(422, 'invalid_code', $message, ['code' => [$message]]);
     }
 
     public static function maskDestination(?string $channel, ?string $destination): ?string
@@ -207,9 +279,22 @@ class Challenges
         }
     }
 
-    private static function failureKey(VerificationChallenge $challenge): string
+    private function findUnconsumed(string $id, string $purpose): ?VerificationChallenge
     {
-        return 'otp-failures|'.$challenge->purpose.'|'.$challenge->user_id;
+        if (! Str::isUuid($id)) {
+            return null;
+        }
+
+        $challenge = VerificationChallenge::find($id);
+
+        return $challenge !== null && $challenge->purpose === $purpose && $challenge->consumed_at === null
+            ? $challenge
+            : null;
+    }
+
+    private static function failureKey(string $userId, string $purpose): string
+    {
+        return 'otp-failures|'.$purpose.'|'.$userId;
     }
 
     private static function tooMany(int $seconds): ApiException
@@ -225,12 +310,5 @@ class Challenges
     private static function hash(string $id, string $code): string
     {
         return hash_hmac('sha256', $id.'|'.$code, (string) config('app.key'));
-    }
-
-    private static function failure(string $key): ApiException
-    {
-        $message = __($key);
-
-        return new ApiException(422, 'invalid_code', $message, ['code' => [$message]]);
     }
 }

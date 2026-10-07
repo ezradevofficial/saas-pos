@@ -151,6 +151,9 @@ class VerificationLimitsTest extends TestCase
         $this->signIn('amina@example.com')
             ->assertForbidden()
             ->assertJsonPath('code', 'unverified')
+            // No code was sent: the answer says to use the earlier one or wait.
+            ->assertJsonPath('message', __('auth.unverified_wait'))
+            ->assertHeader('Retry-After')
             ->assertJsonPath('challenge_id', null);
 
         $this->verify($challenge, $code)->assertOk();

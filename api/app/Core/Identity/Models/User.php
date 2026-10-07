@@ -30,14 +30,14 @@ class User extends Authenticatable implements HasLocalePreference
 
     public const STATUS_DEACTIVATED = 'deactivated';
 
-    protected array $auditHidden = ['password', 'two_factor_secret'];
+    protected array $auditHidden = ['password', 'two_factor_secret', 'two_factor_last_used_step'];
 
     protected $fillable = [
         'tenant_id', 'name', 'email', 'phone', 'password', 'locale', 'status',
         'email_verified_at', 'phone_verified_at',
     ];
 
-    protected $hidden = ['password', 'two_factor_secret'];
+    protected $hidden = ['password', 'two_factor_secret', 'two_factor_last_used_step'];
 
     protected $attributes = [
         'locale' => 'en',
@@ -52,6 +52,7 @@ class User extends Authenticatable implements HasLocalePreference
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'two_factor_last_used_step' => 'integer',
             'locked_until' => 'datetime',
             'last_sign_in_at' => 'datetime',
             'failed_sign_ins' => 'integer',
@@ -62,6 +63,11 @@ class User extends Authenticatable implements HasLocalePreference
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
+    }
+
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
     }
 
     public function isActive(): bool
@@ -82,8 +88,10 @@ class User extends Authenticatable implements HasLocalePreference
     /**
      * A bearer token for one signed-in device (AUTH-09), bound to the
      * user's tenant. Returns `id|secret`; only the secret's hash is stored.
+     *
+     * @param  list<string>  $abilities  ['*'], or TwoFactor::ENROL_ABILITY alone (AUTH-03)
      */
-    public function createDeviceToken(string $name, ?string $ip, ?string $userAgent): NewAccessToken
+    public function createDeviceToken(string $name, ?string $ip, ?string $userAgent, array $abilities = ['*']): NewAccessToken
     {
         $plain = $this->generateTokenString();
 
@@ -91,7 +99,7 @@ class User extends Authenticatable implements HasLocalePreference
             'tenant_id' => $this->tenant_id,
             'name' => Str::limit($name, 100, ''),
             'token' => hash('sha256', $plain),
-            'abilities' => ['*'],
+            'abilities' => $abilities,
             'ip' => $ip,
             'user_agent' => $userAgent,
         ]);

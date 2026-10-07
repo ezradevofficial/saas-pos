@@ -4,7 +4,10 @@ namespace Tests\Feature\Core\Identity;
 
 use App\Core\Identity\Notifications\NewDeviceSignIn;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use RuntimeException;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -126,6 +129,22 @@ class LoginSecurityTest extends TestCase
         $this->travel(2)->minutes();
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
         Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
+    }
+
+    public function test_a_failed_alert_push_does_not_fail_the_sign_in(): void
+    {
+        $user = $this->createUser();
+        $this->signIn($user->email, null, ['User-Agent' => 'Device A'])->assertOk();
+
+        // Real notifications, onto a queue that cannot be reached.
+        Notification::swap(new ChannelManager($this->app));
+        Queue::shouldReceive('connection')->andThrow(new RuntimeException('Queue unavailable'));
+
+        $token = $this->signIn($user->email, null, ['User-Agent' => 'Device B'])
+            ->assertOk()
+            ->json('token');
+
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
     }
 
     public function test_a_failed_attempt_does_not_make_a_device_known(): void
