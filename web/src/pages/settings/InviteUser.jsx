@@ -10,7 +10,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { contactPayload } from '@/lib/contact'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { AssignmentFields } from './users/AssignmentFields'
-import { assignmentBody, emptyAssignment, offeredRow, useRoles, useScopes, useScopeTypes } from './users/assignments'
+import { assignmentBody, emptyAssignment, offeredRow, useGrantOptions } from './users/assignments'
 
 const MAX_ROWS = 20
 
@@ -34,15 +34,13 @@ export default function InviteUser() {
   const queryClient = useQueryClient()
   const formRef = useRef(null)
   const alertRef = useRef(null)
-  const { roles, isError: rolesFailed, error: rolesError } = useRoles()
-  const scopes = useScopes()
-  const scopeTypes = useScopeTypes(scopes)
+  const options = useGrantOptions({ invite: true })
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [rows, setRows] = useState(() => [emptyAssignment()])
 
   // A row keeps a kind of place the user can offer once the lists have loaded.
-  const effective = rows.map((row) => offeredRow(row, scopeTypes, !scopes.isPending))
+  const effective = rows.map((row) => offeredRow(row, options))
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -73,7 +71,7 @@ export default function InviteUser() {
         {t('users.backToUsers')}
       </Link>
       <PageHeader title={t('users.invite.title')} description={t('users.invite.description')} />
-      {rolesFailed ? <Alert tone="danger" title={errorMessage(rolesError)} /> : null}
+      {options.rolesError ? <Alert tone="danger" title={errorMessage(options.rolesError)} /> : null}
       <Card>
         <form
           ref={formRef}
@@ -113,15 +111,13 @@ export default function InviteUser() {
                 value={row}
                 onChange={(value) => update(index, value)}
                 onRemove={rows.length > 1 ? () => remove(index) : null}
-                roles={roles}
-                scopes={scopes}
-                scopeTypes={scopeTypes}
+                options={options}
                 errors={rowErrors(errors.fields, index)}
               />
             ))}
             {rows.length < MAX_ROWS ? (
               <div>
-                <Button icon="plus" onClick={() => setRows((current) => [...current, emptyAssignment(scopeTypes)])}>
+                <Button icon="plus" onClick={() => setRows((current) => [...current, emptyAssignment(options.scopeTypes)])}>
                   {t('users.invite.addRole')}
                 </Button>
               </div>

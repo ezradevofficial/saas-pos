@@ -4,13 +4,15 @@ import { scopeLabel } from './assignments'
 
 /**
  * One role assignment: the role, the kind of place (whole organisation,
- * company, branch, location) and the place itself (RBAC-04).
+ * company, branch, location) and the place itself (RBAC-04). `options`
+ * (useGrantOptions) holds only what the user may grant.
  */
-export function AssignmentFields({ index, value, onChange, onRemove, roles, scopes, scopeTypes, errors = {} }) {
+export function AssignmentFields({ index, value, onChange, onRemove, options, errors = {} }) {
   const { t } = useTranslation()
   const set = (patch) => onChange({ ...value, ...patch })
   const number = index + 1
-  const places = value.scope_type && value.scope_type !== 'tenant' ? scopes[value.scope_type] : []
+  const places = value.scope_type && value.scope_type !== 'tenant' ? (options.places[value.scope_type] ?? []) : []
+  const roles = options.rolesFor(value)
 
   return (
     <fieldset className="grid gap-3 rounded-md border border-border p-4 sm:grid-cols-3">
@@ -22,14 +24,16 @@ export function AssignmentFields({ index, value, onChange, onRemove, roles, scop
         value={value.role_id}
         onChange={(event) => set({ role_id: event.target.value })}
         error={errors.role_id}
+        disabled={!options.ready}
         required
       />
       <Select
         label={t('users.assignment.scopeType')}
-        options={scopeTypes.map((type) => ({ value: type, label: t(`users.scopeTypes.${type}`) }))}
+        options={options.scopeTypes.map((type) => ({ value: type, label: t(`users.scopeTypes.${type}`) }))}
         value={value.scope_type}
         onChange={(event) => set({ scope_type: event.target.value, scope_id: '' })}
         error={errors.scope_type}
+        disabled={!options.ready}
         required
       />
       {value.scope_type === 'tenant' ? (
@@ -42,6 +46,7 @@ export function AssignmentFields({ index, value, onChange, onRemove, roles, scop
           value={value.scope_id}
           onChange={(event) => set({ scope_id: event.target.value })}
           error={errors.scope_id}
+          disabled={!options.ready}
           required
         />
       )}

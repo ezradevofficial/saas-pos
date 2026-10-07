@@ -170,7 +170,7 @@
     "codes": {
       "last_owner": "Your organisation needs at least one active Owner. Give the Owner role to someone else first.",
       "cannot_grant": "You can only give roles whose permissions you hold, where you manage access. Only an Owner can give or remove the Owner role.",
-      "invitation_stale": "This invitation no longer matches your organisation’s setup. Revoke it and send a new one.",
+      "invitation_stale": "This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.",
       "contact_unverified": "This person never verified an email or phone number, so they can’t be reactivated. Invite them again instead.",
       "system_role": "System roles can’t be changed. Copy the role to customise it.",
       "device_suspended": "This device is suspended. Resume it before unpairing it.",
@@ -674,6 +674,7 @@
     "archiveTitle": "Archive {{name}}?",
     "archiveText": "People who hold this role lose its permissions at once. Their other roles and history stay.",
     "archiveConfirm": "Archive role",
-    "keepRole": "Keep role"
+    "keepRole": "Keep role",
+    "emptyReadOnly": "No roles to show."
   }
 }

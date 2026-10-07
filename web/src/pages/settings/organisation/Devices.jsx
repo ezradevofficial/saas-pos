@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
+import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Dialog, Icon, StatusBadge, TextField } from '@/components/ds'
@@ -42,7 +43,7 @@ export function PairingCodeDialog({ device, pairing, onClose }) {
       <div className="flex flex-col gap-4">
         <p>{t('devices.codeIntro')}</p>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-100 px-4 py-3">
-          <output aria-label={t('devices.code')} className="font-mono text-h1 tracking-widest text-ink">
+          <output aria-label={t('devices.code')} className="font-mono text-h1 text-ink">
             {pairing.code}
           </output>
           <Button icon={copied ? 'check' : 'copy'} onClick={copy}>
@@ -174,14 +175,14 @@ export function Devices({ location, chain, archived }) {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-100 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-label text-ink">{t('devices.title', { location: location.name })}</h4>
+        <h3 className="text-label text-ink">{t('devices.title', { location: location.name })}</h3>
         {canCreate ? (
           <Button icon="plus" onClick={() => setAdding(true)}>
             {t('devices.add')}
           </Button>
         ) : null}
       </div>
-      {devices.isError ? <Alert tone="danger" title={devices.error.message} /> : null}
+      {devices.isError ? <Alert tone="danger" title={errorMessage(devices.error)} /> : null}
       {rowError ? <Alert tone="danger" title={orgErrorMessage(rowError, 'device')} /> : null}
       {devices.isPending ? (
         <p className="text-ink-muted">{t('common.loading')}</p>
@@ -234,7 +235,7 @@ export function Devices({ location, chain, archived }) {
                 ) : null}
                 {canPair && device.status === 'active' ? (
                   <Button
-                    variant="danger"
+                    variant="ghost"
                     onClick={() => setConfirm({ kind: 'unpair', device })}
                     aria-label={t('devices.unpairFor', { name: device.name })}
                   >

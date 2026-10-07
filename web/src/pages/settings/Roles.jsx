@@ -82,7 +82,20 @@ export default function Roles() {
         columns={columns}
         rows={roles.data?.data ?? []}
         onRowClick={(role) => navigate(`/settings/roles/${role.id}`)}
-        emptyText={roles.isPending ? t('common.loading') : t('roles.empty')}
+        emptyText={
+          roles.isPending ? (
+            t('common.loading')
+          ) : canCreate ? (
+            <span className="flex flex-col items-center gap-3">
+              {t('roles.empty')}
+              <Button variant="primary" icon="plus" onClick={() => navigate('/settings/roles/new')}>
+                {t('roles.create')}
+              </Button>
+            </span>
+          ) : (
+            t('roles.emptyReadOnly')
+          )
+        }
       />
       {copying ? <CopyRoleDialog role={copying} onClose={() => setCopying(null)} /> : null}
     </>

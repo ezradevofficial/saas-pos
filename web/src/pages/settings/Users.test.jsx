@@ -65,6 +65,8 @@ function users({ permissions = ADMIN, invitations = INVITATIONS, extra = {} } = 
       'companies?per_page=200': { data: COMPANIES },
       'branches?per_page=200': { data: BRANCHES },
       'locations?per_page=200': { data: LOCATIONS },
+      // The signed-in owner's own record says they hold the Owner role.
+      'users/u-1': { data: AMINA },
       ...extra,
     },
   })
@@ -151,9 +153,25 @@ describe('Users', () => {
     await waitFor(() => expect(click).toHaveBeenCalled())
     expect(api.download).toHaveBeenCalledWith('access-review?format=csv')
     expect(createObjectURL).toHaveBeenCalledWith(blob)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:review')
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:review'))
     click.mockRestore()
     vi.unstubAllGlobals()
+  })
+
+  it('falls back to Active for a tab the user cannot see', async () => {
+    users({ permissions: tenant(['core.user.view']) })
+    renderApp('/settings/users?tab=invitations')
+    expect(await screen.findByText('Joseph Mwangi')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true')
+    expect(api.get).not.toHaveBeenCalledWith('invitations?per_page=200')
+  })
+
+  it('offers an invitation from the empty Active list', async () => {
+    users({ extra: { 'users?status=active&per_page=50&page=1': { data: [], meta: { last_page: 1 } } } })
+    const { router } = renderApp('/settings/users')
+    const empty = (await screen.findByText('No active users in your part of the organisation yet.')).closest('td')
+    fireEvent.click(within(empty).getByRole('button', { name: 'Invite user' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/users/invite'))
   })
 
   it('explains a refused export in a sentence', async () => {
@@ -247,6 +265,45 @@ describe('InviteUser', () => {
         assignments: [{ role_id: 'r-owner', scope_type: 'tenant', scope_id: null }],
       }),
     )
+  })
+
+  it('offers a Branch Manager only roles they hold and places in their branch', async () => {
+    const branch = (names) => names.map((name) => ({ name, scopes: [{ type: 'branch', id: 'b-1' }] }))
+    users({
+      permissions: branch(['core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.user.invite', 'core.role.view', 'core.role.assign']),
+      extra: {
+        'users/u-1': { data: { ...AMINA, roles: [assignment('a-9', 'Branch Manager', { type: 'branch', id: 'b-1', name: 'Westlands' })] } },
+        'roles?per_page=200': {
+          data: [
+            { id: 'r-owner', name: 'Owner', is_system: true, is_owner: true, permissions: ['core.location.view'] },
+            { id: 'r-admin', name: 'Admin', is_system: true, is_owner: false, permissions: ['core.location.view', 'core.company.create'] },
+            { id: 'r-cashier', name: 'Cashier', is_system: true, is_owner: false, permissions: ['core.location.view'] },
+          ],
+        },
+        'branches?per_page=200': {
+          data: [...BRANCHES, { id: 'b-2', company_id: 'c-1', company: { id: 'c-1', name: 'Amani Retail' }, name: 'Gombe', code: 'GMB' }],
+        },
+        'locations?per_page=200': {
+          data: [...LOCATIONS, { id: 'l-2', branch_id: 'b-2', branch: { id: 'b-2', name: 'Gombe' }, name: 'Gombe till', type: 'outlet' }],
+        },
+      },
+    })
+    renderApp('/settings/users/invite')
+
+    const row = await screen.findByRole('group', { name: 'Role 1' })
+    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Front till · Westlands' }).length).toBe(1))
+    const roleNames = within(within(row).getByLabelText(/^Role/))
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(roleNames).toEqual(['Choose a role', 'Cashier'])
+    const types = within(within(row).getByLabelText(/Applies to/))
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(types).toEqual(['Branch', 'Location'])
+    expect(within(row).queryByRole('option', { name: 'Gombe till · Gombe' })).not.toBeInTheDocument()
+    fireEvent.change(within(row).getByLabelText(/Applies to/), { target: { value: 'branch' } })
+    expect(within(row).getByRole('option', { name: 'Westlands · Amani Retail' })).toBeInTheDocument()
+    expect(within(row).queryByRole('option', { name: 'Gombe · Amani Retail' })).not.toBeInTheDocument()
   })
 
   it('shows field errors under the fields and cannot_grant as a sentence', async () => {

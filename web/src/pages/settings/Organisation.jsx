@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
+import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Icon, StatusBadge, Switch } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -16,7 +17,7 @@ const PATHS = { company: 'companies', branch: 'branches', location: 'locations' 
 const LIST = (resource) => `${resource}?status=all&per_page=200`
 
 /** One record of the tree: name, code or type, status, and the actions the user may take. */
-function NodeRow({ icon, name, meta, archived, actions, className }) {
+function NodeRow({ icon, name, meta, archived, actions, className, heading: Name = 'span' }) {
   const { t } = useTranslation()
   return (
     <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 py-3', className)}>
@@ -24,7 +25,7 @@ function NodeRow({ icon, name, meta, archived, actions, className }) {
         <Icon name={icon} className="mt-0.5 text-ink-muted" />
         <div className="flex min-w-0 flex-col">
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-medium text-ink">{name}</span>
+            <Name className="font-medium text-ink">{name}</Name>
             <StatusBadge tone={archived ? 'neutral' : 'success'}>
               {archived ? t('organisation.status.archived') : t('organisation.status.active')}
             </StatusBadge>
@@ -208,13 +209,14 @@ export default function Organisation() {
           <NodeRow
             icon="organisation"
             name={<span className="text-h3">{company.name}</span>}
+            heading="h2"
             meta={meta}
             archived={archived}
             actions={recordActions('company', company, chain)}
             className="pt-0"
           />
         ) : (
-          <p className="pb-3 text-h3 text-ink">{company.name}</p>
+          <h2 className="pb-3 text-h3 text-ink">{company.name}</h2>
         )}
         {company.branches.length ? (
           <ul aria-label={t('organisation.branch.listOf', { name: company.name })} className="divide-y divide-border border-t border-border">
@@ -251,7 +253,7 @@ export default function Organisation() {
       />
       {anyArchived ? <Switch label={t('organisation.showArchived')} checked={showArchived} onChange={setShowArchived} /> : null}
       {failed ? (
-        <Alert tone="danger" title={failed.error.message} action={<Button onClick={() => queries.forEach((query) => query.refetch())}>{t('common.retry')}</Button>} />
+        <Alert tone="danger" title={errorMessage(failed.error)} action={<Button onClick={() => queries.forEach((query) => query.refetch())}>{t('common.retry')}</Button>} />
       ) : null}
       {restore.isError ? <Alert tone="danger" title={orgErrorMessage(restore.error, restore.variables?.level)} /> : null}
       {loading ? <p className="text-ink-muted">{t('common.loading')}</p> : null}

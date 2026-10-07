@@ -14,7 +14,7 @@ import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
 import { ConfirmDialog } from './ConfirmDialog'
 import { AssignmentFields } from './users/AssignmentFields'
-import { assignmentBody, emptyAssignment, offeredRow, USER_TONES, useRoles, useScopes, useScopeTypes } from './users/assignments'
+import { assignmentBody, emptyAssignment, offeredRow, USER_TONES, useGrantOptions } from './users/assignments'
 
 const LANGUAGES = ['en', 'fr']
 
@@ -89,14 +89,12 @@ function RolesCard({ user, canAssign }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
-  const { roles } = useRoles()
-  const scopes = useScopes()
-  const scopeTypes = useScopeTypes(scopes)
+  const options = useGrantOptions()
   const [row, setRow] = useState(null)
   const [removing, setRemoving] = useState(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['users'] })
 
-  const effective = offeredRow(row, scopeTypes, !scopes.isPending)
+  const effective = offeredRow(row, options)
   const add = useMutation({
     mutationFn: () => api.post(`users/${user.id}/assignments`, assignmentBody(effective)),
     onSuccess: async () => {
@@ -143,7 +141,7 @@ function RolesCard({ user, canAssign }) {
             label: <span className="sr-only">{t('users.columns.actions')}</span>,
             align: 'end',
             render: (a) => (
-              <Button variant="danger" onClick={() => setRemoving(a)} aria-label={t('users.detail.removeRoleFor', { role: a.role.name, scope: where(a) })}>
+              <Button variant="secondary" onClick={() => setRemoving(a)} aria-label={t('users.detail.removeRoleFor', { role: a.role.name, scope: where(a) })}>
                 {t('users.detail.removeRole')}
               </Button>
             ),
@@ -157,7 +155,7 @@ function RolesCard({ user, canAssign }) {
       title={t('users.detail.roles')}
       actions={
         canAssign && !row ? (
-          <Button icon="plus" onClick={() => setRow(emptyAssignment(scopeTypes))}>
+          <Button icon="plus" onClick={() => setRow(emptyAssignment(options.scopeTypes))}>
             {t('users.detail.addRole')}
           </Button>
         ) : null
@@ -175,7 +173,7 @@ function RolesCard({ user, canAssign }) {
             className="flex flex-col gap-3"
           >
             {addErrors.form ? <Alert tone="danger" title={errorMessage(add.error)} /> : null}
-            <AssignmentFields index={user.roles?.length ?? 0} value={effective} onChange={setRow} roles={roles} scopes={scopes} scopeTypes={scopeTypes} errors={addErrors.fields} />
+            <AssignmentFields index={user.roles?.length ?? 0} value={effective} onChange={setRow} options={options} errors={addErrors.fields} />
             <div className="flex flex-wrap justify-end gap-2">
               <Button
                 variant="ghost"

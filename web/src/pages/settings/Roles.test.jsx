@@ -186,6 +186,14 @@ describe('Roles', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/settings/roles/r-new'))
   })
 
+  it('offers Create role from the empty list', async () => {
+    roles({ extra: { 'roles?per_page=200': { data: [] } } })
+    const { router } = renderApp('/settings/roles')
+    const empty = (await screen.findByText('No roles yet. Create one to group permissions.')).closest('td')
+    fireEvent.click(within(empty).getByRole('button', { name: 'Create role' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/roles/new'))
+  })
+
   it('hides create, copy and editing from a view-only user', async () => {
     roles({ permissions: tenant(['core.role.view']) })
     renderApp('/settings/roles/r-sup')

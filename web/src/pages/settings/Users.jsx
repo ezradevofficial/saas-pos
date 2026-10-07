@@ -28,10 +28,11 @@ async function exportAccessReview() {
   document.body.append(link)
   link.click()
   link.remove()
-  URL.revokeObjectURL(url)
+  // Revoked after the click has handed the file to the browser.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-function UsersTable({ status }) {
+function UsersTable({ status, canInvite, onInvite }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
@@ -60,7 +61,20 @@ function UsersTable({ status }) {
         columns={columns}
         rows={users.data?.data ?? []}
         onRowClick={(user) => navigate(`/settings/users/${user.id}`)}
-        emptyText={users.isPending ? t('common.loading') : t(`users.empty.${status}`)}
+        emptyText={
+          users.isPending ? (
+            t('common.loading')
+          ) : status === 'active' && canInvite ? (
+            <span className="flex flex-col items-center gap-3">
+              {t('users.empty.active')}
+              <Button variant="primary" icon="plus" onClick={onInvite}>
+                {t('users.inviteUser')}
+              </Button>
+            </span>
+          ) : (
+            t(`users.empty.${status}`)
+          )
+        }
       />
       {lastPage > 1 ? (
         <nav aria-label={t('users.pages')} className="flex items-center justify-end gap-3">
@@ -142,7 +156,7 @@ function InvitationsTable({ canInvite, onInvite }) {
       render: (invitation) =>
         invitation.status === 'pending' ? (
           <Button
-            variant="danger"
+            variant="secondary"
             onClick={(event) => {
               event.stopPropagation()
               setRevoking(invitation)
@@ -199,14 +213,15 @@ export default function Users() {
   const location = useLocation()
   const [params, setParams] = useSearchParams()
   const { can } = usePermissions()
-  const tab = TABS.includes(params.get('tab')) ? params.get('tab') : 'active'
   const canInvite = can('core.user.invite')
+  const visibleTabs = TABS.filter((value) => value !== 'invitations' || canInvite)
+  const tab = visibleTabs.includes(params.get('tab')) ? params.get('tab') : 'active'
   const notice = location.state?.notice
 
   const download = useMutation({ mutationFn: exportAccessReview })
   const invite = () => navigate('/settings/users/invite')
 
-  const tabs = TABS.filter((value) => value !== 'invitations' || canInvite).map((value) => ({ value, label: t(`users.tabs.${value}`) }))
+  const tabs = visibleTabs.map((value) => ({ value, label: t(`users.tabs.${value}`) }))
 
   return (
     <>
@@ -231,7 +246,7 @@ export default function Users() {
       {notice ? <Alert tone="success" title={notice} /> : null}
       {download.isError ? <Alert tone="danger" title={errorMessage(download.error)} /> : null}
       <Tabs items={tabs} value={tab} onChange={(next) => setParams(next === 'active' ? {} : { tab: next }, { replace: true })} />
-      {tab === 'invitations' ? <InvitationsTable canInvite={canInvite} onInvite={invite} /> : <UsersTable key={tab} status={tab} />}
+      {tab === 'invitations' ? <InvitationsTable canInvite={canInvite} onInvite={invite} /> : <UsersTable key={tab} status={tab} canInvite={canInvite} onInvite={invite} />}
     </>
   )
 }
