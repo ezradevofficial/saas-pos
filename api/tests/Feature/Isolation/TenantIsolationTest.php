@@ -2,17 +2,23 @@
 
 namespace Tests\Feature\Isolation;
 
+use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\Concerns\RefreshTenantDatabase;
-use Tests\Feature\Core\Tenancy\RlsCoverageTest;
+use Tests\Support\GlobalTables;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
 use Tests\TestCase;
@@ -62,6 +68,36 @@ class TenantIsolationTest extends TestCase
         'assignment' => 'assignment',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
+
+    /**
+     * Body fields named `*_id` and which of B's ids to send in them.
+     * `scope_id` follows its sibling `scope_type` (SCOPE_IDS).
+     */
+    public const REFERENCE_FIELDS = [
+        'role_id' => 'role',
+        'company_id' => 'company',
+        'branch_id' => 'branch',
+        'location_id' => 'location',
+        'device_id' => 'device',
+        'user_id' => 'user',
+        'invitation_id' => 'invitation',
+        'assignment_id' => 'assignment',
+        'scope_id' => null,
+    ];
+
+    /** scope_type => which of B's ids goes in scope_id. */
+    public const SCOPE_IDS = ['tenant' => 'tenant', 'company' => 'company', 'branch' => 'branch', 'location' => 'location'];
+
+    /** Fields ending in `_id` that are not references to rows, with why. */
+    public const NOT_REFERENCES = [
+        'tax_id' => "a company's tax registration number, free text",
+    ];
+
+    /** The queries every list route is called with. */
+    public const LIST_QUERIES = [[], ['status' => 'all', 'per_page' => 200], ['format' => 'csv']];
+
+    /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format'];
 
     private TwoTenants $tenants;
 
@@ -162,7 +198,8 @@ class TenantIsolationTest extends TestCase
                 $response = $this->json($method, $uri, $this->hijackBody($b), $a->bearer());
                 $called++;
 
-                $this->assertContains($response->status(), [403, 404], "{$method} {$uri} with tenant B's ids answered {$response->status()} to tenant A: {$response->getContent()}");
+                // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
+                $this->assertSame(404, $response->status(), "{$method} {$uri} with tenant B's ids answered {$response->status()} to tenant A: {$response->getContent()}");
                 $this->assertBodyHasNothingOf($b, $response, "{$method} {$uri}");
 
                 // Control: the same GET with A's own ids works, so the 404 above is isolation, not a bad URL.
@@ -188,7 +225,7 @@ class TenantIsolationTest extends TestCase
             }
 
             foreach (['owner', 'manager', 'device'] as $who) {
-                foreach ([[], ['status' => 'all', 'per_page' => 200], ['format' => 'csv']] as $query) {
+                foreach (self::LIST_QUERIES as $query) {
                     $uri = '/'.$route->uri().($query === [] ? '' : '?'.http_build_query($query));
                     $response = $this->get($uri, $a->bearer($who));
 
@@ -202,6 +239,93 @@ class TenantIsolationTest extends TestCase
         }
 
         $this->assertGreaterThan(5, $okForOwner, 'the owner should be able to read most lists; the check above proves nothing otherwise');
+
+        // Controls: the manager and the device really read data in the checks above.
+        foreach (['/api/v1/me', '/api/v1/me/permissions', '/api/v1/locations'] as $uri) {
+            $this->get($uri, $a->bearer('manager'))->assertOk();
+        }
+        $this->assertNotEmpty($this->get('/api/v1/locations', $a->bearer('manager'))->json('data'));
+        $this->get('/api/v1/devices/me', $a->bearer('device'))->assertOk()->assertJsonPath('data.id', $a->id('device'));
+    }
+
+    /**
+     * Code-level guard: every query parameter a list route reads (its Form
+     * Request rules, and query()/input()/... calls in the request class and
+     * the controller method) must be one the list check above exercises. A
+     * new `?search=` or filter therefore fails here until the list check
+     * calls it with B's values.
+     */
+    public function test_list_routes_read_only_query_parameters_the_suite_exercises(): void
+    {
+        $checked = 0;
+
+        foreach ($this->apiRoutes() as $route) {
+            if ($route->parameterNames() !== [] || $this->isPublic($route) || ! in_array('GET', $route->methods(), true)) {
+                continue;
+            }
+
+            foreach ($this->queryParametersRead($route) as $parameter) {
+                $this->assertContains($parameter, self::LIST_QUERY_PARAMETERS, sprintf(
+                    'GET %s reads the query parameter [%s], which the isolation list check never sends: add it to %s::LIST_QUERY_PARAMETERS and to the queries of test_list_routes_show_nothing_of_tenant_b_to_the_owner_the_branch_manager_or_a_device (with tenant B\'s values for a search or filter).',
+                    $route->uri(), $parameter, self::class,
+                ));
+            }
+            $checked++;
+        }
+
+        $this->assertGreaterThan(5, $checked);
+    }
+
+    // ---- Ids in request bodies -------------------------------------------
+
+    /**
+     * Foreign keys are checked by PostgreSQL without row-level security, so
+     * a body naming B's role or location could be stored in A's rows. Every
+     * mutating route is called on A's own resources (it passes binding) with
+     * each id field of its Form Request set to one of B's ids: always 404 or
+     * 422, and afterwards no A row references anything of B.
+     */
+    public function test_ids_of_tenant_b_in_request_bodies_are_refused_and_never_stored(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $before = $this->snapshot($b->tenantId);
+        $hijacked = [];
+
+        foreach ($this->apiRoutes() as $route) {
+            if ($this->isPublic($route)) {
+                continue;
+            }
+
+            foreach (array_diff($this->methods($route), ['GET']) as $method) {
+                $key = "{$method} {$route->uri()}";
+                $idFields = $this->idFields($this->ruleKeys($route, $method, $a));
+
+                if ($idFields === []) {
+                    continue;
+                }
+
+                $base = $this->bodyFor($key, $a);
+                $this->assertNotNull($base, "{$key} takes ids in its body ({$this->list($idFields)}): add a valid body for it to bodyFor() so the isolation suite can send B's ids");
+                $uri = $this->uriWith($route, $a);
+
+                foreach ($this->hijackVariants($base, $idFields, $b) as $label => $body) {
+                    $response = $this->json($method, $uri, $body, $a->bearer());
+                    $this->assertContains($response->status(), [404, 422], "{$key} with {$label} of tenant B answered {$response->status()}: {$response->getContent()}");
+                    $this->assertBodyHasNothingOf($b, $response, "{$key} with {$label}");
+                    $hijacked[$key][] = $label;
+                }
+
+                // Control: the same body with A's own ids is accepted, so the refusals are about B's ids.
+                $control = $this->json($method, $uri, $base, $a->bearer());
+                $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->status()}: {$control->getContent()}");
+            }
+        }
+
+        $this->assertArrayHasKey('POST api/v1/invitations', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/users/{user}/assignments', $hijacked);
+        $this->assertNoRowOf($a, 'references', $b);
+        $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
 
     // ---- Exports ----------------------------------------------------------
@@ -231,7 +355,7 @@ class TenantIsolationTest extends TestCase
     /**
      * personal_access_tokens and verification_challenges carry a tenant_id
      * but are deliberately global (read before the tenant is known; see
-     * RlsCoverageTest::GLOBAL_TABLES). Authenticated code reaches them only
+     * GlobalTables::TABLES). Authenticated code reaches them only
      * through the signed-in user's own rows: prove it with B's rows.
      */
     public function test_global_tables_are_reached_only_through_the_signed_in_users_own_rows(): void
@@ -276,7 +400,7 @@ class TenantIsolationTest extends TestCase
             join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name
             where c.table_schema = 'public' and c.column_name = 'tenant_id' and t.table_type = 'BASE TABLE'
             order by c.table_name
-        "))->pluck('table_name')->diff(RlsCoverageTest::GLOBAL_TABLES)->values()->all();
+        "))->pluck('table_name')->diff(GlobalTables::TABLES)->values()->all();
 
         $this->assertNotEmpty($tables);
 
@@ -349,7 +473,7 @@ class TenantIsolationTest extends TestCase
                 }
             }
 
-            foreach (RlsCoverageTest::GLOBAL_TABLES as $table) {
+            foreach (GlobalTables::TABLES as $table) {
                 array_push($ids, ...DB::table($table)->where('tenant_id', $tenant->tenantId)->pluck('id')->map(fn ($id) => (string) $id));
             }
 
@@ -383,12 +507,219 @@ class TenantIsolationTest extends TestCase
                 $hashes[$table] = DB::selectOne("select md5(coalesce(string_agg(t::text, '|' order by t::text), '')) as h from \"{$table}\" t")->h;
             }
 
-            foreach (RlsCoverageTest::GLOBAL_TABLES as $table) {
+            foreach (GlobalTables::TABLES as $table) {
                 $hashes[$table] = DB::selectOne("select md5(coalesce(string_agg(t::text, '|' order by t::text), '')) as h from \"{$table}\" t where tenant_id = ?", [$tenantId])->h;
             }
 
             return $hashes;
         });
+    }
+
+    /** The Form Request class the route's action takes, if any. */
+    private function formRequestOf(RoutingRoute $route): ?string
+    {
+        $uses = $route->getAction('uses');
+
+        if (! is_string($uses)) {
+            return null;
+        }
+
+        [$class, $method] = str_contains($uses, '@') ? explode('@', $uses, 2) : [$uses, '__invoke'];
+
+        foreach ((new ReflectionMethod($class, $method))->getParameters() as $parameter) {
+            $type = $parameter->getType();
+
+            if ($type instanceof ReflectionNamedType && is_subclass_of($type->getName(), FormRequest::class)) {
+                return $type->getName();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The keys of the route's Form Request rules(), built as for a real
+     * request by A's Owner on A's own resources (rules may read the route).
+     *
+     * @return list<string>
+     */
+    private function ruleKeys(RoutingRoute $route, string $method, TenantFixture $a): array
+    {
+        $class = $this->formRequestOf($route);
+
+        if ($class === null) {
+            return [];
+        }
+
+        return $this->asTenant($a->tenantId, function () use ($class, $route, $method, $a) {
+            $owner = User::findOrFail($a->id('user'));
+            $request = $class::create($this->uriWith($route, $a), $method);
+            $request->setContainer(app())->setUserResolver(fn () => $owner);
+            $route->bind($request);
+            $request->setRouteResolver(fn () => $route);
+            app('router')->substituteBindings($route);
+            app('router')->substituteImplicitBindings($route);
+
+            return array_keys(app()->call([$request, 'rules']));
+        });
+    }
+
+    /**
+     * Rule keys naming a row by id (`role_id`, `assignments.*.scope_id`);
+     * fails for an `_id` field the suite cannot fill.
+     *
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    private function idFields(array $keys): array
+    {
+        $fields = [];
+
+        foreach ($keys as $key) {
+            $leaf = Str::afterLast($key, '.');
+
+            if (! str_ends_with($leaf, '_id') || isset(self::NOT_REFERENCES[$leaf])) {
+                continue;
+            }
+
+            $this->assertArrayHasKey($leaf, self::REFERENCE_FIELDS, sprintf(
+                'The body field [%s] looks like an id the isolation suite cannot fill: add it to %s::REFERENCE_FIELDS (or NOT_REFERENCES with a reason).',
+                $key, self::class,
+            ));
+            $fields[] = $key;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * $base with one id field at a time set to B's id (scope_id once per
+     * scope type), then all of them at once.
+     *
+     * @param  list<string>  $fields
+     * @return array<string, array>
+     */
+    private function hijackVariants(array $base, array $fields, TenantFixture $b): array
+    {
+        $variants = [];
+        $all = $base;
+
+        foreach ($fields as $field) {
+            $path = str_replace('*', '0', $field);
+            $leaf = Str::afterLast($field, '.');
+
+            if ($leaf === 'scope_id') {
+                $typePath = Str::beforeLast($path, 'scope_id').'scope_type';
+
+                foreach (self::SCOPE_IDS as $type => $idType) {
+                    $body = $base;
+                    data_set($body, $typePath, $type);
+                    data_set($body, $path, $b->id($idType));
+                    $variants["{$field} = {$type} {$b->id($idType)}"] = $body;
+                }
+
+                data_set($all, $path, $b->id(self::SCOPE_IDS[data_get($base, $typePath)]));
+
+                continue;
+            }
+
+            $body = $base;
+            data_set($body, $path, $b->id(self::REFERENCE_FIELDS[$leaf]));
+            $variants["{$field} = {$b->id(self::REFERENCE_FIELDS[$leaf])}"] = $body;
+            data_set($all, $path, $b->id(self::REFERENCE_FIELDS[$leaf]));
+        }
+
+        $variants['every id field'] = $all;
+
+        return $variants;
+    }
+
+    /** A valid body for "METHOD uri" naming $tenant's own rows; null when the suite has none. */
+    private function bodyFor(string $key, TenantFixture $tenant): ?array
+    {
+        $assignment = ['role_id' => $tenant->id('role'), 'scope_type' => 'location', 'scope_id' => $tenant->id('location')];
+
+        return match ($key) {
+            'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
+            'POST api/v1/users/{user}/assignments' => $assignment,
+            default => null,
+        };
+    }
+
+    /**
+     * Fails when any row of $holder (read in its context) holds one of
+     * $other's ids in a uuid column, or in a json/jsonb column's text.
+     */
+    private function assertNoRowOf(TenantFixture $holder, string $verb, TenantFixture $other): void
+    {
+        $ids = array_values(array_filter($this->identifiersOf($other), fn ($v) => Str::isUuid($v)));
+        $array = '{'.implode(',', $ids).'}';
+        $patterns = '{'.implode(',', array_map(fn ($id) => "%{$id}%", $ids)).'}';
+        $scanned = 0;
+
+        $this->asTenant($holder->tenantId, function () use ($array, $patterns, $verb, &$scanned) {
+            foreach ($this->tenantTables() as $table) {
+                $columns = DB::select("
+                    select column_name, data_type from information_schema.columns
+                    where table_schema = 'public' and table_name = ? and data_type in ('uuid', 'json', 'jsonb')
+                ", [$table]);
+
+                foreach ($columns as $column) {
+                    $sql = $column->data_type === 'uuid'
+                        ? "select count(*) from \"{$table}\" where \"{$column->column_name}\" = any(?::uuid[])"
+                        : "select count(*) from \"{$table}\" where \"{$column->column_name}\"::text like any(?::text[])";
+                    $found = $this->rows($sql, [$column->data_type === 'uuid' ? $array : $patterns]);
+                    $this->assertSame(0, $found, "{$table}.{$column->column_name}: {$found} row(s) of tenant A {$verb} ids of tenant B");
+                    $scanned++;
+                }
+            }
+        });
+
+        $this->assertGreaterThan(20, $scanned);
+    }
+
+    /**
+     * Query parameters a GET route reads: its Form Request's rule keys and
+     * literal query()/input()/... reads in that request class (and its
+     * parents) and in the controller method.
+     *
+     * @return list<string>
+     */
+    private function queryParametersRead(RoutingRoute $route): array
+    {
+        $sources = [];
+        $uses = $route->getAction('uses');
+
+        if (is_string($uses)) {
+            [$class, $method] = str_contains($uses, '@') ? explode('@', $uses, 2) : [$uses, '__invoke'];
+            $reflection = new ReflectionMethod($class, $method);
+            $lines = file($reflection->getFileName());
+            $sources[] = implode('', array_slice($lines, $reflection->getStartLine() - 1, $reflection->getEndLine() - $reflection->getStartLine() + 1));
+        }
+
+        $parameters = [];
+        $request = $this->formRequestOf($route);
+
+        if ($request !== null) {
+            $parameters = $this->ruleKeys($route, 'GET', $this->tenants->a);
+
+            for ($class = new ReflectionClass($request); $class && $class->getName() !== FormRequest::class; $class = $class->getParentClass()) {
+                $sources[] = file_get_contents($class->getFileName());
+            }
+        }
+
+        foreach ($sources as $source) {
+            preg_match_all('/->(?:query|input|get|string|integer|boolean|has|filled|validated|date|enum|collect)\(\s*[\'"]([A-Za-z0-9_.\-\[\]]+)[\'"]/', $source, $matches);
+            array_push($parameters, ...$matches[1]);
+        }
+
+        return array_values(array_unique(array_map(fn ($p) => Str::before($p, '.'), $parameters)));
+    }
+
+    /** @param list<string> $items */
+    private function list(array $items): string
+    {
+        return implode(', ', $items);
     }
 
     private function lastVerificationCode(): string
