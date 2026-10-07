@@ -33,7 +33,7 @@ class Auditor
 
     /** Fields a caller may set through $extra, overriding AuditContext. */
     private const OVERRIDABLE = [
-        'module', 'occurred_at', 'device_time', 'user_id', 'on_behalf_of_user_id',
+        'module', 'device_time', 'user_id', 'on_behalf_of_user_id',
         'ip', 'user_agent', 'device_id', 'location_id',
     ];
 
@@ -120,17 +120,29 @@ class Auditor
 
     /**
      * First seq at which $tenantId's chain is broken (bad hash, bad link,
-     * gap, or entries missing after the head), or null when intact. Runs
+     * gap, or entries missing up to the head), or null when intact. Runs
      * inside the tenant's own context: RLS is never bypassed.
+     *
+     * The head is read first and only entries up to its seq are walked: an
+     * entry and its head update commit together, so every entry up to the
+     * head is visible, and entries appended while verifying are ignored.
      */
     public function verify(string $tenantId): ?int
     {
         return $this->tenants->run($tenantId, function () use ($tenantId) {
             $db = $this->connection();
+            $head = $this->chainHead($db, $tenantId);
+            $headSeq = $head === null ? 0 : (int) $head->seq;
+            $headHash = $head === null ? self::GENESIS_HASH : $head->hash;
             $expectedSeq = 1;
             $prevHash = self::GENESIS_HASH;
 
-            foreach ($db->table('audit_logs')->where('tenant_id', $tenantId)->lazyById(500, 'seq') as $entry) {
+            $entries = $db->table('audit_logs')
+                ->where('tenant_id', $tenantId)
+                ->where('seq', '<=', $headSeq)
+                ->lazyById(500, 'seq');
+
+            foreach ($entries as $entry) {
                 $fields = self::normalise((array) $entry);
 
                 if ($fields['seq'] !== $expectedSeq
@@ -143,13 +155,24 @@ class Auditor
                 $expectedSeq++;
             }
 
-            $head = $db->table('audit_chain_heads')->where('tenant_id', $tenantId)->first();
-            if ($head !== null && ((int) $head->seq !== $expectedSeq - 1 || $head->hash !== $prevHash)) {
+            // The walk must end exactly at the head.
+            if ($expectedSeq - 1 !== $headSeq || $prevHash !== $headHash) {
                 return $expectedSeq;
+            }
+
+            // Entries without a head (head removed or never written).
+            if ($head === null && $db->table('audit_logs')->where('tenant_id', $tenantId)->exists()) {
+                return 1;
             }
 
             return null;
         });
+    }
+
+    /** The tenant's chain head row, or null before the first entry. */
+    protected function chainHead(Connection $db, string $tenantId): ?object
+    {
+        return $db->table('audit_chain_heads')->where('tenant_id', $tenantId)->first();
     }
 
     /**

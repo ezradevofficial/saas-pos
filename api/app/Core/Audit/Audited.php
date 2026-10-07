@@ -12,6 +12,13 @@ use Illuminate\Support\Str;
  *   protected string $auditResource = 'company';   // default snake_case class name
  *   protected array $auditHidden = ['password'];   // never written to the log
  * Attributes in $hidden and the created/updated timestamps are never logged.
+ *
+ * save() runs in a transaction, so a change and its audit entry commit or
+ * roll back together (AUD-01).
+ *
+ * Only Eloquent model events are audited: query-builder bulk updates such as
+ * `Company::where(...)->update([...])` bypass auditing and must not be used
+ * on audited models.
  */
 trait Audited
 {
@@ -37,6 +44,12 @@ trait Audited
                 $model->auditValues($keys, original: false),
             );
         });
+    }
+
+    /** The change and its audit entry share one transaction (a savepoint when nested). */
+    public function save(array $options = []): bool
+    {
+        return $this->getConnection()->transaction(fn () => parent::save($options));
     }
 
     public function auditModule(): string

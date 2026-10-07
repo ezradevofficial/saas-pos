@@ -12,10 +12,13 @@ use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Tenancy\TenantContextMissing;
+use Carbon\Carbon;
+use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use LogicException;
+use RuntimeException;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -184,10 +187,78 @@ class AuditLogTest extends TestCase
     public function test_microsecond_timestamps_with_trailing_zeros_verify(): void
     {
         // PostgreSQL trims trailing zeros from fractional seconds on output.
-        foreach (['2026-10-07T10:00:00.000000Z', '2026-10-07T10:00:00.500000Z', '2026-10-07T10:00:00.123456Z'] as $at) {
-            app(Auditor::class)->record('core.settings.edit', null, null, ['at' => $at], ['occurred_at' => $at, 'device_time' => $at]);
+        $times = ['2026-10-07T10:00:00.000000Z', '2026-10-07T10:00:00.500000Z', '2026-10-07T10:00:00.123456Z'];
+
+        try {
+            foreach ($times as $at) {
+                Carbon::setTestNow($at);
+                app(Auditor::class)->record('core.settings.edit', null, null, ['at' => $at], ['device_time' => $at]);
+            }
+        } finally {
+            Carbon::setTestNow();
         }
 
+        $this->assertSame(
+            $times,
+            AuditEntry::orderBy('seq')->get()->map(fn (AuditEntry $e) => $e->occurred_at->utc()->format('Y-m-d\TH:i:s.u\Z'))->all(),
+        );
+        $this->assertNull(app(Auditor::class)->verify($this->a->id));
+    }
+
+    public function test_occurred_at_cannot_be_set_by_the_caller(): void
+    {
+        $entry = app(Auditor::class)->record('core.settings.edit', null, null, null, ['occurred_at' => '2000-01-01T00:00:00Z']);
+
+        $this->assertNotSame(2000, $entry->occurred_at->year);
+    }
+
+    public function test_a_failed_audit_rolls_back_the_create(): void
+    {
+        $this->app->bind(Auditor::class, fn () => throw new RuntimeException('audit down'));
+
+        try {
+            $this->company('Unaudited Ltd');
+            $this->fail('The audit failure was swallowed');
+        } catch (RuntimeException $e) {
+            $this->assertSame('audit down', $e->getMessage());
+        }
+
+        $this->assertSame(0, Company::count());
+    }
+
+    public function test_a_failed_audit_rolls_back_the_update(): void
+    {
+        $company = $this->company();
+        $this->app->bind(Auditor::class, fn () => throw new RuntimeException('audit down'));
+
+        try {
+            $company->update(['name' => 'A Holdings']);
+            $this->fail('The audit failure was swallowed');
+        } catch (RuntimeException $e) {
+            $this->assertSame('audit down', $e->getMessage());
+        }
+
+        $this->assertSame('A Ltd', Company::sole()->name);
+        $this->assertSame(1, AuditEntry::count());
+    }
+
+    public function test_entries_appended_while_verifying_are_ignored(): void
+    {
+        $this->company()->update(['name' => 'A Holdings']);
+
+        // Another writer appends right after verify has read the head.
+        $auditor = new class(app(TenantContext::class), app(AuditContext::class)) extends Auditor
+        {
+            protected function chainHead(Connection $db, string $tenantId): ?object
+            {
+                $head = parent::chainHead($db, $tenantId);
+                app(Auditor::class)->record('core.settings.edit', null, null, ['late' => true]);
+
+                return $head;
+            }
+        };
+
+        $this->assertNull($auditor->verify($this->a->id));
         $this->assertSame(3, AuditEntry::count());
         $this->assertNull(app(Auditor::class)->verify($this->a->id));
     }
@@ -204,8 +275,14 @@ class AuditLogTest extends TestCase
     {
         $this->company();
 
-        $this->expectException(QueryException::class);
-        DB::transaction(fn () => DB::update("update audit_logs set action = 'tampered'"));
+        try {
+            DB::transaction(fn () => DB::update("update audit_logs set action = 'tampered'"));
+            $this->fail('Update was allowed');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('permission denied', $e->getMessage());
+        }
+
+        $this->assertSame('core.company.create', AuditEntry::sole()->action);
     }
 
     public function test_runtime_role_cannot_delete_audit_logs(): void

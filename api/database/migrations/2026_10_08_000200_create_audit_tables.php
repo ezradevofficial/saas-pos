@@ -67,8 +67,10 @@ return new class extends Migration
                 for each statement execute function audit_logs_append_only();
             SQL);
 
-        // Default privileges grant the runtime role full DML; take back the
-        // destructive part (the runtime role is the `pgsql` connection user).
+        // Default privileges grant the runtime role SELECT, INSERT, UPDATE and
+        // DELETE; take back UPDATE and DELETE. TRUNCATE is never granted by
+        // default; revoking it too is defensive. The runtime role is the
+        // `pgsql` connection user.
         $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
         DB::statement("revoke update, delete, truncate on audit_logs from {$runtimeRole}");
     }

@@ -44,6 +44,15 @@ class AuditTamperTest extends TestCase
     {
         app(TenantContext::class)->set(null);
 
+        if (isset($this->tenant)) {
+            $this->cleanUp();
+        }
+
+        parent::tearDown();
+    }
+
+    private function cleanUp(): void
+    {
         $this->owner()->transaction(function (Connection $owner) {
             $owner->statement('alter table audit_logs disable trigger audit_logs_append_only');
             $owner->delete('delete from audit_logs where tenant_id = ?', [$this->tenant->id]);
@@ -51,8 +60,6 @@ class AuditTamperTest extends TestCase
             $owner->delete('delete from audit_chain_heads where tenant_id = ?', [$this->tenant->id]);
             $owner->delete('delete from tenants where id = ?', [$this->tenant->id]);
         });
-
-        parent::tearDown();
     }
 
     private function owner(): Connection
