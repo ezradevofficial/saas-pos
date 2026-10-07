@@ -1,0 +1,11 @@
+{
+  "app": {
+    "name": "{{appName}}"
+  },
+  "common": {
+    "loading": "Loading",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "save": "Save changes"
+  }
+}

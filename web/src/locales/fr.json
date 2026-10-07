@@ -1,0 +1,11 @@
+{
+  "app": {
+    "name": "{{appName}}"
+  },
+  "common": {
+    "loading": "Chargement",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "save": "Enregistrer les modifications"
+  }
+}

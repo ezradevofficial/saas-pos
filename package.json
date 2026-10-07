@@ -9,6 +9,7 @@
   "scripts": {
     "dev:web": "npm run dev --workspace web",
     "dev:pos": "npm run start --workspace pos",
-    "dev:api": "cd api && php artisan serve --port=8008"
+    "dev:api": "cd api && php artisan serve --port=8008",
+    "check:i18n": "node scripts/check-i18n.mjs"
   }
 }

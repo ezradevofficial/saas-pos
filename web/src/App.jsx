@@ -1,9 +1,12 @@
-import { appName } from './config'
+import { useTranslation } from 'react-i18next'
+import './i18n'
 
 function App() {
+  const { t } = useTranslation()
+
   return (
     <main>
-      <h1>{appName}</h1>
+      <h1>{t('app.name')}</h1>
     </main>
   )
 }
