@@ -126,6 +126,8 @@ class Auditor
      * The head is read first and only entries up to its seq are walked: an
      * entry and its head update commit together, so every entry up to the
      * head is visible, and entries appended while verifying are ignored.
+     * Then any entry above the current head is a break at head seq + 1
+     * (a head moved back to hide entries; the database also refuses that).
      */
     public function verify(string $tenantId): ?int
     {
@@ -160,9 +162,18 @@ class Auditor
                 return $expectedSeq;
             }
 
-            // Entries without a head (head removed or never written).
-            if ($head === null && $db->table('audit_logs')->where('tenant_id', $tenantId)->exists()) {
-                return 1;
+            // Entries beyond the head: a head moved back (or removed) hides
+            // them from the walk. The head is read again in the same
+            // statement, so an entry appended meanwhile (committed with its
+            // head) is never a false alarm.
+            $beyond = $db->selectOne(<<<'SQL'
+                select h.seq as head_seq,
+                       exists (select 1 from audit_logs l where l.tenant_id = ? and l.seq > h.seq) as hidden
+                from (select coalesce((select seq from audit_chain_heads where tenant_id = ?), 0) as seq) h
+                SQL, [$tenantId, $tenantId]);
+
+            if ($beyond->hidden) {
+                return (int) $beyond->head_seq + 1;
             }
 
             return null;

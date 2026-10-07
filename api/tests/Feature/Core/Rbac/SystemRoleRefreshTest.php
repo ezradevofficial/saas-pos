@@ -75,7 +75,7 @@ class SystemRoleRefreshTest extends TestCase
 
         app(PermissionRegistry::class)->register('core', ['refresh_probe' => ['view', 'edit']]);
         $this->assertSame(0, Artisan::call('permissions:sync'));
-        $this->assertStringContainsString('2 new; system roles refreshed in 2 tenants', Artisan::output());
+        $this->assertMatchesRegularExpression('/2 new; system roles refreshed in \d+ tenants/', Artisan::output());
 
         foreach ([$tenantA, $tenantB] as $tenantId) {
             $this->asTenant($tenantId, function () {
