@@ -1,0 +1,29 @@
+<!-- @dsCard group="Data" height=250 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>DataTable preview</title>
+<style>
+  body { margin: 0; padding: 20px; background: var(--surface-100); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .muted { color: var(--ink-muted); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  var B = window.DS, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+h(B.DataTable,{caption:'Purchase orders',selectedId:'2',
+  columns:[{key:'no',label:'PO number'},{key:'supplier',label:'Supplier'},{key:'status',label:'Status',render:function(r){return h(B.StatusBadge,{tone:r.tone},r.status)}},{key:'total',label:'Total',align:'end',numeric:true,render:function(r){return h(B.Money,{amount:r.total,currency:r.cur})}}],
+  rows:[{id:'1',no:'PO-NBO-00412',supplier:'Bidco Africa',status:'Approved',tone:'success',total:245000,cur:'KES'},
+        {id:'2',no:'PO-NBO-00413',supplier:'Kapa Oil Refineries',status:'Pending',tone:'warning',total:118450,cur:'KES'},
+        {id:'3',no:'PO-KIN-00087',supplier:'Marsavco',status:'Overdue',tone:'danger',total:3920,cur:'USD'},
+        {id:'4',no:'PO-KIN-00088',supplier:'Bralima',status:'Draft',tone:'neutral',total:1275.5,cur:'USD'}]})
+  ));
+</script>
+</body>
+</html>

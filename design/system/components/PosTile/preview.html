@@ -1,0 +1,28 @@
+<!-- @dsCard group="POS" height=150 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PosTile preview</title>
+<style>
+  body { margin: 0; padding: 20px; background: var(--surface-100); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .muted { color: var(--ink-muted); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  var B = window.DS, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+h('div',{className:'tiles'},
+  h(B.PosTile,{name:'Tusker Lager 500ml',price:250,currency:'KES',stock:48}),
+  h(B.PosTile,{name:'Chapati',price:30,currency:'KES',color:'var(--accent-ink)'}),
+  h(B.PosTile,{name:'Coca-Cola 300ml',price:1.5,currency:'USD',stock:3}),
+  h(B.PosTile,{name:'Simba Beer 72cl',price:2.5,currency:'USD',stock:0}))
+  ));
+</script>
+</body>
+</html>

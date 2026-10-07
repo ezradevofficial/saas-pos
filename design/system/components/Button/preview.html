@@ -1,0 +1,32 @@
+<!-- @dsCard group="Actions" height=120 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Button preview</title>
+<style>
+  body { margin: 0; padding: 20px; background: var(--surface-100); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .muted { color: var(--ink-muted); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  var B = window.DS, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+h('div',{className:'row'},
+  h(B.Button,{variant:'primary'},'Approve'),
+  h(B.Button,null,'Save draft'),
+  h(B.Button,{variant:'ghost'},'Cancel'),
+  h(B.Button,{variant:'danger'},'Void sale'),
+  h(B.Button,{variant:'primary',disabled:true},'Approve')),
+h('div',{className:'row',style:{marginTop:12}},
+  h(B.Button,{variant:'pay',size:'lg'},'Charge USD 48.50'),
+  h(B.Button,{size:'lg',icon:'sync'},'Retry sync'))
+  ));
+</script>
+</body>
+</html>

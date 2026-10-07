@@ -1,0 +1,26 @@
+<!-- @dsCard group="Layout" height=260 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Dialog preview</title>
+<style>
+  body { margin: 0; padding: 20px; background: var(--surface-100); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .muted { color: var(--ink-muted); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  var B = window.DS, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+h(B.Dialog,{open:true,inline:true,title:'Void this sale?',onClose:function(){},
+  footer:[h(B.Button,{key:'c',variant:'ghost'},'Keep sale'),h(B.Button,{key:'v',variant:'danger'},'Void sale')]},
+  h('p',{style:{margin:0}},'Receipt R-WL1-004512 for KES 2,340 will be cancelled and reported to KRA eTIMS. A manager PIN is required.'))
+  ));
+</script>
+</body>
+</html>

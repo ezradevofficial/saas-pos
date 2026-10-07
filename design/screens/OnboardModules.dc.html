@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding modules and price</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="min-height: 1000px; box-sizing: border-box; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 32px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <div style="font-weight: 600; font-size: 20px; color: var(--primary);">Product name</div>
+    <span style="font-size: 13px; color: var(--ink-muted);">Westlands Mini Mart · Supermarket · Kenya</span>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 32px;">
+    <x-import component-from-global-scope="DS.StageTracker" stages="{{steps}}" current="Modules"></x-import>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <h1 style="margin: 0; font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em;">Pick the modules you need</h1>
+          <p style="margin: 0; font-size: 16px; line-height: 24px; color: var(--ink-muted);">We picked the usual ones for a supermarket. Pay only for what you switch on, and add more any time.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 20px; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px;">
+          <sc-for list="{{counters}}" as="c" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font: 600 13px/18px var(--font-sans);">{{c.label}}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" onClick="{{c.dec}}" aria-label="{{c.decLabel}}" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font-size: 20px; cursor: pointer;">−</button>
+                <span style="min-width: 40px; text-align: center; font: 600 18px/24px var(--font-mono);">{{c.value}}</span>
+                <button type="button" onClick="{{c.inc}}" aria-label="{{c.incLabel}}" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font-size: 20px; cursor: pointer;">+</button>
+              </div>
+              <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{c.help}}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <h2 style="margin: 0; font-size: 20px; line-height: 28px; font-weight: 600;">{{g.name}}</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
+              <sc-for list="{{g.mods}}" as="m" hint-placeholder-count="3">
+                <button type="button" onClick="{{m.toggle}}" aria-pressed="{{m.pressed}}" style="{{m.style}}">
+                  <span style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+                    <span style="font-weight: 600; font-size: 16px; line-height: 24px;">{{m.name}}</span>
+                    <span style="{{m.checkStyle}}" aria-hidden="true">✓</span>
+                  </span>
+                  <span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">{{m.desc}}</span>
+                  <span style="font: 600 13px/18px var(--font-mono); color: var(--ink);">{{m.price}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+
+      <aside style="flex: 1 1 340px; min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 16px; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px; padding: 20px; ">
+        <div style="font-weight: 600; font-size: 18px; line-height: 24px;">Your monthly price</div>
+        <div style="display: flex; padding: 4px; border-radius: 999px; background: var(--surface-300); gap: 4px;">
+          <button type="button" onClick="{{setMonthly}}" aria-pressed="{{monthlyPressed}}" style="{{monthlyStyle}}">Monthly</button>
+          <button type="button" onClick="{{setAnnual}}" aria-pressed="{{annualPressed}}" style="{{annualStyle}}">Yearly · 2 months free</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+              <span style="color: var(--ink-muted);">{{l.label}}</span>
+              <span style="font: 500 14px/20px var(--font-mono); white-space: nowrap;">{{l.amount}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{hasBundle}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; background: var(--accent); color: var(--on-accent);">
+            <span style="font-weight: 600;">{{bundleName}} bundle applied</span>
+            <span style="font: 600 14px/20px var(--font-mono); white-space: nowrap;">− {{bundleSaving}}</span>
+          </div>
+        </sc-if>
+        <div style="border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px;">
+          <span style="font-weight: 600; font-size: 16px;">{{periodLabel}}</span>
+          <span style="font: 600 28px/36px var(--font-mono); white-space: nowrap;">{{total}}</span>
+        </div>
+        <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">Prices exclude VAT. You pay nothing for 14 days. Pay later by M-Pesa, Airtel Money or card.</div>
+        <a href="OnboardSetup.dc.html" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; border-radius: 8px; background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 600; font-size: 16px;">Start free trial</a>
+        <a href="OnboardBusiness.dc.html" style="text-align: center; font-weight: 600;">Back</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { on: { pos: true, inventory: true, loyalty: true, stores: true, accounting: true, procurement: true, hr: false, payroll: true }, outlets: 2, devices: 5, employees: 18, annual: false };
+  }
+  renderVals() {
+    var self = this, s = this.state;
+    function kes(n) { return 'KES ' + Math.round(n).toLocaleString('en-KE'); }
+    var extraDevices = Math.max(0, s.devices - 2 * s.outlets);
+    var mods = [
+      { id: 'pos', g: 'Sell', name: 'POS', desc: 'Every till type, offline selling, receipts, eTIMS', unit: 'per outlet', price: 2500, cost: function () { return 2500 * s.outlets + 500 * extraDevices; } },
+      { id: 'inventory', g: 'Sell', name: 'Inventory', desc: 'Stock levels, transfers, counts, reorder alerts', unit: 'per outlet', price: 1500, cost: function () { return 1500 * s.outlets; } },
+      { id: 'loyalty', g: 'Sell', name: 'Loyalty and credit', desc: 'Points, promotions, customer credit accounts', unit: 'per outlet', price: 1000, cost: function () { return 1000 * s.outlets; } },
+      { id: 'ecommerce', g: 'Sell', name: 'E-commerce and delivery', desc: 'Online shop, WhatsApp orders, riders', unit: 'per store', price: 2500, cost: function () { return 2500; } },
+      { id: 'stores', g: 'Operate', name: 'Stores', desc: 'Internal requisitions and issues', unit: 'per outlet', price: 1000, cost: function () { return 1000 * s.outlets; } },
+      { id: 'procurement', g: 'Operate', name: 'Procurement', desc: 'Requisitions, tenders, POs, goods received', unit: 'per company', price: 3000, cost: function () { return 3000; } },
+      { id: 'manufacturing', g: 'Operate', name: 'Manufacturing', desc: 'Recipes, production, wastage', unit: 'per company', price: 4000, cost: function () { return 4000; } },
+      { id: 'assets', g: 'Operate', name: 'Fixed assets', desc: 'Asset register, depreciation', unit: 'per company', price: 1500, cost: function () { return 1500; } },
+      { id: 'accounting', g: 'Finance and people', name: 'Accounting', desc: 'Ledger, bank and M-Pesa reconciliation, reports', unit: 'per company', price: 3500, cost: function () { return 3500; } },
+      { id: 'crm', g: 'Finance and people', name: 'CRM and sales', desc: 'Leads, quotes, follow-ups', unit: 'per company', price: 2000, cost: function () { return 2000; } },
+      { id: 'hr', g: 'Finance and people', name: 'HR', desc: 'Staff records, leave, shifts, attendance', unit: 'per employee', price: 100, cost: function () { return Math.max(1500, 100 * s.employees); } },
+      { id: 'payroll', g: 'Finance and people', name: 'Payroll', desc: 'PAYE, NSSF, SHIF, Housing Levy, payslips', unit: 'per employee', price: 150, cost: function () { return Math.max(2000, 150 * s.employees); } }
+    ];
+    var on = s.on;
+    var lines = [], sum = 0;
+    mods.forEach(function (m) { if (on[m.id]) { var c = m.cost(); sum += c; lines.push({ label: m.name, amount: kes(c) }); } });
+    var biz = ['pos', 'inventory', 'stores', 'loyalty', 'accounting', 'procurement'];
+    var starter = ['pos', 'inventory', 'loyalty'];
+    function has(list) { return list.every(function (id) { return on[id]; }); }
+    function partCost(list) { return mods.filter(function (m) { return list.indexOf(m.id) >= 0; }).reduce(function (a, m) { return a + m.cost(); }, 0); }
+    var bundleName = '', saving = 0;
+    if (has(biz)) {
+      var b = 9900 + 4000 * (s.outlets - 1) + 500 * extraDevices;
+      var normal = partCost(biz);
+      if (b < normal) { bundleName = 'Business'; saving = normal - b; }
+    } else if (has(starter) && s.outlets === 1) {
+      var st = 3900 + 500 * extraDevices, n2 = partCost(starter);
+      if (st < n2) { bundleName = 'Starter'; saving = n2 - st; }
+    }
+    var monthly = sum - saving;
+    function counter(key, label, help, min) {
+      return { label: label, value: s[key], help: help, decLabel: 'Fewer ' + label.toLowerCase(), incLabel: 'More ' + label.toLowerCase(),
+        dec: function () { var o = {}; o[key] = Math.max(min, s[key] - 1); self.setState(o); },
+        inc: function () { var o = {}; o[key] = s[key] + 1; self.setState(o); } };
+    }
+    function seg(onSeg) { return 'flex: 1; height: 40px; border: 0; border-radius: 999px; cursor: pointer; font: 600 13px/18px var(--font-sans); background: ' + (onSeg ? 'var(--surface-200)' : 'transparent') + '; color: ' + (onSeg ? 'var(--ink)' : 'var(--ink-muted)') + '; box-shadow: ' + (onSeg ? 'var(--shadow-sm)' : 'none') + ';'; }
+    var groupNames = ['Sell', 'Operate', 'Finance and people'];
+    return {
+      theme: this.props.theme ?? 'light',
+      steps: ['Business', 'Modules', 'Company', 'Setup'],
+      counters: [
+        counter('outlets', 'Outlets', 'Shops or branches', 1),
+        counter('devices', 'POS devices', (2 * s.outlets) + ' included, then KES 500 each', 1),
+        counter('employees', 'Employees', 'For HR and payroll', 1)
+      ],
+      groups: groupNames.map(function (gn) {
+        return { name: gn, mods: mods.filter(function (m) { return m.g === gn; }).map(function (m) {
+          var sel = !!on[m.id];
+          return { name: m.name, desc: m.desc, price: kes(m.price) + ' ' + m.unit, pressed: sel ? 'true' : 'false',
+            toggle: function () { var next = Object.assign({}, self.state.on); next[m.id] = !sel; self.setState({ on: next }); },
+            checkStyle: 'width: 24px; height: 24px; flex: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; ' + (sel ? 'background: var(--primary); color: var(--on-primary); border: 0;' : 'background: var(--surface-200); color: transparent; border: 2px solid var(--border-strong);'),
+            style: 'min-height: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px; text-align: left; cursor: pointer; font-family: var(--font-sans); color: var(--ink); border-radius: 10px; background: ' + (sel ? 'var(--primary-tint)' : 'var(--surface-200)') + '; border: ' + (sel ? '2px solid var(--primary)' : '1px solid var(--border)') + ';' };
+        }) };
+      }),
+      lines: lines.length ? lines : [{ label: 'No modules selected yet', amount: '' }],
+      hasBundle: saving > 0,
+      bundleName: bundleName,
+      bundleSaving: kes(saving),
+      periodLabel: s.annual ? 'Per year' : 'Per month',
+      total: s.annual ? kes(monthly * 10) : kes(monthly),
+      monthlyPressed: s.annual ? 'false' : 'true',
+      annualPressed: s.annual ? 'true' : 'false',
+      monthlyStyle: seg(!s.annual),
+      annualStyle: seg(s.annual),
+      setMonthly: function () { self.setState({ annual: false }); },
+      setAnnual: function () { self.setState({ annual: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

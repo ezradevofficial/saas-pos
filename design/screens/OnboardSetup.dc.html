@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding setup checklist</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="min-height: 900px; box-sizing: border-box; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 32px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <div style="font-weight: 600; font-size: 20px; color: var(--primary);">Product name</div>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <x-import component-from-global-scope="DS.StatusBadge" tone="info">Trial · 13 days left</x-import>
+      <span style="font-size: 13px; color: var(--ink-muted);">Westlands Mini Mart</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 32px;">
+    <x-import component-from-global-scope="DS.StageTracker" stages="{{steps}}" current="Setup"></x-import>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <h1 style="margin: 0; font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em;">Get ready for your first sale</h1>
+          <p style="margin: 0; font-size: 16px; line-height: 24px; color: var(--ink-muted);">Finish these in any order. Skip what you don't need today; you can come back from Settings.</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>4 of 8 done</span>
+            <span style="color: var(--ink-muted); font-weight: 500;">About 15 minutes left</span>
+          </div>
+          <div style="height: 8px; border-radius: 999px; background: var(--surface-300); overflow: hidden;" role="progressbar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="4" aria-label="Setup progress">
+            <div style="width: 50%; height: 100%; background: var(--primary); border-radius: 999px;"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+          <sc-for list="{{tasks}}" as="t" hint-placeholder-count="8">
+            <div style="display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+              <span style="{{t.dotStyle}}" aria-hidden="true">{{t.mark}}</span>
+              <div style="flex: 1 1 260px; min-width: 0;">
+                <div style="font-weight: 600; font-size: 16px; line-height: 24px;">{{t.title}}</div>
+                <div style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">{{t.desc}}</div>
+              </div>
+              <sc-if value="{{t.done}}" hint-placeholder-val="{{false}}">
+                <x-import component-from-global-scope="DS.StatusBadge" tone="success">Done</x-import>
+              </sc-if>
+              <sc-if value="{{t.todo}}" hint-placeholder-val="{{true}}">
+                <x-import component-from-global-scope="DS.Button" variant="{{t.variant}}">{{t.action}}</x-import>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+        <x-import component-from-global-scope="DS.Card" title="Try it with sample data" subtitle="Remove it in one click when you're ready">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <p style="margin: 0; color: var(--ink-muted);">Load 40 sample products, two staff and a week of sales to explore reports and the till before adding your own.</p>
+            <x-import component-from-global-scope="DS.Button" variant="secondary">Load sample data</x-import>
+          </div>
+        </x-import>
+        <x-import component-from-global-scope="DS.Card" title="Need a hand?">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <p style="margin: 0; color: var(--ink-muted);">Our team can import your products and set up your tills with you.</p>
+            <a href="#" style="font-weight: 600;">Chat with us on WhatsApp</a>
+            <a href="#" style="font-weight: 600;">Watch the 3-minute setup video</a>
+          </div>
+        </x-import>
+        <x-import component-from-global-scope="DS.Alert" tone="info" title="You can already sell">Your till works now with cash. Add M-Pesa and eTIMS before going live with customers.</x-import>
+        <a href="Main.dc.html" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; border-radius: 8px; background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 600; font-size: 16px;">Open the till</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var tasks = [
+      { title: 'Company details and KRA PIN', desc: 'Westlands Mini Mart Ltd · P051234567X', done: true },
+      { title: 'Currencies and exchange rates', desc: 'KES base currency · USD accepted at the CBK reference rate', done: true },
+      { title: 'Branches and outlets', desc: 'Westlands and Kilimani added', done: true },
+      { title: 'Taxes', desc: 'VAT 16%, zero-rated and exempt items from the Kenya pack', done: true },
+      { title: 'Connect M-Pesa and card payments', desc: 'Add your Till or Paybill number so payments match sales automatically', action: 'Connect M-Pesa', primary: true },
+      { title: 'Connect KRA eTIMS', desc: 'Required before you issue receipts to customers', action: 'Connect eTIMS' },
+      { title: 'Add your products', desc: 'Type them in, scan barcodes, or import an Excel file', action: 'Import from Excel' },
+      { title: 'Invite staff and pair tills', desc: 'Give cashiers a PIN and link your 5 POS devices', action: 'Invite staff' }
+    ];
+    return {
+      theme: this.props.theme ?? 'light',
+      steps: ['Business', 'Modules', 'Company', 'Setup'],
+      tasks: tasks.map(function (t, i) {
+        return Object.assign({}, t, {
+          todo: !t.done,
+          variant: t.primary ? 'primary' : 'secondary',
+          mark: t.done ? '✓' : String(i + 1),
+          dotStyle: 'width: 32px; height: 32px; flex: none; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font: 600 14px/20px var(--font-sans); ' + (t.done ? 'background: var(--success); color: var(--surface-200);' : 'background: var(--surface-200); color: var(--ink-muted); border: 2px solid var(--border-strong);')
+        });
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>
