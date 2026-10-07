@@ -7,11 +7,14 @@ use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
+use App\Core\Tenancy\Policies\CompanyPolicy;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** A legal entity of a tenant (TEN-03). */
+#[UsePolicy(CompanyPolicy::class)]
 class Company extends Model implements HasScope
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;

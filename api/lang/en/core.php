@@ -16,4 +16,18 @@ return [
         'http_error' => 'The request couldn’t be completed. Check it and try again.',
         'server_error' => 'Something went wrong on our side. Try again in a moment.',
     ],
+
+    // TEN-02..TEN-06: companies, branches, locations.
+    'organisation' => [
+        'last_active' => 'Your organisation needs at least one active record here. Add another before archiving this one.',
+        'has_active_children' => 'This record still has active records under it. Archive those first.',
+        'parent_archived' => 'This record is archived. Restore it before adding to it.',
+        'code_taken' => 'An active branch of this company already uses this code. Choose another code.',
+    ],
+
+    // TEN-05: POS devices.
+    'devices' => [
+        'not_pairable' => 'This device is already paired or suspended. Unpair it before pairing it again.',
+        'invalid_pairing_code' => 'This pairing code isn’t valid or has expired. Ask for a new code and try again.',
+    ],
 ];

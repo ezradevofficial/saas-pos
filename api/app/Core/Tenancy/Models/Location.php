@@ -7,12 +7,15 @@ use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
+use App\Core\Tenancy\Policies\LocationPolicy;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** An outlet, warehouse, store or office of a branch (TEN-05). */
+#[UsePolicy(LocationPolicy::class)]
 class Location extends Model implements HasScope
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;

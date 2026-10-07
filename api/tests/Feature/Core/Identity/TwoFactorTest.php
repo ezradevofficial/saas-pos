@@ -487,6 +487,8 @@ class TwoFactorTest extends TestCase
             'POST api/v1/me/two-factor/totp/confirm',
             'POST api/v1/me/two-factor/sms',
             'POST api/v1/me/two-factor/sms/confirm',
+            // TEN-05: device tokens only (EnsureDeviceToken); user tokens are refused there.
+            'GET api/v1/devices/me',
         ];
         $seen = [];
 

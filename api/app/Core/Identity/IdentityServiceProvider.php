@@ -8,6 +8,7 @@ use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\SessionTimeout;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
+use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\ServiceProvider;
@@ -24,14 +25,20 @@ class IdentityServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
-        // AUTH-09: a token is refused once idle beyond the tenant's timeout
-        // or when its user is no longer active. findToken() has already set
-        // the token's tenant; a refused token leaves no tenant behind.
+        // AUTH-09: a person's token is refused once idle beyond the tenant's
+        // timeout or when its user is no longer active. TEN-05: a POS device
+        // must work for days, so its token never idles out; it is refused
+        // once the device is suspended or unpaired. findToken() has already
+        // set the token's tenant; a refused token leaves no tenant behind.
         Sanctum::authenticateAccessTokensUsing(function (PersonalAccessToken $token, bool $isValid): bool {
-            $valid = $isValid
-                && $token->tokenable instanceof User
-                && $token->tokenable->isActive()
-                && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id));
+            $tokenable = $isValid ? $token->tokenable : null;
+
+            $valid = match (true) {
+                $tokenable instanceof User => $tokenable->isActive()
+                    && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id)),
+                $tokenable instanceof Device => $tokenable->isActive(),
+                default => false,
+            };
 
             if (! $valid) {
                 app(TenantContext::class)->set(null);

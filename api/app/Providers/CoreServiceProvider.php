@@ -6,13 +6,16 @@ use App\Core\Audit\AuditContext;
 use App\Core\Audit\Console\VerifyAuditChain;
 use App\Core\Tenancy\Rls;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ColumnDefinition;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
 
@@ -31,6 +34,9 @@ class CoreServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([VerifyAuditChain::class]);
         }
+
+        // TEN-05: public device pairing, 10 attempts a minute per IP.
+        RateLimiter::for('device-pair', fn (Request $request) => Limit::perMinute(10)->by('ip|'.$request->ip()));
 
         // TEN-01: tenant_id uuid not null, defaulting to the session tenant,
         // indexed, FK to tenants (restrict). Pair with Rls::enable($table).
