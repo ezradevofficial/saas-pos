@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Core\Rbac;
+
+use Illuminate\Support\Collection;
+use InvalidArgumentException;
+
+/**
+ * The permission catalogue declared in code (RBAC-01). Each module
+ * registers its resources and actions; `permissions:sync` writes them to
+ * the global `permissions` table as `module.resource.action`.
+ */
+class PermissionRegistry
+{
+    /** RBAC-01: the core module's catalogue. */
+    public const CORE = [
+        'company' => ['view', 'create', 'edit', 'archive'],
+        'branch' => ['view', 'create', 'edit', 'archive'],
+        'location' => ['view', 'create', 'edit', 'archive'],
+        'device' => ['view', 'create', 'edit', 'archive', 'pair'],
+        'user' => ['view', 'invite', 'edit', 'deactivate'],
+        'role' => ['view', 'create', 'edit', 'archive', 'assign'],
+        'audit' => ['view', 'export'],
+        'settings' => ['edit'],
+        'access_review' => ['view', 'export'],
+    ];
+
+    private const SEGMENT = '/^[a-z][a-z0-9_]*$/';
+
+    /** @var array<string, array{name: string, module: string, resource: string, action: string}> */
+    private array $permissions = [];
+
+    /**
+     * @param  array<string, list<string>>  $resources  resource => actions
+     */
+    public function register(string $module, array $resources): void
+    {
+        foreach ($resources as $resource => $actions) {
+            foreach ($actions as $action) {
+                foreach ([$module, $resource, $action] as $segment) {
+                    if (! is_string($segment) || preg_match(self::SEGMENT, $segment) !== 1) {
+                        throw new InvalidArgumentException("Invalid permission segment [{$segment}] in module [{$module}].");
+                    }
+                }
+
+                $name = "{$module}.{$resource}.{$action}";
+                $this->permissions[$name] = compact('name', 'module', 'resource', 'action');
+            }
+        }
+    }
+
+    /** @return Collection<string, array{name: string, module: string, resource: string, action: string}> */
+    public function all(): Collection
+    {
+        return collect($this->permissions)->sortKeys();
+    }
+
+    public function has(string $name): bool
+    {
+        return isset($this->permissions[$name]);
+    }
+
+    /** True for strings shaped like a permission name (`module.resource.action`). */
+    public static function isPermissionName(string $ability): bool
+    {
+        return preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/', $ability) === 1;
+    }
+
+    public static function moduleOf(string $permission): string
+    {
+        return strstr($permission, '.', true) ?: $permission;
+    }
+}

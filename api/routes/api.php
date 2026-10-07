@@ -6,6 +6,7 @@ use App\Core\Identity\Http\Controllers\SignInController;
 use App\Core\Identity\Http\Controllers\SignUpController;
 use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use Illuminate\Support\Facades\Route;
 
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-09, AUTH-10.
@@ -25,4 +26,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class])->group(f
 
     Route::get('me', [MeController::class, 'show']);
     Route::patch('me', [MeController::class, 'update']);
+    // RBAC-09: what the UI may show; the API checks every action again.
+    Route::get('me/permissions', MyPermissionsController::class);
 });

@@ -3,13 +3,15 @@
 namespace App\Core\Tenancy\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Rbac\HasScope;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** A POS device paired to a location (TEN-05). Retired by status, not archived. */
-class Device extends Model
+class Device extends Model implements HasScope
 {
     use Audited, BelongsToTenant, HasUuids;
 
@@ -31,5 +33,11 @@ class Device extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /** RBAC-04: permission checks on a device apply at its location. */
+    public function scope(): Scope
+    {
+        return Scope::location($this->location_id);
     }
 }

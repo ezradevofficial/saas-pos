@@ -2,6 +2,7 @@
 
 use App\Core\Http\ApiErrorRenderer;
 use App\Core\Localisation\Http\SetLocale;
+use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Tenancy\Http\RequireTenant;
 use App\Core\Tenancy\Http\ResetTenantContext;
 use Illuminate\Foundation\Application;
@@ -24,7 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);
-        $middleware->alias(['tenant' => RequireTenant::class]);
+        // RBAC-08: `module:{name}` after `tenant`.
+        $middleware->alias(['tenant' => RequireTenant::class, 'module' => EnsureModuleActive::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
