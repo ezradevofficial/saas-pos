@@ -1,10 +1,13 @@
 <?php
 
 use App\Core\Http\ApiErrorRenderer;
+use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
+use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Http\RequireTenant;
 use App\Core\Tenancy\Http\ResetTenantContext;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -27,6 +30,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [SetLocale::class]);
         // RBAC-08: `module:{name}` after `tenant`.
         $middleware->alias(['tenant' => RequireTenant::class, 'module' => EnsureModuleActive::class]);
+        // TEN-05: the token kind is checked straight after authentication,
+        // before route-model binding, so a device token on a back-office
+        // route is 401 whether or not the id exists.
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, EnsureUserToken::class);
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, EnsureDeviceToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -8,9 +8,22 @@ use App\Core\Identity\Http\Controllers\SignUpController;
 use App\Core\Identity\Http\Controllers\TwoFactorController;
 use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
+use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
+use App\Core\Tenancy\Http\Controllers\BranchController;
+use App\Core\Tenancy\Http\Controllers\CompanyController;
+use App\Core\Tenancy\Http\Controllers\DeviceController;
+use App\Core\Tenancy\Http\Controllers\DevicePairingController;
+use App\Core\Tenancy\Http\Controllers\LocationController;
+use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
+
+// Route keys are UUIDs: anything else is not found, never a database error.
+foreach (['company', 'branch', 'location', 'device'] as $parameter) {
+    Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
+}
 
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-03, AUTH-04, AUTH-09, AUTH-10.
 Route::prefix('auth')->group(function () {
@@ -23,11 +36,20 @@ Route::prefix('auth')->group(function () {
     Route::post('password/reset', [PasswordResetController::class, 'reset'])->middleware(['throttle:auth-ip', 'throttle:auth-login']);
 });
 
+// TEN-05: a POS device exchanges its one-time pairing code for a token.
+Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');
+
+// TEN-05: routes for a paired device's token only (ability `device`).
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class])->group(function () {
+    Route::get('devices/me', [DevicePairingController::class, 'me']);
+});
+
 // The token sets the tenant; the language is chosen again so the tenant's
 // default applies when Accept-Language does not choose one (L10N-01).
 // AUTH-03: a token that may only enrol a second factor is refused everywhere
 // except the routes that opt out of EnsureFullAccessToken below.
-Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureFullAccessToken::class])->group(function () {
+// EnsureUserToken: a device token never reaches back-office routes (TEN-05).
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class])->group(function () {
     Route::withoutMiddleware(EnsureFullAccessToken::class)->group(function () {
         Route::post('auth/sign-out', [SessionController::class, 'signOut']);
         Route::get('me', [MeController::class, 'show']);
@@ -44,4 +66,24 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureFul
     Route::patch('me', [MeController::class, 'update']);
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
+
+    // TEN-02..TEN-06: the organisation. Lists show only what the user's
+    // scopes reach (RBAC-04); records are archived, never deleted.
+    Route::get('branches', [BranchController::class, 'all']);
+    Route::get('locations', [LocationController::class, 'all']);
+    Route::apiResource('companies', CompanyController::class)->except('destroy');
+    Route::apiResource('companies.branches', BranchController::class)->shallow()->except('destroy');
+    Route::apiResource('branches.locations', LocationController::class)->shallow()->except('destroy');
+    Route::apiResource('locations.devices', DeviceController::class)->shallow()->except('destroy');
+
+    foreach (['companies' => CompanyController::class, 'branches' => BranchController::class, 'locations' => LocationController::class] as $resource => $controller) {
+        $parameter = Str::singular($resource);
+        Route::post("{$resource}/{{$parameter}}/archive", [$controller, 'archive']);
+        Route::post("{$resource}/{{$parameter}}/restore", [$controller, 'restore']);
+    }
+
+    Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
+    Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);
+    Route::post('devices/{device}/resume', [DeviceController::class, 'resume']);
+    Route::post('devices/{device}/unpair', [DeviceController::class, 'unpair']);
 });

@@ -2,6 +2,7 @@
 
 namespace App\Core\Audit;
 
+use App\Core\Identity\Models\User;
 use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -85,8 +86,15 @@ class AuditContext
             return $this->userId;
         }
 
+        // Only people are users; a POS device is recorded as the device (AUD-02).
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            return null;
+        }
+
         // Only UUID keys fit the audit columns.
-        $id = Auth::id();
+        $id = $user->getAuthIdentifier();
 
         return is_string($id) && Str::isUuid($id) ? $id : null;
     }
