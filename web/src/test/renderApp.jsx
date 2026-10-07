@@ -17,6 +17,7 @@ export const OWNER = {
   locale: 'en',
   status: 'active',
   two_factor_enabled: false,
+  tenant: { id: 't-1', name: 'Amani Retail Group', default_locale: 'en' },
 }
 
 export const ALL_CORE = ['core.company.view', 'core.user.view', 'core.role.view'].map((name) => ({

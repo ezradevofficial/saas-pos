@@ -60,7 +60,7 @@ export default function TwoFactorEnrol() {
           ) : null}
         </div>
       ) : (
-        <AuthForm onSubmit={() => confirm.mutate()} error={errors.form}>
+        <AuthForm onSubmit={() => confirm.mutate()} error={errors.form} failure={confirm.error}>
           {method === 'totp' ? (
             <div className="flex flex-col items-center gap-3">
               <p className="text-body text-ink-muted">{t('auth.enrol.scan')}</p>

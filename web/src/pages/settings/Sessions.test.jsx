@@ -41,4 +41,28 @@ describe('Sessions', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('auth/sessions/s-2'))
     await waitFor(() => expect(screen.queryByText('Safari · iOS')).not.toBeInTheDocument())
   })
+
+  it('asks before signing out of this device', async () => {
+    mockApi(api, { extra: { 'auth/sessions': { data: SESSIONS } } })
+    api.post.mockResolvedValue(null)
+    const { router } = renderApp('/settings/sessions')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out of Chrome · macOS' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of this device?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Stay signed in' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.post).not.toHaveBeenCalledWith('auth/sign-out')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out of Chrome · macOS' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'))
+    expect(api.post).toHaveBeenCalledWith('auth/sign-out')
+    expect(api.delete).not.toHaveBeenCalled()
+  })
+
+  it('names a session without a device name "Unknown device"', async () => {
+    mockApi(api, { extra: { 'auth/sessions': { data: [{ ...SESSIONS[1], name: '' }] } } })
+    renderApp('/settings/sessions')
+    expect(await screen.findByText('Unknown device')).toBeInTheDocument()
+  })
 })

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
@@ -12,7 +12,8 @@ import { AuthForm, AuthPage, TextLink } from './AuthPage'
 export default function AcceptInvitation() {
   const { t } = useTranslation()
   const { token } = useParams()
-  const { signIn } = useAuth()
+  const { token: sessionToken, user, signIn, signOut } = useAuth()
+  const navigate = useNavigate()
   const invitation = useQuery({ queryKey: ['invitation', token], queryFn: () => api.get(`auth/invitations/${token}`) })
   const [values, setValues] = useState({ name: null, password: '' })
 
@@ -22,7 +23,10 @@ export default function AcceptInvitation() {
         name: values.name ?? invitation.data?.name ?? '',
         password: values.password,
       }),
-    onSuccess: (data) => signIn(data),
+    onSuccess: (data) => {
+      signIn(data)
+      navigate('/', { replace: true })
+    },
   })
   const errors = formErrors(mutation.error, ['name', 'password'])
   const footer = (
@@ -30,6 +34,25 @@ export default function AcceptInvitation() {
       <TextLink to="/sign-in">{t('auth.backToSignIn')}</TextLink>
     </p>
   )
+
+  // Accepting signs in as the new user, so whoever is signed in signs out first.
+  if (sessionToken) {
+    return (
+      <AuthPage title={t('auth.invitation.title')}>
+        <div className="flex flex-col gap-4">
+          <Alert tone="info" title={t('auth.invitation.signedInTitle', { name: user?.name ?? user?.email ?? '' })}>
+            {t('auth.invitation.signedInText')}
+          </Alert>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button onClick={() => navigate('/')}>{t('auth.invitation.stay')}</Button>
+            <Button variant="primary" onClick={() => signOut()}>
+              {t('auth.invitation.signOutAndAccept')}
+            </Button>
+          </div>
+        </div>
+      </AuthPage>
+    )
+  }
 
   if (invitation.isPending) {
     return (
@@ -55,7 +78,7 @@ export default function AcceptInvitation() {
 
   return (
     <AuthPage title={t('auth.invitation.title')} intro={t('auth.invitation.intro', { business: tenantName })} footer={footer}>
-      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         <TextField label={t('auth.fields.login')} value={email ?? phone ?? ''} readOnly disabled />
         <TextField
           label={t('auth.fields.name')}

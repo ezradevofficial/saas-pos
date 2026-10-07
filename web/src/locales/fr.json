@@ -276,7 +276,11 @@
       "intro": "{{business}} vous a invité. Choisissez un mot de passe pour terminer la création de votre compte.",
       "unavailableTitle": "Cette invitation ne peut pas être utilisée",
       "unavailableText": "Elle a peut-être expiré, déjà servi ou été retirée. Demandez à la personne qui vous a invité d'en envoyer une nouvelle.",
-      "submit": "Accepter et se connecter"
+      "submit": "Accepter et se connecter",
+      "signedInTitle": "Vous êtes connecté en tant que {{name}}",
+      "signedInText": "Cette invitation crée un nouveau compte. Déconnectez-vous d'abord, puis acceptez-la.",
+      "stay": "Rester connecté",
+      "signOutAndAccept": "Se déconnecter et accepter"
     }
   },
   "home": {
@@ -365,6 +369,10 @@
     "actions": "Actions",
     "signOut": "Se déconnecter",
     "signOutOf": "Déconnecter {{device}}",
-    "empty": "Aucune session active."
+    "empty": "Aucune session active.",
+    "confirmTitle": "Se déconnecter de cet appareil ?",
+    "confirmText": "Vous reviendrez à la page de connexion. Vos autres sessions restent connectées.",
+    "stay": "Rester connecté",
+    "signOutHere": "Se déconnecter"
   }
 }

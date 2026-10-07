@@ -33,7 +33,7 @@ export default function ForgotPassword() {
         </p>
       }
     >
-      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         <TextField
           label={t('auth.fields.login')}
           autoComplete="username"

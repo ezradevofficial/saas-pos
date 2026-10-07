@@ -46,7 +46,7 @@ export default function SignIn() {
         </p>
       }
     >
-      <AuthForm onSubmit={() => mutation.mutate(values)} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate(values)} error={errors.form} failure={mutation.error}>
         {notice === 'passwordReset' ? <Alert tone="success" title={t('auth.reset.done')} /> : null}
         <TextField
           label={t('auth.fields.login')}

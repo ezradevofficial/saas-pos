@@ -45,7 +45,7 @@ export default function SignUp() {
         </p>
       }
     >
-      <AuthForm onSubmit={() => mutation.mutate(values)} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate(values)} error={errors.form} failure={mutation.error}>
         <TextField
           label={t('auth.fields.name')}
           autoComplete="name"

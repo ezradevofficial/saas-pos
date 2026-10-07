@@ -42,7 +42,7 @@ export default function TwoFactor() {
 
   return (
     <AuthPage title={t('auth.twoFactor.title')} intro={t('auth.twoFactor.intro')} footer={footer}>
-      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         <CodeField value={code} onChange={setCode} error={errors.fields.code} />
         <Button type="submit" variant="primary" block loading={mutation.isPending}>
           {t('auth.twoFactor.submit')}

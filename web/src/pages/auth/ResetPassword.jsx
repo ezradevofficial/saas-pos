@@ -34,7 +34,7 @@ export default function ResetPassword() {
         </p>
       }
     >
-      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form}>
+      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         {location.state?.sent ? <Alert tone="info" title={t('auth.reset.sentTitle')}>{t('auth.reset.sentText')}</Alert> : null}
         <TextField
           label={t('auth.fields.login')}

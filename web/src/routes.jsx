@@ -49,9 +49,10 @@ export const routes = [
       { path: '/two-factor', element: <TwoFactor /> },
       { path: '/forgot-password', element: <ForgotPassword /> },
       { path: '/reset-password', element: <ResetPassword /> },
-      { path: '/invitations/:token', element: <AcceptInvitation /> },
     ],
   },
+  // Open to everyone: a signed-in user is asked to sign out first.
+  { element: <AuthLayout />, children: [{ path: '/invitations/:token', element: <AcceptInvitation /> }] },
   {
     element: (
       <RequireAuth allowEnrolment>

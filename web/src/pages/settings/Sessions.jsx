@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
-import { Alert, Button, DataTable, StatusBadge } from '@/components/ds'
+import { Alert, Button, DataTable, Dialog, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
@@ -13,13 +14,12 @@ export default function Sessions() {
   const locale = useLocale()
   const { signOut } = useAuth()
   const queryClient = useQueryClient()
+  const [confirmCurrent, setConfirmCurrent] = useState(false)
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api.get('auth/sessions') })
 
   const end = useMutation({
-    mutationFn: (session) => (session.current ? signOut() : api.delete(`auth/sessions/${session.id}`)),
-    onSuccess: (_, session) => {
-      if (!session.current) queryClient.invalidateQueries({ queryKey: ['sessions'] })
-    },
+    mutationFn: (session) => api.delete(`auth/sessions/${session.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessions'] }),
   })
 
   const columns = [
@@ -52,7 +52,7 @@ export default function Sessions() {
         <Button
           variant="danger"
           loading={end.isPending && end.variables?.id === session.id}
-          onClick={() => end.mutate(session)}
+          onClick={() => (session.current ? setConfirmCurrent(true) : end.mutate(session))}
           aria-label={t('sessions.signOutOf', { device: session.name || t('sessions.unknownDevice') })}
         >
           {t('sessions.signOut')}
@@ -76,6 +76,21 @@ export default function Sessions() {
           emptyText={sessions.isPending ? t('common.loading') : t('sessions.empty')}
         />
       </div>
+      <Dialog
+        open={confirmCurrent}
+        title={t('sessions.confirmTitle')}
+        onClose={() => setConfirmCurrent(false)}
+        footer={
+          <>
+            <Button onClick={() => setConfirmCurrent(false)}>{t('sessions.stay')}</Button>
+            <Button variant="danger" onClick={() => signOut()}>
+              {t('sessions.signOutHere')}
+            </Button>
+          </>
+        }
+      >
+        {t('sessions.confirmText')}
+      </Dialog>
     </>
   )
 }

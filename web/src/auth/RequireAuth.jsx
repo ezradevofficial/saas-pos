@@ -21,12 +21,12 @@ function Loading() {
  */
 export function RequireAuth({ children, allowEnrolment = false }) {
   const { t } = useTranslation()
-  const { token, status, enrolmentRequired, retry } = useAuth()
+  const { token, status, enrolmentRequired, signedOut, retry } = useAuth()
   const location = useLocation()
 
   if (!token) {
     const next = `${location.pathname}${location.search}`
-    const query = next === '/' ? '' : `?next=${encodeURIComponent(next)}`
+    const query = next === '/' || signedOut ? '' : `?next=${encodeURIComponent(next)}`
     return <Navigate to={`/sign-in${query}`} replace />
   }
   if (enrolmentRequired && !allowEnrolment) return <Navigate to={ENROL_PATH} replace />

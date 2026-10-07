@@ -19,7 +19,6 @@ import {
 import { setLocale } from '@/i18n'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
-import { useCurrentCompany } from './companySelection'
 import { CompanySwitcher } from './CompanySwitcher'
 import { NAV_GROUPS, visibleGroups } from './navigation'
 
@@ -49,13 +48,14 @@ export function LogoMark({ tone = 'sidebar' }) {
 
 function LogoBlock() {
   const { t } = useTranslation()
-  const company = useCurrentCompany()
+  const { user } = useAuth()
+  const tenantName = user?.tenant?.name
   return (
     <div className="flex items-center gap-3 border-b border-sidebar-border px-2 pb-4">
       <LogoMark />
       <div className="min-w-0">
         <div className="truncate text-h3 text-sidebar-ink-active">{t('app.name')}</div>
-        {company ? <div className="truncate text-caption text-sidebar-ink">{company.name}</div> : null}
+        {tenantName ? <div className="truncate text-caption text-sidebar-ink">{tenantName}</div> : null}
       </div>
     </div>
   )

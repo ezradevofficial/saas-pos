@@ -1,5 +1,5 @@
 import i18n from '@/i18n'
-import { api, ApiError, clearToken, getCompanyId, getToken, onAuthEvent, setCompanyId, setToken } from './client'
+import { api, ApiError, clearToken, deviceName, getCompanyId, getToken, onAuthEvent, setCompanyId, setToken } from './client'
 
 function respond(status, body, headers = {}) {
   return Promise.resolve(
@@ -126,5 +126,14 @@ describe('api client', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(0)
     expect(error.message).toBe(i18n.t('errors.network'))
+  })
+
+  it('names the device from the user agent, or sends nothing when unknown', () => {
+    const agent = vi.spyOn(navigator, 'userAgent', 'get')
+    agent.mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0 Safari/537.36')
+    expect(deviceName()).toBe('Chrome · macOS')
+    agent.mockReturnValue('curl/8.0')
+    expect(deviceName()).toBe('')
+    agent.mockRestore()
   })
 })

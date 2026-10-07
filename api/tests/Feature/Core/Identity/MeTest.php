@@ -72,4 +72,31 @@ class MeTest extends TestCase
             ->assertUnauthorized()
             ->assertJsonPath('message', __('core.errors.unauthenticated', [], 'fr'));
     }
+
+    public function test_get_me_includes_the_users_tenant(): void
+    {
+        $user = $this->createUser([], ['name' => 'Amani Retail', 'default_locale' => 'fr']);
+        $other = $this->createUser([], ['name' => 'Other Business']);
+        $token = $this->tokenFor($user);
+
+        $this->getJson('/api/v1/me', $this->bearer($token))
+            ->assertOk()
+            ->assertJsonPath('data.id', $user->id)
+            ->assertJsonPath('data.tenant.id', $user->tenant_id)
+            ->assertJsonPath('data.tenant.name', 'Amani Retail')
+            ->assertJsonPath('data.tenant.default_locale', 'fr');
+
+        $this->getJson('/api/v1/me', $this->bearer($this->tokenFor($other)))
+            ->assertOk()
+            ->assertJsonPath('data.tenant.name', 'Other Business');
+    }
+
+    public function test_patch_me_answers_with_the_tenant_too(): void
+    {
+        $user = $this->createUser([], ['name' => 'Amani Retail']);
+
+        $this->patchJson('/api/v1/me', ['locale' => 'fr'], $this->bearer($this->tokenFor($user)))
+            ->assertOk()
+            ->assertJsonPath('data.tenant.name', 'Amani Retail');
+    }
 }

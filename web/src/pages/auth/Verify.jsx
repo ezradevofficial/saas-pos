@@ -58,7 +58,7 @@ export default function Verify() {
       intro={challenge.destination ? t('auth.verify.introTo', { destination: challenge.destination }) : t('auth.verify.intro')}
       footer={footer}
     >
-      <AuthForm onSubmit={() => verify.mutate()} error={errors.form}>
+      <AuthForm onSubmit={() => verify.mutate()} error={errors.form} failure={verify.error ?? resend.error}>
         {resent && !resend.isPending ? <Alert tone="success" title={t('auth.verify.resent')} /> : null}
         <CodeField value={code} onChange={setCode} error={errors.fields.code} />
         <div className="flex flex-wrap items-center justify-between gap-3">

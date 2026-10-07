@@ -132,7 +132,7 @@ export function deviceName() {
         ? 'Chrome'
         : /Safari\//.test(agent)
           ? 'Safari'
-          : 'Browser'
+          : ''
   const system = /Android/.test(agent)
     ? 'Android'
     : /iPhone|iPad/.test(agent)
@@ -144,5 +144,6 @@ export function deviceName() {
           : /Linux/.test(agent)
             ? 'Linux'
             : ''
-  return system ? `${browser} · ${system}` : browser
+  // Unknown browsers send no name; the sessions list shows "Unknown device".
+  return [browser, system].filter(Boolean).join(' · ')
 }

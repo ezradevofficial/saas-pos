@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { api, getCompanyId } from '@/api/client'
+import { api, getCompanyId, setCompanyId } from '@/api/client'
 import i18n from '@/i18n'
 import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { NAV_GROUPS, visibleGroups } from './navigation'
@@ -35,6 +35,33 @@ describe('app shell navigation', () => {
       expect(await within(nav).findByRole('link', { name })).toBeInTheDocument()
     }
     expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('shows the app name and the tenant name in the logo block', async () => {
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const sidebar = (await mainNav()).parentElement
+    expect(await within(sidebar).findByText('Amani Retail Group')).toBeInTheDocument()
+    expect(within(sidebar).getByText(import.meta.env.VITE_APP_NAME)).toBeInTheDocument()
+  })
+
+  it('replaces a stored company the user no longer sees, so the header matches the switcher', async () => {
+    setCompanyId('c-gone')
+    mockApi(api, {
+      companies: [COMPANIES[0]],
+      permissions: [{ name: 'core.company.view', scopes: [{ type: 'company', id: 'c-1' }] }],
+    })
+    renderApp('/')
+    await waitFor(() => expect(getCompanyId()).toBe('c-1'))
+  })
+
+  it('clears a stored company for a tenant-wide user who sees all companies', async () => {
+    setCompanyId('c-gone')
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const trigger = await within((await mainNav()).parentElement).findByRole('combobox', { name: 'Company' })
+    await waitFor(() => expect(trigger).toHaveTextContent('All companies'))
+    expect(getCompanyId()).toBeNull()
   })
 
   it('hides Users when core.user.view is missing', async () => {
@@ -100,12 +127,16 @@ describe('app shell navigation', () => {
   it('signs out from the account menu', async () => {
     mockApi(api)
     api.post.mockResolvedValue(null)
-    const { router } = renderApp('/')
+    setCompanyId('c-1')
+    const { router } = renderApp('/settings/sessions')
     const account = await screen.findAllByRole('button', { name: /Account menu/ })
     fireEvent.pointerDown(account[0], { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Sign out' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'))
+    // A chosen sign-out forgets the page: no ?next=.
+    expect(router.state.location.search).toBe('')
     expect(api.post).toHaveBeenCalledWith('auth/sign-out')
+    expect(getCompanyId()).toBeNull()
   })
 })

@@ -276,7 +276,11 @@
       "intro": "{{business}} invited you. Choose a password to finish setting up your account.",
       "unavailableTitle": "This invitation cannot be used",
       "unavailableText": "It may have expired, been used or been withdrawn. Ask the person who invited you to send a new one.",
-      "submit": "Accept and sign in"
+      "submit": "Accept and sign in",
+      "signedInTitle": "You are signed in as {{name}}",
+      "signedInText": "This invitation creates a new account. Sign out first, then accept it.",
+      "stay": "Stay signed in",
+      "signOutAndAccept": "Sign out and accept"
     }
   },
   "home": {
@@ -365,6 +369,10 @@
     "actions": "Actions",
     "signOut": "Sign out",
     "signOutOf": "Sign out of {{device}}",
-    "empty": "No active sessions."
+    "empty": "No active sessions.",
+    "confirmTitle": "Sign out of this device?",
+    "confirmText": "You will go back to the sign-in page. Your other sessions stay signed in.",
+    "stay": "Stay signed in",
+    "signOutHere": "Sign out"
   }
 }

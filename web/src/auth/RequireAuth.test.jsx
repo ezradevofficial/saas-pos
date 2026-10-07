@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
-import { api, getToken } from '@/api/client'
+import { api, getCompanyId, getToken, setCompanyId } from '@/api/client'
 import i18n from '@/i18n'
 import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { safeNext } from './paths'
@@ -52,11 +52,13 @@ describe('route guards', () => {
 
   it('signs out and returns to sign in when the token is rejected', async () => {
     signedIn('expired')
+    setCompanyId('c-1')
     await useRealClient(() => [401, { message: 'Sign in again.', code: 'unauthenticated' }])
     const { router } = renderApp('/settings/sessions')
     await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'))
     expect(router.state.location.search).toBe('?next=%2Fsettings%2Fsessions')
     expect(getToken()).toBeNull()
+    expect(getCompanyId()).toBeNull()
   })
 
   it('sends a token that may only enrol to the two-factor setup', async () => {
@@ -80,6 +82,13 @@ describe('route guards', () => {
     expect(screen.getByText('Paramètres')).toBeInTheDocument()
   })
 
+  it('falls back to the tenant default language when the user has none', async () => {
+    signedIn()
+    mockApi(api, { user: { ...OWNER, locale: null, tenant: { ...OWNER.tenant, default_locale: 'fr' } } })
+    renderApp('/settings/sessions')
+    await waitFor(() => expect(i18n.language).toBe('fr'))
+  })
+
   it('shows a no-access page for a settings page the user cannot see', async () => {
     signedIn()
     mockApi(api, { permissions: [] })
@@ -89,11 +98,33 @@ describe('route guards', () => {
 })
 
 describe('safeNext', () => {
-  it('follows only same-site paths', () => {
+  it('follows same-origin paths with their query and hash', () => {
     expect(safeNext('/settings/users')).toBe('/settings/users')
-    expect(safeNext('//evil.example')).toBe('/')
-    expect(safeNext('https://evil.example')).toBe('/')
-    expect(safeNext(null)).toBe('/')
+    expect(safeNext('/settings/users?tab=2#top')).toBe('/settings/users?tab=2#top')
+  })
+
+  it('refuses anything that resolves to another origin', () => {
+    for (const next of [
+      '//evil.example',
+      'https://evil.example',
+      '/\\evil.example',
+      '/\t/evil.example',
+      '/\t//evil.example',
+      '/%5Cevil.example',
+      '/%09/evil.example',
+      '/%2F%2Fevil.example',
+      '/\n//evil.example',
+      null,
+      '',
+    ]) {
+      expect(safeNext(next)).toBe('/')
+    }
+  })
+
+  it('refuses control characters, raw or encoded', () => {
+    expect(safeNext('/settings\u0000')).toBe('/')
+    expect(safeNext('/settings%00')).toBe('/')
+    expect(safeNext('/%E0%A4%A')).toBe('/')
   })
 })
 

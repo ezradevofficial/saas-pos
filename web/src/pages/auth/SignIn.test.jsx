@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { api, getToken } from '@/api/client'
+import { api, getCompanyId, getToken, setCompanyId } from '@/api/client'
 import { apiError, mockApi, OWNER, renderApp, resetSession } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -20,6 +20,7 @@ describe('Sign in', () => {
 
   it('submits the login and password and signs the user in', async () => {
     api.post.mockResolvedValue({ token: 'new-token', user: OWNER, two_factor_enrollment_required: false })
+    setCompanyId('c-of-the-last-user')
     const { router } = renderApp('/sign-in?next=%2Fsettings%2Fsessions')
 
     fill('Email or phone number', 'amina@example.com')
@@ -32,6 +33,9 @@ describe('Sign in', () => {
       expect.objectContaining({ login: 'amina@example.com', password: 'correct horse' }),
     )
     expect(getToken()).toBe('new-token')
+    expect(getCompanyId()).toBeNull()
+    // GET me runs again so the profile includes the tenant.
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('me'))
   })
 
   it('goes to the two-factor step when the account needs a second factor', async () => {
@@ -61,6 +65,7 @@ describe('Sign in', () => {
     await waitFor(() => expect(login).toHaveAttribute('aria-invalid', 'true'))
     expect(document.getElementById(login.getAttribute('aria-describedby'))).toHaveTextContent('These details do not match.')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toBe(login))
   })
 
   it('shows other errors in an alert without the error code', async () => {
@@ -71,8 +76,11 @@ describe('Sign in', () => {
     fill('Password', 'wrong')
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts. Try again in 15 minutes.')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Too many attempts. Try again in 15 minutes.')
     expect(screen.queryByText(/locked/)).not.toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toContainElement(alert))
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1')
   })
 
   it('sends an unverified user to the code step', async () => {
