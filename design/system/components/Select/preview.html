@@ -1,0 +1,26 @@
+<!-- @dsCard group="Forms" height=120 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Select preview</title>
+<style>
+  body { margin: 0; padding: 20px; background: var(--surface-100); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .muted { color: var(--ink-muted); font-size: 12px; line-height: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  var B = window.DS, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+h('div',{className:'grid2'},
+  h(B.Select,{label:'Branch',placeholder:'Choose a branch',defaultValue:'',options:['Nairobi CBD','Westlands','Kinshasa Gombe']}),
+  h(B.Select,{label:'Currency',defaultValue:'USD',options:[{value:'USD',label:'USD · US dollar'},{value:'CDF',label:'CDF · Congolese franc'},{value:'KES',label:'KES · Kenyan shilling'}],help:'Base currency is locked after the first sale'}))
+  ));
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workflow builder</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="min-height: 940px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 24px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <a href="BoDashboard.dc.html" style="font-weight: 600; font-size: 18px; text-decoration: none;">Product name</a>
+    <span style="color: var(--border-strong);">/</span>
+    <span style="color: var(--ink-muted);">Workflows</span>
+    <span style="color: var(--border-strong);">/</span>
+    <span style="font-weight: 600;">Purchase requisition · Amani Retail Ltd (Kenya)</span>
+    <x-import component-from-global-scope="DS.StatusBadge">Draft v4</x-import>
+    <span style="font-size: 12px; color: var(--ink-muted);">v3 is live · 6 requisitions in progress stay on v3</span>
+    <div style="flex-grow: 1;"></div>
+    <x-import component-from-global-scope="DS.Button" variant="ghost">Undo</x-import>
+    <x-import component-from-global-scope="DS.Button" variant="secondary">Test with a sample</x-import>
+    <x-import component-from-global-scope="DS.Button" variant="primary">Publish v4</x-import>
+  </header>
+
+  <div style="flex-grow: 1; display: flex; flex-wrap: wrap; min-height: 0;">
+    <aside aria-label="Building blocks" style="flex: 1 1 200px; max-width: 100%; box-sizing: border-box; padding: 20px 16px; background: var(--surface-200); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
+      <div style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 4px;">Drag onto the flow</div>
+      <sc-for list="{{palette}}" as="p" hint-placeholder-count="7">
+        <button type="button" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--border-strong); background: var(--surface-100); color: var(--ink); text-align: left; cursor: grab; font-family: var(--font-sans);">
+          <span style="font-weight: 600;">{{p.name}}</span>
+          <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{p.desc}}</span>
+        </button>
+      </sc-for>
+    </aside>
+
+    <section aria-label="Flow" style="flex: 999 1 560px; min-width: 0; overflow: auto; padding: 32px 24px; background-color: var(--surface-100); background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 16px 16px;">
+      <div style="width: 640px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+        <div style="width: 280px; padding: 12px 16px; border-radius: 999px; background: var(--surface-200); border: 1px solid var(--border-strong); text-align: center; font-weight: 600;">Start: requisition submitted</div>
+        <div style="width: 2px; height: 28px; background: var(--border-strong);"></div>
+
+        <div style="width: 320px; padding: 14px 16px; border-radius: 10px; background: var(--surface-200); border: 1px solid var(--border-strong); display: flex; flex-direction: column; gap: 4px; ">
+          <span style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">STAGE · ENTRY RULE</span>
+          <span style="font-weight: 600;">Check budget</span>
+          <span style="font-size: 13px; color: var(--ink-muted);">Blocks if cost centre budget is exceeded</span>
+        </div>
+        <div style="width: 2px; height: 28px; background: var(--border-strong);"></div>
+
+        <div style="width: 320px; padding: 14px 16px; border-radius: 10px; background: var(--primary-tint); border: 3px solid var(--primary); display: flex; flex-direction: column; gap: 4px; ">
+          <span style="font: 600 12px/16px var(--font-sans); color: var(--primary);">APPROVAL · SELECTED</span>
+          <span style="font-weight: 600;">Branch manager approves</span>
+          <span style="font-size: 13px; color: var(--ink-muted);">Manager of the requester's branch · escalates after 8 business hours</span>
+        </div>
+        <div style="width: 2px; height: 28px; background: var(--border-strong);"></div>
+
+        <div style="width: 300px; padding: 14px 16px; border-radius: 10px; background: var(--warning-tint); border: 1px solid var(--warning); display: flex; flex-direction: column; gap: 4px; text-align: center;">
+          <span style="font: 600 12px/16px var(--font-sans); color: var(--warning);">CONDITION</span>
+          <span style="font-weight: 600;">Total over KES 250,000?</span>
+        </div>
+        <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+        <div style="width: 360px; height: 2px; background: var(--border-strong);"></div>
+        <div style="width: 360px; display: flex; justify-content: space-between;">
+          <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+          <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+        </div>
+        <div style="width: 640px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">Yes</span>
+            <div style="width: 260px; padding: 14px 16px; border-radius: 10px; background: var(--surface-200); border: 1px solid var(--border-strong); display: flex; flex-direction: column; gap: 4px; ">
+              <span style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">APPROVAL</span>
+              <span style="font-weight: 600;">CFO approves</span>
+              <span style="font-size: 13px; color: var(--ink-muted);">Role: CFO · auto-reject after 3 days</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">No</span>
+            <div style="width: 260px; padding: 14px 16px; border-radius: 10px; border: 1px dashed var(--border-strong); color: var(--ink-muted); text-align: center;">Skip to next step</div>
+          </div>
+        </div>
+        <div style="width: 360px; display: flex; justify-content: space-between;">
+          <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+          <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+        </div>
+        <div style="width: 360px; height: 2px; background: var(--border-strong);"></div>
+        <div style="width: 2px; height: 20px; background: var(--border-strong);"></div>
+
+        <div style="width: 320px; padding: 14px 16px; border-radius: 10px; background: var(--surface-200); border: 1px solid var(--border-strong); display: flex; flex-direction: column; gap: 4px; ">
+          <span style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">ACTION</span>
+          <span style="font-weight: 600;">Create draft purchase order</span>
+          <span style="font-size: 13px; color: var(--ink-muted);">Copies items, supplier and branch · notifies Procurement</span>
+        </div>
+        <div style="width: 2px; height: 28px; background: var(--border-strong);"></div>
+        <div style="width: 280px; padding: 12px 16px; border-radius: 999px; background: var(--success-tint); border: 1px solid var(--success); text-align: center; font-weight: 600;">End: approved</div>
+      </div>
+    </section>
+
+    <aside aria-label="Step settings" style="flex: 1 1 320px; max-width: 100%; box-sizing: border-box; padding: 20px; background: var(--surface-200); border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <div style="font: 600 12px/16px var(--font-sans); color: var(--ink-muted);">APPROVAL STEP</div>
+        <div style="font-weight: 600; font-size: 18px; line-height: 24px;">Branch manager approves</div>
+      </div>
+      <x-import component-from-global-scope="DS.Select" label="Who approves" default-value="branch" options="{{approverTypes}}"></x-import>
+      <x-import component-from-global-scope="DS.Select" label="If several people can approve" default-value="any" options="{{modes}}"></x-import>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+        <x-import component-from-global-scope="DS.TextField" label="Remind after" default-value="4" suffix="hours"></x-import>
+        <x-import component-from-global-scope="DS.TextField" label="Escalate after" default-value="8" suffix="hours"></x-import>
+      </div>
+      <x-import component-from-global-scope="DS.Select" label="Escalate to" default-value="area" options="{{escalateTo}}" help="Business hours and Kenyan public holidays are skipped"></x-import>
+      <x-import component-from-global-scope="DS.Checkbox" label="Allow delegation when the approver is away" default-checked="{{true}}"></x-import>
+      <x-import component-from-global-scope="DS.Checkbox" label="Allow approval by email link" default-checked="{{true}}"></x-import>
+      <x-import component-from-global-scope="DS.Checkbox" label="Require a reason to reject or return" default-checked="{{true}}"></x-import>
+      <x-import component-from-global-scope="DS.Alert" tone="info">The requester can never approve their own requisition. It moves to the next eligible approver.</x-import>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'light',
+      palette: [
+        { name: 'Stage', desc: 'A step the document moves through' },
+        { name: 'Approval', desc: 'One person, a role, or a group' },
+        { name: 'Condition', desc: 'Branch by amount, branch, field' },
+        { name: 'Parallel', desc: 'Steps that run at the same time' },
+        { name: 'Notify', desc: 'In-app, email, SMS or WhatsApp' },
+        { name: 'Create document', desc: 'e.g. requisition to PO' },
+        { name: 'Wait', desc: 'Until a date or a field changes' }
+      ],
+      approverTypes: [{ value: 'branch', label: "Manager of the requester's branch" }, { value: 'line', label: "Requester's line manager" }, { value: 'role', label: 'Anyone with a role' }, { value: 'user', label: 'A named person' }, { value: 'cc', label: 'Cost centre owner' }],
+      modes: [{ value: 'any', label: 'Any one of them' }, { value: 'all', label: 'All of them' }, { value: 'majority', label: 'Most of them' }],
+      escalateTo: [{ value: 'area', label: 'Area manager' }, { value: 'next', label: 'Next level up' }, { value: 'approve', label: 'Approve automatically' }, { value: 'reject', label: 'Reject automatically' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

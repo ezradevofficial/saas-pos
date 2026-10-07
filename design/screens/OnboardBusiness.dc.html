@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding business type</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="min-height: 860px; box-sizing: border-box; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 32px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <div style="font-weight: 600; font-size: 20px; color: var(--primary);">Product name</div>
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <span style="font-size: 13px; color: var(--ink-muted);">Free trial · 14 days · no payment needed</span>
+      <a href="#" style="font-weight: 600;">Français</a>
+    </div>
+  </header>
+
+  <main style="max-width: 1040px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 32px;">
+    <x-import component-from-global-scope="DS.StageTracker" stages="{{steps}}" current="Business"></x-import>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <h1 style="margin: 0; font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em;">What kind of business do you run?</h1>
+      <p style="margin: 0; font-size: 16px; line-height: 24px; color: var(--ink-muted); max-width: 640px;">We set up the till, roles and approval steps that suit your business. You can change everything later.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">
+      <sc-for list="{{types}}" as="t" hint-placeholder-count="11">
+        <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.pressed}}" style="{{t.style}}">
+          <span style="font-weight: 600; font-size: 16px; line-height: 24px;">{{t.label}}</span>
+          <span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">{{t.desc}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 24px; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px;">
+      <x-import component-from-global-scope="DS.Select" label="Country" default-value="KE" options="{{countries}}" help="Sets taxes, payroll rules and e-invoicing"></x-import>
+      <x-import component-from-global-scope="DS.TextField" label="Business name" placeholder="e.g. Westlands Mini Mart" required="{{true}}"></x-import>
+      <x-import component-from-global-scope="DS.Select" label="Number of outlets" default-value="1" options="{{outlets}}"></x-import>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <span style="font-size: 13px; color: var(--ink-muted);">Selected: <strong style="color: var(--ink);">{{selectedLabel}}</strong></span>
+      <a href="OnboardModules.dc.html" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 28px; border-radius: 8px; background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 600; font-size: 16px;">Continue to modules</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { picked: 'supermarket' }; }
+  renderVals() {
+    var self = this;
+    var types = [
+      { id: 'retail', label: 'Retail shop', desc: 'Boutiques, hardware, electronics' },
+      { id: 'supermarket', label: 'Supermarket or mini-mart', desc: 'Barcodes, scales, several tills' },
+      { id: 'restaurant', label: 'Restaurant or café', desc: 'Tables, kitchen orders, split bills' },
+      { id: 'bar', label: 'Bar or lounge', desc: 'Open tabs, fast rounds' },
+      { id: 'hotel', label: 'Hotel or lodge', desc: 'Room charges, guest folios' },
+      { id: 'pharmacy', label: 'Pharmacy or agrovet', desc: 'Batches, expiry dates' },
+      { id: 'wholesale', label: 'Wholesale or distributor', desc: 'Price lists, credit, deliveries' },
+      { id: 'van', label: 'Route or van sales', desc: 'Sell and collect in the field' },
+      { id: 'salon', label: 'Salon, spa or services', desc: 'Appointments, staff commissions' },
+      { id: 'fuel', label: 'Fuel station', desc: 'Pumps, shifts, forecourt shop' },
+      { id: 'office', label: 'No till needed', desc: 'HR, payroll or accounting only' }
+    ];
+    var picked = types.filter(function (t) { return t.id === self.state.picked; })[0];
+    return {
+      theme: this.props.theme ?? 'light',
+      steps: ['Business', 'Modules', 'Company', 'Setup'],
+      types: types.map(function (t) {
+        var on = t.id === self.state.picked;
+        return Object.assign({}, t, {
+          pressed: on ? 'true' : 'false',
+          pick: function () { self.setState({ picked: t.id }); },
+          style: 'min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 16px; text-align: left; cursor: pointer; font-family: var(--font-sans); color: var(--ink); border-radius: 10px; background: ' + (on ? 'var(--primary-tint)' : 'var(--surface-200)') + '; border: ' + (on ? '2px solid var(--primary)' : '1px solid var(--border)') + '; '
+        });
+      }),
+      selectedLabel: picked.label,
+      countries: [{ value: 'KE', label: 'Kenya (KES)' }, { value: 'CD', label: 'DR Congo (USD and CDF)' }],
+      outlets: ['1', '2 to 5', '6 to 20', 'More than 20']
+    };
+  }
+}
+</script>
+</body>
+</html>

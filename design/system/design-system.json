@@ -1,0 +1,28 @@
+{
+  "v": 3,
+  "assetGroups": {},
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-10-07T14:10:43Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [],
+  "lastChange": {
+    "at": "2026-10-07T17:30:00Z",
+    "by": "ezra kathurima",
+    "note": "Version 2: quiet luxury direction (Geist, hairlines, muted teal, near-black action), Executive and Warm presets, sidebar tokens, customisation rules, placeholder name removed.",
+    "via": "Claude (claude.ai)"
+  },
+  "layout": "files",
+  "libraries": [
+    {"name": "react", "version": "18.3.1", "global": "React", "file": "components/lib/react.production.min.js"},
+    {"name": "react-dom", "version": "18.3.1", "global": "ReactDOM", "file": "components/lib/react-dom.production.min.js"}
+  ],
+  "namespace": "DS",
+  "sections": {},
+  "title": "Platform design system"
+}

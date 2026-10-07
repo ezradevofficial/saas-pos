@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>POS retail sale</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width: 1280px; height: 800px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="height: 64px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <div style="font-weight: 600; font-size: 18px; color: var(--primary);">Product name</div>
+    <div style="width: 1px; height: 24px; background: var(--border);"></div>
+    <div style="display: flex; flex-direction: column;">
+      <span style="font-weight: 600;">Westlands · Till 2</span>
+      <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">Shift opened 07:58 · Grace Wanjiru</span>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <x-import component-from-global-scope="DS.SyncStatus" state="online"></x-import>
+    <button type="button" style="height: 48px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font: 600 14px/20px var(--font-sans); cursor: pointer;">Held sales (2)</button>
+    <button type="button" style="height: 48px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font: 600 14px/20px var(--font-sans); cursor: pointer;">Close shift</button>
+  </header>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex;">
+    <main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px 24px;">
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <label for="pos-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden;">Search products</label>
+        <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" style="color: var(--ink-muted);"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <input id="pos-search" placeholder="Search or scan a barcode" style="flex-grow: 1; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 16px/24px var(--font-sans);">
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+          <button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="{{c.style}}">{{c.label}}</button>
+        </sc-for>
+      </div>
+      <div style="flex-grow: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-content: start;">
+        <sc-for list="{{products}}" as="p" hint-placeholder-count="12">
+          <x-import component-from-global-scope="DS.PosTile" name="{{p.name}}" price="{{p.price}}" currency="KES" stock="{{p.stock}}" on-select="{{p.add}}"></x-import>
+        </sc-for>
+      </div>
+    </main>
+
+    <aside style="width: 400px; flex: none; display: flex; flex-direction: column; gap: 12px; padding: 20px 24px 20px 0;">
+      <div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 12px; border-bottom: 1px solid var(--border);">
+          <div>
+            <div style="font-weight: 600; font-size: 16px; line-height: 24px;">Current sale</div>
+            <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{itemCount}} items · Receipt R-WL2-004513</div>
+          </div>
+          <button type="button" onClick="{{clear}}" style="height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--danger); font: 600 13px/18px var(--font-sans); cursor: pointer;">Clear</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--primary-tint);">
+          <div style="width: 36px; height: 36px; border-radius: 999px; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; font-weight: 600;">AO</div>
+          <div style="flex-grow: 1;">
+            <div style="font-weight: 600;">Achieng Otieno</div>
+            <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">0722 *** 418 · Gold member</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font: 600 14px/20px var(--font-mono); color: var(--accent-ink);">1,240 pts</div>
+            <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">= KES 124</div>
+          </div>
+        </div>
+        <div style="flex-grow: 1; min-height: 0; overflow: auto;">
+          <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 48px 24px; text-align: center; color: var(--ink-muted); font-size: 16px; line-height: 24px;">Tap a product or scan a barcode to start a sale.</div>
+          </sc-if>
+          <sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border);">
+              <div style="flex-grow: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 15px; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{l.name}}</div>
+                <div style="font: 500 12px/16px var(--font-mono); color: var(--ink-muted);">{{l.unit}}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <button type="button" onClick="{{l.dec}}" aria-label="Remove one" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font-size: 18px; cursor: pointer;">−</button>
+                <span style="min-width: 28px; text-align: center; font: 600 15px/22px var(--font-mono);">{{l.qty}}</span>
+                <button type="button" onClick="{{l.inc}}" aria-label="Add one" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font-size: 18px; cursor: pointer;">+</button>
+              </div>
+              <div style="width: 96px; text-align: right; font: 600 14px/20px var(--font-mono);">{{l.total}}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <x-import component-from-global-scope="DS.SaleTotal" currency="KES" subtotal="{{subtotal}}" tax="{{tax}}" total="{{total}}" on-pay="{{pay}}"></x-import>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: 'All', cart: { tusker: 2, bread: 1, milk: 3 } };
+  }
+  renderVals() {
+    var self = this;
+    var catalog = [
+      { id: 'tusker', name: 'Tusker Lager 500ml', price: 250, stock: 48, cat: 'Drinks' },
+      { id: 'soda', name: 'Coca-Cola 500ml', price: 90, stock: 120, cat: 'Drinks' },
+      { id: 'water', name: 'Keringet Water 1L', price: 80, stock: 4, cat: 'Drinks' },
+      { id: 'milk', name: 'Brookside Milk 500ml', price: 65, stock: 36, cat: 'Dairy' },
+      { id: 'yoghurt', name: 'Bio Yoghurt 250ml', price: 110, stock: 0, cat: 'Dairy' },
+      { id: 'bread', name: 'Supaloaf White 400g', price: 65, stock: 22, cat: 'Bakery' },
+      { id: 'mandazi', name: 'Mandazi (6 pack)', price: 120, stock: 15, cat: 'Bakery' },
+      { id: 'unga', name: 'Jogoo Maize Flour 2kg', price: 180, stock: 40, cat: 'Pantry' },
+      { id: 'sugar', name: 'Kabras Sugar 1kg', price: 175, stock: 3, cat: 'Pantry' },
+      { id: 'oil', name: 'Fresh Fri Oil 1L', price: 380, stock: 18, cat: 'Pantry' },
+      { id: 'rice', name: 'Pishori Rice 2kg', price: 420, stock: 25, cat: 'Pantry' },
+      { id: 'soap', name: 'Menengai Bar Soap', price: 95, stock: 60, cat: 'Household' }
+    ];
+    var cats = ['All', 'Drinks', 'Dairy', 'Bakery', 'Pantry', 'Household'];
+    var cart = this.state.cart;
+    function setQty(id, q) {
+      var next = Object.assign({}, self.state.cart);
+      if (q <= 0) delete next[id]; else next[id] = q;
+      self.setState({ cart: next });
+    }
+    function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    var lines = [], total = 0, count = 0;
+    catalog.forEach(function (p) {
+      var q = cart[p.id];
+      if (!q) return;
+      total += q * p.price; count += q;
+      lines.push({ name: p.name, qty: q, unit: q + ' × ' + fmt(p.price), total: fmt(q * p.price),
+        inc: function () { setQty(p.id, q + 1); }, dec: function () { setQty(p.id, q - 1); } });
+    });
+    var tax = Math.round(total * 16 / 116 * 100) / 100;
+    return {
+      theme: this.props.theme ?? 'light',
+      cats: cats.map(function (c) {
+        var on = c === self.state.cat;
+        return { label: c, pressed: on ? 'true' : 'false', pick: function () { self.setState({ cat: c }); },
+          style: 'height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer; font: 600 14px/20px var(--font-sans); border: 1px solid ' + (on ? 'var(--primary)' : 'var(--border-strong)') + '; background: ' + (on ? 'var(--primary)' : 'var(--surface-200)') + '; color: ' + (on ? 'var(--on-primary)' : 'var(--ink)') + ';' };
+      }),
+      products: catalog.filter(function (p) { return self.state.cat === 'All' || p.cat === self.state.cat; }).map(function (p) {
+        return Object.assign({}, p, { add: function () { setQty(p.id, (self.state.cart[p.id] || 0) + 1); } });
+      }),
+      lines: lines,
+      empty: lines.length === 0,
+      itemCount: count,
+      total: total,
+      tax: tax,
+      subtotal: Math.round((total - tax) * 100) / 100,
+      clear: function () { self.setState({ cart: {} }); },
+      pay: function () {}
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Restaurant table map</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width: 1280px; height: 800px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="height: 64px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <div style="font-weight: 600; font-size: 18px; color: var(--primary);">Product name</div>
+    <div style="width: 1px; height: 24px; background: var(--border);"></div>
+    <div style="display: flex; flex-direction: column;">
+      <span style="font-weight: 600;">Mama Oliech Kitchen · Kilimani</span>
+      <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">Lunch service · Waiter: Brian Kiprop</span>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <x-import component-from-global-scope="DS.SyncStatus" state="online"></x-import>
+    <x-import component-from-global-scope="DS.Button" variant="primary" size="lg" icon="check">New takeaway order</x-import>
+  </header>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex;">
+    <main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 16px 24px 24px;">
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;">
+        <x-import component-from-global-scope="DS.Tabs" value="hall" items="{{floors}}"></x-import>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; line-height: 16px; color: var(--ink-muted); padding-bottom: 8px;">
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border-strong); background: var(--surface-200);"></span>Free</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--primary-tint); border: 1px solid var(--primary);"></span>Seated</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--success-tint); border: 1px solid var(--success);"></span>Food ready</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--warning-tint); border: 1px solid var(--warning);"></span>Bill asked</span>
+        </div>
+      </div>
+      <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; padding: 20px; border-radius: 10px; background: var(--surface-300);">
+        <sc-for list="{{tables}}" as="t" hint-placeholder-count="12">
+          <button type="button" style="{{t.style}}" aria-label="{{t.aria}}">
+            <span style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <span style="font-weight: 600; font-size: 18px; line-height: 24px;">{{t.name}}</span>
+              <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{t.seats}}</span>
+            </span>
+            <span style="font-size: 12px; line-height: 16px; font-weight: 600;">{{t.status}}</span>
+            <span style="display: flex; justify-content: space-between; width: 100%; font-size: 12px; line-height: 16px; color: var(--ink-muted);">
+              <span style="font: 600 13px/18px var(--font-mono); color: var(--ink);">{{t.amount}}</span>
+              <span>{{t.time}}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </main>
+
+    <aside style="width: 380px; flex: none; display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 24px 0;">
+      <div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px;">
+        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-weight: 600; font-size: 20px; line-height: 28px;">Table 7</div>
+            <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">4 guests · seated 12:41 · 38 min</div>
+          </div>
+          <x-import component-from-global-scope="DS.StatusBadge" tone="success">Mains ready</x-import>
+        </div>
+        <div style="flex-grow: 1; overflow: auto; padding: 8px 0;">
+          <sc-for list="{{courses}}" as="c" hint-placeholder-count="2">
+            <div style="padding: 8px 16px 4px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em;">{{c.name}}</span>
+              <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-muted);">{{c.state}}</span>
+            </div>
+            <sc-for list="{{c.items}}" as="i" hint-placeholder-count="2">
+              <div style="display: flex; gap: 12px; padding: 6px 16px; align-items: flex-start;">
+                <span style="font: 600 14px/20px var(--font-mono); min-width: 24px;">{{i.qty}}×</span>
+                <span style="flex-grow: 1;">
+                  <span style="display: block; font-weight: 600;">{{i.name}}</span>
+                  <span style="display: block; font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{i.note}}</span>
+                </span>
+                <span style="font: 500 14px/20px var(--font-mono);">{{i.price}}</span>
+              </div>
+            </sc-for>
+          </sc-for>
+        </div>
+        <div style="padding: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span style="font-weight: 600; font-size: 16px; line-height: 24px;">Running bill</span>
+            <x-import component-from-global-scope="DS.Money" amount="{{4380}}" currency="KES" size="lg"></x-import>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+            <x-import component-from-global-scope="DS.Button" variant="secondary" size="lg" block="{{true}}">Add items</x-import>
+            <x-import component-from-global-scope="DS.Button" variant="secondary" size="lg" block="{{true}}">Split bill</x-import>
+            <x-import component-from-global-scope="DS.Button" variant="primary" size="lg" block="{{true}}">Print bill</x-import>
+            <x-import component-from-global-scope="DS.Button" variant="pay" size="lg" block="{{true}}">Take payment</x-import>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var looks = {
+      free: { bg: 'var(--surface-200)', border: '1px solid var(--border-strong)', label: 'Free' },
+      seated: { bg: 'var(--primary-tint)', border: '1px solid var(--primary)', label: 'Seated · ordering' },
+      ready: { bg: 'var(--success-tint)', border: '1px solid var(--success)', label: 'Food ready to serve' },
+      bill: { bg: 'var(--warning-tint)', border: '1px solid var(--warning)', label: 'Bill requested' }
+    };
+    var data = [
+      ['T1', 2, 'seated', 1250, '12 min'], ['T2', 2, 'free', 0, ''], ['T3', 4, 'bill', 5640, '1 h 05'], ['T4', 6, 'seated', 2180, '20 min'],
+      ['T5', 4, 'free', 0, ''], ['T6', 2, 'ready', 1960, '26 min'], ['T7', 4, 'ready', 4380, '38 min'], ['T8', 8, 'seated', 9320, '45 min'],
+      ['T9', 2, 'free', 0, ''], ['T10', 4, 'bill', 3870, '52 min'], ['T11', 4, 'free', 0, ''], ['T12', 6, 'seated', 640, '4 min']
+    ];
+    return {
+      theme: this.props.theme ?? 'light',
+      floors: [{ value: 'hall', label: 'Main hall', count: 12 }, { value: 'terrace', label: 'Terrace', count: 8 }, { value: 'bar', label: 'Bar', count: 6 }],
+      tables: data.map(function (d) {
+        var l = looks[d[2]];
+        var sel = d[0] === 'T7';
+        return {
+          name: d[0], seats: d[1] + ' seats', status: l.label,
+          amount: d[3] ? 'KES ' + d[3].toLocaleString('en-KE') : '', time: d[4],
+          aria: 'Table ' + d[0].slice(1) + ', ' + l.label,
+          style: 'display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 6px; padding: 12px 14px; text-align: left; cursor: pointer; font-family: var(--font-sans); color: var(--ink); border-radius: ' + (d[1] >= 6 ? '12px' : '999px / 40%') + '; background: ' + l.bg + '; border: ' + (sel ? '3px solid var(--ink)' : l.border) + '; '
+        };
+      }),
+      courses: [
+        { name: 'Starters', state: 'Served', items: [
+          { qty: 2, name: 'Samosa (beef)', note: '', price: 'KES 360' },
+          { qty: 1, name: 'Kachumbari', note: 'No chilli', price: 'KES 150' }
+        ] },
+        { name: 'Mains', state: 'Ready at pass', items: [
+          { qty: 2, name: 'Whole tilapia, fried', note: 'With ugali', price: 'KES 2,400' },
+          { qty: 1, name: 'Nyama choma, 1/2 kg', note: 'Well done', price: 'KES 950' },
+          { qty: 1, name: 'Sukuma wiki', note: '', price: 'KES 120' }
+        ] },
+        { name: 'Drinks', state: 'Served', items: [
+          { qty: 4, name: 'Dawa cocktail (non-alcoholic)', note: '', price: 'KES 400' }
+        ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

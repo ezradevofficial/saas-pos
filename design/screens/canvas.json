@@ -1,0 +1,156 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "BoApprovals.dc.html": {
+      "expand": "fill",
+      "h": 940,
+      "is_interactive": true,
+      "title": "Back office \u00b7 Approvals inbox",
+      "w": 1440,
+      "x": 1520,
+      "y": 2700
+    },
+    "BoDashboard.dc.html": {
+      "expand": "fill",
+      "h": 940,
+      "title": "Back office \u00b7 Owner dashboard",
+      "w": 1440,
+      "x": 0,
+      "y": 2700
+    },
+    "BoPayroll.dc.html": {
+      "expand": "fill",
+      "h": 940,
+      "title": "Back office \u00b7 Payroll run",
+      "w": 1440,
+      "x": 4560,
+      "y": 2700
+    },
+    "BoWorkflow.dc.html": {
+      "expand": "fill",
+      "h": 940,
+      "title": "Back office \u00b7 Workflow builder",
+      "w": 1440,
+      "x": 3040,
+      "y": 2700
+    },
+    "Main.dc.html": {
+      "h": 800,
+      "is_interactive": true,
+      "radius": 16,
+      "title": "POS \u00b7 Retail sale (tablet)",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "OnboardBusiness.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "Onboarding 1 \u00b7 Business type",
+      "w": 1280,
+      "x": 0,
+      "y": 1290
+    },
+    "OnboardModules.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "title": "Onboarding 2 \u00b7 Modules and live price",
+      "w": 1280,
+      "x": 1360,
+      "y": 1290
+    },
+    "OnboardSetup.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Onboarding 3 \u00b7 Setup checklist",
+      "w": 1280,
+      "x": 2720,
+      "y": 1290
+    },
+    "PosPayment.dc.html": {
+      "h": 800,
+      "is_interactive": true,
+      "radius": 16,
+      "title": "POS \u00b7 Split payment, multi-currency",
+      "w": 1280,
+      "x": 1360,
+      "y": 0
+    },
+    "PosPhone.dc.html": {
+      "h": 844,
+      "radius": 32,
+      "title": "POS \u00b7 Phone, offline",
+      "w": 390,
+      "x": 4080,
+      "y": 0
+    },
+    "PosRestaurant.dc.html": {
+      "h": 800,
+      "radius": 16,
+      "title": "POS \u00b7 Restaurant table map",
+      "w": 1280,
+      "x": 2720,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-07T14:25:00Z",
+    "v": 1
+  },
+  "designSystems": [
+    {
+      "artifact": "https://claude.ai/artifact/UkgSZjXQtybyWuYzrMYSY2",
+      "copiedAt": "2026-10-07T17:40:00Z",
+      "namespace": "platform",
+      "title": "Platform design system",
+      "version": "1791393031-fb54"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "boTitle": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "Back office",
+      "w": 240,
+      "x": 0,
+      "y": 2400
+    },
+    "onbTitle": {
+      "kind": "title1",
+      "maxW": 4000,
+      "text": "Self-onboarding",
+      "w": 240,
+      "x": 0,
+      "y": 990
+    },
+    "posTitle": {
+      "kind": "title1",
+      "maxW": 4470,
+      "text": "Point of sale",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "PosPayment.dc.html",
+    "PosRestaurant.dc.html",
+    "PosPhone.dc.html",
+    "OnboardBusiness.dc.html",
+    "OnboardModules.dc.html",
+    "OnboardSetup.dc.html",
+    "BoDashboard.dc.html",
+    "BoApprovals.dc.html",
+    "BoWorkflow.dc.html",
+    "BoPayroll.dc.html"
+  ],
+  "pages": [],
+  "title": "POS, onboarding and back office"
+}

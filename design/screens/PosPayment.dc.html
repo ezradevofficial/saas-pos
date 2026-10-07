@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>POS split payment</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/platform/tokens.css">
+<link rel="stylesheet" href="ds/platform/components/bundle.css">
+<script src="ds/platform/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--primary)}a:hover{color:var(--primary-hover)}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width: 1280px; height: 800px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--surface-100); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 20px;">
+  <header style="height: 64px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--surface-200); border-bottom: 1px solid var(--border);">
+    <a href="Main.dc.html" style="height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Retour à la vente
+    </a>
+    <div style="flex-grow: 1; text-align: center;">
+      <div style="font-weight: 600; font-size: 18px;">Encaissement</div>
+      <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">Kinshasa Gombe · Caisse 1 · Ticket R-KG1-002187</div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">Taux de la boutique</div>
+      <div style="font: 600 14px/20px var(--font-mono);">1 USD = 2,850 CDF</div>
+    </div>
+  </header>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex; gap: 24px; padding: 24px;">
+    <section style="width: 480px; flex: none; display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px; padding: 24px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-weight: 600; color: var(--ink-muted);">Total à payer</div>
+        <x-import component-from-global-scope="DS.Money" amount="{{48.5}}" currency="USD" size="lg" secondary="{{cdfTotal}}"></x-import>
+      </div>
+
+      <div style="flex-grow: 1; min-height: 0; background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column;">
+        <div style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 16px; line-height: 24px;">Paiements reçus</div>
+        <div style="flex-grow: 1; overflow: auto;">
+          <sc-for list="{{payments}}" as="p" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border);">
+              <div style="flex-grow: 1;">
+                <div style="font-weight: 600;">{{p.method}}</div>
+                <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{p.detail}}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font: 600 14px/20px var(--font-mono);">{{p.amount}}</div>
+                <div style="font: 500 12px/16px var(--font-mono); color: var(--ink-muted);">{{p.usd}}</div>
+              </div>
+              <button type="button" onClick="{{p.remove}}" aria-label="Retirer ce paiement" style="width: 40px; height: 40px; border-radius: 8px; border: 0; background: transparent; color: var(--ink-muted); cursor: pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+          <sc-if value="{{noPayments}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 32px 16px; text-align: center; color: var(--ink-muted);">Aucun paiement. Choisissez un moyen de paiement à droite.</div>
+          </sc-if>
+        </div>
+        <div style="padding: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 16px; line-height: 24px;">
+            <span style="color: var(--ink-muted);">Reste à payer</span>
+            <span style="font: 600 16px/24px var(--font-mono);">{{remaining}}</span>
+          </div>
+          <sc-if value="{{hasChange}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 8px; background: var(--success-tint); color: var(--ink);">
+              <span style="font-weight: 600;">Monnaie à rendre</span>
+              <span style="display: flex; flex-direction: column; align-items: flex-end;">
+                <span style="font: 600 18px/24px var(--font-mono);">{{changeCdf}}</span>
+                <span style="font: 500 12px/16px var(--font-mono); color: var(--ink-muted);">{{changeUsd}}</span>
+              </span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </section>
+
+    <section style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+      <div style="font-weight: 600; font-size: 16px; line-height: 24px;">Moyen de paiement</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+        <sc-for list="{{methods}}" as="m" hint-placeholder-count="6">
+          <button type="button" onClick="{{m.pick}}" aria-pressed="{{m.pressed}}" style="{{m.style}}">
+            <span style="font-weight: 600; font-size: 16px; line-height: 22px;">{{m.label}}</span>
+            <span style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{m.hint}}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="background: var(--surface-200); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-weight: 600; font-size: 16px; line-height: 24px;">{{activeLabel}}</div>
+          <div style="font-size: 12px; line-height: 16px; color: var(--ink-muted);">{{activeHelp}}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+          <sc-for list="{{quick}}" as="q" hint-placeholder-count="4">
+            <button type="button" onClick="{{q.add}}" style="height: 56px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-200); color: var(--ink); font: 600 16px/22px var(--font-mono); cursor: pointer;">{{q.label}}</button>
+          </sc-for>
+        </div>
+        <sc-if value="{{isMobile}}" hint-placeholder-val="{{false}}">
+          <x-import component-from-global-scope="DS.Alert" tone="info" title="Demande envoyée au téléphone du client">Le client confirme avec son code PIN. Le paiement s'ajoute tout seul dès sa confirmation.</x-import>
+        </sc-if>
+      </div>
+
+      <div style="flex-grow: 1;"></div>
+      <div style="display: flex; gap: 12px;">
+        <x-import component-from-global-scope="DS.Button" variant="secondary" size="lg" style="flex: 1;">Mettre en attente</x-import>
+        <x-import component-from-global-scope="DS.Button" variant="pay" size="lg" disabled="{{notPaid}}" style="flex: 2;" block="{{true}}">{{completeLabel}}</x-import>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","executive","warm"],"default":"light"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      method: 'cdf',
+      pays: [
+        { id: 1, method: 'Espèces USD', detail: 'Billets reçus', cur: 'USD', amount: 20 },
+        { id: 2, method: 'M-Pesa (Vodacom)', detail: 'Confirmé · 0812 *** 554', cur: 'CDF', amount: 57000 }
+      ],
+      next: 3
+    };
+  }
+  renderVals() {
+    var self = this;
+    var RATE = 2850, TOTAL = 48.5;
+    function fmt(cur, n) {
+      var d = cur === 'CDF' ? 0 : 2;
+      return cur + ' ' + n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+    function toUsd(p) { return p.cur === 'USD' ? p.amount : p.amount / RATE; }
+    var paidUsd = this.state.pays.reduce(function (s, p) { return s + toUsd(p); }, 0);
+    var remainingUsd = Math.max(0, Math.round((TOTAL - paidUsd) * 100) / 100);
+    var changeUsd = Math.max(0, paidUsd - TOTAL);
+    var changeCdf = Math.round(changeUsd * RATE / 50) * 50;
+    var defs = [
+      { id: 'usd', label: 'Espèces USD', hint: 'Billets en dollars', cur: 'USD', name: 'Espèces USD', detail: 'Billets reçus', quick: [1, 5, 10, 20] },
+      { id: 'cdf', label: 'Espèces CDF', hint: 'Francs congolais', cur: 'CDF', name: 'Espèces CDF', detail: 'Billets reçus', quick: [5000, 10000, 20000, 50000] },
+      { id: 'mpesa', label: 'M-Pesa', hint: 'Vodacom', cur: 'CDF', name: 'M-Pesa (Vodacom)', detail: 'Confirmé · 0812 *** 554', mobile: true },
+      { id: 'orange', label: 'Orange Money', hint: 'Demande au téléphone', cur: 'CDF', name: 'Orange Money', detail: 'Confirmé · 0899 *** 120', mobile: true },
+      { id: 'airtel', label: 'Airtel Money', hint: 'Demande au téléphone', cur: 'CDF', name: 'Airtel Money', detail: 'Confirmé · 0997 *** 301', mobile: true },
+      { id: 'card', label: 'Carte', hint: 'Visa · Mastercard', cur: 'USD', name: 'Carte bancaire', detail: 'Visa •••• 4417', mobile: false }
+    ];
+    var active = defs.filter(function (d) { return d.id === self.state.method; })[0];
+    function addPay(amount) {
+      self.setState({ pays: self.state.pays.concat([{ id: self.state.next, method: active.name, detail: active.detail, cur: active.cur, amount: amount }]), next: self.state.next + 1 });
+    }
+    var remainingInActive = active.cur === 'USD' ? remainingUsd : Math.ceil(remainingUsd * RATE / 50) * 50;
+    var quick = active.quick ? active.quick.map(function (v) { return { label: fmt(active.cur, v), add: function () { addPay(v); } }; }) : [];
+    if (remainingUsd > 0) quick = [{ label: 'Exact', add: function () { addPay(remainingInActive); } }].concat(active.quick ? quick.slice(0, 3) : []);
+    return {
+      theme: this.props.theme ?? 'light',
+      cdfTotal: { amount: Math.round(TOTAL * RATE), currency: 'CDF' },
+      payments: this.state.pays.map(function (p) {
+        return { method: p.method, detail: p.detail, amount: fmt(p.cur, p.amount), usd: p.cur === 'USD' ? '' : '≈ ' + fmt('USD', toUsd(p)),
+          remove: function () { self.setState({ pays: self.state.pays.filter(function (x) { return x.id !== p.id; }) }); } };
+      }),
+      noPayments: this.state.pays.length === 0,
+      remaining: fmt('USD', remainingUsd) + '  ·  ' + fmt('CDF', Math.ceil(remainingUsd * RATE / 50) * 50),
+      hasChange: changeUsd > 0.009,
+      changeCdf: fmt('CDF', changeCdf),
+      changeUsd: '≈ ' + fmt('USD', changeUsd),
+      methods: defs.map(function (d) {
+        var on = d.id === self.state.method;
+        return { label: d.label, hint: d.hint, pressed: on ? 'true' : 'false', pick: function () { self.setState({ method: d.id }); },
+          style: 'min-height: 72px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 12px 16px; text-align: left; border-radius: 8px; cursor: pointer; font-family: var(--font-sans); color: var(--ink); border: ' + (on ? '2px solid var(--primary)' : '1px solid var(--border-strong)') + '; background: ' + (on ? 'var(--primary-tint)' : 'var(--surface-200)') + ';' };
+      }),
+      activeLabel: 'Montant en ' + active.cur,
+      activeHelp: active.mobile ? 'Le client reçoit une demande de paiement' : 'Reste : ' + fmt(active.cur, remainingInActive),
+      isMobile: !!active.mobile,
+      quick: active.mobile || active.id === 'card' ? [{ label: 'Envoyer ' + fmt(active.cur, remainingInActive), add: function () { addPay(remainingInActive); } }] : quick,
+      notPaid: remainingUsd > 0,
+      completeLabel: remainingUsd > 0 ? 'Reste ' + fmt('USD', remainingUsd) : 'Terminer la vente'
+    };
+  }
+}
+</script>
+</body>
+</html>
