@@ -5,9 +5,15 @@
   --shadow-*: initial;
   --font-*: initial;
   --text-*: initial;
+  --font-weight-*: initial;
+  --leading-*: initial;
+  --tracking-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
 }
 
-@theme inline {
+@theme inline reference {
   --color-transparent: transparent;
   --color-current: currentColor;
   --color-surface-100: var(--surface-100);

@@ -68,7 +68,7 @@ describe('tailwind.css (v4)', () => {
   it('disables defaults and maps tokens', () => {
     expect(tw.startsWith('@theme {')).toBe(true);
     for (const k of ['color', 'spacing', 'radius', 'shadow', 'font', 'text']) expect(tw).toContain(`--${k}-*: initial;`);
-    expect(tw).toContain('@theme inline {');
+    expect(tw).toContain('@theme inline reference {');
     expect(tw).toContain('--color-ink: var(--ink);');
     expect(tw).toContain('--color-surface-100: var(--surface-100);');
     expect(tw).toContain('--color-transparent: transparent;');
