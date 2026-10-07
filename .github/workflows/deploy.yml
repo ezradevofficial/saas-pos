@@ -1,0 +1,92 @@
+# Deploy to the dev and then the staging Linode on every push to main, or
+# by hand. Each environment deploys only when its credentials are set as
+# repository secrets (see README, "Deploy"); until the owner provides them
+# the jobs are skipped and the run still succeeds (ADR 001).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys of the same ref run one after the other, never cancelled halfway.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Check deploy credentials
+    runs-on: ubuntu-24.04
+    outputs:
+      dev: ${{ steps.check.outputs.dev }}
+      staging: ${{ steps.check.outputs.staging }}
+    steps:
+      - name: Check which environments have credentials
+        id: check
+        env:
+          DEV_HOST: ${{ secrets.DEV_LINODE_HOST }}
+          DEV_USER: ${{ secrets.DEV_LINODE_USER }}
+          DEV_KEY: ${{ secrets.DEV_LINODE_SSH_KEY }}
+          DEV_KNOWN_HOSTS: ${{ secrets.DEV_LINODE_KNOWN_HOSTS }}
+          DEV_PATH: ${{ secrets.DEV_DEPLOY_PATH }}
+          DEV_API_URL: ${{ vars.DEV_API_URL }}
+          STAGING_HOST: ${{ secrets.STAGING_LINODE_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_LINODE_USER }}
+          STAGING_KEY: ${{ secrets.STAGING_LINODE_SSH_KEY }}
+          STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_LINODE_KNOWN_HOSTS }}
+          STAGING_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          for env in DEV STAGING; do
+            missing=""
+            for name in HOST USER KEY KNOWN_HOSTS PATH API_URL; do
+              var="${env}_${name}"
+              [ -n "${!var}" ] || missing="$missing $var"
+            done
+            flag="$(echo "$env" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "$missing" ]; then
+              echo "$flag=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$flag=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=Deploy to $flag skipped::Missing:$missing (see README, Deploy)"
+            fi
+          done
+
+  dev:
+    name: Deploy to dev
+    needs: gate
+    if: needs.gate.outputs.dev == 'true'
+    uses: ./.github/workflows/deploy-target.yml
+    with:
+      environment: dev
+      api-url: ${{ vars.DEV_API_URL }}
+    secrets:
+      host: ${{ secrets.DEV_LINODE_HOST }}
+      user: ${{ secrets.DEV_LINODE_USER }}
+      ssh-key: ${{ secrets.DEV_LINODE_SSH_KEY }}
+      known-hosts: ${{ secrets.DEV_LINODE_KNOWN_HOSTS }}
+      path: ${{ secrets.DEV_DEPLOY_PATH }}
+
+  # Staging follows dev; when dev is skipped (no credentials) staging can
+  # still deploy on its own.
+  staging:
+    name: Deploy to staging
+    needs: [gate, dev]
+    if: >-
+      always()
+      && needs.gate.outputs.staging == 'true'
+      && (needs.dev.result == 'success' || needs.dev.result == 'skipped')
+    uses: ./.github/workflows/deploy-target.yml
+    with:
+      environment: staging
+      api-url: ${{ vars.STAGING_API_URL }}
+    secrets:
+      host: ${{ secrets.STAGING_LINODE_HOST }}
+      user: ${{ secrets.STAGING_LINODE_USER }}
+      ssh-key: ${{ secrets.STAGING_LINODE_SSH_KEY }}
+      known-hosts: ${{ secrets.STAGING_LINODE_KNOWN_HOSTS }}
+      path: ${{ secrets.STAGING_DEPLOY_PATH }}
