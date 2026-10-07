@@ -7,6 +7,39 @@ return [
         'system_role' => 'Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.',
         'module_inactive' => 'Ce module n’est pas activé pour votre organisation.',
         'last_owner' => 'Votre organisation doit garder au moins un propriétaire actif.',
+        'cannot_grant' => 'Vous ne pouvez attribuer que des rôles dont vous détenez les permissions, là où vous gérez les accès. Seul un propriétaire peut attribuer ou retirer le rôle Propriétaire.',
+        'already_assigned' => 'Cet utilisateur a déjà ce rôle ici.',
+    ],
+
+    // RBAC-01 : libellés du catalogue des permissions (GET permissions).
+    'catalogue' => [
+        'modules' => [
+            'core' => 'Socle',
+        ],
+        'resources' => [
+            'core' => [
+                'company' => 'Sociétés',
+                'branch' => 'Succursales',
+                'location' => 'Emplacements',
+                'device' => 'Appareils de caisse',
+                'user' => 'Utilisateurs',
+                'role' => 'Rôles',
+                'audit' => 'Journal d’audit',
+                'settings' => 'Paramètres',
+                'access_review' => 'Revue des accès',
+            ],
+        ],
+        'actions' => [
+            'view' => 'Voir',
+            'create' => 'Créer',
+            'edit' => 'Modifier',
+            'archive' => 'Archiver',
+            'pair' => 'Appairer',
+            'invite' => 'Inviter',
+            'deactivate' => 'Désactiver',
+            'assign' => 'Attribuer',
+            'export' => 'Exporter',
+        ],
     ],
 
     // RBAC-03 : noms des rôles système, enregistrés dans la langue par défaut du locataire.

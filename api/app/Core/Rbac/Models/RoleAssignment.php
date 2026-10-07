@@ -26,6 +26,9 @@ class RoleAssignment extends Model
 
     protected $fillable = ['tenant_id', 'user_id', 'role_id', 'scope_type', 'scope_id', 'created_by'];
 
+    /** The scope's display name, filled by ScopeNames for API output; never stored. */
+    public ?string $scopeName = null;
+
     protected static function booted(): void
     {
         static::creating(function (self $assignment) {
@@ -53,6 +56,12 @@ class RoleAssignment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Who granted it (RBAC-11), null for the tenant's first Owner. */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function role(): BelongsTo

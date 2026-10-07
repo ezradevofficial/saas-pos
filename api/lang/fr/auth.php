@@ -37,6 +37,19 @@ return [
         'done' => 'Votre mot de passe a été modifié. Connectez-vous avec le nouveau mot de passe.',
     ],
 
+    // AUTH-05 : invitations.
+    'invitation' => [
+        'expired' => 'Cette invitation a expiré. Demandez à votre administrateur d’en envoyer une nouvelle.',
+        'revoked' => 'Cette invitation a été retirée. Contactez votre administrateur si vous avez encore besoin d’un accès.',
+        'accepted' => 'Cette invitation a déjà été utilisée. Connectez-vous plutôt.',
+        'stale' => 'Cette invitation ne correspond plus à l’organisation. Demandez à votre administrateur d’en envoyer une nouvelle.',
+    ],
+
+    // AUTH-13 : administration des utilisateurs.
+    'users' => [
+        'contact_unverified' => 'Cet utilisateur n’a jamais vérifié d’e-mail ni de numéro de téléphone : il ne peut pas être réactivé. Invitez-le de nouveau.',
+    ],
+
     'notifications' => [
         'greeting' => 'Bonjour :name,',
         'verification_code' => [
@@ -57,6 +70,13 @@ return [
                 'line' => 'Votre code de réinitialisation du mot de passe est :code.',
                 'sms' => 'Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minutes.',
             ],
+        ],
+        'invitation' => [
+            'subject' => 'Rejoignez :tenant sur :app',
+            'line' => ':inviter vous invite à rejoindre :tenant.',
+            'action' => 'Accepter l’invitation',
+            'expiry' => 'L’invitation est valable jusqu’au :date.',
+            'sms' => ':app : vous êtes invité à rejoindre :tenant. Acceptez ici : :url',
         ],
         'new_device' => [
             'subject' => 'Nouvelle connexion à votre compte :app',

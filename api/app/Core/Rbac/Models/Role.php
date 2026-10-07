@@ -3,11 +3,15 @@
 namespace App\Core\Rbac\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\Policies\RolePolicy;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Permission\Contracts\Role as RoleContract;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 /**
@@ -19,7 +23,12 @@ use Spatie\Permission\Models\Role as SpatieRole;
  *
  * Spatie's users() relation is not used: assignments are scoped and live in
  * role_assignments (RBAC-04).
+ *
+ * Permission changes go through setPermissions(), which records
+ * `rbac.role.permissions_update` with the sorted names before and after
+ * (Spatie writes role_has_permissions without model events).
  */
+#[UsePolicy(RolePolicy::class)]
 class Role extends SpatieRole
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;
@@ -61,6 +70,45 @@ class Role extends SpatieRole
         if ($isSystem) {
             throw new ApiException(403, 'system_role', __('rbac.errors.system_role'));
         }
+    }
+
+    /** @return list<string> permission names, sorted */
+    public function permissionNames(): array
+    {
+        return $this->permissions()->orderBy('name')->pluck('name')->all();
+    }
+
+    /**
+     * Replace the role's permissions (names or models) and audit the change
+     * (RBAC-12). No change, no entry. The current tenant's permission cache
+     * is flushed by Spatie (after commit, see TenantPermissionRegistrar).
+     */
+    public function setPermissions(iterable $permissions): static
+    {
+        return $this->getConnection()->transaction(function () use ($permissions) {
+            $before = $this->permissionNames();
+            $this->syncPermissions(collect($permissions)->all());
+            $this->unsetRelation('permissions');
+            $after = $this->permissionNames();
+
+            if ($before !== $after) {
+                app(Auditor::class)->record('rbac.role.permissions_update', $this, ['permissions' => $before], ['permissions' => $after]);
+            }
+
+            return $this;
+        });
+    }
+
+    /** RBAC-02: names are unique among the tenant's active roles; an archived role frees its name. */
+    protected static function findByParam(array $params = []): ?RoleContract
+    {
+        $query = static::query()->whereNull('archived_at');
+
+        foreach ($params as $key => $value) {
+            $query->where($key, $value);
+        }
+
+        return $query->first();
     }
 
     public function assignments(): HasMany

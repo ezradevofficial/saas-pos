@@ -194,6 +194,35 @@ class DeviceApiTest extends TestCase
             ->assertJsonPath('code', 'device_not_suspended');
     }
 
+    public function test_a_device_suspended_before_pairing_resumes_to_pending(): void
+    {
+        $id = $this->createDevice();
+
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/devices/{$id}/resume", [], $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.status', 'pending');
+    }
+
+    public function test_a_suspended_device_keeps_its_location_active_and_cannot_resume_under_an_archived_one(): void
+    {
+        $id = $this->createDevice();
+        $this->pair($this->pairingCode($id))->assertOk();
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
+
+        // TEN-06: a suspended device still belongs to its location.
+        $this->postJson("/api/v1/locations/{$this->locationA->id}/archive", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'has_active_children');
+
+        $this->inTenant(fn () => $this->locationA->archive());
+
+        $this->postJson("/api/v1/devices/{$id}/resume", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'parent_archived');
+        $this->inTenant(fn () => $this->assertSame('suspended', Device::findOrFail($id)->status));
+    }
+
     public function test_unpair_is_idempotent(): void
     {
         $id = $this->createDevice();

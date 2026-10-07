@@ -61,7 +61,8 @@ class RoleTemplates
 
     /**
      * Re-apply the templates to the current tenant's system roles, so they
-     * pick up permissions registered since they were seeded.
+     * pick up permissions registered since they were seeded. Changes are
+     * audited (RBAC-12).
      */
     public function refresh(): void
     {
@@ -72,7 +73,7 @@ class RoleTemplates
             Role::where('is_system', true)->whereNotNull('template_key')->get()
                 ->each(function (Role $role) use ($templates) {
                     if ($template = $templates->get($role->template_key)) {
-                        $role->syncPermissions($this->expand($template['permissions']));
+                        $role->setPermissions($this->expand($template['permissions']));
                     }
                 });
         });
@@ -80,7 +81,8 @@ class RoleTemplates
 
     /**
      * An editable copy of $role (any role, typically a system one) with the
-     * same permissions, field rules and limit rules (RBAC-02).
+     * same permissions, field rules and limit rules (RBAC-02). Never an
+     * owner role. The permissions are audited (RBAC-12).
      */
     public function copy(Role $role, string $name): Role
     {
@@ -92,7 +94,7 @@ class RoleTemplates
                 'requires_two_factor' => $role->requires_two_factor,
             ]);
 
-            $copy->givePermissionTo($role->permissions()->get());
+            $copy->setPermissions($role->permissions()->get());
 
             foreach ($role->fieldRules as $rule) {
                 $copy->fieldRules()->create($rule->only(['resource', 'field', 'mode']));
