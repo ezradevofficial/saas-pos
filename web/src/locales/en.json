@@ -166,7 +166,18 @@
     "network": "Cannot reach the server. Check your connection and try again.",
     "generic": "Something went wrong. Try again in a moment.",
     "profileTitle": "Your profile did not load",
-    "profileText": "Check your connection, then try again."
+    "profileText": "Check your connection, then try again.",
+    "codes": {
+      "last_owner": "Your organisation needs at least one active Owner. Give the Owner role to someone else first.",
+      "cannot_grant": "You can only give roles whose permissions you hold, where you manage access. Only an Owner can give or remove the Owner role.",
+      "invitation_stale": "This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.",
+      "contact_unverified": "This person never verified an email or phone number, so they can’t be reactivated. Invite them again instead.",
+      "system_role": "System roles can’t be changed. Copy the role to customise it.",
+      "device_suspended": "This device is suspended. Resume it before unpairing it.",
+      "device_not_pairable": "This device is already paired or suspended. Unpair it before pairing it again.",
+      "device_not_suspended": "This device isn’t suspended, so there is nothing to resume.",
+      "forbidden": "You don’t have permission to do this. Ask an administrator if you need it."
+    }
   },
   "nav": {
     "label": "Main",
@@ -315,7 +326,6 @@
     "text": "Ask an administrator to give you a role that includes it."
   },
   "settings": {
-    "comingSoon": "This page is being built.",
     "organisation": {
       "title": "Organisation",
       "description": "Companies, branches, locations and devices."
@@ -374,5 +384,297 @@
     "confirmText": "You will go back to the sign-in page. Your other sessions stay signed in.",
     "stay": "Stay signed in",
     "signOutHere": "Sign out"
+  },
+  "organisation": {
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "showArchived": "Show archived",
+    "empty": "No companies yet. Add the first one to start building your organisation.",
+    "emptyReadOnly": "Nothing in your organisation is assigned to you yet.",
+    "edit": "Edit",
+    "editName": "Edit {{name}}",
+    "archive": "Archive",
+    "archiveName": "Archive {{name}}",
+    "restore": "Restore",
+    "restoreName": "Restore {{name}}",
+    "archiveTitle": "Archive {{name}}?",
+    "keep": "Keep it active",
+    "devices": "Devices",
+    "devicesOf": "Devices of {{name}}",
+    "company": {
+      "add": "Add company",
+      "addTitle": "Add a company",
+      "editTitle": "Edit {{name}}",
+      "archive": "Archive company",
+      "archiveText": "The company and its history stay, but no one can add branches to it or sell under it until you restore it."
+    },
+    "branch": {
+      "add": "Add branch",
+      "addIn": "Add a branch to {{parent}}",
+      "addTitleIn": "Add a branch to {{parent}}",
+      "editTitle": "Edit {{name}}",
+      "archive": "Archive branch",
+      "archiveText": "The branch and its history stay, but no one can add locations to it until you restore it.",
+      "code": "Code {{code}}",
+      "empty": "No branches yet.",
+      "listOf": "Branches of {{name}}"
+    },
+    "location": {
+      "add": "Add location",
+      "addIn": "Add a location to {{parent}}",
+      "addTitleIn": "Add a location to {{parent}}",
+      "editTitle": "Edit {{name}}",
+      "archive": "Archive location",
+      "archiveText": "The location and its sales history stay, but no device can be added or paired here until you restore it.",
+      "empty": "No locations yet.",
+      "listOf": "Locations of {{name}}"
+    },
+    "fields": {
+      "name": "Name",
+      "legalName": "Legal name",
+      "legalNameHelp": "As registered. Leave empty to use the name.",
+      "country": "Country",
+      "countryHelp": "Sets the currency and time zone. It can’t be changed later.",
+      "taxId": "Tax ID",
+      "code": "Branch code",
+      "codeHelp": "Up to 20 letters, numbers or dashes, such as WSTL. Used on receipts and reports.",
+      "type": "Type"
+    },
+    "locationTypes": {
+      "outlet": "Outlet",
+      "warehouse": "Warehouse",
+      "store": "Store",
+      "office": "Office"
+    },
+    "errors": {
+      "lastActive": {
+        "company": "This is your only active company. Add another company before archiving this one.",
+        "branch": "This is your only active branch. Add another branch before archiving this one.",
+        "location": "This is your only active location. Add another location before archiving this one."
+      },
+      "hasActiveChildren": {
+        "company": "This company still has active branches. Archive them first.",
+        "branch": "This branch still has active locations. Archive them first.",
+        "location": "This location still has devices that are paired, waiting to pair or suspended. Unpair them first."
+      },
+      "parentArchived": {
+        "company": "This company is archived. Restore it before adding to it.",
+        "branch": "The company of this branch is archived. Restore the company first.",
+        "location": "The branch of this location is archived. Restore the branch first.",
+        "device": "This location is archived. Restore it before adding or pairing devices."
+      }
+    }
+  },
+  "devices": {
+    "title": "Devices at {{location}}",
+    "add": "Add device",
+    "addAndPair": "Add and get pairing code",
+    "addTitle": "Add a device to {{location}}",
+    "name": "Device name",
+    "nameHelp": "A name people recognise at the till, such as Till 1.",
+    "empty": "No devices yet. Add one to pair a till here.",
+    "emptyReadOnly": "No devices at this location.",
+    "status": {
+      "pending": "Waiting to pair",
+      "active": "Paired",
+      "suspended": "Suspended",
+      "unpaired": "Unpaired"
+    },
+    "lastSeen": "Last seen {{date}}",
+    "pairedAt": "Paired {{date}}",
+    "notPaired": "Not paired yet",
+    "getCode": "Get pairing code",
+    "getCodeFor": "Get pairing code for {{name}}",
+    "codeTitle": "Pairing code for {{name}}",
+    "code": "Pairing code",
+    "codeIntro": "Enter this code on the device to pair it with this location.",
+    "codeExpiry": "It works once and is valid until {{time}}.",
+    "codeOnce": "You won’t see this code again. If it expires, get a new one.",
+    "copy": "Copy code",
+    "copied": "Copied",
+    "done": "Done",
+    "suspend": "Suspend",
+    "suspendFor": "Suspend {{name}}",
+    "suspendTitle": "Suspend {{name}}?",
+    "suspendText": "Suspending is temporary: the device stays paired but can’t sign in or sell until you resume it.",
+    "suspendLost": "If the device is lost or stolen, unpair it instead so its access ends for good.",
+    "suspendConfirm": "Suspend device",
+    "resume": "Resume",
+    "resumeFor": "Resume {{name}}",
+    "unpair": "Unpair",
+    "unpairFor": "Unpair {{name}}",
+    "unpairTitle": "Unpair {{name}}?",
+    "unpairText": "The device is signed out at once and needs a new pairing code to sell again. Its sales history stays.",
+    "unpairConfirm": "Unpair device",
+    "keep": "Keep device"
+  },
+  "users": {
+    "inviteUser": "Invite user",
+    "exportAccessReview": "Export access review",
+    "backToUsers": "Users",
+    "tabs": {
+      "active": "Active",
+      "invitations": "Pending invitations",
+      "deactivated": "Deactivated"
+    },
+    "columns": {
+      "name": "Name",
+      "contact": "Email or phone",
+      "roles": "Roles",
+      "status": "Status",
+      "expires": "Expires",
+      "actions": "Actions",
+      "role": "Role",
+      "where": "Where",
+      "granted": "Given"
+    },
+    "status": {
+      "active": "Active",
+      "pending": "Pending",
+      "deactivated": "Deactivated"
+    },
+    "empty": {
+      "active": "No active users in your part of the organisation yet.",
+      "deactivated": "No one has been deactivated.",
+      "invitations": "No pending invitations. Invite someone to give them access."
+    },
+    "noRoles": "No roles",
+    "roleAt": "{{role}} at {{scope}}",
+    "unknownRole": "A role you can’t see",
+    "scopeTypes": {
+      "tenant": "Whole organisation",
+      "company": "Company",
+      "branch": "Branch",
+      "location": "Location"
+    },
+    "invitationExpired": "Expired",
+    "revoke": "Revoke",
+    "revokeFor": "Revoke the invitation for {{name}}",
+    "revokeTitle": "Revoke the invitation for {{name}}?",
+    "revokeText": "The link stops working at once. You can send a new invitation later.",
+    "revokeConfirm": "Revoke invitation",
+    "keepInvitation": "Keep invitation",
+    "pages": "Pages",
+    "pageOf": "Page {{page}} of {{last}}",
+    "previous": "Previous",
+    "next": "Next",
+    "fields": {
+      "name": "Full name",
+      "contact": "Email or phone number",
+      "language": "Language"
+    },
+    "invite": {
+      "title": "Invite a user",
+      "description": "They get a link to choose a password and join with the roles you give here.",
+      "contactHelp": "The invitation link is sent here. Use an international number, such as +254 712 345 678.",
+      "rolesTitle": "Roles",
+      "rolesText": "Give at least one role, and say where it applies. A branch role covers its locations; a company role covers its branches.",
+      "addRole": "Add another role",
+      "send": "Send invitation",
+      "sent": "Invitation sent to {{name}}. It is valid for 7 days."
+    },
+    "assignment": {
+      "legend": "Role {{number}}",
+      "role": "Role",
+      "rolePlaceholder": "Choose a role",
+      "scopeType": "Applies to",
+      "scope": {
+        "company": "Company",
+        "branch": "Branch",
+        "location": "Location"
+      },
+      "scopePlaceholder": {
+        "company": "Choose a company",
+        "branch": "Choose a branch",
+        "location": "Choose a location"
+      },
+      "tenantHelp": "Every company, branch and location, including ones added later.",
+      "remove": "Remove",
+      "removeRow": "Remove role {{number}}"
+    },
+    "grantedBy": "by {{name}}",
+    "detail": {
+      "profile": "Profile",
+      "saved": "Profile saved.",
+      "roles": "Roles",
+      "noRoles": "No roles yet. Give one so this person can work.",
+      "addRole": "Give a role",
+      "giveRole": "Give role",
+      "removeRole": "Remove",
+      "removeRoleFor": "Remove {{role}} at {{scope}}",
+      "removeTitle": "Remove {{role}} at {{scope}} from {{name}}?",
+      "removeText": "{{name}} loses what this role allows there at once. Their history stays.",
+      "removeConfirm": "Remove role",
+      "keepRole": "Keep role",
+      "notFound": "This user doesn’t exist or isn’t in your part of the organisation.",
+      "signOutEverywhere": "Sign out everywhere",
+      "signOutTitle": "Sign {{name}} out everywhere?",
+      "signOutText": "Every session ends now, on computers, phones and tills. They can sign in again with their password.",
+      "signOutSelfText": "Every one of your sessions ends now, including this one. You can sign in again with your password.",
+      "signOutConfirm": "Sign out everywhere",
+      "keepSignedIn": "Keep them signed in",
+      "signedOut": "{{name}} has been signed out everywhere.",
+      "deactivate": "Deactivate",
+      "deactivateTitle": "Deactivate {{name}}?",
+      "deactivateText": "They are signed out everywhere at once and can’t sign in until someone reactivates them. Their roles and history stay.",
+      "deactivateSelfText": "You will be signed out at once and can’t sign in until someone reactivates you.",
+      "deactivateConfirm": "Deactivate {{name}}",
+      "keepActive": "Keep active",
+      "reactivate": "Reactivate",
+      "reactivateTitle": "Reactivate {{name}}?",
+      "reactivateText": "They can sign in again with their password and get the roles they held.",
+      "reactivateConfirm": "Reactivate {{name}}"
+    }
+  },
+  "roles": {
+    "create": "Create role",
+    "system": "System",
+    "archived": "Archived",
+    "copy": "Copy",
+    "copyRole": "Copy {{name}}",
+    "copyTitle": "Copy {{name}}",
+    "copyText": "The copy starts with the same permissions and is yours to change.",
+    "copyName": "{{name}} (copy)",
+    "copyConfirm": "Copy role",
+    "empty": "No roles yet. Create one to group permissions.",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "permissions": "Permissions",
+      "twoFactor": "Two-factor",
+      "actions": "Actions"
+    },
+    "permissionCount_one": "{{count}} permission",
+    "permissionCount_other": "{{count}} permissions",
+    "twoFactorRequired": "Required",
+    "backToRoles": "Roles",
+    "notFound": "This role doesn’t exist.",
+    "newTitle": "New role",
+    "newText": "Name the role and choose what it allows.",
+    "systemTitle": "System roles can’t be changed",
+    "systemText": "Copy this role to make your own version, then change its permissions.",
+    "details": "Details",
+    "permissions": "Permissions",
+    "saved": "Role saved.",
+    "fields": {
+      "name": "Role name",
+      "description": "Description",
+      "twoFactor": "Require two-factor sign-in",
+      "twoFactorHelp": "People with this role must set up two-factor sign-in before they can continue."
+    },
+    "twoFactorOn": "Two-factor sign-in is now required for this role.",
+    "twoFactorOff": "Two-factor sign-in is no longer required for this role.",
+    "matrix": {
+      "resource": "Resource",
+      "cell": "{{resource}}: {{action}}"
+    },
+    "archive": "Archive",
+    "archiveTitle": "Archive {{name}}?",
+    "archiveText": "People who hold this role lose its permissions at once. Their other roles and history stay.",
+    "archiveConfirm": "Archive role",
+    "keepRole": "Keep role",
+    "emptyReadOnly": "No roles to show."
   }
 }

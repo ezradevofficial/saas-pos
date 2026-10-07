@@ -62,7 +62,7 @@ function emit(event) {
   for (const listener of listeners) listener(event)
 }
 
-async function request(method, path, body) {
+function headersFor(body) {
   const token = getToken()
   const companyId = getCompanyId()
   const headers = {
@@ -72,10 +72,12 @@ async function request(method, path, body) {
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
   if (companyId) headers['X-Company-Id'] = companyId
+  return headers
+}
 
-  let response
+async function send(method, path, body, headers) {
   try {
-    response = await fetch(`${apiUrl}/api/v1/${path.replace(/^\//, '')}`, {
+    return await fetch(`${apiUrl}/api/v1/${path.replace(/^\//, '')}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -83,6 +85,11 @@ async function request(method, path, body) {
   } catch {
     throw new ApiError({ status: 0, code: 'network_error', message: i18n.t('errors.network') })
   }
+}
+
+async function request(method, path, body) {
+  const token = getToken()
+  const response = await send(method, path, body, headersFor(body))
 
   if (response.status === 204) return null
 
@@ -94,7 +101,31 @@ async function request(method, path, body) {
   }
 
   if (response.ok) return data
+  return failure(response, data, token)
+}
 
+/**
+ * A file from the API (e.g. the access review CSV) with the bearer token:
+ * `{ blob, filename }`, the name from Content-Disposition.
+ */
+async function download(path) {
+  const token = getToken()
+  const response = await send('GET', path, undefined, headersFor())
+  if (response.ok) {
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const filename = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1] ?? null
+    return { blob: await response.blob(), filename: filename ? decodeURIComponent(filename) : null }
+  }
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+  return failure(response, data, token)
+}
+
+function failure(response, data, token) {
   const { message, code, errors, ...rest } = data ?? {}
   const error = new ApiError({
     status: response.status,
@@ -119,6 +150,7 @@ export const api = {
   post: (path, body = {}) => request('POST', path, body),
   patch: (path, body = {}) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),
+  download,
 }
 
 /** A short device label for the sessions list ("Chrome on macOS"). */

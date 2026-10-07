@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { api, getToken } from '@/api/client'
-import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
+import { apiError, mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -42,5 +42,15 @@ describe('Accept invitation', () => {
     expect(await screen.findByRole('button', { name: 'Accept and sign in' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/invitations/${TOKEN}`)
     expect(getToken()).toBeNull()
+  })
+
+  it('explains a stale invitation in the web’s own sentence', async () => {
+    api.post.mockRejectedValue(apiError(422, 'invitation_stale', 'stale (API text)'))
+    renderApp(`/invitations/${TOKEN}`)
+    fireEvent.change(await screen.findByLabelText('New password', { exact: false }), { target: { value: 'a long password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Accept and sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.',
+    )
   })
 })

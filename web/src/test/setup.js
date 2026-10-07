@@ -5,3 +5,11 @@ import '../i18n'
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
 if (!Element.prototype.hasPointerCapture) Element.prototype.hasPointerCapture = () => false
 if (!Element.prototype.releasePointerCapture) Element.prototype.releasePointerCapture = () => {}
+// Radix Switch measures its thumb with ResizeObserver.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}

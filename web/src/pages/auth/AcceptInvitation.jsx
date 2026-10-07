@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
+import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert, Button, TextField } from '@/components/ds'
@@ -29,6 +30,9 @@ export default function AcceptInvitation() {
     },
   })
   const errors = formErrors(mutation.error, ['name', 'password'])
+  // Codes such as invitation_stale read as the web's own sentence (errorMessage).
+  const hasFieldErrors = Object.keys(mutation.error?.errors ?? {}).length > 0
+  const formError = errors.form ? (hasFieldErrors ? errors.form : errorMessage(mutation.error)) : null
   const footer = (
     <p>
       <TextLink to="/sign-in">{t('auth.backToSignIn')}</TextLink>
@@ -78,7 +82,7 @@ export default function AcceptInvitation() {
 
   return (
     <AuthPage title={t('auth.invitation.title')} intro={t('auth.invitation.intro', { business: tenantName })} footer={footer}>
-      <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
+      <AuthForm onSubmit={() => mutation.mutate()} error={formError} failure={mutation.error}>
         <TextField label={t('auth.fields.login')} value={email ?? phone ?? ''} readOnly disabled />
         <TextField
           label={t('auth.fields.name')}

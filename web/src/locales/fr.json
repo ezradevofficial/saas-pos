@@ -166,7 +166,18 @@
     "network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
     "generic": "Une erreur s'est produite. Réessayez dans un instant.",
     "profileTitle": "Votre profil n'a pas pu être chargé",
-    "profileText": "Vérifiez votre connexion, puis réessayez."
+    "profileText": "Vérifiez votre connexion, puis réessayez.",
+    "codes": {
+      "last_owner": "Votre organisation doit garder au moins un propriétaire actif. Donnez d’abord le rôle Propriétaire à quelqu’un d’autre.",
+      "cannot_grant": "Vous ne pouvez donner que des rôles dont vous détenez les autorisations, là où vous gérez les accès. Seul un propriétaire peut donner ou retirer le rôle Propriétaire.",
+      "invitation_stale": "Cette invitation ne correspond plus à la configuration de l’organisation. Demandez à votre administrateur de vous en envoyer une nouvelle.",
+      "contact_unverified": "Cette personne n’a jamais vérifié d’e-mail ni de numéro de téléphone : elle ne peut pas être réactivée. Invitez-la de nouveau.",
+      "system_role": "Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.",
+      "device_suspended": "Cet appareil est suspendu. Réactivez-le avant de le dissocier.",
+      "device_not_pairable": "Cet appareil est déjà associé ou suspendu. Dissociez-le avant de l’associer de nouveau.",
+      "device_not_suspended": "Cet appareil n’est pas suspendu : il n’y a rien à réactiver.",
+      "forbidden": "Vous n’avez pas l’autorisation de faire cela. Demandez-la à un administrateur si nécessaire."
+    }
   },
   "nav": {
     "label": "Principal",
@@ -315,7 +326,6 @@
     "text": "Demandez à un administrateur de vous donner un rôle qui l'inclut."
   },
   "settings": {
-    "comingSoon": "Cette page est en cours de création.",
     "organisation": {
       "title": "Organisation",
       "description": "Sociétés, succursales, points de vente et appareils."
@@ -374,5 +384,297 @@
     "confirmText": "Vous reviendrez à la page de connexion. Vos autres sessions restent connectées.",
     "stay": "Rester connecté",
     "signOutHere": "Se déconnecter"
+  },
+  "organisation": {
+    "status": {
+      "active": "Actif",
+      "archived": "Archivé"
+    },
+    "showArchived": "Afficher les éléments archivés",
+    "empty": "Aucune société pour l’instant. Ajoutez la première pour construire votre organisation.",
+    "emptyReadOnly": "Aucun élément de l’organisation ne vous est encore attribué.",
+    "edit": "Modifier",
+    "editName": "Modifier {{name}}",
+    "archive": "Archiver",
+    "archiveName": "Archiver {{name}}",
+    "restore": "Restaurer",
+    "restoreName": "Restaurer {{name}}",
+    "archiveTitle": "Archiver {{name}} ?",
+    "keep": "Le garder actif",
+    "devices": "Appareils",
+    "devicesOf": "Appareils de {{name}}",
+    "company": {
+      "add": "Ajouter une société",
+      "addTitle": "Ajouter une société",
+      "editTitle": "Modifier {{name}}",
+      "archive": "Archiver la société",
+      "archiveText": "La société et son historique sont conservés, mais personne ne peut y ajouter de succursale ni vendre en son nom tant que vous ne la restaurez pas."
+    },
+    "branch": {
+      "add": "Ajouter une succursale",
+      "addIn": "Ajouter une succursale à {{parent}}",
+      "addTitleIn": "Ajouter une succursale à {{parent}}",
+      "editTitle": "Modifier {{name}}",
+      "archive": "Archiver la succursale",
+      "archiveText": "La succursale et son historique sont conservés, mais personne ne peut y ajouter d’emplacement tant que vous ne la restaurez pas.",
+      "code": "Code : {{code}}",
+      "empty": "Aucune succursale pour l’instant.",
+      "listOf": "Succursales de {{name}}"
+    },
+    "location": {
+      "add": "Ajouter un emplacement",
+      "addIn": "Ajouter un emplacement à {{parent}}",
+      "addTitleIn": "Ajouter un emplacement à {{parent}}",
+      "editTitle": "Modifier {{name}}",
+      "archive": "Archiver l’emplacement",
+      "archiveText": "L’emplacement et son historique de ventes sont conservés, mais aucun appareil ne peut y être ajouté ni associé tant que vous ne le restaurez pas.",
+      "empty": "Aucun emplacement pour l’instant.",
+      "listOf": "Emplacements de {{name}}"
+    },
+    "fields": {
+      "name": "Nom",
+      "legalName": "Raison sociale",
+      "legalNameHelp": "Telle qu’enregistrée. Laissez vide pour reprendre le nom.",
+      "country": "Pays",
+      "countryHelp": "Détermine la devise et le fuseau horaire. Il ne pourra plus être modifié.",
+      "taxId": "Numéro fiscal",
+      "code": "Code de succursale",
+      "codeHelp": "Jusqu’à 20 lettres, chiffres ou tirets, par exemple WSTL. Utilisé sur les reçus et les rapports.",
+      "type": "Type d’emplacement"
+    },
+    "locationTypes": {
+      "outlet": "Point de vente",
+      "warehouse": "Entrepôt",
+      "store": "Magasin",
+      "office": "Bureau"
+    },
+    "errors": {
+      "lastActive": {
+        "company": "C’est votre seule société active. Ajoutez-en une autre avant d’archiver celle-ci.",
+        "branch": "C’est votre seule succursale active. Ajoutez-en une autre avant d’archiver celle-ci.",
+        "location": "C’est votre seul emplacement actif. Ajoutez-en un autre avant d’archiver celui-ci."
+      },
+      "hasActiveChildren": {
+        "company": "Cette société a encore des succursales actives. Archivez-les d’abord.",
+        "branch": "Cette succursale a encore des emplacements actifs. Archivez-les d’abord.",
+        "location": "Cet emplacement a encore des appareils associés, en attente d’association ou suspendus. Dissociez-les d’abord."
+      },
+      "parentArchived": {
+        "company": "Cette société est archivée. Restaurez-la avant d’y ajouter quoi que ce soit.",
+        "branch": "La société de cette succursale est archivée. Restaurez d’abord la société.",
+        "location": "La succursale de cet emplacement est archivée. Restaurez d’abord la succursale.",
+        "device": "Cet emplacement est archivé. Restaurez-le avant d’ajouter ou d’associer des appareils."
+      }
+    }
+  },
+  "devices": {
+    "title": "Appareils à {{location}}",
+    "add": "Ajouter un appareil",
+    "addAndPair": "Ajouter et obtenir un code",
+    "addTitle": "Ajouter un appareil à {{location}}",
+    "name": "Nom de l’appareil",
+    "nameHelp": "Un nom reconnu à la caisse, par exemple Caisse 1.",
+    "empty": "Aucun appareil pour l’instant. Ajoutez-en un pour associer une caisse ici.",
+    "emptyReadOnly": "Aucun appareil à cet emplacement.",
+    "status": {
+      "pending": "En attente d’association",
+      "active": "Associé",
+      "suspended": "Suspendu",
+      "unpaired": "Dissocié"
+    },
+    "lastSeen": "Vu le {{date}}",
+    "pairedAt": "Associé le {{date}}",
+    "notPaired": "Pas encore associé",
+    "getCode": "Obtenir un code d’association",
+    "getCodeFor": "Obtenir un code d’association pour {{name}}",
+    "codeTitle": "Code d’association pour {{name}}",
+    "code": "Code d’association",
+    "codeIntro": "Saisissez ce code sur l’appareil pour l’associer à cet emplacement.",
+    "codeExpiry": "Il ne sert qu’une fois et reste valable jusqu’à {{time}}.",
+    "codeOnce": "Ce code ne sera plus affiché. S’il expire, demandez-en un nouveau.",
+    "copy": "Copier le code",
+    "copied": "Copié",
+    "done": "Terminé",
+    "suspend": "Suspendre",
+    "suspendFor": "Suspendre {{name}}",
+    "suspendTitle": "Suspendre {{name}} ?",
+    "suspendText": "La suspension est temporaire : l’appareil reste associé mais ne peut ni se connecter ni vendre tant que vous ne le réactivez pas.",
+    "suspendLost": "Si l’appareil est perdu ou volé, dissociez-le plutôt pour que son accès prenne fin définitivement.",
+    "suspendConfirm": "Suspendre l’appareil",
+    "resume": "Réactiver",
+    "resumeFor": "Réactiver {{name}}",
+    "unpair": "Dissocier",
+    "unpairFor": "Dissocier {{name}}",
+    "unpairTitle": "Dissocier {{name}} ?",
+    "unpairText": "L’appareil est déconnecté immédiatement et devra recevoir un nouveau code pour vendre de nouveau. Son historique de ventes est conservé.",
+    "unpairConfirm": "Dissocier l’appareil",
+    "keep": "Garder l’appareil"
+  },
+  "users": {
+    "inviteUser": "Inviter un utilisateur",
+    "exportAccessReview": "Exporter la revue des accès",
+    "backToUsers": "Utilisateurs",
+    "tabs": {
+      "active": "Actifs",
+      "invitations": "Invitations en attente",
+      "deactivated": "Désactivés"
+    },
+    "columns": {
+      "name": "Nom",
+      "contact": "E-mail ou téléphone",
+      "roles": "Rôles",
+      "status": "Statut",
+      "expires": "Expire le",
+      "actions": "Actions",
+      "role": "Rôle",
+      "where": "Où",
+      "granted": "Attribué"
+    },
+    "status": {
+      "active": "Actif",
+      "pending": "En attente",
+      "deactivated": "Désactivé"
+    },
+    "empty": {
+      "active": "Aucun utilisateur actif dans votre partie de l’organisation pour l’instant.",
+      "deactivated": "Personne n’a été désactivé.",
+      "invitations": "Aucune invitation en attente. Invitez quelqu’un pour lui donner accès."
+    },
+    "noRoles": "Aucun rôle",
+    "roleAt": "{{role}} à {{scope}}",
+    "unknownRole": "Un rôle que vous ne voyez pas",
+    "scopeTypes": {
+      "tenant": "Toute l’organisation",
+      "company": "Société",
+      "branch": "Succursale",
+      "location": "Emplacement"
+    },
+    "invitationExpired": "Expirée",
+    "revoke": "Révoquer",
+    "revokeFor": "Révoquer l’invitation de {{name}}",
+    "revokeTitle": "Révoquer l’invitation de {{name}} ?",
+    "revokeText": "Le lien cesse de fonctionner immédiatement. Vous pourrez envoyer une nouvelle invitation plus tard.",
+    "revokeConfirm": "Révoquer l’invitation",
+    "keepInvitation": "Garder l’invitation",
+    "pages": "Pages de résultats",
+    "pageOf": "Page {{page}} sur {{last}}",
+    "previous": "Précédente",
+    "next": "Suivante",
+    "fields": {
+      "name": "Nom complet",
+      "contact": "E-mail ou numéro de téléphone",
+      "language": "Langue"
+    },
+    "invite": {
+      "title": "Inviter un utilisateur",
+      "description": "La personne reçoit un lien pour choisir un mot de passe et rejoindre l’organisation avec les rôles donnés ici.",
+      "contactHelp": "Le lien d’invitation est envoyé ici. Utilisez un numéro international, par exemple +243 812 345 678.",
+      "rolesTitle": "Rôles",
+      "rolesText": "Donnez au moins un rôle et précisez où il s’applique. Un rôle de succursale couvre ses emplacements ; un rôle de société couvre ses succursales.",
+      "addRole": "Ajouter un autre rôle",
+      "send": "Envoyer l’invitation",
+      "sent": "Invitation envoyée à {{name}}. Elle est valable 7 jours."
+    },
+    "assignment": {
+      "legend": "Rôle {{number}}",
+      "role": "Rôle",
+      "rolePlaceholder": "Choisissez un rôle",
+      "scopeType": "S’applique à",
+      "scope": {
+        "company": "Société",
+        "branch": "Succursale",
+        "location": "Emplacement"
+      },
+      "scopePlaceholder": {
+        "company": "Choisissez une société",
+        "branch": "Choisissez une succursale",
+        "location": "Choisissez un emplacement"
+      },
+      "tenantHelp": "Toutes les sociétés, succursales et emplacements, y compris ceux ajoutés plus tard.",
+      "remove": "Retirer",
+      "removeRow": "Retirer le rôle {{number}}"
+    },
+    "grantedBy": "par {{name}}",
+    "detail": {
+      "profile": "Profil",
+      "saved": "Profil enregistré.",
+      "roles": "Rôles",
+      "noRoles": "Aucun rôle pour l’instant. Donnez-en un pour que cette personne puisse travailler.",
+      "addRole": "Donner un rôle",
+      "giveRole": "Donner le rôle",
+      "removeRole": "Retirer",
+      "removeRoleFor": "Retirer {{role}} à {{scope}}",
+      "removeTitle": "Retirer {{role}} à {{scope}} à {{name}} ?",
+      "removeText": "{{name}} perd immédiatement ce que ce rôle permet à cet endroit. Son historique est conservé.",
+      "removeConfirm": "Retirer le rôle",
+      "keepRole": "Garder le rôle",
+      "notFound": "Cet utilisateur n’existe pas ou n’est pas dans votre partie de l’organisation.",
+      "signOutEverywhere": "Déconnecter partout",
+      "signOutTitle": "Déconnecter {{name}} partout ?",
+      "signOutText": "Toutes les sessions prennent fin maintenant, sur ordinateur, téléphone et caisse. La personne peut se reconnecter avec son mot de passe.",
+      "signOutSelfText": "Toutes vos sessions prennent fin maintenant, y compris celle-ci. Vous pourrez vous reconnecter avec votre mot de passe.",
+      "signOutConfirm": "Déconnecter partout",
+      "keepSignedIn": "Garder connecté",
+      "signedOut": "{{name}} a été déconnecté partout.",
+      "deactivate": "Désactiver",
+      "deactivateTitle": "Désactiver {{name}} ?",
+      "deactivateText": "La personne est déconnectée partout immédiatement et ne peut plus se connecter tant qu’on ne la réactive pas. Ses rôles et son historique sont conservés.",
+      "deactivateSelfText": "Vous serez déconnecté immédiatement et ne pourrez plus vous connecter tant qu’on ne vous réactive pas.",
+      "deactivateConfirm": "Désactiver {{name}}",
+      "keepActive": "Garder actif",
+      "reactivate": "Réactiver",
+      "reactivateTitle": "Réactiver {{name}} ?",
+      "reactivateText": "La personne peut se reconnecter avec son mot de passe et retrouve ses rôles.",
+      "reactivateConfirm": "Réactiver {{name}}"
+    }
+  },
+  "roles": {
+    "create": "Créer un rôle",
+    "system": "Système",
+    "archived": "Archivé",
+    "copy": "Copier",
+    "copyRole": "Copier {{name}}",
+    "copyTitle": "Copier {{name}}",
+    "copyText": "La copie reprend les mêmes autorisations et vous pouvez la modifier.",
+    "copyName": "{{name}} (copie)",
+    "copyConfirm": "Copier le rôle",
+    "empty": "Aucun rôle pour l’instant. Créez-en un pour regrouper des autorisations.",
+    "columns": {
+      "name": "Nom",
+      "description": "Description du rôle",
+      "permissions": "Autorisations",
+      "twoFactor": "Double authentification",
+      "actions": "Actions"
+    },
+    "permissionCount_one": "{{count}} autorisation",
+    "permissionCount_other": "{{count}} autorisations",
+    "twoFactorRequired": "Obligatoire",
+    "backToRoles": "Rôles",
+    "notFound": "Ce rôle n’existe pas.",
+    "newTitle": "Nouveau rôle",
+    "newText": "Nommez le rôle et choisissez ce qu’il permet.",
+    "systemTitle": "Les rôles système ne peuvent pas être modifiés",
+    "systemText": "Copiez ce rôle pour créer votre propre version, puis modifiez ses autorisations.",
+    "details": "Détails",
+    "permissions": "Autorisations",
+    "saved": "Rôle enregistré.",
+    "fields": {
+      "name": "Nom du rôle",
+      "description": "Description du rôle",
+      "twoFactor": "Exiger la double authentification",
+      "twoFactorHelp": "Les personnes ayant ce rôle doivent configurer la double authentification avant de continuer."
+    },
+    "twoFactorOn": "La double authentification est désormais exigée pour ce rôle.",
+    "twoFactorOff": "La double authentification n’est plus exigée pour ce rôle.",
+    "matrix": {
+      "resource": "Ressource",
+      "cell": "{{resource}} : {{action}}"
+    },
+    "archive": "Archiver",
+    "archiveTitle": "Archiver {{name}} ?",
+    "archiveText": "Les personnes ayant ce rôle perdent immédiatement ses autorisations. Leurs autres rôles et leur historique sont conservés.",
+    "archiveConfirm": "Archiver le rôle",
+    "keepRole": "Garder le rôle",
+    "emptyReadOnly": "Aucun rôle à afficher."
   }
 }
