@@ -7,5 +7,159 @@
     "retry": "Try again",
     "cancel": "Cancel",
     "save": "Save changes"
+  },
+  "ds": {
+    "field": {
+      "required": "Required"
+    },
+    "syncStatus": {
+      "online": "Online · all synced",
+      "syncing": "Syncing…",
+      "offline": "Offline · selling continues",
+      "pending_one": "{{count}} sale waiting",
+      "pending_other": "{{count}} sales waiting"
+    },
+    "kpi": {
+      "period": "vs last week",
+      "up": "Up",
+      "down": "Down"
+    },
+    "dataTable": {
+      "empty": "Nothing here yet."
+    },
+    "dialog": {
+      "close": "Close"
+    },
+    "button": {
+      "loading": "Working"
+    },
+    "posTile": {
+      "out": "Out",
+      "left_one": "{{count}} left",
+      "left_other": "{{count}} left",
+      "outOfStock": "out of stock"
+    },
+    "saleTotal": {
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "VAT",
+      "total": "Total",
+      "pay": "Charge {{amount}}"
+    },
+    "stageTracker": {
+      "done": "Done",
+      "current": "Current stage",
+      "blocked": "Stopped"
+    },
+    "approval": {
+      "requestedBy": "Requested by",
+      "branch": "Branch",
+      "delegatedFrom": "Delegated from",
+      "overdue": "Overdue · escalates {{when}}",
+      "soon": "soon",
+      "approve": "Approve",
+      "reject": "Reject",
+      "return": "Return"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "executive": "Executive",
+      "warm": "Warm"
+    }
+  },
+  "dev": {
+    "gallery": {
+      "title": "Component gallery",
+      "intro": "Every design-system component in its states. Development only.",
+      "theme": "Theme",
+      "tenantOn": "Apply test tenant brand",
+      "tenantOff": "Remove test tenant brand",
+      "section": {
+        "actions": "Actions",
+        "forms": "Forms",
+        "status": "Status",
+        "data": "Data",
+        "layout": "Layout",
+        "dialog": "Dialog",
+        "pos": "Point of sale",
+        "workflow": "Workflow"
+      },
+      "sample": {
+        "sendForApproval": "Send for approval",
+        "saveDraft": "Save draft",
+        "clear": "Clear",
+        "voidSale": "Void sale",
+        "completeSale": "Complete sale",
+        "markReceived": "Mark received",
+        "saving": "Saving",
+        "chargeLarge": "Charge customer",
+        "businessName": "Business name",
+        "kraPin": "KRA PIN",
+        "kraHelp": "On your PIN certificate",
+        "kraError": "A KRA PIN has 11 characters",
+        "amount": "Amount",
+        "weight": "Weight",
+        "companyCode": "Company code",
+        "branch": "Branch",
+        "branchPlaceholder": "Choose a branch",
+        "currency": "Currency",
+        "currencyError": "Choose a currency",
+        "smsReceipts": "Send receipts by SMS",
+        "smsHelp": "Charges apply per message",
+        "trackStock": "Track stock",
+        "sellOffline": "Sell when offline",
+        "lockPrices": "Lock prices at the till",
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "inProgress": "In progress",
+        "draft": "Draft",
+        "promo": "Promo price",
+        "limitTitle": "You have used 9 of 10 users",
+        "limitText": "Upgrade your plan to invite more people.",
+        "upgrade": "Upgrade plan",
+        "uploadedTitle": "All sales uploaded",
+        "failedTitle": "Payment failed",
+        "failedText": "M-Pesa did not confirm the payment. Ask the customer to try again.",
+        "infoTitle": "New prices apply on Monday",
+        "infoText": "Head office updated 24 prices for all branches.",
+        "salesToday": "Sales today",
+        "orders": "Orders",
+        "stockOuts": "Stock-outs",
+        "vsYesterday": "vs yesterday",
+        "tableCaption": "Recent purchase orders",
+        "number": "Number",
+        "supplier": "Supplier",
+        "total": "Total amount",
+        "emptyText": "No purchase orders yet. Create one from a requisition.",
+        "cardTitle": "Sales by branch",
+        "cardSubtitle": "Today",
+        "cardBody": "Westlands leads today with 42% of sales.",
+        "export": "Export",
+        "waiting": "Waiting",
+        "approved": "Approved",
+        "returned": "Returned",
+        "openDialog": "Open dialog",
+        "dialogTitle": "Void this sale?",
+        "dialogBody": "The sale stays in the audit log and the stock goes back on the shelf.",
+        "keepSale": "Keep sale",
+        "maize": "Maize flour 2kg",
+        "milk": "Fresh milk 500ml",
+        "bread": "White bread",
+        "sugar": "Sugar 1kg",
+        "stageDraft": "Draft",
+        "stageSubmitted": "Submitted",
+        "stageApproved": "Approved",
+        "stageOrdered": "Ordered",
+        "stageReceived": "Received",
+        "purchaseOrder": "Purchase order",
+        "poTitle": "Office chairs for Westlands",
+        "leave": "Leave request",
+        "leaveTitle": "Annual leave, 3 days",
+        "dueToday": "Due today 17:00",
+        "inTwoHours": "in 2 h"
+      }
+    }
   }
 }

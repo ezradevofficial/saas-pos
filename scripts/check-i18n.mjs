@@ -39,6 +39,10 @@ function sourceFiles(path, extensions) {
 // Matches t('a.b'), i18n.t("a.b"), i18nKey="a.b" is not covered on purpose.
 const keyPattern = /(?<![\w$])t\(\s*(['"])([^'"`$]+)\1/g
 
+// i18next plurals: t('a.b', { count }) resolves a.b_one / a.b_other, so a key
+// is present when it exists itself or as its plural "_other" form.
+const hasKey = (catalogue, key) => key in catalogue || `${key}_other` in catalogue
+
 const errors = []
 
 for (const app of apps) {
@@ -60,7 +64,7 @@ for (const app of apps) {
     for (const match of text.matchAll(keyPattern)) {
       const key = match[2]
       for (const [locale, catalogue] of [['en', en], ['fr', fr]]) {
-        if (!(key in catalogue)) errors.push(`${app.name}: "${key}" used in ${relative(root, join(root, file))} is missing from ${locale}.json`)
+        if (!hasKey(catalogue, key)) errors.push(`${app.name}: "${key}" used in ${relative(root, join(root, file))} is missing from ${locale}.json`)
       }
     }
   }

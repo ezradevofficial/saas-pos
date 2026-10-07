@@ -7,5 +7,159 @@
     "retry": "Réessayer",
     "cancel": "Annuler",
     "save": "Enregistrer les modifications"
+  },
+  "ds": {
+    "field": {
+      "required": "Obligatoire"
+    },
+    "syncStatus": {
+      "online": "En ligne · tout est synchronisé",
+      "syncing": "Synchronisation…",
+      "offline": "Hors ligne · la vente continue",
+      "pending_one": "{{count}} vente en attente",
+      "pending_other": "{{count}} ventes en attente"
+    },
+    "kpi": {
+      "period": "vs semaine dernière",
+      "up": "Hausse",
+      "down": "Baisse"
+    },
+    "dataTable": {
+      "empty": "Rien pour l’instant."
+    },
+    "dialog": {
+      "close": "Fermer"
+    },
+    "button": {
+      "loading": "En cours"
+    },
+    "posTile": {
+      "out": "Épuisé",
+      "left_one": "{{count}} restant",
+      "left_other": "{{count}} restants",
+      "outOfStock": "en rupture de stock"
+    },
+    "saleTotal": {
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tax": "TVA",
+      "total": "Total",
+      "pay": "Encaisser {{amount}}"
+    },
+    "stageTracker": {
+      "done": "Terminé",
+      "current": "Étape en cours",
+      "blocked": "Arrêté"
+    },
+    "approval": {
+      "requestedBy": "Demandé par",
+      "branch": "Succursale",
+      "delegatedFrom": "Délégué par",
+      "overdue": "En retard · escalade {{when}}",
+      "soon": "bientôt",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "return": "Renvoyer"
+    },
+    "theme": {
+      "light": "Clair",
+      "dark": "Sombre",
+      "executive": "Exécutif",
+      "warm": "Chaleureux"
+    }
+  },
+  "dev": {
+    "gallery": {
+      "title": "Galerie des composants",
+      "intro": "Chaque composant du système de design dans ses états. Développement uniquement.",
+      "theme": "Thème",
+      "tenantOn": "Appliquer la marque du locataire de test",
+      "tenantOff": "Retirer la marque du locataire de test",
+      "section": {
+        "actions": "Boutons",
+        "forms": "Formulaires",
+        "status": "Statuts",
+        "data": "Données",
+        "layout": "Mise en page",
+        "dialog": "Boîte de dialogue",
+        "pos": "Point de vente",
+        "workflow": "Circuit de validation"
+      },
+      "sample": {
+        "sendForApproval": "Envoyer pour approbation",
+        "saveDraft": "Enregistrer le brouillon",
+        "clear": "Effacer",
+        "voidSale": "Annuler la vente",
+        "completeSale": "Terminer la vente",
+        "markReceived": "Marquer comme reçu",
+        "saving": "Enregistrement",
+        "chargeLarge": "Encaisser le client",
+        "businessName": "Nom de l’entreprise",
+        "kraPin": "NIF KRA",
+        "kraHelp": "Sur votre certificat NIF",
+        "kraError": "Un NIF KRA compte 11 caractères",
+        "amount": "Montant",
+        "weight": "Poids",
+        "companyCode": "Code de la société",
+        "branch": "Succursale",
+        "branchPlaceholder": "Choisissez une succursale",
+        "currency": "Devise",
+        "currencyError": "Choisissez une devise",
+        "smsReceipts": "Envoyer les reçus par SMS",
+        "smsHelp": "Des frais s’appliquent par message",
+        "trackStock": "Suivre le stock",
+        "sellOffline": "Vendre hors ligne",
+        "lockPrices": "Bloquer les prix en caisse",
+        "paid": "Payé",
+        "pending": "En attente",
+        "overdue": "En retard",
+        "inProgress": "En cours",
+        "draft": "Brouillon",
+        "promo": "Prix promo",
+        "limitTitle": "Vous utilisez 9 utilisateurs sur 10",
+        "limitText": "Passez à une offre supérieure pour inviter plus de personnes.",
+        "upgrade": "Changer d’offre",
+        "uploadedTitle": "Toutes les ventes sont envoyées",
+        "failedTitle": "Le paiement a échoué",
+        "failedText": "M-Pesa n’a pas confirmé le paiement. Demandez au client de réessayer.",
+        "infoTitle": "Les nouveaux prix s’appliquent lundi",
+        "infoText": "Le siège a modifié 24 prix pour toutes les succursales.",
+        "salesToday": "Ventes du jour",
+        "orders": "Commandes",
+        "stockOuts": "Ruptures de stock",
+        "vsYesterday": "vs hier",
+        "tableCaption": "Bons de commande récents",
+        "number": "Numéro",
+        "supplier": "Fournisseur",
+        "total": "Montant total",
+        "emptyText": "Aucun bon de commande. Créez-en un depuis une demande d’achat.",
+        "cardTitle": "Ventes par succursale",
+        "cardSubtitle": "Aujourd’hui",
+        "cardBody": "Westlands mène aujourd’hui avec 42 % des ventes.",
+        "export": "Exporter",
+        "waiting": "En attente de vous",
+        "approved": "Approuvés",
+        "returned": "Renvoyés",
+        "openDialog": "Ouvrir la boîte de dialogue",
+        "dialogTitle": "Annuler cette vente ?",
+        "dialogBody": "La vente reste dans le journal d’audit et le stock est remis en rayon.",
+        "keepSale": "Garder la vente",
+        "maize": "Farine de maïs 2 kg",
+        "milk": "Lait frais 500 ml",
+        "bread": "Pain blanc",
+        "sugar": "Sucre 1 kg",
+        "stageDraft": "Brouillon",
+        "stageSubmitted": "Soumis",
+        "stageApproved": "Approuvé",
+        "stageOrdered": "Commandé",
+        "stageReceived": "Reçu",
+        "purchaseOrder": "Bon de commande",
+        "poTitle": "Chaises de bureau pour Westlands",
+        "leave": "Demande de congé",
+        "leaveTitle": "Congé annuel, 3 jours",
+        "dueToday": "À traiter aujourd’hui 17:00",
+        "inTwoHours": "dans 2 h"
+      }
+    }
   }
 }
