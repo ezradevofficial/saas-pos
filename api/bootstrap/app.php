@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Localisation\Http\SetLocale;
 use App\Core\Tenancy\Http\RequireTenant;
 use App\Core\Tenancy\Http\ResetTenantContext;
 use Illuminate\Foundation\Application;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // TEN-01: every request starts without a tenant; routes that need one
         // use `tenant` after auth.
         $middleware->prepend(ResetTenantContext::class);
+        $middleware->api(append: [SetLocale::class]);
         $middleware->alias(['tenant' => RequireTenant::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
