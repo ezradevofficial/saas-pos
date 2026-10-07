@@ -7,5 +7,45 @@
     "retry": "Réessayer",
     "cancel": "Annuler",
     "save": "Enregistrer les modifications"
+  },
+  "ds": {
+    "button": {
+      "loading": "En cours"
+    },
+    "syncStatus": {
+      "online": "En ligne · tout est synchronisé",
+      "syncing": "Synchronisation…",
+      "offline": "Hors ligne · la vente continue",
+      "pending_one": "{{count}} vente en attente",
+      "pending_other": "{{count}} ventes en attente"
+    },
+    "posTile": {
+      "out": "Épuisé",
+      "left_one": "{{count}} restant",
+      "left_other": "{{count}} restants",
+      "outOfStock": "en rupture de stock"
+    },
+    "saleTotal": {
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tax": "TVA",
+      "total": "Total",
+      "pay": "Encaisser {{amount}}"
+    },
+    "theme": {
+      "light": "Clair",
+      "dark": "Sombre",
+      "executive": "Exécutif",
+      "warm": "Chaleureux",
+      "tenant": "Client test"
+    }
+  },
+  "preview": {
+    "subtitle": "Aperçu du thème",
+    "theme": "Thème",
+    "products": "Produits",
+    "sale": "Vente en cours",
+    "items_one": "{{count}} article",
+    "items_other": "{{count}} articles"
   }
 }
