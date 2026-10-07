@@ -22,7 +22,7 @@ class Tenant extends Model
         'session_timeout_minutes' => 60,
     ];
 
-    protected $fillable = ['id', 'name', 'status', 'default_locale', 'settings'];
+    protected $fillable = ['name', 'status', 'default_locale', 'settings'];
 
     protected $attributes = [
         'status' => 'active',
@@ -44,7 +44,7 @@ class Tenant extends Model
 
         return app(TenantContext::class)->run(
             $id,
-            fn () => static::create(['id' => $id] + $attributes),
+            fn () => tap(static::make($attributes)->forceFill(['id' => $id]))->save(),
         );
     }
 

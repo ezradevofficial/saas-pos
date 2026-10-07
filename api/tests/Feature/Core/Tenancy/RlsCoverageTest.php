@@ -15,7 +15,7 @@ class RlsCoverageTest extends TestCase
     {
         $tables = collect(DB::select("
             select c.relname, c.relrowsecurity, c.relforcerowsecurity,
-                   exists(select 1 from pg_policies p where p.tablename = c.relname and p.policyname = 'tenant_isolation') as has_policy
+                   exists(select 1 from pg_policies p where p.schemaname = n.nspname and p.tablename = c.relname and p.policyname = 'tenant_isolation') as has_policy
             from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'public' and c.relkind = 'r'
               and exists(select 1 from information_schema.columns col

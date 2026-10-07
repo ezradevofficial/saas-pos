@@ -2,11 +2,17 @@
 
 namespace App\Core\Tenancy;
 
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Holds the current tenant and mirrors it into the PostgreSQL session
  * setting `app.tenant_id`, which every row-level security policy reads (TEN-01).
+ *
+ * set_config is transactional, so a rollback can revert the database value.
+ * CoreServiceProvider re-applies the PHP value after every rollback and on
+ * every (re)connect, so PHP stays the source of truth.
  */
 class TenantContext
 {
@@ -19,15 +25,11 @@ class TenantContext
 
     public function set(?string $tenantId): void
     {
-        // Session-level (false): requests are not wrapped in a transaction.
-        DB::connection(self::CONNECTION)
-            ->select("select set_config('app.tenant_id', ?, false)", [$tenantId ?? '']);
+        // Database first: if it fails, PHP keeps the value the database still has.
+        $this->applyTo(DB::connection(self::CONNECTION), $tenantId);
 
         $this->tenantId = $tenantId;
-
-        foreach ($this->listeners as $listener) {
-            $listener($tenantId);
-        }
+        $this->notify($tenantId);
     }
 
     public function id(): ?string
@@ -42,7 +44,7 @@ class TenantContext
 
     /**
      * Run $fn inside $tenantId's context, then restore the previous context,
-     * even when $fn throws.
+     * even when $fn throws. The original exception is never masked.
      */
     public function run(string $tenantId, callable $fn): mixed
     {
@@ -50,10 +52,16 @@ class TenantContext
         $this->set($tenantId);
 
         try {
-            return $fn();
-        } finally {
-            $this->set($previous);
+            $result = $fn();
+        } catch (Throwable $e) {
+            $this->restore($previous, $e);
+
+            throw $e;
         }
+
+        $this->restore($previous);
+
+        return $result;
     }
 
     /**
@@ -63,5 +71,54 @@ class TenantContext
     public function onChange(callable $listener): void
     {
         $this->listeners[] = $listener;
+    }
+
+    /**
+     * Write the current PHP tenant into $connection's session setting.
+     */
+    public function syncTo(Connection $connection): void
+    {
+        $this->applyTo($connection, $this->tenantId);
+    }
+
+    private function applyTo(Connection $connection, ?string $tenantId): void
+    {
+        // Session-level (false): requests are not wrapped in a transaction.
+        $connection->select("select set_config('app.tenant_id', ?, false)", [$tenantId ?? '']);
+    }
+
+    private function restore(?string $previous, ?Throwable $original = null): void
+    {
+        try {
+            $this->set($previous);
+        } catch (Throwable $restoreFailed) {
+            // PHP always goes back to the previous tenant.
+            $this->tenantId = $previous;
+            $this->notify($previous);
+
+            $connection = DB::connection(self::CONNECTION);
+
+            // Inside an (aborted) transaction: the rollback listener re-syncs.
+            if ($connection->transactionLevel() > 0) {
+                return;
+            }
+
+            // Outside a transaction the database value is unknown: drop the
+            // connection so the reconnect listener re-applies the PHP value.
+            $connection->disconnect();
+
+            if ($original === null) {
+                throw $restoreFailed;
+            }
+
+            report($restoreFailed);
+        }
+    }
+
+    private function notify(?string $tenantId): void
+    {
+        foreach ($this->listeners as $listener) {
+            $listener($tenantId);
+        }
     }
 }

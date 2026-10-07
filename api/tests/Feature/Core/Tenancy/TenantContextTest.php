@@ -99,6 +99,43 @@ class TenantContextTest extends TestCase
         $this->assertSame($this->a->id, DB::selectOne("select current_setting('app.tenant_id', true) as id")->id);
     }
 
+    public function test_run_inside_a_failing_transaction_keeps_php_and_database_in_step(): void
+    {
+        $this->context->set($this->a->id);
+
+        try {
+            DB::transaction(fn () => $this->context->run($this->b->id, fn () => DB::select('select 1/0')));
+            $this->fail('Division by zero was swallowed');
+        } catch (QueryException $e) {
+            // The original SQL error surfaces, not the failed restore (25P02).
+            $this->assertStringContainsString('division by zero', $e->getMessage());
+        }
+
+        $this->assertSame($this->a->id, $this->context->id());
+        $this->assertSame($this->a->id, $this->databaseTenant());
+        $this->assertSame([$this->a->id], Company::pluck('tenant_id')->all());
+    }
+
+    public function test_set_inside_a_rolled_back_transaction_keeps_php_and_database_in_step(): void
+    {
+        $this->context->set($this->a->id);
+
+        try {
+            DB::transaction(function () {
+                $this->context->set($this->b->id);
+                throw new RuntimeException('rollback');
+            });
+        } catch (RuntimeException) {
+        }
+
+        $this->assertSame($this->context->id(), $this->databaseTenant());
+    }
+
+    private function databaseTenant(): ?string
+    {
+        return DB::selectOne("select current_setting('app.tenant_id', true) as id")->id;
+    }
+
     public function test_require_throws_without_context(): void
     {
         $this->context->set(null);
