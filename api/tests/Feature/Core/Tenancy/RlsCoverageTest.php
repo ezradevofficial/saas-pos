@@ -11,6 +11,14 @@ class RlsCoverageTest extends TestCase
 {
     use RefreshTenantDatabase;
 
+    /**
+     * Tables with a tenant_id that are deliberately global: they are read
+     * before the tenant is known (bearer token lookup, sign-up and sign-in
+     * codes) and are only touched by dedicated services. See
+     * docs/adr/002-tenancy-rls.md.
+     */
+    public const GLOBAL_TABLES = ['personal_access_tokens', 'verification_challenges'];
+
     public function test_every_tenant_table_forces_row_level_security(): void
     {
         $tables = collect(DB::select("
@@ -20,11 +28,24 @@ class RlsCoverageTest extends TestCase
             where n.nspname = 'public' and c.relkind = 'r'
               and exists(select 1 from information_schema.columns col
                          where col.table_schema = 'public' and col.table_name = c.relname and col.column_name = 'tenant_id')
-        "));
+        "))->reject(fn ($t) => in_array($t->relname, self::GLOBAL_TABLES, true));
         $this->assertNotEmpty($tables);
         foreach ($tables as $t) {
             $this->assertTrue($t->relrowsecurity && $t->relforcerowsecurity && $t->has_policy, "{$t->relname} lacks forced RLS");
         }
+    }
+
+    public function test_only_the_documented_tables_are_global(): void
+    {
+        $this->assertSame(['personal_access_tokens', 'verification_challenges'], self::GLOBAL_TABLES);
+
+        $tables = collect(DB::select("
+            select table_name from information_schema.columns
+            where table_schema = 'public' and column_name = 'tenant_id' and table_name = any(?)
+            order by table_name
+        ", ['{'.implode(',', self::GLOBAL_TABLES).'}']))->pluck('table_name')->all();
+
+        $this->assertSame(self::GLOBAL_TABLES, $tables, 'every allow-listed table must exist with a tenant_id');
     }
 
     public function test_tenants_table_forces_row_level_security_keyed_on_id(): void

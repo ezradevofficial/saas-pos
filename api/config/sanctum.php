@@ -37,7 +37,8 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Bearer tokens only (AUTH-09): never fall back to a session guard.
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------
