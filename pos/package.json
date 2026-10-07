@@ -35,15 +35,12 @@
     "jest-expo": "^57.0.5",
     "tailwindcss": "^3.4.17"
   },
-  "jest": {
-    "preset": "jest-expo",
-    "setupFiles": [
-      "./jest.setup.js"
-    ],
-    "moduleNameMapper": {
-      "^react$": "<rootDir>/node_modules/react",
-      "^react/(.*)$": "<rootDir>/node_modules/react/$1",
-      "\\.css$": "<rootDir>/jest.css-stub.js"
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "react",
+        "react-dom"
+      ]
     }
   }
 }
