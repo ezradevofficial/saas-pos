@@ -5,6 +5,13 @@ describe('App', () => {
   it('shows the app name from EXPO_PUBLIC_APP_NAME', async () => {
     await render(<App />);
 
-    expect(screen.getByRole('header')).toHaveTextContent('Test app');
+    expect(screen.getByRole('header', { name: 'Test app' })).toBeOnTheScreen();
+  });
+
+  it('opens the theme preview in the light theme', async () => {
+    await render(<App />);
+
+    expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
+    expect(screen.getByText('Online · all synced')).toBeOnTheScreen();
   });
 });

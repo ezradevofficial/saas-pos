@@ -7,5 +7,45 @@
     "retry": "Try again",
     "cancel": "Cancel",
     "save": "Save changes"
+  },
+  "ds": {
+    "button": {
+      "loading": "Working"
+    },
+    "syncStatus": {
+      "online": "Online · all synced",
+      "syncing": "Syncing…",
+      "offline": "Offline · selling continues",
+      "pending_one": "{{count}} sale waiting",
+      "pending_other": "{{count}} sales waiting"
+    },
+    "posTile": {
+      "out": "Out",
+      "left_one": "{{count}} left",
+      "left_other": "{{count}} left",
+      "outOfStock": "out of stock"
+    },
+    "saleTotal": {
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "VAT",
+      "total": "Total",
+      "pay": "Charge {{amount}}"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "executive": "Executive",
+      "warm": "Warm",
+      "tenant": "Test tenant"
+    }
+  },
+  "preview": {
+    "subtitle": "Theme preview",
+    "theme": "Theme",
+    "products": "Products",
+    "sale": "Current sale",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items"
   }
 }

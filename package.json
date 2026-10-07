@@ -11,5 +11,8 @@
     "dev:pos": "npm run start --workspace pos",
     "dev:api": "cd api && php artisan serve --port=8008",
     "check:i18n": "node scripts/check-i18n.mjs"
+  },
+  "overrides": {
+    "react-native-worklets": "0.10.1"
   }
 }
