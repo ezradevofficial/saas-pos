@@ -1,0 +1,122 @@
+# One deploy to one Linode host, called by deploy.yml for dev and staging.
+#
+# Host layout (prepared once by hand, see README "Deploy"):
+#   <path>/api        Laravel app; <path>/api/.env and storage/ live only on
+#                     the host and are never overwritten
+#   <path>/web        the built web app (static files served by the web server)
+# The host has PHP 8.3 with pdo_pgsql, Composer, and its .env points the
+# runtime connection at role `app` and DB_OWNER_* at `app_owner` (ADR 002).
+name: Deploy target
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment name (dev or staging)
+        required: true
+        type: string
+      ref:
+        description: Commit to deploy (the one CI tested)
+        required: true
+        type: string
+      api-url:
+        description: Public API base URL baked into the web build
+        required: true
+        type: string
+    secrets:
+      host:
+        required: true
+      user:
+        required: true
+      ssh-key:
+        required: true
+      known-hosts:
+        required: true
+      path:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web
+        env:
+          VITE_APP_NAME: ${{ vars.APP_NAME || 'App' }}
+          VITE_API_URL: ${{ inputs.api-url }}
+        run: npm run build -w web
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.ssh-key }}
+          KNOWN_HOSTS: ${{ secrets.known-hosts }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # The host's .env, storage/, vendor/ and cached bootstrap files are
+      # excluded, so --delete never touches them.
+      - name: Rsync build to host
+        env:
+          HOST: ${{ secrets.host }}
+          DEPLOY_USER: ${{ secrets.user }}
+          DEPLOY_PATH: ${{ secrets.path }}
+        run: |
+          ssh_cmd="ssh -i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=yes"
+          rsync -az --delete -e "$ssh_cmd" \
+            --exclude '.env' \
+            --exclude 'vendor/' \
+            --exclude 'storage/' \
+            --exclude 'bootstrap/cache/*.php' \
+            --exclude 'tests/' \
+            --exclude 'node_modules/' \
+            api/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/api/"
+          rsync -az --delete -e "$ssh_cmd" \
+            web/dist/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/web/"
+
+      # Migrations run as the schema owner (pgsql_owner); the app keeps
+      # running as the RLS-bound role. permissions:sync upserts the
+      # permission catalogue (RBAC-01). Horizon is restarted when installed,
+      # plain queue workers otherwise.
+      - name: Install, migrate and restart workers
+        env:
+          HOST: ${{ secrets.host }}
+          DEPLOY_USER: ${{ secrets.user }}
+          DEPLOY_PATH: ${{ secrets.path }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" \
+            "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH/api"
+          composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
+          # Drop the previous release's cached config before anything reads it.
+          php artisan config:clear
+          php artisan migrate --database=pgsql_owner --force
+          php artisan permissions:sync
+          php artisan config:cache
+          php artisan route:cache
+          if php artisan list --raw | grep -q '^horizon:terminate'; then
+            php artisan horizon:terminate
+          else
+            php artisan queue:restart
+          fi
+          REMOTE

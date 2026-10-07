@@ -1,0 +1,201 @@
+# Lint, tests and the tenant-isolation suite on every PR and push to main
+# (NFR-12, TEN-01). A PR does not merge unless every job passes.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to the same branch or PR cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # One job definition, two runs: the tenant-isolation suite runs on its own
+  # so its result is visible separately (TEN-01). The Feature suite excludes
+  # tests/Feature/Isolation (phpunit.xml), so no test runs twice.
+  api:
+    name: api (${{ matrix.suite.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - name: tests
+            pint: true
+            command: php artisan test --exclude-testsuite=Isolation
+          - name: isolation
+            pint: false
+            command: php artisan test --testsuite=Isolation
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, pgsql, mbstring, intl, bcmath
+          coverage: none
+
+      - name: Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Roles (app_owner, app) as the postgres superuser, then the app and
+      # app_test databases owned by app_owner (ADR 002).
+      - name: Create roles and databases
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGSUPERUSER: postgres
+          PGPASSWORD: postgres
+          DATABASES: app app_test
+        run: bash database/scripts/setup-local-db.sh
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      # Migrations run as the schema owner, never as the runtime role.
+      - name: Migrate (as app_owner)
+        run: composer migrate
+
+      - name: Pint
+        if: matrix.suite.pint
+        run: vendor/bin/pint --test
+
+      - name: Tests (${{ matrix.suite.name }})
+        run: ${{ matrix.suite.command }}
+
+  web:
+    name: web (oxlint, vitest, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint -w web
+
+      - name: Tests
+        working-directory: web
+        run: npx vitest run
+
+      - name: Build
+        env:
+          VITE_APP_NAME: App
+          VITE_API_URL: http://localhost:8008
+        run: npm run build -w web
+
+  pos:
+    name: pos (jest, expo-doctor)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests
+        working-directory: pos
+        run: npx jest --ci
+
+      # Pinned as a pos devDependency (npm run doctor).
+      - name: Expo doctor
+        run: npm run doctor -w pos
+
+  tokens:
+    name: tokens (build is committed, tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      # dist/ is committed: a token change without a rebuild fails here.
+      - name: Build and check dist is up to date
+        run: |
+          npm run build -w @app/tokens
+          git diff --exit-code packages/tokens/dist
+          untracked="$(git status --porcelain --untracked-files=all packages/tokens/dist)"
+          if [ -n "$untracked" ]; then
+            echo "::error::packages/tokens/dist has files not committed:"
+            echo "$untracked"
+            exit 1
+          fi
+
+      - name: Tests
+        run: npm test -w @app/tokens
+
+  i18n:
+    name: i18n (missing keys, L10N-02)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      # Plain Node script, no dependencies to install.
+      - run: npm run check:i18n

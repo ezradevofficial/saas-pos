@@ -10,8 +10,10 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <!-- Runs only in its own suite (CI job `api (isolation)`). -->
+            <exclude>tests/Feature/Isolation</exclude>
         </testsuite>
-        <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). Also part of Feature. -->
+        <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). -->
         <testsuite name="Isolation">
             <directory>tests/Feature/Isolation</directory>
         </testsuite>

@@ -1,26 +1,47 @@
 #!/usr/bin/env bash
-# Local development only. Creates the roles and (re)creates the `app` and
-# `app_test` databases owned by app_owner (TEN-01). Idempotent: existing
-# databases are dropped and recreated, so run migrations afterwards.
+# Creates the roles and (re)creates the databases owned by app_owner (TEN-01).
+# Used for local development and by CI (.github/workflows/ci.yml).
+# Idempotent: existing databases are dropped and recreated, so run
+# migrations afterwards (composer migrate).
+#
+# Environment (all optional):
+#   PGSUPERUSER   superuser to connect as (default: $PGUSER, else your OS user)
+#   PGPASSWORD    the superuser's password, read by psql itself
+#   PGHOST        default 127.0.0.1
+#   PGPORT        default 5432
+#   DATABASES     space-separated database names (default: "app app_test")
+#   APP_PASSWORD, APP_OWNER_PASSWORD   role passwords (default: app, app_owner)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PGSUPERUSER="${PGSUPERUSER:-$(id -un)}"
+PGSUPERUSER="${PGSUPERUSER:-${PGUSER:-$(id -un)}}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-5432}"
+DATABASES="${DATABASES:-app app_test}"
 APP_PASSWORD="${APP_PASSWORD:-app}"
 APP_OWNER_PASSWORD="${APP_OWNER_PASSWORD:-app_owner}"
 export PGHOST PGPORT
 
 psql_su() { psql -U "$PGSUPERUSER" -v ON_ERROR_STOP=1 -q "$@"; }
 
-echo "Creating roles app_owner and app (as $PGSUPERUSER)"
-psql_su -d postgres -f "$DIR/create-roles.sql"
-psql_su -d postgres \
-  -c "ALTER ROLE app_owner PASSWORD '${APP_OWNER_PASSWORD}'" \
-  -c "ALTER ROLE app PASSWORD '${APP_PASSWORD}'"
+# Database names are interpolated as identifiers: allow plain names only.
+for db in $DATABASES; do
+  if [[ ! "$db" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+    echo "Invalid database name: $db (use lowercase letters, digits and _)" >&2
+    exit 1
+  fi
+done
 
-for db in app app_test; do
+echo "Creating roles app_owner and app (as $PGSUPERUSER on $PGHOST:$PGPORT)"
+psql_su -d postgres -f "$DIR/create-roles.sql"
+# Passwords go through psql variables (:'name' quotes them as literals), so
+# any character is safe whatever the bash version.
+psql_su -d postgres -v owner_pw="$APP_OWNER_PASSWORD" -v app_pw="$APP_PASSWORD" <<'SQL'
+ALTER ROLE app_owner PASSWORD :'owner_pw';
+ALTER ROLE app PASSWORD :'app_pw';
+SQL
+
+for db in $DATABASES; do
   echo "Recreating database $db owned by app_owner"
   psql_su -d postgres \
     -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" \

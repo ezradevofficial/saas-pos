@@ -36,6 +36,18 @@ class AccessReviewTest extends TestCase
         return $rows;
     }
 
+    public function test_the_web_app_can_read_the_csv_file_name_across_origins(): void
+    {
+        // The web app (another origin) names the download from Content-Disposition.
+        $headers = [...$this->headersFor(), 'Origin' => config('app.frontend_url')];
+
+        $response = $this->get('/api/v1/access-review?format=csv', $headers)->assertOk();
+
+        $response->assertHeader('Access-Control-Allow-Origin', config('app.frontend_url'));
+        $exposed = array_map('trim', explode(',', (string) $response->headers->get('Access-Control-Expose-Headers')));
+        $this->assertContains('Content-Disposition', $exposed);
+    }
+
     public function test_the_csv_export_has_a_header_and_one_row_per_assignment(): void
     {
         $this->userWith('cashier', Scope::location($this->locationA->id));

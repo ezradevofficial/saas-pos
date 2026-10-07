@@ -1,0 +1,177 @@
+# Platform
+
+A multi-tenant business platform: a point of sale at its core, with business modules on a shared core (tenancy, identity, roles and permissions, audit, localisation). The display name comes from configuration: `APP_NAME` for the API, `VITE_APP_NAME` for web and `EXPO_PUBLIC_APP_NAME` for the POS.
+
+| Path | What it holds |
+| --- | --- |
+| `api/` | Laravel 13 API (PHP 8.3, PostgreSQL 16, Redis), core in `app/Core` |
+| `web/` | React web app (JavaScript, Vite, Tailwind 4, shadcn/ui) |
+| `pos/` | Expo / React Native POS and mobile app (NativeWind 4) |
+| `packages/tokens` | Design tokens compiled for web and POS |
+| `docs/` | Specs (`concept-note.md`, `platform-core-spec.md`) and ADRs (`docs/adr/`) |
+| `design/` | `tokens.json` |
+
+Rules for contributors are in `CLAUDE.md`.
+
+## Prerequisites
+
+- PHP 8.3+ with `pdo_pgsql`, and Composer 2
+- PostgreSQL 16+ and Redis 7. Install them locally, or run `docker compose up -d`.
+- Node 24 and npm
+- For the POS on a device: the Expo tooling (`npx expo`) and Android Studio or Xcode for a development build
+
+## One-time setup
+
+### 1. Database roles and databases
+
+The API uses two roles (ADR 002):
+
+- `app_owner` owns the schema and runs migrations.
+- `app` is the runtime role. It is never a superuser and never bypasses row-level security.
+
+Run the script as a PostgreSQL superuser:
+
+```sh
+# Local PostgreSQL where your OS user is a superuser:
+bash api/database/scripts/setup-local-db.sh
+
+# docker compose (superuser postgres/postgres):
+PGSUPERUSER=postgres PGPASSWORD=postgres bash api/database/scripts/setup-local-db.sh
+```
+
+The script:
+
+- creates the roles (`api/database/scripts/create-roles.sql`)
+- drops and recreates the `app` and `app_test` databases, owned by `app_owner`
+- grants `app` only data access
+
+It accepts `PGHOST`, `PGPORT`, `PGSUPERUSER` (or `PGUSER`), `PGPASSWORD` and `DATABASES` (default `"app app_test"`). CI runs the same script.
+
+If you used an earlier `docker-compose.yml` that made `app` the container superuser, run `docker compose down -v` first. A superuser `app` bypasses row-level security, and `HealthTest` fails.
+
+### 2. API
+
+```sh
+cd api
+composer setup          # install, .env from .env.example, key, migrate as app_owner, sync permissions
+```
+
+To rebuild the database from scratch later:
+
+```sh
+composer migrate:fresh  # as app_owner, seeds the permission catalogue
+```
+
+Always migrate through `composer migrate` or `composer migrate:fresh`. Never run a plain `php artisan migrate`: it runs as the runtime role, which cannot create tables.
+
+### 3. JavaScript workspaces
+
+```sh
+npm install                      # at the repository root: web, pos, packages/tokens
+cp web/.env.example web/.env
+cp pos/.env.example pos/.env
+```
+
+## Running locally
+
+| What | Command | Port |
+| --- | --- | --- |
+| API | `npm run dev:api` (or `cd api && php artisan serve --port=8008`) | 8008 |
+| Queue worker (codes, notifications) | `cd api && php artisan queue:work` | |
+| Web app | `npm run dev:web` (`strictPort`) | 3008 |
+| POS web preview (Playwright checks) | `npm run web -w pos` | 3009 |
+| POS on a device or simulator (Expo) | `npm run dev:pos`, then `a` (Android) or `i` (iOS) | |
+
+Mail and SMS use the `log` driver locally. Verification codes appear in `api/storage/logs/laravel.log`.
+
+## Tests
+
+Run the tests you touched while working. CI runs everything.
+
+| Package | Focused | Full |
+| --- | --- | --- |
+| API | `cd api && php artisan test --filter=ScopeResolverTest` or `php artisan test tests/Feature/Core/Rbac/ScopeResolverTest.php` | `php artisan test --exclude-testsuite=Isolation` |
+| API, isolation suite (TEN-01) | | `cd api && php artisan test --testsuite=Isolation` |
+| API, code style | | `cd api && vendor/bin/pint --test` |
+| Web | `cd web && npx vitest run src/lib/money.test.js` | `cd web && npx vitest run`, `npm run lint -w web`, `npm run build -w web` |
+| POS | `cd pos && npx jest src/lib/money.test.js` | `cd pos && npx jest`, `npm run doctor -w pos` |
+| Tokens | | `npm run build -w @app/tokens && npm test -w @app/tokens` |
+| Translations (L10N-02) | | `npm run check:i18n` |
+
+- The API tests run against the `app_test` database as role `app`, never SQLite.
+- The Isolation suite seeds two tenants and proves that nothing of tenant B is visible to tenant A. It covers every table, every route, lists and exports.
+- After changing `design/tokens.json` or the tokens build, run `npm run build -w @app/tokens` and commit `packages/tokens/dist`.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`. A newer push cancels the run it supersedes. The jobs:
+
+| Job | What it runs |
+| --- | --- |
+| `api (tests)` | PostgreSQL 16 and Redis 7 services, then: roles and databases set up by the script above as `postgres`, `composer migrate`, `pint --test`, and the tests without the Isolation suite |
+| `api (isolation)` | Same setup (same job, second matrix entry), then only the Isolation suite |
+| `web` | `oxlint`, Vitest, and the production build |
+| `pos` | Jest and `expo-doctor` (`npm run doctor -w pos`, version pinned) |
+| `tokens` | Rebuild, then fail if the committed `dist/` differs; then the tokens tests |
+| `i18n` | Missing or untranslated keys |
+
+A PR does not merge unless every job passes.
+
+## Deploy
+
+`.github/workflows/deploy.yml` deploys `main` to **dev**, then to **staging**, on Linode.
+
+- **CI gates the deploy.** Changes reach `main` by a direct push, so the deploy starts only when the CI workflow finishes on `main`, and only if CI succeeded. It deploys the exact commit CI tested.
+- It can also be run by hand from `main` (Actions, Deploy, Run workflow).
+- If pull requests are adopted, protect `main` with the CI jobs as required checks.
+
+An environment deploys only when all of its settings below exist. Otherwise its job is skipped with a notice, and the run still succeeds.
+
+Repository **secrets**, for `<ENV>` = `DEV` or `STAGING`:
+
+| Secret | Value |
+| --- | --- |
+| `<ENV>_LINODE_HOST` | Host name or IP of the web/API server |
+| `<ENV>_LINODE_USER` | SSH user that owns the deploy path |
+| `<ENV>_LINODE_SSH_KEY` | Private key for that user (deploy key, no passphrase) |
+| `<ENV>_LINODE_KNOWN_HOSTS` | The host's `known_hosts` line(s), from `ssh-keyscan <host>` checked against the console |
+| `<ENV>_DEPLOY_PATH` | Absolute path on the host, e.g. `/srv/platform` |
+
+Repository **variables**:
+
+| Variable | Value |
+| --- | --- |
+| `<ENV>_API_URL` | Public API URL baked into the web build (required) |
+| `APP_NAME` | Display name for the web build (optional, default `App`) |
+
+Prepare each host once:
+
+- PHP 8.3 with `pdo_pgsql`, Composer, and a web server that serves:
+  - `<path>/web` as the web app
+  - `<path>/api/public` as the API
+- `<path>/api/.env`:
+  - `DB_USERNAME=app`, plus the `DB_OWNER_*` owner credentials
+  - `APP_ENV`, `APP_KEY`, Redis and mail settings
+- The database roles from `api/database/scripts/create-roles.sql`, with strong passwords set via `ALTER ROLE`
+- Connect directly or through **session** pooling only. The tenant setting is session-level, so transaction pooling would leak it (ADR 002).
+
+Each deploy:
+
+1. builds the web app
+2. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
+3. runs `composer install --no-dev`, then `php artisan config:clear`
+4. runs `php artisan migrate --database=pgsql_owner --force`
+5. runs `php artisan permissions:sync`
+6. caches config and routes
+7. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+
+## Architecture decisions
+
+- [001 Modular monolith, CI and deploy](docs/adr/001-modular-monolith.md)
+- [002 Tenant isolation with row-level security](docs/adr/002-tenancy-rls.md)
+- [003 Money and currency](docs/adr/003-money-and-currency.md)
+- [004 Offline POS and sync](docs/adr/004-offline-sync.md)
+- [005 Styling across web and POS](docs/adr/005-styling.md)
+- [006 Roles and permissions](docs/adr/006-rbac.md)
+
+Specs: [concept note](docs/concept-note.md), [platform core spec](docs/platform-core-spec.md).
