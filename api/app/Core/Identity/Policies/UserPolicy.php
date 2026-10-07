@@ -8,10 +8,17 @@ use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
 
 /**
- * RBAC-04 for users, who have no scope of their own: an actor reaches a
- * user when they hold the permission at a scope covering at least one of
- * the user's assignments. Users without assignments are reached only from
- * tenant scope. Managing an Owner takes an Owner (RBAC-10).
+ * RBAC-04 for users, who have no scope of their own.
+ *
+ * - Seeing a user: the actor holds the permission at a scope covering at
+ *   least one of the user's assignments.
+ * - Changing a user (edit, deactivate, reactivate, sign out everywhere):
+ *   the actor covers every one of the user's assignments, so a branch
+ *   manager cannot act on someone who also holds a role above the branch.
+ *
+ * Tenant-wide holders cover everything; users without assignments are
+ * reached only from tenant scope. Managing someone holding the Owner role
+ * (active or not) takes an Owner (RBAC-10).
  */
 class UserPolicy
 {
@@ -27,17 +34,17 @@ class UserPolicy
 
     public function view(User $actor, User $target): bool
     {
-        return $this->reaches($actor, 'core.user.view', $target);
+        return $this->covers($actor, 'core.user.view', $target, all: false);
     }
 
     public function update(User $actor, User $target): bool
     {
-        return $this->reaches($actor, 'core.user.edit', $target);
+        return $this->covers($actor, 'core.user.edit', $target, all: true) && $this->mayManageOwner($actor, $target);
     }
 
     public function deactivate(User $actor, User $target): bool
     {
-        return $this->reaches($actor, 'core.user.deactivate', $target) && $this->mayManageOwner($actor, $target);
+        return $this->covers($actor, 'core.user.deactivate', $target, all: true) && $this->mayManageOwner($actor, $target);
     }
 
     public function reactivate(User $actor, User $target): bool
@@ -47,10 +54,14 @@ class UserPolicy
 
     public function signOutEverywhere(User $actor, User $target): bool
     {
-        return $this->reaches($actor, 'core.user.edit', $target) && $this->mayManageOwner($actor, $target);
+        return $this->covers($actor, 'core.user.edit', $target, all: true) && $this->mayManageOwner($actor, $target);
     }
 
-    private function reaches(User $actor, string $permission, User $target): bool
+    /**
+     * Whether $actor holds $permission over $target's assignments: at least
+     * one of them, or every one of them when $all.
+     */
+    private function covers(User $actor, string $permission, User $target, bool $all): bool
     {
         if ($target->tenant_id !== $actor->tenant_id) {
             return false;
@@ -62,12 +73,18 @@ class UserPolicy
             return true;
         }
 
-        return $target->assignments()->get(['scope_type', 'scope_id'])
-            ->contains(fn ($a) => ScopeNames::covers($visible, $a->scope_type, $a->scope_id));
+        $assignments = $target->assignments()->get(['scope_type', 'scope_id']);
+        $covered = fn ($a) => ScopeNames::covers($visible, $a->scope_type, $a->scope_id);
+
+        if ($assignments->isEmpty()) {
+            return false;
+        }
+
+        return $all ? $assignments->every($covered) : $assignments->contains($covered);
     }
 
     private function mayManageOwner(User $actor, User $target): bool
     {
-        return ! $this->owners->isOwner($target) || $this->owners->isOwner($actor);
+        return ! $this->owners->holdsOwnerRole($target) || $this->owners->isOwner($actor);
     }
 }

@@ -169,6 +169,39 @@ class InvitationTest extends TestCase
         ]]], $manager)->assertNotFound();
     }
 
+    public function test_inviting_takes_the_invite_permission_at_each_assignment_scope(): void
+    {
+        $inviter = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Inviter', ['core.user.invite']), Scope::location($this->locationA->id));
+            $this->assign($user, $this->role('Assigner', ['core.role.assign', 'core.location.view', 'core.device.view']), Scope::branch($this->branchA->id));
+
+            return $user;
+        });
+
+        // core.role.assign covers branch A, core.user.invite does not.
+        $this->invite(['assignments' => [[
+            'role_id' => $this->roles->get('cashier')->id, 'scope_type' => 'branch', 'scope_id' => $this->branchA->id,
+        ]]], $inviter)->assertForbidden()->assertJsonPath('code', 'cannot_grant');
+
+        $this->invite([], $inviter)->assertCreated();
+    }
+
+    public function test_revoking_takes_covering_every_assignment_of_the_invitation(): void
+    {
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $cashier = $this->roles->get('cashier')->id;
+        $id = $this->invite(['assignments' => [
+            ['role_id' => $cashier, 'scope_type' => 'location', 'scope_id' => $this->locationA->id],
+            ['role_id' => $cashier, 'scope_type' => 'location', 'scope_id' => $this->locationB->id],
+        ]])->assertCreated()->json('data.id');
+
+        $this->postJson("/api/v1/invitations/{$id}/revoke", [], $this->headersFor($manager))->assertForbidden();
+
+        $own = $this->invite(['email' => 'mine@example.com'], $manager)->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/invitations/{$own}/revoke", [], $this->headersFor($manager))->assertOk();
+    }
+
     public function test_only_an_owner_grants_the_owner_role(): void
     {
         $admin = $this->userWith('admin', Scope::tenant());

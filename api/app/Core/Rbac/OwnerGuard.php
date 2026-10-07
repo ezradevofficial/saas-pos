@@ -51,6 +51,22 @@ class OwnerGuard
     }
 
     /**
+     * True when $user holds an unarchived owner role at tenant scope,
+     * whatever their status: a deactivated Owner is still an Owner to
+     * manage (reactivating one restores an Owner).
+     */
+    public function holdsOwnerRole(User $user): bool
+    {
+        return RoleAssignment::query()
+            ->join('roles', 'roles.id', '=', 'role_assignments.role_id')
+            ->where('role_assignments.user_id', $user->getKey())
+            ->where('roles.is_owner', true)
+            ->whereNull('roles.archived_at')
+            ->where('role_assignments.scope_type', Scope::TENANT)
+            ->exists();
+    }
+
+    /**
      * Run $change in a transaction, after checking under the owners lock
      * that $target may stop being an Owner.
      *

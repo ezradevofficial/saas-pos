@@ -7,6 +7,7 @@ use App\Core\Identity\Http\Resources\InvitationResource;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Services\Invitations;
 use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Rbac\VisibleScope;
 use App\Core\Tenancy\Http\Requests\ListRequest;
@@ -18,7 +19,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 /**
  * AUTH-05: invitations, seen by holders of `core.user.invite` for the
  * scopes they reach: an invitation is visible when one of its assignments
- * is within the actor's scope (tenant-wide holders see all).
+ * is within the actor's scope (tenant-wide holders see all), and revoked
+ * only by an actor whose scope covers all of its assignments.
  */
 class InvitationController
 {
@@ -49,9 +51,13 @@ class InvitationController
     {
         abort_unless($request->user()->can('core.user.invite'), 403);
 
-        $model = $this->visible(Invitation::query(), $this->resolver->visibleIds($request->user(), 'core.user.invite'))
-            ->whereKey($invitation)
-            ->firstOrFail();
+        $visible = $this->resolver->visibleIds($request->user(), 'core.user.invite');
+        $model = $this->visible(Invitation::query(), $visible)->whereKey($invitation)->firstOrFail();
+
+        // Seen through one assignment, revoked only by covering them all.
+        abort_unless(collect($model->assignments)->every(
+            fn (array $a) => ScopeNames::covers($visible, $a['scope_type'], $a['scope_id']),
+        ), 403);
 
         return InvitationResource::make($this->invitations->revoke($model));
     }

@@ -24,6 +24,7 @@ class RoleManager
         private readonly OwnerGuard $owners,
         private readonly RoleTemplates $templates,
         private readonly TwoFactor $twoFactor,
+        private readonly ModuleRegistry $modules,
     ) {}
 
     /** @param array{name: string, description?: ?string, requires_two_factor?: bool, permissions?: list<string>} $data */
@@ -55,7 +56,14 @@ class RoleManager
         $role->assertEditable();
 
         if (array_key_exists('permissions', $data)) {
-            $added = array_values(array_diff($data['permissions'], $role->permissionNames()));
+            // Permissions of inactive modules are not offered to clients
+            // (GET permissions), so a client cannot keep them: they stay.
+            $current = $role->permissionNames();
+            $active = array_flip($this->modules->active());
+            $hidden = array_filter($current, fn (string $name) => ! isset($active[PermissionRegistry::moduleOf($name)]));
+            $data['permissions'] = array_values(array_unique([...$data['permissions'], ...$hidden]));
+
+            $added = array_values(array_diff($data['permissions'], $current));
             $this->grants->assertHolds($actor, $added, Scope::tenant());
         }
 
@@ -90,6 +98,9 @@ class RoleManager
         $role->assertEditable();
 
         return $this->transaction(function () use ($role) {
+            // Defence in depth: owner roles are system roles today, which
+            // assertEditable() already refuses; a custom owner role must
+            // still never take the last Owner with it.
             if ($role->is_owner) {
                 $this->owners->assertRoleArchivable($role);
             }

@@ -6,7 +6,10 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
+use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\Artisan;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -155,6 +158,41 @@ class RoleApiTest extends TestCase
         $this->patchJson("/api/v1/roles/{$id}", ['permissions' => ['core.role.view', 'core.user.deactivate']], $this->headersFor($editor))
             ->assertForbidden()
             ->assertJsonPath('code', 'cannot_grant');
+    }
+
+    private function registerInactiveDemoModule(): void
+    {
+        app(ModuleRegistry::class)->register('demo');
+        app(PermissionRegistry::class)->register('demo', ['thing' => ['view']]);
+        Artisan::call('permissions:sync');
+    }
+
+    public function test_permissions_of_an_inactive_module_cannot_be_handed_out_by_someone_without_them(): void
+    {
+        $this->registerInactiveDemoModule();
+        // Built before any request: a request switches the default guard.
+        $admin = $this->userWith('admin', Scope::tenant());
+        $role = $this->inTenant(fn () => $this->role('Demo viewer', ['demo.thing.view']));
+        $user = $this->userWith('cashier', Scope::location($this->locationA->id));
+
+        $this->createRole(['permissions' => ['core.company.view', 'demo.thing.view']], $admin)
+            ->assertForbidden()
+            ->assertJsonPath('code', 'cannot_grant');
+
+        // Nor granted: a role carrying it cannot be assigned by the Admin.
+        $this->postJson("/api/v1/users/{$user->id}/assignments", [
+            'role_id' => $role->id, 'scope_type' => 'tenant', 'scope_id' => $this->owner->tenant_id,
+        ], $this->headersFor($admin))->assertForbidden()->assertJsonPath('code', 'cannot_grant');
+    }
+
+    public function test_editing_permissions_keeps_those_of_inactive_modules(): void
+    {
+        $this->registerInactiveDemoModule();
+        $role = $this->inTenant(fn () => $this->role('Mixed', ['core.company.view', 'demo.thing.view']));
+
+        $this->patchJson("/api/v1/roles/{$role->id}", ['permissions' => ['core.branch.view']], $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.permissions', ['core.branch.view', 'demo.thing.view']);
     }
 
     public function test_a_branch_manager_lists_roles_but_cannot_manage_them(): void

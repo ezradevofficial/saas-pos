@@ -128,6 +128,40 @@ class UserAdminTest extends TestCase
         $this->postJson("/api/v1/users/{$second->id}/deactivate", [], $this->headersFor())->assertOk();
     }
 
+    public function test_only_an_owner_reactivates_or_edits_an_owner_even_a_deactivated_one(): void
+    {
+        $admin = $this->userWith('admin', Scope::tenant());
+        $second = $this->userWith('owner', Scope::tenant());
+        $this->inTenant(fn () => $second->forceFill(['status' => 'deactivated'])->save());
+
+        $this->postJson("/api/v1/users/{$second->id}/reactivate", [], $this->headersFor($admin))->assertForbidden();
+        $this->patchJson("/api/v1/users/{$this->owner->id}", ['name' => 'X'], $this->headersFor($admin))->assertForbidden();
+        $this->inTenant(fn () => $this->assertSame('deactivated', $second->fresh()->status));
+
+        $this->postJson("/api/v1/users/{$second->id}/reactivate", [], $this->headersFor())->assertOk();
+    }
+
+    public function test_changing_a_user_takes_covering_every_one_of_their_assignments(): void
+    {
+        $manager = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $role = $this->role('People manager', ['core.user.view', 'core.user.edit', 'core.user.deactivate']);
+            $this->assign($user, $role, Scope::branch($this->branchA->id));
+
+            return $user;
+        });
+        $admin = $this->userWith('admin', Scope::tenant());
+        $this->inTenant(fn () => $this->assign($admin, $this->roles->get('cashier'), Scope::location($this->locationA->id)));
+
+        // Seen through the Branch A assignment, but the tenant role is above the manager.
+        $this->getJson("/api/v1/users/{$admin->id}", $this->headersFor($manager))->assertOk();
+        $this->postJson("/api/v1/users/{$admin->id}/deactivate", [], $this->headersFor($manager))->assertForbidden();
+        $this->postJson("/api/v1/users/{$admin->id}/sign-out-everywhere", [], $this->headersFor($manager))->assertForbidden();
+        $this->patchJson("/api/v1/users/{$admin->id}", ['name' => 'X'], $this->headersFor($manager))->assertForbidden();
+
+        $this->postJson("/api/v1/users/{$this->cashierA->id}/deactivate", [], $this->headersFor($manager))->assertOk();
+    }
+
     public function test_another_tenants_users_are_not_found(): void
     {
         $other = $this->otherTenant()['user'];

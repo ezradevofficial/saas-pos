@@ -27,17 +27,19 @@ use Illuminate\Support\Str;
  *    every permission of R at a scope covering S (403 `cannot_grant`);
  *  - R is an owner role only if the actor is an Owner (403 `cannot_grant`).
  *
- * Permissions of modules the tenant has not activated grant nothing to
- * anyone, so they are left out of the "holds every permission" check.
+ * "Holds" reads the role-permission links of the actor's roles covering S,
+ * whatever the modules' state: a permission of an inactive module counts
+ * too, so it cannot be handed out now and take effect on activation.
  */
 class Grants
 {
     public const ASSIGN = 'core.role.assign';
 
+    public const INVITE = 'core.user.invite';
+
     public function __construct(
         private readonly ScopeResolver $resolver,
         private readonly Visibility $visibility,
-        private readonly ModuleRegistry $modules,
         private readonly OwnerGuard $owners,
         private readonly TenantContext $tenants,
     ) {}
@@ -93,6 +95,19 @@ class Grants
         $this->assertHolds($actor, $this->permissionsOf($role), $scope);
     }
 
+    /**
+     * May $actor invite someone with $role at $scope? As assertCanGrant,
+     * and `core.user.invite` must cover $scope too (403 `cannot_grant`).
+     */
+    public function assertCanInvite(User $actor, Role $role, Scope $scope): void
+    {
+        $this->assertCanGrant($actor, $role, $scope);
+
+        if (! $this->resolver->can($actor, self::INVITE, $scope)) {
+            throw self::cannotGrant();
+        }
+    }
+
     /** May $actor remove $assignment? Throws 404 or 403 `cannot_grant`. */
     public function assertCanRevoke(User $actor, RoleAssignment $assignment): void
     {
@@ -101,14 +116,13 @@ class Grants
 
     /**
      * Refuse with 403 `cannot_grant` unless $actor holds every one of
-     * $permissions (of active modules) at a scope covering $scope.
+     * $permissions at a scope covering $scope.
      *
      * @param  list<string>  $permissions
      */
     public function assertHolds(User $actor, array $permissions, Scope $scope): void
     {
-        $active = array_flip($this->modules->active());
-        $needed = array_filter($permissions, fn (string $name) => isset($active[PermissionRegistry::moduleOf($name)]));
+        $needed = array_values(array_unique($permissions));
 
         if ($needed === []) {
             return;

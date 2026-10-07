@@ -46,7 +46,7 @@ class Invitations
         $assignments = array_map(function (array $a) use ($actor) {
             $scope = $this->grants->scope($a['scope_type'], $a['scope_id'] ?? null);
             $role = $this->grants->role($a['role_id']);
-            $this->grants->assertCanGrant($actor, $role, $scope);
+            $this->grants->assertCanInvite($actor, $role, $scope);
 
             return ['role_id' => $role->id, 'scope_type' => $scope->type, 'scope_id' => $scope->id];
         }, $data['assignments']);
@@ -189,7 +189,7 @@ class Invitations
             return array_map(function (array $a) use ($inviter) {
                 $scope = $this->grants->scope($a['scope_type'], $a['scope_id'] ?? null);
                 $role = $this->grants->role($a['role_id']);
-                $this->grants->assertCanGrant($inviter, $role, $scope);
+                $this->grants->assertCanInvite($inviter, $role, $scope);
 
                 return [$role, $scope];
             }, $invitation->assignments);
