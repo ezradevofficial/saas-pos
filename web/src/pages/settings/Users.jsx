@@ -21,7 +21,7 @@ async function exportAccessReview() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  // Content-Disposition is not exposed to the page by CORS, so the name usually comes from today's local date.
+  // The API exposes Content-Disposition through CORS; today's local date is the fallback name.
   const today = new Date()
   const date = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-')
   link.download = filename ?? `access-review-${date}.csv`

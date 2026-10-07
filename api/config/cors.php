@@ -25,7 +25,8 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    // The web app names CSV downloads from Content-Disposition (RBAC-11).
+    'exposed_headers' => ['Content-Disposition'],
 
     'max_age' => 0,
 
