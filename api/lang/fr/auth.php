@@ -27,6 +27,7 @@ return [
         'already_enabled' => 'La vérification en deux étapes est déjà activée. Désactivez-la avant de la configurer à nouveau.',
         'not_started' => 'Commencez d’abord la configuration de la vérification en deux étapes, puis saisissez le code.',
         'phone_required' => 'Ajoutez et vérifiez un numéro de téléphone avant d’utiliser les codes par SMS.',
+        'required_by_role' => 'Votre rôle exige la vérification en deux étapes : elle ne peut pas être désactivée. Contactez votre administrateur si c’est une erreur.',
         'enabled' => 'La vérification en deux étapes est activée.',
         'disabled' => 'La vérification en deux étapes est désactivée.',
     ],
@@ -39,11 +40,23 @@ return [
     'notifications' => [
         'greeting' => 'Bonjour :name,',
         'verification_code' => [
-            'subject' => 'Votre code de vérification :app',
-            'line' => 'Votre code de vérification est :code.',
             'expiry' => 'Il expire dans :minutes minutes et ne fonctionne qu’une fois.',
             'ignore' => 'Si vous ne l’avez pas demandé, ignorez ce message.',
-            'sms' => 'Code :app : :code. Il expire dans :minutes minutes.',
+            'verify_contact' => [
+                'subject' => 'Votre code de vérification :app',
+                'line' => 'Votre code de vérification est :code.',
+                'sms' => 'Code de vérification :app : :code. Il expire dans :minutes minutes.',
+            ],
+            'two_factor' => [
+                'subject' => 'Votre code de connexion :app',
+                'line' => 'Votre code de vérification en deux étapes est :code.',
+                'sms' => 'Code de connexion :app : :code. Il expire dans :minutes minutes. Ne le partagez jamais.',
+            ],
+            'password_reset' => [
+                'subject' => 'Réinitialisez votre mot de passe :app',
+                'line' => 'Votre code de réinitialisation du mot de passe est :code.',
+                'sms' => 'Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minutes.',
+            ],
         ],
         'new_device' => [
             'subject' => 'Nouvelle connexion à votre compte :app',

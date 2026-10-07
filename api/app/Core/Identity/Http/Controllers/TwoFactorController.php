@@ -5,6 +5,8 @@ namespace App\Core\Identity\Http\Controllers;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\ConfirmTwoFactorRequest;
 use App\Core\Identity\Http\Requests\DisableTwoFactorRequest;
+use App\Core\Identity\Http\Requests\StartSmsRequest;
+use App\Core\Identity\Http\Requests\StartTotpRequest;
 use App\Core\Identity\Http\Requests\VerifyRequest;
 use App\Core\Identity\Http\Resources\UserResource;
 use App\Core\Identity\Http\Responses\TokenResponse;
@@ -13,6 +15,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Services\Authenticate;
 use App\Core\Identity\Services\Challenges;
+use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\TwoFactor;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -64,7 +67,7 @@ class TwoFactorController
     }
 
     /** POST me/two-factor/totp: a new secret, as text, otpauth URL and QR code. */
-    public function startTotp(Request $request): JsonResponse
+    public function startTotp(StartTotpRequest $request): JsonResponse
     {
         return response()->json($this->twoFactor->startTotp($request->user()));
     }
@@ -78,7 +81,7 @@ class TwoFactorController
     }
 
     /** POST me/two-factor/sms: sends a code to the user's verified phone. */
-    public function startSms(Request $request): JsonResponse
+    public function startSms(StartSmsRequest $request): JsonResponse
     {
         $challenge = $this->twoFactor->startSms($request->user());
 
@@ -95,12 +98,26 @@ class TwoFactorController
         return $this->enabled($request);
     }
 
-    /** DELETE me/two-factor: needs the password. */
-    public function disable(DisableTwoFactorRequest $request): JsonResponse
+    /**
+     * DELETE me/two-factor: needs the password; refused while a role
+     * requires two-factor. Wrong passwords count toward the sign-in lockout
+     * (AUTH-10), so a stolen session cannot guess the password here.
+     */
+    public function disable(DisableTwoFactorRequest $request, LoginThrottle $throttle): JsonResponse
     {
         $user = $request->user();
 
+        $this->twoFactor->assertMayDisable($user);
+
+        if ($throttle->isLocked($user)) {
+            $seconds = $throttle->retryAfter($user);
+
+            throw new ApiException(423, 'locked', __('auth.locked', ['minutes' => (int) ceil($seconds / 60)]), headers: ['Retry-After' => $seconds]);
+        }
+
         if (! Hash::check((string) $request->string('password'), $user->password)) {
+            $throttle->recordFailure($user);
+
             throw new ApiException(422, 'invalid_password', __('auth.password.incorrect'), ['password' => [__('auth.password.incorrect')]]);
         }
 

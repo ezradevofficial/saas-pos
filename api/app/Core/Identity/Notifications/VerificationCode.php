@@ -6,7 +6,10 @@ use App\Core\Notifications\Channels\SmsChannel;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** A one-time code by email or SMS (AUTH-01, AUTH-03), in the user's language. */
+/**
+ * A one-time code by email or SMS (AUTH-01, AUTH-03, AUTH-04), in the user's
+ * language, worded for its purpose (verify_contact, two_factor, password_reset).
+ */
 class VerificationCode extends Notification
 {
     public function __construct(
@@ -25,9 +28,9 @@ class VerificationCode extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject(__('auth.notifications.verification_code.subject', ['app' => config('app.name')]))
+            ->subject(__($this->key('subject'), ['app' => config('app.name')]))
             ->greeting(__('auth.notifications.greeting', ['name' => $notifiable->name]))
-            ->line(__('auth.notifications.verification_code.line', ['code' => $this->code]))
+            ->line(__($this->key('line'), ['code' => $this->code]))
             ->line(__('auth.notifications.verification_code.expiry', ['minutes' => $this->minutes]))
             ->line(__('auth.notifications.verification_code.ignore'))
             ->salutation(config('app.name'));
@@ -35,10 +38,15 @@ class VerificationCode extends Notification
 
     public function toSms(object $notifiable): string
     {
-        return __('auth.notifications.verification_code.sms', [
+        return __($this->key('sms'), [
             'app' => config('app.name'),
             'code' => $this->code,
             'minutes' => $this->minutes,
         ]);
+    }
+
+    private function key(string $part): string
+    {
+        return 'auth.notifications.verification_code.'.$this->purpose.'.'.$part;
     }
 }

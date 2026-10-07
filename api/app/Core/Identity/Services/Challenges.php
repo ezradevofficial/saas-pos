@@ -142,8 +142,24 @@ class Challenges
     }
 
     /**
-     * Check a code and consume the challenge. Every attempt counts, and is
-     * committed before the answer is known, so failures cannot be rolled back.
+     * Check a code and consume the challenge (check() then consume()).
+     *
+     * @param  (Closure(VerificationChallenge, string): bool)|null  $check
+     *
+     * @throws ApiException 422 invalid_code, 429 too_many_requests
+     */
+    public function verify(string $id, string $code, string $purpose, ?Closure $check = null): VerificationChallenge
+    {
+        $challenge = $this->check($id, $code, $purpose, $check);
+        $this->consume($challenge);
+
+        return $challenge->refresh();
+    }
+
+    /**
+     * Check a code without consuming the challenge. Every attempt counts, and
+     * is committed before the answer is known, so failures cannot be rolled
+     * back. A caller that goes on must consume() before acting on the code.
      *
      * $check replaces the stored-code comparison (a TOTP challenge has no
      * stored code); it runs after the attempt is counted.
@@ -152,7 +168,7 @@ class Challenges
      *
      * @throws ApiException 422 invalid_code, 429 too_many_requests
      */
-    public function verify(string $id, string $code, string $purpose, ?Closure $check = null): VerificationChallenge
+    public function check(string $id, string $code, string $purpose, ?Closure $check = null): VerificationChallenge
     {
         $challenge = $this->findUnconsumed($id, $purpose) ?? throw self::failure('auth.code.invalid');
 
@@ -181,7 +197,18 @@ class Challenges
             throw self::failure('auth.code.invalid');
         }
 
-        // Single use, even under concurrent requests.
+        return $challenge;
+    }
+
+    /**
+     * Mark a checked challenge used. A conditional update, so of concurrent
+     * requests holding the same valid code only one gets through; run it in
+     * the transaction that acts on the code so a later failure undoes it.
+     *
+     * @throws ApiException 422 invalid_code when it was already consumed
+     */
+    public function consume(VerificationChallenge $challenge): void
+    {
         $consumed = VerificationChallenge::whereKey($challenge->id)
             ->whereNull('consumed_at')
             ->update(['consumed_at' => now()]);
@@ -189,8 +216,6 @@ class Challenges
         if ($consumed === 0) {
             throw self::failure('auth.code.invalid');
         }
-
-        return $challenge->refresh();
     }
 
     /**

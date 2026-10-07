@@ -158,6 +158,10 @@ class TwoFactor
         $this->enable($user);
     }
 
+    /**
+     * Turn two-factor off. If a role still requires it (an administrator
+     * turning it off for the user), every session drops back to enrolment.
+     */
     public function disable(User $user): void
     {
         DB::transaction(function () use ($user) {
@@ -170,8 +174,30 @@ class TwoFactor
                 'two_factor_last_used_step' => null,
             ])->saveQuietly();
 
+            if ($this->required($user)) {
+                $this->downgradeTokens($user);
+            }
+
             $this->auditor->record('auth.two_factor_disabled', $user, ['method' => $method], null);
         });
+    }
+
+    /**
+     * Limit every one of $user's tokens to enrolment, e.g. when a role
+     * starts requiring two-factor or one that requires it is assigned to a
+     * user without it. Enrolling lifts the limit on the token used.
+     */
+    public function downgradeTokens(User $user): void
+    {
+        DB::transaction(fn () => $user->tokens()->update(['abilities' => json_encode([self::ENROL_ABILITY])]));
+    }
+
+    /** @throws ApiException 409 two_factor_required_by_role */
+    public function assertMayDisable(User $user): void
+    {
+        if ($this->required($user)) {
+            throw new ApiException(409, 'two_factor_required_by_role', __('auth.two_factor.required_by_role'));
+        }
     }
 
     /**

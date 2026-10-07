@@ -3,10 +3,12 @@
 namespace Tests\Feature\Core\Identity;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Identity\Services\Challenges;
+use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\TwoFactor;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\RoleTemplates;
@@ -14,6 +16,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\Concerns\CreatesIdentities;
@@ -289,7 +292,9 @@ class TwoFactorTest extends TestCase
         $this->postJson('/api/v1/me/two-factor/sms', [], $this->bearer($token))
             ->assertOk()
             ->assertJsonPath('destination_masked', fn ($masked) => is_string($masked) && ! str_contains($masked, '712345'));
-        Notification::assertSentTo($user, VerificationCode::class, fn (VerificationCode $n) => $n->channel === 'sms' && $n->purpose === 'two_factor');
+        Notification::assertSentTo($user, VerificationCode::class, fn (VerificationCode $n) => $n->channel === 'sms'
+            && $n->purpose === 'two_factor'
+            && $n->toSms($user) === __('auth.notifications.verification_code.two_factor.sms', ['app' => config('app.name'), 'code' => $n->code, 'minutes' => 30]));
 
         $this->postJson('/api/v1/me/two-factor/sms/confirm', ['code' => $this->wrong($this->lastCode())], $this->bearer($token))
             ->assertStatus(422);
@@ -405,5 +410,103 @@ class TwoFactorTest extends TestCase
         $this->postJson('/api/v1/auth/sign-out', [], $this->bearer($token))->assertNoContent();
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
+    }
+
+    public function test_two_factor_cannot_be_disabled_while_a_role_requires_it(): void
+    {
+        $user = $this->createUser();
+        $token = $this->tokenFor($user);
+        $this->enrolTotp($user, $token);
+        $this->requireTwoFactorForOwner($user);
+
+        $this->deleteJson('/api/v1/me/two-factor', ['password' => $this->password], $this->bearer($token))
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'two_factor_required_by_role')
+            ->assertJsonPath('message', __('auth.two_factor.required_by_role'));
+
+        $this->assertNotNull($this->fresh($user)->two_factor_confirmed_at);
+        $this->getJson('/api/v1/me/permissions', $this->bearer($token))->assertOk();
+    }
+
+    public function test_downgrading_tokens_limits_every_session_to_enrolment(): void
+    {
+        $user = $this->createUser();
+        $other = $this->createUser();
+        $tokens = [$this->tokenFor($user), $this->tokenFor($user)];
+        $otherToken = $this->tokenFor($other);
+
+        $this->asTenant($user->tenant_id, fn () => app(TwoFactor::class)->downgradeTokens($this->fresh($user)));
+
+        $this->asTenant($user->tenant_id, fn () => $this->assertSame(
+            [[TwoFactor::ENROL_ABILITY], [TwoFactor::ENROL_ABILITY]],
+            $this->fresh($user)->tokens()->get()->pluck('abilities')->all(),
+        ));
+
+        foreach ($tokens as $token) {
+            $this->app['auth']->forgetGuards();
+            $this->getJson('/api/v1/me/permissions', $this->bearer($token))
+                ->assertForbidden()
+                ->assertJsonPath('code', 'two_factor_enrollment_required');
+            $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        }
+
+        // Another user's sessions are untouched.
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/v1/me/permissions', $this->bearer($otherToken))->assertOk();
+    }
+
+    public function test_wrong_passwords_when_disabling_count_toward_the_lockout(): void
+    {
+        $user = $this->createUser();
+        $token = $this->tokenFor($user);
+        $this->enrolTotp($user, $token);
+
+        for ($i = 0; $i < LoginThrottle::MAX_FAILURES; $i++) {
+            $this->deleteJson('/api/v1/me/two-factor', ['password' => 'not-the-password'], $this->bearer($token))->assertStatus(422);
+            if ($i === 3) {
+                $this->travel(61)->seconds(); // past the per-IP limit
+            }
+        }
+
+        $this->assertNotNull($this->fresh($user)->locked_until);
+
+        // Locked: even the right password is refused, and sign-in too.
+        $this->deleteJson('/api/v1/me/two-factor', ['password' => $this->password], $this->bearer($token))
+            ->assertStatus(423)
+            ->assertJsonPath('code', 'locked');
+        $this->assertNotNull($this->fresh($user)->two_factor_confirmed_at);
+        $this->signIn($user->email)->assertStatus(423);
+    }
+
+    public function test_every_authenticated_route_requires_a_full_access_token_unless_whitelisted(): void
+    {
+        $whitelist = [
+            'POST api/v1/auth/sign-out',
+            'GET api/v1/me',
+            'POST api/v1/me/two-factor/totp',
+            'POST api/v1/me/two-factor/totp/confirm',
+            'POST api/v1/me/two-factor/sms',
+            'POST api/v1/me/two-factor/sms/confirm',
+        ];
+        $seen = [];
+
+        foreach (Route::getRoutes() as $route) {
+            if (! in_array('auth:sanctum', $route->gatherMiddleware(), true)) {
+                continue;
+            }
+
+            $name = $route->methods()[0].' '.$route->uri();
+            $guarded = in_array(EnsureFullAccessToken::class, $route->gatherMiddleware(), true)
+                && ! in_array(EnsureFullAccessToken::class, $route->excludedMiddleware(), true);
+
+            if (in_array($name, $whitelist, true)) {
+                $seen[] = $name;
+                $this->assertFalse($guarded, "{$name} is whitelisted for enrol-only tokens.");
+            } else {
+                $this->assertTrue($guarded, "{$name} accepts enrol-only tokens.");
+            }
+        }
+
+        $this->assertEqualsCanonicalizing($whitelist, $seen);
     }
 }

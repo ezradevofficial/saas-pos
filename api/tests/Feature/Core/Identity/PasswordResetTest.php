@@ -63,9 +63,15 @@ class PasswordResetTest extends TestCase
             ->assertStatus(202)
             ->assertExactJson(['message' => __('auth.password_reset.sent')]);
 
-        Notification::assertSentTo($user, VerificationCode::class, fn (VerificationCode $n) => $n->channel === 'email'
-            && $n->purpose === 'password_reset'
-            && $n->minutes === 30);
+        Notification::assertSentTo($user, VerificationCode::class, function (VerificationCode $n) use ($user) {
+            $mail = $n->toMail($user);
+
+            return $n->channel === 'email'
+                && $n->purpose === 'password_reset'
+                && $n->minutes === 30
+                && $mail->subject === __('auth.notifications.verification_code.password_reset.subject', ['app' => config('app.name')])
+                && in_array(__('auth.notifications.verification_code.password_reset.line', ['code' => $n->code]), $mail->introLines, true);
+        });
     }
 
     public function test_forgot_sends_a_code_by_sms_for_a_phone_login(): void
@@ -201,7 +207,8 @@ class PasswordResetTest extends TestCase
 
         $this->reset($user->email, $code)
             ->assertStatus(422)
-            ->assertJsonPath('message', __('auth.code.attempts'));
+            ->assertJsonPath('code', 'invalid_code')
+            ->assertJsonPath('message', __('auth.code.invalid'));
         $this->assertTrue(Hash::check($this->password, $this->fresh($user)->password));
     }
 
@@ -211,11 +218,13 @@ class PasswordResetTest extends TestCase
         $this->forgot($user->email);
         $code = $this->lastCode();
 
+        // The policy applies once the code is right; the code stays usable.
         $this->reset($user->email, $code, 'short-pass-1')
             ->assertStatus(422)
             ->assertJsonValidationErrors(['password']);
         $this->reset($user->email, $code, 'password')->assertStatus(422)->assertJsonValidationErrors(['password']);
 
+        $this->travel(61)->seconds(); // past the per-login limit (AUTH-10)
         $this->reset($user->email, $code, 'a-much-longer-passphrase')->assertOk();
     }
 
@@ -229,5 +238,42 @@ class PasswordResetTest extends TestCase
 
         $this->assertNull(config('auth.defaults.passwords'));
         $this->assertNull(config('auth.passwords.users'));
+    }
+
+    public function test_a_wrong_code_answers_the_same_for_real_and_unknown_logins_whatever_the_password(): void
+    {
+        $user = $this->createUser([], ['settings' => ['password_min_length' => 14]]);
+        $this->forgot($user->email);
+        $code = $this->lastCode();
+
+        $real = $this->reset($user->email, $this->wrong($code), 'short-pass-1')->assertStatus(422);
+        $unknown = $this->reset('nobody@example.com', $this->wrong($code), 'short-pass-1')->assertStatus(422);
+
+        $this->assertSame('invalid_code', $real->json('code'));
+        $this->assertSame($unknown->json(), $real->json());
+
+        $this->reset($user->email, $code, 'a-much-longer-passphrase')->assertOk();
+    }
+
+    public function test_forgot_sends_only_to_a_verified_email_or_phone(): void
+    {
+        $email = $this->createUser(['email_verified_at' => null, 'phone' => '+254712345678', 'phone_verified_at' => now()]);
+        $phone = $this->createUser(['phone' => '+254712345679', 'phone_verified_at' => null]);
+
+        $this->forgot($email->email)->assertStatus(202);
+        $this->forgot('+254712345679')->assertStatus(202);
+        Notification::assertNothingSent();
+
+        // The verified channel of the same account works.
+        $this->forgot('+254712345678')->assertStatus(202);
+        Notification::assertSentTo($email, VerificationCode::class, fn (VerificationCode $n) => $n->channel === 'sms');
+        Notification::assertNothingSentTo($phone);
+    }
+
+    public function test_reset_is_timeboxed_like_forgot(): void
+    {
+        $this->reset('nobody@example.com', '123456')->assertStatus(422);
+
+        Sleep::assertSleptTimes(1);
     }
 }
