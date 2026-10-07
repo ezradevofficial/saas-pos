@@ -3,5 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "main": "src/index.js",
-  "description": "Design tokens compiled from design/tokens.json for the web (CSS variables, Tailwind preset) and the POS (NativeWind preset, runtime variables)."
+  "description": "Design tokens compiled from design/tokens.json for the web (CSS variables, Tailwind preset) and the POS (NativeWind preset, runtime variables).",
+  "devDependencies": {
+    "@tailwindcss/node": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^5.0.3"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./tokens.css": "./dist/tokens.css",
+    "./tailwind.css": "./dist/tailwind.css",
+    "./tailwind-v3-preset": "./dist/tailwind-v3-preset.js",
+    "./native-themes": "./dist/native-themes.js",
+    "./tokens.json": "./dist/tokens.json",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run -c vitest.config.js"
+  }
 }
