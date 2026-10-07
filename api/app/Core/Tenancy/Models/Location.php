@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy\Models;
 
+use App\Core\Audit\Audited;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** An outlet, warehouse, store or office of a branch (TEN-05). */
 class Location extends Model
 {
-    use Archivable, BelongsToTenant, HasUuids;
+    use Archivable, Audited, BelongsToTenant, HasUuids;
 
     protected $fillable = ['tenant_id', 'branch_id', 'name', 'type'];
 
