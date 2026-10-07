@@ -1,0 +1,7 @@
+{
+  "name": "@app/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "description": "Design tokens compiled from design/tokens.json for the web (CSS variables, Tailwind preset) and the POS (NativeWind preset, runtime variables)."
+}
