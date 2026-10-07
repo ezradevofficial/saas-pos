@@ -11,6 +11,7 @@ return [
     ],
 
     'unverified' => 'Verify your email or phone first. We’ve sent you a new code.',
+    'unverified_wait' => 'Verify your email or phone first. Use the code we already sent you, or wait a little and sign in again to get a new one.',
     'deactivated' => 'This account is deactivated. Ask your administrator to reactivate it.',
     'locked' => 'Too many failed sign-ins. Try again in :minutes minutes.',
 
@@ -19,6 +20,20 @@ return [
         'expired' => 'This code has expired. Ask for a new one.',
         'attempts' => 'Too many wrong codes. Sign in again to get a new one.',
         'exhausted' => 'Too many wrong codes for this one. Sign in again to get a new code.',
+    ],
+
+    'two_factor' => [
+        'enrollment_required' => 'Your role requires two-step verification. Set it up to continue.',
+        'already_enabled' => 'Two-step verification is already on. Turn it off before setting it up again.',
+        'not_started' => 'Start setting up two-step verification first, then enter the code.',
+        'phone_required' => 'Add and verify a phone number before using codes by SMS.',
+        'enabled' => 'Two-step verification is on.',
+        'disabled' => 'Two-step verification is off.',
+    ],
+
+    'password_reset' => [
+        'sent' => 'If an account uses this email or phone number, we’ve sent it a code to reset the password.',
+        'done' => 'Your password has been changed. Sign in with your new password.',
     ],
 
     'notifications' => [

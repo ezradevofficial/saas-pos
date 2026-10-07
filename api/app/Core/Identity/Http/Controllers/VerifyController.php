@@ -5,7 +5,7 @@ namespace App\Core\Identity\Http\Controllers;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\ResendCodeRequest;
 use App\Core\Identity\Http\Requests\VerifyRequest;
-use App\Core\Identity\Http\Resources\UserResource;
+use App\Core\Identity\Http\Responses\TokenResponse;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Services\Authenticate;
@@ -43,10 +43,7 @@ class VerifyController
 
         $token = $authenticate->issueToken($user, (string) $request->ip(), (string) $request->userAgent(), $request->deviceName());
 
-        return response()->json([
-            'token' => $token,
-            'user' => UserResource::make($user)->resolve($request),
-        ]);
+        return TokenResponse::make($token, $user, $request);
     }
 
     public function resend(ResendCodeRequest $request): JsonResponse

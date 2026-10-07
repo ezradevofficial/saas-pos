@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Throwable;
 
 /**
  * Password sign-in (AUTH-01) with lockout and new-device alerts (AUTH-10).
@@ -33,6 +32,7 @@ class Authenticate
         private readonly Auditor $auditor,
         private readonly LoginThrottle $throttle,
         private readonly Challenges $challenges,
+        private readonly TwoFactor $twoFactor,
     ) {}
 
     public function attempt(string $login, string $password, string $ip, string $userAgent, ?string $deviceName = null): SignInResult
@@ -69,22 +69,27 @@ class Authenticate
             [$channel, $destination] = $user->email !== null ? ['email', $user->email] : ['sms', $user->phone];
             // Past the send limits the account is still unverified; the
             // code already sent stays valid, so no new challenge id.
-            $challenge = rescue(
-                fn () => $this->challenges->issue($user, VerificationChallenge::PURPOSE_VERIFY_CONTACT, $channel, $destination),
-                fn (Throwable $e) => $e instanceof ApiException && $e->getStatusCode() === 429 ? null : throw $e,
-                report: false,
-            );
+            try {
+                $challenge = $this->challenges->issue($user, VerificationChallenge::PURPOSE_VERIFY_CONTACT, $channel, $destination);
+            } catch (ApiException $e) {
+                if ($e->getStatusCode() !== 429) {
+                    throw $e;
+                }
 
-            return SignInResult::unverified($challenge?->id);
+                return SignInResult::unverified(null, (int) ($e->getHeaders()['Retry-After'] ?? Challenges::SEND_COOLDOWN_SECONDS));
+            }
+
+            return SignInResult::unverified($challenge->id);
         }
 
         $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => null])->saveQuietly();
 
-        if ($user->two_factor_confirmed_at !== null) {
-            // AUTH-03: the token is issued once the second factor passes (Task 7).
+        if ($user->hasTwoFactor()) {
+            // AUTH-03: the token is issued once the second factor passes
+            // (POST auth/two-factor/challenge). A TOTP challenge sends nothing.
             [$channel, $destination] = match (true) {
-                $user->two_factor_method === 'sms' && $user->phone !== null => ['sms', $user->phone],
-                $user->two_factor_method === 'sms' => ['email', $user->email],
+                $user->two_factor_method === TwoFactor::METHOD_SMS && $user->phone !== null => ['sms', $user->phone],
+                $user->two_factor_method === TwoFactor::METHOD_SMS => ['email', $user->email],
                 default => [null, null],
             };
             $challenge = $this->challenges->issue($user, VerificationChallenge::PURPOSE_TWO_FACTOR, $channel, $destination);
@@ -97,8 +102,9 @@ class Authenticate
 
     /**
      * Sign $user in on a device: token, login event, audit entry, and an
-     * alert when the device is new for a user who signed in before.
-     * Requires $user's tenant context.
+     * alert when the device is new for a user who signed in before. A user
+     * whose role requires two-factor but who has none gets a token that can
+     * only enrol (AUTH-03). Requires $user's tenant context.
      */
     public function issueToken(User $user, string $ip, string $userAgent, ?string $deviceName = null): string
     {
@@ -110,7 +116,7 @@ class Authenticate
             $user->forceFill(['last_sign_in_at' => now()])->saveQuietly();
             $this->logEvent($user, $ip, $userAgent, $fingerprint, succeeded: true);
 
-            $token = $user->createDeviceToken($deviceName ?: ($userAgent ?: 'unknown'), $ip, $userAgent);
+            $token = $user->createDeviceToken($deviceName ?: ($userAgent ?: 'unknown'), $ip, $userAgent, $this->twoFactor->tokenAbilities($user));
 
             $this->auditor->record('auth.sign_in', $user, null, [
                 'token_id' => $token->accessToken->getKey(),
@@ -123,20 +129,23 @@ class Authenticate
         if ($newDevice) {
             // Queued, to the address rather than the model: a worker has no
             // tenant context to reload the user under RLS.
+            // The sign-in has committed: a queue that cannot be reached is
+            // reported, never turned into an error.
             [$channel, $route] = $user->email !== null ? ['mail', $user->email] : ['sms', $user->phone];
-            Notification::route($channel, $route)->notify(
+            rescue(fn () => Notification::route($channel, $route)->notify(
                 (new NewDeviceSignIn($user->name, $channel, $ip, $userAgent, now()))->locale($user->locale),
-            );
+            ), report: true);
         }
 
         return $plain;
     }
 
     /**
-     * The one user the login names. A local phone number that matches users
-     * in more than one country names nobody: neither is signed in.
+     * The one user the login names, read under its tenant's context (which
+     * is left set). A local phone number that matches users in more than one
+     * country names nobody: neither is signed in.
      */
-    private function findUser(string $login): ?User
+    public function findUser(string $login): ?User
     {
         $matches = [];
 

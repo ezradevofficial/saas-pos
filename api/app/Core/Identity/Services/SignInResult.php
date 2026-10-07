@@ -47,9 +47,10 @@ final class SignInResult
         return new self(self::INVALID);
     }
 
-    public static function unverified(?string $challengeId): self
+    /** No challenge id when no new code could be sent yet; $retryAfter says when one can. */
+    public static function unverified(?string $challengeId, ?int $retryAfter = null): self
     {
-        return new self(self::UNVERIFIED, challengeId: $challengeId);
+        return new self(self::UNVERIFIED, challengeId: $challengeId, retryAfter: $retryAfter);
     }
 
     public static function deactivated(): self
