@@ -233,7 +233,7 @@ export function Devices({ location, chain, archived }) {
                     {t('devices.suspend')}
                   </Button>
                 ) : null}
-                {canPair && device.status === 'active' ? (
+                {canPair && (device.status === 'active' || device.status === 'suspended') ? (
                   <Button
                     variant="ghost"
                     onClick={() => setConfirm({ kind: 'unpair', device })}

@@ -173,7 +173,6 @@
       "invitation_stale": "Cette invitation ne correspond plus à la configuration de l’organisation. Demandez à votre administrateur de vous en envoyer une nouvelle.",
       "contact_unverified": "Cette personne n’a jamais vérifié d’e-mail ni de numéro de téléphone : elle ne peut pas être réactivée. Invitez-la de nouveau.",
       "system_role": "Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.",
-      "device_suspended": "Cet appareil est suspendu. Réactivez-le avant de le dissocier.",
       "device_not_pairable": "Cet appareil est déjà associé ou suspendu. Dissociez-le avant de l’associer de nouveau.",
       "device_not_suspended": "Cet appareil n’est pas suspendu : il n’y a rien à réactiver.",
       "forbidden": "Vous n’avez pas l’autorisation de faire cela. Demandez-la à un administrateur si nécessaire."

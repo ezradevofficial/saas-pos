@@ -28,7 +28,6 @@ return [
     // TEN-05 : appareils de caisse.
     'devices' => [
         'not_pairable' => 'Cet appareil est déjà associé ou suspendu. Dissociez-le avant de l’associer à nouveau.',
-        'suspended' => 'Cet appareil est suspendu. Réactivez-le avant de le dissocier.',
         'not_suspended' => 'Cet appareil n’est pas suspendu : il n’y a rien à réactiver.',
         'invalid_pairing_code' => 'Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code et réessayez.',
     ],
