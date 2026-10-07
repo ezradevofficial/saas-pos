@@ -30,6 +30,14 @@ class AuditContext
 
     private DateTimeInterface|string|null $deviceTime = null;
 
+    /** Forget everything set so far (a new request starts empty). */
+    public function reset(): void
+    {
+        $this->userId = $this->onBehalfOfUserId = $this->ip = $this->userAgent = null;
+        $this->deviceId = $this->locationId = null;
+        $this->deviceTime = null;
+    }
+
     public function setUserId(?string $userId): static
     {
         $this->userId = $userId;
