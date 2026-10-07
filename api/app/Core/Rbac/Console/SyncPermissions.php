@@ -12,9 +12,15 @@ use Spatie\Permission\PermissionRegistrar;
  * Write the code-declared catalogue to the global `permissions` table
  * (RBAC-01). Idempotent; never deletes (roles may still reference a
  * permission a module stopped declaring). Run on every deploy.
+ *
+ * The catalogue is written as the schema owner (OWNER_CONNECTION): the
+ * runtime role may only read it, since a permission row is shared by every
+ * tenant (ADR 006).
  */
 class SyncPermissions extends Command
 {
+    public const OWNER_CONNECTION = 'pgsql_owner';
+
     protected $signature = 'permissions:sync';
 
     protected $description = 'Upsert the permission catalogue declared by the modules';
@@ -23,9 +29,10 @@ class SyncPermissions extends Command
     {
         $created = 0;
 
-        DB::transaction(function () use ($registry, &$created) {
+        DB::connection(self::OWNER_CONNECTION)->transaction(function () use ($registry, &$created) {
             foreach ($registry->all() as $entry) {
-                $permission = Permission::firstOrNew(['name' => $entry['name'], 'guard_name' => Permission::GUARD]);
+                $permission = Permission::on(self::OWNER_CONNECTION)
+                    ->firstOrNew(['name' => $entry['name'], 'guard_name' => Permission::GUARD]);
                 $permission->fill($entry);
 
                 if (! $permission->exists) {

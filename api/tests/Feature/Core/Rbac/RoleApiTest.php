@@ -9,7 +9,6 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
-use Illuminate\Support\Facades\Artisan;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -164,7 +163,7 @@ class RoleApiTest extends TestCase
     {
         app(ModuleRegistry::class)->register('demo');
         app(PermissionRegistry::class)->register('demo', ['thing' => ['view']]);
-        Artisan::call('permissions:sync');
+        $this->syncPermissionCatalogue();
     }
 
     public function test_permissions_of_an_inactive_module_cannot_be_handed_out_by_someone_without_them(): void

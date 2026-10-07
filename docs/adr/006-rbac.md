@@ -41,7 +41,7 @@ Spatie 8 is configured with UUID keys and our own models: `App\Core\Rbac\Models\
 - Modules register their permissions in `PermissionRegistry`.
 - `php artisan permissions:sync` upserts them into the global `permissions` table. It never deletes, and it warns about names that are no longer declared.
 - `composer migrate:fresh` seeds the catalogue, `composer setup` syncs it, and every deploy runs the sync.
-- The catalogue table is global (ADR 002). The runtime role can therefore write it, because `permissions:sync` runs as `app`. Accepted: no endpoint writes it, and moving the sync to the owner connection is a possible hardening.
+- The catalogue table is global (ADR 002) and **only the schema owner writes it**. `permissions:sync` (and the seeder that calls it) writes through the `pgsql_owner` connection. The runtime role `app` has `SELECT` only on `permissions` (and `migrations`): a deleted permission cascades to `role_has_permissions` of every tenant, so a runtime write would cross tenants. `PermissionCatalogueWritesTest` proves `app` is refused.
 
 **Tenant roles under RLS (RBAC-02, RBAC-03).**
 
