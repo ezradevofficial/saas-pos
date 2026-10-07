@@ -11,6 +11,7 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Gate;
 use Tests\Concerns\BuildsRbac;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -204,5 +205,47 @@ class ScopeResolverTest extends TestCase
 
         // Abilities that are not permission names are left to policies.
         $this->assertFalse($this->user->can('view-anything'));
+    }
+
+    public function test_a_model_without_a_scope_is_left_to_its_policy(): void
+    {
+        $this->assign($this->user, $this->role('People', ['core.user.deactivate']), Scope::branch($this->branchA->id));
+        $other = $this->colleague($this->user);
+
+        // Without a policy nothing grants it: holding the permission at some
+        // branch must not mean "anywhere" for a user record.
+        $this->assertFalse($this->user->can('core.user.deactivate', $other));
+
+        ScopeTestPolicy::$result = false;
+        Gate::policy(User::class, ScopeTestPolicy::class);
+        $this->assertFalse($this->user->can('core.user.deactivate', $other));
+
+        ScopeTestPolicy::$result = true;
+        $this->assertTrue($this->user->can('core.user.deactivate', $other));
+
+        // A class name still means "anywhere".
+        $this->assertTrue($this->user->can('core.user.deactivate', User::class));
+    }
+
+    public function test_assignments_at_archived_scopes_keep_granting(): void
+    {
+        $this->assign($this->user, $this->branchManager(), Scope::branch($this->branchA->id));
+        $this->branchA->archive();
+        $this->locationA->archive();
+
+        $this->assertTrue($this->resolver()->can($this->user, 'core.location.view', Scope::location($this->locationA->id)));
+        $this->assertTrue($this->resolver()->can($this->user, 'core.branch.view', Scope::branch($this->branchA->id)));
+        $this->assertContains($this->locationA->id, $this->resolver()->visibleIds($this->user, 'core.location.view')->locationIds);
+    }
+}
+
+/** A policy whose answer the test sets; dotted ability names reach __call. */
+class ScopeTestPolicy
+{
+    public static bool $result = false;
+
+    public function __call(string $method, array $arguments): bool
+    {
+        return self::$result;
     }
 }

@@ -3,11 +3,14 @@
 namespace Tests\Feature\Core\Rbac;
 
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\TenantModule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
@@ -115,5 +118,36 @@ class ModuleFlagsTest extends TestCase
             $this->assertFalse(app(ModuleRegistry::class)->isActive('demo'));
             $this->assertFalse(app(ScopeResolver::class)->can($other, 'demo.thing.view'));
         });
+    }
+
+    public function test_activating_a_module_extends_the_system_roles(): void
+    {
+        $challengeId = $this->postJson('/api/v1/auth/sign-up', [
+            'name' => 'Amina Otieno',
+            'email' => 'amina@example.com',
+            'password' => $this->password,
+            'country' => 'KE',
+            'locale' => 'en',
+            'business_name' => 'Amina Stores',
+        ])->assertCreated()->json('challenge_id');
+        app(TenantContext::class)->set(VerificationChallenge::findOrFail($challengeId)->tenant_id);
+
+        // A module registered and synced after the tenant's roles were seeded.
+        app(ModuleRegistry::class)->register('extra');
+        app(PermissionRegistry::class)->register('extra', ['widget' => ['view', 'edit']]);
+        Artisan::call('permissions:sync');
+
+        $owner = Role::where('template_key', 'owner')->sole();
+        $auditor = Role::where('template_key', 'read_only_auditor')->sole();
+        $this->assertFalse($owner->permissions()->where('name', 'extra.widget.view')->exists());
+
+        app(ModuleRegistry::class)->activate('extra');
+
+        // syncPermissions on is_system roles passes the system-role guard.
+        $this->assertTrue($owner->permissions()->where('name', 'extra.widget.edit')->exists());
+        $this->assertTrue($auditor->permissions()->where('name', 'extra.widget.view')->exists());
+        $this->assertFalse($auditor->permissions()->where('name', 'extra.widget.edit')->exists());
+        $this->assertFalse(Role::where('template_key', 'cashier')->sole()->permissions()->where('name', 'extra.widget.view')->exists());
+        $this->assertTrue($owner->fresh()->is_system);
     }
 }

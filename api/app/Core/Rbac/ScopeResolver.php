@@ -23,6 +23,11 @@ use Spatie\Permission\PermissionRegistrar;
  * branches and their locations; a branch covers itself and its locations; a
  * location covers itself. Archived roles, inactive users and permissions of
  * inactive modules grant nothing.
+ *
+ * Archiving a company, branch or location does not change coverage:
+ * assignments there keep granting, so archived records can still be viewed
+ * and restored (TEN-06). Hiding archived records is the job of list
+ * queries, not of permissions.
  */
 class ScopeResolver
 {
@@ -32,6 +37,9 @@ class ScopeResolver
         private readonly PermissionRegistry $catalogue,
         private readonly ModuleRegistry $modules,
     ) {}
+
+    /** @var array<string, true> permission names found missing after a reload, per cache key */
+    private array $missing = [];
 
     /** True when $user holds $permission at $target, or anywhere when $target is null. */
     public function can(User $user, string $permission, ?Scope $target = null): bool
@@ -66,7 +74,7 @@ class ScopeResolver
      */
     public function roleIds(User $user, ?Scope $target = null): array
     {
-        if ($this->tenants->id() === null || $user->tenant_id !== $this->tenants->id()) {
+        if (! $this->eligible($user)) {
             return [];
         }
 
@@ -191,7 +199,9 @@ class ScopeResolver
     /**
      * Ids of the current tenant's roles carrying $permission, from the
      * per-tenant cache. A name the code registers but the cache lacks (the
-     * catalogue grew since it was built) reloads the cache once.
+     * catalogue grew since it was built) reloads the cache once; a name
+     * still missing after that (not synced yet) is remembered, so it cannot
+     * rebuild the cache on every check.
      *
      * @return list<string>
      */
@@ -202,10 +212,15 @@ class ScopeResolver
             ->first();
 
         $found = $find();
+        $missKey = $this->registrar->cacheKey.'|'.$permission;
 
-        if ($found === null && $this->catalogue->has($permission)) {
+        if ($found === null && $this->catalogue->has($permission) && ! isset($this->missing[$missKey])) {
             $this->registrar->forgetCachedPermissions();
             $found = $find();
+
+            if ($found === null) {
+                $this->missing[$missKey] = true;
+            }
         }
 
         return $found === null ? [] : $found->roles->modelKeys();

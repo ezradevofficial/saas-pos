@@ -9,6 +9,7 @@ use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
@@ -130,5 +131,18 @@ class FieldAndLimitRulesTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         app(LimitRules::class)->max($this->user, 'max_everything', null);
+    }
+
+    public function test_a_deactivated_user_gets_no_field_or_limit_rules(): void
+    {
+        $this->assign($this->user, $this->clerk, Scope::tenant());
+        $this->fieldRule($this->clerk, 'cost_price', 'hidden');
+        LimitRule::create(['role_id' => $this->clerk->id, 'key' => 'max_discount_percent', 'value' => '10']);
+
+        $this->user->forceFill(['status' => User::STATUS_DEACTIVATED])->save();
+
+        $this->assertSame([], app(ScopeResolver::class)->roleIds($this->user));
+        $this->assertSame(['hidden' => [], 'readonly' => []], app(FieldRules::class)->for($this->user, 'product'));
+        $this->assertNull(app(LimitRules::class)->max($this->user, 'max_discount_percent', null));
     }
 }

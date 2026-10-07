@@ -39,11 +39,17 @@ class RbacServiceProvider extends ServiceProvider
             $this->commands([SyncPermissions::class]);
         }
 
+        // Spatie binds its registrar while booting, before this provider
+        // boots: replace it with the transaction-safe one before first use.
+        $this->app->singleton(PermissionRegistrar::class, TenantPermissionRegistrar::class);
         $this->keyPermissionCacheByTenant();
 
-        // RBAC-09: `$user->can('module.resource.action', $model)` is answered
-        // by ScopeResolver at the model's scope. Other abilities fall through
-        // to policies.
+        // RBAC-09: `$user->can('module.resource.action', $target)` is answered
+        // by ScopeResolver when the target has a scope (a HasScope model or a
+        // Scope), or when there is no target or only a class name ("anywhere").
+        // Any other argument (e.g. a User) has no scope of its own: return
+        // null so that model's policy decides, never "anywhere" (fail closed).
+        // Other abilities fall through to policies too.
         Gate::before(function ($user, string $ability, array $arguments) {
             if (! $user instanceof User || ! PermissionRegistry::isPermissionName($ability)) {
                 return null;
@@ -53,8 +59,13 @@ class RbacServiceProvider extends ServiceProvider
             $scope = match (true) {
                 $target instanceof HasScope => $target->scope(),
                 $target instanceof Scope => $target,
-                default => null,
+                $target === null, is_string($target) && class_exists($target) => null,
+                default => false,
             };
+
+            if ($scope === false) {
+                return null;
+            }
 
             return $this->app->make(ScopeResolver::class)->can($user, $ability, $scope);
         });
