@@ -26,6 +26,7 @@ describe('PosTile', () => {
   it('warns when stock is at or under the low-stock threshold', async () => {
     await render(<PosTile name="Kabras Sugar 1kg" price={17500} currency="KES" stock={3} />);
 
+    expect(screen.getByRole('button', { name: 'Kabras Sugar 1kg, KES 175.00, 3 left' })).toBeEnabled();
     expect(screen.getByText('3 left')).toBeOnTheScreen();
     expect(screen.getByTestId('status-dot')).toHaveProp('className', expect.stringContaining('bg-warning'));
   });
@@ -33,6 +34,8 @@ describe('PosTile', () => {
   it('is at least 48px tall for touch', async () => {
     await render(<PosTile name="Mandazi" price={12000} currency="KES" />);
 
-    expect(screen.getByRole('button')).toHaveProp('className', expect.stringContaining('min-h-12'));
+    const className = screen.getByRole('button').props.className;
+    expect(className).toContain('min-h-12');
+    expect(className).toContain('focus-visible:outline-focus');
   });
 });

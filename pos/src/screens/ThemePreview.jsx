@@ -6,9 +6,12 @@ import { PosTile } from '../components/ds/PosTile';
 import { SaleTotal } from '../components/ds/SaleTotal';
 import { SyncStatus } from '../components/ds/SyncStatus';
 import { cn } from '../lib/cn';
+import { FOCUS_RING } from '../lib/focus';
 import { PREVIEW_THEMES } from '../theme/themes';
 import { SAMPLE_CART, SAMPLE_CURRENCY, SAMPLE_PRODUCTS, saleTotals } from './sampleSale';
 
+// One segment of the segmented control (README: surface-300 track, selected
+// segment surface-200 with shadow-sm); 48px tall for touch.
 function ThemeChoice({ label, selected, onPress }) {
   return (
     <Pressable
@@ -17,11 +20,12 @@ function ThemeChoice({ label, selected, onPress }) {
       accessibilityState={{ checked: selected }}
       onPress={onPress}
       className={cn(
-        'h-12 justify-center rounded-pill border px-4',
-        selected ? 'border-primary bg-primary' : 'border-border-strong bg-surface-200 hover:bg-surface-300 active:bg-surface-300',
+        'h-12 justify-center rounded-md px-4',
+        FOCUS_RING,
+        selected ? 'bg-surface-200 shadow-sm' : 'bg-transparent hover:bg-surface-200 active:bg-surface-200',
       )}
     >
-      <Text className={cn('font-sans text-label', selected ? 'text-on-primary' : 'text-ink')}>{label}</Text>
+      <Text className={cn('font-sans text-label', selected ? 'text-ink' : 'text-ink-muted')}>{label}</Text>
     </Pressable>
   );
 }
@@ -35,9 +39,9 @@ export function ThemePreview({ themeKey, onThemeChange }) {
 
   return (
     <SafeAreaView className="flex-1">
-      <View className="flex-row flex-wrap items-center gap-4 border-b border-border bg-surface-200 px-6 py-3">
+      <View className="flex-row flex-wrap items-center gap-4 border-b border-border bg-surface-200 px-4 py-3 md:px-6">
         <View className="flex-1">
-          <Text accessibilityRole="header" className="font-sans text-h2 text-primary">
+          <Text accessibilityRole="header" className="font-sans text-h3 text-ink">
             {t('app.name')}
           </Text>
           <Text className="font-sans text-caption text-ink-muted">{t('preview.subtitle')}</Text>
@@ -45,23 +49,26 @@ export function ThemePreview({ themeKey, onThemeChange }) {
         <SyncStatus state="online" />
       </View>
 
-      <View
-        accessibilityRole="radiogroup"
-        accessibilityLabel={t('preview.theme')}
-        className="flex-row flex-wrap gap-2 px-6 pt-4"
-      >
-        {PREVIEW_THEMES.map((option) => (
-          <ThemeChoice
-            key={option.key}
-            label={t(`ds.theme.${option.key}`)}
-            selected={option.key === themeKey}
-            onPress={() => onThemeChange(option.key)}
-          />
-        ))}
+      <View className="items-start px-4 pt-4 md:px-6">
+        <View
+          testID="theme-switcher"
+          accessibilityRole="radiogroup"
+          accessibilityLabel={t('preview.theme')}
+          className="flex-row flex-wrap gap-1 rounded-md bg-surface-300 p-1"
+        >
+          {PREVIEW_THEMES.map((option) => (
+            <ThemeChoice
+              key={option.key}
+              label={t(`ds.theme.${option.key}`)}
+              selected={option.key === themeKey}
+              onPress={() => onThemeChange(option.key)}
+            />
+          ))}
+        </View>
       </View>
 
       <View className="flex-1 lg:flex-row">
-        <ScrollView className="flex-1" contentContainerClassName="p-4">
+        <ScrollView className="flex-1" contentContainerClassName="p-2 md:p-4">
           <Text accessibilityRole="header" className="px-2 pb-2 font-sans text-h3 text-ink">
             {t('preview.products')}
           </Text>

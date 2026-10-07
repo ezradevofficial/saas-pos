@@ -26,6 +26,9 @@ describe('ThemePreview', () => {
     expect(choices.map((choice) => choice.props.accessibilityLabel)).toEqual(['Light', 'Dark', 'Executive', 'Warm', 'Test tenant']);
     choices.forEach((choice) => expect(choice).toHaveProp('className', expect.stringContaining('h-12')));
     expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveProp('className', expect.stringContaining('bg-surface-200 shadow-sm'));
+    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveProp('className', expect.stringContaining('bg-transparent'));
+    expect(screen.getByTestId('theme-switcher')).toHaveProp('className', expect.stringContaining('bg-surface-300'));
 
     await fireEvent.press(screen.getByRole('radio', { name: 'Test tenant' }));
     expect(onThemeChange).toHaveBeenCalledWith('tenant');

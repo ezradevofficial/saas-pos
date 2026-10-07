@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, Text, View } from 'react-native';
 import { cn } from '../../lib/cn';
+import { FOCUS_RING } from '../../lib/focus';
 import { formatAmount } from '../../lib/money';
 import { useLocale } from '../../lib/useLocale';
 import { StatusBadge } from './StatusBadge';
@@ -12,8 +13,11 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
   const { t } = useTranslation();
   const lang = useLocale();
   const out = stock === 0;
+  const low = !out && stock != null && stock <= lowStock;
   const priceText = `${currency} ${formatAmount(price, currency, lang)}`;
-  const label = [name, priceText, out ? t('ds.posTile.outOfStock') : null].filter(Boolean).join(', ');
+  const stockText = out ? t('ds.posTile.outOfStock') : low ? t('ds.posTile.left', { count: stock }) : null;
+  // The badge is inside the button, so its words go into the button's label.
+  const label = [name, priceText, stockText].filter(Boolean).join(', ');
 
   return (
     <Pressable
@@ -25,6 +29,7 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       className={cn(
         'min-h-12 justify-between gap-3 rounded-md border border-border bg-surface-200 p-4',
         'hover:border-border-strong active:bg-surface-300',
+        FOCUS_RING,
         out && 'opacity-50',
         className,
       )}
@@ -43,7 +48,7 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
         <Text className="font-sans text-label font-normal tabular-nums text-ink-muted">{priceText}</Text>
         {out ? (
           <StatusBadge tone="danger">{t('ds.posTile.out')}</StatusBadge>
-        ) : stock != null && stock <= lowStock ? (
+        ) : low ? (
           <StatusBadge tone="warning">{t('ds.posTile.left', { count: stock })}</StatusBadge>
         ) : null}
       </View>

@@ -52,6 +52,23 @@ describe('Button', () => {
     expect(onPress).not.toHaveBeenCalled();
   });
 
+  it('is always 48px on the POS, even when given the web md size', async () => {
+    await render(<Button size="md">Small</Button>);
+
+    const button = screen.getByRole('button', { name: 'Small' });
+    expect(button).toHaveProp('className', expect.stringContaining('h-12'));
+    expect(button).toHaveProp('className', expect.not.stringContaining('h-10'));
+  });
+
+  it('shows the focus ring on keyboard focus', async () => {
+    await render(<Button>Focus</Button>);
+
+    const className = screen.getByRole('button').props.className;
+    expect(className).toContain('focus-visible:outline-2');
+    expect(className).toContain('focus-visible:outline-offset-2');
+    expect(className).toContain('focus-visible:outline-focus');
+  });
+
   it('stretches when block', async () => {
     await render(<Button block>Wide</Button>);
 
