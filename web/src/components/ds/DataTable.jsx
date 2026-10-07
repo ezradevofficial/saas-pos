@@ -31,7 +31,7 @@ export function DataTable({ columns = [], rows = [], caption, emptyText, selecte
                 <TableRow
                   key={row.id ?? index}
                   data-state={selected ? 'selected' : undefined}
-                  aria-selected={selected ? 'true' : undefined}
+                  aria-current={selected ? 'true' : undefined}
                   tabIndex={clickable ? 0 : undefined}
                   onClick={clickable ? () => onRowClick(row) : undefined}
                   onKeyDown={

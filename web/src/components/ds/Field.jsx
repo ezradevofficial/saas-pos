@@ -5,7 +5,7 @@ import { Icon } from './Icon'
 // Shared by TextField and Select: label, control, then help or error.
 export const controlWrapClasses =
   'relative flex items-center rounded-md border border-border-strong bg-surface-200 transition-colors hover:border-ink-muted ' +
-  'focus-within:border-focus focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-focus ' +
+  'focus-within:border-focus focus-within:outline-2 focus-within:outline-solid focus-within:outline-offset-1 focus-within:outline-focus ' +
   'has-disabled:border-border has-disabled:bg-surface-300 has-disabled:hover:border-border'
 
 export function Field({ id, label, help, error, required, className, children }) {

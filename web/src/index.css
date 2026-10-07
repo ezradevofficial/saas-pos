@@ -144,7 +144,7 @@
   }
   /* Focus: a solid 2px focus outline with 2px offset on every interactive element. */
   :where(button, input, select, textarea, a, [tabindex]):focus-visible {
-    @apply outline-2 outline-offset-2 outline-focus;
+    @apply outline-2 outline-solid outline-offset-2 outline-focus;
   }
 }
 

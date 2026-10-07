@@ -9,6 +9,8 @@ import { Icon } from './Icon'
 export function Select({ label, help, error, placeholder, options = [], className, id, required, ...rest }) {
   const autoId = useId()
   const selectId = id ?? autoId
+  // With a placeholder and no value given, start on the placeholder instead of the first option.
+  const startOnPlaceholder = placeholder && rest.value === undefined && rest.defaultValue === undefined
   return (
     <Field id={selectId} label={label} help={help} error={error} required={required} className={className}>
       <div className={cn(controlWrapClasses, error && 'border-danger hover:border-danger')}>
@@ -18,6 +20,7 @@ export function Select({ label, help, error, placeholder, options = [], classNam
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error || help ? `${selectId}-msg` : undefined}
           className="h-control w-full min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-10 pl-3 text-body text-ink outline-none disabled:cursor-not-allowed disabled:text-ink-muted"
+          {...(startOnPlaceholder ? { defaultValue: '' } : {})}
           {...rest}
         >
           {placeholder ? (

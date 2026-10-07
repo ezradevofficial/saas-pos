@@ -22,3 +22,10 @@ describe('Checkbox', () => {
     expect(screen.getByRole('checkbox')).toBeDisabled()
   })
 })
+
+describe('Checkbox look', () => {
+  it('draws a border-strong box that fills with primary when checked', () => {
+    render(<Checkbox label="Track stock" />)
+    expect(screen.getByRole('checkbox')).toHaveClass('appearance-none', 'border-border-strong', 'checked:bg-primary')
+  })
+})

@@ -27,3 +27,15 @@ describe('Select', () => {
     expect(screen.getByLabelText('Currency')).toHaveAccessibleDescription('Choose a currency')
   })
 })
+
+describe('Select placeholder', () => {
+  it('starts on the placeholder when no value is given', () => {
+    render(<Select label="Branch" placeholder="Choose a branch" options={['Westlands', 'Gombe']} />)
+    expect(screen.getByLabelText('Branch')).toHaveValue('')
+  })
+
+  it('keeps a given defaultValue', () => {
+    render(<Select label="Branch" placeholder="Choose a branch" options={['Westlands', 'Gombe']} defaultValue="Gombe" />)
+    expect(screen.getByLabelText('Branch')).toHaveValue('Gombe')
+  })
+})

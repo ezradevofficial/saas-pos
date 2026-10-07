@@ -39,3 +39,10 @@ describe('Switch', () => {
     expect(screen.getByRole('switch')).toBeDisabled()
   })
 })
+
+describe('Switch without a visible label', () => {
+  it('forwards aria-label', () => {
+    render(<Switch checked={false} aria-label="Sell offline at Westlands" />)
+    expect(screen.getByRole('switch', { name: 'Sell offline at Westlands' })).toBeInTheDocument()
+  })
+})

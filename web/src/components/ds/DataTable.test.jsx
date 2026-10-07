@@ -46,7 +46,7 @@ describe('DataTable', () => {
       />,
     )
     const selected = screen.getByText('PO-2').closest('tr')
-    expect(selected).toHaveAttribute('aria-selected', 'true')
+    expect(selected).toHaveAttribute('aria-current', 'true')
     expect(selected).toHaveClass('data-[state=selected]:bg-primary-tint')
     fireEvent.click(screen.getByText('PO-1'))
     expect(onRowClick).toHaveBeenCalledWith(rows[0])

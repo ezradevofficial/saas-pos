@@ -22,7 +22,7 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       className={cn(
         'flex flex-col justify-between gap-3 rounded-md border border-border bg-surface-200 p-4 text-left text-ink transition-colors',
         'hover:border-border-strong active:bg-surface-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+        'focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-focus',
         className,
       )}
     >

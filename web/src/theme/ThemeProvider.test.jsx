@@ -104,3 +104,27 @@ describe('ThemeProvider overrides prop', () => {
     document.documentElement.removeAttribute('style')
   })
 })
+
+describe('ThemeProvider prop changes', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.classList.remove('dark')
+  })
+
+  it('applies a later theme prop', () => {
+    const { rerender } = render(<ThemeProvider theme="light"><Probe /></ThemeProvider>)
+    rerender(<ThemeProvider theme="dark"><Probe /></ThemeProvider>)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement).toHaveClass('dark')
+  })
+
+  it("loads the next user's saved theme when userId changes", () => {
+    localStorage.setItem('ds.theme.u2', 'executive')
+    const { rerender } = render(<ThemeProvider userId="u1"><Probe /></ThemeProvider>)
+    expect(screen.getByTestId('theme')).toHaveTextContent('light')
+    rerender(<ThemeProvider userId="u2"><Probe /></ThemeProvider>)
+    expect(screen.getByTestId('theme')).toHaveTextContent('executive')
+    expect(document.documentElement.dataset.theme).toBe('executive')
+  })
+})

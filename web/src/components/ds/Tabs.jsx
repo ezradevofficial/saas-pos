@@ -15,7 +15,7 @@ export function Tabs({ items = [], value, onChange, className }) {
               'data-active:border-b-ink data-active:text-ink dark:data-active:border-transparent dark:data-active:border-b-ink dark:data-active:text-ink',
               // Same specificity as the stock line-variant dark rule, so the ink underline stays in dark mode.
               'dark:group-data-[variant=line]/tabs-list:data-active:border-b-ink',
-              'focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+              'focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-focus',
             )}
           >
             {item.label}

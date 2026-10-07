@@ -21,7 +21,7 @@ const SIZES = {
 function buttonClasses({ variant = 'secondary', size = 'md', block = false, className } = {}) {
   return cn(
     'rounded-md font-medium disabled:cursor-not-allowed disabled:opacity-40',
-    'focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+    'focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-focus',
     VARIANTS[variant] ?? VARIANTS.secondary,
     SIZES[size] ?? SIZES.md,
     block && 'w-full',

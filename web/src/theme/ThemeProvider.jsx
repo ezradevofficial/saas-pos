@@ -29,7 +29,20 @@ function storeTheme(userId, theme) {
  * user in localStorage.
  */
 export function ThemeProvider({ theme = DEFAULT_THEME, overrides = {}, userId, children }) {
-  const [current, setCurrent] = useState(() => readStoredTheme(userId) ?? (isTheme(theme) ? theme : DEFAULT_THEME))
+  const initialTheme = (forUser, fallback) => readStoredTheme(forUser) ?? (isTheme(fallback) ? fallback : DEFAULT_THEME)
+  const [current, setCurrent] = useState(() => initialTheme(userId, theme))
+
+  // A different user loads their saved theme; a new theme prop applies for the same user.
+  const [seenUserId, setSeenUserId] = useState(userId)
+  const [seenTheme, setSeenTheme] = useState(theme)
+  if (seenUserId !== userId) {
+    setSeenUserId(userId)
+    setSeenTheme(theme)
+    setCurrent(initialTheme(userId, theme))
+  } else if (seenTheme !== theme) {
+    setSeenTheme(theme)
+    if (isTheme(theme)) setCurrent(theme)
+  }
   const [currentOverrides, setCurrentOverrides] = useState(overrides)
 
   // A new tenant theme from the server replaces runtime overrides
