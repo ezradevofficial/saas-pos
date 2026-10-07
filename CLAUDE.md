@@ -142,13 +142,25 @@ Do not add another language, framework or database without asking.
 - Backend: Pest (or PHPUnit) feature tests for every endpoint, including permission-denied and other-tenant cases.
 - Web: Vitest and React Testing Library. POS: Jest, plus sync tests that simulate going offline, duplicate uploads and conflicts.
 - CI runs lint, tests and the tenant-isolation suite on every PR. A PR doesn't merge if any fail.
-- Run the relevant tests yourself before saying a task is done, and report the results.
+- **Write tests as you go**, alongside the code they cover. Run only the tests you just wrote or touched (a single file or filter, e.g. `php artisan test --filter=...`, `npx vitest run path/to/file`). Do not run full test suites locally; CI does that. Report which tests you ran and their results before saying a task is done.
+- **UI checks use the Playwright MCP.** The owner does not check the UI by hand. After any UI change, open the web app on port 3008 with the Playwright MCP tools, exercise the change, take a screenshot and check the console for errors. Report what you checked.
+
+## Local ports
+
+- Frontend (web app, Vite dev server): **3008**, set with `strictPort` so it fails instead of picking another port.
+- Backend (Laravel API): **8008**, e.g. `php artisan serve --port=8008`.
+- Use these ports everywhere: Vite config, the API base URL in `web/.env`, `APP_URL`, CORS and Sanctum stateful domains, Docker Compose and the Playwright checks.
 
 ## Git workflow
 
-- Branches: `feat/<area>-<short-name>`, `fix/...`, `chore/...`.
-- Small PRs, one concern each. The PR description lists the requirement IDs covered and how they were tested.
-- Never commit directly to `main`.
+- The default branch is `main`. Never commit directly to `main`.
+- Every piece of work follows this loop:
+  1. Start from an up-to-date `main` (`git checkout main && git pull`).
+  2. Create a branch: `feat/<area>-<short-name>`, `fix/...`, `chore/...`.
+  3. Code and write tests on the branch, committing as you go.
+  4. Merge the branch into `main` and push `main`.
+  5. Pull `main` again, delete the merged branch, and start the next piece of work from step 1.
+- Small branches, one concern each. Commit messages (and PR descriptions, when a PR is used) list the requirement IDs covered and how they were tested.
 
 ## Sprint 1: foundation
 
