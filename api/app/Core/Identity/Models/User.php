@@ -3,11 +3,15 @@
 namespace App\Core\Identity\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Identity\Policies\UserPolicy;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\BelongsToTenant;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Translation\HasLocalePreference;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -19,6 +23,7 @@ use Laravel\Sanctum\NewAccessToken;
  * (E.164) are unique across tenants. Users are deactivated, never deleted
  * (AUTH-13).
  */
+#[UsePolicy(UserPolicy::class)]
 class User extends Authenticatable implements HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
@@ -63,6 +68,18 @@ class User extends Authenticatable implements HasLocalePreference
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
+    }
+
+    /** RBAC-04: the roles this user holds, and where. */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(RoleAssignment::class);
+    }
+
+    /** AUTH-13: a verified email or phone, needed to reactivate. */
+    public function hasVerifiedContact(): bool
+    {
+        return $this->email_verified_at !== null || $this->phone_verified_at !== null;
     }
 
     public function hasTwoFactor(): bool

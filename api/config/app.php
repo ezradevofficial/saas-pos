@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // The web app, for links in emails and text messages (e.g. invitations).
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3008'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

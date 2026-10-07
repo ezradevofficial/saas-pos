@@ -37,6 +37,19 @@ return [
         'done' => 'Your password has been changed. Sign in with your new password.',
     ],
 
+    // AUTH-05: invitations.
+    'invitation' => [
+        'expired' => 'This invitation has expired. Ask your administrator to send a new one.',
+        'revoked' => 'This invitation was withdrawn. Ask your administrator if you still need access.',
+        'accepted' => 'This invitation has already been used. Sign in instead.',
+        'stale' => 'This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.',
+    ],
+
+    // AUTH-13: user administration.
+    'users' => [
+        'contact_unverified' => 'This user never verified an email or phone number, so they can’t be reactivated. Invite them again instead.',
+    ],
+
     'notifications' => [
         'greeting' => 'Hello :name,',
         'verification_code' => [
@@ -57,6 +70,13 @@ return [
                 'line' => 'Your password reset code is :code.',
                 'sms' => ':app password reset code: :code. It expires in :minutes minutes.',
             ],
+        ],
+        'invitation' => [
+            'subject' => 'Join :tenant on :app',
+            'line' => ':inviter has invited you to join :tenant.',
+            'action' => 'Accept the invitation',
+            'expiry' => 'The invitation is valid until :date.',
+            'sms' => ':app: you are invited to join :tenant. Accept here: :url',
         ],
         'new_device' => [
             'subject' => 'New sign-in to your :app account',

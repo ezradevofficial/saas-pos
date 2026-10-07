@@ -110,8 +110,9 @@ class Archiver
         return match (true) {
             $model instanceof Company => $model->branches()->active()->exists(),
             $model instanceof Branch => $model->locations()->active()->exists(),
+            // A suspended device is still paired here and may be resumed.
             $model instanceof Location => $model->devices()
-                ->whereIn('status', [Device::STATUS_PENDING, Device::STATUS_ACTIVE])
+                ->whereIn('status', [Device::STATUS_PENDING, Device::STATUS_ACTIVE, Device::STATUS_SUSPENDED])
                 ->exists(),
         };
     }

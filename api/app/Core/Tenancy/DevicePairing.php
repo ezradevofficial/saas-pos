@@ -6,6 +6,7 @@ use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class DevicePairing
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
         private readonly AuditContext $auditContext,
+        private readonly Archiver $archiver,
     ) {}
 
     /**
@@ -127,7 +129,11 @@ class DevicePairing
         });
     }
 
-    /** Lift a suspension (`core.device.archive`), keeping the pairing. */
+    /**
+     * Lift a suspension (`core.device.archive`), keeping the pairing. Never
+     * under an archived location (422 `parent_archived`): the location row
+     * is locked so it cannot be archived meanwhile (TEN-06).
+     */
     public function resume(Device $device): Device
     {
         return $this->locked($device, function (Device $device) {
@@ -138,6 +144,8 @@ class DevicePairing
             if ($device->status !== Device::STATUS_SUSPENDED) {
                 throw new ApiException(422, 'device_not_suspended', __('core.devices.not_suspended'));
             }
+
+            $this->archiver->lockActive(Location::class, $device->location_id);
 
             // A device suspended before it was ever paired goes back to pending.
             $status = $device->paired_at !== null ? Device::STATUS_ACTIVE : Device::STATUS_PENDING;
