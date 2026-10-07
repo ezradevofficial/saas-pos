@@ -307,4 +307,21 @@ class DeviceApiTest extends TestCase
         $this->postJson("/api/v1/devices/{$device->id}/suspend", [], $this->headersFor())->assertNotFound();
         $this->postJson("/api/v1/locations/{$other['location']->id}/devices", ['name' => 'X'], $this->headersFor())->assertNotFound();
     }
+
+    // Found by the isolation suite (TEN-01): the device and location a pairing
+    // put in the request-scoped audit context stayed there for the next
+    // request on the same application instance, so another user's (or
+    // another tenant's) entries were attributed to that device.
+    public function test_a_pairing_does_not_attribute_the_next_request_to_the_device(): void
+    {
+        $this->pair($this->pairingCode($this->createDevice()))->assertOk();
+
+        $company = $this->postJson('/api/v1/companies', ['name' => 'After pairing', 'country' => 'KE'], $this->headersFor())
+            ->assertCreated()
+            ->json('data.id');
+
+        $entry = $this->inTenant(fn () => AuditEntry::where('auditable_id', $company)->sole());
+        $this->assertNull($entry->device_id);
+        $this->assertNull($entry->location_id);
+    }
 }

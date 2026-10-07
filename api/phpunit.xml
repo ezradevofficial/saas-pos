@@ -11,6 +11,10 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). Also part of Feature. -->
+        <testsuite name="Isolation">
+            <directory>tests/Feature/Isolation</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
