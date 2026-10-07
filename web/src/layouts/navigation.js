@@ -1,8 +1,12 @@
 /**
- * Navigation (RBAC-09): an item with `permission` shows only when the user
- * has it somewhere; an item with `module` only while that module is active.
+ * Navigation (RBAC-09): an item with `permission` (a name, or a list of
+ * which any one is enough) shows only when the user has it somewhere; an item with `module` only while that module is active.
  * Sprint 1 has Overview and Settings; later modules add their groups here.
  */
+// A user who sees any level of the organisation (a cashier sees their
+// location) gets the Organisation page, filtered to their scope (RBAC-04).
+export const ORGANISATION_VIEW = ['core.company.view', 'core.branch.view', 'core.location.view']
+
 export const NAV_GROUPS = [
   {
     id: 'overview',
@@ -13,7 +17,7 @@ export const NAV_GROUPS = [
     id: 'settings',
     label: (t) => t('nav.groups.settings'),
     items: [
-      { to: '/settings/organisation', icon: 'organisation', label: (t) => t('nav.organisation'), permission: 'core.company.view', module: 'core' },
+      { to: '/settings/organisation', icon: 'organisation', label: (t) => t('nav.organisation'), permission: ORGANISATION_VIEW, module: 'core' },
       { to: '/settings/users', icon: 'users', label: (t) => t('nav.users'), permission: 'core.user.view', module: 'core' },
       { to: '/settings/roles', icon: 'roles', label: (t) => t('nav.roles'), permission: 'core.role.view', module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },

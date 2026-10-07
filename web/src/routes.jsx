@@ -3,6 +3,7 @@ import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
 import { AuthLayout } from './layouts/AuthLayout'
+import { ORGANISATION_VIEW } from './layouts/navigation'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -14,9 +15,12 @@ import Verify from './pages/auth/Verify'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import Appearance from './pages/settings/Appearance'
+import InviteUser from './pages/settings/InviteUser'
 import Organisation from './pages/settings/Organisation'
+import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Sessions from './pages/settings/Sessions'
+import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
 
 // Development only: every design-system component in its states.
@@ -72,7 +76,7 @@ export const routes = [
       {
         path: '/settings/organisation',
         element: (
-          <RequirePermission permission="core.company.view">
+          <RequirePermission permission={ORGANISATION_VIEW}>
             <Organisation />
           </RequirePermission>
         ),
@@ -86,10 +90,42 @@ export const routes = [
         ),
       },
       {
+        path: '/settings/users/invite',
+        element: (
+          <RequirePermission permission="core.user.invite">
+            <InviteUser />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/settings/users/:userId',
+        element: (
+          <RequirePermission permission="core.user.view">
+            <UserDetail />
+          </RequirePermission>
+        ),
+      },
+      {
         path: '/settings/roles',
         element: (
           <RequirePermission permission="core.role.view">
             <Roles />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/settings/roles/new',
+        element: (
+          <RequirePermission permission="core.role.create">
+            <RoleDetail />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/settings/roles/:roleId',
+        element: (
+          <RequirePermission permission="core.role.view">
+            <RoleDetail />
           </RequirePermission>
         ),
       },

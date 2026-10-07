@@ -15,6 +15,18 @@ export function formatDateTime(value, locale) {
   }).format(new Date(value))
 }
 
+/** "7 Oct 2026" */
+export function formatDate(value, locale) {
+  if (!value) return null
+  return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
+}
+
+/** "14:05" */
+export function formatTime(value, locale) {
+  if (!value) return null
+  return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
+}
+
 /** "Wednesday 7 Oct 2026" */
 export function formatLongDate(value, locale) {
   return new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })

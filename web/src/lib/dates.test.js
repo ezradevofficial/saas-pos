@@ -1,10 +1,17 @@
-import { formatDateTime, formatLongDate, partOfDay } from './dates'
+import { formatDate, formatDateTime, formatLongDate, formatTime, partOfDay } from './dates'
 
 describe('dates', () => {
   it('writes day, short month and year with 24-hour times', () => {
     expect(formatDateTime('2026-10-07T14:05:00', 'en')).toBe('7 Oct 2026, 14:05')
     expect(formatDateTime('2026-10-07T14:05:00', 'fr')).toMatch(/^7 oct\. 2026.*14:05$/)
     expect(formatDateTime(null, 'en')).toBeNull()
+  })
+
+  it('writes dates alone and 24-hour times alone', () => {
+    expect(formatDate('2026-10-07T14:05:00', 'en')).toBe('7 Oct 2026')
+    expect(formatDate('2026-10-07T14:05:00', 'fr')).toBe('7 oct. 2026')
+    expect(formatTime('2026-10-07T18:05:00', 'en')).toBe('18:05')
+    expect(formatDate(null, 'en')).toBeNull()
   })
 
   it('writes the long date for page headers', () => {

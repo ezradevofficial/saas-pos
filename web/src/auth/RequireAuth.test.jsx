@@ -3,7 +3,7 @@ import { api, getCompanyId, getToken, setCompanyId } from '@/api/client'
 import i18n from '@/i18n'
 import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { safeNext } from './paths'
-import { allows } from './usePermissions'
+import { allows, allowsWithin } from './usePermissions'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -143,5 +143,23 @@ describe('allows', () => {
 
   it('treats a tenant-wide grant as covering every scope', () => {
     expect(allows(permissions, 'core.company.view', { type: 'location', id: 'l-9' })).toBe(true)
+  })
+})
+
+describe('allowsWithin', () => {
+  const permissions = [
+    { name: 'core.location.edit', scopes: [{ type: 'company', id: 'c-1' }] },
+    { name: 'core.company.view', scopes: [{ type: 'tenant', id: 't-1' }] },
+  ]
+
+  it('lets a grant on an ancestor cover the record', () => {
+    const chain = [{ type: 'company', id: 'c-1' }, { type: 'branch', id: 'b-1' }, { type: 'location', id: 'l-1' }]
+    expect(allowsWithin(permissions, 'core.location.edit', chain)).toBe(true)
+    expect(allowsWithin(permissions, 'core.location.edit', [{ type: 'company', id: 'c-2' }, { type: 'location', id: 'l-2' }])).toBe(false)
+    expect(allowsWithin(permissions, 'core.company.view', [{ type: 'company', id: 'c-9' }])).toBe(true)
+  })
+
+  it('ignores ancestors the client does not know', () => {
+    expect(allowsWithin(permissions, 'core.location.edit', [{ type: 'company', id: undefined }, { type: 'location', id: 'l-1' }])).toBe(false)
   })
 })

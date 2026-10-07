@@ -136,4 +136,27 @@ describe('api client', () => {
     expect(deviceName()).toBe('')
     agent.mockRestore()
   })
+  it('downloads a file with the bearer token and reads its name', async () => {
+    setToken('secret')
+    fetchMock.mockReturnValue(
+      Promise.resolve(
+        new Response('user_name\nAmina\n', {
+          status: 200,
+          headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename=access-review-2026-10-08.csv' },
+        }),
+      ),
+    )
+    const { blob, filename } = await api.download('access-review?format=csv')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`${import.meta.env.VITE_API_URL}/api/v1/access-review?format=csv`)
+    expect(init.headers.Authorization).toBe('Bearer secret')
+    expect(filename).toBe('access-review-2026-10-08.csv')
+    expect(await blob.text()).toBe('user_name\nAmina\n')
+  })
+
+  it('turns a refused download into an ApiError', async () => {
+    setToken('secret')
+    fetchMock.mockReturnValue(respond(403, { message: 'You don’t have permission to do this.', code: 'forbidden' }))
+    await expect(api.download('access-review?format=csv')).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+  })
 })
