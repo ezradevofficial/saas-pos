@@ -89,6 +89,26 @@ class LocationApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_location_under_an_archived_branch_cannot_be_restored(): void
+    {
+        $this->inTenant(function () {
+            $this->locationB->archive();
+            $this->branchB->archive();
+        });
+
+        $this->postJson("/api/v1/locations/{$this->locationB->id}/restore", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'parent_archived');
+    }
+
+    public function test_location_lists_name_the_branch(): void
+    {
+        $this->getJson("/api/v1/branches/{$this->branchA->id}/locations", $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.0.branch.id', $this->branchA->id)
+            ->assertJsonPath('data.0.branch.name', 'Branch A');
+    }
+
     public function test_another_tenants_locations_are_not_found(): void
     {
         $other = $this->otherTenant();

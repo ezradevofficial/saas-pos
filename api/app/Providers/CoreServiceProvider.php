@@ -35,8 +35,12 @@ class CoreServiceProvider extends ServiceProvider
             $this->commands([VerifyAuditChain::class]);
         }
 
-        // TEN-05: public device pairing, 10 attempts a minute per IP.
-        RateLimiter::for('device-pair', fn (Request $request) => Limit::perMinute(10)->by('ip|'.$request->ip()));
+        // TEN-05: public device pairing, 10 attempts a minute per IP and 300
+        // a minute overall, so many addresses cannot sweep the code space.
+        RateLimiter::for('device-pair', fn (Request $request) => [
+            Limit::perMinute(10)->by('ip|'.$request->ip()),
+            Limit::perMinute(300)->by('global'),
+        ]);
 
         // TEN-01: tenant_id uuid not null, defaulting to the session tenant,
         // indexed, FK to tenants (restrict). Pair with Rls::enable($table).

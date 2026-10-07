@@ -28,6 +28,8 @@ return [
     // TEN-05: POS devices.
     'devices' => [
         'not_pairable' => 'This device is already paired or suspended. Unpair it before pairing it again.',
+        'suspended' => 'This device is suspended. Resume it before unpairing it.',
+        'not_suspended' => 'This device isn’t suspended, so there is nothing to resume.',
         'invalid_pairing_code' => 'This pairing code isn’t valid or has expired. Ask for a new code and try again.',
     ],
 ];

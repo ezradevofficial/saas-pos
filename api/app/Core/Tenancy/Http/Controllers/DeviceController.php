@@ -4,6 +4,7 @@ namespace App\Core\Tenancy\Http\Controllers;
 
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\Archiver;
 use App\Core\Tenancy\DevicePairing;
 use App\Core\Tenancy\Http\Requests\DeviceListRequest;
 use App\Core\Tenancy\Http\Requests\StoreDeviceRequest;
@@ -15,8 +16,9 @@ use App\Core\Tenancy\Visibility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
-/** TEN-05: devices of a location, their pairing codes, suspension and unpairing. */
+/** TEN-05: devices of a location, their pairing codes, suspension, resumption and unpairing. */
 class DeviceController
 {
     use ChecksScope;
@@ -25,6 +27,7 @@ class DeviceController
         private readonly ScopeResolver $resolver,
         private readonly Visibility $visibility,
         private readonly DevicePairing $pairing,
+        private readonly Archiver $archiver,
     ) {}
 
     public function index(DeviceListRequest $request, Location $location): AnonymousResourceCollection
@@ -45,9 +48,10 @@ class DeviceController
 
     public function store(StoreDeviceRequest $request, Location $location): DeviceResource
     {
-        $this->ensureActiveParent($location);
-
-        return DeviceResource::make($location->devices()->create($request->validated()));
+        // TEN-06: nothing new under an archived location.
+        return DeviceResource::make(DB::transaction(
+            fn () => $this->archiver->lockActive(Location::class, $location->id)->devices()->create($request->validated()),
+        ));
     }
 
     public function show(Request $request, Device $device): DeviceResource
@@ -68,9 +72,11 @@ class DeviceController
     public function pairingCode(Request $request, Device $device): JsonResponse
     {
         $this->authorizeInScope($request, 'pair', $device);
-        $this->ensureActiveParent($device->location);
+        $issued = DB::transaction(function () use ($device) {
+            $this->archiver->lockActive(Location::class, $device->location_id);
 
-        $issued = $this->pairing->issueCode($device);
+            return $this->pairing->issueCode($device);
+        });
 
         return response()->json([
             'code' => $issued['code'],
@@ -84,6 +90,13 @@ class DeviceController
         $this->authorizeInScope($request, 'suspend', $device);
 
         return DeviceResource::make($this->pairing->suspend($device));
+    }
+
+    public function resume(Request $request, Device $device): DeviceResource
+    {
+        $this->authorizeInScope($request, 'suspend', $device);
+
+        return DeviceResource::make($this->pairing->resume($device));
     }
 
     public function unpair(Request $request, Device $device): DeviceResource

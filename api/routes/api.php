@@ -84,5 +84,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
     Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);
+    Route::post('devices/{device}/resume', [DeviceController::class, 'resume']);
     Route::post('devices/{device}/unpair', [DeviceController::class, 'unpair']);
 });

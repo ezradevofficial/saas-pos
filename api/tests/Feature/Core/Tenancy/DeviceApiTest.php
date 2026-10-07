@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
+use Illuminate\Support\Str;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -141,7 +142,7 @@ class DeviceApiTest extends TestCase
         $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertOk();
     }
 
-    public function test_a_suspended_device_token_is_refused(): void
+    public function test_a_suspended_device_token_is_refused_until_the_device_is_resumed(): void
     {
         $id = $this->createDevice();
         $token = $this->pair($this->pairingCode($id))->json('token');
@@ -149,13 +150,63 @@ class DeviceApiTest extends TestCase
         $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())
             ->assertOk()
             ->assertJsonPath('data.status', 'suspended');
+        // Idempotent: a second suspend changes nothing and is not audited again.
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
 
         $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertUnauthorized();
 
+        $this->postJson("/api/v1/devices/{$id}/resume", [], $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.status', 'active');
+        $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertOk();
+
         $this->inTenant(function () use ($id) {
-            $this->assertSame(0, PersonalAccessToken::where('tokenable_id', $id)->count());
-            $this->assertTrue(AuditEntry::where('action', 'core.device.suspend')->where('auditable_id', $id)->exists());
+            $this->assertSame(1, AuditEntry::where('action', 'core.device.suspend')->where('auditable_id', $id)->count());
+            $this->assertSame(1, AuditEntry::where('action', 'core.device.resume')->where('auditable_id', $id)->count());
+            $this->assertNotNull(Device::findOrFail($id)->paired_at);
         });
+    }
+
+    public function test_a_suspended_device_cannot_be_unpaired_and_resume_needs_the_archive_permission(): void
+    {
+        // Built before any request: a request switches the default guard.
+        $pairer = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Pairer', ['core.device.view', 'core.device.pair']), Scope::location($this->locationA->id));
+
+            return $user;
+        });
+        $id = $this->createDevice();
+        $this->pair($this->pairingCode($id))->assertOk();
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'device_suspended');
+
+        // core.device.pair without core.device.archive cannot lift a suspension.
+        $this->postJson("/api/v1/devices/{$id}/resume", [], $this->headersFor($pairer))->assertForbidden();
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor($pairer))->assertUnprocessable();
+
+        $pending = $this->createDevice('Till 9');
+        $this->postJson("/api/v1/devices/{$pending}/resume", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'device_not_suspended');
+    }
+
+    public function test_unpair_is_idempotent(): void
+    {
+        $id = $this->createDevice();
+        $this->pair($this->pairingCode($id))->assertOk();
+
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.status', 'unpaired');
+
+        $this->inTenant(fn () => $this->assertSame(
+            1, AuditEntry::where('action', 'core.device.unpair')->where('auditable_id', $id)->count(),
+        ));
     }
 
     public function test_a_token_of_a_device_no_longer_active_is_refused_even_if_not_revoked(): void
@@ -191,6 +242,10 @@ class DeviceApiTest extends TestCase
 
         $this->getJson('/api/v1/companies', $this->bearer($token))->assertUnauthorized();
         $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
+        // Refused before route-model binding: existing and unknown ids look the same.
+        $this->getJson("/api/v1/companies/{$this->acme->id}", $this->bearer($token))->assertUnauthorized();
+        $this->getJson('/api/v1/companies/'.Str::uuid7(), $this->bearer($token))->assertUnauthorized();
+        $this->postJson("/api/v1/companies/{$this->acme->id}/archive", [], $this->bearer($token))->assertUnauthorized();
         $this->getJson('/api/v1/devices/me', $this->headersFor())->assertForbidden();
     }
 
@@ -204,6 +259,10 @@ class DeviceApiTest extends TestCase
         $this->getJson("/api/v1/devices/{$other}", $this->headersFor($manager))->assertNotFound();
         $this->postJson("/api/v1/devices/{$other}/pairing-code", [], $this->headersFor($manager))->assertNotFound();
         $this->getJson("/api/v1/locations/{$this->locationB->id}/devices", $this->headersFor($manager))->assertNotFound();
+        $this->getJson("/api/v1/locations/{$this->locationA->id}/devices", $this->headersFor($manager))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $id);
 
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->postJson("/api/v1/devices/{$id}/pairing-code", [], $this->headersFor($cashier))->assertForbidden();

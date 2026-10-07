@@ -15,6 +15,7 @@ use App\Core\Tenancy\Visibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 /** TEN-04, TEN-06: branches, filtered to the user's scope (RBAC-04). */
 class BranchController
@@ -42,12 +43,13 @@ class BranchController
 
     public function store(StoreBranchRequest $request, Company $company): BranchResource
     {
-        $this->ensureActiveParent($company);
-
         $data = $request->validated();
         $data['address'] = $data['address'] ?? [];
 
-        return BranchResource::make($company->branches()->create($data));
+        // TEN-06: nothing new under an archived company.
+        return BranchResource::make(DB::transaction(
+            fn () => $this->archiver->lockActive(Company::class, $company->id)->branches()->create($data),
+        ));
     }
 
     public function show(Request $request, Branch $branch): BranchResource
@@ -89,7 +91,7 @@ class BranchController
         $query = $this->resolver->visibleIds($request->user(), 'core.branch.view')->applyTo($query, Scope::BRANCH);
 
         return BranchResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
+            $request->applyStatus($query)->with('company:id,name')->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
         );
     }
 }

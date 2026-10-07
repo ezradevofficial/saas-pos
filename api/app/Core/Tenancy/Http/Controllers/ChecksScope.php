@@ -2,10 +2,6 @@
 
 namespace App\Core\Tenancy\Http\Controllers;
 
-use App\Core\Http\ApiException;
-use App\Core\Tenancy\Models\Branch;
-use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\Models\Location;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
@@ -26,13 +22,5 @@ trait ChecksScope
         $this->visibleOr404($request, $model);
 
         abort_unless($request->user()->can($ability, $model), 403);
-    }
-
-    /** TEN-06: nothing new is created under an archived record. */
-    protected function ensureActiveParent(Company|Branch|Location $parent): void
-    {
-        if ($parent->isArchived()) {
-            throw new ApiException(422, 'parent_archived', __('core.organisation.parent_archived'));
-        }
     }
 }

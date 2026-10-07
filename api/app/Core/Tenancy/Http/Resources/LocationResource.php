@@ -14,6 +14,7 @@ class LocationResource extends JsonResource
         return [
             'id' => $this->id,
             'branch_id' => $this->branch_id,
+            'branch' => ['id' => $this->branch_id, 'name' => $this->branch?->name],
             'name' => $this->name,
             'type' => $this->type,
             'archived_at' => $this->archived_at?->toIso8601String(),

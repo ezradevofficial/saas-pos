@@ -15,6 +15,7 @@ use App\Core\Tenancy\Visibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 /** TEN-05, TEN-06: locations, filtered to the user's scope (RBAC-04). */
 class LocationController
@@ -42,9 +43,10 @@ class LocationController
 
     public function store(StoreLocationRequest $request, Branch $branch): LocationResource
     {
-        $this->ensureActiveParent($branch);
-
-        return LocationResource::make($branch->locations()->create($request->validated()));
+        // TEN-06: nothing new under an archived branch.
+        return LocationResource::make(DB::transaction(
+            fn () => $this->archiver->lockActive(Branch::class, $branch->id)->locations()->create($request->validated()),
+        ));
     }
 
     public function show(Request $request, Location $location): LocationResource
@@ -80,7 +82,7 @@ class LocationController
         $query = $this->resolver->visibleIds($request->user(), 'core.location.view')->applyTo($query, Scope::LOCATION);
 
         return LocationResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
+            $request->applyStatus($query)->with('branch:id,name')->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
         );
     }
 }

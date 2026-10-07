@@ -10,7 +10,8 @@ use App\Core\Tenancy\Models\Location;
 /**
  * TEN-05, RBAC-04: devices are checked at their location. Issuing a pairing
  * code and unpairing need `core.device.pair`; suspending (retiring) a device
- * needs `core.device.archive`, since devices are retired by status.
+ * and resuming it need `core.device.archive`, since devices are retired by
+ * status.
  */
 class DevicePolicy
 {

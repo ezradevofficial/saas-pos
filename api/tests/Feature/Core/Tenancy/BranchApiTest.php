@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Tenancy;
 
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -103,6 +104,43 @@ class BranchApiTest extends TestCase
         $this->postJson("/api/v1/companies/{$this->acme->id}/branches", ['name' => 'New', 'code' => 'N'], $this->headersFor($manager))
             ->assertForbidden();
         $this->postJson("/api/v1/branches/{$this->branchA->id}/archive", [], $this->headersFor($manager))->assertForbidden();
+    }
+
+    public function test_a_branch_under_an_archived_company_cannot_be_restored(): void
+    {
+        $branchId = $this->inTenant(function () {
+            $company = $this->company('Old');
+            $branch = $this->branch($company, 'OLD');
+            $branch->archive();
+            $company->archive();
+
+            return $branch->id;
+        });
+
+        $this->postJson("/api/v1/branches/{$branchId}/restore", [], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'parent_archived');
+    }
+
+    public function test_branch_lists_name_the_company_without_a_query_per_row(): void
+    {
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+
+        $this->getJson('/api/v1/branches', $this->headersFor($manager))
+            ->assertOk()
+            ->assertJsonPath('data.0.company.id', $this->acme->id)
+            ->assertJsonPath('data.0.company.name', 'Acme');
+
+        $headers = $this->headersFor();
+        $companyQueries = 0;
+        DB::listen(function ($query) use (&$companyQueries) {
+            if (str_contains($query->sql, 'from "companies"')) {
+                $companyQueries++;
+            }
+        });
+
+        $this->getJson('/api/v1/branches', $headers)->assertOk()->assertJsonCount(2, 'data');
+        $this->assertSame(1, $companyQueries);
     }
 
     public function test_another_tenants_branches_are_not_found(): void

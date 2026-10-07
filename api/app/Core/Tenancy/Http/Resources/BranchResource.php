@@ -14,6 +14,8 @@ class BranchResource extends JsonResource
         return [
             'id' => $this->id,
             'company_id' => $this->company_id,
+            // The parent's name, so a branch-scoped user can label the tree.
+            'company' => ['id' => $this->company_id, 'name' => $this->company?->name],
             'name' => $this->name,
             'code' => $this->code,
             'timezone' => $this->timezone,

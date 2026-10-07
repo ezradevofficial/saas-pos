@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\DB;
  * TEN-05: pairing a POS device. An admin issues a one-time 8-character code
  * (shown once, stored as a sha256 hash, valid 15 minutes); the device sends
  * it to the public pair endpoint and receives its own token (ability
- * `device`). Suspending or unpairing revokes the device's tokens. Pair,
- * suspend and unpair are audited (AUD-01).
+ * `device`). Unpairing revokes the device's tokens; a suspended device's
+ * tokens are refused until it is resumed. Pair, suspend, resume and unpair
+ * are audited (AUD-01).
  */
 class DevicePairing
 {
@@ -110,29 +111,87 @@ class DevicePairing
         }));
     }
 
+    /**
+     * Block the device: its tokens stay but are refused while it is
+     * suspended (see IdentityServiceProvider), so resume() restores it
+     * without pairing again. No change, no audit entry.
+     */
     public function suspend(Device $device): Device
     {
-        return $this->transition($device, 'suspend', ['status' => Device::STATUS_SUSPENDED]);
+        return $this->locked($device, function (Device $device) {
+            if ($device->status === Device::STATUS_SUSPENDED) {
+                return $device;
+            }
+
+            return $this->transition($device, 'suspend', ['status' => Device::STATUS_SUSPENDED], revokeTokens: false);
+        });
     }
 
-    public function unpair(Device $device): Device
+    /** Lift a suspension (`core.device.archive`), keeping the pairing. */
+    public function resume(Device $device): Device
     {
-        return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
+        return $this->locked($device, function (Device $device) {
+            if ($device->status === Device::STATUS_ACTIVE) {
+                return $device;
+            }
+
+            if ($device->status !== Device::STATUS_SUSPENDED) {
+                throw new ApiException(422, 'device_not_suspended', __('core.devices.not_suspended'));
+            }
+
+            // A device suspended before it was ever paired goes back to pending.
+            $status = $device->paired_at !== null ? Device::STATUS_ACTIVE : Device::STATUS_PENDING;
+
+            return $this->transition($device, 'resume', ['status' => $status], revokeTokens: false);
+        });
     }
 
     /**
-     * Apply $changes, clear any pairing code, revoke the device's tokens and
-     * record one `core.device.{verb}` entry, in one transaction.
+     * Revoke the device's tokens and pairing. A suspended device must be
+     * resumed first, so only `core.device.archive` lifts a suspension.
      */
-    private function transition(Device $device, string $verb, array $changes): Device
+    public function unpair(Device $device): Device
     {
-        return DB::transaction(function () use ($device, $verb, $changes) {
+        return $this->locked($device, function (Device $device) {
+            if ($device->status === Device::STATUS_SUSPENDED) {
+                throw new ApiException(422, 'device_suspended', __('core.devices.suspended'));
+            }
+
+            if ($device->status === Device::STATUS_UNPAIRED) {
+                return $device;
+            }
+
+            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
+        });
+    }
+
+    /** Run $fn on $device's row locked for the transaction, with fresh values. */
+    private function locked(Device $device, callable $fn): Device
+    {
+        return DB::transaction(function () use ($device, $fn) {
+            $fresh = Device::query()->whereKey($device->getKey())->lockForUpdate()->firstOrFail();
+            $device->setRawAttributes($fresh->getAttributes(), true);
+
+            return $fn($device);
+        });
+    }
+
+    /**
+     * Apply $changes, clear any pairing code, optionally revoke the device's
+     * tokens and record one `core.device.{verb}` entry, in one transaction.
+     */
+    private function transition(Device $device, string $verb, array $changes, bool $revokeTokens = true): Device
+    {
+        return DB::transaction(function () use ($device, $verb, $changes, $revokeTokens) {
             $changes += ['pairing_code_hash' => null, 'pairing_code_expires_at' => null];
             $logged = array_keys(array_diff_key($changes, array_flip($device->getHidden())));
 
             $before = $device->only($logged);
 
-            $device->tokens()->delete();
+            if ($revokeTokens) {
+                $device->tokens()->delete();
+            }
+
             // The transition is the audit entry; no separate update entry.
             $device->forceFill($changes)->saveQuietly();
 
