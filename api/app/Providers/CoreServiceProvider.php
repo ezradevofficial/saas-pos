@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Core\Audit\AuditContext;
+use App\Core\Audit\Console\VerifyAuditChain;
 use App\Core\Tenancy\Rls;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Connection;
@@ -19,10 +21,17 @@ class CoreServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantContext::class);
+
+        // AUD-02: who/where of the current request; reset between requests.
+        $this->app->scoped(AuditContext::class);
     }
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([VerifyAuditChain::class]);
+        }
+
         // TEN-01: tenant_id uuid not null, defaulting to the session tenant,
         // indexed, FK to tenants (restrict). Pair with Rls::enable($table).
         Blueprint::macro('tenantId', function (): ColumnDefinition {

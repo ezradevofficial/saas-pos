@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy\Models;
 
+use App\Core\Audit\Audited;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** A POS device paired to a location (TEN-05). Retired by status, not archived. */
 class Device extends Model
 {
-    use BelongsToTenant, HasUuids;
+    use Audited, BelongsToTenant, HasUuids;
 
     protected $fillable = ['tenant_id', 'location_id', 'name', 'status'];
 

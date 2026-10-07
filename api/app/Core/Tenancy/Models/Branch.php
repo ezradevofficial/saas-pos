@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy\Models;
 
+use App\Core\Audit\Audited;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** A branch of a company (TEN-04). */
 class Branch extends Model
 {
-    use Archivable, BelongsToTenant, HasUuids;
+    use Archivable, Audited, BelongsToTenant, HasUuids;
 
     protected $fillable = ['tenant_id', 'company_id', 'name', 'code', 'timezone', 'address'];
 
