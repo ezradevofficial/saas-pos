@@ -58,7 +58,12 @@ return new class extends Migration
             $table->timestampTz('expires_at');
             $table->timestampTz('consumed_at')->nullable();
             $table->timestampTz('created_at')->useCurrent();
+
+            $table->index(['user_id', 'purpose', 'created_at']);
         });
+
+        // Only TOTP two-factor challenges have no delivery channel.
+        DB::statement("alter table verification_challenges add constraint verification_challenges_channel_required_check check (channel is not null or purpose = 'two_factor')");
 
         Schema::create('login_events', function (Blueprint $table) {
             $table->uuid('id')->primary();
@@ -82,12 +87,12 @@ return new class extends Migration
         // The tenant of a login (email or E.164 phone), across tenants. Runs
         // as the schema owner (BYPASSRLS) and returns nothing but the id.
         DB::unprepared(<<<'SQL'
-            create or replace function auth_tenant_for_login(p_login text) returns uuid
+            create or replace function public.auth_tenant_for_login(p_login text) returns uuid
             language sql stable security definer
-            set search_path = public
+            set search_path = pg_catalog, public
             as $$
-                select tenant_id from users
-                where email = p_login::citext or phone = p_login
+                select u.tenant_id from public.users u
+                where u.email = p_login::public.citext or u.phone = p_login
                 limit 1
             $$;
 

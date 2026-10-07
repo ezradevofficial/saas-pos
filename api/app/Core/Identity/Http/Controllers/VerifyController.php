@@ -62,7 +62,13 @@ class VerifyController
             throw new ApiException(422, 'invalid_code', __('auth.code.invalid'), ['challenge_id' => [__('auth.code.invalid')]]);
         }
 
-        $this->challenges->invalidate($old);
+        // An exhausted challenge is not renewed: a new code needs a sign-in
+        // (with the password), so codes cannot be guessed resend by resend.
+        if ($this->challenges->isExhausted($old)) {
+            throw new ApiException(422, 'challenge_exhausted', __('auth.code.exhausted'), ['challenge_id' => [__('auth.code.exhausted')]]);
+        }
+
+        // Consumes $old; refused with 429 past the send limits.
         $challenge = $this->challenges->issue($user, $old->purpose, $old->channel, $old->destination);
 
         return response()->json([

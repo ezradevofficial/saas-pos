@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Services;
 
 use App\Core\Audit\Auditor;
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\LoginEvent;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
@@ -11,7 +12,9 @@ use App\Core\Identity\Support\LoginIdentifier;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Password sign-in (AUTH-01) with lockout and new-device alerts (AUTH-10).
@@ -64,9 +67,15 @@ class Authenticate
         if ($user->status === User::STATUS_PENDING) {
             $this->recordFailure($user, $ip, $userAgent, SignInResult::UNVERIFIED);
             [$channel, $destination] = $user->email !== null ? ['email', $user->email] : ['sms', $user->phone];
-            $challenge = $this->challenges->issue($user, VerificationChallenge::PURPOSE_VERIFY_CONTACT, $channel, $destination);
+            // Past the send limits the account is still unverified; the
+            // code already sent stays valid, so no new challenge id.
+            $challenge = rescue(
+                fn () => $this->challenges->issue($user, VerificationChallenge::PURPOSE_VERIFY_CONTACT, $channel, $destination),
+                fn (Throwable $e) => $e instanceof ApiException && $e->getStatusCode() === 429 ? null : throw $e,
+                report: false,
+            );
 
-            return SignInResult::unverified($challenge->id);
+            return SignInResult::unverified($challenge?->id);
         }
 
         $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => null])->saveQuietly();
@@ -112,29 +121,43 @@ class Authenticate
         });
 
         if ($newDevice) {
-            $user->notify(new NewDeviceSignIn($ip, $userAgent, now()));
+            // Queued, to the address rather than the model: a worker has no
+            // tenant context to reload the user under RLS.
+            [$channel, $route] = $user->email !== null ? ['mail', $user->email] : ['sms', $user->phone];
+            Notification::route($channel, $route)->notify(
+                (new NewDeviceSignIn($user->name, $channel, $ip, $userAgent, now()))->locale($user->locale),
+            );
         }
 
         return $plain;
     }
 
+    /**
+     * The one user the login names. A local phone number that matches users
+     * in more than one country names nobody: neither is signed in.
+     */
     private function findUser(string $login): ?User
     {
+        $matches = [];
+
         foreach (LoginIdentifier::candidates($login) as $candidate) {
             $tenantId = DB::selectOne('select auth_tenant_for_login(?) as tenant_id', [$candidate])?->tenant_id;
 
-            if ($tenantId === null) {
-                continue;
+            if ($tenantId !== null) {
+                $matches[$candidate] = $tenantId;
             }
-
-            $this->tenants->set($tenantId);
-
-            return User::query()
-                ->where(fn ($query) => $query->where('email', $candidate)->orWhere('phone', $candidate))
-                ->first();
         }
 
-        return null;
+        if (count($matches) !== 1) {
+            return null;
+        }
+
+        $candidate = array_key_first($matches);
+        $this->tenants->set($matches[$candidate]);
+
+        return User::query()
+            ->where(fn ($query) => $query->where('email', $candidate)->orWhere('phone', $candidate))
+            ->first();
     }
 
     private function recordFailure(User $user, string $ip, string $userAgent, string $reason): void

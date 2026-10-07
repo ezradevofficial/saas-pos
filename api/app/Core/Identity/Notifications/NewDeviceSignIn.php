@@ -4,13 +4,23 @@ namespace App\Core\Identity\Notifications;
 
 use App\Core\Notifications\Channels\SmsChannel;
 use Carbon\CarbonInterface;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** AUTH-10: someone signed in to the account from a device not seen before. */
-class NewDeviceSignIn extends Notification
+/**
+ * AUTH-10: someone signed in to the account from a device not seen before.
+ * Queued (a transport failure never fails the sign-in) and sent on demand to
+ * the user's address, so the worker needs no tenant context.
+ */
+class NewDeviceSignIn extends Notification implements ShouldQueue
 {
+    use Queueable;
+
     public function __construct(
+        public readonly string $name,
+        public readonly string $channel,
         public readonly string $ip,
         public readonly ?string $userAgent,
         public readonly CarbonInterface $at,
@@ -19,14 +29,14 @@ class NewDeviceSignIn extends Notification
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return $notifiable->email !== null ? ['mail'] : [SmsChannel::class];
+        return $this->channel === 'sms' ? [SmsChannel::class] : ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject(__('auth.notifications.new_device.subject', ['app' => config('app.name')]))
-            ->greeting(__('auth.notifications.greeting', ['name' => $notifiable->name]))
+            ->greeting(__('auth.notifications.greeting', ['name' => $this->name]))
             ->line(__('auth.notifications.new_device.line', ['time' => $this->at->format('Y-m-d H:i').' UTC']))
             ->line(__('auth.notifications.new_device.details', [
                 'device' => $this->userAgent ?: '—',

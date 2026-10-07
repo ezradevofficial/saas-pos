@@ -25,10 +25,15 @@ final class LoginIdentifier
         return PhoneNumber::candidates($login);
     }
 
-    /** One key per account whatever the spelling: used by the per-login rate limit. */
-    public static function throttleKey(string $login): string
+    /**
+     * Keys for the per-login rate limit: every normalised candidate, so any
+     * spelling of an account counts against the same budget.
+     *
+     * @return non-empty-list<string>
+     */
+    public static function throttleKeys(string $login): array
     {
-        return self::candidates($login)[0] ?? mb_strtolower(trim($login));
+        return self::candidates($login) ?: [mb_strtolower(trim($login))];
     }
 
     public static function maskEmail(string $email): string

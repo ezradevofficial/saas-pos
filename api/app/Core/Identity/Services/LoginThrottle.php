@@ -28,8 +28,13 @@ class LoginThrottle
         RateLimiter::for('auth-ip', fn (Request $request) => Limit::perMinute(self::PER_IP_PER_MINUTE)
             ->by('ip|'.$request->ip()));
 
-        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(self::PER_LOGIN_PER_MINUTE)
-            ->by('login|'.LoginIdentifier::throttleKey((string) $request->input('login', ''))));
+        // One limit per spelling the login could name (a local phone number
+        // may be Kenyan or Congolese): every attempt counts against each, so
+        // 0812… and +243812… share a budget.
+        RateLimiter::for('auth-login', fn (Request $request) => array_map(
+            fn (string $key) => Limit::perMinute(self::PER_LOGIN_PER_MINUTE)->by('login|'.$key),
+            LoginIdentifier::throttleKeys((string) $request->input('login', '')),
+        ));
     }
 
     public function isLocked(User $user): bool

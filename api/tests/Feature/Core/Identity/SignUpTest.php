@@ -175,6 +175,8 @@ class SignUpTest extends TestCase
         $first = $this->signUp()->assertCreated()->json('challenge_id');
         $firstCode = $this->lastCode();
 
+        $this->travel(61)->seconds();
+
         $second = $this->postJson('/api/v1/auth/verify/resend', ['challenge_id' => $first])
             ->assertOk()
             ->assertJsonStructure(['challenge_id', 'destination_masked'])

@@ -7,6 +7,7 @@ return [
     'password' => [
         'incorrect' => 'Le mot de passe fourni est incorrect.',
         'common' => 'Ce mot de passe est trop courant. Choisissez-en un moins prévisible.',
+        'too_long' => 'Ce mot de passe est trop long. Utilisez au plus :max caractères, moins s’il contient des lettres accentuées ou des symboles.',
     ],
 
     'unverified' => 'Vérifiez d’abord votre e-mail ou votre téléphone. Nous vous avons envoyé un nouveau code.',
@@ -16,7 +17,8 @@ return [
     'code' => [
         'invalid' => 'Ce code n’est pas valide. Vérifiez-le et réessayez.',
         'expired' => 'Ce code a expiré. Demandez-en un nouveau.',
-        'attempts' => 'Trop de codes erronés. Demandez-en un nouveau.',
+        'attempts' => 'Trop de codes erronés. Reconnectez-vous pour en recevoir un nouveau.',
+        'exhausted' => 'Trop de codes erronés pour celui-ci. Reconnectez-vous pour recevoir un nouveau code.',
     ],
 
     'notifications' => [

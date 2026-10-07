@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Identity;
 
 use App\Core\Identity\Notifications\NewDeviceSignIn;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -112,16 +113,19 @@ class LoginSecurityTest extends TestCase
         // Same device, another address in the same /24.
         $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.9'])
             ->signIn($user->email, null, ['User-Agent' => 'Device A'])->assertOk();
-        Notification::assertNotSentTo($user, NewDeviceSignIn::class);
+        Notification::assertSentTimes(NewDeviceSignIn::class, 0);
 
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
-        Notification::assertSentTo($user, NewDeviceSignIn::class, fn ($n, array $channels) => $channels === ['mail']);
-        Notification::assertSentToTimes($user, NewDeviceSignIn::class, 1);
+        Notification::assertSentOnDemand(NewDeviceSignIn::class, fn (NewDeviceSignIn $n, array $channels, $notifiable) => $channels === ['mail']
+            && $notifiable->routes['mail'] === $user->email
+            && $n->locale === 'en'
+            && $n instanceof ShouldQueue);
+        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
 
         // Known now: no second alert.
         $this->travel(2)->minutes();
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
-        Notification::assertSentToTimes($user, NewDeviceSignIn::class, 1);
+        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
     }
 
     public function test_a_failed_attempt_does_not_make_a_device_known(): void
@@ -132,6 +136,21 @@ class LoginSecurityTest extends TestCase
         $this->signIn($user->email, 'not-the-password', ['User-Agent' => 'Device B'])->assertStatus(422);
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
 
-        Notification::assertSentToTimes($user, NewDeviceSignIn::class, 1);
+        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
+    }
+
+    public function test_local_and_international_spellings_share_the_login_limit(): void
+    {
+        $user = $this->createUser(['email' => null, 'phone' => '+243812345678', 'phone_verified_at' => now(), 'email_verified_at' => null]);
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->signIn('0812345678', 'not-the-password');
+        }
+        for ($i = 0; $i < 2; $i++) {
+            $this->signIn('+243812345678', 'not-the-password');
+        }
+
+        $this->signIn('+243812345678')->assertStatus(429);
+        $this->signIn('0812345678')->assertStatus(429);
     }
 }

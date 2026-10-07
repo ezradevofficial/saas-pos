@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity\Services;
 
+use App\Core\Identity\Rules\MaxBytes;
 use App\Core\Identity\Rules\NotCommonPassword;
 use App\Core\Tenancy\Models\Tenant;
 
@@ -10,13 +11,16 @@ final class PasswordPolicy
 {
     public const MIN_LENGTH = 8;
 
+    /** bcrypt's input limit. */
+    public const MAX_BYTES = 72;
+
     /** Upper bound so a bad stored value cannot make every password invalid. */
     public const MAX_MIN_LENGTH = 128;
 
     /** @return list<mixed> */
     public static function rules(?Tenant $tenant = null): array
     {
-        return ['required', 'string', 'min:'.self::minLength($tenant), new NotCommonPassword];
+        return ['required', 'string', 'min:'.self::minLength($tenant), new NotCommonPassword, new MaxBytes(self::MAX_BYTES)];
     }
 
     /** The tenant's minimum, clamped so it is never below 8. */

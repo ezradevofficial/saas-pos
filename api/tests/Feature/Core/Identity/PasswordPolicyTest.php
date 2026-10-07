@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Identity;
 
+use App\Core\Identity\Rules\MaxBytes;
 use App\Core\Identity\Rules\NotCommonPassword;
 use App\Core\Identity\Services\PasswordPolicy;
 use App\Core\Tenancy\Models\Tenant;
@@ -69,5 +70,14 @@ class PasswordPolicyTest extends TestCase
 
         $this->assertSame(['required', 'string', 'min:8'], array_slice($rules, 0, 3));
         $this->assertInstanceOf(NotCommonPassword::class, $rules[3]);
+        $this->assertInstanceOf(MaxBytes::class, $rules[4]);
+    }
+
+    public function test_passwords_longer_than_72_bytes_are_refused(): void
+    {
+        $this->assertSame([], $this->errors(str_repeat('kq7vbn3x', 9)));
+        $this->assertSame([__('auth.password.too_long', ['max' => 72])], $this->errors(str_repeat('kq7vbn3x', 9).'z'));
+        // 37 two-byte characters: 37 characters, 74 bytes.
+        $this->assertSame([__('auth.password.too_long', ['max' => 72])], $this->errors(str_repeat('é', 37)));
     }
 }

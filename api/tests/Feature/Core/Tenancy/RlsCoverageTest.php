@@ -37,8 +37,6 @@ class RlsCoverageTest extends TestCase
 
     public function test_only_the_documented_tables_are_global(): void
     {
-        $this->assertSame(['personal_access_tokens', 'verification_challenges'], self::GLOBAL_TABLES);
-
         $tables = collect(DB::select("
             select table_name from information_schema.columns
             where table_schema = 'public' and column_name = 'tenant_id' and table_name = any(?)

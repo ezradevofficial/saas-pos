@@ -120,6 +120,20 @@ class SignInTest extends TestCase
         $this->signIn('0812345678')->assertOk()->assertJsonPath('user.id', $user->id);
     }
 
+    public function test_a_local_number_matching_users_in_two_countries_signs_nobody_in(): void
+    {
+        $kenyan = $this->createUser(['email' => null, 'phone' => '+254812345678', 'phone_verified_at' => now(), 'email_verified_at' => null]);
+        $this->createUser(['email' => null, 'phone' => '+243812345678', 'phone_verified_at' => now(), 'email_verified_at' => null]);
+
+        $this->signIn('0812345678')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'invalid_credentials')
+            ->assertJsonMissingPath('token');
+
+        // The international form is unambiguous.
+        $this->signIn('+254812345678')->assertOk()->assertJsonPath('user.id', $kenyan->id);
+    }
+
     public function test_each_token_resolves_its_own_tenant_on_a_reused_application(): void
     {
         $a = $this->createUser();

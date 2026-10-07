@@ -47,7 +47,7 @@ final class SignInResult
         return new self(self::INVALID);
     }
 
-    public static function unverified(string $challengeId): self
+    public static function unverified(?string $challengeId): self
     {
         return new self(self::UNVERIFIED, challengeId: $challengeId);
     }
