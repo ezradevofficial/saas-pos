@@ -3,22 +3,22 @@
 namespace App\Core\Identity\Http\Controllers;
 
 use App\Core\Identity\Http\Requests\UpdateMeRequest;
-use App\Core\Identity\Http\Resources\UserResource;
+use App\Core\Identity\Http\Resources\MeResource;
 use Illuminate\Http\Request;
 
 /** GET and PATCH me: the signed-in user's own profile. */
 class MeController
 {
-    public function show(Request $request): UserResource
+    public function show(Request $request): MeResource
     {
-        return UserResource::make($request->user());
+        return MeResource::make($request->user());
     }
 
-    public function update(UpdateMeRequest $request): UserResource
+    public function update(UpdateMeRequest $request): MeResource
     {
         $user = $request->user();
         $user->fill($request->validated())->save();
 
-        return UserResource::make($user);
+        return MeResource::make($user);
     }
 }

@@ -161,5 +161,218 @@
         "inTwoHours": "dans 2 h"
       }
     }
+  },
+  "errors": {
+    "network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+    "generic": "Une erreur s'est produite. Réessayez dans un instant.",
+    "profileTitle": "Votre profil n'a pas pu être chargé",
+    "profileText": "Vérifiez votre connexion, puis réessayez."
+  },
+  "nav": {
+    "label": "Principal",
+    "groups": {
+      "overview": "Vue d'ensemble",
+      "settings": "Paramètres"
+    },
+    "dashboard": "Tableau de bord",
+    "organisation": "Organisation",
+    "users": "Utilisateurs",
+    "roles": "Rôles",
+    "appearance": "Apparence",
+    "sessions": "Sessions"
+  },
+  "shell": {
+    "account": "Menu du compte",
+    "language": "Langue",
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    },
+    "signOut": "Se déconnecter",
+    "company": "Société",
+    "allCompanies": "Toutes les sociétés",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "menu": "Menu",
+    "menuDescription": "Navigation, société et compte"
+  },
+  "auth": {
+    "fields": {
+      "login": "E-mail ou numéro de téléphone",
+      "password": "Mot de passe",
+      "newPassword": "Nouveau mot de passe",
+      "name": "Votre nom",
+      "businessName": "Nom de l'entreprise",
+      "country": "Pays",
+      "language": "Langue",
+      "code": "Code à 6 chiffres"
+    },
+    "countries": {
+      "KE": "Kenya",
+      "CD": "RD Congo"
+    },
+    "passwordHelp": "Au moins 8 caractères. Évitez les mots de passe courants.",
+    "backToSignIn": "Retour à la connexion",
+    "signIn": {
+      "title": "Se connecter",
+      "intro": "Utilisez l'e-mail ou le numéro de téléphone de votre inscription.",
+      "noAccount": "Nouveau ici ?",
+      "createAccount": "Créer un compte",
+      "forgot": "Mot de passe oublié ?",
+      "submit": "Se connecter"
+    },
+    "signUp": {
+      "title": "Créez votre compte",
+      "intro": "Configurez votre entreprise. Vous pourrez ajouter des sociétés, des succursales et des personnes plus tard.",
+      "haveAccount": "Vous avez déjà un compte ?",
+      "signIn": "Se connecter",
+      "contactHelp": "Pour un numéro de téléphone, commencez par l'indicatif du pays, par exemple +243 812 345 678.",
+      "submit": "Créer le compte"
+    },
+    "verify": {
+      "title": "Saisissez votre code",
+      "intro": "Saisissez le code à 6 chiffres que nous vous avons envoyé.",
+      "introTo": "Saisissez le code à 6 chiffres envoyé à {{destination}}.",
+      "missingTitle": "Aucune demande de code trouvée",
+      "missingText": "Reconnectez-vous : un nouveau code sera envoyé si votre compte en a encore besoin.",
+      "resent": "Un nouveau code est en route.",
+      "resend": "Envoyer un nouveau code",
+      "submit": "Vérifier et continuer"
+    },
+    "twoFactor": {
+      "title": "Connexion en deux étapes",
+      "intro": "Saisissez le code de votre application d'authentification ou du SMS envoyé.",
+      "missingTitle": "Votre connexion a expiré",
+      "missingText": "Reconnectez-vous pour recevoir un nouveau code.",
+      "submit": "Vérifier et se connecter"
+    },
+    "enrol": {
+      "title": "Configurer la connexion en deux étapes",
+      "intro": "Votre rôle exige une deuxième étape à la connexion. Configurez-la pour continuer.",
+      "useApp": "Utiliser une application d'authentification",
+      "useSms": "Utiliser les SMS",
+      "scan": "Scannez ce code avec votre application d'authentification.",
+      "qrAlt": "Code QR pour votre application d'authentification",
+      "manual": "Ou saisissez cette clé à la main :",
+      "smsSent": "Saisissez le code envoyé à {{destination}}.",
+      "submit": "Activer la connexion en deux étapes"
+    },
+    "forgot": {
+      "title": "Réinitialiser votre mot de passe",
+      "intro": "Saisissez votre e-mail ou numéro de téléphone et nous vous enverrons un code.",
+      "submit": "Envoyer le code"
+    },
+    "reset": {
+      "title": "Choisissez un nouveau mot de passe",
+      "intro": "Saisissez le code et votre nouveau mot de passe. Vous serez déconnecté partout.",
+      "newCode": "Envoyer un nouveau code",
+      "sentTitle": "Consultez vos e-mails ou messages",
+      "sentText": "Si un compte existe pour cet identifiant, un code à 6 chiffres est en route. Il expire dans 30 minutes.",
+      "submit": "Enregistrer le mot de passe",
+      "done": "Votre mot de passe a changé. Connectez-vous avec le nouveau."
+    },
+    "invitation": {
+      "title": "Rejoignez votre équipe",
+      "intro": "{{business}} vous a invité. Choisissez un mot de passe pour terminer la création de votre compte.",
+      "unavailableTitle": "Cette invitation ne peut pas être utilisée",
+      "unavailableText": "Elle a peut-être expiré, déjà servi ou été retirée. Demandez à la personne qui vous a invité d'en envoyer une nouvelle.",
+      "submit": "Accepter et se connecter",
+      "signedInTitle": "Vous êtes connecté en tant que {{name}}",
+      "signedInText": "Cette invitation crée un nouveau compte. Déconnectez-vous d'abord, puis acceptez-la.",
+      "stay": "Rester connecté",
+      "signOutAndAccept": "Se déconnecter et accepter"
+    }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Bonjour, {{name}}",
+      "afternoon": "Bon après-midi, {{name}}",
+      "evening": "Bonsoir, {{name}}"
+    },
+    "start": {
+      "title": "Pour commencer",
+      "subtitle": "Quelques étapes pour configurer votre entreprise",
+      "organisation": "Configurer votre organisation",
+      "organisationText": "Ajoutez des sociétés, des succursales et les points de vente.",
+      "users": "Inviter votre équipe",
+      "usersText": "Donnez à chaque personne un rôle dans la bonne société, succursale ou point de vente.",
+      "appearance": "Choisir l'apparence",
+      "appearanceText": "Choisissez un thème pour votre espace de travail."
+    },
+    "empty": {
+      "title": "Aujourd'hui",
+      "heading": "Rien à afficher pour l'instant",
+      "text": "Les ventes, alertes de stock et approbations s'afficheront ici dès vos premières ventes."
+    }
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "text": "L'adresse est peut-être mal saisie, ou la page a été déplacée.",
+    "home": "Aller au tableau de bord"
+  },
+  "noAccess": {
+    "title": "Vous n'avez pas accès à cette page",
+    "text": "Demandez à un administrateur de vous donner un rôle qui l'inclut."
+  },
+  "settings": {
+    "comingSoon": "Cette page est en cours de création.",
+    "organisation": {
+      "title": "Organisation",
+      "description": "Sociétés, succursales, points de vente et appareils."
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "description": "Les personnes de votre entreprise, leurs rôles et leurs lieux de travail."
+    },
+    "roles": {
+      "title": "Rôles",
+      "description": "Ce que chaque rôle peut faire, et où."
+    }
+  },
+  "appearance": {
+    "title": "Apparence",
+    "description": "Choisissez l'apparence de l'espace de travail pour ce compte.",
+    "reset": "Rétablir par défaut",
+    "theme": "Thème",
+    "themes": {
+      "light": "Surfaces presque blanches et accent bleu canard profond.",
+      "dark": "Surfaces sombres pour la faible lumière.",
+      "executive": "Barre latérale graphite, marque émeraude et actions dorées.",
+      "warm": "Tons papier et marque bronze."
+    },
+    "brand": "Marque du client",
+    "brandText": "Voyez à quoi ressembleraient les couleurs propres d'une entreprise. Rien n'est enregistré.",
+    "brandOn": "Prévisualiser une marque client",
+    "brandOff": "Arrêter l'aperçu",
+    "brandNoticeTitle": "Aperçu d'une marque d'exemple",
+    "brandNoticeText": "Les couleurs principale et d'action décisive sont remplacées jusqu'à la réinitialisation ou au rechargement.",
+    "preview": "Aperçu",
+    "previewText": "Exemples de commandes dans le thème actuel",
+    "sample": {
+      "primary": "Enregistrer les modifications",
+      "secondary": "Exporter",
+      "decisive": "Terminer la vente",
+      "paid": "Payé",
+      "pending": "En attente",
+      "overdue": "En retard",
+      "link": "Voir le reçu"
+    }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "description": "Appareils sur lesquels vous êtes connecté. Déconnectez ceux que vous ne reconnaissez pas.",
+    "device": "Appareil",
+    "unknownDevice": "Appareil inconnu",
+    "ip": "Adresse IP",
+    "lastActive": "Dernière activité",
+    "thisDevice": "Cet appareil",
+    "actions": "Actions",
+    "signOut": "Se déconnecter",
+    "signOutOf": "Déconnecter {{device}}",
+    "empty": "Aucune session active.",
+    "confirmTitle": "Se déconnecter de cet appareil ?",
+    "confirmText": "Vous reviendrez à la page de connexion. Vos autres sessions restent connectées.",
+    "stay": "Rester connecté",
+    "signOutHere": "Se déconnecter"
   }
 }
