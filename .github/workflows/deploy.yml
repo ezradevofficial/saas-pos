@@ -1,30 +1,48 @@
-# Deploy to the dev and then the staging Linode on every push to main, or
-# by hand. Each environment deploys only when its credentials are set as
-# repository secrets (see README, "Deploy"); until the owner provides them
-# the jobs are skipped and the run still succeeds (ADR 001).
+# Deploy to the dev and then the staging Linode once CI has passed on main,
+# or by hand. CI gates every deploy: this workflow starts when the CI
+# workflow completes on main and continues only if it succeeded. Each
+# environment deploys only when its credentials are set as repository
+# secrets (see README, "Deploy"); until the owner provides them the jobs are
+# skipped and the run still succeeds (ADR 001).
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
-# Deploys of the same ref run one after the other, never cancelled halfway.
+# Deploys run one after the other, never cancelled halfway.
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
+  # Runs only for a successful CI run of a push to main, or a manual run
+  # from main. Deploys the exact commit CI tested.
   gate:
-    name: Check deploy credentials
+    name: Check CI result and deploy credentials
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
       dev: ${{ steps.check.outputs.dev }}
       staging: ${{ steps.check.outputs.staging }}
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
+      - name: Commit to deploy
+        id: sha
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
       - name: Check which environments have credentials
         id: check
         env:
@@ -63,6 +81,7 @@ jobs:
     uses: ./.github/workflows/deploy-target.yml
     with:
       environment: dev
+      ref: ${{ needs.gate.outputs.sha }}
       api-url: ${{ vars.DEV_API_URL }}
     secrets:
       host: ${{ secrets.DEV_LINODE_HOST }}
@@ -83,6 +102,7 @@ jobs:
     uses: ./.github/workflows/deploy-target.yml
     with:
       environment: staging
+      ref: ${{ needs.gate.outputs.sha }}
       api-url: ${{ vars.STAGING_API_URL }}
     secrets:
       host: ${{ secrets.STAGING_LINODE_HOST }}

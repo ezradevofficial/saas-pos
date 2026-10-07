@@ -24,9 +24,6 @@ export PGHOST PGPORT
 
 psql_su() { psql -U "$PGSUPERUSER" -v ON_ERROR_STOP=1 -q "$@"; }
 
-# SQL string literal: double any single quote.
-literal() { printf "'%s'" "${1//\'/\'\'}"; }
-
 # Database names are interpolated as identifiers: allow plain names only.
 for db in $DATABASES; do
   if [[ ! "$db" =~ ^[a-z_][a-z0-9_]*$ ]]; then
@@ -37,9 +34,12 @@ done
 
 echo "Creating roles app_owner and app (as $PGSUPERUSER on $PGHOST:$PGPORT)"
 psql_su -d postgres -f "$DIR/create-roles.sql"
-psql_su -d postgres \
-  -c "ALTER ROLE app_owner PASSWORD $(literal "$APP_OWNER_PASSWORD")" \
-  -c "ALTER ROLE app PASSWORD $(literal "$APP_PASSWORD")"
+# Passwords go through psql variables (:'name' quotes them as literals), so
+# any character is safe whatever the bash version.
+psql_su -d postgres -v owner_pw="$APP_OWNER_PASSWORD" -v app_pw="$APP_PASSWORD" <<'SQL'
+ALTER ROLE app_owner PASSWORD :'owner_pw';
+ALTER ROLE app PASSWORD :'app_pw';
+SQL
 
 for db in $DATABASES; do
   echo "Recreating database $db owned by app_owner"

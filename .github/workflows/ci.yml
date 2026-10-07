@@ -17,10 +17,23 @@ permissions:
   contents: read
 
 jobs:
+  # One job definition, two runs: the tenant-isolation suite runs on its own
+  # so its result is visible separately (TEN-01). The Feature suite excludes
+  # tests/Feature/Isolation (phpunit.xml), so no test runs twice.
   api:
-    name: api (pint, tests without Isolation)
+    name: api (${{ matrix.suite.name }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - name: tests
+            pint: true
+            command: php artisan test --exclude-testsuite=Isolation
+          - name: isolation
+            pint: false
+            command: php artisan test --testsuite=Isolation
     services:
       postgres:
         image: postgres:16
@@ -89,81 +102,11 @@ jobs:
         run: composer migrate
 
       - name: Pint
+        if: matrix.suite.pint
         run: vendor/bin/pint --test
 
-      - name: Tests (Unit and Feature, without the Isolation suite)
-        run: php artisan test --exclude-testsuite=Isolation
-
-  isolation:
-    name: isolation (tenant isolation suite)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    defaults:
-      run:
-        working-directory: api
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: pdo_pgsql, pgsql, mbstring, intl, bcmath
-          coverage: none
-
-      - name: Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
-
-      - name: Create roles and databases
-        env:
-          PGHOST: 127.0.0.1
-          PGPORT: '5432'
-          PGSUPERUSER: postgres
-          PGPASSWORD: postgres
-          DATABASES: app app_test
-        run: bash database/scripts/setup-local-db.sh
-
-      - name: Install dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
-
-      - name: Prepare environment
-        run: |
-          cp .env.example .env
-          php artisan key:generate --ansi
-
-      - name: Migrate (as app_owner)
-        run: composer migrate
-
-      - name: Isolation suite (TEN-01)
-        run: php artisan test --testsuite=Isolation
+      - name: Tests (${{ matrix.suite.name }})
+        run: ${{ matrix.suite.command }}
 
   web:
     name: web (oxlint, vitest, build)
@@ -210,9 +153,9 @@ jobs:
         working-directory: pos
         run: npx jest --ci
 
+      # Pinned as a pos devDependency (npm run doctor).
       - name: Expo doctor
-        working-directory: pos
-        run: npx --yes expo-doctor
+        run: npm run doctor -w pos
 
   tokens:
     name: tokens (build is committed, tests)

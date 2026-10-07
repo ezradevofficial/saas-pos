@@ -94,7 +94,7 @@ Run the tests you touched while working. CI runs everything.
 | API, isolation suite (TEN-01) | | `cd api && php artisan test --testsuite=Isolation` |
 | API, code style | | `cd api && vendor/bin/pint --test` |
 | Web | `cd web && npx vitest run src/lib/money.test.js` | `cd web && npx vitest run`, `npm run lint -w web`, `npm run build -w web` |
-| POS | `cd pos && npx jest src/lib/money.test.js` | `cd pos && npx jest`, `npx expo-doctor` |
+| POS | `cd pos && npx jest src/lib/money.test.js` | `cd pos && npx jest`, `npm run doctor -w pos` |
 | Tokens | | `npm run build -w @app/tokens && npm test -w @app/tokens` |
 | Translations (L10N-02) | | `npm run check:i18n` |
 
@@ -108,10 +108,10 @@ Run the tests you touched while working. CI runs everything.
 
 | Job | What it runs |
 | --- | --- |
-| `api` | PostgreSQL 16 and Redis 7 services, then: roles and databases set up by the script above as `postgres`, `composer migrate`, `pint --test`, and the tests without the Isolation suite |
-| `isolation` | Same setup, then the Isolation suite |
+| `api (tests)` | PostgreSQL 16 and Redis 7 services, then: roles and databases set up by the script above as `postgres`, `composer migrate`, `pint --test`, and the tests without the Isolation suite |
+| `api (isolation)` | Same setup (same job, second matrix entry), then only the Isolation suite |
 | `web` | `oxlint`, Vitest, and the production build |
-| `pos` | Jest and `expo-doctor` |
+| `pos` | Jest and `expo-doctor` (`npm run doctor -w pos`, version pinned) |
 | `tokens` | Rebuild, then fail if the committed `dist/` differs; then the tokens tests |
 | `i18n` | Missing or untranslated keys |
 
@@ -119,7 +119,13 @@ A PR does not merge unless every job passes.
 
 ## Deploy
 
-`.github/workflows/deploy.yml` deploys `main` to **dev**, then to **staging**, on Linode. It runs on push to `main` and by hand (Actions, Deploy, Run workflow). An environment deploys only when all of its settings below exist. Otherwise its job is skipped with a notice, and the run still succeeds.
+`.github/workflows/deploy.yml` deploys `main` to **dev**, then to **staging**, on Linode.
+
+- **CI gates the deploy.** Changes reach `main` by a direct push, so the deploy starts only when the CI workflow finishes on `main`, and only if CI succeeded. It deploys the exact commit CI tested.
+- It can also be run by hand from `main` (Actions, Deploy, Run workflow).
+- If pull requests are adopted, protect `main` with the CI jobs as required checks.
+
+An environment deploys only when all of its settings below exist. Otherwise its job is skipped with a notice, and the run still succeeds.
 
 Repository **secrets**, for `<ENV>` = `DEV` or `STAGING`:
 
@@ -153,7 +159,7 @@ Each deploy:
 
 1. builds the web app
 2. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
-3. runs `composer install --no-dev`
+3. runs `composer install --no-dev`, then `php artisan config:clear`
 4. runs `php artisan migrate --database=pgsql_owner --force`
 5. runs `php artisan permissions:sync`
 6. caches config and routes

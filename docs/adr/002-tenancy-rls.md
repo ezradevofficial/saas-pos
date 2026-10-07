@@ -92,7 +92,7 @@ Migration `2026_10_08_000050_harden_public_schema` revokes `CREATE` on schema `p
 
 ### Proof: the isolation suite
 
-`api/tests/Feature/Isolation/TenantIsolationTest.php` is the CI job `isolation`, run with `php artisan test --testsuite=Isolation`. It seeds two tenants and discovers tables and routes at run time, so a new table or route is covered, or fails loudly, without editing the suite. It asserts that:
+`api/tests/Feature/Isolation/TenantIsolationTest.php` runs in the CI job `api (isolation)` with `php artisan test --testsuite=Isolation`. It seeds two tenants and discovers tables and routes at run time, so a new table or route is covered, or fails loudly, without editing the suite. It asserts that:
 
 - it runs as `app`
 - in tenant A's context, no table shows a row of tenant B

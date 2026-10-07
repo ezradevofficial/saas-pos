@@ -43,20 +43,23 @@ Three clients use the platform: a React web app (back office), an Expo / React N
 
 | Job | What it runs |
 | --- | --- |
-| `api` | Creates the roles and databases on a `postgres:16` service as the `postgres` superuser (ADR 002), runs `composer migrate` as the schema owner, `pint --test`, and every test except the Isolation suite |
-| `isolation` | Same database setup, then the tenant-isolation suite (`php artisan test --testsuite=Isolation`). It is a separate job so an isolation failure is visible on its own. |
+| `api (tests)` | Creates the roles and databases on a `postgres:16` service as the `postgres` superuser (ADR 002), runs `composer migrate` as the schema owner, `pint --test`, and every test except the Isolation suite |
+| `api (isolation)` | The same job definition (a matrix entry) with the same database setup, then only the tenant-isolation suite (`php artisan test --testsuite=Isolation`). It runs on its own so an isolation failure is visible by itself. The `Feature` suite excludes `tests/Feature/Isolation`, so no test runs twice. |
 | `web` | `oxlint`, Vitest, and the production build |
-| `pos` | Jest and `expo-doctor` |
+| `pos` | Jest and `expo-doctor` (pinned as a pos devDependency) |
 | `tokens` | Rebuilds the tokens and fails if the committed `dist/` differs; then the tokens tests |
 | `i18n` | `npm run check:i18n`: the en/fr key sets match, and no key used in the code is missing (L10N-02) |
 
-**Deploy** (`.github/workflows/deploy.yml` and `deploy-target.yml`) runs on push to `main` and by hand. It deploys to `dev`, then to `staging`, on Linode.
+**Deploy** (`.github/workflows/deploy.yml` and `deploy-target.yml`) deploys to `dev`, then to `staging`, on Linode.
 
+- **CI gates every deploy.** The owner's flow merges to `main` and pushes directly, without pull requests. So the deploy does not start on push. It starts when the CI workflow completes on `main` (`workflow_run`). It continues only if that run succeeded and came from a push, and it deploys exactly the commit CI tested (`head_sha`).
+- A manual run (`workflow_dispatch`) is accepted only from `main`.
+- If pull requests are adopted, also turn on branch protection for `main`, requiring the CI jobs, so that nothing reaches `main` untested.
 - A `gate` job checks which environments have credentials (repository secrets `DEV_*` and `STAGING_*`, listed in the README). An environment without them is skipped with a notice, and the run still succeeds.
 - Each deploy:
   1. builds the web app
   2. rsyncs `api/` and `web/dist` to the host. The host's `.env`, `storage/` and `vendor/` are never touched.
-  3. on the host: `composer install --no-dev`
+  3. on the host: `composer install --no-dev`, then `php artisan config:clear`, so the previous release's cached config is never used
   4. `php artisan migrate --database=pgsql_owner --force`. Migrations run as the schema owner (ADR 002).
   5. `php artisan permissions:sync` (RBAC-01)
   6. config and route caches
@@ -69,4 +72,5 @@ Three clients use the platform: a React web app (back office), an Expo / React N
 - Every PR runs the isolation suite against real PostgreSQL with real roles, never against SQLite or a superuser.
 - **Pending.** Deploys are inert until the owner provisions the Linode hosts and adds the secrets. The hosts must be prepared once by hand: PHP 8.3 with `pdo_pgsql`, Composer, the web server, the `.env`, and the database roles from `api/database/scripts/create-roles.sql`.
 - **Horizon is not installed yet.** Sprint 1 uses plain Redis queues. Adding `laravel/horizon` needs the owner's approval, because it is a new dependency. The deploy already uses `horizon:terminate` once Horizon is installed.
+- **The rsync is not atomic.** Between the rsync and the end of `composer install`, the host serves new application code against the previous `vendor/`. Until the cached config is rebuilt, it also runs with no config cache. A request in that window can fail if a dependency changed. Moving to release directories with a symlink switch (build `vendor/` first, then swap) would close the window once the hosts exist.
 - The deploy runs migrations while the old code is still serving requests. Migrations must stay backward compatible with the previous release (expand, then contract).

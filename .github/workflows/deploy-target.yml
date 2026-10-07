@@ -15,6 +15,10 @@ on:
         description: GitHub environment name (dev or staging)
         required: true
         type: string
+      ref:
+        description: Commit to deploy (the one CI tested)
+        required: true
+        type: string
       api-url:
         description: Public API base URL baked into the web build
         required: true
@@ -42,6 +46,8 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v5
         with:
@@ -102,6 +108,8 @@ jobs:
           set -euo pipefail
           cd "$DEPLOY_PATH/api"
           composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
+          # Drop the previous release's cached config before anything reads it.
+          php artisan config:clear
           php artisan migrate --database=pgsql_owner --force
           php artisan permissions:sync
           php artisan config:cache
