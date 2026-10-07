@@ -11,7 +11,9 @@
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.17",
-        "laravel/tinker": "^3.0"
+        "laravel/sanctum": "^4.0",
+        "laravel/tinker": "^3.0",
+        "predis/predis": "^3.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -35,6 +37,8 @@
         }
     },
     "scripts": {
+        "migrate": "@php artisan migrate --database=pgsql_owner",
+        "migrate:fresh": "@php artisan migrate:fresh --database=pgsql_owner",
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
