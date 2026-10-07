@@ -1,0 +1,155 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Design tokens (BR-01): CSS variables for Light, Dark, Executive and Warm,
+   then the Tailwind theme that reads only those variables. */
+@import "@app/tokens/tokens.css";
+@import "@app/tokens/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Fonts. Fontsource registers Geist as "Geist Variable", so it goes first in
+ * the stack. This only changes the family list, not a colour token; tenant
+ * font overrides (OVERRIDABLE_TOKENS) still win because they are set inline.
+ */
+:root {
+  --font-sans: "Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/*
+ * shadcn/ui variables mapped to tokens (CLAUDE.md, Front-end rules).
+ * Declared on every theme scope so they recompute when a theme or the .dark
+ * class changes.
+ *
+ * Three shadcn names are also token names and are deliberately not redefined
+ * here, because redefining them would overwrite the tokens:
+ * - --primary: identical meaning, so shadcn already reads our primary.
+ * - --accent: in our system this is the near-black decisive action (pay
+ *   button). shadcn's "accent" hover tint is mapped to surface-300 inside the
+ *   floating menus below, and ds wrappers override hover classes.
+ * - --border: stays the hairline token (cards, tables, dialogs). shadcn's
+ *   control outline (--input) maps to border-strong.
+ */
+:root,
+.dark,
+[data-theme] {
+  --background: var(--surface-100);
+  --foreground: var(--ink);
+  --card: var(--surface-200);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-200);
+  --popover-foreground: var(--ink);
+  --muted: var(--surface-300);
+  --muted-foreground: var(--ink-muted);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--surface-300);
+  --secondary-foreground: var(--ink);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--focus);
+  --radius: var(--radius-md);
+  /* Dialog scrim, derived from tokens: ink in light themes, the page colour in dark. */
+  --scrim: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.dark,
+[data-theme="dark"] {
+  --scrim: color-mix(in srgb, var(--surface-100) 70%, transparent);
+}
+
+/* shadcn's "accent" is a hover tint: inside floating menus it means surface-300. */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="select-content"] {
+  --accent: var(--surface-300);
+}
+
+/*
+ * Tailwind names used by shadcn primitives, pointing at the mapped variables.
+ * primary, accent and border already exist in the token theme.
+ * The text, radius and font aliases keep stock shadcn files rendering with
+ * token values; ds components use the token names directly.
+ */
+@theme inline reference {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-heading: var(--font-sans);
+
+  --radius-xl: var(--radius-lg);
+  --radius-4xl: var(--radius-pill);
+
+  --text-xs: var(--text-caption-size);
+  --text-xs--line-height: var(--text-caption-line);
+  --text-sm: var(--text-body-size);
+  --text-sm--line-height: var(--text-body-line);
+  --text-base: var(--text-body-lg-size);
+  --text-base--line-height: var(--text-body-lg-line);
+}
+
+/*
+ * Sizes the design system needs that are not a single spacing step.
+ * Each is built from spacing tokens; components never use raw pixel values.
+ */
+/* 36px: md buttons, inputs and selects. */
+@utility h-control {
+  height: calc(var(--space-6) + var(--space-3));
+}
+/* 32px: icon-only buttons (dialog close). */
+@utility size-icon-btn {
+  width: calc(var(--space-6) + var(--space-2));
+  height: calc(var(--space-6) + var(--space-2));
+}
+/* 6px: status dots and category dots. */
+@utility size-dot {
+  width: calc(var(--space-1) * 1.5);
+  height: calc(var(--space-1) * 1.5);
+}
+/* 6px gap: dot to word, label to field. */
+@utility gap-tight {
+  gap: calc(var(--space-1) * 1.5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-body text-foreground antialiased;
+  }
+  /* Focus: a solid 2px focus outline with 2px offset on every interactive element. */
+  :where(button, input, select, textarea, a, [tabindex]):focus-visible {
+    @apply outline-2 outline-offset-2 outline-focus;
+  }
+}
+
+@layer components {
+  [data-slot="dialog-overlay"] {
+    background-color: var(--scrim);
+  }
+}
