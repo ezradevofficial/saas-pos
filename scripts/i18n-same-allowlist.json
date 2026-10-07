@@ -1,1 +1,11 @@
-["{{appName}}", "Total"]
+[
+  "{{appName}}",
+  "Total",
+  "Organisation",
+  "Sessions",
+  "English",
+  "Français",
+  "Menu",
+  "Kenya",
+  "Actions"
+]

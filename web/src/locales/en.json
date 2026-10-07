@@ -161,5 +161,210 @@
         "inTwoHours": "in 2 h"
       }
     }
+  },
+  "errors": {
+    "network": "Cannot reach the server. Check your connection and try again.",
+    "generic": "Something went wrong. Try again in a moment.",
+    "profileTitle": "Your profile did not load",
+    "profileText": "Check your connection, then try again."
+  },
+  "nav": {
+    "label": "Main",
+    "groups": {
+      "overview": "Overview",
+      "settings": "Settings"
+    },
+    "dashboard": "Dashboard",
+    "organisation": "Organisation",
+    "users": "Users",
+    "roles": "Roles",
+    "appearance": "Appearance",
+    "sessions": "Sessions"
+  },
+  "shell": {
+    "account": "Account menu",
+    "language": "Language",
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    },
+    "signOut": "Sign out",
+    "company": "Company",
+    "allCompanies": "All companies",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "menu": "Menu",
+    "menuDescription": "Navigation, company and account"
+  },
+  "auth": {
+    "fields": {
+      "login": "Email or phone number",
+      "password": "Password",
+      "newPassword": "New password",
+      "name": "Your name",
+      "businessName": "Business name",
+      "country": "Country",
+      "language": "Language",
+      "code": "6-digit code"
+    },
+    "countries": {
+      "KE": "Kenya",
+      "CD": "DR Congo"
+    },
+    "passwordHelp": "At least 8 characters. Avoid common passwords.",
+    "backToSignIn": "Back to sign in",
+    "signIn": {
+      "title": "Sign in",
+      "intro": "Use the email or phone number you signed up with.",
+      "noAccount": "New here?",
+      "createAccount": "Create an account",
+      "forgot": "Forgot your password?",
+      "submit": "Sign in"
+    },
+    "signUp": {
+      "title": "Create your account",
+      "intro": "Set up your business. You can add companies, branches and people later.",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "contactHelp": "For a phone number, start with the country code, for example +254 712 345 678.",
+      "submit": "Create account"
+    },
+    "verify": {
+      "title": "Enter your code",
+      "intro": "Enter the 6-digit code we sent you.",
+      "introTo": "Enter the 6-digit code sent to {{destination}}.",
+      "missingTitle": "No code request found",
+      "missingText": "Sign in again and a new code will be sent if your account still needs one.",
+      "resent": "A new code is on its way.",
+      "resend": "Send a new code",
+      "submit": "Verify and continue"
+    },
+    "twoFactor": {
+      "title": "Two-step sign-in",
+      "intro": "Enter the code from your authenticator app or the text message we sent.",
+      "missingTitle": "Your sign-in timed out",
+      "missingText": "Sign in again to get a new code.",
+      "submit": "Verify and sign in"
+    },
+    "enrol": {
+      "title": "Set up two-step sign-in",
+      "intro": "Your role requires a second step when you sign in. Set it up to continue.",
+      "useApp": "Use an authenticator app",
+      "useSms": "Use text messages",
+      "scan": "Scan this code with your authenticator app.",
+      "qrAlt": "QR code for your authenticator app",
+      "manual": "Or enter this key by hand:",
+      "smsSent": "Enter the code sent to {{destination}}.",
+      "submit": "Turn on two-step sign-in"
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "intro": "Enter your email or phone number and we will send you a code.",
+      "submit": "Send code"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "intro": "Enter the code and your new password. You will be signed out everywhere.",
+      "newCode": "Send a new code",
+      "sentTitle": "Check your email or messages",
+      "sentText": "If an account exists for this login, a 6-digit code is on its way. It expires in 30 minutes.",
+      "submit": "Save new password",
+      "done": "Your password has changed. Sign in with the new one."
+    },
+    "invitation": {
+      "title": "Join your team",
+      "intro": "{{business}} invited you. Choose a password to finish setting up your account.",
+      "unavailableTitle": "This invitation cannot be used",
+      "unavailableText": "It may have expired, been used or been withdrawn. Ask the person who invited you to send a new one.",
+      "submit": "Accept and sign in"
+    }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "start": {
+      "title": "Get started",
+      "subtitle": "A few steps to set up your business",
+      "organisation": "Set up your organisation",
+      "organisationText": "Add companies, branches and the locations where you sell.",
+      "users": "Invite your team",
+      "usersText": "Give each person a role at the right company, branch or location.",
+      "appearance": "Choose how it looks",
+      "appearanceText": "Pick a theme for your workspace."
+    },
+    "empty": {
+      "title": "Today",
+      "heading": "Nothing to show yet",
+      "text": "Sales, stock alerts and approvals appear here once you start selling."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "The address may be mistyped, or the page has moved.",
+    "home": "Go to the dashboard"
+  },
+  "noAccess": {
+    "title": "You do not have access to this page",
+    "text": "Ask an administrator to give you a role that includes it."
+  },
+  "settings": {
+    "comingSoon": "This page is being built.",
+    "organisation": {
+      "title": "Organisation",
+      "description": "Companies, branches, locations and devices."
+    },
+    "users": {
+      "title": "Users",
+      "description": "People in your business, their roles and where they work."
+    },
+    "roles": {
+      "title": "Roles",
+      "description": "What each role can do, and where."
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose how the workspace looks on this account.",
+    "reset": "Reset to default",
+    "theme": "Theme",
+    "themes": {
+      "light": "Near-white surfaces with a deep teal accent.",
+      "dark": "Dark surfaces for low light.",
+      "executive": "Graphite sidebar, emerald brand and gold actions.",
+      "warm": "Paper tones with a bronze brand."
+    },
+    "brand": "Tenant brand",
+    "brandText": "See how a business's own colours would look. Nothing is saved.",
+    "brandOn": "Preview a tenant brand",
+    "brandOff": "Stop the preview",
+    "brandNoticeTitle": "Previewing a sample brand",
+    "brandNoticeText": "Primary and decisive-action colours are replaced until you reset or reload.",
+    "preview": "Preview",
+    "previewText": "Sample controls in the current theme",
+    "sample": {
+      "primary": "Save changes",
+      "secondary": "Export",
+      "decisive": "Complete sale",
+      "paid": "Paid",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "link": "View receipt"
+    }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "description": "Devices where you are signed in. Sign out of any you do not recognise.",
+    "device": "Device",
+    "unknownDevice": "Unknown device",
+    "ip": "IP address",
+    "lastActive": "Last active",
+    "thisDevice": "This device",
+    "actions": "Actions",
+    "signOut": "Sign out",
+    "signOutOf": "Sign out of {{device}}",
+    "empty": "No active sessions."
   }
 }

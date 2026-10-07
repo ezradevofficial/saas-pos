@@ -1,0 +1,111 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { api, getCompanyId } from '@/api/client'
+import i18n from '@/i18n'
+import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
+import { NAV_GROUPS, visibleGroups } from './navigation'
+
+vi.mock('@/api/client', async (importOriginal) => ({
+  ...(await importOriginal()),
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+}))
+
+const COMPANIES = [
+  { id: 'c-1', name: 'Amani Retail' },
+  { id: 'c-2', name: 'Amani Wholesale' },
+]
+
+async function mainNav() {
+  // The desktop sidebar; the phone sheet renders the same content only when open.
+  return (await screen.findAllByRole('navigation', { name: 'Main' }))[0]
+}
+
+describe('app shell navigation', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+  afterEach(() => i18n.changeLanguage('en'))
+
+  it('shows Dashboard and every settings page to an owner', async () => {
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const nav = await mainNav()
+    for (const name of ['Dashboard', 'Organisation', 'Users', 'Roles', 'Appearance', 'Sessions']) {
+      expect(await within(nav).findByRole('link', { name })).toBeInTheDocument()
+    }
+    expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('hides Users when core.user.view is missing', async () => {
+    mockApi(api, {
+      permissions: [
+        { name: 'core.company.view', scopes: [{ type: 'location', id: 'l-1' }] },
+        { name: 'core.role.view', scopes: [{ type: 'location', id: 'l-1' }] },
+      ],
+    })
+    renderApp('/')
+    const nav = await mainNav()
+    expect(await within(nav).findByRole('link', { name: 'Organisation' })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Sessions' })).toBeInTheDocument()
+  })
+
+  it('hides items whose module is not active', () => {
+    const groups = visibleGroups(
+      [{ id: 'g', label: () => 'G', items: [{ to: '/x', label: () => 'X', module: 'inventory' }] }, ...NAV_GROUPS],
+      { can: () => true, hasModule: (m) => m === 'core' },
+    )
+    expect(groups.map((g) => g.id)).toEqual(['overview', 'settings'])
+  })
+
+  it('offers all companies to a tenant-wide user and remembers the choice', async () => {
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const nav = (await mainNav()).parentElement
+    const trigger = await within(nav).findByRole('combobox', { name: 'Company' })
+    await waitFor(() => expect(trigger).toHaveTextContent('All companies'))
+
+    fireEvent.click(trigger)
+    fireEvent.click(await screen.findByRole('option', { name: 'Amani Wholesale' }))
+
+    await waitFor(() => expect(getCompanyId()).toBe('c-2'))
+    expect(trigger).toHaveTextContent('Amani Wholesale')
+  })
+
+  it('does not offer all companies to a user scoped to one company', async () => {
+    mockApi(api, {
+      companies: [COMPANIES[0]],
+      permissions: [{ name: 'core.company.view', scopes: [{ type: 'company', id: 'c-1' }] }],
+    })
+    renderApp('/')
+    const trigger = await within((await mainNav()).parentElement).findByRole('combobox', { name: 'Company' })
+    await waitFor(() => expect(trigger).toHaveTextContent('Amani Retail'))
+    fireEvent.click(trigger)
+    expect(screen.queryByRole('option', { name: 'All companies' })).not.toBeInTheDocument()
+  })
+
+  it('changes the language from the account menu and saves it to the profile', async () => {
+    mockApi(api)
+    api.patch.mockResolvedValue({ data: { ...OWNER, locale: 'fr' } })
+    renderApp('/')
+    const account = await screen.findAllByRole('button', { name: /Account menu/ })
+    fireEvent.pointerDown(account[0], { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Français' }))
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('me', { locale: 'fr' }))
+    await waitFor(() => expect(i18n.language).toBe('fr'))
+  })
+
+  it('signs out from the account menu', async () => {
+    mockApi(api)
+    api.post.mockResolvedValue(null)
+    const { router } = renderApp('/')
+    const account = await screen.findAllByRole('button', { name: /Account menu/ })
+    fireEvent.pointerDown(account[0], { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sign out' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'))
+    expect(api.post).toHaveBeenCalledWith('auth/sign-out')
+  })
+})

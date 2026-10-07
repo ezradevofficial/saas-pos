@@ -132,6 +132,28 @@
   gap: calc(var(--space-1) * 1.5);
 }
 
+/* 32px: sidebar navigation items. */
+@utility h-nav {
+  height: calc(var(--space-6) + var(--space-2));
+}
+/* 232px: the back-office sidebar. */
+@utility w-sidebar {
+  width: calc(var(--space-12) * 4 + var(--space-10));
+}
+/* 1280px: the content column on wide screens. */
+@utility max-w-content {
+  max-width: calc(var(--space-10) * 32);
+}
+/* 440px: the column of sign-in and sign-up forms. */
+@utility max-w-auth {
+  max-width: calc(var(--space-10) * 11);
+}
+/* 192px: the QR code shown while setting up an authenticator app. */
+@utility size-qr {
+  width: calc(var(--space-12) * 4);
+  height: calc(var(--space-12) * 4);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -149,7 +171,8 @@
 }
 
 @layer components {
-  [data-slot="dialog-overlay"] {
+  [data-slot="dialog-overlay"],
+  [data-slot="sheet-overlay"] {
     background-color: var(--scrim);
   }
 }
