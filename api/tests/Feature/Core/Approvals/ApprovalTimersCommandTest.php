@@ -5,31 +5,27 @@ namespace Tests\Feature\Core\Approvals;
 use App\Core\Approvals\Jobs\ProcessApprovalTimers;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
 /**
  * APR-05: `approvals:process-timers` queues one ProcessApprovalTimers job
  * per tenant with a reminder or escalation due, every five minutes, on one
- * server, without overlapping. The command reads tenant ids as the schema
- * owner, which cannot see uncommitted rows, so this test commits and the
- * next test migrates afresh.
+ * server, without overlapping. Tenant ids come from a security-definer
+ * function on the runtime connection, so the test runs with the owner
+ * connection unusable (ADR 002) and inside the usual test transaction.
  */
 class ApprovalTimersCommandTest extends TestCase
 {
-    use BuildsApprovals, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
+    use BuildsApprovals, RefreshTenantDatabase, WithoutOwnerConnection;
 
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
-        RefreshDatabaseState::$migrated = false;
 
         parent::tearDown();
     }
@@ -42,6 +38,7 @@ class ApprovalTimersCommandTest extends TestCase
         // A tenant with nothing due gets no run.
         $this->otherTenant();
 
+        $this->withoutOwnerConnection();
         Bus::fake();
         $this->artisan('approvals:process-timers', ['--at' => '2026-10-07T07:30:00Z'])->assertSuccessful();
         Bus::assertNotDispatched(ProcessApprovalTimers::class);

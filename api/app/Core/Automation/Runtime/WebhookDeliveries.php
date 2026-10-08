@@ -4,24 +4,21 @@ namespace App\Core\Automation\Runtime;
 
 use App\Core\Automation\Actions\WebhookAction;
 use App\Core\Automation\Jobs\SendWebhookDelivery;
-use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\WebhookDelivery;
 use App\Core\Automation\Webhooks\WebhookRefused;
 use App\Core\Automation\Webhooks\WebhookSender;
 use App\Core\Automation\Webhooks\WebhookUnreachable;
-use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
-use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
  * AUTO-03 webhooks from the outbox, after the run committed. A delivery is
  * claimed (pending or retrying to sending, attempts + 1) so two workers
- * never send it twice. The first attempt fills `fields` from the committed
- * document, without the fields hidden from the rule's user (RBAC-05), and
- * stores the payload, so every attempt sends the same body with the same
- * `X-Webhook-Id` (run id:action index).
+ * never send it twice. The payload, `fields` included, was snapshotted when
+ * the delivery row was written (WebhookPayload), so every attempt sends the
+ * same body with the same `X-Webhook-Id` (run id:action index), never
+ * values the document took later.
  *
  * A refused address or a 4xx answer (other than 408 and 429) fails at once;
  * no answer, a 5xx, 408 or 429 is tried again after the backoff, up to
@@ -34,8 +31,7 @@ class WebhookDeliveries
 
     public function __construct(
         private readonly WebhookSender $sender,
-        private readonly DocumentTypeRegistry $types,
-        private readonly FieldVisibility $visibility,
+        private readonly WebhookPayload $payloads,
         private readonly FailureAlert $alert,
         private readonly TenantContext $tenants,
     ) {}
@@ -60,8 +56,9 @@ class WebhookDeliveries
             return;
         }
 
+        // Only a row written before payloads were snapshotted lacks `fields`.
         if (! array_key_exists('fields', $delivery->payload)) {
-            $delivery->payload = $this->withFields($delivery->payload, $rule);
+            $delivery->payload = $this->payloads->snapshot($delivery->payload, $rule);
             $delivery->save();
         }
 
@@ -98,29 +95,6 @@ class WebhookDeliveries
         } else {
             $this->failed($delivery, $message);
         }
-    }
-
-    /** @return array<string, mixed> */
-    private function withFields(array $payload, AutomationRule $rule): array
-    {
-        $document = $payload['document'] ?? null;
-        $type = is_array($document) ? $this->types->find((string) $document['type']) : null;
-        $fields = [];
-
-        if ($type !== null) {
-            $actor = $rule->actorId() === null ? null : User::query()->find($rule->actorId());
-            $hidden = $this->visibility->hidden($actor, $type);
-            $fields = FieldVisibility::without($type->fieldValues((string) $document['id']), $hidden);
-
-            // Ids stay as they are; a reference also gets its display value as `<field>_label`.
-            foreach (FieldVisibility::without($type->displayValuesOf($fields, $actor), $hidden) as $name => $label) {
-                if (! array_key_exists($name.'_label', $fields)) {
-                    $fields[$name.'_label'] = $label;
-                }
-            }
-        }
-
-        return [...$payload, 'occurred_at' => CarbonImmutable::now()->toIso8601ZuluString(), 'fields' => (object) $fields];
     }
 
     private function retry(WebhookDelivery $delivery, string $message): void

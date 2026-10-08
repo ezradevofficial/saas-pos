@@ -9,7 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * NOT-06: one message to one user on one channel, with its status:
+ * NOT-06: one message to one user on one channel, with its status. A
+ * system message to a contact that is not a user yet (an invitation,
+ * ADR 009) has no `user_id`; `recipient` is the address.
+ *
  *
  * - queued: waiting for SendDelivery (again after a failed attempt, from
  *   `next_attempt_at`); sending: claimed by a job, being handed over;
@@ -55,6 +58,9 @@ class NotificationDelivery extends Model
     public const REASON_CHANNEL_UNAVAILABLE = 'channel_unavailable';
 
     public const REASON_USER_DEACTIVATED = 'user_deactivated';
+
+    /** The message holds a secret placeholder (an invitation link) the job no longer carries (ADR 009). */
+    public const REASON_SECRET_MISSING = 'secret_missing';
 
     /** Safe error codes (notifications.delivery_errors.*): the mailer or provider refused it, or the job died. */
     public const ERROR_SEND_FAILED = 'send_failed';

@@ -74,6 +74,6 @@ class PreferenceController
                 'digest' => $choice['digest'],
                 'digest_allowed' => $choice['digest_allowed'],
             ];
-        }, $this->types->active()));
+        }, array_filter($this->types->active(), fn (EventType $type) => ! $type->contactsOnly)));
     }
 }

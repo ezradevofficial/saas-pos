@@ -5,32 +5,22 @@ namespace Tests\Feature\Core\Notifications;
 use App\Core\Notifications\Jobs\SendDigests;
 use App\Core\Notifications\Models\NotificationPreference;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsNotifications;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
 /**
  * NOT-05: `notifications:send-digests` queues one SendDigests job per
- * tenant with emails held for a digest, and runs hourly. It lists tenants
- * as the schema owner, which cannot see uncommitted rows, so this test
- * commits and the next test migrates afresh.
+ * tenant with emails held for a digest, and runs hourly. Tenant ids come
+ * from a security-definer function on the runtime connection, so the test
+ * runs with the owner connection unusable (ADR 002).
  */
 class DigestCommandTest extends TestCase
 {
-    use BuildsNotifications, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
-
-    protected function tearDown(): void
-    {
-        RefreshDatabaseState::$migrated = false;
-
-        parent::tearDown();
-    }
+    use BuildsNotifications, RefreshTenantDatabase, WithoutOwnerConnection;
 
     public function test_the_hourly_command_queues_a_digest_run_per_tenant_with_held_emails(): void
     {
@@ -41,6 +31,7 @@ class DigestCommandTest extends TestCase
         // A tenant with nothing held gets no run.
         $this->otherTenant();
 
+        $this->withoutOwnerConnection();
         Bus::fake();
         $this->artisan('notifications:send-digests', ['--at' => '2026-10-09T04:30:00Z'])->assertSuccessful();
 

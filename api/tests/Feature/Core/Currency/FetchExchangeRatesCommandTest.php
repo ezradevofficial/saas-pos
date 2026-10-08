@@ -3,32 +3,23 @@
 namespace Tests\Feature\Core\Currency;
 
 use App\Core\Currency\Jobs\FetchReferenceRates;
+use App\Core\Tenancy\Models\Tenant;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Bus;
 use Tests\Concerns\BuildsRbac;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
 /**
  * CUR-03: `exchange-rates:fetch` queues one job per active company with a
- * feed, reading each tenant's companies under row-level security. It lists
- * tenants as the schema owner, which cannot see uncommitted rows, so this
- * test commits and the next test migrates afresh.
+ * feed, reading each tenant's companies under row-level security. Active
+ * tenants come from a security-definer function on the runtime
+ * connection, so the test runs with the owner connection unusable (ADR 002).
  */
 class FetchExchangeRatesCommandTest extends TestCase
 {
-    use BuildsRbac, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
-
-    protected function tearDown(): void
-    {
-        RefreshDatabaseState::$migrated = false;
-
-        parent::tearDown();
-    }
+    use BuildsRbac, RefreshTenantDatabase, WithoutOwnerConnection;
 
     public function test_the_daily_command_queues_a_job_per_company_with_a_feed_and_is_scheduled(): void
     {
@@ -50,7 +41,14 @@ class FetchExchangeRatesCommandTest extends TestCase
 
             return $company;
         });
+        // A suspended tenant is not fetched for.
+        $suspended = $this->createUser();
+        $this->asTenant($suspended->tenant_id, function () use ($suspended) {
+            $this->company('Suspended')->forceFill(['rate_feed' => 'cbk'])->save();
+            Tenant::findOrFail($suspended->tenant_id)->forceFill(['status' => 'suspended'])->save();
+        });
 
+        $this->withoutOwnerConnection();
         Bus::fake();
 
         $this->artisan('exchange-rates:fetch', ['--date' => '2026-10-08'])->assertSuccessful();
@@ -61,9 +59,13 @@ class FetchExchangeRatesCommandTest extends TestCase
                 && $job->companyId === $companyId && $job->date === '2026-10-08');
         }
         Bus::assertNotDispatched(FetchReferenceRates::class, fn (FetchReferenceRates $job) => $job->companyId === $archived->id);
+        Bus::assertNotDispatched(FetchReferenceRates::class, fn (FetchReferenceRates $job) => $job->tenantId === $suspended->tenant_id);
 
         $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command ?? '', 'exchange-rates:fetch'));
         $this->assertCount(1, $events);
         $this->assertSame('30 6 * * *', $events->first()->expression);
+        // One server fetches, and a slow run is never doubled.
+        $this->assertTrue($events->first()->onOneServer);
+        $this->assertTrue($events->first()->withoutOverlapping);
     }
 }

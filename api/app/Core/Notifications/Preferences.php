@@ -15,7 +15,8 @@ use Illuminate\Support\Collection;
  * set it, else as the event type's defaults. A user cannot switch off a
  * mandatory channel. Email of an event whose email is mandatory is always
  * sent immediately: a digest would hold a message the tenant requires
- * (approvals) for up to a week.
+ * (approvals) for up to a week. A system event type (ADR 009) has its
+ * default channels mandatory, always.
  */
 class Preferences
 {
@@ -25,6 +26,12 @@ class Preferences
      */
     public function mandatoryChannels(EventType $type, ?Collection $settings = null): array
     {
+        // A platform account message (ADR 009): its default channels are
+        // always on, whatever the tenant or the user chose.
+        if ($type->system) {
+            return $type->defaultChannels;
+        }
+
         if (! $type->mandatoryAllowed) {
             return [];
         }

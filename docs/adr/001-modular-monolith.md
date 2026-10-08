@@ -67,7 +67,7 @@ Three clients use the platform: a React web app (back office), an Expo / React N
   8. `php artisan permissions:sync` (RBAC-01)
   9. `php artisan currencies:sync` (CUR-01)
   10. config and route caches
-  11. `php artisan horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+  11. `php artisan horizon:terminate` and `php artisan queue:restart` (Horizon runs the workers; see the README, "Queue workers")
   12. `php artisan up`, only when every step above succeeded
 - **If a deploy stops,** the API stays in maintenance (503) rather than serving new code against an un-migrated schema. Fix the cause (usually `.env`; `php artisan app:preflight` shows what is wrong), then re-run the workflow, or run the remaining steps on the host and `php artisan up`. The environment guard runs after the maintenance check, so requests get the 503 page, not the guard's error. Laravel's `/up` health route is never in maintenance and keeps reporting the guard. If the previous release cannot boot at all, `down` fails; the deploy warns and continues, since that release was not serving.
 - **Environment guard (NFR-06).** Development drivers (log or array mail, log SMS, non-Redis cache or queue) are refused outside `local` and `testing` at the runtime entry points only: a global HTTP middleware, a queue worker's first loop, and the scheduler and worker commands. It never runs while the app boots. In Sprint 1 it ran in a service provider's `boot`, so `package:discover` during `composer install` threw with the previous release's cached config, and even `config:clear` could not run: one bad `.env` took the host down with no way to repair it through artisan. `app:preflight` reports the same checks without throwing.

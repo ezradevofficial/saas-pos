@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Core\Identity;
 
-use App\Core\Identity\Notifications\NewDeviceSignIn;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\ChannelManager;
+use App\Core\Identity\IdentityNotices;
+use App\Core\Identity\Models\User;
+use App\Core\Notifications\Mail\NotificationMail;
+use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Notifications\Sms\SmsSender;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use RuntimeException;
@@ -22,6 +26,14 @@ class LoginSecurityTest extends TestCase
         parent::setUp();
 
         Notification::fake();
+        Mail::fake();
+    }
+
+    /** @return Collection<int, NotificationDelivery> $user's new-device alert deliveries (NOT-06) */
+    private function alerts(User $user): Collection
+    {
+        return $this->asTenant($user->tenant_id, fn () => NotificationDelivery::query()
+            ->where('event_type', IdentityNotices::NEW_DEVICE)->where('user_id', $user->id)->orderBy('created_at')->get());
     }
 
     public function test_five_wrong_passwords_lock_the_account_for_fifteen_minutes(): void
@@ -116,19 +128,70 @@ class LoginSecurityTest extends TestCase
         // Same device, another address in the same /24.
         $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.9'])
             ->signIn($user->email, null, ['User-Agent' => 'Device A'])->assertOk();
-        Notification::assertSentTimes(NewDeviceSignIn::class, 0);
+        $this->assertCount(0, $this->alerts($user));
 
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
-        Notification::assertSentOnDemand(NewDeviceSignIn::class, fn (NewDeviceSignIn $n, array $channels, $notifiable) => $channels === ['mail']
-            && $notifiable->routes['mail'] === $user->email
-            && $n->locale === 'en'
-            && $n instanceof ShouldQueue);
-        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
+        // NOT-02: through the Notifier, by email, tracked in the delivery log.
+        $alert = $this->alerts($user)->sole();
+        $this->assertSame(['email', 'sent', $user->email, 'en'], [$alert->channel, $alert->status, $alert->recipient, $alert->locale]);
+        $this->assertStringContainsString('Device: Device B.', $alert->body);
+        Mail::assertSent(NotificationMail::class, fn (NotificationMail $mail) => $mail->hasTo($user->email)
+            && str_starts_with($mail->mailSubject, 'New sign-in to your'));
 
         // Known now: no second alert.
         $this->travel(2)->minutes();
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
-        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
+        $this->assertCount(1, $this->alerts($user));
+    }
+
+    public function test_the_new_device_alert_is_mandatory_and_never_digested(): void
+    {
+        $user = $this->createUser();
+        $token = $this->tokenFor($user, ['User-Agent' => 'Device A']);
+
+        $this->putJson('/api/v1/me/notification-preferences', ['preferences' => [
+            ['event_type' => IdentityNotices::NEW_DEVICE, 'channels' => ['email' => false]],
+        ]], $this->bearer($token))->assertUnprocessable();
+        $this->putJson('/api/v1/me/notification-preferences', ['preferences' => [
+            ['event_type' => IdentityNotices::NEW_DEVICE, 'digest' => 'daily'],
+        ]], $this->bearer($token))->assertUnprocessable();
+
+        $entry = collect($this->getJson('/api/v1/me/notification-preferences', $this->bearer($token))->assertOk()->json('data'))
+            ->firstWhere('event_type', IdentityNotices::NEW_DEVICE);
+        $email = collect($entry['channels'])->firstWhere('channel', 'email');
+        $this->assertTrue($email['enabled'] && $email['mandatory']);
+        $this->assertFalse($entry['digest_allowed']);
+        // Invitations go to contacts only: not in users' preferences.
+        $this->assertNull(collect($this->getJson('/api/v1/me/notification-preferences', $this->bearer($token))->json('data'))
+            ->firstWhere('event_type', IdentityNotices::INVITED));
+    }
+
+    public function test_a_user_without_an_email_gets_the_alert_by_sms_through_the_platform_sender(): void
+    {
+        // No notification SMS provider (production today): the platform
+        // SMS sender, the one codes use, carries it (ADR 009).
+        config(['notifications.drivers.sms' => 'none']);
+        $texts = [];
+        $this->app->instance(SmsSender::class, new class($texts) implements SmsSender
+        {
+            public function __construct(private array &$texts) {}
+
+            public function send(string $to, string $message): void
+            {
+                $this->texts[] = [$to, $message];
+            }
+        });
+
+        $user = $this->createUser(['email' => null, 'phone' => '+254700000123', 'phone_verified_at' => now(), 'email_verified_at' => null]);
+        $this->signIn('+254700000123', null, ['User-Agent' => 'Device A'])->assertOk();
+        $this->signIn('+254700000123', null, ['User-Agent' => 'Device B'])->assertOk();
+
+        $alerts = $this->alerts($user)->keyBy('channel');
+        $this->assertSame(['skipped', 'no_email'], [$alerts['email']->status, $alerts['email']->reason]);
+        $this->assertSame(['sent', '+254700000123'], [$alerts['sms']->status, $alerts['sms']->recipient]);
+        $this->assertCount(1, $texts);
+        $this->assertSame('+254700000123', $texts[0][0]);
+        $this->assertStringContainsString('new sign-in to your account', $texts[0][1]);
     }
 
     public function test_a_failed_alert_push_does_not_fail_the_sign_in(): void
@@ -136,8 +199,7 @@ class LoginSecurityTest extends TestCase
         $user = $this->createUser();
         $this->signIn($user->email, null, ['User-Agent' => 'Device A'])->assertOk();
 
-        // Real notifications, onto a queue that cannot be reached.
-        Notification::swap(new ChannelManager($this->app));
+        // The alert's job, onto a queue that cannot be reached.
         Queue::shouldReceive('connection')->andThrow(new RuntimeException('Queue unavailable'));
 
         $token = $this->signIn($user->email, null, ['User-Agent' => 'Device B'])
@@ -155,7 +217,7 @@ class LoginSecurityTest extends TestCase
         $this->signIn($user->email, 'not-the-password', ['User-Agent' => 'Device B'])->assertStatus(422);
         $this->signIn($user->email, null, ['User-Agent' => 'Device B'])->assertOk();
 
-        Notification::assertSentOnDemandTimes(NewDeviceSignIn::class, 1);
+        $this->assertCount(1, $this->alerts($user));
     }
 
     public function test_local_and_international_spellings_share_the_login_limit(): void
