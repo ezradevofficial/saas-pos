@@ -21,7 +21,8 @@ class DeliveryResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'user' => $this->whenLoaded('user', fn () => ['id' => $this->user->id, 'name' => $this->user->name]),
+            // Null for a contact that is not a user yet (an invitation, ADR 009).
+            'user' => $this->whenLoaded('user', fn () => $this->user === null ? null : ['id' => $this->user->id, 'name' => $this->user->name]),
             'user_id' => $this->user_id,
             'event_type' => $this->event_type,
             'event_label' => match (true) {

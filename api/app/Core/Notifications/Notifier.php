@@ -10,10 +10,12 @@ use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Notifications\Models\NotificationPreference;
 use App\Core\Notifications\Templates\Templates;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
  * NOT-02: the one service every module sends notifications through; no
@@ -33,6 +35,11 @@ use Illuminate\Support\Str;
  * WhatsApp go through their driver's queued job, or are skipped with a
  * reason when the user has no contact for them or no driver is configured.
  * Jobs are dispatched after the surrounding transaction commits.
+ *
+ * System event types (ADR 009) may also go to contacts that are not users
+ * yet (NotificationAddress, e.g. an invitation) and carry secrets (e.g. the
+ * invitation link) that are never stored: they travel in the encrypted
+ * SendDelivery job only. One-time codes never go through here (ADR 009).
  */
 class Notifier
 {
@@ -49,14 +56,15 @@ class Notifier
     {
         $tenantId = $this->tenants->require();
         $type = $this->types->get($event->type);
+        self::assertSystemOnly($type, $event);
         $link = self::safeLink($event->link, $type->key);
 
-        if ($event->recipientIds === []) {
+        if ($event->recipientIds === [] && $event->addresses === []) {
             return collect();
         }
 
         // Row-level security: ids of another tenant's users find nothing.
-        $users = User::query()
+        $users = $event->recipientIds === [] ? new EloquentCollection : User::query()
             ->whereIn('id', array_values(array_filter($event->recipientIds, Str::isUuid(...))))
             ->where('status', User::STATUS_ACTIVE)
             ->get();
@@ -65,9 +73,21 @@ class Notifier
         $mandatory = $this->preferences->mandatoryChannels($type);
         $preferences = NotificationPreference::query()
             ->where('event_type', $type->key)->whereIn('user_id', $users->modelKeys())->get()->keyBy('user_id');
+        // Secret placeholders stay `{name}` in the stored text (ADR 009).
+        $markers = [];
+        foreach ($type->secrets as $name) {
+            $markers[$name] = '{'.$name.'}';
+        }
 
-        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId, $link) {
+        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId, $link, $markers) {
             $deliveries = collect();
+            $queue = function (NotificationDelivery $delivery) use ($tenantId, $event, $deliveries) {
+                if ($delivery->status === NotificationDelivery::QUEUED) {
+                    SendDelivery::dispatch($tenantId, $delivery->id, $event->secrets)->afterCommit();
+                }
+
+                $deliveries->push($delivery);
+            };
 
             foreach ($users as $user) {
                 $choice = $this->preferences->resolve($user, $type, $preferences->get($user->id), $mandatory);
@@ -76,13 +96,18 @@ class Notifier
                     ...array_map(fn ($value) => is_scalar($value) ? (string) $value : '', $event->data),
                     'recipient_name' => $user->name,
                     'app_name' => (string) config('app.name'),
+                    ...$markers,
                 ];
+                $channels = array_keys(array_filter($choice['channels'], fn (array $state) => $state['enabled']));
 
-                foreach ($choice['channels'] as $channel => $state) {
-                    if (! $state['enabled']) {
-                        continue;
-                    }
+                // A system message reaches a user without a verified email
+                // by SMS instead (ADR 009).
+                if ($type->system && in_array(Channels::EMAIL, $channels, true) && ! in_array(Channels::SMS, $channels, true)
+                    && in_array(Channels::SMS, $type->channels, true) && ($user->email === null || $user->email_verified_at === null)) {
+                    $channels[] = Channels::SMS;
+                }
 
+                foreach ($channels as $channel) {
                     $message = $this->templates->effective($type, $channel, $locale, $overrides)->render($values, $channel);
                     $row = [
                         'user_id' => $user->id,
@@ -94,22 +119,53 @@ class Notifier
                         'link' => $link,
                     ];
 
-                    $delivery = match ($channel) {
+                    $queue(match ($channel) {
                         Channels::IN_APP => $this->inApp($row, $event),
                         Channels::EMAIL => $this->email($row, $user, $choice['digest']),
-                        default => $this->driven($row, $user, $channel),
-                    };
-
-                    if ($delivery->status === NotificationDelivery::QUEUED) {
-                        SendDelivery::dispatch($tenantId, $delivery->id)->afterCommit();
-                    }
-
-                    $deliveries->push($delivery);
+                        default => $this->driven($row, $user, $channel, $type),
+                    });
                 }
+            }
+
+            foreach ($event->addresses as $address) {
+                $locale = in_array($address->locale, Channels::LOCALES, true) ? $address->locale : 'en';
+                $values = [
+                    ...array_map(fn ($value) => is_scalar($value) ? (string) $value : '', $event->data),
+                    'recipient_name' => $address->name,
+                    'app_name' => (string) config('app.name'),
+                    ...$markers,
+                ];
+                $message = $this->templates->effective($type, $address->channel, $locale, $overrides)->render($values, $address->channel);
+                $row = [
+                    'user_id' => null,
+                    'event_type' => $type->key,
+                    'channel' => $address->channel,
+                    'locale' => $locale,
+                    'subject' => $message->subject,
+                    'body' => $message->body,
+                    'link' => $link,
+                    'recipient' => $address->to,
+                ];
+
+                $queue($address->channel === Channels::SMS && ! $this->drivers->available(Channels::SMS, $type)
+                    ? $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE)
+                    : NotificationDelivery::create([...$row, 'status' => NotificationDelivery::QUEUED]));
             }
 
             return $deliveries;
         });
+    }
+
+    /** Addresses and secrets are for system event types only, and secrets only for the type's secret placeholders. */
+    private static function assertSystemOnly(EventType $type, NotificationEvent $event): void
+    {
+        if (! $type->system && ($event->addresses !== [] || $event->secrets !== [])) {
+            throw new InvalidArgumentException("[{$type->key}] is not a system event type: it reaches users only and has no secrets.");
+        }
+
+        if (array_diff(array_keys($event->secrets), $type->secrets) !== []) {
+            throw new InvalidArgumentException("[{$type->key}] has no such secret placeholder.");
+        }
     }
 
     /**
@@ -172,9 +228,9 @@ class Notifier
     }
 
     /** Push to the user's devices, SMS and WhatsApp to a verified phone, through the channel's driver. */
-    private function driven(array $row, User $user, string $channel): NotificationDelivery
+    private function driven(array $row, User $user, string $channel, EventType $type): NotificationDelivery
     {
-        if (! $this->drivers->available($channel)) {
+        if (! $this->drivers->available($channel, $type)) {
             return $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE);
         }
 

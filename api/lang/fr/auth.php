@@ -71,19 +71,21 @@ return [
                 'sms' => 'Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minute.|Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minutes.',
             ],
         ],
-        'invitation' => [
-            'subject' => 'Rejoignez :tenant sur :app',
-            'line' => ':inviter vous invite à rejoindre :tenant.',
-            'action' => 'Accepter l’invitation',
-            'expiry' => 'L’invitation est valable jusqu’au :date.',
-            'sms' => ':app : vous êtes invité à rejoindre :tenant. Acceptez ici : :url',
-        ],
-        'new_device' => [
-            'subject' => 'Nouvelle connexion à votre compte :app',
-            'line' => 'Une connexion à votre compte a eu lieu depuis un nouvel appareil le :time.',
-            'details' => 'Appareil : :device. Adresse IP : :ip.',
-            'advice' => 'Si ce n’était pas vous, changez votre mot de passe et fermez la session depuis les paramètres de votre compte.',
-            'sms' => ':app : nouvelle connexion à votre compte le :time. Si ce n’était pas vous, changez votre mot de passe.',
+        // ADR 009 : types d’événements système, envoyés par le Notifier
+        // (modèles, journal des envois). Les variables s’écrivent {nom}.
+        'events' => [
+            'invited' => [
+                'label' => 'Invitation à rejoindre',
+                'subject' => 'Rejoignez {tenant_name} sur {app_name}',
+                'body' => "Bonjour {recipient_name},\n\n{inviter_name} vous invite à rejoindre {tenant_name}. Ouvrez le lien pour accepter.\n\nL’invitation est valable jusqu’au {expires_at}.\n\nSi vous ne l’attendiez pas, ignorez ce message.",
+                'sms' => '{app_name} : vous êtes invité à rejoindre {tenant_name}. Acceptez ici : {invitation_url}',
+            ],
+            'new_device' => [
+                'label' => 'Connexion depuis un nouvel appareil',
+                'subject' => 'Nouvelle connexion à votre compte {app_name}',
+                'body' => "Bonjour {recipient_name},\n\nUne connexion à votre compte a eu lieu depuis un nouvel appareil le {time}.\n\nAppareil : {device}. Adresse IP : {ip}.\n\nSi ce n’était pas vous, changez votre mot de passe et fermez la session depuis les paramètres de votre compte.",
+                'sms' => '{app_name} : nouvelle connexion à votre compte le {time}. Si ce n’était pas vous, changez votre mot de passe.',
+            ],
         ],
     ],
 ];

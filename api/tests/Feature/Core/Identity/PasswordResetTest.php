@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Identity\Services\Challenges;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
@@ -71,6 +72,39 @@ class PasswordResetTest extends TestCase
                 && $n->minutes === 30
                 && $mail->subject === __('auth.notifications.verification_code.password_reset.subject', ['app' => config('app.name')])
                 && in_array(__('auth.notifications.verification_code.password_reset.line', ['code' => $n->code]), $mail->introLines, true);
+        });
+    }
+
+    /**
+     * ADR 009: one-time codes are the recorded exception to NOT-02. They
+     * leave at once as a VerificationCode, never through the Notifier, so
+     * no notification table ever holds a code or a message carrying one.
+     */
+    public function test_one_time_codes_never_reach_the_notification_tables(): void
+    {
+        $user = $this->createUser(['phone' => '+254712345678', 'phone_verified_at' => now()]);
+
+        $this->forgot('+254712345678')->assertStatus(202);
+        Notification::assertSentToTimes($user, VerificationCode::class, 1);
+
+        $this->asTenant($user->tenant_id, function () {
+            foreach (['notification_deliveries', 'notifications'] as $table) {
+                $this->assertSame(0, DB::table($table)->count(), "{$table} holds a code message");
+            }
+        });
+
+        // Even after the code is used and the user signs in elsewhere (a
+        // Notifier alert), no notification row carries the code.
+        $code = $this->lastCode();
+        $this->reset('+254712345678', $code)->assertOk();
+        $this->signIn($user->email, $this->newPassword, ['User-Agent' => 'Another device'])->assertOk();
+        $this->asTenant($user->tenant_id, function () use ($code) {
+            foreach (['notification_deliveries', 'notifications'] as $table) {
+                $this->assertFalse(
+                    DB::table($table)->whereRaw('cast(row_to_json('.$table.') as text) like ?', ['%'.$code.'%'])->exists(),
+                    "{$table} holds the code",
+                );
+            }
         });
     }
 
