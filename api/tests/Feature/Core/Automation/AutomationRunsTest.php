@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Core\Automation;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Runtime\RuleRunner;
 use App\Core\Automation\Runtime\Rules;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use Illuminate\Support\Facades\Bus;
@@ -112,6 +114,51 @@ class AutomationRunsTest extends TestCase
             $this->assertSame('The automation rule “Flag urgent tasks” failed', $alerts->first()->subject);
             $this->assertSame('/automation-rules/'.$rule->id.'/runs/'.$run->id, $alerts->first()->link);
         });
+    }
+
+    public function test_a_rule_whose_user_was_deactivated_is_switched_off_and_admins_alerted_once(): void
+    {
+        $author = $this->userWith('admin', Scope::tenant());
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], ['name' => 'Flag'], $author);
+        $this->inTenant(fn () => $author->forceFill(['status' => 'deactivated'])->save());
+
+        $first = $this->createTask();
+        $this->createTask();
+
+        $run = $this->runs($rule)->sole();
+        $this->assertSame(AutomationRun::FAILED, $run->outcome);
+        $this->assertSame('run_as_unavailable', $run->error_code);
+        $this->assertStringContainsString('was switched off', $run->error);
+        $this->assertArrayNotHasKey('urgent', $this->taskValues($first));
+        $this->assertFalse($this->inTenant(fn () => $rule->fresh()->enabled));
+        $this->inTenant(function () use ($rule) {
+            $audit = AuditEntry::query()->where('action', 'core.automation.disable')->where('auditable_id', $rule->id)->sole();
+            $this->assertSame('run_as_unavailable', $audit->after['reason']);
+            $this->assertNull($audit->user_id);
+            $this->assertSame(1, InAppNotification::query()->where('event_type', 'core.automation.failed')->where('user_id', $this->owner->id)->count());
+        });
+
+        // Switched on again, it acts as the person who enabled it.
+        $this->postJson("/api/v1/automation-rules/{$rule->id}/enable", [], $this->headersFor())->assertOk();
+        $this->assertSame($this->owner->id, $this->inTenant(fn () => $rule->fresh()->updated_by));
+        $id = $this->createTask();
+        $this->assertTrue($this->taskValues($id)['urgent']);
+    }
+
+    public function test_a_rule_whose_user_lost_a_needed_permission_is_switched_off(): void
+    {
+        $author = $this->userWith('admin', Scope::tenant());
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], [], $author);
+        // Still active, now only a branch manager: no automation rights for the whole tenant.
+        $this->inTenant(function () use ($author) {
+            RoleAssignment::query()->where('user_id', $author->id)->delete();
+            $this->assign($author, $this->roles->get('branch_manager'), Scope::branch($this->branchA->id));
+        });
+
+        $this->createTask();
+
+        $this->assertSame('run_as_unavailable', $this->runs($rule)->sole()->error_code);
+        $this->assertFalse($this->inTenant(fn () => $rule->fresh()->enabled));
     }
 
     public function test_a_rule_never_retriggers_itself(): void
