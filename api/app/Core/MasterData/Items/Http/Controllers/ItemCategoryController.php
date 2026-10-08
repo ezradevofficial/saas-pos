@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Items\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\Items\Http\Requests\ItemCategoryActionRequest;
 use App\Core\MasterData\Items\Http\Requests\ItemCategoryRequest;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-02: item categories, a tree, shared or per company as items are
@@ -34,7 +36,7 @@ class ItemCategoryController
         private readonly MasterDataSharing $sharing,
     ) {}
 
-    public function index(ListItemCategoriesRequest $request): AnonymousResourceCollection
+    public function index(ListItemCategoriesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = ItemCategory::query();
         $companies = $this->policy->listableCompanies($request->user());
@@ -43,10 +45,14 @@ class ItemCategoryController
             $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
         }
 
-        return ItemCategoryResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')
-                ->paginate($request->perPage())->withQueryString(),
-        );
+        // A search never matches a field the user can't see (RBAC-05).
+        $request->applySort($request->applySearch($request->applyStatus($query), ['name' => 'name']));
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return ItemCategoryResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreItemCategoryRequest $request): JsonResponse

@@ -367,6 +367,18 @@ return [
     ],
 
     'item_category' => [
+        // EXP-01: the item categories list and its export.
+        'list_title' => 'Item categories',
+        'columns' => [
+            'name' => 'Name',
+            'parent' => 'Parent',
+            'scope' => 'Used by',
+            'colour' => 'Colour',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
+        'all_companies' => 'All companies',
         'parent_other_scope' => 'Choose a parent category of the same company, or a shared one for a shared category.',
         'parent_cycle' => 'A category can’t sit under itself or one of its subcategories. Choose another parent.',
         'too_deep' => 'Categories go up to :max levels deep. Choose a parent higher in the tree.',
@@ -382,6 +394,23 @@ return [
     ],
 
     'uom' => [
+        // EXP-01: the units list and its export.
+        'list_title' => 'Units',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'kind' => 'Kind',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
+        'kinds' => [
+            'count' => 'Count',
+            'weight' => 'Weight',
+            'volume' => 'Volume',
+            'length' => 'Length',
+            'time' => 'Time',
+        ],
         'code_invalid' => 'Codes use capital letters, numbers and underscores, up to 10 characters.',
         'code_taken' => 'Another active unit already uses the code :code. Choose another code.',
         'code_taken_race' => 'Another unit took this code while you were saving. Choose another code.',

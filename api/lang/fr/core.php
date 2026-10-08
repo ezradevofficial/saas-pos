@@ -367,6 +367,18 @@ return [
     ],
 
     'item_category' => [
+        // EXP-01 : la liste des catégories d’articles et son export.
+        'list_title' => 'Catégories d’articles',
+        'columns' => [
+            'name' => 'Nom',
+            'parent' => 'Parent',
+            'scope' => 'Utilisée par',
+            'colour' => 'Couleur',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
+        'all_companies' => 'Toutes les sociétés',
         'parent_other_scope' => 'Choisissez une catégorie parente de la même société, ou une catégorie partagée pour une catégorie partagée.',
         'parent_cycle' => 'Une catégorie ne peut pas se trouver sous elle-même ou sous l’une de ses sous-catégories. Choisissez un autre parent.',
         'too_deep' => 'Les catégories vont jusqu’à :max niveaux. Choisissez un parent plus haut dans l’arborescence.',
@@ -382,6 +394,23 @@ return [
     ],
 
     'uom' => [
+        // EXP-01 : la liste des unités et son export.
+        'list_title' => 'Unités',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'kind' => 'Nature',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
+        'kinds' => [
+            'count' => 'Quantité',
+            'weight' => 'Poids',
+            'volume' => 'Volume',
+            'length' => 'Longueur',
+            'time' => 'Durée',
+        ],
         'code_invalid' => 'Les codes utilisent des majuscules, des chiffres et des traits de soulignement, jusqu’à 10 caractères.',
         'code_taken' => 'Une autre unité active utilise déjà le code :code. Choisissez un autre code.',
         'code_taken_race' => 'Une autre unité a pris ce code pendant l’enregistrement. Choisissez un autre code.',

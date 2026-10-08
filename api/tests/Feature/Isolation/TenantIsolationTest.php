@@ -592,6 +592,8 @@ class TenantIsolationTest extends TestCase
             "companies/{$a->id('company')}/tax-codes?status=all" => ['VAT_STD', '12.5%'],
             'tax-categories?status=all' => ['Goods A', 'VAT_STD in Company A'],
             "companies/{$a->id('company')}/price-lists?status=all" => ['Retail A'],
+            'uoms?status=all' => ['EA', 'BOX'],
+            'item-categories?status=all' => ['Goods A', 'Goods A sub'],
         ];
     }
 
