@@ -57,6 +57,26 @@ class MoneyTest extends TestCase
         Money::parse('135000.5', 'CDF', $this->decimals());
     }
 
+    public function test_a_trailing_newline_is_refused_everywhere(): void
+    {
+        $attempts = [
+            fn () => Money::ofMinor("5\n", 'KES'),
+            fn () => Money::ofMinor(5, "KES\n"),
+            fn () => Money::parse("5\n", 'KES', $this->decimals()),
+            fn () => Money::ofMinor(5, 'KES')->multiply("2\n"),
+            fn () => Money::ofMinor(5, 'KES')->allocate(["1\n"]),
+        ];
+
+        foreach ($attempts as $i => $attempt) {
+            try {
+                $attempt();
+                $this->fail("attempt {$i} accepted a trailing newline");
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     public function test_to_decimal_string(): void
     {
         $this->assertSame('12450.00', Money::ofMinor(1245000, 'KES')->toDecimalString());

@@ -19,7 +19,7 @@ use Tests\TestCase;
  * self sign-up and verification, then the API as each Owner (companies,
  * branches, locations, an archived location, a paired device, a custom
  * role, an accepted and a pending invitation, an assignment, tenant and
- * reporting currencies). Field rules, limit rules and module flags have
+ * reporting currencies, exchange rates and a rate alert). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -82,6 +82,10 @@ final class TwoTenants
 
         // CUR-01, CUR-02: sign-up activated KES and USD; USD reports for the company.
         self::ok($test->putJson("/api/v1/companies/{$company}/currencies", ['base_currency' => 'KES', 'reporting_currencies' => ['USD']], $owner));
+        // CUR-03, CUR-07: two USD/KES shop rates; the second moves past the tolerance (an alert).
+        self::ok($test->postJson("/api/v1/companies/{$company}/exchange-rates", ['base' => 'USD', 'quote' => 'KES', 'mid' => '129.5', 'effective_at' => '2026-10-01T08:00:00Z'], $owner), 201);
+        self::ok($test->postJson("/api/v1/companies/{$company}/exchange-rates", ['base' => 'USD', 'quote' => 'KES', 'mid' => '140', 'effective_at' => '2026-10-02T08:00:00Z'], $owner), 201)
+            ->assertJsonPath('meta.warning.code', 'rate_tolerance_exceeded');
         $tenantCurrency = collect(self::ok($test->getJson('/api/v1/tenant/currencies', $owner))->json('data'))->firstWhere('code', 'USD')['id'];
 
         // TEN-05: a device, paired with its one-time code.

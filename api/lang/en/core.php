@@ -68,4 +68,23 @@ return [
             'reporting_currency' => 'reporting currency',
         ],
     ],
+
+    // CUR-03, CUR-06, CUR-07: exchange rates.
+    'exchange_rate' => [
+        'unavailable' => 'There is no exchange rate from :from to :to. Enter a shop rate first.',
+        'invalid_rate' => 'Enter the :attribute as a number above zero with at most 10 digits before the point and 8 after, for example 2850.5.',
+        'same_currency' => 'Choose two different currencies.',
+        'buy_above_mid' => 'The buy rate can’t be above the mid rate.',
+        'sell_below_mid' => 'The sell rate can’t be below the mid rate.',
+        'duplicate' => 'A shop rate for this pair already starts at this time. Choose another time.',
+        'tolerance_exceeded' => 'The :pair rate changed by :change% from the previous rate, more than the :tolerance% tolerance. It was saved; check it is right.',
+        'attributes' => [
+            'base' => 'base currency',
+            'quote' => 'quote currency',
+            'mid' => 'mid rate',
+            'buy' => 'buy rate',
+            'sell' => 'sell rate',
+            'effective_at' => 'effective time',
+        ],
+    ],
 ];

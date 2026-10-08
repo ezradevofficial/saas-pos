@@ -27,7 +27,7 @@ final class Money implements JsonSerializable
 
     public static function ofMinor(int|string $minor, string $currency): self
     {
-        if (is_string($minor) && preg_match('/^-?\d+$/', $minor) !== 1) {
+        if (is_string($minor) && preg_match('/^-?\d+\z/', $minor) !== 1) {
             throw new InvalidArgumentException("Minor amount [{$minor}] is not an integer.");
         }
 
@@ -42,7 +42,7 @@ final class Money implements JsonSerializable
     {
         $currency = self::code($currency);
 
-        if (preg_match('/^-?\d+(\.\d+)?$/', $decimal) !== 1) {
+        if (preg_match('/^-?\d+(\.\d+)?\z/', $decimal) !== 1) {
             throw new InvalidArgumentException("Amount [{$decimal}] is not a decimal number.");
         }
 
@@ -74,7 +74,7 @@ final class Money implements JsonSerializable
     /** Multiply by a decimal factor (a rate, a percentage), rounded once to the minor unit. */
     public function multiply(string|int $factor, RoundingMode $rounding = RoundingMode::HalfUp): self
     {
-        if (is_string($factor) && preg_match('/^-?\d+(\.\d+)?$/', $factor) !== 1) {
+        if (is_string($factor) && preg_match('/^-?\d+(\.\d+)?\z/', $factor) !== 1) {
             throw new InvalidArgumentException("Factor [{$factor}] is not a decimal number.");
         }
 
@@ -102,7 +102,7 @@ final class Money implements JsonSerializable
 
         $weights = [];
         foreach (array_values($ratios) as $ratio) {
-            if (! (is_int($ratio) || (is_string($ratio) && preg_match('/^\d+$/', $ratio) === 1)) || (int) $ratio < 0) {
+            if (! (is_int($ratio) || (is_string($ratio) && preg_match('/^\d+\z/', $ratio) === 1)) || (int) $ratio < 0) {
                 throw new InvalidArgumentException('Ratios must be whole numbers of zero or more.');
             }
             $weights[] = BigInteger::of($ratio);
@@ -191,7 +191,7 @@ final class Money implements JsonSerializable
 
     private static function code(string $currency): string
     {
-        if (preg_match('/^[A-Z]{3}$/', $currency) !== 1) {
+        if (preg_match('/^[A-Z]{3}\z/', $currency) !== 1) {
             throw new InvalidArgumentException("Currency [{$currency}] is not an ISO 4217 code.");
         }
 

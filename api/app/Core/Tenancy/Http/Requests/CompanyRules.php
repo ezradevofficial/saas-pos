@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy\Http\Requests;
 
+use App\Core\Currency\Feeds\RateFeeds;
 use App\Core\Identity\Services\SignUp;
 use Illuminate\Validation\Rule;
 
@@ -23,6 +24,9 @@ final class CompanyRules
             'base_currency' => [...$optional, 'string', 'regex:/^[A-Z]{3}$/', Rule::exists('currencies', 'code')->where('active_in_iso', true)],
             'fiscal_year_start_month' => [...$optional, 'integer', 'between:1,12'],
             'timezone' => [...$optional, 'string', 'timezone:all'],
+            // CUR-03, CUR-07: the reference-rate feed and the shop-rate tolerance.
+            'rate_feed' => ['sometimes', 'required', 'string', 'in:'.implode(',', RateFeeds::NAMES)],
+            'rate_tolerance_percent' => ['sometimes', 'required', 'regex:/^\d{1,3}(\.\d{1,2})?\z/', 'numeric', 'between:0,100'],
             'address' => ['sometimes', 'nullable', 'array'],
             'address.*' => ['nullable', 'string', 'max:255'],
         ];

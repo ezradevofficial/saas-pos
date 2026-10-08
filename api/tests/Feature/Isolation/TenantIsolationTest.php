@@ -94,11 +94,20 @@ class TenantIsolationTest extends TestCase
         'tax_id' => "a company's tax registration number, free text",
     ];
 
-    /** The queries every list route is called with. */
-    public const LIST_QUERIES = [[], ['status' => 'all', 'per_page' => 200], ['format' => 'csv']];
+    /**
+     * The queries every list route is called with (routes with ids too, with
+     * B's ids and, as a control, A's). The filters match rows both tenants
+     * have (TwoTenants enters USD/KES shop rates in each).
+     */
+    public const LIST_QUERIES = [
+        [],
+        ['status' => 'all', 'per_page' => 200],
+        ['format' => 'csv'],
+        ['pair' => 'USD/KES', 'from' => '2000-01-01', 'to' => '2100-12-31', 'kind' => 'shop'],
+    ];
 
     /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind'];
 
     private TwoTenants $tenants;
 
@@ -195,23 +204,35 @@ class TenantIsolationTest extends TestCase
             }
 
             foreach ($this->methods($route) as $method) {
-                $uri = $this->uriWith($route, $b);
-                $response = $this->json($method, $uri, $this->hijackBody($b), $a->bearer());
-                $called++;
+                // A GET is also called with every list query (filters included).
+                foreach ($method === 'GET' ? self::LIST_QUERIES : [[]] as $query) {
+                    $suffix = $query === [] ? '' : '?'.http_build_query($query);
+                    $uri = $this->uriWith($route, $b).$suffix;
+                    $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $a->bearer());
+                    $called++;
 
-                // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
-                $this->assertSame(404, $response->status(), "{$method} {$uri} with tenant B's ids answered {$response->status()} to tenant A: {$response->getContent()}");
-                $this->assertBodyHasNothingOf($b, $response, "{$method} {$uri}");
+                    // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
+                    $this->assertSame(404, $response->status(), "{$method} {$uri} with tenant B's ids answered {$response->status()} to tenant A: {$response->getContent()}");
+                    $this->assertBodyHasNothingOf($b, $response, "{$method} {$uri}");
 
-                // Control: the same GET with A's own ids works, so the 404 above is isolation, not a bad URL.
-                if ($method === 'GET') {
-                    $this->json('GET', $this->uriWith($route, $a), [], $a->bearer())->assertOk();
+                    // Control: the same GET with A's own ids works (a route may refuse
+                    // another list's filter, but never as not found), so the 404 above
+                    // is isolation, not a bad URL.
+                    if ($method === 'GET') {
+                        $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $a->bearer());
+                        $query === [] ? $control->assertOk() : $this->assertContains($control->status(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->status()}");
+                        $this->assertBodyHasNothingOf($b, $control, "GET {$this->uriWith($route, $a)}{$suffix}");
+                    }
                 }
             }
         }
 
         $this->assertGreaterThan(0, $called);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A called its routes with B's ids");
+
+        // Control: the filter query really selects A's rows on the rate history.
+        $filtered = $this->json('GET', "/api/v1/companies/{$a->id('company')}/exchange-rates?".http_build_query(self::LIST_QUERIES[3]), [], $a->bearer())->assertOk();
+        $this->assertCount(2, $filtered->json('data'));
     }
 
     public function test_list_routes_show_nothing_of_tenant_b_to_the_owner_the_branch_manager_or_a_device(): void
@@ -250,7 +271,7 @@ class TenantIsolationTest extends TestCase
     }
 
     /**
-     * Code-level guard: every query parameter a list route reads (its Form
+     * Code-level guard: every query parameter a GET route reads (its Form
      * Request rules, and query()/input()/... calls in the request class and
      * the controller method) must be one the list check above exercises. A
      * new `?search=` or filter therefore fails here until the list check
@@ -261,7 +282,8 @@ class TenantIsolationTest extends TestCase
         $checked = 0;
 
         foreach ($this->apiRoutes() as $route) {
-            if ($route->parameterNames() !== [] || $this->isPublic($route) || ! in_array('GET', $route->methods(), true)) {
+            // Routes with ids are listed too: they take the same queries (with B's and A's ids) above.
+            if ($this->isPublic($route) || ! in_array('GET', $route->methods(), true)) {
                 continue;
             }
 

@@ -68,4 +68,23 @@ return [
             'reporting_currency' => 'devise de présentation',
         ],
     ],
+
+    // CUR-03, CUR-06, CUR-07 : taux de change.
+    'exchange_rate' => [
+        'unavailable' => 'Aucun taux de change de :from vers :to. Saisissez d’abord un taux boutique.',
+        'invalid_rate' => 'Saisissez le :attribute sous forme de nombre supérieur à zéro, avec au plus 10 chiffres avant la virgule et 8 après, par exemple 2850.5.',
+        'same_currency' => 'Choisissez deux devises différentes.',
+        'buy_above_mid' => 'Le taux d’achat ne peut pas dépasser le taux moyen.',
+        'sell_below_mid' => 'Le taux de vente ne peut pas être inférieur au taux moyen.',
+        'duplicate' => 'Un taux boutique pour cette paire commence déjà à cette heure. Choisissez une autre heure.',
+        'tolerance_exceeded' => 'Le taux :pair a varié de :change % par rapport au taux précédent, au-delà de la tolérance de :tolerance %. Il a été enregistré ; vérifiez qu’il est correct.',
+        'attributes' => [
+            'base' => 'devise de base',
+            'quote' => 'devise de cotation',
+            'mid' => 'taux moyen',
+            'buy' => 'taux d’achat',
+            'sell' => 'taux de vente',
+            'effective_at' => 'heure d’effet',
+        ],
+    ],
 ];

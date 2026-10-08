@@ -45,6 +45,14 @@ class MoneyAmountRuleTest extends TestCase
         }
     }
 
+    public function test_a_trailing_newline_fails(): void
+    {
+        // `$` would match before a final newline; the pattern ends at \z.
+        foreach (["5\n", "12450.50\n", "-3\n"] as $amount) {
+            $this->assertArrayHasKey('amount', $this->errors(['amount' => $amount], MoneyAmount::in('KES')), json_encode($amount));
+        }
+    }
+
     public function test_the_currency_can_come_from_another_field(): void
     {
         $rule = fn () => MoneyAmount::fromField('payment.currency');

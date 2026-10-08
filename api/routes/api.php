@@ -2,6 +2,7 @@
 
 use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
+use App\Core\Currency\Http\Controllers\ExchangeRateController;
 use App\Core\Currency\Http\Controllers\TenantCurrencyController;
 use App\Core\Identity\Http\Controllers\AcceptInvitationController;
 use App\Core\Identity\Http\Controllers\InvitationController;
@@ -109,6 +110,12 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('tenant/currencies/{tenant_currency}', [TenantCurrencyController::class, 'update']);
     Route::get('companies/{company}/currencies', [CompanyCurrencyController::class, 'show']);
     Route::put('companies/{company}/currencies', [CompanyCurrencyController::class, 'update']);
+
+    // CUR-03, CUR-07: each company's rate history, shop rates (tolerance
+    // alerts) and the rates in force.
+    Route::get('companies/{company}/exchange-rates', [ExchangeRateController::class, 'index']);
+    Route::post('companies/{company}/exchange-rates', [ExchangeRateController::class, 'store']);
+    Route::get('companies/{company}/exchange-rates/current', [ExchangeRateController::class, 'current']);
 
     Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
     Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);
