@@ -29,7 +29,8 @@ The owner found the tables too shallow: they asked for search, filters, sorting,
 ### Web
 
 - `useServerList` keeps search, filters, sort, page and rows per page in the URL, so links and Back keep the view. Column choice is stored per user and list in the browser (`app.list.<userId>.<listId>.columns`); saved views shared with roles remain LAY-04 work for Phase 5.
-- `ListView` renders the toolbar (search, the page's filters, Columns, Export), the sortable table (`aria-sort`) and the footer (record count, rows per page, first, previous, next, last). A refused sort falls back to the default order and shows the reason.
+- `ListView` renders the toolbar (search, Filters, Columns, Export), the sortable table (`aria-sort`) and the footer (record count, rows per page, first, previous, next, last). A refused sort falls back to the default order and shows the reason.
+- Filters never sit inline, because many filters crowd the table (owner, 2026-10-08). The Filters button shows how many are active and opens a drawer from the right (shadcn Sheet, `w-drawer`, full width on phones) with the fields stacked, "Clear filters" and "Show N results"; filters apply as they change. Pages declare filters as data (`filterFields`: name, label, options or a `render` function, optional `valueLabel`), so the active ones also show under the toolbar as removable chips with "Clear all". A filter is active when it differs from its `useServerList` default. Status tabs stay above the list and are not filters. The approvals card list uses the same drawer and chips, with "Sort by" in the drawer because cards have no headers.
 - Trees (item categories, dimensions) and payment-method cards keep their layout, because paging or sorting would separate parents from children or break the till order; they get the Export menu.
 
 ### Pickers

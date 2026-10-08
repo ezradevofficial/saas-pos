@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api/errorMessage'
-import { Alert, Button, Checkbox, ExportMenu, Icon, Money, Select, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Checkbox, ExportMenu, FilterChips, FilterDrawer, Icon, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
 import { approvalStatus, useBulkApprove } from '@/lib/approvals'
 import { formatInteger } from '@/lib/format'
@@ -106,6 +106,27 @@ export function ApprovalList({ tab, selectedId, onOpen, onSelectionChange, onFir
   })
   const rows = list.rows
   const typeOptions = useDocumentTypeOptions(rows)
+  const filterButton = useRef(null)
+  const filterFields = [
+    { name: 'type', label: t('approvals.filters.type'), options: [{ value: '', label: t('approvals.filters.allTypes') }, ...typeOptions] },
+    ...(companies.length > 1
+      ? [
+          {
+            name: 'company',
+            label: t('approvals.filters.company'),
+            options: [{ value: '', label: t('approvals.filters.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))],
+          },
+        ]
+      : []),
+    {
+      name: 'overdue',
+      label: t('approvals.filters.due'),
+      options: [
+        { value: '', label: t('approvals.filters.anyTime') },
+        { value: '1', label: t('approvals.filters.overdueOnly') },
+      ],
+    },
+  ]
   const [checked, setChecked] = useState([])
   const [failures, setFailures] = useState([])
   const bulk = useBulkApprove()
@@ -166,43 +187,24 @@ export function ApprovalList({ tab, selectedId, onOpen, onSelectionChange, onFir
           value={list.search}
           onChange={(event) => list.setSearch(event.target.value)}
           autoComplete="off"
-          className="w-full"
+          className="w-full sm:w-auto sm:flex-1"
         />
-        <Select
-          label={t('approvals.filters.type')}
-          options={[{ value: '', label: t('approvals.filters.allTypes') }, ...typeOptions]}
-          value={list.filters.type}
-          onChange={(event) => list.setFilter('type', event.target.value)}
-          className="min-w-0 flex-1"
-        />
-        {companies.length > 1 ? (
-          <Select
-            label={t('approvals.filters.company')}
-            options={[{ value: '', label: t('approvals.filters.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
-            value={list.filters.company}
-            onChange={(event) => list.setFilter('company', event.target.value)}
-            className="min-w-0 flex-1"
-          />
-        ) : null}
-        <Select
-          label={t('approvals.filters.due')}
-          options={[
-            { value: '', label: t('approvals.filters.anyTime') },
-            { value: '1', label: t('approvals.filters.overdueOnly') },
-          ]}
-          value={list.filters.overdue}
-          onChange={(event) => list.setFilter('overdue', event.target.value)}
-          className="min-w-0 flex-1"
-        />
-        <Select
-          label={t('approvals.filters.sort')}
-          options={SORTS.map((value) => ({ value, label: t(`approvals.sort.${value.replace('-', 'desc_')}`) }))}
-          value={SORTS.includes(list.sort) ? list.sort : 'due'}
-          onChange={(event) => list.setSort(event.target.value)}
-          className="min-w-0 flex-1"
-        />
-        <ExportMenu onExport={list.exportTo} exporting={list.exporting} />
+        <div className="flex flex-wrap gap-2">
+          {/* Cards have no headers to sort by, so the order sits in the drawer too. */}
+          <FilterDrawer list={list} fields={filterFields} triggerRef={filterButton}>
+            <Select
+              label={t('approvals.filters.sort')}
+              options={SORTS.map((value) => ({ value, label: t(`approvals.sort.${value.replace('-', 'desc_')}`) }))}
+              value={SORTS.includes(list.sort) ? list.sort : 'due'}
+              onChange={(event) => list.setSort(event.target.value)}
+              className="w-full"
+            />
+          </FilterDrawer>
+          <ExportMenu onExport={list.exportTo} exporting={list.exporting} />
+        </div>
       </div>
+
+      <FilterChips list={list} fields={filterFields} focusRef={filterButton} />
 
       {approvable.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-200 px-4 py-2">

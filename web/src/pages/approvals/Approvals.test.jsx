@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { approvalDetail, approvalItem, page } from '@/test/approvals'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { ALL_CORE, apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -108,14 +109,23 @@ describe('approvals inbox (APR-04)', () => {
     expect(api.get).toHaveBeenCalledWith('approvals?status=waiting&sort=due&per_page=25&page=1')
 
     const listSection = screen.getByRole('region', { name: 'Approvals' })
-    chooseOption(within(listSection).getByLabelText('Document type'), 'Purchase requisition')
+    // Filters and the order sit in the drawer.
+    expect(within(listSection).queryByLabelText('Document type')).not.toBeInTheDocument()
+    const drawer = openFilters()
+    chooseOption(within(drawer).getByLabelText('Document type'), 'Purchase requisition')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^approvals\?status=waiting&type=procurement\.requisition&sort=due&/)))
-    chooseOption(within(listSection).getByLabelText('Company'), 'Kin Market')
+    chooseOption(within(drawer).getByLabelText('Company'), 'Kin Market')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/&company=c-2&/)))
-    chooseOption(within(listSection).getByLabelText('Due'), 'Overdue only')
+    chooseOption(within(drawer).getByLabelText('Due'), 'Overdue only')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/&overdue=1&/)))
-    chooseOption(within(listSection).getByLabelText('Sort by'), 'Newest first')
+    chooseOption(within(drawer).getByLabelText('Sort by'), 'Newest first')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/&sort=-received&/)))
+    await closeFilters()
+    // The sort is not a filter: three chips, and the button counts three.
+    const chips = within(listSection).getByRole('list', { name: 'Active filters' })
+    expect(within(chips).getByText('Due: Overdue only')).toBeInTheDocument()
+    expect(within(chips).getByText('Company: Kin Market')).toBeInTheDocument()
+    expect(within(listSection).getByRole('button', { name: 'Filters, 3 active' })).toBeInTheDocument()
     fireEvent.change(within(listSection).getByLabelText('Search'), { target: { value: 'oil' } })
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/&search=oil&/)))
 
