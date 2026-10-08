@@ -77,6 +77,10 @@ class TenantIsolationTest extends TestCase
         'item_category' => 'item_category',
         'uom' => 'uom',
         'item_image' => 'item_image',
+        'payment_method' => 'payment_method',
+        'department' => 'department',
+        'cost_centre' => 'cost_centre',
+        'project' => 'project',
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -113,7 +117,21 @@ class TenantIsolationTest extends TestCase
         'base_uom_id' => 'uom',
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
+        'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'scope_id' => null,
+    ];
+
+    /**
+     * REFERENCE_FIELDS overrides for routes where a field names another kind
+     * of row ("METHOD uri" => field => which of B's ids).
+     */
+    public const ROUTE_REFERENCE_FIELDS = [
+        'POST api/v1/companies/{company}/departments' => ['parent_id' => 'department_parent'],
+        'PATCH api/v1/departments/{department}' => ['parent_id' => 'department_parent'],
+        'POST api/v1/companies/{company}/cost-centres' => ['parent_id' => 'cost_centre_parent'],
+        'PATCH api/v1/cost-centres/{cost_centre}' => ['parent_id' => 'cost_centre_parent'],
+        'POST api/v1/companies/{company}/projects' => ['parent_id' => 'project_parent'],
+        'PATCH api/v1/projects/{project}' => ['parent_id' => 'project_parent'],
     ];
 
     /**
@@ -129,6 +147,10 @@ class TenantIsolationTest extends TestCase
         'item' => 'item',
         'item_category' => 'item_category',
         'uom' => 'uom',
+        'payment_method' => 'payment_method',
+        'department' => 'department',
+        'cost_centre' => 'cost_centre',
+        'project' => 'project',
         'company' => 'company',
         'branch' => 'branch',
         'location' => 'location',
@@ -440,7 +462,7 @@ class TenantIsolationTest extends TestCase
                 $this->assertNotNull($base, "{$key} takes ids in its body ({$this->list($idFields)}): add a valid body for it to bodyFor() so the isolation suite can send B's ids");
                 $uri = $this->uriWith($route, $a);
 
-                foreach ($this->hijackVariants($base, $idFields, $b) as $label => $body) {
+                foreach ($this->hijackVariants($base, $idFields, $b, self::ROUTE_REFERENCE_FIELDS[$key] ?? []) as $label => $body) {
                     $response = $this->json($method, $uri, $body, $a->bearer());
                     $this->assertContains($response->status(), [404, 422], "{$key} with {$label} of tenant B answered {$response->status()}: {$response->getContent()}");
                     $this->assertBodyHasNothingOf($b, $response, "{$key} with {$label}");
@@ -464,6 +486,9 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PATCH api/v1/items/{item}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/item-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
+        foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
+            $this->assertArrayHasKey($key, $hijacked);
+        }
         $this->assertNoRowOf($a, 'references', $b);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
@@ -748,10 +773,13 @@ class TenantIsolationTest extends TestCase
      * scope type), then all of them at once.
      *
      * @param  list<string>  $fields
+     * @param  array<string, string>  $references  this route's REFERENCE_FIELDS overrides
      * @return array<string, array>
      */
-    private function hijackVariants(array $base, array $fields, TenantFixture $b): array
+    private function hijackVariants(array $base, array $fields, TenantFixture $b, array $references = []): array
     {
+        $references = [...self::REFERENCE_FIELDS, ...$references];
+
         $variants = [];
         $all = $base;
 
@@ -775,9 +803,9 @@ class TenantIsolationTest extends TestCase
             }
 
             $body = $base;
-            data_set($body, $path, $b->id(self::REFERENCE_FIELDS[$leaf]));
-            $variants["{$field} = {$b->id(self::REFERENCE_FIELDS[$leaf])}"] = $body;
-            data_set($all, $path, $b->id(self::REFERENCE_FIELDS[$leaf]));
+            data_set($body, $path, $b->id($references[$leaf]));
+            $variants["{$field} = {$b->id($references[$leaf])}"] = $body;
+            data_set($all, $path, $b->id($references[$leaf]));
         }
 
         $variants['every id field'] = $all;
@@ -821,6 +849,13 @@ class TenantIsolationTest extends TestCase
             ],
             'POST api/v1/item-categories' => ['name_en' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
             'PATCH api/v1/item-categories/{item_category}' => ['parent_id' => $tenant->id('item_category_parent')],
+            // MD-05: a child of the company's parent row, owned by the Owner.
+            'POST api/v1/companies/{company}/departments' => ['code' => 'HIJACK-D', 'name' => 'Hijack', 'parent_id' => $tenant->id('department_parent'), 'owner_user_id' => $tenant->id('user')],
+            'PATCH api/v1/departments/{department}' => ['parent_id' => $tenant->id('department_parent'), 'owner_user_id' => $tenant->id('user')],
+            'POST api/v1/companies/{company}/cost-centres' => ['code' => 'HIJACK-C', 'name' => 'Hijack', 'parent_id' => $tenant->id('cost_centre_parent'), 'owner_user_id' => $tenant->id('user')],
+            'PATCH api/v1/cost-centres/{cost_centre}' => ['parent_id' => $tenant->id('cost_centre_parent'), 'owner_user_id' => $tenant->id('user')],
+            'POST api/v1/companies/{company}/projects' => ['code' => 'HIJACK-P', 'name' => 'Hijack', 'parent_id' => $tenant->id('project_parent'), 'owner_user_id' => $tenant->id('user')],
+            'PATCH api/v1/projects/{project}' => ['parent_id' => $tenant->id('project_parent'), 'owner_user_id' => $tenant->id('user')],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),

@@ -3,6 +3,8 @@
 namespace App\Core\MasterData;
 
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Dimensions\Dimension;
+use App\Core\MasterData\Dimensions\Dimensions;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\MasterData\Items\Console\SeedDefaultUomsCommand;
@@ -22,12 +24,19 @@ use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\MasterData\Parties\PartySharedRecords;
+use App\Core\MasterData\PaymentMethods\Console\SeedDefaultPaymentMethodsCommand;
+use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
+use App\Core\MasterData\PaymentMethods\Http\Resources\PaymentMethodResource;
+use App\Core\MasterData\PaymentMethods\Listeners\SeedDefaultPaymentMethods;
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\PaymentMethods\PaymentProviders;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategorySharedRecords;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Rbac\Models\Role;
+use App\Core\Tenancy\Events\CompanyCreated;
 use App\Core\Tenancy\Events\TenantProvisioned;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
@@ -39,8 +48,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * TEN-08 sharing modes, MD-01 parties, MD-02 items, MD-06 duplicate
- * warnings and MD-07 record history. Modules add their sharable records, switch guards and
+ * TEN-08 sharing modes, MD-01 parties, MD-02 items, MD-04 payment
+ * methods, MD-05 dimensions, MD-06 duplicate warnings and MD-07 record
+ * history. Modules add their sharable records, switch guards and
  * history types in their own providers.
  */
 class MasterDataServiceProvider extends ServiceProvider
@@ -50,6 +60,8 @@ class MasterDataServiceProvider extends ServiceProvider
         $this->app->singleton(MasterDataSharing::class);
         $this->app->singleton(HistoryTypes::class);
         $this->app->singleton(DuplicateFinder::class);
+        $this->app->singleton(PaymentProviders::class);
+        $this->app->singleton(DefaultPaymentMethods::class);
     }
 
     public function boot(): void
@@ -73,8 +85,12 @@ class MasterDataServiceProvider extends ServiceProvider
         // MD-02: every tenant starts with the default units.
         Event::listen(TenantProvisioned::class, SeedDefaultUoms::class);
 
+        // MD-04: every company starts with its country's payment methods
+        // (after its currencies, in the creating transaction).
+        Event::listen(CompanyCreated::class, SeedDefaultPaymentMethods::class);
+
         if ($this->app->runningInConsole()) {
-            $this->commands([SeedDefaultUomsCommand::class]);
+            $this->commands([SeedDefaultUomsCommand::class, SeedDefaultPaymentMethodsCommand::class]);
         }
 
         $history = $this->app->make(HistoryTypes::class);
@@ -87,6 +103,12 @@ class MasterDataServiceProvider extends ServiceProvider
         $history->register('item', Item::class, ItemResource::FIELD_RULES, fn (User $user, Item $item) => $this->app->make(ItemPolicy::class)->view($user, $item));
         $history->register('item_category', ItemCategory::class, ItemCategoryResource::FIELD_RULES, fn (User $user, ItemCategory $category) => $this->app->make(ItemCategoryPolicy::class)->view($user, $category));
         $history->register('uom', Uom::class, null, fn (User $user, Uom $uom) => $this->app->make(UomPolicy::class)->view($user, $uom));
+        $history->register('payment_method', PaymentMethod::class, PaymentMethodResource::FIELD_RULES, fn (User $user, PaymentMethod $method) => $reach()->reachesRecord($user, $method->company_id, PaymentMethod::PERMISSIONS));
+
+        foreach (Dimensions::TYPES as $type => $model) {
+            $history->register($type, $model, null, fn (User $user, Dimension $dimension) => $reach()->reachesRecord($user, $dimension->company_id, Dimension::PERMISSIONS));
+        }
+
         $history->register('company', Company::class, null);
         $history->register('branch', Branch::class, null);
         $history->register('location', Location::class, null);

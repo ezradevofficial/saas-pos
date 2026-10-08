@@ -32,6 +32,8 @@ class PermissionRegistry
         'item' => ['view', 'create', 'edit', 'archive'],
         'item_category' => ['view', 'create', 'edit', 'archive'],
         'uom' => ['view', 'edit'],
+        'payment_method' => ['view', 'create', 'edit', 'archive'],
+        'dimension' => ['view', 'create', 'edit', 'archive'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

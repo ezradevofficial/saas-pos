@@ -152,6 +152,7 @@ jobs:
           php artisan country-packs:publish KE
           php artisan country-packs:publish CD
           php artisan uoms:seed-defaults
+          php artisan payment-methods:seed-defaults
           php artisan config:cache
           php artisan route:cache
           if php artisan list --raw | grep -q '^horizon:terminate'; then

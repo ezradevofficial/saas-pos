@@ -263,4 +263,58 @@ return [
             'kind' => 'type',
         ],
     ],
+
+    // MD-04 : moyens de paiement.
+    'payment_method' => [
+        'type_invalid' => 'Choisissez espèces, mobile money, carte, crédit, bon, points ou virement bancaire. Le type d’un moyen de paiement existant ne peut pas changer.',
+        'provider_invalid' => 'Choisissez un fournisseur de paiement pris en charge. Le fournisseur d’un moyen de paiement existant ne peut pas changer.',
+        'provider_required' => 'Les moyens de paiement mobile money et carte ont besoin d’un fournisseur. Choisissez-en un.',
+        'provider_not_allowed' => 'Seuls les moyens de paiement mobile money et carte ont un fournisseur. Retirez le fournisseur.',
+        'provider_other_type' => 'Ce fournisseur ne gère pas ce type de paiement. Choisissez un fournisseur du même type.',
+        'cash_currency_required' => 'Les moyens de paiement en espèces ont besoin d’une devise. Choisissez l’une de vos devises actives.',
+        'settings_none' => 'Ce moyen de paiement n’a pas de paramètres. Retirez-les.',
+        'settings_unknown' => 'Utilisez uniquement ces paramètres : :keys.',
+        'secrets_none' => 'Ce moyen de paiement n’a pas d’identifiants. Retirez-les.',
+        'secrets_unknown' => 'Utilisez uniquement ces identifiants : :keys.',
+        'provider_not_configured' => 'Le fournisseur n’est pas encore configuré. Saisissez :keys, puis activez le moyen de paiement.',
+        'order_invalid' => 'L’ordre doit lister une fois chaque moyen de paiement actif de la société. Rechargez la liste et réessayez.',
+        'defaults' => [
+            'cash' => 'Espèces :currency',
+            'mpesa_ke' => 'M-Pesa',
+            'airtel_ke' => 'Airtel Money',
+            'vodacom_mpesa_cd' => 'M-Pesa Vodacom',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Carte',
+        ],
+        'attributes' => [
+            'type' => 'type',
+            'provider' => 'fournisseur',
+            'name_en' => 'nom anglais',
+            'name_fr' => 'nom français',
+            'currency' => 'devise',
+            'settings' => 'paramètres',
+            'secrets' => 'identifiants',
+            'active' => 'activé',
+            'ids' => 'ordre',
+        ],
+    ],
+
+    // MD-05 : départements, centres de coûts et projets.
+    'dimension' => [
+        'code_invalid' => 'Les codes commencent par une lettre ou un chiffre et utilisent des lettres, des chiffres, des points, des tirets et des traits de soulignement, jusqu’à 30 caractères.',
+        'code_taken' => 'Un autre enregistrement actif de la société utilise déjà ce code. Choisissez un autre code.',
+        'parent_other_company' => 'Choisissez un parent actif de la même société.',
+        'parent_cycle' => 'Un enregistrement ne peut pas se trouver sous lui-même ou sous l’un de ses enfants. Choisissez un autre parent.',
+        'parent_archived' => 'Le parent est archivé. Restaurez-le d’abord.',
+        'owner_no_access' => 'Cette personne ne peut pas voir la société. Donnez-lui d’abord accès à la société, ou choisissez quelqu’un d’autre.',
+        'in_use' => 'Cet enregistrement a des enfants actifs. Déplacez-les ou archivez-les d’abord.',
+        'attributes' => [
+            'code' => 'code',
+            'name' => 'nom',
+            'parent_id' => 'parent',
+            'owner_user_id' => 'responsable',
+        ],
+    ],
 ];
