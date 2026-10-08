@@ -87,12 +87,38 @@ class FetchReferenceRatesTest extends TestCase
             'garbage',
             ['quote' => 'UGX', 'mid' => '28.6', 'sell' => 'abc'],
             ['quote' => 'TZS', 'mid' => '19.4'],
+            // Positive, but zero at the stored 8 decimals (CUR-03).
+            ['quote' => 'RWF', 'mid' => '0.000000004'],
+            ['quote' => 'BIF', 'mid' => '24.1', 'buy' => '0.000000001'],
+            // A quote that was not asked for is ignored without a warning.
+            ['quote' => 'JPY', 'mid' => '1.1'],
         ]])]);
 
-        $rates = (new CbkFeed('https://rates.example.test/cbk'))->fetch('KES', ['USD', 'EUR', 'GBP', 'CDF', 'UGX', 'TZS'], CarbonImmutable::parse('2026-10-08'));
+        $rates = (new CbkFeed('https://rates.example.test/cbk'))->fetch('KES', ['USD', 'EUR', 'GBP', 'CDF', 'UGX', 'TZS', 'RWF', 'BIF'], CarbonImmutable::parse('2026-10-08'));
 
         $this->assertSame(['KES/TZS'], array_map(fn ($r) => $r->pair(), $rates));
-        Log::shouldHaveReceived('warning')->times(5);
+        // -1, 0.009 (not a string), bad time, 'garbage' (not an object), abc; 0 and the two that round to zero.
+        Log::shouldHaveReceived('warning')->times(8);
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'not an object'))->once();
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'not above zero at 8 decimals'))->times(3);
+    }
+
+    public function test_a_feed_row_rounding_to_zero_is_skipped_and_the_job_still_stores_the_rest(): void
+    {
+        config(['services.rate_feeds.bcc.url' => 'https://rates.example.test/bcc']);
+        Log::spy();
+        Http::preventStrayRequests();
+        // USD/CDF: a buy that is positive but zero at 8 decimals (the row is skipped), then a good row.
+        Http::fake(['rates.example.test/*' => Http::sequence()
+            ->push(['rates' => [['quote' => 'CDF', 'mid' => '2845.5', 'buy' => '0.000000001', 'effective_at' => '2026-10-08T08:00:00Z']]])
+            ->push(['rates' => [['quote' => 'CDF', 'mid' => '2845.5', 'effective_at' => '2026-10-09T08:00:00Z']]])]);
+
+        $this->dispatchJob();
+        $this->inTenant(fn () => $this->assertSame(0, ExchangeRate::count()));
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'not above zero at 8 decimals'))->once();
+
+        $this->dispatchJob('2026-10-09');
+        $this->inTenant(fn () => $this->assertSame('2845.50000000', ExchangeRate::sole()->mid));
     }
 
     public function test_a_company_without_a_feed_is_left_alone(): void

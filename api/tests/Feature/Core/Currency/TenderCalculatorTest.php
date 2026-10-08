@@ -157,23 +157,34 @@ class TenderCalculatorTest extends TestCase
         // Three CDF lines each worth a fraction of a cent over a whole amount.
         $result = $this->calculate(Money::ofMinor(10000, 'USD'), [[1000, 'CDF'], [1000, 'CDF'], [1000, 'CDF'], [100, 'USD']], 'CDF');
 
-        // 3 x 35.0877 cents = 105.26 -> paid USD 2.05 (floored), lines 35 + 35 + 35 + 100 would be 205.
-        $sum = array_reduce($result->lines, fn (Money $s, array $l) => $s->plus($l['in_due']), Money::ofMinor(0, 'USD'));
-        $this->assertTrue($sum->equals($result->paidInDue));
+        // 3 x 35.0877 cents + 100 = 205.26 -> paid USD 2.05 (floored); the floors already make 205.
+        $this->assertMoney(205, 'USD', $result->paidInDue);
+        $this->assertSame(['35', '35', '35', '100'], $this->inDue($result));
+    }
 
-        $odd = $this->calculate(Money::ofMinor(10000, 'USD'), [[1000, 'CDF'], [1000, 'CDF'], [1000, 'CDF']], 'CDF');
-        $this->assertMoney(105, 'USD', $odd->paidInDue);
-        $this->assertSame(['35', '35', '35'], array_map(fn (array $l) => $l['in_due']->minor(), $odd->lines));
+    public function test_line_amounts_use_the_largest_remainder_so_no_line_absorbs_the_others_rounding(): void
+    {
+        // 57 x CDF 1,000 = USD 20.00 exactly (57 x 35.0877 cents) plus USD 1.00: paid USD 21.00.
+        // Floors give 57 x 35 + 100 = 2,095; the 5 missing cents go to the CDF lines (largest
+        // fractions, earlier first), never to the USD line, whose exact value is 100.
+        $result = $this->calculate(Money::ofMinor(10000, 'USD'), [...array_fill(0, 57, [1000, 'CDF']), [100, 'USD']], 'CDF');
 
-        $more = $this->calculate(Money::ofMinor(10000, 'USD'), array_fill(0, 6, [1000, 'CDF']), 'CDF');
-        // 6 x 35.0877 = 210.53 -> 210; floors give 6 x 35 = 210 too. With 9 lines: 315.79 -> 315 = 9 x 35.
-        $this->assertTrue(array_reduce($more->lines, fn (Money $s, array $l) => $s->plus($l['in_due']), Money::ofMinor(0, 'USD'))->equals($more->paidInDue));
+        $this->assertMoney(2100, 'USD', $result->paidInDue);
+        $inDue = $this->inDue($result);
+        $this->assertSame(2100, array_sum(array_map('intval', $inDue)));
+        $this->assertSame('100', $inDue[57]);
+        $this->assertSame([...array_fill(0, 5, '36'), ...array_fill(0, 52, '35')], array_slice($inDue, 0, 57));
 
-        // Where floors fall short, the last line takes the remainder: 57 x CDF 1,000 = USD 20.00 exactly.
-        $many = $this->calculate(Money::ofMinor(10000, 'USD'), array_fill(0, 57, [1000, 'CDF']), 'CDF');
-        $this->assertMoney(2000, 'USD', $many->paidInDue);
-        $this->assertSame('35', $many->lines[0]['in_due']->minor());
-        $this->assertSame((string) (2000 - 56 * 35), $many->lines[56]['in_due']->minor());
+        // Each line is within one minor unit of its own exact value (CDF 1,000 = 35.0877 cents).
+        foreach (array_slice($inDue, 0, 57) as $cents) {
+            $this->assertContains($cents, ['35', '36']);
+        }
+    }
+
+    /** @return list<string> each line's amount in the due currency, in minor units */
+    private function inDue(TenderResult $result): array
+    {
+        return array_map(fn (array $l) => $l['in_due']->minor(), $result->lines);
     }
 
     public function test_a_tender_without_a_rate_is_refused(): void

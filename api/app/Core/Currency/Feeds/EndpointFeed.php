@@ -19,8 +19,8 @@ use UnexpectedValueException;
  *                 "effective_at": "2026-10-08T09:00:00Z"}]}
  *
  * meaning 1 base = mid quote. Rows for other quotes are ignored; a
- * malformed row (mid not a positive decimal string, bad time) is logged
- * and skipped. Without a URL every fetch throws
+ * malformed row (not an object, mid/buy/sell not a decimal string that is
+ * still positive at 8 decimals, bad time) is logged and skipped (CUR-03). Without a URL every fetch throws
  * FeedNotConfigured (the daily job logs it and moves on).
  */
 abstract class EndpointFeed implements RateFeed
@@ -48,7 +48,13 @@ abstract class EndpointFeed implements RateFeed
         $rates = [];
 
         foreach ($rows as $index => $row) {
-            if (! is_array($row) || ! in_array($row['quote'] ?? null, $quotes, true)) {
+            if (! is_array($row)) {
+                Log::warning("Reference rate row skipped ({$this->name()} feed): the row is not an object", ['row' => $index]);
+
+                continue;
+            }
+
+            if (! in_array($row['quote'] ?? null, $quotes, true)) {
                 continue;
             }
 
@@ -72,11 +78,18 @@ abstract class EndpointFeed implements RateFeed
                 return null;
             }
 
-            if (! is_string($raw) || preg_match('/^\d{1,10}(\.\d+)?\z/', $raw) !== 1 || BigDecimal::of($raw)->isZero()) {
-                throw new UnexpectedValueException("{$field} is not a positive decimal string");
+            if (! is_string($raw) || preg_match('/^\d{1,10}(\.\d+)?\z/', $raw) !== 1) {
+                throw new UnexpectedValueException("{$field} is not a decimal string");
             }
 
-            return Rate::normalise($raw);
+            // Positive after rounding to the stored 8 decimals: 0.000000001 would be stored as 0.
+            $normalised = Rate::normalise($raw);
+
+            if (BigDecimal::of($normalised)->isZero()) {
+                throw new UnexpectedValueException("{$field} is not above zero at 8 decimals");
+            }
+
+            return $normalised;
         };
 
         return new Rate(
