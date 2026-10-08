@@ -1915,6 +1915,7 @@
       "versions": "Versions",
       "copy": "Copier vers une autre société",
       "restoreDefault": "Rétablir le modèle par défaut",
+      "discardDraft": "Abandonner le brouillon",
       "publish": "Publier la v{{version}}"
     },
     "save": {
@@ -2258,7 +2259,8 @@
       "status": {
         "draft": "Brouillon",
         "published": "En service",
-        "archived": "Antérieure"
+        "archived": "Antérieure",
+        "discarded": "Abandonné"
       },
       "source": {
         "default": "Depuis le modèle par défaut",
@@ -2289,6 +2291,13 @@
       "body": "Le brouillon est remplacé par le modèle par défaut du type de document. La version en service continue jusqu’à votre publication.",
       "confirm": "Rétablir le modèle par défaut",
       "keep": "Garder mon brouillon"
+    },
+    "discard": {
+      "title": "Abandonner le brouillon v{{version}} ?",
+      "body": "Vos modifications non publiées sont abandonnées et le canevas revient à la v{{version}}, la version en service. Le brouillon reste dans la liste des versions.",
+      "confirm": "Abandonner le brouillon",
+      "keep": "Garder mon brouillon",
+      "done": "Brouillon abandonné. La v{{version}} est affichée."
     },
     "test": {
       "title": "Tester avec un exemple",

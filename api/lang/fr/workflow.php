@@ -32,6 +32,7 @@ return [
         'no_draft' => 'Il n’y a pas de brouillon à utiliser. Modifiez le circuit pour en commencer un.',
         'version_not_found' => 'Cette version n’existe pas pour ce circuit. Choisissez-en une dans la liste des versions.',
         'version_is_live' => 'Cette version est déjà en vigueur. Choisissez une version antérieure pour revenir en arrière.',
+        'nothing_to_keep' => 'Ce circuit n’a encore aucune version en vigueur, son brouillon ne peut donc pas être abandonné. Modifiez le brouillon ou rétablissez le modèle par défaut.',
         'nothing_published' => 'Ce circuit n’a pas de version en vigueur à copier. Publiez-le d’abord, ou copiez son brouillon.',
         'same_company' => 'Le circuit appartient déjà à cette société. Choisissez une autre société.',
         'unknown_document_type' => 'Ce type de document n’est pas disponible. Vérifiez que son module est activé.',

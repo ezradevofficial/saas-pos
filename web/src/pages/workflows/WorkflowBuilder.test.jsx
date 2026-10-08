@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
 import { renderApp, resetSession, signedIn } from '@/test/renderApp'
-import { GRAPH, mockWorkflows, WORKFLOW } from '@/test/workflows'
+import { GRAPH, mockWorkflows, VERSIONS, WORKFLOW } from '@/test/workflows'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -167,6 +167,49 @@ describe('Workflow builder (spec 6.4, WF-03..WF-09, APR-09)', () => {
     expect(api.post).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish v4' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('workflows/w-1/publish'))
+  })
+
+  it('discards the draft after confirming and shows the live version again (WF-02)', async () => {
+    // The live v3 is a shorter flow than draft v4, so the canvas visibly changes.
+    const liveGraph = { nodes: GRAPH.nodes.filter((step) => ['start', 'budget', 'done'].includes(step.id)), edges: [{ from: 'start', to: 'budget' }, { from: 'budget', to: 'done' }] }
+    const live = { ...WORKFLOW.published, graph: liveGraph }
+    let current = { ...WORKFLOW, published: live }
+    const versions = () => ({
+      data: current.draft
+        ? VERSIONS
+        : [{ ...VERSIONS[0], status: 'archived', discarded_at: '2026-10-08T09:00:00Z' }, ...VERSIONS.slice(1)],
+    })
+    mockWorkflows(api, { extra: [['workflows/w-1', () => ({ data: current })], ['workflows/w-1/versions', versions]] })
+    api.post.mockImplementation(async (path) => {
+      if (path !== 'workflows/w-1/discard-draft') return {}
+      current = { ...current, draft: null }
+      return { data: current }
+    })
+    const { container } = renderApp('/settings/workflows/w-1')
+    await waitFor(() => expect(node(container, 'manager')).not.toBeNull())
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Discard draft' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Discard draft v4?' })
+    expect(within(dialog).getByText(/goes back to v3, the live version/)).toBeInTheDocument()
+    expect(api.post).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard draft' }))
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('workflows/w-1/discard-draft'))
+    expect(await screen.findByText('Live v3')).toBeInTheDocument()
+    expect(screen.queryByText('Draft v4')).not.toBeInTheDocument()
+    await waitFor(() => expect(node(container, 'manager')).toBeNull())
+    expect(node(container, 'budget')).not.toBeNull()
+    expect(api.put).not.toHaveBeenCalled()
+
+    // Kept in the version list, never offered for roll back.
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More' }), { button: 0, ctrlKey: false })
+    expect(screen.queryByRole('menuitem', { name: 'Discard draft' })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Versions' }))
+    const list = await screen.findByRole('dialog', { name: 'Versions' })
+    expect(await within(list).findByText('Discarded')).toBeInTheDocument()
+    expect(within(list).queryByRole('button', { name: 'Roll back to v4' })).not.toBeInTheDocument()
+    expect(within(list).getByRole('button', { name: 'Roll back to v2' })).toBeInTheDocument()
   })
 
   it('tests with a sample and highlights the path taken', async () => {

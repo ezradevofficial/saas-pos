@@ -335,6 +335,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('workflows/{workflow}', [WorkflowDefinitionController::class, 'show']);
     Route::get('workflows/{workflow}/versions', [WorkflowDefinitionController::class, 'versions']);
     Route::put('workflows/{workflow}/draft', [WorkflowDefinitionController::class, 'updateDraft']);
+    Route::post('workflows/{workflow}/discard-draft', [WorkflowDefinitionController::class, 'discardDraft']);
     Route::post('workflows/{workflow}/validate', [WorkflowDefinitionController::class, 'validateDraft']);
     Route::post('workflows/{workflow}/publish', [WorkflowDefinitionController::class, 'publish']);
     Route::post('workflows/{workflow}/rollback', [WorkflowDefinitionController::class, 'rollback']);

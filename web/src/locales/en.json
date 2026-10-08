@@ -1915,6 +1915,7 @@
       "versions": "Versions",
       "copy": "Copy to another company",
       "restoreDefault": "Restore the default",
+      "discardDraft": "Discard draft",
       "publish": "Publish v{{version}}"
     },
     "save": {
@@ -2258,7 +2259,8 @@
       "status": {
         "draft": "Draft",
         "published": "Live",
-        "archived": "Earlier"
+        "archived": "Earlier",
+        "discarded": "Discarded"
       },
       "source": {
         "default": "From the default",
@@ -2289,6 +2291,13 @@
       "body": "The draft is replaced by the document type’s default. The live version keeps running until you publish.",
       "confirm": "Restore the default",
       "keep": "Keep my draft"
+    },
+    "discard": {
+      "title": "Discard draft v{{version}}?",
+      "body": "Your unpublished changes are dropped and the canvas goes back to v{{version}}, the live version. The draft stays in the version list.",
+      "confirm": "Discard draft",
+      "keep": "Keep my draft",
+      "done": "Draft discarded. Showing v{{version}}."
     },
     "test": {
       "title": "Test with a sample",

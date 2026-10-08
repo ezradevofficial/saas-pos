@@ -9,6 +9,7 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Definitions\FlowDefinitions;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Http\Requests\CopyWorkflowRequest;
+use App\Core\Workflow\Http\Requests\DiscardDraftRequest;
 use App\Core\Workflow\Http\Requests\ListWorkflowsRequest;
 use App\Core\Workflow\Http\Requests\PublishWorkflowRequest;
 use App\Core\Workflow\Http\Requests\RestoreDefaultRequest;
@@ -31,7 +32,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /**
  * WF-02, WF-03, APR-09, spec 6.4: flows per document type and company,
  * their versions, validation, publishing, roll back, copying between
- * companies, restoring the default and testing with a sample. Every
+ * companies, restoring the default, discarding the draft and testing
+ * with a sample. Every
  * change is audited by FlowDefinitions (`core.workflow.*`).
  */
 class WorkflowDefinitionController
@@ -129,6 +131,14 @@ class WorkflowDefinitionController
         $target = $this->definitions->copyTo($workflow, $request->target(), $request->validated('from', 'published'), $request->user());
 
         return $this->present($target)->response()->setStatusCode(201);
+    }
+
+    /** WF-02: drop the draft; the builder shows the live version again. */
+    public function discardDraft(DiscardDraftRequest $request, WorkflowDefinition $workflow): WorkflowDefinitionResource
+    {
+        $this->definitions->discardDraft($workflow, $request->user());
+
+        return $this->present($workflow);
     }
 
     public function restoreDefault(RestoreDefaultRequest $request, WorkflowDefinition $workflow): WorkflowDefinitionResource

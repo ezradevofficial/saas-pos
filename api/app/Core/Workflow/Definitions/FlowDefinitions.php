@@ -27,7 +27,9 @@ use Illuminate\Support\Facades\DB;
  *   documents in progress keep their version;
  * - rollback: publish a copy of an older version;
  * - copyTo: put this flow's graph into another company's flow as its draft;
- * - restoreDefault: the type's default as the draft again.
+ * - restoreDefault: the type's default as the draft again;
+ * - discardDraft: archive the draft (never deleted) so the live version
+ *   is what the builder shows again.
  *
  * Version changes lock the flow row, so two publishes never race. Every
  * change is audited as `core.workflow.*` (AUD-01).
@@ -150,7 +152,8 @@ class FlowDefinitions
     {
         return $this->transaction(function () use ($definition, $version, $by) {
             $this->lock($definition);
-            $source = $definition->versions()->where('version', $version)->where('status', '<>', WorkflowVersion::DRAFT)->first()
+            // A discarded draft was never live: it is not a version to roll back to.
+            $source = $definition->versions()->where('version', $version)->where('status', '<>', WorkflowVersion::DRAFT)->whereNotNull('published_at')->first()
                 ?? throw new ApiException(422, 'version_not_found', __('workflow.errors.version_not_found'));
 
             if ($source->status === WorkflowVersion::PUBLISHED) {
@@ -220,6 +223,37 @@ class FlowDefinitions
 
             return $definition;
         }));
+    }
+
+    /**
+     * WF-02: drop the draft and go back to the live version. Versions are
+     * never deleted (APR-09): the draft is archived as discarded, so it is
+     * kept for the record but never offered for roll back. Refused when
+     * there is no draft, or nothing is live to go back to.
+     */
+    public function discardDraft(WorkflowDefinition $definition, ?User $by): WorkflowVersion
+    {
+        return $this->transaction(function () use ($definition, $by) {
+            $this->lock($definition);
+            $draft = $definition->draft()->first() ?? throw new ApiException(422, 'no_draft', __('workflow.errors.no_draft'));
+            $published = $definition->published()->first()
+                ?? throw new ApiException(422, 'nothing_to_keep', __('workflow.errors.nothing_to_keep'));
+
+            $now = CarbonImmutable::now();
+            $draft->forceFill([
+                'status' => WorkflowVersion::ARCHIVED,
+                'archived_at' => $now,
+                'discarded_at' => $now,
+                'discarded_by' => $by?->id,
+            ])->save();
+
+            $this->auditor->record('core.workflow.draft_discard', $definition,
+                ['draft_version' => $draft->version, 'graph' => $draft->graph],
+                ['published_version' => $published->version],
+            );
+
+            return $draft;
+        });
     }
 
     /** WF-02: the type's default for the company's country becomes the draft again. */

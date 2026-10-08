@@ -38,6 +38,8 @@ class WorkflowVersionResource extends JsonResource
             'published_by' => $this->published_by,
             'published_at' => $this->published_at?->toIso8601ZuluString(),
             'archived_at' => $this->archived_at?->toIso8601ZuluString(),
+            // WF-02: a discarded draft is archived but was never live (no roll back).
+            'discarded_at' => $this->discarded_at?->toIso8601ZuluString(),
             'created_at' => $this->created_at?->toIso8601ZuluString(),
             'updated_at' => $this->updated_at?->toIso8601ZuluString(),
             'in_progress' => $this->when(isset($this->in_progress_count), fn () => (int) $this->in_progress_count),
