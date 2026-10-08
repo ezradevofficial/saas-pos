@@ -26,16 +26,28 @@ class PaymentProviders
         return $this->all()[$provider]['type'] ?? null;
     }
 
-    /** @return list<string> */
+    /** @return list<string> every setting key the provider takes, required first */
     public function settingKeys(?string $provider): array
     {
-        return $provider === null ? [] : ($this->all()[$provider]['settings'] ?? []);
+        return $provider === null ? [] : [...($this->all()[$provider]['settings'] ?? []), ...($this->all()[$provider]['optional_settings'] ?? [])];
     }
 
-    /** @return list<string> */
+    /** @return list<string> every secret key the provider takes, required first */
     public function secretKeys(?string $provider): array
     {
-        return $provider === null ? [] : ($this->all()[$provider]['secrets'] ?? []);
+        return $provider === null ? [] : [...($this->all()[$provider]['secrets'] ?? []), ...($this->all()[$provider]['optional_secrets'] ?? [])];
+    }
+
+    /** @return array<string, list<string>> setting key => the only values it takes */
+    public function settingValues(?string $provider): array
+    {
+        return $provider === null ? [] : ($this->all()[$provider]['setting_values'] ?? []);
+    }
+
+    /** The payment adapter for $provider (App\Core\Payments): `manual` when none is named. */
+    public function driverOf(?string $provider): string
+    {
+        return $provider === null ? 'cash' : ($this->all()[$provider]['driver'] ?? 'manual');
     }
 
     /**
@@ -59,13 +71,15 @@ class PaymentProviders
         $secrets = $method->secrets ?? [];
         $missing = [];
 
-        foreach ($this->settingKeys($method->provider) as $key) {
+        $provider = $method->provider === null ? [] : ($this->all()[$method->provider] ?? []);
+
+        foreach ($provider['settings'] ?? [] as $key) {
             if (blank($settings[$key] ?? null)) {
                 $missing[] = $key;
             }
         }
 
-        foreach ($this->secretKeys($method->provider) as $key) {
+        foreach ($provider['secrets'] ?? [] as $key) {
             if (blank($secrets[$key] ?? null)) {
                 $missing[] = $key;
             }
@@ -74,7 +88,7 @@ class PaymentProviders
         return $missing;
     }
 
-    /** @return array<string, array{type: string, countries: list<string>, settings: list<string>, secrets: list<string>}> */
+    /** @return array<string, array{type: string, countries: list<string>, driver?: string, settings: list<string>, secrets: list<string>, optional_settings?: list<string>, optional_secrets?: list<string>, setting_values?: array<string, list<string>>}> */
     private function all(): array
     {
         return config('payment_providers', []);

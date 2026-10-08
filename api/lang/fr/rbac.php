@@ -41,6 +41,8 @@ return [
                 'notification_delivery' => 'Envois de notifications',
                 'approval' => 'Approbations',
                 'credit_limit' => 'Plafonds de crédit',
+                'payment' => 'Paiements',
+                'fiscal' => 'Transmission fiscale',
             ],
         ],
         'actions' => [
@@ -61,6 +63,7 @@ return [
             'request' => 'Demander',
             'approve' => 'Approuver',
             'set_directly' => 'Fixer directement',
+            'match' => 'Rapprocher',
         ],
     ],
 

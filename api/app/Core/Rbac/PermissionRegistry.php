@@ -51,6 +51,12 @@ class PermissionRegistry
         'notification_delivery' => ['view'],
         // AUTO-01..AUTO-07: automation rules and their run log.
         'automation' => ['view', 'edit'],
+        // Concept note 7.1: payment intents and money received (view), matching
+        // received money to payments by hand (match).
+        'payment' => ['view', 'match'],
+        // Concept note 7.2: fiscal settings and the queue to the tax authority
+        // (view), settings, credentials, initialisation and retries (edit).
+        'fiscal' => ['view', 'edit'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

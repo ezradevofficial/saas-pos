@@ -41,6 +41,8 @@ return [
                 'notification_delivery' => 'Notification deliveries',
                 'approval' => 'Approvals',
                 'credit_limit' => 'Credit limits',
+                'payment' => 'Payments',
+                'fiscal' => 'Fiscal transmission',
             ],
         ],
         'actions' => [
@@ -61,6 +63,7 @@ return [
             'request' => 'Request',
             'approve' => 'Approve',
             'set_directly' => 'Set directly',
+            'match' => 'Match',
         ],
     ],
 

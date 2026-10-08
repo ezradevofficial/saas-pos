@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * The tenants a scheduled command has work for, found before any tenant is
  * set (ADR 002). Each question is an owner-owned security-definer function
- * (migration 2026_10_18_000100) called on the runtime connection: it
+ * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100
+ * and 2026_10_20_000200) called on the runtime connection: it
  * returns only tenant ids, so the scheduler and the workers never need the
  * owner's credentials. The work itself then runs in each tenant's context,
  * under row-level security.
@@ -43,6 +44,18 @@ class DueTenants
     public function withUnsettledCreditChanges(CarbonInterface $before): array
     {
         return $this->ids('app_tenants_with_unsettled_credit_changes(?::timestamptz)', [$before->toIso8601String()]);
+    }
+
+    /** @return list<string> Payments: STK pushes or payouts past their timeout, manual codes due for a check, at $at. */
+    public function withDuePaymentIntents(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_due_payment_intents(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> Fiscal: submissions due at $at, or left `sending` since before $staleBefore. */
+    public function withDueFiscalSubmissions(CarbonInterface $at, CarbonInterface $staleBefore): array
+    {
+        return $this->ids('app_tenants_with_due_fiscal_submissions(?::timestamptz, ?::timestamptz)', [$at->toIso8601String(), $staleBefore->toIso8601String()]);
     }
 
     /** @return list<string> NOT-05: emails held for a digest. */
