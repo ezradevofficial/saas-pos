@@ -29,8 +29,7 @@ final class PaymentMethodRules
             'provider' => $updating
                 ? ['sometimes', 'nullable', 'string', Rule::in(array_filter([$method->provider]))]
                 : ['sometimes', 'nullable', 'string', Rule::in(app(PaymentProviders::class)->names())],
-            'name_en' => [...$required, 'string', 'max:100'],
-            'name_fr' => [...$required, 'string', 'max:100'],
+            'name' => [...$required, 'string', 'max:100'],
             'currency' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Z]{3}\z/', Rule::exists('tenant_currencies', 'code')->where('active', true)],
             'settings' => ['sometimes', 'array'],
             'settings.*' => ['nullable', 'string', 'max:255'],
@@ -100,7 +99,7 @@ final class PaymentMethodRules
     /** @return array<string, string> */
     public static function attributes(): array
     {
-        return collect(['type', 'provider', 'name_en', 'name_fr', 'currency', 'settings', 'secrets', 'active'])
+        return collect(['type', 'provider', 'name', 'currency', 'settings', 'secrets', 'active'])
             ->mapWithKeys(fn (string $key) => [$key => __("core.payment_method.attributes.{$key}")])
             ->all();
     }

@@ -4,6 +4,7 @@ namespace App\Core\MasterData\PaymentMethods;
 
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\TenantCurrencies;
+use App\Core\Localisation\TenantLocale;
 use App\Core\Tenancy\Models\Company;
 
 /**
@@ -11,8 +12,9 @@ use App\Core\Tenancy\Models\Company;
  * of its country's default set that is active in the tenant (KE: KES, USD;
  * CD: USD, CDF), switched on when seeded at company creation and off
  * when added later (a back-fill must not open new tills); the country's mobile money wallets and a
- * card method, switched off until their provider is configured. Names in
- * English and French from `core.payment_method.defaults.*`.
+ * card method, switched off until their provider is configured. Named
+ * once in the tenant's language (TenantLocale) from
+ * `core.payment_method.defaults.*`; the business can rename them after.
  *
  * Idempotent: a cash currency or provider the company has ever had,
  * archived included, is never added again. Call inside the tenant's
@@ -21,7 +23,10 @@ use App\Core\Tenancy\Models\Company;
  */
 class DefaultPaymentMethods
 {
-    public function __construct(private readonly PaymentProviders $providers) {}
+    public function __construct(
+        private readonly PaymentProviders $providers,
+        private readonly TenantLocale $locale,
+    ) {}
 
     /**
      * Seed $company's missing defaults; returns how many were created.
@@ -36,6 +41,7 @@ class DefaultPaymentMethods
         $providers = $existing->pluck('provider')->filter()->all();
         $active = TenantCurrency::query()->where('active', true)->pluck('code')->all();
         $position = (int) PaymentMethod::query()->where('company_id', $company->id)->max('position');
+        $locale = $this->locale->current();
         $created = 0;
 
         foreach (array_keys(TenantCurrencies::COUNTRY_DEFAULTS[$company->country] ?? []) as $currency) {
@@ -47,8 +53,7 @@ class DefaultPaymentMethods
                 'company_id' => $company->id,
                 'type' => 'cash',
                 'currency' => $currency,
-                'name_en' => __('core.payment_method.defaults.cash', ['currency' => $currency], 'en'),
-                'name_fr' => __('core.payment_method.defaults.cash', ['currency' => $currency], 'fr'),
+                'name' => __('core.payment_method.defaults.cash', ['currency' => $currency], $locale),
                 'active' => $activateCash,
                 'position' => ++$position,
             ]);
@@ -64,8 +69,7 @@ class DefaultPaymentMethods
                 'company_id' => $company->id,
                 'type' => $this->providers->typeOf($provider),
                 'provider' => $provider,
-                'name_en' => __("core.payment_method.defaults.{$provider}", [], 'en'),
-                'name_fr' => __("core.payment_method.defaults.{$provider}", [], 'fr'),
+                'name' => __("core.payment_method.defaults.{$provider}", [], $locale),
                 'active' => false,
                 'position' => ++$position,
             ]);

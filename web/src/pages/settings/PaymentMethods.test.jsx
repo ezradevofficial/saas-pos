@@ -22,14 +22,13 @@ const method = (overrides) => ({
   archived_at: null,
   ...overrides,
 })
-const USD = method({ id: 'pm-1', type: 'cash', name_en: 'Cash USD', name_fr: 'Espèces USD', currency: 'USD', position: 1 })
-const CDF = method({ id: 'pm-2', type: 'cash', name_en: 'Cash CDF', name_fr: 'Espèces CDF', currency: 'CDF', position: 2 })
+const USD = method({ id: 'pm-1', type: 'cash', name: 'Cash USD', currency: 'USD', position: 1 })
+const CDF = method({ id: 'pm-2', type: 'cash', name: 'Cash CDF', currency: 'CDF', position: 2 })
 const MPESA = method({
   id: 'pm-3',
   type: 'mobile_money',
   provider: 'vodacom_mpesa_cd',
-  name_en: 'M-Pesa',
-  name_fr: 'M-Pesa',
+  name: 'M-Pesa',
   active: false,
   configured: false,
   missing: ['merchant_id', 'api_key'],

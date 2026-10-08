@@ -28,10 +28,9 @@ describe('Units', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add unit' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add a unit' })
     fireEvent.change(within(dialog).getByLabelText(/^Code/), { target: { value: 'crate24' } })
-    fireEvent.change(within(dialog).getByLabelText(/^Name in English/), { target: { value: 'Crate of 24' } })
-    fireEvent.change(within(dialog).getByLabelText(/^Name in French/), { target: { value: 'Casier de 24' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Crate of 24' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add unit' }))
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('uoms', { code: 'CRATE24', name_en: 'Crate of 24', name_fr: 'Casier de 24', kind: 'count' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('uoms', { code: 'CRATE24', name: 'Crate of 24', kind: 'count' }))
   })
 
   it('lets a user who holds core.uom.edit only at a company read units but not change them', async () => {

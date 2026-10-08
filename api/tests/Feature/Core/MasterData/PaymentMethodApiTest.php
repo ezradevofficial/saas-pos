@@ -83,7 +83,8 @@ class PaymentMethodApiTest extends TestCase
         ], $summary($cd));
 
         $cdf = collect($this->methods($cd))->firstWhere('currency', 'CDF');
-        $this->assertSame(['Cash CDF', 'Espèces CDF'], [$cdf['name_en'], $cdf['name_fr']]);
+        // Named once in the tenant's language (en here).
+        $this->assertSame('Cash CDF', $cdf['name']);
         $vodacom = collect($this->methods($cd))->firstWhere('provider', 'vodacom_mpesa_cd');
         $this->assertSame('M-Pesa Vodacom', $vodacom['name']);
         $this->assertFalse($vodacom['configured']);
@@ -104,7 +105,7 @@ class PaymentMethodApiTest extends TestCase
     public function test_cash_needs_a_currency_active_in_the_tenant(): void
     {
         $url = "/api/v1/companies/{$this->acme->id}/payment-methods";
-        $names = ['name_en' => 'Till float', 'name_fr' => 'Fonds de caisse'];
+        $names = ['name' => 'Till float'];
 
         $this->postJson($url, ['type' => 'cash', ...$names], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('currency');
         $this->postJson($url, ['type' => 'cash', 'currency' => 'EUR', ...$names], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('currency');
@@ -125,7 +126,7 @@ class PaymentMethodApiTest extends TestCase
     public function test_type_provider_and_config_keys_are_checked(): void
     {
         $url = "/api/v1/companies/{$this->acme->id}/payment-methods";
-        $names = ['name_en' => 'X', 'name_fr' => 'X'];
+        $names = ['name' => 'X'];
 
         $this->postJson($url, ['type' => 'mobile_money', ...$names], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('provider');
         $this->postJson($url, ['type' => 'cash', 'currency' => 'KES', 'provider' => 'mpesa_ke', ...$names], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('provider');
@@ -140,7 +141,7 @@ class PaymentMethodApiTest extends TestCase
         $this->patchJson("/api/v1/payment-methods/{$mpesa}", ['type' => 'card'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('type');
         $this->patchJson("/api/v1/payment-methods/{$mpesa}", ['provider' => 'airtel_ke'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('provider');
         // Repeating them unchanged is fine.
-        $this->patchJson("/api/v1/payment-methods/{$mpesa}", ['type' => 'mobile_money', 'provider' => 'mpesa_ke', 'name_en' => 'Lipa na M-Pesa'], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/payment-methods/{$mpesa}", ['type' => 'mobile_money', 'provider' => 'mpesa_ke', 'name' => 'Lipa na M-Pesa'], $this->headersFor())->assertOk();
     }
 
     public function test_a_provider_method_is_switched_on_only_once_configured(): void
@@ -166,7 +167,7 @@ class PaymentMethodApiTest extends TestCase
 
         // A card method cannot be created switched on without its provider settings.
         $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", [
-            'type' => 'card', 'provider' => 'card_aggregator', 'name_en' => 'Visa', 'name_fr' => 'Visa', 'active' => true,
+            'type' => 'card', 'provider' => 'card_aggregator', 'name' => 'Visa', 'active' => true,
         ], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'provider_not_configured');
     }
 
@@ -181,7 +182,7 @@ class PaymentMethodApiTest extends TestCase
         $responses = [];
         $responses[] = $this->patchJson("/api/v1/payment-methods/{$mpesa}", [...$this->mpesaConfig(), 'active' => true], $this->headersFor())->assertOk();
         $responses[] = $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", [
-            'type' => 'card', 'provider' => 'card_aggregator', 'name_en' => 'Visa', 'name_fr' => 'Visa',
+            'type' => 'card', 'provider' => 'card_aggregator', 'name' => 'Visa',
             'settings' => ['merchant_id' => 'M-1'], 'secrets' => ['api_key' => 'ak-'.self::SECRET], 'active' => true,
         ], $this->headersFor())->assertCreated();
         // A refused change echoes nothing back either.
@@ -261,14 +262,14 @@ class PaymentMethodApiTest extends TestCase
             return $user;
         });
         $id = $this->idOf('cash:KES');
-        $create = fn (array $headers) => $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", ['type' => 'credit', 'name_en' => 'Account', 'name_fr' => 'Compte'], $headers);
+        $create = fn (array $headers) => $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", ['type' => 'credit', 'name' => 'Account'], $headers);
 
         // Tills read the methods of their company (from a location beneath it), nothing more.
         $cashier = $this->headersFor($this->userWith('cashier', Scope::location($this->locationA->id)));
         $this->getJson("/api/v1/companies/{$this->acme->id}/payment-methods", $cashier)->assertOk()->assertJsonCount(5, 'data');
         $this->getJson("/api/v1/payment-methods/{$id}", $cashier)->assertOk();
         $create($cashier)->assertForbidden();
-        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Mine'], $cashier)->assertForbidden();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name' => 'Mine'], $cashier)->assertForbidden();
 
         $manager = $this->headersFor($this->userWith('branch_manager', Scope::branch($this->branchA->id)));
         $this->getJson("/api/v1/payment-methods/{$id}", $manager)->assertOk();
@@ -278,19 +279,19 @@ class PaymentMethodApiTest extends TestCase
         $accountant = $this->headersFor($this->userWith('accountant', Scope::company($this->acme->id)));
         $this->getJson("/api/v1/payment-methods/{$id}", $accountant)->assertOk();
         $create($accountant)->assertForbidden();
-        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Cash shillings'], $accountant)->assertForbidden();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name' => 'Cash shillings'], $accountant)->assertForbidden();
         $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $accountant)->assertForbidden();
 
         $admin = $this->headersFor($this->userWith('admin', Scope::company($this->acme->id)));
         $create($admin)->assertCreated();
-        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Cash shillings'], $admin)->assertOk();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name' => 'Cash shillings'], $admin)->assertOk();
         $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $admin)->assertOk();
 
         // Each action needs its own permission.
         $creator = $this->headersFor($creator);
         $create($creator)->assertCreated();
         $this->getJson("/api/v1/payment-methods/{$id}", $creator)->assertOk();
-        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Mine'], $creator)->assertForbidden();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name' => 'Mine'], $creator)->assertForbidden();
         $this->postJson("/api/v1/payment-methods/{$id}/restore", [], $creator)->assertForbidden();
         $this->putJson("/api/v1/companies/{$this->acme->id}/payment-methods/order", ['ids' => []], $creator)->assertForbidden();
 
@@ -324,12 +325,12 @@ class PaymentMethodApiTest extends TestCase
         $this->patchJson($url, ['active' => true], $accountant)->assertForbidden();
 
         // `edit` alone renames, but neither configures nor switches M-Pesa on.
-        $this->patchJson($url, ['name_en' => 'Lipa na M-Pesa'], $editor)->assertOk();
+        $this->patchJson($url, ['name' => 'Lipa na M-Pesa'], $editor)->assertOk();
         $this->patchJson($url, ['secrets' => ['passkey' => 'pk-'.self::SECRET]], $editor)->assertForbidden();
         $this->patchJson($url, ['settings' => ['shortcode' => '600000']], $editor)->assertForbidden();
         $this->patchJson($url, ['active' => true], $editor)->assertForbidden();
         $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", [
-            'type' => 'card', 'provider' => 'card_aggregator', 'name_en' => 'Visa', 'name_fr' => 'Visa',
+            'type' => 'card', 'provider' => 'card_aggregator', 'name' => 'Visa',
         ], $editor)->assertForbidden();
         // Cash and other methods without a provider stay with `edit`.
         $this->patchJson("/api/v1/payment-methods/{$this->idOf('cash:KES')}", ['active' => false], $editor)->assertOk();
@@ -361,7 +362,7 @@ class PaymentMethodApiTest extends TestCase
             return $user;
         });
         $mpesa = $this->idOf('mpesa_ke');
-        $this->patchJson("/api/v1/payment-methods/{$mpesa}", [...$this->mpesaConfig(), 'name_en' => 'Lipa na M-Pesa'], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/payment-methods/{$mpesa}", [...$this->mpesaConfig(), 'name' => 'Lipa na M-Pesa'], $this->headersFor())->assertOk();
 
         $owner = $this->getJson("/api/v1/history/payment_method/{$mpesa}", $this->headersFor())->assertOk();
         $this->assertContains('core.payment_method.secrets_change', array_column($owner->json('data'), 'action'));

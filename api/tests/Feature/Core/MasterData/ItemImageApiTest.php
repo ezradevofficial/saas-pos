@@ -36,7 +36,7 @@ class ItemImageApiTest extends TestCase
 
             return Uom::query()->where('code', 'EA')->value('id');
         });
-        $this->item = $this->postJson('/api/v1/items', ['code' => 'IMG-1', 'name_en' => 'Lamp', 'type' => 'stock', 'base_uom_id' => $ea], $this->headersFor())
+        $this->item = $this->postJson('/api/v1/items', ['code' => 'IMG-1', 'name' => 'Lamp', 'type' => 'stock', 'base_uom_id' => $ea], $this->headersFor())
             ->assertCreated()->json('data.id');
     }
 

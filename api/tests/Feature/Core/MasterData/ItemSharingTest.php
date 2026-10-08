@@ -51,12 +51,12 @@ class ItemSharingTest extends TestCase
 
     private function create(array $body, ?array $headers = null)
     {
-        return $this->postJson('/api/v1/items', ['name_en' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->ea, ...$body], $headers ?? $this->headersFor());
+        return $this->postJson('/api/v1/items', ['name' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->ea, ...$body], $headers ?? $this->headersFor());
     }
 
     public function test_splitting_assigns_items_categories_and_barcodes_to_the_chosen_company(): void
     {
-        $category = $this->postJson('/api/v1/item-categories', ['name_en' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
+        $category = $this->postJson('/api/v1/item-categories', ['name' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
         $item = $this->create(['code' => 'S1', 'category_id' => $category, 'barcodes' => [['barcode' => '111']]])->assertCreated()->json('data.id');
         $archived = $this->create(['code' => 'S2'])->assertCreated()->json('data.id');
         $this->postJson("/api/v1/items/{$archived}/archive", [], $this->headersFor())->assertOk();
@@ -74,7 +74,7 @@ class ItemSharingTest extends TestCase
 
         // New items and categories now need a company.
         $this->create(['code' => 'S3'])->assertUnprocessable()->assertJsonValidationErrors('company_id');
-        $this->postJson('/api/v1/item-categories', ['name_en' => 'Food'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        $this->postJson('/api/v1/item-categories', ['name' => 'Food'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('company_id');
         $this->create(['code' => 'S3', 'company_id' => $this->globex->id, 'category_id' => $category])
             ->assertUnprocessable()->assertJsonValidationErrors('category_id');
         $this->create(['code' => 'S3', 'company_id' => $this->acme->id, 'category_id' => $category])->assertCreated();
@@ -84,12 +84,12 @@ class ItemSharingTest extends TestCase
     {
         $this->settings(['mode' => 'per_company'])->assertOk();
 
-        $acmeItem = $this->create(['code' => 'abc', 'company_id' => $this->acme->id, 'name_en' => 'Acme pen', 'barcodes' => [['barcode' => '777']]])->assertCreated()->json('data.id');
+        $acmeItem = $this->create(['code' => 'abc', 'company_id' => $this->acme->id, 'name' => 'Acme pen', 'barcodes' => [['barcode' => '777']]])->assertCreated()->json('data.id');
         $this->create(['code' => 'ABC', 'company_id' => $this->acme->id])->assertUnprocessable()->assertJsonValidationErrors('code');
         $this->create(['code' => 'X', 'company_id' => $this->acme->id, 'barcodes' => [['barcode' => '7-7-7']]])->assertUnprocessable()->assertJsonValidationErrors('barcodes.0.barcode');
 
         // Another company may use the same code and barcode; the owner is warned of the barcode match.
-        $globexItem = $this->create(['code' => 'ABC', 'company_id' => $this->globex->id, 'name_en' => 'Globex marker', 'barcodes' => [['barcode' => '777']]])
+        $globexItem = $this->create(['code' => 'ABC', 'company_id' => $this->globex->id, 'name' => 'Globex marker', 'barcodes' => [['barcode' => '777']]])
             ->assertCreated()
             ->assertJsonPath('meta.possible_duplicates', [['id' => $acmeItem, 'code' => 'abc', 'name' => 'Acme pen', 'reason' => 'barcode']])
             ->json('data.id');
@@ -103,14 +103,14 @@ class ItemSharingTest extends TestCase
 
         $globexKeeper = $this->headersFor($this->userWith('storekeeper', Scope::location($this->globexLocation->id)));
         $this->create(['code' => 'Z', 'company_id' => $this->acme->id], $globexKeeper)->assertNotFound();
-        $this->create(['code' => 'Z', 'company_id' => $this->globex->id, 'name_en' => 'Acme pen'], $globexKeeper)->assertCreated()
+        $this->create(['code' => 'Z', 'company_id' => $this->globex->id, 'name' => 'Acme pen'], $globexKeeper)->assertCreated()
             ->assertJsonPath('meta.possible_duplicates', []);
 
         // A branch manager reads and adds the company's items but changes them only with a covering scope.
         $manager = $this->headersFor($this->userWith('branch_manager', Scope::branch($this->branchA->id)));
         $this->getJson("/api/v1/items/{$acmeItem}", $manager)->assertOk();
         $this->create(['code' => 'M1', 'company_id' => $this->acme->id], $manager)->assertCreated();
-        $this->patchJson("/api/v1/items/{$acmeItem}", ['name_en' => 'X'], $manager)->assertForbidden();
+        $this->patchJson("/api/v1/items/{$acmeItem}", ['name' => 'X'], $manager)->assertForbidden();
 
         // Moving an item to another company needs edit there; codes are checked in the new company.
         $acmeAdmin = $this->headersFor($this->userWith('admin', Scope::company($this->acme->id)));

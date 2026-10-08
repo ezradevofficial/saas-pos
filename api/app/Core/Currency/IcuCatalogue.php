@@ -10,8 +10,9 @@ use RuntimeException;
  * Reads the ISO 4217 catalogue from the ICU data bundled with ext-intl
  * (CUR-01), so no list is maintained by hand:
  *
- * - codes and names: `ICUDATA-curr` locale bundles `en` and `fr`, key
- *   `Currencies` (every code ICU names, historic ones included);
+ * - codes: `ICUDATA-curr` locale bundle `en`, key `Currencies` (every
+ *   code ICU names, historic ones included). Names are not stored; they
+ *   come from ICU in the reader's locale (CurrencyNames);
  * - numeric codes: `ICUDATA` bundle `currencyNumericCodes`;
  * - decimals: NumberFormatter's fraction digits for `en@currency=XXX`,
  *   except the project overrides below;
@@ -25,22 +26,24 @@ final class IcuCatalogue
     /** Decimals the project sets against ICU (CLAUDE.md, ADR 003). */
     public const OVERRIDES = ['CDF' => 0];
 
-    /** @return list<array{code: string, numeric_code: ?int, name_en: string, name_fr: string, default_decimals: int, active_in_iso: bool}> */
+    /** @return list<array{code: string, numeric_code: ?int, default_decimals: int, active_in_iso: bool}> */
     public static function read(): array
     {
-        $en = self::names('en');
-        $fr = self::names('fr');
+        $codes = array_keys(CurrencyNames::all('en'));
+
+        if ($codes === []) {
+            throw new RuntimeException('ICU has no currency names for [en].');
+        }
+
         $numeric = self::numericCodes();
         $current = self::currentCodes();
 
         $rows = [];
 
-        foreach ($en as $code => $name) {
+        foreach ($codes as $code) {
             $rows[] = [
                 'code' => $code,
                 'numeric_code' => $numeric[$code] ?? null,
-                'name_en' => $name,
-                'name_fr' => $fr[$code] ?? $name,
                 'default_decimals' => self::OVERRIDES[$code] ?? self::fractionDigits($code),
                 'active_in_iso' => isset($current[$code]),
             ];
@@ -49,25 +52,6 @@ final class IcuCatalogue
         usort($rows, fn (array $a, array $b) => strcmp($a['code'], $b['code']));
 
         return $rows;
-    }
-
-    /** @return array<string, string> code => display name */
-    private static function names(string $locale): array
-    {
-        $currencies = self::bundle($locale, 'ICUDATA-curr')['Currencies'] ?? null;
-
-        if (! $currencies instanceof ResourceBundle) {
-            throw new RuntimeException("ICU has no currency names for [{$locale}].");
-        }
-
-        $names = [];
-        foreach ($currencies as $code => $entry) {
-            if (is_string($code) && preg_match('/^[A-Z]{3}$/', $code) === 1 && $entry instanceof ResourceBundle) {
-                $names[$code] = (string) $entry[1];
-            }
-        }
-
-        return $names;
     }
 
     /** @return array<string, int> */

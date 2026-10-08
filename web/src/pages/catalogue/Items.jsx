@@ -9,8 +9,7 @@ import { Pager } from '@/components/Pager'
 import { Alert, Button, DataTable, Icon, Select, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useDebounced } from '@/lib/useDebounced'
-import { useLocale } from '@/lib/useLocale'
-import { categoryTree, ITEM_TYPES, localName, useItemCategories, useUoms } from './catalogueData'
+import { categoryTree, ITEM_TYPES, useItemCategories, useUoms } from './catalogueData'
 
 const PER_PAGE = 25
 const STATUSES = ['active', 'archived']
@@ -22,7 +21,6 @@ const STATUSES = ['active', 'archived']
  */
 export default function Items() {
   const { t } = useTranslation()
-  const locale = useLocale()
   const navigate = useNavigate()
   const { can } = usePermissions()
   const [search, setSearch] = useState('')
@@ -52,13 +50,13 @@ export default function Items() {
 
   const categoryName = (id) => {
     const found = categories.all.find((entry) => entry.id === id)
-    return found ? localName(found, locale) : ''
+    return found ? (found?.name ?? '') : ''
   }
   const uomCode = (id) => uoms.all.find((uom) => uom.id === id)?.code ?? ''
 
   const columns = [
     { key: 'code', label: t('items.columns.code'), render: (item) => <span className="font-mono text-caption text-ink-muted">{item.code}</span> },
-    { key: 'name', label: t('items.columns.name'), render: (item) => <span className="font-medium text-ink">{localName(item, locale)}</span> },
+    { key: 'name', label: t('items.columns.name'), render: (item) => <span className="font-medium text-ink">{(item?.name ?? '')}</span> },
     { key: 'category', label: t('items.columns.category'), render: (item) => categoryName(item.category_id) },
     { key: 'type', label: t('items.columns.type'), render: (item) => (item.type ? t(`items.types.${item.type}`) : '') },
     { key: 'unit', label: t('items.columns.unit'), render: (item) => uomCode(item.base_uom_id) },
@@ -109,7 +107,7 @@ export default function Items() {
             { value: '', label: t('items.filters.allCategories') },
             ...categoryTree(categories.all.filter((entry) => !entry.archived_at)).map(({ row, depth }) => ({
               value: row.id,
-              label: `${'— '.repeat(depth)}${localName(row, locale)}`,
+              label: `${'— '.repeat(depth)}${(row?.name ?? '')}`,
             })),
           ]}
           value={category}

@@ -20,8 +20,7 @@ return new class extends Migration
             $table->tenantId();
             $table->foreignUuid('company_id')->constrained()->restrictOnDelete();
             $table->string('code', 30);
-            $table->string('name_en');
-            $table->string('name_fr');
+            $table->string('name');
             $table->string('kind', 20);
             // The pack tax code this was copied from (CP-01); null for the tenant's own codes.
             $table->string('pack_code', 30)->nullable();

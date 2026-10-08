@@ -13,7 +13,7 @@ import { formatBytes, formatDecimal } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
-import { IMAGE_TYPES, localName, MAX_IMAGE_BYTES, MAX_IMAGES, useItemCategories, useTaxCategories, useUoms } from './catalogueData'
+import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGES, useItemCategories, useTaxCategories, useUoms } from './catalogueData'
 import { ItemForm } from './ItemForm'
 
 const detailKey = (id) => ['items', 'detail', id]
@@ -35,7 +35,7 @@ function ItemImages({ item, canEdit }) {
   const [focus, setFocus] = useState(null) // { id, step }
   const [announcement, setAnnouncement] = useState('')
   const images = [...(item.images ?? [])].sort((a, b) => a.position - b.position)
-  const name = localName(item, locale)
+  const name = (item?.name ?? '')
 
   const saved = (response) => {
     if (response?.data) queryClient.setQueryData(detailKey(item.id), { data: response.data })
@@ -215,7 +215,7 @@ function useItemHistoryFields() {
   const named = (list) => (id) => {
     if (!id) return none
     const found = list.find((entry) => entry.id === id)
-    return found ? localName(found, locale) : t('history.unknown')
+    return found ? (found?.name ?? '') : t('history.unknown')
   }
   return {
     type: { format: (value) => (value ? t(`items.types.${value}`, { defaultValue: value }) : none) },
@@ -237,7 +237,6 @@ function useItemHistoryFields() {
 /** MD-02, MD-07: one item, Details (form, images) and History. */
 export default function ItemDetail() {
   const { t } = useTranslation()
-  const locale = useLocale()
   const { itemId } = useParams()
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -283,7 +282,7 @@ export default function ItemDetail() {
   const archived = Boolean(item.archived_at)
   const canEdit = allowed('core.item.edit') && !archived
   const canArchive = allowed('core.item.archive')
-  const name = localName(item, locale)
+  const name = (item?.name ?? '')
 
   return (
     <>

@@ -35,8 +35,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('country_pack_id')->constrained()->cascadeOnDelete();
             $table->string('code', 30);
-            $table->string('name_en');
-            $table->string('name_fr');
+            // Labels live in lang/{locale}/country_packs.php keyed "{pack}.{code}".
             $table->string('kind', 20);
             // Percent (12.5000 = 12.5 %). NULL: no confirmed figure.
             $table->decimal('rate', 9, 4)->nullable();

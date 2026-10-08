@@ -11,7 +11,8 @@ use InvalidArgumentException;
 /**
  * A country pack data file (`country-packs/{CODE}/pack.json`, CP-01):
  * tax code structure with effective-dated rates. Validated before it is
- * published. A rate is a percentage given as a string ("12.5") or an
+ * published. Labels are not part of the pack: they live in translation
+ * files keyed by pack and code (PackLabels). A rate is a percentage given as a string ("12.5") or an
  * integer, never a JSON float (floats lose precision), or null when no
  * figure is confirmed; a null rate must say `needs_confirmation` (exempt
  * codes have no rate; zero-rated codes are 0 by definition). A code's
@@ -50,8 +51,6 @@ final class PackFile
     {
         $validator = Validator::make($data, [
             'code' => ['required', 'string', 'regex:/^[A-Z]{2}\z/'],
-            'name_en' => ['required', 'string', 'max:255'],
-            'name_fr' => ['required', 'string', 'max:255'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'sources' => ['present', 'array'],
             'sources.*' => ['string'],
@@ -59,8 +58,6 @@ final class PackFile
             'todo.*' => ['string'],
             'tax_codes' => ['required', 'array', 'min:1'],
             'tax_codes.*.code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_]+\z/'],
-            'tax_codes.*.name_en' => ['required', 'string', 'max:255'],
-            'tax_codes.*.name_fr' => ['required', 'string', 'max:255'],
             'tax_codes.*.kind' => ['required', 'string', 'in:'.implode(',', TaxCode::KINDS)],
             'tax_codes.*.rate' => ['present', 'nullable'],
             'tax_codes.*.needs_confirmation' => ['required', 'boolean'],
@@ -71,6 +68,15 @@ final class PackFile
 
         if ($validator->fails()) {
             throw new InvalidArgumentException('Invalid pack file: '.implode(' ', $validator->errors()->all()));
+        }
+
+        // Labels are translated in lang/{locale}/country_packs.php (PackLabels), never carried in the pack.
+        foreach ([array_keys($data), ...array_map(fn ($row) => is_array($row) ? array_keys($row) : [], $data['tax_codes'])] as $keys) {
+            foreach ($keys as $key) {
+                if (is_string($key) && preg_match('/^(name|label)/', $key) === 1) {
+                    throw new InvalidArgumentException("Invalid pack file: [{$key}] is not allowed; labels live in lang/{locale}/country_packs.php.");
+                }
+            }
         }
 
         $seen = [];

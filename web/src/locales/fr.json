@@ -1270,8 +1270,6 @@
     },
     "fields": {
       "name": "Nom",
-      "name_en": "Nom (anglais)",
-      "name_fr": "Nom (français)",
       "code": "Code",
       "type": "Type",
       "kind": "Nature",
@@ -1316,7 +1314,7 @@
     "add": "Ajouter un article",
     "back": "Tous les articles",
     "newTitle": "Nouvel article",
-    "newText": "Donnez à l’article un code et au moins un nom. Les unités, codes-barres et images peuvent suivre.",
+    "newText": "Donnez à l’article un code et un nom. Les unités, codes-barres et images peuvent suivre.",
     "search": "Rechercher",
     "searchPlaceholder": "Code, nom ou code-barres",
     "pages": "Pages d’articles",
@@ -1372,9 +1370,7 @@
       "code": "Code",
       "codeHelp": "Lettres, chiffres et . _ - / sans espaces, unique dans le catalogue.",
       "type": "Type",
-      "nameEn": "Nom en anglais",
-      "nameFr": "Nom en français",
-      "namesHelp": "Donnez au moins un nom. Chaque langue affiche le sien, ou l’autre s’il manque.",
+      "name": "Nom",
       "category": "Catégorie",
       "noCategory": "Aucune catégorie",
       "unknownCategory": "Une catégorie que vous ne voyez pas",
@@ -1466,9 +1462,7 @@
     "fields": {
       "company": "Société",
       "companyHelp": "Les catégories suivent les articles : tenues par société.",
-      "nameEn": "Nom en anglais",
-      "nameFr": "Nom en français",
-      "namesHelp": "Donnez au moins un nom.",
+      "name": "Nom",
       "parent": "Parent",
       "noParent": "Aucun (premier niveau)"
     }
@@ -1510,8 +1504,7 @@
     "fields": {
       "code": "Code",
       "codeHelp": "Jusqu’à 10 majuscules, chiffres ou _, comme CARTON12.",
-      "nameEn": "Nom en anglais",
-      "nameFr": "Nom en français",
+      "name": "Nom",
       "kind": "Nature"
     },
     "archiveTitle": "Archiver {{code}} ?",

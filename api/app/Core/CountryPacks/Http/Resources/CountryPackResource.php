@@ -4,11 +4,13 @@ namespace App\Core\CountryPacks\Http\Resources;
 
 use App\Core\CountryPacks\Models\CountryPack;
 use App\Core\CountryPacks\Models\PackTaxCode;
+use App\Core\CountryPacks\PackLabels;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * A country pack's version in force: names, notes, sources, the figures
+ * A country pack's version in force: name and code labels in the request
+ * language (translation files, PackLabels), notes, sources, the figures
  * still to confirm, the change from the previous version (CP-03) and, when
  * loaded, its tax codes with their rates (null = "Rate needed").
  *
@@ -30,9 +32,7 @@ class CountryPackResource extends JsonResource
             'changes' => $this->summary['changes'] ?? null,
             'tax_codes' => $this->whenLoaded('taxCodes', fn () => $this->taxCodes->map(fn (PackTaxCode $code) => [
                 'code' => $code->code,
-                'name' => app()->getLocale() === 'fr' ? $code->name_fr : $code->name_en,
-                'name_en' => $code->name_en,
-                'name_fr' => $code->name_fr,
+                'name' => PackLabels::taxCode($this->code, $code->code),
                 'kind' => $code->kind,
                 'rate' => $code->rate,
                 'needs_confirmation' => $code->needs_confirmation,

@@ -104,8 +104,7 @@ return [
         'category_shared_mode' => 'Les catégories de taxe sont partagées dans le groupe, comme les articles : une catégorie ne peut pas appartenir à une seule société. Retirez la société.',
         'attributes' => [
             'code' => 'code',
-            'name_en' => 'nom en anglais',
-            'name_fr' => 'nom en français',
+            'name' => 'nom',
             'kind' => 'type',
             'rate' => 'taux',
             'effective_from' => 'date de début',
@@ -179,7 +178,6 @@ return [
         'company_required' => 'Les articles sont tenus par société. Choisissez la société de cet enregistrement.',
         'company_not_allowed' => 'Les articles sont partagés dans le groupe : cet enregistrement ne peut pas appartenir à une seule société. Retirez la société.',
         'company_not_reached' => 'Vous ne pouvez pas déplacer d’articles vers cette société. Choisissez une société où vous travaillez.',
-        'name_required' => 'Saisissez le nom en anglais ou en français.',
         'code_invalid' => 'Les codes utilisent des lettres, des chiffres, des points, des tirets, des traits de soulignement et des barres obliques, sans espace, jusqu’à 40 caractères.',
         'code_taken' => 'Un autre article actif utilise déjà le code :code. Choisissez un autre code.',
         'code_taken_race' => 'Un autre article a pris ce code pendant l’enregistrement. Choisissez un autre code.',
@@ -208,8 +206,7 @@ return [
         'attributes' => [
             'company' => 'société',
             'code' => 'code',
-            'name_en' => 'nom anglais',
-            'name_fr' => 'nom français',
+            'name' => 'nom',
             'category' => 'catégorie',
             'type' => 'type',
             'base_uom' => 'unité de base',
@@ -225,7 +222,6 @@ return [
     ],
 
     'item_category' => [
-        'name_required' => 'Saisissez le nom en anglais ou en français.',
         'parent_other_scope' => 'Choisissez une catégorie parente de la même société, ou une catégorie partagée pour une catégorie partagée.',
         'parent_cycle' => 'Une catégorie ne peut pas se trouver sous elle-même ou sous l’une de ses sous-catégories. Choisissez un autre parent.',
         'too_deep' => 'Les catégories vont jusqu’à :max niveaux. Choisissez un parent plus haut dans l’arborescence.',
@@ -235,8 +231,7 @@ return [
         'attributes' => [
             'company' => 'société',
             'parent' => 'catégorie parente',
-            'name_en' => 'nom anglais',
-            'name_fr' => 'nom français',
+            'name' => 'nom',
             'colour' => 'couleur',
         ],
     ],
@@ -258,8 +253,7 @@ return [
         ],
         'attributes' => [
             'code' => 'code',
-            'name_en' => 'nom anglais',
-            'name_fr' => 'nom français',
+            'name' => 'nom',
             'kind' => 'type',
         ],
     ],
@@ -291,8 +285,7 @@ return [
         'attributes' => [
             'type' => 'type',
             'provider' => 'fournisseur',
-            'name_en' => 'nom anglais',
-            'name_fr' => 'nom français',
+            'name' => 'nom',
             'currency' => 'devise',
             'settings' => 'paramètres',
             'secrets' => 'identifiants',

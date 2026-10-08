@@ -104,8 +104,7 @@ return [
         'category_shared_mode' => 'Tax categories are shared across the group, like items, so a category can’t belong to one company. Remove the company.',
         'attributes' => [
             'code' => 'code',
-            'name_en' => 'English name',
-            'name_fr' => 'French name',
+            'name' => 'name',
             'kind' => 'kind',
             'rate' => 'rate',
             'effective_from' => 'start date',
@@ -179,7 +178,6 @@ return [
         'company_required' => 'Items are kept per company. Choose the company this record belongs to.',
         'company_not_allowed' => 'Items are shared across the group, so this record can’t belong to one company. Remove the company.',
         'company_not_reached' => 'You can’t move items to this company. Choose a company you work in.',
-        'name_required' => 'Enter the name in English or French.',
         'code_invalid' => 'Codes use letters, numbers, dots, hyphens, underscores and slashes, with no spaces, up to 40 characters.',
         'code_taken' => 'Another active item already uses the code :code. Choose another code.',
         'code_taken_race' => 'Another item took this code while you were saving. Choose another code.',
@@ -208,8 +206,7 @@ return [
         'attributes' => [
             'company' => 'company',
             'code' => 'code',
-            'name_en' => 'English name',
-            'name_fr' => 'French name',
+            'name' => 'name',
             'category' => 'category',
             'type' => 'type',
             'base_uom' => 'base unit',
@@ -225,7 +222,6 @@ return [
     ],
 
     'item_category' => [
-        'name_required' => 'Enter the name in English or French.',
         'parent_other_scope' => 'Choose a parent category of the same company, or a shared one for a shared category.',
         'parent_cycle' => 'A category can’t sit under itself or one of its subcategories. Choose another parent.',
         'too_deep' => 'Categories go up to :max levels deep. Choose a parent higher in the tree.',
@@ -235,8 +231,7 @@ return [
         'attributes' => [
             'company' => 'company',
             'parent' => 'parent category',
-            'name_en' => 'English name',
-            'name_fr' => 'French name',
+            'name' => 'name',
             'colour' => 'colour',
         ],
     ],
@@ -258,8 +253,7 @@ return [
         ],
         'attributes' => [
             'code' => 'code',
-            'name_en' => 'English name',
-            'name_fr' => 'French name',
+            'name' => 'name',
             'kind' => 'kind',
         ],
     ],
@@ -291,8 +285,7 @@ return [
         'attributes' => [
             'type' => 'type',
             'provider' => 'provider',
-            'name_en' => 'English name',
-            'name_fr' => 'French name',
+            'name' => 'name',
             'currency' => 'currency',
             'settings' => 'settings',
             'secrets' => 'credentials',

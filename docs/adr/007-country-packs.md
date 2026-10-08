@@ -10,13 +10,15 @@ The platform serves Kenya and the DR Congo. Tax codes, rates and fiscal mappings
 
 ### Packs are data
 
-- A pack is a JSON file per country (`api/country-packs/{KE,CD}/pack.json`): tax code structure, effective-dated rate periods, names in English and French, `sources` (official references) and a `todo` list of figures still to confirm.
+- A pack is a JSON file per country (`api/country-packs/{KE,CD}/pack.json`): tax code structure, effective-dated rate periods, `sources` (official references) and a `todo` list of figures still to confirm. It carries no names.
+- **Labels are translated reference data, not pack columns** (owner decision 2026-10-08, platform-core-spec Conventions). The pack's name and each code's label live in `api/lang/{en,fr}/country_packs.php`, keyed by pack and code (`KE.name`, `KE.VAT_STD`), and are read through `App\Core\CountryPacks\PackLabels`. Neither `country_pack_tax_codes` nor the pack summary stores a name, so adding a language adds a translation file, never a column. A label missing from the files shows the code; `country-packs:publish` warns about every missing key, and a test checks that the shipped packs have a label in every supported language. Label changes are not pack versions.
 - `PackFile` validates a file before it is published:
   - kinds are `vat`, `withholding`, `excise`, `exempt` or `zero_rated`
   - a rate is a percentage from 0 to 100 with at most 4 decimals, given as a string (`"12.5"`) or an integer, never a JSON float
   - an exempt code has no rate, and a zero-rated code has the rate 0
   - a null rate must say `needs_confirmation: true`
   - a code's periods never overlap, at most one is open-ended, and all have the same kind
+  - no key starting with `name` or `label`, at the top or in a code (labels belong in the translation files)
 
 ### Global tables, written only by the owner
 
@@ -30,7 +32,7 @@ The platform serves Kenya and the DR Congo. Tax codes, rates and fiscal mappings
 
 ### Copying to tenants
 
-- A new company gets the codes of its country's pack version in force: tax codes with `pack_code` set, and rate rows with `source = pack`.
+- A new company gets the codes of its country's pack version in force: tax codes with `pack_code` set, and rate rows with `source = pack`. Each code gets one `name`, the pack label in the tenant's language (`tenants.default_locale`, else English). From then on the name is the tenant's: it can rename it, and neither apply-pack nor propagation ever touches it (propagation changes rate rows only).
 - `POST companies/{company}/tax-codes/apply-pack` adds missing codes only. It never changes a code the company already has.
 - Rates the tenant enters through `POST tax-codes/{id}/rates`, and the rates of codes the tenant creates, have `source = tenant`.
 

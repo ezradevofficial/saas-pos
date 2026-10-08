@@ -24,8 +24,7 @@ final class TaxCodeRules
 
         return [
             'code' => [...$required, 'string', 'max:30', 'regex:/^[A-Z0-9_\-]+\z/', $unique],
-            'name_en' => [...$required, 'string', 'max:255'],
-            'name_fr' => [...$required, 'string', 'max:255'],
+            'name' => [...$required, 'string', 'max:255'],
             'fiscal_code' => ['sometimes', 'nullable', 'string', 'max:50'],
         ];
     }
@@ -42,8 +41,7 @@ final class TaxCodeRules
     {
         return [
             'code' => __('core.tax.attributes.code'),
-            'name_en' => __('core.tax.attributes.name_en'),
-            'name_fr' => __('core.tax.attributes.name_fr'),
+            'name' => __('core.tax.attributes.name'),
             'kind' => __('core.tax.attributes.kind'),
             'rate' => __('core.tax.attributes.rate'),
             'effective_from' => __('core.tax.attributes.effective_from'),

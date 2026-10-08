@@ -20,8 +20,8 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->string('code', 10);
-            $table->string('name_en', 100);
-            $table->string('name_fr', 100);
+            // MD-02: one name, in the language the business types it.
+            $table->string('name', 100);
             $table->string('kind', 10);
             $table->timestampTz('archived_at')->nullable();
             $table->timestampsTz();
@@ -38,8 +38,7 @@ return new class extends Migration
             // Null: shared across the group's companies.
             $table->foreignUuid('company_id')->nullable()->constrained()->restrictOnDelete();
             $table->uuid('parent_id')->nullable();
-            $table->string('name_en', 100)->nullable();
-            $table->string('name_fr', 100)->nullable();
+            $table->string('name', 100);
             // A design token name (LAY-05 uses it on POS tiles), never a colour value.
             $table->string('colour', 40)->nullable();
             $table->timestampTz('archived_at')->nullable();
@@ -53,7 +52,6 @@ return new class extends Migration
         Schema::table('item_categories', function (Blueprint $table) {
             $table->foreign('parent_id')->references('id')->on('item_categories')->restrictOnDelete();
         });
-        DB::statement('alter table item_categories add constraint item_categories_name_check check (name_en is not null or name_fr is not null)');
         DB::statement('alter table item_categories add constraint item_categories_parent_check check (parent_id is null or parent_id <> id)');
         Rls::enable('item_categories');
 
@@ -63,8 +61,8 @@ return new class extends Migration
             // Null: shared across the group's companies.
             $table->foreignUuid('company_id')->nullable()->constrained()->restrictOnDelete();
             $table->string('code', 40);
-            $table->string('name_en')->nullable();
-            $table->string('name_fr')->nullable();
+            // MD-02: one name, in the language the business types it.
+            $table->string('name');
             $table->foreignUuid('category_id')->nullable()->constrained('item_categories')->restrictOnDelete();
             $table->string('type', 10);
             $table->foreignUuid('base_uom_id')->constrained('uoms')->restrictOnDelete();
@@ -82,15 +80,13 @@ return new class extends Migration
 
         DB::statement('alter table items alter column code type citext');
         DB::statement("alter table items add constraint items_type_check check (type in ('stock', 'service', 'non_stock', 'kit'))");
-        DB::statement('alter table items add constraint items_name_check check (name_en is not null or name_fr is not null)');
         DB::statement("alter table items add constraint items_custom_check check (jsonb_typeof(custom) = 'object')");
         // Review focus 4: one active item per code in the sharing scope.
         DB::statement('create unique index items_code_shared_unique on items (tenant_id, code) where company_id is null and archived_at is null');
         DB::statement('create unique index items_code_company_unique on items (company_id, code) where company_id is not null and archived_at is null');
-        // `?search=`: code prefix, names by trigram; CF-06 filters.
+        // `?search=`: code prefix, name by trigram; CF-06 filters.
         DB::statement('create index items_code_prefix on items (lower(code::text) text_pattern_ops)');
-        DB::statement('create index items_name_en_trgm on items using gin (name_en gin_trgm_ops)');
-        DB::statement('create index items_name_fr_trgm on items using gin (name_fr gin_trgm_ops)');
+        DB::statement('create index items_name_trgm on items using gin (name gin_trgm_ops)');
         DB::statement('create index items_custom_gin on items using gin (custom jsonb_path_ops)');
         Rls::enable('items');
 

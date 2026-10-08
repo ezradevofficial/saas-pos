@@ -1270,8 +1270,6 @@
     },
     "fields": {
       "name": "Name",
-      "name_en": "Name (English)",
-      "name_fr": "Name (French)",
       "code": "Code",
       "type": "Type",
       "kind": "Kind",
@@ -1316,7 +1314,7 @@
     "add": "Add item",
     "back": "All items",
     "newTitle": "New item",
-    "newText": "Give the item a code and at least one name. Units, barcodes and images can follow.",
+    "newText": "Give the item a code and a name. Units, barcodes and images can follow.",
     "search": "Search",
     "searchPlaceholder": "Code, name or barcode",
     "pages": "Item pages",
@@ -1372,9 +1370,7 @@
       "code": "Code",
       "codeHelp": "Letters, digits and . _ - / with no spaces, unique in the catalogue.",
       "type": "Type",
-      "nameEn": "Name in English",
-      "nameFr": "Name in French",
-      "namesHelp": "Give at least one name. Each language shows its own, or the other when one is missing.",
+      "name": "Name",
       "category": "Category",
       "noCategory": "No category",
       "unknownCategory": "A category you cannot see",
@@ -1466,9 +1462,7 @@
     "fields": {
       "company": "Company",
       "companyHelp": "Categories follow items: kept per company.",
-      "nameEn": "Name in English",
-      "nameFr": "Name in French",
-      "namesHelp": "Give at least one name.",
+      "name": "Name",
       "parent": "Parent",
       "noParent": "None (top level)"
     }
@@ -1510,8 +1504,7 @@
     "fields": {
       "code": "Code",
       "codeHelp": "Up to 10 capital letters, digits or _, such as BOX12.",
-      "nameEn": "Name in English",
-      "nameFr": "Name in French",
+      "name": "Name",
       "kind": "Kind"
     },
     "archiveTitle": "Archive {{code}}?",

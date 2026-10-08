@@ -2,14 +2,20 @@
 
 namespace App\Core\MasterData\Items;
 
+use App\Core\Localisation\TenantLocale;
+
 /**
- * MD-02: the units of measure every tenant starts with, named in English
- * and French from the translation files (`core.uom.defaults.{code}`).
+ * MD-02: the units of measure every tenant starts with, named once in the
+ * tenant's language (TenantLocale) from the translation files
+ * (`core.uom.defaults.{code}`); after that they are ordinary records the
+ * business can rename.
  * Seeding is idempotent: a code the tenant has ever had, archived
  * included, is left alone, so a unit the tenant archived stays archived.
  */
 class DefaultUoms
 {
+    public function __construct(private readonly TenantLocale $locale) {}
+
     /** code => kind */
     public const UNITS = [
         'EA' => 'count',
@@ -26,6 +32,7 @@ class DefaultUoms
     public function seed(): int
     {
         $existing = Uom::query()->pluck('code')->map(fn ($code) => strtoupper((string) $code))->all();
+        $locale = $this->locale->current();
         $created = 0;
 
         foreach (self::UNITS as $code => $kind) {
@@ -35,8 +42,7 @@ class DefaultUoms
 
             Uom::create([
                 'code' => $code,
-                'name_en' => __("core.uom.defaults.{$code}", [], 'en'),
-                'name_fr' => __("core.uom.defaults.{$code}", [], 'fr'),
+                'name' => __("core.uom.defaults.{$code}", [], $locale),
                 'kind' => $kind,
             ]);
             $created++;

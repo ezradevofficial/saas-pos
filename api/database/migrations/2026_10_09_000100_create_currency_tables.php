@@ -17,8 +17,7 @@ return new class extends Migration
         Schema::create('currencies', function (Blueprint $table) {
             $table->char('code', 3)->primary();
             $table->smallInteger('numeric_code')->nullable();
-            $table->string('name_en');
-            $table->string('name_fr');
+            // Names are not stored: they come from ICU in the reader's locale (CUR-01).
             $table->smallInteger('default_decimals');
             $table->boolean('active_in_iso');
             $table->timestampsTz();

@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\Items\Uom;
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Notifications\Channels\SmsChannel;
 use App\Core\Notifications\Sms\LogSmsSender;
@@ -137,16 +138,26 @@ class SignUpTest extends TestCase
         }
     }
 
-    public function test_the_tenant_gets_the_default_units_named_in_english_and_french(): void
+    public function test_the_tenant_gets_its_defaults_named_once_in_its_own_language(): void
     {
-        // MD-02: seeded in the sign-up transaction, whatever the sign-up language.
-        $this->enterChallengeTenant($this->signUp(['locale' => 'fr'])->assertCreated()->json('challenge_id'));
+        // MD-02, MD-04, CP-01: seeded in the sign-up transaction, named in the
+        // tenant's language (one name per record, no per-language columns).
+        $this->enterChallengeTenant($this->signUp(['locale' => 'fr', 'country' => 'CD'])->assertCreated()->json('challenge_id'));
 
         $units = Uom::query()->orderBy('code')->get()->keyBy(fn (Uom $uom) => strtoupper($uom->code));
         $this->assertSame(['BOX', 'EA', 'G', 'KG', 'L', 'M', 'ML', 'PACK'], $units->keys()->all());
-        $this->assertSame(['Each', 'Pièce', 'count'], [$units['EA']->name_en, $units['EA']->name_fr, $units['EA']->kind]);
-        $this->assertSame(['Kilogram', 'Kilogramme', 'weight'], [$units['KG']->name_en, $units['KG']->name_fr, $units['KG']->kind]);
-        $this->assertSame(['Millilitre', 'volume'], [$units['ML']->name_fr, $units['ML']->kind]);
+        $this->assertSame(['Pièce', 'count'], [$units['EA']->name, $units['EA']->kind]);
+        $this->assertSame(['Kilogramme', 'weight'], [$units['KG']->name, $units['KG']->kind]);
+        $this->assertSame(['Millilitre', 'volume'], [$units['ML']->name, $units['ML']->kind]);
+        $this->assertSame('TVA, taux normal', TaxCode::where('code', 'VAT_STD')->sole()->name);
+        $this->assertSame('Espèces CDF', PaymentMethod::where('type', 'cash')->where('currency', 'CDF')->sole()->name);
+
+        app(TenantContext::class)->set(null);
+
+        $this->enterChallengeTenant($this->signUp(['email' => 'en@example.com'])->assertCreated()->json('challenge_id'));
+        $this->assertSame('Each', Uom::where('code', 'EA')->sole()->name);
+        $this->assertSame('VAT, standard rate', TaxCode::where('code', 'VAT_STD')->sole()->name);
+        $this->assertSame('Cash KES', PaymentMethod::where('type', 'cash')->where('currency', 'KES')->sole()->name);
     }
 
     public function test_the_right_code_activates_the_owner_and_returns_a_working_token(): void

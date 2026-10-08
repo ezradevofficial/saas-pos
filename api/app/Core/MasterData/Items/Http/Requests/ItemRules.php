@@ -54,8 +54,8 @@ final class ItemRules
         return [
             'company_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('companies', 'id')->whereNull('archived_at')],
             'code' => [...$required, 'string', 'max:40', 'regex:'.self::CODE_PATTERN],
-            'name_en' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'name_fr' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // MD-02: one name, in the language the business types it.
+            'name' => [...$required, 'string', 'max:255'],
             'category_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('item_categories', 'id')->whereNull('archived_at')],
             'type' => [...$required, 'string', Rule::in(Item::TYPES)],
             'base_uom_id' => [...$required, 'uuid', $activeUom],
@@ -85,13 +85,6 @@ final class ItemRules
 
         if ($item !== null && $companyId !== null && $companyId !== $item->company_id && ! app(ItemPolicy::class)->editIn($user, $companyId)) {
             $validator->errors()->add('company_id', __('core.item.company_not_reached'));
-        }
-
-        $nameEn = array_key_exists('name_en', $input) ? $input['name_en'] : $item?->name_en;
-        $nameFr = array_key_exists('name_fr', $input) ? $input['name_fr'] : $item?->name_fr;
-
-        if (blank($nameEn) && blank($nameFr)) {
-            $validator->errors()->add('name_en', __('core.item.name_required'));
         }
 
         $categoryId = array_key_exists('category_id', $input) ? $input['category_id'] : $item?->category_id;
@@ -176,7 +169,7 @@ final class ItemRules
     /** Item attributes from validated input (only the fields given; company_id set by the caller). */
     public static function attributes(array $data): array
     {
-        return array_intersect_key($data, array_flip(['code', 'name_en', 'name_fr', 'category_id', 'type', 'base_uom_id', 'tax_category_id']));
+        return array_intersect_key($data, array_flip(['code', 'name', 'category_id', 'type', 'base_uom_id', 'tax_category_id']));
     }
 
     /**
@@ -201,7 +194,7 @@ final class ItemRules
     public static function attributeNames(): array
     {
         return collect([
-            'company_id' => 'company', 'code' => 'code', 'name_en' => 'name_en', 'name_fr' => 'name_fr',
+            'company_id' => 'company', 'code' => 'code', 'name' => 'name',
             'category_id' => 'category', 'type' => 'type', 'base_uom_id' => 'base_uom', 'tax_category_id' => 'tax_category',
             'uoms' => 'uoms', 'uoms.*.uom_id' => 'uom', 'uoms.*.factor' => 'factor', 'barcodes' => 'barcodes',
             'barcodes.*.barcode' => 'barcode', 'barcodes.*.uom_id' => 'uom',

@@ -4,6 +4,8 @@ namespace App\Core\MasterData\Taxes;
 
 use App\Core\CountryPacks\Models\CountryPack;
 use App\Core\CountryPacks\Models\PackTaxCode;
+use App\Core\CountryPacks\PackLabels;
+use App\Core\Localisation\TenantLocale;
 use App\Core\Tenancy\Models\Company;
 
 /**
@@ -12,11 +14,15 @@ use App\Core\Tenancy\Models\Company;
  * Adds missing codes only: a pack code the company already has (archived
  * included) or whose code the tenant already uses is left alone, so tenant
  * edits are never overwritten. Rates are copied with their
- * needs_confirmation flags; exempt codes get no rate. Runs in the tenant's
- * context, inside the caller's transaction.
+ * needs_confirmation flags; exempt codes get no rate. Each code is named
+ * once in the tenant's language from the pack labels (PackLabels); the name
+ * is then the tenant's and propagation never touches it. Runs in the
+ * tenant's context, inside the caller's transaction.
  */
 class ApplyCountryPack
 {
+    public function __construct(private readonly TenantLocale $locale) {}
+
     /**
      * @return array{pack: ?CountryPack, added: list<string>, skipped: list<string>}
      */
@@ -32,6 +38,7 @@ class ApplyCountryPack
         $copied = $existing->pluck('pack_code')->filter()->all();
         $taken = $existing->whereNull('archived_at')->pluck('code')->all();
 
+        $locale = $this->locale->current();
         $added = [];
         $skipped = [];
 
@@ -52,8 +59,7 @@ class ApplyCountryPack
             $code = TaxCode::create([
                 'company_id' => $company->id,
                 'code' => $packCode,
-                'name_en' => $latest->name_en,
-                'name_fr' => $latest->name_fr,
+                'name' => PackLabels::taxCode($pack->code, $packCode, $locale),
                 'kind' => $latest->kind,
                 'pack_code' => $packCode,
                 'fiscal_code' => $latest->fiscal_code,

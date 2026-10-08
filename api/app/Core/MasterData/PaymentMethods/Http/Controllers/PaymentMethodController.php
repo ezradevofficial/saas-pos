@@ -57,8 +57,7 @@ class PaymentMethodController
                 'company_id' => $company->id,
                 'type' => $data['type'],
                 'provider' => $data['provider'] ?? null,
-                'name_en' => $data['name_en'],
-                'name_fr' => $data['name_fr'],
+                'name' => $data['name'],
                 'currency' => $data['currency'] ?? null,
                 'active' => $data['active'] ?? false,
                 'position' => $this->nextPosition($company->id),
@@ -84,7 +83,7 @@ class PaymentMethodController
 
         $method = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($paymentMethod, $data) {
             $method = PaymentMethod::query()->whereKey($paymentMethod->id)->lockForUpdate()->firstOrFail();
-            $method->fill(array_intersect_key($data, array_flip(['name_en', 'name_fr', 'currency', 'active'])));
+            $method->fill(array_intersect_key($data, array_flip(['name', 'currency', 'active'])));
             $this->applyConfig($method, $data);
             $this->assertCanBeActive($method);
             $method->save();

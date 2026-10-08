@@ -17,9 +17,6 @@ class UpdateItemRequest extends ItemRequest
     /** RBAC-05: input refused when its field is hidden or read-only for the user. */
     protected string $fieldRulesResource = 'item';
 
-    /** @var array<string, list<string>> input key => field rule names it writes */
-    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
-
     protected string $ability = 'update';
 
     public function rules(): array

@@ -4,6 +4,7 @@ namespace App\Core\CountryPacks\Console;
 
 use App\Core\CountryPacks\CountryPacks;
 use App\Core\CountryPacks\PackFile;
+use App\Core\CountryPacks\PackLabels;
 use App\Core\MasterData\Taxes\PropagateCountryPack;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
@@ -42,6 +43,10 @@ class PublishCountryPack extends Command
             $this->components->error("The file is the pack for {$file->code()}, not {$code}.");
 
             return self::FAILURE;
+        }
+
+        foreach (PackLabels::missing($file) as $key) {
+            $this->components->warn("Label missing: {$key}; the code is shown instead.");
         }
 
         [$pack, $created] = $packs->publish($file);

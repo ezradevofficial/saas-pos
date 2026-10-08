@@ -20,10 +20,5 @@ class Uom extends Model
 
     public const KINDS = ['count', 'weight', 'volume', 'length', 'time'];
 
-    protected $fillable = ['code', 'name_en', 'name_fr', 'kind'];
-
-    public function name(): string
-    {
-        return app()->getLocale() === 'fr' ? $this->name_fr : $this->name_en;
-    }
+    protected $fillable = ['code', 'name', 'kind'];
 }

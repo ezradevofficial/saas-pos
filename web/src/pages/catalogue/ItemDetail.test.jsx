@@ -24,14 +24,13 @@ describe('Item detail', () => {
     await waitFor(() => expect(base).toHaveValue('u-ea'))
     fireEvent.change(base, { target: { value: 'u-kg' } })
     expect(screen.getByText(/The base unit changed/)).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Name in English'), { target: { value: 'Soda 500 ml can' } })
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Soda 500 ml can' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() =>
       expect(api.patch).toHaveBeenCalledWith('items/i-1', {
         code: 'SODA-500',
-        name_en: 'Soda 500 ml can',
-        name_fr: 'Soda 50 cl',
+        name: 'Soda 500 ml can',
         type: 'stock',
         category_id: 'cat-2',
         base_uom_id: 'u-kg',
@@ -116,7 +115,7 @@ describe('Item detail', () => {
                 after: { uoms: [{ uom_id: 'u-box', factor: '24', is_sales_default: false, is_purchase_default: true }] },
                 occurred_at: '2026-10-08T09:00:00Z',
               },
-              { id: 'a-1', action: 'core.item.update', actor: null, before: { name_en: 'Soda' }, after: { name_en: 'Soda 500 ml' }, occurred_at: '2026-10-08T08:00:00Z' },
+              { id: 'a-1', action: 'core.item.update', actor: null, before: { name: 'Soda' }, after: { name: 'Soda 500 ml' }, occurred_at: '2026-10-08T08:00:00Z' },
             ],
             meta: { current_page: 1, last_page: 1 },
           },
@@ -127,7 +126,7 @@ describe('Item detail', () => {
     const list = await screen.findByRole('list', { name: 'History' })
     expect(await within(list).findByText('BOX × 24')).toBeInTheDocument()
     expect(within(list).getByText('Units changed')).toBeInTheDocument()
-    expect(within(list).getByText('Name (English)')).toBeInTheDocument()
+    expect(within(list).getByText('Name')).toBeInTheDocument()
     expect(within(list).getByText('Soda 500 ml')).toBeInTheDocument()
     expect(within(list).getByText('System')).toBeInTheDocument()
   })

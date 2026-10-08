@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Currency;
 
 use App\Core\Currency\Currencies;
 use App\Core\Currency\CurrencyDecimals;
+use App\Core\Currency\CurrencyNames;
 use App\Core\Currency\IcuCatalogue;
 use App\Core\Currency\Models\Currency;
 use App\Core\Rbac\Scope;
@@ -23,18 +24,18 @@ class CurrencyCatalogueTest extends TestCase
     {
         $kes = Currency::findOrFail('KES');
         $this->assertSame(2, $kes->default_decimals);
-        // Names come from ICU and vary by ICU version: present and translated.
-        $this->assertNotSame('', trim($kes->name_en));
-        $this->assertNotSame('', trim($kes->name_fr));
-        $this->assertNotSame($kes->name_en, $kes->name_fr);
+        // Names are not stored: they come from ICU in the reader's language
+        // and vary by ICU version, so only presence and translation are checked.
+        $this->assertNotSame('', trim(CurrencyNames::for('KES', 'en')));
+        $this->assertNotSame(CurrencyNames::for('KES', 'en'), CurrencyNames::for('KES', 'fr'));
         $this->assertSame(404, $kes->numeric_code);
         $this->assertTrue($kes->active_in_iso);
 
         $cdf = Currency::findOrFail('CDF');
         $this->assertSame(0, $cdf->default_decimals, 'CDF is overridden to 0 decimals (CLAUDE.md)');
         $this->assertSame(976, $cdf->numeric_code);
-        $this->assertNotSame('', trim($cdf->name_en));
-        $this->assertNotSame($cdf->name_en, $cdf->name_fr);
+        $this->assertNotSame(CurrencyNames::for('CDF', 'en'), CurrencyNames::for('CDF', 'fr'));
+        $this->assertSame('QQQ', CurrencyNames::for('QQQ', 'en'));
 
         $this->assertSame(2, Currency::findOrFail('USD')->default_decimals);
         $this->assertSame(0, Currency::findOrFail('JPY')->default_decimals);
@@ -98,7 +99,7 @@ class CurrencyCatalogueTest extends TestCase
     public function test_the_catalogue_service_is_cached(): void
     {
         $currencies = app(Currencies::class);
-        $this->assertSame(Currency::findOrFail('CDF')->name_en, $currencies->find('CDF')['name_en']);
+        $this->assertSame(Currency::findOrFail('CDF')->default_decimals, $currencies->find('CDF')['default_decimals']);
 
         DB::enableQueryLog();
         $currencies->find('KES');
@@ -113,11 +114,10 @@ class CurrencyCatalogueTest extends TestCase
 
         $response = $this->getJson('/api/v1/currencies', $this->headersFor())->assertOk();
         $cdf = collect($response->json('data'))->firstWhere('code', 'CDF');
-        $row = Currency::findOrFail('CDF');
-        $this->assertSame(['code' => 'CDF', 'numeric_code' => 976, 'name' => $row->name_en, 'default_decimals' => 0, 'active_in_iso' => true], $cdf);
+        $this->assertSame(['code' => 'CDF', 'numeric_code' => 976, 'name' => CurrencyNames::for('CDF', 'en'), 'default_decimals' => 0, 'active_in_iso' => true], $cdf);
 
         $fr = $this->getJson('/api/v1/currencies', $this->headersFor() + ['Accept-Language' => 'fr'])->assertOk();
-        $this->assertSame($row->name_fr, collect($fr->json('data'))->firstWhere('code', 'CDF')['name']);
+        $this->assertSame(CurrencyNames::for('CDF', 'fr'), collect($fr->json('data'))->firstWhere('code', 'CDF')['name']);
     }
 
     public function test_get_currencies_needs_the_view_permission_somewhere(): void

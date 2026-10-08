@@ -8,7 +8,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * MD-02 item category validation: a name in English or French; a parent
+ * MD-02 item category validation: one name; a parent
  * that is active, in the same scope (the category's company, or shared),
  * and not the category itself or beneath it; `colour` a design token name
  * (LAY-05), never a colour value. The company follows the items sharing
@@ -24,9 +24,8 @@ final class ItemCategoryRules
     public static function rules(bool $updating): array
     {
         $rules = [
+            'name' => [...($updating ? ['sometimes', 'required'] : ['required']), 'string', 'max:100'],
             'parent_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('item_categories', 'id')->whereNull('archived_at')],
-            'name_en' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'name_fr' => ['sometimes', 'nullable', 'string', 'max:100'],
             'colour' => ['sometimes', 'nullable', 'string', 'regex:'.self::COLOUR_PATTERN],
         ];
 
@@ -47,13 +46,6 @@ final class ItemCategoryRules
 
         if ($category === null) {
             ItemSharing::validate($validator, $companyId);
-        }
-
-        $nameEn = array_key_exists('name_en', $input) ? $input['name_en'] : $category?->name_en;
-        $nameFr = array_key_exists('name_fr', $input) ? $input['name_fr'] : $category?->name_fr;
-
-        if (blank($nameEn) && blank($nameFr)) {
-            $validator->errors()->add('name_en', __('core.item_category.name_required'));
         }
 
         $parentId = $input['parent_id'] ?? null;
@@ -104,7 +96,7 @@ final class ItemCategoryRules
     /** @return array<string, string> */
     public static function attributeNames(): array
     {
-        return collect(['company_id' => 'company', 'parent_id' => 'parent', 'name_en' => 'name_en', 'name_fr' => 'name_fr', 'colour' => 'colour'])
+        return collect(['company_id' => 'company', 'parent_id' => 'parent', 'name' => 'name', 'colour' => 'colour'])
             ->map(fn (string $key) => __("core.item_category.attributes.{$key}"))->all();
     }
 

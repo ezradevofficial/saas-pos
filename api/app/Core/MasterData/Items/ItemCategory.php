@@ -23,7 +23,7 @@ class ItemCategory extends Model
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;
 
-    protected $fillable = ['company_id', 'parent_id', 'name_en', 'name_fr', 'colour'];
+    protected $fillable = ['company_id', 'parent_id', 'name', 'colour'];
 
     public function parent(): BelongsTo
     {

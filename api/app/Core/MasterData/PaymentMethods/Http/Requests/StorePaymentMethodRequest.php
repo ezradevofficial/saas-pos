@@ -16,9 +16,6 @@ class StorePaymentMethodRequest extends CompanyPaymentMethodRequest
     /** RBAC-05: input refused when its field is hidden or read-only for the user. */
     protected string $fieldRulesResource = 'payment_method';
 
-    /** @var array<string, list<string>> input key => field rule names it writes */
-    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
-
     protected bool $edits = true;
 
     protected string $action = 'create';

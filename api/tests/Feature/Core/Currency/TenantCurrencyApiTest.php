@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Currency;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\CurrencyDecimals;
+use App\Core\Currency\CurrencyNames;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\Currency\Http\Requests\StoreTenantCurrencyRequest;
 use App\Core\Currency\Models\Currency;
@@ -39,7 +40,7 @@ class TenantCurrencyApiTest extends TestCase
 
         $this->assertSame(['KES', 'USD'], collect($response->json('data'))->pluck('code')->all());
         $kes = collect($response->json('data'))->firstWhere('code', 'KES');
-        $this->assertSame(Currency::findOrFail('KES')->name_en, $kes['name']);
+        $this->assertSame(CurrencyNames::for('KES', 'en'), $kes['name']);
         $this->assertSame(2, $kes['decimals']);
         $this->assertSame(2, $kes['default_decimals']);
         $this->assertSame(1, $kes['cash_rounding_minor']);

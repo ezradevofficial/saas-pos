@@ -18,9 +18,7 @@ class UomResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => strtoupper((string) $this->code),
-            'name' => $this->name(),
-            'name_en' => $this->name_en,
-            'name_fr' => $this->name_fr,
+            'name' => $this->name,
             'kind' => $this->kind,
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

@@ -56,7 +56,8 @@ class TaxCodeApiTest extends TestCase
         $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'source' => 'pack']], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $std['rates']));
         $this->assertSame(['0.0000', false], [$codes['VAT_ZERO']['current_rate']['rate'], $codes['VAT_ZERO']['rate_needed']]);
         $this->assertSame([[], null, false], [$codes['VAT_EXEMPT']['rates'], $codes['VAT_EXEMPT']['current_rate'], $codes['VAT_EXEMPT']['rate_needed']]);
-        $this->assertSame('TVA, taux normal', $std['name_fr']);
+        // Named once in the tenant's language (en here); the name is then the tenant's.
+        $this->assertSame('VAT, standard rate', $std['name']);
 
         $this->inTenant(fn () => $this->assertSame(4, AuditEntry::where('action', 'core.tax_code.create')->where('after->company_id', $ke)->count()));
     }
@@ -72,7 +73,7 @@ class TaxCodeApiTest extends TestCase
 
         // The tenant renames one, sets a rate, archives another.
         $std = $this->codeId('VAT_STD');
-        $this->patchJson("/api/v1/tax-codes/{$std}", ['name_en' => 'VAT', 'code' => 'vat'], $this->headersFor())->assertOk()->assertJsonPath('data.code', 'VAT');
+        $this->patchJson("/api/v1/tax-codes/{$std}", ['name' => 'VAT', 'code' => 'vat'], $this->headersFor())->assertOk()->assertJsonPath('data.code', 'VAT');
         $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2026-01-01'], $this->headersFor())->assertCreated();
         $this->postJson('/api/v1/tax-codes/'.$this->codeId('VAT_WHT').'/archive', [], $this->headersFor())->assertOk();
 
@@ -81,7 +82,7 @@ class TaxCodeApiTest extends TestCase
 
         $this->inTenant(function () use ($std) {
             $code = TaxCode::findOrFail($std);
-            $this->assertSame(['VAT', 'VAT', 'VAT_STD'], [$code->code, $code->name_en, $code->pack_code]);
+            $this->assertSame(['VAT', 'VAT', 'VAT_STD'], [$code->code, $code->name, $code->pack_code]);
             $this->assertSame(['12.5000'], $code->rates()->pluck('rate')->all());
             $this->assertSame(4, TaxCode::where('company_id', $this->acme->id)->count());
             $this->assertSame(1, AuditEntry::where('action', 'core.tax_code.apply_pack')->count());
@@ -91,19 +92,19 @@ class TaxCodeApiTest extends TestCase
     public function test_apply_pack_skips_a_pack_code_the_tenant_already_uses(): void
     {
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => 'vat_zero', 'name_en' => 'Own zero', 'name_fr' => 'Zéro maison', 'kind' => 'zero_rated', 'effective_from' => '2026-01-01',
+            'code' => 'vat_zero', 'name' => 'Own zero', 'kind' => 'zero_rated', 'effective_from' => '2026-01-01',
         ], $this->headersFor())->assertCreated()->assertJsonPath('data.code', 'VAT_ZERO')->assertJsonPath('data.pack_code', null);
 
         $result = $this->applyPack();
         $this->assertSame(['VAT_ZERO'], $result['skipped']);
         $this->assertNotContains('VAT_ZERO', $result['added']);
-        $this->assertSame('Own zero', collect($this->codes())->firstWhere('code', 'VAT_ZERO')['name_en']);
+        $this->assertSame('Own zero', collect($this->codes())->firstWhere('code', 'VAT_ZERO')['name']);
     }
 
     public function test_the_tenant_creates_its_own_codes(): void
     {
         $response = $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => ' excise_x ', 'name_en' => 'Excise X', 'name_fr' => 'Accise X', 'kind' => 'excise', 'rate' => '10', 'effective_from' => '2026-03-01', 'fiscal_code' => 'E',
+            'code' => ' excise_x ', 'name' => 'Excise X', 'kind' => 'excise', 'rate' => '10', 'effective_from' => '2026-03-01', 'fiscal_code' => 'E',
         ], $this->headersFor())->assertCreated();
 
         $response->assertJsonPath('data.code', 'EXCISE_X')
@@ -114,17 +115,17 @@ class TaxCodeApiTest extends TestCase
 
         // Without a rate: "Rate needed".
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => 'WHT2', 'name_en' => 'Withholding', 'name_fr' => 'Retenue', 'kind' => 'withholding', 'effective_from' => '2026-01-01',
+            'code' => 'WHT2', 'name' => 'Withholding', 'kind' => 'withholding', 'effective_from' => '2026-01-01',
         ], $this->headersFor())->assertCreated()->assertJsonPath('data.rate_needed', true)->assertJsonPath('data.current_rate.needs_confirmation', true);
 
         // Exempt: no rate rows.
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => 'EX', 'name_en' => 'Exempt', 'name_fr' => 'Exonéré', 'kind' => 'exempt',
+            'code' => 'EX', 'name' => 'Exempt', 'kind' => 'exempt',
         ], $this->headersFor())->assertCreated()->assertJsonPath('data.rates', []);
 
         // Codes are unique among the company's active codes, whatever the case.
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => 'Excise_X', 'name_en' => 'Again', 'name_fr' => 'Encore', 'kind' => 'vat', 'effective_from' => '2026-01-01',
+            'code' => 'Excise_X', 'name' => 'Again', 'kind' => 'vat', 'effective_from' => '2026-01-01',
         ], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('code');
 
         foreach ([
@@ -135,7 +136,7 @@ class TaxCodeApiTest extends TestCase
             ['kind' => 'vat', 'rate' => '12.5'],
             ['kind' => 'sales_tax', 'effective_from' => '2026-01-01'],
         ] as $invalid) {
-            $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", ['code' => 'BAD', 'name_en' => 'Bad', 'name_fr' => 'Mauvais', ...$invalid], $this->headersFor())
+            $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", ['code' => 'BAD', 'name' => 'Bad', ...$invalid], $this->headersFor())
                 ->assertUnprocessable();
         }
     }
@@ -221,7 +222,7 @@ class TaxCodeApiTest extends TestCase
 
         // Its code is free again; restoring then conflicts.
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", [
-            'code' => 'VAT_WHT', 'name_en' => 'New', 'name_fr' => 'Nouveau', 'kind' => 'withholding', 'effective_from' => '2026-01-01',
+            'code' => 'VAT_WHT', 'name' => 'New', 'kind' => 'withholding', 'effective_from' => '2026-01-01',
         ], $this->headersFor())->assertCreated();
         $this->postJson("/api/v1/tax-codes/{$wht}/restore", [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('code');
 
@@ -241,7 +242,7 @@ class TaxCodeApiTest extends TestCase
         $this->getJson("/api/v1/companies/{$this->acme->id}/tax-codes", $manager)->assertOk()->assertJsonCount(4, 'data');
         $this->getJson("/api/v1/tax-codes/{$std}", $manager)->assertOk();
         $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '1', 'effective_from' => '2027-01-01'], $manager)->assertForbidden();
-        $this->patchJson("/api/v1/tax-codes/{$std}", ['name_en' => 'X'], $manager)->assertForbidden();
+        $this->patchJson("/api/v1/tax-codes/{$std}", ['name' => 'X'], $manager)->assertForbidden();
         $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes/apply-pack", [], $manager)->assertForbidden();
         $this->postJson("/api/v1/tax-codes/{$std}/archive", [], $manager)->assertForbidden();
 
@@ -271,7 +272,7 @@ class TaxCodeApiTest extends TestCase
         $this->postJson("/api/v1/companies/{$closed->id}/tax-codes/apply-pack", [], $this->headersFor())
             ->assertUnprocessable()->assertJsonPath('code', 'parent_archived');
         $this->postJson("/api/v1/companies/{$closed->id}/tax-codes", [
-            'code' => 'X', 'name_en' => 'X', 'name_fr' => 'X', 'kind' => 'exempt',
+            'code' => 'X', 'name' => 'X', 'kind' => 'exempt',
         ], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'parent_archived');
     }
 }

@@ -36,7 +36,7 @@ class CountryPacks
 
             $previous = $latest === null ? [] : PackTaxCode::on(SyncPermissions::OWNER_CONNECTION)
                 ->where('country_pack_id', $latest->id)->get()
-                ->map(fn (PackTaxCode $row) => $this->row($row->only(['code', 'name_en', 'name_fr', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code'])))
+                ->map(fn (PackTaxCode $row) => $this->row($row->only(['code', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code'])))
                 ->all();
             $current = array_map(fn (array $row) => $this->row($row), $file->taxCodes());
 
@@ -46,8 +46,6 @@ class CountryPacks
                 'content_hash' => $file->hash(),
                 'published_at' => CarbonImmutable::now(),
                 'summary' => [
-                    'name_en' => $file->data['name_en'],
-                    'name_fr' => $file->data['name_fr'],
                     'notes' => $file->data['notes'] ?? null,
                     'sources' => array_values($file->data['sources']),
                     'todo' => array_values($file->data['todo']),
@@ -61,8 +59,6 @@ class CountryPacks
                 PackTaxCode::on(SyncPermissions::OWNER_CONNECTION)->create([
                     'country_pack_id' => $pack->id,
                     'code' => $row['code'],
-                    'name_en' => $row['name_en'],
-                    'name_fr' => $row['name_fr'],
                     'kind' => $row['kind'],
                     'rate' => $row['rate'],
                     'needs_confirmation' => $row['needs_confirmation'],
@@ -122,8 +118,6 @@ class CountryPacks
 
         return [
             'code' => $row['code'],
-            'name_en' => $row['name_en'],
-            'name_fr' => $row['name_fr'],
             'kind' => $row['kind'],
             'rate' => $row['rate'] === null ? null : (string) $row['rate'],
             'needs_confirmation' => (bool) $row['needs_confirmation'],

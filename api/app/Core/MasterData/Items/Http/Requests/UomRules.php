@@ -8,7 +8,7 @@ use Illuminate\Validation\Rule;
 /**
  * MD-02 unit validation: the code is upper case letters, digits and
  * underscores (up to 10), unique among the tenant's active units (checked
- * case-insensitively when saving); both names; a kind.
+ * case-insensitively when saving); a name; a kind.
  */
 final class UomRules
 {
@@ -21,8 +21,7 @@ final class UomRules
 
         return [
             'code' => [...$required, 'string', 'regex:'.self::CODE_PATTERN],
-            'name_en' => [...$required, 'string', 'max:100'],
-            'name_fr' => [...$required, 'string', 'max:100'],
+            'name' => [...$required, 'string', 'max:100'],
             'kind' => [...$required, 'string', Rule::in(Uom::KINDS)],
         ];
     }
@@ -40,7 +39,7 @@ final class UomRules
     /** @return array<string, string> */
     public static function attributeNames(): array
     {
-        return collect(['code' => 'code', 'name_en' => 'name_en', 'name_fr' => 'name_fr', 'kind' => 'kind'])
+        return collect(['code' => 'code', 'name' => 'name', 'kind' => 'kind'])
             ->map(fn (string $key) => __("core.uom.attributes.{$key}"))->all();
     }
 
