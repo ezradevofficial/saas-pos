@@ -32,6 +32,12 @@ return [
         'invalid_pairing_code' => 'Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code et réessayez.',
     ],
 
+    // NFR-04 : synchronisation des appareils.
+    'sync' => [
+        'invalid_cursor' => 'La position de synchronisation de :entity n’est pas valide. Synchronisez :entity de nouveau depuis le début.',
+        'unknown_entity' => 'Cette caisse a demandé des données (:entity) qui ne sont pas disponibles. Mettez l’application à jour et synchronisez de nouveau.',
+    ],
+
     // AUTH-02, AUTH-09, L10N-01: tenant settings.
     'settings' => [
         'attributes' => [

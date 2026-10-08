@@ -5,6 +5,7 @@ namespace App\Core\Tenancy;
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonInterface;
@@ -36,6 +37,7 @@ class DevicePairing
         private readonly Auditor $auditor,
         private readonly AuditContext $auditContext,
         private readonly Archiver $archiver,
+        private readonly DeviceSecrets $secrets,
     ) {}
 
     /**
@@ -74,7 +76,10 @@ class DevicePairing
      * found by auth_tenant_for_pairing (security definer); everything else
      * runs under that tenant's row-level security.
      *
-     * @return array{token: string, device: Device}
+     * The answer carries the device's own secret (AUTH-06, AUTH-08,
+     * DeviceSecrets), shown this once.
+     *
+     * @return array{token: string, device: Device, secret: string}
      */
     public function pair(string $code, string $deviceName, ?string $ip, ?string $userAgent): array
     {
@@ -110,7 +115,11 @@ class DevicePairing
                 'paired_at' => now(),
             ]);
 
-            return ['token' => $device->issueToken($deviceName, $ip, $userAgent)->plainTextToken, 'device' => $device];
+            return [
+                'token' => $device->issueToken($deviceName, $ip, $userAgent)->plainTextToken,
+                'device' => $device,
+                'secret' => $this->secrets->issue($device),
+            ];
         }));
     }
 
@@ -168,7 +177,8 @@ class DevicePairing
                 return $device;
             }
 
-            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
+            // The secret goes with the pairing: PIN verifiers and override signatures of the old pairing stop working.
+            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null, 'secret' => null, 'secret_issued_at' => null]);
         });
     }
 

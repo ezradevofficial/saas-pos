@@ -41,7 +41,8 @@ class Device extends Model implements HasScope
 
     protected $attributes = ['status' => self::STATUS_PENDING];
 
-    protected $hidden = ['pairing_code_hash'];
+    /** The secret is the device's own key (AUTH-06, AUTH-08): never serialised or audited. */
+    protected $hidden = ['pairing_code_hash', 'secret'];
 
     protected function casts(): array
     {
@@ -49,6 +50,11 @@ class Device extends Model implements HasScope
             'pairing_code_expires_at' => 'datetime',
             'paired_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'last_pull_at' => 'datetime',
+            'last_push_at' => 'datetime',
+            'last_bootstrap_at' => 'datetime',
+            'secret' => 'encrypted',
+            'secret_issued_at' => 'datetime',
         ];
     }
 
