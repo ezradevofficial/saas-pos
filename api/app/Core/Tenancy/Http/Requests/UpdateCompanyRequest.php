@@ -4,6 +4,7 @@ namespace App\Core\Tenancy\Http\Requests;
 
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateCompanyRequest extends FormRequest
 {
@@ -20,6 +21,18 @@ class UpdateCompanyRequest extends FormRequest
 
     public function rules(): array
     {
-        return CompanyRules::rules(updating: true);
+        $rules = CompanyRules::rules(updating: true);
+
+        // CUR-02: as for PUT companies/{company}/currencies, the base
+        // currency is not also one of the company's reporting currencies.
+        $rules['base_currency'][] = Rule::unique('company_reporting_currencies', 'code')
+            ->where('company_id', $this->route('company')->id);
+
+        return $rules;
+    }
+
+    public function messages(): array
+    {
+        return ['base_currency.unique' => __('core.currency.base_is_reporting')];
     }
 }

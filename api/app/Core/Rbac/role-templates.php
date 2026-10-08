@@ -30,7 +30,7 @@ return [
     [
         'key' => 'branch_manager',
         'permissions' => [
-            'core.company.view', 'core.branch.view', 'core.branch.edit',
+            'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view',
             'core.location.*', 'core.device.*',
             'core.user.view', 'core.user.invite', 'core.user.edit',
             'core.role.view', 'core.role.assign', 'core.audit.view',
@@ -42,7 +42,7 @@ return [
     [
         'key' => 'cashier',
         'permissions' => [
-            'core.location.view', 'core.device.view',
+            'core.location.view', 'core.device.view', 'core.currency.view',
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
         ],
         'is_owner' => false,
@@ -51,7 +51,7 @@ return [
     [
         'key' => 'waiter',
         'permissions' => [
-            'core.location.view',
+            'core.location.view', 'core.currency.view',
             'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
         ],
         'is_owner' => false,
@@ -69,7 +69,7 @@ return [
     [
         'key' => 'accountant',
         'permissions' => [
-            'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view',
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,

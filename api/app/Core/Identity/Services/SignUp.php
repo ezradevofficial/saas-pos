@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity\Services;
 
+use App\Core\Currency\TenantCurrencies;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Tenancy\Events\TenantProvisioned;
@@ -29,6 +30,7 @@ class SignUp
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Challenges $challenges,
+        private readonly TenantCurrencies $currencies,
     ) {}
 
     /**
@@ -58,6 +60,9 @@ class SignUp
                     'fiscal_year_start_month' => 1,
                     'timezone' => $country['timezone'],
                 ]);
+
+                // CUR-01: KE uses KES and USD; CD uses USD and CDF.
+                $this->currencies->provisionFor($company);
 
                 $branch = $company->branches()->create([
                     'name' => __('core.defaults.branch', [], $locale),

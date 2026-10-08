@@ -23,6 +23,7 @@ class PermissionRegistry
         'audit' => ['view', 'export'],
         'settings' => ['edit'],
         'access_review' => ['view', 'export'],
+        'currency' => ['view', 'edit'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

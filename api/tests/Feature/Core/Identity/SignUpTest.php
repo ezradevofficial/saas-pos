@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Core\Identity;
 
+use App\Core\Currency\Models\CompanyCurrency;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
@@ -79,6 +81,12 @@ class SignUpTest extends TestCase
             $company->name, $company->country, $company->base_currency, $company->fiscal_year_start_month, $company->timezone,
         ]);
         $this->assertSame('Main branch', Branch::sole()->name);
+        // CUR-01: a Kenyan company's tenant uses KES and USD.
+        $this->assertSame(
+            [['KES', 2, 1, true], ['USD', 2, 1, true]],
+            TenantCurrency::orderBy('code')->get()->map(fn ($c) => [$c->code, $c->decimals, $c->cash_rounding_minor, $c->active])->all(),
+        );
+        $this->assertSame(0, CompanyCurrency::count(), 'no reporting currencies by default');
         $location = Location::sole();
         $this->assertSame(['Main outlet', 'outlet'], [$location->name, $location->type]);
 
@@ -103,6 +111,12 @@ class SignUpTest extends TestCase
 
         $company = Company::sole();
         $this->assertSame(['CD', 'USD', 'Africa/Kinshasa'], [$company->country, $company->base_currency, $company->timezone]);
+
+        // CUR-01: USD and CDF, CDF with 0 decimals and cash rounding to 50.
+        $this->assertSame(
+            [['CDF', 0, 50, true], ['USD', 2, 1, true]],
+            TenantCurrency::orderBy('code')->get()->map(fn ($c) => [$c->code, $c->decimals, $c->cash_rounding_minor, $c->active])->all(),
+        );
     }
 
     public function test_the_right_code_activates_the_owner_and_returns_a_working_token(): void

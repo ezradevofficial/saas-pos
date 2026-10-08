@@ -29,6 +29,8 @@ class Company extends Model implements HasScope
         return [
             'address' => 'array',
             'fiscal_year_start_month' => 'integer',
+            // CUR-02: set once by BaseCurrencyLock on the first posting.
+            'base_currency_locked_at' => 'datetime',
         ];
     }
 

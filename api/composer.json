@@ -10,7 +10,9 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "ext-intl": "*",
         "bacon/bacon-qr-code": "^3.1",
+        "brick/math": "^1.0",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
@@ -41,13 +43,14 @@
     },
     "scripts": {
         "migrate": "@php artisan migrate --database=pgsql_owner",
-        "migrate:fresh": "@php artisan migrate:fresh --database=pgsql_owner --seed --seeder=PermissionCatalogueSeeder",
+        "migrate:fresh": "@php artisan migrate:fresh --database=pgsql_owner --seed --seeder=CatalogueSeeder",
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@composer migrate",
-            "@php artisan permissions:sync"
+            "@php artisan permissions:sync",
+            "@php artisan currencies:sync"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",

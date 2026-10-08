@@ -40,4 +40,32 @@ return [
             'default_locale' => 'langue par défaut',
         ],
     ],
+
+    // ADR 003 : montants saisis en unités principales (règle MoneyAmount).
+    'money' => [
+        'invalid' => 'Saisissez le champ :attribute sous forme de nombre, par exemple 1250.50.',
+        'too_many_decimals' => 'Le champ :attribute peut avoir au plus :decimals décimales en :currency.',
+        'min' => 'Le champ :attribute doit être d’au moins :currency :min.',
+        'max' => 'Le champ :attribute doit être d’au plus :currency :max.',
+    ],
+
+    // CUR-01, CUR-02 : devises.
+    'currency' => [
+        'base_currency_locked' => 'La devise de base de cette société est verrouillée, car des montants y ont déjà été comptabilisés.',
+        'too_many_reporting_currencies' => 'Une société peut avoir au plus :max devises de présentation. Retirez-en une avant d’en ajouter une autre.',
+        'decimals_locked' => 'Des montants dans cette devise sont déjà enregistrés : ses décimales ne peuvent plus changer.',
+        'in_use' => 'Une société utilise cette devise comme devise de base ou de présentation. Modifiez d’abord la société.',
+        'base_is_reporting' => 'Cette devise fait partie des devises de présentation de la société. Retirez-la d’abord de celles-ci.',
+        'not_active' => 'Activez d’abord cette devise pour votre organisation.',
+        'not_in_catalogue' => 'Choisissez une devise ISO 4217 en vigueur.',
+        'attributes' => [
+            'code' => 'devise',
+            'decimals' => 'décimales',
+            'cash_rounding_minor' => 'arrondi des espèces',
+            'active' => 'active',
+            'base_currency' => 'devise de base',
+            'reporting_currencies' => 'devises de présentation',
+            'reporting_currency' => 'devise de présentation',
+        ],
+    ],
 ];

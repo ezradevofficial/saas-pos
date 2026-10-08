@@ -174,7 +174,7 @@ class InvitationTest extends TestCase
         $inviter = $this->inTenant(function () {
             $user = $this->colleague($this->owner);
             $this->assign($user, $this->role('Inviter', ['core.user.invite']), Scope::location($this->locationA->id));
-            $this->assign($user, $this->role('Assigner', ['core.role.assign', 'core.location.view', 'core.device.view']), Scope::branch($this->branchA->id));
+            $this->assign($user, $this->role('Assigner', ['core.role.assign', 'core.location.view', 'core.device.view', 'core.currency.view']), Scope::branch($this->branchA->id));
 
             return $user;
         });

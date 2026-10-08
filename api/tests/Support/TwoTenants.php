@@ -18,10 +18,11 @@ use Tests\TestCase;
  * TEN-01: two tenants, A and B, built the way production builds them:
  * self sign-up and verification, then the API as each Owner (companies,
  * branches, locations, an archived location, a paired device, a custom
- * role, an accepted and a pending invitation, an assignment). Field rules,
- * limit rules and module flags have no API yet and are written through
- * their models in the tenant's own context. Every Sprint 1 table ends up
- * with rows in both tenants, so a missing filter shows up as a leak.
+ * role, an accepted and a pending invitation, an assignment, tenant and
+ * reporting currencies). Field rules, limit rules and module flags have
+ * no API yet and are written through their models in the tenant's own
+ * context. Every tenant table ends up with rows in both tenants, so a
+ * missing filter shows up as a leak.
  *
  * A signs up with an email address, B with a phone number, so the CSV and
  * body checks cover both kinds of contact.
@@ -78,6 +79,10 @@ final class TwoTenants
         $location = self::ok($test->postJson("/api/v1/branches/{$branch}/locations", ['name' => "Outlet {$upper}", 'type' => 'outlet'], $owner), 201)->json('data.id');
         $archived = self::ok($test->postJson("/api/v1/branches/{$branch}/locations", ['name' => "Closed {$upper}", 'type' => 'store'], $owner), 201)->json('data.id');
         self::ok($test->postJson("/api/v1/locations/{$archived}/archive", [], $owner));
+
+        // CUR-01, CUR-02: sign-up activated KES and USD; USD reports for the company.
+        self::ok($test->putJson("/api/v1/companies/{$company}/currencies", ['base_currency' => 'KES', 'reporting_currencies' => ['USD']], $owner));
+        $tenantCurrency = collect(self::ok($test->getJson('/api/v1/tenant/currencies', $owner))->json('data'))->firstWhere('code', 'USD')['id'];
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -145,6 +150,7 @@ final class TwoTenants
                 'invitation' => $invitation,
                 'assignment' => $assignment,
                 'session' => $session,
+                'tenant_currency' => $tenantCurrency,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],

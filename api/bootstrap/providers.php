@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -9,5 +10,6 @@ return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
     IdentityServiceProvider::class,
+    CurrencyServiceProvider::class,
     RbacServiceProvider::class,
 ];

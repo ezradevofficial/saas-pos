@@ -59,7 +59,7 @@ composer setup          # install, .env from .env.example, key, migrate as app_o
 To rebuild the database from scratch later:
 
 ```sh
-composer migrate:fresh  # as app_owner, seeds the permission catalogue
+composer migrate:fresh  # as app_owner, seeds the permission and currency catalogues
 ```
 
 Always migrate through `composer migrate` or `composer migrate:fresh`. Never run a plain `php artisan migrate`: it runs as the runtime role, which cannot create tables.
@@ -179,7 +179,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `SMS_DRIVER` a real provider, never `log`. Without one, any text message (phone sign-up, SMS codes) fails with `SmsNotConfigured`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and `permissions:sync`)
+- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync` and `currencies:sync`)
 - [ ] a queue worker running (`php artisan queue:work` or Horizon)
 
 Each deploy:
@@ -192,9 +192,10 @@ Each deploy:
 6. runs `php artisan app:preflight`; the deploy stops here if a check fails
 7. runs `php artisan migrate --database=pgsql_owner --force`
 8. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles, each on the runtime connection under row-level security (ADR 006)
-9. caches config and routes
-10. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
-11. `php artisan up`, only when every step above succeeded
+9. runs `php artisan currencies:sync` (as the owner): upserts the ISO 4217 currency catalogue from ICU (CDF overridden to 0 decimals), then gives each tenant's companies their country's currencies where missing, under row-level security (ADR 003)
+10. caches config and routes
+11. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+12. `php artisan up`, only when every step above succeeded
 
 #### If a deploy stops
 
