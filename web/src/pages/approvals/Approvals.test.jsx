@@ -183,7 +183,7 @@ describe('approval detail (APR-03, APR-04, APR-06)', () => {
 
   it('approves with the accent button and tells the user', async () => {
     setup()
-    api.post.mockImplementation(async (path) => ({ data: approvalDetail({ ...WAITING, status: 'approved', can: {} }) }))
+    api.post.mockImplementation(async () => ({ data: approvalDetail({ ...WAITING, status: 'approved', can: {} }) }))
     renderApp('/approvals/a')
     const pane = await screen.findByRole('article', { name: 'Request detail' })
     const approve = await within(pane).findByRole('button', { name: 'Approve' })
