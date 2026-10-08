@@ -305,6 +305,13 @@ final class TwoTenants
         ], $managerToken), 201)->json('data.id');
         self::ok($test->post("/api/v1/approvals/{$approval}/attachments", ['file' => UploadedFile::fake()->create("quote-{$key}.pdf", 4, 'application/pdf')], [...$owner, 'Accept' => 'application/json']), 201);
 
+        // MD-01, WF-01: a credit limit change for the shared customer, waiting
+        // for the Accountant (its flow adopted from the type's default).
+        $creditLimitChange = self::ok($test->postJson('/api/v1/credit-limit-changes', [
+            'party_id' => $customer, 'company_id' => $company,
+            'requested_limit' => ['amount_minor' => '5000000', 'currency' => 'KES'], 'reason' => "Season {$upper}",
+        ], $owner), 201)->json('data.id');
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -344,6 +351,7 @@ final class TwoTenants
                 'notification' => $notification,
                 'approval' => $approval,
                 'delegation' => $delegation,
+                'credit_limit_change' => $creditLimitChange,
                 ...$dimensions,
                 'challenge' => $challenge,
             ],

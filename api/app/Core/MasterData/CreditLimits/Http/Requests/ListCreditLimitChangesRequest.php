@@ -36,8 +36,9 @@ class ListCreditLimitChangesRequest extends FormRequest
         return [
             ...$this->sortAndExportRules(),
             'status' => ['sometimes', 'string', Rule::in(CreditLimitChange::STATUSES)],
-            'party' => ['sometimes', 'uuid'],
-            'company' => ['sometimes', 'uuid'],
+            // Under RLS: another tenant's id does not exist.
+            'party' => ['sometimes', 'uuid', Rule::exists('parties', 'id')],
+            'company' => ['sometimes', 'uuid', Rule::exists('companies', 'id')],
             'search' => ['sometimes', 'string', 'max:100'],
             'per_page' => ['sometimes', 'integer', 'between:1,'.ListRequest::MAX_PER_PAGE],
             'page' => ['sometimes', 'integer', 'min:1'],
