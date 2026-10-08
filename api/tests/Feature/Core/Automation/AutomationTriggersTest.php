@@ -5,13 +5,13 @@ namespace Tests\Feature\Core\Automation;
 use App\Core\Automation\Jobs\ScanTimedTriggers;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Runtime\Rules;
+use App\Core\Automation\Runtime\TimedTriggers;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\RefreshTenantDatabase;
-use Tests\Support\Automation\TestTaskType;
 use Tests\Support\Workflow\Graphs;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
@@ -181,7 +181,7 @@ class AutomationTriggersTest extends TestCase
         $this->quietTask(['due_on' => '2026-10-11'], new DocumentScope($otherCompany->id));
         $companyRule = $this->saveRule(['type' => 'date', 'field' => 'due_on', 'days' => 3, 'when' => 'before'], [$this->notifyOwner()], ['company_id' => $this->acme->id]);
 
-        $scan = fn (string $at) => $this->inTenant(fn () => (new ScanTimedTriggers($this->owner->tenant_id, ScanTimedTriggers::DATES, $at))->handle(app(\App\Core\Automation\Runtime\TimedTriggers::class)));
+        $scan = fn (string $at) => $this->inTenant(fn () => (new ScanTimedTriggers($this->owner->tenant_id, ScanTimedTriggers::DATES, $at))->handle(app(TimedTriggers::class)));
 
         $scan('2026-10-08T02:30:00Z'); // 05:30 in Nairobi: before the scan hour
         $this->assertCount(0, $this->runs($rule));
@@ -204,7 +204,7 @@ class AutomationTriggersTest extends TestCase
         $rule = $this->saveRule(['type' => 'schedule', 'every' => 'week', 'days' => ['thu', 'mon'], 'time' => '08:00'], [$this->notifyOwner('Weekly check', 'Count the stock.')]);
         $this->assertSame('2026-10-08T05:00:00+00:00', $rule->next_run_at->toIso8601String());
 
-        $scan = fn (string $at) => $this->inTenant(fn () => app(\App\Core\Automation\Runtime\TimedTriggers::class)->schedules(CarbonImmutable::parse($at)));
+        $scan = fn (string $at) => $this->inTenant(fn () => app(TimedTriggers::class)->schedules(CarbonImmutable::parse($at)));
 
         $this->assertSame(0, $scan('2026-10-08T04:59:00Z'));
         $this->assertSame(1, $scan('2026-10-08T05:00:30Z'));

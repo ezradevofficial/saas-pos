@@ -12,27 +12,39 @@ use Illuminate\Contracts\Container\Container;
  */
 class AutomationActions
 {
-    /** @var array<string, AutomationAction> */
+    /** @var array<string, AutomationAction|class-string<AutomationAction>> */
     private array $actions = [];
 
     public function __construct(private readonly Container $container) {}
 
-    /** @param AutomationAction|class-string<AutomationAction> $action */
+    /**
+     * Register under the action's key. A class is resolved again on use, so
+     * its dependencies are the container's current ones.
+     *
+     * @param  AutomationAction|class-string<AutomationAction>  $action
+     */
     public function register(AutomationAction|string $action): void
     {
-        $instance = is_string($action) ? $this->container->make($action) : $action;
-        $this->actions[$instance->key()] = $instance;
+        $key = is_string($action) ? $this->container->make($action)->key() : $action->key();
+        $this->actions[$key] = $action;
     }
 
     public function find(string $key): ?AutomationAction
     {
-        return $this->actions[$key] ?? null;
+        $action = $this->actions[$key] ?? null;
+
+        return is_string($action) ? $this->container->make($action) : $action;
     }
 
     /** @return array<string, AutomationAction> by key, sorted */
     public function all(): array
     {
-        $actions = $this->actions;
+        $actions = [];
+
+        foreach (array_keys($this->actions) as $key) {
+            $actions[$key] = $this->find($key);
+        }
+
         ksort($actions);
 
         return $actions;
