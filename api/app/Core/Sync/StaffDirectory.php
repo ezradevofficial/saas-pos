@@ -28,10 +28,7 @@ class StaffDirectory
     /** Field-rule resources the till applies to its signed-in cashier. */
     public const FIELD_RESOURCES = ['item', 'party'];
 
-    public function __construct(
-        private readonly SyncSources $sources,
-        private readonly ModuleRegistry $modules,
-    ) {}
+    public function __construct(private readonly ModuleRegistry $modules) {}
 
     /**
      * By user id, ordered by name.
@@ -58,7 +55,8 @@ class StaffDirectory
         }
 
         $roleIds = $assignments->pluck('role_id')->unique()->values()->all();
-        $prefixes = $this->sources->tillPermissionPrefixes();
+        // Resolved here: SyncSources builds the staff source, which needs this class.
+        $prefixes = app(SyncSources::class)->tillPermissionPrefixes();
 
         $permissions = $db->table('role_has_permissions')
             ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')

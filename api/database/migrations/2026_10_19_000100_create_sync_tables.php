@@ -33,7 +33,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::unprepared(<<<'SQL'
-            create sequence sync_seq as bigint;
+            create sequence if not exists sync_seq as bigint;
 
             -- UUID v7 (time-ordered) for rows written by triggers; PHP writes its own.
             create or replace function app_uuid_v7() returns uuid language sql volatile as $$
