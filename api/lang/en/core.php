@@ -350,6 +350,14 @@ return [
             'reason' => 'reason',
             'cancel_reason' => 'reason for cancelling',
         ],
+        'notifications' => [
+            'apply_failed' => [
+                'label' => 'Credit limit change not applied',
+                'subject' => '{document_number} was approved but not applied',
+                'body' => "Hello {recipient_name},\n\nThe approved credit limit change {document_number} for {party_name} was not applied.\n\n{problem}",
+                'sms' => '{app_name}: credit limit change {document_number} was approved but not applied.',
+            ],
+        ],
         'errors' => [
             'amount' => 'Enter the requested limit as a whole number of minor units, for example "25000000" for KES 250,000.00.',
             'currency' => 'This customer’s credit limit is in :currency. Request the new limit in :currency.',
@@ -358,7 +366,10 @@ return [
             'not_open' => 'This request is no longer waiting for a decision, so it can’t be cancelled.',
             'company_of_party' => 'This customer belongs to one company, so the request is for that company. Leave the company out.',
             'company_required' => 'This customer is shared across your companies. Choose the company the request is for.',
-            'needs_request' => 'You can lower this credit limit, but raising, adding or removing one needs approval. Use “Request a change” on the customer’s page.',
+            'needs_request' => 'Raising or removing this credit limit, or changing its currency, needs approval. Lower it, or use “Request a change” on the customer’s page.',
+            'conflict' => ':number can’t be applied: the customer’s credit limit is now in :currency, not :requested. Set the limit back in :requested, then apply the request again.',
+            'apply_failed' => 'The new limit couldn’t be saved after several tries. Apply the request again.',
+            'not_approved' => 'Only an approved request that isn’t applied yet can be applied.',
         ],
     ],
 

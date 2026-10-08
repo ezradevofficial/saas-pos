@@ -6,11 +6,16 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
+use App\Core\MasterData\CreditLimits\CreditLimitChange;
+use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -197,9 +202,13 @@ class CreditLimitChangeApiTest extends TestCase
             ->assertJsonPath('data.credit_limit.amount_minor', '10000000');
         $this->patchJson($url, ['name' => 'Duka Moja Limited'], $accountant)->assertOk();
 
-        // A first limit on a new party is a raise too.
-        $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Ali', 'roles' => ['customer'], 'credit_limit' => '5000', 'credit_limit_currency' => 'KES'], $accountant)
-            ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
+        // No limit means unlimited: a first limit lowers the risk (direct), removing one raises it.
+        $ali = $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Ali', 'roles' => ['customer'], 'credit_limit' => '5000', 'credit_limit_currency' => 'KES'], $accountant)
+            ->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/parties/{$ali}", ['credit_limit' => null], $accountant)->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
+        $bo = $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Bo', 'roles' => ['customer']], $this->headersFor())->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/parties/{$bo}", ['credit_limit' => '3000', 'credit_limit_currency' => 'USD'], $accountant)->assertOk()
+            ->assertJsonPath('data.credit_limit', ['amount_minor' => '300000', 'currency' => 'USD']);
 
         // Owner and Admin set it directly.
         $admin = $this->named('admin', Scope::tenant(), 'Ada Admin');
@@ -301,5 +310,52 @@ class CreditLimitChangeApiTest extends TestCase
         $this->postJson('/api/v1/credit-limit-changes', [
             'party_id' => $this->customer, 'requested_limit' => ['amount_minor' => '1', 'currency' => 'KES'], 'reason' => 'x',
         ], $this->headersFor($user))->assertForbidden();
+    }
+
+    public function test_the_apply_job_is_queued_after_approval_with_retries_and_is_idempotent(): void
+    {
+        $change = $this->request()->assertCreated()->json('data.id');
+        Queue::fake();
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        // Decided: approved, not applied until the job runs.
+        $this->getJson("/api/v1/credit-limit-changes/{$change}", $this->headersFor())->assertJsonPath('data.status', 'approved');
+        $this->assertSame('15000000', $this->partyLimit());
+        Queue::assertPushed(ApplyCreditLimitChange::class, fn (ApplyCreditLimitChange $job) => $job->changeId === $change && $job->tries === 3 && $job->backoff === [10, 60]);
+
+        $tenantId = $this->owner->tenant_id;
+        (new ApplyCreditLimitChange($tenantId, $change))->handle(app(CreditLimitChanges::class));
+        $this->inTenant(fn () => $this->assertFalse(app(CreditLimitChanges::class)->apply($change)));
+        (new ApplyCreditLimitChange($tenantId, $change))->handle(app(CreditLimitChanges::class));
+
+        $this->assertSame('25000000', $this->partyLimit());
+        $this->assertSame(1, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.party.credit_limit_apply')->count()));
+        $this->assertSame('applied', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status));
+    }
+
+    public function test_a_conflict_is_not_applied_notifies_set_directly_holders_and_can_be_applied_again(): void
+    {
+        $change = $this->request()->assertCreated()->json('data.id');
+        $admin = $this->named('admin', Scope::company($this->acme->id), 'Ada Admin');
+        // Meanwhile the owner moves the limit to another currency.
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '1000', 'credit_limit_currency' => 'USD'], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        $this->getJson("/api/v1/credit-limit-changes/{$change}", $this->headersFor($admin))
+            ->assertJsonPath('data.status', 'approved')->assertJsonPath('data.can_apply', true);
+        $notified = $this->inTenant(fn () => InAppNotification::query()->where('event_type', ApplyCreditLimitChange::FAILED_EVENT)->pluck('user_id')->all());
+        $this->assertEqualsCanonicalizing([$this->owner->id, $admin->id], $notified);
+        $this->assertNotContains($this->accountant->id, $notified);
+
+        // Only set_directly holders apply again; a conflict still refuses.
+        $url = "/api/v1/credit-limit-changes/{$change}/apply";
+        $this->postJson($url, [], $this->headersFor($this->accountant))->assertForbidden();
+        $this->postJson($url, [], $this->headersFor($admin))->assertUnprocessable()->assertJsonPath('code', 'credit_limit_conflict');
+
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '150000', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
+        $this->postJson($url, [], $this->headersFor($admin))->assertOk()->assertJsonPath('data.status', 'applied')->assertJsonPath('data.can_apply', false);
+        $this->assertSame('25000000', $this->partyLimit());
+        $this->postJson($url, [], $this->headersFor($admin))->assertUnprocessable()->assertJsonPath('code', 'credit_limit_change_not_approved');
     }
 }

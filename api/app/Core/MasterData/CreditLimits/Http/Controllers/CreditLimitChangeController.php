@@ -4,10 +4,12 @@ namespace App\Core\MasterData\CreditLimits\Http\Controllers;
 
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Exports\ListExport;
+use App\Core\Http\ApiException;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChangeAccess;
 use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\CreditLimits\CreditLimitChangeType;
+use App\Core\MasterData\CreditLimits\Http\Requests\ApplyCreditLimitChangeRequest;
 use App\Core\MasterData\CreditLimits\Http\Requests\CancelCreditLimitChangeRequest;
 use App\Core\MasterData\CreditLimits\Http\Requests\CreditLimitChangeRequest;
 use App\Core\MasterData\CreditLimits\Http\Requests\ListCreditLimitChangesRequest;
@@ -91,6 +93,18 @@ class CreditLimitChangeController
         $this->changes->cancel($request->change(), $request->user(), (string) $request->validated('reason'));
 
         return $this->respond($request, $request->change());
+    }
+
+    /** Apply an approved request that was not applied (its job failed), for set_directly holders. */
+    public function apply(ApplyCreditLimitChangeRequest $request): JsonResponse
+    {
+        $change = $request->change();
+
+        if (! $this->changes->apply($change->id)) {
+            throw new ApiException(422, 'credit_limit_change_not_approved', __('core.credit_limit_change.errors.not_approved'));
+        }
+
+        return $this->respond($request, $change);
     }
 
     /** The request with its flow (WF-10) and, while an approval waits on it, the approval's id. */

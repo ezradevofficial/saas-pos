@@ -350,6 +350,14 @@ return [
             'reason' => 'motif',
             'cancel_reason' => 'motif de l’annulation',
         ],
+        'notifications' => [
+            'apply_failed' => [
+                'label' => 'Modification de plafond non appliquée',
+                'subject' => '{document_number} a été approuvée mais pas appliquée',
+                'body' => "Bonjour {recipient_name},\n\nLa modification de plafond de crédit approuvée {document_number} pour {party_name} n’a pas été appliquée.\n\n{problem}",
+                'sms' => '{app_name} : la modification de plafond {document_number} a été approuvée mais pas appliquée.',
+            ],
+        ],
         'errors' => [
             'amount' => 'Saisissez le plafond demandé en unités mineures entières, par exemple « 25000000 » pour KES 250 000,00.',
             'currency' => 'Le plafond de crédit de ce client est en :currency. Demandez le nouveau plafond en :currency.',
@@ -358,7 +366,10 @@ return [
             'not_open' => 'Cette demande n’attend plus de décision : elle ne peut plus être annulée.',
             'company_of_party' => 'Ce client appartient à une seule société : la demande concerne cette société. Ne précisez pas de société.',
             'company_required' => 'Ce client est partagé entre vos sociétés. Choisissez la société concernée par la demande.',
-            'needs_request' => 'Vous pouvez baisser ce plafond de crédit, mais l’augmenter, en ajouter un ou le supprimer demande une approbation. Utilisez « Demander une modification » sur la fiche du client.',
+            'needs_request' => 'Augmenter ou supprimer ce plafond de crédit, ou en changer la devise, demande une approbation. Baissez-le, ou utilisez « Demander une modification » sur la fiche du client.',
+            'conflict' => ':number ne peut pas être appliquée : le plafond du client est maintenant en :currency, et non en :requested. Remettez le plafond en :requested, puis appliquez à nouveau la demande.',
+            'apply_failed' => 'Le nouveau plafond n’a pas pu être enregistré après plusieurs essais. Appliquez à nouveau la demande.',
+            'not_approved' => 'Seule une demande approuvée et pas encore appliquée peut être appliquée.',
         ],
     ],
 

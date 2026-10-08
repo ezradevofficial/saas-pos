@@ -3,6 +3,9 @@
 namespace App\Core\MasterData\CreditLimits;
 
 use App\Core\MasterData\CreditLimits\Listeners\SettleCreditLimitChange;
+use App\Core\Notifications\Channels;
+use App\Core\Notifications\EventType;
+use App\Core\Notifications\EventTypes;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -23,5 +26,14 @@ class CreditLimitsServiceProvider extends ServiceProvider
 
         Event::listen(WorkflowCompleted::class, SettleCreditLimitChange::class);
         Event::listen(WorkflowCancelled::class, SettleCreditLimitChange::class);
+
+        // NOT-02: an approved change that could not be applied.
+        $this->app->make(EventTypes::class)->register(new EventType(
+            key: ApplyCreditLimitChange::FAILED_EVENT,
+            placeholders: ['document_number' => 'CLC-000123', 'party_name' => 'Duka Moja Ltd', 'problem' => 'Apply the request again.'],
+            defaultChannels: [Channels::IN_APP, Channels::EMAIL],
+            mandatoryAllowed: true,
+            langKey: 'core.credit_limit_change.notifications.apply_failed',
+        ));
     }
 }

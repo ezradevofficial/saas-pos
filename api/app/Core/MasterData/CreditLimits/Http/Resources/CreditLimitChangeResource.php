@@ -4,6 +4,7 @@ namespace App\Core\MasterData\CreditLimits\Http\Resources;
 
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChangeAccess;
+use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -48,6 +49,7 @@ class CreditLimitChangeResource extends JsonResource
             'applied_at' => $this->applied_at?->toIso8601ZuluString(),
             'cancelled_at' => $this->cancelled_at?->toIso8601ZuluString(),
             'can_cancel' => $user !== null && $this->resource->isOpen() && app(CreditLimitChangeAccess::class)->cancel($user, $this->resource),
+            'can_apply' => $user !== null && $this->status === CreditLimitChange::APPROVED && app(CreditLimitChanges::class)->canSetDirectly($user, $this->company_id),
         ], self::SOURCES);
     }
 }

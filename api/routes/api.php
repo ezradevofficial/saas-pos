@@ -256,6 +256,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('credit-limit-changes', [CreditLimitChangeController::class, 'store']);
     Route::get('credit-limit-changes/{credit_limit_change}', [CreditLimitChangeController::class, 'show']);
     Route::post('credit-limit-changes/{credit_limit_change}/cancel', [CreditLimitChangeController::class, 'cancel']);
+    Route::post('credit-limit-changes/{credit_limit_change}/apply', [CreditLimitChangeController::class, 'apply']);
 
     // MD-02: units of measure (the tenant's), item categories and items,
     // shared or per company (TEN-08), with barcodes and images.
