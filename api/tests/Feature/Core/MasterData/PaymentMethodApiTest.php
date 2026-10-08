@@ -157,7 +157,9 @@ class PaymentMethodApiTest extends TestCase
         $this->patchJson("/api/v1/payment-methods/{$mpesa}", [...$this->mpesaConfig(), 'active' => true], $this->headersFor())
             ->assertOk()->assertJsonPath('data.active', true)->assertJsonPath('data.configured', true)->assertJsonPath('data.missing', [])
             // The provider's key names (never values), so a settings form knows which fields are secret.
-            ->assertJsonPath('data.setting_keys', ['shortcode'])->assertJsonPath('data.secret_keys', ['consumer_key', 'consumer_secret', 'passkey']);
+            // Daraja's optional keys (refunds and code checks) follow the required ones.
+            ->assertJsonPath('data.setting_keys', ['shortcode', 'transaction_type', 'till_number', 'b2c_shortcode', 'initiator_name'])
+            ->assertJsonPath('data.secret_keys', ['consumer_key', 'consumer_secret', 'passkey', 'security_credential']);
 
         // Clearing a credential of a method that is on is refused; switched off first, it is cleared.
         $this->patchJson("/api/v1/payment-methods/{$mpesa}", ['secrets' => ['passkey' => null]], $this->headersFor())

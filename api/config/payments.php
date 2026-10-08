@@ -49,6 +49,10 @@ return [
     // after this many minutes (when the method has initiator credentials).
     'manual_verify_after_minutes' => (int) env('PAYMENTS_MANUAL_VERIFY_AFTER', 30),
 
+    // Seconds a timer run may take before it stops (the rest go at the
+    // next minute's run): below the worker timeout (60 s).
+    'run_seconds' => 40,
+
     // C2B confirmations are matched to open intents of the same amount and
     // account reference created within this many minutes before.
     'c2b_match_window_minutes' => 30,

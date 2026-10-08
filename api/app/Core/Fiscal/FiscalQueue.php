@@ -112,10 +112,16 @@ class FiscalQueue
             ->each(fn (FiscalSubmission $submission) => $submission->forceFill(['status' => 'retrying', 'next_attempt_at' => $at])->saveQuietly());
 
         $count = 0;
+        $stop = microtime(true) + (int) config('fiscal.run_seconds', 40);
         $due = FiscalSubmission::query()->whereIn('status', ['queued', 'retrying'])->where('next_attempt_at', '<=', $at)
             ->orderBy('company_id')->orderBy('invoice_no')->limit((int) config('fiscal.batch', 50))->pluck('id');
 
         foreach ($due as $id) {
+            // Stay inside the worker's time limit; the scheduler sends the rest next minute.
+            if (microtime(true) >= $stop) {
+                break;
+            }
+
             $claimed = $this->claim($id, $at);
 
             if ($claimed !== null) {

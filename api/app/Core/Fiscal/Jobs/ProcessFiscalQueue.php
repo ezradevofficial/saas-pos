@@ -23,7 +23,7 @@ class ProcessFiscalQueue implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 300;
 
-    public int $timeout = 300;
+    public int $timeout = 60;
 
     public function __construct(
         public string $tenantId,

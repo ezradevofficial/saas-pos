@@ -330,10 +330,16 @@ class PaymentIntents
     public function processTimers(CarbonImmutable $at): int
     {
         $count = 0;
+        $stop = microtime(true) + (int) config('payments.run_seconds', 40);
 
         $due = PaymentIntent::query()->where('status', 'pending')->where('expires_at', '<=', $at)->orderBy('expires_at')->limit(100)->get();
 
         foreach ($due as $intent) {
+            // Stay inside the worker's time limit; the scheduler does the rest next minute.
+            if (microtime(true) >= $stop) {
+                return $count;
+            }
+
             $count++;
             $this->expire($intent, $at);
         }
@@ -342,6 +348,10 @@ class PaymentIntents
             ->where('verify_after', '<=', $at)->orderBy('verify_after')->limit(100)->get();
 
         foreach ($unverified as $intent) {
+            if (microtime(true) >= $stop) {
+                break;
+            }
+
             $count++;
             $this->verify($intent);
         }

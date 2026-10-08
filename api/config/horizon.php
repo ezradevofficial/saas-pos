@@ -264,11 +264,12 @@ return [
             'maxJobs' => 1000,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 120,
+            'timeout' => 60,
             'nice' => 0,
         ],
         // POS-10: transmission to the tax authorities (KRA eTIMS, DGI); a
-        // run sends up to `fiscal.batch` documents of one tenant.
+        // run sends up to `fiscal.batch` documents of one tenant within
+        // `fiscal.run_seconds`, well inside this timeout.
         'supervisor-fiscal' => [
             'connection' => 'redis',
             'queue' => [env('FISCAL_QUEUE', 'fiscal')],
@@ -280,7 +281,7 @@ return [
             'maxJobs' => 1000,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 300,
+            'timeout' => 60,
             'nice' => 0,
         ],
     ],

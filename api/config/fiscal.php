@@ -33,8 +33,11 @@ return [
     // retried.
     'stuck_minutes' => 10,
 
-    // Submissions per tenant per queue run.
+    // Submissions per tenant per queue run, and the seconds a run may take
+    // before it stops (the rest go at the next minute's run). Below the
+    // worker timeout (60 s) and Redis' retry_after (90 s).
     'batch' => 50,
+    'run_seconds' => 40,
 
     // Per country: drivers that may be chosen, and when the company's
     // fiscal administrators are alerted that a submission is still not
