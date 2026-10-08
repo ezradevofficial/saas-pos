@@ -27,7 +27,10 @@ function PriceRows({ prices, scheduled, onEdit, label }) {
       {prices.map((price) => (
         <li key={price.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
           <div className="flex min-w-0 flex-col">
-            <UnitLabel price={price} />
+            <span className="flex flex-wrap items-center gap-x-3">
+              <UnitLabel price={price} />
+              {scheduled ? <StatusBadge tone="info">{t('prices.states.scheduled')}</StatusBadge> : null}
+            </span>
             <span className="text-caption text-ink-muted">
               {scheduled
                 ? t('prices.item.startsOn', { date: formatCalendarDate(price.effective_from, locale) })
