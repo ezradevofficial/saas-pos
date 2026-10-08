@@ -37,6 +37,7 @@ class VoidAndRefundTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->freezeTime();
 
         $this->setUpPos();
         $this->cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
@@ -65,7 +66,7 @@ class VoidAndRefundTest extends TestCase
             'reason' => 'Damaged', 'total_minor' => $total,
             'lines' => [['id' => $this->id(), 'sale_line_id' => $this->sale['lines'][0]['id'], 'qty' => $qty]],
             'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => $total, 'amount_in_sale_minor' => $total]],
-            'override' => ['manager_id' => $this->manager->id, 'proof' => 'pin-proof'],
+            'override' => $this->override($this->manager->id),
         ], $overrides);
     }
 
@@ -85,8 +86,8 @@ class VoidAndRefundTest extends TestCase
 
         $this->void()->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_required');
 
-        $body = ['id' => $this->id(), 'override' => ['manager_id' => $this->manager->id, 'proof' => 'pin-proof']];
-        $first = $this->void($body)->assertOk()->assertJsonPath('results.0.override_verified', false);
+        $body = ['id' => $this->id(), 'override' => $this->override($this->manager->id)];
+        $first = $this->void($body)->assertOk()->assertJsonPath('results.0.override_verified', true)->assertJsonPath('results.0.void_status', 'applied');
         $this->assertSame($first->json('results'), $this->void($body)->assertOk()->json('results'));
 
         $this->inTenant(function () use ($body) {
@@ -104,7 +105,7 @@ class VoidAndRefundTest extends TestCase
 
     public function test_a_manager_who_lacks_the_permission_cannot_override(): void
     {
-        $this->void(['override' => ['manager_id' => $this->cashier->id]])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_not_permitted');
+        $this->void(['override' => ['manager_user_id' => $this->cashier->id]])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_not_permitted');
         $this->void(['sale_id' => $this->id()])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'sale_unknown')->assertJsonPath('results.0.error.retryable', true);
     }
 

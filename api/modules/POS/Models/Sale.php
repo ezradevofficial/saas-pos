@@ -47,6 +47,7 @@ class Sale extends Model implements HasScope
             'sold_at' => 'immutable_datetime',
             'received_at' => 'immutable_datetime',
             'voided_at' => 'immutable_datetime',
+            'reviewed_at' => 'immutable_datetime',
         ];
     }
 
@@ -62,7 +63,7 @@ class Sale extends Model implements HasScope
 
     public function voidRecord(): HasOne
     {
-        return $this->hasOne(SaleVoid::class);
+        return $this->hasOne(SaleVoid::class)->where('status', '<>', 'rejected')->latest('received_at');
     }
 
     public function refunds(): HasMany

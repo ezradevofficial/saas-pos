@@ -87,7 +87,9 @@ trait UploadRules
     }
 
     /**
-     * AUTH-08: a manager's override (their id and the proof from the till).
+     * AUTH-08: a manager's override in core's shape: `{token}` from an
+     * online check, or the offline form the till signs itself. Its
+     * `reference` is the record's id.
      *
      * @return array<string, list<mixed>>
      */
@@ -95,9 +97,21 @@ trait UploadRules
     {
         return [
             $prefix => ['nullable', 'array'],
-            "{$prefix}.manager_id" => ["required_with:{$prefix}", 'uuid'],
-            "{$prefix}.proof" => ['nullable', 'string', 'max:2000'],
+            "{$prefix}.token" => ['nullable', 'string', 'max:2000'],
+            "{$prefix}.id" => ['nullable', 'uuid'],
+            "{$prefix}.manager_user_id" => ['nullable', 'uuid'],
+            "{$prefix}.cashier_user_id" => ['nullable', 'uuid'],
+            "{$prefix}.permission" => ['nullable', 'string', 'max:60'],
+            "{$prefix}.reference" => ['nullable', 'string', 'max:100'],
+            "{$prefix}.authorised_at" => ['nullable', 'string', 'max:40'],
+            "{$prefix}.signature" => ['nullable', 'string', 'max:200'],
         ];
+    }
+
+    /** AUTH-07: reserved for the till's signed attestation of who was signed in. */
+    protected function actorProof(): array
+    {
+        return ['nullable', 'string', 'max:2000'];
     }
 
     /** The device signed in (EnsureDeviceToken has checked the token). */

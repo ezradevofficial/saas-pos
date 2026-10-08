@@ -50,6 +50,8 @@ final class UploadResults
             'id' => $void->id,
             'status' => self::STORED,
             'sale_id' => $void->sale_id,
+            'void_status' => $void->status,
+            'flags' => $void->flags,
             'override_verified' => $void->override_verified,
             'received_at' => $void->received_at->toIso8601String(),
         ];
@@ -63,6 +65,8 @@ final class UploadResults
             'status' => self::STORED,
             'sale_id' => $refund->sale_id,
             'receipt_number' => $refund->receipt_number,
+            'refund_status' => $refund->status,
+            'flags' => $refund->flags,
             'override_verified' => $refund->override_verified,
             'received_at' => $refund->received_at->toIso8601String(),
         ];
@@ -74,6 +78,9 @@ final class UploadResults
         return [
             'id' => $movement->id,
             'status' => self::STORED,
+            'movement_status' => $movement->status,
+            'flags' => $movement->flags,
+            'override_verified' => $movement->override_verified,
             'received_at' => $movement->received_at->toIso8601String(),
         ];
     }

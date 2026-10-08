@@ -2,6 +2,7 @@
 
 namespace Modules\POS\Sync;
 
+use App\Core\Audit\Auditor;
 use App\Core\Numbering\Numbering;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -30,7 +31,10 @@ class NumberRanges
 {
     public const TYPES = ['pos.receipt', 'pos.refund'];
 
-    public function __construct(private readonly Numbering $numbering) {}
+    public function __construct(
+        private readonly Numbering $numbering,
+        private readonly Auditor $auditor,
+    ) {}
 
     /** @return Collection<int, NumberRange> the device's active ranges of $type, oldest first */
     public function topUp(DevicePlace $place, string $type, ?int $deviceNext = null): Collection
@@ -47,14 +51,17 @@ class NumberRanges
 
             $ranges = $this->active($place, $type);
 
+            // Only a number inside (or just past) one of the device's own ranges says anything.
+            $own = $deviceNext !== null && $ranges->contains(fn (NumberRange $r) => $deviceNext >= $r->range_from && $deviceNext <= $r->range_to + 1);
+
             foreach ($ranges as $range) {
                 if ($range->period !== $period) {
-                    $range->forceFill(['status' => NumberRange::RETIRED, 'retired_at' => now()])->save();
+                    $this->retireRange($range, 'period_ended');
 
                     continue;
                 }
 
-                if ($deviceNext !== null) {
+                if ($own) {
                     $this->markUsedBelow($range, $deviceNext);
                 }
             }
@@ -65,7 +72,7 @@ class NumberRanges
             if ($remaining < (int) config('pos.ranges.threshold')) {
                 $block = $this->numbering->reserve($type, $context, (int) config('pos.ranges.size'));
 
-                NumberRange::create([
+                $range = NumberRange::create([
                     'device_id' => $place->device->id,
                     'document_type' => $type,
                     'number_sequence_id' => $block->sequenceId,
@@ -77,6 +84,7 @@ class NumberRanges
                     'status' => NumberRange::ACTIVE,
                     'allocated_at' => now(),
                 ]);
+                $this->auditor->record('pos.number_range.allocate', $range, null, $range->only(['device_id', 'document_type', 'period', 'pattern', 'range_from', 'range_to']));
 
                 $ranges = $this->active($place, $type);
             }
@@ -86,42 +94,56 @@ class NumberRanges
     }
 
     /**
-     * The device's range holding $value for $type, locked, after checking
-     * $number is that value formatted for $at; marks the value used.
-     * Call inside the document's transaction.
+     * The device's range that gave $number for $type (M1): among its ranges
+     * holding $value (several periods of a yearly format can), the one
+     * whose pattern renders exactly $number for $at; the till may name it
+     * (`number_range_id`). Locked; marks the value used. Call inside the
+     * document's transaction.
      */
-    public function claim(DevicePlace $place, string $type, int $value, string $number, DateTimeInterface $at, string $field): NumberRange
+    public function claim(DevicePlace $place, string $type, int $value, string $number, DateTimeInterface $at, string $field, ?string $rangeId = null): NumberRange
     {
-        $range = NumberRange::query()
+        $candidates = NumberRange::query()
             ->where('device_id', $place->device->id)
             ->where('document_type', $type)
             ->where('range_from', '<=', $value)
             ->where('range_to', '>=', $value)
+            ->when($rangeId !== null, fn ($q) => $q->whereKey($rangeId))
+            ->orderBy('allocated_at')
             ->lockForUpdate()
-            ->first() ?? throw new Rejection('receipt_range_unknown', "{$field}_seq");
+            ->get();
 
-        if (Numbering::renderFrozen($range->pattern, $place->numberContext(CarbonImmutable::instance($at)), $value) !== $number) {
-            throw new Rejection('receipt_number_mismatch', "{$field}_number");
+        if ($candidates->isEmpty()) {
+            throw new Rejection('receipt_range_unknown', "{$field}_seq");
         }
+
+        $context = $place->numberContext(CarbonImmutable::instance($at));
+        $range = $candidates->first(fn (NumberRange $r) => Numbering::renderFrozen($r->pattern, $context, $value) === $number)
+            ?? throw new Rejection('receipt_number_mismatch', "{$field}_number");
 
         $this->markUsedBelow($range, $value + 1);
 
         return $range;
     }
 
-    /** NUM-02: a lost device's active ranges stop; their unused numbers are never given out again. */
+    /** NUM-02: a lost device's active ranges stop; their unused numbers are never given out again. Audited. */
     public function retire(string $deviceId): int
     {
-        return NumberRange::query()
-            ->where('device_id', $deviceId)
-            ->where('status', NumberRange::ACTIVE)
-            ->update(['status' => NumberRange::RETIRED, 'retired_at' => now(), 'updated_at' => now()]);
+        $ranges = NumberRange::query()->where('device_id', $deviceId)->where('status', NumberRange::ACTIVE)->lockForUpdate()->get();
+        $ranges->each(fn (NumberRange $range) => $this->retireRange($range, 'device_unpaired'));
+
+        return $ranges->count();
+    }
+
+    private function retireRange(NumberRange $range, string $reason): void
+    {
+        $range->forceFill(['status' => NumberRange::RETIRED, 'retired_at' => now()])->save();
+        $this->auditor->record('pos.number_range.retire', $range, ['status' => NumberRange::ACTIVE], ['status' => NumberRange::RETIRED, 'reason' => $reason, 'next_value' => $range->next_value]);
     }
 
     /** True when the exception is a second use of one range number (unique range and number). */
     public static function isReuse(UniqueConstraintViolationException $e): bool
     {
-        return str_contains($e->getMessage(), 'number_range_id_receipt_seq_unique');
+        return str_contains($e->getMessage(), 'receipt_seq_unique') || str_contains($e->getMessage(), 'receipt_number_unique');
     }
 
     /** @return Collection<int, NumberRange> */

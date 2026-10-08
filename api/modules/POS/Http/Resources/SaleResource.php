@@ -58,6 +58,8 @@ class SaleResource extends JsonResource
             'base_tax' => $money($this->base_tax_minor, $this->base_currency),
             'fx' => $this->fx,
             'flags' => $this->flags,
+            'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'reviewed_by' => $this->reviewed_by,
             'voided_at' => $this->voided_at?->toIso8601String(),
         ];
 
@@ -99,6 +101,7 @@ class SaleResource extends JsonResource
             ])->all(),
             'void' => $this->voidRecord === null ? null : [
                 'id' => $this->voidRecord->id,
+                'status' => $this->voidRecord->status,
                 'voided_by' => $this->voidRecord->voided_by,
                 'approved_by' => $this->voidRecord->approved_by,
                 'override_verified' => $this->voidRecord->override_verified,
@@ -108,6 +111,7 @@ class SaleResource extends JsonResource
             'refunds' => $this->refunds->map(fn ($refund) => [
                 'id' => $refund->id,
                 'receipt_number' => $refund->receipt_number,
+                'status' => $refund->status,
                 'total' => $money($refund->total_minor),
                 'tax' => $money($refund->tax_minor),
                 'cashier_id' => $refund->cashier_id,

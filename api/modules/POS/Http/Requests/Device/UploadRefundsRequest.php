@@ -21,6 +21,8 @@ class UploadRefundsRequest extends FormRequest
             'refunds.*.receipt_number' => ['required', 'string', 'max:80'],
             'refunds.*.refunded_at' => ['required', 'date'],
             'refunds.*.reason' => ['required', 'string', 'max:500'],
+            'refunds.*.actor_proof' => $this->actorProof(),
+            'refunds.*.number_range_id' => ['nullable', 'uuid'],
             'refunds.*.total_minor' => $this->minor(positive: true),
             'refunds.*.lines' => ['required', 'array', 'min:1', 'max:500'],
             'refunds.*.lines.*.id' => $this->deviceId(),

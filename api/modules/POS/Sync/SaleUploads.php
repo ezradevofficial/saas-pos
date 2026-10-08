@@ -45,8 +45,13 @@ use Modules\POS\Models\Shift;
  * - **Device wins.** Prices, discounts, tax and rates are kept as sold.
  *   What the server would have done differently is recorded in `flags`
  *   (tax_differs, rate_differs, discount_unauthorised,
- *   price_override_unauthorised, cashier_not_permitted, after_shift_close,
- *   override_unverified, clock_ahead), never refused.
+ *   price_override_unauthorised, cashier_not_permitted, received_after_close,
+ *   override_unverified, actor_unverified, change_rate_differs,
+ *   list_price_missing, clock_ahead), never refused. Money in is never held:
+ *   a cashier or override the server can't prove is flagged.
+ * - **Same id, other content** (`payload_mismatch`): refused, the stored
+ *   sale stays as it was.
+ * - **A closed shift** gets its expected cash recounted (H4).
  * - **Refused** (the sale is not a sale the server can keep): unknown or
  *   foreign references, sums that do not add up, a tender conversion the
  *   stated rate does not give, change above the overpayment, and an item
@@ -71,6 +76,7 @@ class SaleUploads
         private readonly BaseCurrencyLock $baseLock,
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
+        private readonly ShiftCash $cash,
     ) {}
 
     /**
@@ -85,7 +91,7 @@ class SaleUploads
     /** @return array<string, mixed> */
     private function one(DevicePlace $place, array $data): array
     {
-        $existing = $this->stored($place, $data['id']);
+        $existing = $this->stored($place, $data['id'], Records::hash($data));
 
         if ($existing !== null) {
             return $existing;
@@ -97,25 +103,28 @@ class SaleUploads
             return UploadResults::rejected($data['id'], $rejection);
         } catch (UniqueConstraintViolationException $e) {
             // The same sale stored meanwhile (a concurrent resend), a receipt number used twice, or an id taken.
-            return $this->stored($place, $data['id'])
+            return $this->stored($place, $data['id'], Records::hash($data))
                 ?? UploadResults::rejected($data['id'], new Rejection(NumberRanges::isReuse($e) ? 'receipt_number_used' : 'id_conflict', NumberRanges::isReuse($e) ? 'receipt_seq' : 'id'));
         }
 
         return UploadResults::sale($sale);
     }
 
-    /** The stored result when this device already uploaded $id; a rejection when the id is another device's. */
-    private function stored(DevicePlace $place, string $id): ?array
+    /**
+     * The stored result when this device already uploaded $id with the same
+     * content; a rejection when the id is another device's or the content
+     * differs.
+     */
+    private function stored(DevicePlace $place, string $id, string $hash): ?array
     {
         $sale = Sale::query()->find($id);
 
-        if ($sale === null) {
-            return null;
-        }
-
-        return $sale->device_id === $place->device->id
-            ? UploadResults::sale($sale)
-            : UploadResults::rejected($id, new Rejection('id_conflict', 'id'));
+        return match (true) {
+            $sale === null => null,
+            $sale->device_id !== $place->device->id => UploadResults::rejected($id, new Rejection('id_conflict', 'id')),
+            $sale->payload_hash !== $hash => UploadResults::rejected($id, new Rejection('payload_mismatch', 'id')),
+            default => UploadResults::sale($sale),
+        };
     }
 
     private function store(DevicePlace $place, array $data): Sale
@@ -134,6 +143,11 @@ class SaleUploads
 
         if (! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
             $flags->add('cashier_not_permitted');
+        }
+
+        // H3, AUTH-07: money in is kept; a cashier the till can't prove is flagged.
+        if (! $this->authority->proven($place->device, $cashier, $data['actor_proof'] ?? null, $data['id'])) {
+            $flags->add('actor_unverified');
         }
 
         $this->customer($place, $data['customer_id'] ?? null);
@@ -158,9 +172,14 @@ class SaleUploads
         }
 
         [$change, $rounding, $changeSnapshot] = $this->change($data['change'] ?? null, $currency, $paidExact->minus($totals['total_minor']));
+
+        // H1: money out at a rate the server doesn't hold is flagged.
+        if ($changeSnapshot !== null && ! $change->isZero() && ! $this->matchesServerRate($place, $changeSnapshot, $at)) {
+            $flags->add('change_rate_differs', null, ['pair' => "{$changeSnapshot->base}/{$changeSnapshot->quote}"]);
+        }
         [$base, $snapshot, $baseTotal, $baseTax] = $this->base($place, $lines, $currency, $at, [...array_column($payments, 'fx_snapshot'), $changeSnapshot], $flags);
 
-        $range = $this->ranges->claim($place, 'pos.receipt', (int) $data['receipt_seq'], $data['receipt_number'], $at, 'receipt');
+        $range = $this->ranges->claim($place, 'pos.receipt', (int) $data['receipt_seq'], $data['receipt_number'], $at, 'receipt', $data['number_range_id'] ?? null);
 
         $sale = Sale::create([
             'id' => $data['id'],
@@ -190,6 +209,7 @@ class SaleUploads
             'received_at' => now(),
             'offline' => (bool) ($data['offline'] ?? false),
             'flags' => $flags->all(),
+            'payload_hash' => Records::hash($data),
         ]);
 
         foreach ($lines as $line) {
@@ -201,6 +221,7 @@ class SaleUploads
         }
 
         $this->audit($sale, $lines, $cashier, $at, $total);
+        $this->cash->recountIfClosed($shift->id, 'sale', $sale->id);
         SaleCompleted::dispatch($this->tenants->require(), $sale->id, $sale->company_id, $sale->location_id);
 
         return $sale;
@@ -215,8 +236,8 @@ class SaleUploads
             throw new Rejection('shift_other_device', 'shift_id');
         }
 
-        if (! $shift->isOpen() && $shift->closed_at->lessThan($at)) {
-            $flags->add('after_shift_close');
+        if (! $shift->isOpen()) {
+            $flags->add('received_after_close');
         }
 
         return $shift;
@@ -314,18 +335,17 @@ class SaleUploads
             $flags->add('tax_differs', $index + 1, ['expected_tax_minor' => $expected->minor(), 'tax_code' => $code->code]);
         }
 
-        // POS-07, RBAC-06, AUTH-08: a discount within the limit, a price other than the list price.
-        // A manager named on the line must exist in the tenant even when nothing needed them.
-        if (($line['override']['manager_id'] ?? null) !== null) {
-            $this->authority->user($line['override']['manager_id'], "{$field}.override.manager_id");
-        }
+        // POS-07, RBAC-06, AUTH-08: a discount within the limit (`override`), a price other
+        // than the list price (`price_override`). Users they name must exist even when unused.
+        $this->authority->checkNamed($line['override'] ?? null, "{$field}.override");
+        $this->authority->checkNamed($line['price_override'] ?? null, "{$field}.price_override");
 
         $percent = null;
         $discountApproval = null;
 
         if ($discount->isPositive()) {
             $percent = $discount->multipliedBy(100)->dividedBy($gross, 4, RoundingMode::HalfUp);
-            $discountApproval = $this->restricted($place, $cashier, $line['override'] ?? null, 'pos.discount.give',
+            $discountApproval = $this->restricted($place, $cashier, $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
                 fn (User $user) => $this->authority->within($user, 'max_discount_percent', $place->scope(), $percent),
                 $line['id'], "{$field}.override", 'discount_unauthorised', $index, $flags);
         }
@@ -334,8 +354,14 @@ class SaleUploads
         $listPrice = $line['list_price_minor'] ?? null;
 
         if ($listPrice !== null && (string) $listPrice !== (string) $line['unit_price_minor']) {
-            $priceApproval = $this->restricted($place, $cashier, $line['override'] ?? null, 'pos.price.override', null,
-                $line['id'], "{$field}.override", 'price_override_unauthorised', $index, $flags);
+            $priceApproval = $this->restricted($place, $cashier, $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
+                $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
+        }
+
+        // M4: a line on a price list without the list price can't be checked.
+        // TODO(item prices, feat/item-prices): compare with core's resolved price once on main.
+        if ($list !== null && $listPrice === null) {
+            $flags->add('list_price_missing', $index + 1);
         }
 
         return [
@@ -371,10 +397,10 @@ class SaleUploads
     }
 
     /** A restricted line action: the approval, or null with a flag when nobody allowed it (device wins). */
-    private function restricted(DevicePlace $place, User $cashier, ?array $override, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
+    private function restricted(DevicePlace $place, User $cashier, ?array $override, ?string $actorProof, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
     {
         try {
-            $approval = $this->authority->approve($cashier, $override, $permission, $place->scope(), $limit, $place->device, $subjectId, $field);
+            $approval = $this->authority->approve($cashier, $override, $actorProof, $permission, $place->scope(), $limit, $place->device, $subjectId, $field);
         } catch (Rejection $rejection) {
             // An unknown manager is a bad reference, not a missing permission.
             if ($rejection->errorCode === 'user_unknown') {
@@ -386,8 +412,9 @@ class SaleUploads
             return null;
         }
 
-        if ($approval->byOverride() && ! $approval->verified) {
-            $flags->add('override_unverified', $index + 1);
+        // H3: money in is never held; what can't be proven is flagged.
+        if ($approval->held()) {
+            $flags->add($approval->flag(), $index + 1);
         }
 
         return $approval;

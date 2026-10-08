@@ -11,6 +11,7 @@ use Modules\POS\Models\CashMovement;
 use Modules\POS\Models\Shift;
 use Modules\POS\Models\ShiftBalance;
 use Modules\POS\Tests\Concerns\BuildsPos;
+use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -78,16 +79,16 @@ class ShiftUploadTest extends TestCase
         $voided = $this->saleBody($shift, 3);
         $this->upload([$voided])->assertOk();
         $this->postJson('/api/v1/pos/voids', ['voids' => [[
-            'id' => $this->id(), 'sale_id' => $voided['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
+            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'sale_id' => $voided['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
         ]]], $this->tillHeaders())->assertOk();
         $this->postJson('/api/v1/pos/cash-movements', ['movements' => [[
-            'id' => $this->id(), 'shift_id' => $shift, 'user_id' => $this->owner->id, 'kind' => 'pay_out', 'currency' => 'KES',
+            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'shift_id' => $shift, 'user_id' => $this->owner->id, 'kind' => 'pay_out', 'currency' => 'KES',
             'amount_minor' => '20000', 'reason' => 'Cleaning supplies', 'occurred_at' => now()->toIso8601String(),
         ]]], $this->tillHeaders())->assertOk();
         $sold = $this->saleBody($shift, 4);
         $this->upload([$sold])->assertOk();
         $this->postJson('/api/v1/pos/refunds', ['refunds' => [[
-            'id' => $this->id(), 'sale_id' => $sold['id'], 'shift_id' => $shift, 'cashier_id' => $this->owner->id,
+            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'sale_id' => $sold['id'], 'shift_id' => $shift, 'cashier_id' => $this->owner->id,
             'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged',
             'total_minor' => '56250', 'lines' => [['id' => $this->id(), 'sale_line_id' => $sold['lines'][0]['id'], 'qty' => '1']],
             'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250']],
@@ -112,8 +113,13 @@ class ShiftUploadTest extends TestCase
         // Closing again changes nothing; a sale arriving late is kept and flagged.
         $this->shifts([[...$this->shiftBody(['id' => $shift]), 'closing' => $this->closing(counted: [])]])->assertOk();
         $this->inTenant(fn () => $this->assertSame('770000', (string) ShiftBalance::where('shift_id', $shift)->where('currency', 'KES')->sole()->counted_minor));
-        $this->upload([$this->saleBody($shift, 5, ['sold_at' => now()->addMinute()->toIso8601String()])])->assertOk()
-            ->assertJsonPath('results.0.flags.0.code', 'after_shift_close');
+        // H4: it lands on the closed shift: flagged, and the cash-up recounted (expected + KES 1,125.00).
+        $this->upload([$this->saleBody($shift, 5)])->assertOk()
+            ->assertJsonPath('results.0.flags.0.code', 'received_after_close');
+        $this->inTenant(function () use ($shift) {
+            $kes = ShiftBalance::where('shift_id', $shift)->where('currency', 'KES')->sole();
+            $this->assertSame(['761250', '770000', '8750'], [(string) $kes->expected_minor, (string) $kes->counted_minor, (string) $kes->variance_minor]);
+        });
     }
 
     public function test_one_upload_may_open_and_close_a_shift_and_permissions_apply(): void
@@ -149,7 +155,7 @@ class ShiftUploadTest extends TestCase
         $post = fn (array $body) => $this->postJson('/api/v1/pos/cash-movements', ['movements' => [$body]], $this->tillHeaders());
 
         $post($movement())->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_required');
-        $approved = $movement(['override' => ['manager_id' => $manager->id, 'proof' => 'pin-proof']]);
+        $approved = $movement(['override' => $this->override($manager->id)]);
         $post($approved)->assertOk();
         $this->assertSame('stored', $post($approved)->assertOk()->json('results.0.status'));
 
@@ -158,7 +164,22 @@ class ShiftUploadTest extends TestCase
             $this->assertSame(1, AuditEntry::where('action', 'pos.cash.pay_in')->count());
         });
 
-        $this->shifts([[...$this->shiftBody(['id' => $shift, 'opened_by_id' => $cashier->id]), 'closing' => $this->closing($cashier->id)]])->assertOk();
-        $post($movement(['user_id' => $manager->id]))->assertUnprocessable()->assertJsonPath('results.0.error.code', 'shift_closed');
+        // H2: a pay-out nobody can prove is held: it doesn't count in the drawer.
+        $held = $movement(['kind' => 'pay_out', 'override' => $this->override($manager->id, proven: false)]);
+        $post($held)->assertOk()->assertJsonPath('results.0.movement_status', 'held');
+
+        $this->shifts([[...$this->shiftBody(['id' => $shift, 'opened_by_id' => $cashier->id]), 'closing' => $this->closing($cashier->id, [['currency' => 'KES', 'amount_minor' => '600000']])]])->assertOk();
+        $this->inTenant(fn () => $this->assertSame('600000', (string) ShiftBalance::where('shift_id', $shift)->sole()->expected_minor));
+
+        // H4: made after the close: refused; made before it but received late: kept, flagged, recounted.
+        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => 'attested', 'occurred_at' => now()->addMinute()->toIso8601String()]))
+            ->assertUnprocessable()->assertJsonPath('results.0.error.code', 'shift_closed');
+        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => 'attested', 'kind' => 'pay_out', 'amount_minor' => '50000', 'occurred_at' => now()->subMinutes(10)->toIso8601String()]))
+            ->assertOk()->assertJsonPath('results.0.flags.0.code', 'received_after_close');
+        $this->inTenant(function () use ($shift) {
+            $kes = ShiftBalance::where('shift_id', $shift)->sole();
+            $this->assertSame(['550000', '600000', '50000'], [(string) $kes->expected_minor, (string) $kes->counted_minor, (string) $kes->variance_minor]);
+            $this->assertSame(1, AuditEntry::where('action', 'pos.shift.recount')->count());
+        });
     }
 }

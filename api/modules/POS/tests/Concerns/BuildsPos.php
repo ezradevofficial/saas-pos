@@ -18,6 +18,8 @@ use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Modules\POS\Sync\OverrideVerifier;
+use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\BuildsOrganisation;
 
 /**
@@ -51,6 +53,8 @@ trait BuildsPos
     protected function setUpPos(): void
     {
         $this->setUpOrganisation();
+        // AUTH-07, AUTH-08: proofs the tests control (FakeOverrides).
+        app()->instance(OverrideVerifier::class, new FakeOverrides);
 
         $this->inTenant(function () {
             app(TenantCurrencies::class)->provisionFor($this->acme);
@@ -158,6 +162,7 @@ trait BuildsPos
             'id' => $this->id(),
             'shift_id' => $shiftId,
             'cashier_id' => $this->owner->id,
+            'actor_proof' => FakeOverrides::ATTESTED,
             'customer_id' => null,
             'receipt_seq' => $seq,
             'receipt_number' => sprintf('R-L01-%06d', $seq),
@@ -193,6 +198,12 @@ trait BuildsPos
     protected function customer(?string $companyId = null): Party
     {
         return $this->inTenant(fn () => Party::create(['kind' => 'person', 'name' => 'Amina', 'roles' => ['customer'], 'company_id' => $companyId]));
+    }
+
+    /** AUTH-08: an override by $managerId the (fake) verifier proves, or can't verify when $proven is false. */
+    protected function override(string $managerId, bool $proven = true): array
+    {
+        return ['manager_user_id' => $managerId, 'signature' => $proven ? FakeOverrides::VALID : 'unverifiable'];
     }
 
     protected function setCashRounding(string $code, int $step): void

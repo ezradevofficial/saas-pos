@@ -23,6 +23,6 @@ class CashMovement extends Model
 
     protected function casts(): array
     {
-        return ['occurred_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime'];
+        return ['occurred_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'decided_at' => 'immutable_datetime', 'override_verified' => 'boolean', 'flags' => 'array'];
     }
 }

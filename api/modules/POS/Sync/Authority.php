@@ -55,32 +55,79 @@ class Authority
     }
 
     /**
-     * Allow $permission (and $withinLimit, when given) for $actor, else for
-     * the manager named in $override; refuse otherwise.
+     * Allow $permission (and $withinLimit, when given) by a manager's
+     * override, else by the person who did it; refuse otherwise.
      *
-     * @param  array{manager_id?: ?string, proof?: ?string}|null  $override
+     * - An override (core shape, AUTH-08) is redeemed once for $reference.
+     *   A named manager must exist in the tenant, needed or not, and must
+     *   hold the permission within the limit; else the person's own right
+     *   is tried.
+     * - The person's own right counts as proven only with a verified
+     *   sign-in attestation (`actor_proof`, AUTH-07).
+     * - An approval that can't be proven is returned unverified: callers
+     *   hold money out for review and flag money in.
+     *
+     * @param  array<string, mixed>|null  $override
      * @param  (Closure(User): bool)|null  $withinLimit
      */
-    public function approve(User $actor, ?array $override, string $permission, Scope $scope, ?Closure $withinLimit, Device $device, string $subjectId, string $field): Approval
+    public function approve(User $actor, ?array $override, ?string $actorProof, string $permission, Scope $scope, ?Closure $withinLimit, Device $device, string $reference, string $field): Approval
     {
         $allowed = fn (User $user) => $this->can($user, $permission, $scope) && ($withinLimit === null || $withinLimit($user));
-        // A named manager must exist in the tenant, needed or not: an unknown id is a bad reference.
-        $manager = ($override['manager_id'] ?? null) === null ? null : $this->user($override['manager_id'], "{$field}.manager_id");
 
-        // The person may do it themselves: an override sent along is not needed.
-        if ($allowed($actor)) {
-            return new Approval;
-        }
+        if (self::hasOverride($override)) {
+            $named = $override['manager_user_id'] ?? null;
+            $named = $named === null ? null : $this->user($named, "{$field}.manager_user_id");
 
-        if ($manager === null) {
+            if (($override['cashier_user_id'] ?? null) !== null) {
+                $this->user($override['cashier_user_id'], "{$field}.cashier_user_id");
+            }
+            $proof = $this->verifier->redeem($device, $override, $permission, $reference);
+            $manager = $proof === null ? $named : $this->user($proof->managerUserId, "{$field}.manager_user_id");
+
+            if ($manager !== null && $allowed($manager)) {
+                return new Approval($manager, $proof !== null);
+            }
+
+            if (! $allowed($actor)) {
+                if ($manager === null) {
+                    // A token the server can't read yet: nobody to check, so it waits for review.
+                    return new Approval(null, false);
+                }
+
+                throw new Rejection($this->can($manager, $permission, $scope) ? 'override_limit_exceeded' : 'override_not_permitted', "{$field}.manager_user_id");
+            }
+        } elseif (! $allowed($actor)) {
             throw new Rejection($this->can($actor, $permission, $scope) ? 'limit_exceeded' : 'override_required', $field);
         }
 
-        if (! $allowed($manager)) {
-            throw new Rejection($this->can($manager, $permission, $scope) ? 'override_limit_exceeded' : 'override_not_permitted', "{$field}.manager_id");
-        }
+        return new Approval(null, $this->verifier->actor($device, $actor, $actorProof, $reference));
+    }
 
-        return new Approval($manager, $this->verifier->verify($manager, $override['proof'] ?? null, $permission, $subjectId, $device));
+    /** AUTH-07: the till proved $user was signed in for $reference. */
+    public function proven(Device $device, User $user, ?string $proof, string $reference): bool
+    {
+        return $this->verifier->actor($device, $user, $proof, $reference);
+    }
+
+    /**
+     * Users an override names must exist in the tenant, whether or not the
+     * override is used: an unknown id is a bad reference.
+     *
+     * @param  array<string, mixed>|null  $override
+     */
+    public function checkNamed(?array $override, string $field): void
+    {
+        foreach (['manager_user_id', 'cashier_user_id'] as $key) {
+            if (($override[$key] ?? null) !== null) {
+                $this->user($override[$key], "{$field}.{$key}");
+            }
+        }
+    }
+
+    /** @param array<string, mixed>|null $override */
+    public static function hasOverride(?array $override): bool
+    {
+        return $override !== null && (($override['token'] ?? null) !== null || ($override['manager_user_id'] ?? null) !== null);
     }
 
     private function isOwner(User $user, Scope $scope): bool

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\POS\Listeners\RetireDeviceRanges;
+use Modules\POS\Sync\CoreOverrides;
 use Modules\POS\Sync\OverrideVerifier;
 use Modules\POS\Sync\Sellability;
 use Modules\POS\Sync\UnverifiedOverrides;
@@ -32,7 +33,7 @@ class PosServiceProvider extends ServiceProvider
 
     /** RBAC-01: the module's permission catalogue (`pos.resource.action`). */
     public const PERMISSIONS = [
-        'sale' => ['view', 'create', 'print', 'void', 'refund'],
+        'sale' => ['view', 'create', 'print', 'void', 'refund', 'review'],
         'shift' => ['view', 'open', 'close', 'manage'],
         'cash' => ['move'],
         'price' => ['override'],
@@ -42,7 +43,8 @@ class PosServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/pos.php', 'pos');
-        $this->app->bindIf(OverrideVerifier::class, UnverifiedOverrides::class);
+        // AUTH-07, AUTH-08: core's PIN verifier once it is installed, else nothing is provable (held).
+        $this->app->bindIf(OverrideVerifier::class, class_exists('App\\Core\\Identity\\Pin\\OverrideVerifier') ? CoreOverrides::class : UnverifiedOverrides::class);
         $this->app->scoped(Sellability::class);
     }
 

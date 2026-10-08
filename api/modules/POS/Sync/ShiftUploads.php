@@ -12,10 +12,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\POS\Events\ShiftClosed;
 use Modules\POS\Events\ShiftOpened;
-use Modules\POS\Models\CashMovement;
-use Modules\POS\Models\RefundPayment;
-use Modules\POS\Models\Sale;
-use Modules\POS\Models\SalePayment;
 use Modules\POS\Models\Shift;
 use Modules\POS\Models\ShiftBalance;
 
@@ -37,6 +33,7 @@ class ShiftUploads
         private readonly Authority $authority,
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
+        private readonly ShiftCash $cash,
     ) {}
 
     /** @return list<array<string, mixed>> */
@@ -47,12 +44,16 @@ class ShiftUploads
                 return UploadResults::shift(DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->one($place, $data)));
             } catch (Rejection $rejection) {
                 return UploadResults::rejected($data['id'], $rejection);
-            } catch (UniqueConstraintViolationException) {
+            } catch (UniqueConstraintViolationException $e) {
                 $shift = Shift::query()->find($data['id']);
 
-                return $shift !== null && $shift->device_id === $place->device->id
-                    ? UploadResults::shift($shift)
-                    : UploadResults::rejected($data['id'], new Rejection('shift_already_open', 'id', retryable: true));
+                return match (true) {
+                    $shift !== null && $shift->device_id === $place->device->id => UploadResults::shift($shift),
+                    // Another open shift committed meanwhile: retry once it is closed.
+                    str_contains($e->getMessage(), 'pos_shifts_one_open_per_device') => UploadResults::rejected($data['id'], new Rejection('shift_already_open', 'id', retryable: true)),
+                    // The id is taken (another device or tenant): never retry it.
+                    default => UploadResults::rejected($data['id'], new Rejection('id_conflict', 'id')),
+                };
             }
         }, $shifts);
     }
@@ -148,20 +149,7 @@ class ShiftUploads
             $counted[$count['currency']] = BigInteger::of((string) $count['amount_minor']);
         }
 
-        $expected = $this->expected($shift);
-        $currencies = array_unique([...array_keys($expected), ...array_keys($counted)]);
-        sort($currencies);
-
-        foreach ($currencies as $currency) {
-            $balance = ShiftBalance::query()->firstOrNew(['shift_id' => $shift->id, 'currency' => $currency], ['opening_minor' => 0]);
-            $expect = $expected[$currency] ?? BigInteger::zero();
-            $count = $counted[$currency] ?? BigInteger::zero();
-            $balance->fill([
-                'expected_minor' => (string) $expect,
-                'counted_minor' => (string) $count,
-                'variance_minor' => (string) $count->minus($expect),
-            ])->save();
-        }
+        $this->cash->settle($shift, $counted);
 
         $shift->forceFill([
             'status' => Shift::CLOSED,
@@ -176,40 +164,6 @@ class ShiftUploads
             'balances' => $shift->balances()->get(['currency', 'opening_minor', 'counted_minor', 'expected_minor', 'variance_minor'])->toArray(),
         ], ['user_id' => $closer->id, 'device_time' => $closedAt]);
         ShiftClosed::dispatch($this->tenants->require(), $shift->id);
-    }
-
-    /** @return array<string, BigInteger> expected cash per currency (minor units) */
-    public function expected(Shift $shift): array
-    {
-        $totals = [];
-        $add = function (string $currency, string|int $minor) use (&$totals) {
-            $totals[$currency] = ($totals[$currency] ?? BigInteger::zero())->plus((string) $minor);
-        };
-
-        foreach (ShiftBalance::query()->where('shift_id', $shift->id)->get() as $balance) {
-            $add($balance->currency, $balance->opening_minor);
-        }
-
-        $sales = Sale::query()->where('shift_id', $shift->id)->where('status', Sale::COMPLETED);
-
-        SalePayment::query()->whereIn('sale_id', (clone $sales)->select('id'))->where('method_type', 'cash')
-            ->selectRaw('currency, sum(amount_minor) as total')->groupBy('currency')->get()
-            ->each(fn ($row) => $add($row->currency, $row->total));
-
-        (clone $sales)->where('change_minor', '>', 0)
-            ->selectRaw('change_currency, sum(change_minor) as total')->groupBy('change_currency')->get()
-            ->each(fn ($row) => $add($row->change_currency, '-'.$row->total));
-
-        CashMovement::query()->where('shift_id', $shift->id)
-            ->selectRaw("currency, sum(case when kind = 'pay_in' then amount_minor else -amount_minor end) as total")->groupBy('currency')->get()
-            ->each(fn ($row) => $add($row->currency, $row->total));
-
-        RefundPayment::query()->where('method_type', 'cash')
-            ->whereIn('refund_id', DB::table('pos_refunds')->where('shift_id', $shift->id)->select('id'))
-            ->selectRaw('currency, sum(amount_minor) as total')->groupBy('currency')->get()
-            ->each(fn ($row) => $add($row->currency, '-'.$row->total));
-
-        return $totals;
     }
 
     private function currency(string $code, string $field): void

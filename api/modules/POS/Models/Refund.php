@@ -25,6 +25,8 @@ class Refund extends Model implements HasScope
         return [
             'receipt_seq' => 'integer',
             'override_verified' => 'boolean',
+            'flags' => 'array',
+            'decided_at' => 'immutable_datetime',
             'fx' => FxSnapshot::class.':fx',
             'refunded_at' => 'immutable_datetime',
             'received_at' => 'immutable_datetime',

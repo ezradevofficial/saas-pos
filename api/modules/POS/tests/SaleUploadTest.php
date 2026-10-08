@@ -16,6 +16,7 @@ use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
 use Modules\POS\Tests\Concerns\BuildsPos;
+use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -127,7 +128,7 @@ class SaleUploadTest extends TestCase
             ['cashier_id' => $foreignUser],
             ['customer_id' => $this->asTenant($other['user']->tenant_id, fn () => Party::create(['kind' => 'person', 'name' => 'X', 'roles' => ['customer']]))->id],
             ['price_list_id' => $this->asTenant($other['user']->tenant_id, fn () => PriceList::create(['company_id' => $other['company']->id, 'name' => 'X', 'currency' => 'KES']))->id],
-            ['lines' => [$this->line(['override' => ['manager_id' => $foreignUser, 'proof' => null], 'unit_price_minor' => '50000', 'tax_minor' => '11111', 'total_minor' => '100000'])]],
+            ['lines' => [$this->line(['override' => $this->override($foreignUser), 'unit_price_minor' => '50000', 'tax_minor' => '11111', 'total_minor' => '100000'])]],
         ] as $index => $overrides) {
             $this->upload([$this->saleBody($this->shift, 10 + $index, $overrides)])->assertUnprocessable();
         }
@@ -165,15 +166,23 @@ class SaleUploadTest extends TestCase
         // With a 10 % limit the same discount is the cashier's own; a manager's override covers the price.
         $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('cashier')->id, 'key' => 'max_discount_percent', 'value' => '10']));
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
-        $approved = [...$discounted, 'id' => $this->id(), 'override' => ['manager_id' => $manager->id, 'proof' => 'pin-proof']];
+        $approved = [...$discounted, 'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'price_override' => $this->override($manager->id)];
         $response = $this->upload([$this->saleBody($this->shift, 3, ['cashier_id' => $cashier->id, 'lines' => [$approved]])])->assertOk();
-        // AUTH-08: the proof can't be verified until PINs exist (Task 2): kept and flagged.
-        $this->assertSame([['code' => 'override_unverified', 'line' => 1]], $response->json('results.0.flags'));
+        $this->assertSame([], $response->json('results.0.flags'));
+
+        // H3: money in is never held: an override or a cashier that can't be proven is kept and flagged.
+        $unproven = [...$discounted, 'id' => $this->id(), 'price_override' => $this->override($manager->id, proven: false)];
+        $response = $this->upload([$this->saleBody($this->shift, 4, ['cashier_id' => $cashier->id, 'actor_proof' => null, 'lines' => [$unproven]])])->assertOk();
+        $this->assertSame([
+            ['code' => 'actor_unverified'],
+            ['code' => 'actor_unverified', 'line' => 1],
+            ['code' => 'override_unverified', 'line' => 1],
+        ], $response->json('results.0.flags'));
         $this->inTenant(function () use ($approved, $manager) {
             $line = SaleLine::findOrFail($approved['id']);
             $this->assertSame([null, $manager->id], [$line->discount_override_by, $line->price_override_by]);
-            $this->assertSame(1, AuditEntry::where('action', 'pos.sale.price_override')->where('on_behalf_of_user_id', $manager->id)->count());
-            $this->assertSame(2, AuditEntry::where('action', 'pos.sale.discount')->count());
+            $this->assertSame(2, AuditEntry::where('action', 'pos.sale.price_override')->where('on_behalf_of_user_id', $manager->id)->count());
+            $this->assertSame(3, AuditEntry::where('action', 'pos.sale.discount')->count());
         });
     }
 

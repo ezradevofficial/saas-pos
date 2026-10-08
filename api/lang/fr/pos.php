@@ -13,6 +13,13 @@ return [
     ],
 
     'errors' => [
+        'payload_mismatch' => 'Un élément avec cet identifiant a déjà été envoyé avec un autre contenu. Donnez un nouvel identifiant au nouvel élément sur la caisse.',
+        'override_invalid' => 'L’approbation du responsable n’a pas pu être vérifiée. Demandez au responsable d’approuver de nouveau avec son code PIN.',
+        'override_expired' => 'L’approbation du responsable a expiré. Demandez au responsable d’approuver de nouveau.',
+        'override_mismatch' => 'Le responsable a approuvé autre chose. Demandez-lui d’approuver cette action.',
+        'override_replayed' => 'Cette approbation a déjà servi pour autre chose. Demandez au responsable d’approuver de nouveau.',
+        'not_held' => 'Cet élément n’attend pas de vérification. Actualisez la liste.',
+        'not_flagged' => 'Cette vente n’a aucun signalement à vérifier.',
         'upload_rejected' => 'Rien dans cet envoi n’a été enregistré. Vérifiez l’erreur de chaque élément, corrigez-la et renvoyez-le.',
         'id_conflict' => 'Cet identifiant est déjà utilisé par un autre élément. Donnez un nouvel identifiant à l’élément sur la caisse.',
         'user_unknown' => 'Cet utilisateur n’est pas connu dans votre organisation. Reconnectez-vous sur la caisse et recommencez.',

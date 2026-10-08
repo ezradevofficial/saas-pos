@@ -6,17 +6,25 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Device;
 
 /**
- * AUTH-08: checks the proof a till sends that a manager authorised a
- * restricted action (void, refund, price override, discount above limit,
- * cash movement) by entering their PIN on the device. Phase 4 Task 2
- * provides the PIN-backed implementation and binds it in place of
- * UnverifiedOverrides.
+ * AUTH-07, AUTH-08: proof of who acted at the till.
+ *
+ * - redeem(): a manager's override (core shape: `{token}` online, or the
+ *   offline signed form `{id, manager_user_id, cashier_user_id, permission,
+ *   reference, authorised_at, signature}`), used once for `$reference`
+ *   (the record's id). Null when it can't be verified here (no verifier
+ *   yet): the action is then held for review. Throws a Rejection when the
+ *   proof is invalid, expired, for something else, or replayed.
+ * - actor(): a device-signed sign-in attestation (`actor_proof`) that
+ *   $user was signed in on the till for $reference. False when absent or
+ *   not verifiable.
+ *
+ * Bound to CoreOverrides when core's App\Core\Identity\Pin\OverrideVerifier
+ * exists (branch feat/core-sync), else to UnverifiedOverrides.
  */
 interface OverrideVerifier
 {
-    /**
-     * @param  string  $action  the permission authorised, e.g. `pos.sale.refund`
-     * @param  string  $subjectId  the record it was authorised for (sale, refund, line...)
-     */
-    public function verify(User $manager, ?string $proof, string $action, string $subjectId, Device $device): bool;
+    /** @param array<string, mixed> $override */
+    public function redeem(Device $device, array $override, string $permission, string $reference): ?OverrideProof;
+
+    public function actor(Device $device, User $user, ?string $proof, string $reference): bool;
 }

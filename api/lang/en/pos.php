@@ -15,6 +15,13 @@ return [
     // POS-09: why an uploaded record was refused. The till shows the message;
     // records marked retryable are sent again later.
     'errors' => [
+        'payload_mismatch' => 'A record with this id was already sent with other content. Give the new record a new id on the till.',
+        'override_invalid' => 'The manager\'s approval could not be checked. Ask the manager to approve again with their PIN.',
+        'override_expired' => 'The manager\'s approval has expired. Ask the manager to approve again.',
+        'override_mismatch' => 'The manager approved something else. Ask the manager to approve this action.',
+        'override_replayed' => 'This manager approval was already used for something else. Ask the manager to approve again.',
+        'not_held' => 'This record is not waiting for review. Refresh the list.',
+        'not_flagged' => 'This sale has no flags to review.',
         'upload_rejected' => 'Nothing in this upload was stored. Check each record\'s error, correct it and send it again.',
         'id_conflict' => 'This id is already used by another record. Give the record a new id on the till.',
         'user_unknown' => 'This user is not known in your organisation. Sign in again on the till and repeat the action.',

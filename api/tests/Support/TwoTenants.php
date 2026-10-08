@@ -419,7 +419,8 @@ final class TwoTenants
         $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
         $id = fn () => (string) Str::uuid7();
 
-        $receipts = self::ok($test->postJson('/api/v1/pos/number-ranges', ['document_type' => 'pos.receipt'], $device))->json('data.0.pattern');
+        $receiptRange = self::ok($test->postJson('/api/v1/pos/number-ranges', ['document_type' => 'pos.receipt'], $device))->json('data.0');
+        $receipts = $receiptRange['pattern'];
         $refunds = self::ok($test->postJson('/api/v1/pos/number-ranges', ['document_type' => 'pos.refund'], $device))->json('data.0.pattern');
 
         $shift = $id();
@@ -435,13 +436,17 @@ final class TwoTenants
         $stored = self::ok($test->postJson('/api/v1/pos/sales', ['sales' => $sales], $device));
         Assert::assertSame(['stored', 'stored', 'stored'], array_column($stored->json('results'), 'status'), 'TwoTenants POS sales: '.$stored->getContent());
 
+        $void = $id();
+        $refund = self::posRefund($id, $sales[0], $shift, $ownerId, 1, str_replace('{000001}', '000001', $refunds), $paymentMethod);
+        $movement = $id();
+        // H2, H3: nothing proves who acted at the till yet, so the void and refund are held for review.
         self::ok($test->postJson('/api/v1/pos/voids', ['voids' => [[
-            'id' => $id(), 'sale_id' => $sales[1]['id'], 'voided_by_id' => $ownerId, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
+            'id' => $void, 'sale_id' => $sales[1]['id'], 'voided_by_id' => $ownerId, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
         ]]], $device))->assertJsonPath('results.0.status', 'stored');
-        self::ok($test->postJson('/api/v1/pos/refunds', ['refunds' => [self::posRefund($id, $sales[0], $shift, $ownerId, 1, str_replace('{000001}', '000001', $refunds), $paymentMethod)]], $device))
+        self::ok($test->postJson('/api/v1/pos/refunds', ['refunds' => [$refund]], $device))
             ->assertJsonPath('results.0.status', 'stored');
         self::ok($test->postJson('/api/v1/pos/cash-movements', ['movements' => [[
-            'id' => $id(), 'shift_id' => $shift, 'user_id' => $ownerId, 'kind' => 'pay_in', 'currency' => 'KES',
+            'id' => $movement, 'shift_id' => $shift, 'user_id' => $ownerId, 'kind' => 'pay_in', 'currency' => 'KES',
             'amount_minor' => '100000', 'reason' => 'Float top-up', 'occurred_at' => now()->toIso8601String(),
         ]]], $device))->assertJsonPath('results.0.status', 'stored');
 
@@ -452,6 +457,10 @@ final class TwoTenants
             'pos_sale_spare' => $sales[2]['id'],
             'pos_receipt_pattern' => $receipts,
             'pos_refund_pattern' => $refunds,
+            'pos_number_range' => $receiptRange['id'],
+            'pos_void' => $void,
+            'pos_refund' => $refund['id'],
+            'pos_cash_movement' => $movement,
         ];
     }
 

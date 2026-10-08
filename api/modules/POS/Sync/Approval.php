@@ -5,9 +5,10 @@ namespace Modules\POS\Sync;
 use App\Core\Identity\Models\User;
 
 /**
- * Who allowed a restricted action (AUTH-08, RBAC-06): the person who did it
- * ($approver null), or a manager by override ($approver set, $verified
- * when the override proof checked out).
+ * Who allowed a restricted action (AUTH-07, AUTH-08, RBAC-06): the person
+ * who did it ($approver null) or a manager by override, and whether the
+ * server could prove it. An unproven approval is held: money out waits for
+ * review in the back office; money in is kept and flagged.
  */
 final class Approval
 {
@@ -19,6 +20,17 @@ final class Approval
     public function byOverride(): bool
     {
         return $this->approver !== null;
+    }
+
+    public function held(): bool
+    {
+        return ! $this->verified;
+    }
+
+    /** The flag naming what could not be proven. */
+    public function flag(): string
+    {
+        return $this->byOverride() ? 'override_unverified' : 'actor_unverified';
     }
 
     public function approverId(): ?string

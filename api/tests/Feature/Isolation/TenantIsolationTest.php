@@ -101,6 +101,9 @@ class TenantIsolationTest extends TestCase
         'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
         'pos_sale' => 'pos_sale', // POS-12: pos/sales/{pos_sale}, a partly refunded sale
         'pos_shift' => 'pos_shift', // POS-12: pos/shifts/{pos_shift}, the till's open shift
+        'pos_void' => 'pos_void', // H2: pos/voids/{pos_void}/approve|reject, a held void
+        'pos_refund' => 'pos_refund', // H2: pos/refunds/{pos_refund}/approve|reject, a held refund
+        'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -153,7 +156,9 @@ class TenantIsolationTest extends TestCase
         'opened_by_id' => 'user',
         'closed_by_id' => 'user',
         'voided_by_id' => 'user',
-        'manager_id' => 'manager', // AUTH-08: a manager's override
+        'manager_user_id' => 'manager', // AUTH-08: a manager's override
+        'cashier_user_id' => 'user', // AUTH-08: the cashier an override was given to
+        'number_range_id' => 'pos_number_range', // NUM-02, M1: the range the till numbered from
         'customer_id' => 'customer',
         'item_id' => 'item',
         'payment_method_id' => 'payment_method',
@@ -228,6 +233,8 @@ class TenantIsolationTest extends TestCase
 
         // APR-04: the approvals inbox's oversight view and overdue filter.
         ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
+        // M3, H2: review filters (sales and the held list).
+        ['flagged' => '1', 'flag' => 'actor_unverified', 'reviewed' => '0', 'kind' => 'refund'],
     ];
 
     /**
@@ -238,7 +245,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'branch', 'location'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'kind'];
 
     private TwoTenants $tenants;
 
@@ -1108,7 +1115,7 @@ class TenantIsolationTest extends TestCase
                     str_replace('{000001}', '000050', $tenant->id('pos_receipt_pattern')), $tenant->id('item'), $tenant->id('uom'),
                     $tenant->id('price_list'), $tenant->id('payment_method'), $tenant->id('tax_code'))),
                 'customer_id' => $tenant->id('customer'),
-                'lines' => [[...$sale['lines'][0], 'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null]]],
+                'lines' => [[...$sale['lines'][0], 'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')]]],
             ]]],
             'POST api/v1/pos/shifts' => ['shifts' => [[
                 'id' => (string) Str::uuid7(), 'opened_by_id' => $tenant->id('user'), 'opened_at' => now()->subMinutes(30)->toIso8601String(),
@@ -1118,16 +1125,16 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/pos/cash-movements' => ['movements' => [[
                 'id' => (string) Str::uuid7(), 'shift_id' => $tenant->id('pos_shift'), 'user_id' => $tenant->id('user'), 'kind' => 'pay_out',
                 'currency' => 'KES', 'amount_minor' => '500', 'reason' => 'Hijack check', 'occurred_at' => now()->toIso8601String(),
-                'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+                'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
             ]]],
             'POST api/v1/pos/voids' => ['voids' => [[
                 'id' => (string) Str::uuid7(), 'sale_id' => $tenant->id('pos_sale_spare'), 'voided_by_id' => $tenant->id('user'),
-                'voided_at' => now()->toIso8601String(), 'reason' => 'Hijack check', 'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+                'voided_at' => now()->toIso8601String(), 'reason' => 'Hijack check', 'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
             ]]],
             'POST api/v1/pos/refunds' => ['refunds' => [[
                 ...TwoTenants::posRefund(fn () => (string) Str::uuid7(), ['id' => $tenant->id('pos_sale'), 'lines' => [['id' => $tenant->id('pos_sale_line')]]],
                     $tenant->id('pos_shift'), $tenant->id('user'), 2, str_replace('{000001}', '000002', $tenant->id('pos_refund_pattern')), $tenant->id('payment_method')),
-                'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+                'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
             ]]],
             default => null,
         };

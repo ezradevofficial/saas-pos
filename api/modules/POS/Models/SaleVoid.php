@@ -17,6 +17,6 @@ class SaleVoid extends Model
 
     protected function casts(): array
     {
-        return ['override_verified' => 'boolean', 'voided_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime'];
+        return ['override_verified' => 'boolean', 'flags' => 'array', 'voided_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'decided_at' => 'immutable_datetime'];
     }
 }

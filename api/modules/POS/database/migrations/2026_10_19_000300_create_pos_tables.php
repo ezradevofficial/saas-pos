@@ -141,6 +141,11 @@ return new class extends Migration
             $table->boolean('offline')->default(false);
             // POS-09: what the server noticed but did not refuse (device wins).
             $table->jsonb('flags')->default('[]');
+            // M3: a flagged sale acknowledged in the back office.
+            $table->timestampTz('reviewed_at')->nullable();
+            $userRef($table, 'reviewed_by', nullable: true);
+            // ADR 004: the upload's content, so a resend with other content under the same id is refused.
+            $table->char('payload_hash', 64);
             $table->timestampTz('voided_at')->nullable();
             $table->timestampsTz();
 
@@ -151,7 +156,8 @@ return new class extends Migration
             $table->index(['company_id', 'sold_at']);
             $table->index(['location_id', 'sold_at']);
             $table->index('shift_id');
-            $table->index(['tenant_id', 'receipt_number']);
+            // NUM-01: a printed receipt number is never stored twice in a tenant.
+            $table->unique(['tenant_id', 'receipt_number']);
         });
 
         DB::statement("alter table pos_sales add constraint pos_sales_status_check check (status in ('completed', 'voided'))");
@@ -228,14 +234,23 @@ return new class extends Migration
             $table->text('reason');
             $userRef($table, 'user_id');
             $userRef($table, 'approved_by', nullable: true);
+            $table->boolean('override_verified')->default(false);
+            // POS-05, AUTH-08: applied, or held for review when who allowed it can't be proven yet.
+            $table->string('status', 10);
+            $table->jsonb('flags')->default('[]');
+            $table->char('payload_hash', 64);
+            $table->timestampTz('decided_at')->nullable();
+            $userRef($table, 'decided_by', nullable: true);
             $table->timestampTz('occurred_at', 6);
             $table->timestampTz('received_at');
             $table->timestampsTz();
 
             $table->foreign('currency')->references('code')->on('currencies')->restrictOnDelete();
             $table->index('shift_id');
+            $table->index(['tenant_id', 'status']);
         });
 
+        DB::statement("alter table pos_cash_movements add constraint pos_cash_movements_status_check check (status in ('applied', 'held', 'rejected'))");
         DB::statement("alter table pos_cash_movements add constraint pos_cash_movements_kind_check check (kind in ('pay_in', 'pay_out'))");
         DB::statement('alter table pos_cash_movements add constraint pos_cash_movements_amount_check check (amount_minor > 0)');
         Rls::enable('pos_cash_movements');
@@ -244,17 +259,26 @@ return new class extends Migration
         Schema::create('pos_sale_voids', function (Blueprint $table) use ($userRef) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('sale_id')->unique()->constrained('pos_sales')->restrictOnDelete();
+            $table->foreignUuid('sale_id')->constrained('pos_sales')->restrictOnDelete();
             $table->foreignUuid('device_id')->constrained()->restrictOnDelete();
             $userRef($table, 'voided_by');
             $userRef($table, 'approved_by', nullable: true);
             $table->boolean('override_verified')->default(false);
+            // POS-05, AUTH-08: applied, or held for review when who allowed it can't be proven yet.
+            $table->string('status', 10);
+            $table->jsonb('flags')->default('[]');
+            $table->char('payload_hash', 64);
+            $table->timestampTz('decided_at')->nullable();
+            $userRef($table, 'decided_by', nullable: true);
             $table->text('reason');
             $table->timestampTz('voided_at', 6);
             $table->timestampTz('received_at');
             $table->timestampsTz();
         });
 
+        // One void applied or waiting per sale; a rejected one does not count.
+        DB::statement("create unique index pos_sale_voids_one_per_sale on pos_sale_voids (sale_id) where status <> 'rejected'");
+        DB::statement("alter table pos_sale_voids add constraint pos_sale_voids_status_check check (status in ('applied', 'held', 'rejected'))");
         Rls::enable('pos_sale_voids');
 
         // POS-05: some lines or quantities of a sale given back and refunded.
@@ -267,6 +291,12 @@ return new class extends Migration
             $userRef($table, 'cashier_id');
             $userRef($table, 'approved_by', nullable: true);
             $table->boolean('override_verified')->default(false);
+            // POS-05, AUTH-08: applied, or held for review when who allowed it can't be proven yet.
+            $table->string('status', 10);
+            $table->jsonb('flags')->default('[]');
+            $table->char('payload_hash', 64);
+            $table->timestampTz('decided_at')->nullable();
+            $userRef($table, 'decided_by', nullable: true);
             $table->foreignUuid('number_range_id')->constrained('pos_number_ranges')->restrictOnDelete();
             $table->bigInteger('receipt_seq');
             $table->string('receipt_number', 80);
@@ -285,10 +315,13 @@ return new class extends Migration
                 $table->foreign($column)->references('code')->on('currencies')->restrictOnDelete();
             }
             $table->unique(['number_range_id', 'receipt_seq']);
+            $table->unique(['tenant_id', 'receipt_number']);
             $table->index('sale_id');
             $table->index('shift_id');
+            $table->index(['tenant_id', 'status']);
         });
 
+        DB::statement("alter table pos_refunds add constraint pos_refunds_status_check check (status in ('applied', 'held', 'rejected'))");
         DB::statement('alter table pos_refunds add constraint pos_refunds_amounts_check check (tax_minor >= 0 and total_minor > 0 and base_total_minor >= 0)');
         Rls::enable('pos_refunds');
 

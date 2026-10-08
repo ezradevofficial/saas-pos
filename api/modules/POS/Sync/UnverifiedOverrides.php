@@ -6,14 +6,18 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Device;
 
 /**
- * Until AUTH-08's PIN proof exists (phase 4 Task 2), no override proof can
- * be verified: the manager's permission and limits are still checked, the
- * record is kept with `override_verified = false` and the sale or refund
- * is flagged `override_unverified` for review.
+ * Until core's PIN verifier is on main, nothing can be proven: restricted
+ * money-out actions are held for review and sales are flagged
+ * `actor_unverified` / `override_unverified`.
  */
 class UnverifiedOverrides implements OverrideVerifier
 {
-    public function verify(User $manager, ?string $proof, string $action, string $subjectId, Device $device): bool
+    public function redeem(Device $device, array $override, string $permission, string $reference): ?OverrideProof
+    {
+        return null;
+    }
+
+    public function actor(Device $device, User $user, ?string $proof, string $reference): bool
     {
         return false;
     }

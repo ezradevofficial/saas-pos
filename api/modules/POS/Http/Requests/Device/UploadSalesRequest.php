@@ -25,6 +25,8 @@ class UploadSalesRequest extends FormRequest
             'sales.*.offline' => ['sometimes', 'boolean'],
             'sales.*.currency' => $this->currencyCode(),
             'sales.*.price_list_id' => ['nullable', 'uuid'],
+            'sales.*.actor_proof' => $this->actorProof(),
+            'sales.*.number_range_id' => ['nullable', 'uuid'],
 
             'sales.*.lines' => ['required', 'array', 'min:1', 'max:500'],
             'sales.*.lines.*.id' => $this->deviceId(),
@@ -42,6 +44,8 @@ class UploadSalesRequest extends FormRequest
             'sales.*.lines.*.tax_minor' => $this->minor(),
             'sales.*.lines.*.total_minor' => $this->minor(),
             ...$this->overrideRules('sales.*.lines.*.override'),
+            ...$this->overrideRules('sales.*.lines.*.price_override'),
+            'sales.*.lines.*.actor_proof' => $this->actorProof(),
 
             'sales.*.totals' => ['required', 'array'],
             'sales.*.totals.subtotal_minor' => $this->minor(),
