@@ -72,6 +72,9 @@ class EngineApprovals implements ApprovalHandler
             'received_at' => $now,
             'due_at' => $step->token->due_at,
             'level_started_at' => $now,
+            'escalation_level' => 0,
+            'escalated_depth' => 0,
+            'reminders_sent' => 0,
         ]);
 
         $subject = $this->routing->subject($request, $step->node);

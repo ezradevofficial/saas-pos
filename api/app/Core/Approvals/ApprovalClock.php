@@ -26,7 +26,7 @@ class ApprovalClock
         $config = $request->config;
         $from = $request->level_started_at ?? CarbonImmutable::now();
         $reminders = $config['reminders'] ?? [];
-        $next = $reminders[$request->reminders_sent] ?? null;
+        $next = $reminders[(int) $request->reminders_sent] ?? null;
 
         $request->next_reminder_at = $next === null ? null : $this->after($request, $from, $next);
 
