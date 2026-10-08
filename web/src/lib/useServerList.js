@@ -236,7 +236,11 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     setSearch: setSearchInput,
     term: urlSearch,
     filters,
+    /** Each filter's default value: a filter is active when its value differs. */
+    filterDefaults: { ...filterDefaults },
     setFilter: (name, value, options) => update({ [name]: value }, options),
+    /** Several filters in one URL write (Clear filters), e.g. `{ type: '', category: '' }`. */
+    setFilters: (changes, options) => update(changes, options),
     sort,
     setSort: (next) => update({ sort: next ?? '' }),
     /** Header clicks: ascending, then descending, then the list's default order. */

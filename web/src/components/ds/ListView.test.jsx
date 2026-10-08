@@ -7,6 +7,7 @@ import { setLocale } from '@/i18n'
 import { actionsColumn } from '@/lib/listColumns'
 import { columnsStorageKey, useServerList } from '@/lib/useServerList'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, filtersButton, openFilters } from '@/test/filters'
 import { apiError, OWNER, resetSession, signedIn } from '@/test/renderApp'
 import { ListView } from './ListView'
 import { Select } from './Select'
@@ -23,24 +24,37 @@ const COLUMNS = [
   { key: 'notes', label: 'Notes', exportKey: null },
 ]
 
-function Things({ columns = COLUMNS, searchable = true }) {
-  const list = useServerList({ id: 'things', endpoint: 'things', filters: { status: 'active' }, columns })
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+]
+
+const FIELDS = [
+  { name: 'status', label: 'Status', options: STATUS_OPTIONS },
+  {
+    name: 'type',
+    label: 'Type',
+    options: [
+      { value: '', label: 'All types' },
+      { value: 'service', label: 'Service' },
+      { value: 'stock', label: 'Stock' },
+    ],
+  },
+]
+
+function Things({ columns = COLUMNS, searchable = true, legacy = false }) {
+  const list = useServerList({ id: 'things', endpoint: 'things', filters: { status: 'active', type: '' }, columns })
   return (
     <ListView
       list={list}
       title="Things"
       searchable={searchable}
       searchPlaceholder="Name or code"
+      filterFields={legacy ? undefined : FIELDS}
       filters={
-        <Select
-          label="Status"
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'archived', label: 'Archived' },
-          ]}
-          value={list.filters.status}
-          onChange={(event) => list.setFilter('status', event.target.value)}
-        />
+        legacy ? (
+          <Select label="Status" options={STATUS_OPTIONS} value={list.filters.status} onChange={(event) => list.setFilter('status', event.target.value)} />
+        ) : undefined
       }
     />
   )
@@ -104,9 +118,11 @@ describe('ListView and useServerList', () => {
     expect(router.state.historyAction).toBe('REPLACE')
     expect(screen.getByLabelText('Search')).toHaveValue('abc ')
 
+    openFilters()
     chooseOption('Status', 'Archived')
     await waitFor(() => expect(router.state.location.search).toBe('?search=abc&status=archived'))
     expect(router.state.historyAction).toBe('PUSH')
+    await closeFilters()
 
     // A shared link or Back puts the box in step with the URL.
     await act(() => router.navigate('/things?search=zed'))
@@ -297,5 +313,97 @@ describe('ListView and useServerList', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'CSV' }))
     await waitFor(() => expect(api.download).toHaveBeenCalled())
     expect(new URLSearchParams(api.download.mock.calls[0][0].split('?')[1]).getAll('columns[]')).toEqual(['name', 'code'])
+  })
+
+  it('keeps the filters in a drawer, opened from the Filters button with its count (EXP-01)', async () => {
+    mockList()
+    const { router } = renderList()
+    await screen.findByText('Thing 1')
+    // Nothing of the filters shows on the page until the button is pressed.
+    expect(screen.queryByLabelText('Type')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const button = filtersButton()
+    expect(button).toHaveAccessibleName('Filters')
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+
+    const drawer = openFilters()
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(button).toHaveAttribute('aria-controls', drawer.id)
+    expect(within(drawer).getByRole('button', { name: 'Clear filters' })).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: 'Show 312 results' })).toBeInTheDocument()
+
+    chooseOption(within(drawer).getByLabelText('Type'), 'Service')
+    await waitFor(() => expect(router.state.location.search).toBe('?type=service'))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=active&type=service&per_page=25&page=1'))
+    chooseOption(within(drawer).getByLabelText('Status'), 'Archived')
+    await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=archived&type=service&per_page=25&page=1'))
+    expect(filtersButton()).toHaveAccessibleName('Filters, 2 active')
+
+    fireEvent.click(await within(drawer).findByRole('button', { name: 'Show 312 results' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(filtersButton()).toHaveFocus()
+  })
+
+  it('shows active filters as chips that remove one filter or clear them all', async () => {
+    mockList()
+    const { router } = renderList('/things?type=service&status=archived')
+    await screen.findByText('Thing 1')
+    const chips = screen.getByRole('list', { name: 'Active filters' })
+    expect(within(chips).getByText('Status: Archived')).toBeInTheDocument()
+    expect(within(chips).getByText('Type: Service')).toBeInTheDocument()
+
+    fireEvent.click(within(chips).getByRole('button', { name: 'Remove filter Type: Service' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?status=archived'))
+    expect(screen.queryByText('Type: Service')).not.toBeInTheDocument()
+    expect(filtersButton()).toHaveFocus()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(screen.queryByRole('list', { name: 'Active filters' })).not.toBeInTheDocument()
+    expect(filtersButton()).toHaveAccessibleName('Filters')
+  })
+
+  it('clears every filter from the drawer in one step', async () => {
+    mockList()
+    const { router } = renderList('/things?type=stock&status=archived&search=abc')
+    await screen.findByText('Thing 1')
+    const drawer = openFilters()
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Clear filters' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?search=abc'))
+    expect(router.state.historyAction).toBe('PUSH')
+    expect(within(drawer).getByRole('button', { name: 'Clear filters' })).toBeDisabled()
+  })
+
+  it('closes the drawer on Escape and gives focus back to the Filters button', async () => {
+    mockList()
+    renderList()
+    await screen.findByText('Thing 1')
+    filtersButton().focus()
+    openFilters()
+    await closeFilters()
+    expect(filtersButton()).toHaveFocus()
+  })
+
+  it('names the drawer and its buttons in French', async () => {
+    mockList()
+    renderList('/things?type=service')
+    await screen.findByText('Thing 1')
+    await act(async () => {
+      await setLocale('fr')
+    })
+    expect(await screen.findByText('Type : Service')).toBeInTheDocument()
+    const drawer = openFilters()
+    expect(within(drawer).getByRole('button', { name: 'Effacer les filtres' })).toBeEnabled()
+  })
+
+  it('still draws an older filters slot inside the drawer, without chips', async () => {
+    mockList()
+    const { router } = renderList('/things', { legacy: true })
+    await screen.findByText('Thing 1')
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument()
+    const drawer = openFilters()
+    chooseOption(within(drawer).getByLabelText('Status'), 'Archived')
+    await waitFor(() => expect(router.state.location.search).toBe('?status=archived'))
+    expect(screen.queryByRole('list', { name: 'Active filters', hidden: true })).not.toBeInTheDocument()
   })
 })

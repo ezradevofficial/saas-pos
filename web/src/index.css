@@ -167,6 +167,10 @@
 @utility w-panel {
   width: min(calc(var(--space-12) * 7 + var(--space-4)), calc(100vw - var(--space-4) * 2));
 }
+/* 384px: a list's Filters drawer beside the table (phones use the full width). */
+@utility w-drawer {
+  width: calc(var(--space-12) * 8);
+}
 /* 384px: the tallest the notifications popover's list grows before it scrolls. */
 @utility max-h-panel {
   max-height: calc(var(--space-12) * 8);
