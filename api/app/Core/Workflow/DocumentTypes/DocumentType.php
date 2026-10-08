@@ -80,6 +80,18 @@ abstract class DocumentType
         return app(ReferenceLabels::class)->of($this->fields(), $values, $viewer);
     }
 
+    /**
+     * AUTO-01: whether the module raises RecordChanged for this type's
+     * documents (RaisesRecordChanges) when they are created, changed or
+     * archived. Only then may rules use the record triggers
+     * (record_created, record_updated, record_archived, field_changed,
+     * threshold); a type that never raises them would never fire one.
+     */
+    public function raisesRecordEvents(): bool
+    {
+        return false;
+    }
+
     /** @return list<string> actions the module allows on the document (WF-01), e.g. submit, approve, cancel */
     public function actions(): array
     {

@@ -68,6 +68,12 @@ class TestTaskType extends DocumentType implements AssignsUsers, FindsDocumentsB
         return TestDocuments::find(self::KEY, $documentId)['scope'] ?? null;
     }
 
+    /** Its writes raise RecordChanged (RaisesRecordChanges), so record triggers work. */
+    public function raisesRecordEvents(): bool
+    {
+        return true;
+    }
+
     public function viewPermission(): string
     {
         return 'core.party.view';

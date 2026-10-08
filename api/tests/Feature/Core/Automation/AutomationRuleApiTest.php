@@ -302,7 +302,7 @@ class AutomationRuleApiTest extends TestCase
     {
         $this->postJson('/api/v1/automation-rules', $this->body(['name' => 'Alpha reminder', 'enabled' => true]), $this->headersFor())->assertCreated();
         $this->postJson('/api/v1/automation-rules', $this->body(['name' => 'Beta alert', 'company_id' => $this->acme->id]), $this->headersFor())->assertCreated();
-        $this->postJson('/api/v1/automation-rules', [...$this->body(['name' => 'Gamma requests', 'document_type' => TestRequestType::KEY, 'conditions' => null]),
+        $this->postJson('/api/v1/automation-rules', [...$this->body(['name' => 'Gamma requests', 'document_type' => TestRequestType::KEY, 'conditions' => null, 'trigger' => ['type' => 'stage_entered']]),
             'actions' => [['type' => 'notify', 'to' => ['role:admin'], 'subject' => 's', 'message' => 'm']]], $this->headersFor())->assertCreated();
         $names = fn (string $query) => array_column($this->getJson('/api/v1/automation-rules'.$query, $this->headersFor())->assertOk()->json('data'), 'name');
 
@@ -377,7 +377,10 @@ class AutomationRuleApiTest extends TestCase
         $request = $data[TestRequestType::KEY];
         $this->assertSame([], $request['writable_fields']);
         $this->assertNotContains('date', $request['triggers']);
-        $this->assertEqualsCanonicalizing(['change_stage', 'create_document', 'notify', 'webhook'], $request['actions']);
+        // No flow yet: nothing to move; no record events: no record triggers (AUTO-01).
+        $this->assertEqualsCanonicalizing(['create_document', 'notify', 'webhook'], $request['actions']);
+        $this->assertEqualsCanonicalizing(['stage_entered', 'stage_left', 'schedule'], $request['triggers']);
+        $this->assertTrue($task['raises_record_events']);
 
         $meta = $this->getJson('/api/v1/automation/catalogue', $this->headersFor())->json('meta');
         $this->assertSame(['day', 'week', 'month'], $meta['schedule']['every']);

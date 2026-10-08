@@ -40,6 +40,25 @@ export const ORDER = {
   actions: ['change_stage', 'notify', 'create_document', 'webhook'],
 }
 
+/** A type whose module raises no record events, with a flow of one approval (AUTO-01). */
+export const CREDIT_LIMIT_CHANGE = {
+  key: 'core.credit_limit_change',
+  label: 'Credit limit change',
+  fields: [
+    { name: 'party', type: 'reference', label: 'Party', values: [], reference: 'core.party', operators: ['eq', 'ne', 'in', 'not_in', 'empty', 'not_empty'] },
+    { name: 'requested_limit', type: 'money', label: 'Requested limit', values: [], reference: null, operators: MONEY_OPS },
+  ],
+  writable_fields: [],
+  assignable_fields: [],
+  user_fields: [],
+  date_fields: [],
+  capabilities: [],
+  raises_record_events: false,
+  stages: [{ id: 'approve', name: 'Accountant approves', kind: 'approval', company_id: null }],
+  triggers: ['stage_entered', 'stage_left', 'schedule'],
+  actions: ['notify', 'create_document', 'webhook'],
+}
+
 export const CATALOGUE = {
   data: [REQUISITION, ORDER],
   meta: {

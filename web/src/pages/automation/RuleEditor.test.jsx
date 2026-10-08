@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { chooseOption } from '@/test/combobox'
-import { AUTOMATION_PERMISSIONS, mockAutomation, ROLE_ID, RULE, USER_ID } from '@/test/automation'
+import { chooseOption, optionTexts, waitForOption } from '@/test/combobox'
+import { AUTOMATION_PERMISSIONS, CATALOGUE, CREDIT_LIMIT_CHANGE, mockAutomation, ROLE_ID, RULE, USER_ID } from '@/test/automation'
 import { apiError, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -154,6 +154,18 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
 
     chooseOption('Trigger', 'Record archived')
     expect((await saveChanges()).trigger).toEqual({ type: 'record_archived' })
+  })
+
+  it('offers only the triggers and actions the type supports (AUTO-01, AUTO-03)', async () => {
+    mockAutomation(api, { extra: [['automation/catalogue', { ...CATALOGUE, data: [...CATALOGUE.data, CREDIT_LIMIT_CHANGE] }]] })
+    await openNew()
+    await waitForOption('Document type', 'Credit limit change')
+    chooseOption('Document type', 'Credit limit change')
+    expect(optionTexts('Trigger')).toEqual(['Stage entered', 'Stage left', 'Schedule'])
+    const actions = optionTexts('Action to add')
+    expect(actions).toContain('Send a notification')
+    expect(actions).not.toContain('Change stage')
+    expect(actions).not.toContain('Update a field')
   })
 
   it('offers the stages of the type’s workflow', async () => {

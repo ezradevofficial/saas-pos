@@ -68,6 +68,25 @@ class Triggers
         private readonly ConditionEvaluator $conditions,
     ) {}
 
+    /**
+     * Whether $type can ever fire a trigger of $triggerType: record
+     * triggers need a type that raises record events
+     * (DocumentType::raisesRecordEvents()), date triggers one searchable by
+     * date (FindsDocumentsByDate), a threshold a number or money field.
+     */
+    public static function supports(string $triggerType, DocumentType $type): bool
+    {
+        if (in_array($triggerType, self::RECORD_TRIGGERS, true) && ! $type->raisesRecordEvents()) {
+            return false;
+        }
+
+        return match ($triggerType) {
+            self::DATE => $type instanceof FindsDocumentsByDate,
+            self::THRESHOLD => array_filter($type->fields(), fn (FieldDefinition $f) => in_array($f->type, ['number', 'money'], true)) !== [],
+            default => in_array($triggerType, self::TYPES, true),
+        };
+    }
+
     /** A trigger without a document: its actions cannot read or change one. */
     public static function hasDocument(array $trigger): bool
     {
@@ -83,6 +102,11 @@ class Triggers
     {
         if (! is_array($trigger) || array_is_list($trigger) || ! in_array($trigger['type'] ?? null, self::TYPES, true)) {
             return [__('automation.validation.trigger_type')];
+        }
+
+        // A type whose module never raises RecordChanged would never fire a record trigger.
+        if (in_array($trigger['type'], self::RECORD_TRIGGERS, true) && ! $type->raisesRecordEvents()) {
+            return [__('automation.validation.trigger_unsupported', ['type' => __($type->label())])];
         }
 
         $fields = $type->fieldsByName();
