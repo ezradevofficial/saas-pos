@@ -12,6 +12,7 @@ use App\Core\Notifications\Templates\Templates;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * NOT-02: the one service every module sends notifications through; no
@@ -53,7 +54,7 @@ class Notifier
 
         // Row-level security: ids of another tenant's users find nothing.
         $users = User::query()
-            ->whereIn('id', $event->recipientIds)
+            ->whereIn('id', array_values(array_filter($event->recipientIds, Str::isUuid(...))))
             ->where('status', '!=', User::STATUS_DEACTIVATED)
             ->get();
 
@@ -69,7 +70,7 @@ class Notifier
                 $choice = $this->preferences->resolve($user, $type, $preferences->get($user->id), $mandatory);
                 $locale = in_array($user->locale, Channels::LOCALES, true) ? $user->locale : 'en';
                 $values = [
-                    ...array_map(fn ($value) => $value === null ? '' : (string) $value, $event->data),
+                    ...array_map(fn ($value) => is_scalar($value) ? (string) $value : '', $event->data),
                     'recipient_name' => $user->name,
                     'app_name' => (string) config('app.name'),
                 ];

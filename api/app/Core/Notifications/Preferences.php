@@ -51,6 +51,8 @@ class Preferences
     /**
      * The effective choice of $user for $type.
      *
+     * @param  NotificationPreference|false|null  $preference  the user's row (null: none); false reads it
+     * @param  list<string>|null  $mandatory  from mandatoryChannels(); null reads it
      * @return array{channels: array<string, array{enabled: bool, mandatory: bool}>, digest: string, digest_allowed: bool}
      */
     public function resolve(User $user, EventType $type, NotificationPreference|false|null $preference = false, ?array $mandatory = null): array

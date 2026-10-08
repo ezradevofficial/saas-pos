@@ -181,7 +181,7 @@ class NotifierTest extends TestCase
         $other = $this->otherTenant();
         $former = $this->inTenant(fn () => $this->colleague($this->owner, ['status' => 'deactivated']));
 
-        $deliveries = $this->sendTest([$this->owner, $other['user']->id, $former]);
+        $deliveries = $this->sendTest([$this->owner, $other['user']->id, $former, 'not-a-uuid']);
 
         $this->assertSame([$this->owner->id], $deliveries->pluck('user_id')->unique()->values()->all());
         $this->asTenant($other['user']->tenant_id, fn () => $this->assertSame(0, NotificationDelivery::count() + InAppNotification::count()));
