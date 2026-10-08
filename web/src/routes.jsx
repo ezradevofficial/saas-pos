@@ -61,6 +61,7 @@ import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
+import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
 import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
 import Workflows from './pages/workflows/Workflows'
 
@@ -123,6 +124,8 @@ export const routes = [
       { path: '/', element: <Home /> },
       // APR-03, APR-04, APR-06: everyone's approvals inbox (the API decides what each user sees).
       { path: '/approvals/:approvalId?', element: <Approvals /> },
+      // WF-10: any document's flow status (links from notifications and the run log; the API decides who sees it).
+      { path: '/document-workflows/:documentType/:documentId', element: <DocumentWorkflow /> },
       // MD-02: the catalogue.
       ...[
         ['/catalogue/items', ITEM_VIEW, <Items key="items" />],

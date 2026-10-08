@@ -51,5 +51,8 @@
   "{{count}} minutes",
   "Date",
   "Conditions",
-  "Version {{version}}"
+  "Version {{version}}",
+  "Version {{number}}",
+  "{{type}} {{name}}",
+  "{{count}} min"
 ]

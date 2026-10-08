@@ -2402,6 +2402,54 @@
     },
     "lowerOnly": "To raise or remove the limit, request a change."
   },
+  "documentWorkflow": {
+    "title": "{{type}} {{name}}",
+    "loading": "Loading the document’s workflow",
+    "description": "Where this document is in its workflow and what has happened so far.",
+    "status": "Status",
+    "statuses": {
+      "running": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "started": "Started",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "version": "Workflow version",
+    "versionValue": "Version {{number}}",
+    "openDocument": "Open the document",
+    "current": "Where it is",
+    "noCurrent": "No step is open.",
+    "heldBy": "Held by {{names}}",
+    "heldByRoles": "Held by the roles {{names}}",
+    "nobody": "Nobody can act on this step yet.",
+    "inStep": "In this step for {{time}}",
+    "due": "Due {{when}}",
+    "overdue": "Overdue since {{when}}",
+    "openApproval": "Open the approval",
+    "history": "History",
+    "noHistory": "Nothing has happened yet.",
+    "events": {
+      "started": "Started",
+      "entered": "Reached {{step}}",
+      "left": "Left {{step}}",
+      "returned": "Returned to {{step}}",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "skipped": "Skipped {{step}}",
+      "split": "Split at {{step}}",
+      "joined": "Branches joined at {{step}}",
+      "action": "Ran an action at {{step}}",
+      "condition": "Checked a condition at {{step}}",
+      "notified": "Sent a notification at {{step}}"
+    },
+    "duration": {
+      "days": "{{days}} d {{hours}} h",
+      "hours": "{{hours}} h {{minutes}} min",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min"
+    }
+  },
   "approvals": {
     "title": "Approvals",
     "description": "Everything waiting for you, across all modules and companies",

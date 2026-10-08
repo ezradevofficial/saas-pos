@@ -2402,6 +2402,54 @@
     },
     "lowerOnly": "Pour augmenter ou supprimer le plafond, demandez une modification."
   },
+  "documentWorkflow": {
+    "title": "{{type}} {{name}}",
+    "loading": "Chargement du workflow du document",
+    "description": "Où en est ce document dans son workflow et ce qui s’est passé jusqu’ici.",
+    "status": "Statut",
+    "statuses": {
+      "running": "En cours",
+      "completed": "Terminé",
+      "cancelled": "Annulé"
+    },
+    "started": "Démarré",
+    "completed": "Terminé",
+    "cancelled": "Annulé",
+    "version": "Version du workflow",
+    "versionValue": "Version {{number}}",
+    "openDocument": "Ouvrir le document",
+    "current": "Où il en est",
+    "noCurrent": "Aucune étape n’est ouverte.",
+    "heldBy": "Entre les mains de {{names}}",
+    "heldByRoles": "Entre les mains des rôles {{names}}",
+    "nobody": "Personne ne peut encore agir sur cette étape.",
+    "inStep": "Dans cette étape depuis {{time}}",
+    "due": "Échéance : {{when}}",
+    "overdue": "En retard depuis {{when}}",
+    "openApproval": "Ouvrir l’approbation",
+    "history": "Historique",
+    "noHistory": "Rien ne s’est encore passé.",
+    "events": {
+      "started": "Démarré",
+      "entered": "Arrivé à {{step}}",
+      "left": "Sorti de {{step}}",
+      "returned": "Renvoyé à {{step}}",
+      "completed": "Terminé",
+      "cancelled": "Annulé",
+      "skipped": "{{step}} ignorée",
+      "split": "Divisé à {{step}}",
+      "joined": "Branches réunies à {{step}}",
+      "action": "Action exécutée à {{step}}",
+      "condition": "Condition vérifiée à {{step}}",
+      "notified": "Notification envoyée à {{step}}"
+    },
+    "duration": {
+      "days": "{{days}} j {{hours}} h",
+      "hours": "{{hours}} h {{minutes}} min",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min"
+    }
+  },
   "approvals": {
     "title": "Approbations",
     "description": "Tout ce qui vous attend, dans tous les modules et toutes les sociétés",

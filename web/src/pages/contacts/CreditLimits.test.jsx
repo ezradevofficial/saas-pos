@@ -183,6 +183,15 @@ describe('Credit limit changes', () => {
     await waitFor(() => expect(within(dialog).queryByLabelText('Reason for cancelling')).not.toBeInTheDocument())
   })
 
+  it('opens the request named in the link (?change=), as notifications and the run log send it', async () => {
+    routes()
+    const { router } = renderApp('/contacts/credit-limit-changes?change=clc-1')
+    const dialog = await screen.findByRole('dialog', { name: 'Credit limit change CLC-000001' })
+    expect(await within(dialog).findByText('Accountant approves')).toBeInTheDocument()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+  })
+
   it('lists every request under Contacts with a status filter (EXP-01)', async () => {
     routes()
     renderApp('/contacts/credit-limit-changes')

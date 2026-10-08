@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { ListView } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/format'
@@ -19,7 +19,15 @@ export default function CreditLimitChanges() {
   const { t } = useTranslation()
   const locale = useLocale()
   const timeZone = useTimeZone(null)
-  const [openId, setOpenId] = useState(null)
+  // The open request lives in the URL (?change=), so links from notifications and the run log open it.
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('change')
+  const setOpenId = (id) => {
+    const next = new URLSearchParams(params)
+    if (id) next.set('change', id)
+    else next.delete('change')
+    setParams(next)
+  }
 
   const columns = [
     { key: 'number', label: t('creditLimits.columns.number'), sortKey: 'number', hideable: false, render: (change) => <span className="font-medium text-ink">{change.number}</span> },
