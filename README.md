@@ -161,7 +161,7 @@ Prepare each host once:
   - `<path>/web` as the web app
   - `<path>/api/public` as the API
 - `<path>/api/.env`:
-  - `DB_USERNAME=app`, plus the `DB_OWNER_*` owner credentials
+  - `DB_USERNAME=app`, plus the `DB_OWNER_*` owner credentials (the deploy commands run here). A separate queue or scheduler host leaves `DB_OWNER_*` out: workers and the scheduler only use the runtime role (ADR 002).
   - `APP_ENV`, `APP_KEY`, Redis and mail settings
 - The database roles from `api/database/scripts/create-roles.sql`, with strong passwords set via `ALTER ROLE`
 - Connect directly or through **session** pooling only. The tenant setting is session-level, so transaction pooling would leak it (ADR 002).
@@ -180,7 +180,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `NOTIFICATIONS_PUSH_DRIVER`, `NOTIFICATIONS_SMS_DRIVER`, `NOTIFICATIONS_WHATSAPP_DRIVER` empty (channel unavailable), `none` or a real provider, never `fake`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync`, `country-packs:publish` and `country-packs:holidays`)
+- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
 - [ ] a queue worker running (`php artisan queue:work` or Horizon)
 - [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
 
