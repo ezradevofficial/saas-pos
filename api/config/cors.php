@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3008'), 'http://localhost:3009'],
+    // CORS_ALLOWED_ORIGINS: comma-separated origins (the web app, and the
+    // POS web preview locally); defaults to FRONTEND_URL alone.
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3008'))),
+    ))),
 
     'allowed_origins_patterns' => [],
 
