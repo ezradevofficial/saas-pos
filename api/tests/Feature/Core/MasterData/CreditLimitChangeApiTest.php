@@ -105,7 +105,9 @@ class CreditLimitChangeApiTest extends TestCase
         $approval = $this->approval($response->json('data.id'));
         $this->assertSame($approval->id, $response->json('meta.approval_id'));
         $this->assertSame('CLC-000001', $approval->document_number);
-        $this->assertSame('Duka Moja Ltd: KES 150,000.00 → KES 250,000.00', $approval->document_title);
+        // The title is the party's name only: no amounts, nothing in a language.
+        $this->assertSame('Duka Moja Ltd', $approval->document_title);
+        $this->assertSame(['amount_minor' => '25000000', 'currency' => 'KES'], $approval->amount());
         $this->assertSame('Accountant approves', $approval->node_name);
         $pending = $this->inTenant(fn () => $approval->assignments()->where('status', 'pending')->pluck('user_id')->sort()->values()->all());
         $this->assertEqualsCanonicalizing([$this->accountant->id, $this->accountant2->id], $pending);
@@ -417,5 +419,31 @@ class CreditLimitChangeApiTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
         $this->patchJson($url, ['credit_limit' => '200000', 'credit_limit_currency' => 'KES'], $this->headersFor($companyAdmin))->assertOk();
         $this->assertSame('20000000', $this->partyLimit());
+    }
+
+    public function test_approvers_whose_field_rules_hide_the_limit_see_no_amount_in_the_inbox_notices_or_search(): void
+    {
+        $this->inTenant(function () {
+            FieldRule::create(['role_id' => $this->roles->get('accountant')->id, 'resource' => 'party', 'field' => 'credit_limit_minor', 'mode' => 'hidden']);
+            FieldRule::create(['role_id' => $this->roles->get('accountant')->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']);
+        });
+        $change = $this->request()->assertCreated()->json('data.id');
+        $approval = $this->approval($change);
+
+        $item = $this->getJson("/api/v1/approvals/{$approval->id}", $this->headersFor($this->accountant))->assertOk()->json('data');
+        $this->assertNull($item['document']['amount']);
+        $this->assertNull($item['document']['title']);
+        $this->assertSame('CLC-000001', $item['document']['number']);
+        $this->assertSame([], $this->getJson('/api/v1/approvals?search=Duka', $this->headersFor($this->accountant))->assertOk()->json('data'));
+        $this->assertCount(1, $this->getJson('/api/v1/approvals?search=CLC', $this->headersFor($this->accountant))->json('data'));
+
+        $notice = $this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->accountant->id)->where('event_type', 'core.approval.requested')->sole());
+        $this->assertStringNotContainsString('250,000', $notice->body);
+        $this->assertStringNotContainsString('Duka', $notice->body);
+
+        // The owner, who sees everything, still gets the amount in the oversight view.
+        $all = $this->getJson('/api/v1/approvals?view=all&status=all', $this->headersFor())->assertOk()->json('data.0.document');
+        $this->assertSame(['amount_minor' => '25000000', 'currency' => 'KES'], $all['amount']);
+        $this->assertSame('Duka Moja Ltd', $all['title']);
     }
 }

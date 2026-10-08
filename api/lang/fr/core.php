@@ -303,9 +303,6 @@ return [
     'credit_limit_change' => [
         'type' => 'Modification de plafond de crédit',
         'list_title' => 'Modifications de plafond de crédit',
-        // APR-04 : la ligne de la boîte d’approbations, par ex. « Duka Moja Ltd : KES 150 000,00 → KES 250 000,00 ».
-        'title' => ':party : :from → :to',
-        'no_limit' => 'aucun plafond',
         'fields' => [
             'party' => 'Client',
             'current_limit' => 'Plafond actuel',

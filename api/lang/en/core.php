@@ -303,9 +303,6 @@ return [
     'credit_limit_change' => [
         'type' => 'Credit limit change',
         'list_title' => 'Credit limit changes',
-        // APR-04: the approvals inbox line, e.g. "Duka Moja Ltd: KES 150,000.00 → KES 250,000.00".
-        'title' => ':party: :from → :to',
-        'no_limit' => 'no limit',
         'fields' => [
             'party' => 'Customer',
             'current_limit' => 'Current limit',

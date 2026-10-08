@@ -55,6 +55,8 @@ class ApprovalPresenter
     public function item(ApprovalRequest $request, User $viewer, ?Collection $delegations = null): array
     {
         $type = $this->types->find($request->document_type);
+        // RBAC-05: summary parts the type hides from this viewer.
+        $hidden = $type?->hiddenSummaryFields($viewer) ?? [];
         $acting = $this->access->acting($request, $viewer, $delegations ?? $this->delegations->to($viewer));
         $excluded = in_array($viewer->id, $this->routing->excluded($request), true)
             || ($acting !== null && $acting[1] !== null && in_array($acting[1], $this->routing->excluded($request), true));
@@ -79,8 +81,8 @@ class ApprovalPresenter
                 'type_label' => $type === null ? $request->document_type : __($type->label()),
                 'id' => $request->document_id,
                 'number' => $request->document_number,
-                'title' => $request->document_title,
-                'amount' => $request->amount(),
+                'title' => in_array('title', $hidden, true) ? null : $request->document_title,
+                'amount' => in_array('amount', $hidden, true) ? null : $request->amount(),
             ],
             'step' => ['node_id' => $request->node_id, 'name' => $request->node_name, 'index' => $request->step + 1, 'count' => $request->steps],
             'mode' => $request->mode,

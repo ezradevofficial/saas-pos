@@ -124,6 +124,19 @@ abstract class DocumentType
     }
 
     /**
+     * APR-04, RBAC-05: parts of summary() hidden from $viewer, among
+     * `title` and `amount` (e.g. the amount when their field rules hide it).
+     * The approvals inbox, its search and export, its notices and emails
+     * and the approve-by-email page leave them out for that viewer.
+     *
+     * @return list<string>
+     */
+    public function hiddenSummaryFields(User $viewer): array
+    {
+        return [];
+    }
+
+    /**
      * APR-07: the user who requested the document (its creator), so they
      * never approve it, besides whoever started its flow. Part of the
      * contract for types used with approval nodes: a flow with an approval

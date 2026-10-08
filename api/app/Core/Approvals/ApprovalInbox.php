@@ -75,8 +75,11 @@ class ApprovalInbox
                 fn ($type) => mb_stripos(__($type->label()), $search) !== false,
             ));
 
+            // RBAC-05: titles a type hides from the user are never matched.
+            $titleHidden = array_keys(array_filter($this->types->all(), fn ($type) => in_array('title', $type->hiddenSummaryFields($user), true)));
+
             $query->where(fn (Builder $q) => $q->where('document_number', 'ilike', $like)
-                ->orWhere('document_title', 'ilike', $like)
+                ->orWhere(fn (Builder $t) => $t->where('document_title', 'ilike', $like)->whereNotIn('document_type', $titleHidden))
                 ->orWhere('node_name', 'ilike', $like)
                 ->orWhereIn('document_type', $matchingTypes));
         }

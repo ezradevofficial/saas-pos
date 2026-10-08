@@ -2,9 +2,9 @@
 
 namespace App\Core\MasterData\CreditLimits;
 
-use App\Core\Currency\CurrencyDecimals;
-use App\Core\Exports\ExportValues;
+use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Rbac\FieldRules;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
@@ -107,8 +107,9 @@ class CreditLimitChangeType extends DocumentType
     }
 
     /**
-     * APR-04: "CLC-000123", "Duka Moja Ltd: KES 150,000.00 → KES 250,000.00"
-     * and the requested limit as the amount.
+     * APR-04: "CLC-000123", the party's name as the title (no wording, so
+     * nothing is frozen in a language; no amounts, which field rules may
+     * hide) and the requested limit as the amount.
      */
     public function summary(string $documentId): array
     {
@@ -118,18 +119,22 @@ class CreditLimitChangeType extends DocumentType
             return ['number' => null, 'title' => null, 'amount' => null];
         }
 
-        $values = new ExportValues(app()->getLocale(), 'UTC', [], app(CurrencyDecimals::class));
-        $party = Party::query()->whereKey($change->party_id)->value('name');
-
         return [
             'number' => $change->number,
-            'title' => __('core.credit_limit_change.title', [
-                'party' => (string) $party,
-                'from' => $values->money($change->currentLimit()) ?? __('core.credit_limit_change.no_limit'),
-                'to' => $values->money($change->requestedLimit()),
-            ]),
+            'title' => Party::query()->whereKey($change->party_id)->value('name'),
             'amount' => $change->requestedLimit()->jsonSerialize(),
         ];
+    }
+
+    /** RBAC-05: the amount when the party's credit limit is hidden, the title when its name is. */
+    public function hiddenSummaryFields(User $viewer): array
+    {
+        $hidden = app(FieldRules::class)->for($viewer, CreditLimitChangeAccess::FIELD_RULES)['hidden'];
+
+        return array_values(array_filter([
+            array_intersect(CreditLimitChangeAccess::LIMIT_FIELDS, $hidden) !== [] ? 'amount' : null,
+            in_array('name', $hidden, true) ? 'title' : null,
+        ]));
     }
 
     public function defaultFlow(?string $country): ?array
