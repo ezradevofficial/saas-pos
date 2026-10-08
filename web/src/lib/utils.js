@@ -12,7 +12,7 @@ const twMerge = extendTailwindMerge({
     },
     classGroups: {
       h: [{ h: ['control'] }],
-      w: [{ w: ['trigger'] }],
+      w: [{ w: ['picker'] }],
       'max-h': [{ 'max-h': ['picker'] }],
       size: [{ size: ['icon-btn', 'dot'] }],
       gap: [{ gap: ['tight'] }],

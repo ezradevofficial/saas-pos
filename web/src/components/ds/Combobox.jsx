@@ -92,7 +92,7 @@ export function Combobox({
       {name ? <input type="hidden" name={name} value={current} disabled={disabled} /> : null}
       <PopoverContent
         align="start"
-        className={cn('w-trigger gap-0 rounded-md border border-border bg-surface-200 p-0 text-ink shadow-lg ring-0', contentClassName)}
+        className={cn('w-picker gap-0 rounded-md border border-border bg-surface-200 p-0 text-ink shadow-lg ring-0', contentClassName)}
       >
         <Command
           shouldFilter={false}
@@ -122,7 +122,7 @@ export function Combobox({
                   onSelect={() => pick(option)}
                   className="cursor-pointer rounded-sm px-2 py-2 text-body text-ink data-[disabled=true]:text-ink-muted data-[disabled=true]:opacity-100 data-selected:bg-surface-300 data-selected:text-ink"
                 >
-                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  <span className="min-w-0 flex-1 break-words">{option.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

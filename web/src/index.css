@@ -152,9 +152,12 @@
 @utility max-w-auth {
   max-width: calc(var(--space-10) * 11);
 }
-/* A picker's popup is as wide as the control that opened it (Radix measures it). */
-@utility w-trigger {
-  width: var(--radix-popover-trigger-width);
+/* A picker's popup is at least as wide as the control that opened it (Radix
+   measures it) and grows to fit long names up to 336px, never past the screen. */
+@utility w-picker {
+  width: max-content;
+  min-width: var(--radix-popover-trigger-width);
+  max-width: min(max(var(--radix-popover-trigger-width), calc(var(--space-12) * 7)), calc(100vw - var(--space-4) * 2));
 }
 /* 288px: the tallest a picker's option list grows before it scrolls. */
 @utility max-h-picker {
