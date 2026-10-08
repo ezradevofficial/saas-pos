@@ -8,6 +8,7 @@ use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
+use App\Core\Numbering\NumberingServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -19,6 +20,7 @@ return [
     CoreServiceProvider::class,
     IdentityServiceProvider::class,
     CurrencyServiceProvider::class,
+    NumberingServiceProvider::class,
     RbacServiceProvider::class,
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,

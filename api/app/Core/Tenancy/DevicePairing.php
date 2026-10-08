@@ -5,6 +5,7 @@ namespace App\Core\Tenancy;
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Tenancy\Events\DeviceUnpaired;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonInterface;
@@ -168,7 +169,10 @@ class DevicePairing
                 return $device;
             }
 
-            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
+            $device = $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
+            DeviceUnpaired::dispatch($device);
+
+            return $device;
         });
     }
 

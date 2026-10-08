@@ -738,4 +738,17 @@ return [
             'all' => 'All',
         ],
     ],
+    'numbering' => [
+        'errors' => [
+            'pattern_length' => 'Enter a pattern of 1 to 60 characters.',
+            'pattern_characters' => 'A pattern can contain letters, digits, - / _ . and tokens such as {BRANCH} or {00001}.',
+            'pattern_token' => 'Use only the tokens {BRANCH}, {LOCATION}, {DEVICE}, {YYYY}, {YY}, {MM} and one counter such as {00001}.',
+            'pattern_counter' => 'Add exactly one counter, such as {00001}.',
+            'token_unavailable' => 'Documents of this type have no :token. Remove {:token} from the pattern.',
+            'yearly_needs_year' => 'A number that restarts every year needs {YYYY} or {YY}, or numbers of two years would repeat.',
+            'gapless_range' => 'Tills draw these numbers from pre-allocated ranges, which leave gaps. Turn off "no gaps" for this document type.',
+            'reset_locked' => 'Numbers have already been issued with this format, so when it restarts can no longer change.',
+            'branch_company' => 'Choose a branch of the selected company.',
+        ],
+    ],
 ];

@@ -21,6 +21,8 @@ class UpdateDeviceRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:100'],
+            // NUM-01: printed in document numbers ({LOCATION}, {DEVICE}).
+            'code' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Z0-9]{1,10}$/'],
         ];
     }
 }

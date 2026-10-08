@@ -15,6 +15,7 @@ class DeviceResource extends JsonResource
             'id' => $this->id,
             'location_id' => $this->location_id,
             'name' => $this->name,
+            'code' => $this->code,
             'status' => $this->status,
             'paired_at' => $this->paired_at?->toIso8601String(),
             'last_seen_at' => $this->last_seen_at?->toIso8601String(),

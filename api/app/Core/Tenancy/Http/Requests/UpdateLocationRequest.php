@@ -22,6 +22,8 @@ class UpdateLocationRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', 'string', 'in:'.implode(',', StoreLocationRequest::TYPES)],
+            // NUM-01: printed in document numbers ({LOCATION}, {DEVICE}).
+            'code' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Z0-9]{1,10}$/'],
         ];
     }
 }
