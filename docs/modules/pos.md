@@ -74,6 +74,27 @@ rule is not allowed the limited action (RBAC-06).
 7. Closing a shift computes expected cash per currency (opening float + cash taken − change given + pay-ins − pay-outs − cash refunds) and the variance.
 8. Every new table has row-level security and is covered by the tenant isolation suite.
 
+## API (phase 4 Task 1)
+
+Prefix `/api/v1`. Every route is behind `module:pos` (403 `module_inactive`).
+
+**Till (device token, ability `device`; place from the device, never the body).**
+
+| Route | Body | Notes |
+| --- | --- | --- |
+| `POST pos/number-ranges` | `{document_type: pos.receipt\|pos.refund, next?}` | The device's active ranges `{id, document_type, period, pattern, from, to, next, status, allocated_at}`, topped up below the threshold |
+| `POST pos/shifts` | `{shifts: [{id, opened_by_id, opened_at, opening_float: [{currency, amount_minor}], closing?: {closed_by_id, closed_at, counted: [{currency, amount_minor}], note?}}]}` | Send again with `closing` to close; one upload may open and close |
+| `POST pos/sales` | `{sales: [...]}`, at most 50, shape below | Idempotent by sale id |
+| `POST pos/cash-movements` | `{movements: [{id, shift_id, user_id, kind: pay_in\|pay_out, currency, amount_minor, reason, occurred_at, override?}]}` | `pos.cash.move` or override |
+| `POST pos/voids` | `{voids: [{id, sale_id, voided_by_id, voided_at, reason, override?}]}` | `pos.sale.void` or override |
+| `POST pos/refunds` | `{refunds: [{id, sale_id, shift_id, cashier_id, receipt_seq, receipt_number, refunded_at, reason, total_minor, lines: [{id, sale_line_id, qty}], payments: [...], override?}]}` | `pos.sale.refund` within `max_refund_amount` or override |
+
+A sale: `{id, shift_id, cashier_id, customer_id?, receipt_seq, receipt_number, sold_at, offline?, currency, price_list_id?, lines: [{id, item_id, item_name?, uom_id, qty, unit_price_minor, list_price_minor?, price_list_id?, tax_inclusive, discount_minor, tax_code_id?, tax_rate?, tax_minor, total_minor, override?}], totals: {subtotal_minor, discount_minor, tax_minor, total_minor}, payments: [{id, payment_method_id, currency, amount_minor, amount_in_sale_minor, rate?: {rate, base, quote, kind?, effective_at?}, provider_reference?, status?: confirmed\|pending}], change?: {currency, amount_minor, rate?}}`. Ids are UUID v7 made on the device; amounts are minor units as digit strings; quantities decimal strings; `override` is `{manager_id, proof}` (AUTH-08). Line rules: gross = round(unit price × qty); total = gross − discount (inclusive) or + tax (exclusive); subtotal = Σ gross.
+
+Every upload answers `{results: [{id, status: stored, ...}|{id, status: rejected, error: {code, message, field, retryable}}]}`: 200 when anything was stored, 422 `upload_rejected` when nothing was.
+
+**Back office (people's tokens).** `GET pos/sales` and `GET pos/shifts` (`pos.sale.view`, `pos.shift.view`; `?status`, `?company`, `?branch`, `?location`, `?from`, `?to`, `?search`, `?sort`, `?per_page`, export `?format=csv|xlsx|pdf`), `GET pos/sales/{id}` (lines, payments, void, refunds) and `GET pos/shifts/{id}` (balances, cash movements).
+
 ## Deferred
 
 - Restaurant, quick service, bar, hotel, pharmacy, wholesale, route sales, salon and fuel modes (tables, tabs, rooms, kitchen display and printers, courses, tips, appointments, pump readings).
