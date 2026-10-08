@@ -3,7 +3,8 @@
 namespace App\Core\Currency\Http\Requests;
 
 /**
- * CUR-03: the rate history, newest first: `?pair=USD/CDF` (as stored),
+ * CUR-03: the rate history, newest first: `?pair=USD/CDF` (stored either
+ * way; each row's `direction` says which),
  * `?from=` and `?to=` (dates, in the company's time zone), `?kind=`
  * reference or shop, `?per_page` (50, at most 200).
  */

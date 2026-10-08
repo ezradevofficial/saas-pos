@@ -75,6 +75,26 @@ class FetchReferenceRatesTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(0, ExchangeRate::count()));
     }
 
+    public function test_malformed_feed_rows_are_logged_and_skipped(): void
+    {
+        Log::spy();
+        Http::preventStrayRequests();
+        Http::fake(['rates.example.test/*' => Http::response(['rates' => [
+            ['quote' => 'USD', 'mid' => '-1'],
+            ['quote' => 'EUR', 'mid' => 0.009],
+            ['quote' => 'GBP', 'mid' => '0'],
+            ['quote' => 'CDF', 'mid' => '22.1', 'effective_at' => 'not a time'],
+            'garbage',
+            ['quote' => 'UGX', 'mid' => '28.6', 'sell' => 'abc'],
+            ['quote' => 'TZS', 'mid' => '19.4'],
+        ]])]);
+
+        $rates = (new CbkFeed('https://rates.example.test/cbk'))->fetch('KES', ['USD', 'EUR', 'GBP', 'CDF', 'UGX', 'TZS'], CarbonImmutable::parse('2026-10-08'));
+
+        $this->assertSame(['KES/TZS'], array_map(fn ($r) => $r->pair(), $rates));
+        Log::shouldHaveReceived('warning')->times(5);
+    }
+
     public function test_a_company_without_a_feed_is_left_alone(): void
     {
         $this->inTenant(fn () => $this->acme->forceFill(['rate_feed' => 'none'])->save());

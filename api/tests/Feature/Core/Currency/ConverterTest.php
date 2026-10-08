@@ -63,6 +63,20 @@ class ConverterTest extends TestCase
         $this->assertSame('-130', $this->convert(Money::ofMinor(-1, 'USD'), 'KES', $rate)->minor());
     }
 
+    public function test_converter_and_snapshot_round_the_same_way_in_both_directions(): void
+    {
+        $rate = $this->usdCdf('2850.12345678');
+        $snapshot = FxSnapshot::fromRate($rate);
+        mt_srand(7);
+
+        foreach (range(1, 200) as $i) {
+            foreach ([Money::ofMinor(mt_rand(1, 9_999_999), 'CDF'), Money::ofMinor(mt_rand(1, 999_999), 'USD')] as $money) {
+                $to = $money->currency() === 'CDF' ? 'USD' : 'CDF';
+                $this->assertTrue($this->convert($money, $to, $rate)->equals($this->inTenant(fn () => $snapshot->convert($money))));
+            }
+        }
+    }
+
     public function test_a_rate_for_another_pair_is_refused(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -109,10 +123,10 @@ class ConverterTest extends TestCase
         // 8-decimal inverse (0.00035086 * 138,225 = 48.497...).
         $this->assertTrue(Money::ofMinor(4850, 'USD')->equals($base));
         $this->assertSame('2850.12345678', $snapshot->rate);
-        $this->assertSame('USD', $snapshot->baseCurrency);
+        $this->assertSame(['USD', 'CDF'], [$snapshot->base(), $snapshot->quote()]);
         $this->assertSame('shop', $snapshot->kind);
         $this->assertSame('2026-10-08T07:00:00+00:00', $snapshot->effectiveAt->toIso8601String());
-        $this->assertTrue($base->equals($this->inTenant(fn () => $snapshot->convert(Money::ofMinor(138225, 'CDF'), 'USD'))));
+        $this->assertTrue($base->equals($this->inTenant(fn () => $snapshot->convert(Money::ofMinor(138225, 'CDF')))));
     }
 
     public function test_to_base_of_an_amount_already_in_the_base_is_an_identity_snapshot(): void

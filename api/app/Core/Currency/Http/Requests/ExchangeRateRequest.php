@@ -8,8 +8,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * CUR-03: a company's exchange rates are read by anyone holding
- * `core.exchange_rate.view` at the company or beneath it (a cashier at one
- * of its outlets). A company the user cannot see is not found (RBAC-04);
+ * `core.exchange_rate.view` (or `override`, which implies it) at the company
+ * or beneath it (a cashier at one of its outlets). A company the user cannot see is not found (RBAC-04);
  * one they see without the permission is forbidden.
  */
 class ExchangeRateRequest extends FormRequest
@@ -19,7 +19,9 @@ class ExchangeRateRequest extends FormRequest
         /** @var Company $company */
         $company = $this->route('company');
         $visibility = app(Visibility::class);
-        $reaches = $visibility->reaches($this->user(), 'core.exchange_rate.view', $company);
+        // `override` implies `view`: whoever may enter a rate may read them.
+        $reaches = $visibility->reaches($this->user(), 'core.exchange_rate.view', $company)
+            || $visibility->reaches($this->user(), 'core.exchange_rate.override', $company);
 
         abort_unless($reaches || $visibility->reaches($this->user(), 'core.company.view', $company), 404);
 

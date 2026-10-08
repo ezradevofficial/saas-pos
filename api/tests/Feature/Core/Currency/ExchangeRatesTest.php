@@ -76,15 +76,51 @@ class ExchangeRatesTest extends TestCase
         $this->assertSame('0.00034483', $this->current('CDF', 'USD', 'buy')->value());
     }
 
-    public function test_a_rate_stored_in_the_asked_direction_wins_over_the_inverse(): void
+    public function test_the_shop_rate_wins_whichever_direction_it_is_stored_in(): void
     {
-        $this->rate('CDF', 'USD', '0.00035', 'shop', '-1 minute');
-        $this->rate('USD', 'CDF', '2850', 'reference', '-1 day');
+        // A reference rate as asked (newer) and a shop rate stored the other way.
+        $this->rate('CDF', 'USD', '0.00035', 'shop', '-1 day');
+        $this->rate('USD', 'CDF', '2900', 'reference', '-1 minute');
 
         $rate = $this->current('USD', 'CDF');
+        $this->assertSame('shop', $rate->kind);
+        $this->assertTrue($rate->inverted);
+        $this->assertSame('2857.14285714', $rate->mid); // 1/0.00035
 
-        $this->assertFalse($rate->inverted);
-        $this->assertSame('2850.00000000', $rate->mid);
+        // The stored row is the same whichever way the pair is asked.
+        $stored = fn (string $a, string $b) => $this->inTenant(fn () => app(ExchangeRates::class)->stored($this->acme, $a, $b));
+        $this->assertSame($stored('USD', 'CDF')->id, $stored('CDF', 'USD')->id);
+        $this->assertSame('CDF/USD', $stored('USD', 'CDF')->pair());
+    }
+
+    public function test_the_latest_rate_of_a_kind_wins_across_directions(): void
+    {
+        $this->rate('USD', 'CDF', '2850', 'shop', '-2 days');
+        $this->rate('CDF', 'USD', '0.00035', 'shop', '-1 day');
+
+        $this->assertSame('0.00035000', $this->current('CDF', 'USD')->mid);
+        $this->assertSame('2857.14285714', $this->current('USD', 'CDF')->mid);
+    }
+
+    public function test_a_non_utc_time_is_compared_in_utc(): void
+    {
+        $this->rate('USD', 'CDF', '2800', 'shop', '2026-10-08 08:00:00Z');
+        // Between the Nairobi wall-clock reading (12:00) and the true UTC time (09:00).
+        $this->rate('USD', 'CDF', '2900', 'shop', '2026-10-08 10:00:00Z');
+
+        $at = CarbonImmutable::parse('2026-10-08 12:00:00', 'Africa/Nairobi');
+        $rate = $this->inTenant(fn () => app(ExchangeRates::class)->current($this->acme, 'USD', 'CDF', 'mid', $at));
+
+        $this->assertSame('2800.00000000', $rate->mid);
+    }
+
+    public function test_microseconds_count_when_choosing(): void
+    {
+        $this->rate('USD', 'CDF', '2800', 'shop', '2026-10-08 10:00:00.200000Z');
+        $this->rate('USD', 'CDF', '2900', 'shop', '2026-10-08 10:00:00.700000Z');
+
+        $this->assertSame('2800.00000000', $this->current('USD', 'CDF', at: '2026-10-08 10:00:00.500000Z')->mid);
+        $this->assertSame('2900.00000000', $this->current('USD', 'CDF', at: '2026-10-08 10:00:00.700000Z')->mid);
     }
 
     public function test_sides_fall_back_to_mid_when_buy_or_sell_is_missing(): void

@@ -40,9 +40,14 @@ class ExchangeRateController
     {
         $query = ExchangeRate::query()->where('company_id', $company->id);
 
+        // `?pair=USD/CDF` matches the pair stored either way; each row says which (`direction`).
+        $pairBase = null;
+
         if ($request->filled('pair')) {
-            [$base, $quote] = explode('/', $request->validated('pair'));
-            $query->where('base', $base)->where('quote', $quote);
+            [$pairBase, $quote] = explode('/', $request->validated('pair'));
+            $query->where(fn ($q) => $q
+                ->where(fn ($q) => $q->where('base', $pairBase)->where('quote', $quote))
+                ->orWhere(fn ($q) => $q->where('base', $quote)->where('quote', $pairBase)));
         }
 
         if ($request->filled('from')) {
@@ -58,7 +63,8 @@ class ExchangeRateController
         }
 
         return ExchangeRateResource::collection(
-            $query->orderByDesc('effective_at')->orderByDesc('id')->paginate($request->perPage())->withQueryString(),
+            $query->orderByDesc('effective_at')->orderByDesc('id')->paginate($request->perPage())->withQueryString()
+                ->through(fn (ExchangeRate $rate) => $pairBase === null ? $rate : $rate->setDirection($rate->base === $pairBase ? 'direct' : 'inverse')),
         );
     }
 

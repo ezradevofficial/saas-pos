@@ -3,8 +3,11 @@
 namespace App\Core\Currency\Feeds;
 
 use App\Core\Currency\Rate;
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use UnexpectedValueException;
 
 /**
@@ -15,7 +18,9 @@ use UnexpectedValueException;
  *     {"rates": [{"quote": "USD", "mid": "0.00774", "buy": null, "sell": null,
  *                 "effective_at": "2026-10-08T09:00:00Z"}]}
  *
- * meaning 1 base = mid quote. Without a URL every fetch throws
+ * meaning 1 base = mid quote. Rows for other quotes are ignored; a
+ * malformed row (mid not a positive decimal string, bad time) is logged
+ * and skipped. Without a URL every fetch throws
  * FeedNotConfigured (the daily job logs it and moves on).
  */
 abstract class EndpointFeed implements RateFeed
@@ -42,25 +47,47 @@ abstract class EndpointFeed implements RateFeed
 
         $rates = [];
 
-        foreach ($rows as $row) {
-            $quote = $row['quote'] ?? null;
-
-            if (! in_array($quote, $quotes, true) || ! is_string($row['mid'] ?? null)) {
+        foreach ($rows as $index => $row) {
+            if (! is_array($row) || ! in_array($row['quote'] ?? null, $quotes, true)) {
                 continue;
             }
 
-            $rates[] = new Rate(
-                base: $base,
-                quote: $quote,
-                mid: Rate::normalise($row['mid']),
-                buy: isset($row['buy']) ? Rate::normalise($row['buy']) : null,
-                sell: isset($row['sell']) ? Rate::normalise($row['sell']) : null,
-                kind: 'reference',
-                effectiveAt: isset($row['effective_at']) ? CarbonImmutable::parse($row['effective_at'])->utc() : $date->startOfDay(),
-                source: $this->name(),
-            );
+            // One bad row is logged and skipped; the rest of the day still loads.
+            try {
+                $rates[] = $this->rate($base, $row, $date);
+            } catch (Throwable $e) {
+                Log::warning("Reference rate row skipped ({$this->name()} feed): {$e->getMessage()}", ['row' => $index, 'quote' => $row['quote']]);
+            }
         }
 
         return $rates;
+    }
+
+    private function rate(string $base, array $row, CarbonImmutable $date): Rate
+    {
+        $value = function (string $field, bool $required) use ($row): ?string {
+            $raw = $row[$field] ?? null;
+
+            if ($raw === null && ! $required) {
+                return null;
+            }
+
+            if (! is_string($raw) || preg_match('/^\d{1,10}(\.\d+)?\z/', $raw) !== 1 || BigDecimal::of($raw)->isZero()) {
+                throw new UnexpectedValueException("{$field} is not a positive decimal string");
+            }
+
+            return Rate::normalise($raw);
+        };
+
+        return new Rate(
+            base: $base,
+            quote: $row['quote'],
+            mid: $value('mid', true),
+            buy: $value('buy', false),
+            sell: $value('sell', false),
+            kind: 'reference',
+            effectiveAt: isset($row['effective_at']) ? CarbonImmutable::parse($row['effective_at'])->utc() : $date->utc()->startOfDay(),
+            source: $this->name(),
+        );
     }
 }

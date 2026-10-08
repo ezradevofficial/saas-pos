@@ -14,6 +14,8 @@ class ExchangeRateResource extends JsonResource
         return [
             'id' => $this->id,
             'pair' => "{$this->base}/{$this->quote}",
+            // With `?pair=`: `direct` (stored as asked) or `inverse` (stored the other way); null otherwise.
+            'direction' => $this->resource->direction,
             'base' => $this->base,
             'quote' => $this->quote,
             'kind' => $this->kind,

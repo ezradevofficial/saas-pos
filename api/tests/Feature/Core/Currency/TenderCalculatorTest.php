@@ -132,6 +132,50 @@ class TenderCalculatorTest extends TestCase
         $this->assertMoney(0, 'USD', $nothing->paidInDue);
     }
 
+    public function test_with_the_pair_stored_both_ways_paying_the_requested_cdf_leaves_nothing_due(): void
+    {
+        // setUp: USD/CDF shop 2,850. Add a newer CDF/USD reference rate (1/2,900): using it for
+        // CDF tenders after asking at 2,850 would leave the customer short.
+        $this->rate('CDF', 'USD', '0.00034483', 'reference', '-1 minute');
+        $calculator = app(TenderCalculator::class);
+        $due = Money::ofMinor(4850, 'USD');
+
+        foreach ([2000, 1999, 1] as $usd) {
+            $first = $this->calculate($due, [[$usd, 'USD']], 'CDF');
+            $asked = $this->inTenant(fn () => $calculator->amountDueIn($first->remaining, 'CDF', $this->acme));
+            $settled = $this->calculate($due, [[$usd, 'USD'], [(int) $asked->minor(), 'CDF']], 'CDF');
+
+            $this->assertTrue($settled->isSettled(), "USD {$usd} then CDF {$asked->minor()}");
+            $this->assertMoney(0, 'USD', $settled->remaining);
+            // The shop rate was used for both directions in one calculation.
+            $this->assertSame('shop', $settled->lines[1]['rate']->kind);
+        }
+    }
+
+    public function test_line_amounts_in_the_due_currency_sum_to_paid(): void
+    {
+        // Three CDF lines each worth a fraction of a cent over a whole amount.
+        $result = $this->calculate(Money::ofMinor(10000, 'USD'), [[1000, 'CDF'], [1000, 'CDF'], [1000, 'CDF'], [100, 'USD']], 'CDF');
+
+        // 3 x 35.0877 cents = 105.26 -> paid USD 2.05 (floored), lines 35 + 35 + 35 + 100 would be 205.
+        $sum = array_reduce($result->lines, fn (Money $s, array $l) => $s->plus($l['in_due']), Money::ofMinor(0, 'USD'));
+        $this->assertTrue($sum->equals($result->paidInDue));
+
+        $odd = $this->calculate(Money::ofMinor(10000, 'USD'), [[1000, 'CDF'], [1000, 'CDF'], [1000, 'CDF']], 'CDF');
+        $this->assertMoney(105, 'USD', $odd->paidInDue);
+        $this->assertSame(['35', '35', '35'], array_map(fn (array $l) => $l['in_due']->minor(), $odd->lines));
+
+        $more = $this->calculate(Money::ofMinor(10000, 'USD'), array_fill(0, 6, [1000, 'CDF']), 'CDF');
+        // 6 x 35.0877 = 210.53 -> 210; floors give 6 x 35 = 210 too. With 9 lines: 315.79 -> 315 = 9 x 35.
+        $this->assertTrue(array_reduce($more->lines, fn (Money $s, array $l) => $s->plus($l['in_due']), Money::ofMinor(0, 'USD'))->equals($more->paidInDue));
+
+        // Where floors fall short, the last line takes the remainder: 57 x CDF 1,000 = USD 20.00 exactly.
+        $many = $this->calculate(Money::ofMinor(10000, 'USD'), array_fill(0, 57, [1000, 'CDF']), 'CDF');
+        $this->assertMoney(2000, 'USD', $many->paidInDue);
+        $this->assertSame('35', $many->lines[0]['in_due']->minor());
+        $this->assertSame((string) (2000 - 56 * 35), $many->lines[56]['in_due']->minor());
+    }
+
     public function test_a_tender_without_a_rate_is_refused(): void
     {
         $this->expectException(RateUnavailable::class);

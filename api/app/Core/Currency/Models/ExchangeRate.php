@@ -21,6 +21,9 @@ class ExchangeRate extends Model implements HasScope
 
     public const UPDATED_AT = null;
 
+    /** Microseconds kept, so two rates entered within a second do not collide. */
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected $fillable = ['company_id', 'base', 'quote', 'kind', 'buy', 'sell', 'mid', 'effective_at', 'source', 'entered_by'];
 
     protected function casts(): array
@@ -29,6 +32,16 @@ class ExchangeRate extends Model implements HasScope
             'effective_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
         ];
+    }
+
+    /** Set by the history filter: `direct` when stored as the pair asked, `inverse` when stored the other way. */
+    public ?string $direction = null;
+
+    public function setDirection(string $direction): self
+    {
+        $this->direction = $direction;
+
+        return $this;
     }
 
     public function scope(): Scope

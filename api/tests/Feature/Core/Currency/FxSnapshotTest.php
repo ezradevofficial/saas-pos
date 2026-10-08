@@ -68,7 +68,8 @@ class FxSnapshotTest extends TestCase
             'tip_minor' => ['bigint', 64, 0, 'YES'],
             'tip_currency' => ['character', 3, null, 'YES'],
             'fx_rate' => ['numeric', 18, 8, 'YES'],
-            'fx_base_currency' => ['character', 3, null, 'YES'],
+            'fx_rate_base' => ['character', 3, null, 'YES'],
+            'fx_rate_quote' => ['character', 3, null, 'YES'],
             'fx_rate_kind' => ['character varying', 10, null, 'YES'],
             'fx_rate_effective_at' => ['timestamp with time zone', null, null, 'YES'],
         ], $columns);
@@ -100,11 +101,11 @@ class FxSnapshotTest extends TestCase
         $this->assertSame('USD', $document->base_total_currency);
         $this->assertInstanceOf(FxSnapshot::class, $document->fx);
         $this->assertSame('2850.00000000', $document->fx->rate);
-        $this->assertSame('USD', $document->fx->baseCurrency);
+        $this->assertSame(['USD', 'CDF'], [$document->fx->base(), $document->fx->quote()]);
         $this->assertSame('shop', $document->fx->kind);
         $this->assertTrue(CarbonImmutable::parse('2026-10-01 08:00:00Z')->equalTo($document->fx->effectiveAt));
         // Re-applying the frozen rate gives the stored amount, not today's.
-        $this->assertSame('4850', $this->inTenant(fn () => $document->fx->convert($total, 'USD'))->minor());
+        $this->assertSame('4850', $this->inTenant(fn () => $document->fx->convert($total))->minor());
         $this->assertSame('4608', $this->inTenant(fn () => app(Converter::class)->toBase($total, $this->acme))['base']->minor());
     }
 
@@ -116,16 +117,32 @@ class FxSnapshotTest extends TestCase
         ]);
 
         $this->assertNull($document->fresh()->fx);
-        $this->assertNull($document->fresh()->fx_base_currency);
+        $this->assertNull($document->fresh()->fx_rate_base);
     }
 
     public function test_json_shape(): void
     {
-        $snapshot = new FxSnapshot('2850.00000000', 'USD', 'shop', CarbonImmutable::parse('2026-10-01 08:00:00Z'));
+        $snapshot = new FxSnapshot('2850.00000000', 'USD', 'CDF', 'shop', CarbonImmutable::parse('2026-10-01 08:00:00Z'));
 
         $this->assertSame(
-            '{"rate":"2850.00000000","base_currency":"USD","kind":"shop","effective_at":"2026-10-01T08:00:00+00:00"}',
+            '{"rate":"2850.00000000","base":"USD","quote":"CDF","kind":"shop","effective_at":"2026-10-01T08:00:00+00:00"}',
             json_encode($snapshot),
         );
+    }
+
+    public function test_convert_multiplies_from_the_base_divides_from_the_quote_and_refuses_other_currencies(): void
+    {
+        $snapshot = new FxSnapshot('2850.00000000', 'USD', 'CDF', 'shop', CarbonImmutable::now());
+
+        $this->inTenant(function () use ($snapshot) {
+            $this->assertSame(['138225', 'CDF'], [$snapshot->convert(Money::ofMinor(4850, 'USD'))->minor(), 'CDF']);
+            $this->assertSame('CDF', $snapshot->convert(Money::ofMinor(4850, 'USD'))->currency());
+            // CDF 1,000 / 2,850 = USD 0.3508... -> 0.35 half up.
+            $this->assertSame(['35', 'USD'], [$snapshot->convert(Money::ofMinor(1000, 'CDF'))->minor(), $snapshot->convert(Money::ofMinor(1000, 'CDF'))->currency()]);
+            $this->assertSame('500', FxSnapshot::identity('USD')->convert(Money::ofMinor(500, 'USD'))->minor());
+
+            $this->expectException(\InvalidArgumentException::class);
+            $snapshot->convert(Money::ofMinor(100, 'KES'));
+        });
     }
 }

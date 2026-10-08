@@ -5,7 +5,7 @@ namespace App\Core\Currency;
 use App\Core\Tenancy\Models\Company;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use InvalidArgumentException;
 
 /**
@@ -35,11 +35,8 @@ class Converter
             return $money;
         }
 
-        [$numerator, $divisor] = $this->terms(BigDecimal::of($money->minor()), $money->currency(), $to, $rate);
-
-        $minor = $divisor === null
-            ? $numerator->toScale(0, $rounding)
-            : $numerator->dividedBy($divisor, 0, $rounding);
+        // Divisions carry 20 decimals before this one rounding (as FxSnapshot::convert).
+        $minor = $this->exact(BigDecimal::of($money->minor()), $money->currency(), $to, $rate)->toScale(0, $rounding);
 
         return Money::ofMinor((string) $minor, $to);
     }
@@ -71,7 +68,7 @@ class Converter
      *
      * @return array{base: Money, snapshot: FxSnapshot}
      */
-    public function toBase(Money $money, Company $company, ?CarbonImmutable $at = null): array
+    public function toBase(Money $money, Company $company, ?DateTimeInterface $at = null): array
     {
         $base = $company->base_currency;
 
@@ -79,9 +76,9 @@ class Converter
             return ['base' => $money, 'snapshot' => FxSnapshot::identity($base)];
         }
 
-        $rate = $this->rates->stored($company, $money->currency(), $base, $at);
+        $snapshot = FxSnapshot::fromRate($this->rates->stored($company, $money->currency(), $base, ExchangeRates::utc($at)));
 
-        return ['base' => $this->convert($money, $base, $rate), 'snapshot' => FxSnapshot::fromRate($rate)];
+        return ['base' => $snapshot->convert($money), 'snapshot' => $snapshot];
     }
 
     /**

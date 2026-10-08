@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\Currency;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\Models\ExchangeRate;
 use App\Core\Currency\Models\RateAlert;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
@@ -163,6 +164,30 @@ class ExchangeRateApiTest extends TestCase
         $this->postJson($this->url(), $body + ['effective_at' => '2026-10-01T00:00:00Z'], $this->headersFor($branchAdmin))->assertForbidden();
     }
 
+    public function test_override_implies_view(): void
+    {
+        $user = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Rate setter', ['core.exchange_rate.override']), Scope::company($this->acme->id));
+
+            return $user;
+        });
+
+        $this->postJson($this->url(), ['base' => 'USD', 'quote' => 'CDF', 'mid' => '2850'], $this->headersFor($user))->assertCreated();
+        $this->getJson($this->url(), $this->headersFor($user))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->url('/current'), $this->headersFor($user))->assertOk();
+    }
+
+    public function test_two_rates_entered_within_the_same_second_do_not_collide(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-08 10:00:00.100000');
+        $this->postJson($this->url(), ['base' => 'USD', 'quote' => 'CDF', 'mid' => '2850'], $this->headersFor())->assertCreated();
+        CarbonImmutable::setTestNow('2026-10-08 10:00:00.600000');
+        $this->postJson($this->url(), ['base' => 'USD', 'quote' => 'CDF', 'mid' => '2851'], $this->headersFor())->assertCreated();
+
+        $this->getJson($this->url('/current?pair=USD/CDF'), $this->headersFor())->assertJsonPath('data.mid', '2851.00000000');
+    }
+
     public function test_a_cashier_reads_the_current_rates_of_their_company(): void
     {
         $this->rate('USD', 'CDF', '2850', 'shop', '-1 hour');
@@ -200,6 +225,10 @@ class ExchangeRateApiTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('code', 'rate_unavailable');
         $this->getJson($this->url('/current?pair=USD/EUR'), $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors(['pair']);
+
+        // A pair with an inactive currency is not listed.
+        $this->inTenant(fn () => TenantCurrency::where('code', 'KES')->update(['active' => false]));
+        $this->assertSame(['USD/CDF'], array_column($this->getJson($this->url('/current'), $this->headersFor())->json('data'), 'pair'));
     }
 
     public function test_history_is_paginated_newest_first_and_filtered_by_pair_dates_and_kind(): void
@@ -214,11 +243,21 @@ class ExchangeRateApiTest extends TestCase
         $this->assertSame(['2820.00000000', '129.00000000', '2810.00000000', '2800.00000000'], array_column($all->json('data'), 'mid'));
         $all->assertJsonPath('meta.total', 4);
 
+        $page = $this->getJson($this->url('?per_page=2&page=2'), $this->headersFor())->assertOk();
+        $this->assertSame(['2810.00000000', '2800.00000000'], array_column($page->json('data'), 'mid'));
+
         $filtered = $this->getJson($this->url('?pair=USD/CDF&from=2026-10-02&to=2026-10-02&kind=shop'), $this->headersFor())->assertOk();
         $this->assertSame(['2810.00000000'], array_column($filtered->json('data'), 'mid'));
 
-        $page = $this->getJson($this->url('?per_page=2&page=2'), $this->headersFor())->assertOk();
-        $this->assertSame(['2810.00000000', '2800.00000000'], array_column($page->json('data'), 'mid'));
+        // The pair filter matches both stored directions; `direction` says which.
+        $this->rate('CDF', 'USD', '0.00035', 'shop', '2026-10-03 10:00:00Z');
+        $both = $this->getJson($this->url('?pair=USD/CDF'), $this->headersFor())->assertOk()->json('data');
+        $this->assertSame(
+            [['CDF/USD', 'inverse'], ['USD/CDF', 'direct'], ['USD/CDF', 'direct'], ['USD/CDF', 'direct']],
+            array_map(fn ($r) => [$r['pair'], $r['direction']], $both),
+        );
+        $this->assertSame('direct', $this->getJson($this->url('?pair=CDF/USD'), $this->headersFor())->json('data.0.direction'));
+        $this->assertNull($this->getJson($this->url(), $this->headersFor())->json('data.0.direction'));
 
         $this->getJson($this->url('?pair=usd-cdf&from=2026-10-05&to=2026-10-01&kind=bank'), $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors(['pair', 'to', 'kind']);

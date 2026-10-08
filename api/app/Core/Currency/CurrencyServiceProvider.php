@@ -40,7 +40,7 @@ class CurrencyServiceProvider extends ServiceProvider
      *
      *     $table->money('total');          // total_minor bigint, total_currency char(3)
      *     $table->money('tip', nullable: true);
-     *     $table->fxSnapshot('fx');        // fx_rate numeric(18,8), fx_base_currency char(3),
+     *     $table->fxSnapshot('fx');        // fx_rate numeric(18,8), fx_rate_base char(3), fx_rate_quote char(3),
      *                                      // fx_rate_kind varchar(10), fx_rate_effective_at timestamptz (all null)
      */
     private function registerMigrationMacros(): void
@@ -54,9 +54,10 @@ class CurrencyServiceProvider extends ServiceProvider
         Blueprint::macro('fxSnapshot', function (string $prefix = 'fx'): void {
             /** @var Blueprint $this */
             $this->decimal("{$prefix}_rate", 18, 8)->nullable();
-            $this->char("{$prefix}_base_currency", 3)->nullable();
+            $this->char("{$prefix}_rate_base", 3)->nullable();
+            $this->char("{$prefix}_rate_quote", 3)->nullable();
             $this->string("{$prefix}_rate_kind", 10)->nullable();
-            $this->timestampTz("{$prefix}_rate_effective_at")->nullable();
+            $this->timestampTz("{$prefix}_rate_effective_at", 6)->nullable();
         });
     }
 }

@@ -25,7 +25,8 @@ return new class extends Migration
             $table->decimal('buy', 18, 8)->nullable();
             $table->decimal('sell', 18, 8)->nullable();
             $table->decimal('mid', 18, 8);
-            $table->timestampTz('effective_at');
+            // Microseconds kept: two rates entered within a second must not collide.
+            $table->timestampTz('effective_at', 6);
             $table->text('source');
             $table->foreignUuid('entered_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestampTz('created_at')->useCurrent();
