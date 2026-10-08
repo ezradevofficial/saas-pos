@@ -134,6 +134,37 @@ return [
 
     // MD-03, CP-01, CP-02 : codes de taxe, taux, catégories.
     'tax' => [
+        // EXP-01 : les listes des codes et catégories de taxe et leurs exports.
+        'list_title' => 'Codes de taxe de :company',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'kind' => 'Type',
+            'rate' => 'Taux',
+            'since' => 'Depuis',
+            'fiscal_code' => 'Code fiscal',
+            'status' => 'Statut',
+            'updated_at' => 'Modifié le',
+        ],
+        'kinds' => [
+            'vat' => 'TVA',
+            'withholding' => 'Retenue à la source',
+            'excise' => 'Accises',
+            'exempt' => 'Exonéré',
+            'zero_rated' => 'Taux zéro',
+        ],
+        'rate_needed' => 'Taux à saisir',
+        'exempt' => 'Exonéré',
+        'categories_title' => 'Catégories de taxe',
+        'category_columns' => [
+            'name' => 'Nom',
+            'scope' => 'Utilisée par',
+            'codes' => 'Codes de taxe par défaut',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'all_companies' => 'Toutes les sociétés',
+        'code_in_company' => ':code dans :company',
         'code_archived' => 'Le code de taxe :code est archivé. Restaurez-le avant de l’utiliser ou d’y ajouter un taux.',
         'rate_missing' => 'Le code de taxe :code n’a pas de taux confirmé au :date. Saisissez son taux avant de l’utiliser.',
         'rate_overlap' => 'Un taux commence déjà à cette date ou après (dernier début : :date). Choisissez une date postérieure au :date.',
@@ -162,6 +193,18 @@ return [
 
     // MD-03 : listes de prix.
     'price_list' => [
+        // EXP-01 : la liste des listes de prix et son export.
+        'list_title' => 'Listes de prix de :company',
+        'columns' => [
+            'name' => 'Nom',
+            'currency' => 'Devise',
+            'prices' => 'Prix',
+            'default' => 'Par défaut',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'include_tax' => 'TTC',
+        'exclude_tax' => 'HT',
         'archived_default' => 'Une liste de prix archivée ne peut pas être la liste par défaut. Restaurez-la d’abord.',
         'attributes' => [
             'name' => 'nom',

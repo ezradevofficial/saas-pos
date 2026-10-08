@@ -589,6 +589,9 @@ class TenantIsolationTest extends TestCase
             "users/{$a->id('manager')}/assignments" => ['Clerk A', 'Outlet A'],
             "companies/{$a->id('company')}/exchange-rates" => ['USD/KES', '129.5', '140'],
             'tenant/currencies' => ['KES', 'USD'],
+            "companies/{$a->id('company')}/tax-codes?status=all" => ['VAT_STD', '12.5%'],
+            'tax-categories?status=all' => ['Goods A', 'VAT_STD in Company A'],
+            "companies/{$a->id('company')}/price-lists?status=all" => ['Retail A'],
         ];
     }
 

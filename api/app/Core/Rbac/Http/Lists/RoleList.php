@@ -71,8 +71,7 @@ class RoleList extends ListDefinition
                 fn (array $row, Role $role, ExportValues $values) => $values->integer(count($row['permissions'] ?? []))),
             ListColumn::make('two_factor', 'core.role.columns.two_factor', ['requires_two_factor'],
                 fn (array $row) => $row['requires_two_factor'] ? __('core.role.two_factor_required') : null),
-            ListColumn::make('status', 'core.role.columns.status', ['archived_at'],
-                fn (array $row) => __('core.list.statuses.'.($row['archived_at'] === null ? 'active' : 'archived'))),
+            ListColumn::archiveStatus('core.role.columns.status'),
         ];
     }
 
@@ -83,14 +82,6 @@ class RoleList extends ListDefinition
 
     public function filterSummary(array $filters, ExportValues $values): array
     {
-        $summary = [];
-
-        if (($filters['search'] ?? '') !== '') {
-            $summary[__('core.list.search')] = $filters['search'];
-        }
-
-        $summary[__('core.list.status')] = __('core.list.statuses.'.($filters['status'] ?? 'active'));
-
-        return $summary;
+        return $this->searchAndStatus($filters);
     }
 }

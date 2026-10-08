@@ -84,6 +84,28 @@ abstract class ListDefinition
         return [];
     }
 
+    /**
+     * The search and, for archivable records, the `?status` filter as
+     * printed on a PDF.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, string>
+     */
+    protected function searchAndStatus(array $filters, bool $archivable = true): array
+    {
+        $summary = [];
+
+        if (($filters['search'] ?? '') !== '') {
+            $summary[__('core.list.search')] = (string) $filters['search'];
+        }
+
+        if ($archivable) {
+            $summary[__('core.list.status')] = __('core.list.statuses.'.($filters['status'] ?? 'active'));
+        }
+
+        return $summary;
+    }
+
     /** @return list<string> */
     public function columnKeys(): array
     {

@@ -154,7 +154,17 @@ final class ExportValues
         return implode($this->groupMark, $groups);
     }
 
-    private function formatDate(CarbonImmutable $date): string
+    /** A calendar date (`Y-m-d`, no time zone) as "7 Oct 2026". */
+    public function date(?string $ymd): ?string
+    {
+        if ($ymd === null || $ymd === '') {
+            return null;
+        }
+
+        return $this->formatDate(CarbonImmutable::createFromFormat('!Y-m-d', substr($ymd, 0, 10), 'UTC'), 'd MMM y');
+    }
+
+    private function formatDate(CarbonImmutable $date, string $pattern = 'd MMM y, HH:mm'): string
     {
         $formatter = new IntlDateFormatter(
             self::DATE_LOCALES[$this->locale] ?? self::DATE_LOCALES['en'],
@@ -162,7 +172,7 @@ final class ExportValues
             IntlDateFormatter::NONE,
             $date->getTimezone(),
             IntlDateFormatter::GREGORIAN,
-            'd MMM y, HH:mm',
+            $pattern,
         );
 
         return (string) $formatter->format($date);

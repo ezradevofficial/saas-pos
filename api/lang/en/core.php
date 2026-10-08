@@ -134,6 +134,37 @@ return [
 
     // MD-03, CP-01, CP-02: tax codes, rates, categories.
     'tax' => [
+        // EXP-01: the tax codes and tax categories lists and their exports.
+        'list_title' => 'Tax codes of :company',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'kind' => 'Kind',
+            'rate' => 'Rate',
+            'since' => 'Since',
+            'fiscal_code' => 'Fiscal code',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'kinds' => [
+            'vat' => 'VAT',
+            'withholding' => 'Withholding',
+            'excise' => 'Excise',
+            'exempt' => 'Exempt',
+            'zero_rated' => 'Zero-rated',
+        ],
+        'rate_needed' => 'Rate needed',
+        'exempt' => 'Exempt',
+        'categories_title' => 'Tax categories',
+        'category_columns' => [
+            'name' => 'Name',
+            'scope' => 'Used by',
+            'codes' => 'Default tax codes',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'all_companies' => 'All companies',
+        'code_in_company' => ':code in :company',
         'code_archived' => 'The tax code :code is archived. Restore it before using it or adding a rate.',
         'rate_missing' => 'The tax code :code has no confirmed rate on :date. Enter its rate before using it.',
         'rate_overlap' => 'A rate already starts on or after this date (latest start :date). Choose a date after :date.',
@@ -162,6 +193,18 @@ return [
 
     // MD-03: price lists.
     'price_list' => [
+        // EXP-01: the price lists list and its export.
+        'list_title' => 'Price lists of :company',
+        'columns' => [
+            'name' => 'Name',
+            'currency' => 'Currency',
+            'prices' => 'Prices',
+            'default' => 'Default',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'include_tax' => 'Include tax',
+        'exclude_tax' => 'Exclude tax',
         'archived_default' => 'An archived price list can’t be the default. Restore it first.',
         'attributes' => [
             'name' => 'name',

@@ -122,6 +122,6 @@ class InvitationList extends ListDefinition
 
     public function filterSummary(array $filters, ExportValues $values): array
     {
-        return ($filters['search'] ?? '') === '' ? [] : [__('core.list.search') => $filters['search']];
+        return $this->searchAndStatus($filters, archivable: false);
     }
 }

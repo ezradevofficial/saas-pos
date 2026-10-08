@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Taxes\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\Http\Requests\ListTaxCategoriesRequest;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-03: tax categories, shared or per company as items are (TEN-08), with a default tax
@@ -36,17 +38,22 @@ class TaxCategoryController
         private readonly MasterDataSharing $sharing,
     ) {}
 
-    public function index(ListTaxCategoriesRequest $request): AnonymousResourceCollection
+    public function index(ListTaxCategoriesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $companies = $this->reach->companyIds($request->user(), self::PERMISSIONS);
+        $companies = $request->companies();
         $query = TaxCategory::query();
 
         if ($companies !== null) {
             $query->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
         }
 
-        $page = $request->applyStatus($query)->with('codes.taxCode:id,code')->orderBy('name')->orderBy('id')
-            ->paginate($request->perPage())->withQueryString();
+        $request->applySort($request->applySearch($request->applyStatus($query), ['name' => 'name']));
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        $page = $query->with('codes.taxCode:id,code')->paginate($request->perPage())->withQueryString();
         $page->getCollection()->each(fn (TaxCategory $category) => $this->onlyReachedCodes($category, $companies));
 
         return TaxCategoryResource::collection($page);
