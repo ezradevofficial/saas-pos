@@ -175,7 +175,7 @@ class FiscalQueue
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($id, $at) {
             $submission = FiscalSubmission::query()->whereKey($id)->whereIn('status', ['queued', 'retrying'])
-                ->where('next_attempt_at', '<=', $at)->lockForUpdate()->skipLocked()->first();
+                ->where('next_attempt_at', '<=', $at)->lock('for update skip locked')->first();
 
             if ($submission === null) {
                 return null;

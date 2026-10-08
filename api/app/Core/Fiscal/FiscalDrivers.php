@@ -47,6 +47,7 @@ class FiscalDrivers
             $drivers[] = 'fake';
         }
 
-        return array_values(array_intersect(array_keys($this->drivers), $drivers));
+        // The country's own drivers first: a new company's settings default to the first.
+        return array_values(array_filter(array_unique($drivers), fn (string $name) => isset($this->drivers[$name])));
     }
 }
