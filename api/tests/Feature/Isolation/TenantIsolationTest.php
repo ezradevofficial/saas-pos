@@ -182,7 +182,14 @@ class TenantIsolationTest extends TestCase
         ['search' => 'Item', 'type' => 'stock', 'barcode' => '6161000000001'],
     ];
 
-    /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
+    /**
+     * Query parameters that take a row id (`?category=` on items, MD-02) =>
+     * which id. The list check sends B's id, and A's as a control
+     * (idQueries()).
+     */
+    public const LIST_ID_QUERIES = ['category' => 'item_category'];
+
+    /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category'];
 
     private TwoTenants $tenants;
@@ -352,7 +359,7 @@ class TenantIsolationTest extends TestCase
             }
 
             foreach (['owner', 'manager', 'device'] as $who) {
-                foreach (self::LIST_QUERIES as $query) {
+                foreach ([...self::LIST_QUERIES, ...$this->idQueries($route, $a, $b)] as $query) {
                     $uri = '/'.$route->uri().($query === [] ? '' : '?'.http_build_query($query));
                     $response = $this->get($uri, $a->bearer($who));
 
@@ -373,6 +380,9 @@ class TenantIsolationTest extends TestCase
         }
         $this->assertNotEmpty($this->get('/api/v1/locations', $a->bearer('manager'))->json('data'));
         $this->get('/api/v1/devices/me', $a->bearer('device'))->assertOk()->assertJsonPath('data.id', $a->id('device'));
+        // Control: filtering by A's own category finds A's item, by B's finds nothing (MD-02).
+        $this->assertNotEmpty($this->get('/api/v1/items?category='.$a->id('item_category'), $a->bearer('owner'))->assertOk()->json('data'));
+        $this->get('/api/v1/items?category='.$b->id('item_category'), $a->bearer('owner'))->assertUnprocessable();
     }
 
     /**
@@ -570,6 +580,27 @@ class TenantIsolationTest extends TestCase
         $this->assertNotEmpty($tables);
 
         return $tables;
+    }
+
+    /**
+     * LIST_ID_QUERIES the route reads, with B's ids (must show nothing of B
+     * beyond the id echoed in its own pagination links) and with A's ids
+     * (the control: the filter really runs). Routes that do not read the
+     * parameter are not sent it: their pagination links would echo B's id.
+     *
+     * @return list<array<string, string>>
+     */
+    private function idQueries(RoutingRoute $route, TenantFixture $a, TenantFixture $b): array
+    {
+        $queries = [];
+        $read = $this->queryParametersRead($route);
+
+        foreach (array_intersect_key(self::LIST_ID_QUERIES, array_flip($read)) as $parameter => $key) {
+            $queries[] = [$parameter => $b->id($key)];
+            $queries[] = [$parameter => $a->id($key)];
+        }
+
+        return $queries;
     }
 
     /** @return list<RoutingRoute> */

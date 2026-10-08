@@ -29,6 +29,9 @@ use InvalidArgumentException;
  *   underpays.
  * - change: the exact overpayment in the change currency, rounded DOWN to
  *   its cash rounding: the shop never over-gives, change is never negative.
+ * - lines: each tender's share of paid in the due currency, by largest
+ *   remainder (each within one minor unit of its exact value; they sum to
+ *   paid exactly).
  * - rounding_minor: what the shop keeps (exact overpayment minus the change
  *   given, in minor units of the due currency, half up).
  */
@@ -74,16 +77,11 @@ class TenderCalculator
             $exact = $this->converter->exact(BigDecimal::of($tender->amount->minor()), $from, $currency, $rate);
 
             $paidExact = $paidExact->plus($exact);
-            $lines[] = ['tender' => $tender, 'in_due' => $this->minor($exact, $currency, RoundingMode::Down), 'rate' => $rate];
+            $lines[] = ['tender' => $tender, 'in_due' => null, 'rate' => $rate, 'exact' => $exact];
         }
 
         $paid = $this->minor($paidExact, $currency, RoundingMode::Down);
-
-        // Lines are floored one by one; the last line takes the remainder so they sum to paid.
-        if ($lines !== []) {
-            $others = array_reduce(array_slice($lines, 0, -1), fn (Money $sum, array $line) => $sum->plus($line['in_due']), Money::ofMinor(0, $currency));
-            $lines[array_key_last($lines)]['in_due'] = $paid->minus($others);
-        }
+        $lines = $this->allocate($lines, $paid);
         $remaining = $paid->minus($due)->isNegative() ? $due->minus($paid) : Money::ofMinor(0, $currency);
         $overpayExact = $paidExact->minus($due->minor());
 
@@ -124,6 +122,44 @@ class TenderCalculator
         $exact = $this->converter->exact(BigDecimal::of($remaining->minor()), $from, $currency, $rate);
 
         return $this->cash->round($exact, $currency, RoundingMode::Up);
+    }
+
+    /**
+     * Each line's share of paid in the due currency, by largest remainder:
+     * every line is floored, then the minor units still missing to reach
+     * paid (fewer than the number of lines) go one each to the lines with
+     * the largest fractional parts, earlier lines first on a tie. Each line
+     * is within one minor unit of its own exact value, and the lines sum to
+     * paid exactly.
+     *
+     * @param  list<array{tender: TenderLine, in_due: null, rate: ?Rate, exact: BigDecimal}>  $lines
+     * @return list<array{tender: TenderLine, in_due: Money, rate: ?Rate}>
+     */
+    private function allocate(array $lines, Money $paid): array
+    {
+        $currency = $paid->currency();
+        $floors = [];
+        $fractions = [];
+
+        foreach ($lines as $i => $line) {
+            $floors[$i] = $line['exact']->toScale(0, RoundingMode::Floor);
+            $fractions[$i] = $line['exact']->minus($floors[$i]);
+        }
+
+        $missing = BigDecimal::of($paid->minor())->minus(array_reduce($floors, fn (BigDecimal $sum, BigDecimal $f) => $sum->plus($f), BigDecimal::zero()))->toInt();
+
+        $order = array_keys($lines);
+        usort($order, fn (int $x, int $y) => $fractions[$y]->compareTo($fractions[$x]) ?: $x <=> $y);
+
+        foreach (array_slice($order, 0, $missing) as $i) {
+            $floors[$i] = $floors[$i]->plus(1);
+        }
+
+        return array_map(fn (int $i) => [
+            'tender' => $lines[$i]['tender'],
+            'in_due' => Money::ofMinor((string) $floors[$i], $currency),
+            'rate' => $lines[$i]['rate'],
+        ], array_keys($lines));
     }
 
     private function minor(BigDecimal $exact, string $currency, RoundingMode $mode): Money

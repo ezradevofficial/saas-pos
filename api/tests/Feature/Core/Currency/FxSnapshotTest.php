@@ -73,6 +73,11 @@ class FxSnapshotTest extends TestCase
             'fx_rate_kind' => ['character varying', 10, null, 'YES'],
             'fx_rate_effective_at' => ['timestamp with time zone', null, null, 'YES'],
         ], $columns);
+
+        // The rate's time keeps microseconds (timestampTz precision 6), as exchange_rates.effective_at does.
+        $this->assertSame(6, (int) DB::selectOne("
+            select datetime_precision from information_schema.columns where table_name = 'fx_test_documents' and column_name = 'fx_rate_effective_at'
+        ")->datetime_precision);
     }
 
     /** Review focus 2: later rate changes never alter a stored document. */
