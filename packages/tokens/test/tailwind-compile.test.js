@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -18,7 +17,6 @@ function rule(css, selector) {
 let out;
 
 beforeAll(async () => {
-  execFileSync('node', [path.join(root, 'build.mjs')], { stdio: 'pipe' });
   const { compile } = await import('@tailwindcss/node');
   const twDir = path.dirname(require.resolve('tailwindcss/package.json'));
   const dir = mkdtempSync(path.join(os.tmpdir(), 'tokens-tw-'));

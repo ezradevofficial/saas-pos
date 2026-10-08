@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -22,7 +21,6 @@ let preset;
 let native;
 
 beforeAll(() => {
-  execFileSync('node', [path.join(root, 'build.mjs')], { stdio: 'pipe' });
   css = readFileSync(dist('tokens.css'), 'utf8');
   tw = readFileSync(dist('tailwind.css'), 'utf8');
   preset = require(dist('tailwind-v3-preset.js'));
