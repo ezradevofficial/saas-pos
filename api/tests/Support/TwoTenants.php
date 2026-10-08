@@ -39,7 +39,8 @@ use Tests\TestCase;
  * branches, locations, an archived location, a paired device, a custom
  * role, an accepted and a pending invitation, an assignment, tenant and
  * reporting currencies, exchange rates and a rate alert, tax codes and
- * rates from the country pack, a tax category and a price list, a
+ * rates from the country pack, a tax category and a price list with a
+ * price for the item's box, a
  * master data sharing setting, a shared customer and a per-company
  * supplier, item categories and an item with another unit, barcodes and
  * an image, configured payment methods, departments, cost centres and
@@ -168,6 +169,13 @@ final class TwoTenants
             'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $uoms['BOX']]],
         ], $owner), 201)->json('data.id');
         self::ok($test->patchJson("/api/v1/items/{$item}", ['name' => "Article {$upper}"], $owner));
+        // MD-03 follow-up: the item's box priced in the default list, then repriced (history).
+        $itemPrice = self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", [
+            'item_id' => $item, 'uom_id' => $uoms['BOX'], 'amount_minor' => '120000', 'currency' => 'KES',
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", [
+            'item_id' => $item, 'uom_id' => $uoms['BOX'], 'amount_minor' => '125000', 'currency' => 'KES',
+        ], $owner));
         $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
             ->json('data.images.0.id');
 
@@ -380,6 +388,7 @@ final class TwoTenants
                 'item_category_parent' => $parentCategory,
                 'item' => $item,
                 'item_image' => $itemImage,
+                'item_price' => $itemPrice,
                 'payment_method' => $paymentMethod,
                 'workflow' => $workflow,
                 'workflow_version' => $workflowVersion,
