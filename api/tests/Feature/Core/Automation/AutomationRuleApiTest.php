@@ -336,6 +336,30 @@ class AutomationRuleApiTest extends TestCase
         $this->assertSame('Flag big tasks', $this->inTenant(fn () => AutomationRule::query()->find($id)->name));
     }
 
+    public function test_credit_limit_changes_offer_automation_nothing_to_write(): void
+    {
+        // Approval-controlled (APR-01): automation may watch them and notify, never change them.
+        $type = collect($this->getJson('/api/v1/automation/catalogue', $this->headersFor())->assertOk()->json('data'))->firstWhere('key', 'core.credit_limit_change');
+
+        $this->assertNotNull($type);
+        $this->assertSame([], $type['writable_fields']);
+        $this->assertSame([], $type['assignable_fields']);
+        $this->assertEmpty(array_intersect(['update_fields', 'assign_users', 'credit_hold', 'create_drafts'], $type['capabilities']));
+        $this->assertEmpty(array_intersect(['update_field', 'assign_user', 'set_credit_hold'], $type['actions']));
+
+        $field = $type['fields'][0]['name'];
+        foreach ([
+            ['type' => 'update_field', 'field' => $field, 'value' => null],
+            ['type' => 'set_credit_hold', 'hold' => true, 'reason' => 'x'],
+            ['type' => 'assign_user', 'field' => $field, 'user' => $this->owner->id],
+        ] as $action) {
+            $this->postJson('/api/v1/automation-rules', [
+                'name' => 'Change limits', 'document_type' => 'core.credit_limit_change',
+                'trigger' => ['type' => 'record_created'], 'actions' => [$action],
+            ], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
+        }
+    }
+
     public function test_the_catalogue_tells_what_each_type_offers(): void
     {
         $data = collect($this->getJson('/api/v1/automation/catalogue', $this->headersFor())->assertOk()->json('data'))->keyBy('key');

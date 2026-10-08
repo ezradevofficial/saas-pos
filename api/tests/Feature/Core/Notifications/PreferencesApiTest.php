@@ -45,7 +45,7 @@ class PreferencesApiTest extends TestCase
         $this->assertSame([
             'core.approval.attention', 'core.approval.decided', 'core.approval.delegated', 'core.approval.escalated', 'core.approval.info_requested',
             'core.approval.reminder', 'core.approval.requested', 'core.approval.returned',
-            'core.automation.failed', 'core.automation.notify',
+            'core.automation.failed', 'core.automation.notify', 'core.credit_limit_change.apply_failed', 'core.credit_limit_change.conflicted',
             'core.notification.test', 'core.report.ready', 'core.workflow.notify',
         ], array_column($data, 'event_type'));
 

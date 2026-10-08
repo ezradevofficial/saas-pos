@@ -262,6 +262,7 @@
     "notificationTemplates": "Modèles de notification",
     "notificationDeliveries": "Journal des envois",
     "workflows": "Workflows",
+    "creditLimitChanges": "Modifications de plafond",
     "approvals": "Approbations"
   },
   "shell": {
@@ -1339,7 +1340,8 @@
       "invitation_revoke": "Invitation révoquée",
       "sign_out_everywhere": "Déconnecté partout",
       "pair": "Appairé",
-      "changed": "Modifié"
+      "changed": "Modifié",
+      "credit_limit_apply": "Plafond de crédit modifié par {{number}}"
     },
     "fields": {
       "name": "Nom",
@@ -2042,7 +2044,7 @@
       "rolesHelp": "Aucun coché : toute personne autorisée sur ce type de document.",
       "due": "Délai",
       "dueHelp": "Les heures ouvrées et les jours fériés du pays de la société sont respectés.",
-      "unit": "Unité pour {{what}}",
+      "unit": "Unité",
       "remindAfter": "Relancer après",
       "escalateAfter": "Escalader après",
       "businessHoursHelp": "Les heures ouvrées et les jours fériés sont respectés.",
@@ -2311,6 +2313,83 @@
       "none": "Aucune personne active pour l’instant."
     }
   },
+  "creditLimits": {
+    "title": "Modifications de plafond de crédit",
+    "description": "Demandes de modification du plafond de crédit d’un client, décidées par leur circuit d’approbation et appliquées une fois approuvées.",
+    "tab": "Modifications de plafond",
+    "search": "Rechercher des demandes",
+    "searchPlaceholder": "Numéro ou client",
+    "allStatuses": "Tous les statuts",
+    "empty": "Aucune modification de plafond pour l’instant. Faites une demande depuis la fiche d’un client.",
+    "emptyFiltered": "Aucune demande ne correspond. Modifiez la recherche ou le statut.",
+    "emptyParty": "Aucune modification de plafond pour ce client pour l’instant.",
+    "noLimit": "Aucun plafond",
+    "to": "devient",
+    "current": "Plafond actuel",
+    "columns": {
+      "number": "Numéro",
+      "party": "Client",
+      "change": "Modification",
+      "status": "Statut",
+      "requestedBy": "Demandé par",
+      "company": "Société",
+      "createdAt": "Demandée le",
+      "reason": "Motif"
+    },
+    "statuses": {
+      "draft": "Brouillon",
+      "pending": "En attente d’approbation",
+      "approved": "Approuvée, pas encore appliquée",
+      "applied": "Appliquée",
+      "rejected": "Refusée",
+      "cancelled": "Annulée",
+      "conflicted": "Conflit : non appliquée"
+    },
+    "request": {
+      "open": "Demander une modification",
+      "title": "Demander une modification du plafond de crédit de {{name}}",
+      "text": "Le nouveau plafond s’applique une fois la demande approuvée.",
+      "company": "Société",
+      "chooseCompany": "Choisissez une société",
+      "currency": "Devise",
+      "amount": "Nouveau plafond de crédit",
+      "amountHelp": "En {{currency}}, la devise du plafond actuel.",
+      "reason": "Motif",
+      "reasonHelp": "Expliquez à l’approbateur pourquoi le plafond doit changer.",
+      "submit": "Envoyer pour approbation",
+      "sent": "{{number}} a été envoyée pour approbation.",
+      "amountRequired": "Saisissez le nouveau plafond de crédit.",
+      "reasonRequired": "Saisissez un motif pour l’approbateur.",
+      "companyRequired": "Choisissez la société concernée par la demande."
+    },
+    "detail": {
+      "title": "Modification de plafond {{number}}",
+      "flow": "Approbation",
+      "holders": "Chez : {{names}}",
+      "nobody": "personne pour l’instant",
+      "blocked": "Personne ne peut approuver cette étape. Un administrateur doit la réattribuer.",
+      "waiting": "En attente depuis {{time}}",
+      "days": "{{days}} j {{hours}} h",
+      "hours": "{{hours}} h {{minutes}} min",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "openApproval": "Ouvrir l’approbation",
+      "history": "Historique",
+      "cancel": "Annuler la demande",
+      "cancelReason": "Motif de l’annulation",
+      "keep": "Garder la demande",
+      "confirmCancel": "Annuler la demande"
+    },
+    "events": {
+      "started": "Demandée",
+      "entered": "Arrivée à {{step}}",
+      "left": "Sortie de {{step}}",
+      "returned": "Renvoyée à {{step}}",
+      "completed": "Décidée",
+      "cancelled": "Annulée"
+    },
+    "lowerOnly": "Pour augmenter ou supprimer le plafond, demandez une modification."
+  },
   "approvals": {
     "title": "Approbations",
     "description": "Tout ce qui vous attend, dans tous les modules et toutes les sociétés",
@@ -2361,7 +2440,7 @@
       "search": "Rechercher",
       "searchPlaceholder": "Numéro, titre, type ou étape",
       "select": "Sélectionner {{name}}",
-      "amount": "Total hors TVA",
+      "amount": "Montant",
       "onBehalf": "Délégué par {{name}}"
     },
     "filters": {
@@ -2402,7 +2481,7 @@
       "label": "Détail de la demande",
       "back": "Retour à la liste",
       "notFound": "Cette demande est introuvable, ou vous ne pouvez plus la voir.",
-      "amount": "Total hors TVA",
+      "amount": "Montant",
       "requestedBy": "Demandée par",
       "company": "Société",
       "step": "Étape",

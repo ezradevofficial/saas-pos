@@ -28,7 +28,7 @@ class EmailApprovalController
             'message' => $opened['reason'] === null ? null : __('approvals.email.sign_in.'.$opened['reason']),
             'action' => $opened['action'],
             'approval_id' => $opened['approval_id'],
-            'approval' => $opened['status'] === EmailApprovals::OK ? $this->summary($opened['request']) : null,
+            'approval' => $opened['status'] === EmailApprovals::OK ? $this->summary($opened['request'], $opened['user']) : null,
         ]]);
     }
 
@@ -44,16 +44,18 @@ class EmailApprovalController
     }
 
     /** @return array<string, mixed> enough for the confirm page, nothing more */
-    private function summary(ApprovalRequest $request): array
+    private function summary(ApprovalRequest $request, User $viewer): array
     {
         $type = app(DocumentTypeRegistry::class)->find($request->document_type);
+        // RBAC-05: summary parts the type hides from the link's user.
+        $hidden = $type?->hiddenSummaryFields($viewer) ?? [];
 
         return [
             'id' => $request->id,
             'document_type_label' => $type === null ? $request->document_type : __($type->label()),
             'document_number' => $request->document_number,
-            'document_title' => $request->document_title,
-            'amount' => $request->amount(),
+            'document_title' => in_array('title', $hidden, true) ? null : $request->document_title,
+            'amount' => in_array('amount', $hidden, true) ? null : $request->amount(),
             'step' => $request->node_name,
             'requester' => $request->requester_id === null ? null : User::query()->whereKey($request->requester_id)->value('name'),
             'require_reason' => (bool) ($request->config['require_reason'] ?? false),

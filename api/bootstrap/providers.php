@@ -4,6 +4,7 @@ use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
+use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
@@ -24,4 +25,5 @@ return [
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,
+    CreditLimitsServiceProvider::class,
 ];

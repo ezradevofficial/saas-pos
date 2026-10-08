@@ -19,7 +19,7 @@ function Entry({ entry, fields, timeZone }) {
   return (
     <li className="flex flex-col gap-2 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-medium text-ink">{actionLabel(t, entry.action)}</span>
+        <span className="font-medium text-ink">{actionLabel(t, entry.action, entry)}</span>
         <span className="text-ink-muted">{entry.actor?.name ?? t('history.system')}</span>
         <time dateTime={entry.occurred_at} className="text-caption text-ink-muted tabular-nums">
           {formatDateTime(entry.occurred_at, locale, timeZone)}

@@ -353,7 +353,7 @@ export function ApprovalDetail({ id, decisive = true, onBack }) {
 
       {amount ? (
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-y border-border py-3">
-          <span className="text-body-lg text-ink">{t('approvals.detail.amount')}</span>
+          <span className="text-body-lg text-ink">{approval.document?.amount_label ?? t('approvals.detail.amount')}</span>
           <Money amount={amount.amount_minor} currency={amount.currency} size="lg" />
         </div>
       ) : null}

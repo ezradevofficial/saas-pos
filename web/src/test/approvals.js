@@ -18,6 +18,7 @@ export function approvalItem(id, overrides = {}) {
       number: 'PR-NBO-00231',
       title: 'Cooking oil restock, 40 cartons',
       amount: { amount_minor: '11845000', currency: 'KES' },
+      amount_label: 'Total before VAT',
     },
     step: { node_id: 'manager', name: 'Branch manager approves', index: 2, count: 3 },
     mode: 'any',

@@ -8,7 +8,7 @@ vi.mock('@/api/client', async (importOriginal) => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), download: vi.fn(), upload: vi.fn() },
 }))
 
-const EDITOR = tenantWide(['core.company.view', 'core.currency.view', 'core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive', 'core.price_list.view'])
+const EDITOR = tenantWide(['core.company.view', 'core.currency.view', 'core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive', 'core.price_list.view', 'core.credit_limit.set_directly'])
 const CURRENCIES = [
   { id: 'tc-1', code: 'CDF', decimals: 0, active: true },
   { id: 'tc-2', code: 'USD', decimals: 2, active: true },

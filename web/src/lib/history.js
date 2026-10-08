@@ -3,7 +3,7 @@
 import { formatInteger, formatMoney, formatWhen } from './format'
 
 // Bookkeeping columns: never shown as a changed field (archive and restore have their own action label).
-const SKIP = new Set(['id', 'tenant_id', 'created_at', 'updated_at', 'archived_at'])
+const SKIP = new Set(['id', 'tenant_id', 'created_at', 'updated_at', 'archived_at', 'credit_limit_change'])
 
 // Action verbs (the last part of `core.item.update`) with their own label; any other reads "Changed".
 const ACTIONS = new Set([
@@ -30,6 +30,7 @@ const ACTIONS = new Set([
   'invitation_revoke',
   'sign_out_everywhere',
   'pair',
+  'credit_limit_apply',
 ])
 
 // Field names with a translated label (history.fields.*); others are shown humanised.
@@ -75,9 +76,15 @@ export const FIELDS = new Set([
   'custom',
 ])
 
-/** "core.item.units_update" → its label; unknown actions fall back to "Changed". */
-export function actionLabel(t, action) {
+/**
+ * "core.item.units_update" → its label; unknown actions fall back to
+ * "Changed". A credit limit applied from an approved request names it
+ * ("Credit limit changed via CLC-000123", WF-01); the number itself is not
+ * listed as a changed field.
+ */
+export function actionLabel(t, action, entry) {
   const verb = String(action ?? '').split('.').pop()
+  if (verb === 'credit_limit_apply') return t('history.actions.credit_limit_apply', { number: entry?.after?.credit_limit_change ?? '' })
   return ACTIONS.has(verb) ? t(`history.actions.${verb}`) : t('history.actions.changed')
 }
 

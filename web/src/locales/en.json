@@ -262,6 +262,7 @@
     "notificationTemplates": "Notification templates",
     "notificationDeliveries": "Delivery log",
     "workflows": "Workflows",
+    "creditLimitChanges": "Credit limit changes",
     "approvals": "Approvals"
   },
   "shell": {
@@ -1339,7 +1340,8 @@
       "invitation_revoke": "Invitation revoked",
       "sign_out_everywhere": "Signed out everywhere",
       "pair": "Paired",
-      "changed": "Changed"
+      "changed": "Changed",
+      "credit_limit_apply": "Credit limit changed via {{number}}"
     },
     "fields": {
       "name": "Name",
@@ -2042,7 +2044,7 @@
       "rolesHelp": "None ticked: anyone allowed to act on this document type.",
       "due": "Time limit",
       "dueHelp": "Business hours and public holidays of the company’s country are skipped.",
-      "unit": "Unit for {{what}}",
+      "unit": "Unit",
       "remindAfter": "Remind after",
       "escalateAfter": "Escalate after",
       "businessHoursHelp": "Business hours and public holidays are skipped.",
@@ -2311,6 +2313,83 @@
       "none": "No active people yet."
     }
   },
+  "creditLimits": {
+    "title": "Credit limit changes",
+    "description": "Requests to change a customer's credit limit, decided through their approval flow and applied once approved.",
+    "tab": "Credit limit changes",
+    "search": "Search requests",
+    "searchPlaceholder": "Number or customer",
+    "allStatuses": "All statuses",
+    "empty": "No credit limit changes yet. Request one from a customer's page.",
+    "emptyFiltered": "No requests match. Change the search or the status.",
+    "emptyParty": "No credit limit changes for this customer yet.",
+    "noLimit": "No limit",
+    "to": "changes to",
+    "current": "Current limit",
+    "columns": {
+      "number": "Number",
+      "party": "Customer",
+      "change": "Change",
+      "status": "Status",
+      "requestedBy": "Requested by",
+      "company": "Company",
+      "createdAt": "Requested",
+      "reason": "Reason"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "pending": "Waiting for approval",
+      "approved": "Approved, not applied yet",
+      "applied": "Applied",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "conflicted": "Conflicting change, not applied"
+    },
+    "request": {
+      "open": "Request a change",
+      "title": "Request a credit limit change for {{name}}",
+      "text": "The new limit applies once the request is approved.",
+      "company": "Company",
+      "chooseCompany": "Choose a company",
+      "currency": "Currency",
+      "amount": "New credit limit",
+      "amountHelp": "In {{currency}}, the currency of the current limit.",
+      "reason": "Reason",
+      "reasonHelp": "Tell the approver why the limit should change.",
+      "submit": "Send for approval",
+      "sent": "{{number}} was sent for approval.",
+      "amountRequired": "Enter the new credit limit.",
+      "reasonRequired": "Enter a reason for the approver.",
+      "companyRequired": "Choose the company the request is for."
+    },
+    "detail": {
+      "title": "Credit limit change {{number}}",
+      "flow": "Approval",
+      "holders": "With: {{names}}",
+      "nobody": "nobody yet",
+      "blocked": "Nobody can approve this step. An administrator needs to reassign it.",
+      "waiting": "Waiting for {{time}}",
+      "days": "{{days}} d {{hours}} h",
+      "hours": "{{hours}} h {{minutes}} min",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "openApproval": "Open the approval",
+      "history": "History",
+      "cancel": "Cancel request",
+      "cancelReason": "Reason for cancelling",
+      "keep": "Keep request",
+      "confirmCancel": "Cancel request"
+    },
+    "events": {
+      "started": "Requested",
+      "entered": "Reached {{step}}",
+      "left": "Left {{step}}",
+      "returned": "Returned to {{step}}",
+      "completed": "Decided",
+      "cancelled": "Cancelled"
+    },
+    "lowerOnly": "To raise or remove the limit, request a change."
+  },
   "approvals": {
     "title": "Approvals",
     "description": "Everything waiting for you, across all modules and companies",
@@ -2361,7 +2440,7 @@
       "search": "Search",
       "searchPlaceholder": "Number, title, type or step",
       "select": "Select {{name}}",
-      "amount": "Total before VAT",
+      "amount": "Amount",
       "onBehalf": "Delegated from {{name}}"
     },
     "filters": {
@@ -2402,7 +2481,7 @@
       "label": "Request detail",
       "back": "Back to the list",
       "notFound": "This request was not found, or you can no longer see it.",
-      "amount": "Total before VAT",
+      "amount": "Amount",
       "requestedBy": "Requested by",
       "company": "Company",
       "step": "Step",

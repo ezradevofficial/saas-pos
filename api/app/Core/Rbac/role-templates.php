@@ -32,6 +32,8 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view', 'core.exchange_rate.view',
             'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create',
+            // WF-01: asks for credit limit changes (decided through their flow).
+            'core.credit_limit.request',
             'core.item.view', 'core.item.create', 'core.item.edit', 'core.item_category.view', 'core.uom.view',
             'core.payment_method.view',
             'core.location.*', 'core.device.*',
@@ -81,6 +83,7 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create', 'core.party.edit',
+            'core.credit_limit.request', 'core.credit_limit.approve',
             'core.payment_method.view', 'core.dimension.*',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],

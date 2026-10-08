@@ -148,11 +148,24 @@ class ApprovalNotices
             return;
         }
 
-        $this->notifier->send(new NotificationEvent($event, $userIds, [...$this->document($request), ...$extra], self::link($request->id)));
+        // RBAC-05: recipients grouped by the summary parts the type hides from them.
+        $type = $this->types->find($request->document_type);
+        $groups = [];
+
+        foreach (User::query()->whereKey($userIds)->get() as $user) {
+            $hidden = $type?->hiddenSummaryFields($user) ?? [];
+            sort($hidden);
+            $groups[implode(',', $hidden)][] = (string) $user->id;
+        }
+
+        foreach ($groups as $key => $ids) {
+            $hidden = $key === '' ? [] : explode(',', $key);
+            $this->notifier->send(new NotificationEvent($event, $ids, [...$this->document($request, $hidden), ...$extra], self::link($request->id)));
+        }
     }
 
     /** @return array<string, string> */
-    private function document(ApprovalRequest $request): array
+    private function document(ApprovalRequest $request, array $hidden = []): array
     {
         $type = $this->types->find($request->document_type);
         $values = new ExportValues(app()->getLocale(), 'UTC', [], $this->decimals);
@@ -160,8 +173,8 @@ class ApprovalNotices
         return [
             'document_type' => $type === null ? $request->document_type : __($type->label()),
             'document_number' => (string) $request->document_number,
-            'document_title' => (string) $request->document_title,
-            'amount' => (string) ($values->money($request->amount()) ?? ''),
+            'document_title' => in_array('title', $hidden, true) ? '' : (string) $request->document_title,
+            'amount' => in_array('amount', $hidden, true) ? '' : (string) ($values->money($request->amount()) ?? ''),
             'step' => (string) $request->node_name,
             'requester_name' => (string) ($request->requester_id === null ? '' : User::query()->whereKey($request->requester_id)->value('name')),
         ];

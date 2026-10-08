@@ -117,7 +117,7 @@ export default function Workflows() {
               options={[{ value: '', label: t('workflows.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))]}
               value={list.filters.type}
               onChange={(event) => list.setFilter('type', event.target.value)}
-              className="w-full sm:w-56"
+              className="w-full sm:w-palette"
             />
             {companies.length > 1 ? (
               <Select
@@ -125,7 +125,7 @@ export default function Workflows() {
                 options={[{ value: '', label: t('workflows.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
                 value={list.filters.company}
                 onChange={(event) => list.setFilter('company', event.target.value)}
-                className="w-full sm:w-56"
+                className="w-full sm:w-palette"
               />
             ) : null}
           </>

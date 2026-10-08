@@ -32,6 +32,7 @@ import ItemDetail from './pages/catalogue/ItemDetail'
 import NewItem from './pages/catalogue/ItemForm'
 import Items from './pages/catalogue/Items'
 import Units from './pages/catalogue/Units'
+import CreditLimitChanges from './pages/contacts/CreditLimitChanges'
 import Parties from './pages/contacts/Parties'
 import PartyDetail from './pages/contacts/PartyDetail'
 import NewParty from './pages/contacts/PartyForm'
@@ -135,6 +136,8 @@ export const routes = [
           { path: `${base}/:partyId`, element: <RequirePermission permission={PARTY_VIEW}><PartyDetail key={role} role={role} /></RequirePermission> },
         ]
       }),
+      // WF-01, WF-10: credit limit change requests.
+      { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },
       {
         path: '/settings/organisation',
         element: (

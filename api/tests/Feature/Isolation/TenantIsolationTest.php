@@ -96,6 +96,7 @@ class TenantIsolationTest extends TestCase
         'automation_rule' => 'automation_rule', // AUTO-01..AUTO-04: automation-rules/{automation_rule}[/enable|disable|archive|test]
         'automation_run' => 'automation_run', // AUTO-05: automation-runs/{automation_run}
         'approval' => 'approval', // APR-04: approvals/{approval}, a request waiting for the manager
+        'credit_limit_change' => 'credit_limit_change', // WF-01: credit-limit-changes/{credit_limit_change}, a pending request
         'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
@@ -129,6 +130,7 @@ class TenantIsolationTest extends TestCase
         'assignment_id' => 'assignment',
         'tax_code_id' => 'tax_code',
         'price_list_id' => 'price_list',
+        'party_id' => 'party', // WF-01: a credit limit change's party
         'assign_to_company_id' => 'company',
         'category_id' => 'item_category',
         'parent_id' => 'item_category_parent',
@@ -217,10 +219,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'rule' => 'automation_rule'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'outcome', 'rule'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule'];
 
     private TwoTenants $tenants;
 
@@ -1053,6 +1055,11 @@ class TenantIsolationTest extends TestCase
             // APR-06: the manager's pending approval goes to the owner; the owner delegates to the manager.
             'POST api/v1/approvals/{approval}/reassign' => ['from_user_id' => $tenant->id('manager'), 'to_user_id' => $tenant->id('user')],
             'POST api/v1/me/delegations' => ['to_user_id' => $tenant->id('manager'), 'starts_on' => now()->toDateString(), 'ends_on' => now()->addDay()->toDateString()],
+            // WF-01: a credit limit change for the company's supplier.
+            'POST api/v1/credit-limit-changes' => [
+                'party_id' => $tenant->id('party'), 'company_id' => $tenant->id('company'),
+                'requested_limit' => ['amount_minor' => '100000', 'currency' => 'KES'], 'reason' => 'Hijack check',
+            ],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),

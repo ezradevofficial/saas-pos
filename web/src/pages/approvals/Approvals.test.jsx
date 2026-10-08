@@ -16,6 +16,7 @@ const doc = (number, title) => ({
   number,
   title,
   amount: { amount_minor: '11845000', currency: 'KES' },
+  amount_label: 'Total before VAT',
 })
 
 const WAITING = approvalItem('a', { document: doc('PR-NBO-00231', 'Cooking oil restock, 40 cartons') })
