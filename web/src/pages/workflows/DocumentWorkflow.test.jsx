@@ -74,6 +74,17 @@ describe('Document workflow status page (WF-10)', () => {
     expect(await within(history).findAllByText(time)).toHaveLength(2)
   })
 
+  it('shows times in the zone the API sends, even when the viewer cannot list the company (L10N-03)', async () => {
+    const zoned = { ...STATUS, document: { ...STATUS.document, company_id: 'c-unlisted', timezone: 'Africa/Kinshasa' } }
+    mockRoutes(api, [[URL, { data: zoned }]], { companies: [] })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    const history = await screen.findByRole('list', { name: 'History' })
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const time = browser === 'Africa/Kinshasa' ? /^7 Oct 2026, 15:00$/ : /^7 Oct 2026, 15:00 (WAT|GMT\+1)$/
+    expect(await within(history).findAllByText(time)).toHaveLength(2)
+  })
+
   it('falls back to the short id and offers no document link when the type has neither', async () => {
     const bare = { ...STATUS, current: [], document: { type_label: 'Purchase requisition', number: null, title: null, company_id: null, link: null } }
     mockRoutes(api, [['document-workflows/procurement.requisition/0192abcd-0000-7000-8000-000000000001', { data: bare }]], { companies: COMPANIES })

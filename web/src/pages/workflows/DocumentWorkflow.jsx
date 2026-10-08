@@ -74,8 +74,10 @@ export default function DocumentWorkflow() {
 
   const flow = query.data?.data
   const document = flow?.document ?? {}
-  const company = companies.find((one) => one.id === document.company_id)
-  const when = (value) => formatCompanyTime(value, locale, company) ?? '—'
+  // L10N-03: the API sends the company's zone with the document, so viewers
+  // who cannot list companies still read times in the company's zone.
+  const timezone = document.timezone ?? companies.find((one) => one.id === document.company_id)?.timezone
+  const when = (value) => formatCompanyTime(value, locale, timezone ? { timezone } : null) ?? '—'
   const name = document.number ?? document.title ?? documentId.slice(0, 8)
   const title = flow ? t('documentWorkflow.title', { type: document.type_label ?? documentType, name }) : t('documentWorkflow.loading')
   const documentLink = appPath(document.link)

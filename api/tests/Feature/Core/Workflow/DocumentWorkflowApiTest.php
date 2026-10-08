@@ -39,7 +39,8 @@ class DocumentWorkflowApiTest extends TestCase
             ->assertJsonPath('data.current.0.can_move', true)
             ->assertJsonPath('data.version.number', 1)
             // WF-10: the status page's heading; this type has no summary or page of its own.
-            ->assertJsonPath('data.document', ['type_label' => 'Workflows', 'number' => null, 'title' => null, 'company_id' => $this->acme->id, 'link' => null]);
+            // L10N-03: the company's zone travels with it, for viewers who cannot list companies.
+            ->assertJsonPath('data.document', ['type_label' => 'Workflows', 'number' => null, 'title' => null, 'company_id' => $this->acme->id, 'timezone' => 'Africa/Nairobi', 'link' => null]);
 
         $this->postJson($this->workflowUrl($id, '/move'), [], $this->headersFor())->assertOk()->assertJsonPath('data.current.0.node_id', 'review');
         $this->postJson($this->workflowUrl($id, '/move'), ['node' => 'review'], $this->headersFor())->assertOk()->assertJsonPath('data.current.0.node_id', 'approve');
