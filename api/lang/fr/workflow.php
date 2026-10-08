@@ -129,6 +129,9 @@ return [
         'unknown_mapping' => 'le document à créer « :mapping » n’est pas proposé par ce type de document',
         'unknown_target' => 'le type de document « :type » n’est pas disponible',
         'on_cancel' => 'le sort du document créé en cas d’annulation doit être keep ou cancel',
+        'notify_to' => 'Une notification a besoin de destinataires : une liste de role:<rôle> et user:<identifiant>.',
+        'notify_message' => 'Le message de la notification doit être un texte de 500 caractères au plus.',
+        'notify_unknown' => 'Ces destinataires n’existent pas ou sont archivés : :recipients.',
         'unreachable' => '« :node » ne peut jamais être atteint depuis le début.',
         'cycle' => '« :node » fait partie d’une boucle. Pour renvoyer des documents en arrière, utilisez le renvoi.',
         'dead_end' => 'Aucune fin n’est atteignable après « :node ».',
@@ -139,6 +142,16 @@ return [
     'actions' => [
         'create_document' => 'Créerait un brouillon : :document.',
         'notify' => 'Enverrait une notification.',
+    ],
+
+    // NOT-02 : ce qu’envoie l’étape « notifier » d’un circuit ({placeholders} remplis pour chaque destinataire).
+    'notifications' => [
+        'notify' => [
+            'label' => 'Notification d’étape de circuit',
+            'subject' => '{document_type} : {step}',
+            'body' => "Bonjour {recipient_name},\n\nUn document « {document_type} » a atteint l’étape « {step} ».\n\n{message}",
+            'sms' => '{app_name} : « {document_type} » a atteint « {step} ». {message}',
+        ],
     ],
 
     'business_hours' => [

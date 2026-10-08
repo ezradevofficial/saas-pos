@@ -129,6 +129,9 @@ return [
         'unknown_mapping' => 'the document to create “:mapping” isn’t offered by this document type',
         'unknown_target' => 'the document type “:type” isn’t available',
         'on_cancel' => 'what happens to the created document on cancel must be keep or cancel',
+        'notify_to' => 'A notification needs recipients: a list of role:<role> and user:<user id>.',
+        'notify_message' => 'The notification message must be text of at most 500 characters.',
+        'notify_unknown' => 'These recipients don’t exist or are archived: :recipients.',
         'unreachable' => '“:node” can never be reached from the start.',
         'cycle' => '“:node” is part of a loop. To send documents back, use return instead.',
         'dead_end' => 'No end can be reached after “:node”.',
@@ -139,6 +142,16 @@ return [
     'actions' => [
         'create_document' => 'Would create a draft :document.',
         'notify' => 'Would send a notification.',
+    ],
+
+    // NOT-02: what a flow's `notify` step sends ({placeholders} are filled per recipient).
+    'notifications' => [
+        'notify' => [
+            'label' => 'Workflow step notification',
+            'subject' => '{document_type}: {step}',
+            'body' => "Hello {recipient_name},\n\nA {document_type} reached the step “{step}”.\n\n{message}",
+            'sms' => '{app_name}: {document_type} reached “{step}”. {message}',
+        ],
     ],
 
     'business_hours' => [

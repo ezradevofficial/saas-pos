@@ -37,7 +37,7 @@ final class Graphs
                     'escalation' => ['final' => 'reject']],
                 ['id' => 'create_order', 'type' => 'action', 'name' => 'Create draft purchase order',
                     'action' => 'create_document', 'config' => ['mapping' => 'order', 'on_cancel' => 'cancel']],
-                ['id' => 'notify', 'type' => 'action', 'name' => 'Notify procurement', 'action' => 'notify', 'config' => ['to' => 'role:procurement_officer']],
+                ['id' => 'notify', 'type' => 'action', 'name' => 'Notify procurement', 'action' => 'notify', 'config' => ['to' => ['role:procurement_officer'], 'message' => 'Please prepare the order.']],
                 ['id' => 'approved', 'type' => 'end', 'name' => 'Approved', 'outcome' => 'approved'],
                 ['id' => 'rejected', 'type' => 'end', 'name' => 'Rejected', 'outcome' => 'rejected'],
             ],
