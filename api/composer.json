@@ -13,9 +13,11 @@
         "ext-intl": "*",
         "bacon/bacon-qr-code": "^3.1",
         "brick/math": "^1.0",
+        "dompdf/dompdf": "^3.1",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "openspout/openspout": "^5.3",
         "pragmarx/google2fa": "^9.1",
         "predis/predis": "^3.6",
         "spatie/laravel-permission": "^8.3"

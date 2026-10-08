@@ -29,8 +29,12 @@ final class HidesFields
             && array_intersect($sources[$key] ?? [], $hidden) === [], ARRAY_FILTER_USE_KEY);
     }
 
-    /** @return list<string> */
-    private static function hidden(Request $request, string $resource): array
+    /**
+     * The fields of $resource hidden from the request's user (cached on the request).
+     *
+     * @return list<string>
+     */
+    public static function hidden(Request $request, string $resource): array
     {
         $user = $request->user();
 

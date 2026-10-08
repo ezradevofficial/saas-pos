@@ -142,6 +142,43 @@ return [
 
     // MD-01, MD-06: parties.
     'party' => [
+        // EXP-01: the contacts list and its export.
+        'list_titles' => [
+            'all' => 'Contacts',
+            'customer' => 'Customers',
+            'supplier' => 'Suppliers',
+            'contact' => 'Contacts',
+            'employee_link' => 'Employees',
+        ],
+        'columns' => [
+            'name' => 'Name',
+            'legal_name' => 'Legal name',
+            'kind' => 'Kind',
+            'roles' => 'Roles',
+            'phones' => 'Phone numbers',
+            'emails' => 'Email addresses',
+            'tax_id' => 'Tax ID',
+            'tags' => 'Tags',
+            'currency' => 'Currency',
+            'credit_limit' => 'Credit limit',
+            'payment_terms' => 'Payment terms',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+            'role' => 'Role',
+            'tag' => 'Tag',
+        ],
+        'kinds' => [
+            'person' => 'Person',
+            'organisation' => 'Organisation',
+        ],
+        'roles' => [
+            'customer' => 'Customer',
+            'supplier' => 'Supplier',
+            'contact' => 'Contact',
+            'employee_link' => 'Employee',
+        ],
+        'payment_terms_days' => ':days day|:days days',
         'company_required' => 'This data is kept per company. Choose the company this record belongs to.',
         'company_not_allowed' => 'This data is shared across the group, so the record can’t belong to one company. Remove the company.',
         'company_not_reached' => 'You can’t move records to this company. Choose a company you work in.',
@@ -175,6 +212,27 @@ return [
 
     // MD-02: items, item categories, units of measure.
     'item' => [
+        // EXP-01: the items list and its export.
+        'list_title' => 'Items',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'category' => 'Category',
+            'type' => 'Type',
+            'base_unit' => 'Base unit',
+            'barcodes' => 'Barcodes',
+            'tax_category' => 'Tax category',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+            'barcode' => 'Barcode',
+        ],
+        'types' => [
+            'stock' => 'Stock item',
+            'service' => 'Service',
+            'non_stock' => 'Non-stock item',
+            'kit' => 'Kit',
+        ],
         'company_required' => 'Items are kept per company. Choose the company this record belongs to.',
         'company_not_allowed' => 'Items are shared across the group, so this record can’t belong to one company. Remove the company.',
         'company_not_reached' => 'You can’t move items to this company. Choose a company you work in.',
@@ -308,6 +366,25 @@ return [
             'name' => 'name',
             'parent_id' => 'parent',
             'owner_user_id' => 'owner',
+        ],
+    ],
+
+    // Lists and their exports (EXP-01; lists and pickers plan).
+    'list' => [
+        'sort_unknown' => 'This list can’t be sorted by “:sort”. Choose another column.',
+        'column_unknown' => 'This list has no column “:column” to export. Choose from the list’s columns.',
+        'pdf_too_many_rows' => 'Too many rows for a PDF. Narrow the filters or export to Excel.',
+        'generated_at' => 'Generated :date',
+        'page_of' => 'Page :page of :pages',
+        'sort_hidden' => 'You can’t sort by a field you can’t see. Choose another column.',
+        'columns_hidden' => 'You can’t see any of the columns asked for. Choose other columns to export.',
+        'too_many_exports' => 'Too many exports. Try again in :seconds second.|Too many exports. Try again in :seconds seconds.',
+        'search' => 'Search',
+        'status' => 'Status',
+        'statuses' => [
+            'active' => 'Active',
+            'archived' => 'Archived',
+            'all' => 'All',
         ],
     ],
 ];

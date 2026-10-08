@@ -142,6 +142,43 @@ return [
 
     // MD-01, MD-06 : tiers.
     'party' => [
+        // EXP-01 : la liste des contacts et son export.
+        'list_titles' => [
+            'all' => 'Contacts',
+            'customer' => 'Clients',
+            'supplier' => 'Fournisseurs',
+            'contact' => 'Contacts',
+            'employee_link' => 'Employés',
+        ],
+        'columns' => [
+            'name' => 'Nom',
+            'legal_name' => 'Raison sociale',
+            'kind' => 'Type',
+            'roles' => 'Rôles',
+            'phones' => 'Téléphones',
+            'emails' => 'Adresses e-mail',
+            'tax_id' => 'Numéro fiscal',
+            'tags' => 'Étiquettes',
+            'currency' => 'Devise',
+            'credit_limit' => 'Plafond de crédit',
+            'payment_terms' => 'Conditions de paiement',
+            'status' => 'Statut',
+            'created_at' => 'Créé le',
+            'updated_at' => 'Modifié le',
+            'role' => 'Rôle',
+            'tag' => 'Étiquette',
+        ],
+        'kinds' => [
+            'person' => 'Personne',
+            'organisation' => 'Organisation',
+        ],
+        'roles' => [
+            'customer' => 'Client',
+            'supplier' => 'Fournisseur',
+            'contact' => 'Contact',
+            'employee_link' => 'Employé',
+        ],
+        'payment_terms_days' => ':days jour|:days jours',
         'company_required' => 'Ces données sont gérées par société. Choisissez la société à laquelle appartient cet enregistrement.',
         'company_not_allowed' => 'Ces données sont partagées dans le groupe : l’enregistrement ne peut pas appartenir à une seule société. Retirez la société.',
         'company_not_reached' => 'Vous ne pouvez pas déplacer d’enregistrements vers cette société. Choisissez une société dans laquelle vous travaillez.',
@@ -175,6 +212,27 @@ return [
 
     // MD-02 : articles, catégories d’articles, unités de mesure.
     'item' => [
+        // EXP-01 : la liste des articles et son export.
+        'list_title' => 'Articles',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'category' => 'Catégorie',
+            'type' => 'Type',
+            'base_unit' => 'Unité de base',
+            'barcodes' => 'Codes-barres',
+            'tax_category' => 'Catégorie de taxe',
+            'status' => 'Statut',
+            'created_at' => 'Créé le',
+            'updated_at' => 'Modifié le',
+            'barcode' => 'Code-barres',
+        ],
+        'types' => [
+            'stock' => 'Article stocké',
+            'service' => 'Service',
+            'non_stock' => 'Article non stocké',
+            'kit' => 'Kit',
+        ],
         'company_required' => 'Les articles sont tenus par société. Choisissez la société de cet enregistrement.',
         'company_not_allowed' => 'Les articles sont partagés dans le groupe : cet enregistrement ne peut pas appartenir à une seule société. Retirez la société.',
         'company_not_reached' => 'Vous ne pouvez pas déplacer d’articles vers cette société. Choisissez une société où vous travaillez.',
@@ -308,6 +366,25 @@ return [
             'name' => 'nom',
             'parent_id' => 'parent',
             'owner_user_id' => 'responsable',
+        ],
+    ],
+
+    // Listes et leurs exports (EXP-01 ; plan listes et sélecteurs).
+    'list' => [
+        'sort_unknown' => 'Cette liste ne peut pas être triée par « :sort ». Choisissez une autre colonne.',
+        'column_unknown' => 'Cette liste n’a pas de colonne « :column » à exporter. Choisissez parmi les colonnes de la liste.',
+        'pdf_too_many_rows' => 'Trop de lignes pour un PDF. Affinez les filtres ou exportez vers Excel.',
+        'generated_at' => 'Généré le :date',
+        'page_of' => 'Page :page sur :pages',
+        'sort_hidden' => 'Vous ne pouvez pas trier par un champ que vous ne voyez pas. Choisissez une autre colonne.',
+        'columns_hidden' => 'Vous ne voyez aucune des colonnes demandées. Choisissez d’autres colonnes à exporter.',
+        'too_many_exports' => 'Trop d’exports. Réessayez dans :seconds seconde.|Trop d’exports. Réessayez dans :seconds secondes.',
+        'search' => 'Recherche',
+        'status' => 'Statut',
+        'statuses' => [
+            'active' => 'Actif',
+            'archived' => 'Archivé',
+            'all' => 'Tous',
         ],
     ],
 ];

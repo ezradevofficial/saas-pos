@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Parties\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Parties\Http\Requests\ListPartiesRequest;
 use App\Core\MasterData\Parties\Http\Requests\PartyActionRequest;
@@ -23,6 +24,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-01: parties (customers, suppliers, contacts, employee links), shared
@@ -38,7 +40,7 @@ class PartyController
         private readonly DuplicateFinder $duplicates,
     ) {}
 
-    public function index(ListPartiesRequest $request): AnonymousResourceCollection
+    public function index(ListPartiesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = Party::query();
         $companies = $this->policy->listableCompanies($request->user());
@@ -58,12 +60,18 @@ class PartyController
         $search = trim((string) $request->validated('search', ''));
 
         if ($search !== '') {
-            $this->search($query, $search);
+            $this->search($query, $search, $request);
         }
 
-        return PartyResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        // Most similar names first when searching (and names are visible), unless a sort is asked for.
+        $relevance = $search === '' || $request->hidesField('name') ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]);
+        $request->applySort($request->applyStatus($query), $relevance);
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return PartyResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StorePartyRequest $request): JsonResponse
@@ -130,24 +138,36 @@ class PartyController
 
     /**
      * Name or legal name (contains, or trigram-similar), the tax ID, or a
-     * phone containing the digits typed; most similar names first.
+     * phone containing the digits typed.
      */
-    private function search(Builder $query, string $search): void
+    private function search(Builder $query, string $search, ListPartiesRequest $request): void
     {
         $like = '%'.addcslashes($search, '\\%_').'%';
         $digits = preg_replace('/\D/', '', $search);
         $taxId = Str::upper(preg_replace('/\s+/u', '', $search));
+        // RBAC-05: a field the user can't see is never matched, or the
+        // results would reveal its value.
+        $visible = fn (string $field) => ! $request->hidesField($field);
 
-        $query->where(function (Builder $q) use ($search, $like, $digits, $taxId) {
-            $q->where('name', 'ilike', $like)
-                ->orWhere('legal_name', 'ilike', $like)
-                ->orWhereRaw('name % ?', [$search])
-                ->orWhere('tax_id', $taxId);
+        $query->where(function (Builder $q) use ($search, $like, $digits, $taxId, $visible) {
+            $q->whereRaw('false');
 
-            if (strlen($digits) >= 4) {
+            if ($visible('name')) {
+                $q->orWhere('name', 'ilike', $like)->orWhereRaw('name % ?', [$search]);
+            }
+
+            if ($visible('legal_name')) {
+                $q->orWhere('legal_name', 'ilike', $like);
+            }
+
+            if ($visible('tax_id')) {
+                $q->orWhere('tax_id', $taxId);
+            }
+
+            if (strlen($digits) >= 4 && $visible('phones')) {
                 $q->orWhereRaw('phones::text like ?', ['%'.$digits.'%']);
             }
-        })->orderByRaw('similarity(name, ?) desc', [$search]);
+        });
     }
 
     /**

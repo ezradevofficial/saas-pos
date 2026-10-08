@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Items\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Items\Barcode;
 use App\Core\MasterData\Items\Http\Requests\ItemActionRequest;
@@ -30,6 +31,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-02: the items catalogue, shared or per company (TEN-08). Codes and
@@ -52,7 +54,7 @@ class ItemController
         private readonly ItemReferences $references,
     ) {}
 
-    public function index(ListItemsRequest $request): AnonymousResourceCollection
+    public function index(ListItemsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = Item::query()->with(self::RELATIONS);
         $companies = $this->policy->listableCompanies($request->user());
@@ -76,12 +78,18 @@ class ItemController
         $search = trim((string) $request->validated('search', ''));
 
         if ($search !== '') {
-            $this->search($query, $search);
+            $this->search($query, $search, $request);
         }
 
-        return ItemResource::collection(
-            $request->applyStatus($query)->orderBy('code')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        // Most similar names first when searching (and names are visible), unless a sort is asked for.
+        $relevance = $search === '' || $request->hidesField('name') ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]);
+        $request->applySort($request->applyStatus($query), $relevance);
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return ItemResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreItemRequest $request): JsonResponse
@@ -191,23 +199,31 @@ class ItemController
 
     /**
      * Code prefix, name (contains, or trigram-similar), or the exact
-     * barcode; most similar names first.
+     * barcode. A field hidden from the user by field rules is never
+     * matched, or the results would reveal its value (RBAC-05).
      */
-    private function search(Builder $query, string $search): void
+    private function search(Builder $query, string $search, ListItemsRequest $request): void
     {
         $like = '%'.addcslashes($search, '\\%_').'%';
         $prefix = addcslashes(mb_strtolower($search), '\\%_').'%';
         $barcode = Barcode::normalise($search);
+        $visible = fn (string $field) => ! $request->hidesField($field);
 
-        $query->where(function (Builder $q) use ($search, $like, $prefix, $barcode) {
-            $q->whereRaw('lower(code::text) like ?', [$prefix])
-                ->orWhere('name', 'ilike', $like)
-                ->orWhereRaw('name % ?', [$search]);
+        $query->where(function (Builder $q) use ($search, $like, $prefix, $barcode, $visible) {
+            $q->whereRaw('false');
 
-            if ($barcode !== null) {
+            if ($visible('code')) {
+                $q->orWhereRaw('lower(code::text) like ?', [$prefix]);
+            }
+
+            if ($visible('name')) {
+                $q->orWhere('name', 'ilike', $like)->orWhereRaw('name % ?', [$search]);
+            }
+
+            if ($barcode !== null && $visible('barcodes')) {
                 $q->orWhereIn('id', ItemBarcode::query()->select('item_id')->where('barcode', $barcode));
             }
-        })->orderByRaw('similarity(name, ?) desc', [$search]);
+        });
     }
 
     /**

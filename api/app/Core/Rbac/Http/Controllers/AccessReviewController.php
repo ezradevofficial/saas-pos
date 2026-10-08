@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\SpreadsheetCell;
 use App\Core\Rbac\Http\Requests\AccessReviewRequest;
 use App\Core\Rbac\Http\Resources\AccessReviewResource;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -80,7 +81,7 @@ class AccessReviewController
                     $this->scopeNames->attach($rows);
 
                     foreach ($rows as $a) {
-                        fputcsv($out, array_map(self::cell(...), [
+                        fputcsv($out, array_map(SpreadsheetCell::safe(...), [
                             $a->user->name,
                             $a->user->email ?? $a->user->phone,
                             $a->user->status,
@@ -96,21 +97,5 @@ class AccessReviewController
                 fclose($out);
             });
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    /**
-     * A cell a spreadsheet will not run as a formula: text starting with
-     * =, +, -, @, tab or carriage return gets a leading quote (E.164 phone
-     * numbers excepted).
-     */
-    private static function cell(?string $value): string
-    {
-        $value ??= '';
-
-        if ($value !== '' && preg_match('/^\+\d+$/', $value) !== 1 && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
-            return "'".$value;
-        }
-
-        return $value;
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Core\MasterData\Parties\Http\Requests;
 
-use App\Core\MasterData\Http\Requests\ListsArchivable;
+use App\Core\Lists\Http\ListsRecords;
+use App\Core\Lists\ListDefinition;
+use App\Core\MasterData\Parties\Http\Lists\PartyList;
 use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\MasterData\Parties\PartyRoles;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,11 +13,17 @@ use Illuminate\Validation\Rule;
 /**
  * MD-01: list parties the user can view (`core.party.view` anywhere):
  * `?role=customer|supplier|contact|employee_link`, `?tag=`, `?search=`
- * (name, legal name, tax ID or phone digits), `?status`, `?per_page`.
+ * (name, legal name, tax ID or phone digits), `?status`, `?per_page`,
+ * `?sort` and an export (`?format`, `?columns[]`; PartyList, EXP-01).
  */
 class ListPartiesRequest extends FormRequest
 {
-    use ListsArchivable;
+    use ListsRecords;
+
+    public function list(): ListDefinition
+    {
+        return new PartyList;
+    }
 
     public function authorize(): bool
     {
