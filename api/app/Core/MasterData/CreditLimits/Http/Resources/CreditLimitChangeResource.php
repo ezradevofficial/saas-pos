@@ -31,11 +31,13 @@ class CreditLimitChangeResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = $request->user();
+        // L5, RBAC-05: the party's name when the party field rules show it.
+        $nameHidden = in_array('name', HidesFields::hidden($request, CreditLimitChangeAccess::FIELD_RULES), true);
 
         return HidesFields::apply($request, CreditLimitChangeAccess::FIELD_RULES, [
             'id' => $this->id,
             'number' => $this->number,
-            'party' => ['id' => $this->party_id, 'name' => $this->party?->name],
+            'party' => ['id' => $this->party_id, 'name' => $nameHidden ? null : $this->party?->name],
             'company' => ['id' => $this->company_id, 'name' => $this->company?->name],
             'current_limit' => $this->currentLimit(),
             'requested_limit' => $this->requestedLimit(),

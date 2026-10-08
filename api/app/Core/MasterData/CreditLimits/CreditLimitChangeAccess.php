@@ -17,7 +17,8 @@ use App\Core\Rbac\ScopeResolver;
  *   branch user sees their company's requests); the amounts only when the
  *   party's credit limit is not hidden from them by field rules;
  * - request: see the party, hold `core.credit_limit.request` at a scope
- *   touching the company the request is for, and see the credit limit;
+ *   touching the company the request is for, and have the credit limit
+ *   neither hidden nor read-only (field rules);
  * - cancel a pending one: its requester, or a holder of the request
  *   permission at the company itself (a company or tenant role).
  */
@@ -61,7 +62,11 @@ class CreditLimitChangeAccess
     {
         return $this->parties->view($user, $party)
             && $this->reach->reachesRecord($user, $companyId, [CreditLimitChangeType::REQUEST])
-            && ! $this->hidesLimit($user);
+            // L1, RBAC-05: a field the user may not see, or may not change, is not
+            // theirs to ask to change either (a read-only limit would otherwise be
+            // changed through the back door).
+            && ! $this->hidesLimit($user)
+            && ! $this->limitReadOnly($user);
     }
 
     /** @return list<string>|null the companies the user may request for (null: all) */
@@ -74,6 +79,12 @@ class CreditLimitChangeAccess
     {
         return $change->requested_by === $user->id
             || $this->resolver->can($user, CreditLimitChangeType::REQUEST, Scope::company($change->company_id));
+    }
+
+    /** RBAC-05: the party's credit limit is read-only for the user. */
+    public function limitReadOnly(User $user): bool
+    {
+        return array_intersect(self::LIMIT_FIELDS, $this->fieldRules->for($user, self::FIELD_RULES)['readonly']) !== [];
     }
 
     /** RBAC-05: the party's credit limit is hidden from the user. */

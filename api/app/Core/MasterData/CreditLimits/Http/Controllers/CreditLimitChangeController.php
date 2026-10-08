@@ -15,6 +15,7 @@ use App\Core\MasterData\CreditLimits\Http\Requests\CreditLimitChangeRequest;
 use App\Core\MasterData\CreditLimits\Http\Requests\ListCreditLimitChangesRequest;
 use App\Core\MasterData\CreditLimits\Http\Requests\StoreCreditLimitChangeRequest;
 use App\Core\MasterData\CreditLimits\Http\Resources\CreditLimitChangeResource;
+use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,8 +58,10 @@ class CreditLimitChangeController
 
         if ($search !== '') {
             $like = '%'.addcslashes($search, '\\%_').'%';
+            // L5, RBAC-05: a party name hidden from the user is never matched.
+            $names = ! in_array('name', HidesFields::hidden($request, CreditLimitChangeAccess::FIELD_RULES), true);
             $query->where(fn (Builder $q) => $q->where('number', 'ilike', $like)
-                ->orWhereIn('party_id', Party::query()->where('name', 'ilike', $like)->select('id')));
+                ->when($names, fn (Builder $n) => $n->orWhereIn('party_id', Party::query()->where('name', 'ilike', $like)->select('id'))));
         }
 
         $request->applySort($query);

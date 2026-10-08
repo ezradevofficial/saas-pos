@@ -18,15 +18,15 @@ use Illuminate\Support\Str;
  * approver). The engine reads it only through this class (architecture
  * rule 1).
  *
- * Default flow (WF-02), the same for every country: one approval by the
- * company's Accountant (the role from the system template, held at the
- * company or tenant-wide), any one of them deciding; approved ends
- * `approved` (the limit is applied), rejected ends `rejected`. No
- * escalation is set: when no Accountant other than the requester is
- * eligible, approvals moves the request to the next level's managers
- * (Admin or Owner above the company, APR-07). No second approval above an
- * amount is shipped: a tenant adds one in the builder (a condition on
- * `increase`) with its own threshold.
+ * Default flow (WF-02), the same for every country: one approval by an
+ * Accountant (the system template role) at the party's company or
+ * tenant-wide (a shared party: tenant-wide only), any one of them
+ * deciding; approved ends `approved` (the limit is applied), rejected ends
+ * `rejected`. When no Accountant other than the requester is eligible, or
+ * none decided within two business days, it goes to the Admins at the
+ * same places. No second approval above an amount is shipped: a tenant
+ * adds one in the builder (a condition on `increase`) with its own
+ * threshold. A flow must pass an approval before an `approved` end.
  */
 class CreditLimitChangeType extends DocumentType
 {
@@ -83,11 +83,20 @@ class CreditLimitChangeType extends DocumentType
         ];
     }
 
+    /**
+     * L2: the party's own company; a shared party's request is decided at
+     * the tenant (its limit applies in every company), whatever company the
+     * requester named for it, so approvers cannot be steered by that choice.
+     */
     public function scope(string $documentId): ?DocumentScope
     {
         $change = $this->find($documentId);
 
-        return $change === null ? null : new DocumentScope($change->company_id);
+        if ($change === null) {
+            return null;
+        }
+
+        return new DocumentScope(Party::query()->whereKey($change->party_id)->value('company_id'));
     }
 
     public function requesterId(string $documentId): ?string
@@ -186,7 +195,8 @@ class CreditLimitChangeType extends DocumentType
             'nodes' => [
                 ['id' => 'start', 'type' => 'start', 'name' => __('core.credit_limit_change.flow.start')],
                 ['id' => 'approve', 'type' => 'approval', 'name' => __('core.credit_limit_change.flow.approve'),
-                    'approval' => ['approver' => ['type' => 'role', 'role' => 'template:accountant'], 'mode' => 'any']],
+                    'approval' => ['approver' => ['type' => 'role', 'role' => 'template:accountant'], 'mode' => 'any'],
+                    'escalation' => ['after' => ['amount' => 2, 'unit' => 'business_days'], 'to' => ['type' => 'role', 'role' => 'template:admin']]],
                 ['id' => 'approved', 'type' => 'end', 'outcome' => 'approved', 'name' => __('core.credit_limit_change.flow.approved')],
                 ['id' => 'rejected', 'type' => 'end', 'outcome' => 'rejected', 'name' => __('core.credit_limit_change.flow.rejected')],
             ],

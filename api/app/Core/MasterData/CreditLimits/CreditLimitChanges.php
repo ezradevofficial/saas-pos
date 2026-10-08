@@ -89,9 +89,14 @@ class CreditLimitChanges
 
                 return $change->refresh();
             });
-        } catch (UniqueConstraintViolationException) {
-            // Another request for the party was saved at the same moment.
-            throw self::openRequest();
+        } catch (UniqueConstraintViolationException $e) {
+            // L4: another open request for the party was saved at the same moment;
+            // any other unique violation (a number) is a fault, not the user's.
+            if (str_contains($e->getMessage(), 'credit_limit_changes_one_pending')) {
+                throw self::openRequest();
+            }
+
+            throw $e;
         }
     }
 

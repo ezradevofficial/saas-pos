@@ -15,9 +15,12 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use App\Core\Workflow\Events\WorkflowCompleted;
 use App\Core\Workflow\Models\DocumentWorkflow;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -49,8 +52,9 @@ class CreditLimitChangeApiTest extends TestCase
             app(TenantCurrencies::class)->activate('USD');
         });
         $this->manager = $this->named('branch_manager', Scope::branch($this->branchA->id), 'Mary Manager');
-        $this->accountant = $this->named('accountant', Scope::company($this->acme->id), 'Ann Accountant');
-        $this->accountant2 = $this->named('accountant', Scope::company($this->acme->id), 'Abel Accountant');
+        // Tenant-wide: the shared customer's requests are decided at the tenant (L2).
+        $this->accountant = $this->named('accountant', Scope::tenant(), 'Ann Accountant');
+        $this->accountant2 = $this->named('accountant', Scope::tenant(), 'Abel Accountant');
         $this->customer = $this->postJson('/api/v1/parties', [
             'kind' => 'organisation', 'name' => 'Duka Moja Ltd', 'roles' => ['customer'],
             'credit_limit' => '150000.00', 'credit_limit_currency' => 'KES',
@@ -473,5 +477,127 @@ class CreditLimitChangeApiTest extends TestCase
         $this->postJson("/api/v1/credit-limit-changes/{$change}/cancel", ['reason' => 'Duplicate'], $this->headersFor($this->accountant))->assertOk()
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('meta.workflow.cancelled_by.id', $this->accountant->id);
+    }
+
+    public function test_a_read_only_credit_limit_cannot_be_requested_either(): void
+    {
+        $user = $this->inTenant(function () {
+            $role = $this->role('Read-only limits', ['core.party.view', 'core.credit_limit.request']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'credit_limit_minor', 'mode' => 'readonly']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::company($this->acme->id));
+
+            return $user;
+        });
+
+        $this->request([], $user)->assertForbidden();
+    }
+
+    public function test_a_shared_party_is_decided_at_the_tenant_whatever_company_is_named(): void
+    {
+        $companyAccountant = $this->named('accountant', Scope::company($this->acme->id), 'Carl Company Accountant');
+        $change = $this->request()->assertCreated()->assertJsonPath('data.company.id', $this->acme->id)->json('data.id');
+        $approval = $this->approval($change);
+
+        $this->assertNull($approval->company_id);
+        $pending = $this->inTenant(fn () => $approval->assignments()->where('status', 'pending')->pluck('user_id')->all());
+        $this->assertEqualsCanonicalizing([$this->accountant->id, $this->accountant2->id], $pending);
+        $this->assertNotContains($companyAccountant->id, $pending);
+    }
+
+    public function test_only_the_requests_own_flow_settles_it(): void
+    {
+        $change = $this->request()->assertCreated()->json('data.id');
+
+        $this->inTenant(fn () => WorkflowCompleted::dispatch($this->owner->tenant_id, '01890000-0000-7000-8000-000000000000', 'core.credit_limit_change', $change, 'approved', $this->owner->id));
+
+        $this->assertSame('pending', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status));
+        $this->assertSame('15000000', $this->partyLimit());
+    }
+
+    public function test_concurrent_requests_map_only_the_open_request_clash_and_numbers_stay_unique(): void
+    {
+        $other = $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Ali', 'roles' => ['customer']], $this->headersFor())->json('data.id');
+        $this->request(['party_id' => $other, 'requested_limit' => ['amount_minor' => '100', 'currency' => 'KES']])->assertCreated()->assertJsonPath('data.number', 'CLC-000001');
+
+        // Another request for the same party commits between our check and our insert.
+        $armed = 'party';
+        $clash = function (CreditLimitChange $change) use (&$armed) {
+            if ($armed !== 'party') {
+                return;
+            }
+
+            $armed = null;
+            CreditLimitChange::query()->insert([
+                'id' => (string) Str::uuid7(), 'tenant_id' => $this->owner->tenant_id, 'seq' => 900, 'number' => 'CLC-000900',
+                'party_id' => $change->party_id, 'company_id' => $change->company_id, 'requested_limit_minor' => 1, 'requested_limit_currency' => 'KES',
+                'reason' => 'race', 'status' => 'pending', 'requested_by' => $this->owner->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+        CreditLimitChange::creating($clash);
+        $this->request()->assertUnprocessable()->assertJsonPath('code', 'credit_limit_change_open');
+
+        // A clash on the number is a fault, never "an open request exists".
+        $armed = 'number';
+        CreditLimitChange::creating(function (CreditLimitChange $change) use (&$armed) {
+            if ($armed !== 'number') {
+                return;
+            }
+
+            $armed = null;
+            CreditLimitChange::query()->insert([
+                'id' => (string) Str::uuid7(), 'tenant_id' => $this->owner->tenant_id, 'seq' => $change->seq, 'number' => $change->number,
+                'party_id' => $change->party_id === $this->customer ? $this->otherParty() : $this->customer, 'company_id' => $change->company_id,
+                'requested_limit_minor' => 1, 'requested_limit_currency' => 'KES', 'reason' => 'race', 'status' => 'rejected',
+                'requested_by' => $this->owner->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->request();
+            $this->fail('A duplicate number must not be accepted.');
+        } catch (UniqueConstraintViolationException $e) {
+            $this->assertStringContainsString('credit_limit_changes_tenant_id_seq_unique', $e->getMessage());
+        }
+    }
+
+    private function otherParty(): string
+    {
+        return (string) Party::query()->where('id', '!=', $this->customer)->value('id');
+    }
+
+    public function test_cdf_amounts_have_no_decimals(): void
+    {
+        $this->inTenant(fn () => app(TenantCurrencies::class)->activate('CDF'));
+        $party = $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Kin', 'roles' => ['customer'], 'credit_limit' => '135000', 'credit_limit_currency' => 'CDF'], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.credit_limit', ['amount_minor' => '135000', 'currency' => 'CDF'])->json('data.id');
+
+        $change = $this->request(['party_id' => $party, 'requested_limit' => ['amount_minor' => '250000', 'currency' => 'CDF']])->assertCreated()
+            ->assertJsonPath('data.increase', ['amount_minor' => '115000', 'currency' => 'CDF'])->json('data.id');
+        $csv = $this->get('/api/v1/credit-limit-changes?format=csv', $this->headersFor())->assertOk()->streamedContent();
+        $this->assertStringContainsString('CDF 250,000', $csv);
+        $this->assertStringNotContainsString('CDF 250,000.', $csv);
+
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+        $this->getJson("/api/v1/parties/{$party}", $this->headersFor())->assertJsonPath('data.credit_limit', ['amount_minor' => '250000', 'currency' => 'CDF']);
+    }
+
+    public function test_a_hidden_party_name_is_masked_and_never_searched(): void
+    {
+        $this->request()->assertCreated();
+        $user = $this->inTenant(function () {
+            $role = $this->role('Nameless', ['core.party.view']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::company($this->acme->id));
+
+            return $user;
+        });
+
+        $list = $this->getJson('/api/v1/credit-limit-changes', $this->headersFor($user))->assertOk()->json('data');
+        $this->assertNull($list[0]['party']['name']);
+        $this->assertSame([], $this->getJson('/api/v1/credit-limit-changes?search=Duka', $this->headersFor($user))->json('data'));
+        $this->assertCount(1, $this->getJson('/api/v1/credit-limit-changes?search=Duka', $this->headersFor())->json('data'));
     }
 }
