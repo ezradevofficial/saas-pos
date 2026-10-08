@@ -159,6 +159,21 @@ describe('Automation run log (AUTO-05)', () => {
     expect(await within(drawer).findByText(expected)).toBeInTheDocument()
   })
 
+  it('opens the run drawer on a row click anywhere but the document name, which alone is a link', async () => {
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page([RUN])], ['automation-runs/run-1', { data: RUN }], [/^automation-rules\?status=all/, page([RULE])]] })
+    const { router } = renderApp('/settings/automation-runs')
+    const table = await screen.findByRole('table', { name: 'Automation runs' })
+    const link = await within(table).findByRole('link', { name: 'PR-0042' })
+    const row = link.closest('tr')
+    expect(within(row).getAllByRole('link')).toHaveLength(1)
+
+    // The document cell outside the name, and any other cell, open the drawer.
+    fireEvent.click(link.closest('td'))
+    expect(await screen.findByRole('dialog', { name: 'Run details' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/automation-runs')
+    expect(router.state.location.search).toBe('?run=run-1')
+  })
+
   it('says another rule started a run only when its chain holds one (AUTO-06)', async () => {
     const byWorkflow = { ...RUN, id: 'run-7', trigger_type: 'stage_left', depth: 1, caused_by_rule: false }
     const byRule = { ...RUN, id: 'run-8', trigger_type: 'field_changed', depth: 2, caused_by_rule: true }
