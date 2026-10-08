@@ -106,7 +106,18 @@
       "first": "First page",
       "previous": "Previous page",
       "next": "Next page",
-      "last": "Last page"
+      "last": "Last page",
+      "filters": "Filters",
+      "filtersActive_one": "Filters, {{formatted}} active",
+      "filtersActive_other": "Filters, {{formatted}} active",
+      "activeFilters": "Active filters",
+      "chip": "{{label}}: {{value}}",
+      "removeFilter": "Remove filter {{filter}}",
+      "clearFilters": "Clear filters",
+      "clearAll": "Clear all",
+      "showResults": "Show results",
+      "showCount_one": "Show {{formatted}} result",
+      "showCount_other": "Show {{formatted}} results"
     }
   },
   "dev": {

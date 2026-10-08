@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { ratePairs } from './finance/rates'
 
@@ -76,8 +77,11 @@ describe('ExchangeRates', () => {
     expect(await screen.findByText('Showing 1–3 of 3')).toBeInTheDocument()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
 
+    openFilters()
     chooseOption('Kind', 'Shop')
     await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&per_page=25&page=1'))
+    await closeFilters()
+    expect(screen.getByText('Kind: Shop')).toBeInTheDocument()
     fireEvent.click(within(history).getByRole('button', { name: 'Rate' }))
     await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&sort=mid&per_page=25&page=1'))
 
@@ -135,14 +139,21 @@ describe('ExchangeRates', () => {
   })
 
   it('asks for the latest rates up to now, not the whole of today', async () => {
-    rates()
-    renderApp('/settings/exchange-rates')
-    await screen.findByRole('heading', { name: 'Shop rate' })
-    const latest = api.get.mock.calls.map(([path]) => path).filter((path) => path.includes('per_page=1'))
-    expect(latest.length).toBeGreaterThan(0)
-    for (const path of latest) {
-      const to = new URLSearchParams(path.split('?')[1]).get('to')
-      expect(to).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    // Only Date is faked, so React Query's timers still run; the clock is fixed.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-08T09:30:15.250Z'))
+    try {
+      rates()
+      renderApp('/settings/exchange-rates')
+      await screen.findByRole('heading', { name: 'Shop rate' })
+      // The latest-rate cards only: other one-row requests (the approvals badge) are not rates.
+      const latest = api.get.mock.calls
+        .map(([path]) => path)
+        .filter((path) => path.startsWith('companies/c-1/exchange-rates?') && new URLSearchParams(path.split('?')[1]).get('per_page') === '1')
+      expect(latest.length).toBeGreaterThan(0)
+      for (const path of latest) expect(new URLSearchParams(path.split('?')[1]).get('to')).toBe('2026-10-08T09:30:15.250Z')
+    } finally {
+      vi.useRealTimers()
     }
   })
 

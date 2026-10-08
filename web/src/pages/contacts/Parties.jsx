@@ -9,6 +9,15 @@ import { ROLE_PATHS } from './partyData'
 const STATUSES = ['active', 'archived']
 
 /**
+ * The tag filter: typed, so the URL (and the API) follow once typing stops,
+ * or at once when the drawer closes, so no keystroke is lost.
+ */
+function TagField({ label, value, onChange }) {
+  const [tag, setTag] = useTypedText(value, (next) => onChange(next, { replace: true }), 300, { flushOnUnmount: true })
+  return <TextField label={label} className="w-full" value={tag} onChange={(event) => setTag(event.target.value)} autoComplete="off" />
+}
+
+/**
  * MD-01: customers or suppliers (`role`). Search (debounced) reads the
  * name, legal name, tax ID or phone digits; a tag filter; active or
  * archived; sort, server pages, columns and export (EXP-01, LAY-04).
@@ -56,9 +65,6 @@ export default function Parties({ role }) {
     columns,
   })
   const { status } = list.filters
-
-  // The tag is typed: the URL (and the API) follow once typing stops.
-  const [tag, setTag] = useTypedText(list.filters.tag, (value) => list.setFilter('tag', value, { replace: true }))
   const filtered = Boolean(list.term || list.filters.tag)
 
   return (
@@ -84,15 +90,13 @@ export default function Parties({ role }) {
         title={t(`contacts.${path}.title`)}
         searchLabel={t('parties.search')}
         searchPlaceholder={t('parties.searchPlaceholder')}
-        filters={
-          <TextField
-            label={t('parties.filters.tag')}
-            className="min-w-0 flex-1"
-            value={tag}
-            onChange={(event) => setTag(event.target.value)}
-            autoComplete="off"
-          />
-        }
+        filterFields={[
+          {
+            name: 'tag',
+            label: t('parties.filters.tag'),
+            render: ({ label, value, onChange }) => <TagField label={label} value={value} onChange={onChange} />,
+          },
+        ]}
         onRowClick={(party) => navigate(`/contacts/${path}/${party.id}`)}
         emptyText={filtered ? t('parties.emptyFiltered') : t(`parties.empty.${role}.${status}`)}
       />

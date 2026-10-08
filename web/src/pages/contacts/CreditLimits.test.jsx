@@ -1,5 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -193,5 +195,12 @@ describe('Credit limit changes', () => {
     const calls = () => api.get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('credit-limit-changes?'))
     expect(calls()[0]).toBe('credit-limit-changes?per_page=25&page=1')
     expect(screen.getByRole('link', { name: 'Credit limit changes' })).toHaveAttribute('href', '/contacts/credit-limit-changes')
+
+    // The status filter sits in the drawer and shows as a chip once chosen.
+    openFilters()
+    chooseOption('Status', 'Rejected')
+    await waitFor(() => expect(calls().at(-1)).toBe('credit-limit-changes?status=rejected&per_page=25&page=1'))
+    await closeFilters()
+    expect(screen.getByText('Status: Rejected')).toBeInTheDocument()
   })
 })

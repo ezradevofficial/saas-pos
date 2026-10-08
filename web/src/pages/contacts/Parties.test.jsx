@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption, waitForOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -71,8 +72,33 @@ describe('Customers and suppliers', () => {
     expect(listCalls()[0]).toBe('parties?role=customer&status=active&per_page=25&page=1')
 
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: '0810' } })
-    fireEvent.change(screen.getByLabelText('Tag'), { target: { value: 'vip' } })
+    const drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Tag'), { target: { value: 'vip' } })
     await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&tag=vip&search=0810&per_page=25&page=1'))
+    await closeFilters()
+    // The typed tag shows as a chip; removing it clears the filter.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter Tag: vip' }))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&search=0810&per_page=25&page=1'))
+  })
+
+  it('keeps a tag typed just before the drawer closes, by Escape or Show results', async () => {
+    parties()
+    const { router } = renderApp('/contacts/customers')
+    await screen.findByText('Kin Traders SARL')
+
+    let drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Tag'), { target: { value: 'vip ' } })
+    // Closed before the typing pause: the tag is written at once, not dropped.
+    fireEvent.keyDown(drawer, { key: 'Escape' })
+    expect(router.state.location.search).toBe('?tag=vip')
+    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&tag=vip&per_page=25&page=1'))
+    expect(await screen.findByText('Tag: vip')).toBeInTheDocument()
+
+    drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Tag'), { target: { value: 'wholesale' } })
+    fireEvent.click(within(drawer).getByRole('button', { name: /^Show/ }))
+    expect(router.state.location.search).toBe('?tag=wholesale')
+    expect(await screen.findByText('Tag: wholesale')).toBeInTheDocument()
   })
 
   it('sorts on the server, offers the tax ID column, and exports the visible columns with their API keys (EXP-01, LAY-04)', async () => {

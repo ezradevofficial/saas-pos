@@ -106,7 +106,18 @@
       "first": "Première page",
       "previous": "Page précédente",
       "next": "Page suivante",
-      "last": "Dernière page"
+      "last": "Dernière page",
+      "filters": "Filtres",
+      "filtersActive_one": "Filtres, {{formatted}} actif",
+      "filtersActive_other": "Filtres, {{formatted}} actifs",
+      "activeFilters": "Filtres actifs",
+      "chip": "{{label}} : {{value}}",
+      "removeFilter": "Retirer le filtre {{filter}}",
+      "clearFilters": "Effacer les filtres",
+      "clearAll": "Tout effacer",
+      "showResults": "Afficher les résultats",
+      "showCount_one": "Afficher {{formatted}} résultat",
+      "showCount_other": "Afficher {{formatted}} résultats"
     }
   },
   "dev": {

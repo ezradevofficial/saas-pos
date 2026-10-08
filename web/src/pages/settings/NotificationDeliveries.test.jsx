@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -71,6 +72,7 @@ describe('notification delivery log (NOT-06)', () => {
     const { router } = renderApp('/settings/notification-deliveries')
     await screen.findByText('Delivered')
 
+    openFilters()
     chooseOption('Status', 'Failed')
     await waitFor(() => expect(router.state.location.search).toBe('?status=failed'))
     await waitFor(() => expect(screen.queryByText('Delivered')).not.toBeInTheDocument())
@@ -78,6 +80,9 @@ describe('notification delivery log (NOT-06)', () => {
 
     chooseOption('Channel', 'SMS')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('notification-deliveries?status=failed&channel=sms&sort=-created_at&per_page=25&page=1'))
+    await closeFilters()
+    expect(screen.getByText('Status: Failed')).toBeInTheDocument()
+    expect(screen.getByText('Channel: SMS')).toBeInTheDocument()
   })
 
   it('refuses the page without core.notification_delivery.view at tenant scope (RBAC-09)', async () => {

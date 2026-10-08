@@ -110,26 +110,22 @@ export default function Workflows() {
         list={list}
         title={t('workflows.title')}
         searchPlaceholder={t('workflows.searchPlaceholder')}
-        filters={
-          <>
-            <Select
-              label={t('workflows.filters.type')}
-              options={[{ value: '', label: t('workflows.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))]}
-              value={list.filters.type}
-              onChange={(event) => list.setFilter('type', event.target.value)}
-              className="w-full sm:w-palette"
-            />
-            {companies.length > 1 ? (
-              <Select
-                label={t('workflows.filters.company')}
-                options={[{ value: '', label: t('workflows.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
-                value={list.filters.company}
-                onChange={(event) => list.setFilter('company', event.target.value)}
-                className="w-full sm:w-palette"
-              />
-            ) : null}
-          </>
-        }
+        filterFields={[
+          {
+            name: 'type',
+            label: t('workflows.filters.type'),
+            options: [{ value: '', label: t('workflows.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))],
+          },
+          ...(companies.length > 1
+            ? [
+                {
+                  name: 'company',
+                  label: t('workflows.filters.company'),
+                  options: [{ value: '', label: t('workflows.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))],
+                },
+              ]
+            : []),
+        ]}
         emptyText={types.length === 0 ? t('workflows.emptyNoTypes') : t('workflows.empty')}
         onRowClick={(row) => navigate(`/settings/workflows/${row.id}`)}
       />

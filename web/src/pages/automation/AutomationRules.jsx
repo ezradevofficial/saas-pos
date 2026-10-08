@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Button, ListView, Select, StatusBadge } from '@/components/ds'
+import { Button, ListView, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies } from '@/layouts/companySelection'
 import { formatWhen } from '@/lib/format'
@@ -71,33 +71,27 @@ export default function AutomationRules() {
         list={list}
         title={t('automation.title')}
         searchPlaceholder={t('automation.searchPlaceholder')}
-        filters={
-          <>
-            <Select
-              label={t('automation.filters.status')}
-              options={STATUSES.map((status) => ({ value: status, label: t(`automation.statusFilter.${status}`) }))}
-              value={list.filters.status}
-              onChange={(event) => list.setFilter('status', event.target.value)}
-              className="w-full sm:w-palette"
-            />
-            <Select
-              label={t('automation.filters.type')}
-              options={[{ value: '', label: t('automation.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))]}
-              value={list.filters.type}
-              onChange={(event) => list.setFilter('type', event.target.value)}
-              className="w-full sm:w-palette"
-            />
-            {companies.length > 1 ? (
-              <Select
-                label={t('automation.filters.company')}
-                options={[{ value: '', label: t('automation.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
-                value={list.filters.company}
-                onChange={(event) => list.setFilter('company', event.target.value)}
-                className="w-full sm:w-palette"
-              />
-            ) : null}
-          </>
-        }
+        filterFields={[
+          {
+            name: 'status',
+            label: t('automation.filters.status'),
+            options: STATUSES.map((status) => ({ value: status, label: t(`automation.statusFilter.${status}`) })),
+          },
+          {
+            name: 'type',
+            label: t('automation.filters.type'),
+            options: [{ value: '', label: t('automation.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))],
+          },
+          ...(companies.length > 1
+            ? [
+                {
+                  name: 'company',
+                  label: t('automation.filters.company'),
+                  options: [{ value: '', label: t('automation.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))],
+                },
+              ]
+            : []),
+        ]}
         emptyText={t('automation.empty')}
         onRowClick={(row) => navigate(`/settings/automation-rules/${row.id}`)}
       />
