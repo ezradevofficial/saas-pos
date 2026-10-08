@@ -31,4 +31,13 @@ return [
         'not_suspended' => 'This device isn’t suspended, so there is nothing to resume.',
         'invalid_pairing_code' => 'This pairing code isn’t valid or has expired. Ask for a new code and try again.',
     ],
+
+    // AUTH-02, AUTH-09, L10N-01: tenant settings.
+    'settings' => [
+        'attributes' => [
+            'password_min_length' => 'minimum password length',
+            'session_timeout_minutes' => 'session timeout',
+            'default_locale' => 'default language',
+        ],
+    ],
 ];

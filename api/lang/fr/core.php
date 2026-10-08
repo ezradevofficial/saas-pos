@@ -31,4 +31,13 @@ return [
         'not_suspended' => 'Cet appareil n’est pas suspendu : il n’y a rien à réactiver.',
         'invalid_pairing_code' => 'Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code et réessayez.',
     ],
+
+    // AUTH-02, AUTH-09, L10N-01: tenant settings.
+    'settings' => [
+        'attributes' => [
+            'password_min_length' => 'longueur minimale du mot de passe',
+            'session_timeout_minutes' => 'délai d’expiration de session',
+            'default_locale' => 'langue par défaut',
+        ],
+    ],
 ];

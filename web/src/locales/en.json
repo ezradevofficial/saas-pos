@@ -188,6 +188,7 @@
     "organisation": "Organisation",
     "users": "Users",
     "roles": "Roles",
+    "security": "Security",
     "appearance": "Appearance",
     "sessions": "Sessions"
   },
@@ -675,5 +676,18 @@
     "archiveConfirm": "Archive role",
     "keepRole": "Keep role",
     "emptyReadOnly": "No roles to show."
+  },
+  "security": {
+    "title": "Security",
+    "description": "Password and session rules for everyone in your organisation, and the language new people start with.",
+    "passwordMin": "Minimum password length",
+    "passwordMinHelp": "8 to 64 characters. Applies the next time someone sets a password.",
+    "characters": "characters",
+    "sessionTimeout": "Session timeout",
+    "sessionTimeoutHelp": "15 to 480 minutes without activity before someone is signed out.",
+    "minutes": "minutes",
+    "defaultLocale": "Default language",
+    "defaultLocaleHelp": "Used for emails and for people who haven’t chosen a language.",
+    "saved": "Settings saved."
   }
 }
