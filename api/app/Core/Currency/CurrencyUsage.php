@@ -9,8 +9,8 @@ use Closure;
  * once it has, the currency's decimals are locked, since stored minor
  * units would change value. Modules that store amounts (sales, purchasing,
  * accounting...) register a checker; each runs in the tenant's context
- * (row-level security applies). Nothing stores amounts yet, so no checker
- * is registered by core.
+ * (row-level security applies). Core registers one for party credit
+ * limits (MasterDataServiceProvider).
  */
 class CurrencyUsage
 {

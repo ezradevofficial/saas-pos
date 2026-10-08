@@ -149,6 +149,25 @@ class TenantCurrencyApiTest extends TestCase
             ->assertJsonPath('data.cash_rounding_minor', 25);
     }
 
+    public function test_a_party_credit_limit_locks_its_currency_decimals(): void
+    {
+        // CUR-01: a credit limit is a stored amount, archived parties included.
+        $kes = $this->currency('KES');
+        $this->getJson('/api/v1/tenant/currencies', $this->headersFor())->assertOk()
+            ->assertJsonPath('data.0.code', 'KES')->assertJsonPath('data.0.decimals_locked', false);
+
+        $party = $this->postJson('/api/v1/parties', [
+            'kind' => 'organisation', 'name' => 'Duka Ltd', 'roles' => ['customer'], 'credit_limit' => '5000.00', 'credit_limit_currency' => 'KES',
+        ], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/parties/{$party}/archive", [], $this->headersFor())->assertOk();
+
+        $this->getJson('/api/v1/tenant/currencies', $this->headersFor())->assertOk()->assertJsonPath('data.0.decimals_locked', true);
+        $this->patchJson("/api/v1/tenant/currencies/{$kes->id}", ['decimals' => 3], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'currency_decimals_locked');
+        $this->assertSame(2, $this->currency('KES')->decimals);
+        $this->inTenant(fn () => $this->assertFalse(app(CurrencyUsage::class)->isUsed('USD')));
+    }
+
     public function test_a_currency_used_by_a_company_cannot_be_deactivated(): void
     {
         $kes = $this->currency('KES');

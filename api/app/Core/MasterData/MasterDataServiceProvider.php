@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData;
 
+use App\Core\Currency\CurrencyUsage;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Dimensions\Dimension;
 use App\Core\MasterData\Dimensions\Dimensions;
@@ -88,6 +89,12 @@ class MasterDataServiceProvider extends ServiceProvider
         // MD-04: every company starts with its country's payment methods
         // (after its currencies, in the creating transaction).
         Event::listen(CompanyCreated::class, SeedDefaultPaymentMethods::class);
+
+        // CUR-01: a party's credit limit is a stored amount; its currency's
+        // decimals lock once any party (archived ones too) has one in it.
+        $this->app->make(CurrencyUsage::class)->register(
+            fn (string $code) => Party::query()->where('credit_limit_currency', $code)->exists(),
+        );
 
         if ($this->app->runningInConsole()) {
             $this->commands([SeedDefaultUomsCommand::class, SeedDefaultPaymentMethodsCommand::class]);
