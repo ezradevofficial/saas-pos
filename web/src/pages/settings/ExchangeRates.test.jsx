@@ -139,14 +139,21 @@ describe('ExchangeRates', () => {
   })
 
   it('asks for the latest rates up to now, not the whole of today', async () => {
-    rates()
-    renderApp('/settings/exchange-rates')
-    await screen.findByRole('heading', { name: 'Shop rate' })
-    const latest = api.get.mock.calls.map(([path]) => path).filter((path) => path.includes('per_page=1'))
-    expect(latest.length).toBeGreaterThan(0)
-    for (const path of latest) {
-      const to = new URLSearchParams(path.split('?')[1]).get('to')
-      expect(to).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    // Only Date is faked, so React Query's timers still run; the clock is fixed.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-08T09:30:15.250Z'))
+    try {
+      rates()
+      renderApp('/settings/exchange-rates')
+      await screen.findByRole('heading', { name: 'Shop rate' })
+      // The latest-rate cards only: other one-row requests (the approvals badge) are not rates.
+      const latest = api.get.mock.calls
+        .map(([path]) => path)
+        .filter((path) => path.startsWith('companies/c-1/exchange-rates?') && new URLSearchParams(path.split('?')[1]).get('per_page') === '1')
+      expect(latest.length).toBeGreaterThan(0)
+      for (const path of latest) expect(new URLSearchParams(path.split('?')[1]).get('to')).toBe('2026-10-08T09:30:15.250Z')
+    } finally {
+      vi.useRealTimers()
     }
   })
 
