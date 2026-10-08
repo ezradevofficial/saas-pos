@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Core\Automation;
 
+use App\Core\Approvals\EngineApprovals;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Runtime\Rules;
 use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
+use App\Core\Workflow\Handlers\ApprovalHandler;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -77,6 +79,33 @@ class AutomationActionsTest extends TestCase
         $this->assertSame(['check'], $this->at($workflow), 'entering close sent it back to check');
         $this->assertSame('Needs a second look', $this->inTenant(fn () => $workflow->events()->where('type', 'returned')->value('reason')));
         $this->assertSame(2, $this->inTenant(fn () => AutomationRun::query()->where('outcome', 'succeeded')->count()));
+    }
+
+    public function test_change_stage_cannot_complete_an_approval(): void
+    {
+        // The approvals service decides approval steps (as in production).
+        $this->app->bind(ApprovalHandler::class, EngineApprovals::class);
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->publishFlow([
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => 'Manager approves', 'approval' => ['approver' => ['type' => 'user', 'user_id' => $manager->id]]],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+            ],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved']],
+        ]);
+        $rule = $this->inTenant(fn () => app(Rules::class)->create([
+            'name' => 'Approve for them', 'document_type' => TestRequestType::KEY, 'enabled' => true,
+            'trigger' => ['type' => 'stage_entered', 'stage' => 'approve'],
+            'actions' => [['type' => 'change_stage', 'mode' => 'move', 'stage' => 'approve']],
+        ], $this->owner));
+
+        $workflow = $this->start($this->document());
+
+        $this->assertSame(['approve'], $this->at($workflow), 'still waiting for the approver');
+        $run = $this->runs($rule)->sole();
+        $this->assertSame([AutomationRun::FAILED, 'action_failed', 1], [$run->outcome, $run->error_code, $run->attempts]);
+        $this->assertStringContainsString('approvals', $run->error);
     }
 
     public function test_change_stage_without_a_running_workflow_fails_at_once(): void
