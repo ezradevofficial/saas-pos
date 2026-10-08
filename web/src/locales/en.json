@@ -66,6 +66,15 @@
       "dark": "Dark",
       "executive": "Executive",
       "warm": "Warm"
+    },
+    "numberInput": {
+      "format": "Enter a number such as {{example}}.",
+      "decimals_one": "Use at most {{count}} decimal place.",
+      "decimals_other": "Use at most {{count}} decimal places.",
+      "integer": "This number is too large. Check it and try again.",
+      "positive": "Enter a number above zero.",
+      "range": "Enter a number up to {{max}}.",
+      "noDecimals": "This currency has no decimals. Enter a whole number."
     }
   },
   "dev": {
@@ -175,14 +184,24 @@
       "system_role": "System roles can’t be changed. Copy the role to customise it.",
       "device_not_pairable": "This device is already paired or suspended. Unpair it before pairing it again.",
       "device_not_suspended": "This device isn’t suspended, so there is nothing to resume.",
-      "forbidden": "You don’t have permission to do this. Ask an administrator if you need it."
+      "forbidden": "You don’t have permission to do this. Ask an administrator if you need it.",
+      "currency_in_use": "A company uses this currency as its base or reporting currency. Change that company first.",
+      "currency_decimals_locked": "Amounts are already stored in this currency, so its decimals can’t change.",
+      "too_many_reporting_currencies": "A company can have at most 3 reporting currencies. Remove one first.",
+      "currency_not_active": "This currency is switched off. Switch it on in Currencies first.",
+      "country_pack_missing": "No country pack is published for this company’s country yet. Add tax codes by hand for now.",
+      "payment_method_order_invalid": "The list changed while you were reordering it. Reload the page and try again.",
+      "dimension_in_use": "This record has active records under it. Move or archive them first.",
+      "confirmation_required": "Confirm the change to continue."
     }
   },
   "nav": {
     "label": "Main",
     "groups": {
       "overview": "Overview",
-      "settings": "Settings"
+      "settings": "Settings",
+      "finance": "Finance",
+      "masterData": "Master data"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -190,7 +209,13 @@
     "roles": "Roles",
     "security": "Security",
     "appearance": "Appearance",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "currencies": "Currencies",
+    "exchangeRates": "Exchange rates",
+    "taxes": "Taxes",
+    "paymentMethods": "Payment methods",
+    "dimensions": "Dimensions",
+    "sharing": "Sharing"
   },
   "shell": {
     "account": "Account menu",
@@ -337,6 +362,30 @@
     "roles": {
       "title": "Roles",
       "description": "What each role can do, and where."
+    },
+    "currencies": {
+      "title": "Currencies",
+      "description": "The currencies your business uses, and each company’s base and reporting currencies."
+    },
+    "exchangeRates": {
+      "title": "Exchange rates",
+      "description": "Reference rates, your shop rates and their history, per company."
+    },
+    "taxes": {
+      "title": "Taxes",
+      "description": "Tax codes and their rates, tax categories and price lists."
+    },
+    "paymentMethods": {
+      "title": "Payment methods",
+      "description": "How customers pay at the till, in the order the till shows them."
+    },
+    "dimensions": {
+      "title": "Dimensions",
+      "description": "Departments, cost centres and projects to tag transactions with."
+    },
+    "sharing": {
+      "title": "Sharing",
+      "description": "Whether each kind of record is shared across your companies or kept per company."
     }
   },
   "appearance": {
@@ -689,5 +738,430 @@
     "defaultLocale": "Default language",
     "defaultLocaleHelp": "Used for emails and for people who haven’t chosen a language.",
     "saved": "Settings saved."
+  },
+  "finance": {
+    "company": {
+      "label": "Company",
+      "help": "These settings apply to one company at a time.",
+      "none": "You need access to a company to use this page. Ask an administrator."
+    }
+  },
+  "currencies": {
+    "tenant": {
+      "title": "Currencies in use",
+      "description": "Switched-on currencies can be used by every company for prices, payments and rates.",
+      "empty": "No currencies yet. Add the currencies your business uses."
+    },
+    "columns": {
+      "currency": "Currency",
+      "decimals": "Decimals",
+      "rounding": "Cash rounding",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "On",
+      "inactive": "Off"
+    },
+    "toggle": "Use {{code}}",
+    "editCode": "Edit {{code}}",
+    "add": {
+      "action": "Add currency",
+      "title": "Add a currency",
+      "submit": "Add currency",
+      "choose": "Choose a currency",
+      "chooseCurrency": "Choose the currency to add."
+    },
+    "edit": {
+      "action": "Edit",
+      "title": "Edit {{code}}"
+    },
+    "fields": {
+      "currency": "Currency",
+      "decimals": "Decimals",
+      "decimalsHelp": "How many decimals amounts in this currency have. It can’t change once amounts are stored.",
+      "decimalsLocked": "Amounts are already stored in this currency, so its decimals are locked.",
+      "rounding": "Cash rounding",
+      "roundingHelp": "Cash totals round to a multiple of this amount, for example CDF 50 or KES 1.00.",
+      "roundingInvalid": "Enter a valid cash rounding amount, or leave it empty.",
+      "roundingRequired": "Enter the cash rounding amount."
+    },
+    "company": {
+      "subtitle": "Base and reporting currencies",
+      "locked": "Base currency locked",
+      "base": "Base currency",
+      "baseHelp": "Accounts are kept in this currency. It locks after the first posting.",
+      "baseLocked": "The base currency is locked because amounts have been posted in it.",
+      "reporting": "Reporting currencies",
+      "reportingHelp_one": "Reports can also show totals in up to {{count}} other currency.",
+      "reportingHelp_other": "Reports can also show totals in up to {{count}} other currencies.",
+      "reportingN": "Reporting currency {{n}}",
+      "none": "None",
+      "save": "Save currencies",
+      "saved": "Currencies saved."
+    }
+  },
+  "rates": {
+    "pair": "Currency pair",
+    "pairHelp": "Times are shown in the company’s time zone ({{zone}}).",
+    "noPairs": "Switch on at least two currencies in Currencies to set exchange rates.",
+    "current": {
+      "title": "Rates for {{pair}}",
+      "inUse": "In use",
+      "reference": "Reference rate",
+      "referenceHelp": "From the central bank feed",
+      "referenceEmpty": "No reference rate yet.",
+      "shop": "Shop rate",
+      "shopHelp": "Set by your business; used at the till when present",
+      "shopEmpty": "No shop rate yet. Set one to use your own rate at the till."
+    },
+    "fields": {
+      "mid": "Rate",
+      "buy": "Buy",
+      "sell": "Sell",
+      "effective": "Effective"
+    },
+    "kinds": {
+      "reference": "Reference",
+      "shop": "Shop"
+    },
+    "directions": {
+      "direct": "As listed",
+      "inverse": "Inverse"
+    },
+    "sources": {
+      "manual": "Entered by hand",
+      "bcc": "Central Bank of the Congo",
+      "cbk": "Central Bank of Kenya",
+      "fake": "Test feed",
+      "feed": "Rate feed"
+    },
+    "columns": {
+      "effective": "Effective",
+      "kind": "Kind",
+      "mid": "Rate",
+      "buy": "Buy",
+      "sell": "Sell",
+      "direction": "Direction",
+      "source": "Source"
+    },
+    "history": {
+      "title": "History",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "caption": "Rate history for {{pair}}",
+      "empty": "No rates for this pair yet.",
+      "page": "Page {{page}} of {{pages}}",
+      "newer": "Newer",
+      "older": "Older"
+    },
+    "dialog": {
+      "action": "Set shop rate",
+      "title": "Set shop rate for {{pair}}",
+      "submit": "Save shop rate",
+      "intro": "Enter how many {{quote}} one {{base}} is worth.",
+      "mid": "Rate (1 {{base}} in {{quote}})",
+      "midRequired": "Enter the rate.",
+      "buy": "Buying rate",
+      "buyHelp": "What you pay for 1 {{base}}. Optional.",
+      "sell": "Selling rate",
+      "sellHelp": "What you charge for 1 {{base}}. Optional.",
+      "now": "Effective now",
+      "effective": "Effective from",
+      "effectiveHelp": "In the company’s time zone ({{zone}})."
+    },
+    "tolerance": {
+      "title": "This rate moved {{change}}%, more than the {{tolerance}}% allowed",
+      "text": "The previous rate was 1 {{base}} = {{quote}} {{previous}}. The new rate is saved and in use, and the change is recorded for review. Check it was entered correctly.",
+      "dismiss": "Dismiss"
+    }
+  },
+  "taxes": {
+    "tabs": {
+      "codes": "Tax codes",
+      "categories": "Categories",
+      "priceLists": "Price lists"
+    },
+    "codesIntro": "Tax codes of {{name}} and the rate in force today.",
+    "percent": "{{value}}%",
+    "exempt": "Exempt",
+    "rateNeeded": "Rate needed",
+    "neededAlert_one": "{{count}} tax code has no confirmed rate. Add the rate from an official source before using it.",
+    "neededAlert_other": "{{count}} tax codes have no confirmed rate. Add the rates from an official source before using them.",
+    "rates": "Rates",
+    "ratesOf": "Rates of {{code}}",
+    "empty": "No tax codes yet.",
+    "emptyEdit": "No tax codes yet. Apply the country pack to add the standard codes.",
+    "columns": {
+      "code": "Code",
+      "name": "Name",
+      "kind": "Kind",
+      "rate": "Rate",
+      "since": "Since",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "vat": "VAT",
+      "withholding": "Withholding",
+      "excise": "Excise",
+      "exempt": "Exempt",
+      "zero_rated": "Zero-rated"
+    },
+    "sources": {
+      "pack": "Country pack",
+      "tenant": "Your business"
+    },
+    "history": {
+      "title": "Rates of {{code}}",
+      "rate": "Rate",
+      "from": "From",
+      "to": "To",
+      "open": "No end date",
+      "status": "Status",
+      "confirmed": "Confirmed",
+      "source": "Source",
+      "empty": "No rates yet."
+    },
+    "addRate": {
+      "action": "Add rate",
+      "actionFor": "Add a rate to {{code}}",
+      "title": "Add a rate to {{code}}",
+      "submit": "Add rate",
+      "intro": "The new rate applies from the date you choose. The previous rate ends the day before.",
+      "rate": "Rate",
+      "rateHelp": "A percentage, up to 4 decimals.",
+      "zeroRated": "A zero-rated code always has a rate of 0%.",
+      "rateRequired": "Enter the rate.",
+      "from": "Effective from",
+      "fromHelp": "A date in the company’s time zone.",
+      "fromRequired": "Choose the date the rate applies from."
+    },
+    "pack": {
+      "action": "Apply country pack",
+      "title": "Apply the {{country}} country pack?",
+      "text": "This adds the pack’s tax codes that this company doesn’t have yet. Codes you already have, and their rates, are never changed.",
+      "confirm": "Add missing codes",
+      "added_one": "{{count}} tax code added: {{codes}}.",
+      "added_other": "{{count}} tax codes added: {{codes}}.",
+      "nothing": "The company already has every code in the country pack. Nothing was added."
+    },
+    "categories": {
+      "intro": "Categories group items that are taxed the same way, with a default tax code per company.",
+      "add": "Add category",
+      "addTitle": "Add a tax category",
+      "name": "Name",
+      "scope": "Used by",
+      "shared": "All companies",
+      "codeHere": "Default code in {{name}}",
+      "noCode": "No default code",
+      "defaultCode": "Default tax code in {{name}}",
+      "empty": "No tax categories yet.",
+      "sharedNote": "Items are shared across your companies, so this category is shared too. Other companies set their own default code.",
+      "companyNote": "Items are kept per company, so this category belongs to {{name}}."
+    },
+    "priceLists": {
+      "intro": "Price lists hold the prices you sell at, in one currency each.",
+      "add": "Add price list",
+      "addTitle": "Add a price list",
+      "name": "Name",
+      "currency": "Currency",
+      "prices": "Prices",
+      "includeTax": "Include tax",
+      "excludeTax": "Exclude tax",
+      "default": "Default",
+      "defaultFor": "Default for {{currency}}",
+      "empty": "No price lists yet.",
+      "inclusive": "Prices include tax",
+      "inclusiveHelp": "Tax is part of the price shown to customers.",
+      "makeDefault": "Make this the default list for its currency",
+      "makeDefaultHelp": "The current default in that currency stops being the default."
+    }
+  },
+  "paymentMethods": {
+    "empty": "This company has no payment methods yet.",
+    "types": {
+      "cash": "Cash",
+      "mobile_money": "Mobile money",
+      "card": "Card",
+      "credit": "Credit",
+      "voucher": "Vouchers",
+      "points": "Loyalty points",
+      "bank_transfer": "Bank transfer"
+    },
+    "providers": {
+      "mpesa_ke": "M-Pesa (Safaricom Daraja)",
+      "airtel_ke": "Airtel Money Kenya",
+      "vodacom_mpesa_cd": "M-Pesa (Vodacom Congo)",
+      "orange_money_cd": "Orange Money",
+      "airtel_money_cd": "Airtel Money",
+      "afrimoney_cd": "Afrimoney",
+      "card_aggregator": "Card payments provider",
+      "other": "Payment provider"
+    },
+    "keys": {
+      "shortcode": "Shortcode",
+      "consumer_key": "Consumer key",
+      "consumer_secret": "Consumer secret",
+      "passkey": "Passkey",
+      "merchant_id": "Merchant ID",
+      "api_key": "API key",
+      "other": "Provider setting"
+    },
+    "status": {
+      "on": "On",
+      "off": "Off",
+      "setup": "Setup needed"
+    },
+    "toggle": "Use {{name}} at the till",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "errors": {
+      "notConfigured": "{{name}} can’t be switched on yet. Enter the {{keys}} in its settings first.",
+      "currencyNotActive": "{{name}} can’t be switched on because {{currency}} is switched off. Switch it on in Currencies first.",
+      "clearWhileOn": "{{name}} is switched on, so its settings can’t be removed. Switch it off first.",
+      "notConfiguredAny": "{{name}} can’t be switched on yet. Complete its settings first."
+    },
+    "settings": {
+      "action": "Settings",
+      "actionFor": "Settings for {{name}}",
+      "title": "{{name}} settings",
+      "save": "Save settings",
+      "missing": "Still needed: {{keys}}.",
+      "complete": "Everything the provider needs is saved.",
+      "secrets": "Credentials",
+      "secretsHelp": "Saved credentials are never shown. Replace one to enter a new value.",
+      "saved": "Saved",
+      "willRemove": "Removed when you save",
+      "replace": "Replace",
+      "replaceKey": "Replace {{key}}",
+      "remove": "Remove",
+      "removeKey": "Remove {{key}}",
+      "keep": "Keep"
+    }
+  },
+  "dimensions": {
+    "tabs": {
+      "department": "Departments",
+      "cost_centre": "Cost centres",
+      "project": "Projects"
+    },
+    "intro": {
+      "department": "Departments of the company, with the head who approves for each.",
+      "cost_centre": "Cost centres to track spending, with the owner who approves for each.",
+      "project": "Projects to track income and costs, with an owner for each."
+    },
+    "empty": {
+      "department": "No departments yet.",
+      "cost_centre": "No cost centres yet.",
+      "project": "No projects yet."
+    },
+    "add": {
+      "department": "Add department",
+      "cost_centre": "Add cost centre",
+      "project": "Add project"
+    },
+    "addTitle": {
+      "department": "Add a department",
+      "cost_centre": "Add a cost centre",
+      "project": "Add a project"
+    },
+    "archiveConfirm": {
+      "department": "Archive department",
+      "cost_centre": "Archive cost centre",
+      "project": "Archive project"
+    },
+    "editTitle": "Edit {{name}}",
+    "edit": "Edit",
+    "editName": "Edit {{name}}",
+    "archive": "Archive",
+    "archiveName": "Archive {{name}}",
+    "archiveTitle": "Archive {{name}}?",
+    "archiveText": "It can’t be used on new transactions. Past transactions keep it, and you can restore it later.",
+    "keep": "Keep it",
+    "restore": "Restore",
+    "restoreName": "Restore {{name}}",
+    "archived": "Archived",
+    "showArchived": "Show archived",
+    "owner": "Owner: {{name}}",
+    "ownerHidden": "someone you can’t see",
+    "noOwner": "No owner",
+    "fields": {
+      "code": "Code",
+      "codeHelp": "Letters, numbers, dots, hyphens and underscores, up to 30 characters.",
+      "name": "Name",
+      "parent": "Parent",
+      "noParent": "None (top level)",
+      "owner": "Owner",
+      "ownerHelp": "Someone who can view {{name}}. Approvals go to them.",
+      "noOwner": "No owner"
+    },
+    "errors": {
+      "inUse": "This record has active records under it. Move or archive them first.",
+      "parentArchived": "The parent of this record is archived. Restore the parent first."
+    }
+  },
+  "sharing": {
+    "types": {
+      "items": "Items",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "employees": "Employees"
+    },
+    "modes": {
+      "shared": "Shared across companies",
+      "per_company": "Per company"
+    },
+    "explain": {
+      "shared": "Every company in your group uses the same {{type}}. People see them wherever they work.",
+      "per_company": "Each company keeps its own {{type}}. People see only those of the companies they work in."
+    },
+    "changedAt": "Changed on {{date}}",
+    "change": "Change",
+    "changeFor": "Change sharing for {{type}}",
+    "dialog": {
+      "title": {
+        "per_company": "Keep {{type}} per company?",
+        "shared": "Share {{type}} across companies?"
+      },
+      "text": {
+        "per_company": "Each record will belong to one company.",
+        "shared": "Every company’s records will be visible across the group."
+      },
+      "points": {
+        "per_company": {
+          "one": "Records with no company yet go to the company you choose below.",
+          "two": "People then see only the records of the companies they work in.",
+          "three": "Codes must be unique within each company."
+        },
+        "shared": {
+          "one": "Records stop belonging to a company and every company can use them.",
+          "two": "People in any company can see every record.",
+          "three": "Codes must be unique across the whole group; the change is refused if two companies use the same code."
+        }
+      },
+      "company": "Company that receives records with no company",
+      "companyHelp": "Needed when some {{type}} have no company yet.",
+      "chooseCompany": "Choose a company",
+      "companyRequired": "Choose the company that receives these records.",
+      "understand": "I understand that every company’s {{type}} become visible across the group.",
+      "confirmRequired": "Tick the box to confirm.",
+      "keep": "Keep as it is",
+      "confirm": {
+        "per_company": "Keep per company",
+        "shared": "Share across companies"
+      }
+    },
+    "errors": {
+      "recordsNeedCompany_one": "{{count}} record has no company. Choose the company that receives it, then try again.",
+      "recordsNeedCompany_other": "{{count}} records have no company. Choose the company that receives them, then try again.",
+      "confirmationRequired": "Tick the box to confirm the change, then try again.",
+      "duplicateCodes": "More than one company uses these codes: {{values}}. Change them so each is unique, then try again."
+    },
+    "done": {
+      "assigned_one": "{{type}} are now kept per company. {{count}} record went to {{company}}.",
+      "assigned_other": "{{type}} are now kept per company. {{count}} records went to {{company}}.",
+      "perCompany": "{{type}} are now kept per company.",
+      "shared": "{{type}} are now shared across companies."
+    }
   }
 }

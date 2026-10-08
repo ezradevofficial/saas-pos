@@ -3,7 +3,7 @@ import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
 import { AuthLayout } from './layouts/AuthLayout'
-import { ORGANISATION_VIEW } from './layouts/navigation'
+import { DIMENSION_VIEW, EXCHANGE_RATE_VIEW, ORGANISATION_VIEW, PAYMENT_METHOD_VIEW, TAX_VIEW } from './layouts/navigation'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -15,12 +15,18 @@ import Verify from './pages/auth/Verify'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import Appearance from './pages/settings/Appearance'
+import Currencies from './pages/settings/Currencies'
+import Dimensions from './pages/settings/Dimensions'
+import ExchangeRates from './pages/settings/ExchangeRates'
 import InviteUser from './pages/settings/InviteUser'
+import MasterDataSharing from './pages/settings/MasterDataSharing'
 import Organisation from './pages/settings/Organisation'
+import PaymentMethods from './pages/settings/PaymentMethods'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
 import Sessions from './pages/settings/Sessions'
+import Taxes from './pages/settings/Taxes'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
 
@@ -135,6 +141,21 @@ export const routes = [
         element: (
           <RequirePermission permission="core.settings.edit" tenantWide>
             <Security />
+          </RequirePermission>
+        ),
+      },
+      ...[
+        ['/settings/currencies', 'core.currency.view', <Currencies key="currencies" />],
+        ['/settings/exchange-rates', EXCHANGE_RATE_VIEW, <ExchangeRates key="rates" />],
+        ['/settings/taxes', TAX_VIEW, <Taxes key="taxes" />],
+        ['/settings/payment-methods', PAYMENT_METHOD_VIEW, <PaymentMethods key="payment-methods" />],
+        ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      {
+        path: '/settings/sharing',
+        element: (
+          <RequirePermission permission="core.master_data_settings.edit" tenantWide>
+            <MasterDataSharing />
           </RequirePermission>
         ),
       },

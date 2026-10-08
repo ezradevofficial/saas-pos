@@ -144,6 +144,10 @@
 @utility max-w-content {
   max-width: calc(var(--space-10) * 32);
 }
+/* 384px: a lone picker or field above a page's content (company, currency pair, filter). */
+@utility max-w-field {
+  max-width: calc(var(--space-12) * 8);
+}
 /* 440px: the column of sign-in and sign-up forms. */
 @utility max-w-auth {
   max-width: calc(var(--space-10) * 11);
