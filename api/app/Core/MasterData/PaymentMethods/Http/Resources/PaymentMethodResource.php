@@ -11,7 +11,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * A payment method (MD-04). Secret values are never returned: `secrets_set`
  * names the secret keys that hold a value. `missing` lists the provider
- * keys still needed before the method can be switched on. Fields hidden by
+ * keys still needed before the method can be switched on; `setting_keys`
+ * and `secret_keys` name every key its provider takes (names only, so a
+ * settings form knows which fields are plain and which are secret). Fields hidden by
  * field rules on `payment_method` (RBAC-05) are left out, as in its history.
  *
  * @mixin PaymentMethod
@@ -22,7 +24,8 @@ class PaymentMethodResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $missing = app(PaymentProviders::class)->missing($this->resource);
+        $providers = app(PaymentProviders::class);
+        $missing = $providers->missing($this->resource);
 
         $fields = [
             'id' => $this->id,
@@ -35,6 +38,8 @@ class PaymentMethodResource extends JsonResource
             'provider' => $this->provider,
             'settings' => (object) ($this->settings ?? []),
             'secrets_set' => (object) $this->secretsSet(),
+            'setting_keys' => $providers->settingKeys($this->provider),
+            'secret_keys' => $providers->secretKeys($this->provider),
             'configured' => $missing === [],
             'missing' => $missing,
             'active' => $this->active,
@@ -46,6 +51,8 @@ class PaymentMethodResource extends JsonResource
         return HidesFields::apply($request, self::FIELD_RULES, $fields, [
             'name' => ['name_en', 'name_fr'],
             'secrets_set' => ['secrets'],
+            'setting_keys' => ['settings'],
+            'secret_keys' => ['secrets'],
             'configured' => ['settings', 'secrets'],
             'missing' => ['settings', 'secrets'],
         ]);

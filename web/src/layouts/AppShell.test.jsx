@@ -83,7 +83,7 @@ describe('app shell navigation', () => {
       [{ id: 'g', label: () => 'G', items: [{ to: '/x', label: () => 'X', module: 'inventory' }] }, ...NAV_GROUPS],
       { can: () => true, hasModule: (m) => m === 'core' },
     )
-    expect(groups.map((g) => g.id)).toEqual(['overview', 'settings'])
+    expect(groups.map((g) => g.id)).toEqual(['overview', 'settings', 'finance', 'masterData'])
   })
 
   it('offers all companies to a tenant-wide user and remembers the choice', async () => {

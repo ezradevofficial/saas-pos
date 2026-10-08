@@ -12,6 +12,14 @@ const KNOWN = new Set([
   'device_not_pairable',
   'device_not_suspended',
   'forbidden',
+  'currency_in_use',
+  'currency_decimals_locked',
+  'too_many_reporting_currencies',
+  'currency_not_active',
+  'country_pack_missing',
+  'payment_method_order_invalid',
+  'dimension_in_use',
+  'confirmation_required',
 ])
 
 /**

@@ -70,3 +70,35 @@ export function renderApp(path = '/') {
   )
   return { ...utils, router, queryClient }
 }
+
+/**
+ * GET answers matched by exact path or RegExp, before mockApi's defaults
+ * (which answer every `companies…` path with the company list).
+ */
+export function mockRoutes(api, routes, options = {}) {
+  mockApi(api, options)
+  const fallback = api.get.getMockImplementation()
+  api.get.mockImplementation(async (path) => {
+    for (const [match, answer] of routes) {
+      if (typeof match === 'string' ? path === match : match.test(path)) {
+        if (answer instanceof Error) throw answer
+        return typeof answer === 'function' ? answer(path) : answer
+      }
+    }
+    return fallback(path)
+  })
+}
+
+/** Every listed permission, tenant-wide. */
+export const tenantWide = (names) => names.map((name) => ({ name, scopes: [{ type: 'tenant', id: 't-1' }] }))
+
+/** A DR Congo company (CDF, Kinshasa time). */
+export const CD_COMPANY = {
+  id: 'c-1',
+  name: 'Kin Market',
+  country: 'CD',
+  base_currency: 'CDF',
+  base_currency_locked: false,
+  timezone: 'Africa/Kinshasa',
+  archived_at: null,
+}

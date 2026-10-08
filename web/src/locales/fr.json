@@ -66,6 +66,15 @@
       "dark": "Sombre",
       "executive": "Exécutif",
       "warm": "Chaleureux"
+    },
+    "numberInput": {
+      "format": "Saisissez un nombre comme {{example}}.",
+      "decimals_one": "Utilisez au plus {{count}} décimale.",
+      "decimals_other": "Utilisez au plus {{count}} décimales.",
+      "integer": "Ce nombre est trop grand. Vérifiez-le et réessayez.",
+      "positive": "Saisissez un nombre supérieur à zéro.",
+      "range": "Saisissez un nombre jusqu’à {{max}}.",
+      "noDecimals": "Cette devise n’a pas de décimales. Saisissez un nombre entier."
     }
   },
   "dev": {
@@ -175,14 +184,24 @@
       "system_role": "Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.",
       "device_not_pairable": "Cet appareil est déjà associé ou suspendu. Dissociez-le avant de l’associer de nouveau.",
       "device_not_suspended": "Cet appareil n’est pas suspendu : il n’y a rien à réactiver.",
-      "forbidden": "Vous n’avez pas l’autorisation de faire cela. Demandez-la à un administrateur si nécessaire."
+      "forbidden": "Vous n’avez pas l’autorisation de faire cela. Demandez-la à un administrateur si nécessaire.",
+      "currency_in_use": "Une société utilise cette devise comme devise de base ou de reporting. Modifiez d’abord cette société.",
+      "currency_decimals_locked": "Des montants sont déjà enregistrés dans cette devise : ses décimales ne peuvent plus changer.",
+      "too_many_reporting_currencies": "Une société peut avoir au plus 3 devises de reporting. Retirez-en une d’abord.",
+      "currency_not_active": "Cette devise est désactivée. Activez-la d’abord dans Devises.",
+      "country_pack_missing": "Aucun pack pays n’est encore publié pour le pays de cette société. Ajoutez les codes de taxe à la main pour l’instant.",
+      "payment_method_order_invalid": "La liste a changé pendant que vous la réordonniez. Rechargez la page et réessayez.",
+      "dimension_in_use": "Cette fiche a des fiches actives en dessous. Déplacez-les ou archivez-les d’abord.",
+      "confirmation_required": "Confirmez le changement pour continuer."
     }
   },
   "nav": {
     "label": "Principal",
     "groups": {
       "overview": "Vue d'ensemble",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "finance": "Finances",
+      "masterData": "Données de référence"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -190,7 +209,13 @@
     "roles": "Rôles",
     "security": "Sécurité",
     "appearance": "Apparence",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "currencies": "Devises",
+    "exchangeRates": "Taux de change",
+    "taxes": "Taxes",
+    "paymentMethods": "Moyens de paiement",
+    "dimensions": "Axes analytiques",
+    "sharing": "Partage"
   },
   "shell": {
     "account": "Menu du compte",
@@ -337,6 +362,30 @@
     "roles": {
       "title": "Rôles",
       "description": "Ce que chaque rôle peut faire, et où."
+    },
+    "currencies": {
+      "title": "Devises",
+      "description": "Les devises de votre entreprise, et la devise de base et de reporting de chaque société."
+    },
+    "exchangeRates": {
+      "title": "Taux de change",
+      "description": "Taux de référence, taux de la boutique et leur historique, par société."
+    },
+    "taxes": {
+      "title": "Taxes",
+      "description": "Codes de taxe et leurs taux, catégories de taxe et listes de prix."
+    },
+    "paymentMethods": {
+      "title": "Moyens de paiement",
+      "description": "Comment les clients paient à la caisse, dans l’ordre affiché par la caisse."
+    },
+    "dimensions": {
+      "title": "Axes analytiques",
+      "description": "Départements, centres de coûts et projets pour classer les opérations."
+    },
+    "sharing": {
+      "title": "Partage",
+      "description": "Si chaque type de fiche est partagé entre vos sociétés ou propre à chaque société."
     }
   },
   "appearance": {
@@ -689,5 +738,430 @@
     "defaultLocale": "Langue par défaut",
     "defaultLocaleHelp": "Utilisée pour les e-mails et pour les personnes qui n’ont pas choisi de langue.",
     "saved": "Paramètres enregistrés."
+  },
+  "finance": {
+    "company": {
+      "label": "Société",
+      "help": "Ces paramètres s’appliquent à une société à la fois.",
+      "none": "Vous devez avoir accès à une société pour utiliser cette page. Demandez à un administrateur."
+    }
+  },
+  "currencies": {
+    "tenant": {
+      "title": "Devises utilisées",
+      "description": "Les devises activées sont utilisables par chaque société pour les prix, les paiements et les taux.",
+      "empty": "Aucune devise pour l’instant. Ajoutez les devises de votre entreprise."
+    },
+    "columns": {
+      "currency": "Devise",
+      "decimals": "Décimales",
+      "rounding": "Arrondi espèces",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Activée",
+      "inactive": "Désactivée"
+    },
+    "toggle": "Utiliser {{code}}",
+    "editCode": "Modifier {{code}}",
+    "add": {
+      "action": "Ajouter une devise",
+      "title": "Ajouter une devise",
+      "submit": "Ajouter la devise",
+      "choose": "Choisissez une devise",
+      "chooseCurrency": "Choisissez la devise à ajouter."
+    },
+    "edit": {
+      "action": "Modifier",
+      "title": "Modifier {{code}}"
+    },
+    "fields": {
+      "currency": "Devise",
+      "decimals": "Décimales",
+      "decimalsHelp": "Le nombre de décimales des montants dans cette devise. Il ne peut plus changer une fois des montants enregistrés.",
+      "decimalsLocked": "Des montants sont déjà enregistrés dans cette devise : ses décimales sont verrouillées.",
+      "rounding": "Arrondi espèces",
+      "roundingHelp": "Les totaux en espèces sont arrondis à un multiple de ce montant, par exemple CDF 50 ou KES 1,00.",
+      "roundingInvalid": "Saisissez un arrondi valide, ou laissez le champ vide.",
+      "roundingRequired": "Saisissez le montant de l’arrondi."
+    },
+    "company": {
+      "subtitle": "Devises de base et de reporting",
+      "locked": "Devise de base verrouillée",
+      "base": "Devise de base",
+      "baseHelp": "La comptabilité est tenue dans cette devise. Elle se verrouille après la première écriture.",
+      "baseLocked": "La devise de base est verrouillée car des montants y ont été comptabilisés.",
+      "reporting": "Devises de reporting",
+      "reportingHelp_one": "Les rapports peuvent aussi montrer les totaux dans {{count}} autre devise au plus.",
+      "reportingHelp_other": "Les rapports peuvent aussi montrer les totaux dans {{count}} autres devises au plus.",
+      "reportingN": "Devise de reporting {{n}}",
+      "none": "Aucune",
+      "save": "Enregistrer les devises",
+      "saved": "Devises enregistrées."
+    }
+  },
+  "rates": {
+    "pair": "Paire de devises",
+    "pairHelp": "Les heures sont affichées dans le fuseau horaire de la société ({{zone}}).",
+    "noPairs": "Activez au moins deux devises dans Devises pour saisir des taux de change.",
+    "current": {
+      "title": "Taux pour {{pair}}",
+      "inUse": "Utilisé",
+      "reference": "Taux de référence",
+      "referenceHelp": "Issu du flux de la banque centrale",
+      "referenceEmpty": "Aucun taux de référence pour l’instant.",
+      "shop": "Taux de la boutique",
+      "shopHelp": "Fixé par votre entreprise ; utilisé à la caisse s’il existe",
+      "shopEmpty": "Aucun taux de la boutique pour l’instant. Fixez-en un pour utiliser votre propre taux à la caisse."
+    },
+    "fields": {
+      "mid": "Taux",
+      "buy": "Achat",
+      "sell": "Vente",
+      "effective": "En vigueur"
+    },
+    "kinds": {
+      "reference": "Référence",
+      "shop": "Boutique"
+    },
+    "directions": {
+      "direct": "Dans ce sens",
+      "inverse": "Sens inverse"
+    },
+    "sources": {
+      "manual": "Saisi à la main",
+      "bcc": "Banque Centrale du Congo",
+      "cbk": "Banque centrale du Kenya",
+      "fake": "Flux de test",
+      "feed": "Flux de taux"
+    },
+    "columns": {
+      "effective": "En vigueur",
+      "kind": "Type",
+      "mid": "Taux",
+      "buy": "Achat",
+      "sell": "Vente",
+      "direction": "Sens",
+      "source": "Source"
+    },
+    "history": {
+      "title": "Historique",
+      "kind": "Type",
+      "allKinds": "Tous les types",
+      "caption": "Historique des taux pour {{pair}}",
+      "empty": "Aucun taux pour cette paire pour l’instant.",
+      "page": "Page {{page}} sur {{pages}}",
+      "newer": "Plus récents",
+      "older": "Plus anciens"
+    },
+    "dialog": {
+      "action": "Fixer le taux boutique",
+      "title": "Fixer le taux boutique pour {{pair}}",
+      "submit": "Enregistrer le taux",
+      "intro": "Saisissez combien de {{quote}} vaut un {{base}}.",
+      "mid": "Taux (1 {{base}} en {{quote}})",
+      "midRequired": "Saisissez le taux.",
+      "buy": "Taux d’achat",
+      "buyHelp": "Ce que vous payez pour 1 {{base}}. Facultatif.",
+      "sell": "Taux de vente",
+      "sellHelp": "Ce que vous facturez pour 1 {{base}}. Facultatif.",
+      "now": "En vigueur maintenant",
+      "effective": "En vigueur à partir de",
+      "effectiveHelp": "Dans le fuseau horaire de la société ({{zone}})."
+    },
+    "tolerance": {
+      "title": "Ce taux a varié de {{change}} %, plus que les {{tolerance}} % autorisés",
+      "text": "Le taux précédent était 1 {{base}} = {{quote}} {{previous}}. Le nouveau taux est enregistré et utilisé, et la variation est consignée pour vérification. Vérifiez qu’il a été saisi correctement.",
+      "dismiss": "Masquer"
+    }
+  },
+  "taxes": {
+    "tabs": {
+      "codes": "Codes de taxe",
+      "categories": "Catégories",
+      "priceLists": "Listes de prix"
+    },
+    "codesIntro": "Codes de taxe de {{name}} et le taux en vigueur aujourd’hui.",
+    "percent": "{{value}} %",
+    "exempt": "Exonéré",
+    "rateNeeded": "Taux à saisir",
+    "neededAlert_one": "{{count}} code de taxe n’a pas de taux confirmé. Ajoutez le taux d’après une source officielle avant de l’utiliser.",
+    "neededAlert_other": "{{count}} codes de taxe n’ont pas de taux confirmé. Ajoutez les taux d’après une source officielle avant de les utiliser.",
+    "rates": "Taux",
+    "ratesOf": "Taux de {{code}}",
+    "empty": "Aucun code de taxe pour l’instant.",
+    "emptyEdit": "Aucun code de taxe pour l’instant. Appliquez le pack pays pour ajouter les codes standard.",
+    "columns": {
+      "code": "Code",
+      "name": "Nom",
+      "kind": "Type",
+      "rate": "Taux",
+      "since": "Depuis",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "vat": "TVA",
+      "withholding": "Retenue à la source",
+      "excise": "Accises",
+      "exempt": "Exonéré",
+      "zero_rated": "Taux zéro"
+    },
+    "sources": {
+      "pack": "Pack pays",
+      "tenant": "Votre entreprise"
+    },
+    "history": {
+      "title": "Taux de {{code}}",
+      "rate": "Taux",
+      "from": "Du",
+      "to": "Au",
+      "open": "Sans date de fin",
+      "status": "Statut",
+      "confirmed": "Confirmé",
+      "source": "Source",
+      "empty": "Aucun taux pour l’instant."
+    },
+    "addRate": {
+      "action": "Ajouter un taux",
+      "actionFor": "Ajouter un taux à {{code}}",
+      "title": "Ajouter un taux à {{code}}",
+      "submit": "Ajouter le taux",
+      "intro": "Le nouveau taux s’applique à partir de la date choisie. Le taux précédent prend fin la veille.",
+      "rate": "Taux",
+      "rateHelp": "Un pourcentage, jusqu’à 4 décimales.",
+      "zeroRated": "Un code à taux zéro a toujours un taux de 0 %.",
+      "rateRequired": "Saisissez le taux.",
+      "from": "En vigueur à partir du",
+      "fromHelp": "Une date dans le fuseau horaire de la société.",
+      "fromRequired": "Choisissez la date d’application du taux."
+    },
+    "pack": {
+      "action": "Appliquer le pack pays",
+      "title": "Appliquer le pack pays {{country}} ?",
+      "text": "Cela ajoute les codes de taxe du pack que cette société n’a pas encore. Les codes existants et leurs taux ne sont jamais modifiés.",
+      "confirm": "Ajouter les codes manquants",
+      "added_one": "{{count}} code de taxe ajouté : {{codes}}.",
+      "added_other": "{{count}} codes de taxe ajoutés : {{codes}}.",
+      "nothing": "La société a déjà tous les codes du pack pays. Rien n’a été ajouté."
+    },
+    "categories": {
+      "intro": "Les catégories regroupent les articles taxés de la même façon, avec un code de taxe par défaut par société.",
+      "add": "Ajouter une catégorie",
+      "addTitle": "Ajouter une catégorie de taxe",
+      "name": "Nom",
+      "scope": "Utilisée par",
+      "shared": "Toutes les sociétés",
+      "codeHere": "Code par défaut dans {{name}}",
+      "noCode": "Aucun code par défaut",
+      "defaultCode": "Code de taxe par défaut dans {{name}}",
+      "empty": "Aucune catégorie de taxe pour l’instant.",
+      "sharedNote": "Les articles sont partagés entre vos sociétés : cette catégorie l’est aussi. Les autres sociétés choisissent leur propre code par défaut.",
+      "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}."
+    },
+    "priceLists": {
+      "intro": "Les listes de prix contiennent vos prix de vente, chacune dans une devise.",
+      "add": "Ajouter une liste de prix",
+      "addTitle": "Ajouter une liste de prix",
+      "name": "Nom",
+      "currency": "Devise",
+      "prices": "Prix",
+      "includeTax": "TTC",
+      "excludeTax": "HT",
+      "default": "Par défaut",
+      "defaultFor": "Par défaut en {{currency}}",
+      "empty": "Aucune liste de prix pour l’instant.",
+      "inclusive": "Les prix incluent la taxe",
+      "inclusiveHelp": "La taxe fait partie du prix affiché aux clients.",
+      "makeDefault": "En faire la liste par défaut de sa devise",
+      "makeDefaultHelp": "La liste par défaut actuelle dans cette devise ne le sera plus."
+    }
+  },
+  "paymentMethods": {
+    "empty": "Cette société n’a pas encore de moyen de paiement.",
+    "types": {
+      "cash": "Espèces",
+      "mobile_money": "Mobile money",
+      "card": "Carte",
+      "credit": "Crédit",
+      "voucher": "Bons d’achat",
+      "points": "Points de fidélité",
+      "bank_transfer": "Virement bancaire"
+    },
+    "providers": {
+      "mpesa_ke": "M-Pesa (Safaricom Daraja)",
+      "airtel_ke": "Airtel Money Kenya",
+      "vodacom_mpesa_cd": "M-Pesa (Vodacom Congo)",
+      "orange_money_cd": "Orange Money",
+      "airtel_money_cd": "Airtel Money",
+      "afrimoney_cd": "Afrimoney",
+      "card_aggregator": "Prestataire de paiement par carte",
+      "other": "Prestataire de paiement"
+    },
+    "keys": {
+      "shortcode": "Numéro court",
+      "consumer_key": "Clé client",
+      "consumer_secret": "Secret client",
+      "passkey": "Clé d’accès",
+      "merchant_id": "Identifiant marchand",
+      "api_key": "Clé d’API",
+      "other": "Paramètre du prestataire"
+    },
+    "status": {
+      "on": "Activé",
+      "off": "Désactivé",
+      "setup": "À configurer"
+    },
+    "toggle": "Utiliser {{name}} à la caisse",
+    "moveUp": "Monter {{name}}",
+    "moveDown": "Descendre {{name}}",
+    "errors": {
+      "notConfigured": "{{name}} ne peut pas encore être activé. Saisissez d’abord {{keys}} dans ses paramètres.",
+      "currencyNotActive": "{{name}} ne peut pas être activé car {{currency}} est désactivée. Activez-la d’abord dans Devises.",
+      "clearWhileOn": "{{name}} est activé : ses paramètres ne peuvent pas être retirés. Désactivez-le d’abord.",
+      "notConfiguredAny": "{{name}} ne peut pas encore être activé. Complétez d’abord ses paramètres."
+    },
+    "settings": {
+      "action": "Paramètres",
+      "actionFor": "Paramètres de {{name}}",
+      "title": "Paramètres de {{name}}",
+      "save": "Enregistrer les paramètres",
+      "missing": "Encore requis : {{keys}}.",
+      "complete": "Tout ce dont le prestataire a besoin est enregistré.",
+      "secrets": "Identifiants",
+      "secretsHelp": "Les identifiants enregistrés ne sont jamais affichés. Remplacez-en un pour saisir une nouvelle valeur.",
+      "saved": "Enregistré",
+      "willRemove": "Retiré à l’enregistrement",
+      "replace": "Remplacer",
+      "replaceKey": "Remplacer {{key}}",
+      "remove": "Retirer",
+      "removeKey": "Retirer {{key}}",
+      "keep": "Conserver"
+    }
+  },
+  "dimensions": {
+    "tabs": {
+      "department": "Départements",
+      "cost_centre": "Centres de coûts",
+      "project": "Projets"
+    },
+    "intro": {
+      "department": "Les départements de la société, avec le responsable qui approuve pour chacun.",
+      "cost_centre": "Les centres de coûts pour suivre les dépenses, avec le responsable qui approuve pour chacun.",
+      "project": "Les projets pour suivre recettes et coûts, avec un responsable pour chacun."
+    },
+    "empty": {
+      "department": "Aucun département pour l’instant.",
+      "cost_centre": "Aucun centre de coûts pour l’instant.",
+      "project": "Aucun projet pour l’instant."
+    },
+    "add": {
+      "department": "Ajouter un département",
+      "cost_centre": "Ajouter un centre de coûts",
+      "project": "Ajouter un projet"
+    },
+    "addTitle": {
+      "department": "Ajouter un département",
+      "cost_centre": "Ajouter un centre de coûts",
+      "project": "Ajouter un projet"
+    },
+    "archiveConfirm": {
+      "department": "Archiver le département",
+      "cost_centre": "Archiver le centre de coûts",
+      "project": "Archiver le projet"
+    },
+    "editTitle": "Modifier {{name}}",
+    "edit": "Modifier",
+    "editName": "Modifier {{name}}",
+    "archive": "Archiver",
+    "archiveName": "Archiver {{name}}",
+    "archiveTitle": "Archiver {{name}} ?",
+    "archiveText": "Il ne pourra plus servir pour de nouvelles opérations. Les opérations passées le conservent, et vous pourrez le restaurer plus tard.",
+    "keep": "Le conserver",
+    "restore": "Restaurer",
+    "restoreName": "Restaurer {{name}}",
+    "archived": "Archivé",
+    "showArchived": "Afficher les archivés",
+    "owner": "Responsable : {{name}}",
+    "ownerHidden": "une personne que vous ne voyez pas",
+    "noOwner": "Aucun responsable",
+    "fields": {
+      "code": "Code",
+      "codeHelp": "Lettres, chiffres, points, tirets et traits de soulignement, jusqu’à 30 caractères.",
+      "name": "Nom",
+      "parent": "Fiche parente",
+      "noParent": "Aucun (premier niveau)",
+      "owner": "Responsable",
+      "ownerHelp": "Une personne qui peut voir {{name}}. Les approbations lui sont envoyées.",
+      "noOwner": "Aucun responsable"
+    },
+    "errors": {
+      "inUse": "Cette fiche a des fiches actives en dessous. Déplacez-les ou archivez-les d’abord.",
+      "parentArchived": "Le parent de cette fiche est archivé. Restaurez d’abord le parent."
+    }
+  },
+  "sharing": {
+    "types": {
+      "items": "Articles",
+      "customers": "Clients",
+      "suppliers": "Fournisseurs",
+      "employees": "Employés"
+    },
+    "modes": {
+      "shared": "Partagés entre les sociétés",
+      "per_company": "Par société"
+    },
+    "explain": {
+      "shared": "Toutes les sociétés du groupe utilisent les mêmes {{type}}. Chacun les voit, où qu’il travaille.",
+      "per_company": "Chaque société a ses propres {{type}}. Chacun ne voit que ceux des sociétés où il travaille."
+    },
+    "changedAt": "Modifié le {{date}}",
+    "change": "Modifier",
+    "changeFor": "Modifier le partage des {{type}}",
+    "dialog": {
+      "title": {
+        "per_company": "Rendre les {{type}} propres à chaque société ?",
+        "shared": "Partager les {{type}} entre les sociétés ?"
+      },
+      "text": {
+        "per_company": "Chaque fiche appartiendra à une société.",
+        "shared": "Les fiches de chaque société seront visibles dans tout le groupe."
+      },
+      "points": {
+        "per_company": {
+          "one": "Les fiches sans société sont rattachées à la société choisie ci-dessous.",
+          "two": "Chacun ne voit ensuite que les fiches des sociétés où il travaille.",
+          "three": "Les codes doivent être uniques dans chaque société."
+        },
+        "shared": {
+          "one": "Les fiches ne sont plus rattachées à une société et toutes les sociétés peuvent les utiliser.",
+          "two": "Les personnes de toutes les sociétés voient toutes les fiches.",
+          "three": "Les codes doivent être uniques dans tout le groupe ; le changement est refusé si deux sociétés utilisent le même code."
+        }
+      },
+      "company": "Société qui reçoit les fiches sans société",
+      "companyHelp": "Nécessaire si des {{type}} n’ont pas encore de société.",
+      "chooseCompany": "Choisissez une société",
+      "companyRequired": "Choisissez la société qui reçoit ces fiches.",
+      "understand": "Je comprends que les {{type}} de chaque société deviennent visibles dans tout le groupe.",
+      "confirmRequired": "Cochez la case pour confirmer.",
+      "keep": "Ne rien changer",
+      "confirm": {
+        "per_company": "Rendre propres à chaque société",
+        "shared": "Partager entre les sociétés"
+      }
+    },
+    "errors": {
+      "recordsNeedCompany_one": "{{count}} fiche n’a pas de société. Choisissez la société qui la reçoit, puis réessayez.",
+      "recordsNeedCompany_other": "{{count}} fiches n’ont pas de société. Choisissez la société qui les reçoit, puis réessayez.",
+      "confirmationRequired": "Cochez la case pour confirmer le changement, puis réessayez.",
+      "duplicateCodes": "Plusieurs sociétés utilisent ces codes : {{values}}. Modifiez-les pour qu’ils soient uniques, puis réessayez."
+    },
+    "done": {
+      "assigned_one": "Les {{type}} sont maintenant propres à chaque société. {{count}} fiche a été rattachée à {{company}}.",
+      "assigned_other": "Les {{type}} sont maintenant propres à chaque société. {{count}} fiches ont été rattachées à {{company}}.",
+      "perCompany": "Les {{type}} sont maintenant propres à chaque société.",
+      "shared": "Les {{type}} sont maintenant partagés entre les sociétés."
+    }
   }
 }
