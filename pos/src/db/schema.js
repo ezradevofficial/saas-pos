@@ -17,7 +17,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -36,6 +36,22 @@ export const schema = appSchema({
         { name: 'name', type: 'string' },
         { name: 'category_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'sellable', type: 'boolean' },
+        serverUpdatedAt,
+        data,
+        seenAt,
+      ],
+    }),
+    // v3: prices per list, item and unit (incremental; tombstones when unusable).
+    tableSchema({
+      name: 'item_prices',
+      columns: [
+        { name: 'price_list_id', type: 'string', isIndexed: true },
+        { name: 'item_id', type: 'string', isIndexed: true },
+        { name: 'uom_id', type: 'string' },
+        { name: 'amount_minor', type: 'string' },
+        { name: 'currency', type: 'string' },
+        { name: 'effective_from', type: 'string' },
+        { name: 'min_quantity', type: 'string' },
         serverUpdatedAt,
         data,
         seenAt,

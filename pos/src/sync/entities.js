@@ -71,6 +71,19 @@ registerEntity('items', {
     },
   ],
 });
+registerEntity('item_prices', {
+  table: 'item_prices',
+  columns: (row) => ({
+    price_list_id: row.price_list_id,
+    item_id: row.item_id,
+    uom_id: row.uom_id,
+    amount_minor: String(row.amount_minor),
+    currency: row.currency,
+    effective_from: row.effective_from,
+    min_quantity: String(row.min_quantity ?? '1'),
+    server_updated_at: row.updated_at ?? null,
+  }),
+});
 registerEntity('customers', {
   table: 'customers',
   columns: (row) => ({

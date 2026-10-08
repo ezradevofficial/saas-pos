@@ -1,4 +1,4 @@
-import { addColumns, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
+import { addColumns, createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
 
 /**
  * One step per schema version after 1 (src/db/schema.js); a test checks
@@ -30,6 +30,27 @@ export const migrations = schemaMigrations({
         ...SYNCED_TABLES.map((table) => addColumns({ table, columns: [{ name: 'seen_at', type: 'number', isIndexed: true }] })),
         addColumns({ table: 'outbox', columns: [{ name: 'group_key', type: 'string', isOptional: true, isIndexed: true }] }),
         addColumns({ table: 'local_pin_attempts', columns: [{ name: 'report_failed', type: 'number' }] }),
+      ],
+    },
+    {
+      // Item prices per list, item and unit (incremental sync entity `item_prices`).
+      toVersion: 3,
+      steps: [
+        createTable({
+          name: 'item_prices',
+          columns: [
+            { name: 'price_list_id', type: 'string', isIndexed: true },
+            { name: 'item_id', type: 'string', isIndexed: true },
+            { name: 'uom_id', type: 'string' },
+            { name: 'amount_minor', type: 'string' },
+            { name: 'currency', type: 'string' },
+            { name: 'effective_from', type: 'string' },
+            { name: 'min_quantity', type: 'string' },
+            { name: 'server_updated_at', type: 'string', isOptional: true },
+            { name: 'data', type: 'string' },
+            { name: 'seen_at', type: 'number', isIndexed: true },
+          ],
+        }),
       ],
     },
   ],
