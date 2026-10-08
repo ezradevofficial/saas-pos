@@ -1,0 +1,23 @@
+{
+    "code": "KE",
+    "notes": "Public holidays that fall on the same date every year. Movable and gazetted holidays are not entered until their dates are confirmed from an official source; they are listed in todo. Labels live in lang/{locale}/holidays.php.",
+    "sources": [],
+    "todo": [
+        "Cite the official source for every entry (Public Holidays Act, Cap. 110, and its amendments).",
+        "Good Friday and Easter Monday: movable (Easter); enter the dates per year or confirm a computation rule.",
+        "Idd-ul-Fitr: date set by gazette notice each year (lunar calendar).",
+        "Idd-ul-Azha: gazetted when declared; confirm whether it is a public holiday each year.",
+        "10 October (formerly Moi Day, then Utamaduni Day, recently re-designated): confirm its current status and name.",
+        "A holiday falling on a Sunday: confirm the rule that the following Monday is a public holiday, then implement it.",
+        "One-off holidays declared by gazette notice (e.g. national events): enter them as single dates when declared."
+    ],
+    "holidays": [
+        {"key": "new_year", "month": 1, "day": 1},
+        {"key": "labour_day", "month": 5, "day": 1},
+        {"key": "madaraka_day", "month": 6, "day": 1},
+        {"key": "mashujaa_day", "month": 10, "day": 20},
+        {"key": "jamhuri_day", "month": 12, "day": 12},
+        {"key": "christmas_day", "month": 12, "day": 25},
+        {"key": "boxing_day", "month": 12, "day": 26}
+    ]
+}

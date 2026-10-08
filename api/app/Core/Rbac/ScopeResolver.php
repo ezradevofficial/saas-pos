@@ -235,6 +235,18 @@ class ScopeResolver
     }
 
     /**
+     * `type:id` of $target and every scope above it (its branch and company
+     * read from the database), or null when the target is not in the
+     * current tenant. Used to list who holds a role at a place (WF-10).
+     *
+     * @return list<string>|null
+     */
+    public function chainOf(Scope $target): ?array
+    {
+        return $this->chain($target);
+    }
+
+    /**
      * `type:id` of $target and every scope above it, or null when the target
      * is not in the current tenant.
      *

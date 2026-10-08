@@ -34,6 +34,7 @@ return [
                 'price_list' => 'Price lists',
                 'payment_method' => 'Payment methods',
                 'dimension' => 'Departments, cost centres and projects',
+                'workflow' => 'Workflows',
                 'notification_template' => 'Notification templates',
                 'notification_settings' => 'Notification settings',
                 'notification_delivery' => 'Notification deliveries',
@@ -51,6 +52,7 @@ return [
             'export' => 'Export',
             'override' => 'Override',
             'configure' => 'Configure',
+            'publish' => 'Publish',
         ],
     ],
 
