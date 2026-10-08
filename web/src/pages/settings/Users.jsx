@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, ListView, StatusBadge, Tabs } from '@/components/ds'
+import { Alert, Button, ListView, Select, StatusBadge, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
@@ -17,6 +17,8 @@ import { RoleList } from './users/RoleList'
 
 const TABS = ['active', 'invitations', 'deactivated']
 const INVITATION_TONES = { pending: 'warning', expired: 'neutral', accepted: 'success', revoked: 'neutral' }
+/** The invitations' status filter: open (pending or expired, the ones to act on) by default. */
+const INVITATION_FILTERS = ['open', 'pending', 'expired', 'accepted', 'revoked', 'all']
 
 /** Downloads the access review CSV with the bearer token (RBAC-11). */
 async function exportAccessReview() {
@@ -94,9 +96,10 @@ function UsersTable({ status, canInvite, onInvite }) {
 }
 
 /**
- * Invitations with revoke (AUTH-05): every status, newest first, with
- * search, sort, pages, columns and export (EXP-01). Assignments carry ids
- * only; names come from the role and scope lists.
+ * Invitations with revoke (AUTH-05): open ones (pending or expired) by
+ * default, any status on request; newest first, with search, sort, pages,
+ * columns and export (EXP-01). Assignments carry ids only; names come
+ * from the role and scope lists.
  */
 function InvitationsTable({ canInvite, onInvite }) {
   const { t } = useTranslation()
@@ -181,7 +184,8 @@ function InvitationsTable({ canInvite, onInvite }) {
     ),
   ]
 
-  const list = useServerList({ id: 'invitations', endpoint: 'invitations', queryKey: ['invitations'], columns })
+  const list = useServerList({ id: 'invitations', endpoint: 'invitations', queryKey: ['invitations'], filters: { status: 'open' }, columns })
+  const { status } = list.filters
 
   return (
     <>
@@ -189,9 +193,20 @@ function InvitationsTable({ canInvite, onInvite }) {
         list={list}
         title={t('users.tabs.invitations')}
         searchPlaceholder={t('users.searchPlaceholder')}
+        filters={
+          <Select
+            label={t('users.filters.status')}
+            className="min-w-0 flex-1"
+            options={INVITATION_FILTERS.map((value) => ({ value, label: t(`users.invitationFilter.${value}`) }))}
+            value={status}
+            onChange={(event) => list.setFilter('status', event.target.value)}
+          />
+        }
         emptyText={
           list.term ? (
             t('users.emptyFiltered')
+          ) : status !== 'open' ? (
+            t('users.emptyStatus')
           ) : canInvite ? (
             <span className="flex flex-col items-center gap-3">
               {t('users.empty.invitations')}

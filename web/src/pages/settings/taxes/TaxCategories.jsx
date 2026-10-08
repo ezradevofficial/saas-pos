@@ -6,7 +6,6 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Dialog, ListView, Select, TextField } from '@/components/ds'
-import { useCompanies } from '@/layouts/companySelection'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useServerList } from '@/lib/useServerList'
 import { companyScope } from '../finance/useSettingsCompany'
@@ -81,25 +80,22 @@ function AddCategoryDialog({ company, shared, codes, onClose }) {
 }
 
 /**
- * MD-03: tax categories (shared, or a company's) the user reaches, and the
- * default tax code each has in this company; search, sort, pages, columns
- * and export (EXP-01, LAY-04). The API lists every reached company's
- * categories (it has no company filter), so "Used by" names the company.
+ * MD-03: tax categories shared by every company and this company's own
+ * (`?company=`), and the default tax code each has here; search, sort,
+ * pages, columns and export (EXP-01, LAY-04).
  */
 export function TaxCategories({ company }) {
   const { t } = useTranslation()
   const { can, tenantWide } = usePermissions()
   const [adding, setAdding] = useState(false)
-  const { companies } = useCompanies()
   const sharing = useQuery({ queryKey: ['master-data-settings'], queryFn: () => api.get('master-data/settings') })
   const codes = useQuery({ queryKey: ['tax-codes', company.id], queryFn: () => api.get(`companies/${company.id}/tax-codes?per_page=200`) })
   const shared = (sharing.data?.data ?? []).find((entry) => entry.data_type === 'items')?.mode !== 'per_company'
   const canAdd = sharing.isSuccess && (shared ? tenantWide('core.tax.edit') : can('core.tax.edit', companyScope(company)))
 
-  const companyName = (id) => (id === company.id ? company.name : (companies.find((entry) => entry.id === id)?.name ?? t('taxes.categories.oneCompany')))
   const columns = [
     { key: 'name', label: t('taxes.categories.name'), sortKey: 'name', hideable: false, render: (row) => <span className="font-medium text-ink">{row.name}</span> },
-    { key: 'scope', label: t('taxes.categories.scope'), sortKey: 'scope', render: (row) => (row.shared ? t('taxes.categories.shared') : companyName(row.company_id)) },
+    { key: 'scope', label: t('taxes.categories.scope'), sortKey: 'scope', render: (row) => (row.shared ? t('taxes.categories.shared') : company.name) },
     {
       key: 'code',
       label: t('taxes.categories.codeHere', { name: company.name }),
@@ -110,7 +106,7 @@ export function TaxCategories({ company }) {
       },
     },
   ]
-  const list = useServerList({ id: 'tax-categories', endpoint: 'tax-categories', queryKey: ['tax-categories'], columns })
+  const list = useServerList({ id: 'tax-categories', endpoint: 'tax-categories', queryKey: ['tax-categories', company.id], params: { company: company.id }, columns })
 
   return (
     <div className="flex flex-col gap-4">

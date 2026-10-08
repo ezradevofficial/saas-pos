@@ -33,7 +33,7 @@ const CODES = [
 
 const CATEGORIES = [
   { id: 'cat-1', company_id: null, shared: true, name: 'Standard goods', codes: [{ company_id: 'c-1', tax_code_id: 't-1', code: 'VAT_STD' }] },
-  { id: 'cat-2', company_id: 'c-2', shared: false, name: 'Imported goods', codes: [] },
+  { id: 'cat-2', company_id: 'c-1', shared: false, name: 'Kin goods', codes: [] },
 ]
 const page = (rows) => ({ data: rows, meta: { last_page: 1, total: rows.length, from: 1, to: rows.length } })
 
@@ -141,10 +141,11 @@ describe('Taxes', () => {
     const category = (await screen.findByText('Standard goods')).closest('tr')
     expect(within(category).getByText('All companies')).toBeInTheDocument()
     expect(within(category).getByText('VAT_STD')).toBeInTheDocument()
-    // Another company's category the user reaches is named by its company.
-    const other = screen.getByText('Imported goods').closest('tr')
-    expect(within(other).getByText('Another company')).toBeInTheDocument()
-    expect(within(other).getByText('No default code')).toBeInTheDocument()
+    // Shared categories and this company's only (MD-03).
+    expect(api.get).toHaveBeenCalledWith('tax-categories?company=c-1&per_page=25&page=1')
+    const own = screen.getByText('Kin goods').closest('tr')
+    expect(within(own).getByText('Kin Market')).toBeInTheDocument()
+    expect(within(own).getByText('No default code')).toBeInTheDocument()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Price lists' }))
     const row = (await screen.findByText('Retail CDF')).closest('tr')
     expect(within(row).getByText('Include tax')).toBeInTheDocument()
@@ -179,7 +180,7 @@ describe('Taxes', () => {
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Categories' }))
     await waitFor(() => expect(router.state.location.search).toBe('?tab=categories'))
-    await waitFor(() => expect(calls('tax-categories?').at(-1)).toBe('tax-categories?per_page=25&page=1'))
+    await waitFor(() => expect(calls('tax-categories?').at(-1)).toBe('tax-categories?company=c-1&per_page=25&page=1'))
   })
 
   it('offers no changes to a user who may only view taxes', async () => {

@@ -27,6 +27,11 @@ describe('Sessions', () => {
     const other = screen.getByText('Safari · iOS').closest('tr')
     expect(within(other).getByText('10.0.0.2')).toBeInTheDocument()
     expect(within(other).getByText(/6 Oct 2026/)).toBeInTheDocument()
+    // The browser is a column the user can show (export key user_agent); hidden by default.
+    expect(screen.queryByRole('columnheader', { name: 'Browser or app' })).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Browser or app' }))
+    expect(screen.getByRole('columnheader', { name: 'Browser or app', hidden: true })).toBeInTheDocument()
   })
 
   it('signs out of another session', async () => {

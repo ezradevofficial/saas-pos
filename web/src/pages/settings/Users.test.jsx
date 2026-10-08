@@ -61,8 +61,13 @@ function users({ permissions = ADMIN, invitations = INVITATIONS, extra = {} } = 
     extra: {
       'users?status=active&per_page=25&page=1': { data: [AMINA, JOSEPH], meta: { last_page: 1, total: 2, from: 1, to: 2 } },
       'users?status=deactivated&per_page=25&page=1': { data: [], meta: { last_page: 1, total: 0 } },
-      'invitations?per_page=25&page=1': () => {
-        const data = typeof invitations === 'function' ? invitations() : invitations
+      // The API filters by status: open (pending or expired) unless asked otherwise.
+      'invitations?status=open&per_page=25&page=1': () => {
+        const data = (typeof invitations === 'function' ? invitations() : invitations).filter((entry) => ['pending', 'expired'].includes(entry.status))
+        return { data, meta: { last_page: 1, total: data.length, from: data.length ? 1 : null, to: data.length } }
+      },
+      'invitations?status=accepted&per_page=25&page=1': () => {
+        const data = (typeof invitations === 'function' ? invitations() : invitations).filter((entry) => entry.status === 'accepted')
         return { data, meta: { last_page: 1, total: data.length, from: data.length ? 1 : null, to: data.length } }
       },
       'roles?per_page=200': { data: ROLES },
@@ -146,7 +151,7 @@ describe('Users', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/settings/users/u-2'))
   })
 
-  it('shows invitations with role and place names and their status, and revokes a pending one after confirming', async () => {
+  it('shows open invitations with role and place names, other statuses on request, and revokes a pending one after confirming', async () => {
     let invitations = INVITATIONS
     users({ invitations: () => invitations })
     api.post.mockImplementation(async () => {
@@ -159,17 +164,23 @@ describe('Users', () => {
     expect(await within(row).findByText('Cashier at Front till · Westlands')).toBeInTheDocument()
     expect(within(row).getByText('15 Oct 2026')).toBeInTheDocument()
     expect(within(row).getByText('Pending')).toBeInTheDocument()
-    // Accepted and revoked invitations stay listed, without a Revoke button.
-    const old = screen.getByText('Old invite').closest('tr')
+    expect(screen.getByText('Showing 1–1 of 1')).toBeInTheDocument()
+    expect(screen.queryByText('Old invite')).not.toBeInTheDocument()
+
+    // Accepted invitations show when asked for, without a Revoke button.
+    chooseOption('Status', 'Accepted')
+    const old = (await screen.findByText('Old invite')).closest('tr')
     expect(within(old).getByText('Accepted')).toBeInTheDocument()
     expect(within(old).queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
+    chooseOption('Status', 'Pending or expired')
+    const pending = (await screen.findByText('Grace Wanjiru')).closest('tr')
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Revoke the invitation for Grace Wanjiru' }))
+    fireEvent.click(within(pending).getByRole('button', { name: 'Revoke the invitation for Grace Wanjiru' }))
     const dialog = await screen.findByRole('dialog', { name: 'Revoke the invitation for Grace Wanjiru?' })
     expect(api.post).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke invitation' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('invitations/i-1/revoke'))
-    expect(await screen.findByText('No invitations yet. Invite someone to give them access.')).toBeInTheDocument()
+    expect(await screen.findByText('No pending invitations. Invite someone to give them access.')).toBeInTheDocument()
   })
 
   it('hides invite and export without the permissions', async () => {

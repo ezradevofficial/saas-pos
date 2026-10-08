@@ -475,7 +475,8 @@
     "signOutHere": "Se déconnecter",
     "signedIn": "Connexion le",
     "searchPlaceholder": "Appareil, adresse IP ou navigateur",
-    "emptyFiltered": "Aucune session ne correspond à cette recherche. Essayez d’autres mots."
+    "emptyFiltered": "Aucune session ne correspond à cette recherche. Essayez d’autres mots.",
+    "browser": "Navigateur ou application"
   },
   "organisation": {
     "status": {
@@ -624,7 +625,8 @@
       "phone": "Téléphone",
       "twoFactor": "Double authentification",
       "lastSignIn": "Dernière connexion",
-      "invited": "Invitée le"
+      "invited": "Invitée le",
+      "grantedBy": "Attribué par"
     },
     "status": {
       "active": "Actif",
@@ -634,7 +636,7 @@
     "empty": {
       "active": "Aucun utilisateur actif dans votre partie de l’organisation pour l’instant.",
       "deactivated": "Personne n’a été désactivé.",
-      "invitations": "Aucune invitation pour l’instant. Invitez quelqu’un pour lui donner accès."
+      "invitations": "Aucune invitation en attente. Invitez quelqu’un pour lui donner accès."
     },
     "noRoles": "Aucun rôle",
     "roleAt": "{{role}} à {{scope}}",
@@ -729,7 +731,19 @@
     "twoFactorOn": "Activée",
     "twoFactorOff": "Désactivée",
     "searchPlaceholder": "Nom, e-mail ou téléphone",
-    "emptyFiltered": "Personne ne correspond à cette recherche. Essayez d’autres mots."
+    "emptyFiltered": "Personne ne correspond à cette recherche. Essayez d’autres mots.",
+    "filters": {
+      "status": "Statut"
+    },
+    "invitationFilter": {
+      "open": "En attente ou expirées",
+      "pending": "En attente",
+      "expired": "Expirées",
+      "accepted": "Acceptées",
+      "revoked": "Révoquées",
+      "all": "Toutes"
+    },
+    "emptyStatus": "Aucune invitation avec ce statut."
   },
   "roles": {
     "create": "Créer un rôle",
@@ -1022,7 +1036,6 @@
       "empty": "Aucune catégorie de taxe pour l’instant.",
       "sharedNote": "Les articles sont partagés entre vos sociétés : cette catégorie l’est aussi. Les autres sociétés choisissent leur propre code par défaut.",
       "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}.",
-      "oneCompany": "Une autre société",
       "searchPlaceholder": "Nom de la catégorie",
       "emptyFiltered": "Aucune catégorie de taxe ne correspond à cette recherche. Essayez d’autres mots."
     },

@@ -39,6 +39,12 @@ export default function Sessions() {
         </div>
       ),
     },
+    {
+      key: 'user_agent',
+      label: t('sessions.browser'),
+      defaultHidden: true,
+      render: (session) => <span className="text-caption text-ink-muted">{session.user_agent ?? ''}</span>,
+    },
     { key: 'ip', label: t('sessions.ip'), sortKey: 'ip', render: (session) => <span className="tabular-nums">{session.ip ?? ''}</span> },
     {
       key: 'last',

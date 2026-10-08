@@ -475,7 +475,8 @@
     "signOutHere": "Sign out",
     "signedIn": "Signed in",
     "searchPlaceholder": "Device, IP address or browser",
-    "emptyFiltered": "No session matches this search. Try other words."
+    "emptyFiltered": "No session matches this search. Try other words.",
+    "browser": "Browser or app"
   },
   "organisation": {
     "status": {
@@ -624,7 +625,8 @@
       "phone": "Phone",
       "twoFactor": "Two-factor",
       "lastSignIn": "Last sign-in",
-      "invited": "Invited"
+      "invited": "Invited",
+      "grantedBy": "Given by"
     },
     "status": {
       "active": "Active",
@@ -634,7 +636,7 @@
     "empty": {
       "active": "No active users in your part of the organisation yet.",
       "deactivated": "No one has been deactivated.",
-      "invitations": "No invitations yet. Invite someone to give them access."
+      "invitations": "No pending invitations. Invite someone to give them access."
     },
     "noRoles": "No roles",
     "roleAt": "{{role}} at {{scope}}",
@@ -729,7 +731,19 @@
     "twoFactorOn": "On",
     "twoFactorOff": "Off",
     "searchPlaceholder": "Name, email or phone",
-    "emptyFiltered": "No one matches this search. Try other words."
+    "emptyFiltered": "No one matches this search. Try other words.",
+    "filters": {
+      "status": "Status"
+    },
+    "invitationFilter": {
+      "open": "Pending or expired",
+      "pending": "Pending",
+      "expired": "Expired",
+      "accepted": "Accepted",
+      "revoked": "Revoked",
+      "all": "All"
+    },
+    "emptyStatus": "No invitations with this status."
   },
   "roles": {
     "create": "Create role",
@@ -1022,7 +1036,6 @@
       "empty": "No tax categories yet.",
       "sharedNote": "Items are shared across your companies, so this category is shared too. Other companies set their own default code.",
       "companyNote": "Items are kept per company, so this category belongs to {{name}}.",
-      "oneCompany": "Another company",
       "searchPlaceholder": "Category name",
       "emptyFiltered": "No tax category matches this search. Try other words."
     },

@@ -141,6 +141,7 @@ function RolesCard({ user, canAssign }) {
         </span>
       ),
     },
+    { key: 'granted_by', label: t('users.columns.grantedBy'), defaultHidden: true, render: (a) => a.granted_by?.name ?? '' },
     ...(canAssign
       ? [
           actionsColumn(t('users.columns.actions'), (a) => (

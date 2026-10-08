@@ -64,6 +64,13 @@ describe('UserDetail', () => {
     expect(within(row).getByText('by Amina Otieno')).toBeInTheDocument()
     expect(within(row).getByText('7 Oct 2026')).toBeInTheDocument()
     expect(screen.getByText('Showing 1–1 of 1')).toBeInTheDocument()
+    // Who gave the role can be its own column (export key granted_by); hidden by default.
+    expect(screen.queryByRole('columnheader', { name: 'Given by' })).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Given by' }))
+    expect(screen.getByRole('columnheader', { name: 'Given by', hidden: true })).toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
 
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: 'Joseph K. Mwangi' } })
     chooseOption(screen.getByLabelText(/Language/), 'Français')
