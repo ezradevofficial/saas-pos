@@ -263,4 +263,58 @@ return [
             'kind' => 'kind',
         ],
     ],
+
+    // MD-04: payment methods.
+    'payment_method' => [
+        'type_invalid' => 'Choose cash, mobile money, card, credit, voucher, points or bank transfer. The type of an existing payment method can’t change.',
+        'provider_invalid' => 'Choose a supported payment provider. The provider of an existing payment method can’t change.',
+        'provider_required' => 'Mobile money and card payment methods need a provider. Choose one.',
+        'provider_not_allowed' => 'Only mobile money and card payment methods have a provider. Remove the provider.',
+        'provider_other_type' => 'This provider doesn’t handle this type of payment. Choose a provider of the same type.',
+        'cash_currency_required' => 'Cash payment methods need a currency. Choose one of your active currencies.',
+        'settings_none' => 'This payment method has no settings. Remove them.',
+        'settings_unknown' => 'Use only these settings: :keys.',
+        'secrets_none' => 'This payment method has no credentials. Remove them.',
+        'secrets_unknown' => 'Use only these credentials: :keys.',
+        'provider_not_configured' => 'The provider isn’t set up yet. Enter :keys, then switch the payment method on.',
+        'order_invalid' => 'The order must list every active payment method of the company once. Reload the list and try again.',
+        'defaults' => [
+            'cash' => 'Cash :currency',
+            'mpesa_ke' => 'M-Pesa',
+            'airtel_ke' => 'Airtel Money',
+            'vodacom_mpesa_cd' => 'M-Pesa Vodacom',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Card',
+        ],
+        'attributes' => [
+            'type' => 'type',
+            'provider' => 'provider',
+            'name_en' => 'English name',
+            'name_fr' => 'French name',
+            'currency' => 'currency',
+            'settings' => 'settings',
+            'secrets' => 'credentials',
+            'active' => 'on',
+            'ids' => 'order',
+        ],
+    ],
+
+    // MD-05: departments, cost centres and projects.
+    'dimension' => [
+        'code_invalid' => 'Codes start with a letter or number and use letters, numbers, dots, dashes and underscores, up to 30 characters.',
+        'code_taken' => 'Another active record of the company already uses this code. Choose another code.',
+        'parent_other_company' => 'Choose an active parent of the same company.',
+        'parent_cycle' => 'A record can’t sit under itself or one of its children. Choose another parent.',
+        'parent_archived' => 'The parent is archived. Restore it first.',
+        'owner_no_access' => 'This person can’t view the company. Give them access to the company first, or choose someone else.',
+        'in_use' => 'This record has active children. Move or archive them first.',
+        'attributes' => [
+            'code' => 'code',
+            'name' => 'name',
+            'parent_id' => 'parent',
+            'owner_user_id' => 'owner',
+        ],
+    ],
 ];

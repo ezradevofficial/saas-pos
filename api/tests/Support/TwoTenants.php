@@ -25,7 +25,8 @@ use Tests\TestCase;
  * rates from the country pack, a tax category and a price list, a
  * master data sharing setting, a shared customer and a per-company
  * supplier, item categories and an item with another unit, barcodes and
- * an image). Field rules, limit rules and module flags have
+ * an image, configured payment methods, departments, cost centres and
+ * projects). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -138,6 +139,30 @@ final class TwoTenants
         $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
             ->json('data.images.0.id');
 
+        // MD-04: the company's seeded payment methods; M-Pesa configured
+        // (secrets stored encrypted) and switched on, then moved to the top.
+        $methods = collect(self::ok($test->getJson("/api/v1/companies/{$company}/payment-methods", $owner))->json('data'));
+        $paymentMethod = $methods->firstWhere('provider', 'mpesa_ke')['id'];
+        self::ok($test->patchJson("/api/v1/payment-methods/{$paymentMethod}", [
+            'active' => true, 'settings' => ['shortcode' => "17437{$key}"],
+            'secrets' => ['consumer_key' => "key-{$key}", 'consumer_secret' => "secret-{$key}", 'passkey' => "pass-{$key}"],
+        ], $owner));
+        self::ok($test->putJson("/api/v1/companies/{$company}/payment-methods/order", [
+            'ids' => [$paymentMethod, ...$methods->pluck('id')->reject(fn ($id) => $id === $paymentMethod)->values()->all()],
+        ], $owner));
+
+        // MD-05: a department, cost centre and project, each under a parent and owned by the Owner, renamed once (history).
+        $dimensions = [];
+        foreach (['department' => 'departments', 'cost_centre' => 'cost-centres', 'project' => 'projects'] as $type => $path) {
+            $parent = self::ok($test->postJson("/api/v1/companies/{$company}/{$path}", ['code' => "{$upper}-ROOT", 'name' => "Root {$upper}"], $owner), 201)->json('data.id');
+            $child = self::ok($test->postJson("/api/v1/companies/{$company}/{$path}", [
+                'code' => "{$upper}-1", 'name' => "Unit {$upper}", 'parent_id' => $parent, 'owner_user_id' => $ownerId,
+            ], $owner), 201)->json('data.id');
+            self::ok($test->patchJson("/api/v1/{$path}/{$child}", ['name' => "Unit {$upper} renamed"], $owner));
+            $dimensions[$type] = $child;
+            $dimensions["{$type}_parent"] = $parent;
+        }
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -216,6 +241,8 @@ final class TwoTenants
                 'item_category_parent' => $parentCategory,
                 'item' => $item,
                 'item_image' => $itemImage,
+                'payment_method' => $paymentMethod,
+                ...$dimensions,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],

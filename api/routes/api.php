@@ -18,6 +18,8 @@ use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\Dimensions\Dimensions;
+use App\Core\MasterData\Dimensions\Http\Controllers\DimensionController;
 use App\Core\MasterData\History\Http\HistoryController;
 use App\Core\MasterData\Items\Http\Controllers\ItemCategoryController;
 use App\Core\MasterData\Items\Http\Controllers\ItemController;
@@ -25,6 +27,7 @@ use App\Core\MasterData\Items\Http\Controllers\ItemImageController;
 use App\Core\MasterData\Items\Http\Controllers\MediaController;
 use App\Core\MasterData\Items\Http\Controllers\UomController;
 use App\Core\MasterData\Parties\Http\Controllers\PartyController;
+use App\Core\MasterData\PaymentMethods\Http\Controllers\PaymentMethodController;
 use App\Core\MasterData\Sharing\Http\MasterDataSettingsController;
 use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCategoryController;
@@ -45,8 +48,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image'] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
+}
+
+// MD-05: one controller serves every kind of dimension, so its routes bind the model explicitly.
+foreach (Dimensions::TYPES as $parameter => $model) {
+    Route::model($parameter, $model);
 }
 
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-03, AUTH-04, AUTH-09, AUTH-10.
@@ -162,6 +170,27 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('price-lists/{price_list}', [PriceListController::class, 'update']);
     Route::post('price-lists/{price_list}/archive', [PriceListController::class, 'archive']);
     Route::post('price-lists/{price_list}/restore', [PriceListController::class, 'restore']);
+
+    // MD-04: payment methods per company, in till order; provider secrets
+    // are written here and never returned.
+    Route::get('companies/{company}/payment-methods', [PaymentMethodController::class, 'index']);
+    Route::post('companies/{company}/payment-methods', [PaymentMethodController::class, 'store']);
+    Route::put('companies/{company}/payment-methods/order', [PaymentMethodController::class, 'reorder']);
+    Route::get('payment-methods/{payment_method}', [PaymentMethodController::class, 'show']);
+    Route::patch('payment-methods/{payment_method}', [PaymentMethodController::class, 'update']);
+    Route::post('payment-methods/{payment_method}/archive', [PaymentMethodController::class, 'archive']);
+    Route::post('payment-methods/{payment_method}/restore', [PaymentMethodController::class, 'restore']);
+
+    // MD-05: departments, cost centres and projects per company (`dimension_type` names the kind).
+    foreach (Dimensions::TYPES as $type => $model) {
+        $path = $model::path();
+        Route::get("companies/{company}/{$path}", [DimensionController::class, 'index'])->defaults('dimension_type', $type);
+        Route::post("companies/{company}/{$path}", [DimensionController::class, 'store'])->defaults('dimension_type', $type);
+        Route::get("{$path}/{{$type}}", [DimensionController::class, 'show'])->defaults('dimension_type', $type);
+        Route::patch("{$path}/{{$type}}", [DimensionController::class, 'update'])->defaults('dimension_type', $type);
+        Route::post("{$path}/{{$type}}/archive", [DimensionController::class, 'archive'])->defaults('dimension_type', $type);
+        Route::post("{$path}/{{$type}}/restore", [DimensionController::class, 'restore'])->defaults('dimension_type', $type);
+    }
 
     // MD-01, MD-06: parties (customers, suppliers, contacts, employee
     // links), shared or per company (TEN-08), with duplicate warnings.

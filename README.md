@@ -196,9 +196,10 @@ Each deploy:
 9. runs `php artisan currencies:sync` (as the owner): upserts the ISO 4217 currency catalogue from ICU (CDF overridden to 0 decimals), then gives each tenant's companies their country's currencies where missing, under row-level security (ADR 003)
 10. runs `php artisan country-packs:publish KE` and `CD` (as the owner): loads `api/country-packs/{KE,CD}/pack.json` as a new pack version when the content changed, a no-op otherwise (CP-01, CP-03). New companies get the pack's tax codes; existing ones add missing codes with `POST companies/{company}/tax-codes/apply-pack`
 11. runs `php artisan uoms:seed-defaults`: gives every tenant that lacks them the default units of measure (EA, KG, G, L, ML, M, BOX, PACK), under row-level security (MD-02). New tenants get them at sign-up.
-12. caches config and routes
-13. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
-14. `php artisan up`, only when every step above succeeded
+12. runs `php artisan payment-methods:seed-defaults`: gives every active company the default payment methods it never had (cash in each of its country's currencies, the country's mobile money wallets and a card method, the last two switched off until configured), under row-level security (MD-04). An entry a company archived is never added again. New companies get them when created.
+13. caches config and routes
+14. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+15. `php artisan up`, only when every step above succeeded
 
 #### Media storage
 

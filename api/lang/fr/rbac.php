@@ -31,6 +31,8 @@ return [
                 'exchange_rate' => 'Taux de change',
                 'tax' => 'Taxes',
                 'price_list' => 'Listes de prix',
+                'payment_method' => 'Moyens de paiement',
+                'dimension' => 'Départements, centres de coûts et projets',
             ],
         ],
         'actions' => [
