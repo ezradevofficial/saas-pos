@@ -92,7 +92,7 @@ describe('app shell navigation', () => {
 
     const cashier = only(['core.item.view', 'core.party.view'])
     expect(labels(cashier, 'catalogue')).toEqual(['/catalogue/items'])
-    expect(labels(cashier, 'contacts')).toEqual(['/contacts/customers', '/contacts/suppliers'])
+    expect(labels(cashier, 'contacts')).toEqual(['/contacts/customers', '/contacts/suppliers', '/contacts/credit-limit-changes'])
 
     const stock = only(['core.item.view', 'core.item_category.view', 'core.uom.view'])
     expect(labels(stock, 'catalogue')).toEqual(['/catalogue/items', '/catalogue/categories', '/catalogue/units'])

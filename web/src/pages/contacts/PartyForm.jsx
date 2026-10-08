@@ -6,13 +6,14 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Checkbox, Icon, MoneyInput, Select, TextField } from '@/components/ds'
+import { Alert, Button, Card, Checkbox, Icon, Money, MoneyInput, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { rolesPerCompany, useSharingModes } from '@/lib/masterData'
 import { decimalsOf, minorToDecimal, toMinor } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany'
+import { CREDIT_SET_DIRECTLY } from './creditLimitData'
 import { PARTY_KINDS, PARTY_ROLES, ROLE_PATHS } from './partyData'
 
 const COUNTRIES = ['KE', 'CD']
@@ -65,7 +66,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
   const queryClient = useQueryClient()
   const formRef = useRef(null)
   const alertRef = useRef(null)
-  const { can } = usePermissions()
+  const { can, canWithin } = usePermissions()
   const { modes } = useSharingModes()
   const { companies } = useCompanies()
   const { company: selected } = useCompanySelection()
@@ -75,6 +76,9 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
   const [submitted, setSubmitted] = useState(false)
   const creating = !party
   const shows = (field) => creating || field in party
+  // WF-01: without core.credit_limit.set_directly the limit is read-only here;
+  // it changes through a credit limit change request (the API refuses raises).
+  const creditLocked = !(party?.company_id ? canWithin(CREDIT_SET_DIRECTLY, [{ type: 'company', id: party.company_id }]) : can(CREDIT_SET_DIRECTLY))
 
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const setRow = (list, key, patch) => setValues((current) => ({ ...current, [list]: current[list].map((row) => (row.key === key ? { ...row, ...patch } : row)) }))
@@ -132,7 +136,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
       const days = values.payment_terms_days.trim()
       data.payment_terms_days = days === '' ? null : /^\d+$/.test(days) ? Number(days) : days
     }
-    if (shows('credit_limit')) {
+    if (shows('credit_limit') && !creditLocked) {
       // Minor units from the field, sent as a major-unit decimal string with its currency (MoneyAmount).
       data.credit_limit = values.credit_limit === '' ? null : minorToDecimal(toMinor(values.credit_limit), creditDecimals)
       if (values.credit_limit !== '') data.credit_limit_currency = creditCurrency
@@ -432,7 +436,18 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                 error={errors.fields.payment_terms_days}
               />
             ) : null}
-            {shows('credit_limit') ? (
+            {shows('credit_limit') && creditLocked ? (
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <span className="text-label text-ink">{t('parties.form.creditLimit')}</span>
+                {party?.credit_limit ? (
+                  <Money amount={party.credit_limit.amount_minor} currency={party.credit_limit.currency} />
+                ) : (
+                  <span className="text-ink">{t('creditLimits.noLimit')}</span>
+                )}
+                <span className="text-caption text-ink-muted">{creating ? t('creditLimits.lockedNew') : t('creditLimits.locked')}</span>
+              </div>
+            ) : null}
+            {shows('credit_limit') && !creditLocked ? (
               <>
                 <Select
                   label={t('parties.form.creditCurrency')}
