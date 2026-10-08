@@ -8,7 +8,6 @@ use App\Core\Http\ApiException;
 use App\Core\Lists\Http\ListsRecords;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
-use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Dompdf\Dompdf;
@@ -17,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
@@ -36,13 +36,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   tenant's own context (TEN-01, RLS), in chunks.
  * - Audited as the list's `<module>.<resource>.export` with
  *   {format, rows, columns, filters} (AUD-01).
- * - PDF is capped at PDF_MAX_ROWS (422 above it).
+ * - PDF is capped at PDF_MAX_ROWS (422 above it): dompdf lays out the
+ *   whole document in memory.
+ * - At most 10 exports per user per minute (the `exports` rate limiter).
+ * - A column list the user's field rules hide entirely is refused (422).
  */
 class ListExport
 {
     public const FORMATS = ['csv', 'xlsx', 'pdf'];
 
-    public const PDF_MAX_ROWS = 2000;
+    public const PDF_MAX_ROWS = 500;
+
+    /** Rows per table in a PDF: dompdf's layout cost grows with table size. */
+    public const PDF_TABLE_ROWS = 100;
+
+    /** The named rate limiter (registered in CoreServiceProvider). */
+    public const EXPORT_LIMITER = 'exports';
+
+    public const EXPORTS_PER_MINUTE = 10;
+
+    private const TIME_LIMIT_SECONDS = 300;
 
     private const CHUNK = 500;
 
@@ -67,7 +80,16 @@ class ListExport
         $list = $request->list();
         $format = $request->exportFormat();
         $tenantId = $this->tenants->require();
+        $this->throttle($request);
         $columns = $this->visibleColumns($request, $list, $request->exportColumns());
+
+        if ($columns === []) {
+            // Every column asked for is built from fields the user can't see (RBAC-05).
+            $message = __('core.list.columns_hidden');
+
+            throw new ApiException(422, 'export_no_columns', $message, ['columns' => [$message]]);
+        }
+
         $filters = $request->listFilters();
         $rows = (clone $query)->toBase()->getCountForPagination();
 
@@ -89,11 +111,14 @@ class ListExport
             'filters' => $filters,
         ]);
 
-        $query = (clone $query)->with($list->exportRelations());
+        // The export's own relations replace the list's (no images, no signed URLs per row).
+        $query = (clone $query)->setEagerLoads([])->with($list->exportRelations());
         $locale = app()->getLocale();
         $filename = $list->name().'-'.now()->setTimezone($values->timezone)->format('Y-m-d').'.'.$format;
 
         return response()->streamDownload(function () use ($tenantId, $locale, $format, $query, $list, $request, $columns, $values, $headers, $title, $summary) {
+            set_time_limit(self::TIME_LIMIT_SECONDS);
+
             // The body is sent after the request's tenant context may be
             // gone: read the rows in the tenant's own context (RLS).
             $this->tenants->run($tenantId, function () use ($locale, $format, $query, $list, $request, $columns, $values, $headers, $title, $summary) {
@@ -124,8 +149,7 @@ class ListExport
      */
     public function visibleColumns(Request $request, ListDefinition $list, array $keys): array
     {
-        $hidden = HidesFields::hidden($request, $list->fieldRules());
-        $sources = $list->fieldSources();
+        $hidden = $list->hiddenFields($request);
         $byKey = [];
 
         foreach ($list->columns() as $column) {
@@ -137,14 +161,7 @@ class ListExport
         foreach ($keys as $key) {
             $column = $byKey[$key] ?? null;
 
-            if ($column === null) {
-                continue;
-            }
-
-            $blocked = array_filter($column->fields, fn (string $field) => in_array($field, $hidden, true)
-                || array_intersect($sources[$field] ?? [], $hidden) !== []);
-
-            if ($blocked === []) {
+            if ($column !== null && ! $list->hides($column->fields, $hidden)) {
                 $visible[] = $column;
             }
         }
@@ -153,7 +170,28 @@ class ListExport
     }
 
     /**
-     * One list of display strings per record, read in chunks.
+     * EXP-01: at most EXPORT_LIMITER's exports per user per minute, any
+     * format (429 with Retry-After above it).
+     */
+    private function throttle(Request $request): void
+    {
+        $limit = RateLimiter::limiter(self::EXPORT_LIMITER)($request);
+        $key = self::EXPORT_LIMITER.'|'.$limit->key;
+
+        if (RateLimiter::tooManyAttempts($key, $limit->maxAttempts)) {
+            $seconds = max(1, RateLimiter::availableIn($key));
+
+            throw new ApiException(429, 'too_many_exports', trans_choice('core.list.too_many_exports', $seconds, ['seconds' => $seconds]), headers: ['Retry-After' => $seconds]);
+        }
+
+        RateLimiter::hit($key, $limit->decaySeconds);
+    }
+
+    /**
+     * One list of display strings per record, read in chunks. lazy() pages
+     * with LIMIT/OFFSET over the list's stable order (ties by id): fine
+     * for today's list sizes; keyset paging can replace it if exports of
+     * very large lists get slow.
      *
      * @param  list<ListColumn>  $columns
      * @return iterable<list<string>>
@@ -210,6 +248,8 @@ class ListExport
     private function xlsx(string $title, array $headers, iterable $records): void
     {
         $path = tempnam(sys_get_temp_dir(), 'list-export-');
+        // Removed even when the client goes away mid-download and PHP stops here.
+        register_shutdown_function(static fn () => is_file($path) && @unlink($path));
 
         try {
             $writer = new Writer;
@@ -243,17 +283,29 @@ class ListExport
      */
     private function pdf(string $title, array $summary, ExportValues $values, array $headers, iterable $records): void
     {
+        echo $this->renderPdf($this->pdfHtml($title, $summary, $values, $headers, $records));
+    }
+
+    /**
+     * The PDF's HTML, every value escaped. Cheap for dompdf: fixed table
+     * layout, rows in tables of PDF_TABLE_ROWS (the header row repeated on
+     * each), rows free to break across pages.
+     *
+     * @param  array<string, string>  $summary
+     * @param  list<string>  $headers
+     * @param  iterable<list<string>>  $records
+     */
+    private function pdfHtml(string $title, array $summary, ExportValues $values, array $headers, iterable $records): string
+    {
         $e = fn (string $text) => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $html = '<!doctype html><html lang="'.$e($values->locale).'"><head><meta charset="utf-8"><title>'.$e($title).'</title><style>'
             .'@page { margin: 28pt 28pt 36pt 28pt; }'
             .'body { font-family: "DejaVu Sans", sans-serif; font-size: 8pt; color: #000; background: #fff; }'
             .'h1 { font-size: 13pt; font-weight: bold; margin: 0 0 4pt 0; }'
             .'p { margin: 0 0 2pt 0; }'
-            .'table { width: 100%; border-collapse: collapse; margin-top: 8pt; }'
-            .'th, td { border-bottom: 0.5pt solid #000; padding: 3pt 4pt; text-align: left; vertical-align: top; }'
+            .'table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 6pt; }'
+            .'th, td { border-bottom: 0.5pt solid #000; padding: 3pt 4pt; text-align: left; vertical-align: top; word-wrap: break-word; }'
             .'th { font-weight: bold; border-bottom-width: 1pt; }'
-            .'thead { display: table-header-group; }'
-            .'tr { page-break-inside: avoid; }'
             .'</style></head><body>';
         $html .= '<h1>'.$e($title).'</h1>';
 
@@ -262,31 +314,42 @@ class ListExport
         }
 
         $html .= '<p>'.$e(__('core.list.generated_at', ['date' => $values->now()])).'</p>';
-        $html .= '<table><thead><tr>';
-
-        foreach ($headers as $header) {
-            $html .= '<th>'.$e($header).'</th>';
-        }
-
-        $html .= '</tr></thead><tbody>';
+        $head = '<table><thead><tr>'.implode('', array_map(fn (string $header) => '<th>'.$e($header).'</th>', $headers)).'</tr></thead><tbody>';
+        $html .= $head;
+        $inTable = 0;
 
         foreach ($records as $record) {
-            $html .= '<tr>';
-
-            foreach ($record as $value) {
-                $html .= '<td>'.nl2br($e($value)).'</td>';
+            if ($inTable === self::PDF_TABLE_ROWS) {
+                $html .= '</tbody></table>'.$head;
+                $inTable = 0;
             }
 
-            $html .= '</tr>';
+            $html .= '<tr>'.implode('', array_map(fn (string $value) => '<td>'.nl2br($e($value)).'</td>', $record)).'</tr>';
+            $inTable++;
         }
 
-        $html .= '</tbody></table></body></html>';
+        return $html.'</tbody></table></body></html>';
+    }
+
+    /**
+     * A4 landscape with page numbers. Hardened: no remote files, no PHP,
+     * no JavaScript, local files confined to an empty directory of its own.
+     */
+    protected function renderPdf(string $html): string
+    {
+        $sandbox = sys_get_temp_dir().DIRECTORY_SEPARATOR.'list-exports-pdf';
+
+        if (! is_dir($sandbox)) {
+            @mkdir($sandbox, 0700, true);
+        }
 
         $options = new Options;
         $options->setDefaultFont('DejaVu Sans');
         $options->setIsRemoteEnabled(false);
         $options->setIsPhpEnabled(false);
-        $options->setTempDir(sys_get_temp_dir());
+        $options->setIsJavascriptEnabled(false);
+        $options->setChroot($sandbox);
+        $options->setTempDir($sandbox);
 
         $pdf = new Dompdf($options);
         $pdf->setPaper('A4', 'landscape');
@@ -304,6 +367,6 @@ class ListExport
             [0, 0, 0],
         );
 
-        echo $pdf->output();
+        return (string) $pdf->output();
     }
 }

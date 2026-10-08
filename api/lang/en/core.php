@@ -376,6 +376,9 @@ return [
         'pdf_too_many_rows' => 'Too many rows for a PDF. Narrow the filters or export to Excel.',
         'generated_at' => 'Generated :date',
         'page_of' => 'Page :page of :pages',
+        'sort_hidden' => 'You can’t sort by a field you can’t see. Choose another column.',
+        'columns_hidden' => 'You can’t see any of the columns asked for. Choose other columns to export.',
+        'too_many_exports' => 'Too many exports. Try again in :seconds second.|Too many exports. Try again in :seconds seconds.',
         'search' => 'Search',
         'status' => 'Status',
         'statuses' => [

@@ -5,6 +5,7 @@ namespace App\Core\MasterData\Items\Http\Lists;
 use App\Core\Exports\ExportValues;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
+use App\Core\Lists\ListSort;
 use App\Core\MasterData\Items\Http\Resources\ItemResource;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemCategory;
@@ -46,15 +47,15 @@ class ItemList extends ListDefinition
     public function sorts(): array
     {
         return [
-            'code' => 'code',
-            'name' => 'name',
-            'type' => 'type',
+            'code' => ListSort::column('code'),
+            'name' => ListSort::column('name'),
+            'type' => ListSort::column('type'),
             // By the category's name; items without one last either way.
-            'category' => fn (Builder $query, string $direction) => $query->orderByRaw(
+            'category' => ListSort::by(['category_id'], fn (Builder $query, string $direction) => $query->orderByRaw(
                 "(select c.name from item_categories c where c.id = items.category_id) {$direction} nulls last",
-            ),
-            'created_at' => 'created_at',
-            'updated_at' => 'updated_at',
+            )),
+            'created_at' => ListSort::column('created_at'),
+            'updated_at' => ListSort::column('updated_at'),
         ];
     }
 
@@ -89,7 +90,8 @@ class ItemList extends ListDefinition
 
     public function exportRelations(): array
     {
-        return ['category:id,name', 'baseUom:id,code', 'taxCategory:id,name'];
+        // What ItemResource and the columns read; not images (no URL signing per row).
+        return ['uoms.uom:id,code', 'barcodes', 'category:id,name', 'baseUom:id,code', 'taxCategory:id,name'];
     }
 
     public function filterSummary(array $filters, ExportValues $values): array

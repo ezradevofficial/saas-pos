@@ -50,7 +50,8 @@ class ItemResource extends JsonResource
                 'barcode' => $barcode->barcode,
                 'uom_id' => $barcode->uom_id,
             ])->values()->all(),
-            'images' => $this->images->map(fn (ItemImage $image) => [
+            // Left out when not loaded: exports skip images and their signed URLs.
+            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn (ItemImage $image) => [
                 'id' => $image->id,
                 'position' => $image->position,
                 'url' => $request->user() === null ? null : $images->url($image, $request->user()),
@@ -58,7 +59,7 @@ class ItemResource extends JsonResource
                 'width' => $image->width,
                 'height' => $image->height,
                 'size' => $image->size,
-            ])->values()->all(),
+            ])->values()->all()),
             'custom' => (object) ($this->custom ?? []),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

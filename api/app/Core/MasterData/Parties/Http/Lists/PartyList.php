@@ -5,6 +5,7 @@ namespace App\Core\MasterData\Parties\Http\Lists;
 use App\Core\Exports\ExportValues;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
+use App\Core\Lists\ListSort;
 use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\MasterData\Parties\Party;
 use Illuminate\Database\Eloquent\Model;
@@ -50,13 +51,13 @@ class PartyList extends ListDefinition
     public function sorts(): array
     {
         return [
-            'name' => 'name',
-            'legal_name' => 'legal_name',
-            'kind' => 'kind',
-            'tax_id' => 'tax_id',
-            'payment_terms' => 'payment_terms_days',
-            'created_at' => 'created_at',
-            'updated_at' => 'updated_at',
+            'name' => ListSort::column('name'),
+            'legal_name' => ListSort::column('legal_name'),
+            'kind' => ListSort::column('kind'),
+            'tax_id' => ListSort::column('tax_id'),
+            'payment_terms' => ListSort::column('payment_terms_days'),
+            'created_at' => ListSort::column('created_at'),
+            'updated_at' => ListSort::column('updated_at'),
         ];
     }
 

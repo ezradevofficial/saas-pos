@@ -60,11 +60,12 @@ class PartyController
         $search = trim((string) $request->validated('search', ''));
 
         if ($search !== '') {
-            $this->search($query, $search);
+            $this->search($query, $search, $request);
         }
 
-        // Most similar names first when searching, unless a sort is asked for.
-        $request->applySort($request->applyStatus($query), $search === '' ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]));
+        // Most similar names first when searching (and names are visible), unless a sort is asked for.
+        $relevance = $search === '' || $request->hidesField('name') ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]);
+        $request->applySort($request->applyStatus($query), $relevance);
 
         if ($request->wantsExport()) {
             return $export->download($request, $query);
@@ -139,19 +140,31 @@ class PartyController
      * Name or legal name (contains, or trigram-similar), the tax ID, or a
      * phone containing the digits typed.
      */
-    private function search(Builder $query, string $search): void
+    private function search(Builder $query, string $search, ListPartiesRequest $request): void
     {
         $like = '%'.addcslashes($search, '\\%_').'%';
         $digits = preg_replace('/\D/', '', $search);
         $taxId = Str::upper(preg_replace('/\s+/u', '', $search));
+        // RBAC-05: a field the user can't see is never matched, or the
+        // results would reveal its value.
+        $visible = fn (string $field) => ! $request->hidesField($field);
 
-        $query->where(function (Builder $q) use ($search, $like, $digits, $taxId) {
-            $q->where('name', 'ilike', $like)
-                ->orWhere('legal_name', 'ilike', $like)
-                ->orWhereRaw('name % ?', [$search])
-                ->orWhere('tax_id', $taxId);
+        $query->where(function (Builder $q) use ($search, $like, $digits, $taxId, $visible) {
+            $q->whereRaw('false');
 
-            if (strlen($digits) >= 4) {
+            if ($visible('name')) {
+                $q->orWhere('name', 'ilike', $like)->orWhereRaw('name % ?', [$search]);
+            }
+
+            if ($visible('legal_name')) {
+                $q->orWhere('legal_name', 'ilike', $like);
+            }
+
+            if ($visible('tax_id')) {
+                $q->orWhere('tax_id', $taxId);
+            }
+
+            if (strlen($digits) >= 4 && $visible('phones')) {
                 $q->orWhereRaw('phones::text like ?', ['%'.$digits.'%']);
             }
         });

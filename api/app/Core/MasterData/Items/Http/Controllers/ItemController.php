@@ -78,11 +78,12 @@ class ItemController
         $search = trim((string) $request->validated('search', ''));
 
         if ($search !== '') {
-            $this->search($query, $search);
+            $this->search($query, $search, $request);
         }
 
-        // Most similar names first when searching, unless a sort is asked for.
-        $request->applySort($request->applyStatus($query), $search === '' ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]));
+        // Most similar names first when searching (and names are visible), unless a sort is asked for.
+        $relevance = $search === '' || $request->hidesField('name') ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]);
+        $request->applySort($request->applyStatus($query), $relevance);
 
         if ($request->wantsExport()) {
             return $export->download($request, $query);
@@ -198,20 +199,28 @@ class ItemController
 
     /**
      * Code prefix, name (contains, or trigram-similar), or the exact
-     * barcode.
+     * barcode. A field hidden from the user by field rules is never
+     * matched, or the results would reveal its value (RBAC-05).
      */
-    private function search(Builder $query, string $search): void
+    private function search(Builder $query, string $search, ListItemsRequest $request): void
     {
         $like = '%'.addcslashes($search, '\\%_').'%';
         $prefix = addcslashes(mb_strtolower($search), '\\%_').'%';
         $barcode = Barcode::normalise($search);
+        $visible = fn (string $field) => ! $request->hidesField($field);
 
-        $query->where(function (Builder $q) use ($search, $like, $prefix, $barcode) {
-            $q->whereRaw('lower(code::text) like ?', [$prefix])
-                ->orWhere('name', 'ilike', $like)
-                ->orWhereRaw('name % ?', [$search]);
+        $query->where(function (Builder $q) use ($search, $like, $prefix, $barcode, $visible) {
+            $q->whereRaw('false');
 
-            if ($barcode !== null) {
+            if ($visible('code')) {
+                $q->orWhereRaw('lower(code::text) like ?', [$prefix]);
+            }
+
+            if ($visible('name')) {
+                $q->orWhere('name', 'ilike', $like)->orWhereRaw('name % ?', [$search]);
+            }
+
+            if ($barcode !== null && $visible('barcodes')) {
                 $q->orWhereIn('id', ItemBarcode::query()->select('item_id')->where('barcode', $barcode));
             }
         });

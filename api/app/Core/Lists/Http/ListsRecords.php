@@ -35,6 +35,9 @@ trait ListsRecords
             'sort' => ['sometimes', 'string', 'max:64', function (string $attribute, mixed $value, Closure $fail) use ($list) {
                 if (! is_string($value) || preg_match('/^-?([a-z0-9_]+)$/', $value, $match) !== 1 || ! array_key_exists($match[1], $list->sorts())) {
                     $fail(__('core.list.sort_unknown', ['sort' => $value]));
+                } elseif ($list->hides($list->sorts()[$match[1]]->fields, $list->hiddenFields($this))) {
+                    // RBAC-05: the order alone would reveal the hidden values' ranking.
+                    $fail(__('core.list.sort_hidden'));
                 }
             }],
             'format' => ['sometimes', 'string', 'in:'.implode(',', ListExport::FORMATS)],
@@ -55,7 +58,17 @@ trait ListsRecords
     /** Sort the query as asked, else by relevance (a search) and the list's default; ties by id. */
     public function applySort(Builder $query, ?Closure $relevance = null): Builder
     {
-        return $this->list()->applySort($query, $this->sort(), $relevance);
+        $list = $this->list();
+
+        return $list->applySort($query, $this->sort(), $relevance, $list->hiddenFields($this));
+    }
+
+    /** True when the user's field rules hide $field of this list (RBAC-05), e.g. to skip it in a search. */
+    public function hidesField(string $field): bool
+    {
+        $list = $this->list();
+
+        return $list->hides([$field], $list->hiddenFields($this));
     }
 
     public function wantsExport(): bool

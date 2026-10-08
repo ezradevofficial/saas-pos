@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Console\VerifyAuditChain;
+use App\Core\Exports\ListExport;
 use App\Core\Support\Console\Preflight;
 use App\Core\Support\EnvironmentGuard;
 use App\Core\Tenancy\Rls;
@@ -52,6 +53,10 @@ class CoreServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('ip|'.$request->ip()),
             Limit::perMinute(300)->by('global'),
         ]);
+
+        // EXP-01: list exports (any format) are heavy: 10 a minute per user.
+        RateLimiter::for(ListExport::EXPORT_LIMITER, fn (Request $request) => Limit::perMinute(ListExport::EXPORTS_PER_MINUTE)
+            ->by('user|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         // TEN-01: tenant_id uuid not null, defaulting to the session tenant,
         // indexed, FK to tenants (restrict). Pair with Rls::enable($table).

@@ -3,6 +3,7 @@
 namespace App\Core\Lists;
 
 use App\Core\Exports\ExportValues;
+use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -44,9 +45,9 @@ abstract class ListDefinition
     abstract public function resource(Model $model): JsonResource;
 
     /**
-     * Sort keys: a column name, or a closure ordering the query.
+     * Sort keys, each with the resource fields it orders by.
      *
-     * @return array<string, string|Closure(Builder, string): void>
+     * @return array<string, ListSort>
      */
     abstract public function sorts(): array;
 
@@ -56,7 +57,13 @@ abstract class ListDefinition
     /** @return list<ListColumn> exportable columns, in their default order */
     abstract public function columns(): array;
 
-    /** @return list<string>|array<string, Closure> relations an export loads per chunk */
+    /**
+     * The relations an export loads per chunk, in place of the JSON
+     * list's (an export skips what its columns never read, such as images
+     * and their signed URLs).
+     *
+     * @return list<string>|array<string, Closure>
+     */
     public function exportRelations(): array
     {
         return [];
@@ -79,8 +86,46 @@ abstract class ListDefinition
         return array_map(fn (ListColumn $column) => $column->key, $this->columns());
     }
 
-    /** Order $query by $key (`-key` descending), then by id so pages are stable. */
-    public function applySort(Builder $query, ?string $sort, ?Closure $relevance = null): Builder
+    /**
+     * The fields of this list hidden from the request's user (RBAC-05),
+     * cached on the request as the resource caches them.
+     *
+     * @return list<string>
+     */
+    public function hiddenFields(Request $request): array
+    {
+        return HidesFields::hidden($request, $this->fieldRules());
+    }
+
+    /**
+     * True when any of $fields is hidden, directly or through a column it
+     * is built from (fieldSources()).
+     *
+     * @param  list<string>  $fields
+     * @param  list<string>  $hidden
+     */
+    public function hides(array $fields, array $hidden): bool
+    {
+        $sources = $this->fieldSources();
+
+        foreach ($fields as $field) {
+            if (in_array($field, $hidden, true) || array_intersect($sources[$field] ?? [], $hidden) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Order $query by $sort (`-key` descending), then by id so pages are
+     * stable. Without a sort: by $relevance (a search) when given, then by
+     * the default sort, unless the user can't see its fields (the order
+     * would reveal their ranking; RBAC-05), then by id alone.
+     *
+     * @param  list<string>  $hidden  the fields hidden from the user
+     */
+    public function applySort(Builder $query, ?string $sort, ?Closure $relevance = null, array $hidden = []): Builder
     {
         if ($sort === null || $sort === '') {
             if ($relevance !== null) {
@@ -88,18 +133,14 @@ abstract class ListDefinition
             }
 
             $sort = $this->defaultSort();
+
+            if ($this->hides($this->sorts()[$sort]->fields, $hidden)) {
+                return $query->orderBy($query->qualifyColumn('id'));
+            }
         }
 
-        $descending = str_starts_with($sort, '-');
-        $key = ltrim($sort, '-');
-        $sorter = $this->sorts()[$key];
-        $direction = $descending ? 'desc' : 'asc';
-
-        if ($sorter instanceof Closure) {
-            $sorter($query, $direction);
-        } else {
-            $query->orderBy($query->qualifyColumn($sorter), $direction);
-        }
+        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $this->sorts()[ltrim($sort, '-')]->apply($query, $direction);
 
         return $query->orderBy($query->qualifyColumn('id'), $direction);
     }

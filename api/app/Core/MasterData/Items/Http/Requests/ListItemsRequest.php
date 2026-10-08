@@ -43,7 +43,15 @@ class ListItemsRequest extends FormRequest
                     $fail(__('core.item.barcode_invalid'));
                 }
             }],
-            'category' => ['sometimes', 'uuid', Rule::exists('item_categories', 'id')],
+            // A category shared or of a company whose items the user lists:
+            // another is refused as unknown (the filter summary names it).
+            'category' => ['sometimes', 'uuid', Rule::exists('item_categories', 'id')->where(function ($query) {
+                $companies = app(ItemPolicy::class)->listableCompanies($this->user());
+
+                if ($companies !== null) {
+                    $query->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
+                }
+            })],
             'type' => ['sometimes', 'string', Rule::in(Item::TYPES)],
         ];
     }
