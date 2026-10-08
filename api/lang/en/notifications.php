@@ -43,6 +43,7 @@ return [
         'no_phone' => 'The user has no verified phone number.',
         'channel_unavailable' => 'This channel isn’t set up yet.',
         'user_deactivated' => 'The user is no longer active.',
+        'secret_missing' => 'The link in this message can no longer be sent. Send a new one.',
     ],
 
     'delivery_errors' => [

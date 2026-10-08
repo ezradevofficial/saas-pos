@@ -6,6 +6,7 @@ use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\SessionTimeout;
+use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\NullSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
@@ -59,5 +60,8 @@ class IdentityServiceProvider extends ServiceProvider
         });
 
         LoginThrottle::registerLimiters();
+
+        // NOT-02, ADR 009: invitations and new-device alerts go through the Notifier.
+        IdentityNotices::register($this->app->make(EventTypes::class));
     }
 }

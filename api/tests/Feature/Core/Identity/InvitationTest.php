@@ -3,18 +3,21 @@
 namespace Tests\Feature\Core\Identity;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Identity\IdentityNotices;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
-use App\Core\Identity\Notifications\InvitationNotification;
-use App\Core\Notifications\Channels\SmsChannel;
+use App\Core\Notifications\Mail\NotificationMail;
+use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Tenant;
-use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\SentInvitations;
 use Tests\TestCase;
 
 // AUTH-05: invitations (7 days), no privilege escalation, accept issues a token.
@@ -28,6 +31,7 @@ class InvitationTest extends TestCase
 
         $this->setUpOrganisation();
         Notification::fake();
+        Mail::fake();
     }
 
     private function invite(array $overrides = [], ?User $as = null)
@@ -46,19 +50,20 @@ class InvitationTest extends TestCase
     /** The plain token of the last invitation sent. */
     private function lastToken(): string
     {
-        $tokens = [];
+        return SentInvitations::lastToken();
+    }
 
-        foreach (Notification::sentNotifications() as $byId) {
-            foreach ($byId as $byClass) {
-                foreach ($byClass[InvitationNotification::class] ?? [] as $sent) {
-                    $tokens[] = $sent['notification']->token;
-                }
+    /** ADR 009: no table holds the plain token, the notification tables included. */
+    private function assertTokenStoredNowhere(string $token): void
+    {
+        $this->inTenant(function () use ($token) {
+            foreach (['notification_deliveries', 'notifications', 'invitations', 'audit_logs'] as $table) {
+                $this->assertFalse(
+                    DB::table($table)->whereRaw('cast(row_to_json('.$table.') as text) like ?', ['%'.$token.'%'])->exists(),
+                    "{$table} holds the invitation token",
+                );
             }
-        }
-
-        $this->assertNotEmpty($tokens, 'No invitation was sent.');
-
-        return end($tokens);
+        });
     }
 
     public function test_an_invitee_accepts_and_signs_in_with_the_invited_assignments(): void
@@ -258,10 +263,11 @@ class InvitationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.phone', '+254712345678');
 
-        Notification::assertSentOnDemand(InvitationNotification::class, function ($notification, array $channels, AnonymousNotifiable $notifiable) {
-            return $channels === [SmsChannel::class] && $notifiable->routeNotificationFor('sms') === '+254712345678'
-                && str_contains($notification->toSms($notifiable), $notification->token);
-        });
+        $sent = SentInvitations::all();
+        $this->assertCount(1, $sent);
+        $this->assertSame(['sms', '+254712345678'], [$sent[0]['channel'], $sent[0]['to']]);
+        $this->assertStringContainsString('/invitations/'.$sent[0]['token'], $sent[0]['text']);
+        $this->assertTokenStoredNowhere($sent[0]['token']);
 
         $token = $this->postJson("/api/v1/auth/invitations/{$this->lastToken()}/accept", ['name' => 'Jo', 'password' => 'amber-meadow-77'])
             ->assertCreated()
@@ -327,5 +333,46 @@ class InvitationTest extends TestCase
         ])->id);
 
         $this->postJson("/api/v1/invitations/{$theirs}/revoke", [], $this->headersFor())->assertNotFound();
+    }
+
+    public function test_the_invitation_goes_through_the_notifier_with_a_template_and_a_delivery_row(): void
+    {
+        $this->inTenant(fn () => Tenant::findOrFail($this->owner->tenant_id)->forceFill(['default_locale' => 'fr'])->save());
+        $this->invite()->assertCreated();
+
+        $sent = SentInvitations::all();
+        $this->assertCount(1, $sent);
+        $this->assertSame(['email', 'jane@example.com'], [$sent[0]['channel'], $sent[0]['to']]);
+        $this->assertStringContainsString('vous invite à rejoindre', $sent[0]['text']);
+        Mail::assertSent(fn (NotificationMail $mail) => str_starts_with($mail->mailSubject, 'Rejoignez '));
+
+        // NOT-06: tracked in the delivery log, with no user (a contact) and
+        // without the token: the stored link keeps its placeholder.
+        $delivery = $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', IdentityNotices::INVITED)->sole());
+        $this->assertNull($delivery->user_id);
+        $this->assertSame(['email', 'jane@example.com', 'sent', 'fr'], [$delivery->channel, $delivery->recipient, $delivery->status, $delivery->locale]);
+        $this->assertSame('/invitations/{invitation_token}', $delivery->link);
+        $this->assertTokenStoredNowhere($sent[0]['token']);
+
+        // The delivery log lists it for admins, without a user.
+        $this->getJson('/api/v1/notification-deliveries', $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.0.event_type', IdentityNotices::INVITED)
+            ->assertJsonPath('data.0.user', null);
+    }
+
+    public function test_a_tenant_template_changes_the_invitation_text(): void
+    {
+        $this->putJson('/api/v1/notification-templates', [
+            'event_type' => IdentityNotices::INVITED,
+            'channel' => 'email',
+            'subject' => 'Welcome to {tenant_name}',
+            'body' => 'Hello {recipient_name}, {inviter_name} added you. Valid until {expires_at}.',
+        ], $this->headersFor())->assertOk();
+
+        $this->invite()->assertCreated();
+
+        Mail::assertSent(fn (NotificationMail $mail) => str_starts_with($mail->mailSubject, 'Welcome to ')
+            && str_contains($mail->text, 'added you') && str_starts_with((string) $mail->link, '/invitations/'));
     }
 }

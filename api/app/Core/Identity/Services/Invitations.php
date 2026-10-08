@@ -4,9 +4,9 @@ namespace App\Core\Identity\Services;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Identity\IdentityNotices;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
-use App\Core\Identity\Notifications\InvitationNotification;
 use App\Core\Rbac\Grants;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
@@ -15,7 +15,6 @@ use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -36,6 +35,7 @@ class Invitations
         private readonly RoleManager $roles,
         private readonly Auditor $auditor,
         private readonly Authenticate $authenticate,
+        private readonly IdentityNotices $notices,
     ) {}
 
     /**
@@ -71,13 +71,9 @@ class Invitations
         });
 
         $tenant = Tenant::findOrFail($this->tenants->require());
-        [$channel, $route] = $invitation->email !== null ? ['mail', $invitation->email] : ['sms', $invitation->phone];
 
-        // Sent after commit; a delivery failure is reported, the invitation stays.
-        rescue(fn () => Notification::route($channel, $route)->notify(
-            (new InvitationNotification($token, $channel, $invitation->name, $tenant->name, $actor->name, $invitation->expires_at))
-                ->locale($tenant->default_locale),
-        ), report: true);
+        // Through the Notifier after commit (ADR 009); a failure is reported, the invitation stays.
+        rescue(fn () => $this->notices->invited($invitation, $token, $tenant, $actor), report: true);
 
         return $invitation;
     }

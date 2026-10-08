@@ -34,7 +34,7 @@ final class EnvironmentGuard
     public const DEVELOPMENT = ['local', 'testing'];
 
     /** Long-running console entry points, checked before they start. */
-    public const RUNTIME_COMMANDS = ['schedule:run', 'schedule:work', 'queue:work', 'queue:listen'];
+    public const RUNTIME_COMMANDS = ['schedule:run', 'schedule:work', 'queue:work', 'queue:listen', 'horizon'];
 
     /** Mail transports that deliver nothing. */
     private const DEVELOPMENT_MAIL_TRANSPORTS = ['log', 'array'];

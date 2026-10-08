@@ -9,6 +9,12 @@ use Illuminate\Notifications\Notification;
 /**
  * A one-time code by email or SMS (AUTH-01, AUTH-03, AUTH-04), in the user's
  * language, worded for its purpose (verify_contact, two_factor, password_reset).
+ *
+ * The recorded exception to NOT-02 (ADR 009): codes never go through the
+ * Notifier. They must leave at once (no queue, no digest), can never be
+ * switched off, and their text must never be stored: the Notifier keeps
+ * every message body in `notification_deliveries`, while the code itself
+ * is kept only as an HMAC (VerificationChallenge).
  */
 class VerificationCode extends Notification
 {

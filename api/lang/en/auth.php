@@ -71,19 +71,21 @@ return [
                 'sms' => ':app password reset code: :code. It expires in :minutes minute.|:app password reset code: :code. It expires in :minutes minutes.',
             ],
         ],
-        'invitation' => [
-            'subject' => 'Join :tenant on :app',
-            'line' => ':inviter has invited you to join :tenant.',
-            'action' => 'Accept the invitation',
-            'expiry' => 'The invitation is valid until :date.',
-            'sms' => ':app: you are invited to join :tenant. Accept here: :url',
-        ],
-        'new_device' => [
-            'subject' => 'New sign-in to your :app account',
-            'line' => 'Your account was signed in to from a new device on :time.',
-            'details' => 'Device: :device. IP address: :ip.',
-            'advice' => 'If this wasn’t you, change your password and end the session from your account settings.',
-            'sms' => ':app: new sign-in to your account on :time. If this wasn’t you, change your password.',
+        // ADR 009: system notification event types, sent through the
+        // Notifier (templates, delivery log). Placeholders are {name}.
+        'events' => [
+            'invited' => [
+                'label' => 'Invitation to join',
+                'subject' => 'Join {tenant_name} on {app_name}',
+                'body' => "Hello {recipient_name},\n\n{inviter_name} has invited you to join {tenant_name}. Open the link to accept.\n\nThe invitation is valid until {expires_at}.\n\nIf you didn’t expect it, you can ignore this message.",
+                'sms' => '{app_name}: you are invited to join {tenant_name}. Accept here: {invitation_url}',
+            ],
+            'new_device' => [
+                'label' => 'Sign-in from a new device',
+                'subject' => 'New sign-in to your {app_name} account',
+                'body' => "Hello {recipient_name},\n\nYour account was signed in to from a new device on {time}.\n\nDevice: {device}. IP address: {ip}.\n\nIf this wasn’t you, change your password and end the session from your account settings.",
+                'sms' => '{app_name}: new sign-in to your account on {time}. If this wasn’t you, change your password.',
+            ],
         ],
     ],
 ];

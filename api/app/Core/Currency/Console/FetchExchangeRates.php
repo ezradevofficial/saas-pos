@@ -3,18 +3,19 @@
 namespace App\Core\Currency\Console;
 
 use App\Core\Currency\Jobs\FetchReferenceRates;
-use App\Core\Rbac\Console\SyncPermissions;
+use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 /**
  * CUR-03: queue a FetchReferenceRates job for every active company with a
  * reference feed (`rate_feed` other than none). Scheduled daily
- * (routes/console.php). Tenant ids are read as the owner; companies are
- * read in each tenant's context, under row-level security.
+ * (routes/console.php). Active tenant ids come from an owner-owned
+ * security-definer function on the runtime connection (DueTenants,
+ * ADR 002); companies are read in each tenant's context, under row-level
+ * security.
  */
 class FetchExchangeRates extends Command
 {
@@ -22,10 +23,10 @@ class FetchExchangeRates extends Command
 
     protected $description = 'Queue the daily reference-rate fetch for companies with a feed';
 
-    public function handle(TenantContext $tenants): int
+    public function handle(TenantContext $tenants, DueTenants $due): int
     {
         $date = CarbonImmutable::parse($this->option('date') ?? 'today')->toDateString();
-        $tenantIds = DB::connection(SyncPermissions::OWNER_CONNECTION)->table('tenants')->orderBy('id')->pluck('id');
+        $tenantIds = $due->active();
         $queued = 0;
 
         foreach ($tenantIds as $tenantId) {
