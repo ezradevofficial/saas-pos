@@ -87,4 +87,40 @@ return [
             'effective_at' => 'heure d’effet',
         ],
     ],
+
+    // MD-03, CP-01, CP-02 : codes de taxe, taux, catégories.
+    'tax' => [
+        'rate_missing' => 'Le code de taxe :code n’a pas de taux confirmé au :date. Saisissez son taux avant de l’utiliser.',
+        'rate_overlap' => 'Un taux commence déjà à cette date ou après (dernier début : :date). Choisissez une date postérieure au :date.',
+        'exempt_has_no_rate' => 'Un code de taxe exonéré n’a pas de taux.',
+        'zero_rated_rate' => 'Un code de taxe à taux zéro a le taux 0.',
+        'code_taken' => 'Un autre code de taxe actif de cette société utilise ce code. Choisissez un autre code.',
+        'pack_missing' => 'Aucun pack pays n’est encore publié pour :country. Demandez à l’équipe de la plateforme de le publier.',
+        'category_other_company' => 'Cette catégorie appartient à une autre société. Définissez les codes de taxe par défaut de sa propre société uniquement.',
+        'category_company_not_allowed' => 'Vous ne pouvez pas définir les codes de taxe de cette société.',
+        'category_code_invalid' => 'Choisissez un code de taxe actif de cette société.',
+        'attributes' => [
+            'code' => 'code',
+            'name_en' => 'nom en anglais',
+            'name_fr' => 'nom en français',
+            'kind' => 'type',
+            'rate' => 'taux',
+            'effective_from' => 'date de début',
+            'fiscal_code' => 'code fiscal',
+            'category_name' => 'nom',
+            'company' => 'société',
+            'codes' => 'codes de taxe par défaut',
+            'tax_code' => 'code de taxe',
+        ],
+    ],
+
+    // MD-03 : listes de prix.
+    'price_list' => [
+        'attributes' => [
+            'name' => 'nom',
+            'currency' => 'devise',
+            'tax_inclusive' => 'prix taxes comprises',
+            'is_default' => 'liste de prix par défaut',
+        ],
+    ],
 ];

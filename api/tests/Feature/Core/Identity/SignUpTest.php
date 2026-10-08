@@ -7,6 +7,7 @@ use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Notifications\Channels\SmsChannel;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
@@ -117,6 +118,22 @@ class SignUpTest extends TestCase
             [['CDF', 0, 50, true], ['USD', 2, 1, true]],
             TenantCurrency::orderBy('code')->get()->map(fn ($c) => [$c->code, $c->decimals, $c->cash_rounding_minor, $c->active])->all(),
         );
+    }
+
+    public function test_the_sign_up_company_gets_its_country_pack_tax_codes(): void
+    {
+        foreach (['KE' => ['VAT_EXEMPT', 'VAT_STD', 'VAT_WHT', 'VAT_ZERO'], 'CD' => ['VAT_EXEMPT', 'VAT_STD', 'VAT_ZERO']] as $country => $codes) {
+            $response = $this->signUp(['country' => $country, 'email' => strtolower($country).'@example.com'])->assertCreated();
+            $this->enterChallengeTenant($response->json('challenge_id'));
+
+            // CP-01: copied in the sign-up transaction, unconfirmed rates still needed.
+            $company = Company::sole();
+            $this->assertSame($codes, TaxCode::where('company_id', $company->id)->orderBy('code')->pluck('code')->all());
+            $std = TaxCode::where('code', 'VAT_STD')->sole()->rates()->sole();
+            $this->assertSame([null, true], [$std->rate, $std->needs_confirmation]);
+
+            app(TenantContext::class)->set(null);
+        }
     }
 
     public function test_the_right_code_activates_the_owner_and_returns_a_working_token(): void

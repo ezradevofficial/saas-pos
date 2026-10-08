@@ -7,6 +7,7 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
+use App\Core\Tenancy\Events\CompanyCreated;
 use App\Core\Tenancy\Http\Requests\ArchiveRequest;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use App\Core\Tenancy\Http\Requests\StoreCompanyRequest;
@@ -46,6 +47,8 @@ class CompanyController
         $company = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request) {
             $company = Company::create($request->companyAttributes());
             $this->currencies->provisionFor($company);
+            // CP-01: the country pack's tax codes (listeners run in this transaction).
+            event(new CompanyCreated($company));
 
             return $company;
         });

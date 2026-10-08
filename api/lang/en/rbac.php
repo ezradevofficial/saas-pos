@@ -29,6 +29,8 @@ return [
                 'access_review' => 'Access review',
                 'currency' => 'Currencies',
                 'exchange_rate' => 'Exchange rates',
+                'tax' => 'Taxes',
+                'price_list' => 'Price lists',
             ],
         ],
         'actions' => [

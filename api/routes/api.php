@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\CountryPacks\Http\Controllers\CountryPackController;
 use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
 use App\Core\Currency\Http\Controllers\ExchangeRateController;
@@ -17,6 +18,9 @@ use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
+use App\Core\MasterData\Taxes\Http\Controllers\TaxCategoryController;
+use App\Core\MasterData\Taxes\Http\Controllers\TaxCodeController;
 use App\Core\Rbac\Http\Controllers\AccessReviewController;
 use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
@@ -33,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency'] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -116,6 +120,35 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('companies/{company}/exchange-rates', [ExchangeRateController::class, 'index']);
     Route::post('companies/{company}/exchange-rates', [ExchangeRateController::class, 'store']);
     Route::get('companies/{company}/exchange-rates/current', [ExchangeRateController::class, 'current']);
+
+    // CP-01, CP-03: the published country packs (global, read-only).
+    Route::get('country-packs', [CountryPackController::class, 'index']);
+    Route::get('country-packs/{country_pack}', [CountryPackController::class, 'show'])->where('country_pack', '[A-Z]{2}');
+
+    // MD-03, CP-02: tax codes with effective-dated rates, copied from the
+    // company's country pack; tax categories; price lists.
+    Route::get('companies/{company}/tax-codes', [TaxCodeController::class, 'index']);
+    Route::post('companies/{company}/tax-codes', [TaxCodeController::class, 'store']);
+    Route::post('companies/{company}/tax-codes/apply-pack', [TaxCodeController::class, 'applyPack']);
+    Route::get('tax-codes/{tax_code}', [TaxCodeController::class, 'show']);
+    Route::patch('tax-codes/{tax_code}', [TaxCodeController::class, 'update']);
+    Route::post('tax-codes/{tax_code}/rates', [TaxCodeController::class, 'storeRate']);
+    Route::post('tax-codes/{tax_code}/archive', [TaxCodeController::class, 'archive']);
+    Route::post('tax-codes/{tax_code}/restore', [TaxCodeController::class, 'restore']);
+
+    Route::get('tax-categories', [TaxCategoryController::class, 'index']);
+    Route::post('tax-categories', [TaxCategoryController::class, 'store']);
+    Route::get('tax-categories/{tax_category}', [TaxCategoryController::class, 'show']);
+    Route::patch('tax-categories/{tax_category}', [TaxCategoryController::class, 'update']);
+    Route::post('tax-categories/{tax_category}/archive', [TaxCategoryController::class, 'archive']);
+    Route::post('tax-categories/{tax_category}/restore', [TaxCategoryController::class, 'restore']);
+
+    Route::get('companies/{company}/price-lists', [PriceListController::class, 'index']);
+    Route::post('companies/{company}/price-lists', [PriceListController::class, 'store']);
+    Route::get('price-lists/{price_list}', [PriceListController::class, 'show']);
+    Route::patch('price-lists/{price_list}', [PriceListController::class, 'update']);
+    Route::post('price-lists/{price_list}/archive', [PriceListController::class, 'archive']);
+    Route::post('price-lists/{price_list}/restore', [PriceListController::class, 'restore']);
 
     Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
     Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);

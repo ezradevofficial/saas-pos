@@ -179,7 +179,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `SMS_DRIVER` a real provider, never `log`. Without one, any text message (phone sign-up, SMS codes) fails with `SmsNotConfigured`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync` and `currencies:sync`)
+- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync` and `country-packs:publish`)
 - [ ] a queue worker running (`php artisan queue:work` or Horizon)
 
 Each deploy:
@@ -193,9 +193,10 @@ Each deploy:
 7. runs `php artisan migrate --database=pgsql_owner --force`
 8. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles, each on the runtime connection under row-level security (ADR 006)
 9. runs `php artisan currencies:sync` (as the owner): upserts the ISO 4217 currency catalogue from ICU (CDF overridden to 0 decimals), then gives each tenant's companies their country's currencies where missing, under row-level security (ADR 003)
-10. caches config and routes
-11. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
-12. `php artisan up`, only when every step above succeeded
+10. runs `php artisan country-packs:publish KE` and `CD` (as the owner): loads `api/country-packs/{KE,CD}/pack.json` as a new pack version when the content changed, a no-op otherwise (CP-01, CP-03). New companies get the pack's tax codes; existing ones add missing codes with `POST companies/{company}/tax-codes/apply-pack`
+11. caches config and routes
+12. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+13. `php artisan up`, only when every step above succeeded
 
 #### If a deploy stops
 

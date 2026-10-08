@@ -1,0 +1,50 @@
+{
+    "code": "CD",
+    "name_en": "Democratic Republic of the Congo",
+    "name_fr": "République démocratique du Congo",
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (16 = 16 %).",
+    "sources": [],
+    "todo": [
+        "VAT_STD: the standard TVA rate, with its legal reference and effective date (DGI / Code de la TVA).",
+        "Reduced TVA rates, if any apply to the products sold: codes, rates and legal references.",
+        "Excise duty (droits d'accises): which codes apply, their rates or specific amounts, with legal references.",
+        "Withholding taxes that apply at the point of sale, if any, with rates and legal references.",
+        "fiscal_code: the DGI tax group for each code on normalised invoices (needed for the e-MCF integration, phase 4).",
+        "VAT_ZERO and VAT_EXEMPT: confirm the official names and that they map to the DGI groups."
+    ],
+    "tax_codes": [
+        {
+            "code": "VAT_STD",
+            "name_en": "VAT, standard rate",
+            "name_fr": "TVA, taux normal",
+            "kind": "vat",
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "fiscal_code": null
+        },
+        {
+            "code": "VAT_ZERO",
+            "name_en": "VAT, zero-rated",
+            "name_fr": "TVA, taux zéro",
+            "kind": "zero_rated",
+            "rate": "0",
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "fiscal_code": null
+        },
+        {
+            "code": "VAT_EXEMPT",
+            "name_en": "VAT exempt",
+            "name_fr": "Exonéré de TVA",
+            "kind": "exempt",
+            "rate": null,
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "fiscal_code": null
+        }
+    ]
+}

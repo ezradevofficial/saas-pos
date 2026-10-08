@@ -122,7 +122,9 @@ jobs:
       # the schema owner (pgsql_owner); the app keeps
       # running as the RLS-bound role. permissions:sync upserts the
       # permission catalogue (RBAC-01); currencies:sync upserts the ISO 4217
-      # catalogue from ICU (CUR-01). Horizon is restarted when installed,
+      # catalogue from ICU (CUR-01); country-packs:publish loads the KE and
+      # CD pack files as new versions when they changed (CP-01, CP-03).
+      # Horizon is restarted when installed,
       # plain queue workers otherwise.
       # Any failure stops here with the API still in maintenance. See
       # README "If a deploy stops".
@@ -147,6 +149,8 @@ jobs:
           php artisan migrate --database=pgsql_owner --force
           php artisan permissions:sync
           php artisan currencies:sync
+          php artisan country-packs:publish KE
+          php artisan country-packs:publish CD
           php artisan config:cache
           php artisan route:cache
           if php artisan list --raw | grep -q '^horizon:terminate'; then

@@ -74,13 +74,14 @@ class RoleTemplatesTest extends TestCase
             'core.role.view', 'core.role.create', 'core.role.edit', 'core.role.archive', 'core.role.assign',
             'core.audit.view', 'core.audit.export', 'core.settings.edit', 'core.access_review.view',
             'core.access_review.export', 'core.currency.view', 'core.currency.edit',
+            'core.tax.view', 'core.tax.edit', 'core.price_list.view', 'core.price_list.edit',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(35, count($names));
+        $this->assertSame(39, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -143,7 +144,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(35, $permissions);
+        $this->assertCount(39, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

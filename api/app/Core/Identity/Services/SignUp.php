@@ -5,6 +5,7 @@ namespace App\Core\Identity\Services;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Tenancy\Events\CompanyCreated;
 use App\Core\Tenancy\Events\TenantProvisioned;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
@@ -63,6 +64,8 @@ class SignUp
 
                 // CUR-01: KE uses KES and USD; CD uses USD and CDF.
                 $this->currencies->provisionFor($company);
+                // CP-01: the country pack's tax codes.
+                event(new CompanyCreated($company));
 
                 $branch = $company->branches()->create([
                     'name' => __('core.defaults.branch', [], $locale),
