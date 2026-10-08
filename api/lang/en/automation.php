@@ -150,6 +150,7 @@ return [
     ],
 
     'validation' => [
+        'action_id' => 'Each action needs an id of letters, digits, - or _.',
         'hidden_fields' => 'You can’t see these fields, so the rule can’t use them: :fields.',
         'trigger_type' => 'Choose what starts the rule.',
         'trigger_extra' => 'The trigger has settings that don’t belong to it. Remove them.',

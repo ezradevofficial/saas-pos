@@ -3,6 +3,7 @@
 namespace App\Core\Automation\Http\Requests;
 
 use App\Core\Automation\AutomationAccess;
+use App\Core\Automation\Runtime\ActionList;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -31,6 +32,14 @@ class StoreRuleRequest extends FormRequest
         }
 
         return $access->mayEdit($this->user(), $company?->id);
+    }
+
+    /** Each action gets a stable id (ActionList). */
+    protected function prepareForValidation(): void
+    {
+        if (is_array($this->input('actions'))) {
+            $this->merge(['actions' => ActionList::merge($this->input('actions'))]);
+        }
     }
 
     public function rules(): array

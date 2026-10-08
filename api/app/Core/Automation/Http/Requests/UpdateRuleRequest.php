@@ -3,6 +3,7 @@
 namespace App\Core\Automation\Http\Requests;
 
 use App\Core\Automation\AutomationAccess;
+use App\Core\Automation\Runtime\ActionList;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
@@ -10,7 +11,8 @@ use Illuminate\Validation\Validator;
 /**
  * PATCH automation-rules/{rule}: any of name, document_type, company_id,
  * trigger, conditions, actions. Adding the first webhook generates the
- * signing secret, returned in this response only. The whole rule is checked again; moving it to another
+ * signing secret, returned in this response only. A webhook action without
+ * `url` (or with `keep_url: true`) keeps its stored URL (ActionList). The whole rule is checked again; moving it to another
  * company needs `core.automation.edit` there too. Each change raises the
  * version and is audited.
  */
@@ -45,6 +47,14 @@ class UpdateRuleRequest extends RuleRequest
         }
 
         return $access->mayEdit($this->user(), $companyId);
+    }
+
+    /** Ids for new actions; webhook URLs left out (or `keep_url`) keep the stored one (ActionList). */
+    protected function prepareForValidation(): void
+    {
+        if (is_array($this->input('actions'))) {
+            $this->merge(['actions' => ActionList::merge($this->input('actions'), $this->rule()->actions ?? [])]);
+        }
     }
 
     public function rules(): array

@@ -150,6 +150,7 @@ return [
     ],
 
     'validation' => [
+        'action_id' => 'Chaque action a besoin d’un identifiant fait de lettres, de chiffres, de - ou de _.',
         'hidden_fields' => 'Vous ne voyez pas ces champs, la règle ne peut donc pas les utiliser : :fields.',
         'trigger_type' => 'Choisissez ce qui déclenche la règle.',
         'trigger_extra' => 'Le déclencheur contient des réglages qui ne lui correspondent pas. Supprimez-les.',

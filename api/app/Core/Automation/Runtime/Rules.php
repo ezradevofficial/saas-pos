@@ -44,7 +44,7 @@ class Rules
                 'trigger_type' => $data['trigger']['type'],
                 'trigger' => $data['trigger'],
                 'conditions' => self::conditions($data['conditions'] ?? null),
-                'actions' => $data['actions'],
+                'actions' => ActionList::merge($data['actions']),
                 'enabled' => (bool) ($data['enabled'] ?? false),
                 'created_by' => $by->id,
                 'updated_by' => $by->id,
@@ -68,7 +68,11 @@ class Rules
 
             foreach (self::VERSIONED as $key) {
                 if (array_key_exists($key, $data)) {
-                    $rule->{$key} = $key === 'conditions' ? self::conditions($data[$key]) : $data[$key];
+                    $rule->{$key} = match ($key) {
+                        'conditions' => self::conditions($data[$key]),
+                        'actions' => ActionList::merge($data[$key], $rule->actions ?? []),
+                        default => $data[$key],
+                    };
                 }
             }
 
@@ -184,7 +188,8 @@ class Rules
             'company_id' => $rule->company_id,
             'trigger' => $rule->trigger,
             'conditions' => $rule->conditions,
-            'actions' => $rule->actions,
+            // Webhook URLs as url_display: a query string may carry a token.
+            'actions' => ActionList::shown($rule->actions),
             'enabled' => $rule->enabled,
             'version' => $rule->version,
             'has_webhook_secret' => $rule->webhook_secret !== null,

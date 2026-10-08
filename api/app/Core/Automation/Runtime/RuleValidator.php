@@ -120,7 +120,12 @@ class RuleValidator
                 continue;
             }
 
-            foreach ($handler->validate($action, $rule) as $message) {
+            if (! is_string($action['id'] ?? null) || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $action['id']) !== 1) {
+                $add($path, __('automation.validation.action_id'));
+            }
+
+            // The stable id is the list's, not the action's setting.
+            foreach ($handler->validate(array_diff_key($action, ['id' => true]), $rule) as $message) {
                 $add($path, $message);
             }
 

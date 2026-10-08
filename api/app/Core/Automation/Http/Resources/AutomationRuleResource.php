@@ -3,6 +3,7 @@
 namespace App\Core\Automation\Http\Resources;
 
 use App\Core\Automation\Models\AutomationRule;
+use App\Core\Automation\Runtime\ActionList;
 use App\Core\Automation\Triggers\Triggers;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use Illuminate\Http\Request;
@@ -31,7 +32,8 @@ class AutomationRuleResource extends JsonResource
             'trigger' => $this->trigger,
             'trigger_description' => $type === null ? null : app(Triggers::class)->describe($this->trigger, $type),
             'conditions' => $this->conditions,
-            'actions' => $this->actions,
+            // Webhook URLs are write-only: url_display and has_url (ActionList).
+            'actions' => ActionList::shown($this->actions),
             'enabled' => $this->enabled,
             'status' => $this->archived_at !== null ? 'archived' : ($this->enabled ? 'enabled' : 'disabled'),
             'version' => $this->version,

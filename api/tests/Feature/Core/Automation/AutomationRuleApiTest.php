@@ -118,6 +118,55 @@ class AutomationRuleApiTest extends TestCase
         $this->postJson("/api/v1/automation-rules/{$id}/webhook-secret/rotate", [], $this->headersFor($this->otherTenant()['user']))->assertNotFound();
     }
 
+    public function test_webhook_urls_are_write_only_and_kept_across_edits(): void
+    {
+        $full = 'https://hooks.example.com/in/orders?token=s3cr3t#frag';
+        $created = $this->postJson('/api/v1/automation-rules', $this->body([
+            'actions' => [$this->notifyOwner(), ['type' => 'webhook', 'url' => $full]],
+        ]), $this->headersFor())->assertCreated();
+        $id = $created->json('data.id');
+        $stored = fn () => $this->inTenant(fn () => AutomationRule::query()->find($id)->actions);
+
+        // Output: url_display and has_url, never the URL; every action has a stable id.
+        $webhook = $created->json('data.actions.1');
+        $this->assertSame('https://hooks.example.com/in/orders', $webhook['url_display']);
+        $this->assertTrue($webhook['has_url']);
+        $this->assertArrayNotHasKey('url', $webhook);
+        $this->assertNotEmpty($created->json('data.actions.0.id'));
+        $this->assertStringNotContainsString('s3cr3t', $created->getContent());
+        $this->assertStringNotContainsString('s3cr3t', $this->getJson("/api/v1/automation-rules/{$id}", $this->headersFor())->getContent());
+        $this->assertStringNotContainsString('s3cr3t', $this->getJson('/api/v1/automation-rules?format=csv', $this->headersFor())->streamedContent());
+        $this->assertSame($full, $stored()[1]['url']);
+        $hookId = $webhook['id'];
+
+        // The editor sends back what it read: the URL is kept (by id, even after reordering).
+        $read = $this->getJson("/api/v1/automation-rules/{$id}", $this->headersFor())->json('data.actions');
+        $back = array_map(fn ($a) => array_diff_key($a, ['url_display' => 1, 'has_url' => 1]), array_reverse($read));
+        $this->patchJson("/api/v1/automation-rules/{$id}", ['actions' => $back], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.actions.0.id', $hookId)->assertJsonPath('data.actions.0.has_url', true);
+        $this->assertSame($full, $stored()[0]['url']);
+
+        // keep_url: true keeps it too; a new url replaces it.
+        $this->patchJson("/api/v1/automation-rules/{$id}", ['actions' => [['id' => $hookId, 'type' => 'webhook', 'url' => 'https://ignored.example.com', 'keep_url' => true]]], $this->headersFor())->assertOk();
+        $this->assertSame($full, $stored()[0]['url']);
+        $this->assertArrayNotHasKey('keep_url', $stored()[0]);
+        $this->patchJson("/api/v1/automation-rules/{$id}", ['actions' => [['id' => $hookId, 'type' => 'webhook', 'url' => 'https://new.example.com/hook?k=v']]], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.actions.0.url_display', 'https://new.example.com/hook');
+        $this->assertSame('https://new.example.com/hook?k=v', $stored()[0]['url']);
+
+        // Without an id the URL is matched by position; a new webhook at a new position has nothing to keep.
+        $this->patchJson("/api/v1/automation-rules/{$id}", ['actions' => [['type' => 'webhook'], ['type' => 'webhook']]], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['actions.1'])->assertJsonMissingValidationErrors(['actions.0']);
+
+        // The audit log keeps only what is shown.
+        $this->inTenant(function () {
+            $audit = json_encode(AuditEntry::query()->where('action', 'like', 'core.automation.%')->get(['before', 'after'])->toArray());
+            $this->assertStringNotContainsString('s3cr3t', $audit);
+            $this->assertStringNotContainsString('k=v', $audit);
+            $this->assertStringContainsString('https:\\/\\/new.example.com\\/hook', $audit);
+        });
+    }
+
     public function test_adding_the_first_webhook_on_edit_generates_the_secret(): void
     {
         $id = $this->postJson('/api/v1/automation-rules', $this->body(), $this->headersFor())->assertCreated()->json('data.id');

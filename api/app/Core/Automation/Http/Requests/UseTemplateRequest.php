@@ -2,6 +2,7 @@
 
 namespace App\Core\Automation\Http\Requests;
 
+use App\Core\Automation\Runtime\ActionList;
 use App\Core\Automation\Templates\RuleTemplate;
 use App\Core\Automation\Templates\RuleTemplates;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -72,6 +73,7 @@ class UseTemplateRequest extends StoreRuleRequest
 
         return $this->built = [
             ...$rule,
+            'actions' => ActionList::merge($rule['actions']),
             'name' => is_string($name) && $name !== '' ? $name : $rule['name'],
             'document_type' => $type->key(),
             'company_id' => $this->input('company_id'),
