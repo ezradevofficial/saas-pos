@@ -5,6 +5,8 @@ namespace App\Core\MasterData\CreditLimits;
 use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Notifications\NotificationEvent;
+use App\Core\Notifications\Notifier;
 use App\Core\Rbac\FieldRules;
 use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
@@ -189,6 +191,27 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
             array_intersect(CreditLimitChangeAccess::LIMIT_FIELDS, $hidden) !== [] ? 'amount' : null,
             in_array('name', $hidden, true) ? 'title' : null,
         ]));
+    }
+
+    /**
+     * L2 (RBAC-05): send a credit limit change notice, the party's name
+     * left out for recipients who may not see it (hiddenSummaryFields:
+     * `title`), grouped so each group gets one send.
+     *
+     * @param  list<string>  $userIds
+     * @param  array<string, string>  $data  with `party_name`
+     */
+    public function notify(string $event, array $userIds, array $data, ?string $link): void
+    {
+        $groups = [];
+
+        foreach (User::query()->whereKey(array_values(array_unique(array_filter($userIds))))->orderBy('id')->get() as $user) {
+            $groups[in_array('title', $this->hiddenSummaryFields($user), true) ? 'hidden' : 'shown'][] = (string) $user->id;
+        }
+
+        foreach ($groups as $group => $ids) {
+            app(Notifier::class)->send(new NotificationEvent($event, $ids, $group === 'hidden' ? [...$data, 'party_name' => ''] : $data, $link));
+        }
     }
 
     public function defaultFlow(?string $country): ?array

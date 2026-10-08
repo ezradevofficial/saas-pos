@@ -388,6 +388,37 @@ class CreditLimitChangeApiTest extends TestCase
         $this->request(['requested_limit' => ['amount_minor' => '25000000', 'currency' => 'KES']])->assertCreated();
     }
 
+    public function test_conflict_and_apply_failed_notices_leave_out_a_hidden_party_name(): void
+    {
+        // L2 (RBAC-05): accountants may not see party names; the requester (branch manager) may.
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('accountant')->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']));
+        $change = $this->request()->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '120000', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        $bodies = $this->inTenant(fn () => InAppNotification::query()->where('event_type', CreditLimitChanges::CONFLICT_EVENT)->pluck('body', 'user_id'));
+        $this->assertStringContainsString('Duka Moja Ltd', $bodies[$this->manager->id]);
+        $this->assertStringNotContainsString('Duka Moja Ltd', $bodies[$this->accountant->id]);
+
+        // apply_failed: an accountant holding set_directly gets no name either.
+        $second = $this->inTenant(function () {
+            $id = CreditLimitChange::query()->where('status', 'conflicted')->value('id');
+            CreditLimitChange::query()->whereKey($id)->update(['status' => CreditLimitChange::APPROVED]);
+
+            return $id;
+        });
+        $this->inTenant(function () {
+            $role = $this->role('Setter', ['core.credit_limit.set_directly']);
+            $this->assign($this->accountant, $role, Scope::tenant());
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']);
+        });
+        $this->inTenant(fn () => ApplyCreditLimitChange::notifyFailure($second, null));
+        $failed = $this->inTenant(fn () => InAppNotification::query()->where('event_type', ApplyCreditLimitChange::FAILED_EVENT)->pluck('body', 'user_id'));
+        $this->assertArrayHasKey($this->accountant->id, $failed->all());
+        $this->assertStringNotContainsString('Duka Moja Ltd', $failed[$this->accountant->id]);
+        $this->assertStringContainsString('Duka Moja Ltd', $failed[$this->owner->id]);
+    }
+
     public function test_an_archived_party_is_never_changed(): void
     {
         $change = $this->request()->assertCreated()->json('data.id');
