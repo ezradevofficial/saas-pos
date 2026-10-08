@@ -6,7 +6,11 @@
     "loading": "Chargement",
     "retry": "Réessayer",
     "cancel": "Annuler",
-    "save": "Enregistrer les modifications"
+    "save": "Enregistrer les modifications",
+    "tabs": {
+      "details": "Détails",
+      "history": "Historique"
+    }
   },
   "ds": {
     "field": {

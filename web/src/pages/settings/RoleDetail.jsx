@@ -224,8 +224,8 @@ export default function RoleDetail() {
       {creating ? null : (
         <Tabs
           items={[
-            { value: 'details', label: t('items.tabs.details') },
-            { value: 'history', label: t('items.tabs.history') },
+            { value: 'details', label: t('common.tabs.details') },
+            { value: 'history', label: t('common.tabs.history') },
           ]}
           value={tab}
           onChange={(next) => setParams(next === 'history' ? { tab: 'history' } : {}, { replace: true })}
