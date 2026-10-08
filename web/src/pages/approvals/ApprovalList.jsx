@@ -10,7 +10,7 @@ import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { cn } from '@/lib/utils'
-import { dueHint, useDocumentTypeOptions } from './approvalData'
+import { dueHint, TABS, useDocumentTypeOptions } from './approvalData'
 
 const SORTS = ['due', '-received', 'received']
 
