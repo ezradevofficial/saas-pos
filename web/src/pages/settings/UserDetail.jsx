@@ -8,11 +8,13 @@ import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { HistoryPanel } from '@/components/HistoryPanel'
-import { Alert, Button, Card, DataTable, Icon, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
+import { Alert, Button, Card, Icon, ListView, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDate } from '@/lib/dates'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { actionsColumn } from '@/lib/listColumns'
+import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
 import { AssignmentFields } from './users/AssignmentFields'
@@ -115,10 +117,11 @@ function RolesCard({ user, canAssign }) {
   const addErrors = formErrors(add.error, ['role_id', 'scope_type', 'scope_id'])
   const where = (assignment) => assignment.scope.name ?? t(`users.scopeTypes.${assignment.scope.type}`)
   const columns = [
-    { key: 'role', label: t('users.columns.role'), render: (a) => <span className="font-medium text-ink">{a.role.name}</span> },
+    { key: 'role', label: t('users.columns.role'), sortKey: 'role', hideable: false, render: (a) => <span className="font-medium text-ink">{a.role.name}</span> },
     {
       key: 'scope',
       label: t('users.columns.where'),
+      sortKey: 'scope_type',
       render: (a) => (
         <span className="flex flex-col">
           <span>{where(a)}</span>
@@ -129,6 +132,8 @@ function RolesCard({ user, canAssign }) {
     {
       key: 'granted',
       label: t('users.columns.granted'),
+      sortKey: 'granted_at',
+      exportKey: 'granted_at',
       render: (a) => (
         <span className="flex flex-col">
           <span>{formatDate(a.granted_at, locale)}</span>
@@ -138,19 +143,16 @@ function RolesCard({ user, canAssign }) {
     },
     ...(canAssign
       ? [
-          {
-            key: 'action',
-            label: <span className="sr-only">{t('users.columns.actions')}</span>,
-            align: 'end',
-            render: (a) => (
-              <Button variant="secondary" onClick={() => setRemoving(a)} aria-label={t('users.detail.removeRoleFor', { role: a.role.name, scope: where(a) })}>
-                {t('users.detail.removeRole')}
-              </Button>
-            ),
-          },
+          actionsColumn(t('users.columns.actions'), (a) => (
+            <Button variant="secondary" onClick={() => setRemoving(a)} aria-label={t('users.detail.removeRoleFor', { role: a.role.name, scope: where(a) })}>
+              {t('users.detail.removeRole')}
+            </Button>
+          )),
         ]
       : []),
   ]
+  // RBAC-04: only the roles held where the reader can see; every role unless paged.
+  const list = useServerList({ id: 'user-assignments', endpoint: `users/${user.id}/assignments`, queryKey: ['users', 'assignments', user.id], columns })
 
   return (
     <Card
@@ -164,7 +166,12 @@ function RolesCard({ user, canAssign }) {
       }
     >
       <div className="flex flex-col gap-4">
-        <DataTable caption={t('users.detail.roles')} columns={columns} rows={user.roles ?? []} emptyText={t('users.detail.noRoles')} />
+        <ListView
+          list={list}
+          title={t('users.detail.roles')}
+          searchLabel={t('users.detail.searchRoles')}
+          emptyText={list.term ? t('users.detail.noRolesFound') : t('users.detail.noRoles')}
+        />
         {effective ? (
           <form
             noValidate

@@ -472,7 +472,10 @@
     "confirmTitle": "Se déconnecter de cet appareil ?",
     "confirmText": "Vous reviendrez à la page de connexion. Vos autres sessions restent connectées.",
     "stay": "Rester connecté",
-    "signOutHere": "Se déconnecter"
+    "signOutHere": "Se déconnecter",
+    "signedIn": "Connexion le",
+    "searchPlaceholder": "Appareil, adresse IP ou navigateur",
+    "emptyFiltered": "Aucune session ne correspond à cette recherche. Essayez d’autres mots."
   },
   "organisation": {
     "status": {
@@ -605,19 +608,23 @@
     "backToUsers": "Utilisateurs",
     "tabs": {
       "active": "Actifs",
-      "invitations": "Invitations en attente",
+      "invitations": "Invitations",
       "deactivated": "Désactivés"
     },
     "columns": {
       "name": "Nom",
-      "contact": "E-mail ou téléphone",
       "roles": "Rôles",
       "status": "Statut",
       "expires": "Expire le",
       "actions": "Actions",
       "role": "Rôle",
       "where": "Où",
-      "granted": "Attribué"
+      "granted": "Attribué",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "twoFactor": "Double authentification",
+      "lastSignIn": "Dernière connexion",
+      "invited": "Invitée le"
     },
     "status": {
       "active": "Actif",
@@ -627,7 +634,7 @@
     "empty": {
       "active": "Aucun utilisateur actif dans votre partie de l’organisation pour l’instant.",
       "deactivated": "Personne n’a été désactivé.",
-      "invitations": "Aucune invitation en attente. Invitez quelqu’un pour lui donner accès."
+      "invitations": "Aucune invitation pour l’instant. Invitez quelqu’un pour lui donner accès."
     },
     "noRoles": "Aucun rôle",
     "roleAt": "{{role}} à {{scope}}",
@@ -638,17 +645,12 @@
       "branch": "Succursale",
       "location": "Emplacement"
     },
-    "invitationExpired": "Expirée",
     "revoke": "Révoquer",
     "revokeFor": "Révoquer l’invitation de {{name}}",
     "revokeTitle": "Révoquer l’invitation de {{name}} ?",
     "revokeText": "Le lien cesse de fonctionner immédiatement. Vous pourrez envoyer une nouvelle invitation plus tard.",
     "revokeConfirm": "Révoquer l’invitation",
     "keepInvitation": "Garder l’invitation",
-    "pages": "Pages de résultats",
-    "pageOf": "Page {{page}} sur {{last}}",
-    "previous": "Précédente",
-    "next": "Suivante",
     "fields": {
       "name": "Nom complet",
       "contact": "E-mail ou numéro de téléphone",
@@ -714,8 +716,20 @@
       "reactivate": "Réactiver",
       "reactivateTitle": "Réactiver {{name}} ?",
       "reactivateText": "La personne peut se reconnecter avec son mot de passe et retrouve ses rôles.",
-      "reactivateConfirm": "Réactiver {{name}}"
-    }
+      "reactivateConfirm": "Réactiver {{name}}",
+      "searchRoles": "Rechercher un rôle",
+      "noRolesFound": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
+    },
+    "invitationStatus": {
+      "pending": "En attente",
+      "expired": "Expirée",
+      "accepted": "Acceptée",
+      "revoked": "Révoquée"
+    },
+    "twoFactorOn": "Activée",
+    "twoFactorOff": "Désactivée",
+    "searchPlaceholder": "Nom, e-mail ou téléphone",
+    "emptyFiltered": "Personne ne correspond à cette recherche. Essayez d’autres mots."
   },
   "roles": {
     "create": "Créer un rôle",
@@ -733,7 +747,8 @@
       "description": "Description du rôle",
       "permissions": "Autorisations",
       "twoFactor": "Double authentification",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type"
     },
     "permissionCount_one": "{{count}} autorisation",
     "permissionCount_other": "{{count}} autorisations",
@@ -764,7 +779,13 @@
     "archiveText": "Les personnes ayant ce rôle perdent immédiatement ses autorisations. Leurs autres rôles et leur historique sont conservés.",
     "archiveConfirm": "Archiver le rôle",
     "keepRole": "Garder le rôle",
-    "emptyReadOnly": "Aucun rôle à afficher."
+    "emptyReadOnly": "Aucun rôle à afficher.",
+    "types": {
+      "system": "Système",
+      "custom": "Personnalisé"
+    },
+    "searchPlaceholder": "Nom ou description",
+    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
   },
   "security": {
     "title": "Sécurité",

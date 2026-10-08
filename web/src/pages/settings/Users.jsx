@@ -1,20 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, DataTable, StatusBadge, Tabs } from '@/components/ds'
+import { Alert, Button, ListView, StatusBadge, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatDate } from '@/lib/dates'
+import { formatDate, formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
+import { actionsColumn } from '@/lib/listColumns'
+import { useServerList } from '@/lib/useServerList'
 import { ConfirmDialog } from './ConfirmDialog'
 import { scopeLabel, USER_TONES, useRoles, useScopes } from './users/assignments'
 import { RoleList } from './users/RoleList'
 
-const PER_PAGE = 50
 const TABS = ['active', 'invitations', 'deactivated']
+const INVITATION_TONES = { pending: 'warning', expired: 'neutral', accepted: 'success', revoked: 'neutral' }
+
 /** Downloads the access review CSV with the bearer token (RBAC-11). */
 async function exportAccessReview() {
   const { blob, filename } = await api.download('access-review?format=csv')
@@ -32,72 +35,74 @@ async function exportAccessReview() {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+/** Active or deactivated users (AUTH-13): search, sort, pages, columns and export (EXP-01, LAY-04). */
 function UsersTable({ status, canInvite, onInvite }) {
   const { t } = useTranslation()
+  const locale = useLocale()
   const navigate = useNavigate()
-  const [page, setPage] = useState(1)
-  const users = useQuery({
-    queryKey: ['users', status, page],
-    queryFn: () => api.get(`users?status=${status}&per_page=${PER_PAGE}&page=${page}`),
-  })
-  const lastPage = users.data?.meta?.last_page ?? 1
 
   const columns = [
-    { key: 'name', label: t('users.columns.name'), render: (user) => <span className="font-medium text-ink">{user.name}</span> },
-    { key: 'contact', label: t('users.columns.contact'), render: (user) => user.email ?? user.phone ?? '' },
+    { key: 'name', label: t('users.columns.name'), sortKey: 'name', hideable: false, render: (user) => <span className="font-medium text-ink">{user.name}</span> },
+    { key: 'email', label: t('users.columns.email'), sortKey: 'email', render: (user) => user.email ?? '' },
+    { key: 'phone', label: t('users.columns.phone'), sortKey: 'phone', render: (user) => <span className="tabular-nums">{user.phone ?? ''}</span> },
     { key: 'roles', label: t('users.columns.roles'), render: (user) => <RoleList assignments={user.roles} /> },
     {
       key: 'status',
       label: t('users.columns.status'),
+      sortKey: 'status',
       render: (user) => <StatusBadge tone={USER_TONES[user.status]}>{t(`users.status.${user.status}`)}</StatusBadge>,
+    },
+    {
+      key: 'two_factor',
+      label: t('users.columns.twoFactor'),
+      defaultHidden: true,
+      render: (user) => (user.two_factor_enabled ? t('users.twoFactorOn') : t('users.twoFactorOff')),
+    },
+    {
+      key: 'last_sign_in_at',
+      label: t('users.columns.lastSignIn'),
+      sortKey: 'last_sign_in_at',
+      defaultHidden: true,
+      render: (user) => (user.last_sign_in_at ? formatDateTime(user.last_sign_in_at, locale) : ''),
     },
   ]
 
+  const list = useServerList({ id: 'users', endpoint: 'users', queryKey: ['users', status], params: { status }, columns })
+
   return (
-    <>
-      {users.isError ? <Alert tone="danger" title={errorMessage(users.error)} action={<Button onClick={() => users.refetch()}>{t('common.retry')}</Button>} /> : null}
-      <DataTable
-        caption={t(`users.tabs.${status}`)}
-        columns={columns}
-        rows={users.data?.data ?? []}
-        onRowClick={(user) => navigate(`/settings/users/${user.id}`)}
-        emptyText={
-          users.isPending ? (
-            t('common.loading')
-          ) : status === 'active' && canInvite ? (
-            <span className="flex flex-col items-center gap-3">
-              {t('users.empty.active')}
-              <Button variant="primary" icon="plus" onClick={onInvite}>
-                {t('users.inviteUser')}
-              </Button>
-            </span>
-          ) : (
-            t(`users.empty.${status}`)
-          )
-        }
-      />
-      {lastPage > 1 ? (
-        <nav aria-label={t('users.pages')} className="flex items-center justify-end gap-3">
-          <span className="text-caption text-ink-muted">{t('users.pageOf', { page, last: lastPage })}</span>
-          <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
-            {t('users.previous')}
-          </Button>
-          <Button variant="ghost" disabled={page >= lastPage} onClick={() => setPage((current) => current + 1)}>
-            {t('users.next')}
-          </Button>
-        </nav>
-      ) : null}
-    </>
+    <ListView
+      list={list}
+      title={t(`users.tabs.${status}`)}
+      searchPlaceholder={t('users.searchPlaceholder')}
+      onRowClick={(user) => navigate(`/settings/users/${user.id}`)}
+      emptyText={
+        list.term ? (
+          t('users.emptyFiltered')
+        ) : status === 'active' && canInvite ? (
+          <span className="flex flex-col items-center gap-3">
+            {t('users.empty.active')}
+            <Button variant="primary" icon="plus" onClick={onInvite}>
+              {t('users.inviteUser')}
+            </Button>
+          </span>
+        ) : (
+          t(`users.empty.${status}`)
+        )
+      }
+    />
   )
 }
 
-/** Pending invitations with revoke (AUTH-05). Assignments carry ids only; names come from the role and scope lists. */
+/**
+ * Invitations with revoke (AUTH-05): every status, newest first, with
+ * search, sort, pages, columns and export (EXP-01). Assignments carry ids
+ * only; names come from the role and scope lists.
+ */
 function InvitationsTable({ canInvite, onInvite }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
   const [revoking, setRevoking] = useState(null)
-  const invitations = useQuery({ queryKey: ['invitations'], queryFn: () => api.get('invitations?per_page=200') })
   const { roles } = useRoles()
   const scopes = useScopes()
 
@@ -115,7 +120,6 @@ function InvitationsTable({ canInvite, onInvite }) {
     },
   })
 
-  const rows = (invitations.data?.data ?? []).filter((invitation) => invitation.status === 'pending' || invitation.status === 'expired')
   const describe = (assignment) =>
     t('users.roleAt', {
       role: names.role.get(assignment.role_id) ?? t('users.unknownRole'),
@@ -126,66 +130,80 @@ function InvitationsTable({ canInvite, onInvite }) {
     })
 
   const columns = [
-    { key: 'name', label: t('users.columns.name'), render: (invitation) => <span className="font-medium text-ink">{invitation.name}</span> },
-    { key: 'contact', label: t('users.columns.contact'), render: (invitation) => invitation.email ?? invitation.phone ?? '' },
+    {
+      key: 'name',
+      label: t('users.columns.name'),
+      sortKey: 'name',
+      hideable: false,
+      render: (invitation) => <span className="font-medium text-ink">{invitation.name}</span>,
+    },
+    { key: 'email', label: t('users.columns.email'), sortKey: 'email', render: (invitation) => invitation.email ?? '' },
+    { key: 'phone', label: t('users.columns.phone'), sortKey: 'phone', render: (invitation) => <span className="tabular-nums">{invitation.phone ?? ''}</span> },
     {
       key: 'roles',
       label: t('users.columns.roles'),
       render: (invitation) => (
         <ul className="flex flex-col">
-          {invitation.assignments.map((assignment, index) => (
+          {(invitation.assignments ?? []).map((assignment, index) => (
             <li key={index}>{describe(assignment)}</li>
           ))}
         </ul>
       ),
     },
     {
-      key: 'expires',
-      label: t('users.columns.expires'),
-      render: (invitation) =>
-        invitation.status === 'expired' ? (
-          <StatusBadge tone="neutral">{t('users.invitationExpired')}</StatusBadge>
-        ) : (
-          formatDate(invitation.expires_at, locale)
-        ),
+      key: 'status',
+      label: t('users.columns.status'),
+      render: (invitation) => (
+        <StatusBadge tone={INVITATION_TONES[invitation.status] ?? 'neutral'}>{t(`users.invitationStatus.${invitation.status}`)}</StatusBadge>
+      ),
     },
+    { key: 'expires_at', label: t('users.columns.expires'), sortKey: 'expires_at', render: (invitation) => formatDate(invitation.expires_at, locale) },
     {
-      key: 'action',
-      label: <span className="sr-only">{t('users.columns.actions')}</span>,
-      align: 'end',
-      render: (invitation) =>
-        invitation.status === 'pending' ? (
-          <Button
-            variant="secondary"
-            onClick={(event) => {
-              event.stopPropagation()
-              setRevoking(invitation)
-            }}
-            aria-label={t('users.revokeFor', { name: invitation.name })}
-          >
-            {t('users.revoke')}
-          </Button>
-        ) : null,
+      key: 'created_at',
+      label: t('users.columns.invited'),
+      sortKey: 'created_at',
+      defaultHidden: true,
+      render: (invitation) => (invitation.created_at ? formatDate(invitation.created_at, locale) : ''),
     },
+    actionsColumn(t('users.columns.actions'), (invitation) =>
+      invitation.status === 'pending' ? (
+        <Button
+          variant="secondary"
+          onClick={(event) => {
+            event.stopPropagation()
+            setRevoking(invitation)
+          }}
+          aria-label={t('users.revokeFor', { name: invitation.name })}
+        >
+          {t('users.revoke')}
+        </Button>
+      ) : null,
+    ),
   ]
 
-  if (!invitations.isPending && !invitations.isError && rows.length === 0) {
-    return (
-      <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface-200 p-5">
-        <p className="text-ink-muted">{t('users.empty.invitations')}</p>
-        {canInvite ? (
-          <Button variant="primary" icon="plus" onClick={onInvite}>
-            {t('users.inviteUser')}
-          </Button>
-        ) : null}
-      </div>
-    )
-  }
+  const list = useServerList({ id: 'invitations', endpoint: 'invitations', queryKey: ['invitations'], columns })
 
   return (
     <>
-      {invitations.isError ? <Alert tone="danger" title={errorMessage(invitations.error)} /> : null}
-      <DataTable caption={t('users.tabs.invitations')} columns={columns} rows={rows} emptyText={t('common.loading')} />
+      <ListView
+        list={list}
+        title={t('users.tabs.invitations')}
+        searchPlaceholder={t('users.searchPlaceholder')}
+        emptyText={
+          list.term ? (
+            t('users.emptyFiltered')
+          ) : canInvite ? (
+            <span className="flex flex-col items-center gap-3">
+              {t('users.empty.invitations')}
+              <Button variant="primary" icon="plus" onClick={onInvite}>
+                {t('users.inviteUser')}
+              </Button>
+            </span>
+          ) : (
+            t('users.empty.invitations')
+          )
+        }
+      />
       <ConfirmDialog
         open={Boolean(revoking)}
         title={revoking ? t('users.revokeTitle', { name: revoking.name }) : ''}
@@ -245,6 +263,7 @@ export default function Users() {
       />
       {notice ? <Alert tone="success" title={notice} /> : null}
       {download.isError ? <Alert tone="danger" title={errorMessage(download.error)} /> : null}
+      {/* A tab change clears the list's search, sort and page: each tab is its own list. */}
       <Tabs items={tabs} value={tab} onChange={(next) => setParams(next === 'active' ? {} : { tab: next }, { replace: true })} />
       {tab === 'invitations' ? <InvitationsTable canInvite={canInvite} onInvite={invite} /> : <UsersTable key={tab} status={tab} canInvite={canInvite} onInvite={invite} />}
     </>

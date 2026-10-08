@@ -472,7 +472,10 @@
     "confirmTitle": "Sign out of this device?",
     "confirmText": "You will go back to the sign-in page. Your other sessions stay signed in.",
     "stay": "Stay signed in",
-    "signOutHere": "Sign out"
+    "signOutHere": "Sign out",
+    "signedIn": "Signed in",
+    "searchPlaceholder": "Device, IP address or browser",
+    "emptyFiltered": "No session matches this search. Try other words."
   },
   "organisation": {
     "status": {
@@ -605,19 +608,23 @@
     "backToUsers": "Users",
     "tabs": {
       "active": "Active",
-      "invitations": "Pending invitations",
+      "invitations": "Invitations",
       "deactivated": "Deactivated"
     },
     "columns": {
       "name": "Name",
-      "contact": "Email or phone",
       "roles": "Roles",
       "status": "Status",
       "expires": "Expires",
       "actions": "Actions",
       "role": "Role",
       "where": "Where",
-      "granted": "Given"
+      "granted": "Given",
+      "email": "Email",
+      "phone": "Phone",
+      "twoFactor": "Two-factor",
+      "lastSignIn": "Last sign-in",
+      "invited": "Invited"
     },
     "status": {
       "active": "Active",
@@ -627,7 +634,7 @@
     "empty": {
       "active": "No active users in your part of the organisation yet.",
       "deactivated": "No one has been deactivated.",
-      "invitations": "No pending invitations. Invite someone to give them access."
+      "invitations": "No invitations yet. Invite someone to give them access."
     },
     "noRoles": "No roles",
     "roleAt": "{{role}} at {{scope}}",
@@ -638,17 +645,12 @@
       "branch": "Branch",
       "location": "Location"
     },
-    "invitationExpired": "Expired",
     "revoke": "Revoke",
     "revokeFor": "Revoke the invitation for {{name}}",
     "revokeTitle": "Revoke the invitation for {{name}}?",
     "revokeText": "The link stops working at once. You can send a new invitation later.",
     "revokeConfirm": "Revoke invitation",
     "keepInvitation": "Keep invitation",
-    "pages": "Pages",
-    "pageOf": "Page {{page}} of {{last}}",
-    "previous": "Previous",
-    "next": "Next",
     "fields": {
       "name": "Full name",
       "contact": "Email or phone number",
@@ -714,8 +716,20 @@
       "reactivate": "Reactivate",
       "reactivateTitle": "Reactivate {{name}}?",
       "reactivateText": "They can sign in again with their password and get the roles they held.",
-      "reactivateConfirm": "Reactivate {{name}}"
-    }
+      "reactivateConfirm": "Reactivate {{name}}",
+      "searchRoles": "Search roles",
+      "noRolesFound": "No role matches this search. Try other words."
+    },
+    "invitationStatus": {
+      "pending": "Pending",
+      "expired": "Expired",
+      "accepted": "Accepted",
+      "revoked": "Revoked"
+    },
+    "twoFactorOn": "On",
+    "twoFactorOff": "Off",
+    "searchPlaceholder": "Name, email or phone",
+    "emptyFiltered": "No one matches this search. Try other words."
   },
   "roles": {
     "create": "Create role",
@@ -733,7 +747,8 @@
       "description": "Description",
       "permissions": "Permissions",
       "twoFactor": "Two-factor",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type"
     },
     "permissionCount_one": "{{count}} permission",
     "permissionCount_other": "{{count}} permissions",
@@ -764,7 +779,13 @@
     "archiveText": "People who hold this role lose its permissions at once. Their other roles and history stay.",
     "archiveConfirm": "Archive role",
     "keepRole": "Keep role",
-    "emptyReadOnly": "No roles to show."
+    "emptyReadOnly": "No roles to show.",
+    "types": {
+      "system": "System",
+      "custom": "Custom"
+    },
+    "searchPlaceholder": "Name or description",
+    "emptyFiltered": "No role matches this search. Try other words."
   },
   "security": {
     "title": "Security",

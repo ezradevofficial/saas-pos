@@ -82,6 +82,38 @@ export function useTypedText(urlValue, write, delay = 300) {
 }
 
 /**
+ * Downloads a list as a file (EXP-01) with the bearer token: the endpoint
+ * with `params` (filters, search, sort; never a page), `format` and the
+ * column keys in order (none: every exportable column). A toast shows
+ * while it runs and says why when it fails. For lists that are not a
+ * ListView (a tree, grouped cards) as much as for ListView itself.
+ *
+ * @returns {{ exportTo: (format: string, params?: URLSearchParams|Record<string,string>, columns?: string[]) => Promise<void>, exporting: string|null }}
+ */
+export function useListExport({ id, endpoint }) {
+  const { t } = useTranslation()
+  const [exporting, setExporting] = useState(null)
+  const exportTo = async (format, base = {}, columns = []) => {
+    if (exporting) return
+    const params = new URLSearchParams(base)
+    params.set('format', format)
+    for (const key of columns) params.append('columns[]', key)
+    setExporting(format)
+    const toastId = toast.loading(t('ds.listView.exporting'))
+    try {
+      const { blob, filename } = await api.download(`${endpoint}?${params}`)
+      saveFile(blob, filename ?? `${id}-${today()}.${format}`)
+      toast.success(t('ds.listView.exported'), { id: toastId })
+    } catch (error) {
+      toast.error(exportError(error, t), { id: toastId })
+    } finally {
+      setExporting(null)
+    }
+  }
+  return { exportTo, exporting }
+}
+
+/**
  * @param {object} options
  * @param {string} options.id the list's id: column storage and the fallback file name
  * @param {string} options.endpoint the API path, e.g. "items"
@@ -89,11 +121,10 @@ export function useTypedText(urlValue, write, delay = 300) {
  * @param {Record<string, string>} [options.filters] filter name -> default value (kept in the URL)
  * @param {string} [options.defaultSort] "key" or "-key"; empty leaves the order to the API
  * @param {number} [options.defaultPerPage]
- * @param {Array} [options.columns] DataTable columns plus `sortKey`, `exportKey`, `hideable`, `defaultHidden`
+ * @param {Array} [options.columns] DataTable columns plus `sortKey`, `exportKey`, `hideable`, `defaultHidden`, `inMenu` (false keeps an actions column out of the Columns menu)
  * @param {Array} [options.queryKey] query key prefix (default [id]); "list" and the query follow
  */
 export function useServerList({ id, endpoint, params: fixed = {}, filters: filterDefaults = {}, defaultSort = '', defaultPerPage = 25, columns = [], queryKey }) {
-  const { t } = useTranslation()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const defaults = { search: '', sort: defaultSort, page: '1', per_page: String(defaultPerPage), ...filterDefaults }
@@ -197,27 +228,8 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
   }
 
   // Export (EXP-01): the same query, every matching row, the visible columns in order.
-  const [exporting, setExporting] = useState(null)
-  const exportTo = async (format) => {
-    if (exporting) return
-    const params = new URLSearchParams(apiParams)
-    params.set('format', format)
-    for (const column of visibleColumns) {
-      const key = exportKeyOf(column)
-      if (key) params.append('columns[]', key)
-    }
-    setExporting(format)
-    const toastId = toast.loading(t('ds.listView.exporting'))
-    try {
-      const { blob, filename } = await api.download(`${endpoint}?${params}`)
-      saveFile(blob, filename ?? `${id}-${today()}.${format}`)
-      toast.success(t('ds.listView.exported'), { id: toastId })
-    } catch (error) {
-      toast.error(exportError(error, t), { id: toastId })
-    } finally {
-      setExporting(null)
-    }
-  }
+  const exporter = useListExport({ id, endpoint })
+  const exportTo = (format) => exporter.exportTo(format, apiParams, visibleColumns.map(exportKeyOf).filter(Boolean))
 
   return {
     search: searchInput,
@@ -243,7 +255,7 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     canToggleColumn,
     toggleColumn,
     exportTo,
-    exporting,
+    exporting: exporter.exporting,
   }
 }
 
