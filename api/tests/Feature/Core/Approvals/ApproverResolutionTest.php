@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Workflow\TestDocuments;
+use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
@@ -172,6 +173,31 @@ class ApproverResolutionTest extends TestCase
         $meta = $this->getJson('/api/v1/workflow/document-types', $this->headersFor())->assertOk()->json('meta.approver_types');
         $this->assertSame(['branch_manager', 'department_head', 'cost_centre_owner', 'manager_levels_up', 'role', 'user'], array_column($meta, 'key'));
         $this->assertSame('levels', $meta[3]['params'][0]['name']);
+    }
+
+    public function test_a_type_must_say_who_requested_a_document_to_have_approvals(): void
+    {
+        $orders = app(DocumentTypeRegistry::class)->get(TestOrderType::KEY);
+        $problems = $this->inTenant(fn () => app(ApprovalConfig::class)->validate(['approval' => ['approver' => ['type' => 'branch_manager']]], $orders));
+        $this->assertContains(__('approvals.validation.requester_unknown'), $problems);
+    }
+
+    public function test_a_flow_started_by_the_system_takes_the_requester_from_the_type(): void
+    {
+        $this->publishFlow($this->approvalGraph());
+        $id = $this->document(['requested_by' => $this->managerA->id]);
+        $workflow = $this->start($id, $this->owner);
+        $this->inTenant(fn () => $this->engine()->move($workflow, $this->owner));
+        $first = $this->approvalOf($workflow);
+        // Started by the owner, created by Manager A: both are excluded.
+        $this->assertNotContains($this->managerA->id, $this->pendingApprovers($first));
+
+        $system = $this->document(['requested_by' => $this->managerA->id]);
+        $flow = $this->inTenant(fn () => $this->engine()->start(TestRequestType::KEY, $system, null));
+        $this->inTenant(fn () => $this->engine()->move($flow, $this->owner));
+        $approval = $this->approvalOf($flow);
+        $this->assertSame($this->managerA->id, $approval->requester_id);
+        $this->assertNotContains($this->managerA->id, $this->pendingApprovers($approval));
     }
 
     public function test_an_invalid_approval_config_blocks_publishing(): void

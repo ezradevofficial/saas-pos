@@ -136,6 +136,7 @@ return [
     ],
 
     'validation' => [
+        'requester_unknown' => 'ce type de document n’indique pas qui a fait la demande ; il ne peut donc pas avoir d’approbation (contrôle d’auto-approbation impossible)',
         'config' => 'Les paramètres d’approbation ne sont pas valides.',
         'chain' => 'Une chaîne séquentielle compte entre un et :max approbateurs.',
         'step' => 'approbateur :step : :problem',

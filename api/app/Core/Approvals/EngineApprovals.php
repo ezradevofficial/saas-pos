@@ -63,7 +63,8 @@ class EngineApprovals implements ApprovalHandler
             'document_title' => is_string($summary['title'] ?? null) ? mb_substr($summary['title'], 0, 255) : null,
             'amount_minor' => $amount['amount_minor'] ?? null,
             'currency' => $amount === null ? null : $amount['currency'],
-            'requester_id' => $step->workflow->started_by,
+            // A flow the system started (no user) takes its requester from the type (L6).
+            'requester_id' => $step->workflow->started_by ?? $step->type->requesterId($step->documentId()),
             'config' => $config,
             'mode' => $config['mode'],
             'step' => 0,

@@ -124,12 +124,22 @@ abstract class DocumentType
     }
 
     /**
-     * APR-07: the user who created the document, when the type knows it
-     * (besides whoever started its flow), so they never approve it.
+     * APR-07: the user who requested the document (its creator), so they
+     * never approve it, besides whoever started its flow. Part of the
+     * contract for types used with approval nodes: a flow with an approval
+     * node cannot be published for a type that does not override this
+     * (ApprovalConfig), and a flow started by the system (no user) records
+     * this user as the requester.
      */
     public function requesterId(string $documentId): ?string
     {
         return null;
+    }
+
+    /** Whether the type implements requesterId() (L6). */
+    final public function knowsRequester(): bool
+    {
+        return (new \ReflectionMethod($this, 'requesterId'))->getDeclaringClass()->getName() !== self::class;
     }
 
     public function field(string $name): ?FieldDefinition

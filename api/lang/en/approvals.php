@@ -136,6 +136,7 @@ return [
     ],
 
     'validation' => [
+        'requester_unknown' => 'this document type does not say who requested a document, so it cannot have approvals (no self-approval check)',
         'config' => 'The approval settings are not valid.',
         'chain' => 'A sequential chain needs between one and :max approvers.',
         'step' => 'approver :step: :problem',

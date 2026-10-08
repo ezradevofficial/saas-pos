@@ -96,6 +96,10 @@ class ApprovalConfig
             return [__('approvals.validation.config')];
         }
 
+        if (! $type->knowsRequester()) {
+            $problems[] = __('approvals.validation.requester_unknown');
+        }
+
         if (isset($approval['chain'])) {
             $chain = $approval['chain'];
 
