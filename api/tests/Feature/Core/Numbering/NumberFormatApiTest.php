@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Numbering;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Http\ApiException;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberContext;
@@ -75,6 +76,37 @@ class NumberFormatApiTest extends TestCase
         $this->saveFormat(['pattern' => 'X-{001}', 'reset' => 'never'])->assertUnprocessable()->assertJsonPath('code', 'numbering_reset_locked');
         // The pattern alone may still change.
         $this->saveFormat(['pattern' => 'Y-{YYYY}-{0001}'])->assertOk();
+    }
+
+    public function test_formats_never_print_the_same_numbers_and_always_fit(): void
+    {
+        // M2: a company format continues the tenant counter it replaces.
+        $this->saveFormat(['pattern' => 'X-{YYYY}-{001}'])->assertOk();
+        $this->inTenant(fn () => app(Numbering::class)->next(NumberingTest::TYPE, new NumberContext($this->acme, $this->branchA, at: CarbonImmutable::now())));
+        $this->saveFormat(['company_id' => $this->acme->id, 'pattern' => 'C-{YYYY}-{001}'])->assertOk();
+        $year = CarbonImmutable::now('Africa/Nairobi')->format('Y');
+        $this->assertSame("C-{$year}-002", $this->inTenant(fn () => app(Numbering::class)->next(NumberingTest::TYPE, new NumberContext($this->acme, $this->branchA, at: CarbonImmutable::now()))->number));
+
+        // The same pattern elsewhere is refused, unless branches of one company print {BRANCH}.
+        $other = $this->inTenant(fn () => $this->company('Other'));
+        $this->saveFormat(['company_id' => $other->id, 'pattern' => 'C-{YYYY}-{001}'])->assertUnprocessable()->assertJsonPath('code', 'numbering_pattern_collision');
+        $this->saveFormat(['company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'pattern' => 'S-{BRANCH}-{YYYY}-{001}'])->assertOk();
+        $this->saveFormat(['company_id' => $this->acme->id, 'branch_id' => $this->branchB->id, 'pattern' => 'S-{BRANCH}-{YYYY}-{001}'])->assertOk();
+        $this->saveFormat(['company_id' => $this->acme->id, 'branch_id' => $this->branchB->id, 'pattern' => 'C-{YYYY}-{001}'])->assertUnprocessable()->assertJsonPath('code', 'numbering_pattern_collision');
+
+        // M5: the longest number it could print must fit 80 characters (a 70-character branch code here).
+        $this->inTenant(fn () => $this->branchA->forceFill(['code' => str_repeat('A', 70)])->save());
+        $this->saveFormat(['company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'pattern' => 'S-{BRANCH}-{YYYY}-{001}'])
+            ->assertUnprocessable()->assertJsonPath('code', 'numbering_pattern_too_long');
+        // Saved earlier, it now refuses ranges instead of failing.
+        $this->inTenant(function () {
+            try {
+                app(Numbering::class)->reserve(NumberingTest::TYPE, new NumberContext($this->acme, $this->branchA, at: CarbonImmutable::now()), 10);
+                $this->fail('a too-long range was reserved');
+            } catch (ApiException $e) {
+                $this->assertSame('numbering_pattern_too_long', $e->errorCode);
+            }
+        });
     }
 
     public function test_locations_and_devices_take_a_code_for_numbers(): void

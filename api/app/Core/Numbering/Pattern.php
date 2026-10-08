@@ -34,9 +34,9 @@ final class Pattern
     ) {}
 
     /** @throws InvalidArgumentException with a translation key as message */
-    public static function parse(string $pattern): self
+    public static function parse(string $pattern, bool $limitLength = true): self
     {
-        if ($pattern === '' || mb_strlen($pattern) > self::MAX_LENGTH) {
+        if ($pattern === '' || ($limitLength && mb_strlen($pattern) > self::MAX_LENGTH)) {
             throw new InvalidArgumentException('core.numbering.errors.pattern_length');
         }
 
@@ -88,7 +88,8 @@ final class Pattern
     {
         $text = preg_replace_callback(self::TOKEN, fn (array $m) => $values[$m[1]] ?? $m[0], $this->pattern);
 
-        return self::parse((string) $text);
+        // Filled-in codes may make it longer than a typed pattern may be.
+        return self::parse((string) $text, limitLength: false);
     }
 
     /**

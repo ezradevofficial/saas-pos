@@ -29,6 +29,9 @@ use LogicException;
  */
 class Numbering
 {
+    /** Longest number stored (receipt numbers, frozen range patterns): 80 characters. */
+    public const MAX_NUMBER_LENGTH = 80;
+
     public function __construct(
         private readonly DocumentNumberTypes $types,
         private readonly Auditor $auditor,
@@ -37,6 +40,16 @@ class Numbering
     public function type(string $key): DocumentNumberType
     {
         return $this->types->find($key) ?? throw new InvalidArgumentException("Unknown numbered document type [{$key}].");
+    }
+
+    /** The format already in force at a place (no seeding): the branch's, the company's or the tenant's. */
+    public function formatAt(string $type, ?string $companyId, ?string $branchId): ?NumberFormat
+    {
+        $formats = NumberFormat::query()->where('document_type', $type)->get();
+
+        return ($branchId === null ? null : $formats->firstWhere('branch_id', $branchId))
+            ?? ($companyId === null ? null : $formats->first(fn (NumberFormat $f) => $f->company_id === $companyId && $f->branch_id === null))
+            ?? $formats->first(fn (NumberFormat $f) => $f->company_id === null);
     }
 
     /** The format in force for $type at the company (and branch), seeding the tenant default on first use. */
@@ -100,9 +113,18 @@ class Numbering
             }
         }
 
+        $frozenPattern = $pattern->with($frozen);
+
+        // M5: codes changed since the format was saved could make numbers too long: refuse, never fail.
+        $longest = $frozenPattern->render(['YYYY' => '0000', 'YY' => '00', 'MM' => '00'], (int) str_repeat('9', max($pattern->width, 12)));
+
+        if (mb_strlen($frozenPattern->pattern) > self::MAX_NUMBER_LENGTH || mb_strlen($longest) > self::MAX_NUMBER_LENGTH) {
+            throw new ApiException(422, 'numbering_pattern_too_long', __('core.numbering.errors.pattern_too_long', ['max' => self::MAX_NUMBER_LENGTH]));
+        }
+
         [$sequenceId, $from] = $this->advance($format, $period, $size);
 
-        return new ReservedBlock($format->id, $sequenceId, $period, $from, $from + $size - 1, $pattern->with($frozen)->pattern);
+        return new ReservedBlock($format->id, $sequenceId, $period, $from, $from + $size - 1, $frozenPattern->pattern);
     }
 
     /**
