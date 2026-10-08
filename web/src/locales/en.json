@@ -1773,12 +1773,8 @@
   },
   "notificationTemplates": {
     "title": "Notification templates",
-    "description": "The texts your organisation sends, per notification, channel and language.",
+    "description": "The texts your organisation sends, per notification and channel.",
     "eventTypes": "Notification types",
-    "locales": {
-      "en": "English",
-      "fr": "French"
-    },
     "channel": "Channel",
     "subject": "Subject",
     "body": "Message",
@@ -1796,11 +1792,11 @@
     },
     "save": "Save template",
     "saved": "Template saved",
-    "reset": "Reset to default",
-    "resetTitle": "Reset this text to the default?",
-    "resetText": "Your text for this channel and language is removed and the default text is used again.",
+    "reset": "Use default",
+    "resetTitle": "Use the default text?",
+    "resetText": "Your text for this channel is removed. Everyone then receives the default text, in their own language.",
     "keepText": "Keep my text",
-    "resetConfirm": "Reset to default",
+    "resetConfirm": "Use default",
     "resetDone": "Default text restored",
     "empty": "There are no notification types yet.",
     "mandatory": {
@@ -1808,7 +1804,10 @@
       "description": "Users can’t switch these channels off for this notification.",
       "notAllowed": "This notification can’t be made required.",
       "saved": "Required channels saved"
-    }
+    },
+    "singleLanguage": "Written once, in your organisation’s language. Everyone receives this text.",
+    "defaultTitle": "Built-in default",
+    "defaultHelp": "Shown in your language. When you have no text of your own, each person receives it in their own language."
   },
   "notificationDeliveries": {
     "title": "Delivery log",

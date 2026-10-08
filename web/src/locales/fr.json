@@ -1773,12 +1773,8 @@
   },
   "notificationTemplates": {
     "title": "Modèles de notification",
-    "description": "Les textes envoyés par votre organisation, par notification, canal et langue.",
+    "description": "Les textes envoyés par votre organisation, par notification et par canal.",
     "eventTypes": "Types de notification",
-    "locales": {
-      "en": "Anglais",
-      "fr": "Français"
-    },
     "channel": "Canal",
     "subject": "Objet",
     "body": "Message",
@@ -1796,11 +1792,11 @@
     },
     "save": "Enregistrer le modèle",
     "saved": "Modèle enregistré",
-    "reset": "Rétablir le texte par défaut",
-    "resetTitle": "Rétablir le texte par défaut ?",
-    "resetText": "Votre texte pour ce canal et cette langue est supprimé et le texte par défaut est de nouveau utilisé.",
+    "reset": "Utiliser le texte par défaut",
+    "resetTitle": "Utiliser le texte par défaut ?",
+    "resetText": "Votre texte pour ce canal est supprimé. Chacun reçoit alors le texte par défaut, dans sa propre langue.",
     "keepText": "Garder mon texte",
-    "resetConfirm": "Rétablir le texte par défaut",
+    "resetConfirm": "Utiliser le texte par défaut",
     "resetDone": "Texte par défaut rétabli",
     "empty": "Il n’y a encore aucun type de notification.",
     "mandatory": {
@@ -1808,7 +1804,10 @@
       "description": "Les utilisateurs ne peuvent pas désactiver ces canaux pour cette notification.",
       "notAllowed": "Cette notification ne peut pas être rendue obligatoire.",
       "saved": "Canaux obligatoires enregistrés"
-    }
+    },
+    "singleLanguage": "Rédigé une seule fois, dans la langue de votre organisation. Tout le monde reçoit ce texte.",
+    "defaultTitle": "Texte par défaut intégré",
+    "defaultHelp": "Affiché dans votre langue. Tant que vous n’avez pas votre propre texte, chacun le reçoit dans sa propre langue."
   },
   "notificationDeliveries": {
     "title": "Journal des envois",

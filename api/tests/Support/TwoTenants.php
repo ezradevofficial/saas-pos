@@ -258,7 +258,7 @@ final class TwoTenants
         // and the owner's preferences (SMS on, email in a daily digest).
         $notificationEvent = NotificationsServiceProvider::TEST_EVENT;
         self::ok($test->putJson('/api/v1/notification-templates', [
-            'event_type' => $notificationEvent, 'channel' => 'all', 'locale' => 'en',
+            'event_type' => $notificationEvent, 'channel' => 'all',
             'subject' => "Isolation {$upper} from {sender_name}", 'body' => 'Note: {message}',
         ], $owner));
         self::ok($test->putJson('/api/v1/notification-settings', [

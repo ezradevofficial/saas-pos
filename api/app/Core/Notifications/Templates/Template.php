@@ -5,7 +5,7 @@ namespace App\Core\Notifications\Templates;
 use App\Core\Notifications\Channels;
 
 /**
- * NOT-03: the text of one event type for one channel and language, before
+ * NOT-03: the text of one event type for one channel and reader, before
  * placeholders are filled. `source`: `default` (language files), `all`
  * (the tenant's override for every channel) or `channel` (the tenant's
  * override for this channel).
