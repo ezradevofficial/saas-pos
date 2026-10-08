@@ -51,6 +51,12 @@ class TestRequestType extends DocumentType
         return TestDocuments::find(self::KEY, $documentId)['scope'] ?? null;
     }
 
+    /** APR-07: the `requested_by` value, as a module's creator column. */
+    public function requesterId(string $documentId): ?string
+    {
+        return TestDocuments::find($this->key(), $documentId)['values']['requested_by'] ?? null;
+    }
+
     public function viewPermission(): string
     {
         return 'core.party.view';

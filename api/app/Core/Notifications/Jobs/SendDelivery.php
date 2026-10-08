@@ -7,6 +7,7 @@ use App\Core\Notifications\Channels;
 use App\Core\Notifications\Drivers\ChannelDrivers;
 use App\Core\Notifications\Drivers\DriverResult;
 use App\Core\Notifications\Drivers\OutgoingMessage;
+use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Tenancy\Jobs\TenantAware;
@@ -146,8 +147,9 @@ class SendDelivery implements ShouldQueue
     private function handOver(NotificationDelivery $delivery, ChannelDrivers $drivers): DriverResult
     {
         if ($delivery->channel === Channels::EMAIL) {
+            // Buttons such as single-use approve links are made now, never stored (MailActions).
             Mail::to($delivery->recipient)->send(new NotificationMail(
-                (string) $delivery->subject, $delivery->body, $delivery->link, $delivery->locale,
+                (string) $delivery->subject, $delivery->body, $delivery->link, $delivery->locale, app(MailActions::class)->for($delivery),
             ));
 
             return new DriverResult;

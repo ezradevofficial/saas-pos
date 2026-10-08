@@ -20,3 +20,6 @@ Schedule::command('automation:scan dates')->hourly()->withoutOverlapping()->onOn
 
 // AUTO-05: runs and webhook deliveries a dead worker left behind.
 Schedule::command('automation:scan reap')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+
+// APR-05: approval reminders, escalations and final timeouts, in business time.
+Schedule::command('approvals:process-timers')->everyFiveMinutes()->withoutOverlapping()->onOneServer();

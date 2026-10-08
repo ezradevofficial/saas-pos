@@ -38,9 +38,10 @@ interface ApprovalHandler
 
     /**
      * Who holds the step now (WF-10 "holder"), or null to show the node's
-     * exit roles.
+     * exit roles. May add `blocked` (why nobody holds it, e.g.
+     * `no_approver`) and `approval_id`, shown with the holders.
      *
-     * @return array{roles: list<string>, users: list<string>}|null role and user ids
+     * @return array{roles: list<string>, users: list<string>, blocked?: ?string, approval_id?: string}|null role and user ids
      */
     public function holders(ApprovalStep $step): ?array;
 }

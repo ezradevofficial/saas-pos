@@ -37,6 +37,8 @@ return [
             'core.location.*', 'core.device.*',
             'core.user.view', 'core.user.invite', 'core.user.edit',
             'core.role.view', 'core.role.assign', 'core.audit.view',
+            // APR-06: reassigns pending approvals at their branch (and is a manager there).
+            'core.approval.reassign',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
         ],
         'is_owner' => false,

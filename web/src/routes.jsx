@@ -17,6 +17,8 @@ import {
   UOM_VIEW,
   WORKFLOW_VIEW,
 } from './layouts/navigation'
+import Approvals from './pages/approvals/Approvals'
+import EmailApproval from './pages/approvals/EmailApproval'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -90,7 +92,14 @@ export const routes = [
     ],
   },
   // Open to everyone: a signed-in user is asked to sign out first.
-  { element: <AuthLayout />, children: [{ path: '/invitations/:token', element: <AcceptInvitation /> }] },
+  // APR-08: an approval email's link works signed out or in; deciding needs the user to confirm.
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: '/invitations/:token', element: <AcceptInvitation /> },
+      { path: '/approvals/email/:token', element: <EmailApproval /> },
+    ],
+  },
   {
     element: (
       <RequireAuth allowEnrolment>
@@ -107,6 +116,8 @@ export const routes = [
     ),
     children: [
       { path: '/', element: <Home /> },
+      // APR-03, APR-04, APR-06: everyone's approvals inbox (the API decides what each user sees).
+      { path: '/approvals/:approvalId?', element: <Approvals /> },
       // MD-02: the catalogue.
       ...[
         ['/catalogue/items', ITEM_VIEW, <Items key="items" />],

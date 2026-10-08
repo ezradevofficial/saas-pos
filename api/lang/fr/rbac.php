@@ -38,6 +38,7 @@ return [
                 'notification_template' => 'Modèles de notification',
                 'notification_settings' => 'Paramètres des notifications',
                 'notification_delivery' => 'Envois de notifications',
+                'approval' => 'Approbations',
             ],
         ],
         'actions' => [
@@ -53,6 +54,8 @@ return [
             'override' => 'Remplacer',
             'configure' => 'Configurer',
             'publish' => 'Publier',
+            'view_all' => 'Tout voir',
+            'reassign' => 'Réattribuer',
         ],
     ],
 

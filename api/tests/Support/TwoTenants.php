@@ -2,8 +2,10 @@
 
 namespace Tests\Support;
 
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\InvitationNotification;
@@ -20,10 +22,12 @@ use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
+use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -66,6 +70,9 @@ final class TwoTenants
     {
         Notification::fake();
         Storage::fake('media');
+        // AUTO-03: webhooks go nowhere; the receiver's name resolves to a public address.
+        Http::fake(['https://hooks.example.com/*' => Http::response('received', 200)]);
+        app()->instance(HostResolver::class, new FakeHostResolver(['hooks.example.com' => [['93.184.216.34']]]));
         app(ModuleRegistry::class)->register(self::MODULE);
         // WF-01: the test document types (a request that creates orders).
         TestDocuments::reset();
@@ -289,7 +296,10 @@ final class TwoTenants
             'company_id' => $company,
             'trigger' => ['type' => 'record_created'],
             'conditions' => ['field' => 'note', 'op' => 'not_empty'],
-            'actions' => [['type' => 'notify', 'to' => ["user:{$ownerId}"], 'subject' => 'Automation {note}', 'message' => 'Created {total}.']],
+            'actions' => [
+                ['type' => 'notify', 'to' => ["user:{$ownerId}"], 'subject' => 'Automation {note}', 'message' => 'Created {total}.'],
+                ['type' => 'webhook', 'url' => "https://hooks.example.com/{$key}?token=hook-token-{$key}"],
+            ],
             'enabled' => true,
         ], $owner), 201)->json('data.id');
         // AUTO-03: a generated webhook signing secret (returned once); B's must never reach A.
@@ -299,6 +309,32 @@ final class TwoTenants
 
             return AutomationRun::query()->where('rule_id', $rule)->where('outcome', 'succeeded')->sole()->id;
         });
+
+        // APR-01..APR-08: the flow for every company has an approval by the
+        // manager; a document of the sign-up company (no flow of its own) waits
+        // there (an email with single-use links went to the manager), the
+        // manager delegated to the owner, who attached a file as their delegate.
+        $everyCompany = self::ok($test->postJson('/api/v1/workflows', ['document_type' => TestRequestType::KEY, 'company_id' => null], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/workflows/{$everyCompany}/draft", ['graph' => [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => "Approve {$upper}", 'approval' => ['approver' => ['type' => 'user', 'user_id' => $managerId]]],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+            ],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end']],
+        ]], $owner));
+        self::ok($test->postJson("/api/v1/workflows/{$everyCompany}/publish", [], $owner));
+        $approval = app(TenantContext::class)->run($tenantId, function () use ($signUpCompany, $upper) {
+            $id = TestDocuments::create(TestRequestType::KEY, ['total' => ['amount_minor' => '50000', 'currency' => 'KES'], 'note' => "Approval {$upper}"], new DocumentScope($signUpCompany));
+            $workflow = app(WorkflowEngine::class)->start(TestRequestType::KEY, $id, null);
+
+            return ApprovalRequest::query()->where('workflow_id', $workflow->id)->value('id');
+        });
+        $managerToken = ['Authorization' => 'Bearer '.$accepted->json('token')];
+        $delegation = self::ok($test->postJson('/api/v1/me/delegations', [
+            'to_user_id' => $ownerId, 'starts_on' => now()->subDay()->toDateString(), 'ends_on' => now()->addDays(30)->toDateString(),
+        ], $managerToken), 201)->json('data.id');
+        self::ok($test->post("/api/v1/approvals/{$approval}/attachments", ['file' => UploadedFile::fake()->create("quote-{$key}.pdf", 4, 'application/pdf')], [...$owner, 'Accept' => 'application/json']), 201);
 
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
@@ -339,11 +375,13 @@ final class TwoTenants
                 'notification' => $notification,
                 'automation_rule' => $rule,
                 'automation_run' => $automationRun,
+                'approval' => $approval,
+                'delegation' => $delegation,
                 ...$dimensions,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}"])),
         );
     }
 

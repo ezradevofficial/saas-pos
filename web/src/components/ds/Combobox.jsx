@@ -1,5 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -16,6 +16,8 @@ const itemKey = (index) => `option-${index}`
  * error, and the company switcher adds its own sidebar look (BR-01).
  * Keyboard: Enter, Space or the arrow keys open it, typing filters, the arrows
  * move, Enter picks and Escape closes; focus returns to the trigger.
+ * With `onSearchChange(text)` the caller searches (on the server) and the
+ * options are shown as given, not filtered again here.
  */
 export function Combobox({
   id,
@@ -30,6 +32,7 @@ export function Combobox({
   className,
   iconClassName = 'text-ink-muted',
   contentClassName,
+  onSearchChange,
   ...rest
 }) {
   const { t } = useTranslation()
@@ -40,10 +43,14 @@ export function Combobox({
   const selectedIndex = items.findIndex((option) => option.value === current)
   const selected = selectedIndex === -1 ? null : items[selectedIndex]
 
+  useEffect(() => {
+    onSearchChange?.(search)
+  }, [search, onSearchChange])
+
   const shown = useMemo(() => {
-    const query = normalizeSearch(search.trim())
+    const query = onSearchChange ? '' : normalizeSearch(search.trim())
     return items.map((option, index) => ({ option, index })).filter(({ option }) => !query || normalizeSearch(option.label).includes(query))
-  }, [items, search])
+  }, [items, search, onSearchChange])
 
   const changeOpen = (next) => {
     if (!next) setSearch('')

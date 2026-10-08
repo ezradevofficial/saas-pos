@@ -7,6 +7,8 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Definitions\FlowDefinitions;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Handlers\ApprovalHandler;
+use App\Core\Workflow\Handlers\ManualApprovalHandler;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Models\WorkflowDefinition;
 use App\Core\Workflow\Models\WorkflowVersion;
@@ -24,8 +26,17 @@ trait BuildsWorkflows
 {
     use BuildsOrganisation;
 
-    protected function setUpWorkflows(): void
+    /**
+     * Engine tests complete approval nodes through the move endpoint, as a
+     * stage (ManualApprovalHandler); approvals tests pass `approvals: true`
+     * to run the approvals service (APR-01..APR-09) instead.
+     */
+    protected function setUpWorkflows(bool $approvals = false): void
     {
+        if (! $approvals) {
+            $this->app->bind(ApprovalHandler::class, ManualApprovalHandler::class);
+        }
+
         TestDocuments::reset();
         $types = app(DocumentTypeRegistry::class);
         $types->register(TestRequestType::class);

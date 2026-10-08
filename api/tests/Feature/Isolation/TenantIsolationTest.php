@@ -57,6 +57,9 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
+        'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
+        'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
+        'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
     ];
 
     /**
@@ -92,6 +95,8 @@ class TenantIsolationTest extends TestCase
         'notification' => 'notification', // NOT-01: POST notifications/{notification}/read|archive
         'automation_rule' => 'automation_rule', // AUTO-01..AUTO-04: automation-rules/{automation_rule}[/enable|disable|archive|test]
         'automation_run' => 'automation_run', // AUTO-05: automation-runs/{automation_run}
+        'approval' => 'approval', // APR-04: approvals/{approval}, a request waiting for the manager
+        'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -132,6 +137,8 @@ class TenantIsolationTest extends TestCase
         'tax_category_id' => 'tax_category',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
+        'from_user_id' => 'user', // APR-06: reassign from a pending approver
+        'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
         'scope_id' => null,
     ];
 
@@ -200,6 +207,9 @@ class TenantIsolationTest extends TestCase
         ['channel' => 'email', 'status' => 'all'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
+
+        // APR-04: the approvals inbox's oversight view and overdue filter.
+        ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
     ];
 
     /**
@@ -210,7 +220,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'rule' => 'automation_rule'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'outcome', 'rule'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'outcome', 'rule'];
 
     private TwoTenants $tenants;
 
@@ -527,6 +537,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/automation-rules', $hijacked);
         $this->assertArrayHasKey('POST api/v1/automation-rules/{automation_rule}/test', $hijacked);
         $this->assertArrayHasKey('POST api/v1/automation-templates/use', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/approvals/{approval}/reassign', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/me/delegations', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -633,6 +645,9 @@ class TenantIsolationTest extends TestCase
             // AUTO-01, AUTO-05: the rules and the run log.
             'automation-rules?status=all' => ['Rule A'],
             'automation-runs' => ['Rule A', 'Done'],
+
+            // APR-04: the oversight list of approvals.
+            'approvals?view=all&status=all' => ['Approve A', 'Waiting'],
         ];
     }
 
@@ -1034,6 +1049,10 @@ class TenantIsolationTest extends TestCase
                 'template' => 'core.alert_below_level', 'document_type' => TestRequestType::KEY, 'company_id' => $tenant->id('company'),
                 'params' => ['field' => 'total', 'value' => ['amount_minor' => '100', 'currency' => 'KES']],
             ],
+
+            // APR-06: the manager's pending approval goes to the owner; the owner delegates to the manager.
+            'POST api/v1/approvals/{approval}/reassign' => ['from_user_id' => $tenant->id('manager'), 'to_user_id' => $tenant->id('user')],
+            'POST api/v1/me/delegations' => ['to_user_id' => $tenant->id('manager'), 'starts_on' => now()->toDateString(), 'ends_on' => now()->addDay()->toDateString()],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
