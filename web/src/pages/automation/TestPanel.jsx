@@ -121,7 +121,7 @@ export function TestPanel({ draft, info, ruleId, dirty, timeZone }) {
             ]}
             value={source}
             onChange={(event) => setSource(event.target.value)}
-            className="w-full sm:w-72"
+            className="w-full sm:w-palette"
           />
           {source === 'document' ? (
             <TextField

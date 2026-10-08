@@ -78,14 +78,14 @@ export default function AutomationRules() {
               options={STATUSES.map((status) => ({ value: status, label: t(`automation.statusFilter.${status}`) }))}
               value={list.filters.status}
               onChange={(event) => list.setFilter('status', event.target.value)}
-              className="w-full sm:w-44"
+              className="w-full sm:w-palette"
             />
             <Select
               label={t('automation.filters.type')}
               options={[{ value: '', label: t('automation.filters.allTypes') }, ...types.map((one) => ({ value: one.key, label: one.label }))]}
               value={list.filters.type}
               onChange={(event) => list.setFilter('type', event.target.value)}
-              className="w-full sm:w-56"
+              className="w-full sm:w-palette"
             />
             {companies.length > 1 ? (
               <Select
@@ -93,7 +93,7 @@ export default function AutomationRules() {
                 options={[{ value: '', label: t('automation.allCompanies') }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
                 value={list.filters.company}
                 onChange={(event) => list.setFilter('company', event.target.value)}
-                className="w-full sm:w-56"
+                className="w-full sm:w-palette"
               />
             ) : null}
           </>

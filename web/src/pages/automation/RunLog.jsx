@@ -10,7 +10,7 @@ import { formatWhen } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
-import { ACTION_RESULT_TONES, OUTCOME_TONES, RUN_OUTCOMES } from './automationData'
+import { ACTION_RESULT_TONES, DELIVERY_TONES, OUTCOME_TONES, RUN_OUTCOMES } from './automationData'
 
 /** An outcome as a dot and a word. */
 export function Outcome({ outcome }) {
@@ -20,7 +20,7 @@ export function Outcome({ outcome }) {
 
 function Detail({ label, children }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-1">
       <dt className="text-caption text-ink-muted">{label}</dt>
       <dd className="text-body text-ink">{children}</dd>
     </div>
@@ -92,9 +92,13 @@ function RunDrawer({ runId, onClose }) {
                         {(run.deliveries ?? [])
                           .filter((delivery) => delivery.action_index === index)
                           .map((delivery) => (
-                            <p key={delivery.id} className="text-caption text-ink-muted">
-                              {t('automation.runs.delivery', { url: delivery.url_display, status: delivery.response_status ?? '—', count: delivery.attempts })}
-                            </p>
+                            <div key={delivery.id} className="flex flex-col gap-1 border-t border-border pt-2">
+                              <StatusBadge tone={DELIVERY_TONES[delivery.status] ?? 'neutral'}>{t(`automation.deliveryStatus.${delivery.status}`, { defaultValue: delivery.status })}</StatusBadge>
+                              <p className="text-caption text-ink-muted">
+                                {t('automation.runs.delivery', { url: delivery.url_display, status: delivery.response_status ?? '—', count: delivery.attempts })}
+                              </p>
+                              {delivery.error ? <p className="text-caption text-danger">{delivery.error}</p> : null}
+                            </div>
                           ))}
                       </li>
                     ))}
@@ -160,7 +164,7 @@ export function RunsList({ ruleId, rules = [] }) {
               options={[{ value: '', label: t('automation.runs.filters.allOutcomes') }, ...RUN_OUTCOMES.map((outcome) => ({ value: outcome, label: t(`automation.outcomes.${outcome}`) }))]}
               value={list.filters.outcome}
               onChange={(event) => list.setFilter('outcome', event.target.value)}
-              className="w-full sm:w-56"
+              className="w-full sm:w-palette"
             />
             {ruleId ? null : (
               <Select
@@ -168,7 +172,7 @@ export function RunsList({ ruleId, rules = [] }) {
                 options={[{ value: '', label: t('automation.runs.filters.allRules') }, ...rules.map((rule) => ({ value: rule.id, label: rule.name }))]}
                 value={list.filters.rule}
                 onChange={(event) => list.setFilter('rule', event.target.value)}
-                className="w-full sm:w-64"
+                className="w-full sm:w-palette"
               />
             )}
           </>

@@ -32,6 +32,9 @@ export const STATUS_TONES = { enabled: 'success', disabled: 'neutral', archived:
 /** Per-action results in the run log. */
 export const ACTION_RESULT_TONES = { done: 'success', rolled_back: 'warning', failed: 'danger', not_run: 'neutral' }
 
+/** Webhook deliveries in the run log. */
+export const DELIVERY_TONES = { pending: 'neutral', sending: 'info', retrying: 'warning', delivered: 'success', failed: 'danger' }
+
 /** Triggers that come from a change, whose test needs the values before it. */
 export const CHANGE_TRIGGERS = new Set(['record_updated', 'field_changed', 'threshold'])
 

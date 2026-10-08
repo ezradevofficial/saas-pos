@@ -391,7 +391,7 @@ export function ActionsEditor({ actions, onChange, info, stages, withDocument, c
             value={kind}
             disabled={full}
             onChange={(event) => setAdding(event.target.value)}
-            className="w-full sm:w-72"
+            className="w-full sm:w-palette"
           />
           <Button icon="plus" disabled={full || !kind} onClick={() => write([...actions, newAction(kind, info)])}>
             {t('automation.actions.add')}

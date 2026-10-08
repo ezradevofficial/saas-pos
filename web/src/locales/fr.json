@@ -3001,6 +3001,13 @@
       "archiveConfirmTitle": "Confirmer l’archivage",
       "archiveConfirm": "Archiver « {{name}} » ? Elle ne s’exécutera plus et ne pourra plus être modifiée.",
       "archiveNow": "Archiver la règle maintenant"
+    },
+    "deliveryStatus": {
+      "pending": "En attente",
+      "sending": "Envoi en cours",
+      "retrying": "Nouvel essai",
+      "delivered": "Remise",
+      "failed": "Échouée"
     }
   }
 }

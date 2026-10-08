@@ -3001,6 +3001,13 @@
       "archiveConfirmTitle": "Confirm archiving",
       "archiveConfirm": "Archive “{{name}}”? It stops running and can’t be edited afterwards.",
       "archiveNow": "Archive rule now"
+    },
+    "deliveryStatus": {
+      "pending": "Waiting",
+      "sending": "Sending",
+      "retrying": "Retrying",
+      "delivered": "Delivered",
+      "failed": "Failed"
     }
   }
 }
