@@ -267,4 +267,76 @@ describe('Workflow builder (spec 6.4, WF-03..WF-09, APR-09)', () => {
     expect(node(container, 'manager')).not.toBeNull()
     expect(api.put).not.toHaveBeenCalled()
   })
+
+  it('sets a sequential approval chain, reorders it and describes it on the card (APR-01)', async () => {
+    const CFO = '0192a1b2-0000-7000-8000-0000000000c1'
+    const { container } = await openBuilder()
+    fireEvent.click(node(container, 'manager'))
+    const panel = await screen.findByRole('complementary', { name: 'Step settings' })
+
+    chooseOption(within(panel).getByLabelText(/^How approvers take turns/), 'One after another')
+    const chain = within(panel).getByRole('list', { name: 'Approvers in order' })
+    expect(within(chain).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(panel).getByRole('button', { name: 'Remove Approver 1' })).toBeDisabled()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Add an approver' }))
+    const second = within(chain).getAllByRole('listitem')[1]
+    chooseOption(within(second).getByLabelText(/^Who approves/), 'Anyone with a role')
+    chooseOption(within(second).getByLabelText(/^Role/), 'CFO')
+    expect(within(node(container, 'manager')).getByText('Manager of the requester’s branch, then Role: CFO · escalates after 8 business hours')).toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Move Approver 2 up' }))
+    expect(within(node(container, 'manager')).getByText('Role: CFO, then Manager of the requester’s branch · escalates after 8 business hours')).toBeInTheDocument()
+    await waitFor(
+      () =>
+        expect(lastPut()?.[1].graph.nodes.find((one) => one.id === 'manager').approval).toEqual({
+          mode: 'any',
+          chain: [{ type: 'role', role: CFO }, { type: 'branch_manager' }],
+        }),
+      { timeout: 3000 },
+    )
+
+    // Back to one approver: the chain's first becomes the approver.
+    chooseOption(within(panel).getByLabelText(/^How approvers take turns/), 'One approver')
+    expect(within(node(container, 'manager')).getByText('Role: CFO · escalates after 8 business hours')).toBeInTheDocument()
+  })
+
+  it('sets up to five reminders on an approval (APR-05)', async () => {
+    const { container } = await openBuilder()
+    fireEvent.click(node(container, 'manager'))
+    const panel = await screen.findByRole('complementary', { name: 'Step settings' })
+
+    fireEvent.change(within(panel).getByLabelText(/^Remind after/), { target: { value: '4' } })
+    for (const number of [2, 3, 4, 5]) {
+      fireEvent.click(within(panel).getByRole('button', { name: 'Add a reminder' }))
+      fireEvent.change(within(panel).getByLabelText(new RegExp(`^Reminder ${number} after`)), { target: { value: String(number * 4) } })
+    }
+    expect(within(panel).queryByRole('button', { name: 'Add a reminder' })).not.toBeInTheDocument()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Remove reminder 1' }))
+    await waitFor(
+      () =>
+        expect(lastPut()?.[1].graph.nodes.find((one) => one.id === 'manager').reminders).toEqual(
+          [8, 12, 16, 20].map((amount) => ({ amount, unit: 'business_hours' })),
+        ),
+      { timeout: 3000 },
+    )
+    expect(within(panel).getByRole('button', { name: 'Add a reminder' })).toBeInTheDocument()
+  })
+
+  it('hints on an approval card when its Rejected connection is missing', async () => {
+    const graph = { ...GRAPH, edges: GRAPH.edges.filter((edge) => !(edge.from === 'cfo' && edge.branch === 'rejected')) }
+    mockWorkflows(api, { workflow: { ...WORKFLOW, draft: { ...WORKFLOW.draft, graph } } })
+    const { container } = renderApp('/settings/workflows/w-1')
+    await waitFor(() => expect(node(container, 'cfo')).not.toBeNull())
+
+    expect(within(node(container, 'cfo')).getByText('Connect Rejected to a next step')).toBeInTheDocument()
+    expect(within(node(container, 'manager')).queryByText('Connect Rejected to a next step')).not.toBeInTheDocument()
+  })
+
+  it('shows a new approval step as not requiring a reason, as the API reads it', async () => {
+    const { container } = await openBuilder()
+    fireEvent.click(node(container, 'manager'))
+    const panel = await screen.findByRole('complementary', { name: 'Step settings' })
+    expect(within(panel).getByRole('checkbox', { name: /reason/i })).not.toBeChecked()
+    expect(within(panel).getByRole('checkbox', { name: /delegation/i })).toBeChecked()
+  })
 })

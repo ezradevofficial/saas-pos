@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Button, Checkbox, Select, TextField } from '@/components/ds'
 import { ConditionEditor } from './ConditionEditor'
@@ -5,7 +6,7 @@ import { displayName, kindLabel } from './describe'
 import { roleRefsOf, toFrom, userIdsOf } from './notifyRecipients'
 import { names as roleNamedBy } from './roleRefs'
 import { PeoplePicker, RolesPicker } from './RolesPicker'
-import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, ON_CANCEL, OUTCOMES } from './workflowData'
+import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, MAX_CHAIN, MAX_REMINDERS, ON_CANCEL, OUTCOMES } from './workflowData'
 
 /** A whole number of time units (1 to 10,000), or nothing: `{ amount, unit }` | null. */
 function DurationField({ label, help, value, onChange }) {
@@ -78,6 +79,122 @@ function ApproverParams({ approver, params, onChange, roles, users }) {
   )
 }
 
+/** Who approves: an approver type and its settings (role, person, levels). */
+function ApproverPicker({ label, approver, onChange, context }) {
+  const { t } = useTranslation()
+  const { roles, users, approverTypes } = context
+  const typeInfo = approverTypes.find((one) => one.key === approver.type)
+  return (
+    <>
+      <Select
+        label={label}
+        options={approverTypes.map((one) => ({ value: one.key, label: one.label ?? t(`workflows.approverTypes.${one.key}`, { defaultValue: one.key }) }))}
+        value={approver.type ?? ''}
+        onChange={(event) => onChange({ type: event.target.value })}
+      />
+      <ApproverParams approver={approver} params={typeInfo?.params ?? []} roles={roles} users={users} onChange={onChange} />
+    </>
+  )
+}
+
+/**
+ * APR-01: a sequential chain, each approver in turn (`approval.chain`, up
+ * to MAX_CHAIN): add, remove and reorder; the mode applies within each step.
+ */
+function ApprovalChain({ chain, onChange, context }) {
+  const { t } = useTranslation()
+  const set = (index, approver) => onChange(chain.map((one, at) => (at === index ? approver : one)))
+  const move = (index, by) => {
+    const next = [...chain]
+    next.splice(index + by, 0, ...next.splice(index, 1))
+    onChange(next)
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <ol aria-label={t('workflows.fields.chain')} className="flex flex-col gap-3">
+        {chain.map((approver, index) => {
+          const step = t('workflows.fields.chainStep', { number: index + 1 })
+          return (
+            // The chain is a list of plain settings without ids; the position is its identity.
+            <li key={index} className="flex flex-col gap-3 rounded-md border border-border p-3">
+              <div className="flex items-center gap-1">
+                <span className="flex-1 text-label text-ink">{step}</span>
+                <Button variant="ghost" icon="up" className="size-icon-btn px-0" disabled={index === 0} onClick={() => move(index, -1)} aria-label={t('workflows.fields.chainUp', { step })} />
+                <Button variant="ghost" icon="down" className="size-icon-btn px-0" disabled={index === chain.length - 1} onClick={() => move(index, 1)} aria-label={t('workflows.fields.chainDown', { step })} />
+                <Button
+                  variant="ghost"
+                  icon="remove"
+                  className="size-icon-btn px-0"
+                  disabled={chain.length === 1}
+                  onClick={() => onChange(chain.filter((_, at) => at !== index))}
+                  aria-label={t('workflows.fields.chainRemove', { step })}
+                />
+              </div>
+              <ApproverPicker label={t('workflows.fields.approver')} approver={approver} onChange={(next) => set(index, next)} context={context} />
+            </li>
+          )
+        })}
+      </ol>
+      {chain.length < MAX_CHAIN ? (
+        <Button icon="plus" className="self-start" onClick={() => onChange([...chain, { type: context.approverTypes[0]?.key }])}>
+          {t('workflows.fields.chainAdd')}
+        </Button>
+      ) : (
+        <span className="text-caption text-ink-muted">{t('workflows.fields.chainMax', { count: MAX_CHAIN })}</span>
+      )}
+    </div>
+  )
+}
+
+/** APR-05: up to MAX_REMINDERS reminders, each after its own wait (`reminders: [{amount, unit}]`). */
+function RemindersField({ value, onChange }) {
+  const { t } = useTranslation()
+  const reminders = Array.isArray(value) ? value : []
+  // An empty row the user just added and has not filled in yet.
+  const [blank, setBlank] = useState(false)
+  const rows = blank || reminders.length === 0 ? [...reminders, null] : reminders
+  const set = (index, reminder) => {
+    if (index === reminders.length) {
+      if (reminder) {
+        setBlank(false)
+        onChange([...reminders, reminder])
+      }
+      return
+    }
+    onChange(reminder ? reminders.map((one, at) => (at === index ? reminder : one)) : reminders.filter((_, at) => at !== index))
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.map((reminder, index) => (
+        // Reminders have no ids; the position is their identity.
+        <div key={index} className="flex items-end gap-2">
+          <div className="flex-1">
+            <DurationField
+              label={rows.length > 1 ? t('workflows.fields.reminderNumber', { number: index + 1 }) : t('workflows.fields.remindAfter')}
+              value={reminder}
+              onChange={(next) => set(index, next)}
+            />
+          </div>
+          {rows.length > 1 ? (
+            <Button
+              variant="ghost"
+              icon="remove"
+              className="size-icon-btn px-0"
+              onClick={() => (index === reminders.length ? setBlank(false) : onChange(reminders.filter((_, at) => at !== index)))}
+              aria-label={t('workflows.fields.reminderRemove', { number: index + 1 })}
+            />
+          ) : null}
+        </div>
+      ))}
+      {!blank && reminders.length > 0 && reminders.length < MAX_REMINDERS ? (
+        <Button icon="plus" className="self-start" onClick={() => setBlank(true)}>
+          {t('workflows.fields.reminderAdd')}
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 function StageSettings({ node, change, context }) {
   const { t } = useTranslation()
   const { fields, roles } = context
@@ -122,34 +239,43 @@ function ApprovalSettings({ node, change, context }) {
   const { roles, users, approverTypes } = context
   const approval = node.approval ?? {}
   const approver = approval.approver ?? { type: approverTypes[0]?.key }
-  const typeInfo = approverTypes.find((one) => one.key === approver.type)
+  // APR-01: `chain` (one after another) replaces `approver` when it has steps.
+  const chain = Array.isArray(approval.chain) && approval.chain.length > 0 ? approval.chain : null
   const escalation = node.escalation ?? {}
   const to = escalation.to ?? { type: 'next_level' }
   const toInfo = ESCALATE_TO.find((one) => one.key === to.type) ?? ESCALATE_TO[0]
   const setApproval = (changes) => change({ approval: { ...approval, ...changes } })
   const setEscalation = (changes) => change({ escalation: { ...escalation, ...changes } })
-  const flag = (key) => approval[key] !== false
+  // Delegation and email default on; a reason is required only when asked (ApprovalConfig::normalise).
+  const flag = (key) => (key === 'require_reason' ? approval[key] === true : approval[key] !== false)
+  const setSequence = (sequence) => {
+    const rest = { ...approval }
+    delete rest.approver
+    delete rest.chain
+    change({ approval: sequence === 'chain' ? { ...rest, chain: [approver] } : { ...rest, approver: chain?.[0] ?? approver } })
+  }
 
   return (
     <>
       <Select
-        label={t('workflows.fields.approver')}
-        options={approverTypes.map((one) => ({ value: one.key, label: one.label ?? t(`workflows.approverTypes.${one.key}`, { defaultValue: one.key }) }))}
-        value={approver.type ?? ''}
-        onChange={(event) => setApproval({ approver: { type: event.target.value } })}
+        label={t('workflows.fields.sequence')}
+        options={['single', 'chain'].map((one) => ({ value: one, label: t(`workflows.sequences.${one}`) }))}
+        value={chain ? 'chain' : 'single'}
+        onChange={(event) => setSequence(event.target.value)}
       />
-      <ApproverParams approver={approver} params={typeInfo?.params ?? []} roles={roles} users={users} onChange={(next) => setApproval({ approver: next })} />
+      {chain ? (
+        <ApprovalChain chain={chain} onChange={(next) => setApproval({ chain: next })} context={context} />
+      ) : (
+        <ApproverPicker label={t('workflows.fields.approver')} approver={approver} onChange={(next) => setApproval({ approver: next })} context={context} />
+      )}
       <Select
         label={t('workflows.fields.mode')}
+        help={chain ? t('workflows.fields.modeChainHelp') : undefined}
         options={APPROVAL_MODES.map((mode) => ({ value: mode, label: t(`workflows.modes.${mode}`) }))}
         value={approval.mode ?? 'any'}
         onChange={(event) => setApproval({ mode: event.target.value })}
       />
-      <DurationField
-        label={t('workflows.fields.remindAfter')}
-        value={node.reminders?.[0] ?? null}
-        onChange={(reminder) => change({ reminders: reminder ? [reminder] : [] })}
-      />
+      <RemindersField value={node.reminders} onChange={(reminders) => change({ reminders })} />
       <DurationField
         label={t('workflows.fields.escalateAfter')}
         help={t('workflows.fields.businessHoursHelp')}

@@ -51,12 +51,14 @@ export function FlowCanvas({ graph, readOnly, selectedId, onSelect, commit, prev
             summary: summarize(t, node, context),
             outputs,
             problem: problems?.has(node.id) ?? false,
+            // APR-01: an approval needs somewhere to go when it is rejected.
+            hint: node.type === 'approval' && !graph.edges.some((edge) => edge.from === node.id && edge.branch === 'rejected') ? t('workflows.canvas.noRejected') : null,
             path: path?.get(node.id) ?? null,
             dimmed: Boolean(path && path.size > 0 && !path.has(node.id)),
           },
         }
       }),
-    [graph.nodes, measured, selectedId, readOnly, problems, path, context, t],
+    [graph.nodes, graph.edges, measured, selectedId, readOnly, problems, path, context, t],
   )
 
   const edges = useMemo(

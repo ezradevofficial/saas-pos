@@ -18,6 +18,10 @@ export const ON_CANCEL = ['keep', 'cancel']
 /** End outcomes offered; the API accepts any lowercase word. */
 export const OUTCOMES = ['approved', 'rejected', 'completed']
 
+/** ApprovalConfig::MAX_CHAIN and MAX_REMINDERS: approvers in a sequential chain, reminders per approval (APR-01, APR-05). */
+export const MAX_CHAIN = 10
+export const MAX_REMINDERS = 5
+
 /** Group-approval modes (APR-01): any one, all, or most of the approvers. */
 export const APPROVAL_MODES = ['any', 'all', 'majority']
 

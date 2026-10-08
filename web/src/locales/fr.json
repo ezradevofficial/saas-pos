@@ -2034,7 +2034,8 @@
         "nodeKeyboard": "Appuyez sur Entrée ou Espace pour sélectionner cette étape, puis utilisez les flèches pour la déplacer. Appuyez sur Suppr pour la retirer et Échap pour annuler.",
         "moved": "Étape déplacée vers {{direction}}. Nouvelle position : x {{x}}, y {{y}}.",
         "edge": "Appuyez sur Entrée ou Espace pour sélectionner ce lien, puis Suppr pour le retirer ou Échap pour annuler."
-      }
+      },
+      "noRejected": "Reliez « Rejeté » à une étape suivante"
     },
     "panel": {
       "label": "Réglages de l’étape",
@@ -2103,7 +2104,19 @@
       "outcome": "Résultat",
       "notifyHelp": "Chaque personne est prévenue par les canaux choisis dans ses préférences de notification.",
       "notifyPeople": "Personnes nommées",
-      "messageHelp": "Facultatif, 500 caractères au plus, ajouté à la notification."
+      "messageHelp": "Facultatif, 500 caractères au plus, ajouté à la notification.",
+      "sequence": "Ordre des approbateurs",
+      "chain": "Approbateurs dans l’ordre",
+      "chainStep": "Approbateur {{number}}",
+      "chainUp": "Monter {{step}}",
+      "chainDown": "Descendre {{step}}",
+      "chainRemove": "Retirer {{step}}",
+      "chainAdd": "Ajouter un approbateur",
+      "chainMax": "Une chaîne compte au plus {{count}} approbateurs.",
+      "modeChainHelp": "S’applique à chaque approbateur de la chaîne.",
+      "reminderNumber": "Relance {{number}} après",
+      "reminderRemove": "Retirer la relance {{number}}",
+      "reminderAdd": "Ajouter une relance"
     },
     "approverTypes": {
       "branch_manager": "Responsable de l’agence du demandeur",
@@ -2187,7 +2200,8 @@
       "chooseDocument": "Choisissez le document à créer",
       "chooseAction": "Choisissez une action",
       "notifies": "Notifie {{recipients}}",
-      "notifyNobody": "Choisissez qui est notifié"
+      "notifyNobody": "Choisissez qui est notifié",
+      "then": "{{first}}, puis {{next}}"
     },
     "condition": {
       "none": "Aucune règle : toujours remplie.",
@@ -2334,6 +2348,10 @@
     "people": {
       "unknown": "Personne inconnue ou inactive ({{id}})",
       "none": "Aucune personne active pour l’instant."
+    },
+    "sequences": {
+      "single": "Un seul approbateur",
+      "chain": "L’un après l’autre"
     }
   },
   "workflowInsights": {

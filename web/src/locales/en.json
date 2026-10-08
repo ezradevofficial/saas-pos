@@ -2034,7 +2034,8 @@
         "nodeKeyboard": "Press Enter or Space to select this step, then use the arrow keys to move it. Press Delete to remove it and Escape to cancel.",
         "moved": "Moved the step {{direction}}. New position: x {{x}}, y {{y}}.",
         "edge": "Press Enter or Space to select this link, then Delete to remove it or Escape to cancel."
-      }
+      },
+      "noRejected": "Connect Rejected to a next step"
     },
     "panel": {
       "label": "Step settings",
@@ -2103,7 +2104,19 @@
       "outcome": "Outcome",
       "notifyHelp": "Each person is told in the channels they chose in their notification preferences.",
       "notifyPeople": "Named people",
-      "messageHelp": "Optional, up to 500 characters, added to the notification."
+      "messageHelp": "Optional, up to 500 characters, added to the notification.",
+      "sequence": "How approvers take turns",
+      "chain": "Approvers in order",
+      "chainStep": "Approver {{number}}",
+      "chainUp": "Move {{step}} up",
+      "chainDown": "Move {{step}} down",
+      "chainRemove": "Remove {{step}}",
+      "chainAdd": "Add an approver",
+      "chainMax": "A chain holds up to {{count}} approvers.",
+      "modeChainHelp": "Applies at each approver in the chain.",
+      "reminderNumber": "Reminder {{number}} after",
+      "reminderRemove": "Remove reminder {{number}}",
+      "reminderAdd": "Add a reminder"
     },
     "approverTypes": {
       "branch_manager": "Manager of the requester’s branch",
@@ -2187,7 +2200,8 @@
       "chooseDocument": "Choose the document to create",
       "chooseAction": "Choose an action",
       "notifies": "Notifies {{recipients}}",
-      "notifyNobody": "Choose who is notified"
+      "notifyNobody": "Choose who is notified",
+      "then": "{{first}}, then {{next}}"
     },
     "condition": {
       "none": "No rule: always holds.",
@@ -2334,6 +2348,10 @@
     "people": {
       "unknown": "Unknown or inactive person ({{id}})",
       "none": "No active people yet."
+    },
+    "sequences": {
+      "single": "One approver",
+      "chain": "One after another"
     }
   },
   "workflowInsights": {
