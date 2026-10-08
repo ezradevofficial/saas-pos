@@ -15,5 +15,8 @@ class Permission extends SpatiePermission
 
     public const GUARD = 'web';
 
+    /** Never inferred from the request's guard (a sanctum request would otherwise look for sanctum rows). */
+    protected $guard_name = self::GUARD;
+
     protected $fillable = ['name', 'guard_name', 'module', 'resource', 'action'];
 }

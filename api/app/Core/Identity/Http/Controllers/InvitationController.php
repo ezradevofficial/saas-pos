@@ -2,6 +2,8 @@
 
 namespace App\Core\Identity\Http\Controllers;
 
+use App\Core\Exports\ListExport;
+use App\Core\Identity\Http\Requests\ListInvitationsRequest;
 use App\Core\Identity\Http\Requests\RevokeInvitationRequest;
 use App\Core\Identity\Http\Requests\StoreInvitationRequest;
 use App\Core\Identity\Http\Resources\InvitationResource;
@@ -11,10 +13,10 @@ use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Rbac\VisibleScope;
-use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * AUTH-05: invitations, seen by holders of `core.user.invite` for the
@@ -29,15 +31,16 @@ class InvitationController
         private readonly ScopeResolver $resolver,
     ) {}
 
-    public function index(ListRequest $request): AnonymousResourceCollection
+    public function index(ListInvitationsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        abort_unless($request->user()->can('core.user.invite'), 403);
+        $query = $this->visible(Invitation::query(), $request->list()->visible());
+        $request->applySort($request->applySearch($query, ['name' => 'name', 'email' => 'email', 'phone' => 'phone']));
 
-        $query = $this->visible(Invitation::query(), $this->resolver->visibleIds($request->user(), 'core.user.invite'));
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
 
-        return InvitationResource::collection(
-            $query->orderByDesc('created_at')->orderByDesc('id')->paginate($request->perPage())->withQueryString(),
-        );
+        return InvitationResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreInvitationRequest $request): JsonResponse

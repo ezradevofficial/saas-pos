@@ -3,7 +3,9 @@
 namespace App\Core\Identity\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\Identity\Http\Requests\EndSessionRequest;
+use App\Core\Identity\Http\Requests\ListSessionsRequest;
 use App\Core\Identity\Http\Requests\SignOutRequest;
 use App\Core\Identity\Http\Resources\SessionResource;
 use App\Core\Identity\Models\PersonalAccessToken;
@@ -12,22 +14,28 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * AUTH-09: the signed-in user's own sessions. Tokens are global rows, so
+ * AUTH-09: the signed-in user's own sessions (listed, sorted and exported
+ * as SessionList, EXP-01). Tokens are global rows, so
  * every query goes through $user->tokens().
  */
 class SessionController
 {
     public function __construct(private readonly Auditor $auditor) {}
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(ListSessionsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $tokens = $request->user()->tokens()
-            ->orderByRaw('coalesce(last_used_at, created_at) desc')
-            ->get();
+        $query = $request->user()->tokens()->getQuery();
+        $request->applySort($request->applySearch($query, ['name' => 'name', 'ip' => 'ip', 'user_agent' => 'user_agent']));
 
-        return SessionResource::collection($tokens);
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        // Every session unless paging is asked for (ListSessionsRequest).
+        return SessionResource::collection($request->wantsPage() ? $query->paginate($request->perPage())->withQueryString() : $query->get());
     }
 
     public function destroy(EndSessionRequest $request, string $id): Response

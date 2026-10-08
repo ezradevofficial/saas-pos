@@ -51,6 +51,20 @@ return [
 
     // CUR-01, CUR-02 : devises.
     'currency' => [
+        // EXP-01 : la liste des devises de l’organisation et son export.
+        'list_title' => 'Devises utilisées',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Devise',
+            'decimals' => 'Décimales',
+            'cash_rounding' => 'Arrondi espèces',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'statuses' => [
+            'active' => 'Activée',
+            'inactive' => 'Désactivée',
+        ],
         'base_currency_locked' => 'La devise de base de cette société est verrouillée, car des montants y ont déjà été comptabilisés.',
         'too_many_reporting_currencies' => 'Une société peut avoir au plus :max devises de présentation. Retirez-en une avant d’en ajouter une autre.',
         'decimals_locked' => 'Des montants dans cette devise sont déjà enregistrés : ses décimales ne peuvent plus changer.',
@@ -71,6 +85,36 @@ return [
 
     // CUR-03, CUR-06, CUR-07 : taux de change.
     'exchange_rate' => [
+        // EXP-01 : l’historique des taux et son export.
+        'list_title' => 'Taux de change de :company',
+        'columns' => [
+            'pair' => 'Paire de devises',
+            'effective_at' => 'En vigueur',
+            'kind' => 'Type',
+            'mid' => 'Taux',
+            'buy' => 'Achat',
+            'sell' => 'Vente',
+            'direction' => 'Sens',
+            'source' => 'Source',
+            'created_at' => 'Saisi le',
+            'from' => 'Du',
+            'to' => 'Au',
+        ],
+        'kinds' => [
+            'reference' => 'Référence',
+            'shop' => 'Boutique',
+        ],
+        'directions' => [
+            'direct' => 'Dans ce sens',
+            'inverse' => 'Sens inverse',
+        ],
+        'sources' => [
+            'manual' => 'Saisi à la main',
+            'bcc' => 'Banque Centrale du Congo',
+            'cbk' => 'Banque centrale du Kenya',
+            'fake' => 'Flux de test',
+            'feed' => 'Flux de taux',
+        ],
         'unavailable' => 'Aucun taux de change de :from vers :to. Saisissez d’abord un taux boutique.',
         'invalid_rate' => 'Saisissez le :attribute sous forme de nombre supérieur à zéro, avec au plus 10 chiffres avant la virgule et 8 après, par exemple 2850.5.',
         'same_currency' => 'Choisissez deux devises différentes.',
@@ -90,6 +134,37 @@ return [
 
     // MD-03, CP-01, CP-02 : codes de taxe, taux, catégories.
     'tax' => [
+        // EXP-01 : les listes des codes et catégories de taxe et leurs exports.
+        'list_title' => 'Codes de taxe de :company',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'kind' => 'Type',
+            'rate' => 'Taux',
+            'since' => 'Depuis',
+            'fiscal_code' => 'Code fiscal',
+            'status' => 'Statut',
+            'updated_at' => 'Modifié le',
+        ],
+        'kinds' => [
+            'vat' => 'TVA',
+            'withholding' => 'Retenue à la source',
+            'excise' => 'Accises',
+            'exempt' => 'Exonéré',
+            'zero_rated' => 'Taux zéro',
+        ],
+        'rate_needed' => 'Taux à saisir',
+        'exempt' => 'Exonéré',
+        'categories_title' => 'Catégories de taxe',
+        'category_columns' => [
+            'name' => 'Nom',
+            'scope' => 'Utilisée par',
+            'codes' => 'Codes de taxe par défaut',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'all_companies' => 'Toutes les sociétés',
+        'code_in_company' => ':code dans :company',
         'code_archived' => 'Le code de taxe :code est archivé. Restaurez-le avant de l’utiliser ou d’y ajouter un taux.',
         'rate_missing' => 'Le code de taxe :code n’a pas de taux confirmé au :date. Saisissez son taux avant de l’utiliser.',
         'rate_overlap' => 'Un taux commence déjà à cette date ou après (dernier début : :date). Choisissez une date postérieure au :date.',
@@ -118,6 +193,18 @@ return [
 
     // MD-03 : listes de prix.
     'price_list' => [
+        // EXP-01 : la liste des listes de prix et son export.
+        'list_title' => 'Listes de prix de :company',
+        'columns' => [
+            'name' => 'Nom',
+            'currency' => 'Devise',
+            'prices' => 'Prix',
+            'default' => 'Par défaut',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'include_tax' => 'TTC',
+        'exclude_tax' => 'HT',
         'archived_default' => 'Une liste de prix archivée ne peut pas être la liste par défaut. Restaurez-la d’abord.',
         'attributes' => [
             'name' => 'nom',
@@ -280,6 +367,18 @@ return [
     ],
 
     'item_category' => [
+        // EXP-01 : la liste des catégories d’articles et son export.
+        'list_title' => 'Catégories d’articles',
+        'columns' => [
+            'name' => 'Nom',
+            'parent' => 'Parent',
+            'scope' => 'Utilisée par',
+            'colour' => 'Couleur',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
+        'all_companies' => 'Toutes les sociétés',
         'parent_other_scope' => 'Choisissez une catégorie parente de la même société, ou une catégorie partagée pour une catégorie partagée.',
         'parent_cycle' => 'Une catégorie ne peut pas se trouver sous elle-même ou sous l’une de ses sous-catégories. Choisissez un autre parent.',
         'too_deep' => 'Les catégories vont jusqu’à :max niveaux. Choisissez un parent plus haut dans l’arborescence.',
@@ -295,6 +394,23 @@ return [
     ],
 
     'uom' => [
+        // EXP-01 : la liste des unités et son export.
+        'list_title' => 'Unités',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'kind' => 'Nature',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
+        'kinds' => [
+            'count' => 'Quantité',
+            'weight' => 'Poids',
+            'volume' => 'Volume',
+            'length' => 'Longueur',
+            'time' => 'Durée',
+        ],
         'code_invalid' => 'Les codes utilisent des majuscules, des chiffres et des traits de soulignement, jusqu’à 10 caractères.',
         'code_taken' => 'Une autre unité active utilise déjà le code :code. Choisissez un autre code.',
         'code_taken_race' => 'Une autre unité a pris ce code pendant l’enregistrement. Choisissez un autre code.',
@@ -318,6 +434,41 @@ return [
 
     // MD-04 : moyens de paiement.
     'payment_method' => [
+        // EXP-01 : la liste des moyens de paiement et son export (jamais les réglages ni les identifiants).
+        'list_title' => 'Moyens de paiement de :company',
+        'columns' => [
+            'position' => 'Ordre',
+            'name' => 'Nom',
+            'type' => 'Type',
+            'provider' => 'Prestataire',
+            'currency' => 'Devise',
+            'till' => 'En caisse',
+            'status' => 'Statut',
+            'updated_at' => 'Modifié le',
+        ],
+        'types' => [
+            'cash' => 'Espèces',
+            'mobile_money' => 'Mobile money',
+            'card' => 'Carte',
+            'credit' => 'Crédit',
+            'voucher' => 'Bons d’achat',
+            'points' => 'Points de fidélité',
+            'bank_transfer' => 'Virement bancaire',
+        ],
+        'providers' => [
+            'mpesa_ke' => 'M-Pesa (Safaricom Daraja)',
+            'airtel_ke' => 'Airtel Money Kenya',
+            'vodacom_mpesa_cd' => 'M-Pesa (Vodacom Congo)',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Prestataire de paiement par carte',
+        ],
+        'till_statuses' => [
+            'on' => 'Activé',
+            'off' => 'Désactivé',
+            'setup' => 'À configurer',
+        ],
         'type_invalid' => 'Choisissez espèces, mobile money, carte, crédit, bon, points ou virement bancaire. Le type d’un moyen de paiement existant ne peut pas changer.',
         'provider_invalid' => 'Choisissez un fournisseur de paiement pris en charge. Le fournisseur d’un moyen de paiement existant ne peut pas changer.',
         'provider_required' => 'Les moyens de paiement mobile money et carte ont besoin d’un fournisseur. Choisissez-en un.',
@@ -354,6 +505,21 @@ return [
 
     // MD-05 : départements, centres de coûts et projets.
     'dimension' => [
+        // EXP-01 : les listes des départements, centres de coûts et projets et leurs exports.
+        'list_titles' => [
+            'department' => 'Départements de :company',
+            'cost_centre' => 'Centres de coûts de :company',
+            'project' => 'Projets de :company',
+        ],
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'parent' => 'Fiche parente',
+            'owner' => 'Responsable',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
         'code_invalid' => 'Les codes commencent par une lettre ou un chiffre et utilisent des lettres, des chiffres, des points, des tirets et des traits de soulignement, jusqu’à 30 caractères.',
         'code_taken' => 'Un autre enregistrement actif de la société utilise déjà ce code. Choisissez un autre code.',
         'parent_other_company' => 'Choisissez un parent actif de la même société.',
@@ -369,6 +535,93 @@ return [
         ],
     ],
 
+    // EXP-01 : les listes des utilisateurs, invitations, sessions, rôles et attributions, et leurs exports.
+    'user' => [
+        'list_title' => 'Utilisateurs',
+        'columns' => [
+            'name' => 'Nom',
+            'email' => 'E-mail',
+            'phone' => 'Téléphone',
+            'roles' => 'Rôles',
+            'status' => 'Statut',
+            'two_factor' => 'Double authentification',
+            'last_sign_in_at' => 'Dernière connexion',
+            'created_at' => 'Créé le',
+        ],
+        'statuses' => [
+            'active' => 'Actif',
+            'pending' => 'En attente',
+            'deactivated' => 'Désactivé',
+        ],
+    ],
+
+    'invitation' => [
+        'list_title' => 'Invitations',
+        'columns' => [
+            'name' => 'Nom',
+            'email' => 'E-mail',
+            'phone' => 'Téléphone',
+            'roles' => 'Rôles',
+            'status' => 'Statut',
+            'invited_by' => 'Invité par',
+            'expires_at' => 'Expire le',
+            'created_at' => 'Envoyée le',
+        ],
+        'statuses' => [
+            'pending' => 'En attente',
+            'accepted' => 'Acceptée',
+            'revoked' => 'Révoquée',
+            'expired' => 'Expirée',
+        ],
+    ],
+
+    'session' => [
+        'list_title' => 'Sessions',
+        'columns' => [
+            'device' => 'Appareil',
+            'user_agent' => 'Navigateur ou application',
+            'ip' => 'Adresse IP',
+            'last_active' => 'Dernière activité',
+            'current' => 'Cet appareil',
+            'created_at' => 'Connecté le',
+        ],
+    ],
+
+    'role' => [
+        'list_title' => 'Rôles',
+        'columns' => [
+            'name' => 'Nom',
+            'description' => 'Description',
+            'type' => 'Type',
+            'permissions' => 'Autorisations',
+            'two_factor' => 'Double authentification',
+            'status' => 'Statut',
+        ],
+        'types' => [
+            'system' => 'Système',
+            'custom' => 'Personnalisé',
+        ],
+        'two_factor_required' => 'Obligatoire',
+    ],
+
+    'assignment' => [
+        'list_title' => 'Rôles de :name',
+        'columns' => [
+            'role' => 'Rôle',
+            'scope_type' => 'Niveau',
+            'scope' => 'Où',
+            'granted_by' => 'Attribué par',
+            'granted_at' => 'Attribué le',
+        ],
+        'scope_types' => [
+            'tenant' => 'Toute l’organisation',
+            'company' => 'Société',
+            'branch' => 'Succursale',
+            'location' => 'Emplacement',
+        ],
+        'role_at' => ':role à :scope',
+    ],
+
     // Listes et leurs exports (EXP-01 ; plan listes et sélecteurs).
     'list' => [
         'sort_unknown' => 'Cette liste ne peut pas être triée par « :sort ». Choisissez une autre colonne.',
@@ -377,10 +630,14 @@ return [
         'generated_at' => 'Généré le :date',
         'page_of' => 'Page :page sur :pages',
         'sort_hidden' => 'Vous ne pouvez pas trier par un champ que vous ne voyez pas. Choisissez une autre colonne.',
+        'someone_hidden' => 'Une personne que vous ne voyez pas',
+        'filter_hidden' => 'Vous ne pouvez pas filtrer par un champ que vous ne voyez pas.',
         'columns_hidden' => 'Vous ne voyez aucune des colonnes demandées. Choisissez d’autres colonnes à exporter.',
         'too_many_exports' => 'Trop d’exports. Réessayez dans :seconds seconde.|Trop d’exports. Réessayez dans :seconds secondes.',
         'search' => 'Recherche',
         'status' => 'Statut',
+        'yes' => 'Oui',
+        'no' => 'Non',
         'statuses' => [
             'active' => 'Actif',
             'archived' => 'Archivé',

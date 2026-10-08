@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\UpdateUserRequest;
 use App\Core\Identity\Http\Requests\UserActionRequest;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Users of the tenant, as administrators see them (AUTH-13, RBAC-04): only
@@ -33,18 +35,24 @@ class UserController
         private readonly Auditor $auditor,
     ) {}
 
-    public function index(UserListRequest $request): AnonymousResourceCollection
+    public function index(UserListRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $visible = $this->resolver->visibleIds($request->user(), 'core.user.view');
+        $list = $request->list();
+        $visible = $list->visible();
         $query = User::query();
 
         if (! $visible->all) {
             $query->whereHas('assignments', fn (Builder $q) => ScopeNames::constrain($q, $visible));
         }
 
-        $users = $request->applyStatus($query)
+        $request->applySort($request->applySearch($request->applyStatus($query), ['name' => 'name', 'email' => 'email', 'phone' => 'phone']));
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        $users = $query
             ->with(['assignments' => fn ($q) => $q->orderBy('created_at')->orderBy('id'), 'assignments.role', 'assignments.creator'])
-            ->orderBy('name')->orderBy('id')
             ->paginate($request->perPage())
             ->withQueryString();
 

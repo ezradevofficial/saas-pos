@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Taxes\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\Taxes\ApplyCountryPack;
 use App\Core\MasterData\Taxes\Http\Requests\ApplyCountryPackRequest;
@@ -25,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-03, CP-01, CP-02: a company's tax codes, their effective-dated rates,
@@ -39,13 +41,16 @@ class TaxCodeController
         private readonly Auditor $auditor,
     ) {}
 
-    public function index(ListTaxCodesRequest $request, Company $company): AnonymousResourceCollection
+    public function index(ListTaxCodesRequest $request, Company $company, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = TaxCode::query()->where('company_id', $company->id)->with(['rates', 'company:id,timezone']);
+        $request->applySort($request->applySearch($request->applyStatus($query), ['code' => 'code', 'name' => 'name', 'fiscal_code' => 'fiscal_code']));
 
-        return TaxCodeResource::collection(
-            $request->applyStatus($query)->orderBy('code')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return TaxCodeResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreTaxCodeRequest $request, Company $company): JsonResponse

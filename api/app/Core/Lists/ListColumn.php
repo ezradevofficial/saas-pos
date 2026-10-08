@@ -36,6 +36,12 @@ final class ListColumn
         return new self($key, $label, [$field], fn (array $row) => $row[$field] === null ? null : (string) $row[$field]);
     }
 
+    /** `status`: Active or Archived, from an archivable record's `archived_at` (TEN-06). */
+    public static function archiveStatus(string $label): self
+    {
+        return new self('status', $label, ['archived_at'], fn (array $row) => __('core.list.statuses.'.($row['archived_at'] === null ? 'active' : 'archived')));
+    }
+
     /**
      * @param  Closure(array<string, mixed>, Model, ExportValues): ?string  $value
      * @param  list<string>  $fields

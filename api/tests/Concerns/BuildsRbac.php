@@ -3,6 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
@@ -44,7 +45,7 @@ trait BuildsRbac
     /** @param list<string> $permissions */
     protected function role(string $name, array $permissions = []): Role
     {
-        $role = Role::create(['name' => $name]);
+        $role = Role::create(['name' => $name, 'guard_name' => Permission::GUARD]);
         $role->givePermissionTo($permissions);
 
         return $role;

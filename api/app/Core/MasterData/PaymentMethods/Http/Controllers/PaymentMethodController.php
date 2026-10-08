@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\PaymentMethods\Http\Controllers;
 
 use App\Core\Currency\Models\TenantCurrency;
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\PaymentMethods\Http\Requests\ListPaymentMethodsRequest;
 use App\Core\MasterData\PaymentMethods\Http\Requests\PaymentMethodActionRequest;
@@ -19,6 +20,7 @@ use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-04: a company's payment methods in till order. A method is switched on
@@ -36,13 +38,16 @@ class PaymentMethodController
         private readonly PaymentProviders $providers,
     ) {}
 
-    public function index(ListPaymentMethodsRequest $request, Company $company): AnonymousResourceCollection
+    public function index(ListPaymentMethodsRequest $request, Company $company, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = PaymentMethod::query()->where('company_id', $company->id);
+        $query = $request->applySearch($request->applyStatus(PaymentMethod::query()->where('company_id', $company->id)), ['name' => 'name']);
+        $request->applySort($query);
 
-        return PaymentMethodResource::collection(
-            $request->applyStatus($query)->orderBy('position')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return PaymentMethodResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StorePaymentMethodRequest $request, Company $company): JsonResponse
