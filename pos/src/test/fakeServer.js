@@ -23,6 +23,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     uploadOverride: null,
     requests: [],
     pinReports: [],
+    settings: { id: 'device', location: { id: 'loc-1', name: 'Westlands shop' } },
+    pairing: { code: 'ABCDEFGH', token: '1|device-token', secret: Buffer.alloc(32, 9).toString('base64url'), kid: 'k1' },
     seq: 0,
   };
 
@@ -46,6 +48,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     bumpVersion(key) {
       state.entities[key].version += 1;
     },
+    get: (path, options) => server.request('GET', path, options),
+    post: (path, body, options) => server.request('POST', path, { ...options, body }),
     goOffline: () => void (state.online = false),
     goOnline: () => void (state.online = true),
     requestsTo: (path) => state.requests.filter((request) => request.path === path),
@@ -53,6 +57,18 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     async request(method, path, { query, body } = {}) {
       state.requests.push({ method, path, query, body });
       if (!state.online) throw new NetworkError(new Error('offline'));
+      if (method === 'POST' && path === 'devices/pair') {
+        if (body.code !== state.pairing.code) return { status: 422, body: { code: 'invalid_pairing_code', message: 'Invalid' } };
+        return {
+          status: 200,
+          body: {
+            token: state.pairing.token,
+            device_secret: state.pairing.secret,
+            device_secret_kid: state.pairing.kid,
+            device: { id: 'device-1', name: body.device_name, location_id: 'loc-1', status: 'active' },
+          },
+        };
+      }
       if (state.authStatus) return { status: state.authStatus, body: { code: state.authStatus === 401 ? 'unauthenticated' : 'device_inactive', message: 'No' } };
       const time = new Date(state.serverTime ?? now()).toISOString();
 
@@ -63,7 +79,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
             server_time: time,
             device: { id: 'device-1', name: 'Till 1', location_id: 'loc-1', status: 'active' },
             device_secret_issued: state.secretIssued,
-            settings: { id: 'device' },
+            settings: state.settings,
             entities: Object.entries(state.entities).map(([key, entity]) => ({ key, mode: entity.mode, module: entity.module, version: entity.version })),
             page_size: state.pageSizeDefault,
             max_page_size: 1000,

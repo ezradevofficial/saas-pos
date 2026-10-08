@@ -6,7 +6,10 @@
     "loading": "Loading",
     "retry": "Try again",
     "cancel": "Cancel",
-    "save": "Save changes"
+    "save": "Save changes",
+    "back": "Back",
+    "continue": "Continue",
+    "syncNow": "Sync now"
   },
   "ds": {
     "button": {
@@ -47,5 +50,79 @@
     "sale": "Current sale",
     "items_one": "{{count}} item",
     "items_other": "{{count}} items"
+  },
+  "pairing": {
+    "title": "Pair this till",
+    "intro": "Ask an admin for a pairing code under Settings, Devices. The code works once and expires after 15 minutes.",
+    "code": "Pairing code",
+    "codeHelp": "8 letters and digits. There is no 0, O, 1, I or L.",
+    "name": "Till name",
+    "nameHelp": "Admins see this name in the device list.",
+    "submit": "Pair till",
+    "pairedTitle": "Till paired",
+    "pairedAt": "This till now sells for {{location}}.",
+    "pairedNoLocation": "This till is paired. Its location appears after the first sync.",
+    "errors": {
+      "invalid_code": "This pairing code is not valid or has expired. Ask an admin for a new code.",
+      "name_required": "Enter a name for this till.",
+      "too_many_attempts": "Too many tries. Wait a minute, then enter the code again.",
+      "offline": "The server cannot be reached. Check the connection, then try again.",
+      "failed": "Pairing did not work. Try again, or ask an admin for a new code."
+    }
+  },
+  "signIn": {
+    "title": "Who is selling?",
+    "subtitle": "Choose your name, then enter your PIN.",
+    "empty": "No staff can sign in at this till yet. Ask an admin to give staff a role at this location, then sync.",
+    "locked": "Locked",
+    "pinFor": "PIN for {{name}}",
+    "pinEntered_one": "{{count}} digit entered",
+    "pinEntered_other": "{{count}} digits entered",
+    "submit": "Sign in",
+    "checking": "Checking",
+    "otherPerson": "Choose someone else",
+    "keypad": "PIN keypad",
+    "delete": "Delete last digit",
+    "clear": "Clear",
+    "errors": {
+      "incorrect_one": "Wrong PIN. {{count}} try left before this PIN locks on this till.",
+      "incorrect_other": "Wrong PIN. {{count}} tries left before this PIN locks on this till.",
+      "locked": "This PIN is locked on this till after 5 wrong tries. Set a new PIN in the back office, or ask a manager to reset it.",
+      "not_set": "You have no PIN yet. Set one in the back office under your profile.",
+      "not_staff": "You cannot sign in at this till. Ask an admin to give you a role at this location.",
+      "online_required": "Your PIN can only be checked online. Connect the till, then try again.",
+      "access_lost": "This till has lost access. Ask an admin to check the device.",
+      "failed": "Sign-in did not work. Try again."
+    }
+  },
+  "changePin": {
+    "title": "Choose a new PIN",
+    "intro": "Your PIN was reset. Choose a new one before you sell.",
+    "newPin": "New PIN",
+    "confirmPin": "Enter the new PIN again",
+    "rules": "4 to 6 digits. Managers who approve need 6. Avoid 1234, 0000 and dates.",
+    "submit": "Save PIN",
+    "later": "Change it later",
+    "mismatch": "The two PINs differ. Enter the new PIN again.",
+    "tooShort": "A PIN has 4 to 6 digits.",
+    "saved": "Your new PIN is saved.",
+    "offline": "Changing a PIN needs a connection. You can sell now; you will be asked again when the till is online.",
+    "failed": "The PIN was not changed. Try again."
+  },
+  "home": {
+    "ready": "Ready to sell",
+    "signedInAs": "Signed in as {{name}}",
+    "location": "Location: {{location}}",
+    "lastSynced": "Last synced {{time}}",
+    "neverSynced": "Not synced yet",
+    "switchUser": "Switch user",
+    "sellingSoon": "The selling screen arrives in the next release.",
+    "failed_one": "{{count}} record was refused by the server and needs review.",
+    "failed_other": "{{count}} records were refused by the server and need review.",
+    "accessLostTitle": "This till has lost access",
+    "accessLost": "The device was unpaired or suspended. Unsent sales stay on this till. Ask an admin to resume the device, then try again.",
+    "secretMissing": "This till has no offline sign-in key. Staff can sign in online only until the till is paired again.",
+    "pinChangeTitle": "New PIN needed",
+    "pinChangeOffline": "Choose a new PIN when the till is back online."
   }
 }
