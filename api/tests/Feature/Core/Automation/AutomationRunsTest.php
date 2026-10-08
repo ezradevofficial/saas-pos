@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Automation;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Runtime\RuleRunner;
@@ -12,7 +13,9 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\ReadsListExports;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -159,6 +162,50 @@ class AutomationRunsTest extends TestCase
 
         $this->assertSame('run_as_unavailable', $this->runs($rule)->sole()->error_code);
         $this->assertFalse($this->inTenant(fn () => $rule->fresh()->enabled));
+    }
+
+    public function test_an_error_after_the_actions_committed_is_logged_never_retried(): void
+    {
+        $writes = 0;
+        Event::listen(RecordChanged::class, function (RecordChanged $event) use (&$writes) {
+            $writes += $event->change === 'updated' ? 1 : 0;
+        });
+        // A listener reacting to the rule's own change fails after its commit.
+        Event::listen(RecordChanged::class, function (RecordChanged $event) {
+            if ($event->cause !== null) {
+                throw new RuntimeException('downstream listener broke');
+            }
+        });
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'quantity', 'value' => '7']]);
+
+        $id = $this->createTask();
+
+        $run = $this->runs($rule)->sole();
+        $this->assertSame(AutomationRun::SUCCEEDED, $run->outcome);
+        $this->assertSame(1, $run->attempts, 'not retried');
+        $this->assertSame('after_commit_error', $run->error_code);
+        $this->assertSame(1, $writes, 'the committed action ran once');
+        $this->assertSame('7', $this->taskValues($id)['quantity']);
+    }
+
+    public function test_a_failure_to_queue_one_rule_neither_reaches_the_change_nor_stops_the_others(): void
+    {
+        $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]]);
+        $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'note', 'value' => 'x']]);
+        $calls = 0;
+        $this->mock(RuleRunner::class, function ($mock) use (&$calls) {
+            $mock->shouldReceive('dispatch')->twice()->andReturnUsing(function () use (&$calls) {
+                if (++$calls === 1) {
+                    throw new RuntimeException('queue down');
+                }
+
+                return null;
+            });
+        });
+
+        $this->createTask(); // no exception reaches the module
+
+        $this->assertSame(2, $calls);
     }
 
     public function test_a_rule_never_retriggers_itself(): void
