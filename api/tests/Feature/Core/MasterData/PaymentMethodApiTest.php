@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Log\Events\MessageLogged;
@@ -345,5 +346,30 @@ class PaymentMethodApiTest extends TestCase
         $this->patchJson($url, [...$this->mpesaConfig(), 'active' => true], $admin)->assertOk()->assertJsonPath('data.active', true);
         $this->patchJson($url, ['active' => false], $editor)->assertOk()->assertJsonPath('data.active', false);
         $this->patchJson($url, ['active' => true], $editor)->assertForbidden();
+    }
+
+    public function test_history_hides_the_secret_keys_changed_when_secrets_are_hidden(): void
+    {
+        // RBAC-05, MD-07: the change marker names secret keys; a user from
+        // whom `secrets` is hidden sees neither the keys nor the marker.
+        $viewer = $this->inTenant(function () {
+            $role = $this->role('Method viewer', ['core.company.view', 'core.payment_method.view']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'payment_method', 'field' => 'secrets', 'mode' => FieldRule::HIDDEN]);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::company($this->acme->id));
+
+            return $user;
+        });
+        $mpesa = $this->idOf('mpesa_ke');
+        $this->patchJson("/api/v1/payment-methods/{$mpesa}", [...$this->mpesaConfig(), 'name_en' => 'Lipa na M-Pesa'], $this->headersFor())->assertOk();
+
+        $owner = $this->getJson("/api/v1/history/payment_method/{$mpesa}", $this->headersFor())->assertOk();
+        $this->assertContains('core.payment_method.secrets_change', array_column($owner->json('data'), 'action'));
+
+        $hidden = $this->getJson("/api/v1/history/payment_method/{$mpesa}", $this->headersFor($viewer))->assertOk();
+        $this->assertNotContains('core.payment_method.secrets_change', array_column($hidden->json('data'), 'action'));
+        $this->assertContains('core.payment_method.update', array_column($hidden->json('data'), 'action'));
+        $this->assertStringNotContainsString('secrets_changed', (string) $hidden->getContent());
+        $this->assertStringNotContainsString('consumer_key', (string) $hidden->getContent());
     }
 }

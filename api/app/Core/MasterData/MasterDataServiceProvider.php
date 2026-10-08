@@ -110,7 +110,12 @@ class MasterDataServiceProvider extends ServiceProvider
         $history->register('item', Item::class, ItemResource::FIELD_RULES, fn (User $user, Item $item) => $this->app->make(ItemPolicy::class)->view($user, $item));
         $history->register('item_category', ItemCategory::class, ItemCategoryResource::FIELD_RULES, fn (User $user, ItemCategory $category) => $this->app->make(ItemCategoryPolicy::class)->view($user, $category));
         $history->register('uom', Uom::class, null, fn (User $user, Uom $uom) => $this->app->make(UomPolicy::class)->view($user, $uom));
-        $history->register('payment_method', PaymentMethod::class, PaymentMethodResource::FIELD_RULES, fn (User $user, PaymentMethod $method) => $reach()->reachesRecord($user, $method->company_id, PaymentMethod::PERMISSIONS));
+        // The secrets change marker names secret keys: hidden with `secrets`.
+        $history->register(
+            'payment_method', PaymentMethod::class, PaymentMethodResource::FIELD_RULES,
+            fn (User $user, PaymentMethod $method) => $reach()->reachesRecord($user, $method->company_id, PaymentMethod::PERMISSIONS),
+            ['secrets' => ['secrets_changed']],
+        );
 
         foreach (Dimensions::TYPES as $type => $model) {
             $history->register($type, $model, null, fn (User $user, Dimension $dimension) => $reach()->reachesRecord($user, $dimension->company_id, Dimension::PERMISSIONS));
