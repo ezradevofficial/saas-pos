@@ -8,6 +8,9 @@
 <body style="margin:0;padding:24px;background:#ffffff;color:#000000;font-family:Geist,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;">
 <div style="max-width:560px;margin:0 auto;">
 <p style="margin:0 0 16px;">{!! $html !!}</p>
+@foreach ($actions as $action)
+<p style="margin:0 0 12px;"><a href="{{ $action['url'] }}" style="color:#000000;">{{ $action['label'] }}</a></p>
+@endforeach
 @if ($url)
 <p style="margin:0 0 24px;"><a href="{{ $url }}" style="color:#000000;">{{ __('notifications.mail.open') }}</a></p>
 @endif

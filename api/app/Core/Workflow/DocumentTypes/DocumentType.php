@@ -2,6 +2,7 @@
 
 namespace App\Core\Workflow\DocumentTypes;
 
+use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
 use LogicException;
 
@@ -90,6 +91,45 @@ abstract class DocumentType
     public function cancelDocument(string $documentId, string $reason, ?User $by): void
     {
         throw new LogicException("The document type [{$this->key()}] cannot cancel documents.");
+    }
+
+    /**
+     * APR-04: what the approvals inbox shows of a document: its number
+     * (e.g. `PR-0042`), a one-line title and its amount. By default no
+     * number or title, and the value of the type's first money field.
+     *
+     * @return array{number: ?string, title: ?string, amount: ?array{amount_minor: string, currency: string}}
+     */
+    public function summary(string $documentId): array
+    {
+        $amount = null;
+
+        foreach ($this->fields() as $field) {
+            if ($field->type === 'money') {
+                $value = $this->fieldValues($documentId)[$field->name] ?? null;
+
+                if ($value instanceof Money) {
+                    $value = $value->jsonSerialize();
+                }
+
+                if (is_array($value) && isset($value['amount_minor'], $value['currency'])) {
+                    $amount = ['amount_minor' => (string) $value['amount_minor'], 'currency' => (string) $value['currency']];
+                }
+
+                break;
+            }
+        }
+
+        return ['number' => null, 'title' => null, 'amount' => $amount];
+    }
+
+    /**
+     * APR-07: the user who created the document, when the type knows it
+     * (besides whoever started its flow), so they never approve it.
+     */
+    public function requesterId(string $documentId): ?string
+    {
+        return null;
     }
 
     public function field(string $name): ?FieldDefinition

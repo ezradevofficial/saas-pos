@@ -1,4 +1,8 @@
 {!! $text !!}
+@foreach ($actions as $action)
+
+{{ $action['label'] }}: {!! $action['url'] !!}
+@endforeach
 @if ($url)
 
 {{ __('notifications.mail.open') }}: {!! $url !!}

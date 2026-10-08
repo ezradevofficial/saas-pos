@@ -1,5 +1,11 @@
 <?php
 
+use App\Core\Approvals\Http\Controllers\ApprovalController;
+use App\Core\Approvals\Http\Controllers\AttachmentFileController;
+use App\Core\Approvals\Http\Controllers\DelegationController;
+use App\Core\Approvals\Http\Controllers\EmailApprovalController;
+use App\Core\Approvals\Models\ApprovalDelegation;
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
 use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
@@ -62,13 +68,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
 Route::pattern('document_type', '[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*');
 Route::model('workflow', WorkflowDefinition::class);
 Route::model('workflow_version', WorkflowVersion::class);
+Route::model('approval', ApprovalRequest::class);
+Route::model('delegation', ApprovalDelegation::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -103,6 +111,15 @@ Route::prefix('auth')->group(function () {
 // signature is the credential; the controller enters the file's tenant and
 // checks the signed-for user may still view the item.
 Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('media.show');
+
+// APR-03: an approval attachment behind a temporary signed URL
+// (ApprovalPresenter::url). The controller enters the tenant the path
+// names and checks the signed-for user may still see the request.
+Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
+
+// APR-08: an emailed approve/reject link; the single-use token is the credential.
+Route::get('approvals/email/{token}', [EmailApprovalController::class, 'show'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{48}');
+Route::post('approvals/email/{token}', [EmailApprovalController::class, 'confirm'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{48}');
 
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');
@@ -314,6 +331,24 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // WF-09, APR-05: a company's working hours for time limits.
     Route::get('companies/{company}/business-hours', [BusinessHoursController::class, 'show']);
     Route::put('companies/{company}/business-hours', [BusinessHoursController::class, 'update']);
+
+    // APR-03, APR-04, APR-06: the approvals inbox, a request's detail and
+    // actions (acting needs only being its approver or their delegate),
+    // bulk approval, reassignment (core.approval.reassign) and the user's
+    // own delegations.
+    Route::get('approvals', [ApprovalController::class, 'index']);
+    Route::post('approvals/bulk-approve', [ApprovalController::class, 'bulkApprove']);
+    Route::get('approvals/{approval}', [ApprovalController::class, 'show']);
+    Route::post('approvals/{approval}/approve', [ApprovalController::class, 'approve']);
+    Route::post('approvals/{approval}/reject', [ApprovalController::class, 'reject']);
+    Route::post('approvals/{approval}/return', [ApprovalController::class, 'return']);
+    Route::post('approvals/{approval}/comment', [ApprovalController::class, 'comment']);
+    Route::post('approvals/{approval}/request-info', [ApprovalController::class, 'requestInfo']);
+    Route::post('approvals/{approval}/attachments', [ApprovalController::class, 'attach']);
+    Route::post('approvals/{approval}/reassign', [ApprovalController::class, 'reassign']);
+    Route::get('me/delegations', [DelegationController::class, 'index']);
+    Route::post('me/delegations', [DelegationController::class, 'store']);
+    Route::post('me/delegations/{delegation}/revoke', [DelegationController::class, 'revoke']);
 
     // NOT-01: the signed-in user's own inbox (no permission: everyone has one).
     Route::get('notifications', [InboxController::class, 'index']);
