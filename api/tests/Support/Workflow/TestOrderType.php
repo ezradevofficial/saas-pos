@@ -55,6 +55,11 @@ class TestOrderType extends DocumentType
         return TestDocuments::create(self::KEY, $values, $scope);
     }
 
+    public function isCancelled(string $documentId): bool
+    {
+        return (TestDocuments::find(self::KEY, $documentId)['status'] ?? 'cancelled') === 'cancelled';
+    }
+
     public function cancelDocument(string $documentId, string $reason, ?User $by): void
     {
         TestDocuments::setStatus($documentId, 'cancelled');

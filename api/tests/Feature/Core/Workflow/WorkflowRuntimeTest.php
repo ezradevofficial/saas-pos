@@ -362,6 +362,43 @@ class WorkflowRuntimeTest extends TestCase
         $this->assertSame(['review'], $this->at($this->move($workflow)));
     }
 
+    public function test_passing_a_create_document_step_again_after_a_return_keeps_the_document(): void
+    {
+        // M3 (WF-07, WF-11): start → draft → create order → review → end.
+        $this->publishFlow([
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'draft', 'type' => 'stage', 'name' => 'Draft'],
+                ['id' => 'create_order', 'type' => 'action', 'name' => 'Create order', 'action' => 'create_document', 'config' => ['mapping' => 'order']],
+                ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'completed'],
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'draft'], ['from' => 'draft', 'to' => 'create_order'],
+                ['from' => 'create_order', 'to' => 'review'], ['from' => 'review', 'to' => 'end'],
+            ],
+        ]);
+        $workflow = $this->move($this->start($this->document(['total' => Graphs::kes(500)])));
+        $orders = $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY));
+        $this->assertCount(1, $orders);
+
+        $workflow = $this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'draft', 'Fix the total'));
+        $workflow = $this->move($workflow);
+
+        $this->assertSame(['review'], $this->at($workflow));
+        $this->assertCount(1, $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)), 'not created twice');
+        $this->assertSame(1, $this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->count()));
+        $actions = $this->inTenant(fn () => DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->where('type', 'action')->orderBy('occurred_at')->orderBy('id')->get());
+        $this->assertSame([null, true], $actions->map(fn ($e) => $e->data['result']['kept'] ?? null)->all());
+        $this->assertSame($orders[0]['id'], $actions[1]->data['result']['document_id']);
+
+        // Once the created order is cancelled, passing again creates a new one.
+        $this->inTenant(fn () => TestDocuments::setStatus($orders[0]['id'], 'cancelled'));
+        $workflow = $this->move($this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'draft', 'Again')));
+        $this->assertCount(2, $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)));
+        $this->assertSame(2, $this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->count()));
+    }
+
     /** start → prepare → split → (it → it_check, payroll) → join(all) → close → end, stage options merged per id. */
     private function twoStepBranch(array $options = []): array
     {

@@ -13,6 +13,9 @@ use App\Core\Workflow\Runtime\WorkflowBlocked;
  * flow's type) and `on_cancel` (`keep` or `cancel`, WF-11: what happens to
  * the created document when this flow is cancelled; default keep). The
  * target type creates the draft from the mapped values; the link is kept.
+ * Passing the node again (after a return) keeps the document it created
+ * unless that was cancelled; the history's action event then says
+ * `kept: true`.
  */
 class CreateDocumentAction implements ActionHandler
 {
@@ -55,6 +58,20 @@ class CreateDocumentAction implements ActionHandler
             $step = is_string($context->node['name'] ?? null) && $context->node['name'] !== '' ? $context->node['name'] : (string) $context->node['id'];
 
             throw new WorkflowBlocked('next_document_unavailable', __('workflow.errors.next_document_unavailable', ['stage' => $step]), [], (string) $context->node['id']);
+        }
+
+        // M3: the flow passes here again after a return (WF-11): the document
+        // it created the first time is kept unless it was cancelled.
+        $existing = DocumentWorkflowLink::query()
+            ->where('workflow_id', $context->workflow->id)
+            ->where('node_id', (string) $context->node['id'])
+            ->where('target_type', $next->target)
+            ->whereNull('cancelled_at')
+            ->latest('created_at')
+            ->first();
+
+        if ($existing !== null && ! $target->isCancelled($existing->target_document_id)) {
+            return ['mapping' => $next->key, 'target_type' => $next->target, 'document_id' => $existing->target_document_id, 'kept' => true];
         }
 
         $documentId = $target->createDraft($next->map($context->values), $context->scope, $context->user);
