@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useServices } from '../app/services';
+import { useServices } from '../services/services';
 import { useSession } from '../auth/session';
 import { Alert } from '../components/ds/Alert';
 import { Button } from '../components/ds/Button';

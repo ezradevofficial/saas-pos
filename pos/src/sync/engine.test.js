@@ -125,6 +125,19 @@ describe('sync engine: pull', () => {
     expect(await rows(database, 'items')).toEqual([]);
   });
 
+  it('flags a device with no current secret (unpair and pair again)', async () => {
+    const { server, engine, store } = setup();
+    server.state.secretIssued = false;
+    await engine.bootstrap();
+    expect(engine.getStatus().secretMissing).toBe(true);
+    expect((await store.meta()).secretKid).toBeNull();
+
+    server.state.secretIssued = true;
+    await engine.bootstrap();
+    expect(engine.getStatus().secretMissing).toBe(false);
+    expect((await store.meta()).secretKid).toBe('k1');
+  });
+
   it('measures clock skew from server_time', async () => {
     const { server, engine, now } = setup();
     server.state.serverTime = now() + 90_000;

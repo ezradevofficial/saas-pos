@@ -78,7 +78,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
           body: {
             server_time: time,
             device: { id: 'device-1', name: 'Till 1', location_id: 'loc-1', status: 'active' },
-            device_secret_issued: state.secretIssued,
+            device_secret_kid: state.secretIssued ? 'k1' : null,
             settings: state.settings,
             entities: Object.entries(state.entities).map(([key, entity]) => ({ key, mode: entity.mode, module: entity.module, version: entity.version })),
             page_size: state.pageSizeDefault,

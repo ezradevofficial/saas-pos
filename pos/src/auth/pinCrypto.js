@@ -89,19 +89,19 @@ export async function verifyOffline({ material, kind = 'pin', userId, input, dev
 
 /**
  * The message an offline manager override signs (AUTH-08,
- * OverrideVerifier::offlineMessage). v2 names the secret's kid after the
- * device id; v1 (before key ids) does not.
+ * OverrideVerifier::offlineMessage, `override:v2`): the lines below joined
+ * by "\n". The kid names the device secret that signs; the reference (the
+ * sale or line the override is for) is required.
  */
-export function overrideMessage({ version = 2, deviceId, kid, id, managerUserId, cashierUserId, permission, reference, authorisedAt }) {
-  const head = version >= 2 ? ['override:v2', deviceId, kid ?? ''] : ['override:v1', deviceId];
-  return [...head, id, managerUserId, cashierUserId ?? '', permission, reference ?? '', authorisedAt].join('\n');
+export function overrideMessage({ deviceId, kid, id, managerUserId, cashierUserId, permission, reference, authorisedAt }) {
+  if (!kid || !reference) throw new Error('An offline override needs the secret kid and a reference');
+  return ['override:v2', deviceId, kid, id, managerUserId, cashierUserId ?? '', permission, reference, authorisedAt].join('\n');
 }
 
 /** base64url(HMAC-SHA256(device secret, overrideMessage(...))). */
 export function signOverride({ deviceSecret, ...fields }) {
   const secret = fromBase64Url(deviceSecret.secret);
-  const version = fields.version ?? (deviceSecret.kid ? 2 : 1);
-  return toBase64Url(hmacSha256(secret, utf8(overrideMessage({ ...fields, version, kid: fields.kid ?? deviceSecret.kid }))));
+  return toBase64Url(hmacSha256(secret, utf8(overrideMessage({ ...fields, kid: deviceSecret.kid }))));
 }
 
 /** Proofs for the two-step secret rotation (DeviceSecrets::rotate / activate). */

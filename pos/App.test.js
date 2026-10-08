@@ -1,7 +1,7 @@
 import { createHmac, pbkdf2Sync } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import App from './App';
-import { createServices } from './src/app/services';
+import { createServices } from './src/services/services';
 import { PIN_SCHEME } from './src/auth/pinCrypto';
 import { memoryBackend } from './src/device/credentials';
 import { fakeServer } from './src/test/fakeServer';

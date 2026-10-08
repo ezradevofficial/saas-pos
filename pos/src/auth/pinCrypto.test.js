@@ -10,7 +10,7 @@ const SALT = 'MDEyMzQ1Njc4OWFiY2RlZg';
 const SECRET = 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc';
 const PHP_PIN_VERIFIER = '5HgUFO7FHAvn-Y3HO7R1bFm8r_ebiOMjpGISlLC0ptA'; // PIN 482913
 const PHP_CARD_VERIFIER = 'ZfhF1lwmgXkDMYKU9rYwpPuN5LkS4PadNvbeDel6hhI'; // card AB12CD34
-const PHP_OVERRIDE_V1 = 'eZNS4Vyi_6qGJ_azmBZK8-5_xg6x7r7N_T2g9Ptp3Ss';
+const PHP_OVERRIDE_V2 = 'MyakdKtDTVvcmJYoWV0J8nMGnYxm-GI4fN-UlA2tzr0'; // kid k1
 
 const material = (verifier, extra = {}) => ({ scheme: PIN_SCHEME, kid: 'k1', salt: SALT, iterations: 150000, verifier, ...extra });
 const deviceSecret = { secret: SECRET, kid: 'k1' };
@@ -89,16 +89,15 @@ describe('offline override signature', () => {
     authorisedAt: '2026-10-08T10:00:00.000Z',
   };
 
-  it('signs the v1 message as the server checks it', () => {
-    expect(signOverride({ deviceSecret: { secret: SECRET }, ...fields })).toBe(PHP_OVERRIDE_V1);
-  });
-
-  it('names the key id in v2', () => {
-    expect(overrideMessage({ ...fields, version: 2, kid: 'k1' })).toBe(
+  it('signs the v2 message as the server checks it (PHP vector)', () => {
+    expect(signOverride({ deviceSecret, ...fields })).toBe(PHP_OVERRIDE_V2);
+    expect(overrideMessage({ ...fields, kid: 'k1' })).toBe(
       ['override:v2', 'dev-1', 'k1', fields.id, fields.managerUserId, '', 'pos.sale.void', 'sale-9', fields.authorisedAt].join('\n'),
     );
-    const signature = signOverride({ deviceSecret, ...fields });
-    const expected = createHmac('sha256', Buffer.from(fromBase64Url(SECRET))).update(overrideMessage({ ...fields, version: 2, kid: 'k1' })).digest('base64url');
-    expect(signature).toBe(expected);
+  });
+
+  it('refuses to sign without a kid or a reference', () => {
+    expect(() => signOverride({ deviceSecret: { secret: SECRET }, ...fields })).toThrow();
+    expect(() => signOverride({ deviceSecret, ...fields, reference: null })).toThrow();
   });
 });

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { createServices, ServicesContext, useServices } from './src/app/services';
+import { createServices, ServicesContext, useServices } from './src/services/services';
 import { SessionProvider, useSession } from './src/auth/session';
 import './src/i18n';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';

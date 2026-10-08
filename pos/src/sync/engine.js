@@ -124,11 +124,13 @@ export function createSyncEngine({ api, store, now = () => Date.now(), random = 
       pin: body.pin ?? null,
       skewMs,
       bootstrappedAt: now(),
-      secretIssued: Boolean(body.device_secret_issued),
+      // The server's current secret kid; null: the till must be unpaired and paired again.
+      secretKid: secretKidOf(body),
+      secretIssued: secretKidOf(body) !== null,
       auth: AUTH.OK,
       authCode: null,
     });
-    update({ skewMs, secretMissing: !body.device_secret_issued, auth: AUTH.OK, authCode: null });
+    update({ skewMs, secretMissing: secretKidOf(body) === null, auth: AUTH.OK, authCode: null });
     return body;
   }
 
@@ -392,6 +394,12 @@ export function createSyncEngine({ api, store, now = () => Date.now(), random = 
     },
     store,
   };
+}
+
+// Bootstrap names the current secret's kid (device_secret_kid); older servers sent device_secret_issued.
+function secretKidOf(body) {
+  if ('device_secret_kid' in body) return body.device_secret_kid ?? null;
+  return body.device_secret_issued ? 'unknown' : null;
 }
 
 function serverError(response) {

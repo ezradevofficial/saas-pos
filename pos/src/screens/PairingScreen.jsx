@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useServices } from '../app/services';
+import { useServices } from '../services/services';
 import { Alert } from '../components/ds/Alert';
 import { Button } from '../components/ds/Button';
 import { TextField } from '../components/ds/TextField';

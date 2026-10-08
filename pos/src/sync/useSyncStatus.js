@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { useServices } from '../app/services';
+import { useServices } from '../services/services';
 import { AUTH, NETWORK } from './engine';
 
 /** The SyncStatus component's state for an engine status. */
