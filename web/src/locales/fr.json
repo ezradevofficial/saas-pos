@@ -236,7 +236,8 @@
       "finance": "Finances",
       "masterData": "Données de référence",
       "catalogue": "Catalogue",
-      "contacts": "Contacts"
+      "contacts": "Contacts",
+      "automation": "Automatisation"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -255,7 +256,8 @@
     "categories": "Catégories",
     "units": "Unités",
     "customers": "Clients",
-    "suppliers": "Fournisseurs"
+    "suppliers": "Fournisseurs",
+    "workflows": "Workflows"
   },
   "shell": {
     "account": "Menu du compte",
@@ -1704,6 +1706,463 @@
       "create": {
         "customer": "Créer le client",
         "supplier": "Créer le fournisseur"
+      }
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "description": "Les étapes, approbations et actions de chaque type de document, par société.",
+    "searchPlaceholder": "Rechercher un type de document",
+    "allCompanies": "Toutes les sociétés",
+    "versionShort": "v{{version}}",
+    "notPublished": "Non publié",
+    "noDraft": "Aucun brouillon",
+    "empty": "Aucun workflow pour l’instant. Créez-en un pour changer la façon dont un type de document est approuvé.",
+    "emptyNoTypes": "Aucun type de document n’est disponible. Activez un module qui en déclare.",
+    "breadcrumb": "Fil d’Ariane",
+    "columns": {
+      "documentType": "Type de document",
+      "company": "Société",
+      "live": "Version en service",
+      "draft": "Brouillon",
+      "updated": "Modifié"
+    },
+    "filters": {
+      "type": "Type de document",
+      "allTypes": "Tous les types de document",
+      "company": "Société"
+    },
+    "create": {
+      "open": "Créer un workflow",
+      "title": "Créer un workflow",
+      "body": "Le workflow commence comme un brouillon copié du modèle par défaut du type de document. Rien ne change pour les documents avant sa publication.",
+      "type": "Type de document",
+      "company": "Société",
+      "confirm": "Créer et ouvrir"
+    },
+    "header": {
+      "draft": "Brouillon v{{version}}",
+      "live": "En service v{{version}}",
+      "liveOnly": "La v{{version}} est en service",
+      "liveWithProgress_one": "La v{{version}} est en service · {{count}} document en cours reste sur la v{{version}}",
+      "liveWithProgress_other": "La v{{version}} est en service · {{count}} documents en cours restent sur la v{{version}}"
+    },
+    "actions": {
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "validate": "Rechercher les problèmes",
+      "test": "Tester avec un exemple",
+      "more": "Plus",
+      "versions": "Versions",
+      "copy": "Copier vers une autre société",
+      "restoreDefault": "Rétablir le modèle par défaut",
+      "publish": "Publier la v{{version}}"
+    },
+    "save": {
+      "pending": "Modifications non enregistrées",
+      "saving": "Enregistrement",
+      "saved": "Brouillon enregistré",
+      "failed": "Le brouillon n’a pas pu être enregistré. Corrigez le problème ci-dessous ; vos modifications restent sur le canevas.",
+      "failedBeforePublish": "Le brouillon n’a pas pu être enregistré, il n’a donc pas été publié. Corrigez le problème affiché, puis publiez à nouveau."
+    },
+    "readOnly": {
+      "phone": "Les workflows sont en lecture seule sur un téléphone. Ouvrez cette page sur une tablette ou un ordinateur pour les modifier.",
+      "noRight": "Vous pouvez consulter ce workflow. Demandez à un administrateur le droit de le modifier."
+    },
+    "issues": {
+      "title": "Problèmes à corriger avant la publication",
+      "count_one": "{{count}} problème à corriger avant la publication",
+      "count_other": "{{count}} problèmes à corriger avant la publication",
+      "hide": "Masquer les problèmes",
+      "none": "Aucun problème trouvé. Le brouillon peut être publié."
+    },
+    "palette": {
+      "label": "Éléments",
+      "title": "Glissez sur le flux",
+      "add": "Ajouter : {{name}}",
+      "items": {
+        "start": {
+          "name": "Début",
+          "description": "Le point de départ de chaque document"
+        },
+        "stage": {
+          "name": "Étape",
+          "description": "Une étape que traverse le document"
+        },
+        "approval": {
+          "name": "Approbation",
+          "description": "Une personne, un rôle ou un groupe"
+        },
+        "condition": {
+          "name": "Condition",
+          "description": "Orienter selon le montant, l’agence, un champ"
+        },
+        "parallel": {
+          "name": "En parallèle",
+          "description": "Des étapes menées en même temps"
+        },
+        "notify": {
+          "name": "Notifier",
+          "description": "Dans l’application, e-mail, SMS ou WhatsApp"
+        },
+        "create_document": {
+          "name": "Créer un document",
+          "description": "Par exemple, de la demande à la commande"
+        },
+        "end": {
+          "name": "Fin",
+          "description": "Là où le flux se termine"
+        }
+      }
+    },
+    "defaults": {
+      "start": "Début",
+      "stage": "Nouvelle étape",
+      "approval": "Nouvelle approbation",
+      "condition": "Nouvelle condition",
+      "notify": "Envoyer une notification",
+      "createDocument": "Créer le document suivant",
+      "join": "Jonction",
+      "parallel": "Étapes en parallèle",
+      "unnamed": "Étape sans nom",
+      "endOutcome": "Fin : {{outcome}}"
+    },
+    "kinds": {
+      "start": "Début",
+      "end": "Fin",
+      "stage": "Étape",
+      "stageEntry": "Étape · règle d’entrée",
+      "approval": "Approbation",
+      "condition": "Condition",
+      "parallel": "En parallèle",
+      "join": "Jonction",
+      "action_create": "Action · créer un document",
+      "action_notify": "Action · notifier",
+      "action_other": "Action"
+    },
+    "outcomes": {
+      "approved": "approuvé",
+      "rejected": "rejeté",
+      "completed": "terminé",
+      "cancelled": "annulé"
+    },
+    "branches": {
+      "yes": "Oui",
+      "no": "Non",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "else": "Sinon"
+    },
+    "canvas": {
+      "label": "Flux",
+      "input": "Relier à cette étape",
+      "output": "Relier à l’étape suivante",
+      "outputNamed": "Relier « {{branch}} » à l’étape suivante",
+      "needsAttention": "À corriger",
+      "edge": "De {{from}} vers {{to}}{{branch}}",
+      "controls": "Commandes de zoom",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "fitView": "Ajuster le flux à l’écran",
+      "interactive": "Verrouiller ou déverrouiller le canevas",
+      "minimap": "Mini-carte",
+      "handle": "Point de connexion",
+      "a11y": {
+        "node": "Appuyez sur Entrée ou Espace pour sélectionner cette étape. Appuyez sur Suppr pour la retirer et Échap pour annuler.",
+        "nodeKeyboard": "Appuyez sur Entrée ou Espace pour sélectionner cette étape, puis utilisez les flèches pour la déplacer. Appuyez sur Suppr pour la retirer et Échap pour annuler.",
+        "moved": "Étape déplacée vers {{direction}}. Nouvelle position : x {{x}}, y {{y}}.",
+        "edge": "Appuyez sur Entrée ou Espace pour sélectionner ce lien, puis Suppr pour le retirer ou Échap pour annuler."
+      }
+    },
+    "panel": {
+      "label": "Réglages de l’étape",
+      "legend": "Réglages de {{name}}",
+      "caption": "Étape {{kind}}",
+      "emptyTitle": "Réglages de l’étape",
+      "empty": "Sélectionnez une étape sur le canevas pour la modifier, ou ajoutez-en une depuis les éléments.",
+      "emptyReadOnly": "Sélectionnez une étape sur le canevas pour voir ses réglages.",
+      "delete": "Supprimer l’étape"
+    },
+    "fields": {
+      "name": "Nom",
+      "mandatory": "Étape obligatoire",
+      "mandatoryHelp": "Une étape facultative est sautée si sa règle d’entrée n’est pas remplie ; une étape obligatoire arrête le document.",
+      "entry": "Règle d’entrée",
+      "entryHelp": "Doit être remplie pour que le document entre dans cette étape.",
+      "exit": "Règle de sortie",
+      "exitHelp": "Doit être remplie pour que le document quitte cette étape, par exemple un rapprochement à trois.",
+      "enterRoles": "Qui peut faire entrer les documents",
+      "exitRoles": "Qui peut faire sortir les documents",
+      "manualRoles": "Qui peut décider à la main",
+      "rolesHelp": "Aucun coché : toute personne autorisée sur ce type de document.",
+      "due": "Délai",
+      "dueHelp": "Les heures ouvrées et les jours fériés du pays de la société sont respectés.",
+      "unit": "Unité pour {{what}}",
+      "remindAfter": "Relancer après",
+      "escalateAfter": "Escalader après",
+      "businessHoursHelp": "Les heures ouvrées et les jours fériés sont respectés.",
+      "escalateTo": "Escalader vers",
+      "final": "À l’échéance finale",
+      "approver": "Qui approuve",
+      "mode": "Si plusieurs personnes peuvent approuver",
+      "role": "Rôle",
+      "chooseRole": "Choisissez un rôle",
+      "person": "Personne",
+      "choosePerson": "Choisissez une personne",
+      "levels": "Niveaux au-dessus",
+      "allowDelegation": "Autoriser la délégation en l’absence de l’approbateur",
+      "allowEmail": "Autoriser l’approbation par lien e-mail",
+      "requireReason": "Exiger un motif pour rejeter ou renvoyer",
+      "noSelfApproval": "Le demandeur ne peut jamais approuver son propre document. Il passe à l’approbateur suivant autorisé.",
+      "conditionKind": "Type de question",
+      "yesNo": "Oui ou non",
+      "severalBranches": "Plusieurs branches",
+      "question": "Règle",
+      "questionHelp": "Les documents qui remplissent la règle suivent Oui ; les autres suivent Non.",
+      "branchName": "Nom de la branche",
+      "branchRule": "Règle de la branche",
+      "branchDefault": "Branche {{number}}",
+      "addBranch": "Ajouter une branche",
+      "removeBranch": "Retirer la branche",
+      "elseHelp": "Les branches sont vérifiées dans l’ordre. Les documents qui n’en remplissent aucune suivent Sinon.",
+      "action": "Action",
+      "mapping": "Document à créer",
+      "chooseDocument": "Choisissez un document",
+      "noDocuments": "Ce type de document ne crée aucun autre document",
+      "copies": "Copie ces champs",
+      "copyLine": "{{source}} vers {{target}}",
+      "onCancel": "Si ce workflow est annulé",
+      "notifyRoles": "Qui est notifié",
+      "channels": "Canaux",
+      "message": "Message à envoyer",
+      "parallelHelp": "Reliez cette étape à deux étapes ou plus ; elles se déroulent en même temps jusqu’à sa jonction.",
+      "split": "Réunit les branches de",
+      "chooseSplit": "Choisissez une étape en parallèle",
+      "joinMode": "Continuer quand",
+      "outcome": "Résultat"
+    },
+    "approverTypes": {
+      "branch_manager": "Responsable de l’agence du demandeur",
+      "department_head": "Chef du service du demandeur",
+      "cost_centre_owner": "Responsable du centre de coût",
+      "manager_levels_up": "Responsable quelques niveaux au-dessus",
+      "role": "Toute personne ayant un rôle",
+      "user": "Une personne nommée",
+      "line_manager": "Supérieur direct du demandeur"
+    },
+    "approver": {
+      "none": "Aucun approbateur choisi",
+      "namedPerson": "Une personne nommée",
+      "roleNamed": "Rôle : {{role}}",
+      "levelsUp_one": "Responsable {{count}} niveau au-dessus",
+      "levelsUp_other": "Responsable {{count}} niveaux au-dessus"
+    },
+    "escalateTo": {
+      "next_level": "Niveau supérieur",
+      "role": "Toute personne ayant un rôle",
+      "user": "Une personne nommée"
+    },
+    "finalActions": {
+      "none": "Continuer d’attendre",
+      "approve": "Approuver automatiquement",
+      "reject": "Rejeter automatiquement"
+    },
+    "modes": {
+      "any": "L’une d’entre elles",
+      "all": "Toutes",
+      "majority": "La majorité"
+    },
+    "joinModes": {
+      "all": "Toutes les branches sont terminées",
+      "any": "Une seule branche est terminée"
+    },
+    "onCancel": {
+      "keep": "Garder le document créé",
+      "cancel": "Annuler aussi le document créé"
+    },
+    "actionNames": {
+      "create_document": "Créer un document",
+      "notify": "Envoyer une notification"
+    },
+    "channels": {
+      "in_app": "Dans l’application",
+      "email": "E-mail",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp"
+    },
+    "unitNames": {
+      "business_hours": "Heures ouvrées",
+      "business_days": "Jours ouvrés",
+      "hours": "Heures",
+      "days": "Jours"
+    },
+    "units": {
+      "business_hours_one": "{{count}} heure ouvrée",
+      "business_hours_other": "{{count}} heures ouvrées",
+      "business_days_one": "{{count}} jour ouvré",
+      "business_days_other": "{{count}} jours ouvrés",
+      "hours_one": "{{count}} heure",
+      "hours_other": "{{count}} heures",
+      "days_one": "{{count}} jour",
+      "days_other": "{{count}} jours"
+    },
+    "summary": {
+      "stage": "Une étape que traverse le document",
+      "entry": "N’entre que si {{rule}}",
+      "exit": "Ne sort que si {{rule}}",
+      "optional": "Facultative",
+      "due": "à traiter sous {{duration}}",
+      "escalates": "escalade après {{duration}}",
+      "final": {
+        "approve": "approuve automatiquement à la fin",
+        "reject": "rejette automatiquement à la fin"
+      },
+      "branches_one": "{{count}} chemin",
+      "branches_other": "{{count}} chemins",
+      "noRule": "Pas encore de règle",
+      "parallel": "Mène ses branches en même temps",
+      "join": {
+        "all": "Attend toutes les branches",
+        "any": "Attend une seule branche"
+      },
+      "createDocument": "Crée un brouillon : {{document}}",
+      "chooseDocument": "Choisissez le document à créer",
+      "notify": "Envoie une notification",
+      "notifyBy": "Notifie par {{channels}}",
+      "chooseAction": "Choisissez une action"
+    },
+    "condition": {
+      "none": "Aucune règle : toujours remplie.",
+      "addRule": "Ajouter une règle",
+      "addGroup": "Ajouter un groupe",
+      "removeRule": "Retirer la règle",
+      "removeGroup": "Retirer le groupe",
+      "match": "Correspondance",
+      "matchAll": "Toutes ces règles (et)",
+      "matchAny": "L’une de ces règles (ou)",
+      "ruleNumber": "Règle {{number}}",
+      "groupNumber": "Groupe {{number}}",
+      "field": "Champ",
+      "chooseField": "Choisissez un champ",
+      "operator": "Comparaison",
+      "value": "Valeur",
+      "compareWith": "Comparer avec",
+      "aValue": "Une valeur",
+      "anotherField": "Un autre champ",
+      "otherField": "Autre champ",
+      "currency": "Devise",
+      "listHelp": "Séparez les valeurs par des virgules.",
+      "yes": "Oui",
+      "no": "Non",
+      "andJoin": " et ",
+      "orJoin": " ou "
+    },
+    "operators": {
+      "eq": "est",
+      "ne": "n’est pas",
+      "gt": "est supérieur à",
+      "gte": "est au moins",
+      "lt": "est inférieur à",
+      "lte": "est au plus",
+      "in": "est l’un de",
+      "not_in": "n’est aucun de",
+      "contains": "contient",
+      "empty": "est vide",
+      "not_empty": "est renseigné"
+    },
+    "operatorPhrases": {
+      "eq": "{{field}} est {{value}}",
+      "ne": "{{field}} n’est pas {{value}}",
+      "gt": "{{field}} est supérieur à {{value}}",
+      "gte": "{{field}} est au moins {{value}}",
+      "lt": "{{field}} est inférieur à {{value}}",
+      "lte": "{{field}} est au plus {{value}}",
+      "in": "{{field}} est l’un de {{value}}",
+      "not_in": "{{field}} n’est aucun de {{value}}",
+      "contains": "{{field}} contient « {{value}} »",
+      "empty": "{{field}} est vide",
+      "not_empty": "{{field}} est renseigné"
+    },
+    "roles": {
+      "unknown": "Rôle inconnu ou archivé ({{ref}})",
+      "none": "Aucun rôle pour l’instant."
+    },
+    "publish": {
+      "title": "Publier la v{{version}} ?",
+      "body": "Les nouveaux documents suivront la v{{version}} à partir de maintenant.",
+      "inProgress_one": "{{count}} document en cours reste sur la v{{version}} jusqu’à sa fin.",
+      "inProgress_other": "{{count}} documents en cours restent sur la v{{version}} jusqu’à leur fin.",
+      "noneInProgress": "Aucun document n’est en cours sur la v{{version}}.",
+      "keepEditing": "Continuer à modifier",
+      "confirm": "Publier la v{{version}}",
+      "done": "La v{{version}} est en service."
+    },
+    "versions": {
+      "title": "Versions",
+      "number": "v{{version}}",
+      "status": {
+        "draft": "Brouillon",
+        "published": "En service",
+        "archived": "Antérieure"
+      },
+      "source": {
+        "default": "Depuis le modèle par défaut",
+        "draft": "Modifiée",
+        "copy": "Copiée",
+        "rollback": "Restaurée"
+      },
+      "publishedAt": "publiée {{when}}",
+      "inProgress_one": "{{count}} en cours",
+      "inProgress_other": "{{count}} en cours",
+      "rollBackTo": "Revenir à la v{{version}}",
+      "confirmText": "Publier une copie de la v{{version}} ?",
+      "rolledBack": "La version antérieure est de nouveau en service."
+    },
+    "copy": {
+      "title": "Copier vers une autre société",
+      "body": "La copie devient le brouillon de cette société. Son workflow en service ne change pas tant que personne ne publie le brouillon.",
+      "company": "Société",
+      "chooseCompany": "Choisissez une société",
+      "from": "Copier",
+      "fromLive": "La version en service (v{{version}})",
+      "fromDraft": "Le brouillon (v{{version}})",
+      "confirm": "Copier le workflow",
+      "done": "Copié vers {{company}} comme brouillon."
+    },
+    "restore": {
+      "title": "Rétablir le workflow par défaut ?",
+      "body": "Le brouillon est remplacé par le modèle par défaut du type de document. La version en service continue jusqu’à votre publication.",
+      "confirm": "Rétablir le modèle par défaut",
+      "keep": "Garder mon brouillon"
+    },
+    "test": {
+      "title": "Tester avec un exemple",
+      "body": "Saisissez des valeurs d’exemple et la décision de chaque approbation. Le test parcourt le flux du canevas sans rien enregistrer ni envoyer.",
+      "decision": "Décision à {{name}}",
+      "run": "Lancer le test",
+      "resultTitle": "Chemin suivi",
+      "invalid": "Le flux a des problèmes et ne peut pas être testé. Corrigez d’abord les problèmes listés.",
+      "blocked": "S’arrête à {{name}}",
+      "ends": "Se termine : {{outcome}}",
+      "bannerEnds": "Chemin d’un test affiché. Il se termine : {{outcome}}.",
+      "bannerBlocked": "Chemin d’un test affiché. Il s’arrête à {{name}}.",
+      "details": "Voir le détail",
+      "clear": "Effacer le test",
+      "showOnCanvas": "Voir sur le canevas",
+      "results": {
+        "start": "Démarré",
+        "completed": "Terminé",
+        "approved": "Approuvé",
+        "rejected": "Rejeté",
+        "skipped": "Sauté",
+        "blocked": "Bloqué",
+        "yes": "Oui",
+        "no": "Non",
+        "else": "Sinon",
+        "split": "Divisé",
+        "joined": "Réuni",
+        "would_run": "S’exécuterait",
+        "end": "Terminé"
       }
     }
   }

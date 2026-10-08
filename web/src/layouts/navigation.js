@@ -7,7 +7,7 @@
  * location is not offered a page that would open empty (RBAC-04, RBAC-09).
  * Overview, Catalogue (items, categories, units), Contacts (customers,
  * suppliers), Settings, Finance (currencies, rates, taxes, payment methods)
- * and Master data; later modules add their groups here.
+ * Automation (workflows) and Master data; later modules add their groups here.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -24,6 +24,9 @@ export const ITEM_VIEW = 'core.item.view'
 export const CATEGORY_VIEW = 'core.item_category.view'
 export const UOM_VIEW = ['core.uom.view', 'core.uom.edit']
 export const PARTY_VIEW = 'core.party.view'
+
+// WF-02, spec 6.4: who may open the workflows (any one is enough; the API checks again).
+export const WORKFLOW_VIEW = ['core.workflow.view', 'core.workflow.edit', 'core.workflow.publish']
 
 export const NAV_GROUPS = [
   {
@@ -69,6 +72,11 @@ export const NAV_GROUPS = [
       { to: '/settings/taxes', needsCompany: true, icon: 'taxes', label: (t) => t('nav.taxes'), permission: TAX_VIEW, module: 'core' },
       { to: '/settings/payment-methods', needsCompany: true, icon: 'paymentMethods', label: (t) => t('nav.paymentMethods'), permission: PAYMENT_METHOD_VIEW, module: 'core' },
     ],
+  },
+  {
+    id: 'automation',
+    label: (t) => t('nav.groups.automation'),
+    items: [{ to: '/settings/workflows', icon: 'workflows', label: (t) => t('nav.workflows'), permission: WORKFLOW_VIEW, module: 'core' }],
   },
   {
     id: 'masterData',

@@ -196,3 +196,75 @@
 [data-sonner-toaster][data-sonner-theme] {
   font-family: var(--font-sans);
 }
+
+/* 480px or the screen less the page chrome: the workflow builder's canvas (spec 6.4). */
+@utility h-flow {
+  height: max(calc(var(--space-12) * 10), calc(100dvh - var(--space-12) * 5));
+}
+@utility max-h-flow {
+  max-height: max(calc(var(--space-12) * 10), calc(100dvh - var(--space-12) * 5));
+}
+
+/*
+ * React Flow (@xyflow/react) on the workflow canvas, drawn only with token
+ * variables (BR-01): hairline edges, surface handles, quiet controls and
+ * mini-map. Themes and dark mode follow because every value is a token.
+ */
+.workflow-canvas {
+  --xy-background-color: var(--surface-100);
+  --xy-background-pattern-color: var(--border);
+  --xy-edge-stroke: var(--border-strong);
+  --xy-edge-stroke-selected: var(--primary);
+  --xy-edge-stroke-width: 1.5;
+  --xy-connectionline-stroke: var(--primary);
+  --xy-connectionline-stroke-width: 1.5;
+  --xy-edge-label-background-color: var(--surface-200);
+  --xy-edge-label-color: var(--ink-muted);
+  --xy-handle-background-color: var(--surface-200);
+  --xy-handle-border-color: var(--ink-muted);
+  --xy-node-border-radius: var(--radius-lg);
+  --xy-controls-box-shadow: none;
+  --xy-controls-button-background-color: var(--surface-200);
+  --xy-controls-button-background-color-hover: var(--surface-300);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--border);
+  --xy-minimap-background-color: var(--surface-200);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--surface-300) 60%, transparent);
+  --xy-minimap-mask-stroke-color: var(--border-strong);
+  --xy-minimap-node-background-color: var(--surface-300);
+  --xy-minimap-node-stroke-color: var(--border-strong);
+  --xy-attribution-background-color: transparent;
+  font-family: var(--font-sans);
+}
+.workflow-canvas .react-flow__handle {
+  width: var(--space-3);
+  height: var(--space-3);
+  border-width: 1px;
+}
+.workflow-canvas .react-flow__handle:hover,
+.workflow-canvas .react-flow__handle.connectingto {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+.workflow-canvas .react-flow__controls,
+.workflow-canvas .react-flow__minimap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.workflow-canvas .react-flow__controls-button svg {
+  fill: currentColor;
+}
+.workflow-canvas .react-flow__node:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+.workflow-canvas .react-flow__edge.workflow-edge-taken .react-flow__edge-path {
+  stroke: var(--success);
+  stroke-width: 2;
+}
+.workflow-canvas .react-flow__attribution a {
+  color: var(--ink-muted);
+}

@@ -36,5 +36,11 @@
   "{{count}} images",
   "Active",
   "Excel (.xlsx)",
-  "Invitations"
+  "Invitations",
+  "Workflows",
+  "v{{version}}",
+  "Versions",
+  "Condition",
+  "Action",
+  "WhatsApp"
 ]
