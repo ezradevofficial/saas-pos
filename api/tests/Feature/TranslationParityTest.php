@@ -33,6 +33,38 @@ class TranslationParityTest extends TestCase
         $this->assertSame($en, $this->keys('fr'));
     }
 
+    public function test_json_translations_have_the_same_keys_and_cover_the_mail_template(): void
+    {
+        $en = json_decode(file_get_contents(lang_path('en.json')), true, flags: JSON_THROW_ON_ERROR);
+        $fr = json_decode(file_get_contents(lang_path('fr.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(array_keys($en), array_keys($fr));
+
+        // Every string Laravel's mail and notification templates translate.
+        $templates = '';
+        foreach (['Notifications', 'Mail'] as $package) {
+            foreach (glob(base_path("vendor/laravel/framework/src/Illuminate/{$package}/resources/views/{,*/}*/*.blade.php"), GLOB_BRACE) ?: [] as $file) {
+                $templates .= file_get_contents($file);
+            }
+            foreach (glob(base_path("vendor/laravel/framework/src/Illuminate/{$package}/resources/views/*.blade.php")) ?: [] as $file) {
+                $templates .= file_get_contents($file);
+            }
+        }
+        preg_match_all("/(?:@lang|__)\\(\\s*'([^']+)'\\s*\\)/", $templates, $plain);
+        $this->assertGreaterThanOrEqual(4, count(array_unique($plain[1])));
+        foreach (array_unique($plain[1]) as $key) {
+            $this->assertArrayHasKey($key, $fr, "fr.json lacks [{$key}]");
+        }
+        $this->assertArrayHasKey("If you're having trouble clicking the \":actionText\" button, copy and paste the URL below\ninto your web browser:", $fr);
+
+        foreach ($fr as $key => $value) {
+            $this->assertNotSame('', trim($value), "fr.json [{$key}] is empty");
+            $this->assertNotSame($key, $value, "fr.json [{$key}] is not translated");
+            $this->assertStringNotContainsString('!', $value, "fr.json [{$key}] has an exclamation mark");
+            $this->assertStringNotContainsString('!', $en[$key], "en.json [{$key}] has an exclamation mark");
+        }
+    }
+
     public function test_every_group_exists_in_both_locales(): void
     {
         foreach (['app', 'auth', 'validation', 'core', 'rbac'] as $group) {

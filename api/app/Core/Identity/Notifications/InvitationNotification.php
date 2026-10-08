@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Notifications;
 
 use App\Core\Notifications\Channels\SmsChannel;
+use App\Core\Notifications\LocalDate;
 use Carbon\CarbonInterface;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -40,7 +41,7 @@ class InvitationNotification extends Notification
             ->greeting(__('auth.notifications.greeting', ['name' => $this->name]))
             ->line(__('auth.notifications.invitation.line', ['inviter' => $this->inviterName, 'tenant' => $this->tenantName]))
             ->action(__('auth.notifications.invitation.action'), $this->url())
-            ->line(__('auth.notifications.invitation.expiry', ['date' => $this->expiresAt->toDayDateTimeString()]))
+            ->line(__('auth.notifications.invitation.expiry', ['date' => LocalDate::format($this->expiresAt, $this->locale)]))
             ->line(__('auth.notifications.verification_code.ignore'))
             ->salutation(config('app.name'));
     }
