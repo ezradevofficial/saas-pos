@@ -169,7 +169,7 @@ export function TaxCodes({ company }) {
 
   const columns = [
     { key: 'code', label: t('taxes.columns.code'), render: (row) => <span className="font-mono text-caption text-ink">{row.code}</span> },
-    { key: 'name', label: t('taxes.columns.name'), render: (row) => <span className="whitespace-normal">{locale === 'fr' ? row.name_fr : row.name_en}</span> },
+    { key: 'name', label: t('taxes.columns.name'), render: (row) => <span className="whitespace-normal">{row.name}</span> },
     { key: 'kind', label: t('taxes.columns.kind'), render: (row) => t(`taxes.kinds.${row.kind}`) },
     { key: 'rate', label: t('taxes.columns.rate'), render: (row) => <CurrentRate code={row} /> },
     {

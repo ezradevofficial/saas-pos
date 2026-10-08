@@ -35,8 +35,6 @@ const ACTIONS = new Set([
 // Field names with a translated label (history.fields.*); others are shown humanised.
 export const FIELDS = new Set([
   'name',
-  'name_en',
-  'name_fr',
   'code',
   'type',
   'kind',

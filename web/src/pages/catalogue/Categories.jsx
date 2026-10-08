@@ -11,11 +11,10 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { perCompany, useSharingModes } from '@/lib/masterData'
 import { useErrorFocus } from '@/lib/useErrorFocus'
-import { useLocale } from '@/lib/useLocale'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
-import { categoryTree, localName, useItemCategories } from './catalogueData'
+import { categoryTree, useItemCategories } from './catalogueData'
 
 const INDENT = ['', 'ml-4', 'ml-10', 'ml-12', 'ml-12', 'ml-12']
 
@@ -37,7 +36,6 @@ function selfAndBelow(record, rows) {
 
 function CategoryDialog({ record, parent, rows, onClose }) {
   const { t } = useTranslation()
-  const locale = useLocale()
   const queryClient = useQueryClient()
   const formId = useId()
   const formRef = useRef(null)
@@ -50,8 +48,7 @@ function CategoryDialog({ record, parent, rows, onClose }) {
   const keptPerCompany = creating && perCompany(modes, 'items')
   const [values, setValues] = useState({
     company_id: parent?.company_id ?? selected?.id ?? '',
-    name_en: record?.name_en ?? '',
-    name_fr: record?.name_fr ?? '',
+    name: record?.name ?? '',
     parent_id: record?.parent_id ?? parent?.id ?? '',
   })
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
@@ -64,7 +61,7 @@ function CategoryDialog({ record, parent, rows, onClose }) {
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body = { name_en: values.name_en.trim() || null, name_fr: values.name_fr.trim() || null, parent_id: values.parent_id || null }
+      const body = { name: values.name.trim(), parent_id: values.parent_id || null }
       if (creating) return api.post('item-categories', keptPerCompany ? { ...body, company_id: chosenCompany || null } : body)
       // An unchanged parent is not sent: an archived one would be refused.
       if (body.parent_id === (record.parent_id ?? null)) delete body.parent_id
@@ -76,13 +73,13 @@ function CategoryDialog({ record, parent, rows, onClose }) {
       onClose()
     },
   })
-  const errors = formErrors(mutation.error, ['company_id', 'name_en', 'name_fr', 'parent_id'])
+  const errors = formErrors(mutation.error, ['company_id', 'name', 'parent_id'])
   useErrorFocus(formRef, alertRef, mutation.error)
 
   return (
     <Dialog
       open
-      title={record ? t('categories.editTitle', { name: localName(record, locale) }) : t('categories.addTitle')}
+      title={record ? t('categories.editTitle', { name: (record?.name ?? '') }) : t('categories.addTitle')}
       onClose={onClose}
       footer={
         <>
@@ -122,15 +119,13 @@ function CategoryDialog({ record, parent, rows, onClose }) {
             required
           />
         ) : null}
-        <TextField label={t('categories.fields.nameEn')} lang="en" value={values.name_en} onChange={set('name_en')} error={errors.fields.name_en} />
-        <TextField label={t('categories.fields.nameFr')} lang="fr" value={values.name_fr} onChange={set('name_fr')} error={errors.fields.name_fr} />
-        <p className="text-caption text-ink-muted">{t('categories.fields.namesHelp')}</p>
+        <TextField label={t('categories.fields.name')} value={values.name} onChange={set('name')} maxLength={100} error={errors.fields.name} required />
         <Select
           label={t('categories.fields.parent')}
           options={[
             { value: '', label: t('categories.fields.noParent') },
-            ...(archivedParent ? [{ value: archivedParent.id, label: t('dimensions.fields.archivedParent', { name: localName(archivedParent, locale) }), disabled: true }] : []),
-            ...parents.map(({ row, depth }) => ({ value: row.id, label: `${'— '.repeat(depth)}${localName(row, locale)}` })),
+            ...(archivedParent ? [{ value: archivedParent.id, label: t('dimensions.fields.archivedParent', { name: (archivedParent?.name ?? '') }), disabled: true }] : []),
+            ...parents.map(({ row, depth }) => ({ value: row.id, label: `${'— '.repeat(depth)}${(row?.name ?? '')}` })),
           ]}
           help={archivedParent && values.parent_id === archivedParent.id ? t('dimensions.fields.archivedParentHelp') : undefined}
           value={values.parent_id}
@@ -145,7 +140,6 @@ function CategoryDialog({ record, parent, rows, onClose }) {
 /** MD-02: item categories as a tree, shared or per company with items (TEN-08); archived, never deleted. */
 export default function Categories() {
   const { t } = useTranslation()
-  const locale = useLocale()
   const queryClient = useQueryClient()
   const { can, canWithin } = usePermissions()
   const categories = useItemCategories()
@@ -200,7 +194,7 @@ export default function Categories() {
           <ul aria-label={t('catalogue.categories.title')} className="-my-3 divide-y divide-border">
             {tree.map(({ row, depth }) => {
               const archived = Boolean(row.archived_at)
-              const name = localName(row, locale)
+              const name = (row?.name ?? '')
               const company = row.company_id ? companyName(row.company_id) : null
               return (
                 <li key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
@@ -252,10 +246,10 @@ export default function Categories() {
       {dialog ? (
         <CategoryDialog key={dialog.record?.id ?? dialog.parent?.id ?? 'new'} record={dialog.record ?? null} parent={dialog.parent ?? null} rows={rows} onClose={() => setDialog(null)} />
       ) : null}
-      <HistoryDialog record={history} type="item_category" name={history ? localName(history, locale) : ''} timeZone={timeZone} onClose={() => setHistory(null)} />
+      <HistoryDialog record={history} type="item_category" name={history ? (history?.name ?? '') : ''} timeZone={timeZone} onClose={() => setHistory(null)} />
       <ConfirmDialog
         open={Boolean(archiving)}
-        title={archiving ? t('categories.archiveTitle', { name: localName(archiving, locale) }) : ''}
+        title={archiving ? t('categories.archiveTitle', { name: (archiving?.name ?? '') }) : ''}
         confirmLabel={t('categories.archiveConfirm')}
         cancelLabel={t('categories.keep')}
         pending={archive.isPending}

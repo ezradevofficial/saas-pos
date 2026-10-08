@@ -27,10 +27,9 @@ describe('Categories', () => {
     fireEvent.click(within(rows[0]).getByRole('button', { name: 'Add a subcategory under Drinks' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add a category' })
     expect(within(dialog).getByLabelText('Parent')).toHaveValue('cat-1')
-    fireEvent.change(within(dialog).getByLabelText('Name in English'), { target: { value: 'Juices' } })
-    fireEvent.change(within(dialog).getByLabelText('Name in French'), { target: { value: 'Jus' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Juices' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add category' }))
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('item-categories', { name_en: 'Juices', name_fr: 'Jus', parent_id: 'cat-1' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('item-categories', { name: 'Juices', parent_id: 'cat-1' }))
   })
 
   it('explains why a category with active subcategories cannot be archived', async () => {
@@ -48,7 +47,7 @@ describe('Categories', () => {
       extra: [
         [
           'history/item_category/cat-1?per_page=20&page=1',
-          { data: [{ id: 'a-1', action: 'core.item_category.create', actor: { id: 'u-1', name: 'Amina Otieno' }, before: null, after: { name_en: 'Drinks' }, occurred_at: '2026-10-08T08:00:00Z' }], meta: { current_page: 1, last_page: 1 } },
+          { data: [{ id: 'a-1', action: 'core.item_category.create', actor: { id: 'u-1', name: 'Amina Otieno' }, before: null, after: { name: 'Drinks' }, occurred_at: '2026-10-08T08:00:00Z' }], meta: { current_page: 1, last_page: 1 } },
         ],
       ],
     })

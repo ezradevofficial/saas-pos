@@ -20,8 +20,7 @@ function initialValues(item, defaults) {
   return {
     company_id: item?.company_id ?? defaults.companyId ?? '',
     code: item?.code ?? '',
-    name_en: item?.name_en ?? '',
-    name_fr: item?.name_fr ?? '',
+    name: item?.name ?? '',
     type: item?.type ?? 'stock',
     category_id: item?.category_id ?? '',
     base_uom_id: item?.base_uom_id ?? defaults.baseUomId ?? '',
@@ -77,8 +76,7 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
     const data = {}
     if (creating && keptPerCompany) data.company_id = chosenCompany || null
     if (shows('code')) data.code = values.code.trim()
-    if (shows('name_en')) data.name_en = values.name_en.trim() || null
-    if (shows('name_fr')) data.name_fr = values.name_fr.trim() || null
+    if (shows('name')) data.name = values.name.trim()
     if (shows('type')) data.type = values.type
     if (shows('category_id')) data.category_id = values.category_id || null
     if (shows('base_uom_id')) data.base_uom_id = baseUomId
@@ -114,7 +112,7 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
     ...values.uoms.flatMap((_, index) => [`uoms.${index}.uom_id`, `uoms.${index}.factor`]),
     ...values.barcodes.flatMap((_, index) => [`barcodes.${index}.barcode`, `barcodes.${index}.uom_id`]),
   ]
-  const errors = formErrors(mutation.error, ['company_id', 'code', 'name_en', 'name_fr', 'type', 'category_id', 'base_uom_id', 'tax_category_id', 'uoms', 'barcodes', ...rowFields])
+  const errors = formErrors(mutation.error, ['company_id', 'code', 'name', 'type', 'category_id', 'base_uom_id', 'tax_category_id', 'uoms', 'barcodes', ...rowFields])
   useErrorFocus(formRef, alertRef, mutation.error)
 
   const baseUom = uoms.all.find((uom) => uom.id === baseUomId)
@@ -188,9 +186,17 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
                 required
               />
             ) : null}
-            {shows('name_en') ? <TextField label={t('items.form.nameEn')} lang="en" value={values.name_en} onChange={set('name_en')} error={errors.fields.name_en} /> : null}
-            {shows('name_fr') ? <TextField label={t('items.form.nameFr')} lang="fr" value={values.name_fr} onChange={set('name_fr')} error={errors.fields.name_fr} /> : null}
-            <p className="text-caption text-ink-muted sm:col-span-2">{t('items.form.namesHelp')}</p>
+            {shows('name') ? (
+              <TextField
+                label={t('items.form.name')}
+                value={values.name}
+                onChange={set('name')}
+                maxLength={255}
+                error={errors.fields.name}
+                required
+                className="sm:col-span-2"
+              />
+            ) : null}
             {shows('category_id') ? (
               <Select
                 label={t('items.form.category')}

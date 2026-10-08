@@ -63,8 +63,9 @@ describe('Items', () => {
     const { router } = renderApp('/catalogue/items/new')
 
     fireEvent.change(await screen.findByLabelText(/^Code/), { target: { value: 'SODA-330' } })
-    fireEvent.change(screen.getByLabelText('Name in English'), { target: { value: 'Soda 330 ml' } })
-    fireEvent.change(screen.getByLabelText('Name in French'), { target: { value: 'Soda 33 cl' } })
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Soda 330 ml' } })
+    // MD-02: one name field, whatever the languages the app speaks.
+    expect(screen.getAllByRole('textbox', { name: /name/i })).toHaveLength(1)
     fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'cat-2' } })
     const base = screen.getByLabelText(/^Base unit/)
     await waitFor(() => expect(base).toHaveValue('u-ea'))
@@ -86,8 +87,7 @@ describe('Items', () => {
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('items', {
         code: 'SODA-330',
-        name_en: 'Soda 330 ml',
-        name_fr: 'Soda 33 cl',
+        name: 'Soda 330 ml',
         type: 'stock',
         category_id: 'cat-2',
         base_uom_id: 'u-ea',
@@ -111,7 +111,7 @@ describe('Items', () => {
     // The only company is chosen already.
     await waitFor(() => expect(company).toHaveValue('c-1'))
     fireEvent.change(screen.getByLabelText(/^Code/), { target: { value: 'RICE-5' } })
-    fireEvent.change(screen.getByLabelText('Name in English'), { target: { value: 'Rice 5 kg' } })
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Rice 5 kg' } })
     await waitFor(() => expect(screen.getByLabelText(/^Base unit/)).toHaveValue('u-ea'))
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('items', expect.objectContaining({ company_id: 'c-1', code: 'RICE-5' })))

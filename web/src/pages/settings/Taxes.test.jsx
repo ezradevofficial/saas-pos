@@ -13,8 +13,7 @@ const CODES = [
   code({
     id: 't-1',
     code: 'VAT_STD',
-    name_en: 'VAT, standard rate',
-    name_fr: 'TVA, taux normal',
+    name: 'VAT, standard rate',
     kind: 'vat',
     rate_needed: true,
     current_rate: { id: 'r-1', rate: null, effective_from: '2026-01-01', effective_to: null, needs_confirmation: true, source: 'pack' },
@@ -23,14 +22,13 @@ const CODES = [
   code({
     id: 't-2',
     code: 'VAT_ZERO',
-    name_en: 'VAT, zero-rated',
-    name_fr: 'TVA, taux zéro',
+    name: 'VAT, zero-rated',
     kind: 'zero_rated',
     rate_needed: false,
     current_rate: { id: 'r-2', rate: '0.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack' },
     rates: [{ id: 'r-2', rate: '0.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack' }],
   }),
-  code({ id: 't-3', code: 'VAT_EXEMPT', name_en: 'VAT exempt', name_fr: 'Exonéré de TVA', kind: 'exempt', rate_needed: false, current_rate: null }),
+  code({ id: 't-3', code: 'VAT_EXEMPT', name: 'VAT exempt', kind: 'exempt', rate_needed: false, current_rate: null }),
 ]
 
 function taxes({ permissions = EDITOR } = {}) {

@@ -35,9 +35,6 @@ function useKeyList() {
   return (keys) => new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(keys.map((key) => label(key)))
 }
 
-function methodName(method, locale) {
-  return (locale === 'fr' ? method.name_fr : method.name_en) ?? method.name
-}
 
 /**
  * MD-04: a provider's settings and secrets. Saved secrets are never shown:
@@ -46,7 +43,6 @@ function methodName(method, locale) {
  */
 function ProviderSettingsDialog({ method, companyId, onClose }) {
   const { t } = useTranslation()
-  const locale = useLocale()
   const label = useKeyLabel()
   const queryClient = useQueryClient()
   const formId = useId()
@@ -88,7 +84,7 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
   const keyList = useKeyList()
   const formError =
     mutation.error?.code === 'provider_not_configured'
-      ? t('paymentMethods.errors.clearWhileOn', { name: methodName(method, locale) })
+      ? t('paymentMethods.errors.clearWhileOn', { name: method.name })
       : errors.form
         ? errorMessage(mutation.error)
         : null
@@ -96,7 +92,7 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
   return (
     <Dialog
       open
-      title={t('paymentMethods.settings.title', { name: methodName(method, locale) })}
+      title={t('paymentMethods.settings.title', { name: method.name })}
       onClose={onClose}
       footer={
         <>
@@ -209,8 +205,7 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
 
 function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggle, onSettings, toggling, error, focus }) {
   const { t } = useTranslation()
-  const locale = useLocale()
-  const name = methodName(method, locale)
+  const name = method.name
   const upRef = useRef(null)
   const downRef = useRef(null)
 
@@ -275,7 +270,6 @@ function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggl
  */
 export default function PaymentMethods() {
   const { t } = useTranslation()
-  const locale = useLocale()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
   const keyList = useKeyList()
@@ -297,15 +291,15 @@ export default function PaymentMethods() {
 
   const notConfigured = (method) =>
     method.missing?.length
-      ? t('paymentMethods.errors.notConfigured', { name: methodName(method, locale), keys: keyList(method.missing) })
-      : t('paymentMethods.errors.notConfiguredAny', { name: methodName(method, locale) })
+      ? t('paymentMethods.errors.notConfigured', { name: method.name, keys: keyList(method.missing) })
+      : t('paymentMethods.errors.notConfiguredAny', { name: method.name })
 
   const toggle = useMutation({
     mutationFn: ({ method, active }) => api.patch(`payment-methods/${method.id}`, { active }),
     onMutate: () => setRowError(null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: methodsKey(company.id) }),
     onError: (error, { method }) => {
-      const name = methodName(method, locale)
+      const name = method.name
       const message =
         error.code === 'provider_not_configured'
           ? notConfigured(method)
@@ -336,7 +330,7 @@ export default function PaymentMethods() {
       data ? { ...data, data: data.data.map((entry) => ({ ...entry, position: all.indexOf(entry.id) + 1 })) } : data,
     )
     setFocus({ id: method.id, step })
-    setAnnouncement(t('paymentMethods.movedTo', { name: methodName(method, locale), position: index + step + 1, total: ids.length }))
+    setAnnouncement(t('paymentMethods.movedTo', { name: method.name, position: index + step + 1, total: ids.length }))
     reorder.mutate({ ids: all, previous })
   }
 

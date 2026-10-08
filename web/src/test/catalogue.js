@@ -2,15 +2,15 @@
 import { CD_COMPANY, mockRoutes, tenantWide } from '@/test/renderApp'
 
 export const UOMS = [
-  { id: 'u-ea', code: 'EA', name: 'Each', name_en: 'Each', name_fr: 'Pièce', kind: 'count', archived_at: null },
-  { id: 'u-box', code: 'BOX', name: 'Box', name_en: 'Box', name_fr: 'Carton', kind: 'count', archived_at: null },
-  { id: 'u-kg', code: 'KG', name: 'Kilogram', name_en: 'Kilogram', name_fr: 'Kilogramme', kind: 'weight', archived_at: null },
-  { id: 'u-old', code: 'OLD', name: 'Old unit', name_en: 'Old unit', name_fr: 'Ancienne unité', kind: 'count', archived_at: '2026-10-01T00:00:00Z' },
+  { id: 'u-ea', code: 'EA', name: 'Each', kind: 'count', archived_at: null },
+  { id: 'u-box', code: 'BOX', name: 'Box', kind: 'count', archived_at: null },
+  { id: 'u-kg', code: 'KG', name: 'Kilogram', kind: 'weight', archived_at: null },
+  { id: 'u-old', code: 'OLD', name: 'Old unit', kind: 'count', archived_at: '2026-10-01T00:00:00Z' },
 ]
 
 export const CATEGORIES = [
-  { id: 'cat-1', company_id: null, parent_id: null, name: 'Drinks', name_en: 'Drinks', name_fr: 'Boissons', archived_at: null },
-  { id: 'cat-2', company_id: null, parent_id: 'cat-1', name: 'Sodas', name_en: 'Sodas', name_fr: 'Sodas', archived_at: null },
+  { id: 'cat-1', company_id: null, parent_id: null, name: 'Drinks', archived_at: null },
+  { id: 'cat-2', company_id: null, parent_id: 'cat-1', name: 'Sodas', archived_at: null },
 ]
 
 export const ITEM = {
@@ -19,8 +19,6 @@ export const ITEM = {
   shared: true,
   code: 'SODA-500',
   name: 'Soda 500 ml',
-  name_en: 'Soda 500 ml',
-  name_fr: 'Soda 50 cl',
   type: 'stock',
   category_id: 'cat-2',
   base_uom_id: 'u-ea',

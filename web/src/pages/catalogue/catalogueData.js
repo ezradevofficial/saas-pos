@@ -60,7 +60,3 @@ export function categoryOptions(categories, companyId) {
 
 /** "PCS · Pieces" */
 export const uomLabel = (uom) => (uom ? `${uom.code} · ${uom.name}` : '')
-
-/** The record's name in the UI language, the other language when it has only one. */
-export const localName = (record, locale) =>
-  (String(locale).startsWith('fr') ? (record?.name_fr ?? record?.name_en) : (record?.name_en ?? record?.name_fr)) ?? record?.name ?? ''
