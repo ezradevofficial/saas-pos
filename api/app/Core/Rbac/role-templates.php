@@ -31,7 +31,7 @@ return [
         'key' => 'branch_manager',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view', 'core.exchange_rate.view',
-            'core.tax.view', 'core.price_list.view',
+            'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create',
             'core.location.*', 'core.device.*',
             'core.user.view', 'core.user.invite', 'core.user.edit',
             'core.role.view', 'core.role.assign', 'core.audit.view',
@@ -44,6 +44,7 @@ return [
         'key' => 'cashier',
         'permissions' => [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.party.create',
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
         ],
         'is_owner' => false,
@@ -52,7 +53,7 @@ return [
     [
         'key' => 'waiter',
         'permissions' => [
-            'core.location.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
             'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
         ],
         'is_owner' => false,
@@ -71,7 +72,7 @@ return [
         'key' => 'accountant',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
-            'core.tax.view', 'core.price_list.view',
+            'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create', 'core.party.edit',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,
@@ -99,6 +100,7 @@ return [
         'key' => 'procurement_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view',
+            'core.party.view', 'core.party.create', 'core.party.edit',
             'purchasing.*', 'inventory.*.view',
         ],
         'is_owner' => false,

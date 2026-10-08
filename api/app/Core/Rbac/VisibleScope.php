@@ -2,6 +2,8 @@
 
 namespace App\Core\Rbac;
 
+use App\Core\Tenancy\Models\Branch;
+use App\Core\Tenancy\Models\Location;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 
@@ -33,6 +35,30 @@ final class VisibleScope
             Scope::LOCATION => $this->locationIds,
             default => throw new InvalidArgumentException("Unknown scope level [{$level}]."),
         };
+    }
+
+    /**
+     * The companies this scope touches (TEN-08): the visible companies plus
+     * the company of every visible branch and location, so a location
+     * cashier touches that location's company. Null when `all`.
+     *
+     * @return list<string>|null
+     */
+    public function companiesTouched(): ?array
+    {
+        if ($this->all) {
+            return null;
+        }
+
+        $branchIds = array_values(array_unique([
+            ...$this->branchIds,
+            ...($this->locationIds === [] ? [] : Location::query()->whereKey($this->locationIds)->pluck('branch_id')->all()),
+        ]));
+
+        return array_values(array_unique([
+            ...$this->companyIds,
+            ...($branchIds === [] ? [] : Branch::query()->whereKey($branchIds)->pluck('company_id')->all()),
+        ]));
     }
 
     /**

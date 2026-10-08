@@ -100,6 +100,8 @@ return [
         'category_other_company' => 'This category belongs to another company. Set default tax codes for its own company only.',
         'category_company_not_allowed' => 'You can’t set tax codes for this company.',
         'category_code_invalid' => 'Choose an active tax code of this company.',
+        'category_company_required' => 'Tax categories are kept per company, like items. Choose the company this category belongs to.',
+        'category_shared_mode' => 'Tax categories are shared across the group, like items, so a category can’t belong to one company. Remove the company.',
         'attributes' => [
             'code' => 'code',
             'name_en' => 'English name',
@@ -123,6 +125,52 @@ return [
             'currency' => 'currency',
             'tax_inclusive' => 'prices include tax',
             'is_default' => 'default price list',
+        ],
+    ],
+
+    // TEN-08: shared or per-company master data.
+    'master_data' => [
+        'sharing_changed' => 'The sharing setting for this data changed while you were saving. Check the company and try again.',
+        'records_need_company' => ':count record has no company. Choose the company that receives it before keeping this data per company.|:count records have no company. Choose the company that receives them before keeping this data per company.',
+        'confirm_shared' => 'Sharing this data makes every company’s records visible across the group. Confirm to continue.',
+        'attributes' => [
+            'data_type' => 'data type',
+            'mode' => 'sharing',
+            'assign_to_company' => 'company that receives the records',
+            'confirm' => 'confirmation',
+        ],
+    ],
+
+    // MD-01, MD-06: parties.
+    'party' => [
+        'company_required' => 'This data is kept per company. Choose the company this record belongs to.',
+        'company_not_allowed' => 'This data is shared across the group, so the record can’t belong to one company. Remove the company.',
+        'company_not_reached' => 'You can’t move records to this company. Choose a company you work in.',
+        'company_change_needs_confirmation' => 'This role change would move the record between shared and one company. Send the company, or none to share it, to confirm.',
+        'price_list_other_company' => 'Choose an active price list of this record’s company.',
+        'phone_invalid' => 'Enter the phone number with its country code, for example +254712345678.',
+        'tag_invalid' => 'Tags use letters, numbers, spaces, hyphens and underscores, up to 40 characters.',
+        'attributes' => [
+            'company' => 'company',
+            'kind' => 'kind',
+            'name' => 'name',
+            'legal_name' => 'legal name',
+            'tax_id' => 'tax ID',
+            'phones' => 'phone numbers',
+            'phone' => 'phone number',
+            'emails' => 'email addresses',
+            'email' => 'email address',
+            'addresses' => 'addresses',
+            'address_line1' => 'address line 1',
+            'currency' => 'currency',
+            'payment_terms_days' => 'payment terms',
+            'credit_limit' => 'credit limit',
+            'credit_limit_currency' => 'credit limit currency',
+            'price_list' => 'price list',
+            'tags' => 'tags',
+            'tag' => 'tag',
+            'roles' => 'roles',
+            'role' => 'role',
         ],
     ],
 ];

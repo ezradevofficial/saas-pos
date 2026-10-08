@@ -4,10 +4,12 @@ namespace App\Core\MasterData\Taxes\Http\Controllers;
 
 use App\Core\Audit\Auditor;
 use App\Core\MasterData\CompanyReach;
+use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\Http\Requests\ListTaxCategoriesRequest;
 use App\Core\MasterData\Taxes\Http\Requests\StoreTaxCategoryRequest;
 use App\Core\MasterData\Taxes\Http\Requests\TaxCategoryActionRequest;
 use App\Core\MasterData\Taxes\Http\Requests\TaxCategoryRequest;
+use App\Core\MasterData\Taxes\Http\Requests\TaxCategoryRules;
 use App\Core\MasterData\Taxes\Http\Requests\UpdateTaxCategoryRequest;
 use App\Core\MasterData\Taxes\Http\Resources\TaxCategoryResource;
 use App\Core\MasterData\Taxes\TaxCategory;
@@ -17,9 +19,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
- * MD-03: tax categories, shared or per company (TEN-08), with a default tax
+ * MD-03: tax categories, shared or per company as items are (TEN-08), with a default tax
  * code per company. Default code changes are audited on the category as
  * `core.tax_category.codes_update` (before and after, by company).
  */
@@ -30,6 +33,7 @@ class TaxCategoryController
     public function __construct(
         private readonly CompanyReach $reach,
         private readonly Auditor $auditor,
+        private readonly MasterDataSharing $sharing,
     ) {}
 
     public function index(ListTaxCategoriesRequest $request): AnonymousResourceCollection
@@ -53,6 +57,13 @@ class TaxCategoryController
         $data = $request->validated();
 
         $category = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($data) {
+            // TEN-08: the items mode holds until commit; re-checked under the lock.
+            $this->sharing->lockForWrite([TaxCategoryRules::DATA_TYPE]);
+
+            if ($this->sharing->isShared(TaxCategoryRules::DATA_TYPE) !== (($data['company_id'] ?? null) === null)) {
+                throw ValidationException::withMessages(['company_id' => __('core.master_data.sharing_changed')]);
+            }
+
             $category = TaxCategory::create(['company_id' => $data['company_id'] ?? null, 'name' => $data['name']]);
             $this->syncCodes($category, $data['codes'] ?? []);
 

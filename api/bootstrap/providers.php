@@ -2,6 +2,7 @@
 
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
+use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -14,4 +15,5 @@ return [
     CurrencyServiceProvider::class,
     RbacServiceProvider::class,
     TaxServiceProvider::class,
+    MasterDataServiceProvider::class,
 ];

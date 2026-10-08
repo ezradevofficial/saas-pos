@@ -100,6 +100,8 @@ return [
         'category_other_company' => 'Cette catégorie appartient à une autre société. Définissez les codes de taxe par défaut de sa propre société uniquement.',
         'category_company_not_allowed' => 'Vous ne pouvez pas définir les codes de taxe de cette société.',
         'category_code_invalid' => 'Choisissez un code de taxe actif de cette société.',
+        'category_company_required' => 'Les catégories de taxe sont gérées par société, comme les articles. Choisissez la société de cette catégorie.',
+        'category_shared_mode' => 'Les catégories de taxe sont partagées dans le groupe, comme les articles : une catégorie ne peut pas appartenir à une seule société. Retirez la société.',
         'attributes' => [
             'code' => 'code',
             'name_en' => 'nom en anglais',
@@ -123,6 +125,52 @@ return [
             'currency' => 'devise',
             'tax_inclusive' => 'prix taxes comprises',
             'is_default' => 'liste de prix par défaut',
+        ],
+    ],
+
+    // TEN-08 : données de référence partagées ou par société.
+    'master_data' => [
+        'sharing_changed' => 'Le partage de ces données a changé pendant l’enregistrement. Vérifiez la société et réessayez.',
+        'records_need_company' => ':count enregistrement n’a pas de société. Choisissez la société qui le reçoit avant de gérer ces données par société.|:count enregistrements n’ont pas de société. Choisissez la société qui les reçoit avant de gérer ces données par société.',
+        'confirm_shared' => 'Partager ces données rend les enregistrements de chaque société visibles dans tout le groupe. Confirmez pour continuer.',
+        'attributes' => [
+            'data_type' => 'type de données',
+            'mode' => 'partage',
+            'assign_to_company' => 'société qui reçoit les enregistrements',
+            'confirm' => 'confirmation',
+        ],
+    ],
+
+    // MD-01, MD-06 : tiers.
+    'party' => [
+        'company_required' => 'Ces données sont gérées par société. Choisissez la société à laquelle appartient cet enregistrement.',
+        'company_not_allowed' => 'Ces données sont partagées dans le groupe : l’enregistrement ne peut pas appartenir à une seule société. Retirez la société.',
+        'company_not_reached' => 'Vous ne pouvez pas déplacer d’enregistrements vers cette société. Choisissez une société dans laquelle vous travaillez.',
+        'company_change_needs_confirmation' => 'Ce changement de rôle déplacerait l’enregistrement entre le partage et une seule société. Indiquez la société, ou aucune pour le partager, pour confirmer.',
+        'price_list_other_company' => 'Choisissez une liste de prix active de la société de cet enregistrement.',
+        'phone_invalid' => 'Saisissez le numéro avec son indicatif pays, par exemple +243812345678.',
+        'tag_invalid' => 'Les étiquettes contiennent des lettres, des chiffres, des espaces, des tirets et des tirets bas, jusqu’à 40 caractères.',
+        'attributes' => [
+            'company' => 'société',
+            'kind' => 'type',
+            'name' => 'nom',
+            'legal_name' => 'raison sociale',
+            'tax_id' => 'numéro fiscal',
+            'phones' => 'numéros de téléphone',
+            'phone' => 'numéro de téléphone',
+            'emails' => 'adresses e-mail',
+            'email' => 'adresse e-mail',
+            'addresses' => 'adresses',
+            'address_line1' => 'ligne d’adresse 1',
+            'currency' => 'devise',
+            'payment_terms_days' => 'conditions de paiement',
+            'credit_limit' => 'limite de crédit',
+            'credit_limit_currency' => 'devise de la limite de crédit',
+            'price_list' => 'liste de prix',
+            'tags' => 'étiquettes',
+            'tag' => 'étiquette',
+            'roles' => 'rôles',
+            'role' => 'rôle',
         ],
     ],
 ];

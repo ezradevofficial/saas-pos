@@ -3,7 +3,9 @@
 namespace Tests\Feature\Core\Taxes;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\MasterData\Sharing\MasterDataSetting;
 use App\Core\MasterData\Taxes\ApplyCountryPack;
+use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Branch;
@@ -93,7 +95,8 @@ class TaxCategoryApiTest extends TestCase
         $this->create(['name' => 'X', 'codes' => [['company_id' => '01890000-0000-7000-8000-000000000000', 'tax_code_id' => null]]])
             ->assertUnprocessable()->assertJsonValidationErrors('codes.0.company_id');
 
-        // A company's own category maps only that company.
+        // A company's own category maps only that company (items kept per company, TEN-08).
+        $this->itemsPerCompany();
         $this->create(['name' => 'Acme only', 'company_id' => $this->acme->id, 'codes' => [
             ['company_id' => $this->globex->id, 'tax_code_id' => $this->codeOf($this->globex)],
         ]])->assertUnprocessable()->assertJsonValidationErrors('codes.0.company_id');
@@ -116,8 +119,12 @@ class TaxCategoryApiTest extends TestCase
             ['company_id' => $this->acme->id, 'tax_code_id' => $this->codeOf($this->acme)],
             ['company_id' => $this->globex->id, 'tax_code_id' => $this->codeOf($this->globex)],
         ]])->json('data.id');
-        $acmeOnly = $this->create(['name' => 'Acme only', 'company_id' => $this->acme->id])->json('data.id');
-        $globexOnly = $this->create(['name' => 'Globex only', 'company_id' => $this->globex->id])->json('data.id');
+        // Company categories next to a shared one: stored directly, as the API
+        // creates one kind or the other depending on the items mode (TEN-08).
+        [$acmeOnly, $globexOnly] = $this->inTenant(fn () => [
+            TaxCategory::create(['name' => 'Acme only', 'company_id' => $this->acme->id])->id,
+            TaxCategory::create(['name' => 'Globex only', 'company_id' => $this->globex->id])->id,
+        ]);
 
         // A Globex branch manager sees shared and Globex categories, and only Globex's default code.
         $manager = $this->headersFor($this->userWith('branch_manager', Scope::branch($this->globexBranch->id)));
@@ -136,6 +143,7 @@ class TaxCategoryApiTest extends TestCase
 
         // A company-scoped tax editor manages that company's categories, not shared ones,
         // and cannot set another company's default in a shared one.
+        $this->itemsPerCompany();
         $editorHeaders = $this->headersFor($editor);
         $this->create(['name' => 'Acme services', 'company_id' => $this->acme->id], $editorHeaders)->assertCreated();
         $this->create(['name' => 'Shared new'], $editorHeaders)->assertForbidden();
@@ -147,6 +155,12 @@ class TaxCategoryApiTest extends TestCase
         $cashier = $this->headersFor($this->userWith('cashier', Scope::location($this->locationA->id)));
         $this->getJson('/api/v1/tax-categories', $cashier)->assertForbidden();
         $this->getJson("/api/v1/tax-categories/{$shared}", $cashier)->assertNotFound();
+    }
+
+    /** TEN-08: items (and so tax categories) kept per company, set directly. */
+    private function itemsPerCompany(): void
+    {
+        $this->inTenant(fn () => MasterDataSetting::create(['data_type' => 'items', 'mode' => 'per_company', 'changed_at' => now()]));
     }
 
     public function test_archived_categories_are_listed_on_request(): void

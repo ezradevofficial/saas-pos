@@ -4,9 +4,7 @@ namespace App\Core\MasterData;
 
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\ScopeResolver;
-use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\Visibility;
 
 /**
@@ -45,21 +43,35 @@ class CompanyReach
         $ids = [];
 
         foreach ($permissions as $permission) {
-            $visible = $this->resolver->visibleIds($user, $permission);
+            $touched = $this->resolver->visibleIds($user, $permission)->companiesTouched();
 
-            if ($visible->all) {
+            if ($touched === null) {
                 return null;
             }
 
-            array_push(
-                $ids,
-                ...$visible->companyIds,
-                ...Branch::query()->whereIn('id', $visible->branchIds)->pluck('company_id')->all(),
-                ...Branch::query()->whereIn('id', Location::query()->whereIn('id', $visible->locationIds)->select('branch_id'))->pluck('company_id')->all(),
-            );
+            array_push($ids, ...$touched);
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /**
+     * TEN-08: whether the user reaches a sharable record: a shared one
+     * (no company) with any of the permissions anywhere in the tenant, a
+     * company's one with any of them at, above or beneath that company.
+     *
+     * @param  list<string>  $permissions
+     */
+    public function reachesRecord(User $user, ?string $companyId, array $permissions): bool
+    {
+        if ($companyId === null) {
+            return $this->anywhere($user, $permissions);
+        }
+
+        $companies = $this->companyIds($user, $permissions);
+
+        // Null: a tenant-wide assignment reaches every company.
+        return $companies === null || in_array($companyId, $companies, true);
     }
 
     /** True when the user holds any of the permissions anywhere in the tenant. */

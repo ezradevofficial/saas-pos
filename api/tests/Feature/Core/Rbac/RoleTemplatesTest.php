@@ -75,13 +75,15 @@ class RoleTemplatesTest extends TestCase
             'core.audit.view', 'core.audit.export', 'core.settings.edit', 'core.access_review.view',
             'core.access_review.export', 'core.currency.view', 'core.currency.edit',
             'core.tax.view', 'core.tax.edit', 'core.price_list.view', 'core.price_list.edit',
+            'core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive',
+            'core.master_data_settings.edit',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(39, count($names));
+        $this->assertSame(44, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -119,6 +121,32 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
     }
 
+    public function test_templates_grant_party_permissions_by_job(): void
+    {
+        // MD-01, TEN-08: tills create customers; buyers and accountants edit
+        // parties; the auditor only reads; only Owner and Admin archive or
+        // switch sharing modes.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $party = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where(fn ($q) => $q->where('name', 'like', 'core.party.%')->orWhere('name', 'core.master_data_settings.edit'))
+            ->orderBy('name')->pluck('name')->all();
+
+        $all = ['core.master_data_settings.edit', 'core.party.archive', 'core.party.create', 'core.party.edit', 'core.party.view'];
+        $this->assertSame($all, $party('owner'));
+        $this->assertSame($all, $party('admin'));
+
+        foreach (['branch_manager', 'cashier', 'waiter'] as $key) {
+            $this->assertSame(['core.party.create', 'core.party.view'], $party($key), $key);
+        }
+
+        foreach (['accountant', 'procurement_officer'] as $key) {
+            $this->assertSame(['core.party.create', 'core.party.edit', 'core.party.view'], $party($key), $key);
+        }
+
+        $this->assertSame(['core.party.view'], $party('read_only_auditor'));
+        $this->assertSame([], $party('storekeeper'));
+    }
+
     public function test_system_role_names_use_the_tenant_locale(): void
     {
         $this->enter($this->signUp('fr')->json('challenge_id'));
@@ -144,7 +172,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(39, $permissions);
+        $this->assertCount(44, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

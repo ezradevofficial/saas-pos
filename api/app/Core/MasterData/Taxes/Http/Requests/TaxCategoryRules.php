@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Taxes\Http\Requests;
 
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Validation\Rule;
@@ -17,6 +18,9 @@ use Illuminate\Validation\Validator;
  */
 final class TaxCategoryRules
 {
+    /** TEN-08: the data type whose sharing mode tax categories follow. */
+    public const DATA_TYPE = 'items';
+
     /** @return array<string, list<mixed>> */
     public static function codeRules(): array
     {
@@ -28,6 +32,25 @@ final class TaxCategoryRules
             'codes.*.company_id' => ['required', 'uuid', 'distinct', $company],
             'codes.*.tax_code_id' => ['present', 'nullable', 'uuid'],
         ];
+    }
+
+    /**
+     * TEN-08: tax categories follow the items sharing mode: shared, no
+     * company; per company, a company.
+     */
+    public static function validateSharing(Validator $validator, mixed $companyId): void
+    {
+        if ($validator->errors()->has('company_id')) {
+            return;
+        }
+
+        $shared = app(MasterDataSharing::class)->isShared(self::DATA_TYPE);
+
+        if ($shared && $companyId !== null) {
+            $validator->errors()->add('company_id', __('core.tax.category_shared_mode'));
+        } elseif (! $shared && $companyId === null) {
+            $validator->errors()->add('company_id', __('core.tax.category_company_required'));
+        }
     }
 
     public static function validateCodes(Validator $validator, array $codes, ?string $categoryCompanyId, User $user): void

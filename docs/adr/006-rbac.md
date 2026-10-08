@@ -121,6 +121,22 @@ Any other argument, for example a `User`, returns `null`, so that model's policy
 - **Catalogue growth.** When a permission declared in code is missing from the cached catalogue, `ScopeResolver` reloads the cache once. It remembers a name that is still missing, so the cache is not rebuilt on every check.
 - **Spatie's `php artisan permission:cache-reset` only clears the `none` key.** It does not reach tenant keys. To flush tenants, run inside each tenant's context, or clear the cache store.
 
+**Shared master data (TEN-08, `MasterDataSharing`, `PartyPolicy`).** Each master data type (items, customers, suppliers, employees) is either `shared` across the group's companies or kept `per_company`. The setting lives in `master_data_settings` (no row means shared). The tenant switches it with `PUT master-data/settings`, which needs `core.master_data_settings.edit` at tenant scope.
+
+- **Shared records** have `company_id` null. A holder of the permission at **any** scope in the tenant reaches them, so a cashier with `core.party.view` at one location sees the group's shared customers.
+- **Per-company records** have a `company_id`. A user reaches them when their scope **touches** that company: an assignment at the company, at one of its branches, or at one of its locations. `VisibleScope::companiesTouched()` expands branch and location assignments upwards to their companies for this.
+- **View and create follow the "touched" rule.** Creating a company's record needs `create` at a scope inside that company.
+- **Edit and archive of a company's record need a scope covering the company:** a company or tenant assignment with the permission. A branch or location user reads and adds the company's suppliers but does not change them. Moving a record to another company needs `edit` covering the new company too. Shared records are changed by holders of the permission at any scope.
+- **Not found or forbidden.** A record reached with none of the resource's permissions is not found (404). A record reached without the action's permission is forbidden (403).
+- **Parties follow their roles.** customer and contact follow `customers`, supplier follows `suppliers`, employee_link follows `employees`. A party is per company when any of its roles' types is per company. A role change that would tie a shared party to a company, or share a company's party, must name `company_id` in the request (null to share). Otherwise it is refused with `company_change_needs_confirmation`.
+- **Tax categories follow `items`,** because items point to them.
+- **Switching modes is one audited transaction** (`core.master_data_settings.update`). Every record change inside it is audited on the record (MD-07).
+  - **shared to per_company:** every record with no company, archived ones included, is assigned to `assign_to_company_id`. Without it the switch is refused with `records_need_company` and the count. A tax category keeps only that company's default tax code. A party loses a price list of another company (`price_lists_cleared` in the response and the audit entry).
+  - **per_company to shared:** needs `confirm: true` and clears the companies. A party keeps its company while another of its roles is still per company.
+  - **Guards.** Registered `SharingSwitchGuard`s may refuse a switch. Items (Task 6) add one so that codes and barcodes stay unique in the new scope (`duplicate_codes`).
+- **No race with writers, no deadlock.** Writers take a shared advisory lock per data type (`lockForWrite`) and a switch takes it exclusively. Writers re-check the mode under the lock, so no record is created under the old mode while the mode changes. The order is always the advisory lock first, then row locks. A party update locks all three party types before it locks its row, because the stored roles are only known after the read.
+- **Field rules apply to history (RBAC-05).** Each history type is registered with its field-rules resource, or an explicit null. Hidden fields are removed from before and after, and an entry that only changed hidden fields is left out. `PartyResource` hides the same fields (resource `party`), so the list, the detail and the history agree.
+
 **Audit (RBAC-12).** Every change is recorded in the hash-chained audit log, including permission diffs on role edits. The changes covered are:
 
 - role create, edit, copy and archive

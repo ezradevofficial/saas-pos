@@ -5,6 +5,7 @@ namespace Tests\Feature\Isolation;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\MasterData\History\HistoryTypes;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as RoutingRoute;
@@ -70,6 +71,8 @@ class TenantIsolationTest extends TestCase
         'tax_code' => 'tax_code',
         'tax_category' => 'tax_category',
         'price_list' => 'price_list',
+        'party' => 'party',
+        'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -81,6 +84,7 @@ class TenantIsolationTest extends TestCase
      */
     public const GLOBAL_PARAMETERS = [
         'country_pack' => 'KE', // GET country-packs/{country_pack}: the published pack (CP-01)
+        'type' => 'party', // GET history/{type}/{record}: a record type name from an allow-list (MD-07); the record is B's
     ];
 
     /**
@@ -97,7 +101,26 @@ class TenantIsolationTest extends TestCase
         'invitation_id' => 'invitation',
         'assignment_id' => 'assignment',
         'tax_code_id' => 'tax_code',
+        'price_list_id' => 'price_list',
+        'assign_to_company_id' => 'company',
         'scope_id' => null,
+    ];
+
+    /**
+     * MD-07: every history type (HistoryTypes::names()) => which of B's ids
+     * is a record of that type. A type registered without an entry here
+     * fails the suite.
+     */
+    public const HISTORY_TYPES = [
+        'party' => 'party',
+        'tax_code' => 'tax_code',
+        'tax_category' => 'tax_category',
+        'price_list' => 'price_list',
+        'company' => 'company',
+        'branch' => 'branch',
+        'location' => 'location',
+        'user' => 'user',
+        'role' => 'role',
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
@@ -118,10 +141,12 @@ class TenantIsolationTest extends TestCase
         ['status' => 'all', 'per_page' => 200],
         ['format' => 'csv'],
         ['pair' => 'USD/KES', 'from' => '2000-01-01', 'to' => '2100-12-31', 'kind' => 'shop'],
+        // MD-01: both tenants have a VIP customer named "Customer A|B".
+        ['search' => 'Customer', 'role' => 'customer', 'tag' => 'vip'],
     ];
 
     /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag'];
 
     private TwoTenants $tenants;
 
@@ -261,6 +286,10 @@ class TenantIsolationTest extends TestCase
         // Control: the filter query really selects A's rows on the rate history.
         $filtered = $this->json('GET', "/api/v1/companies/{$a->id('company')}/exchange-rates?".http_build_query(self::LIST_QUERIES[3]), [], $a->bearer())->assertOk();
         $this->assertCount(2, $filtered->json('data'));
+
+        // Control: the party search really selects A's customer (and nothing of B, checked above).
+        $parties = $this->json('GET', '/api/v1/parties?'.http_build_query(self::LIST_QUERIES[4]), [], $a->bearer())->assertOk();
+        $this->assertSame([$a->id('customer')], array_column($parties->json('data'), 'id'));
     }
 
     public function test_list_routes_show_nothing_of_tenant_b_to_the_owner_the_branch_manager_or_a_device(): void
@@ -327,6 +356,31 @@ class TenantIsolationTest extends TestCase
         $this->assertGreaterThan(5, $checked);
     }
 
+    public function test_every_history_type_refuses_tenant_b_records(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $types = app(HistoryTypes::class)->names();
+        $this->assertNotEmpty($types);
+
+        foreach ($types as $type) {
+            $this->assertArrayHasKey($type, self::HISTORY_TYPES, sprintf(
+                'The history type [%s] has no fixture: add it to %s::HISTORY_TYPES and give both tenants a record of that type in tests/Support/TwoTenants.php.',
+                $type, self::class,
+            ));
+            $fixture = self::HISTORY_TYPES[$type];
+
+            $refused = $this->getJson("/api/v1/history/{$type}/{$b->id($fixture)}", $a->bearer());
+            $this->assertSame(404, $refused->status(), "GET history/{$type} with tenant B's record answered {$refused->status()}");
+            $this->assertBodyHasNothingOf($b, $refused, "GET history/{$type} with B's record");
+
+            // Control: A's own record has a history, and it shows nothing of B.
+            $own = $this->getJson("/api/v1/history/{$type}/{$a->id($fixture)}", $a->bearer())->assertOk();
+            $this->assertNotEmpty($own->json('data'), "history/{$type} of A's own record is empty, so the check proves nothing");
+            $this->assertBodyHasNothingOf($b, $own, "GET history/{$type} with A's record");
+        }
+    }
+
     // ---- Ids in request bodies -------------------------------------------
 
     /**
@@ -377,6 +431,9 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/users/{user}/assignments', $hijacked);
         $this->assertArrayHasKey('POST api/v1/tax-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/tax-categories/{tax_category}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/parties', $hijacked);
+        $this->assertArrayHasKey('PATCH api/v1/parties/{party}', $hijacked);
+        $this->assertArrayHasKey('PUT api/v1/master-data/settings', $hijacked);
         $this->assertNoRowOf($a, 'references', $b);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
@@ -706,14 +763,23 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
-            // MD-03: a company's category mapping that company's tax code.
+            // MD-03: a shared category (items are shared, TEN-08) mapping the company's tax code.
             'POST api/v1/tax-categories' => [
                 'name' => 'Hijack check',
-                'company_id' => $tenant->id('company'),
                 'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
             ],
             'PATCH api/v1/tax-categories/{tax_category}' => [
                 'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
+            ],
+            // MD-01, TEN-08: suppliers are kept per company in TwoTenants.
+            'POST api/v1/parties' => [
+                'kind' => 'organisation', 'name' => 'Hijack supplier', 'roles' => ['supplier'],
+                'company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list'),
+            ],
+            'PATCH api/v1/parties/{party}' => ['company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list')],
+            // TEN-08: customers move to per company, every shared one to A's company.
+            'PUT api/v1/master-data/settings' => [
+                'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
             ],
             default => null,
         };

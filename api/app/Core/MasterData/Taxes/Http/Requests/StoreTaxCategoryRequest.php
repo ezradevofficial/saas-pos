@@ -13,7 +13,8 @@ use Illuminate\Validation\Validator;
 /**
  * MD-03: a tax category, shared (no `company_id`, `core.tax.edit` at
  * tenant scope) or one company's (`core.tax.edit` there), with its default
- * tax codes per company.
+ * tax codes per company. Which of the two follows the items sharing mode
+ * (TEN-08).
  */
 class StoreTaxCategoryRequest extends FormRequest
 {
@@ -49,9 +50,12 @@ class StoreTaxCategoryRequest extends FormRequest
 
     public function after(): array
     {
-        return [fn (Validator $validator) => TaxCategoryRules::validateCodes(
-            $validator, (array) $this->input('codes', []), $this->input('company_id'), $this->user(),
-        )];
+        return [
+            fn (Validator $validator) => TaxCategoryRules::validateSharing($validator, $this->input('company_id')),
+            fn (Validator $validator) => TaxCategoryRules::validateCodes(
+                $validator, (array) $this->input('codes', []), $this->input('company_id'), $this->user(),
+            ),
+        ];
     }
 
     public function attributes(): array
