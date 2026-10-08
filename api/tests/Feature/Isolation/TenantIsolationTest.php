@@ -87,6 +87,7 @@ class TenantIsolationTest extends TestCase
         'item_category' => 'item_category',
         'uom' => 'uom',
         'item_image' => 'item_image',
+        'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',
@@ -139,6 +140,7 @@ class TenantIsolationTest extends TestCase
         'base_uom_id' => 'uom',
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
+        'item_id' => 'item', // MD-03 follow-up: the item a price is for
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
@@ -214,6 +216,8 @@ class TenantIsolationTest extends TestCase
         ['channel' => 'email', 'status' => 'all'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
+        // MD-03 follow-up: a price list's prices in force (both tenants priced their item).
+        ['state' => 'current'],
 
         // APR-04: the approvals inbox's oversight view and overdue filter.
         ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
@@ -229,7 +233,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'entities', 'cursors', 'limit'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit'];
 
     private TwoTenants $tenants;
 
@@ -544,6 +548,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PUT api/v1/master-data/settings', $hijacked);
         $this->assertArrayHasKey('POST api/v1/items', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/items/{item}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/price-lists/{price_list}/prices', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/price-lists/{price_list}/prices/bulk', $hijacked);
         $this->assertArrayHasKey('POST api/v1/item-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows', $hijacked);
@@ -1051,6 +1057,9 @@ class TenantIsolationTest extends TestCase
                 'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '12']],
                 'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $tenant->id('uom_box')]],
             ],
+            // MD-03 follow-up: the item's box in the company's default list, one price or a batch.
+            'POST api/v1/price-lists/{price_list}/prices' => ['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'amount_minor' => '130000', 'currency' => 'KES'],
+            'POST api/v1/price-lists/{price_list}/prices/bulk' => ['prices' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'amount_minor' => '131000', 'currency' => 'KES']]],
             'POST api/v1/item-categories' => ['name' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
             'PATCH api/v1/item-categories/{item_category}' => ['parent_id' => $tenant->id('item_category_parent')],
             // MD-05: a child of the company's parent row, owned by the Owner.

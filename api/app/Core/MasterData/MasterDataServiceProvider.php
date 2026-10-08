@@ -31,6 +31,8 @@ use App\Core\MasterData\PaymentMethods\Http\Resources\PaymentMethodResource;
 use App\Core\MasterData\PaymentMethods\Listeners\SeedDefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentProviders;
+use App\Core\MasterData\Prices\ItemPrice;
+use App\Core\MasterData\Prices\PriceAccess;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
@@ -95,6 +97,10 @@ class MasterDataServiceProvider extends ServiceProvider
         $this->app->make(CurrencyUsage::class)->register(
             fn (string $code) => Party::query()->where('credit_limit_currency', $code)->exists(),
         );
+        // So are item prices (archived ones too).
+        $this->app->make(CurrencyUsage::class)->register(
+            fn (string $code) => ItemPrice::query()->where('currency', $code)->exists(),
+        );
 
         if ($this->app->runningInConsole()) {
             $this->commands([SeedDefaultUomsCommand::class, SeedDefaultPaymentMethodsCommand::class]);
@@ -120,6 +126,24 @@ class MasterDataServiceProvider extends ServiceProvider
             fn (User $user, PaymentMethod $method) => $reach()->reachesRecord($user, $method->company_id, PaymentMethod::PERMISSIONS),
             ['secrets' => ['secrets_changed']],
         );
+
+        // MD-03 follow-up: price changes show in the item's history (prices of
+        // the lists the user may read) and the price list's, unless field
+        // rules hide prices (RBAC-05).
+        $prices = fn () => $this->app->make(PriceAccess::class);
+        $history->relate('item', ItemPrice::class, function (User $user, Item $item) use ($prices) {
+            if ($prices()->hidden($user)) {
+                return null;
+            }
+
+            $companies = $prices()->companies($user);
+            $lists = PriceList::query()->select('id')->when($companies !== null, fn ($q) => $q->whereIn('company_id', $companies));
+
+            return ItemPrice::query()->select('id')->where('item_id', $item->id)->whereIn('price_list_id', $lists);
+        });
+        $history->relate('price_list', ItemPrice::class, fn (User $user, PriceList $list) => $prices()->hidden($user) || ! $prices()->canView($user, $list->company_id)
+            ? null
+            : ItemPrice::query()->select('id')->where('price_list_id', $list->id));
 
         foreach (Dimensions::TYPES as $type => $model) {
             $history->register($type, $model, null, fn (User $user, Dimension $dimension) => $reach()->reachesRecord($user, $dimension->company_id, Dimension::PERMISSIONS));

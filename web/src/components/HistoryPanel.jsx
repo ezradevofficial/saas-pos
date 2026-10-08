@@ -4,7 +4,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button } from '@/components/ds'
 import { formatCompanyTime } from '@/lib/companyTime'
-import { actionLabel, changedFields, FIELDS, formatHistoryValue, humanise } from '@/lib/history'
+import { actionLabel, changedFields, contextFields, FIELDS, formatHistoryValue, humanise } from '@/lib/history'
 import { useLocale } from '@/lib/useLocale'
 import { zoneOfRecord } from '@/lib/useTimeZone'
 
@@ -14,7 +14,7 @@ function Entry({ entry, fields, timeZone }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const options = { t, locale, timeZone, fields }
-  const rows = changedFields(entry.before, entry.after)
+  const rows = changedFields(entry.before, entry.after, contextFields(entry.action)).filter((key) => !fields[key]?.hidden)
   const label = (key) => fields[key]?.label ?? (FIELDS.has(key) ? t(`history.fields.${key}`) : humanise(key))
 
   return (
@@ -29,8 +29,9 @@ function Entry({ entry, fields, timeZone }) {
       {rows.length ? (
         <dl className="flex flex-col gap-1 text-caption">
           {rows.map((key) => {
-            const had = entry.before && key in entry.before
             const has = entry.after && key in entry.after
+            // A context field that did not change shows its value once.
+            const had = entry.before && key in entry.before && !(has && JSON.stringify(entry.before[key]) === JSON.stringify(entry.after[key]))
             return (
               <div key={key} className="flex flex-wrap gap-x-2">
                 <dt className="text-ink-muted">{label(key)}</dt>
@@ -64,7 +65,7 @@ function Entry({ entry, fields, timeZone }) {
  * tenant default's; labelled with the zone when it differs from the
  * browser's, L10N-03) and the fields changed,
  * before → after. Fields hidden by field rules never arrive (RBAC-05).
- * `fields` gives a page's own labels and formats: `{ key: { label?, format?(value, snapshot) } }`.
+ * `fields` gives a page's own labels and formats: `{ key: { label?, format?(value, snapshot), hidden? } }`.
  */
 export function HistoryPanel({ type, recordId, timeZone, fields = {} }) {
   const { t } = useTranslation()

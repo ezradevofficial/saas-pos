@@ -9,9 +9,8 @@ use App\Core\Sync\DeviceScope;
 
 /**
  * MD-03, NFR-04: the device's company's active price lists (currency,
- * tax-inclusive or not, the default per currency). Item prices are not
- * stored anywhere yet (a gap reported in phase 4): when they are, they
- * sync as their own incremental entity.
+ * tax-inclusive or not, the default per currency). Their item prices sync
+ * as their own incremental entity, `item_prices` (ItemPriceSource).
  */
 class PriceListSource implements SnapshotSource
 {
