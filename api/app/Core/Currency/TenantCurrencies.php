@@ -23,13 +23,29 @@ class TenantCurrencies
 
     public function __construct(private readonly Currencies $catalogue) {}
 
-    public function provisionFor(Company $company): void
+    /**
+     * Codes missing from the catalogue are skipped and returned (request
+     * paths validate the base currency first; `currencies:sync` warns).
+     *
+     * @return list<string> the codes skipped
+     */
+    public function provisionFor(Company $company): array
     {
-        foreach (self::COUNTRY_DEFAULTS[$company->country] ?? [] as $code => $settings) {
-            $this->activate($code, $settings, reactivate: false);
+        $skipped = [];
+        $codes = array_map(fn () => false, self::COUNTRY_DEFAULTS[$company->country] ?? []);
+        $codes[$company->base_currency] = true;
+
+        foreach ($codes as $code => $isBase) {
+            if ($this->catalogue->find($code) === null) {
+                $skipped[] = $code;
+
+                continue;
+            }
+
+            $this->activate($code, self::COUNTRY_DEFAULTS[$company->country][$code] ?? [], reactivate: $isBase);
         }
 
-        $this->activate($company->base_currency);
+        return $skipped;
     }
 
     /**

@@ -68,10 +68,12 @@ class SyncCurrencies extends Command
 
         try {
             foreach ($ids as $tenantId) {
-                $tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantCurrencies) {
-                    Company::query()->orderBy('created_at')->orderBy('id')->each(
-                        fn (Company $company) => $tenantCurrencies->provisionFor($company),
-                    );
+                $tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantCurrencies, $tenantId) {
+                    Company::query()->orderBy('created_at')->orderBy('id')->each(function (Company $company) use ($tenantCurrencies, $tenantId) {
+                        foreach ($tenantCurrencies->provisionFor($company) as $code) {
+                            $this->components->warn("Tenant {$tenantId}, company {$company->id}: currency {$code} is not in the catalogue; skipped.");
+                        }
+                    });
                 }));
             }
         } finally {

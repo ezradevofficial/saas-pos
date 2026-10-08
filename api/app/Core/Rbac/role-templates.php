@@ -42,7 +42,7 @@ return [
     [
         'key' => 'cashier',
         'permissions' => [
-            'core.location.view', 'core.device.view',
+            'core.location.view', 'core.device.view', 'core.currency.view',
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
         ],
         'is_owner' => false,
@@ -51,7 +51,7 @@ return [
     [
         'key' => 'waiter',
         'permissions' => [
-            'core.location.view',
+            'core.location.view', 'core.currency.view',
             'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
         ],
         'is_owner' => false,

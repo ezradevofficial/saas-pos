@@ -5,6 +5,8 @@ namespace Tests\Feature\Core\Currency;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\CurrencyUsage;
+use App\Core\Currency\Http\Requests\StoreTenantCurrencyRequest;
+use App\Core\Currency\Models\Currency;
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\Rbac\Scope;
@@ -37,7 +39,7 @@ class TenantCurrencyApiTest extends TestCase
 
         $this->assertSame(['KES', 'USD'], collect($response->json('data'))->pluck('code')->all());
         $kes = collect($response->json('data'))->firstWhere('code', 'KES');
-        $this->assertSame('Kenyan Shilling', $kes['name']);
+        $this->assertSame(Currency::findOrFail('KES')->name_en, $kes['name']);
         $this->assertSame(2, $kes['decimals']);
         $this->assertSame(2, $kes['default_decimals']);
         $this->assertSame(1, $kes['cash_rounding_minor']);
@@ -74,6 +76,20 @@ class TenantCurrencyApiTest extends TestCase
 
         $this->postJson('/api/v1/tenant/currencies', ['code' => 'EUR', 'cash_rounding_minor' => 0, 'decimals' => 9], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors(['cash_rounding_minor', 'decimals']);
+    }
+
+    public function test_losing_an_activation_race_answers_422_not_500(): void
+    {
+        // After validation passed, another request activates EUR first.
+        $this->app->afterResolving(StoreTenantCurrencyRequest::class, function () {
+            app(TenantCurrencies::class)->activate('EUR');
+        });
+
+        $this->postJson('/api/v1/tenant/currencies', ['code' => 'EUR'], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('code');
+
+        $this->inTenant(fn () => $this->assertSame(1, TenantCurrency::where('code', 'EUR')->count()));
     }
 
     public function test_cash_rounding_and_decimals_are_editable_while_unused(): void
@@ -158,8 +174,13 @@ class TenantCurrencyApiTest extends TestCase
         $this->getJson('/api/v1/tenant/currencies', $this->headersFor($manager))->assertOk();
         $this->patchJson("/api/v1/tenant/currencies/{$usd->id}", ['cash_rounding_minor' => 5], $this->headersFor($manager))->assertForbidden();
 
+        // Cashiers read the currencies they take payment in, and change nothing.
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
-        $this->getJson('/api/v1/tenant/currencies', $this->headersFor($cashier))->assertForbidden();
+        $this->getJson('/api/v1/tenant/currencies', $this->headersFor($cashier))->assertOk();
+        $this->patchJson("/api/v1/tenant/currencies/{$usd->id}", ['cash_rounding_minor' => 5], $this->headersFor($cashier))->assertForbidden();
+
+        $storekeeper = $this->userWith('storekeeper', Scope::location($this->locationA->id));
+        $this->getJson('/api/v1/tenant/currencies', $this->headersFor($storekeeper))->assertForbidden();
 
         $tenantAdmin = $this->userWith('admin', Scope::tenant());
         $this->patchJson("/api/v1/tenant/currencies/{$usd->id}", ['cash_rounding_minor' => 5], $this->headersFor($tenantAdmin))->assertOk();

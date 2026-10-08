@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\Currency;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Tenancy\Models\Company;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
@@ -82,5 +83,36 @@ class CurrencySyncProvisioningTest extends TestCase
             $this->assertSame($tenantId, $entry->tenant_id);
             $this->assertNull($entry->user_id);
         });
+    }
+
+    public function test_a_base_currency_missing_from_the_catalogue_is_skipped_with_a_warning(): void
+    {
+        Notification::fake();
+
+        $challengeId = $this->postJson('/api/v1/auth/sign-up', [
+            'name' => 'Owner',
+            'email' => 'owner@example.com',
+            'password' => $this->password,
+            'country' => 'KE',
+            'locale' => 'en',
+            'business_name' => 'Old Stores',
+        ])->assertCreated()->json('challenge_id');
+        $tenantId = VerificationChallenge::findOrFail($challengeId)->tenant_id;
+
+        // A company from before validation existed, with a code ICU does not know.
+        $companyId = $this->asTenant($tenantId, function () {
+            TenantCurrency::where('code', 'USD')->delete();
+            $company = Company::sole();
+            $company->base_currency = 'QQQ';
+            $company->save();
+
+            return $company->id;
+        });
+
+        $this->assertSame(0, Artisan::call('currencies:sync'));
+        $this->assertStringContainsString("company {$companyId}: currency QQQ is not in the catalogue; skipped", Artisan::output());
+
+        // The rest is still provisioned.
+        $this->asTenant($tenantId, fn () => $this->assertSame(['KES', 'USD'], TenantCurrency::orderBy('code')->pluck('code')->all()));
     }
 }

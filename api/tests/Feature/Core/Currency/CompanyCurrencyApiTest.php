@@ -4,7 +4,9 @@ namespace Tests\Feature\Core\Currency;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\BaseCurrencyLock;
+use App\Core\Currency\Http\Requests\UpdateCompanyCurrenciesRequest;
 use App\Core\Currency\Models\CompanyCurrency;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Company;
@@ -83,6 +85,22 @@ class CompanyCurrencyApiTest extends TestCase
         $this->getJson($this->url(), $this->headersFor())->assertJsonPath('data.reporting_currencies', []);
     }
 
+    public function test_a_currency_deactivated_after_validation_is_refused_inside_the_transaction(): void
+    {
+        // Between validation and the update, another request deactivates EUR.
+        $this->app->afterResolving(UpdateCompanyCurrenciesRequest::class, function () {
+            $eur = TenantCurrency::where('code', 'EUR')->sole();
+            $eur->active = false;
+            $eur->save();
+        });
+
+        $this->putJson($this->url(), ['base_currency' => 'KES', 'reporting_currencies' => ['USD', 'EUR']], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['reporting_currencies' => __('core.currency.not_active')]);
+
+        $this->inTenant(fn () => $this->assertSame(0, CompanyCurrency::count()));
+    }
+
     public function test_currencies_must_be_active_in_the_tenant_distinct_and_not_the_base(): void
     {
         $this->putJson($this->url(), ['base_currency' => 'JPY', 'reporting_currencies' => ['CHF', 'USD', 'USD', 'KES']], $this->headersFor())
@@ -104,14 +122,14 @@ class CompanyCurrencyApiTest extends TestCase
 
         $this->inTenant(function () use ($lock) {
             $this->assertFalse($lock->isLocked($this->acme));
-            $lock->lock($this->acme);
+            $this->assertSame('KES', $lock->lock($this->acme));
             $first = $this->acme->fresh()->base_currency_locked_at;
             $this->assertNotNull($first);
             $this->assertTrue($lock->isLocked($this->acme->fresh()));
 
             // Idempotent: the first posting's time stays.
             $this->travel(5)->minutes();
-            $lock->lock($this->acme->fresh());
+            $this->assertSame('KES', $lock->lock($this->acme->fresh()));
             $this->assertEquals($first, $this->acme->fresh()->base_currency_locked_at);
             $this->assertSame(1, AuditEntry::where('action', 'core.company.update')->where('auditable_id', $this->acme->id)->count());
         });
@@ -137,6 +155,30 @@ class CompanyCurrencyApiTest extends TestCase
         $this->inTenant(fn () => $this->assertSame('KES', $this->acme->fresh()->base_currency));
     }
 
+    public function test_lock_reads_the_row_and_returns_the_current_base_not_a_stale_instance(): void
+    {
+        $this->inTenant(function () {
+            $stale = Company::findOrFail($this->acme->id);
+            $this->assertSame('KES', $stale->base_currency);
+
+            // Another request changed the base before the first posting.
+            $other = Company::findOrFail($this->acme->id);
+            $other->base_currency = 'USD';
+            $other->save();
+
+            $this->assertSame('USD', app(BaseCurrencyLock::class)->lock($stale));
+            $this->assertSame('USD', $stale->base_currency, 'the instance is refreshed from the locked row');
+            $this->assertNotNull($stale->base_currency_locked_at);
+
+            // A later stale instance, unaware of the lock, gets the locked base.
+            $older = Company::findOrFail($this->acme->id);
+            $older->base_currency_locked_at = null;
+            $older->base_currency = 'KES';
+            $this->assertSame('USD', app(BaseCurrencyLock::class)->lock($older));
+            $this->assertSame('USD', Company::findOrFail($this->acme->id)->base_currency);
+        });
+    }
+
     public function test_changing_the_base_through_the_company_endpoint_activates_it_for_the_tenant(): void
     {
         $this->patchJson("/api/v1/companies/{$this->acme->id}", ['base_currency' => 'TZS'], $this->headersFor())
@@ -148,6 +190,14 @@ class CompanyCurrencyApiTest extends TestCase
 
         $this->patchJson("/api/v1/companies/{$this->acme->id}", ['base_currency' => 'QQQ'], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('base_currency');
+
+        // Not a reporting currency of the company, as for PUT.
+        $this->putJson($this->url(), ['base_currency' => 'TZS', 'reporting_currencies' => ['EUR']], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/companies/{$this->acme->id}", ['base_currency' => 'EUR'], $this->headersFor())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['base_currency' => __('core.currency.base_is_reporting')]);
+        // Any other active currency is accepted.
+        $this->patchJson("/api/v1/companies/{$this->acme->id}", ['base_currency' => 'GBP'], $this->headersFor())->assertOk();
     }
 
     public function test_scope_rules_404_out_of_scope_and_403_without_the_permission(): void

@@ -14,8 +14,10 @@ use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * CUR-01: the currencies the tenant uses. Row-level security limits every
@@ -37,12 +39,17 @@ class TenantCurrencyController
     {
         $data = $request->validated();
 
-        $currency = TenantCurrency::create([
-            'code' => $data['code'],
-            'decimals' => $data['decimals'] ?? $this->catalogue->find($data['code'])['default_decimals'] ?? CurrencyDecimals::FALLBACK,
-            'cash_rounding_minor' => $data['cash_rounding_minor'] ?? 1,
-            'active' => true,
-        ]);
+        try {
+            $currency = TenantCurrency::create([
+                'code' => $data['code'],
+                'decimals' => $data['decimals'] ?? $this->catalogue->find($data['code'])['default_decimals'] ?? CurrencyDecimals::FALLBACK,
+                'cash_rounding_minor' => $data['cash_rounding_minor'] ?? 1,
+                'active' => true,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // Lost a race with another activation of the same code.
+            throw ValidationException::withMessages(['code' => __('validation.unique', ['attribute' => __('core.currency.attributes.code')])]);
+        }
 
         return TenantCurrencyResource::make($currency);
     }

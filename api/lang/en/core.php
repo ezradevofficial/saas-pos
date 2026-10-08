@@ -41,12 +41,21 @@ return [
         ],
     ],
 
+    // ADR 003: money amounts typed in major units (MoneyAmount rule).
+    'money' => [
+        'invalid' => 'Enter the :attribute as a number, for example 1250.50.',
+        'too_many_decimals' => 'The :attribute can have at most :decimals decimals in :currency.',
+        'min' => 'The :attribute must be at least :currency :min.',
+        'max' => 'The :attribute must be at most :currency :max.',
+    ],
+
     // CUR-01, CUR-02: currencies.
     'currency' => [
         'base_currency_locked' => 'This company’s base currency is locked because amounts have already been posted in it.',
         'too_many_reporting_currencies' => 'A company can have at most :max reporting currencies. Remove one before adding another.',
         'decimals_locked' => 'Amounts in this currency are already stored, so its decimals can’t change.',
         'in_use' => 'A company uses this currency as its base or reporting currency. Change the company first.',
+        'base_is_reporting' => 'This currency is one of the company’s reporting currencies. Remove it from them first.',
         'not_active' => 'Activate this currency for your organisation first.',
         'not_in_catalogue' => 'Choose a current ISO 4217 currency.',
         'attributes' => [

@@ -3,7 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Core\Rbac\Console\SyncPermissions;
-use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\CatalogueSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +21,7 @@ trait RefreshTenantDatabase
      */
     protected function migrateFreshUsing(): array
     {
-        return ['--database' => 'pgsql_owner', '--seed' => true, '--seeder' => DatabaseSeeder::class];
+        return ['--database' => 'pgsql_owner', '--seed' => true, '--seeder' => CatalogueSeeder::class];
     }
 
     /**

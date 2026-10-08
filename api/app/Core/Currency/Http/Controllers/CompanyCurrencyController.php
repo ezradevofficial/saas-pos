@@ -7,11 +7,13 @@ use App\Core\Currency\BaseCurrencyLock;
 use App\Core\Currency\Http\Requests\CompanyCurrenciesRequest;
 use App\Core\Currency\Http\Requests\UpdateCompanyCurrenciesRequest;
 use App\Core\Currency\Models\CompanyCurrency;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * CUR-02: a company's base currency (locked after the first posting) and
@@ -42,6 +44,7 @@ class CompanyCurrencyController
         $company = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $data, $reporting) {
             $company = Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
             $this->lock->assertCanChange($company, $data['base_currency']);
+            $this->assertStillActive([$data['base_currency'], ...$reporting]);
 
             $before = $this->values($company);
 
@@ -66,6 +69,25 @@ class CompanyCurrencyController
         });
 
         return $this->respond($company);
+    }
+
+    /**
+     * Validation ran before the transaction: re-check under a share lock,
+     * which a concurrent deactivation (FOR UPDATE on the same rows) waits
+     * for, so it then sees this company's use of the currency.
+     *
+     * @param  list<string>  $codes
+     */
+    private function assertStillActive(array $codes): void
+    {
+        $active = TenantCurrency::query()->whereIn('code', $codes)->where('active', true)->sharedLock()->pluck('code')->all();
+        $missing = array_values(array_diff($codes, $active));
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                in_array($codes[0], $missing, true) ? 'base_currency' : 'reporting_currencies' => __('core.currency.not_active'),
+            ]);
+        }
     }
 
     /** @return array{base_currency: string, reporting_currencies: list<string>} */

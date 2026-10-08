@@ -23,15 +23,18 @@ class CurrencyCatalogueTest extends TestCase
     {
         $kes = Currency::findOrFail('KES');
         $this->assertSame(2, $kes->default_decimals);
-        $this->assertSame('Kenyan Shilling', $kes->name_en);
-        $this->assertSame('shilling kényan', $kes->name_fr);
+        // Names come from ICU and vary by ICU version: present and translated.
+        $this->assertNotSame('', trim($kes->name_en));
+        $this->assertNotSame('', trim($kes->name_fr));
+        $this->assertNotSame($kes->name_en, $kes->name_fr);
         $this->assertSame(404, $kes->numeric_code);
         $this->assertTrue($kes->active_in_iso);
 
         $cdf = Currency::findOrFail('CDF');
         $this->assertSame(0, $cdf->default_decimals, 'CDF is overridden to 0 decimals (CLAUDE.md)');
         $this->assertSame(976, $cdf->numeric_code);
-        $this->assertSame('franc congolais', $cdf->name_fr);
+        $this->assertNotSame('', trim($cdf->name_en));
+        $this->assertNotSame($cdf->name_en, $cdf->name_fr);
 
         $this->assertSame(2, Currency::findOrFail('USD')->default_decimals);
         $this->assertSame(0, Currency::findOrFail('JPY')->default_decimals);
@@ -95,7 +98,7 @@ class CurrencyCatalogueTest extends TestCase
     public function test_the_catalogue_service_is_cached(): void
     {
         $currencies = app(Currencies::class);
-        $this->assertSame('Congolese Franc', $currencies->find('CDF')['name_en']);
+        $this->assertSame(Currency::findOrFail('CDF')->name_en, $currencies->find('CDF')['name_en']);
 
         DB::enableQueryLog();
         $currencies->find('KES');
@@ -110,18 +113,24 @@ class CurrencyCatalogueTest extends TestCase
 
         $response = $this->getJson('/api/v1/currencies', $this->headersFor())->assertOk();
         $cdf = collect($response->json('data'))->firstWhere('code', 'CDF');
-        $this->assertSame(['code' => 'CDF', 'numeric_code' => 976, 'name' => 'Congolese Franc', 'default_decimals' => 0, 'active_in_iso' => true], $cdf);
+        $row = Currency::findOrFail('CDF');
+        $this->assertSame(['code' => 'CDF', 'numeric_code' => 976, 'name' => $row->name_en, 'default_decimals' => 0, 'active_in_iso' => true], $cdf);
 
         $fr = $this->getJson('/api/v1/currencies', $this->headersFor() + ['Accept-Language' => 'fr'])->assertOk();
-        $this->assertSame('franc congolais', collect($fr->json('data'))->firstWhere('code', 'CDF')['name']);
+        $this->assertSame($row->name_fr, collect($fr->json('data'))->firstWhere('code', 'CDF')['name']);
     }
 
     public function test_get_currencies_needs_the_view_permission_somewhere(): void
     {
         $this->setUpOrganisation();
 
-        $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
-        $this->getJson('/api/v1/currencies', $this->headersFor($cashier))->assertForbidden();
+        $storekeeper = $this->userWith('storekeeper', Scope::location($this->locationA->id));
+        $this->getJson('/api/v1/currencies', $this->headersFor($storekeeper))->assertForbidden();
+
+        foreach (['cashier', 'waiter'] as $template) {
+            $user = $this->userWith($template, Scope::location($this->locationA->id));
+            $this->getJson('/api/v1/currencies', $this->headersFor($user))->assertOk();
+        }
 
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
         $this->getJson('/api/v1/currencies', $this->headersFor($manager))->assertOk();
