@@ -9,11 +9,8 @@ use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
-use App\Core\Rbac\PermissionRegistry;
-use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -23,27 +20,7 @@ use Illuminate\Testing\TestResponse;
  */
 trait BuildsTill
 {
-    use BuildsOrganisation;
-
-    /** Till permissions as the POS module names them (role-templates.php). */
-    public const TILL_PERMISSIONS = [
-        'sale' => ['view', 'create', 'print', 'void', 'refund', 'discount', 'override_price'],
-        'shift' => ['open', 'close'],
-        'customer' => ['view', 'create'],
-    ];
-
-    /** Register the `pos` module and its permissions, synced to the catalogue. */
-    protected function registerTillModule(): void
-    {
-        app(ModuleRegistry::class)->register('pos');
-        app(PermissionRegistry::class)->register('pos', self::TILL_PERMISSIONS);
-
-        $known = DB::connection(SyncPermissions::OWNER_CONNECTION)->table('permissions')->where('module', 'pos')->count();
-
-        if ($known < count(array_merge(...array_values(self::TILL_PERMISSIONS)))) {
-            $this->syncPermissionCatalogue();
-        }
-    }
+    use BuildsOrganisation, RegistersTillModule;
 
     /** Activate the module for $tenantId: system roles pick up its permissions. */
     protected function activateTill(string $tenantId): void

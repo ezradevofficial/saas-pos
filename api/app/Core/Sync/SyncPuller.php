@@ -70,11 +70,11 @@ class SyncPuller
     private function incremental(IncrementalSource $source, DeviceScope $scope, ?SyncCursor $cursor, int $limit, array $horizon): array
     {
         $key = $source->key();
-        $reset = $cursor !== null && ($cursor->kind !== 'i' || $cursor->version !== $source->version());
-
         if ($cursor !== null && $cursor->kind !== 'i') {
-            SyncCursor::decode($key, 'not-a-cursor');
+            throw SyncCursor::invalid($key);
         }
+
+        $reset = $cursor !== null && $cursor->version !== $source->version();
 
         $from = ($cursor === null || $reset) ? SyncCursor::start($source->version()) : $cursor;
         $db = DB::connection(TenantContext::CONNECTION);
@@ -151,7 +151,7 @@ class SyncPuller
     private function snapshot(SnapshotSource $source, DeviceScope $scope, ?SyncCursor $cursor): array
     {
         if ($cursor !== null && $cursor->kind !== 's') {
-            SyncCursor::decode($source->key(), 'not-a-cursor');
+            throw SyncCursor::invalid($source->key());
         }
 
         $rows = $source->rows($scope);

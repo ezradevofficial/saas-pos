@@ -22,7 +22,9 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\RegistersTillModule;
 use Tests\Support\GlobalTables;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
@@ -39,7 +41,7 @@ use Tests\TestCase;
  */
 class TenantIsolationTest extends TestCase
 {
-    use RefreshTenantDatabase;
+    use RefreshTenantDatabase, RegistersTillModule;
 
     /**
      * Routes that take no bearer token, with why they cannot leak another
@@ -142,6 +144,8 @@ class TenantIsolationTest extends TestCase
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
         'from_user_id' => 'user', // APR-06: reassign from a pending approver
         'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
+        'manager_user_id' => 'user', // AUTH-08: the manager authorising an override (the owner)
+        'cashier_user_id' => 'manager', // AUTH-08: the cashier the override is for
         'scope_id' => null,
     ];
 
@@ -213,6 +217,8 @@ class TenantIsolationTest extends TestCase
 
         // APR-04: the approvals inbox's oversight view and overdue filter.
         ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
+        // NFR-04: a device pull of some entities from the start, one row per page.
+        ['entities' => ['items', 'customers', 'staff', 'exchange_rates'], 'cursors' => ['items' => '', 'customers' => ''], 'limit' => 1],
     ];
 
     /**
@@ -223,7 +229,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'entities', 'cursors', 'limit'];
 
     private TwoTenants $tenants;
 
@@ -234,11 +240,15 @@ class TenantIsolationTest extends TestCase
     {
         parent::setUp();
 
+        // AUTH-06..AUTH-08: till permissions for the staff, PIN and override routes.
+        $this->registerTillModule();
         $this->tenants = TwoTenants::build($this);
         app(TenantContext::class)->set(null);
         // EXP-01: the suite exports every list many times a minute; the
         // limit itself is tested in ListSortAndExportTest.
         RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
+        // NFR-04: the suite calls the device routes far more than a till would.
+        RateLimiter::for('device-sync', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -341,7 +351,7 @@ class TenantIsolationTest extends TestCase
                 foreach ($method === 'GET' ? self::LIST_QUERIES : [[]] as $query) {
                     $suffix = $query === [] ? '' : '?'.http_build_query($query);
                     $uri = $this->uriWith($route, $b).$suffix;
-                    $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $a->bearer());
+                    $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $this->bearerFor($route, $a));
                     $called++;
 
                     // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
@@ -352,7 +362,7 @@ class TenantIsolationTest extends TestCase
                     // another list's filter, but never as not found), so the 404 above
                     // is isolation, not a bad URL.
                     if ($method === 'GET') {
-                        $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $a->bearer());
+                        $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $this->bearerFor($route, $a));
                         $query === [] ? $control->assertOk() : $this->assertContains($control->getStatusCode(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->getStatusCode()}");
                         $this->assertBodyHasNothingOf($b, $control, "GET {$this->uriWith($route, $a)}{$suffix}");
                     }
@@ -512,14 +522,14 @@ class TenantIsolationTest extends TestCase
                 $uri = $this->uriWith($route, $a);
 
                 foreach ($this->hijackVariants($base, $idFields, $b, self::ROUTE_REFERENCE_FIELDS[$key] ?? []) as $label => $body) {
-                    $response = $this->json($method, $uri, $body, $a->bearer());
+                    $response = $this->json($method, $uri, $body, $this->bearerFor($route, $a));
                     $this->assertContains($response->getStatusCode(), [404, 422], "{$key} with {$label} of tenant B answered {$response->getStatusCode()}: {$response->getContent()}");
                     $this->assertBodyHasNothingOf($b, $response, "{$key} with {$label}");
                     $hijacked[$key][] = $label;
                 }
 
                 // Control: the same body with A's own ids is accepted, so the refusals are about B's ids.
-                $control = $this->json($method, $uri, $base, $a->bearer());
+                $control = $this->json($method, $uri, $base, $this->bearerFor($route, $a));
                 $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}");
             }
         }
@@ -542,6 +552,9 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/automation-templates/use', $hijacked);
         $this->assertArrayHasKey('POST api/v1/approvals/{approval}/reassign', $hijacked);
         $this->assertArrayHasKey('POST api/v1/me/delegations', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/verify', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/attempts', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/override', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -806,6 +819,12 @@ class TenantIsolationTest extends TestCase
         return array_diff($route->parameterNames(), array_keys(self::GLOBAL_PARAMETERS)) === [];
     }
 
+    /** TEN-05: device routes are called with the tenant's paired device, every other route as its Owner. */
+    private function bearerFor(RoutingRoute $route, TenantFixture $tenant): array
+    {
+        return in_array(EnsureDeviceToken::class, $route->gatherMiddleware(), true) ? $tenant->bearer('device') : $tenant->bearer();
+    }
+
     /** A body every mutating route would accept, pointing at more of B where a route takes ids. */
     private function hijackBody(TenantFixture $b): array
     {
@@ -1064,6 +1083,13 @@ class TenantIsolationTest extends TestCase
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
+            ],
+            // AUTH-06..AUTH-08, from A's device: the owner signs in, a report of no
+            // wrong PINs, and the owner approving a void for the manager.
+            'POST api/v1/pos/pin/verify' => ['user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN],
+            'POST api/v1/pos/pin/attempts' => ['reports' => [['user_id' => $tenant->id('user'), 'failed_attempts' => 0, 'locked' => false]]],
+            'POST api/v1/pos/override' => [
+                'manager_user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'permission' => 'pos.sale.void', 'cashier_user_id' => $tenant->id('manager'),
             ],
             default => null,
         };

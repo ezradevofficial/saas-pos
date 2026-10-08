@@ -64,9 +64,15 @@ final class SyncCursor
             return new self('s', (int) $m[1], hash: $m[2]);
         }
 
+        throw self::invalid($entity);
+    }
+
+    /** 422 `invalid_cursor` for $entity. */
+    public static function invalid(string $entity): ApiException
+    {
         $message = __('core.sync.invalid_cursor', ['entity' => $entity]);
 
-        throw new ApiException(422, 'invalid_cursor', $message, ["cursors.{$entity}" => [$message]], ['entity' => $entity]);
+        return new ApiException(422, 'invalid_cursor', $message, ["cursors.{$entity}" => [$message]], ['entity' => $entity]);
     }
 
     /** Within a signed bigint. */
