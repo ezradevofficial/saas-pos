@@ -6,16 +6,20 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Dialog, Icon, StatusBadge, TextField } from '@/components/ds'
-import { formatDateTime, formatTime } from '@/lib/dates'
+import { formatCompanyClock, formatCompanyTime } from '@/lib/companyTime'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { orgErrorMessage } from './orgErrors'
 
 const TONES = { pending: 'info', active: 'success', suspended: 'warning', unpaired: 'neutral' }
 
-/** The one-time pairing code (TEN-05): shown once, copyable, with its expiry. */
-export function PairingCodeDialog({ device, pairing, onClose }) {
+/**
+ * The one-time pairing code (TEN-05): shown once, copyable, with its
+ * expiry in the company's zone (`company`: { timezone }, L10N-03).
+ */
+export function PairingCodeDialog({ device, pairing, company = null, onClose }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const [copied, setCopied] = useState(false)
@@ -53,7 +57,7 @@ export function PairingCodeDialog({ device, pairing, onClose }) {
             {copied ? t('devices.copied') : ''}
           </span>
         </div>
-        <p>{t('devices.codeExpiry', { time: formatTime(pairing.expires_at, locale) })}</p>
+        <p>{t('devices.codeExpiry', { time: formatCompanyClock(pairing.expires_at, locale, company) })}</p>
         <p className="text-caption">{t('devices.codeOnce')}</p>
       </div>
     </Dialog>
@@ -139,6 +143,8 @@ export function Devices({ location, chain, archived }) {
   const [adding, setAdding] = useState(false)
   const [code, setCode] = useState(null) // { device, pairing }
   const [confirm, setConfirm] = useState(null) // { kind: 'suspend' | 'unpair', device }
+  // L10N-03: the location's branch's company zone (the chain starts at the company).
+  const company = useCompanyOfRecord()(chain.find((entry) => entry.type === 'company')?.id)
 
   const canCreate = !archived && canWithin('core.device.create', chain)
   const canPair = canWithin('core.device.pair', chain)
@@ -167,8 +173,8 @@ export function Devices({ location, chain, archived }) {
   const list = devices.data?.data ?? []
 
   const meta = (device) => {
-    if (device.last_seen_at) return t('devices.lastSeen', { date: formatDateTime(device.last_seen_at, locale) })
-    if (device.paired_at) return t('devices.pairedAt', { date: formatDateTime(device.paired_at, locale) })
+    if (device.last_seen_at) return t('devices.lastSeen', { date: formatCompanyTime(device.last_seen_at, locale, company) })
+    if (device.paired_at) return t('devices.pairedAt', { date: formatCompanyTime(device.paired_at, locale, company) })
     return t('devices.notPaired')
   }
 
@@ -263,6 +269,7 @@ export function Devices({ location, chain, archived }) {
         <PairingCodeDialog
           device={code.device}
           pairing={code.pairing}
+          company={company}
           onClose={() => {
             setCode(null)
             issue.reset()

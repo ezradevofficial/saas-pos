@@ -8,9 +8,10 @@ import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Dialog, Money, MoneyInput, Select, StatusBadge, TextField } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
-import { formatDateTime } from '@/lib/format'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { decimalsOf } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
+import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany'
 import { CREDIT_REQUEST, creditChangesKey } from './creditLimitData'
 
@@ -203,11 +204,12 @@ function useDuration() {
  * who holds it, how long), its history, the approval's link while one
  * waits, and Cancel for whoever may cancel it (with a reason).
  */
-export function CreditChangeDialog({ changeId, timeZone, onClose }) {
+export function CreditChangeDialog({ changeId, onClose }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
   const duration = useDuration()
+  const companyOf = useCompanyOfRecord()
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
   const query = useQuery({ queryKey: [...creditChangesKey, 'detail', changeId], queryFn: () => api.get(`credit-limit-changes/${changeId}`), enabled: Boolean(changeId) })
@@ -222,7 +224,8 @@ export function CreditChangeDialog({ changeId, timeZone, onClose }) {
   const change = query.data?.data
   const meta = query.data?.meta ?? {}
   const workflow = meta.workflow
-  const when = (value) => (value ? formatDateTime(value, locale, timeZone) : '')
+  // L10N-03: the request's company zone, not the switcher's.
+  const when = (value) => (value ? formatCompanyTime(value, locale, companyOf(change?.company?.id)) : '')
 
   return (
     <Dialog
@@ -326,9 +329,11 @@ export function CreditChangeDialog({ changeId, timeZone, onClose }) {
 }
 
 /** The party's requests, newest first, each opening its detail. */
-export function PartyCreditChanges({ party, timeZone }) {
+export function PartyCreditChanges({ party }) {
   const { t } = useTranslation()
   const locale = useLocale()
+  // A shared party's requests belong to different companies: each in its own zone.
+  const companyOf = useCompanyOfRecord()
   const [openId, setOpenId] = useState(null)
   const query = useQuery({
     queryKey: [...creditChangesKey, 'party', party.id],
@@ -351,13 +356,13 @@ export function PartyCreditChanges({ party, timeZone }) {
                 <span className="font-medium text-ink">{change.number}</span>
                 <LimitChange change={change} />
                 <CreditStatus status={change.status} />
-                <span className="text-caption text-ink-muted">{formatDateTime(change.created_at, locale, timeZone)}</span>
+                <span className="text-caption text-ink-muted">{formatCompanyTime(change.created_at, locale, companyOf(change.company?.id))}</span>
               </button>
             </li>
           ))}
         </ul>
       )}
-      <CreditChangeDialog changeId={openId} timeZone={timeZone} onClose={() => setOpenId(null)} />
+      <CreditChangeDialog changeId={openId} onClose={() => setOpenId(null)} />
     </>
   )
 }

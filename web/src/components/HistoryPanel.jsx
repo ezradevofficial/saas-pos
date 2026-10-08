@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button } from '@/components/ds'
-import { formatDateTime } from '@/lib/format'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { actionLabel, changedFields, FIELDS, formatHistoryValue, humanise } from '@/lib/history'
 import { useLocale } from '@/lib/useLocale'
+import { zoneOfRecord } from '@/lib/useTimeZone'
 
 const PER_PAGE = 20
 
@@ -22,7 +23,7 @@ function Entry({ entry, fields, timeZone }) {
         <span className="font-medium text-ink">{actionLabel(t, entry.action, entry)}</span>
         <span className="text-ink-muted">{entry.actor?.name ?? t('history.system')}</span>
         <time dateTime={entry.occurred_at} className="text-caption text-ink-muted tabular-nums">
-          {formatDateTime(entry.occurred_at, locale, timeZone)}
+          {formatCompanyTime(entry.occurred_at, locale, zoneOfRecord(timeZone))}
         </time>
       </div>
       {rows.length ? (
@@ -59,7 +60,9 @@ function Entry({ entry, fields, timeZone }) {
 /**
  * MD-07: a record's change history from `GET history/{type}/{record}`,
  * newest first, a page at a time: who (or "System"), what (the action),
- * when (in `timeZone`, the record's company's) and the fields changed,
+ * when (in `timeZone`: the record's company's where known, else the
+ * tenant default's; labelled with the zone when it differs from the
+ * browser's, L10N-03) and the fields changed,
  * before → after. Fields hidden by field rules never arrive (RBAC-05).
  * `fields` gives a page's own labels and formats: `{ key: { label?, format?(value, snapshot) } }`.
  */

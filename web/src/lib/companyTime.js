@@ -4,7 +4,7 @@
 // differs from the browser's ("8 Oct 2026, 17:00 EAT"), so a reader in
 // another zone is never misled. Without a company zone, the browser's.
 // The notification bell is personal and stays in the browser's zone.
-import { formatDateTime } from './dates'
+import { formatDateTime, formatTime } from './dates'
 
 /** The browser's time zone, or null where Intl cannot say. */
 function browserZone() {
@@ -27,19 +27,23 @@ function zoneName(value, timeZone, locale) {
 
 /**
  * An instant in `company`'s time zone ({timezone}), labelled with the
- * zone's short name when it differs from the browser's.
+ * zone's short name when it differs from the browser's. `format` is the
+ * date-and-time format by default.
  */
-export function formatCompanyTime(value, locale, company) {
+export function formatCompanyTime(value, locale, company, format = formatDateTime) {
   if (!value) return null
   const zone = company?.timezone
-  if (!zone) return formatDateTime(value, locale)
+  if (!zone) return format(value, locale)
   let text
   try {
-    text = formatDateTime(value, locale, zone)
+    text = format(value, locale, zone)
   } catch {
-    return formatDateTime(value, locale)
+    return format(value, locale)
   }
   if (zone === browserZone()) return text
   const name = zoneName(value, zone, locale)
   return name ? `${text} ${name}` : text
 }
+
+/** The time of day only ("17:00 EAT"), with the same zone rules. */
+export const formatCompanyClock = (value, locale, company) => formatCompanyTime(value, locale, company, formatTime)

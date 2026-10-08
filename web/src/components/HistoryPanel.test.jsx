@@ -48,8 +48,9 @@ describe('HistoryPanel', () => {
 
     expect(within(update).getByText('Updated')).toBeInTheDocument()
     expect(within(update).getByText('Amina Otieno')).toBeInTheDocument()
-    // 09:05 UTC is 10:05 in Kinshasa.
-    expect(within(update).getByText('8 Oct 2026, 10:05')).toBeInTheDocument()
+    // 09:05 UTC is 10:05 in Kinshasa, named when the browser is elsewhere (L10N-03).
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+    expect(within(update).getByText(browser === 'Africa/Kinshasa' ? '8 Oct 2026, 10:05' : /^8 Oct 2026, 10:05 (WAT|GMT\+1)$/)).toBeInTheDocument()
     expect(within(update).getByText('Name')).toBeInTheDocument()
     expect(within(update).getByText('Kin Traders SARL')).toBeInTheDocument()
     // Money in minor units with its currency first; the currency is not a separate row; bookkeeping is hidden.

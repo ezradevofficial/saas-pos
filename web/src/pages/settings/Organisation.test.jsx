@@ -187,6 +187,21 @@ describe('Organisation', () => {
     expect(await within(dialog).findByRole('button', { name: 'Copied' })).toBeInTheDocument()
   })
 
+  it("shows device times and the pairing code's expiry in the branch's company zone (L10N-03)", async () => {
+    organisation({ companies: [{ ...COMPANIES[0], timezone: 'Africa/Kinshasa' }] })
+    api.post.mockResolvedValue({ code: 'K7MX4PQR', expires_at: '2026-10-07T14:20:00Z', device: {} })
+    renderApp('/settings/organisation')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Devices of Front till' }))
+    const elsewhere = Intl.DateTimeFormat().resolvedOptions().timeZone !== 'Africa/Kinshasa'
+    const zone = elsewhere ? ' (WAT|GMT\\+1)' : ''
+    // 14:05 UTC is 15:05 in Kinshasa.
+    expect(await screen.findByText(new RegExp(`^Last seen 7 Oct 2026, 15:05${zone}$`))).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Get pairing code for Till 2' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pairing code for Till 2' })
+    expect(within(dialog).getByText(new RegExp(`^It works once and is valid until 15:20${zone}\\.$`))).toBeInTheDocument()
+  })
+
   it('explains suspension before suspending, and confirms unpairing as a danger action', async () => {
     organisation()
     api.post.mockResolvedValue({ data: {} })

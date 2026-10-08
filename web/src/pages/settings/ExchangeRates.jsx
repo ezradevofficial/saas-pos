@@ -7,7 +7,8 @@ import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, Dialog, ListView, RateInput, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatDateTime, localDateTimeIn, zonedToUtc } from '@/lib/dates'
+import { formatCompanyTime } from '@/lib/companyTime'
+import { localDateTimeIn, zonedToUtc } from '@/lib/dates'
 import { formatDecimal } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
@@ -33,7 +34,7 @@ function sourceLabel(t, source) {
 }
 
 /** The latest rate of one kind for the pair, and whether it is the one in force. */
-function CurrentCard({ kind, rate, inForce, loading, timeZone }) {
+function CurrentCard({ kind, rate, inForce, loading, company }) {
   const { t } = useTranslation()
   const locale = useLocale()
   return (
@@ -71,7 +72,7 @@ function CurrentCard({ kind, rate, inForce, loading, timeZone }) {
           <div className="flex flex-wrap gap-1 text-caption text-ink-muted">
             <dt>{t('rates.fields.effective')}</dt>
             <dd>
-              {formatDateTime(rate.effective_at, locale, timeZone)} · {sourceLabel(t, rate.source)}
+              {formatCompanyTime(rate.effective_at, locale, company)} · {sourceLabel(t, rate.source)}
             </dd>
           </div>
         </dl>
@@ -232,7 +233,7 @@ function RateHistory({ company, pair }) {
       label: t('rates.columns.effective'),
       sortKey: 'effective_at',
       hideable: false,
-      render: (row) => formatDateTime(row.effective_at, locale, company.timezone),
+      render: (row) => formatCompanyTime(row.effective_at, locale, company),
     },
     { key: 'kind', label: t('rates.columns.kind'), sortKey: 'kind', render: (row) => t(`rates.kinds.${row.kind}`) },
     { key: 'mid', label: t('rates.columns.mid'), sortKey: 'mid', render: (row) => <RateValue rate={row} /> },
@@ -245,7 +246,7 @@ function RateHistory({ company, pair }) {
       label: t('rates.columns.entered'),
       sortKey: 'created_at',
       defaultHidden: true,
-      render: (row) => (row.created_at ? formatDateTime(row.created_at, locale, company.timezone) : ''),
+      render: (row) => (row.created_at ? formatCompanyTime(row.created_at, locale, company) : ''),
     },
   ]
 
@@ -337,7 +338,7 @@ function PairRates({ company, pair }) {
             rate={latest[kind]}
             inForce={latest[kind]?.id === latest.inForceId}
             loading={latest.loading}
-            timeZone={company.timezone}
+            company={company}
           />
         ))}
       </div>
