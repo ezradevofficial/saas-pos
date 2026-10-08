@@ -20,7 +20,9 @@ use Tests\TestCase;
  * branches, locations, an archived location, a paired device, a custom
  * role, an accepted and a pending invitation, an assignment, tenant and
  * reporting currencies, exchange rates and a rate alert, tax codes and
- * rates from the country pack, a tax category and a price list). Field rules, limit rules and module flags have
+ * rates from the country pack, a tax category and a price list, a
+ * master data sharing setting, a shared customer and a per-company
+ * supplier). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -103,6 +105,20 @@ final class TwoTenants
             'name' => "Retail {$upper}", 'currency' => 'KES', 'tax_inclusive' => true, 'is_default' => true,
         ], $owner), 201)->json('data.id');
 
+        // TEN-08, MD-01, MD-07: suppliers kept per company; a shared customer and
+        // the company's supplier (with its price list), renamed once (history).
+        self::ok($test->putJson('/api/v1/master-data/settings', ['data_type' => 'suppliers', 'mode' => 'per_company'], $owner));
+        $partyPhone = $key === 'a' ? '+254700000301' : '+254700000302';
+        $customer = self::ok($test->postJson('/api/v1/parties', [
+            'kind' => 'organisation', 'name' => "Customer {$upper}", 'roles' => ['customer'], 'tags' => ['vip'],
+            'phones' => [['number' => $partyPhone]],
+        ], $owner), 201)->json('data.id');
+        $party = self::ok($test->postJson('/api/v1/parties', [
+            'kind' => 'organisation', 'name' => "Supplier {$upper}", 'roles' => ['supplier'], 'tax_id' => "P00000000{$upper}",
+            'company_id' => $company, 'price_list_id' => $priceList,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/parties/{$party}", ['legal_name' => "Supplier {$upper} Limited"], $owner));
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -173,10 +189,12 @@ final class TwoTenants
                 'tax_code' => $taxCode,
                 'tax_category' => $taxCategory,
                 'price_list' => $priceList,
+                'party' => $party,
+                'customer' => $customer,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone])),
         );
     }
 

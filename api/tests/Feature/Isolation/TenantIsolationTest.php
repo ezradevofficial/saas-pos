@@ -70,6 +70,8 @@ class TenantIsolationTest extends TestCase
         'tax_code' => 'tax_code',
         'tax_category' => 'tax_category',
         'price_list' => 'price_list',
+        'party' => 'party',
+        'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -81,6 +83,7 @@ class TenantIsolationTest extends TestCase
      */
     public const GLOBAL_PARAMETERS = [
         'country_pack' => 'KE', // GET country-packs/{country_pack}: the published pack (CP-01)
+        'type' => 'party', // GET history/{type}/{record}: a record type name from an allow-list (MD-07); the record is B's
     ];
 
     /**
@@ -97,6 +100,8 @@ class TenantIsolationTest extends TestCase
         'invitation_id' => 'invitation',
         'assignment_id' => 'assignment',
         'tax_code_id' => 'tax_code',
+        'price_list_id' => 'price_list',
+        'assign_to_company_id' => 'company',
         'scope_id' => null,
     ];
 
@@ -118,10 +123,12 @@ class TenantIsolationTest extends TestCase
         ['status' => 'all', 'per_page' => 200],
         ['format' => 'csv'],
         ['pair' => 'USD/KES', 'from' => '2000-01-01', 'to' => '2100-12-31', 'kind' => 'shop'],
+        // MD-01: both tenants have a VIP customer named "Customer A|B".
+        ['search' => 'Customer', 'role' => 'customer', 'tag' => 'vip'],
     ];
 
     /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag'];
 
     private TwoTenants $tenants;
 
@@ -261,6 +268,10 @@ class TenantIsolationTest extends TestCase
         // Control: the filter query really selects A's rows on the rate history.
         $filtered = $this->json('GET', "/api/v1/companies/{$a->id('company')}/exchange-rates?".http_build_query(self::LIST_QUERIES[3]), [], $a->bearer())->assertOk();
         $this->assertCount(2, $filtered->json('data'));
+
+        // Control: the party search really selects A's customer (and nothing of B, checked above).
+        $parties = $this->json('GET', '/api/v1/parties?'.http_build_query(self::LIST_QUERIES[4]), [], $a->bearer())->assertOk();
+        $this->assertSame([$a->id('customer')], array_column($parties->json('data'), 'id'));
     }
 
     public function test_list_routes_show_nothing_of_tenant_b_to_the_owner_the_branch_manager_or_a_device(): void
@@ -377,6 +388,9 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/users/{user}/assignments', $hijacked);
         $this->assertArrayHasKey('POST api/v1/tax-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/tax-categories/{tax_category}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/parties', $hijacked);
+        $this->assertArrayHasKey('PATCH api/v1/parties/{party}', $hijacked);
+        $this->assertArrayHasKey('PUT api/v1/master-data/settings', $hijacked);
         $this->assertNoRowOf($a, 'references', $b);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
@@ -706,14 +720,23 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
-            // MD-03: a company's category mapping that company's tax code.
+            // MD-03: a shared category (items are shared, TEN-08) mapping the company's tax code.
             'POST api/v1/tax-categories' => [
                 'name' => 'Hijack check',
-                'company_id' => $tenant->id('company'),
                 'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
             ],
             'PATCH api/v1/tax-categories/{tax_category}' => [
                 'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
+            ],
+            // MD-01, TEN-08: suppliers are kept per company in TwoTenants.
+            'POST api/v1/parties' => [
+                'kind' => 'organisation', 'name' => 'Hijack supplier', 'roles' => ['supplier'],
+                'company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list'),
+            ],
+            'PATCH api/v1/parties/{party}' => ['company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list')],
+            // TEN-08: customers move to per company, every shared one to A's company.
+            'PUT api/v1/master-data/settings' => [
+                'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
             ],
             default => null,
         };

@@ -18,6 +18,9 @@ use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\History\Http\HistoryController;
+use App\Core\MasterData\Parties\Http\Controllers\PartyController;
+use App\Core\MasterData\Sharing\Http\MasterDataSettingsController;
 use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCategoryController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCodeController;
@@ -37,7 +40,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list'] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -149,6 +152,22 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('price-lists/{price_list}', [PriceListController::class, 'update']);
     Route::post('price-lists/{price_list}/archive', [PriceListController::class, 'archive']);
     Route::post('price-lists/{price_list}/restore', [PriceListController::class, 'restore']);
+
+    // MD-01, MD-06: parties (customers, suppliers, contacts, employee
+    // links), shared or per company (TEN-08), with duplicate warnings.
+    Route::get('parties', [PartyController::class, 'index']);
+    Route::post('parties', [PartyController::class, 'store']);
+    Route::get('parties/{party}', [PartyController::class, 'show']);
+    Route::patch('parties/{party}', [PartyController::class, 'update']);
+    Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
+    Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
+
+    // TEN-08: shared or per-company master data, per data type.
+    Route::get('master-data/settings', [MasterDataSettingsController::class, 'show']);
+    Route::put('master-data/settings', [MasterDataSettingsController::class, 'update']);
+
+    // MD-07: a record's change history (party, tax_code, company, ...).
+    Route::get('history/{type}/{record}', HistoryController::class)->where('type', '[a-z_]{1,40}');
 
     Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
     Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);

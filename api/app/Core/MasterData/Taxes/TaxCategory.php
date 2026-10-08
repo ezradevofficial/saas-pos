@@ -16,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A tax category items point to (MD-03), with a default tax code per
  * company (`tax_category_codes`). Shared across the group when company_id
- * is null, else one company's (TEN-08; the per-data-type sharing setting
- * arrives with the master data settings). Audited as `core.tax_category.*`.
+ * is null, else one company's, following the items sharing mode (TEN-08,
+ * TaxCategorySharedRecords). Audited as `core.tax_category.*`.
  */
 class TaxCategory extends Model implements HasScope
 {
