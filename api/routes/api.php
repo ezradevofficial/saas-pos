@@ -19,6 +19,11 @@ use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\MasterData\History\Http\HistoryController;
+use App\Core\MasterData\Items\Http\Controllers\ItemCategoryController;
+use App\Core\MasterData\Items\Http\Controllers\ItemController;
+use App\Core\MasterData\Items\Http\Controllers\ItemImageController;
+use App\Core\MasterData\Items\Http\Controllers\MediaController;
+use App\Core\MasterData\Items\Http\Controllers\UomController;
 use App\Core\MasterData\Parties\Http\Controllers\PartyController;
 use App\Core\MasterData\Sharing\Http\MasterDataSettingsController;
 use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
@@ -40,7 +45,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record'] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -58,6 +63,11 @@ Route::prefix('auth')->group(function () {
     Route::get('invitations/{token}', [AcceptInvitationController::class, 'show'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{40}');
     Route::post('invitations/{token}/accept', [AcceptInvitationController::class, 'accept'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{40}');
 });
+
+// MD-02: an item image behind a temporary signed URL (ItemImages::url). The
+// signature is the credential; the controller enters the file's tenant and
+// checks the signed-for user may still view the item.
+Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')->middleware('signed')->name('media.show');
 
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');
@@ -161,6 +171,32 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('parties/{party}', [PartyController::class, 'update']);
     Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
     Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
+
+    // MD-02: units of measure (the tenant's), item categories and items,
+    // shared or per company (TEN-08), with barcodes and images.
+    Route::get('uoms', [UomController::class, 'index']);
+    Route::post('uoms', [UomController::class, 'store']);
+    Route::get('uoms/{uom}', [UomController::class, 'show']);
+    Route::patch('uoms/{uom}', [UomController::class, 'update']);
+    Route::post('uoms/{uom}/archive', [UomController::class, 'archive']);
+    Route::post('uoms/{uom}/restore', [UomController::class, 'restore']);
+
+    Route::get('item-categories', [ItemCategoryController::class, 'index']);
+    Route::post('item-categories', [ItemCategoryController::class, 'store']);
+    Route::get('item-categories/{item_category}', [ItemCategoryController::class, 'show']);
+    Route::patch('item-categories/{item_category}', [ItemCategoryController::class, 'update']);
+    Route::post('item-categories/{item_category}/archive', [ItemCategoryController::class, 'archive']);
+    Route::post('item-categories/{item_category}/restore', [ItemCategoryController::class, 'restore']);
+
+    Route::get('items', [ItemController::class, 'index']);
+    Route::post('items', [ItemController::class, 'store']);
+    Route::get('items/{item}', [ItemController::class, 'show']);
+    Route::patch('items/{item}', [ItemController::class, 'update']);
+    Route::post('items/{item}/archive', [ItemController::class, 'archive']);
+    Route::post('items/{item}/restore', [ItemController::class, 'restore']);
+    Route::post('items/{item}/images', [ItemImageController::class, 'store']);
+    Route::put('items/{item}/images/order', [ItemImageController::class, 'reorder']);
+    Route::delete('item-images/{item_image}', [ItemImageController::class, 'destroy']);
 
     // TEN-08: shared or per-company master data, per data type.
     Route::get('master-data/settings', [MasterDataSettingsController::class, 'show']);

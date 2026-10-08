@@ -14,6 +14,7 @@ class MasterDataSettingsRequest extends FormRequest
 {
     public const READERS = [
         'core.master_data_settings.edit', 'core.party.view', 'core.party.create', 'core.tax.view', 'core.tax.edit',
+        'core.item.create', 'core.item_category.create',
     ];
 
     public function authorize(): bool

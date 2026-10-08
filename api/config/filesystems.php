@@ -60,6 +60,31 @@ return [
             'report' => false,
         ],
 
+        // MD-02: item images and other tenant files, never served from a
+        // public path (temporary signed URLs only, ItemImages). Local in
+        // development and tests; an S3-compatible object store (Linode
+        // Object Storage) in production with MEDIA_DISK_DRIVER=s3 (needs
+        // league/flysystem-aws-s3-v3).
+        'media' => env('MEDIA_DISK_DRIVER', 'local') === 's3' ? [
+            'driver' => 's3',
+            'key' => env('MEDIA_ACCESS_KEY_ID'),
+            'secret' => env('MEDIA_SECRET_ACCESS_KEY'),
+            'region' => env('MEDIA_REGION'),
+            'bucket' => env('MEDIA_BUCKET'),
+            'endpoint' => env('MEDIA_ENDPOINT'),
+            'use_path_style_endpoint' => (bool) env('MEDIA_USE_PATH_STYLE_ENDPOINT', false),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ] : [
+            'driver' => 'local',
+            'root' => storage_path('app/media'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*

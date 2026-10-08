@@ -3,16 +3,24 @@
 namespace App\Core\MasterData\Duplicates;
 
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemBarcode;
+use App\Core\MasterData\Items\ItemPolicy;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * MD-06: likely duplicates of a party, as a warning that never blocks.
- * A candidate is an active party the user can view (PartyPolicy) sharing a
- * normalised phone number or the tax ID, or with a name at least 0.6
- * similar (pg_trgm `similarity()`). Strongest reason first (tax_id, phone,
- * name), then the most similar name; at most five.
+ * MD-06: likely duplicates, as a warning that never blocks; at most five,
+ * strongest reason first, then the most similar name.
+ *
+ * - Parties: an active party the user can view (PartyPolicy) sharing a
+ *   normalised phone number or the tax ID, or with a name at least 0.6
+ *   similar (pg_trgm `similarity()`). Reasons: tax_id, phone, name.
+ * - Items (MD-02): an active item the user can view (ItemPolicy) with one
+ *   of its barcodes (possible in another company when items are kept per
+ *   company; never in the same scope, where barcodes are unique) or an
+ *   English or French name at least 0.6 similar. Reasons: barcode, name.
  */
 class DuplicateFinder
 {
@@ -22,7 +30,12 @@ class DuplicateFinder
 
     private const REASONS = ['tax_id', 'phone', 'name'];
 
-    public function __construct(private readonly PartyPolicy $policy) {}
+    private const ITEM_REASONS = ['barcode', 'name'];
+
+    public function __construct(
+        private readonly PartyPolicy $policy,
+        private readonly ItemPolicy $items,
+    ) {}
 
     /** @return list<array{id: string, name: string, reason: string}> */
     public function forParty(Party $party, User $user): array
@@ -97,5 +110,87 @@ class DuplicateFinder
         }
 
         return '('.implode(' or ', $parts).')';
+    }
+
+    /** @return list<array{id: string, code: string, name: string, reason: string}> */
+    public function forItem(Item $item, User $user): array
+    {
+        if (! $this->items->viewAny($user)) {
+            return [];
+        }
+
+        $barcodes = ItemBarcode::query()->where('item_id', $item->id)->pluck('barcode')->all();
+        $names = array_values(array_unique(array_filter([$item->name_en, $item->name_fr], fn (?string $name) => ! blank($name))));
+
+        if ($barcodes === [] && $names === []) {
+            return [];
+        }
+
+        $similarity = $this->itemSimilarity($names);
+        $nameMatch = $names === [] ? 'false' : $similarity['sql'].' >= '.self::NAME_SIMILARITY;
+        $byBarcode = ItemBarcode::query()->select('item_id')->whereIn('barcode', $barcodes === [] ? [''] : $barcodes);
+
+        $query = Item::query()
+            ->select(['id', 'code', 'name_en', 'name_fr'])
+            ->selectRaw('case when id in ('.$byBarcode->toSql().') then 0 else 1 end as reason_rank', $byBarcode->getBindings())
+            ->selectRaw($similarity['sql'].' as name_similarity', $similarity['bindings'])
+            ->whereNull('archived_at')
+            ->whereKeyNot($item->id)
+            ->where(function (Builder $q) use ($barcodes, $byBarcode, $names, $nameMatch, $similarity) {
+                if ($barcodes !== []) {
+                    $q->orWhereIn('id', $byBarcode);
+                }
+
+                if ($names !== []) {
+                    // `%` narrows with the trigram indexes (threshold 0.3); the floor then applies.
+                    $q->orWhere(function (Builder $n) use ($names, $nameMatch, $similarity) {
+                        $n->where(function (Builder $any) use ($names) {
+                            foreach ($names as $name) {
+                                $any->orWhereRaw('name_en % ?', [$name])->orWhereRaw('name_fr % ?', [$name]);
+                            }
+                        })->whereRaw($nameMatch, $similarity['bindings']);
+                    });
+                }
+            });
+
+        $companies = $this->items->listableCompanies($user);
+
+        if ($companies !== null) {
+            $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
+        }
+
+        return $query->orderBy('reason_rank')->orderByDesc('name_similarity')->orderBy('code')->orderBy('id')
+            ->limit(self::LIMIT)->get()
+            ->map(fn (Item $row) => [
+                'id' => $row->id,
+                'code' => (string) $row->code,
+                'name' => $row->name(),
+                'reason' => self::ITEM_REASONS[(int) $row->reason_rank],
+            ])
+            ->all();
+    }
+
+    /**
+     * The best similarity of either stored name to any of $names.
+     *
+     * @param  list<string>  $names
+     * @return array{sql: string, bindings: list<string>}
+     */
+    private function itemSimilarity(array $names): array
+    {
+        if ($names === []) {
+            return ['sql' => '0', 'bindings' => []];
+        }
+
+        $parts = [];
+        $bindings = [];
+
+        foreach ($names as $name) {
+            $parts[] = "similarity(coalesce(name_en, ''), ?)";
+            $parts[] = "similarity(coalesce(name_fr, ''), ?)";
+            array_push($bindings, $name, $name);
+        }
+
+        return ['sql' => 'greatest('.implode(', ', $parts).')', 'bindings' => $bindings];
     }
 }

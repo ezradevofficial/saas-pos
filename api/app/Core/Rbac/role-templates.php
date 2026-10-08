@@ -32,6 +32,7 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view', 'core.exchange_rate.view',
             'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item.create', 'core.item.edit', 'core.item_category.view', 'core.uom.view',
             'core.location.*', 'core.device.*',
             'core.user.view', 'core.user.invite', 'core.user.edit',
             'core.role.view', 'core.role.assign', 'core.audit.view',
@@ -45,6 +46,7 @@ return [
         'permissions' => [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view',
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
         ],
         'is_owner' => false,
@@ -54,6 +56,7 @@ return [
         'key' => 'waiter',
         'permissions' => [
             'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view',
             'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
         ],
         'is_owner' => false,
@@ -63,6 +66,8 @@ return [
         'key' => 'storekeeper',
         'permissions' => [
             'core.location.view',
+            'core.item.view', 'core.item.create', 'core.item.edit',
+            'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.uom.view',
             'inventory.*', 'purchasing.receipt.*', 'purchasing.order.view',
         ],
         'is_owner' => false,
@@ -101,6 +106,7 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view',
             'core.party.view', 'core.party.create', 'core.party.edit',
+            'core.item.view', 'core.item.create', 'core.item.edit', 'core.item_category.view', 'core.uom.view',
             'purchasing.*', 'inventory.*.view',
         ],
         'is_owner' => false,

@@ -7,6 +7,7 @@ use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Notifications\Channels\SmsChannel;
 use App\Core\Notifications\Sms\LogSmsSender;
@@ -134,6 +135,18 @@ class SignUpTest extends TestCase
 
             app(TenantContext::class)->set(null);
         }
+    }
+
+    public function test_the_tenant_gets_the_default_units_named_in_english_and_french(): void
+    {
+        // MD-02: seeded in the sign-up transaction, whatever the sign-up language.
+        $this->enterChallengeTenant($this->signUp(['locale' => 'fr'])->assertCreated()->json('challenge_id'));
+
+        $units = Uom::query()->orderBy('code')->get()->keyBy(fn (Uom $uom) => strtoupper($uom->code));
+        $this->assertSame(['BOX', 'EA', 'G', 'KG', 'L', 'M', 'ML', 'PACK'], $units->keys()->all());
+        $this->assertSame(['Each', 'Pièce', 'count'], [$units['EA']->name_en, $units['EA']->name_fr, $units['EA']->kind]);
+        $this->assertSame(['Kilogram', 'Kilogramme', 'weight'], [$units['KG']->name_en, $units['KG']->name_fr, $units['KG']->kind]);
+        $this->assertSame(['Millilitre', 'volume'], [$units['ML']->name_fr, $units['ML']->kind]);
     }
 
     public function test_the_right_code_activates_the_owner_and_returns_a_working_token(): void

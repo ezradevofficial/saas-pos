@@ -51,6 +51,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/auth/invitations/{token}' => 'the 40-character invitation token is the credential',
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
+        'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
     ];
 
     /**
@@ -72,6 +73,10 @@ class TenantIsolationTest extends TestCase
         'tax_category' => 'tax_category',
         'price_list' => 'price_list',
         'party' => 'party',
+        'item' => 'item',
+        'item_category' => 'item_category',
+        'uom' => 'uom',
+        'item_image' => 'item_image',
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -103,6 +108,11 @@ class TenantIsolationTest extends TestCase
         'tax_code_id' => 'tax_code',
         'price_list_id' => 'price_list',
         'assign_to_company_id' => 'company',
+        'category_id' => 'item_category',
+        'parent_id' => 'item_category_parent',
+        'base_uom_id' => 'uom',
+        'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
+        'tax_category_id' => 'tax_category',
         'scope_id' => null,
     ];
 
@@ -116,6 +126,9 @@ class TenantIsolationTest extends TestCase
         'tax_code' => 'tax_code',
         'tax_category' => 'tax_category',
         'price_list' => 'price_list',
+        'item' => 'item',
+        'item_category' => 'item_category',
+        'uom' => 'uom',
         'company' => 'company',
         'branch' => 'branch',
         'location' => 'location',
@@ -143,10 +156,12 @@ class TenantIsolationTest extends TestCase
         ['pair' => 'USD/KES', 'from' => '2000-01-01', 'to' => '2100-12-31', 'kind' => 'shop'],
         // MD-01: both tenants have a VIP customer named "Customer A|B".
         ['search' => 'Customer', 'role' => 'customer', 'tag' => 'vip'],
+        // MD-02: both tenants have a stock item "Item A|B" with this barcode.
+        ['search' => 'Item', 'type' => 'stock', 'barcode' => '6161000000001'],
     ];
 
     /** Query parameters LIST_QUERIES covers; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category'];
 
     private TwoTenants $tenants;
 
@@ -290,6 +305,17 @@ class TenantIsolationTest extends TestCase
         // Control: the party search really selects A's customer (and nothing of B, checked above).
         $parties = $this->json('GET', '/api/v1/parties?'.http_build_query(self::LIST_QUERIES[4]), [], $a->bearer())->assertOk();
         $this->assertSame([$a->id('customer')], array_column($parties->json('data'), 'id'));
+
+        // Control: the item search and barcode lookup really select A's item.
+        $items = $this->json('GET', '/api/v1/items?'.http_build_query(self::LIST_QUERIES[5]), [], $a->bearer())->assertOk();
+        $this->assertSame([$a->id('item')], array_column($items->json('data'), 'id'));
+
+        // `?category=` takes an id: B's category is refused, A's selects A's item (and its subcategories').
+        $refused = $this->json('GET', "/api/v1/items?category={$b->id('item_category_parent')}", [], $a->bearer());
+        $this->assertSame(422, $refused->status());
+        $this->assertBodyHasNothingOf($b, $refused, 'GET items?category= with B\'s category');
+        $own = $this->json('GET', "/api/v1/items?category={$a->id('item_category_parent')}", [], $a->bearer())->assertOk();
+        $this->assertSame([$a->id('item')], array_column($own->json('data'), 'id'));
     }
 
     public function test_list_routes_show_nothing_of_tenant_b_to_the_owner_the_branch_manager_or_a_device(): void
@@ -434,6 +460,10 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/parties', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/parties/{party}', $hijacked);
         $this->assertArrayHasKey('PUT api/v1/master-data/settings', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/items', $hijacked);
+        $this->assertArrayHasKey('PATCH api/v1/items/{item}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/item-categories', $hijacked);
+        $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
         $this->assertNoRowOf($a, 'references', $b);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
@@ -777,6 +807,20 @@ class TenantIsolationTest extends TestCase
                 'company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list'),
             ],
             'PATCH api/v1/parties/{party}' => ['company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list')],
+            // MD-02: a shared item in A's category and tax category, with a box and a barcode for it.
+            'POST api/v1/items' => [
+                'code' => 'HIJACK-ITEM', 'name_en' => 'Hijack item', 'type' => 'stock', 'base_uom_id' => $tenant->id('uom'),
+                'category_id' => $tenant->id('item_category'), 'tax_category_id' => $tenant->id('tax_category'),
+                'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '6']],
+                'barcodes' => [['barcode' => 'HIJACK1', 'uom_id' => $tenant->id('uom_box')]],
+            ],
+            'PATCH api/v1/items/{item}' => [
+                'base_uom_id' => $tenant->id('uom'), 'category_id' => $tenant->id('item_category'), 'tax_category_id' => $tenant->id('tax_category'),
+                'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '12']],
+                'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $tenant->id('uom_box')]],
+            ],
+            'POST api/v1/item-categories' => ['name_en' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
+            'PATCH api/v1/item-categories/{item_category}' => ['parent_id' => $tenant->id('item_category_parent')],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
