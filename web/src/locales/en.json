@@ -2765,7 +2765,11 @@
       "addLabel": "Action to add",
       "add": "Add action",
       "limit_one": "A rule can have at most {{count}} action.",
-      "limit_other": "A rule can have at most {{count}} actions."
+      "limit_other": "A rule can have at most {{count}} actions.",
+      "changeUrl": "Change URL",
+      "urlStored": "Only the host and path are shown. The full address stays stored.",
+      "newUrl": "New webhook address",
+      "keepUrl": "Keep the current address"
     },
     "notify": {
       "to": "Send to",
@@ -2854,7 +2858,9 @@
         "allOutcomes": "All outcomes",
         "rule": "Rule",
         "allRules": "All rules"
-      }
+      },
+      "delivery_one": "{{url}} answered {{status}} after {{count}} attempt",
+      "delivery_other": "{{url}} answered {{status}} after {{count}} attempts"
     },
     "templates": {
       "open": "Start from a template",

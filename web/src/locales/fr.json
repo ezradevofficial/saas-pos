@@ -2765,7 +2765,11 @@
       "addLabel": "Action à ajouter",
       "add": "Ajouter l’action",
       "limit_one": "Une règle peut avoir au plus {{count}} action.",
-      "limit_other": "Une règle peut avoir au plus {{count}} actions."
+      "limit_other": "Une règle peut avoir au plus {{count}} actions.",
+      "changeUrl": "Changer l’adresse",
+      "urlStored": "Seuls l’hôte et le chemin sont affichés. L’adresse complète reste enregistrée.",
+      "newUrl": "Nouvelle adresse du webhook",
+      "keepUrl": "Garder l’adresse actuelle"
     },
     "notify": {
       "to": "Destinataires",
@@ -2854,7 +2858,9 @@
         "allOutcomes": "Tous les résultats",
         "rule": "Règle",
         "allRules": "Toutes les règles"
-      }
+      },
+      "delivery_one": "{{url}} a répondu {{status}} après {{count}} essai",
+      "delivery_other": "{{url}} a répondu {{status}} après {{count}} essais"
     },
     "templates": {
       "open": "Partir d’un modèle",

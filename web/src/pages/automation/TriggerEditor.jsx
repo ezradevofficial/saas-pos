@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Checkbox, Select, TextField } from '@/components/ds'
+import { useMoneyDefaults } from '@/lib/defaultCurrency'
 import { ValueInput } from '@/pages/workflows/ConditionEditor'
+import { emptyValue } from '@/pages/workflows/conditionValues'
 import { DATE_WHEN, newTrigger, SCHEDULE_EVERY, STAGE_HOW, WEEK_DAYS } from './automationData'
 
 const ANY = '__any'
@@ -62,9 +64,10 @@ function WholeNumber({ label, help, value, min, max, onChange, disabled }) {
 
 /** An optional value of a field: ticked to compare with one value, else any value. */
 function OptionalValue({ label, field, value, present, onChange }) {
+  const { currency } = useMoneyDefaults()
   return (
     <div className="flex flex-col gap-2">
-      <Checkbox label={label} checked={present} onChange={(event) => onChange(event.target.checked ? (field?.type === 'boolean' ? true : field?.type === 'enum' ? (field.values?.[0] ?? '') : field?.type === 'money' ? { amount_minor: '', currency: 'KES' } : '') : undefined)} />
+      <Checkbox label={label} checked={present} onChange={(event) => onChange(event.target.checked ? emptyValue(field, 'eq', currency) : undefined)} />
       {present ? <ValueInput key={field?.name} field={field} op="eq" label={label} value={value} onChange={onChange} /> : null}
     </div>
   )
@@ -76,6 +79,7 @@ function OptionalValue({ label, field, value, present, onChange }) {
  */
 export function TriggerEditor({ trigger, onChange, info, stages, limits, error }) {
   const { t } = useTranslation()
+  const { currency } = useMoneyDefaults()
   const fields = info?.fields ?? []
   const usable = info?.triggers ?? []
   const set = (changes) => {
@@ -92,7 +96,7 @@ export function TriggerEditor({ trigger, onChange, info, stages, limits, error }
         options={usable.map((key) => ({ value: key, label: t(`automation.triggers.${key}`, { defaultValue: key }) }))}
         value={trigger.type ?? ''}
         error={error}
-        onChange={(event) => onChange(newTrigger(event.target.value, info))}
+        onChange={(event) => onChange(newTrigger(event.target.value, info, currency))}
       />
 
       {trigger.type === 'record_updated' ? (
@@ -183,7 +187,7 @@ export function TriggerEditor({ trigger, onChange, info, stages, limits, error }
               placeholder={t('automation.trigger.chooseField')}
               onChange={(event) => {
                 const next = fields.find((one) => one.name === event.target.value)
-                set({ field: event.target.value, value: next?.type === 'money' ? { amount_minor: '', currency: 'KES' } : '' })
+                set({ field: event.target.value, value: next?.type === 'money' ? { amount_minor: '', currency } : '' })
               }}
             />
             <Select

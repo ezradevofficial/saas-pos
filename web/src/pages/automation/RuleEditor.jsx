@@ -8,6 +8,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Card, Select, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies } from '@/layouts/companySelection'
+import { MoneyCompany, useMoneyDefaults } from '@/lib/defaultCurrency'
 import { useLocale } from '@/lib/useLocale'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConditionEditor } from '@/pages/workflows/ConditionEditor'
@@ -98,10 +99,11 @@ export default function RuleEditor() {
   const [failure, setFailure] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
   const rights = useAutomationRights(state?.draft.company_id ?? null)
+  const money = useMoneyDefaults(state?.draft.company_id ?? null)
 
   if (isNew && state?.id !== NEW && !state?.created && types.length > 0) {
     const info = types[0]
-    const draft = { name: '', document_type: info.key, company_id: rights.canEditAll ? null : (companies[0]?.id ?? null), trigger: newTrigger(info.triggers?.[0] ?? 'record_created', info), conditions: null, actions: [] }
+    const draft = { name: '', document_type: info.key, company_id: rights.canEditAll ? null : (companies[0]?.id ?? null), trigger: newTrigger(info.triggers?.[0] ?? 'record_created', info, money.currency), conditions: null, actions: [] }
     setState({ id: NEW, draft, base: null })
     setSecret(null)
     setFailure(null)
@@ -242,7 +244,8 @@ export default function RuleEditor() {
   )
 
   return (
-    <>
+    // Money values start in the rule's company's currency (CUR-01).
+    <MoneyCompany value={draft.company_id ?? null}>
       <PageHeader eyebrow={t('automation.title')} title={isNew ? t('automation.editor.newTitle') : draft.name || rule?.name} actions={actions} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {isNew ? <span className="text-caption text-ink-muted">{t('automation.editor.notSaved')}</span> : <RuleStatus status={status} />}
@@ -284,7 +287,7 @@ export default function RuleEditor() {
                 help={isNew ? undefined : t('automation.fields.documentTypeFixed')}
                 onChange={(event) => {
                   const next = types.find((one) => one.key === event.target.value)
-                  setDraft({ document_type: event.target.value, trigger: newTrigger(next?.triggers?.[0] ?? 'record_created', next), conditions: null, actions: [] })
+                  setDraft({ document_type: event.target.value, trigger: newTrigger(next?.triggers?.[0] ?? 'record_created', next, money.currency), conditions: null, actions: [] })
                 }}
               />
               <Select
@@ -363,6 +366,6 @@ export default function RuleEditor() {
       ) : null}
 
       {tab === 'runs' && !isNew ? <RunsList ruleId={ruleId} /> : null}
-    </>
+    </MoneyCompany>
   )
 }

@@ -117,6 +117,7 @@ describe('Automation run log (AUTO-05)', () => {
     expect(await within(drawer).findByText('Rolled back')).toBeInTheDocument()
     expect(within(drawer).getAllByText('The webhook answered 500.').length).toBeGreaterThan(0)
     expect(within(drawer).getByText('Call a webhook')).toBeInTheDocument()
+    expect(within(drawer).getByText('hooks.example.com/in answered 500 after 3 attempts')).toBeInTheDocument()
     expect(within(drawer).getByText('3')).toBeInTheDocument()
   })
 

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Button, Checkbox, Select, Switch, TextField } from '@/components/ds'
 import { TextAreaField } from '@/pages/approvals/TextAreaField'
 import { ValueInput } from '@/pages/workflows/ConditionEditor'
+import { emptyValue } from '@/pages/workflows/conditionValues'
+import { useMoneyDefaults } from '@/lib/defaultCurrency'
 import { cn } from '@/lib/utils'
 import { needsDocument, newAction } from './automationData'
 import { RecipientsPicker } from './RecipientsPicker'
@@ -12,10 +14,12 @@ import { WebhookSecretPanel } from './WebhookSecretPanel'
 const SKIP = '__skip'
 const FIXED = '__fixed'
 
-const startValue = (field) => (field?.type === 'money' ? { amount_minor: '', currency: 'KES' } : field?.type === 'boolean' ? true : field?.type === 'enum' ? (field.values?.[0] ?? '') : '')
+/** A field's starting value; money starts in the rule's company's currency. */
+const startValue = (field, currency) => emptyValue(field, 'eq', currency) ?? ''
 
 function UpdateFieldForm({ action, set, info }) {
   const { t } = useTranslation()
+  const { currency } = useMoneyDefaults()
   const fields = info?.fields ?? []
   const writable = (info?.writable_fields ?? []).map((name) => fields.find((field) => field.name === name) ?? { name, label: name, type: 'string' })
   const field = writable.find((one) => one.name === action.field)
@@ -28,11 +32,11 @@ function UpdateFieldForm({ action, set, info }) {
         value={action.field ?? ''}
         placeholder={writable.length ? t('automation.trigger.chooseField') : t('automation.actions.noWritable')}
         disabled={writable.length === 0}
-        onChange={(event) => set({ field: event.target.value, value: startValue(writable.find((one) => one.name === event.target.value)) })}
+        onChange={(event) => set({ field: event.target.value, value: startValue(writable.find((one) => one.name === event.target.value), currency) })}
       />
       {field ? (
         <>
-          <Checkbox label={t('automation.actions.clearField')} checked={clears} onChange={(event) => set({ value: event.target.checked ? null : startValue(field) })} />
+          <Checkbox label={t('automation.actions.clearField')} checked={clears} onChange={(event) => set({ value: event.target.checked ? null : startValue(field, currency) })} />
           {clears ? null : <ValueInput key={field.name} field={field} op="eq" label={t('automation.actions.newValue')} value={action.value} onChange={(value) => set({ value })} />}
         </>
       ) : null}
@@ -171,6 +175,7 @@ function NotifyForm({ action, set, info, context, withDocument }) {
 /** A draft of another document type, each of its fields copied from this document, set to a fixed value, or left empty. */
 function CreateDocumentForm({ action, set, info, context, withDocument }) {
   const { t } = useTranslation()
+  const { currency } = useMoneyDefaults()
   const targets = context.types.filter((type) => (type.capabilities ?? []).includes('create_drafts'))
   const target = targets.find((type) => type.key === action.target)
   const mapping = action.mapping ?? {}
@@ -182,7 +187,7 @@ function CreateDocumentForm({ action, set, info, context, withDocument }) {
     const nextValues = { ...values }
     delete nextMapping[field.name]
     delete nextValues[field.name]
-    if (choice === FIXED) nextValues[field.name] = startValue(field)
+    if (choice === FIXED) nextValues[field.name] = startValue(field, currency)
     else if (choice !== SKIP) nextMapping[field.name] = choice
     set({ mapping: nextMapping, values: nextValues })
   }
@@ -248,19 +253,45 @@ function CreditHoldForm({ action, set }) {
 function WebhookForm({ action, set, context }) {
   const { t } = useTranslation()
   const insecure = typeof action.url === 'string' && action.url !== '' && !/^https:\/\//i.test(action.url)
+  // A saved webhook comes back without its address (only `url_display`, host
+  // and path, and `has_url`): it shows read-only and is saved without `url`
+  // (its `id` kept, so the server keeps the stored address) unless retyped.
+  const stored = Boolean(action.has_url) && !('url' in action)
   return (
     <>
-      <TextField
-        label={t('automation.actions.url')}
-        type="url"
-        inputMode="url"
-        placeholder="https://"
-        help={t('automation.actions.urlHelp')}
-        error={insecure ? t('automation.actions.httpsOnly') : undefined}
-        value={action.url ?? ''}
-        maxLength={2000}
-        onChange={(event) => set({ url: event.target.value.trim() })}
-      />
+      {stored ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-label text-ink">{t('automation.actions.url')}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span data-testid="webhook-url" className="min-w-0 flex-1 rounded-md border border-border bg-surface-300 px-3 py-2 font-mono text-caption break-all text-ink">
+              {action.url_display}
+            </span>
+            <Button icon="edit" onClick={() => set({ url: '' })}>
+              {t('automation.actions.changeUrl')}
+            </Button>
+          </div>
+          <span className="text-caption text-ink-muted">{t('automation.actions.urlStored')}</span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <TextField
+            label={action.has_url ? t('automation.actions.newUrl') : t('automation.actions.url')}
+            type="url"
+            inputMode="url"
+            placeholder="https://"
+            help={t('automation.actions.urlHelp')}
+            error={insecure ? t('automation.actions.httpsOnly') : undefined}
+            value={action.url ?? ''}
+            maxLength={2000}
+            onChange={(event) => set({ url: event.target.value.trim() })}
+          />
+          {action.has_url ? (
+            <Button variant="ghost" className="self-start" onClick={() => set({ url: undefined })}>
+              {t('automation.actions.keepUrl')}
+            </Button>
+          ) : null}
+        </div>
+      )}
       <WebhookSecretPanel {...context.webhook} />
     </>
   )

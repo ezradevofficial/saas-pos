@@ -89,6 +89,13 @@ function RunDrawer({ runId, onClose }) {
                           <StatusBadge tone={ACTION_RESULT_TONES[result.status] ?? 'neutral'}>{t(`automation.actionResults.${result.status}`, { defaultValue: result.status })}</StatusBadge>
                         </div>
                         {result.error ? <p className="text-caption text-danger">{result.error}</p> : null}
+                        {(run.deliveries ?? [])
+                          .filter((delivery) => delivery.action_index === index)
+                          .map((delivery) => (
+                            <p key={delivery.id} className="text-caption text-ink-muted">
+                              {t('automation.runs.delivery', { url: delivery.url_display, status: delivery.response_status ?? '—', count: delivery.attempts })}
+                            </p>
+                          ))}
                       </li>
                     ))}
                   </ol>

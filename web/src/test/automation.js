@@ -100,6 +100,7 @@ export const RUN = {
     { type: 'webhook', status: 'failed', error: 'The webhook answered 500.' },
   ],
   error: 'The webhook answered 500.',
+  deliveries: [{ id: 'd-1', action_index: 1, url_display: 'hooks.example.com/in', status: 'failed', attempts: 3, response_status: 500, response_body: null, error: null, delivered_at: null }],
   error_code: 'action_failed',
   attempts: 3,
   chain_id: 'ch-1',

@@ -285,6 +285,43 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     expect(await screen.findByText('Can’t tell from a sample')).toBeInTheDocument()
   })
 
+  it('keeps a saved webhook’s stored address unless a new one is typed', async () => {
+    const hook = { type: 'webhook', id: 'a-1', url_display: 'hooks.example.com/in', has_url: true }
+    mockAutomation(api, { rule: { ...RULE, actions: [hook], has_webhook_secret: true } })
+    renderApp('/settings/automation-rules/r-1')
+    expect(await screen.findByTestId('webhook-url')).toHaveTextContent('hooks.example.com/in')
+    expect(screen.queryByLabelText('Webhook address')).not.toBeInTheDocument()
+
+    type(/^Name/, 'Renamed')
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalled())
+    expect(api.patch.mock.calls[0][1].actions).toEqual([{ type: 'webhook', id: 'a-1' }])
+    api.patch.mockClear()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Change URL' }))
+    type('New webhook address', 'https://new.example.com/hook')
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalled())
+    expect(api.patch.mock.calls[0][1].actions).toEqual([{ type: 'webhook', id: 'a-1', url: 'https://new.example.com/hook' }])
+  })
+
+  it('starts money in the rule’s company’s base currency', async () => {
+    mockAutomation(api, { extra: [['tenant/currencies', { data: [{ code: 'CDF', active: true }, { code: 'KES', active: true }, { code: 'USD', active: true }] }]] })
+    await openNew()
+    chooseOption(within(screen.getByText('Details', { selector: 'h3' }).closest('[data-slot="card"]')).getByLabelText('Company'), 'Kin Market')
+    chooseOption('Trigger', 'Threshold crossed')
+    chooseOption(within(trigger()).getByLabelText('Field'), 'Total')
+    type('Level', '5000')
+    addAction('Update a field')
+    chooseOption(within(actionItem(1)).getByLabelText('Field to update'), 'Total')
+    fireEvent.change(within(actionItem(1)).getByLabelText('New value'), { target: { value: '2500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save switched off' }))
+    await waitFor(() => expect(savedBody()).toBeTruthy())
+    expect(savedBody().company_id).toBe('c-2')
+    expect(savedBody().trigger.value).toEqual({ amount_minor: '5000', currency: 'CDF' })
+    expect(savedBody().actions[0].value).toEqual({ amount_minor: '2500', currency: 'CDF' })
+  })
+
   it('is read-only without the edit right', async () => {
     mockAutomation(api, { permissions: tenantWide(['core.automation.view', 'core.company.view']) })
     renderApp('/settings/automation-rules/r-1')

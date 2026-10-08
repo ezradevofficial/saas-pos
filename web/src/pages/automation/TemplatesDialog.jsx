@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Dialog, Select, TextField } from '@/components/ds'
+import { MoneyCompany } from '@/lib/defaultCurrency'
 import { cn } from '@/lib/utils'
 import { ValueInput } from '@/pages/workflows/ConditionEditor'
 import { useRoleOptions, useUserOptions } from '@/pages/workflows/workflowData'
@@ -156,23 +157,25 @@ export function TemplatesDialog({ types, companies, canAll, onClose }) {
           ))}
         </div>
         {usage ? (
-          <fieldset className="flex flex-col gap-4">
-            <legend className="pb-2 text-label text-ink">{t('automation.templates.settings')}</legend>
-            <TextField label={t('automation.templates.name')} help={t('automation.templates.nameHelp')} value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
-            {usage.parameters.map((parameter) => (
-              <ParameterInput
-                key={parameter.name}
-                parameter={parameter}
-                value={params[parameter.name]}
-                params={params}
-                info={info}
-                roles={roles}
-                users={users}
-                onChange={(value) => setParams((current) => ({ ...current, [parameter.name]: value, ...(parameter.kind === 'field' ? { value: '' } : {}) }))}
-              />
-            ))}
-            <p className="text-caption text-ink-muted">{t('automation.templates.disabledNote')}</p>
-          </fieldset>
+          <MoneyCompany value={company === ALL ? null : company || null}>
+            <fieldset className="flex flex-col gap-4">
+              <legend className="pb-2 text-label text-ink">{t('automation.templates.settings')}</legend>
+              <TextField label={t('automation.templates.name')} help={t('automation.templates.nameHelp')} value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
+              {usage.parameters.map((parameter) => (
+                <ParameterInput
+                  key={parameter.name}
+                  parameter={parameter}
+                  value={params[parameter.name]}
+                  params={params}
+                  info={info}
+                  roles={roles}
+                  users={users}
+                  onChange={(value) => setParams((current) => ({ ...current, [parameter.name]: value, ...(parameter.kind === 'field' ? { value: '' } : {}) }))}
+                />
+              ))}
+              <p className="text-caption text-ink-muted">{t('automation.templates.disabledNote')}</p>
+            </fieldset>
+          </MoneyCompany>
         ) : null}
       </div>
     </Dialog>

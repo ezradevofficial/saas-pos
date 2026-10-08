@@ -95,8 +95,8 @@ export function useAutomationRights(companyId) {
   return { canEdit, canEditSomewhere: can('core.automation.edit'), canEditAll: tenantWide('core.automation.edit') }
 }
 
-/** A trigger of `type` with its settings filled from the document type. */
-export function newTrigger(type, info) {
+/** A trigger of `type` with its settings filled from the document type; money starts in `currency`. */
+export function newTrigger(type, info, currency) {
   const fields = info?.fields ?? []
   switch (type) {
     case 'field_changed':
@@ -108,7 +108,7 @@ export function newTrigger(type, info) {
       return { type, field: info?.date_fields?.[0] ?? '', days: 7, when: 'before' }
     case 'threshold': {
       const field = fields.find((one) => one.type === 'number' || one.type === 'money')
-      return { type, field: field?.name ?? '', value: field?.type === 'money' ? { amount_minor: '', currency: 'KES' } : '', direction: 'down' }
+      return { type, field: field?.name ?? '', value: field?.type === 'money' ? { amount_minor: '', currency } : '', direction: 'down' }
     }
     case 'schedule':
       return { type, every: 'day', time: '08:00' }
@@ -152,6 +152,20 @@ export function filledValues(values) {
   return Object.fromEntries(Object.entries(values ?? {}).filter(([, value]) => !isBlank(value)))
 }
 
+/** Keys the API adds to an action for display only (a webhook's `url_display` and `has_url`); never sent back. */
+const DISPLAY_ONLY = ['url_display', 'has_url']
+
+/**
+ * An action as the API takes it, display-only keys dropped. A webhook whose
+ * address was not retyped goes without `url` but with its `id`, so the
+ * server keeps the stored address.
+ */
+export function actionBody(action) {
+  const body = { ...action }
+  for (const key of DISPLAY_ONLY) delete body[key]
+  return body
+}
+
 /** The rule body the API takes (POST, PATCH and the unsaved test). */
 export function ruleBody(draft) {
   return {
@@ -160,6 +174,6 @@ export function ruleBody(draft) {
     company_id: draft.company_id ?? null,
     trigger: draft.trigger,
     conditions: draft.conditions ?? null,
-    actions: draft.actions,
+    actions: (draft.actions ?? []).map(actionBody),
   }
 }
