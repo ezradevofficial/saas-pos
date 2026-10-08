@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption, closeCombobox, openCombobox, optionTexts, waitForOption } from '@/test/combobox'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -60,12 +61,12 @@ describe('Dimensions', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Add a cost centre' })
     fireEvent.change(within(dialog).getByLabelText(/^Code/), { target: { value: 'MKT' } })
     fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Marketing' } })
-    fireEvent.change(within(dialog).getByLabelText('Parent'), { target: { value: 'cc-1' } })
+    chooseOption(within(dialog).getByLabelText('Parent'), 'OPS · Operations')
     const owner = within(dialog).getByLabelText('Owner')
-    await waitFor(() => expect(within(owner).getByRole('option', { name: 'Esther Ilunga' })).toBeInTheDocument())
+    await waitForOption(owner, 'Esther Ilunga')
     // Someone with a role only at another company's branch is not offered.
-    expect(within(owner).queryByRole('option', { name: 'Joseph Kabila' })).not.toBeInTheDocument()
-    fireEvent.change(owner, { target: { value: 'u-4' } })
+    expect(optionTexts(owner)).not.toContain('Joseph Kabila')
+    chooseOption(owner, 'Esther Ilunga')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add cost centre' }))
 
     await waitFor(() =>
@@ -108,7 +109,8 @@ describe('Dimensions', () => {
     const dialog = await screen.findByRole('dialog')
     const parent = within(dialog).getByLabelText('Parent')
     expect(parent).toHaveValue('cc-1')
-    expect(within(parent).getByRole('option', { name: 'OPS · Operations (archived)' })).toBeDisabled()
+    expect(within(openCombobox(parent)).getByRole('option', { name: 'OPS · Operations (archived)' })).toHaveAttribute('aria-disabled', 'true')
+    closeCombobox()
     expect(within(dialog).getByText('The current parent is archived. Keep it, or choose an active one.')).toBeInTheDocument()
     fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Kinshasa ops' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))

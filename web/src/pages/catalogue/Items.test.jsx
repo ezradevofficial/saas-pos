@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { catalogue, ITEM } from '@/test/catalogue'
+import { chooseOption, waitForOption } from '@/test/combobox'
 import { renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -43,9 +44,10 @@ describe('Items', () => {
     // Debounced: the half-typed value was never asked for.
     expect(listCalls().some((path) => path.includes('search=6001&'))).toBe(false)
 
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'cat-1' } })
+    await waitForOption('Category', 'Drinks')
+    chooseOption('Category', 'Drinks')
     await waitFor(() => expect(listCalls().at(-1)).toContain('category=cat-1'))
-    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'service' } })
+    chooseOption('Type', 'Service')
     await waitFor(() => expect(listCalls().at(-1)).toContain('type=service'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
@@ -66,12 +68,13 @@ describe('Items', () => {
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Soda 330 ml' } })
     // MD-02: one name field, whatever the languages the app speaks.
     expect(screen.getAllByRole('textbox', { name: /name/i })).toHaveLength(1)
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'cat-2' } })
+    await waitForOption('Category', /Sodas$/)
+    chooseOption('Category', /Sodas$/)
     const base = screen.getByLabelText(/^Base unit/)
     await waitFor(() => expect(base).toHaveValue('u-ea'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Add unit' }))
-    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: 'u-box' } })
+    chooseOption(screen.getByLabelText(/^Unit/), 'BOX · Box')
     fireEvent.change(screen.getByLabelText(/^Contains \(EA\)/), { target: { value: '12' } })
     fireEvent.click(screen.getByLabelText('Default for sales'))
 
@@ -81,7 +84,7 @@ describe('Items', () => {
     fireEvent.change(barcodes[0], { target: { value: '6001234500001' } })
     fireEvent.change(barcodes[1], { target: { value: ' 6001234500002 ' } })
     const list = screen.getByRole('list', { name: 'Barcodes' })
-    fireEvent.change(within(list).getAllByLabelText('Unit')[1], { target: { value: 'u-box' } })
+    chooseOption(within(list).getAllByLabelText('Unit')[1], 'BOX')
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
 
     await waitFor(() =>
@@ -122,7 +125,7 @@ describe('Items', () => {
     renderApp('/catalogue/items/new')
     fireEvent.change(await screen.findByLabelText(/^Code/), { target: { value: 'X1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add unit' }))
-    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: 'u-box' } })
+    chooseOption(screen.getByLabelText(/^Unit/), 'BOX · Box')
     fireEvent.change(screen.getByLabelText(/^Contains/), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
     expect(await screen.findByText('Enter a number above zero.')).toBeInTheDocument()

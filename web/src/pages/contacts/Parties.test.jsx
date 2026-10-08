@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption, waitForOption } from '@/test/combobox'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -90,15 +91,15 @@ describe('Customers and suppliers', () => {
     })
     const { router } = renderApp('/contacts/customers/new')
 
-    fireEvent.change(await screen.findByLabelText(/^Kind/), { target: { value: 'organisation' } })
+    chooseOption(await screen.findByLabelText(/^Kind/), 'Organisation')
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Kin Traders Ltd' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add phone number' }))
     fireEvent.change(screen.getByLabelText('Phone 1'), { target: { value: '0810 000 001' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add email address' }))
     fireEvent.change(screen.getByLabelText('Email 1'), { target: { value: 'buy@kin.example' } })
     const creditCurrency = screen.getByLabelText('Credit limit currency')
-    await waitFor(() => expect(within(creditCurrency).getByRole('option', { name: 'USD' })).toBeInTheDocument())
-    fireEvent.change(creditCurrency, { target: { value: 'USD' } })
+    await waitForOption(creditCurrency, 'USD')
+    chooseOption(creditCurrency, 'USD')
     fireEvent.change(screen.getByLabelText('Credit limit'), { target: { value: '12,450.5' } })
     fireEvent.change(screen.getByLabelText('Payment terms'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'wholesale, VIP , wholesale' } })

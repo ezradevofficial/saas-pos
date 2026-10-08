@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption, waitForOption } from '@/test/combobox'
 import { apiError, mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -59,7 +60,7 @@ describe('UserDetail', () => {
     expect(within(row).getByText('7 Oct 2026')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: 'Joseph K. Mwangi' } })
-    fireEvent.change(screen.getByLabelText(/Language/), { target: { value: 'fr' } })
+    chooseOption(screen.getByLabelText(/Language/), 'Français')
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('users/u-2', { name: 'Joseph K. Mwangi', locale: 'fr' }))
     expect(await screen.findByText('Profile saved.')).toBeInTheDocument()
@@ -141,9 +142,9 @@ describe('UserDetail', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Give a role' }))
     const row = await screen.findByRole('group', { name: 'Role 2' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Back store · Westlands' }).length).toBe(1))
-    fireEvent.change(within(row).getByLabelText(/^Role/), { target: { value: 'r-cashier' } })
-    fireEvent.change(within(row).getByLabelText(/^Location/), { target: { value: 'l-2' } })
+    await waitForOption(within(row).getByLabelText(/^Location/), 'Back store · Westlands')
+    chooseOption(within(row).getByLabelText(/^Role/), 'Cashier')
+    chooseOption(within(row).getByLabelText(/^Location/), 'Back store · Westlands')
     fireEvent.click(screen.getByRole('button', { name: 'Give role' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('users/u-2/assignments', { role_id: 'r-cashier', scope_type: 'location', scope_id: 'l-2' }))
     expect(await screen.findByText('Back store')).toBeInTheDocument()
@@ -162,9 +163,9 @@ describe('UserDetail', () => {
     renderApp('/settings/users/u-2')
     fireEvent.click(await screen.findByRole('button', { name: 'Give a role' }))
     const row = await screen.findByRole('group', { name: 'Role 2' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Cashier' }).length).toBe(1))
-    fireEvent.change(within(row).getByLabelText(/^Role/), { target: { value: 'r-cashier' } })
-    fireEvent.change(within(row).getByLabelText(/^Location/), { target: { value: 'l-2' } })
+    await waitForOption(within(row).getByLabelText(/^Role/), 'Cashier')
+    chooseOption(within(row).getByLabelText(/^Role/), 'Cashier')
+    chooseOption(within(row).getByLabelText(/^Location/), 'Back store · Westlands')
     fireEvent.click(screen.getByRole('button', { name: 'Give role' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Only an Owner can give or remove the Owner role.')
   })

@@ -1,51 +1,58 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { normalizeOptions } from '@/lib/options'
+import { Combobox } from './Combobox'
 import { controlWrapClasses, Field } from './Field'
-import { Icon } from './Icon'
 
-// A labelled native select (short lists). Native on purpose: it keeps the
-// SelectHTMLAttributes contract (value/onChange events, forms) and the
-// platform picker on phones. shadcn's Select is for custom menus.
-export function Select({ label, help, error, placeholder, options = [], className, id, required, ...rest }) {
+// A labelled, searchable picker (owner ruling 2026-10-08: no native <select>).
+// Same props as before; onChange still receives an event-like object, so call
+// sites keep reading `event.target.value`. With `name`, a hidden input carries
+// the value in forms.
+export function Select({
+  label,
+  help,
+  error,
+  placeholder,
+  options = [],
+  value,
+  defaultValue,
+  onChange,
+  disabled,
+  required,
+  name,
+  id,
+  className,
+  ...rest
+}) {
   const autoId = useId()
   const selectId = id ?? autoId
-  // With a placeholder and no value given, start on the placeholder instead of the first option.
-  const startOnPlaceholder = placeholder && rest.value === undefined && rest.defaultValue === undefined
+  // Uncontrolled: like a native select, start on the placeholder, else the first option.
+  const [inner, setInner] = useState(() => defaultValue ?? (placeholder ? '' : (normalizeOptions(options)[0]?.value ?? '')))
+  const current = value !== undefined ? value : inner
+
+  const change = (next) => {
+    if (value === undefined) setInner(next)
+    const target = { value: next, name }
+    onChange?.({ target, currentTarget: target })
+  }
+
   return (
     <Field id={selectId} label={label} help={help} error={error} required={required} className={className}>
-      <div
-        className={cn(
-          controlWrapClasses,
-          // A disabled <option> (the placeholder, an archived choice) must not grey the whole control.
-          !rest.disabled && 'has-disabled:border-border-strong has-disabled:bg-surface-200 has-disabled:hover:border-ink-muted',
-          error && 'border-danger hover:border-danger',
-        )}
-      >
-        <select
+      <div className={cn(controlWrapClasses, error && 'border-danger hover:border-danger')}>
+        <Combobox
           id={selectId}
+          value={current}
+          onValueChange={change}
+          options={options}
+          placeholder={placeholder}
+          disabled={disabled}
           required={required}
-          aria-invalid={error ? 'true' : undefined}
+          invalid={Boolean(error)}
+          name={name}
           aria-describedby={error || help ? `${selectId}-msg` : undefined}
-          className="h-control w-full min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-10 pl-3 text-body text-ink outline-none disabled:cursor-not-allowed disabled:text-ink-muted"
-          {...(startOnPlaceholder ? { defaultValue: '' } : {})}
+          className="h-control w-full min-w-0 flex-1 cursor-pointer bg-transparent px-3 text-body text-ink outline-none disabled:cursor-not-allowed disabled:text-ink-muted"
           {...rest}
-        >
-          {placeholder ? (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          ) : null}
-          {options.map((option) => {
-            const value = typeof option === 'string' ? option : option.value
-            const text = typeof option === 'string' ? option : option.label
-            return (
-              <option key={value} value={value} disabled={typeof option === 'string' ? undefined : option.disabled}>
-                {text}
-              </option>
-            )
-          })}
-        </select>
-        <Icon name="chevron" className="pointer-events-none absolute right-3 text-ink-muted" />
+        />
       </div>
     </Field>
   )

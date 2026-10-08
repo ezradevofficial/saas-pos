@@ -69,7 +69,7 @@
 /* shadcn's "accent" is a hover tint: inside floating menus it means surface-300. */
 [data-slot="dropdown-menu-content"],
 [data-slot="dropdown-menu-sub-content"],
-[data-slot="select-content"] {
+[data-slot="popover-content"] {
   --accent: var(--surface-300);
 }
 
@@ -151,6 +151,17 @@
 /* 440px: the column of sign-in and sign-up forms. */
 @utility max-w-auth {
   max-width: calc(var(--space-10) * 11);
+}
+/* A picker's popup is at least as wide as the control that opened it (Radix
+   measures it) and grows to fit long names up to 336px, never past the screen. */
+@utility w-picker {
+  width: max-content;
+  min-width: var(--radix-popover-trigger-width);
+  max-width: min(max(var(--radix-popover-trigger-width), calc(var(--space-12) * 7)), calc(100vw - var(--space-4) * 2));
+}
+/* 288px: the tallest a picker's option list grows before it scrolls. */
+@utility max-h-picker {
+  max-height: calc(var(--space-12) * 6);
 }
 /* 192px: the QR code shown while setting up an authenticator app. */
 @utility size-qr {

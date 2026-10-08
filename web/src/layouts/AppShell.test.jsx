@@ -121,6 +121,15 @@ describe('app shell navigation', () => {
     expect(trigger).toHaveTextContent('Amani Wholesale')
   })
 
+  it('searches companies in the switcher (BR-01)', async () => {
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const trigger = await within((await mainNav()).parentElement).findByRole('combobox', { name: 'Company' })
+    fireEvent.click(trigger)
+    fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: 'whole' } })
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Amani Wholesale'])
+  })
+
   it('does not offer all companies to a user scoped to one company', async () => {
     mockApi(api, {
       companies: [COMPANIES[0]],

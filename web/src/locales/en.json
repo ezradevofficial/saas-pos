@@ -80,6 +80,10 @@
       "range": "Enter a number up to {{max}}.",
       "noDecimals": "This currency has no decimals. Enter a whole number.",
       "ambiguousComma": "Check the decimal separator: type {{thousands}} for thousands, or {{decimal}} for a number with decimals."
+    },
+    "combobox": {
+      "search": "Search",
+      "noMatches": "No matches"
     }
   },
   "dev": {
@@ -117,6 +121,7 @@
         "companyCode": "Company code",
         "branch": "Branch",
         "branchPlaceholder": "Choose a branch",
+        "supplierPlaceholder": "Choose a supplier",
         "currency": "Currency",
         "currencyError": "Choose a currency",
         "smsReceipts": "Send receipts by SMS",
