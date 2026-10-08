@@ -2,7 +2,9 @@
  * Navigation (RBAC-09): an item with `permission` (a name, or a list of
  * which any one is enough) shows only when the user has it somewhere (with
  * `tenantWide`, only at tenant scope); an item with `module` only while that
- * module is active.
+ * module is active; an item with `needsCompany` (a page that works on one
+ * company) only when the user can view a company, so a cashier scoped to a
+ * location is not offered a page that would open empty (RBAC-04, RBAC-09).
  * Overview, Catalogue (items, categories, units), Contacts (customers,
  * suppliers), Settings, Finance (currencies, rates, taxes, payment methods)
  * and Master data; later modules add their groups here.
@@ -63,24 +65,25 @@ export const NAV_GROUPS = [
     label: (t) => t('nav.groups.finance'),
     items: [
       { to: '/settings/currencies', icon: 'currencies', label: (t) => t('nav.currencies'), permission: 'core.currency.view', module: 'core' },
-      { to: '/settings/exchange-rates', icon: 'exchangeRates', label: (t) => t('nav.exchangeRates'), permission: EXCHANGE_RATE_VIEW, module: 'core' },
-      { to: '/settings/taxes', icon: 'taxes', label: (t) => t('nav.taxes'), permission: TAX_VIEW, module: 'core' },
-      { to: '/settings/payment-methods', icon: 'paymentMethods', label: (t) => t('nav.paymentMethods'), permission: PAYMENT_METHOD_VIEW, module: 'core' },
+      { to: '/settings/exchange-rates', needsCompany: true, icon: 'exchangeRates', label: (t) => t('nav.exchangeRates'), permission: EXCHANGE_RATE_VIEW, module: 'core' },
+      { to: '/settings/taxes', needsCompany: true, icon: 'taxes', label: (t) => t('nav.taxes'), permission: TAX_VIEW, module: 'core' },
+      { to: '/settings/payment-methods', needsCompany: true, icon: 'paymentMethods', label: (t) => t('nav.paymentMethods'), permission: PAYMENT_METHOD_VIEW, module: 'core' },
     ],
   },
   {
     id: 'masterData',
     label: (t) => t('nav.groups.masterData'),
     items: [
-      { to: '/settings/dimensions', icon: 'dimensions', label: (t) => t('nav.dimensions'), permission: DIMENSION_VIEW, module: 'core' },
+      { to: '/settings/dimensions', needsCompany: true, icon: 'dimensions', label: (t) => t('nav.dimensions'), permission: DIMENSION_VIEW, module: 'core' },
       { to: '/settings/sharing', icon: 'sharing', label: (t) => t('nav.sharing'), permission: 'core.master_data_settings.edit', tenantWide: true, module: 'core' },
     ],
   },
 ]
 
 /** The groups and items the user may see; empty groups are dropped. */
-export function visibleGroups(groups, { can, hasModule, tenantWide = can }) {
+export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCompany = true }) {
   const allowed = (item) => {
+    if (item.needsCompany && !hasCompany) return false
     if (!item.permission) return true
     if (!item.tenantWide) return can(item.permission)
     return (Array.isArray(item.permission) ? item.permission : [item.permission]).some((name) => tenantWide(name))
