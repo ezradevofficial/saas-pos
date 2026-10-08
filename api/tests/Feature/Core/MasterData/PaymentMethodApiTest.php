@@ -372,4 +372,16 @@ class PaymentMethodApiTest extends TestCase
         $this->assertStringNotContainsString('secrets_changed', (string) $hidden->getContent());
         $this->assertStringNotContainsString('consumer_key', (string) $hidden->getContent());
     }
+
+    public function test_archiving_switches_a_method_off(): void
+    {
+        // TEN-06, MD-04: an archived method takes no money; restored, it stays off until switched on.
+        $cash = $this->idOf('cash:KES');
+
+        $this->postJson("/api/v1/payment-methods/{$cash}/archive", [], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.active', false)->assertJsonPath('data.archived_at', fn ($value) => $value !== null);
+        $this->postJson("/api/v1/payment-methods/{$cash}/restore", [], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.active', false)->assertJsonPath('data.archived_at', null);
+        $this->patchJson("/api/v1/payment-methods/{$cash}", ['active' => true], $this->headersFor())->assertOk()->assertJsonPath('data.active', true);
+    }
 }
