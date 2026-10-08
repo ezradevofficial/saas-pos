@@ -1140,10 +1140,12 @@
       "amountHelp": "In {{currency}}, the currency of this price list.",
       "amountRequired": "Enter the price.",
       "from": "From",
-      "fromHelp": "Today by default. Choose a later date to schedule a change.",
+      "fromHelp": "Today by default. Choose a later date to schedule a change. Only an item’s first price can start in the past.",
       "minQuantity": "From quantity",
       "minQuantityHelp": "The price applies when at least this many units are sold.",
-      "quantityRequired": "Enter the quantity, 1 for every sale."
+      "quantityRequired": "Enter the quantity, 1 for every sale.",
+      "newFromToday": "The new price applies from today. The current price stays in the history.",
+      "breakAbove": "This is more than the single-unit price of {{price}}. Customers buying this quantity would pay more per unit. Save it only if that is intended."
     },
     "item": {
       "title": "Prices",
@@ -1158,7 +1160,8 @@
       "startsOn": "From {{date}}",
       "currentIn": "Current prices in {{list}}",
       "scheduledIn": "Scheduled prices in {{list}}"
-    }
+    },
+    "itemHidden": "Item"
   },
   "paymentMethods": {
     "empty": "This company has no payment methods yet.",

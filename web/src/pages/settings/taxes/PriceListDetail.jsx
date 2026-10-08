@@ -63,12 +63,16 @@ export default function PriceListDetail() {
       sortKey: 'item_code',
       exportKey: 'item_code',
       hideable: false,
-      render: (row) => (
-        <span className="flex flex-col">
-          <span className="font-mono text-caption text-ink">{row.item_code}</span>
-          <span className="whitespace-normal text-ink">{row.item_name}</span>
-        </span>
-      ),
+      // Code and name only for users who may view the item (RBAC-04).
+      render: (row) =>
+        'item_code' in row ? (
+          <span className="flex flex-col">
+            <span className="font-mono text-caption text-ink">{row.item_code}</span>
+            <span className="whitespace-normal text-ink">{row.item_name}</span>
+          </span>
+        ) : (
+          <span className="text-ink-muted">{t('prices.itemHidden')}</span>
+        ),
     },
     { key: 'unit', label: t('prices.columns.unit'), sortKey: 'unit', render: (row) => row.uom_code },
     {
@@ -96,10 +100,18 @@ export default function PriceListDetail() {
     actionsColumn(t('prices.columns.actions'), (row) =>
       canEdit && !row.archived_at ? (
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" onClick={() => setEditing({ price: row })} aria-label={t('prices.editFor', { item: row.item_code, unit: row.uom_code })}>
-            {t('prices.edit')}
-          </Button>
-          <Button variant="ghost" icon="archive" onClick={() => setArchiving(row)} aria-label={t('prices.archiveFor', { item: row.item_code, unit: row.uom_code })} />
+          {/* Replaced prices are history: read-only. */}
+          {row.state === 'replaced' ? null : (
+            <Button variant="ghost" onClick={() => setEditing({ price: row })} aria-label={t('prices.editFor', { item: row.item_code ?? t('prices.itemHidden'), unit: row.uom_code })}>
+              {t('prices.edit')}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            icon="archive"
+            onClick={() => setArchiving(row)}
+            aria-label={t('prices.archiveFor', { item: row.item_code ?? t('prices.itemHidden'), unit: row.uom_code })}
+          />
         </div>
       ) : null,
     ),
@@ -207,7 +219,7 @@ export default function PriceListDetail() {
       {editing ? (
         <PriceDialog
           priceList={list}
-          item={editing.price ? { id: editing.price.item_id, code: editing.price.item_code, name: editing.price.item_name } : null}
+          item={editing.price ? { id: editing.price.item_id, code: editing.price.item_code ?? '', name: editing.price.item_name ?? t('prices.itemHidden') } : null}
           price={editing.price ?? null}
           today={today}
           onClose={() => setEditing(null)}
@@ -216,7 +228,7 @@ export default function PriceListDetail() {
       ) : null}
       <ConfirmDialog
         open={Boolean(archiving)}
-        title={archiving ? t('prices.archiveTitle', { item: archiving.item_code, unit: archiving.uom_code }) : ''}
+        title={archiving ? t('prices.archiveTitle', { item: archiving.item_code ?? t('prices.itemHidden'), unit: archiving.uom_code }) : ''}
         confirmLabel={t('prices.archiveConfirm')}
         cancelLabel={t('prices.keep')}
         pending={archive.isPending}

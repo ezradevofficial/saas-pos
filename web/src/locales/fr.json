@@ -1140,10 +1140,12 @@
       "amountHelp": "En {{currency}}, la devise de cette liste de prix.",
       "amountRequired": "Saisissez le prix.",
       "from": "À partir du",
-      "fromHelp": "Aujourd’hui par défaut. Choisissez une date plus tardive pour programmer un changement.",
+      "fromHelp": "Aujourd’hui par défaut. Choisissez une date plus tardive pour programmer un changement. Seul le premier prix d’un article peut commencer dans le passé.",
       "minQuantity": "À partir de la quantité",
       "minQuantityHelp": "Le prix s’applique quand au moins ce nombre d’unités est vendu.",
-      "quantityRequired": "Saisissez la quantité, 1 pour toute vente."
+      "quantityRequired": "Saisissez la quantité, 1 pour toute vente.",
+      "newFromToday": "Le nouveau prix s’applique à partir d’aujourd’hui. Le prix actuel reste dans l’historique.",
+      "breakAbove": "Ce prix dépasse le prix unitaire de {{price}}. Les clients qui achètent cette quantité paieraient plus par unité. Enregistrez-le seulement si c’est voulu."
     },
     "item": {
       "title": "Prix",
@@ -1158,7 +1160,8 @@
       "startsOn": "À partir du {{date}}",
       "currentIn": "Prix en vigueur dans {{list}}",
       "scheduledIn": "Prix programmés dans {{list}}"
-    }
+    },
+    "itemHidden": "Article"
   },
   "paymentMethods": {
     "empty": "Cette société n’a pas encore de moyen de paiement.",
