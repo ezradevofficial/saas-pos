@@ -21,6 +21,8 @@ return [
         'node' => 'stage',
         'outcome' => 'outcome',
         'reason' => 'reason',
+        'from_date' => 'start date',
+        'to_date' => 'end date',
     ],
 
     'errors' => [
@@ -32,6 +34,8 @@ return [
         'no_draft' => 'There is no draft to use. Edit the workflow to start one.',
         'version_not_found' => 'That version doesn’t exist for this workflow. Pick one from the version list.',
         'version_is_live' => 'That version is already live. Pick an earlier version to roll back to.',
+        'insights_period' => 'Choose a period of at most :days days.',
+        'nothing_to_keep' => 'This workflow has nothing live yet, so its draft can’t be discarded. Edit the draft or restore the default instead.',
         'nothing_published' => 'This workflow has no live version to copy. Publish it first, or copy its draft.',
         'same_company' => 'The workflow already belongs to that company. Choose another company.',
         'unknown_document_type' => 'This document type isn’t available. Check that its module is active.',

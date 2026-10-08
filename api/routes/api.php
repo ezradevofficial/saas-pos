@@ -70,6 +70,7 @@ use App\Core\Workflow\Http\Controllers\BusinessHoursController;
 use App\Core\Workflow\Http\Controllers\DocumentTypeController;
 use App\Core\Workflow\Http\Controllers\DocumentWorkflowController;
 use App\Core\Workflow\Http\Controllers\WorkflowDefinitionController;
+use App\Core\Workflow\Http\Controllers\WorkflowInsightsController;
 use App\Core\Workflow\Http\Controllers\WorkflowVersionController;
 use App\Core\Workflow\Models\WorkflowDefinition;
 use App\Core\Workflow\Models\WorkflowVersion;
@@ -335,12 +336,14 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('workflows/{workflow}', [WorkflowDefinitionController::class, 'show']);
     Route::get('workflows/{workflow}/versions', [WorkflowDefinitionController::class, 'versions']);
     Route::put('workflows/{workflow}/draft', [WorkflowDefinitionController::class, 'updateDraft']);
+    Route::post('workflows/{workflow}/discard-draft', [WorkflowDefinitionController::class, 'discardDraft']);
     Route::post('workflows/{workflow}/validate', [WorkflowDefinitionController::class, 'validateDraft']);
     Route::post('workflows/{workflow}/publish', [WorkflowDefinitionController::class, 'publish']);
     Route::post('workflows/{workflow}/rollback', [WorkflowDefinitionController::class, 'rollback']);
     Route::post('workflows/{workflow}/copy', [WorkflowDefinitionController::class, 'copy']);
     Route::post('workflows/{workflow}/restore-default', [WorkflowDefinitionController::class, 'restoreDefault']);
     Route::post('workflows/{workflow}/test', [WorkflowDefinitionController::class, 'test']);
+    Route::get('workflow-insights', [WorkflowInsightsController::class, 'index']);
     Route::get('workflow-versions/{workflow_version}', [WorkflowVersionController::class, 'show']);
 
     // WF-04, WF-08, WF-10, WF-11: a document's flow, by type and document id.

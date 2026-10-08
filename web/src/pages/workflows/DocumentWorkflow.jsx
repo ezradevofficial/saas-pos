@@ -9,21 +9,9 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import NotFound, { NoAccess } from '@/pages/NotFound'
+import { useDuration } from './useDuration'
 
 const STATUS_TONES = { running: 'info', completed: 'success', cancelled: 'neutral' }
-
-/** "2 d 4 h", "3 h 20 min", "5 min": how long a step has waited. */
-function useDuration() {
-  const { t } = useTranslation()
-  return (seconds) => {
-    const minutes = Math.floor((Number(seconds) || 0) / 60)
-    const days = Math.floor(minutes / 1440)
-    const hours = Math.floor((minutes % 1440) / 60)
-    if (days > 0) return t('documentWorkflow.duration.days', { days, hours })
-    if (hours > 0) return t('documentWorkflow.duration.hours', { hours, minutes: minutes % 60 })
-    return t('documentWorkflow.duration.minutes', { count: minutes })
-  }
-}
 
 /** A relative app path only (the API never sends anything else, but links are checked anyway). */
 const appPath = (link) => (typeof link === 'string' && link.startsWith('/') && !link.startsWith('//') ? link : null)
@@ -74,8 +62,10 @@ export default function DocumentWorkflow() {
 
   const flow = query.data?.data
   const document = flow?.document ?? {}
-  const company = companies.find((one) => one.id === document.company_id)
-  const when = (value) => formatCompanyTime(value, locale, company) ?? '—'
+  // L10N-03: the API sends the company's zone with the document, so viewers
+  // who cannot list companies still read times in the company's zone.
+  const timezone = document.timezone ?? companies.find((one) => one.id === document.company_id)?.timezone
+  const when = (value) => formatCompanyTime(value, locale, timezone ? { timezone } : null) ?? '—'
   const name = document.number ?? document.title ?? documentId.slice(0, 8)
   const title = flow ? t('documentWorkflow.title', { type: document.type_label ?? documentType, name }) : t('documentWorkflow.loading')
   const documentLink = appPath(document.link)

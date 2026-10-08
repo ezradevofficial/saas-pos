@@ -208,11 +208,13 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
   })
 
   // A sort the API refuses (a field the user's rules hide, RBAC-05, or an
-  // old link): say why and fall back to the default order.
+  // old link): say why and fall back to the default order. The effect runs
+  // on every render until the URL changes, so the toast has a fixed id: it
+  // is shown once however many renders happen first.
   const sortRefused = query.error?.status === 422 && Boolean(query.error.errors?.sort) && sort !== defaultSort
   useEffect(() => {
     if (!sortRefused) return
-    toast.error(query.error.errors.sort[0] ?? query.error.message)
+    toast.error(query.error.errors.sort[0] ?? query.error.message, { id: `list-sort-refused-${id}` })
     update({ sort: defaultSort }, { replace: true })
   })
 

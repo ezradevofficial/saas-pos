@@ -34,6 +34,7 @@ class WorkflowVersion extends Model
     protected $fillable = [
         'definition_id', 'version', 'status', 'graph', 'source', 'source_version_id',
         'created_by', 'updated_by', 'published_by', 'published_at', 'archived_at',
+        'discarded_at', 'discarded_by',
     ];
 
     protected function casts(): array
@@ -43,6 +44,7 @@ class WorkflowVersion extends Model
             'version' => 'integer',
             'published_at' => 'datetime',
             'archived_at' => 'datetime',
+            'discarded_at' => 'datetime',
         ];
     }
 

@@ -1876,6 +1876,7 @@
     "versionShort": "v{{version}}",
     "notPublished": "Not published",
     "noDraft": "No draft",
+    "insights": "Stage volumes",
     "empty": "No workflows yet. Create one to change how a document type is approved.",
     "emptyNoTypes": "No document types are available. Activate a module that registers them.",
     "breadcrumb": "Breadcrumb",
@@ -1915,6 +1916,7 @@
       "versions": "Versions",
       "copy": "Copy to another company",
       "restoreDefault": "Restore the default",
+      "discardDraft": "Discard draft",
       "publish": "Publish v{{version}}"
     },
     "save": {
@@ -2258,7 +2260,8 @@
       "status": {
         "draft": "Draft",
         "published": "Live",
-        "archived": "Earlier"
+        "archived": "Earlier",
+        "discarded": "Discarded"
       },
       "source": {
         "default": "From the default",
@@ -2289,6 +2292,13 @@
       "body": "The draft is replaced by the document type’s default. The live version keeps running until you publish.",
       "confirm": "Restore the default",
       "keep": "Keep my draft"
+    },
+    "discard": {
+      "title": "Discard draft v{{version}}?",
+      "body": "Your unpublished changes are dropped and the canvas goes back to v{{version}}, the live version. The draft stays in the version list.",
+      "confirm": "Discard draft",
+      "keep": "Keep my draft",
+      "done": "Draft discarded. Showing v{{version}}."
     },
     "test": {
       "title": "Test with a sample",
@@ -2323,6 +2333,33 @@
     "people": {
       "unknown": "Unknown or inactive person ({{id}})",
       "none": "No active people yet."
+    }
+  },
+  "workflowInsights": {
+    "title": "Stage volumes",
+    "description": "How many documents reach, leave and wait at each stage of the live workflows, and where they wait longest.",
+    "back": "Back to workflows",
+    "period": "{{from}} to {{to}}",
+    "zone": "days in {{zone}} time",
+    "basis": "Times are elapsed time from entering a stage to leaving it, not business hours. Only documents you can see are counted.",
+    "empty": "No live workflows to show. Publish a workflow, or change the filters.",
+    "noStages": "This workflow has no stages or approvals.",
+    "approval": "Approval",
+    "slowest": "Slowest",
+    "filters": {
+      "type": "Document type",
+      "company": "Company",
+      "from": "From",
+      "to": "To"
+    },
+    "columns": {
+      "stage": "Stage",
+      "now": "Now",
+      "entered": "Entered",
+      "left": "Left",
+      "median": "Median time",
+      "p90": "Slowest 10%",
+      "overdue": "Overdue"
     }
   },
   "creditLimits": {

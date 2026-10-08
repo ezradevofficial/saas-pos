@@ -4,6 +4,7 @@ namespace App\Core\Workflow\Http\Controllers;
 
 use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Identity\Models\User;
+use App\Core\Workflow\Calendar\BusinessCalendar;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\Http\Requests\CancelDocumentRequest;
 use App\Core\Workflow\Http\Requests\DocumentWorkflowRequest;
@@ -21,7 +22,7 @@ use Illuminate\Http\JsonResponse;
  */
 class DocumentWorkflowController
 {
-    public function __construct(private readonly WorkflowEngine $engine) {}
+    public function __construct(private readonly WorkflowEngine $engine, private readonly BusinessCalendar $calendar) {}
 
     public function show(DocumentWorkflowRequest $request): JsonResponse
     {
@@ -63,21 +64,24 @@ class DocumentWorkflowController
      * WF-10: what the status page names the document by: the type's label,
      * the summary's number and title (APR-04, without what
      * hiddenSummaryFields() hides from the viewer, RBAC-05), its company
-     * (for times in the company's zone) and its own page when the type has
-     * one (LinksDocuments).
+     * and that company's time zone (L10N-03: times show in the company's
+     * zone even for viewers who cannot list companies) and its own page
+     * when the type has one (LinksDocuments).
      *
-     * @return array{type_label: string, number: ?string, title: ?string, company_id: ?string, link: ?string}
+     * @return array{type_label: string, number: ?string, title: ?string, company_id: ?string, timezone: ?string, link: ?string}
      */
     private function document(DocumentType $type, DocumentWorkflow $workflow, User $viewer): array
     {
         $summary = $type->summary($workflow->document_id);
         $hidden = $type->hiddenSummaryFields($viewer);
+        $companyId = $type->scope($workflow->document_id)?->companyId ?? $workflow->company_id;
 
         return [
             'type_label' => __($type->label()),
             'number' => is_string($summary['number'] ?? null) ? $summary['number'] : null,
             'title' => is_string($summary['title'] ?? null) && ! in_array('title', $hidden, true) ? $summary['title'] : null,
-            'company_id' => $type->scope($workflow->document_id)?->companyId ?? $workflow->company_id,
+            'company_id' => $companyId,
+            'timezone' => $companyId === null ? null : $this->calendar->forCompany($companyId)->timezone,
             'link' => $type instanceof LinksDocuments ? $type->documentLink($workflow->document_id) : null,
         ];
     }

@@ -271,6 +271,44 @@ class WorkflowDefinitionApiTest extends TestCase
         $this->assertStringContainsString('Beta', $csv);
     }
 
+    public function test_discarding_the_draft_archives_it_and_keeps_the_live_version(): void
+    {
+        $flow = $this->create($this->acme->id);
+        $url = "/api/v1/workflows/{$flow['id']}";
+
+        // Nothing is live yet: the draft is all there is, so it stays.
+        $this->postJson("{$url}/discard-draft", [], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'nothing_to_keep');
+
+        $this->postJson("{$url}/publish", [], $this->headersFor())->assertOk();
+        $this->postJson("{$url}/discard-draft", [], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'no_draft');
+
+        $this->putJson("{$url}/draft", ['graph' => Graphs::linear(['one', 'two'])], $this->headersFor())->assertOk()->assertJsonPath('data.version', 2);
+        $discarded = $this->postJson("{$url}/discard-draft", [], $this->headersFor())->assertOk();
+        $discarded->assertJsonPath('data.draft', null)->assertJsonPath('data.published.version', 1);
+
+        // Never deleted (APR-09): archived as discarded, not offered for roll back.
+        $versions = $this->getJson("{$url}/versions", $this->headersFor())->assertOk()->json('data');
+        $this->assertSame([[2, 'archived', true], [1, 'published', false]], array_map(fn ($v) => [$v['version'], $v['status'], $v['discarded_at'] !== null], $versions));
+        $this->postJson("{$url}/rollback", ['version' => 2], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'version_not_found');
+        $row = $this->inTenant(fn () => WorkflowVersion::query()->where('definition_id', $flow['id'])->where('version', 2)->firstOrFail());
+        $this->assertSame($this->owner->id, $row->discarded_by);
+        $this->assertNull($row->published_at);
+
+        // The next draft is numbered above the discarded one.
+        $this->putJson("{$url}/draft", ['graph' => Graphs::linear(['later'])], $this->headersFor())->assertOk()->assertJsonPath('data.version', 3);
+        $this->assertContains('core.workflow.draft_discard', $this->auditActions($flow['id']));
+
+        // The discarded draft stays archived (the database refuses reviving it).
+        $this->inTenant(function () use ($row) {
+            try {
+                $row->forceFill(['status' => WorkflowVersion::DRAFT])->save();
+                $this->fail('a discarded draft came back');
+            } catch (QueryException $e) {
+                $this->assertStringContainsString('immutable', $e->getMessage());
+            }
+        });
+    }
+
     public function test_editing_and_publishing_need_their_permissions_at_the_flows_company(): void
     {
         $acmeFlow = $this->create($this->acme->id);
@@ -299,12 +337,15 @@ class WorkflowDefinitionApiTest extends TestCase
         $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/test", ['values' => []], $this->headersFor($viewer))->assertOk();
         $this->putJson("/api/v1/workflows/{$acmeFlow['id']}/draft", $graph, $this->headersFor($viewer))->assertForbidden();
         $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/publish", [], $this->headersFor($viewer))->assertForbidden();
+        $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/discard-draft", [], $this->headersFor($viewer))->assertForbidden();
         $this->postJson('/api/v1/workflows', ['document_type' => TestRequestType::KEY, 'company_id' => $this->acme->id], $this->headersFor($viewer))->assertForbidden();
 
         // Editor at Acme: edits Acme's draft, not the flow for every company (tenant scope), cannot publish.
         $this->putJson("/api/v1/workflows/{$acmeFlow['id']}/draft", $graph, $this->headersFor($editor))->assertOk();
         $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/restore-default", [], $this->headersFor($editor))->assertOk();
         $this->putJson("/api/v1/workflows/{$everyFlow['id']}/draft", $graph, $this->headersFor($editor))->assertForbidden();
+        $this->postJson("/api/v1/workflows/{$everyFlow['id']}/discard-draft", [], $this->headersFor($editor))->assertForbidden();
+        $this->postJson("/api/v1/workflows/{$betaFlow['id']}/discard-draft", [], $this->headersFor($editor))->assertNotFound();
         $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/publish", [], $this->headersFor($editor))->assertForbidden();
         // Beta's flow is not even found; copying there is refused as an unknown company.
         $this->putJson("/api/v1/workflows/{$betaFlow['id']}/draft", $graph, $this->headersFor($editor))->assertNotFound();
@@ -314,6 +355,10 @@ class WorkflowDefinitionApiTest extends TestCase
 
         // Publisher at Acme: publishes and rolls back Acme's flow only.
         $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/publish", [], $this->headersFor($publisher))->assertOk();
+        // WF-02: discarding a draft is editing: the editor may at Acme, the publisher alone may not.
+        $this->putJson("/api/v1/workflows/{$acmeFlow['id']}/draft", $graph, $this->headersFor($editor))->assertOk();
+        $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/discard-draft", [], $this->headersFor($publisher))->assertForbidden();
+        $this->postJson("/api/v1/workflows/{$acmeFlow['id']}/discard-draft", [], $this->headersFor($editor))->assertOk()->assertJsonPath('data.draft', null);
         $this->postJson("/api/v1/workflows/{$everyFlow['id']}/publish", [], $this->headersFor($publisher))->assertForbidden();
 
         // No workflow permission at all.
@@ -351,6 +396,7 @@ class WorkflowDefinitionApiTest extends TestCase
         $this->getJson("/api/v1/workflow-versions/{$version}", $theirs)->assertNotFound();
         $this->putJson("/api/v1/workflows/{$flow['id']}/draft", ['graph' => Graphs::linear(['a'])], $theirs)->assertNotFound();
         $this->postJson("/api/v1/workflows/{$flow['id']}/publish", [], $theirs)->assertNotFound();
+        $this->postJson("/api/v1/workflows/{$flow['id']}/discard-draft", [], $theirs)->assertNotFound();
         $this->postJson("/api/v1/workflows/{$flow['id']}/test", ['values' => []], $theirs)->assertNotFound();
         $this->assertSame([], $this->getJson('/api/v1/workflows', $theirs)->assertOk()->json('data'));
 

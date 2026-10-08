@@ -75,42 +75,46 @@ export function VersionsDialog({ open, workflowId, canPublish, onClose, onRolled
         {rollback.isError ? <Alert tone="danger" title={errorMessage(rollback.error)} /> : null}
         {versions.isPending ? <p>{t('common.loading')}</p> : null}
         <ul className="flex flex-col divide-y divide-border">
-          {rows.map((version) => (
-            <li key={version.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div className="flex min-w-0 flex-col gap-1">
-                <span className="flex items-center gap-3 text-ink">
-                  <span className="font-medium">{t('workflows.versions.number', { version: version.version })}</span>
-                  <StatusBadge tone={VERSION_TONES[version.status] ?? 'neutral'}>{t(`workflows.versions.status.${version.status}`, { defaultValue: version.status })}</StatusBadge>
-                </span>
-                <span className="text-caption text-ink-muted">
-                  {[
-                    t(`workflows.versions.source.${version.source}`, { defaultValue: version.source ?? '' }),
-                    version.published_at ? t('workflows.versions.publishedAt', { when: formatWhen(version.published_at, locale, timeZone) }) : null,
-                    version.in_progress ? t('workflows.versions.inProgress', { count: version.in_progress }) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              </div>
-              {canPublish && version.status === 'archived' ? (
-                confirming === version.version ? (
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-caption text-ink">{t('workflows.versions.confirmText', { version: version.version })}</span>
-                    <Button variant="ghost" onClick={() => setConfirming(null)}>
-                      {t('common.cancel')}
-                    </Button>
-                    <Button variant="primary" loading={rollback.isPending} onClick={() => rollback.mutate(version.version)}>
+          {rows.map((version) => {
+            // WF-02: a discarded draft is kept (never deleted) but was never live: no roll back.
+            const status = version.discarded_at ? 'discarded' : version.status
+            return (
+              <li key={version.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="flex items-center gap-3 text-ink">
+                    <span className="font-medium">{t('workflows.versions.number', { version: version.version })}</span>
+                    <StatusBadge tone={VERSION_TONES[status] ?? 'neutral'}>{t(`workflows.versions.status.${status}`, { defaultValue: status })}</StatusBadge>
+                  </span>
+                  <span className="text-caption text-ink-muted">
+                    {[
+                      t(`workflows.versions.source.${version.source}`, { defaultValue: version.source ?? '' }),
+                      version.published_at ? t('workflows.versions.publishedAt', { when: formatWhen(version.published_at, locale, timeZone) }) : null,
+                      version.in_progress ? t('workflows.versions.inProgress', { count: version.in_progress }) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </div>
+                {canPublish && status === 'archived' ? (
+                  confirming === version.version ? (
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="text-caption text-ink">{t('workflows.versions.confirmText', { version: version.version })}</span>
+                      <Button variant="ghost" onClick={() => setConfirming(null)}>
+                        {t('common.cancel')}
+                      </Button>
+                      <Button variant="primary" loading={rollback.isPending} onClick={() => rollback.mutate(version.version)}>
+                        {t('workflows.versions.rollBackTo', { version: version.version })}
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button icon="restore" onClick={() => setConfirming(version.version)}>
                       {t('workflows.versions.rollBackTo', { version: version.version })}
                     </Button>
-                  </span>
-                ) : (
-                  <Button icon="restore" onClick={() => setConfirming(version.version)}>
-                    {t('workflows.versions.rollBackTo', { version: version.version })}
-                  </Button>
-                )
-              ) : null}
-            </li>
-          ))}
+                  )
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       </div>
     </Dialog>

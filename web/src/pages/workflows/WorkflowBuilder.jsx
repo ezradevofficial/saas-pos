@@ -39,8 +39,10 @@ const isTyping = (target) => target instanceof HTMLElement && (target.isContentE
  * a canvas of steps with a palette and the selected step's settings. The
  * draft saves itself as you edit; validation lists what blocks publishing
  * and marks those steps; Publish makes the draft live while documents in
- * progress stay on their version; versions roll back; a flow copies to
- * another company; test with a sample walks the canvas without saving.
+ * progress stay on their version; versions roll back; the draft can be
+ * discarded (WF-02: archived, never deleted) to go back to the live
+ * version; a flow copies to another company; test with a sample walks the
+ * canvas without saving.
  * Read-only on a phone and for people without the edit right.
  */
 function Builder({ workflow, type, refetch }) {
@@ -62,7 +64,7 @@ function Builder({ workflow, type, refetch }) {
   const [selectedId, setSelectedId] = useState(null)
   const [issues, setIssues] = useState(null) // list of problems once validated
   const [tested, setTested] = useState(null) // { result, version }: a test describes the graph it ran on
-  const [dialog, setDialog] = useState(null) // publish | versions | copy | restore | test
+  const [dialog, setDialog] = useState(null) // publish | versions | copy | restore | discard | test
   const [saveState, setSaveState] = useState({ status: 'idle', error: null, version: 0, attempted: 0 })
 
   const versions = useQuery({ queryKey: ['workflows', workflow.id, 'versions'], queryFn: () => api.get(`workflows/${workflow.id}/versions`) })
@@ -180,6 +182,27 @@ function Builder({ workflow, type, refetch }) {
     },
   })
 
+  // WF-02: drop the draft (archived by the API) and show the live version again.
+  const discard = useMutation({
+    mutationFn: async () => {
+      // A save on its way would otherwise land after the discard and start a new draft.
+      if (savePromise.current) await savePromise.current
+      return api.post(`workflows/${workflow.id}/discard-draft`)
+    },
+    onSuccess: async (response) => {
+      setDialog(null)
+      const next = response?.data ?? null
+      if (next) queryClient.setQueryData(['workflows', workflow.id], { data: next })
+      reset(normalizeGraph(next?.published?.graph ?? EMPTY))
+      setSelectedId(null)
+      setIssues(null)
+      setTested(null)
+      setSaveState({ status: 'idle', error: null, version: 0, attempted: 0 })
+      toast.success(t('workflows.discard.done', { version: next?.published?.version }))
+      await queryClient.invalidateQueries({ queryKey: ['workflows'] })
+    },
+  })
+
   const fields = useMemo(() => type?.fields ?? [], [type])
   const context = useMemo(
     () => ({ fields, nextDocuments: type?.next_documents ?? [], types, roles, users, approverTypes, actionHandlers, locale }),
@@ -279,6 +302,11 @@ function Builder({ workflow, type, refetch }) {
               {canEdit && !phone ? (
                 <DropdownMenuItem className={menuItemClasses} onSelect={() => setDialog('restore')}>
                   {t('workflows.actions.restoreDefault')}
+                </DropdownMenuItem>
+              ) : null}
+              {canEdit && !phone && draft && live ? (
+                <DropdownMenuItem className={menuItemClasses} onSelect={() => setDialog('discard')}>
+                  {t('workflows.actions.discardDraft')}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -437,6 +465,22 @@ function Builder({ workflow, type, refetch }) {
         }}
       >
         {t('workflows.restore.body')}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={dialog === 'discard'}
+        title={t('workflows.discard.title', { version: draft?.version })}
+        confirmLabel={t('workflows.discard.confirm')}
+        cancelLabel={t('workflows.discard.keep')}
+        pending={discard.isPending}
+        error={discard.error ? errorMessage(discard.error) : null}
+        failure={discard.error}
+        onConfirm={() => discard.mutate()}
+        onClose={() => {
+          setDialog(null)
+          discard.reset()
+        }}
+      >
+        {t('workflows.discard.body', { version: live?.version })}
       </ConfirmDialog>
       {dialog === 'test' ? (
         <TestDialog
