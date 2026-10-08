@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Console\VerifyAuditChain;
+use App\Core\Support\EnvironmentGuard;
 use App\Core\Tenancy\Rls;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -35,6 +36,9 @@ class CoreServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // No log mailer, log SMS, or non-Redis cache or queue outside local and testing.
+        EnvironmentGuard::enforce($this->app);
+
         if ($this->app->runningInConsole()) {
             $this->commands([VerifyAuditChain::class]);
         }
