@@ -1,0 +1,156 @@
+# Payment and tax authority integrations
+
+What the platform needs from the owner (and from each business) to switch
+on M-Pesa through Safaricom Daraja, KRA eTIMS and the DRC DGI. Concept note
+sections 7.1 and 7.2; code in `api/app/Core/Payments` and
+`api/app/Core/Fiscal`. Every integration sits behind an adapter with a fake
+driver; the fake drivers work only in `local` and `testing` (NFR-06: a real
+environment refuses to start with `PAYMENTS_ALLOW_FAKE`,
+`PAYMENTS_DRIVER_*=fake` or `FISCAL_ALLOW_FAKE`).
+
+Credentials of a business are entered in the back office, stored encrypted
+and never returned by the API (payment method `secrets`, fiscal settings
+`credentials`). Platform-wide values are environment variables.
+
+## M-Pesa (Safaricom Daraja)
+
+### Platform (owner, once per environment)
+
+| Variable | What | Default |
+| --- | --- | --- |
+| `MPESA_BASE_URL` | Daraja host | `https://sandbox.safaricom.co.ke` (production: `https://api.safaricom.co.ke`, once Safaricom takes the app live) |
+| `PAYMENTS_CALLBACK_URL` | The public HTTPS base Safaricom calls back on (the API host behind the NodeBalancer) | `APP_URL` |
+| `MPESA_CALLBACK_IPS` | Safaricom's callback addresses, comma-separated. Confirm the current list with Safaricom before go-live. | the published list in `config/payments.php` |
+| `MPESA_ENFORCE_CALLBACK_IPS` | Refuse callbacks from other addresses (keep `true` outside local tunnels) | `true` |
+| `MPESA_B2C_COMMAND` | B2C command agreed for refunds (`BusinessPayment`, `SalaryPayment`, `PromotionPayment`) | `BusinessPayment` |
+| `MPESA_PATH_*` | Daraja paths, if Safaricom versions them | v1 paths |
+
+The trusted proxy must pass the client address (TrustProxies), or the IP
+allowlist sees the NodeBalancer's address.
+
+### Per business (back office: Payment methods → M-Pesa)
+
+1. **Daraja app.** On the Daraja portal (developer.safaricom.co.ke), create
+   an app with the products *Lipa na M-Pesa Online* (STK push), *M-Pesa
+   Express Query*, *C2B*, and, for refunds and checks of typed codes, *B2C*,
+   *Transaction Status* and *Reversal*. Enter its **consumer key** and
+   **consumer secret** (secrets).
+2. **Shortcode.** The **Paybill** number, or for a **Till** (Buy Goods) the
+   store number (head office shortcode) as `shortcode`, `transaction_type =
+   till` and the Till as `till_number`.
+3. **Passkey.** The Lipa na M-Pesa Online passkey Safaricom issues for the
+   shortcode (sandbox: the test passkey on the portal) (secret).
+4. **Refunds and checks (optional).** The B2C shortcode refunds are paid
+   from (`b2c_shortcode`), the **initiator name** (`initiator_name`) and its
+   **security credential** (`security_credential`, secret): the initiator
+   password encrypted with Safaricom's certificate, generated on the portal.
+   Without them refunds are paid back another way and typed codes are only
+   verified by C2B confirmations.
+5. **Callback URLs.** `GET /api/v1/payment-methods/{id}/callbacks` (needs
+   `core.payment_method.configure`) lists the method's URLs. Each holds a
+   48-character token that names the method: treat them as secrets.
+   `POST .../callbacks/rotate` replaces the token (the old URLs stop at
+   once; register again).
+6. **C2B registration.** `POST /api/v1/payment-methods/{id}/c2b/register`
+   registers the confirmation and validation URLs for the Paybill or Till.
+   Safaricom must turn on *external validation* for the validation URL to
+   be called (optional; confirmations work without it). The URLs never
+   contain the words Safaricom refuses ("mpesa", "safaricom", "sql",
+   "query", ...).
+7. **Go-live.** Safaricom's go-live process for the production app
+   (business documents, test results), then switch `MPESA_BASE_URL`.
+
+### How it behaves
+
+- STK push from the till (`POST /api/v1/payments/intents`), whole
+  shillings, KES only. The till polls `GET /api/v1/payments/intents/{id}`.
+- No answer after `PAYMENTS_STK_TIMEOUT` seconds (90): the server asks
+  Daraja (STK query); still nothing after `PAYMENTS_STK_GIVE_UP` (300): the
+  intent times out. A late C2B confirmation with the push's account
+  reference still completes it.
+- Offline or failed push: the cashier types the M-Pesa code (`mode:
+  manual`). It is verified by the matching C2B confirmation, or after
+  `PAYMENTS_MANUAL_VERIFY_AFTER` minutes (30) by a transaction status query;
+  a different amount or an unknown code is flagged `mismatch`.
+- Money received that matches nothing waits in
+  `GET /api/v1/companies/{id}/payment-receipts` for matching by hand
+  (`core.payment.match`).
+
+## KRA eTIMS (Kenya), OSCU
+
+### Platform (owner)
+
+| Variable | What | Default |
+| --- | --- | --- |
+| `ETIMS_BASE_URL` | OSCU API base KRA gives with integrator onboarding | `https://etims-api-sbx.kra.go.ke/etims-api` (sandbox; confirm with KRA) |
+| `ETIMS_PATH_*` | Endpoint paths (`selectInitOsdcInfo`, `saveTrnsSalesOsdc`, ...) | as in the OSCU specification |
+| `ETIMS_QR_PREFIX` | Receipt verification URL the QR code starts with (followed by PIN, branch id and receipt signature). Confirm with KRA; empty stores no QR content. | sandbox receipt link |
+| `ETIMS_RETRYABLE_CODES` | KRA result codes that mean "try later" (others are rejections a person handles) | none |
+| `ETIMS_REFUND_REASON_CODE` | `rfdRsnCd` used for refunds and voids | `06` |
+| `FISCAL_KE_ALERT_AFTER_HOURS` | Alert fiscal administrators when a document is still not accepted after this many hours | `6` |
+| `FISCAL_KE_DEADLINE_HOURS` | KRA's transmission deadline for documents made offline | not set: **confirm with KRA** |
+
+The platform itself must be approved by KRA as an eTIMS integrator (OSCU
+system-to-system integration: application, test cases on the sandbox,
+certification) before production credentials are issued.
+
+### Per business (back office: company fiscal settings)
+
+1. **KRA PIN** (`tin`) and the **branch id** KRA registered (`branch_code`,
+   `00` for the head office).
+2. **Device serial** (`device_serial`): the OSCU device serial KRA issues
+   when the business registers for eTIMS OSCU with this integrator on the
+   eTIMS portal.
+3. **Initialise** (`POST /api/v1/companies/{id}/fiscal-settings/initialize`):
+   calls `selectInitOsdcInfo` once; KRA returns the communication key
+   (`cmcKey`, stored encrypted, never returned), the control unit id and the
+   MRC number. Changing the PIN, branch id or serial drops the key: initialise
+   again.
+4. **Tax bands.** Each tax code's `fiscal_code` is its eTIMS band (A to E)
+   from KRA's code list. The KE country pack has none yet (pack `todo`);
+   a sale line whose tax code has no band is rejected locally with the item
+   named, never guessed. Rates are the ones the till applied.
+5. **Item codes.** eTIMS lines need the item classification (`itemClsCd`)
+   and unit codes; until items carry them, set company defaults
+   (`default_item_class_code`, `default_packaging_unit_code`,
+   `default_quantity_unit_code`). Item registration with KRA (`saveItem`)
+   is not built yet (see open questions).
+6. Switch transmission on (`enabled`).
+
+### How it behaves
+
+Every sale is an invoice (`rcptTyCd S`); every refund and void a credit note
+(`R`) naming the sale's fiscal invoice number, sent only once the sale is
+accepted. The queue retries with backoff (1, 5, 15, 30, then every 60
+minutes) for ever, alerts after the alert delay, and alerts at once on a
+rejection. Accepted documents keep the receipt number, internal data,
+receipt signature, control unit id and QR content for the receipt. Only KES
+documents are sent.
+
+## DRC DGI normalised invoicing (e-MCF)
+
+Not built: the `dgi_emcf` driver reports itself unavailable, so transmission
+cannot be switched on for a Congolese company (the fake driver covers tests
+and local work). Needed before it can be built:
+
+- The DGI-approved e-MCF API: base URL, authentication, request and response
+  formats, error codes, and how offline documents are handled.
+- Per company: NIF (`tin`), the e-MCF unit's serial or ISF number
+  (`device_serial`), access credentials (`api_token`).
+- The DGI tax groups for each tax code (`fiscal_code` in the CD pack, still
+  empty) and the transmission deadline for documents made offline
+  (`FISCAL_CD_DEADLINE_HOURS`).
+- Whether USD documents are accepted, and the rate to declare.
+
+## Open questions for the owner
+
+1. eTIMS item registration (`saveItem`) and KRA item codes: build it now, or
+   keep company default classification and unit codes for the pilot?
+2. eTIMS sales in USD: convert to KES at the sale's rate, or keep refusing
+   non-KES documents (current behaviour)?
+3. eTIMS empty bands: we send `taxRtX` from the company's tax code for that
+   band, else 0. Confirm against KRA's sandbox validation.
+4. KRA's offline transmission deadline (hours) and DGI's.
+5. Sales made before a company switched transmission on are not queued.
+   Should switching it on back-fill them?
+6. Safaricom's current callback IP list for the allowlist.
