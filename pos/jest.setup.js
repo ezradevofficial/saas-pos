@@ -5,3 +5,6 @@ jest.mock('react-native-safe-area-context', () => require('react-native-safe-are
 
 // Components translate through the app's i18next instance, as App.js does.
 require('./src/i18n');
+
+// WatermelonDB logs every LokiJS start; keep test output readable.
+require('@nozbe/watermelondb/utils/common/logger').default.silence();
