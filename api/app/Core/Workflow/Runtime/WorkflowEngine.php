@@ -207,10 +207,14 @@ class WorkflowEngine
      * sibling branch waiting at its join stays. The returner needs the exit
      * rights of every active position closed, or the type's act permission,
      * so one branch's holder cannot pull back another branch's work.
+     *
+     * `$authorised`: the approvals service already checked $by may act on
+     * the approval node being returned from (APR-03, an approver returning
+     * for changes); the stage rights are then not checked again.
      */
-    public function returnTo(DocumentWorkflow $workflow, User $by, string $nodeId, string $reason): DocumentWorkflow
+    public function returnTo(DocumentWorkflow $workflow, User $by, string $nodeId, string $reason, bool $authorised = false): DocumentWorkflow
     {
-        return $this->transaction(function () use ($workflow, $by, $nodeId, $reason) {
+        return $this->transaction(function () use ($workflow, $by, $nodeId, $reason, $authorised) {
             $run = $this->open($workflow, $by, checkEnter: false);
             $target = $run->flow->node($nodeId);
 
@@ -241,7 +245,7 @@ class WorkflowEngine
                 throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
             }
 
-            $mayAct = $by->can($run->type->actPermission(), $run->scope->scope());
+            $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
             $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
                 fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
             ));
@@ -352,9 +356,13 @@ class WorkflowEngine
 
                 if ($token->status === DocumentWorkflowToken::ACTIVE) {
                     $handled = $node['type'] === 'approval' ? $this->approvals->holders($this->step($run, $token)) : null;
+                    // The handler may add why nobody holds the step (`blocked`) and its own id (`approval_id`).
                     $holders = $handled === null
                         ? $this->permissions->holders($node, $scope, $type)
-                        : $this->permissions->holders($node, $scope, $type, $handled['roles'], $handled['users']);
+                        : [
+                            ...$this->permissions->holders($node, $scope, $type, $handled['roles'], $handled['users']),
+                            ...array_intersect_key($handled, array_flip(['blocked', 'approval_id'])),
+                        ];
                 }
 
                 return [

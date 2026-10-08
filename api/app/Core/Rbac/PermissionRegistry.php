@@ -36,6 +36,10 @@ class PermissionRegistry
         'dimension' => ['view', 'create', 'edit', 'archive'],
         // WF-01..WF-11, APR-09: flow definitions; documents move through stage roles (WF-08).
         'workflow' => ['view', 'edit', 'publish'],
+        // APR-04, APR-06: oversight of every approval at a place, and reassigning
+        // pending ones (also what makes a role a manager for approver resolution).
+        // Acting on an approval needs no permission: being its approver.
+        'approval' => ['view_all', 'reassign'],
         'notification_template' => ['view', 'edit'],
         'notification_settings' => ['edit'],
         'notification_delivery' => ['view'],

@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\InvitationNotification;
@@ -278,6 +279,32 @@ final class TwoTenants
             return InAppNotification::where('user_id', $ownerId)->value('id');
         });
 
+        // APR-01..APR-08: the flow for every company has an approval by the
+        // manager; a document of the sign-up company (no flow of its own) waits
+        // there (an email with single-use links went to the manager), the
+        // manager delegated to the owner, who attached a file as their delegate.
+        $everyCompany = self::ok($test->postJson('/api/v1/workflows', ['document_type' => TestRequestType::KEY, 'company_id' => null], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/workflows/{$everyCompany}/draft", ['graph' => [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => "Approve {$upper}", 'approval' => ['approver' => ['type' => 'user', 'user_id' => $managerId]]],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+            ],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end']],
+        ]], $owner));
+        self::ok($test->postJson("/api/v1/workflows/{$everyCompany}/publish", [], $owner));
+        $approval = app(TenantContext::class)->run($tenantId, function () use ($signUpCompany, $upper) {
+            $id = TestDocuments::create(TestRequestType::KEY, ['total' => ['amount_minor' => '50000', 'currency' => 'KES'], 'note' => "Approval {$upper}"], new DocumentScope($signUpCompany));
+            $workflow = app(WorkflowEngine::class)->start(TestRequestType::KEY, $id, null);
+
+            return ApprovalRequest::query()->where('workflow_id', $workflow->id)->value('id');
+        });
+        $managerToken = ['Authorization' => 'Bearer '.$accepted->json('token')];
+        $delegation = self::ok($test->postJson('/api/v1/me/delegations', [
+            'to_user_id' => $ownerId, 'starts_on' => now()->subDay()->toDateString(), 'ends_on' => now()->addDays(30)->toDateString(),
+        ], $managerToken), 201)->json('data.id');
+        self::ok($test->post("/api/v1/approvals/{$approval}/attachments", ['file' => UploadedFile::fake()->create("quote-{$key}.pdf", 4, 'application/pdf')], [...$owner, 'Accept' => 'application/json']), 201);
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -315,6 +342,8 @@ final class TwoTenants
                 'workflow_version' => $workflowVersion,
                 'document' => $document,
                 'notification' => $notification,
+                'approval' => $approval,
+                'delegation' => $delegation,
                 ...$dimensions,
                 'challenge' => $challenge,
             ],
