@@ -257,7 +257,8 @@ class ApprovalApiTest extends TestCase
         // Manager A sees it (approver) but holds reassign at branch A: allowed.
         $this->postJson($this->approvalUrl($approval, '/reassign'), [...$body, 'to_user_id' => $this->requester->id], $this->headersFor())
             ->assertUnprocessable()->assertJsonPath('code', 'ineligible_approver');
-        $this->postJson($this->approvalUrl($approval, '/reassign'), [...$body, 'reason' => 'On leave'], $this->headersFor())->assertOk();
+        // The Branch Manager template holds reassign at its branch.
+        $this->postJson($this->approvalUrl($approval, '/reassign'), [...$body, 'reason' => 'On leave'], $this->headersFor($this->managerA))->assertOk();
 
         $this->assertSame([$this->accountant->id], $this->pendingApprovers($approval));
         $this->postJson($this->approvalUrl($approval, '/approve'), [], $this->headersFor($this->managerA))->assertForbidden();

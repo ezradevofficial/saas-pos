@@ -3,6 +3,7 @@
 namespace App\Core\Approvals\Models;
 
 use App\Core\Tenancy\BelongsToTenant;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,8 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $assignment_id
  * @property string $user_id
  * @property string $action
- * @property ?\Carbon\CarbonImmutable $expires_at
- * @property ?\Carbon\CarbonImmutable $used_at
+ * @property ?CarbonImmutable $expires_at
+ * @property ?CarbonImmutable $used_at
  */
 class ApprovalEmailToken extends Model
 {

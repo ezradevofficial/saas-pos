@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\Approvals\Jobs\ProcessApprovalTimers;
 use App\Core\Approvals\Models\ApprovalAction;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
@@ -9,7 +10,6 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use Carbon\CarbonImmutable;
-use App\Core\Approvals\Jobs\ProcessApprovalTimers;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
