@@ -2,6 +2,7 @@
 
 namespace App\Core\Automation\Runtime;
 
+use App\Core\Audit\AuditContext;
 use App\Core\Automation\Actions\ActionFailed;
 use App\Core\Automation\Actions\AutomationActions;
 use App\Core\Automation\Actions\AutomationContext;
@@ -72,6 +73,7 @@ class RuleRunner
         private readonly WorkflowAccess $access,
         private readonly FieldVisibility $visibility,
         private readonly CompanyReach $reach,
+        private readonly AuditContext $audit,
     ) {}
 
     /** Log a run for a fired trigger and queue it; null when the occurrence already ran. */
@@ -269,24 +271,27 @@ class RuleRunner
         $committed = false;
 
         try {
-            $this->chain->within($incoming->through($rule->id, $run->depth), function () use ($rule, $run, $context, &$results, &$current, &$committed) {
-                DB::transaction(function () use ($rule, $run, $context, &$results, &$current, &$committed) {
-                    // Registered first, so it runs first once the transaction has
-                    // committed: before any after-commit listener that might throw.
-                    DB::afterCommit(function () use (&$committed) {
-                        $committed = true;
+            // M6 (AUD-02): what the actions change is audited as the rule's user, with the rule and run.
+            $this->audit->actingAs($actor->id, ['automation_rule_id' => $rule->id, 'automation_run_id' => $run->id], function () use ($incoming, $rule, $run, $context, &$results, &$current, &$committed) {
+                return $this->chain->within($incoming->through($rule->id, $run->depth), function () use ($rule, $run, $context, &$results, &$current, &$committed) {
+                    DB::transaction(function () use ($rule, $run, $context, &$results, &$current, &$committed) {
+                        // Registered first, so it runs first once the transaction has
+                        // committed: before any after-commit listener that might throw.
+                        DB::afterCommit(function () use (&$committed) {
+                            $committed = true;
+                        });
+
+                        foreach ($rule->actions as $i => $action) {
+                            $current = $i;
+                            $context->actionIndex = $i;
+                            $handler = $this->actions->find((string) ($action['type'] ?? ''))
+                                ?? throw new ActionFailed(__('automation.errors.action_unavailable'));
+                            $results[$i] = ['type' => $handler->key(), 'status' => 'done', 'result' => $handler->run($action, $context)];
+                        }
+
+                        // The outcome commits with the actions: it can never be retried after.
+                        $this->finish($run, AutomationRun::SUCCEEDED, array_values($results));
                     });
-
-                    foreach ($rule->actions as $i => $action) {
-                        $current = $i;
-                        $context->actionIndex = $i;
-                        $handler = $this->actions->find((string) ($action['type'] ?? ''))
-                            ?? throw new ActionFailed(__('automation.errors.action_unavailable'));
-                        $results[$i] = ['type' => $handler->key(), 'status' => 'done', 'result' => $handler->run($action, $context)];
-                    }
-
-                    // The outcome commits with the actions: it can never be retried after.
-                    $this->finish($run, AutomationRun::SUCCEEDED, array_values($results));
                 });
             });
         } catch (Throwable $e) {

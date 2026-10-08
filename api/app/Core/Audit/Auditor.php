@@ -60,6 +60,11 @@ class Auditor
     ): AuditEntry {
         $tenantId = $this->tenants->require();
 
+        // M6: who else the entry is about (an automation rule and run), kept with what changed.
+        if ($this->context->metadata() !== []) {
+            $after = [...($after ?? []), 'metadata' => $this->context->metadata()];
+        }
+
         $fields = array_merge([
             'module' => Str::before($action, '.'),
             'occurred_at' => CarbonImmutable::now(),
