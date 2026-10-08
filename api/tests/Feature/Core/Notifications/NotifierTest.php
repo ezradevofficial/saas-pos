@@ -159,10 +159,8 @@ class NotifierTest extends TestCase
     public function test_tenant_templates_replace_the_defaults_per_channel_then_for_all_channels(): void
     {
         $this->inTenant(function () {
-            NotificationTemplate::create(['event_type' => 'core.notification.test', 'channel' => 'all', 'locale' => 'en', 'subject' => 'Note from {sender_name}', 'body' => 'All: {message}']);
-            NotificationTemplate::create(['event_type' => 'core.notification.test', 'channel' => 'email', 'locale' => 'en', 'subject' => null, 'body' => 'Email for {recipient_name}: {message}']);
-            // Another language's override does not apply to an English reader.
-            NotificationTemplate::create(['event_type' => 'core.notification.test', 'channel' => 'in_app', 'locale' => 'fr', 'subject' => 'FR', 'body' => 'FR']);
+            NotificationTemplate::create(['event_type' => 'core.notification.test', 'channel' => 'all', 'subject' => 'Note from {sender_name}', 'body' => 'All: {message}']);
+            NotificationTemplate::create(['event_type' => 'core.notification.test', 'channel' => 'email', 'subject' => null, 'body' => 'Email for {recipient_name}: {message}']);
         });
 
         $this->sendTest([$this->owner]);
@@ -174,6 +172,31 @@ class NotifierTest extends TestCase
             $email = NotificationDelivery::where('channel', 'email')->sole();
             // A blank subject on the channel's own text falls back to the default subject.
             $this->assertSame(['Test message from Amina', 'Email for Owner: Stock count at 5 pm.'], [$email->subject, $email->body]);
+        });
+    }
+
+    public function test_a_tenant_text_is_written_once_and_reaches_every_language_as_is(): void
+    {
+        // NOT-03 (owner decision 2026-10-08): one text, in the organisation's
+        // language; an English and a French reader get the same words, with
+        // their own values; without a text each gets the default in theirs.
+        $french = $this->reachableColleague(['locale' => 'fr', 'name' => 'Owner']);
+        $this->inTenant(fn () => NotificationTemplate::create([
+            'event_type' => 'core.notification.test', 'channel' => 'in_app', 'subject' => 'Ujumbe kutoka {sender_name}', 'body' => 'Habari {recipient_name}: {message}',
+        ]));
+
+        $this->sendTest([$this->owner, $french]);
+
+        $this->inTenant(function () use ($french) {
+            $mine = InAppNotification::where('user_id', $this->owner->id)->sole();
+            $theirs = InAppNotification::where('user_id', $french->id)->sole();
+            $this->assertSame(['Ujumbe kutoka Amina', 'Habari Owner: Stock count at 5 pm.'], [$mine->subject, $mine->body]);
+            $this->assertSame([$mine->subject, $mine->body], [$theirs->subject, $theirs->body]);
+
+            // Email has no text of its own and no text for all channels: the
+            // default, in each recipient's language.
+            $this->assertSame('Test message from Amina', NotificationDelivery::where('user_id', $this->owner->id)->where('channel', 'email')->value('subject'));
+            $this->assertSame('Message de test de Amina', NotificationDelivery::where('user_id', $french->id)->where('channel', 'email')->value('subject'));
         });
     }
 

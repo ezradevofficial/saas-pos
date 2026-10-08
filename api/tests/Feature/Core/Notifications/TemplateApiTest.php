@@ -12,9 +12,11 @@ use Tests\Concerns\BuildsNotifications;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
-// NOT-03: admins edit the text per event, channel and language with the
-// event's placeholders (core.notification_template.view|edit); unknown
-// placeholders refused; preview with sample values; reset to default.
+// NOT-03: admins edit the text per event and channel with the event's
+// placeholders (core.notification_template.view|edit); one text, in the
+// organisation's language, for everyone (owner decision 2026-10-08), next to
+// the translated default; unknown placeholders refused; preview with sample
+// values; reset to default.
 class TemplateApiTest extends TestCase
 {
     use BuildsNotifications, RefreshTenantDatabase;
@@ -29,23 +31,31 @@ class TemplateApiTest extends TestCase
         $this->setUpOrganisation();
     }
 
-    private function slot(array $data, string $channel, string $locale): array
+    private function slot(array $data, string $channel): array
     {
-        return collect($data['templates'])->first(fn ($t) => $t['channel'] === $channel && $t['locale'] === $locale);
+        return collect($data['templates'])->firstWhere('channel', $channel);
     }
 
-    public function test_templates_show_the_text_in_use_per_channel_and_language(): void
+    public function test_templates_show_the_text_in_use_per_channel_and_the_default_in_the_readers_language(): void
     {
         $list = $this->getJson('/api/v1/notification-templates', $this->headersFor())->assertOk()->json('data');
         $test = collect($list)->firstWhere('event_type', self::EVENT);
         $this->assertSame('Test message', $test['label']);
-        // all + 5 channels, in 2 languages.
-        $this->assertCount(12, $test['templates']);
+        // all + 5 channels, one text each (no per-language versions).
+        $this->assertCount(6, $test['templates']);
+        $this->assertSame(['all', 'in_app', 'email', 'push', 'sms', 'whatsapp'], array_column($test['templates'], 'channel'));
         $this->assertSame(['sender_name', 'message', 'recipient_name', 'app_name'], array_column($test['placeholders'], 'name'));
+        $this->assertArrayNotHasKey('locale', $test['templates'][0]);
 
-        $email = $this->slot($test, 'email', 'fr');
-        $this->assertSame(['Message de test de {sender_name}', 'default', false], [$email['subject'], $email['source'], $email['overridden']]);
-        $this->assertSame('{app_name}: test message from {sender_name}: {message}', $this->slot($test, 'sms', 'en')['body']);
+        $email = $this->slot($test, 'email');
+        $this->assertSame(['Test message from {sender_name}', 'default', false], [$email['subject'], $email['source'], $email['overridden']]);
+        $this->assertSame(['locale' => 'en', 'subject' => 'Test message from {sender_name}', 'body' => $email['body']], $email['default']);
+        $this->assertSame('{app_name}: test message from {sender_name}: {message}', $this->slot($test, 'sms')['body']);
+
+        // A French-speaking admin sees the defaults in French.
+        $fr = $this->getJson('/api/v1/notification-templates/'.self::EVENT, $this->headersFor() + ['Accept-Language' => 'fr'])->assertOk()->json('data');
+        $this->assertSame(['fr', 'Message de test de {sender_name}'], [$this->slot($fr, 'email')['default']['locale'], $this->slot($fr, 'email')['default']['subject']]);
+        $this->assertSame('Message de test de {sender_name}', $this->slot($fr, 'email')['subject']);
 
         $this->getJson('/api/v1/notification-templates/'.self::EVENT, $this->headersFor())->assertOk()->assertJsonPath('data.event_type', self::EVENT);
         $this->getJson('/api/v1/notification-templates/core.nothing.here', $this->headersFor())->assertNotFound();
@@ -55,27 +65,31 @@ class TemplateApiTest extends TestCase
     public function test_an_admin_edits_a_text_which_is_then_sent_and_resets_it(): void
     {
         $data = $this->putJson('/api/v1/notification-templates', [
-            'event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en',
+            'event_type' => self::EVENT, 'channel' => 'all',
             'subject' => '{sender_name} wrote', 'body' => 'Dear {recipient_name}: {message}',
         ], $this->headersFor())->assertOk()->json('data');
 
-        $all = $this->slot($data, 'all', 'en');
+        $all = $this->slot($data, 'all');
         $this->assertSame(['{sender_name} wrote', 'Dear {recipient_name}: {message}', 'all', true], [$all['subject'], $all['body'], $all['source'], $all['overridden']]);
-        // Channels without their own text use it; French keeps its default.
-        $this->assertSame(['all', false], [$this->slot($data, 'in_app', 'en')['source'], $this->slot($data, 'in_app', 'en')['overridden']]);
-        $this->assertSame('default', $this->slot($data, 'in_app', 'fr')['source']);
+        // The default stays visible next to the tenant's text.
+        $this->assertSame('Test message from {sender_name}', $all['default']['subject']);
+        // Channels without their own text use it.
+        $this->assertSame(['all', false], [$this->slot($data, 'in_app')['source'], $this->slot($data, 'in_app')['overridden']]);
+        // A French-speaking admin sees the same text: there is only one.
+        $fr = $this->getJson('/api/v1/notification-templates/'.self::EVENT, $this->headersFor() + ['Accept-Language' => 'fr'])->json('data');
+        $this->assertSame(['Dear {recipient_name}: {message}', 'all'], [$this->slot($fr, 'in_app')['body'], $this->slot($fr, 'in_app')['source']]);
 
         $this->sendTest([$this->owner], ['message' => 'Hello']);
         $this->inTenant(fn () => $this->assertSame(['Amina wrote', 'Dear Owner: Hello'], [InAppNotification::sole()->subject, InAppNotification::sole()->body]));
 
         // Changed again, then reset.
-        $this->putJson('/api/v1/notification-templates', ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en', 'subject' => '', 'body' => 'Short: {message}'], $this->headersFor())
+        $this->putJson('/api/v1/notification-templates', ['event_type' => self::EVENT, 'channel' => 'all', 'subject' => '', 'body' => 'Short: {message}'], $this->headersFor())
             ->assertOk()->assertJsonPath('data.templates.0.subject', 'Test message from {sender_name}');
-        $data = $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en'], $this->headersFor())
+        $data = $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all'], $this->headersFor())
             ->assertOk()->json('data');
-        $this->assertSame(['default', false], [$this->slot($data, 'all', 'en')['source'], $this->slot($data, 'all', 'en')['overridden']]);
+        $this->assertSame(['default', false], [$this->slot($data, 'all')['source'], $this->slot($data, 'all')['overridden']]);
         // Resetting what is already the default changes nothing.
-        $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en'], $this->headersFor())->assertOk();
+        $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all'], $this->headersFor())->assertOk();
 
         $this->inTenant(function () {
             $this->assertSame(0, NotificationTemplate::count());
@@ -88,12 +102,17 @@ class TemplateApiTest extends TestCase
 
     public function test_unknown_placeholders_and_bad_slots_are_refused(): void
     {
-        $put = fn (array $body) => $this->putJson('/api/v1/notification-templates', $body + ['event_type' => self::EVENT, 'channel' => 'email', 'locale' => 'en', 'body' => 'Fine {message}'], $this->headersFor());
+        $put = fn (array $body) => $this->putJson('/api/v1/notification-templates', $body + ['event_type' => self::EVENT, 'channel' => 'email', 'body' => 'Fine {message}'], $this->headersFor());
 
         $put(['body' => 'Total {amount} for {message}'])->assertUnprocessable()->assertJsonValidationErrors('body')
             ->assertJsonPath('errors.body.0', 'This text uses placeholders this notification doesn’t have: {amount}. Use only: {sender_name}, {message}, {recipient_name}, {app_name}.');
         $put(['subject' => 'From {sender}'])->assertUnprocessable()->assertJsonValidationErrors('subject');
-        $put(['locale' => 'sw'])->assertUnprocessable()->assertJsonValidationErrors('locale');
+        // One text for every language: a language is refused, not ignored.
+        $put(['locale' => 'en'])->assertUnprocessable()->assertJsonValidationErrors('locale');
+        $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'email', 'locale' => 'fr'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('locale');
+        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'email', 'locale' => 'fr'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('locale');
         $put(['channel' => 'fax'])->assertUnprocessable()->assertJsonValidationErrors('channel');
         $put(['event_type' => 'core.nothing.here'])->assertUnprocessable()->assertJsonValidationErrors('event_type');
         $put(['body' => ''])->assertUnprocessable()->assertJsonValidationErrors('body');
@@ -103,15 +122,15 @@ class TemplateApiTest extends TestCase
 
         // A channel the event does not go out on.
         $this->registerTestEventTypes();
-        $this->putJson('/api/v1/notification-templates', ['event_type' => 'core.report.ready', 'channel' => 'sms', 'locale' => 'en', 'body' => 'x'], $this->headersFor())
+        $this->putJson('/api/v1/notification-templates', ['event_type' => 'core.report.ready', 'channel' => 'sms', 'body' => 'x'], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('channel');
 
-        $this->getJson('/api/v1/notification-templates/core.report.ready', $this->headersFor())->assertOk()->assertJsonCount(6, 'data.templates');
+        $this->getJson('/api/v1/notification-templates/core.report.ready', $this->headersFor())->assertOk()->assertJsonCount(3, 'data.templates');
     }
 
     public function test_sms_texts_are_short_and_subjects_are_one_line(): void
     {
-        $put = fn (array $body) => $this->putJson('/api/v1/notification-templates', $body + ['event_type' => self::EVENT, 'locale' => 'en'], $this->headersFor());
+        $put = fn (array $body) => $this->putJson('/api/v1/notification-templates', $body + ['event_type' => self::EVENT], $this->headersFor());
 
         $put(['channel' => 'sms', 'body' => str_repeat('x', 481)])->assertUnprocessable()->assertJsonValidationErrors('body');
         $put(['channel' => 'whatsapp', 'body' => str_repeat('x', 481)])->assertUnprocessable()->assertJsonValidationErrors('body');
@@ -119,14 +138,14 @@ class TemplateApiTest extends TestCase
         $put(['channel' => 'email', 'body' => 'x', 'subject' => "Line one\r\nBcc: someone@example.com"])->assertUnprocessable()
             ->assertJsonPath('errors.subject.0', 'A subject is one line. Remove the line breaks.');
         $put(['channel' => 'email', 'body' => 'x', 'subject' => "Line one\nLine two"])->assertUnprocessable()->assertJsonValidationErrors('subject');
-        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'sms', 'locale' => 'en', 'body' => str_repeat('x', 481)], $this->headersFor())
+        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'sms', 'body' => str_repeat('x', 481)], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('body');
     }
 
     public function test_a_long_text_for_all_channels_is_cut_on_sms_and_values_never_break_the_subject(): void
     {
         $this->putJson('/api/v1/notification-templates', [
-            'event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en', 'subject' => 'From {sender_name}', 'body' => str_repeat('é', 600).' {message}',
+            'event_type' => self::EVENT, 'channel' => 'all', 'subject' => 'From {sender_name}', 'body' => str_repeat('é', 600).' {message}',
         ], $this->headersFor())->assertOk();
         $this->inTenant(function () {
             $this->owner->forceFill(['phone' => '+254722000999', 'phone_verified_at' => now()])->save();
@@ -147,19 +166,19 @@ class TemplateApiTest extends TestCase
     public function test_preview_renders_sample_values_escaped_for_html(): void
     {
         $preview = $this->postJson('/api/v1/notification-templates/preview', [
-            'event_type' => self::EVENT, 'channel' => 'email', 'locale' => 'fr',
+            'event_type' => self::EVENT, 'channel' => 'email',
             'body' => "<b>{sender_name}</b>\n{message}",
-        ], $this->headersFor())->assertOk()->json('data');
+        ], $this->headersFor() + ['Accept-Language' => 'fr'])->assertOk()->json('data');
 
         $this->assertSame('Message de test de Amina Otieno', $preview['subject']);
         $this->assertSame("<b>Amina Otieno</b>\nThe shop opens at 08:00 tomorrow.", $preview['body']);
         $this->assertSame("&lt;b&gt;Amina Otieno&lt;/b&gt;<br>\nThe shop opens at 08:00 tomorrow.", $preview['html']);
 
         // Without a text: the one in use; common placeholders get samples too.
-        $preview = $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'sms', 'locale' => 'en'], $this->headersFor())->assertOk();
+        $preview = $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'sms'], $this->headersFor())->assertOk();
         $preview->assertJsonPath('data.body', config('app.name').': test message from Amina Otieno: The shop opens at 08:00 tomorrow.');
 
-        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'email', 'locale' => 'en', 'body' => '{nope}'], $this->headersFor())
+        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'email', 'body' => '{nope}'], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('body');
         $this->inTenant(fn () => $this->assertSame(0, NotificationTemplate::count()));
     }
@@ -168,7 +187,7 @@ class TemplateApiTest extends TestCase
     {
         $manager = $this->headersFor($this->userWith('branch_manager', Scope::branch($this->branchA->id)));
         $auditor = $this->headersFor($this->userWith('read_only_auditor', Scope::tenant()));
-        $body = ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en', 'body' => 'x'];
+        $body = ['event_type' => self::EVENT, 'channel' => 'all', 'body' => 'x'];
 
         $this->getJson('/api/v1/notification-templates', $manager)->assertForbidden();
         $this->getJson('/api/v1/notification-templates/'.self::EVENT, $manager)->assertForbidden();
@@ -189,14 +208,14 @@ class TemplateApiTest extends TestCase
 
     public function test_another_tenants_texts_are_its_own(): void
     {
-        $this->putJson('/api/v1/notification-templates', ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en', 'body' => 'Acme only {message}'], $this->headersFor())->assertOk();
+        $this->putJson('/api/v1/notification-templates', ['event_type' => self::EVENT, 'channel' => 'all', 'body' => 'Acme only {message}'], $this->headersFor())->assertOk();
         $other = $this->otherTenant();
         $headers = $this->bearer($this->tokenFor($other['user']));
 
         $theirs = $this->getJson('/api/v1/notification-templates/'.self::EVENT, $headers)->assertOk()->json('data');
-        $this->assertSame('default', $this->slot($theirs, 'all', 'en')['source']);
+        $this->assertSame('default', $this->slot($theirs, 'all')['source']);
         $this->assertStringNotContainsString('Acme only', json_encode($theirs));
-        $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en'], $headers)->assertOk();
+        $this->postJson('/api/v1/notification-templates/reset', ['event_type' => self::EVENT, 'channel' => 'all'], $headers)->assertOk();
         $this->inTenant(fn () => $this->assertSame(1, NotificationTemplate::count()));
     }
 }

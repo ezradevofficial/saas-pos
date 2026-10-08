@@ -25,8 +25,9 @@ use Illuminate\Support\Str;
  *
  * In the current tenant, for each recipient (an active user of the
  * tenant): the channels from their preferences and the tenant's mandatory
- * channels (Preferences), the text in their language from the tenant's
- * templates or the defaults (Templates), then one delivery per channel
+ * channels (Preferences), the text from the tenant's templates (one text,
+ * the same for everyone) or else the default in their language
+ * (Templates), then one delivery per channel
  * (NOT-06). In-app is written at once; email goes out through a queued
  * SendDelivery job, or waits for the user's digest (NOT-05); push, SMS and
  * WhatsApp go through their driver's queued job, or are skipped with a

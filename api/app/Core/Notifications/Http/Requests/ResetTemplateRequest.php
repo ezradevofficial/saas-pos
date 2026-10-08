@@ -24,7 +24,8 @@ class ResetTemplateRequest extends FormRequest
         return [
             'event_type' => ['required', 'string', 'max:100', $this->eventTypeRule()],
             'channel' => ['required', 'string', Rule::in([Channels::ANY, ...Channels::ALL]), $this->channelRule($type, allowAll: true)],
-            'locale' => ['required', 'string', Rule::in(Channels::LOCALES)],
+            // One text for everyone, in the organisation's language (NOT-03).
+            'locale' => ['prohibited'],
         ];
     }
 

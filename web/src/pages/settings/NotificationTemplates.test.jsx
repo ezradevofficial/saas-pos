@@ -12,22 +12,20 @@ const SUBJECT = 'Test message from {sender_name}'
 const BODY = 'Hello {recipient_name}'
 const SAMPLES = { recipient_name: 'Amina Otieno', sender_name: 'Joseph Mwangi', message: 'Stock count at 5 pm' }
 
+// One text per channel (no per-language versions); the default comes in the admin's language (NOT-03).
 function typeWith({ overridden = true } = {}) {
-  const templates = []
-  for (const locale of ['en', 'fr']) {
-    for (const channel of ['all', 'in_app', 'email', 'sms']) {
-      const own = overridden && channel === 'all' && locale === 'en'
-      templates.push({
-        channel,
-        locale,
-        subject: SUBJECT,
-        body: own ? 'Hi {recipient_name}, from {sender_name}' : BODY,
-        source: own ? 'all' : 'default',
-        overridden: own,
-        updated_at: null,
-      })
+  const templates = ['all', 'in_app', 'email', 'sms'].map((channel) => {
+    const own = overridden && channel === 'all'
+    return {
+      channel,
+      subject: SUBJECT,
+      body: own ? 'Hi {recipient_name}, from {sender_name}' : BODY,
+      source: own ? 'all' : 'default',
+      overridden: own,
+      updated_at: null,
+      default: { locale: 'en', subject: SUBJECT, body: BODY },
     }
-  }
+  })
   return {
     event_type: 'core.notification.test',
     label: 'Test message',
@@ -109,6 +107,25 @@ describe('notification templates (NOT-03, NOT-04)', () => {
     expect(preview).toHaveTextContent('Test message from Joseph Mwangi')
   })
 
+  it('has one text for everyone, shown next to the built-in default, with no language tabs', async () => {
+    setup()
+    renderApp('/settings/notification-templates')
+    await screen.findByTestId('template-preview')
+
+    expect(screen.queryByRole('tab', { name: 'French' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'English' })).not.toBeInTheDocument()
+    expect(screen.getByText('Written once, in your organisation’s language. Everyone receives this text.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Built-in default' })).toBeInTheDocument()
+    expect(screen.getByTestId('template-default')).toHaveTextContent(BODY)
+    expect(screen.getByTestId('template-default')).toHaveTextContent(SUBJECT)
+    expect(bodyBox()).toHaveValue('Hi {recipient_name}, from {sender_name}')
+
+    // A channel still on the default shows it in the editor, not twice.
+    chooseOption('Channel', 'Email')
+    await waitFor(() => expect(bodyBox()).toHaveValue(BODY))
+    expect(screen.queryByTestId('template-default')).not.toBeInTheDocument()
+  })
+
   it('inserts a placeholder at the cursor of the field last used', async () => {
     setup()
     renderApp('/settings/notification-templates')
@@ -145,7 +162,6 @@ describe('notification templates (NOT-03, NOT-04)', () => {
     expect(previews().at(-1)[1]).toEqual({
       event_type: 'core.notification.test',
       channel: 'all',
-      locale: 'en',
       subject: SUBJECT,
       body: 'Hi {sender_name}',
     })
@@ -160,11 +176,10 @@ describe('notification templates (NOT-03, NOT-04)', () => {
     expect(bodyBox()).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('saves the text for the chosen channel and language', async () => {
+  it('saves the one text for the chosen channel, without a language', async () => {
     setup()
     renderApp('/settings/notification-templates')
     await screen.findByTestId('template-preview')
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'French' }), { button: 0 })
     chooseOption('Channel', 'Email')
     await waitFor(() => expect(bodyBox()).toHaveValue(BODY))
 
@@ -174,7 +189,6 @@ describe('notification templates (NOT-03, NOT-04)', () => {
       expect(api.put).toHaveBeenCalledWith('notification-templates', {
         event_type: 'core.notification.test',
         channel: 'email',
-        locale: 'fr',
         subject: SUBJECT,
         body: 'Bonjour {recipient_name}',
       }),
@@ -182,26 +196,24 @@ describe('notification templates (NOT-03, NOT-04)', () => {
     expect(await screen.findByText('Template saved')).toBeInTheDocument()
   })
 
-  it('resets to the default text after confirming in the page', async () => {
+  it('goes back to the default text after confirming in the page', async () => {
     setup()
     renderApp('/settings/notification-templates')
     await screen.findByTestId('template-preview')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
-    expect(screen.getByText('Reset this text to the default?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Use default' }))
+    expect(screen.getByText('Use the default text?')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Keep my text' }))
-    expect(screen.queryByText('Reset this text to the default?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Use the default text?')).not.toBeInTheDocument()
     expect(api.post).not.toHaveBeenCalledWith('notification-templates/reset', expect.anything())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
-    const confirm = screen.getByText('Reset this text to the default?').closest('[role="status"]')
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Reset to default' }))
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('notification-templates/reset', { event_type: 'core.notification.test', channel: 'all', locale: 'en' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Use default' }))
+    const confirm = screen.getByText('Use the default text?').closest('[role="status"]')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Use default' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('notification-templates/reset', { event_type: 'core.notification.test', channel: 'all' }))
     await waitFor(() => expect(bodyBox()).toHaveValue(BODY))
     expect(screen.getByText('Default text')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Use default' })).not.toBeInTheDocument()
   })
 
   it('makes a channel required for everyone (NOT-04)', async () => {

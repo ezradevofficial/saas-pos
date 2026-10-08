@@ -17,10 +17,12 @@ use Illuminate\Support\Collection;
 
 /**
  * NOT-03: the tenant's notification texts. Each event type has a text for
- * `all` channels and for each of its channels, per language; each shows
- * the text in use and where it comes from (default, the tenant's text for
- * all channels, or for this channel). Edits and resets are audited
- * (`core.notification_template.*`).
+ * `all` channels and for each of its channels; each shows the text in use,
+ * where it comes from (default, the tenant's text for all channels, or for
+ * this channel) and the built-in default. A tenant's text is one text in
+ * the organisation's language, sent as is to everyone; the defaults are
+ * translated and shown in the requesting user's language (owner decision
+ * 2026-10-08). Edits and resets are audited (`core.notification_template.*`).
  */
 class TemplateController
 {
@@ -34,7 +36,7 @@ class TemplateController
         $overrides = NotificationTemplate::query()->get()->groupBy('event_type');
 
         return new JsonResponse(['data' => array_values(array_map(
-            fn (EventType $type) => $this->present($type, $this->keyed($overrides->get($type->key, collect()))),
+            fn (EventType $type) => $this->present($type, $overrides->get($type->key, collect())->keyBy('channel')),
             $this->types->active(),
         ))]);
     }
@@ -52,7 +54,7 @@ class TemplateController
         $data = $request->validated();
         $type = $this->types->get($data['event_type']);
         $template = NotificationTemplate::query()->firstOrNew([
-            'event_type' => $type->key, 'channel' => $data['channel'], 'locale' => $data['locale'],
+            'event_type' => $type->key, 'channel' => $data['channel'],
         ]);
         $subject = trim((string) ($data['subject'] ?? ''));
         $template->fill([
@@ -74,7 +76,7 @@ class TemplateController
         $type = $this->types->get($data['event_type']);
 
         NotificationTemplate::query()
-            ->where(['event_type' => $type->key, 'channel' => $data['channel'], 'locale' => $data['locale']])
+            ->where(['event_type' => $type->key, 'channel' => $data['channel']])
             ->first()
             ?->delete();
 
@@ -85,7 +87,7 @@ class TemplateController
     {
         $data = $request->validated();
         $type = $this->types->get($data['event_type']);
-        $effective = $this->templates->effective($type, $data['channel'], $data['locale']);
+        $effective = $this->templates->effective($type, $data['channel'], $this->readerLocale());
         $template = new Template(
             array_key_exists('subject', $data) && $data['subject'] !== null && trim($data['subject']) !== '' ? $data['subject'] : $effective->subject,
             array_key_exists('body', $data) && $data['body'] !== null ? $data['body'] : $effective->body,
@@ -95,20 +97,18 @@ class TemplateController
         return new JsonResponse(['data' => [
             'event_type' => $type->key,
             'channel' => $data['channel'],
-            'locale' => $data['locale'],
             'subject' => $message->subject,
             'body' => $message->body,
             'html' => $message->html(),
         ]]);
     }
 
-    /**
-     * @param  Collection<int, NotificationTemplate>  $rows
-     * @return Collection<string, NotificationTemplate>
-     */
-    private function keyed(Collection $rows): Collection
+    /** The requesting user's language: the defaults are shown and previewed in it. */
+    private function readerLocale(): string
     {
-        return $rows->keyBy(fn (NotificationTemplate $template) => "{$template->channel}|{$template->locale}");
+        $locale = app()->getLocale();
+
+        return in_array($locale, Channels::LOCALES, true) ? $locale : 'en';
     }
 
     /**
@@ -118,22 +118,24 @@ class TemplateController
     private function present(EventType $type, Collection $overrides): array
     {
         $templates = [];
+        $locale = $this->readerLocale();
 
-        foreach (Channels::LOCALES as $locale) {
-            foreach ([Channels::ANY, ...$type->channels] as $channel) {
-                $effective = $this->templates->effective($type, $channel, $locale, $overrides);
-                $own = $overrides->get("{$channel}|{$locale}");
+        foreach ([Channels::ANY, ...$type->channels] as $channel) {
+            $effective = $this->templates->effective($type, $channel, $locale, $overrides);
+            $default = $this->templates->default($type, $channel === Channels::ANY ? Channels::EMAIL : $channel, $locale);
+            $own = $overrides->get($channel);
 
-                $templates[] = [
-                    'channel' => $channel,
-                    'locale' => $locale,
-                    'subject' => $effective->subject,
-                    'body' => $effective->body,
-                    'source' => $effective->source,
-                    'overridden' => $own !== null,
-                    'updated_at' => $own?->updated_at?->toIso8601String(),
-                ];
-            }
+            $templates[] = [
+                'channel' => $channel,
+                'subject' => $effective->subject,
+                'body' => $effective->body,
+                'source' => $effective->source,
+                'overridden' => $own !== null,
+                'updated_at' => $own?->updated_at?->toIso8601String(),
+                // The built-in text, in the requesting user's language; each
+                // recipient gets it in their own when there is no override.
+                'default' => ['locale' => $locale, 'subject' => $default->subject, 'body' => $default->body],
+            ];
         }
 
         return [

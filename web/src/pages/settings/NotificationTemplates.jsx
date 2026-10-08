@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Select, Switch, Tabs, TextField } from '@/components/ds'
+import { Alert, Button, Card, Select, Switch, TextField } from '@/components/ds'
 import { Field } from '@/components/ds/Field'
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils'
 
 const TEMPLATES_KEY = ['notification-templates']
 const EVENT_TYPES_KEY = ['notification-event-types']
-const LOCALES = ['en', 'fr']
 /** Channels whose text is a short message without a subject. */
 const SHORT = ['sms', 'whatsapp']
 /** How long typing must pause before the preview asks the API again. */
@@ -33,16 +32,18 @@ const firstError = (error, field) => {
 }
 
 /**
- * One text (event type, channel, language): subject and body with
- * placeholder chips that insert `{placeholder}` at the cursor, a live
- * preview with sample values, save, and reset to the default with the
- * confirmation in the page (NOT-03).
+ * One text (event type, channel): subject and body with placeholder chips
+ * that insert `{placeholder}` at the cursor, a live preview with sample
+ * values, save, and "Use default" with the confirmation in the page. The
+ * organisation writes one text, in its own language, that everyone
+ * receives; the built-in default is shown in the admin's language and goes
+ * out in each person's own language (NOT-03, owner decision 2026-10-08).
  */
-function TemplateEditor({ type, channel, locale, canEdit }) {
+function TemplateEditor({ type, channel, canEdit }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const bodyId = useId()
-  const template = type.templates.find((entry) => entry.channel === channel && entry.locale === locale) ?? { subject: '', body: '', source: 'default' }
+  const template = type.templates.find((entry) => entry.channel === channel) ?? { subject: '', body: '', source: 'default' }
   const [subject, setSubject] = useState(template.subject ?? '')
   const [body, setBody] = useState(template.body ?? '')
   const [confirmReset, setConfirmReset] = useState(false)
@@ -55,15 +56,15 @@ function TemplateEditor({ type, channel, locale, canEdit }) {
   // Preview: once typing pauses, the text as it stands, with the event's sample values.
   const settled = useDebounced(JSON.stringify({ subject: short ? null : subject, body }), PREVIEW_DELAY_MS)
   const preview = useQuery({
-    queryKey: [...TEMPLATES_KEY, 'preview', type.event_type, channel, locale, settled],
-    queryFn: () => api.post('notification-templates/preview', { event_type: type.event_type, channel, locale, ...JSON.parse(settled) }),
+    queryKey: [...TEMPLATES_KEY, 'preview', type.event_type, channel, settled],
+    queryFn: () => api.post('notification-templates/preview', { event_type: type.event_type, channel, ...JSON.parse(settled) }),
     placeholderData: keepPreviousData,
     retry: false,
   })
 
   const save = useMutation({
     mutationFn: () =>
-      api.put('notification-templates', { event_type: type.event_type, channel, locale, subject: short ? null : subject.trim() || null, body }),
+      api.put('notification-templates', { event_type: type.event_type, channel, subject: short ? null : subject.trim() || null, body }),
     onSuccess: (response) => {
       queryClient.setQueryData(TEMPLATES_KEY, (list) => replaceType(list, response?.data))
       toast.success(t('notificationTemplates.saved'))
@@ -71,10 +72,10 @@ function TemplateEditor({ type, channel, locale, canEdit }) {
   })
 
   const reset = useMutation({
-    mutationFn: () => api.post('notification-templates/reset', { event_type: type.event_type, channel, locale }),
+    mutationFn: () => api.post('notification-templates/reset', { event_type: type.event_type, channel }),
     onSuccess: (response) => {
       queryClient.setQueryData(TEMPLATES_KEY, (list) => replaceType(list, response?.data))
-      const next = response?.data?.templates?.find((entry) => entry.channel === channel && entry.locale === locale)
+      const next = response?.data?.templates?.find((entry) => entry.channel === channel)
       setSubject(next?.subject ?? '')
       setBody(next?.body ?? '')
       setConfirmReset(false)
@@ -109,7 +110,10 @@ function TemplateEditor({ type, channel, locale, canEdit }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-caption text-ink-muted">{t(`notificationTemplates.sources.${template.source ?? 'default'}`)}</p>
+      <div className="flex flex-col gap-1">
+        <p className="text-caption text-ink-muted">{t(`notificationTemplates.sources.${template.source ?? 'default'}`)}</p>
+        <p className="text-caption text-ink-muted">{t('notificationTemplates.singleLanguage')}</p>
+      </div>
       {saveFailure ? <Alert tone="danger" title={saveFailure} /> : null}
 
       {!short ? (
@@ -170,6 +174,19 @@ function TemplateEditor({ type, channel, locale, canEdit }) {
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {template.source !== 'default' && template.default ? (
+        <section aria-labelledby={`${bodyId}-default`} className="flex flex-col gap-2 rounded-md border border-border bg-surface-100 p-4">
+          <h4 id={`${bodyId}-default`} className="text-label text-ink-muted">
+            {t('notificationTemplates.defaultTitle')}
+          </h4>
+          <p className="text-caption text-ink-muted">{t('notificationTemplates.defaultHelp')}</p>
+          <div data-testid="template-default" className="flex flex-col gap-2">
+            {!short && template.default.subject ? <p className="font-medium text-ink">{template.default.subject}</p> : null}
+            <p className="whitespace-pre-wrap text-ink">{template.default.body}</p>
+          </div>
+        </section>
       ) : null}
 
       <section aria-labelledby={`${bodyId}-preview`} className="flex flex-col gap-2 rounded-md border border-border bg-surface-100 p-4">
@@ -264,9 +281,9 @@ function MandatoryChannels({ eventType }) {
 
 /**
  * NOT-03, NOT-04: the organisation's notification texts. Pick an event
- * type, a language and a channel (or all channels); edit, preview, save or
- * reset its text; and, with core.notification_settings.edit, choose the
- * channels users must keep on.
+ * type and a channel (or all channels); edit, preview, save or reset its
+ * one text (no per-language versions); and, with
+ * core.notification_settings.edit, choose the channels users must keep on.
  */
 export default function NotificationTemplates() {
   const { t } = useTranslation()
@@ -274,7 +291,6 @@ export default function NotificationTemplates() {
   const canEdit = permissions.tenantWide('core.notification_template.edit')
   const canSetMandatory = permissions.tenantWide('core.notification_settings.edit')
   const [params, setParams] = useSearchParams()
-  const [locale, setLocale] = useState('en')
   const [channel, setChannel] = useState('all')
 
   const templates = useQuery({ queryKey: TEMPLATES_KEY, queryFn: () => api.get('notification-templates') })
@@ -327,7 +343,6 @@ export default function NotificationTemplates() {
           <div className="flex min-w-0 flex-1 flex-col gap-6">
             <Card title={selected.label}>
               <div className="flex flex-col gap-5">
-                <Tabs items={LOCALES.map((value) => ({ value, label: t(`notificationTemplates.locales.${value}`) }))} value={locale} onChange={setLocale} />
                 <Select
                   label={t('notificationTemplates.channel')}
                   className="max-w-field"
@@ -335,13 +350,7 @@ export default function NotificationTemplates() {
                   value={currentChannel}
                   onChange={(event) => setChannel(event.target.value)}
                 />
-                <TemplateEditor
-                  key={`${selected.event_type}|${currentChannel}|${locale}`}
-                  type={selected}
-                  channel={currentChannel}
-                  locale={locale}
-                  canEdit={canEdit}
-                />
+                <TemplateEditor key={`${selected.event_type}|${currentChannel}`} type={selected} channel={currentChannel} canEdit={canEdit} />
               </div>
             </Card>
             {canSetMandatory && settings ? <MandatoryChannels eventType={settings} /> : null}

@@ -1,8 +1,8 @@
 <?php
 
 // NOT-01..NOT-06: the notification service. Event texts use {placeholder}
-// syntax (NOT-03); they are defaults a tenant can override per channel
-// and language.
+// syntax (NOT-03); they are defaults, sent in each recipient's language,
+// that a tenant can replace per channel with one text of its own.
 return [
     'channels' => [
         'all' => 'All channels',
