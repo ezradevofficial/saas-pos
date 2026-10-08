@@ -99,7 +99,7 @@ export default function RuleEditor() {
   const [confirmArchive, setConfirmArchive] = useState(false)
   const rights = useAutomationRights(state?.draft.company_id ?? null)
 
-  if (isNew && state?.id !== NEW && types.length > 0) {
+  if (isNew && state?.id !== NEW && !state?.created && types.length > 0) {
     const info = types[0]
     const draft = { name: '', document_type: info.key, company_id: rights.canEditAll ? null : (companies[0]?.id ?? null), trigger: newTrigger(info.triggers?.[0] ?? 'record_created', info), conditions: null, actions: [] }
     setState({ id: NEW, draft, base: null })
@@ -139,7 +139,8 @@ export default function RuleEditor() {
     const response = isNew ? await api.post('automation-rules', body) : await api.patch(`automation-rules/${ruleId}`, body)
     const saved = await remember(response)
     const next = fromRule(saved)
-    setState({ id: saved.id, draft: next, base: signature(next) })
+    // `created` keeps this copy while the address still says "new" for a moment.
+    setState({ id: saved.id, draft: next, base: signature(next), created: isNew || state.created })
     if (isNew) navigate(`/settings/automation-rules/${saved.id}${tab === 'rule' ? '' : `?tab=${tab}`}`, { replace: true })
     return saved
   }
@@ -177,7 +178,7 @@ export default function RuleEditor() {
   })
   const rotate = useMutation({ mutationFn: async () => remember(await api.post(`automation-rules/${ruleId}/webhook-secret/rotate`)) })
 
-  if (!isNew && ruleQuery.isError) {
+  if (!isNew && ruleQuery.isError && !rule) {
     return (
       <>
         <PageHeader title={t('automation.title')} />
