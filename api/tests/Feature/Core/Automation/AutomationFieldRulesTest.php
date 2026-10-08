@@ -103,7 +103,8 @@ class AutomationFieldRulesTest extends TestCase
         // The same rule acting as the owner sends the amount.
         $this->inTenant(fn () => $rule->forceFill(['updated_by' => $this->owner->id])->save());
         $this->createTask(['amount' => $this->kes(987654)]);
-        Http::assertSent(fn (Request $request) => (json_decode($request->body(), true)['fields']['amount'] ?? null) === $this->kes(987654));
+        // Key order is the stored jsonb's, so compare as a map.
+        Http::assertSent(fn (Request $request) => (json_decode($request->body(), true)['fields']['amount'] ?? null) == $this->kes(987654));
     }
 
     public function test_the_run_log_leaves_out_checks_and_trigger_fields_hidden_from_the_reader(): void

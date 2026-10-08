@@ -2,14 +2,17 @@
 
 namespace Tests\Feature\Core\Automation;
 
+use App\Core\Automation\Jobs\SendWebhookDelivery;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Models\WebhookDelivery;
+use App\Core\Automation\Runtime\WebhookDeliveries;
 use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Automation\Webhooks\Signature;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsAutomation;
@@ -182,5 +185,32 @@ class AutomationWebhooksTest extends TestCase
         $this->assertSame([WebhookDelivery::FAILED, 3], [$delivery->status, $delivery->attempts]);
         $this->assertStringContainsString('couldn’t be reached', $delivery->error);
         $this->assertSame(1, $this->alerts());
+    }
+
+    public function test_the_payload_is_snapshotted_when_the_delivery_is_written_and_retries_send_it_unchanged(): void
+    {
+        Http::fake(['https://hooks.example.com/*' => Http::sequence()->push('busy', 503)->push('ok', 200)]);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in']]);
+
+        // Hold the send: the document changes before the first attempt.
+        Bus::fake([SendWebhookDelivery::class]);
+        $id = $this->createTask(['amount' => $this->kes(1000)]);
+
+        $stored = $this->delivery()->payload;
+        $this->assertEquals($this->kes(1000), $stored['fields']['amount']);
+        $this->assertArrayHasKey('occurred_at', $stored);
+
+        $this->changeTask($id, ['amount' => $this->kes(2500)]);
+        $deliveries = app(WebhookDeliveries::class);
+        $this->inTenant(fn () => $deliveries->deliver($this->delivery()->id)); // 503: retrying
+        $this->assertSame(WebhookDelivery::RETRYING, $this->delivery()->status);
+        $this->inTenant(fn () => $deliveries->deliver($this->delivery()->id)); // 200
+        $this->assertSame(WebhookDelivery::DELIVERED, $this->delivery()->status);
+
+        $bodies = collect(Http::recorded())->map(fn (array $pair) => $pair[0]->body())->values();
+        $this->assertCount(2, $bodies);
+        $this->assertSame($bodies[0], $bodies[1], 'every attempt sends the same body');
+        $this->assertEquals($this->kes(1000), json_decode($bodies[0], true)['fields']['amount']);
+        $this->assertEquals($stored, $this->delivery()->payload);
     }
 }
