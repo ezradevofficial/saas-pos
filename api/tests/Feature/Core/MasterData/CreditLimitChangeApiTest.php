@@ -329,7 +329,7 @@ class CreditLimitChangeApiTest extends TestCase
     public function test_the_apply_job_is_queued_after_approval_with_retries_and_is_idempotent(): void
     {
         $change = $this->request()->assertCreated()->json('data.id');
-        Queue::fake();
+        Queue::fake([ApplyCreditLimitChange::class]);
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
         // Decided: approved, not applied until the job runs.
@@ -351,7 +351,7 @@ class CreditLimitChangeApiTest extends TestCase
     {
         $change = $this->request()->assertCreated()->json('data.id');
         $admin = $this->named('admin', Scope::company($this->acme->id), 'Ada Admin');
-        Queue::fake();
+        Queue::fake([ApplyCreditLimitChange::class]);
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
         // The job gave up (say, the database was away): approved, not applied.

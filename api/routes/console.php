@@ -24,5 +24,8 @@ Schedule::command('automation:scan reap')->everyFiveMinutes()->withoutOverlappin
 // APR-05: approval reminders, escalations and final timeouts, in business time.
 Schedule::command('approvals:process-timers')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
 
+// M4 (WF-10, WF-11): credit limit changes whose flow ended but the queued listener missed.
+Schedule::command('credit-limits:reconcile')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+
 // WF-09: reminders, overdue notices and escalation of plain workflow stages, in business time.
 Schedule::command('workflow:process-stage-timers')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
