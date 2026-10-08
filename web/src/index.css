@@ -191,3 +191,8 @@
     background-color: var(--scrim);
   }
 }
+
+/* Toasts (sonner) in the app font, whatever order the styles load in. */
+[data-sonner-toaster][data-sonner-theme] {
+  font-family: var(--font-sans);
+}

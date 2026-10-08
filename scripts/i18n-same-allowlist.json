@@ -34,5 +34,6 @@
   "{{unit}} × {{factor}}",
   "{{count}} image",
   "{{count}} images",
-  "Active"
+  "Active",
+  "Excel (.xlsx)"
 ]

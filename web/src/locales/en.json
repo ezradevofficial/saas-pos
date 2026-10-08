@@ -84,6 +84,29 @@
     "combobox": {
       "search": "Search",
       "noMatches": "No matches"
+    },
+    "listView": {
+      "search": "Search",
+      "columns": "Columns",
+      "showColumns": "Show columns",
+      "export": "Export",
+      "formats": {
+        "xlsx": "Excel (.xlsx)",
+        "csv": "CSV",
+        "pdf": "PDF"
+      },
+      "exporting": "Preparing the export…",
+      "exported": "Export downloaded.",
+      "exportTooOften": "Too many exports in a short time. Wait a minute and try again.",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "noRecords": "No records",
+      "perPage": "Rows per page",
+      "pages": "Pages of results",
+      "pageOf": "Page {{page}} of {{last}}",
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
     }
   },
   "dev": {
@@ -1562,7 +1585,8 @@
       "phone": "Phone",
       "email": "Email",
       "tags": "Tags",
-      "creditLimit": "Credit limit"
+      "creditLimit": "Credit limit",
+      "taxId": "Tax ID"
     },
     "kinds": {
       "person": "Person",

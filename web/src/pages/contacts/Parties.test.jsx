@@ -72,7 +72,7 @@ describe('Customers and suppliers', () => {
 
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: '0810' } })
     fireEvent.change(screen.getByLabelText('Tag'), { target: { value: 'vip' } })
-    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&per_page=25&page=1&search=0810&tag=vip'))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&tag=vip&search=0810&per_page=25&page=1'))
   })
 
   it('lists suppliers with their own filter', async () => {

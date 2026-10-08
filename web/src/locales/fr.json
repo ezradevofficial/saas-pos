@@ -84,6 +84,29 @@
     "combobox": {
       "search": "Rechercher",
       "noMatches": "Aucun résultat"
+    },
+    "listView": {
+      "search": "Rechercher",
+      "columns": "Colonnes",
+      "showColumns": "Colonnes affichées",
+      "export": "Exporter",
+      "formats": {
+        "xlsx": "Excel (.xlsx)",
+        "csv": "CSV",
+        "pdf": "PDF"
+      },
+      "exporting": "Préparation de l’export…",
+      "exported": "Export téléchargé.",
+      "exportTooOften": "Trop d’exports en peu de temps. Patientez une minute puis réessayez.",
+      "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+      "noRecords": "Aucun enregistrement",
+      "perPage": "Lignes par page",
+      "pages": "Pages de résultats",
+      "pageOf": "Page {{page}} sur {{last}}",
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
     }
   },
   "dev": {
@@ -1562,7 +1585,8 @@
       "phone": "Téléphone",
       "email": "E-mail",
       "tags": "Étiquettes",
-      "creditLimit": "Plafond de crédit"
+      "creditLimit": "Plafond de crédit",
+      "taxId": "Identifiant fiscal"
     },
     "kinds": {
       "person": "Personne",
