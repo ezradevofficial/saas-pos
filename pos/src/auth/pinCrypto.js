@@ -1,6 +1,7 @@
 import { hmac } from '@noble/hashes/hmac.js';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import AppCrypto from '../../modules/app-crypto';
 import { concatBytes, constantTimeEqual, fromBase64Url, toBase64Url, utf8 } from '../lib/bytes';
 
 /**
@@ -13,9 +14,11 @@ import { concatBytes, constantTimeEqual, fromBase64Url, toBase64Url, utf8 } from
  * (card: "card:v1:", the card code in upper case). The device secret is
  * the one named by the material's `kid`.
  *
- * PBKDF2 runs on WebCrypto where it exists (the web preview, Jest) and on
- * @noble/hashes elsewhere (Hermes has no WebCrypto). noble's async form
- * yields to the UI thread while it works.
+ * PBKDF2 runs, in order of preference, on the local AppCrypto native module
+ * (modules/app-crypto: Android javax.crypto, iOS CommonCrypto; in the
+ * development build), on WebCrypto (the web preview, Jest), and on
+ * @noble/hashes (pure JS; on Hermes, which has no JIT, it takes seconds at
+ * 150,000 iterations, so it is the last resort).
  */
 export const PIN_SCHEME = 'pbkdf2-sha256+hmac-sha256/v1';
 export const MIN_ITERATIONS = 100000;
@@ -32,17 +35,48 @@ function noblePbkdf2(password, salt, iterations, length) {
   return pbkdf2Async(sha256, password, salt, { c: iterations, dkLen: length, asyncTick: 16 });
 }
 
-/** PBKDF2-HMAC-SHA256. `engine`: 'auto' (WebCrypto when present), 'noble' or 'webcrypto'. */
-export async function pbkdf2Sha256(password, salt, iterations, length = 32, { engine = 'auto' } = {}) {
-  const useWeb = engine === 'webcrypto' || (engine === 'auto' && typeof globalThis.crypto?.subtle?.deriveBits === 'function');
-  if (useWeb) {
+/** Standard base64 with padding (what the native modules read). */
+function toBase64(bytes) {
+  const url = toBase64Url(bytes).replace(/-/g, '+').replace(/_/g, '/');
+  return url + '='.repeat((4 - (url.length % 4)) % 4);
+}
+
+async function nativePbkdf2(native, password, salt, iterations, length) {
+  const key = fromBase64Url(await native.pbkdf2Sha256(new TextDecoder().decode(password), toBase64(salt), iterations, length));
+  if (!key || key.length !== length) throw new Error('native PBKDF2 returned a bad key');
+  return key;
+}
+
+const ENGINES = { native: nativePbkdf2, webcrypto: (_native, ...args) => webCryptoPbkdf2(...args), noble: (_native, ...args) => noblePbkdf2(...args) };
+
+/**
+ * The PBKDF2 engines to try, best first: the native module when built in,
+ * WebCrypto when present, @noble/hashes always.
+ */
+export function pbkdf2Engines(native = AppCrypto, crypto = globalThis.crypto) {
+  const engines = [];
+  if (typeof native?.pbkdf2Sha256 === 'function') engines.push('native');
+  if (typeof crypto?.subtle?.deriveBits === 'function') engines.push('webcrypto');
+  engines.push('noble');
+  return engines;
+}
+
+/**
+ * PBKDF2-HMAC-SHA256 of `password` (bytes) with `salt` (bytes). `engine`:
+ * 'auto' (the best one that works, falling back on an error), or one of
+ * 'native' | 'webcrypto' | 'noble' exactly. `native` is for tests.
+ */
+export async function pbkdf2Sha256(password, salt, iterations, length = 32, { engine = 'auto', native = AppCrypto } = {}) {
+  if (engine !== 'auto') return ENGINES[engine](native, password, salt, iterations, length);
+  const engines = pbkdf2Engines(native);
+  for (const name of engines) {
     try {
-      return await webCryptoPbkdf2(password, salt, iterations, length);
+      return await ENGINES[name](native, password, salt, iterations, length);
     } catch (error) {
-      if (engine === 'webcrypto') throw error;
+      if (name === 'noble') throw error;
     }
   }
-  return noblePbkdf2(password, salt, iterations, length);
+  throw new Error('no PBKDF2 engine');
 }
 
 export function hmacSha256(key, message) {
@@ -95,13 +129,21 @@ export async function verifyOffline({ material, kind = 'pin', userId, input, dev
  */
 export function overrideMessage({ deviceId, kid, id, managerUserId, cashierUserId, permission, reference, authorisedAt }) {
   if (!kid || !reference) throw new Error('An offline override needs the secret kid and a reference');
-  return ['override:v2', deviceId, kid, id, managerUserId, cashierUserId ?? '', permission, reference, authorisedAt].join('\n');
+  const lines = [deviceId, kid, id, managerUserId, cashierUserId ?? '', permission, reference, authorisedAt];
+  // A line break would let one field pose as the next: the server would check another message.
+  if (lines.some((line) => typeof line !== 'string' || /[\r\n]/.test(line))) throw new Error('Override fields must be single-line strings');
+  return ['override:v2', ...lines].join('\n');
 }
 
-/** base64url(HMAC-SHA256(device secret, overrideMessage(...))). */
-export function signOverride({ deviceSecret, ...fields }) {
+/**
+ * Sign an offline override: { signature: base64url(HMAC-SHA256(device
+ * secret, overrideMessage(...))), authorisedAt }. authorisedAt is the
+ * server's clock as the till knows it (engine.serverNow), not the till's.
+ */
+export function signOverride({ deviceSecret, serverNow, authorisedAt, ...fields }) {
+  const at = authorisedAt ?? new Date(serverNow()).toISOString();
   const secret = fromBase64Url(deviceSecret.secret);
-  return toBase64Url(hmacSha256(secret, utf8(overrideMessage({ ...fields, kid: deviceSecret.kid }))));
+  return { signature: toBase64Url(hmacSha256(secret, utf8(overrideMessage({ ...fields, authorisedAt: at, kid: deviceSecret.kid })))), authorisedAt: at };
 }
 
 /** Proofs for the two-step secret rotation (DeviceSecrets::rotate / activate). */

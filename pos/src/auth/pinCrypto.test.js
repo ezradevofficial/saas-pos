@@ -1,6 +1,6 @@
 import { createHmac, pbkdf2Sync } from 'node:crypto';
 import { fromBase64Url, toBase64Url } from '../lib/bytes';
-import { computeVerifier, overrideMessage, pbkdf2Sha256, PIN_SCHEME, signOverride, verifyOffline } from './pinCrypto';
+import { computeVerifier, overrideMessage, pbkdf2Engines, pbkdf2Sha256, PIN_SCHEME, signOverride, verifyOffline } from './pinCrypto';
 
 // AUTH-06..AUTH-08: the offline PIN scheme matches the server's.
 // Vectors made with PHP's hash_pbkdf2/hash_hmac, the functions Pins.php uses:
@@ -90,7 +90,7 @@ describe('offline override signature', () => {
   };
 
   it('signs the v2 message as the server checks it (PHP vector)', () => {
-    expect(signOverride({ deviceSecret, ...fields })).toBe(PHP_OVERRIDE_V2);
+    expect(signOverride({ deviceSecret, ...fields })).toEqual({ signature: PHP_OVERRIDE_V2, authorisedAt: fields.authorisedAt });
     expect(overrideMessage({ ...fields, kid: 'k1' })).toBe(
       ['override:v2', 'dev-1', 'k1', fields.id, fields.managerUserId, '', 'pos.sale.void', 'sale-9', fields.authorisedAt].join('\n'),
     );
@@ -99,5 +99,60 @@ describe('offline override signature', () => {
   it('refuses to sign without a kid or a reference', () => {
     expect(() => signOverride({ deviceSecret: { secret: SECRET }, ...fields })).toThrow();
     expect(() => signOverride({ deviceSecret, ...fields, reference: null })).toThrow();
+  });
+
+  it('refuses line breaks that would shift the signed fields', () => {
+    expect(() => signOverride({ deviceSecret, ...fields, reference: 'sale-9\npos.sale.refund' })).toThrow('single-line');
+    expect(() => signOverride({ deviceSecret, ...fields, permission: 'pos.sale.void\r' })).toThrow('single-line');
+  });
+
+  it('dates the override with the server clock the till knows', () => {
+    const serverNow = () => Date.parse('2026-10-08T12:00:00.000Z');
+    const { authorisedAt } = signOverride({ deviceSecret, ...fields, authorisedAt: undefined, serverNow });
+    expect(authorisedAt).toBe('2026-10-08T12:00:00.000Z');
+  });
+});
+
+describe('PBKDF2 engine selection', () => {
+  const password = new TextEncoder().encode('482913');
+  const salt = fromBase64Url(SALT);
+  const expected = new Uint8Array(pbkdf2Sync(Buffer.from(password), Buffer.from(salt), 100000, 32, 'sha256'));
+
+  // A stand-in for the AppCrypto native module, computing with Node's crypto.
+  const fakeNative = () => ({
+    calls: [],
+    async pbkdf2Sha256(text, saltBase64, iterations, keyLength) {
+      this.calls.push({ text, saltBase64, iterations, keyLength });
+      return pbkdf2Sync(text, Buffer.from(saltBase64, 'base64'), iterations, keyLength, 'sha256').toString('base64');
+    },
+  });
+
+  it('prefers the native module, then WebCrypto, then noble', () => {
+    expect(pbkdf2Engines(fakeNative(), globalThis.crypto)).toEqual(['native', 'webcrypto', 'noble']);
+    expect(pbkdf2Engines(null, globalThis.crypto)).toEqual(['webcrypto', 'noble']);
+    expect(pbkdf2Engines(null, null)).toEqual(['noble']);
+  });
+
+  it('has no native module in Jest or the web preview', () => {
+    expect(pbkdf2Engines()).toEqual(['webcrypto', 'noble']);
+  });
+
+  it('passes the PIN as text and the salt as padded base64 to the native module', async () => {
+    const native = fakeNative();
+    const key = await pbkdf2Sha256(password, salt, 100000, 32, { native });
+
+    expect(key).toEqual(expected);
+    expect(native.calls).toEqual([{ text: '482913', saltBase64: Buffer.from(salt).toString('base64'), iterations: 100000, keyLength: 32 }]);
+  });
+
+  it('falls back when the native module fails or answers a wrong-sized key', async () => {
+    const short = { pbkdf2Sha256: async () => 'AAAA' };
+    await expect(pbkdf2Sha256(password, salt, 100000, 32, { native: short })).resolves.toEqual(expected);
+    const throwing = {
+      pbkdf2Sha256: async () => {
+        throw new Error('no');
+      },
+    };
+    await expect(pbkdf2Sha256(password, salt, 100000, 32, { native: throwing })).resolves.toEqual(expected);
   });
 });
