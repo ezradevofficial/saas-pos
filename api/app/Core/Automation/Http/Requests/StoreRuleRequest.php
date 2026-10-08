@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Core\Automation\Http\Requests;
+
+use App\Core\Automation\AutomationAccess;
+use App\Core\Automation\Runtime\ActionList;
+use App\Core\Tenancy\Models\Company;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Validator;
+
+/**
+ * AUTO-01..AUTO-03: POST automation-rules {name, document_type,
+ * company_id?, trigger, conditions?, actions, enabled?}. A rule with a
+ * webhook gets a generated signing secret, returned in this response only.
+ * `core.automation.edit` at the company, or at tenant scope for a rule of
+ * every company. Saved switched off unless `enabled` is true.
+ */
+class StoreRuleRequest extends FormRequest
+{
+    use ValidatesRuleDefinition;
+
+    public function authorize(): bool
+    {
+        $access = app(AutomationAccess::class);
+        $companyId = $this->input('company_id');
+        $company = is_string($companyId) && Str::isUuid($companyId) ? Company::query()->find($companyId) : null;
+
+        // An unknown or unreachable company is a validation error, never a confirmation it exists.
+        if ($companyId !== null && ($company === null || ! $access->reachesCompany($this->user(), $company))) {
+            return $access->anywhere($this->user());
+        }
+
+        return $access->mayEdit($this->user(), $company?->id);
+    }
+
+    /** Each action gets a stable id (ActionList). */
+    protected function prepareForValidation(): void
+    {
+        if (is_array($this->input('actions'))) {
+            $this->merge(['actions' => ActionList::merge($this->input('actions'))]);
+        }
+    }
+
+    public function rules(): array
+    {
+        return [
+            ...$this->definitionRules(),
+            'enabled' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition()));
+    }
+}

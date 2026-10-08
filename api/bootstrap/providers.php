@@ -1,6 +1,7 @@
 <?php
 
 use App\Core\Approvals\ApprovalsServiceProvider;
+use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
@@ -22,6 +23,7 @@ return [
     MasterDataServiceProvider::class,
     WorkflowServiceProvider::class,
     NotificationsServiceProvider::class,
+    AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
 ];

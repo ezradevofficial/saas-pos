@@ -3,6 +3,9 @@
 namespace Tests\Support;
 
 use App\Core\Approvals\Models\ApprovalRequest;
+use App\Core\Automation\Events\RecordChanged;
+use App\Core\Automation\Models\AutomationRun;
+use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\InvitationNotification;
@@ -19,10 +22,12 @@ use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
+use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -40,7 +45,8 @@ use Tests\TestCase;
  * an image, configured payment methods, departments, cost centres and
  * projects, a published workflow with a document in it that created an
  * order, working hours, notification texts, settings and preferences, and
- * a notification sent to the owner and the manager). Field rules, limit
+ * a notification sent to the owner and the manager, an automation rule
+ * and its run). Field rules, limit
  * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
@@ -64,6 +70,9 @@ final class TwoTenants
     {
         Notification::fake();
         Storage::fake('media');
+        // AUTO-03: webhooks go nowhere; the receiver's name resolves to a public address.
+        Http::fake(['https://hooks.example.com/*' => Http::response('received', 200)]);
+        app()->instance(HostResolver::class, new FakeHostResolver(['hooks.example.com' => [['93.184.216.34']]]));
         app(ModuleRegistry::class)->register(self::MODULE);
         // WF-01: the test document types (a request that creates orders).
         TestDocuments::reset();
@@ -279,6 +288,28 @@ final class TwoTenants
             return InAppNotification::where('user_id', $ownerId)->value('id');
         });
 
+        // AUTO-01, AUTO-05: a rule on the company's requests, switched on, and
+        // its run for the document (raised as the module would on creating it).
+        $rule = self::ok($test->postJson('/api/v1/automation-rules', [
+            'name' => "Rule {$upper}",
+            'document_type' => TestRequestType::KEY,
+            'company_id' => $company,
+            'trigger' => ['type' => 'record_created'],
+            'conditions' => ['field' => 'note', 'op' => 'not_empty'],
+            'actions' => [
+                ['type' => 'notify', 'to' => ["user:{$ownerId}"], 'subject' => 'Automation {note}', 'message' => 'Created {total}.'],
+                ['type' => 'webhook', 'url' => "https://hooks.example.com/{$key}?token=hook-token-{$key}"],
+            ],
+            'enabled' => true,
+        ], $owner), 201)->json('data.id');
+        // AUTO-03: a generated webhook signing secret (returned once); B's must never reach A.
+        $webhookSecret = self::ok($test->postJson("/api/v1/automation-rules/{$rule}/webhook-secret/rotate", [], $owner))->json('data.webhook_secret');
+        $automationRun = app(TenantContext::class)->run($tenantId, function () use ($tenantId, $document, $rule) {
+            RecordChanged::dispatch($tenantId, TestRequestType::KEY, $document, RecordChanged::CREATED, [], TestDocuments::find(TestRequestType::KEY, $document)['values']);
+
+            return AutomationRun::query()->where('rule_id', $rule)->where('outcome', 'succeeded')->sole()->id;
+        });
+
         // APR-01..APR-08: the flow for every company has an approval by the
         // manager; a document of the sign-up company (no flow of its own) waits
         // there (an email with single-use links went to the manager), the
@@ -349,6 +380,8 @@ final class TwoTenants
                 'workflow_version' => $workflowVersion,
                 'document' => $document,
                 'notification' => $notification,
+                'automation_rule' => $rule,
+                'automation_run' => $automationRun,
                 'approval' => $approval,
                 'delegation' => $delegation,
                 'credit_limit_change' => $creditLimitChange,
@@ -356,7 +389,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}"])),
         );
     }
 

@@ -55,6 +55,11 @@ final class TestDocuments
         self::$documents[$id]['values'] = [...self::$documents[$id]['values'], ...$values];
     }
 
+    public static function move(string $id, DocumentScope $scope): void
+    {
+        self::$documents[$id]['scope'] = $scope;
+    }
+
     public static function setStatus(string $id, string $status): void
     {
         self::$documents[$id]['status'] = $status;
