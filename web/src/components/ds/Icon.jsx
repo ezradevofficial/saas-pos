@@ -50,6 +50,7 @@ import {
   Share2,
   SquareCheckBig,
   Shapes,
+  SlidersHorizontal,
   ShieldCheck,
   TabletSmartphone,
   Trash2,
@@ -67,6 +68,7 @@ import { cn } from '@/lib/utils'
 const ICONS = {
   check: Check,
   x: X,
+  filter: SlidersHorizontal,
   alert: TriangleAlert,
   info: Info,
   cloud: Cloud,

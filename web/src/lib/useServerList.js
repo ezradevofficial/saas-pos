@@ -62,18 +62,38 @@ function saveFile(blob, filename) {
  * keystroke at once and `write` gets the trimmed text once typing stops for
  * `delay` ms. When the URL changes elsewhere (back, forward, a link), the box
  * follows it. Returns `[value, change(text)]`.
+ *
+ * `flushOnUnmount`: a box that goes away while its owner stays (a filter in
+ * the Filters drawer, which unmounts when it closes) writes its pending text
+ * at once instead of dropping the last keystrokes. Off for boxes whose page
+ * itself goes away, so nothing writes to the URL of the next page.
  */
-export function useTypedText(urlValue, write, delay = 300) {
+export function useTypedText(urlValue, write, delay = 300, { flushOnUnmount = false } = {}) {
   // draft: what the box shows; base: the URL value it was typed over; target: what it will write.
   const [entry, setEntry] = useState(null)
   const timer = useRef(null)
-  useEffect(() => () => clearTimeout(timer.current), [])
+  // The text waiting for the timer (null when nothing waits) and the latest writer, for the unmount flush.
+  const pending = useRef(null)
+  const writer = useRef({ write, flushOnUnmount })
+  useEffect(() => {
+    writer.current = { write, flushOnUnmount }
+  })
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current)
+      if (writer.current.flushOnUnmount && pending.current !== null) writer.current.write(pending.current)
+      pending.current = null
+    },
+    [],
+  )
   const value = entry && (urlValue === entry.base || urlValue === entry.target) ? entry.draft : urlValue
   const change = (next) => {
     const target = next.trim()
     setEntry({ draft: next, base: urlValue, target })
     clearTimeout(timer.current)
+    pending.current = target
     timer.current = setTimeout(() => {
+      pending.current = null
       setEntry((current) => (current ? { ...current, base: target } : current))
       write(target)
     }, delay)
@@ -236,7 +256,11 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     setSearch: setSearchInput,
     term: urlSearch,
     filters,
+    /** Each filter's default value: a filter is active when its value differs. */
+    filterDefaults: { ...filterDefaults },
     setFilter: (name, value, options) => update({ [name]: value }, options),
+    /** Several filters in one URL write (Clear filters), e.g. `{ type: '', category: '' }`. */
+    setFilters: (changes, options) => update(changes, options),
     sort,
     setSort: (next) => update({ sort: next ?? '' }),
     /** Header clicks: ascending, then descending, then the list's default order. */

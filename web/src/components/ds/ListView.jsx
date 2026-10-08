@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/errorMessage'
 import {
@@ -16,6 +17,7 @@ import { Alert } from './Alert'
 import { Button } from './Button'
 import { DataTable } from './DataTable'
 import { Icon } from './Icon'
+import { FilterChips, FilterDrawer } from './ListFilters'
 import { Select } from './Select'
 import { TextField } from './TextField'
 
@@ -47,14 +49,21 @@ export function ExportMenu({ onExport, exporting }) {
 }
 
 /**
- * A server list (EXP-01, LAY-04): a toolbar with search, the page's filters,
- * a Columns menu and an Export menu; the table with sortable headers; and a
- * footer with the record count, rows per page and first/previous/next/last.
- * State comes from `useServerList`; `filters` are the page's own pickers;
- * `searchable={false}` drops the search box for a list the API cannot search.
+ * A server list (EXP-01, LAY-04): a toolbar with search, a Filters button,
+ * a Columns menu and an Export menu; the active filters as removable chips;
+ * the table with sortable headers; and a footer with the record count, rows
+ * per page and first/previous/next/last. State comes from `useServerList`.
+ *
+ * Filters live in a drawer from the right, so many filters never crowd the
+ * table. `filterFields` declares them as data (see ListFilters.jsx), which
+ * also labels the chips and the count; `filters` is the older render slot,
+ * still drawn inside the drawer (no chips for it). `searchable={false}`
+ * drops the search box for a list the API cannot search.
  */
-export function ListView({ list, title, searchable = true, searchLabel, searchPlaceholder, filters, emptyText, onRowClick, selectedId, className }) {
+export function ListView({ list, title, searchable = true, searchLabel, searchPlaceholder, filterFields, filters, emptyText, onRowClick, selectedId, className }) {
   const { t } = useTranslation()
+  const filterButton = useRef(null)
+  const hasFilters = Boolean(filterFields?.length || filters)
   const locale = useLocale()
   const { query, rows, meta, page, lastPage } = list
   const number = (value) => formatInteger(value ?? 0, locale)
@@ -81,8 +90,12 @@ export function ListView({ list, title, searchable = true, searchLabel, searchPl
             className="w-full sm:w-auto sm:flex-1"
           />
         ) : null}
-        {filters ? <div className="flex w-full min-w-0 flex-wrap items-end gap-3 sm:w-auto sm:flex-1">{filters}</div> : null}
         <div className="flex flex-wrap gap-2">
+          {hasFilters ? (
+            <FilterDrawer list={list} fields={filterFields} triggerRef={filterButton}>
+              {filters}
+            </FilterDrawer>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button icon="columns">{t('ds.listView.columns')}</Button>
@@ -107,6 +120,8 @@ export function ListView({ list, title, searchable = true, searchLabel, searchPl
           <ExportMenu onExport={list.exportTo} exporting={list.exporting} />
         </div>
       </div>
+
+      {filterFields?.length ? <FilterChips list={list} fields={filterFields} focusRef={filterButton} /> : null}
 
       {query.isError ? (
         <Alert tone="danger" title={errorMessage(query.error)} action={<Button onClick={() => query.refetch()}>{t('common.retry')}</Button>} />

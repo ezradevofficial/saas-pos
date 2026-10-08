@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { mockAutomation, ROLE_ID, RULE, RUN } from '@/test/automation'
 import { renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
@@ -62,11 +63,15 @@ describe('Automation rules list (AUTO-01..AUTO-07)', () => {
     await screen.findByRole('table', { name: 'Automation rules' })
     expect(screen.queryByRole('button', { name: 'Create rule' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument()
+    openFilters()
     chooseOption('Status', 'Archived')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^automation-rules\?status=archived/)))
     await waitFor(() => expect(screen.getByLabelText('Document type')).toBeEnabled())
     chooseOption('Document type', 'Purchase order')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/type=procurement\.order/)))
+    await closeFilters()
+    expect(screen.getByText('Status: Archived')).toBeInTheDocument()
+    expect(screen.getByText('Document type: Purchase order')).toBeInTheDocument()
   })
 
   it('creates a switched-off rule from a template and opens it', async () => {
@@ -175,7 +180,12 @@ describe('Automation run log (AUTO-05)', () => {
     renderApp('/settings/automation-rules/r-1?tab=runs')
     await screen.findByRole('table', { name: 'Automation runs' })
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^automation-runs\?rule=r-1/)))
+    openFilters()
+    // A rule's own run log has no rule filter.
+    expect(screen.queryByLabelText('Rule')).not.toBeInTheDocument()
     chooseOption('Outcome', 'Loop blocked')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^automation-runs\?rule=r-1&outcome=loop_blocked/)))
+    await closeFilters()
+    expect(screen.getByText('Outcome: Loop blocked')).toBeInTheDocument()
   })
 })

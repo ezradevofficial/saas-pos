@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { mockWorkflows, WORKFLOW } from '@/test/workflows'
 
@@ -52,8 +53,11 @@ describe('Workflows list (WF-02, spec 6.4)', () => {
     renderApp('/settings/workflows')
     await screen.findByRole('table', { name: 'Workflows' })
     expect(screen.queryByRole('button', { name: 'Create workflow' })).not.toBeInTheDocument()
+    openFilters()
     await waitFor(() => expect(screen.getByLabelText('Document type')).toBeEnabled())
     chooseOption('Document type', 'Purchase requisition')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^workflows\?type=procurement\.requisition/)))
+    await closeFilters()
+    expect(screen.getByText('Document type: Purchase requisition')).toBeInTheDocument()
   })
 })

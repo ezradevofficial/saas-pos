@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, ListView, Select, StatusBadge, Tabs } from '@/components/ds'
+import { Alert, Button, ListView, StatusBadge, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
@@ -193,15 +193,13 @@ function InvitationsTable({ canInvite, onInvite }) {
         list={list}
         title={t('users.tabs.invitations')}
         searchPlaceholder={t('users.searchPlaceholder')}
-        filters={
-          <Select
-            label={t('users.filters.status')}
-            className="min-w-0 flex-1"
-            options={INVITATION_FILTERS.map((value) => ({ value, label: t(`users.invitationFilter.${value}`) }))}
-            value={status}
-            onChange={(event) => list.setFilter('status', event.target.value)}
-          />
-        }
+        filterFields={[
+          {
+            name: 'status',
+            label: t('users.filters.status'),
+            options: INVITATION_FILTERS.map((value) => ({ value, label: t(`users.invitationFilter.${value}`) })),
+          },
+        ]}
         emptyText={
           list.term ? (
             t('users.emptyFiltered')

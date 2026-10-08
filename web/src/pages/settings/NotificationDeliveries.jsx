@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ListView, Select, StatusBadge } from '@/components/ds'
+import { ListView, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
@@ -80,30 +80,24 @@ export default function NotificationDeliveries() {
         list={list}
         title={t('notificationDeliveries.title')}
         searchPlaceholder={t('notificationDeliveries.searchPlaceholder')}
-        filters={
-          <>
-            <Select
-              label={t('notificationDeliveries.filters.status')}
-              className="min-w-0 flex-1"
-              options={[
-                { value: '', label: t('notificationDeliveries.filters.allStatuses') },
-                ...DELIVERY_STATUSES.map((value) => ({ value, label: t(`notificationDeliveries.statuses.${value}`) })),
-              ]}
-              value={list.filters.status}
-              onChange={(event) => list.setFilter('status', event.target.value)}
-            />
-            <Select
-              label={t('notificationDeliveries.filters.channel')}
-              className="min-w-0 flex-1"
-              options={[
-                { value: '', label: t('notificationDeliveries.filters.allChannels') },
-                ...CHANNELS.map((value) => ({ value, label: t(`notificationDeliveries.channels.${value}`) })),
-              ]}
-              value={list.filters.channel}
-              onChange={(event) => list.setFilter('channel', event.target.value)}
-            />
-          </>
-        }
+        filterFields={[
+          {
+            name: 'status',
+            label: t('notificationDeliveries.filters.status'),
+            options: [
+              { value: '', label: t('notificationDeliveries.filters.allStatuses') },
+              ...DELIVERY_STATUSES.map((value) => ({ value, label: t(`notificationDeliveries.statuses.${value}`) })),
+            ],
+          },
+          {
+            name: 'channel',
+            label: t('notificationDeliveries.filters.channel'),
+            options: [
+              { value: '', label: t('notificationDeliveries.filters.allChannels') },
+              ...CHANNELS.map((value) => ({ value, label: t(`notificationDeliveries.channels.${value}`) })),
+            ],
+          },
+        ]}
         emptyText={filtered ? t('notificationDeliveries.emptyFiltered') : t('notificationDeliveries.empty')}
       />
     </>

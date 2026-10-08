@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { catalogue, ITEM } from '@/test/catalogue'
 import { chooseOption, waitForOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -44,11 +45,16 @@ describe('Items', () => {
     // Debounced: the half-typed value was never asked for.
     expect(listCalls().some((path) => path.includes('search=6001&'))).toBe(false)
 
+    // Filters sit in the drawer; the chips under the toolbar name them.
+    openFilters()
     await waitForOption('Category', 'Drinks')
     chooseOption('Category', 'Drinks')
     await waitFor(() => expect(listCalls().at(-1)).toContain('category=cat-1'))
     chooseOption('Type', 'Service')
     await waitFor(() => expect(listCalls().at(-1)).toContain('type=service'))
+    await closeFilters()
+    expect(screen.getByText('Category: Drinks')).toBeInTheDocument()
+    expect(screen.getByText('Type: Service')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('page=2'))
