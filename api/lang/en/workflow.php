@@ -26,6 +26,7 @@ return [
     ],
 
     'errors' => [
+        'hidden_rule' => 'A rule you can’t see was not met.',
         'action_unavailable' => 'The step “:stage” runs an action that isn’t available any more. Ask an administrator to update the workflow.',
         'next_document_unavailable' => 'The step “:stage” creates a document whose module isn’t active. Ask an administrator to activate it or update the workflow.',
         'workflow_busy' => 'Someone else changed this workflow at the same time. Try again.',

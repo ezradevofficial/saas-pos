@@ -26,6 +26,7 @@ return [
     ],
 
     'errors' => [
+        'hidden_rule' => 'Une règle que vous ne pouvez pas voir n’est pas remplie.',
         'action_unavailable' => 'L’étape « :stage » lance une action qui n’est plus disponible. Demandez à un administrateur de mettre le circuit à jour.',
         'next_document_unavailable' => 'L’étape « :stage » crée un document dont le module n’est pas activé. Demandez à un administrateur de l’activer ou de mettre le circuit à jour.',
         'workflow_busy' => 'Quelqu’un d’autre a modifié ce circuit au même moment. Réessayez.',

@@ -3,11 +3,13 @@
 namespace App\Core\Workflow\Runtime;
 
 use App\Core\Audit\Auditor;
+use App\Core\Automation\Runtime\FieldVisibility;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Calendar\BusinessCalendar;
+use App\Core\Workflow\Conditions\ConditionCheck;
 use App\Core\Workflow\Conditions\ConditionDescriber;
 use App\Core\Workflow\Conditions\ConditionEvaluator;
 use App\Core\Workflow\Conditions\ConditionResult;
@@ -29,6 +31,7 @@ use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Models\DocumentWorkflowLink;
 use App\Core\Workflow\Models\DocumentWorkflowToken;
 use App\Core\Workflow\Models\WorkflowVersion;
+use App\Core\Workflow\WorkflowAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -75,6 +78,8 @@ class WorkflowEngine
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
         private readonly StageTimers $timers,
+        private readonly WorkflowAccess $access,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /**
@@ -752,10 +757,36 @@ class WorkflowEngine
         );
     }
 
-    /** @return list<string> */
+    /**
+     * H3 (RBAC-05): why a move is blocked, for the person moving. Rules on
+     * fields their field rules hide, or every rule when they cannot see the
+     * document, read only "A rule you can't see was not met." (no values).
+     * The system (no person) gets every reason.
+     *
+     * @return list<string>
+     */
     private function reasons(Run $run, ConditionResult $result): array
     {
-        return $this->describer->reasons($result, $run->type->fieldsByName(), $this->timezone($run));
+        $fields = $run->type->fieldsByName();
+        $user = $run->user;
+
+        if ($user === null) {
+            return $this->describer->reasons($result, $fields, $this->timezone($run));
+        }
+
+        if (! $this->access->seesDocument($user, $run->type, $run->scope)) {
+            return $result->failures === [] ? [] : [__('workflow.errors.hidden_rule')];
+        }
+
+        $hidden = $this->visibility->hidden($user, $run->type);
+        $visible = array_values(array_filter($result->failures, fn (ConditionCheck $c) => ! in_array($c->field, $hidden, true) && ! in_array($c->other, $hidden, true)));
+        $reasons = $this->describer->reasons(new ConditionResult($result->passed, $result->checks, $visible), $fields, $this->timezone($run));
+
+        if (count($visible) < count($result->failures)) {
+            $reasons[] = __('workflow.errors.hidden_rule');
+        }
+
+        return $reasons;
     }
 
     private function timezone(Run $run): string

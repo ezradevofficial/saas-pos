@@ -5,6 +5,8 @@ namespace Tests\Feature\Core\Workflow;
 use App\Core\Audit\AuditEntry;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\Models\FieldRule;
+use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Definitions\FlowDefinitions;
@@ -360,6 +362,47 @@ class WorkflowRuntimeTest extends TestCase
 
         // And on again from there.
         $this->assertSame(['review'], $this->at($this->move($workflow)));
+    }
+
+    public function test_blocked_reasons_never_show_rules_on_fields_the_mover_cannot_see(): void
+    {
+        // H3 (RBAC-05): the exit rule checks `total` (hidden from the mover) and `quantity` (visible).
+        [$mover, $blind, $seer] = $this->inTenant(function () {
+            $movers = $this->role('Movers', ['core.party.view']);
+            FieldRule::create(['role_id' => $movers->id, 'resource' => TestRequestType::KEY, 'field' => 'total', 'mode' => 'hidden']);
+            $mover = $this->colleague($this->owner);
+            $this->assign($mover, $movers, Scope::company($this->acme->id));
+            // May complete the stage, but can't see the document at all.
+            $blind = $this->colleague($this->owner);
+            $this->assign($blind, $movers, Scope::branch($this->branchB->id));
+            $this->assign($blind, $this->role('Stage only'), Scope::company($this->acme->id));
+
+            // Another role without the field rule: sees `total`.
+            $seer = $this->colleague($this->owner);
+            $this->assign($seer, $movers, Scope::company($this->acme->id));
+            $this->assign($seer, $this->role('Viewers', ['core.party.view']), Scope::company($this->acme->id));
+
+            return [$mover, $blind, $seer];
+        });
+        $roleIds = $this->inTenant(fn () => Role::query()->whereIn('name', ['Movers', 'Stage only'])->pluck('id')->all());
+        $this->publishFlow(Graphs::linear(['review'], ['review' => [
+            'exit_roles' => $roleIds,
+            'exit' => ['all' => [
+                ['field' => 'total', 'op' => 'lt', 'value' => Graphs::kes(100)],
+                ['field' => 'quantity', 'op' => 'gt', 'value' => '5'],
+            ]],
+        ]]));
+        $workflow = $this->start($this->document(['total' => Graphs::kes(9900000), 'quantity' => '2']));
+
+        $reasons = $this->blocked(fn () => $this->engine()->move($workflow, $mover))->reasons;
+        $this->assertCount(2, $reasons);
+        $this->assertStringNotContainsString('99,000', implode(' ', $reasons));
+        $this->assertSame('A rule you can’t see was not met.', $reasons[1]);
+
+        $this->assertSame(['A rule you can’t see was not met.'], $this->blocked(fn () => $this->engine()->move($workflow, $blind))->reasons);
+
+        // Someone who sees every field: both reasons, with the values.
+        $this->assertStringContainsString('99,000', implode(' ', $this->blocked(fn () => $this->engine()->move($workflow, $seer))->reasons));
     }
 
     public function test_passing_a_create_document_step_again_after_a_return_keeps_the_document(): void
