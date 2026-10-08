@@ -5,6 +5,7 @@ use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Support\Http\EnforceEnvironment;
+use App\Core\Sync\Http\SyncLagHeader;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Http\RequireTenant;
 use App\Core\Tenancy\Http\ResetTenantContext;
@@ -30,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Appended, so it runs after PreventRequestsDuringMaintenance: while
         // the app is down (deploys), every request gets the 503 page.
         $middleware->append(EnforceEnvironment::class);
+        // NFR-04: /up reports the device sync lag (headers; warning in the log).
+        $middleware->append(SyncLagHeader::class);
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);

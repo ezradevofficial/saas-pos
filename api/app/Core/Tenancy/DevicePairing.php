@@ -5,6 +5,7 @@ namespace App\Core\Tenancy;
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonInterface;
@@ -36,6 +37,7 @@ class DevicePairing
         private readonly Auditor $auditor,
         private readonly AuditContext $auditContext,
         private readonly Archiver $archiver,
+        private readonly DeviceSecrets $secrets,
     ) {}
 
     /**
@@ -74,7 +76,10 @@ class DevicePairing
      * found by auth_tenant_for_pairing (security definer); everything else
      * runs under that tenant's row-level security.
      *
-     * @return array{token: string, device: Device}
+     * The answer carries the device's own secret (AUTH-06, AUTH-08,
+     * DeviceSecrets), shown this once.
+     *
+     * @return array{token: string, device: Device, secret: string, kid: string}
      */
     public function pair(string $code, string $deviceName, ?string $ip, ?string $userAgent): array
     {
@@ -110,7 +115,14 @@ class DevicePairing
                 'paired_at' => now(),
             ]);
 
-            return ['token' => $device->issueToken($deviceName, $ip, $userAgent)->plainTextToken, 'device' => $device];
+            $secret = $this->secrets->issueFirst($device);
+
+            return [
+                'token' => $device->issueToken($deviceName, $ip, $userAgent)->plainTextToken,
+                'device' => $device,
+                'secret' => $secret['secret'],
+                'kid' => $secret['kid'],
+            ];
         }));
     }
 
@@ -167,6 +179,9 @@ class DevicePairing
             if ($device->status === Device::STATUS_UNPAIRED) {
                 return $device;
             }
+
+            // The secrets go with the pairing: the device's PIN verifiers stop working (DeviceSecrets).
+            $this->secrets->retireAll($device);
 
             return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
         });

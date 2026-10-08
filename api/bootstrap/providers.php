@@ -9,6 +9,7 @@ use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
+use App\Core\Sync\SyncServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
@@ -27,5 +28,6 @@ return [
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
+    SyncServiceProvider::class,
     HorizonServiceProvider::class,
 ];

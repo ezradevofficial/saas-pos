@@ -31,6 +31,9 @@ use App\Core\Identity\Http\Controllers\UserController;
 use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
+use App\Core\Identity\Pin\Http\Controllers\DevicePinController;
+use App\Core\Identity\Pin\Http\Controllers\MyPinController;
+use App\Core\Identity\Pin\Http\Controllers\UserPinController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
@@ -59,6 +62,8 @@ use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
+use App\Core\Sync\Http\Controllers\SyncController;
+use App\Core\Sync\Http\Controllers\SyncMediaController;
 use App\Core\Tenancy\Http\Controllers\BranchController;
 use App\Core\Tenancy\Http\Controllers\CompanyController;
 use App\Core\Tenancy\Http\Controllers\DeviceController;
@@ -142,6 +147,25 @@ Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middlewar
 // TEN-05: routes for a paired device's token only (ability `device`).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class])->group(function () {
     Route::get('devices/me', [DevicePairingController::class, 'me']);
+
+    // NFR-04, ADR 004: master data sync, rate-limited per device.
+    // AUTH-06..AUTH-08: staff PIN sign-in, offline attempt reports and manager overrides.
+    Route::middleware('throttle:device-sync')->group(function () {
+        Route::get('sync/bootstrap', [SyncController::class, 'bootstrap']);
+        Route::get('sync/pull', [SyncController::class, 'pull']);
+        Route::get('sync/media/{item_image}', SyncMediaController::class);
+        Route::post('pos/pin/verify', [DevicePinController::class, 'verify']);
+        Route::post('pos/pin/attempts', [DevicePinController::class, 'attempts']);
+        Route::post('pos/override', [DevicePinController::class, 'override']);
+        Route::post('pos/pin/change', [DevicePinController::class, 'change']);
+    });
+
+    // AUTH-06, AUTH-08: device secret rotation, proven at each step, a few times an hour.
+    Route::middleware('throttle:device-secret')->group(function () {
+        Route::get('sync/device-secret/challenge', [SyncController::class, 'secretChallenge']);
+        Route::post('sync/device-secret/rotate', [SyncController::class, 'rotateSecret']);
+        Route::post('sync/device-secret/activate', [SyncController::class, 'activateSecret']);
+    });
 });
 
 // The token sets the tenant; the language is chosen again so the tenant's
@@ -164,6 +188,12 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::delete('auth/sessions/{id}', [SessionController::class, 'destroy']);
 
     Route::patch('me', [MeController::class, 'update']);
+
+    // AUTH-06: the user's own POS PIN and staff card, confirmed with the password (wrong
+    // passwords count towards the account lockout, AUTH-10); never returned.
+    Route::get('me/pos-pin', [MyPinController::class, 'show']);
+    Route::put('me/pos-pin', [MyPinController::class, 'update']);
+    Route::delete('me/pos-pin', [MyPinController::class, 'destroy']);
 
     // AUTH-02, AUTH-09, L10N-01: the tenant's settings (core.settings.edit, tenant scope).
     Route::get('tenant/settings', [TenantSettingsController::class, 'show']);
@@ -321,6 +351,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('users/{user}/deactivate', [UserController::class, 'deactivate']);
     Route::post('users/{user}/reactivate', [UserController::class, 'reactivate']);
     Route::post('users/{user}/sign-out-everywhere', [UserController::class, 'signOutEverywhere']);
+    // AUTH-06: an administrator resets or removes a user's POS PIN (never reads it).
+    Route::put('users/{user}/pos-pin', [UserPinController::class, 'update']);
+    Route::delete('users/{user}/pos-pin', [UserPinController::class, 'destroy']);
     Route::get('invitations', [InvitationController::class, 'index']);
     Route::post('invitations', [InvitationController::class, 'store']);
     Route::post('invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);

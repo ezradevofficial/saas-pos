@@ -32,6 +32,13 @@ return [
         'invalid_pairing_code' => 'This pairing code isn’t valid or has expired. Ask for a new code and try again.',
     ],
 
+    // NFR-04: device sync.
+    'sync' => [
+        'invalid_cursor' => 'The sync position for :entity isn’t valid. Sync :entity again from the start.',
+        'unknown_entity' => 'This till asked for data (:entity) that isn’t available. Update the app and sync again.',
+        'secret_proof_invalid' => 'This till couldn’t prove its key. Start the key change again; if it keeps failing, unpair the till and pair it again.',
+    ],
+
     // AUTH-02, AUTH-09, L10N-01: tenant settings.
     'settings' => [
         'attributes' => [
