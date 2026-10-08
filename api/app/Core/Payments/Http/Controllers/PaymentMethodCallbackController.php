@@ -4,6 +4,7 @@ namespace App\Core\Payments\Http\Controllers;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentProviders;
 use App\Core\Payments\CallbackTokens;
 use App\Core\Payments\Daraja\MpesaDarajaProvider;
@@ -27,12 +28,12 @@ class PaymentMethodCallbackController
         private readonly PaymentProviders $providers,
     ) {}
 
-    public function show(PaymentMethodCallbacksRequest $request): JsonResponse
+    public function show(PaymentMethodCallbacksRequest $request, PaymentMethod $paymentMethod): JsonResponse
     {
         return response()->json(['data' => ['urls' => $this->tokens->urls($request->target())]]);
     }
 
-    public function rotate(PaymentMethodCallbacksRequest $request): JsonResponse
+    public function rotate(PaymentMethodCallbacksRequest $request, PaymentMethod $paymentMethod): JsonResponse
     {
         $method = $request->target();
         $this->tokens->rotate($method);
@@ -40,7 +41,7 @@ class PaymentMethodCallbackController
         return response()->json(['data' => ['urls' => $this->tokens->urls($method)]]);
     }
 
-    public function registerC2b(PaymentMethodCallbacksRequest $request): JsonResponse
+    public function registerC2b(PaymentMethodCallbacksRequest $request, PaymentMethod $paymentMethod): JsonResponse
     {
         $method = $request->target();
         $provider = $this->registry->for($method);
