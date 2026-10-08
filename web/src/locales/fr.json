@@ -237,7 +237,8 @@
       "masterData": "Données de référence",
       "catalogue": "Catalogue",
       "contacts": "Contacts",
-      "automation": "Automatisation"
+      "automation": "Automatisation",
+      "workspace": "Espace de travail"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -260,7 +261,8 @@
     "notifications": "Notifications",
     "notificationTemplates": "Modèles de notification",
     "notificationDeliveries": "Journal des envois",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "approvals": "Approbations"
   },
   "shell": {
     "account": "Menu du compte",
@@ -2307,6 +2309,263 @@
     "people": {
       "unknown": "Personne inconnue ou inactive ({{id}})",
       "none": "Aucune personne active pour l’instant."
+    }
+  },
+  "approvals": {
+    "title": "Approbations",
+    "description": "Tout ce qui vous attend, dans tous les modules et toutes les sociétés",
+    "someone": "Quelqu’un",
+    "nav": {
+      "waiting_one": "{{formatted}} approbation en attente",
+      "waiting_other": "{{formatted}} approbations en attente"
+    },
+    "tabs": {
+      "waiting": "En attente de vous",
+      "decided": "Décidées",
+      "all": "Toute l’organisation"
+    },
+    "state": {
+      "waitingForYou": "En attente de vous",
+      "waiting": "En attente",
+      "overdue": "En retard",
+      "delegatedFrom": "Délégué par {{name}}",
+      "blocked": "Bloquée : {{reason}}",
+      "approved": "Approuvée",
+      "rejected": "Rejetée",
+      "returned": "Renvoyée pour modification",
+      "cancelled": "Annulée",
+      "expired": "Clôturée"
+    },
+    "blocked": {
+      "noApprover": "aucun approbateur",
+      "other": "en attente d’un administrateur"
+    },
+    "assignment": {
+      "pending": "En attente",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "returned": "Renvoyé",
+      "reassigned": "Réattribué",
+      "closed": "Clôturé"
+    },
+    "hint": {
+      "waitingSince": "En attente depuis le {{when}}",
+      "due": "Échéance : {{when}}",
+      "escalates": "Remonte si rien n’est fait avant le {{when}}",
+      "escalatesTo": "Remonte à {{to}} si rien n’est fait avant le {{when}}",
+      "decided": "Décidée le {{when}}"
+    },
+    "list": {
+      "title": "Approbations",
+      "items": "Demandes",
+      "search": "Rechercher",
+      "searchPlaceholder": "Numéro, titre, type ou étape",
+      "select": "Sélectionner {{name}}",
+      "amount": "Total hors TVA",
+      "onBehalf": "Délégué par {{name}}"
+    },
+    "filters": {
+      "type": "Type de document",
+      "allTypes": "Tous les types",
+      "company": "Société",
+      "allCompanies": "Toutes les sociétés",
+      "due": "Échéance",
+      "anyTime": "Toutes",
+      "overdueOnly": "En retard seulement",
+      "sort": "Trier par"
+    },
+    "sort": {
+      "due": "Échéance la plus proche",
+      "desc_received": "Plus récentes d’abord",
+      "received": "Plus anciennes d’abord"
+    },
+    "empty": {
+      "waiting": "Tout est à jour. Rien ne vous attend.",
+      "decided": "Vous n’avez encore décidé aucune demande.",
+      "all": "Aucune demande dans l’organisation pour l’instant.",
+      "filtered": "Aucune demande ne correspond. Modifiez la recherche ou les filtres."
+    },
+    "bulk": {
+      "selectAll": "Sélectionner tout ce que vous pouvez approuver",
+      "selected_one": "{{formatted}} sélectionnée",
+      "selected_other": "{{formatted}} sélectionnées",
+      "approveAll": "Tout approuver",
+      "done_one": "{{formatted}} demande approuvée",
+      "done_other": "{{formatted}} demandes approuvées",
+      "someFailed_one": "{{formatted}} demande n’a pas été approuvée. Voir pourquoi ci-dessous.",
+      "someFailed_other": "{{formatted}} demandes n’ont pas été approuvées. Voir pourquoi ci-dessous.",
+      "failedTitle_one": "{{formatted}} demande n’a pas été approuvée",
+      "failedTitle_other": "{{formatted}} demandes n’ont pas été approuvées",
+      "unknownItem": "Une demande qui n’est plus sur cette page"
+    },
+    "detail": {
+      "label": "Détail de la demande",
+      "back": "Retour à la liste",
+      "notFound": "Cette demande est introuvable, ou vous ne pouvez plus la voir.",
+      "amount": "Total hors TVA",
+      "requestedBy": "Demandée par",
+      "company": "Société",
+      "step": "Étape",
+      "stepOf": "{{index}} sur {{count}} · {{name}}",
+      "stepNumber": "Étape {{step}}",
+      "received": "Reçue",
+      "waitingSince": "En attente depuis",
+      "due": "Échéance",
+      "decided": "Décidée",
+      "openDocument": "Ouvrir le document",
+      "why": "Pourquoi ce circuit",
+      "approvers": "Approbateurs",
+      "history": "Historique",
+      "noHistory": "Rien ne s’est encore passé.",
+      "attachments": "Pièces jointes",
+      "actions": "Décider",
+      "delegatedTitle": "Délégué par {{name}}",
+      "delegatedText": "Votre décision est enregistrée comme prise par vous en son nom.",
+      "decidedOnBehalf": "{{by}} au nom de {{name}}",
+      "reassignedFrom": "A remplacé {{name}}"
+    },
+    "route": {
+      "none": "Aucune condition n’a modifié le circuit de ce document.",
+      "skipped": "L’étape « {{name}} » a été sautée.",
+      "checkMet": "{{step}} : {{field}} remplit la condition",
+      "checkNotMet": "{{step}} : {{field}} ne remplit pas la condition",
+      "final": {
+        "approveAt": "Approuvée automatiquement le {{when}} si personne ne décide.",
+        "rejectAt": "Rejetée automatiquement le {{when}} si personne ne décide.",
+        "approveAfterEscalation": "Approuvée automatiquement si personne ne décide après la remontée.",
+        "rejectAfterEscalation": "Rejetée automatiquement si personne ne décide après la remontée."
+      }
+    },
+    "actions": {
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "return": "Renvoyer pour modification",
+      "requestInfo": "Demander des précisions",
+      "reassign": "Réattribuer"
+    },
+    "form": {
+      "peopleUnavailable": "La liste des personnes n’a pas pu être chargée. Demandez l’aide d’un administrateur.",
+      "approve": {
+        "title": "Approuver {{name}}",
+        "text": "Motif",
+        "help": "Cette étape demande un motif pour chaque décision.",
+        "required": "Indiquez le motif de l’approbation."
+      },
+      "reject": {
+        "title": "Rejeter {{name}}",
+        "text": "Motif",
+        "required": "Indiquez le motif du rejet."
+      },
+      "return": {
+        "title": "Renvoyer {{name}} pour modification",
+        "target": "Renvoyer à",
+        "targetRequired": "Choisissez l’étape à laquelle renvoyer le document.",
+        "text": "Ce qu’il faut modifier",
+        "required": "Indiquez ce qu’il faut modifier."
+      },
+      "requestInfo": {
+        "title": "Demander des précisions",
+        "text": "Votre question",
+        "confirm": "Envoyer la question",
+        "required": "Écrivez la question pour le demandeur."
+      },
+      "reassign": {
+        "title": "Réattribuer {{name}}",
+        "from": "À la place de",
+        "to": "Nouvel approbateur",
+        "choose": "Choisissez une personne",
+        "toRequired": "Choisissez qui doit approuver à la place.",
+        "replaces": "Remplace {{name}}.",
+        "nobody": "Personne ne détient cette étape. Le nouvel approbateur la décide.",
+        "text": "Motif (facultatif)"
+      }
+    },
+    "comment": {
+      "title": "Ajouter un commentaire",
+      "post": "Publier le commentaire",
+      "required": "Écrivez d’abord un commentaire."
+    },
+    "attachments": {
+      "add": "Joindre un fichier",
+      "choose": "Choisir un fichier à joindre",
+      "progress": "Progression de l’envoi",
+      "uploading": "Envoi de {{name}}, {{percent}} %",
+      "uploaded": "{{name}} joint",
+      "tooLarge": "Ce fichier fait {{size}}. Joignez un fichier de {{max}} au plus."
+    },
+    "toast": {
+      "approved": "{{name}} approuvé",
+      "rejected": "{{name}} rejeté",
+      "returned": "{{name}} renvoyé pour modification",
+      "infoRequested": "Question envoyée au demandeur",
+      "commented": "Commentaire publié",
+      "reassigned": "{{name}} réattribué"
+    },
+    "delegation": {
+      "open": "Configurer une délégation",
+      "title": "Délégation",
+      "intro": "Laissez un collègue décider de vos approbations pendant votre absence. Ses décisions sont enregistrées comme prises en votre nom.",
+      "formLabel": "Nouvelle délégation",
+      "to": "Déléguer à",
+      "choosePerson": "Choisissez une personne",
+      "from": "Du",
+      "until": "Au",
+      "scope": "Types de documents",
+      "scopeAll": "Tous les types de documents",
+      "scopeSome": "Seulement les types choisis",
+      "types": "Choisissez les types de documents",
+      "noTypes": "Aucun type de document à choisir pour l’instant.",
+      "note": "Note (facultative)",
+      "save": "Déléguer les approbations",
+      "toRequired": "Choisissez qui décide pour vous.",
+      "startRequired": "Choisissez le premier jour.",
+      "endRequired": "Choisissez le dernier jour.",
+      "typesRequired": "Choisissez au moins un type de document, ou déléguez-les tous.",
+      "created": "Délégation enregistrée",
+      "revoked": "Délégation révoquée",
+      "listTitle": "Vos délégations",
+      "none": "Vous n’avez aucune délégation.",
+      "givenTo": "De vous à {{name}}",
+      "receivedFrom": "De {{name}} à vous",
+      "period": "Du {{from}} au {{to}}",
+      "allTypes": "Tous les types de documents",
+      "someTypes_one": "{{count}} type de document",
+      "someTypes_other": "{{count}} types de documents",
+      "revoke": "Révoquer",
+      "revokeFor": "Révoquer la délégation à {{name}}",
+      "status": {
+        "active": "Active",
+        "scheduled": "Programmée",
+        "ended": "Terminée",
+        "revoked": "Révoquée"
+      },
+      "receivedTitle": "Vous approuvez aussi pour {{name}} jusqu’au {{until}}",
+      "receivedText": "Ses demandes affichent « Délégué par » et sont enregistrées comme approuvées par vous en son nom."
+    },
+    "email": {
+      "title": "Approbation",
+      "intro": "Vérifiez la demande, puis confirmez votre décision.",
+      "confirmApprove": "Approuver cette demande",
+      "confirmReject": "Rejeter cette demande",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "comment": "Commentaire (facultatif)",
+      "reason": "Motif",
+      "reasonRequired": "Indiquez le motif de cette décision.",
+      "requestedBy": "Demandée par {{name}}",
+      "approvedTitle": "Demande approuvée",
+      "rejectedTitle": "Demande rejetée",
+      "doneText": "Votre décision est enregistrée. Vous pouvez fermer cette page.",
+      "openApprovals": "Ouvrir les approbations",
+      "openApproval": "Ouvrir la demande",
+      "signInTitle": "Connectez-vous pour décider",
+      "signInText": "Ce lien n’est plus utilisable. Connectez-vous pour décider dans l’application.",
+      "signIn": "Se connecter",
+      "signInToDecide": "Se connecter pour décider",
+      "invalid": "Ce lien n’est pas valide. Connectez-vous pour voir vos approbations."
+    },
+    "history": {
+      "onBehalfOf": "au nom de {{name}}"
     }
   }
 }

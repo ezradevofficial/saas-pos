@@ -7,7 +7,7 @@
  * location is not offered a page that would open empty (RBAC-04, RBAC-09).
  * Overview, Catalogue (items, categories, units), Contacts (customers,
  * suppliers), Settings, Finance (currencies, rates, taxes, payment methods)
- * Automation (workflows) and Master data; later modules add their groups here.
+ * Workspace (approvals), Automation (workflows) and Master data; later modules add their groups here.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -36,6 +36,12 @@ export const NAV_GROUPS = [
     id: 'overview',
     label: (t) => t('nav.groups.overview'),
     items: [{ to: '/', end: true, icon: 'dashboard', label: (t) => t('nav.dashboard') }],
+  },
+  {
+    // APR-04: everyone has an approvals inbox; the badge counts what waits for them.
+    id: 'workspace',
+    label: (t) => t('nav.groups.workspace'),
+    items: [{ to: '/approvals', icon: 'approvals', label: (t) => t('nav.approvals'), badge: 'approvals', module: 'core' }],
   },
   {
     id: 'catalogue',

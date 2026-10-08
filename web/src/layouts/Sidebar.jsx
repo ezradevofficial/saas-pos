@@ -17,6 +17,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { setLocale } from '@/i18n'
+import { useWaitingCount } from '@/lib/approvals'
+import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { CompanySwitcher } from './CompanySwitcher'
@@ -61,6 +63,24 @@ function LogoBlock({ showBell }) {
       </div>
       {showBell ? <NotificationBell /> : null}
     </div>
+  )
+}
+
+/**
+ * How many approvals wait for the user (APR-04), beside the Approvals
+ * item; polled like the bell. The count is also in the label for screen readers.
+ */
+function WaitingBadge() {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const waiting = useWaitingCount()
+  const count = waiting.data ?? 0
+  if (count === 0) return null
+  return (
+    <span data-testid="approvals-waiting" className="shrink-0 rounded-pill bg-accent px-1 text-caption font-medium text-on-accent tabular-nums">
+      <span aria-hidden="true">{count > 99 ? '99+' : formatInteger(count, locale)}</span>
+      <span className="sr-only">{t('approvals.nav.waiting', { count, formatted: formatInteger(count, locale) })}</span>
+    </span>
   )
 }
 
@@ -143,7 +163,8 @@ export function Sidebar({ onNavigate, showBell = true, className }) {
                 <li key={item.to}>
                   <NavLink to={item.to} end={item.end} className={itemClasses} onClick={onNavigate}>
                     <Icon name={item.icon} />
-                    <span className="truncate">{item.label(t)}</span>
+                    <span className="min-w-0 flex-1 truncate">{item.label(t)}</span>
+                    {item.badge === 'approvals' ? <WaitingBadge /> : null}
                   </NavLink>
                 </li>
               ))}

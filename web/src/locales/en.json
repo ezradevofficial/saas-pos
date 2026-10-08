@@ -237,7 +237,8 @@
       "masterData": "Master data",
       "catalogue": "Catalogue",
       "contacts": "Contacts",
-      "automation": "Automation"
+      "automation": "Automation",
+      "workspace": "Workspace"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -260,7 +261,8 @@
     "notifications": "Notifications",
     "notificationTemplates": "Notification templates",
     "notificationDeliveries": "Delivery log",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "approvals": "Approvals"
   },
   "shell": {
     "account": "Account menu",
@@ -2307,6 +2309,263 @@
     "people": {
       "unknown": "Unknown or inactive person ({{id}})",
       "none": "No active people yet."
+    }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "description": "Everything waiting for you, across all modules and companies",
+    "someone": "Someone",
+    "nav": {
+      "waiting_one": "{{formatted}} approval waiting",
+      "waiting_other": "{{formatted}} approvals waiting"
+    },
+    "tabs": {
+      "waiting": "Waiting for you",
+      "decided": "Decided",
+      "all": "All in the organisation"
+    },
+    "state": {
+      "waitingForYou": "Waiting for you",
+      "waiting": "Waiting",
+      "overdue": "Overdue",
+      "delegatedFrom": "Delegated from {{name}}",
+      "blocked": "Blocked: {{reason}}",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "returned": "Returned for changes",
+      "cancelled": "Cancelled",
+      "expired": "Closed"
+    },
+    "blocked": {
+      "noApprover": "no approver",
+      "other": "waiting for an administrator"
+    },
+    "assignment": {
+      "pending": "Waiting",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "returned": "Returned",
+      "reassigned": "Reassigned",
+      "closed": "Closed"
+    },
+    "hint": {
+      "waitingSince": "Waiting since {{when}}",
+      "due": "Due {{when}}",
+      "escalates": "Escalates if not acted on by {{when}}",
+      "escalatesTo": "Escalates to {{to}} if not acted on by {{when}}",
+      "decided": "Decided {{when}}"
+    },
+    "list": {
+      "title": "Approvals",
+      "items": "Requests",
+      "search": "Search",
+      "searchPlaceholder": "Number, title, type or step",
+      "select": "Select {{name}}",
+      "amount": "Total before VAT",
+      "onBehalf": "Delegated from {{name}}"
+    },
+    "filters": {
+      "type": "Document type",
+      "allTypes": "All types",
+      "company": "Company",
+      "allCompanies": "All companies",
+      "due": "Due",
+      "anyTime": "Any time",
+      "overdueOnly": "Overdue only",
+      "sort": "Sort by"
+    },
+    "sort": {
+      "due": "Due soonest",
+      "desc_received": "Newest first",
+      "received": "Oldest first"
+    },
+    "empty": {
+      "waiting": "All caught up. Nothing is waiting for you.",
+      "decided": "You have not decided any requests yet.",
+      "all": "No requests in the organisation yet.",
+      "filtered": "No requests match. Change the search or filters."
+    },
+    "bulk": {
+      "selectAll": "Select all you can approve",
+      "selected_one": "{{formatted}} selected",
+      "selected_other": "{{formatted}} selected",
+      "approveAll": "Approve all",
+      "done_one": "Approved {{formatted}} request",
+      "done_other": "Approved {{formatted}} requests",
+      "someFailed_one": "{{formatted}} request was not approved. See why below.",
+      "someFailed_other": "{{formatted}} requests were not approved. See why below.",
+      "failedTitle_one": "{{formatted}} request was not approved",
+      "failedTitle_other": "{{formatted}} requests were not approved",
+      "unknownItem": "A request no longer on this page"
+    },
+    "detail": {
+      "label": "Request detail",
+      "back": "Back to the list",
+      "notFound": "This request was not found, or you can no longer see it.",
+      "amount": "Total before VAT",
+      "requestedBy": "Requested by",
+      "company": "Company",
+      "step": "Step",
+      "stepOf": "{{index}} of {{count}} · {{name}}",
+      "stepNumber": "Step {{step}}",
+      "received": "Received",
+      "waitingSince": "Waiting since",
+      "due": "Due",
+      "decided": "Decided",
+      "openDocument": "Open the document",
+      "why": "Why this route",
+      "approvers": "Approvers",
+      "history": "History",
+      "noHistory": "Nothing has happened yet.",
+      "attachments": "Attachments",
+      "actions": "Decide",
+      "delegatedTitle": "Delegated from {{name}}",
+      "delegatedText": "Your decision is logged as made by you on their behalf.",
+      "decidedOnBehalf": "{{by}} on behalf of {{name}}",
+      "reassignedFrom": "Took over from {{name}}"
+    },
+    "route": {
+      "none": "No conditions changed the route of this document.",
+      "skipped": "The step “{{name}}” was skipped.",
+      "checkMet": "{{step}}: {{field}} met the condition",
+      "checkNotMet": "{{step}}: {{field}} did not meet the condition",
+      "final": {
+        "approveAt": "Approved automatically at {{when}} if nobody decides.",
+        "rejectAt": "Rejected automatically at {{when}} if nobody decides.",
+        "approveAfterEscalation": "Approved automatically if nobody decides after the escalation.",
+        "rejectAfterEscalation": "Rejected automatically if nobody decides after the escalation."
+      }
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "return": "Return for changes",
+      "requestInfo": "Request more information",
+      "reassign": "Reassign"
+    },
+    "form": {
+      "peopleUnavailable": "The list of people could not be loaded. Ask an administrator to help.",
+      "approve": {
+        "title": "Approve {{name}}",
+        "text": "Reason",
+        "help": "This step asks for a reason with every decision.",
+        "required": "Give a reason for approving."
+      },
+      "reject": {
+        "title": "Reject {{name}}",
+        "text": "Reason",
+        "required": "Give a reason for rejecting."
+      },
+      "return": {
+        "title": "Return {{name}} for changes",
+        "target": "Return to",
+        "targetRequired": "Choose the step to return the document to.",
+        "text": "What needs to change",
+        "required": "Say what needs to change."
+      },
+      "requestInfo": {
+        "title": "Request more information",
+        "text": "Your question",
+        "confirm": "Send question",
+        "required": "Write the question for the requester."
+      },
+      "reassign": {
+        "title": "Reassign {{name}}",
+        "from": "Instead of",
+        "to": "New approver",
+        "choose": "Choose a person",
+        "toRequired": "Choose who should approve instead.",
+        "replaces": "Takes the place of {{name}}.",
+        "nobody": "Nobody holds this step. The new approver decides it.",
+        "text": "Reason (optional)"
+      }
+    },
+    "comment": {
+      "title": "Add a comment",
+      "post": "Post comment",
+      "required": "Write a comment first."
+    },
+    "attachments": {
+      "add": "Attach a file",
+      "choose": "Choose a file to attach",
+      "progress": "Upload progress",
+      "uploading": "Uploading {{name}}, {{percent}}%",
+      "uploaded": "Attached {{name}}",
+      "tooLarge": "This file is {{size}}. Attach a file of at most {{max}}."
+    },
+    "toast": {
+      "approved": "Approved {{name}}",
+      "rejected": "Rejected {{name}}",
+      "returned": "Returned {{name}} for changes",
+      "infoRequested": "Question sent to the requester",
+      "commented": "Comment posted",
+      "reassigned": "Reassigned {{name}}"
+    },
+    "delegation": {
+      "open": "Set up delegation",
+      "title": "Delegation",
+      "intro": "Let a colleague decide your approvals while you are away. Their decisions are logged as made on your behalf.",
+      "formLabel": "New delegation",
+      "to": "Delegate to",
+      "choosePerson": "Choose a person",
+      "from": "From",
+      "until": "Until",
+      "scope": "Document types",
+      "scopeAll": "All document types",
+      "scopeSome": "Only the types I choose",
+      "types": "Choose the document types",
+      "noTypes": "No document types to choose from yet.",
+      "note": "Note (optional)",
+      "save": "Delegate approvals",
+      "toRequired": "Choose who decides for you.",
+      "startRequired": "Choose the first day.",
+      "endRequired": "Choose the last day.",
+      "typesRequired": "Choose at least one document type, or delegate all of them.",
+      "created": "Delegation saved",
+      "revoked": "Delegation revoked",
+      "listTitle": "Your delegations",
+      "none": "You have no delegations.",
+      "givenTo": "You to {{name}}",
+      "receivedFrom": "{{name}} to you",
+      "period": "{{from}} to {{to}}",
+      "allTypes": "All document types",
+      "someTypes_one": "{{count}} document type",
+      "someTypes_other": "{{count}} document types",
+      "revoke": "Revoke",
+      "revokeFor": "Revoke the delegation to {{name}}",
+      "status": {
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "ended": "Ended",
+        "revoked": "Revoked"
+      },
+      "receivedTitle": "You are also approving for {{name}} until {{until}}",
+      "receivedText": "Their items show “Delegated from” and are logged as approved by you on their behalf."
+    },
+    "email": {
+      "title": "Approval",
+      "intro": "Check the request, then confirm your decision.",
+      "confirmApprove": "Approve this request",
+      "confirmReject": "Reject this request",
+      "approve": "Approve",
+      "reject": "Reject",
+      "comment": "Comment (optional)",
+      "reason": "Reason",
+      "reasonRequired": "Give a reason for this decision.",
+      "requestedBy": "Requested by {{name}}",
+      "approvedTitle": "Request approved",
+      "rejectedTitle": "Request rejected",
+      "doneText": "Your decision is recorded. You can close this page.",
+      "openApprovals": "Open approvals",
+      "openApproval": "Open the request",
+      "signInTitle": "Sign in to decide",
+      "signInText": "This link can no longer be used. Sign in to decide in the app.",
+      "signIn": "Sign in",
+      "signInToDecide": "Sign in to decide",
+      "invalid": "This link is not valid. Sign in to see your approvals."
+    },
+    "history": {
+      "onBehalfOf": "on behalf of {{name}}"
     }
   }
 }
