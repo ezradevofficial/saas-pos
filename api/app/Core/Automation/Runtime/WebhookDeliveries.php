@@ -109,7 +109,15 @@ class WebhookDeliveries
 
         if ($type !== null) {
             $actor = $rule->actorId() === null ? null : User::query()->find($rule->actorId());
-            $fields = FieldVisibility::without($type->fieldValues((string) $document['id']), $this->visibility->hidden($actor, $type));
+            $hidden = $this->visibility->hidden($actor, $type);
+            $fields = FieldVisibility::without($type->fieldValues((string) $document['id']), $hidden);
+
+            // Ids stay as they are; a reference also gets its display value as `<field>_label`.
+            foreach (FieldVisibility::without($type->displayValuesOf($fields, $actor), $hidden) as $name => $label) {
+                if (! array_key_exists($name.'_label', $fields)) {
+                    $fields[$name.'_label'] = $label;
+                }
+            }
         }
 
         return [...$payload, 'occurred_at' => CarbonImmutable::now()->toIso8601ZuluString(), 'fields' => (object) $fields];
