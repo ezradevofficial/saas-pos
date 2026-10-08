@@ -5,8 +5,11 @@ namespace Tests\Feature\Core\MasterData;
 use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Items\DefaultUoms;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemCategory;
 use App\Core\MasterData\Items\Uom;
 use App\Core\Rbac\Scope;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -150,5 +153,25 @@ class ItemCategoryAndUomApiTest extends TestCase
         $hr = $this->headersFor($this->userWith('hr_officer', Scope::tenant()));
         $this->getJson("/api/v1/item-categories/{$id}", $hr)->assertNotFound();
         $this->getJson('/api/v1/item-categories', $hr)->assertForbidden();
+    }
+
+    public function test_a_parent_archived_between_validation_and_the_lock_is_refused(): void
+    {
+        $parent = $this->category(['name_en' => 'Parent'])->assertCreated()->json('data.id');
+        $child = $this->category(['name_en' => 'Child'])->assertCreated()->json('data.id');
+
+        // Simulates a concurrent archive right after the writer takes the items sharing lock.
+        $raced = false;
+        DB::listen(function (QueryExecuted $query) use ($parent, &$raced) {
+            if (! $raced && str_contains($query->sql, 'pg_advisory_xact_lock_shared')) {
+                $raced = true;
+                ItemCategory::findOrFail($parent)->archive();
+            }
+        });
+
+        $this->patchJson("/api/v1/item-categories/{$child}", ['parent_id' => $parent], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('parent_id');
+        $this->assertTrue($raced);
+        $this->inTenant(fn () => $this->assertNull(ItemCategory::findOrFail($child)->parent_id));
     }
 }

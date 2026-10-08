@@ -67,7 +67,7 @@ Route::prefix('auth')->group(function () {
 // MD-02: an item image behind a temporary signed URL (ItemImages::url). The
 // signature is the credential; the controller enters the file's tenant and
 // checks the signed-for user may still view the item.
-Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')->middleware('signed')->name('media.show');
+Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('media.show');
 
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');

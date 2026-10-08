@@ -6,11 +6,16 @@ use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Items\DefaultUoms;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
+use App\Core\MasterData\Items\ItemCategory;
+use App\Core\MasterData\Items\ItemUniqueness;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use PDOException;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -335,5 +340,86 @@ class ItemApiTest extends TestCase
         $this->create(['code' => 'D2', 'name_en' => 'Sugar 1kg'])->assertCreated()
             ->assertJsonPath('meta.possible_duplicates', [['id' => $first, 'code' => 'D1', 'name' => 'Sugar 1 kg', 'reason' => 'name']]);
         $this->create(['code' => 'D3', 'name_en' => 'Salt'])->assertCreated()->assertJsonPath('meta.possible_duplicates', []);
+    }
+
+    public function test_the_base_unit_changes_only_with_the_full_unit_and_barcode_lists(): void
+    {
+        $id = $this->item('BASE-1', [
+            'uoms' => [['uom_id' => $this->uoms['BOX'], 'factor' => '12']],
+            'barcodes' => [['barcode' => '100'], ['barcode' => '200', 'uom_id' => $this->uoms['BOX']]],
+        ]);
+
+        // Factors and unit barcodes are counted in the base unit: no silent change.
+        $this->patchJson("/api/v1/items/{$id}", ['base_uom_id' => $this->uoms['PACK']], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('base_uom_id');
+        $this->patchJson("/api/v1/items/{$id}", ['base_uom_id' => $this->uoms['PACK'], 'uoms' => [['uom_id' => $this->uoms['BOX'], 'factor' => '2']]], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('base_uom_id');
+
+        // With both lists: a barcode naming the new base is stored for the base (uom_id null).
+        $this->patchJson("/api/v1/items/{$id}", [
+            'base_uom_id' => $this->uoms['PACK'],
+            'uoms' => [['uom_id' => $this->uoms['BOX'], 'factor' => '2']],
+            'barcodes' => [['barcode' => '100', 'uom_id' => $this->uoms['PACK']], ['barcode' => '200', 'uom_id' => $this->uoms['BOX']]],
+        ], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.base_uom_id', $this->uoms['PACK'])
+            ->assertJsonPath('data.uoms.0.factor', '2')
+            ->assertJsonPath('data.barcodes', [['barcode' => '100', 'uom_id' => null], ['barcode' => '200', 'uom_id' => $this->uoms['BOX']]]);
+
+        // An item with no other units or unit barcodes changes its base freely.
+        $plain = $this->item('BASE-2', ['barcodes' => [['barcode' => '300']]]);
+        $this->patchJson("/api/v1/items/{$plain}", ['base_uom_id' => $this->uoms['KG']], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.base_uom_id', $this->uoms['KG']);
+    }
+
+    public function test_restore_is_refused_while_the_category_tax_category_or_base_unit_is_archived(): void
+    {
+        $category = $this->category('Seasonal');
+        $taxCategory = $this->inTenant(fn () => TaxCategory::create(['name' => 'Seasonal tax'])->id);
+        $crate = $this->postJson('/api/v1/uoms', ['code' => 'CRATE', 'name_en' => 'Crate', 'name_fr' => 'Caisse', 'kind' => 'count'], $this->headersFor())->json('data.id');
+        $id = $this->item('R1', ['category_id' => $category, 'tax_category_id' => $taxCategory, 'base_uom_id' => $crate]);
+
+        $this->postJson("/api/v1/items/{$id}/archive", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/item-categories/{$category}/archive", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/uoms/{$crate}/archive", [], $this->headersFor())->assertOk();
+        $this->inTenant(fn () => TaxCategory::findOrFail($taxCategory)->archive());
+
+        $this->postJson("/api/v1/items/{$id}/restore", [], $this->headersFor())->assertUnprocessable()
+            ->assertJsonValidationErrors(['category_id', 'tax_category_id', 'base_uom_id']);
+
+        $this->postJson("/api/v1/item-categories/{$category}/restore", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/uoms/{$crate}/restore", [], $this->headersFor())->assertOk();
+        $this->inTenant(fn () => TaxCategory::findOrFail($taxCategory)->restore());
+        $this->postJson("/api/v1/items/{$id}/restore", [], $this->headersFor())->assertOk()->assertJsonPath('data.archived_at', null);
+    }
+
+    public function test_references_archived_between_validation_and_the_lock_are_refused(): void
+    {
+        // Simulates a concurrent archive: the category and the unit are archived
+        // right after the writer takes the items sharing lock, past validation.
+        $category = $this->category('Racing');
+        $raced = false;
+        DB::listen(function (QueryExecuted $query) use ($category, &$raced) {
+            if (! $raced && str_contains($query->sql, 'pg_advisory_xact_lock_shared')) {
+                $raced = true;
+                ItemCategory::findOrFail($category)->archive();
+                Uom::findOrFail($this->uoms['BOX'])->archive();
+            }
+        });
+
+        $this->create(['code' => 'RACE', 'category_id' => $category, 'uoms' => [['uom_id' => $this->uoms['BOX'], 'factor' => '4']]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['category_id', 'uoms']);
+        $this->assertTrue($raced);
+        $this->inTenant(fn () => $this->assertSame(0, Item::count()));
+    }
+
+    public function test_only_code_and_barcode_index_violations_become_validation_errors(): void
+    {
+        $violation = fn (string $index) => new UniqueConstraintViolationException('pgsql', 'insert', [], new PDOException("duplicate key value violates unique constraint \"{$index}\""));
+        $uniqueness = app(ItemUniqueness::class);
+
+        $this->assertArrayHasKey('code', $uniqueness->fromViolation($violation('items_code_company_unique'))->errors());
+        $this->assertArrayHasKey('barcodes', $uniqueness->fromViolation($violation('item_barcodes_shared_unique'))->errors());
+        $this->assertNull($uniqueness->fromViolation($violation('item_uoms_item_id_uom_id_unique')));
+        $this->assertNull($uniqueness->fromViolation($violation('item_images_path_unique')));
     }
 }

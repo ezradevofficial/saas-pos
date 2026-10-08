@@ -61,6 +61,8 @@ class ItemCategoryController
                 throw ValidationException::withMessages(['company_id' => __('core.master_data.sharing_changed')]);
             }
 
+            $this->assertParent($data['parent_id'] ?? null, $companyId, null);
+
             return ItemCategory::create(['company_id' => $companyId, ...$this->attributes($data)]);
         });
 
@@ -78,7 +80,19 @@ class ItemCategoryController
 
         $category = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($itemCategory, $data) {
             $this->sharing->lockForWrite([ItemSharing::DATA_TYPE]);
+
+            // One parent change at a time per tenant, so two moves cannot
+            // build a cycle together (lock order: sharing, tree, rows).
+            if (array_key_exists('parent_id', $data)) {
+                DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtext(?))', ['item_category_tree:'.app(TenantContext::class)->require()]);
+            }
+
             $category = ItemCategory::query()->whereKey($itemCategory->id)->lockForUpdate()->firstOrFail();
+
+            if (array_key_exists('parent_id', $data)) {
+                $this->assertParent($data['parent_id'], $category->company_id, $category);
+            }
+
             $category->fill($this->attributes($data))->save();
 
             return $category;
@@ -87,20 +101,32 @@ class ItemCategoryController
         return ItemCategoryResource::make($category->refresh());
     }
 
+    /**
+     * Under the items sharing lock and the category's row lock (FOR UPDATE),
+     * so an item or subcategory writer (which reads it FOR SHARE) either
+     * sees the archive or is seen here.
+     */
     public function archive(ItemCategoryActionRequest $request, ItemCategory $itemCategory): ItemCategoryResource
     {
-        if (! $itemCategory->isArchived()) {
-            $inUse = ItemCategory::query()->active()->where('parent_id', $itemCategory->id)->exists()
-                || Item::query()->active()->where('category_id', $itemCategory->id)->exists();
+        $category = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($itemCategory) {
+            $this->sharing->lockForWrite([ItemSharing::DATA_TYPE]);
+            $category = ItemCategory::query()->whereKey($itemCategory->id)->lockForUpdate()->firstOrFail();
 
-            if ($inUse) {
-                throw new ApiException(422, 'category_in_use', __('core.item_category.in_use'));
+            if (! $category->isArchived()) {
+                $inUse = ItemCategory::query()->active()->where('parent_id', $category->id)->exists()
+                    || Item::query()->active()->where('category_id', $category->id)->exists();
+
+                if ($inUse) {
+                    throw new ApiException(422, 'category_in_use', __('core.item_category.in_use'));
+                }
+
+                $category->archive();
             }
 
-            $itemCategory->archive();
-        }
+            return $category;
+        });
 
-        return ItemCategoryResource::make($itemCategory);
+        return ItemCategoryResource::make($category);
     }
 
     public function restore(ItemCategoryActionRequest $request, ItemCategory $itemCategory): ItemCategoryResource
@@ -114,6 +140,29 @@ class ItemCategoryController
         }
 
         return ItemCategoryResource::make($itemCategory);
+    }
+
+    /**
+     * Re-checked under the locks (validation ran before them): the parent is
+     * active, in the same scope, and not this category or beneath it.
+     */
+    private function assertParent(?string $parentId, ?string $companyId, ?ItemCategory $category): void
+    {
+        if ($parentId === null) {
+            return;
+        }
+
+        $parent = ItemCategory::query()->whereKey($parentId)->sharedLock()->first();
+
+        $message = match (true) {
+            $parent === null || $parent->isArchived() || $parent->company_id !== $companyId => __('core.item_category.parent_other_scope'),
+            $category !== null && $category->isAncestorOf($parentId) => __('core.item_category.parent_cycle'),
+            default => null,
+        };
+
+        if ($message !== null) {
+            throw ValidationException::withMessages(['parent_id' => $message]);
+        }
     }
 
     private function attributes(array $data): array

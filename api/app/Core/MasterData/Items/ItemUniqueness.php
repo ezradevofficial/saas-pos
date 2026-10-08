@@ -52,12 +52,17 @@ class ItemUniqueness
         }
     }
 
-    /** The validation error for a unique index that caught a race. */
-    public function fromViolation(UniqueConstraintViolationException $e): ValidationException
+    /**
+     * The validation error for a code or barcode index that caught a race,
+     * named by the index; null for any other unique violation (rethrown).
+     */
+    public function fromViolation(UniqueConstraintViolationException $e): ?ValidationException
     {
-        return str_contains($e->getMessage(), 'item_barcodes_')
-            ? ValidationException::withMessages(['barcodes' => [__('core.item.barcode_taken_race')]])
-            : ValidationException::withMessages(['code' => [__('core.item.code_taken_race')]]);
+        return match (true) {
+            preg_match('/"item_barcodes_(shared|company)_unique"/', $e->getMessage()) === 1 => ValidationException::withMessages(['barcodes' => [__('core.item.barcode_taken_race')]]),
+            preg_match('/"items_code_(shared|company)_unique"/', $e->getMessage()) === 1 => ValidationException::withMessages(['code' => [__('core.item.code_taken_race')]]),
+            default => null,
+        };
     }
 
     private function inScope(Builder $query, ?string $companyId): Builder

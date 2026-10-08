@@ -32,7 +32,10 @@ use App\Core\Tenancy\Events\TenantProvisioned;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -63,6 +66,9 @@ class MasterDataServiceProvider extends ServiceProvider
         $sharing->records('items', new ItemCategorySharedRecords);
         $sharing->records('items', new ItemSharedRecords);
         $sharing->guard(new ItemCodesGuard);
+
+        // MD-02: signed item image URLs, 120 a minute per IP.
+        RateLimiter::for('media', fn (Request $request) => Limit::perMinute(120)->by('ip|'.$request->ip()));
 
         // MD-02: every tenant starts with the default units.
         Event::listen(TenantProvisioned::class, SeedDefaultUoms::class);

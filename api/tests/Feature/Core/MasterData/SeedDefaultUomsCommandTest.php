@@ -6,6 +6,7 @@ use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\MasterData\Items\Uom;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsRbac;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -42,19 +43,24 @@ class SeedDefaultUomsCommandTest extends TestCase
         return VerificationChallenge::findOrFail($challengeId)->tenant_id;
     }
 
-    public function test_missing_default_units_are_added_to_every_tenant_once(): void
+    public function test_missing_default_units_are_added_and_archived_ones_stay_archived(): void
     {
         $tenantA = $this->signUp('a@example.com');
         $tenantB = $this->signUp('b@example.com');
-        // A tenant whose KG unit was archived (as if created before units existed for KG).
-        $this->asTenant($tenantA, fn () => Uom::query()->where('code', 'KG')->sole()->archive());
+        // Tenant A archived KG, and never had PACK (as for a tenant created before units existed).
+        $this->asTenant($tenantA, function () {
+            Uom::query()->where('code', 'KG')->sole()->archive();
+            DB::table('uoms')->where('code', 'PACK')->delete();
+        });
 
         $this->assertSame(0, Artisan::call('uoms:seed-defaults'));
         $this->assertMatchesRegularExpression('/^1 units created in \d+ tenants/', Artisan::output());
 
         $this->asTenant($tenantA, function () {
-            $this->assertSame(1, Uom::query()->active()->where('code', 'KG')->count());
-            $this->assertSame(9, Uom::query()->count());
+            $this->assertSame(0, Uom::query()->active()->where('code', 'KG')->count());
+            $this->assertSame(1, Uom::query()->where('code', 'KG')->count());
+            $this->assertSame(1, Uom::query()->active()->where('code', 'PACK')->count());
+            $this->assertSame(8, Uom::query()->count());
         });
         $this->asTenant($tenantB, fn () => $this->assertSame(8, Uom::query()->count()));
 

@@ -27,6 +27,9 @@ use Illuminate\Validation\Validator;
  *   sales and one purchase default. `barcodes` lists {barcode, uom_id}:
  *   normalised (Barcode), each once, for the base unit (uom_id null or the
  *   base) or one of the item's units. Lists given replace the stored ones.
+ *   A barcode naming the base unit is stored with uom_id null. Changing the
+ *   base unit of an item with other units or unit barcodes needs `uoms` and
+ *   `barcodes` in the same request (`base_change_needs_units`).
  * - Uniqueness of the code and barcodes in the sharing scope is checked
  *   under the sharing lock (ItemUniqueness), not here.
  */
@@ -109,6 +112,17 @@ final class ItemRules
     private static function validateUnits(Validator $validator, array $input, ?Item $item): void
     {
         $baseUomId = $input['base_uom_id'] ?? $item?->base_uom_id;
+
+        // Factors and unit barcodes are counted in the base unit: a new base
+        // would silently change their meaning. Changing it needs the full
+        // lists in the same request (they replace the stored ones).
+        if ($item !== null && $baseUomId !== $item->base_uom_id && ! (array_key_exists('uoms', $input) && array_key_exists('barcodes', $input))
+            && (ItemUom::query()->where('item_id', $item->id)->exists()
+                || ItemBarcode::query()->where('item_id', $item->id)->whereNotNull('uom_id')->exists())) {
+            $validator->errors()->add('base_uom_id', __('core.item.base_change_needs_units'));
+
+            return;
+        }
         $uoms = array_key_exists('uoms', $input)
             ? array_values($input['uoms'])
             : ($item === null ? [] : ItemUom::query()->where('item_id', $item->id)->get()->map(fn (ItemUom $u) => $u->only(['uom_id', 'factor', 'is_sales_default', 'is_purchase_default']))->all());

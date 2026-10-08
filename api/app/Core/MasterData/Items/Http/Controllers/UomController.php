@@ -10,8 +10,10 @@ use App\Core\MasterData\Items\Http\Requests\UomRequest;
 use App\Core\MasterData\Items\Http\Requests\UpdateUomRequest;
 use App\Core\MasterData\Items\Http\Resources\UomResource;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemSharing;
 use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Items\Uom;
+use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +29,8 @@ use Illuminate\Validation\ValidationException;
  */
 class UomController
 {
+    public function __construct(private readonly MasterDataSharing $sharing) {}
+
     public function index(ListUomsRequest $request): AnonymousResourceCollection
     {
         return UomResource::collection(
@@ -71,18 +75,30 @@ class UomController
         return UomResource::make($uom->refresh());
     }
 
+    /**
+     * Under the items sharing lock and the unit's row lock (FOR UPDATE), so
+     * an item writer (which reads its units FOR SHARE) either sees the
+     * archive or is seen here.
+     */
     public function archive(UomActionRequest $request, Uom $uom): UomResource
     {
-        if (! $uom->isArchived()) {
-            $inUse = Item::query()->active()->where('base_uom_id', $uom->id)->exists()
-                || ItemUom::query()->where('uom_id', $uom->id)->whereIn('item_id', Item::query()->active()->select('id'))->exists();
+        $uom = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($uom) {
+            $this->sharing->lockForWrite([ItemSharing::DATA_TYPE]);
+            $uom = Uom::query()->whereKey($uom->id)->lockForUpdate()->firstOrFail();
 
-            if ($inUse) {
-                throw new ApiException(422, 'uom_in_use', __('core.uom.in_use'));
+            if (! $uom->isArchived()) {
+                $inUse = Item::query()->active()->where('base_uom_id', $uom->id)->exists()
+                    || ItemUom::query()->where('uom_id', $uom->id)->whereIn('item_id', Item::query()->active()->select('id'))->exists();
+
+                if ($inUse) {
+                    throw new ApiException(422, 'uom_in_use', __('core.uom.in_use'));
+                }
+
+                $uom->archive();
             }
 
-            $uom->archive();
-        }
+            return $uom;
+        });
 
         return UomResource::make($uom);
     }
@@ -115,7 +131,11 @@ class UomController
     {
         try {
             return $write();
-        } catch (UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException $e) {
+            if (! str_contains($e->getMessage(), '"uoms_code_unique"')) {
+                throw $e;
+            }
+
             throw ValidationException::withMessages(['code' => __('core.uom.code_taken_race')]);
         }
     }

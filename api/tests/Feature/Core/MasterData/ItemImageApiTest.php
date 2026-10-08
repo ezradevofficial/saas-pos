@@ -153,4 +153,33 @@ class ItemImageApiTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(1, ItemImage::count()));
         $this->assertCount(1, Storage::disk('media')->allFiles());
     }
+
+    public function test_malformed_or_traversing_paths_are_not_found_even_when_signed(): void
+    {
+        $this->upload(UploadedFile::fake()->image('a.jpg', 10, 10))->assertCreated();
+        $real = $this->inTenant(fn () => ItemImage::query()->sole()->path);
+        $tenant = $this->owner->tenant_id;
+
+        foreach ([
+            "tenants/{$tenant}/items/{$this->item}/../../../../.env",
+            "tenants/{$tenant}/../{$tenant}/items/{$this->item}/".basename($real),
+            "tenants/{$tenant}/items/{$this->item}/not-a-uuid.jpg",
+            "tenants/{$tenant}/items/{$this->item}/".str_replace('.jpg', '.php', basename($real)),
+            'tenants/x',
+        ] as $path) {
+            $url = URL::temporarySignedRoute('media.show', now()->addMinutes(5), ['path' => $path, 'user' => $this->owner->id]);
+            $this->get($url)->assertNotFound();
+        }
+    }
+
+    public function test_media_urls_are_throttled_per_ip(): void
+    {
+        $url = URL::temporarySignedRoute('media.show', now()->addMinutes(5), ['path' => 'tenants/x', 'user' => $this->owner->id]);
+
+        foreach (range(1, 120) as $n) {
+            $this->get($url)->assertNotFound();
+        }
+
+        $this->get($url)->assertStatus(429);
+    }
 }

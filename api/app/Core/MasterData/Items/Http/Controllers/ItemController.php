@@ -16,6 +16,7 @@ use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
 use App\Core\MasterData\Items\ItemCategory;
 use App\Core\MasterData\Items\ItemPolicy;
+use App\Core\MasterData\Items\ItemReferences;
 use App\Core\MasterData\Items\ItemSharing;
 use App\Core\MasterData\Items\ItemUniqueness;
 use App\Core\MasterData\Items\ItemUom;
@@ -48,6 +49,7 @@ class ItemController
         private readonly ItemUniqueness $uniqueness,
         private readonly DuplicateFinder $duplicates,
         private readonly Auditor $auditor,
+        private readonly ItemReferences $references,
     ) {}
 
     public function index(ListItemsRequest $request): AnonymousResourceCollection
@@ -94,6 +96,9 @@ class ItemController
 
             $barcodes = ItemRules::barcodes($data, $data['base_uom_id']) ?? [];
             $this->uniqueness->assert($companyId, $data['code'], array_column($barcodes, 'barcode'), null);
+            $this->references->assertActive(
+                $companyId, $data['category_id'] ?? null, $data['tax_category_id'] ?? null, $data['base_uom_id'], array_column($data['uoms'] ?? [], 'uom_id'),
+            );
 
             $item = Item::create(['company_id' => $companyId, ...ItemRules::attributes($data)]);
             $this->syncUoms($item, $data['uoms'] ?? []);
@@ -128,6 +133,13 @@ class ItemController
                 $barcodes === null ? $this->storedBarcodes($item) : array_column($barcodes, 'barcode'),
                 $item->id,
             );
+            $this->references->assertActive(
+                $companyId,
+                array_key_exists('category_id', $data) ? $data['category_id'] : $item->category_id,
+                array_key_exists('tax_category_id', $data) ? $data['tax_category_id'] : $item->tax_category_id,
+                $baseUomId,
+                array_key_exists('uoms', $data) ? array_column($data['uoms'], 'uom_id') : ItemUom::query()->where('item_id', $item->id)->pluck('uom_id')->all(),
+            );
 
             $item->fill(['company_id' => $companyId, ...ItemRules::attributes($data)])->save();
 
@@ -154,7 +166,11 @@ class ItemController
         return $this->respond($request, $item);
     }
 
-    /** A restored item takes its code and barcodes back: refused (422) while active items use them. */
+    /**
+     * A restored item takes its code and barcodes back: refused (422) while
+     * active items use them, or while its category, tax category or units
+     * are archived.
+     */
     public function restore(ItemActionRequest $request, Item $item): JsonResponse
     {
         $item = $this->writing(fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($item) {
@@ -163,6 +179,7 @@ class ItemController
 
             if ($item->isArchived()) {
                 $this->uniqueness->assert($item->company_id, (string) $item->code, $this->storedBarcodes($item), $item->id);
+                $this->references->assertItem($item);
                 $item->restore();
             }
 
@@ -278,7 +295,7 @@ class ItemController
         try {
             return $write();
         } catch (UniqueConstraintViolationException $e) {
-            throw $this->uniqueness->fromViolation($e);
+            throw $this->uniqueness->fromViolation($e) ?? $e;
         }
     }
 

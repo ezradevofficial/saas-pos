@@ -189,6 +189,8 @@ return [
         'barcode_taken_race' => 'Un autre article a pris l’un de ces codes-barres pendant l’enregistrement. Vérifiez les codes-barres et réessayez.',
         'barcode_unit' => 'Choisissez l’unité de base ou l’une des unités de cet article pour le code-barres.',
         'barcode_unit_removed' => 'Un code-barres utilise une unité retirée. Modifiez les codes-barres dans la même requête.',
+        'base_change_needs_units' => 'Les facteurs et les codes-barres par unité sont exprimés dans l’unité de base. Pour changer l’unité de base, renvoyez les unités et les codes-barres dans la même requête.',
+        'uom_archived' => 'Cette unité est archivée. Restaurez-la ou choisissez une unité active.',
         'base_in_units' => 'L’unité de base est toujours incluse avec le facteur 1. Retirez-la des autres unités.',
         'factor_invalid' => 'Saisissez le nombre d’unités de base contenues dans cette unité, avec 6 décimales au plus.',
         'factor_positive' => 'Le facteur doit être supérieur à 0.',

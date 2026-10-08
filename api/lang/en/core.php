@@ -189,6 +189,8 @@ return [
         'barcode_taken_race' => 'Another item took one of these barcodes while you were saving. Check the barcodes and try again.',
         'barcode_unit' => 'Choose the base unit or one of this item’s units for the barcode.',
         'barcode_unit_removed' => 'A barcode uses a unit you removed. Change the barcodes in the same request.',
+        'base_change_needs_units' => 'Factors and unit barcodes are counted in the base unit. To change the base unit, send the units and barcodes again in the same request.',
+        'uom_archived' => 'This unit is archived. Restore it or choose an active unit.',
         'base_in_units' => 'The base unit is always included with factor 1. Remove it from the other units.',
         'factor_invalid' => 'Enter how many base units one of this unit holds, with up to 6 decimals.',
         'factor_positive' => 'The factor must be more than 0.',
