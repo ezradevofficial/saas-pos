@@ -37,6 +37,7 @@ import {
   Menu,
   MonitorSmartphone,
   Package,
+  Paperclip,
   Palette,
   Pencil,
   Percent,
@@ -47,6 +48,7 @@ import {
   Search,
   Send,
   Share2,
+  SquareCheckBig,
   Shapes,
   ShieldCheck,
   TabletSmartphone,
@@ -121,6 +123,8 @@ const ICONS = {
   bell: Bell,
   templates: FileText,
   deliveries: Send,
+  approvals: SquareCheckBig,
+  attach: Paperclip,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */
