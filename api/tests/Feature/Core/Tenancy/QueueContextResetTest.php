@@ -31,7 +31,11 @@ class QueueContextResetTest extends TestCase
         Queue::connection('database')->push(new RecordsContextJob('first', $tenantA));
         Queue::connection('database')->push(new RecordsContextJob('second'));
 
-        Artisan::call('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--sleep' => 0]);
+        // A worker stops after a job once the process passes its memory limit
+        // (128 MB by default); late in the full suite this process is past
+        // it, so the second job never ran. The limit is about the worker, not
+        // what this test checks.
+        Artisan::call('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--sleep' => 0, '--memory' => 4096]);
 
         $this->assertSame(['first', 'second'], array_column(RecordsContextJob::$seen, 'name'));
         [, $second] = RecordsContextJob::$seen;
