@@ -2440,7 +2440,7 @@
       "search": "Search",
       "searchPlaceholder": "Number, title, type or step",
       "select": "Select {{name}}",
-      "amount": "Total before VAT",
+      "amount": "Amount",
       "onBehalf": "Delegated from {{name}}"
     },
     "filters": {
@@ -2481,7 +2481,7 @@
       "label": "Request detail",
       "back": "Back to the list",
       "notFound": "This request was not found, or you can no longer see it.",
-      "amount": "Total before VAT",
+      "amount": "Amount",
       "requestedBy": "Requested by",
       "company": "Company",
       "step": "Step",

@@ -83,6 +83,8 @@ class ApprovalPresenter
                 'number' => $request->document_number,
                 'title' => in_array('title', $hidden, true) ? null : $request->document_title,
                 'amount' => in_array('amount', $hidden, true) ? null : $request->amount(),
+                // What the amount is ("New credit limit"), in the viewer's language.
+                'amount_label' => ($label = $type?->amountLabel()) === null ? null : __($label),
             ],
             'step' => ['node_id' => $request->node_id, 'name' => $request->node_name, 'index' => $request->step + 1, 'count' => $request->steps],
             'mode' => $request->mode,

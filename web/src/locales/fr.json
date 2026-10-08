@@ -2440,7 +2440,7 @@
       "search": "Rechercher",
       "searchPlaceholder": "Numéro, titre, type ou étape",
       "select": "Sélectionner {{name}}",
-      "amount": "Total hors TVA",
+      "amount": "Montant",
       "onBehalf": "Délégué par {{name}}"
     },
     "filters": {
@@ -2481,7 +2481,7 @@
       "label": "Détail de la demande",
       "back": "Retour à la liste",
       "notFound": "Cette demande est introuvable, ou vous ne pouvez plus la voir.",
-      "amount": "Total hors TVA",
+      "amount": "Montant",
       "requestedBy": "Demandée par",
       "company": "Société",
       "step": "Étape",

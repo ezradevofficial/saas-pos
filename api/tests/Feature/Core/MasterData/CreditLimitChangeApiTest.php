@@ -127,6 +127,10 @@ class CreditLimitChangeApiTest extends TestCase
         $change = $this->request()->assertCreated()->json('data.id');
         $approval = $this->approval($change);
 
+        // The inbox names the amount for this type (APR-04), not a generic total.
+        $this->getJson("/api/v1/approvals/{$approval->id}", $this->headersFor($this->accountant))
+            ->assertOk()->assertJsonPath('data.document.amount_label', 'Requested limit');
+
         $this->postJson("/api/v1/approvals/{$approval->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
         $this->assertSame('25000000', $this->partyLimit());

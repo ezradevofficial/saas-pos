@@ -178,6 +178,12 @@ class CreditLimitChangeType extends DocumentType
         ];
     }
 
+    /** The summary's amount is the requested limit, not the first money field (the current limit). */
+    public function amountLabel(): ?string
+    {
+        return 'core.credit_limit_change.fields.requested_limit';
+    }
+
     /** RBAC-05: the amount when the party's credit limit is hidden, the title when its name is. */
     public function hiddenSummaryFields(User $viewer): array
     {

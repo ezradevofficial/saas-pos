@@ -101,6 +101,22 @@ abstract class DocumentType
      *
      * @return array{number: ?string, title: ?string, amount: ?array{amount_minor: string, currency: string}}
      */
+    /**
+     * APR-04: the translation key naming the summary's amount in the
+     * approvals inbox (e.g. "New credit limit"). By default the label of the
+     * type's first money field, the one summary() reads.
+     */
+    public function amountLabel(): ?string
+    {
+        foreach ($this->fields() as $field) {
+            if ($field->type === 'money') {
+                return $field->label;
+            }
+        }
+
+        return null;
+    }
+
     public function summary(string $documentId): array
     {
         $amount = null;
