@@ -9,6 +9,7 @@ return [
         'last_owner' => 'Your organisation needs at least one active Owner.',
         'cannot_grant' => 'You can only give roles whose permissions you hold, where you manage access. Only an Owner can give or remove the Owner role.',
         'already_assigned' => 'This user already has this role here.',
+        'field_readonly' => 'You can’t change the field :field. Leave it out, or ask an administrator for access.',
     ],
 
     // RBAC-01: permission catalogue labels (GET permissions).

@@ -111,6 +111,8 @@ Any other argument, for example a `User`, returns `null`, so that model's policy
 - `FieldRules` is the most permissive across the user's roles. A field is hidden only when every role hides it.
 - `LimitRules` takes the highest value across roles at covering scopes. "No rule" means "not allowed".
 - Policies, API resources and the UI read both.
+- **Field rules apply to reads and writes** for parties, items, item categories and payment methods (resources `party`, `item`, `item_category`, `payment_method`). On reads, the API resource and the record history leave out hidden fields. On writes, the store and update Form Requests use `App\Core\Rbac\Http\Requests\GuardsFieldRules`: any input key that names a field hidden from, or read-only for, the user is refused with 422 `field_readonly` naming the field, before anything is validated or saved. Rules name the model's columns; where an input key differs it is mapped (`credit_limit` writes `credit_limit_minor` and `credit_limit_currency`; `name_en` and `name_fr` are also covered by a rule on `name`). Clients leave restricted fields out of the body.
+- **Payment provider configuration (MD-04).** Changing a payment method's `settings`, `secrets` or `provider`, or switching on a mobile money or card method, needs `core.payment_method.configure` on top of `create` or `edit`. Only the Owner and Admin templates hold it; the Accountant template reads payment methods only, since provider credentials are a fraud path.
 
 **Per-tenant permission cache (review focus 4).**
 

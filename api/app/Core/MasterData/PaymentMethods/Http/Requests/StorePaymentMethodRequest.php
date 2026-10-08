@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\PaymentMethods\Http\Requests;
 
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 
 /**
  * MD-04: a new payment method (`core.payment_method.create`). Cash needs an
@@ -10,7 +11,13 @@ use App\Core\MasterData\PaymentMethods\PaymentMethod;
  */
 class StorePaymentMethodRequest extends CompanyPaymentMethodRequest
 {
-    use GuardsProviderConfig;
+    use GuardsFieldRules, GuardsProviderConfig;
+
+    /** RBAC-05: input refused when its field is hidden or read-only for the user. */
+    protected string $fieldRulesResource = 'payment_method';
+
+    /** @var array<string, list<string>> input key => field rule names it writes */
+    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
 
     protected bool $edits = true;
 

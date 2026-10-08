@@ -4,6 +4,7 @@ namespace App\Core\MasterData\Parties\Http\Requests;
 
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Parties\PartyPolicy;
+use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -17,6 +18,14 @@ use Illuminate\Validation\Validator;
  */
 class StorePartyRequest extends FormRequest
 {
+    use GuardsFieldRules;
+
+    /** RBAC-05: input refused when its field is hidden or read-only for the user. */
+    protected string $fieldRulesResource = 'party';
+
+    /** @var array<string, list<string>> input key => field rule names it writes */
+    protected array $fieldRulesInputs = ['credit_limit' => ['credit_limit_minor', 'credit_limit_currency'], 'credit_limit_currency' => ['credit_limit_minor', 'credit_limit']];
+
     public function authorize(): bool
     {
         $companyId = $this->input('company_id');

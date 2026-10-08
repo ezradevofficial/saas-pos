@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Parties\Http\Requests;
 
+use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 use Illuminate\Validation\Validator;
 
 /**
@@ -12,6 +13,14 @@ use Illuminate\Validation\Validator;
  */
 class UpdatePartyRequest extends PartyRequest
 {
+    use GuardsFieldRules;
+
+    /** RBAC-05: input refused when its field is hidden or read-only for the user. */
+    protected string $fieldRulesResource = 'party';
+
+    /** @var array<string, list<string>> input key => field rule names it writes */
+    protected array $fieldRulesInputs = ['credit_limit' => ['credit_limit_minor', 'credit_limit_currency'], 'credit_limit_currency' => ['credit_limit_minor', 'credit_limit']];
+
     protected string $ability = 'update';
 
     public function rules(): array
