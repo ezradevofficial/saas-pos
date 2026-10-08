@@ -18,6 +18,10 @@ export const ON_CANCEL = ['keep', 'cancel']
 /** End outcomes offered; the API accepts any lowercase word. */
 export const OUTCOMES = ['approved', 'rejected', 'completed']
 
+/** ApprovalConfig::MAX_CHAIN and MAX_REMINDERS (GraphValidator::MAX_STAGE_REMINDERS for stages): approvers in a chain, reminders per step (APR-01, APR-05, WF-09). */
+export const MAX_CHAIN = 10
+export const MAX_REMINDERS = 5
+
 /** Group-approval modes (APR-01): any one, all, or most of the approvers. */
 export const APPROVAL_MODES = ['any', 'all', 'majority']
 
@@ -45,6 +49,9 @@ export const ESCALATE_TO = [
   { key: 'role', params: ['role'] },
   { key: 'user', params: ['user'] },
 ]
+
+/** Where a stage escalates (WF-09, StageTimers::escalationTo): a role or a named person; notify only. */
+export const STAGE_ESCALATE_TO = ['role', 'user']
 
 /** Palette kinds in the design's order (Wait is not an engine step yet). */
 export const PALETTE = ['stage', 'approval', 'condition', 'parallel', 'notify', 'create_document', 'end']

@@ -212,4 +212,23 @@ describe('Credit limit changes', () => {
     await closeFilters()
     expect(screen.getByText('Status: Rejected')).toBeInTheDocument()
   })
+
+  it("shows each request's time in its own company's zone, named when it differs from the browser (L10N-03)", async () => {
+    const kinshasa = { id: 'c-2', name: 'Kin Market', country: 'CD', base_currency: 'CDF', timezone: 'Africa/Kinshasa', archived_at: null }
+    const other = { ...CHANGE, id: 'clc-2', number: 'CLC-000002', company: { id: 'c-2', name: 'Kin Market' } }
+    mockRoutes(api, [[/^credit-limit-changes\?/, { data: [CHANGE, other], meta: { current_page: 1, last_page: 1, total: 2 } }]], {
+      permissions: REQUESTER,
+      companies: [KE_COMPANY, kinshasa],
+    })
+    renderApp('/contacts/credit-limit-changes')
+
+    const table = await screen.findByRole('table', { name: 'Credit limit changes' })
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+    // 07:00 UTC is 10:00 in Nairobi and 08:00 in Kinshasa.
+    const nairobi = (await within(table).findByText('CLC-000001')).closest('tr')
+    const kin = within(table).getByText('CLC-000002').closest('tr')
+    await waitFor(() => expect(within(nairobi).getByText(/^8 Oct 2026, 10:00/)).toBeInTheDocument())
+    expect(within(kin).getByText(/^8 Oct 2026, 08:00/)).toBeInTheDocument()
+    if (browser !== 'Africa/Kinshasa') expect(within(kin).getByText(/^8 Oct 2026, 08:00 (WAT|GMT\+1)$/)).toBeInTheDocument()
+  })
 })

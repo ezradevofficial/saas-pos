@@ -87,7 +87,13 @@ export function summarize(t, node, context = {}) {
       break
     }
     case 'approval': {
-      parts.push(describeApprover(t, node.approval?.approver, context))
+      const chain = Array.isArray(node.approval?.chain) && node.approval.chain.length > 0 ? node.approval.chain : null
+      // APR-01: a chain reads "Branch manager, then CFO".
+      parts.push(
+        chain
+          ? chain.map((approver) => describeApprover(t, approver, context)).reduce((first, next) => t('workflows.summary.then', { first, next }))
+          : describeApprover(t, node.approval?.approver, context),
+      )
       const after = describeDuration(t, node.escalation?.after)
       if (after) parts.push(t('workflows.summary.escalates', { duration: after }))
       else {

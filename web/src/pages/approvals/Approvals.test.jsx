@@ -100,6 +100,8 @@ describe('approvals inbox (APR-04)', () => {
 
     // The sidebar counts what waits.
     expect(await screen.findByTestId('approvals-waiting')).toHaveTextContent('4')
+    expect(screen.getByTestId('approvals-waiting')).toHaveClass('bg-surface-300', 'text-ink')
+    expect(screen.getByTestId('approvals-waiting')).not.toHaveClass('bg-accent')
   })
 
   it('sends the tab, filters, search and sort to the API', async () => {

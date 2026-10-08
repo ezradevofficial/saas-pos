@@ -55,7 +55,7 @@ export function NotificationBell({ className }) {
             <span
               aria-hidden="true"
               data-testid="unread-count"
-              className="absolute -top-1 -right-1 rounded-pill bg-accent px-1 text-caption font-medium text-on-accent tabular-nums"
+              className="absolute -top-1 -right-1 rounded-pill bg-surface-300 px-1 text-caption text-ink tabular-nums"
             >
               {count > 99 ? '99+' : formatInteger(count, locale)}
             </span>

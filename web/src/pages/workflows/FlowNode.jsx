@@ -27,11 +27,12 @@ function cardClasses(node, { selected, problem, path, dimmed }) {
  * ("APPROVAL"), its name and a one-line summary. Branch handles (Yes/No,
  * Approved/Rejected, each branch) sit along the bottom with their labels.
  * `data`: { node, kind, title, summary, outputs: [{ id, label }], problem,
- * path (the dry run's result here), dimmed }.
+ * hint (a missing connection, in words), path (the dry run's result here),
+ * dimmed }.
  */
 function FlowNodeComponent({ data, selected, isConnectable }) {
   const { t } = useTranslation()
-  const { node, kind, title, summary, outputs, problem, path, dimmed } = data
+  const { node, kind, title, summary, outputs, problem, hint, path, dimmed } = data
   const pill = PILL.has(node.type)
   const labelled = outputs.length > 1
 
@@ -54,6 +55,7 @@ function FlowNodeComponent({ data, selected, isConnectable }) {
           </span>
           <span className="truncate font-medium">{title}</span>
           {summary ? <span className="line-clamp-2 text-caption text-ink-muted">{summary}</span> : null}
+          {hint ? <span className="text-caption text-warning">{hint}</span> : null}
         </>
       )}
 

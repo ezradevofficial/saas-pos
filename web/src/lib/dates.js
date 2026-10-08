@@ -81,9 +81,9 @@ export function zonedToUtc(local, timeZone) {
 }
 
 /** "14:05" */
-export function formatTime(value, locale) {
+export function formatTime(value, locale, timeZone) {
   if (!value) return null
-  return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
+  return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...(timeZone ? { timeZone } : {}) }).format(new Date(value))
 }
 
 /** "Wednesday 7 Oct 2026" */

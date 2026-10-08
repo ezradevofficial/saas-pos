@@ -1852,6 +1852,7 @@
     },
     "statuses": {
       "queued": "En file d’attente",
+      "sending": "En cours d’envoi",
       "sent": "Envoyé",
       "delivered": "Remis",
       "failed": "Échec",
@@ -2033,7 +2034,8 @@
         "nodeKeyboard": "Appuyez sur Entrée ou Espace pour sélectionner cette étape, puis utilisez les flèches pour la déplacer. Appuyez sur Suppr pour la retirer et Échap pour annuler.",
         "moved": "Étape déplacée vers {{direction}}. Nouvelle position : x {{x}}, y {{y}}.",
         "edge": "Appuyez sur Entrée ou Espace pour sélectionner ce lien, puis Suppr pour le retirer ou Échap pour annuler."
-      }
+      },
+      "noRejected": "Reliez « Rejeté » à une étape suivante"
     },
     "panel": {
       "label": "Réglages de l’étape",
@@ -2102,7 +2104,22 @@
       "outcome": "Résultat",
       "notifyHelp": "Chaque personne est prévenue par les canaux choisis dans ses préférences de notification.",
       "notifyPeople": "Personnes nommées",
-      "messageHelp": "Facultatif, 500 caractères au plus, ajouté à la notification."
+      "messageHelp": "Facultatif, 500 caractères au plus, ajouté à la notification.",
+      "sequence": "Ordre des approbateurs",
+      "chain": "Approbateurs dans l’ordre",
+      "chainStep": "Approbateur {{number}}",
+      "chainUp": "Monter {{step}}",
+      "chainDown": "Descendre {{step}}",
+      "chainRemove": "Retirer {{step}}",
+      "chainAdd": "Ajouter un approbateur",
+      "chainMax": "Une chaîne compte au plus {{count}} approbateurs.",
+      "modeChainHelp": "S’applique à chaque approbateur de la chaîne.",
+      "reminderNumber": "Relance {{number}} après",
+      "reminderRemove": "Retirer la relance {{number}}",
+      "reminderAdd": "Ajouter une relance",
+      "stageEscalateTo": "Prévenir quelqu’un en cas d’attente trop longue",
+      "stageEscalateHelp": "Un simple avis : l’étape reste où elle est.",
+      "stageEscalateAfterHelp": "Laissez vide pour prévenir lorsque l’étape est en retard."
     },
     "approverTypes": {
       "branch_manager": "Responsable de l’agence du demandeur",
@@ -2123,7 +2140,8 @@
     "escalateTo": {
       "next_level": "Niveau supérieur",
       "role": "Toute personne ayant un rôle",
-      "user": "Une personne nommée"
+      "user": "Une personne nommée",
+      "none": "Personne"
     },
     "finalActions": {
       "none": "Continuer d’attendre",
@@ -2186,7 +2204,8 @@
       "chooseDocument": "Choisissez le document à créer",
       "chooseAction": "Choisissez une action",
       "notifies": "Notifie {{recipients}}",
-      "notifyNobody": "Choisissez qui est notifié"
+      "notifyNobody": "Choisissez qui est notifié",
+      "then": "{{first}}, puis {{next}}"
     },
     "condition": {
       "none": "Aucune règle : toujours remplie.",
@@ -2333,6 +2352,10 @@
     "people": {
       "unknown": "Personne inconnue ou inactive ({{id}})",
       "none": "Aucune personne active pour l’instant."
+    },
+    "sequences": {
+      "single": "Un seul approbateur",
+      "chain": "L’un après l’autre"
     }
   },
   "workflowInsights": {
@@ -2478,13 +2501,35 @@
       "joined": "Branches réunies à {{step}}",
       "action": "Action exécutée à {{step}}",
       "condition": "Condition vérifiée à {{step}}",
-      "notified": "Notification envoyée à {{step}}"
+      "notified": "Notification envoyée à {{step}}",
+      "reminded": "Relance envoyée pour {{step}}",
+      "remindedNumber": "Relance {{number}} envoyée pour {{step}}",
+      "overdue": "{{step}} est en retard",
+      "escalated": "{{step}} escaladé",
+      "actionKept": "Document créé auparavant conservé à {{step}}"
     },
     "duration": {
       "days": "{{days}} j {{hours}} h",
       "hours": "{{hours}} h {{minutes}} min",
       "minutes_one": "{{count}} min",
       "minutes_other": "{{count}} min"
+    },
+    "actions": {
+      "label": "Actions sur le workflow",
+      "moveOn": "Passer à la suite",
+      "moveOnFrom": "Passer à la suite après {{step}}",
+      "return": "Renvoyer à une étape précédente",
+      "returnTitle": "Renvoyer à une étape précédente",
+      "returnTo": "Renvoyer à",
+      "returnPick": "Choisissez une étape",
+      "returnReason": "Motif du renvoi",
+      "returnConfirm": "Renvoyer le document",
+      "cancel": "Annuler le workflow",
+      "cancelTitle": "Annuler ce workflow ?",
+      "cancelHelp": "Ses étapes ouvertes se ferment et le document quitte le workflow. Cette action est définitive.",
+      "cancelReason": "Motif de l’annulation",
+      "cancelConfirm": "Annuler le workflow",
+      "keep": "Ne rien changer"
     }
   },
   "approvals": {

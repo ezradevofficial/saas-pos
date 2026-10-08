@@ -1852,6 +1852,7 @@
     },
     "statuses": {
       "queued": "Queued",
+      "sending": "Sending",
       "sent": "Sent",
       "delivered": "Delivered",
       "failed": "Failed",
@@ -2033,7 +2034,8 @@
         "nodeKeyboard": "Press Enter or Space to select this step, then use the arrow keys to move it. Press Delete to remove it and Escape to cancel.",
         "moved": "Moved the step {{direction}}. New position: x {{x}}, y {{y}}.",
         "edge": "Press Enter or Space to select this link, then Delete to remove it or Escape to cancel."
-      }
+      },
+      "noRejected": "Connect Rejected to a next step"
     },
     "panel": {
       "label": "Step settings",
@@ -2102,7 +2104,22 @@
       "outcome": "Outcome",
       "notifyHelp": "Each person is told in the channels they chose in their notification preferences.",
       "notifyPeople": "Named people",
-      "messageHelp": "Optional, up to 500 characters, added to the notification."
+      "messageHelp": "Optional, up to 500 characters, added to the notification.",
+      "sequence": "How approvers take turns",
+      "chain": "Approvers in order",
+      "chainStep": "Approver {{number}}",
+      "chainUp": "Move {{step}} up",
+      "chainDown": "Move {{step}} down",
+      "chainRemove": "Remove {{step}}",
+      "chainAdd": "Add an approver",
+      "chainMax": "A chain holds up to {{count}} approvers.",
+      "modeChainHelp": "Applies at each approver in the chain.",
+      "reminderNumber": "Reminder {{number}} after",
+      "reminderRemove": "Remove reminder {{number}}",
+      "reminderAdd": "Add a reminder",
+      "stageEscalateTo": "Tell someone when it waits too long",
+      "stageEscalateHelp": "A notice only: the stage stays where it is.",
+      "stageEscalateAfterHelp": "Leave empty to tell them when the stage is overdue."
     },
     "approverTypes": {
       "branch_manager": "Manager of the requester’s branch",
@@ -2123,7 +2140,8 @@
     "escalateTo": {
       "next_level": "Next level up",
       "role": "Anyone with a role",
-      "user": "A named person"
+      "user": "A named person",
+      "none": "Nobody"
     },
     "finalActions": {
       "none": "Keep waiting",
@@ -2186,7 +2204,8 @@
       "chooseDocument": "Choose the document to create",
       "chooseAction": "Choose an action",
       "notifies": "Notifies {{recipients}}",
-      "notifyNobody": "Choose who is notified"
+      "notifyNobody": "Choose who is notified",
+      "then": "{{first}}, then {{next}}"
     },
     "condition": {
       "none": "No rule: always holds.",
@@ -2333,6 +2352,10 @@
     "people": {
       "unknown": "Unknown or inactive person ({{id}})",
       "none": "No active people yet."
+    },
+    "sequences": {
+      "single": "One approver",
+      "chain": "One after another"
     }
   },
   "workflowInsights": {
@@ -2478,13 +2501,35 @@
       "joined": "Branches joined at {{step}}",
       "action": "Ran an action at {{step}}",
       "condition": "Checked a condition at {{step}}",
-      "notified": "Sent a notification at {{step}}"
+      "notified": "Sent a notification at {{step}}",
+      "reminded": "Sent a reminder for {{step}}",
+      "remindedNumber": "Sent reminder {{number}} for {{step}}",
+      "overdue": "{{step}} became overdue",
+      "escalated": "Escalated {{step}}",
+      "actionKept": "Kept the document created earlier at {{step}}"
     },
     "duration": {
       "days": "{{days}} d {{hours}} h",
       "hours": "{{hours}} h {{minutes}} min",
       "minutes_one": "{{count}} min",
       "minutes_other": "{{count}} min"
+    },
+    "actions": {
+      "label": "Flow actions",
+      "moveOn": "Move on",
+      "moveOnFrom": "Move on from {{step}}",
+      "return": "Return to an earlier stage",
+      "returnTitle": "Return to an earlier stage",
+      "returnTo": "Return to",
+      "returnPick": "Choose a stage",
+      "returnReason": "Reason for returning",
+      "returnConfirm": "Return the document",
+      "cancel": "Cancel the flow",
+      "cancelTitle": "Cancel this flow?",
+      "cancelHelp": "Its open steps close and the document leaves the flow. This cannot be undone.",
+      "cancelReason": "Reason for cancelling",
+      "cancelConfirm": "Cancel the flow",
+      "keep": "Keep it as it is"
     }
   },
   "approvals": {

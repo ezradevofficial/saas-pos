@@ -1,14 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
-import { Alert, Card, StatusBadge } from '@/components/ds'
+import { Alert, Button, Card, Select, StatusBadge, TextField } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import NotFound, { NoAccess } from '@/pages/NotFound'
+import { eventLabel, returnTargets } from './documentFlow'
 import { useDuration } from './useDuration'
 
 const STATUS_TONES = { running: 'info', completed: 'success', cancelled: 'neutral' }
@@ -37,6 +39,109 @@ function Holders({ holders }) {
   return <span className="text-ink-muted">{t('documentWorkflow.nobody')}</span>
 }
 
+/** A refused action: what happened, and the entry/exit rules that stopped it (WF-08). */
+function ActionError({ error }) {
+  if (!error) return null
+  const reasons = Array.isArray(error.data?.reasons) ? error.data.reasons.filter((reason) => typeof reason === 'string') : []
+  return (
+    <Alert tone="danger" title={errorMessage(error)}>
+      {reasons.length ? (
+        <ul className="list-disc pl-5">
+          {reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
+    </Alert>
+  )
+}
+
+/**
+ * WF-11: Return to an earlier stage and Cancel, each confirmed in the page
+ * with a reason (required by the API). Shown as the API allows them
+ * (`can_return` with `return_targets`, `can_cancel`).
+ */
+function FlowActions({ flow, run }) {
+  const { t } = useTranslation()
+  const [panel, setPanel] = useState(null) // 'return' | 'cancel'
+  const [target, setTarget] = useState('')
+  const [reason, setReason] = useState('')
+  const targets = returnTargets(flow)
+  const canCancel = flow.status === 'running' && flow.can_cancel === true
+  const canReturn = flow.status === 'running' && flow.can_return === true && targets.length > 0
+  if (!canCancel && !canReturn) return null
+
+  const open = (next) => {
+    run.reset()
+    setReason('')
+    setTarget(next === 'return' && targets.length === 1 ? targets[0].value : '')
+    setPanel(next)
+  }
+  const done = { onSuccess: () => setPanel(null) }
+  const submitReturn = () => run.mutate({ verb: 'return', body: { node: target, reason: reason.trim() } }, done)
+  const submitCancel = () => run.mutate({ verb: 'cancel', body: { reason: reason.trim() } }, done)
+
+  return (
+    <section aria-label={t('documentWorkflow.actions.label')} className="flex flex-col gap-3">
+      {panel === null ? (
+        <div className="flex flex-wrap gap-2">
+          {canReturn ? (
+            <Button icon="undo" onClick={() => open('return')}>
+              {t('documentWorkflow.actions.return')}
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button variant="danger" onClick={() => open('cancel')}>
+              {t('documentWorkflow.actions.cancel')}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {panel === 'return' ? (
+        <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-200 p-3">
+          <h3 className="text-h3 text-ink">{t('documentWorkflow.actions.returnTitle')}</h3>
+          <ActionError error={run.error} />
+          <Select
+            label={t('documentWorkflow.actions.returnTo')}
+            placeholder={t('documentWorkflow.actions.returnPick')}
+            options={targets}
+            value={target}
+            required
+            onChange={(event) => setTarget(event.target.value)}
+          />
+          <TextField label={t('documentWorkflow.actions.returnReason')} value={reason} maxLength={1000} required onChange={(event) => setReason(event.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => setPanel(null)}>
+              {t('documentWorkflow.actions.keep')}
+            </Button>
+            <Button variant="primary" loading={run.isPending} disabled={!target || !reason.trim()} onClick={submitReturn}>
+              {t('documentWorkflow.actions.returnConfirm')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {panel === 'cancel' ? (
+        <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-200 p-3">
+          <h3 className="text-h3 text-ink">{t('documentWorkflow.actions.cancelTitle')}</h3>
+          <p className="text-ink-muted">{t('documentWorkflow.actions.cancelHelp')}</p>
+          <ActionError error={run.error} />
+          <TextField label={t('documentWorkflow.actions.cancelReason')} value={reason} maxLength={1000} required onChange={(event) => setReason(event.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => setPanel(null)}>
+              {t('documentWorkflow.actions.keep')}
+            </Button>
+            <Button variant="danger" loading={run.isPending} disabled={!reason.trim()} onClick={submitCancel}>
+              {t('documentWorkflow.actions.cancelConfirm')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 /**
  * WF-10: any document's flow, for links from workflow notifications and
  * the automation run log: the document (type, number or title), the
@@ -44,6 +149,9 @@ function Holders({ holders }) {
  * and when it is due, the approval while one waits, the document's own
  * page when it has one, and the history. Times follow the app's company
  * zone convention (lib/companyTime). The API decides who may see it.
+ * WF-11: people who may act move a stage on (an approval step links to
+ * its approval instead), return the document to an earlier stage or
+ * cancel the flow.
  */
 export default function DocumentWorkflow() {
   const { t } = useTranslation()
@@ -51,11 +159,17 @@ export default function DocumentWorkflow() {
   const duration = useDuration()
   const { companies } = useCompanies()
   const { documentType, documentId } = useParams()
-  const query = useQuery({
-    queryKey: ['document-workflows', documentType, documentId],
-    queryFn: () => api.get(`document-workflows/${encodeURIComponent(documentType)}/${encodeURIComponent(documentId)}`),
-    retry: false,
+  const queryClient = useQueryClient()
+  const key = ['document-workflows', documentType, documentId]
+  const path = `document-workflows/${encodeURIComponent(documentType)}/${encodeURIComponent(documentId)}`
+  const query = useQuery({ queryKey: key, queryFn: () => api.get(path), retry: false })
+  // Move, return and cancel answer with the flow's new status.
+  const run = useMutation({
+    mutationFn: ({ verb, body }) => api.post(`${path}/${verb}`, body),
+    onSuccess: (response) => queryClient.setQueryData(key, response),
   })
+  const moving = run.isPending && run.variables?.verb === 'move' ? run.variables.body.node : null
+  const moveError = run.variables?.verb === 'move' ? run.error : null
 
   if (query.isError && query.error?.status === 404) return <NotFound />
   if (query.isError && query.error?.status === 403) return <NoAccess />
@@ -107,6 +221,7 @@ export default function DocumentWorkflow() {
               {t('documentWorkflow.current')}
             </h2>
             {(flow.current ?? []).length === 0 ? <p className="text-ink-muted">{t('documentWorkflow.noCurrent')}</p> : null}
+            <ActionError error={moveError} />
             {(flow.current ?? []).map((step) => (
               <div key={step.token_id} className="flex flex-col gap-1 rounded-md border border-border bg-surface-200 p-3">
                 <span className="font-medium text-ink">{step.name}</span>
@@ -121,9 +236,22 @@ export default function DocumentWorkflow() {
                   <Link to={`/approvals/${step.holders.approval_id}`} className="w-fit text-label text-primary hover:text-primary-hover">
                     {t('documentWorkflow.openApproval')}
                   </Link>
+                ) : step.type !== 'approval' && step.can_move && flow.status === 'running' ? (
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      loading={moving === step.node_id}
+                      disabled={run.isPending && moving !== step.node_id}
+                      aria-label={t('documentWorkflow.actions.moveOnFrom', { step: step.name })}
+                      onClick={() => run.mutate({ verb: 'move', body: { node: step.node_id } })}
+                    >
+                      {t('documentWorkflow.actions.moveOn')}
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             ))}
+            <FlowActions key={flow.status} flow={flow} run={run} />
           </section>
 
           <section aria-labelledby="document-workflow-history" className="flex flex-col gap-3">
@@ -136,7 +264,7 @@ export default function DocumentWorkflow() {
               <ol className="flex flex-col gap-2" aria-label={t('documentWorkflow.history')}>
                 {flow.history.map((event, index) => (
                   <li key={`${event.type}-${index}`} className="flex flex-wrap gap-x-2 text-body">
-                    <span className="text-ink">{t(`documentWorkflow.events.${event.type}`, { defaultValue: event.type, step: event.node_name ?? '' })}</span>
+                    <span className="text-ink">{eventLabel(t, event)}</span>
                     {event.user?.name ? <span className="text-ink-muted">{event.user.name}</span> : null}
                     <span className="text-ink-muted tabular-nums">{when(event.occurred_at)}</span>
                     {event.reason ? <span className="w-full text-ink-muted">{event.reason}</span> : null}

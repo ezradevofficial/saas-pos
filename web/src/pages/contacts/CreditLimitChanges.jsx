@@ -2,10 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { ListView } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatDateTime } from '@/lib/format'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
-import { useTimeZone } from '@/lib/useTimeZone'
+import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { CREDIT_STATUSES, creditChangesKey } from './creditLimitData'
 import { CreditChangeDialog, CreditStatus, LimitChange } from './creditLimits'
 
@@ -18,7 +18,8 @@ import { CreditChangeDialog, CreditStatus, LimitChange } from './creditLimits'
 export default function CreditLimitChanges() {
   const { t } = useTranslation()
   const locale = useLocale()
-  const timeZone = useTimeZone(null)
+  // L10N-03: each row in its own company's zone, labelled when it differs from the browser's.
+  const companyOf = useCompanyOfRecord()
   // The open request lives in the URL (?change=), so links from notifications and the run log open it.
   const [params, setParams] = useSearchParams()
   const openId = params.get('change')
@@ -40,7 +41,7 @@ export default function CreditLimitChanges() {
       key: 'created_at',
       label: t('creditLimits.columns.createdAt'),
       sortKey: 'created_at',
-      render: (change) => <span className="tabular-nums">{formatDateTime(change.created_at, locale, timeZone)}</span>,
+      render: (change) => <span className="tabular-nums">{formatCompanyTime(change.created_at, locale, companyOf(change.company?.id))}</span>,
     },
   ]
 
@@ -70,7 +71,7 @@ export default function CreditLimitChanges() {
         onRowClick={(change) => setOpenId(change.id)}
         emptyText={list.term || list.filters.status ? t('creditLimits.emptyFiltered') : t('creditLimits.empty')}
       />
-      <CreditChangeDialog changeId={openId} timeZone={timeZone} onClose={() => setOpenId(null)} />
+      <CreditChangeDialog changeId={openId} onClose={() => setOpenId(null)} />
     </>
   )
 }

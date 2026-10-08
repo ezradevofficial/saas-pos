@@ -151,7 +151,7 @@ export default function PartyDetail({ role }) {
       />
       {tab === 'credit' ? (
         <Card>
-          <PartyCreditChanges party={party} timeZone={timeZone} />
+          <PartyCreditChanges party={party} />
         </Card>
       ) : tab === 'details' ? (
         <PartyForm

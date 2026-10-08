@@ -58,6 +58,8 @@ describe('ExchangeRates', () => {
     expect(within(reference).getByText(/Central Bank of the Congo/)).toBeInTheDocument()
     // Effective times in the company's time zone (Kinshasa, UTC+1).
     expect(within(reference).getByText(/7 Oct 2026, 09:00/)).toBeInTheDocument()
+    // Named when the browser is elsewhere (L10N-03).
+    if (Intl.DateTimeFormat().resolvedOptions().timeZone !== 'Africa/Kinshasa') expect(within(reference).getByText(/7 Oct 2026, 09:00 (WAT|GMT\+1) ·/)).toBeInTheDocument()
 
     const history = screen.getByRole('table', { name: 'Rate history for USD/CDF' })
     expect(within(history).getByText('Inverse')).toBeInTheDocument()
