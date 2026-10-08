@@ -15,11 +15,13 @@ use Illuminate\Mail\Mailables\Envelope;
  */
 class NotificationMail extends Mailable
 {
+    /** @param list<array{label: string, url: string}> $actions buttons made at send time (MailActions), absolute https URLs */
     public function __construct(
         public readonly string $mailSubject,
         public readonly string $text,
         public readonly ?string $link,
         string $locale,
+        public readonly array $actions = [],
     ) {
         $this->locale($locale);
     }
@@ -38,6 +40,7 @@ class NotificationMail extends Mailable
                 'html' => TemplateRenderer::toHtml($this->text),
                 'text' => $this->text,
                 'url' => self::absolute($this->link),
+                'actions' => array_values(array_filter($this->actions, fn ($a) => is_string($a['url'] ?? null) && str_starts_with($a['url'], rtrim((string) config('app.frontend_url'), '/').'/'))),
             ],
         );
     }

@@ -57,6 +57,9 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
+        'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
+        'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
+        'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
     ];
 
     /**
@@ -90,6 +93,8 @@ class TenantIsolationTest extends TestCase
         'workflow_version' => 'workflow_version',
         'document' => 'document', // WF-10: document-workflows/{document_type}/{document}, the test type's document
         'notification' => 'notification', // NOT-01: POST notifications/{notification}/read|archive
+        'approval' => 'approval', // APR-04: approvals/{approval}, a request waiting for the manager
+        'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -129,6 +134,8 @@ class TenantIsolationTest extends TestCase
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
+        'from_user_id' => 'user', // APR-06: reassign from a pending approver
+        'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
         'scope_id' => null,
     ];
 
@@ -195,6 +202,8 @@ class TenantIsolationTest extends TestCase
         ['format' => 'csv', 'status' => 'all', 'sort' => '-created_at', 'columns' => ['name']],
         // NOT-06: the delivery log's channel filter (both tenants sent email).
         ['channel' => 'email', 'status' => 'all'],
+        // APR-04: the approvals inbox's oversight view and overdue filter.
+        ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
     ];
 
     /**
@@ -205,7 +214,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue'];
 
     private TwoTenants $tenants;
 
@@ -519,6 +528,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows/{workflow}/copy', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/approvals/{approval}/reassign', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/me/delegations', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -622,6 +633,8 @@ class TenantIsolationTest extends TestCase
             // NOT-01, NOT-06: the owner's inbox and the delivery log.
             'notifications?status=all' => ['Isolation A from Owner A', 'Note: Stock count A'],
             'notification-deliveries' => ['Owner A', 'Manager A', 'manager-a@example.com'],
+            // APR-04: the oversight list of approvals.
+            'approvals?view=all&status=all' => ['Approve A', 'Waiting'],
         ];
     }
 
@@ -1013,6 +1026,9 @@ class TenantIsolationTest extends TestCase
             // WF-02: a flow for the sign-up company (TwoTenants made the company's), and a copy of the company's there.
             'POST api/v1/workflows' => ['document_type' => TestRequestType::KEY, 'company_id' => $tenant->id('sign_up_company')],
             'POST api/v1/workflows/{workflow}/copy' => ['company_id' => $tenant->id('sign_up_company'), 'from' => 'published'],
+            // APR-06: the manager's pending approval goes to the owner; the owner delegates to the manager.
+            'POST api/v1/approvals/{approval}/reassign' => ['from_user_id' => $tenant->id('manager'), 'to_user_id' => $tenant->id('user')],
+            'POST api/v1/me/delegations' => ['to_user_id' => $tenant->id('manager'), 'starts_on' => now()->toDateString(), 'ends_on' => now()->addDay()->toDateString()],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),

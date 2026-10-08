@@ -13,3 +13,6 @@ Schedule::command('exchange-rates:fetch')->dailyAt('06:30')->withoutOverlapping(
 
 // NOT-05: notification digests, sent at the digest hour in each user's time zone.
 Schedule::command('notifications:send-digests')->hourly()->withoutOverlapping()->onOneServer();
+
+// APR-05: approval reminders, escalations and final timeouts, in business time.
+Schedule::command('approvals:process-timers')->everyFiveMinutes()->withoutOverlapping()->onOneServer();

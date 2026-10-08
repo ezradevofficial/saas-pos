@@ -42,7 +42,11 @@ class PreferencesApiTest extends TestCase
     public function test_preferences_start_from_the_event_defaults_and_change_per_channel(): void
     {
         $data = $this->getJson('/api/v1/me/notification-preferences', $this->headersFor())->assertOk()->json('data');
-        $this->assertSame(['core.approval.requested', 'core.notification.test', 'core.report.ready', 'core.workflow.notify'], array_column($data, 'event_type'));
+        $this->assertSame([
+            'core.approval.attention', 'core.approval.decided', 'core.approval.delegated', 'core.approval.escalated', 'core.approval.info_requested',
+            'core.approval.reminder', 'core.approval.requested', 'core.approval.returned',
+            'core.notification.test', 'core.report.ready', 'core.workflow.notify',
+        ], array_column($data, 'event_type'));
 
         $test = $this->entry($data, 'core.notification.test');
         $this->assertSame('Test message', $test['label']);

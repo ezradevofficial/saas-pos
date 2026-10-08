@@ -6,6 +6,7 @@ use App\Core\Notifications\Console\SendNotificationDigests;
 use App\Core\Notifications\Digest\Digests;
 use App\Core\Notifications\Digest\RecipientTimezone;
 use App\Core\Notifications\Drivers\ChannelDrivers;
+use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Templates\Templates;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +28,7 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(Templates::class);
         $this->app->singleton(Notifier::class);
         $this->app->singleton(Digests::class);
+        $this->app->singleton(MailActions::class);
         // Per job and request: a cached zone must not outlive a change of assignment.
         $this->app->scoped(RecipientTimezone::class);
     }
