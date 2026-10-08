@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { ratePairs } from './finance/rates'
 
@@ -76,8 +77,11 @@ describe('ExchangeRates', () => {
     expect(await screen.findByText('Showing 1–3 of 3')).toBeInTheDocument()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
 
+    openFilters()
     chooseOption('Kind', 'Shop')
     await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&per_page=25&page=1'))
+    await closeFilters()
+    expect(screen.getByText('Kind: Shop')).toBeInTheDocument()
     fireEvent.click(within(history).getByRole('button', { name: 'Rate' }))
     await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&sort=mid&per_page=25&page=1'))
 

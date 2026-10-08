@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ListView, Select } from '@/components/ds'
+import { ListView } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
@@ -52,15 +52,13 @@ export default function CreditLimitChanges() {
         title={t('creditLimits.title')}
         searchLabel={t('creditLimits.search')}
         searchPlaceholder={t('creditLimits.searchPlaceholder')}
-        filters={
-          <Select
-            label={t('creditLimits.columns.status')}
-            className="min-w-0 flex-1"
-            options={[{ value: '', label: t('creditLimits.allStatuses') }, ...CREDIT_STATUSES.map((value) => ({ value, label: t(`creditLimits.statuses.${value}`) }))]}
-            value={list.filters.status}
-            onChange={(event) => list.setFilter('status', event.target.value)}
-          />
-        }
+        filterFields={[
+          {
+            name: 'status',
+            label: t('creditLimits.columns.status'),
+            options: [{ value: '', label: t('creditLimits.allStatuses') }, ...CREDIT_STATUSES.map((value) => ({ value, label: t(`creditLimits.statuses.${value}`) }))],
+          },
+        ]}
         onRowClick={(change) => setOpenId(change.id)}
         emptyText={list.term || list.filters.status ? t('creditLimits.emptyFiltered') : t('creditLimits.empty')}
       />

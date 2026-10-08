@@ -267,15 +267,13 @@ function RateHistory({ company, pair }) {
         list={list}
         title={t('rates.history.caption', { pair })}
         searchable={false}
-        filters={
-          <Select
-            label={t('rates.history.kind')}
-            className="w-full max-w-field sm:w-auto"
-            options={[{ value: '', label: t('rates.history.allKinds') }, ...KINDS.map((value) => ({ value, label: t(`rates.kinds.${value}`) }))]}
-            value={list.filters.kind}
-            onChange={(event) => list.setFilter('kind', event.target.value)}
-          />
-        }
+        filterFields={[
+          {
+            name: 'kind',
+            label: t('rates.history.kind'),
+            options: [{ value: '', label: t('rates.history.allKinds') }, ...KINDS.map((value) => ({ value, label: t(`rates.kinds.${value}`) }))],
+          },
+        ]}
         emptyText={list.filters.kind ? t('rates.history.emptyKind') : t('rates.history.empty')}
       />
     </section>

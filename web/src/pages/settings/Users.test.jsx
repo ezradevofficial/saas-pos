@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption, optionTexts, waitForOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { apiError, mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -168,11 +169,14 @@ describe('Users', () => {
     expect(screen.queryByText('Old invite')).not.toBeInTheDocument()
 
     // Accepted invitations show when asked for, without a Revoke button.
+    openFilters()
     chooseOption('Status', 'Accepted')
+    await closeFilters()
     const old = (await screen.findByText('Old invite')).closest('tr')
     expect(within(old).getByText('Accepted')).toBeInTheDocument()
     expect(within(old).queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
-    chooseOption('Status', 'Pending or expired')
+    // The chip puts the default (pending or expired) back.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter Status: Accepted' }))
     const pending = (await screen.findByText('Grace Wanjiru')).closest('tr')
 
     fireEvent.click(within(pending).getByRole('button', { name: 'Revoke the invitation for Grace Wanjiru' }))
