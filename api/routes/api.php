@@ -26,6 +26,8 @@ use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\CreditLimits\CreditLimitChange;
+use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
 use App\Core\MasterData\Dimensions\Dimensions;
 use App\Core\MasterData\Dimensions\Http\Controllers\DimensionController;
 use App\Core\MasterData\History\Http\HistoryController;
@@ -70,7 +72,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -79,6 +81,7 @@ Route::model('workflow', WorkflowDefinition::class);
 Route::model('workflow_version', WorkflowVersion::class);
 Route::model('approval', ApprovalRequest::class);
 Route::model('delegation', ApprovalDelegation::class);
+Route::model('credit_limit_change', CreditLimitChange::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -246,6 +249,13 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('parties/{party}', [PartyController::class, 'update']);
     Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
     Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
+
+    // MD-01, WF-01, WF-10, WF-11: credit limit change requests, decided
+    // through their flow and applied to the party when approved.
+    Route::get('credit-limit-changes', [CreditLimitChangeController::class, 'index']);
+    Route::post('credit-limit-changes', [CreditLimitChangeController::class, 'store']);
+    Route::get('credit-limit-changes/{credit_limit_change}', [CreditLimitChangeController::class, 'show']);
+    Route::post('credit-limit-changes/{credit_limit_change}/cancel', [CreditLimitChangeController::class, 'cancel']);
 
     // MD-02: units of measure (the tenant's), item categories and items,
     // shared or per company (TEN-08), with barcodes and images.

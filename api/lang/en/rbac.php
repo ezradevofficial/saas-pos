@@ -39,6 +39,7 @@ return [
                 'notification_settings' => 'Notification settings',
                 'notification_delivery' => 'Notification deliveries',
                 'approval' => 'Approvals',
+                'credit_limit' => 'Credit limits',
             ],
         ],
         'actions' => [
@@ -56,6 +57,8 @@ return [
             'publish' => 'Publish',
             'view_all' => 'View all',
             'reassign' => 'Reassign',
+            'request' => 'Request',
+            'set_directly' => 'Set directly',
         ],
     ],
 

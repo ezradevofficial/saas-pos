@@ -103,7 +103,11 @@ class MasterDataServiceProvider extends ServiceProvider
         $history = $this->app->make(HistoryTypes::class);
         $reach = fn () => $this->app->make(CompanyReach::class);
 
-        $history->register('party', Party::class, PartyResource::FIELD_RULES, fn (User $user, Party $party) => $this->app->make(PartyPolicy::class)->view($user, $party));
+        // The credit limit change number of an applied request goes with the limit (RBAC-05).
+        $history->register(
+            'party', Party::class, PartyResource::FIELD_RULES, fn (User $user, Party $party) => $this->app->make(PartyPolicy::class)->view($user, $party),
+            ['credit_limit_minor' => ['credit_limit_change'], 'credit_limit_currency' => ['credit_limit_change']],
+        );
         $history->register('tax_code', TaxCode::class, null, fn (User $user, TaxCode $code) => $reach()->reachesRecord($user, $code->company_id, ['core.tax.view', 'core.tax.edit']));
         $history->register('tax_category', TaxCategory::class, null, fn (User $user, TaxCategory $category) => $reach()->reachesRecord($user, $category->company_id, ['core.tax.view', 'core.tax.edit']));
         $history->register('price_list', PriceList::class, null, fn (User $user, PriceList $list) => $reach()->reachesRecord($user, $list->company_id, ['core.price_list.view', 'core.price_list.edit']));

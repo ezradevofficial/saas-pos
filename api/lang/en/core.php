@@ -299,6 +299,69 @@ return [
         ],
     ],
 
+    // MD-01, WF-01: credit limit change requests (CreditLimitChangeType).
+    'credit_limit_change' => [
+        'type' => 'Credit limit change',
+        'list_title' => 'Credit limit changes',
+        // APR-04: the approvals inbox line, e.g. "Duka Moja Ltd: KES 150,000.00 → KES 250,000.00".
+        'title' => ':party: :from → :to',
+        'no_limit' => 'no limit',
+        'fields' => [
+            'party' => 'Customer',
+            'current_limit' => 'Current limit',
+            'requested_limit' => 'Requested limit',
+            'increase' => 'Increase',
+            'reason' => 'Reason',
+            'company' => 'Company',
+        ],
+        // WF-02: the default flow's step names, written once in the language of whoever first uses it.
+        'flow' => [
+            'start' => 'Change requested',
+            'approve' => 'Accountant approves',
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+        ],
+        'columns' => [
+            'number' => 'Number',
+            'party' => 'Customer',
+            'company' => 'Company',
+            'current_limit' => 'Current limit',
+            'requested_limit' => 'Requested limit',
+            'increase' => 'Change',
+            'reason' => 'Reason',
+            'status' => 'Status',
+            'requested_by' => 'Requested by',
+            'created_at' => 'Requested',
+            'decided_at' => 'Decided',
+        ],
+        'statuses' => [
+            'draft' => 'Draft',
+            'pending' => 'Waiting for approval',
+            'approved' => 'Approved, not applied yet',
+            'rejected' => 'Rejected',
+            'cancelled' => 'Cancelled',
+            'applied' => 'Applied',
+        ],
+        'attributes' => [
+            'party' => 'customer',
+            'company' => 'company',
+            'requested_limit' => 'requested limit',
+            'currency' => 'currency',
+            'reason' => 'reason',
+            'cancel_reason' => 'reason for cancelling',
+        ],
+        'errors' => [
+            'amount' => 'Enter the requested limit as a whole number of minor units, for example "25000000" for KES 250,000.00.',
+            'currency' => 'This customer’s credit limit is in :currency. Request the new limit in :currency.',
+            'unchanged' => 'The requested limit is the same as the current one. Enter a different amount.',
+            'open' => 'This customer already has a credit limit change waiting for a decision. Wait for it, or cancel it first.',
+            'not_open' => 'This request is no longer waiting for a decision, so it can’t be cancelled.',
+            'company_of_party' => 'This customer belongs to one company, so the request is for that company. Leave the company out.',
+            'company_required' => 'This customer is shared across your companies. Choose the company the request is for.',
+            'needs_request' => 'You can lower this credit limit, but raising, adding or removing one needs approval. Use “Request a change” on the customer’s page.',
+        ],
+    ],
+
     // MD-02: items, item categories, units of measure.
     'item' => [
         // EXP-01: the items list and its export.

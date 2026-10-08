@@ -299,6 +299,69 @@ return [
         ],
     ],
 
+    // MD-01, WF-01 : demandes de modification de plafond de crédit (CreditLimitChangeType).
+    'credit_limit_change' => [
+        'type' => 'Modification de plafond de crédit',
+        'list_title' => 'Modifications de plafond de crédit',
+        // APR-04 : la ligne de la boîte d’approbations, par ex. « Duka Moja Ltd : KES 150 000,00 → KES 250 000,00 ».
+        'title' => ':party : :from → :to',
+        'no_limit' => 'aucun plafond',
+        'fields' => [
+            'party' => 'Client',
+            'current_limit' => 'Plafond actuel',
+            'requested_limit' => 'Plafond demandé',
+            'increase' => 'Augmentation',
+            'reason' => 'Motif',
+            'company' => 'Société',
+        ],
+        // WF-02 : noms des étapes du flux par défaut, écrits une fois dans la langue de la première personne qui l’utilise.
+        'flow' => [
+            'start' => 'Modification demandée',
+            'approve' => 'Approbation du comptable',
+            'approved' => 'Approuvée',
+            'rejected' => 'Refusée',
+        ],
+        'columns' => [
+            'number' => 'Numéro',
+            'party' => 'Client',
+            'company' => 'Société',
+            'current_limit' => 'Plafond actuel',
+            'requested_limit' => 'Plafond demandé',
+            'increase' => 'Variation',
+            'reason' => 'Motif',
+            'status' => 'Statut',
+            'requested_by' => 'Demandé par',
+            'created_at' => 'Demandée le',
+            'decided_at' => 'Décidée le',
+        ],
+        'statuses' => [
+            'draft' => 'Brouillon',
+            'pending' => 'En attente d’approbation',
+            'approved' => 'Approuvée, pas encore appliquée',
+            'rejected' => 'Refusée',
+            'cancelled' => 'Annulée',
+            'applied' => 'Appliquée',
+        ],
+        'attributes' => [
+            'party' => 'client',
+            'company' => 'société',
+            'requested_limit' => 'plafond demandé',
+            'currency' => 'devise',
+            'reason' => 'motif',
+            'cancel_reason' => 'motif de l’annulation',
+        ],
+        'errors' => [
+            'amount' => 'Saisissez le plafond demandé en unités mineures entières, par exemple « 25000000 » pour KES 250 000,00.',
+            'currency' => 'Le plafond de crédit de ce client est en :currency. Demandez le nouveau plafond en :currency.',
+            'unchanged' => 'Le plafond demandé est identique au plafond actuel. Saisissez un autre montant.',
+            'open' => 'Une modification du plafond de ce client attend déjà une décision. Attendez-la ou annulez-la d’abord.',
+            'not_open' => 'Cette demande n’attend plus de décision : elle ne peut plus être annulée.',
+            'company_of_party' => 'Ce client appartient à une seule société : la demande concerne cette société. Ne précisez pas de société.',
+            'company_required' => 'Ce client est partagé entre vos sociétés. Choisissez la société concernée par la demande.',
+            'needs_request' => 'Vous pouvez baisser ce plafond de crédit, mais l’augmenter, en ajouter un ou le supprimer demande une approbation. Utilisez « Demander une modification » sur la fiche du client.',
+        ],
+    ],
+
     // MD-02 : articles, catégories d’articles, unités de mesure.
     'item' => [
         // EXP-01 : la liste des articles et son export.

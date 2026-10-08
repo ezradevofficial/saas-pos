@@ -9,6 +9,7 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Support\PhoneNumber;
 use App\Core\MasterData\CompanyReach;
+use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\MasterData\Parties\PartyRoles;
@@ -32,6 +33,9 @@ use Illuminate\Validation\Validator;
  * - A price list is active and of the party's company; for a shared party,
  *   of a company the user reaches with the party permission in use.
  * - The credit limit is typed in major units of its currency (ADR 003).
+ *   Lowering it in its currency needs only the party permission; any
+ *   other change also needs `core.credit_limit.set_directly`, else 422
+ *   `credit_limit_needs_request` (ask through a credit limit change).
  */
 final class PartyRules
 {
@@ -113,6 +117,18 @@ final class PartyRules
             $validator->errors()->add('company_id', __('core.party.company_not_allowed'));
 
             return;
+        }
+
+        // WF-01: a raise (a first limit, removing it, another currency) goes
+        // through a credit limit change request unless the user may set it directly.
+        if (array_key_exists('credit_limit', $input)) {
+            $limit = $input['credit_limit'] === null
+                ? null
+                : Money::parse((string) $input['credit_limit'], (string) $input['credit_limit_currency'], app(CurrencyDecimals::class));
+
+            if (CreditLimitChanges::needsApproval($party?->creditLimit(), $limit) && ! app(CreditLimitChanges::class)->canSetDirectly($user, $companyId)) {
+                throw CreditLimitChanges::needsRequestError();
+            }
         }
 
         $reach = app(CompanyReach::class);
