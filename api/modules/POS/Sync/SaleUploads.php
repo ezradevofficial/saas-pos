@@ -151,13 +151,13 @@ class SaleUploads
 
         $totals = $this->totals($lines, $data['totals']);
         $total = Money::ofMinor((string) $totals['total_minor'], $currency);
-        [$payments, $paid] = $this->payments($place, $data['payments'], $currency, $at, $flags);
+        [$payments, $paid, $paidExact] = $this->payments($place, $data['payments'], $currency, $at, $flags);
 
         if ($paid->isLessThan($totals['total_minor'])) {
             throw new Rejection('sale_underpaid', 'payments');
         }
 
-        [$change, $rounding, $changeSnapshot] = $this->change($data['change'] ?? null, $currency, $paid->minus($totals['total_minor']));
+        [$change, $rounding, $changeSnapshot] = $this->change($data['change'] ?? null, $currency, $paidExact->minus($totals['total_minor']));
         [$base, $snapshot, $baseTotal, $baseTax] = $this->base($place, $lines, $currency, $at, [...array_column($payments, 'fx_snapshot'), $changeSnapshot], $flags);
 
         $range = $this->ranges->claim($place, 'pos.receipt', (int) $data['receipt_seq'], $data['receipt_number'], $at, 'receipt');
@@ -423,12 +423,13 @@ class SaleUploads
      * in the sale currency must be that conversion (within one minor unit:
      * the till shares rounding between tenders by largest remainder).
      *
-     * @return array{0: list<array{row: array<string, mixed>, fx_snapshot: ?FxSnapshot}>, 1: BigDecimal}
+     * @return array{0: list<array{row: array<string, mixed>, fx_snapshot: ?FxSnapshot}>, 1: BigDecimal, 2: BigDecimal} rows, paid as credited, paid exactly
      */
     private function payments(DevicePlace $place, array $payments, string $currency, CarbonImmutable $at, Flags $flags): array
     {
         $rows = [];
         $paid = BigDecimal::zero();
+        $paidExact = BigDecimal::zero();
 
         foreach ($payments as $index => $payment) {
             $field = "payments.{$index}";
@@ -460,6 +461,7 @@ class SaleUploads
             }
 
             $paid = $paid->plus($inSale);
+            $paidExact = $paidExact->plus($exact);
             $rows[] = [
                 'row' => [
                     'id' => $payment['id'],
@@ -476,13 +478,15 @@ class SaleUploads
             ];
         }
 
-        return [$rows, $paid];
+        return [$rows, $paid, $paidExact];
     }
 
     /**
-     * CUR-06: change in the chosen currency never exceeds the overpayment
-     * (one minor unit of tolerance for the tenders' rounding); what the
-     * shop keeps from rounding the change is stored.
+     * CUR-06: change in the chosen currency never exceeds the exact
+     * overpayment (the tenders converted at their rates, unrounded, minus
+     * the total); what the shop keeps from rounding the change down is
+     * stored, half up to the sale currency's minor unit (as
+     * TenderCalculator computes it).
      *
      * @return array{0: Money, 1: BigDecimal, 2: ?FxSnapshot}
      */
@@ -500,7 +504,8 @@ class SaleUploads
             : Amounts::snapshot($change['rate'] ?? null, $changeCurrency, $currency, 'change.rate');
         $inSale = $snapshot === null ? BigDecimal::of($money->minor()) : Amounts::exact($money, $snapshot);
 
-        if ($inSale->isGreaterThan($overpay->plus(1))) {
+        // A millionth of a minor unit absorbs the 20-decimal division.
+        if ($inSale->isGreaterThan($overpay->plus('0.000001'))) {
             throw new Rejection('change_too_large', 'change.amount_minor');
         }
 
