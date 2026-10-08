@@ -2434,7 +2434,8 @@
         "rejectAt": "Rejetée automatiquement le {{when}} si personne ne décide.",
         "approveAfterEscalation": "Approuvée automatiquement si personne ne décide après la remontée.",
         "rejectAfterEscalation": "Rejetée automatiquement si personne ne décide après la remontée."
-      }
+      },
+      "condition": "La condition « {{name}} » a choisi ce circuit."
     },
     "actions": {
       "approve": "Approuver",
@@ -2444,7 +2445,7 @@
       "reassign": "Réattribuer"
     },
     "form": {
-      "peopleUnavailable": "La liste des personnes n’a pas pu être chargée. Demandez l’aide d’un administrateur.",
+      "peopleUnavailable": "La liste des personnes n’a pas pu être chargée. Réessayez.",
       "approve": {
         "title": "Approuver {{name}}",
         "text": "Motif",

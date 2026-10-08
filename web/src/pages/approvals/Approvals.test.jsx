@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { approvalDetail, approvalItem, page } from '@/test/approvals'
 import { chooseOption } from '@/test/combobox'
-import { ALL_CORE, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { ALL_CORE, apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -32,10 +32,10 @@ const BLOCKED = approvalItem('d', {
 })
 const DECIDED = approvalItem('e', { status: 'approved', decided_at: '2026-10-07T09:00:00Z', can: { comment: false }, document: doc('PR-NBO-00199', 'Sugar restock') })
 
-const USERS = [
-  { id: 'u-1', name: 'Amina Otieno', email: 'amina@example.com' },
-  { id: 'u-5', name: 'Brian Kiprop', email: 'brian@example.com' },
-  { id: 'u-9', name: 'Grace Wanjiru', email: 'grace@example.com' },
+// The API already leaves out the requester and the step's approvers.
+const CANDIDATES = [
+  { id: 'u-5', name: 'Brian Kiprop' },
+  { id: 'u-7', name: 'Chantal Ilunga' },
 ]
 
 const COMPANIES = [
@@ -55,7 +55,8 @@ function setup({ rows = [WAITING, DELEGATED, OVERDUE, BLOCKED], detail = {}, per
       [/^approvals\?view=all&status=all&/, page([...rows, DECIDED])],
       [/^approvals\/[a-z]$/, (path) => ({ data: details[path.split('/')[1]] ?? approvalDetail(DECIDED) })],
       ['me/delegations', { data: [] }],
-      ['users?status=active&per_page=200', { data: USERS, meta: { total: USERS.length } }],
+      [/^approvals\/[a-z]\/reassign-candidates$/, { data: CANDIDATES }],
+      ['approvals/document-types', { data: [{ key: 'procurement.requisition', label: 'Purchase requisition' }, { key: 'hr.leave', label: 'Leave request' }] }],
     ],
     { permissions, companies: COMPANIES },
   )
@@ -175,10 +176,29 @@ describe('approval detail (APR-03, APR-04, APR-06)', () => {
     expect(within(pane).getByText('Amina Otieno')).toBeInTheDocument()
   })
 
-  it('lists the checks as met or not met when the user may not see the values', async () => {
+  it('lists the checks as met or not met when no sentences are given', async () => {
     setup({ detail: { a: { route: [{ node_id: 'big', node_name: 'Total over KES 250,000?', kind: 'condition', branch: 'no', checks: [{ field: 'total', label: 'Total', op: 'gt', passed: false }], explanations: null }] } } })
     renderApp('/approvals/a')
     expect(await screen.findByText('Total over KES 250,000?: Total did not meet the condition')).toBeInTheDocument()
+  })
+
+  it('shows only the steps of the route to a viewer who may not see the document', async () => {
+    setup({ detail: { a: { route: [{ node_id: 'big', node_name: 'Total over KES 250,000?', kind: 'condition', branch: 'no', checks: null, explanations: null }] } } })
+    renderApp('/approvals/a')
+    expect(await screen.findByText('The condition “Total over KES 250,000?” chose this route.')).toBeInTheDocument()
+    expect(screen.queryByText(/met the condition/)).not.toBeInTheDocument()
+  })
+
+  it('shows times in the company time zone, named when it differs from the browser', async () => {
+    const kinshasa = { ...WAITING, company: { id: 'c-2', name: 'Kin Market', timezone: 'Africa/Kinshasa' } }
+    setup({ rows: [kinshasa] })
+    renderApp('/approvals/a')
+    const pane = await screen.findByRole('article', { name: 'Request detail' })
+    const line = await within(pane).findByText(/^Escalates to the area manager if not acted on by/)
+    // 14:00 UTC is 15:00 in Kinshasa.
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (browser === 'Africa/Kinshasa') expect(line).toHaveTextContent(/by 8 Oct 2026, 15:00$/)
+    else expect(line).toHaveTextContent(/by 8 Oct 2026, 15:00 (WAT|GMT\+1)$/)
   })
 
   it('approves with the accent button and tells the user', async () => {
@@ -263,12 +283,27 @@ describe('approval detail (APR-03, APR-04, APR-06)', () => {
     await waitFor(() => expect(picker).toBeEnabled())
     const list = (await import('@/test/combobox')).openCombobox(picker)
     await within(list).findByRole('option', { name: /Brian Kiprop/ })
-    // Neither the requester nor the approver being replaced is offered.
-    expect(within(list).queryByRole('option', { name: /Grace Wanjiru/ })).not.toBeInTheDocument()
-    expect(within(list).queryByRole('option', { name: /Amina Otieno/ })).not.toBeInTheDocument()
+    expect(api.get).toHaveBeenCalledWith('approvals/a/reassign-candidates')
+    expect(within(list).getAllByRole('option').map((option) => option.textContent)).toEqual(['Brian Kiprop', 'Chantal Ilunga'])
     fireEvent.click(within(list).getByRole('option', { name: /Brian Kiprop/ }))
     fireEvent.click(within(form).getByRole('button', { name: 'Reassign' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('approvals/a/reassign', { from_user_id: 'u-1', to_user_id: 'u-5' }))
+  })
+
+  it('says why a reassignment was refused', async () => {
+    const admin = { ...WAITING, can: { ...WAITING.can, reassign: true } }
+    setup({ rows: [admin] })
+    api.post.mockRejectedValue(apiError(422, 'already_decided', 'That person already decided this request. Choose someone else.'))
+    renderApp('/approvals/a')
+    const pane = await screen.findByRole('article', { name: 'Request detail' })
+    fireEvent.click(await within(pane).findByRole('button', { name: 'Reassign' }))
+    const form = screen.getByRole('form', { name: 'Reassign Purchase requisition PR-NBO-00231' })
+    const picker = within(form).getByLabelText(/New approver/)
+    await waitFor(() => expect(picker).toBeEnabled())
+    const list = (await import('@/test/combobox')).openCombobox(picker)
+    fireEvent.click(await within(list).findByRole('option', { name: 'Brian Kiprop' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Reassign' }))
+    expect(await within(form).findByText('That person already decided this request. Choose someone else.')).toBeInTheDocument()
   })
 
   it('offers only the actions the API allows', async () => {

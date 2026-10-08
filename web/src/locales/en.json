@@ -2434,7 +2434,8 @@
         "rejectAt": "Rejected automatically at {{when}} if nobody decides.",
         "approveAfterEscalation": "Approved automatically if nobody decides after the escalation.",
         "rejectAfterEscalation": "Rejected automatically if nobody decides after the escalation."
-      }
+      },
+      "condition": "The condition “{{name}}” chose this route."
     },
     "actions": {
       "approve": "Approve",
@@ -2444,7 +2445,7 @@
       "reassign": "Reassign"
     },
     "form": {
-      "peopleUnavailable": "The list of people could not be loaded. Ask an administrator to help.",
+      "peopleUnavailable": "The list of people could not be loaded. Try again.",
       "approve": {
         "title": "Approve {{name}}",
         "text": "Reason",

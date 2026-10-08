@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { page } from '@/test/approvals'
-import { chooseOption } from '@/test/combobox'
-import { ALL_CORE, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { chooseOption, openCombobox } from '@/test/combobox'
+import { ALL_CORE, mockRoutes, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { DOCUMENT_TYPE } from '@/test/workflows'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -10,9 +10,9 @@ vi.mock('@/api/client', async (importOriginal) => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), download: vi.fn(), upload: vi.fn() },
 }))
 
-const USERS = [
-  { id: 'u-1', name: 'Amina Otieno', email: 'amina@example.com' },
-  { id: 'u-5', name: 'Brian Kiprop', email: 'brian@example.com' },
+const CANDIDATES = [
+  { id: 'u-5', name: 'Brian Kiprop' },
+  { id: 'u-7', name: 'Chantal Ilunga' },
 ]
 
 const GIVEN = {
@@ -45,8 +45,14 @@ function setup({ delegations = [GIVEN, RECEIVED, ENDED], permissions = ALL_CORE 
     [
       [/^approvals\?/, page([])],
       ['me/delegations', { data: delegations }],
-      ['users?status=active&per_page=200', { data: USERS, meta: { total: USERS.length } }],
-      ['workflow/document-types', { data: [DOCUMENT_TYPE, { key: 'hr.leave', label: 'Leave request', fields: [] }], meta: {} }],
+      [
+        /^me\/delegation-candidates/,
+        (path) => {
+          const term = new URLSearchParams(path.split('?')[1] ?? '').get('search') ?? ''
+          return { data: CANDIDATES.filter((person) => person.name.toLowerCase().includes(term.toLowerCase())) }
+        },
+      ],
+      ['approvals/document-types', { data: [{ key: DOCUMENT_TYPE.key, label: DOCUMENT_TYPE.label }, { key: 'hr.leave', label: 'Leave request' }] }],
     ],
     { permissions },
   )
@@ -95,8 +101,23 @@ describe('delegation (APR-06)', () => {
     expect(await screen.findByText('Delegation saved')).toBeInTheDocument()
   })
 
+  it('searches colleagues on the server as the user types', async () => {
+    setup()
+    renderApp('/approvals')
+    const dialog = await openDialog()
+    const picker = within(dialog).getByLabelText(/Delegate to/)
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('me/delegation-candidates'))
+    const list = openCombobox(picker)
+    fireEvent.change(document.querySelector('[cmdk-input]'), { target: { value: 'chan' } })
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('me/delegation-candidates?search=chan'))
+    await waitFor(() => expect(within(list).getAllByRole('option').map((option) => option.textContent)).toEqual(['Chantal Ilunga']))
+    fireEvent.click(within(list).getByRole('option', { name: 'Chantal Ilunga' }))
+    // The chosen person stays shown once the search is cleared.
+    expect(picker).toHaveTextContent('Chantal Ilunga')
+  })
+
   it('delegates only the chosen document types and asks for at least one', async () => {
-    setup({ permissions: [...ALL_CORE, ...tenantWide(['core.workflow.view'])] })
+    setup()
     api.post.mockResolvedValue({ data: GIVEN })
     renderApp('/approvals')
     const dialog = await openDialog()

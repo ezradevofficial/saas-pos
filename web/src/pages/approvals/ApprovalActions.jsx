@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Select } from '@/components/ds'
 import { useApprovalActions } from '@/lib/approvals'
-import { peopleOptions, useActiveUsers } from './approvalData'
+import { peopleOptions, useReassignCandidates } from './approvalData'
 import { TextAreaField } from './TextAreaField'
 
 /**
@@ -28,7 +28,7 @@ export function ApprovalActions({ approval, decisive = true }) {
 
   // Approvers waiting at the current step: whose place a reassignment takes.
   const pending = (approval.approvers ?? []).filter((entry) => entry.status === 'pending' && entry.step === approval.step?.index)
-  const users = useActiveUsers({ enabled: mode === 'reassign' })
+  const users = useReassignCandidates(approval.id, { enabled: mode === 'reassign' })
 
   const open = (next) => {
     setMode(next)

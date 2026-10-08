@@ -10,7 +10,7 @@ import { Alert, Button, Checkbox, Dialog, Select, StatusBadge, TextField } from 
 import { APPROVALS_KEY, DELEGATION_TONES, useDelegations } from '@/lib/approvals'
 import { formatCalendarDate, todayIn } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
-import { peopleOptions, useActiveUsers, useDocumentTypeOptions } from './approvalData'
+import { peopleOptions, useDelegationCandidates, useDocumentTypeOptions } from './approvalData'
 import { TextAreaField } from './TextAreaField'
 
 const FIELDS = ['to_user_id', 'starts_on', 'ends_on', 'document_types', 'note']
@@ -68,7 +68,12 @@ export function DelegationDialog({ open, onClose }) {
   const empty = { to_user_id: '', starts_on: today, ends_on: '', scope: 'all', document_types: [], note: '' }
   const [values, setValues] = useState(empty)
   const [missing, setMissing] = useState({})
-  const users = useActiveUsers({ enabled: open })
+  // The delegate picker searches the server as the user types; the chosen person stays listed.
+  const [personSearch, setPersonSearch] = useState('')
+  const [chosenPerson, setChosenPerson] = useState(null)
+  const users = useDelegationCandidates(personSearch, { enabled: open })
+  const candidates = users.data ?? []
+  const people = chosenPerson && !candidates.some((person) => person.id === chosenPerson.id) ? [chosenPerson, ...candidates] : candidates
   const delegations = useDelegations({ enabled: open })
   const typeOptions = useDocumentTypeOptions()
 
@@ -78,6 +83,7 @@ export function DelegationDialog({ open, onClose }) {
     onSuccess: () => {
       refresh()
       setValues(empty)
+      setChosenPerson(null)
       toast.success(t('approvals.delegation.created'))
     },
   })
@@ -131,9 +137,13 @@ export function DelegationDialog({ open, onClose }) {
           <Select
             label={t('approvals.delegation.to')}
             placeholder={users.isPending ? t('common.loading') : t('approvals.delegation.choosePerson')}
-            options={peopleOptions(users.data ?? [], { exclude: [user?.id].filter(Boolean) })}
+            options={peopleOptions(people, { exclude: [user?.id].filter(Boolean) })}
             value={values.to_user_id}
-            onChange={set('to_user_id')}
+            onChange={(event) => {
+              setChosenPerson(people.find((person) => person.id === event.target.value) ?? null)
+              set('to_user_id')(event)
+            }}
+            onSearchChange={setPersonSearch}
             error={error('to_user_id')}
             help={users.isError ? t('approvals.form.peopleUnavailable') : undefined}
             required

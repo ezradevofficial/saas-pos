@@ -5,12 +5,11 @@ import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Checkbox, ExportMenu, Icon, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
 import { approvalStatus, useBulkApprove } from '@/lib/approvals'
-import { formatDateTime } from '@/lib/dates'
 import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { cn } from '@/lib/utils'
-import { dueHint, TABS, useDocumentTypeOptions } from './approvalData'
+import { dueHint, formatCompanyTime, TABS, useDocumentTypeOptions } from './approvalData'
 
 const SORTS = ['due', '-received', 'received']
 
@@ -64,7 +63,7 @@ function ApprovalItem({ item, selected, checked, onCheck, onOpen }) {
             </span>
             {from && item.status === 'pending' ? <span>{t('approvals.list.onBehalf', { name: from.name ?? t('approvals.someone') })}</span> : null}
             {item.status === 'pending' && item.waiting_since ? (
-              <span>{t('approvals.hint.waitingSince', { when: formatDateTime(item.waiting_since, locale) })}</span>
+              <span>{t('approvals.hint.waitingSince', { when: formatCompanyTime(item.waiting_since, locale, item.company) })}</span>
             ) : null}
             {hint ? (
               <span className={cn('flex items-center gap-1', item.overdue && 'text-danger')}>
@@ -223,7 +222,7 @@ export function ApprovalList({ tab, selectedId, onOpen, onSelectionChange, onFir
           <ul className="flex flex-col gap-1">
             {failures.map((failure) => (
               <li key={failure.id}>
-                {nameOf(failure.id)}: {failure.message}
+                {nameOf(failure.id)}: {failure.message || t('errors.generic')}
               </li>
             ))}
           </ul>

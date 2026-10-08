@@ -8,7 +8,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Icon, Money, StatusBadge } from '@/components/ds'
 import { approvalStatus, useApprovalActions, useApprovalDetail } from '@/lib/approvals'
-import { formatDateTime } from '@/lib/dates'
+import { formatCompanyTime } from './approvalData'
 import { formatBytes, formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { ApprovalActions } from './ApprovalActions'
@@ -57,6 +57,10 @@ function WhyThisRoute({ approval }) {
     if (entry.kind === 'skipped') {
       lines.push({ key: `${entry.node_id}-skipped`, text: t('approvals.route.skipped', { name: entry.node_name ?? entry.node_id }) })
     }
+    // A viewer who may not see the document gets neither checks nor sentences: only the step.
+    if (entry.kind !== 'skipped' && !entry.checks?.length) {
+      lines.push({ key: `${entry.node_id}-step`, text: t('approvals.route.condition', { name: entry.node_name ?? entry.node_id }) })
+    }
     for (const [index, check] of (entry.checks ?? []).entries()) {
       lines.push({
         key: `${entry.node_id}-${index}`,
@@ -69,12 +73,12 @@ function WhyThisRoute({ approval }) {
 
   const escalation = approval.escalation?.at
     ? approval.escalation.to
-      ? t('approvals.hint.escalatesTo', { to: approval.escalation.to, when: formatDateTime(approval.escalation.at, locale) })
-      : t('approvals.hint.escalates', { when: formatDateTime(approval.escalation.at, locale) })
+      ? t('approvals.hint.escalatesTo', { to: approval.escalation.to, when: formatCompanyTime(approval.escalation.at, locale, approval.company) })
+      : t('approvals.hint.escalates', { when: formatCompanyTime(approval.escalation.at, locale, approval.company) })
     : null
   const final = approval.final?.outcome
     ? t(`approvals.route.final.${approval.final.outcome === 'reject' ? 'reject' : 'approve'}${approval.final.at ? 'At' : 'AfterEscalation'}`, {
-        when: approval.final.at ? formatDateTime(approval.final.at, locale) : '',
+        when: approval.final.at ? formatCompanyTime(approval.final.at, locale, approval.company) : '',
       })
     : null
 
@@ -137,7 +141,7 @@ function Approvers({ approvers }) {
   )
 }
 
-function History({ history }) {
+function History({ history, company }) {
   const { t } = useTranslation()
   const locale = useLocale()
   return (
@@ -146,7 +150,7 @@ function History({ history }) {
         <ol className="flex flex-col gap-3">
           {history.map((entry) => (
             <li key={entry.id ?? `${entry.type}-${entry.occurred_at}`} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span className="shrink-0 text-caption text-ink-muted tabular-nums">{formatDateTime(entry.occurred_at, locale)}</span>
+              <span className="shrink-0 text-caption text-ink-muted tabular-nums">{formatCompanyTime(entry.occurred_at, locale, company)}</span>
               <span className="flex min-w-0 flex-col">
                 <span className="text-ink">
                   {entry.label}
@@ -366,16 +370,16 @@ export function ApprovalDetail({ id, decisive = true, onBack }) {
             })}
           </Fact>
         ) : null}
-        {approval.received_at ? <Fact term={t('approvals.detail.received')}>{formatDateTime(approval.received_at, locale)}</Fact> : null}
+        {approval.received_at ? <Fact term={t('approvals.detail.received')}>{formatCompanyTime(approval.received_at, locale, approval.company)}</Fact> : null}
         {approval.status === 'pending' && approval.waiting_since ? (
-          <Fact term={t('approvals.detail.waitingSince')}>{formatDateTime(approval.waiting_since, locale)}</Fact>
+          <Fact term={t('approvals.detail.waitingSince')}>{formatCompanyTime(approval.waiting_since, locale, approval.company)}</Fact>
         ) : null}
         {approval.status === 'pending' && approval.due_at ? (
           <Fact term={t('approvals.detail.due')}>
-            <span className={approval.overdue ? 'text-danger' : undefined}>{formatDateTime(approval.due_at, locale)}</span>
+            <span className={approval.overdue ? 'text-danger' : undefined}>{formatCompanyTime(approval.due_at, locale, approval.company)}</span>
           </Fact>
         ) : null}
-        {approval.decided_at ? <Fact term={t('approvals.detail.decided')}>{formatDateTime(approval.decided_at, locale)}</Fact> : null}
+        {approval.decided_at ? <Fact term={t('approvals.detail.decided')}>{formatCompanyTime(approval.decided_at, locale, approval.company)}</Fact> : null}
       </dl>
 
       {approval.document_link?.startsWith('/') && !approval.document_link.startsWith('//') ? (
@@ -389,7 +393,7 @@ export function ApprovalDetail({ id, decisive = true, onBack }) {
       <Approvers approvers={approval.approvers} />
       <Attachments approval={approval} onUploaded={refresh} />
       <CommentBox approval={approval} />
-      <History history={approval.history} />
+      <History history={approval.history} company={approval.company} />
     </article>
   )
 }
