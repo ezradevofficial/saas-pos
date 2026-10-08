@@ -9,21 +9,9 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import NotFound, { NoAccess } from '@/pages/NotFound'
+import { useDuration } from './useDuration'
 
 const STATUS_TONES = { running: 'info', completed: 'success', cancelled: 'neutral' }
-
-/** "2 d 4 h", "3 h 20 min", "5 min": how long a step has waited. */
-function useDuration() {
-  const { t } = useTranslation()
-  return (seconds) => {
-    const minutes = Math.floor((Number(seconds) || 0) / 60)
-    const days = Math.floor(minutes / 1440)
-    const hours = Math.floor((minutes % 1440) / 60)
-    if (days > 0) return t('documentWorkflow.duration.days', { days, hours })
-    if (hours > 0) return t('documentWorkflow.duration.hours', { hours, minutes: minutes % 60 })
-    return t('documentWorkflow.duration.minutes', { count: minutes })
-  }
-}
 
 /** A relative app path only (the API never sends anything else, but links are checked anyway). */
 const appPath = (link) => (typeof link === 'string' && link.startsWith('/') && !link.startsWith('//') ? link : null)

@@ -63,6 +63,7 @@ import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
 import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
 import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
+import WorkflowInsights from './pages/workflows/WorkflowInsights'
 import Workflows from './pages/workflows/Workflows'
 
 // Development only: every design-system component in its states.
@@ -226,6 +227,8 @@ export const routes = [
       },
       // WF-02, spec 6.4: workflows and the builder (full width for the canvas).
       { path: '/settings/workflows', element: <RequirePermission permission={WORKFLOW_VIEW}><Workflows /></RequirePermission> },
+      // WF-10: stage volumes and bottlenecks; the API decides who may see them (flow designers and document viewers).
+      { path: '/settings/workflows/insights', element: <WorkflowInsights /> },
       {
         path: '/settings/workflows/:workflowId',
         handle: { wide: true },

@@ -1876,6 +1876,7 @@
     "versionShort": "v{{version}}",
     "notPublished": "Non publié",
     "noDraft": "Aucun brouillon",
+    "insights": "Volumes par étape",
     "empty": "Aucun workflow pour l’instant. Créez-en un pour changer la façon dont un type de document est approuvé.",
     "emptyNoTypes": "Aucun type de document n’est disponible. Activez un module qui en déclare.",
     "breadcrumb": "Fil d’Ariane",
@@ -2332,6 +2333,33 @@
     "people": {
       "unknown": "Personne inconnue ou inactive ({{id}})",
       "none": "Aucune personne active pour l’instant."
+    }
+  },
+  "workflowInsights": {
+    "title": "Volumes par étape",
+    "description": "Combien de documents arrivent, sortent et attendent à chaque étape des circuits en vigueur, et où ils attendent le plus.",
+    "back": "Retour aux circuits",
+    "period": "Du {{from}} au {{to}}",
+    "zone": "jours à l’heure de {{zone}}",
+    "basis": "Les durées sont le temps écoulé entre l’entrée dans une étape et la sortie, pas les heures ouvrées. Seuls les documents que vous pouvez voir sont comptés.",
+    "empty": "Aucun circuit en vigueur à afficher. Publiez un circuit ou modifiez les filtres.",
+    "noStages": "Ce circuit n’a ni étape ni approbation.",
+    "approval": "Approbation",
+    "slowest": "La plus lente",
+    "filters": {
+      "type": "Type de document",
+      "company": "Société",
+      "from": "Du",
+      "to": "Au"
+    },
+    "columns": {
+      "stage": "Étape",
+      "now": "En ce moment",
+      "entered": "Entrés",
+      "left": "Sortis",
+      "median": "Durée médiane",
+      "p90": "10 % les plus lents",
+      "overdue": "En retard"
     }
   },
   "creditLimits": {

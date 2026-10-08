@@ -99,11 +99,14 @@ export default function Workflows() {
         title={t('workflows.title')}
         description={t('workflows.description')}
         actions={
-          canCreate ? (
-            <Button variant="primary" icon="plus" disabled={types.length === 0} onClick={() => setCreating(true)}>
-              {t('workflows.create.open')}
-            </Button>
-          ) : null
+          <>
+            <Button onClick={() => navigate('/settings/workflows/insights')}>{t('workflows.insights')}</Button>
+            {canCreate ? (
+              <Button variant="primary" icon="plus" disabled={types.length === 0} onClick={() => setCreating(true)}>
+                {t('workflows.create.open')}
+              </Button>
+            ) : null}
+          </>
         }
       />
       <ListView

@@ -70,6 +70,7 @@ use App\Core\Workflow\Http\Controllers\BusinessHoursController;
 use App\Core\Workflow\Http\Controllers\DocumentTypeController;
 use App\Core\Workflow\Http\Controllers\DocumentWorkflowController;
 use App\Core\Workflow\Http\Controllers\WorkflowDefinitionController;
+use App\Core\Workflow\Http\Controllers\WorkflowInsightsController;
 use App\Core\Workflow\Http\Controllers\WorkflowVersionController;
 use App\Core\Workflow\Models\WorkflowDefinition;
 use App\Core\Workflow\Models\WorkflowVersion;
@@ -342,6 +343,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('workflows/{workflow}/copy', [WorkflowDefinitionController::class, 'copy']);
     Route::post('workflows/{workflow}/restore-default', [WorkflowDefinitionController::class, 'restoreDefault']);
     Route::post('workflows/{workflow}/test', [WorkflowDefinitionController::class, 'test']);
+    Route::get('workflow-insights', [WorkflowInsightsController::class, 'index']);
     Route::get('workflow-versions/{workflow_version}', [WorkflowVersionController::class, 'show']);
 
     // WF-04, WF-08, WF-10, WF-11: a document's flow, by type and document id.
