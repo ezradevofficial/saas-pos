@@ -87,4 +87,42 @@ return [
             'effective_at' => 'effective time',
         ],
     ],
+
+    // MD-03, CP-01, CP-02: tax codes, rates, categories.
+    'tax' => [
+        'code_archived' => 'The tax code :code is archived. Restore it before using it or adding a rate.',
+        'rate_missing' => 'The tax code :code has no confirmed rate on :date. Enter its rate before using it.',
+        'rate_overlap' => 'A rate already starts on or after this date (latest start :date). Choose a date after :date.',
+        'exempt_has_no_rate' => 'An exempt tax code has no rate.',
+        'zero_rated_rate' => 'A zero-rated tax code has the rate 0.',
+        'code_taken' => 'Another active tax code of this company uses this code. Choose another code.',
+        'pack_missing' => 'No country pack is published for :country yet. Ask platform staff to publish it.',
+        'category_other_company' => 'This category belongs to another company. Set default tax codes for its own company only.',
+        'category_company_not_allowed' => 'You can’t set tax codes for this company.',
+        'category_code_invalid' => 'Choose an active tax code of this company.',
+        'attributes' => [
+            'code' => 'code',
+            'name_en' => 'English name',
+            'name_fr' => 'French name',
+            'kind' => 'kind',
+            'rate' => 'rate',
+            'effective_from' => 'start date',
+            'fiscal_code' => 'fiscal code',
+            'category_name' => 'name',
+            'company' => 'company',
+            'codes' => 'default tax codes',
+            'tax_code' => 'tax code',
+        ],
+    ],
+
+    // MD-03: price lists.
+    'price_list' => [
+        'archived_default' => 'An archived price list can’t be the default. Restore it first.',
+        'attributes' => [
+            'name' => 'name',
+            'currency' => 'currency',
+            'tax_inclusive' => 'prices include tax',
+            'is_default' => 'default price list',
+        ],
+    ],
 ];

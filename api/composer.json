@@ -50,7 +50,9 @@
             "@php artisan key:generate",
             "@composer migrate",
             "@php artisan permissions:sync",
-            "@php artisan currencies:sync"
+            "@php artisan currencies:sync",
+            "@php artisan country-packs:publish KE",
+            "@php artisan country-packs:publish CD"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",

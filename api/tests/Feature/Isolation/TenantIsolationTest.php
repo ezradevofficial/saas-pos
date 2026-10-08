@@ -67,7 +67,20 @@ class TenantIsolationTest extends TestCase
         'invitation' => 'invitation',
         'assignment' => 'assignment',
         'tenant_currency' => 'tenant_currency',
+        'tax_code' => 'tax_code',
+        'tax_category' => 'tax_category',
+        'price_list' => 'price_list',
         'id' => 'session', // DELETE auth/sessions/{id}
+    ];
+
+    /**
+     * Route parameters that name global reference data, never a tenant row,
+     * with the value to call them with. A route whose parameters are all
+     * global answers the same to every tenant: it is called with this value,
+     * must succeed, and must show nothing of tenant B.
+     */
+    public const GLOBAL_PARAMETERS = [
+        'country_pack' => 'KE', // GET country-packs/{country_pack}: the published pack (CP-01)
     ];
 
     /**
@@ -83,6 +96,7 @@ class TenantIsolationTest extends TestCase
         'user_id' => 'user',
         'invitation_id' => 'invitation',
         'assignment_id' => 'assignment',
+        'tax_code_id' => 'tax_code',
         'scope_id' => null,
     ];
 
@@ -200,6 +214,20 @@ class TenantIsolationTest extends TestCase
 
         foreach ($this->apiRoutes() as $route) {
             if ($route->parameterNames() === [] || $this->isPublic($route)) {
+                continue;
+            }
+
+            if ($this->hasOnlyGlobalParameters($route)) {
+                $this->assertSame(['GET'], $this->methods($route), "{$route->uri()} changes global data through the tenant API");
+
+                foreach (self::LIST_QUERIES as $query) {
+                    $uri = $this->uriWith($route, $a).($query === [] ? '' : '?'.http_build_query($query));
+                    $response = $this->json('GET', $uri, [], $a->bearer());
+                    $query === [] ? $response->assertOk() : $this->assertContains($response->status(), [200, 422], "GET {$uri} answered {$response->status()}");
+                    $this->assertBodyHasNothingOf($b, $response, "GET {$uri}");
+                    $called++;
+                }
+
                 continue;
             }
 
@@ -347,6 +375,8 @@ class TenantIsolationTest extends TestCase
 
         $this->assertArrayHasKey('POST api/v1/invitations', $hijacked);
         $this->assertArrayHasKey('POST api/v1/users/{user}/assignments', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/tax-categories', $hijacked);
+        $this->assertArrayHasKey('PATCH api/v1/tax-categories/{tax_category}', $hijacked);
         $this->assertNoRowOf($a, 'references', $b);
         $this->assertSame($before, $this->snapshot($b->tenantId), "tenant B's rows changed after tenant A sent B's ids in request bodies");
     }
@@ -460,6 +490,12 @@ class TenantIsolationTest extends TestCase
         $uri = '/'.$route->uri();
 
         foreach ($route->parameterNames() as $name) {
+            if (isset(self::GLOBAL_PARAMETERS[$name])) {
+                $uri = str_replace(['{'.$name.'}', '{'.$name.'?}'], self::GLOBAL_PARAMETERS[$name], $uri);
+
+                continue;
+            }
+
             $this->assertArrayHasKey($name, self::PARAMETERS, sprintf(
                 'Route %s has the parameter {%s}, which the isolation suite cannot fill: add it to %s::PARAMETERS and give both tenants a row of that type in tests/Support/TwoTenants.php.',
                 $route->uri(), $name, self::class,
@@ -468,6 +504,11 @@ class TenantIsolationTest extends TestCase
         }
 
         return $uri;
+    }
+
+    private function hasOnlyGlobalParameters(RoutingRoute $route): bool
+    {
+        return array_diff($route->parameterNames(), array_keys(self::GLOBAL_PARAMETERS)) === [];
     }
 
     /** A body every mutating route would accept, pointing at more of B where a route takes ids. */
@@ -665,6 +706,15 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            // MD-03: a company's category mapping that company's tax code.
+            'POST api/v1/tax-categories' => [
+                'name' => 'Hijack check',
+                'company_id' => $tenant->id('company'),
+                'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
+            ],
+            'PATCH api/v1/tax-categories/{tax_category}' => [
+                'codes' => [['company_id' => $tenant->id('company'), 'tax_code_id' => $tenant->id('tax_code')]],
+            ],
             default => null,
         };
     }

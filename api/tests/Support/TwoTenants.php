@@ -19,7 +19,8 @@ use Tests\TestCase;
  * self sign-up and verification, then the API as each Owner (companies,
  * branches, locations, an archived location, a paired device, a custom
  * role, an accepted and a pending invitation, an assignment, tenant and
- * reporting currencies, exchange rates and a rate alert). Field rules, limit rules and module flags have
+ * reporting currencies, exchange rates and a rate alert, tax codes and
+ * rates from the country pack, a tax category and a price list). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -88,6 +89,20 @@ final class TwoTenants
             ->assertJsonPath('meta.warning.code', 'rate_tolerance_exceeded');
         $tenantCurrency = collect(self::ok($test->getJson('/api/v1/tenant/currencies', $owner))->json('data'))->firstWhere('code', 'USD')['id'];
 
+        // MD-03, CP-01, CP-02: the company got the KE pack's tax codes; a rate is
+        // entered (a test figure), the pack applied again (adds nothing), a shared
+        // tax category with a default code, and a default price list.
+        $taxCode = collect(self::ok($test->getJson("/api/v1/companies/{$company}/tax-codes", $owner))->json('data'))->firstWhere('code', 'VAT_STD')['id'];
+        self::ok($test->postJson("/api/v1/tax-codes/{$taxCode}/rates", ['rate' => '12.5', 'effective_from' => '2026-01-01'], $owner), 201);
+        self::ok($test->postJson("/api/v1/companies/{$company}/tax-codes/apply-pack", [], $owner));
+        $taxCategory = self::ok($test->postJson('/api/v1/tax-categories', [
+            'name' => "Goods {$upper}",
+            'codes' => [['company_id' => $company, 'tax_code_id' => $taxCode]],
+        ], $owner), 201)->json('data.id');
+        $priceList = self::ok($test->postJson("/api/v1/companies/{$company}/price-lists", [
+            'name' => "Retail {$upper}", 'currency' => 'KES', 'tax_inclusive' => true, 'is_default' => true,
+        ], $owner), 201)->json('data.id');
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -155,6 +170,9 @@ final class TwoTenants
                 'assignment' => $assignment,
                 'session' => $session,
                 'tenant_currency' => $tenantCurrency,
+                'tax_code' => $taxCode,
+                'tax_category' => $taxCategory,
+                'price_list' => $priceList,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
