@@ -66,7 +66,7 @@ class ApprovalActions
     public function returnForChanges(ApprovalRequest $request, User $by, string $nodeId, string $reason): ApprovalRequest
     {
         return $this->decisions->transaction(function () use ($request, $by, $nodeId, $reason) {
-            $request = $this->decisions->lock($request);
+            $request = $this->decisions->lockOrFail($request);
             [$assignment, $onBehalfOf] = $this->acting($request, $by);
             $this->decisions->assertNotRequester($request, $by, $onBehalfOf);
 
@@ -105,7 +105,7 @@ class ApprovalActions
     public function comment(ApprovalRequest $request, User $by, string $comment): void
     {
         $this->decisions->transaction(function () use ($request, $by, $comment) {
-            $request = $this->decisions->lock($request);
+            $request = $this->decisions->lockOrFail($request);
 
             if (! $request->isPending()) {
                 throw new ApiException(422, 'approval_not_pending', __('approvals.errors.not_pending'));
@@ -119,7 +119,7 @@ class ApprovalActions
     public function requestInfo(ApprovalRequest $request, User $by, string $message): void
     {
         $this->decisions->transaction(function () use ($request, $by, $message) {
-            $request = $this->decisions->lock($request);
+            $request = $this->decisions->lockOrFail($request);
             [$assignment, $onBehalfOf] = $this->acting($request, $by);
 
             if ($request->requester_id === null) {
@@ -135,7 +135,7 @@ class ApprovalActions
     public function reassign(ApprovalRequest $request, User $by, string $fromUserId, string $toUserId, ?string $reason): ApprovalRequest
     {
         return $this->decisions->transaction(function () use ($request, $by, $fromUserId, $toUserId, $reason) {
-            $request = $this->decisions->lock($request);
+            $request = $this->decisions->lockOrFail($request);
 
             if (! $request->isPending()) {
                 throw new ApiException(422, 'approval_not_pending', __('approvals.errors.not_pending'));
@@ -195,7 +195,7 @@ class ApprovalActions
 
         try {
             return $this->decisions->transaction(function () use ($request, $by, $file, $path, $mime) {
-                $request = $this->decisions->lock($request);
+                $request = $this->decisions->lockOrFail($request);
                 $this->assertMayAttach($request, $by);
 
                 $attachment = ApprovalAttachment::create([

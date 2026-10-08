@@ -38,6 +38,9 @@ class ApprovalNotices
 
     public const DELEGATED = 'core.approval.delegated';
 
+    /** H1, M3: a request needs an administrator (its timers stopped). */
+    public const ATTENTION = 'core.approval.attention';
+
     /** Events whose email carries approve and reject links (APR-08). */
     public const ACTIONABLE = [self::REQUESTED, self::REMINDER, self::ESCALATED];
 
@@ -65,6 +68,7 @@ class ApprovalNotices
             self::INFO_REQUESTED => [...self::DOCUMENT, 'decided_by' => 'Juma Mwangi', 'comment' => 'Which supplier is this from?'],
             self::REMINDER => [...self::DOCUMENT, 'due' => '8 Oct 2026, 17:00'],
             self::ESCALATED => [...self::DOCUMENT, 'waiting_for' => 'Juma Mwangi'],
+            self::ATTENTION => [...self::DOCUMENT, 'problem' => 'nobody other than the requester can approve it.'],
             self::DELEGATED => ['delegator_name' => 'Juma Mwangi', 'starts_on' => '12 Oct 2026', 'ends_on' => '16 Oct 2026', 'document_types' => 'Purchase requisition'],
         ];
 
@@ -113,6 +117,12 @@ class ApprovalNotices
         if ($request->requester_id !== null && $request->requester_id !== $by->id) {
             $this->send(self::INFO_REQUESTED, $request, [$request->requester_id], ['decided_by' => $by->name, 'comment' => $message]);
         }
+    }
+
+    /** @param list<string> $adminIds */
+    public function attention(ApprovalRequest $request, array $adminIds, string $problem): void
+    {
+        $this->send(self::ATTENTION, $request, $adminIds, ['problem' => __('approvals.attention.'.$problem)]);
     }
 
     public function delegated(ApprovalDelegation $delegation, User $from): void

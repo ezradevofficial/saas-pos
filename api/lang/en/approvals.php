@@ -72,7 +72,8 @@ return [
         'blocked' => 'Waiting for an approver',
         'auto_approved' => 'Approved automatically at the final time limit',
         'auto_rejected' => 'Rejected automatically at the final time limit',
-        'auto_failed' => 'The automatic decision was refused by the flow',
+        'auto_failed' => 'Reminders and escalation stopped: they could not be processed',
+        'auto_approve_refused' => 'Not approved automatically: nobody independent could approve it',
         'closed' => 'Closed',
     ],
 
@@ -105,6 +106,11 @@ return [
         'attach_forbidden' => 'Only the approvers and the requester can attach files to this approval.',
         'attachment_limit' => 'An approval can have at most :max files.',
         'bulk_not_allowed' => 'This approval needs a reason, so it cannot be approved in bulk. Open it to decide.',
+    ],
+
+    'attention' => [
+        'auto_failed' => 'its reminders or escalation could not be processed, so they were stopped.',
+        'auto_approve_refused' => 'nobody other than the requester can approve it, so it was not approved automatically at the final time limit.',
     ],
 
     'delegations' => [
@@ -183,6 +189,12 @@ return [
             'subject' => 'Escalated: approve {document_type} {document_number}',
             'body' => "Hello {recipient_name},\n\n{document_type} {document_number} {document_title} {amount} was escalated to you: {waiting_for} did not decide in time at the step “{step}”.",
             'sms' => '{app_name}: {document_type} {document_number} was escalated to you.',
+        ],
+        'attention' => [
+            'label' => 'Approval needs an administrator',
+            'subject' => '{document_type} {document_number} needs an administrator',
+            'body' => "Hello {recipient_name},\n\n{document_type} {document_number} {document_title} at the step “{step}” needs your attention: {problem}\n\nOpen it to reassign it or decide what to do.",
+            'sms' => '{app_name}: {document_type} {document_number} needs an administrator.',
         ],
         'delegated' => [
             'label' => 'Approvals delegated to you',

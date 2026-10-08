@@ -43,7 +43,7 @@ class PreferencesApiTest extends TestCase
     {
         $data = $this->getJson('/api/v1/me/notification-preferences', $this->headersFor())->assertOk()->json('data');
         $this->assertSame([
-            'core.approval.decided', 'core.approval.delegated', 'core.approval.escalated', 'core.approval.info_requested',
+            'core.approval.attention', 'core.approval.decided', 'core.approval.delegated', 'core.approval.escalated', 'core.approval.info_requested',
             'core.approval.reminder', 'core.approval.requested', 'core.approval.returned',
             'core.notification.test', 'core.report.ready', 'core.workflow.notify',
         ], array_column($data, 'event_type'));

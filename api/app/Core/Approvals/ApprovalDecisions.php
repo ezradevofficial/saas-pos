@@ -8,6 +8,7 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
+use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -50,7 +51,7 @@ class ApprovalDecisions
     public function decide(ApprovalRequest $request, User $by, string $action, ?string $comment, string $via = 'web'): ApprovalRequest
     {
         return $this->transaction(function () use ($request, $by, $action, $comment, $via) {
-            $request = $this->lock($request);
+            $request = $this->lockOrFail($request);
 
             if (! $request->isPending()) {
                 throw new ApiException(422, 'approval_not_pending', __('approvals.errors.not_pending'));
@@ -200,9 +201,29 @@ class ApprovalDecisions
             ->update(['expires_at' => CarbonImmutable::now(), 'updated_at' => CarbonImmutable::now()]);
     }
 
-    public function lock(ApprovalRequest $request): ApprovalRequest
+    /**
+     * Lock the document's flow row, then the request (M4): the engine locks
+     * the flow row first too, so a decision, a timer and a workflow move on
+     * the same document always queue in the same order and never deadlock.
+     */
+    public function lock(ApprovalRequest|string $request): ?ApprovalRequest
     {
-        return ApprovalRequest::query()->whereKey($request->id)->lockForUpdate()->firstOrFail();
+        $id = $request instanceof ApprovalRequest ? $request->id : $request;
+        $workflowId = ApprovalRequest::query()->whereKey($id)->value('workflow_id');
+
+        if ($workflowId === null) {
+            return null;
+        }
+
+        DocumentWorkflow::query()->whereKey($workflowId)->lockForUpdate()->first();
+
+        return ApprovalRequest::query()->whereKey($id)->lockForUpdate()->first();
+    }
+
+    /** lock(), for a request that must exist. */
+    public function lockOrFail(ApprovalRequest $request): ApprovalRequest
+    {
+        return $this->lock($request) ?? throw new ApiException(404, 'not_found', __('core.errors.not_found'));
     }
 
     public function transaction(callable $fn): mixed

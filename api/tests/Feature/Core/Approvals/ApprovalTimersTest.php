@@ -147,6 +147,52 @@ class ApprovalTimersTest extends TestCase
         $this->assertSame(0, $this->fresh($approval)->escalation_level);
     }
 
+    public function test_one_request_that_fails_never_stops_the_run_and_admins_are_told_once(): void
+    {
+        $graph = $this->approvalGraph([], ['reminders' => [['amount' => 1, 'unit' => 'hours'], ['amount' => 2, 'unit' => 'hours']]]);
+        $broken = $this->submit($graph);
+        $fine = $this->submit($graph, publish: false);
+        // A corrupt stored configuration makes processing it throw (not an ApiException).
+        $this->inTenant(function () use ($broken) {
+            $config = $broken->fresh()->config;
+            $config['reminders'][1] = 'garbage';
+            ApprovalRequest::query()->whereKey($broken->id)->update(['config' => json_encode($config)]);
+        });
+
+        $this->runAt('2026-10-07T08:00:00Z');
+        $this->runAt('2026-10-07T09:00:00Z');
+        $this->runAt('2026-10-07T10:00:00Z');
+
+        $this->assertSame(2, $this->fresh($fine)->reminders_sent);
+        $this->assertSame(['requested', 'auto_failed'], $this->history($broken));
+        $this->assertNull($this->fresh($broken)->next_reminder_at);
+        $this->assertNull($this->fresh($broken)->escalate_at);
+        $this->assertSame(1, $this->notices('core.approval.attention', $this->owner->id));
+        $this->assertSame(1, $this->notices('core.approval.attention', $this->managerA->id));
+        $this->assertSame(0, $this->notices('core.approval.attention', $this->managerB->id));
+    }
+
+    public function test_a_request_nobody_independent_can_approve_is_never_approved_by_timeout(): void
+    {
+        $graph = fn (string $final) => $this->approvalGraph(['approver' => ['type' => 'user', 'user_id' => $this->owner->id]], ['escalation' => [
+            'after' => ['amount' => 1, 'unit' => 'hours'], 'to' => ['type' => 'role', 'role' => 'template:waiter'], 'final' => $final,
+        ]]);
+        $approval = $this->submit($graph('approve'), by: $this->owner);
+        $this->assertSame(ApprovalRequest::BLOCKED_NO_APPROVER, $this->fresh($approval)->blocked_reason);
+
+        $this->runAt('2026-10-07T08:00:00Z');
+        $this->runAt('2026-10-07T09:00:00Z');
+        $this->assertSame(['pending', false], [$this->fresh($approval)->status, $this->fresh($approval)->auto_decided]);
+        $this->assertNull($this->fresh($approval)->escalate_at);
+        $this->assertContains('auto_approve_refused', $this->history($approval));
+        $this->assertSame(1, $this->notices('core.approval.attention', $this->managerA->id));
+
+        // Rejecting by timeout stays allowed.
+        $rejected = $this->submit($graph('reject'), by: $this->owner);
+        $this->runAt('2026-10-07T10:00:00Z');
+        $this->assertSame(['rejected', true], [$this->fresh($rejected)->status, $this->fresh($rejected)->auto_decided]);
+    }
+
     public function test_without_a_target_or_final_the_timers_stop(): void
     {
         $approval = $this->submit($this->approvalGraph([], ['escalation' => ['after' => ['amount' => 1, 'unit' => 'hours'], 'to' => ['type' => 'role', 'role' => 'template:waiter']]]));

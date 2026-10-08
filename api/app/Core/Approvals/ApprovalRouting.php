@@ -180,6 +180,21 @@ class ApprovalRouting
             ->orderBy('name')->orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
     }
 
+    /**
+     * Who to tell when a request needs an administrator (H1, M3): active
+     * holders of `core.approval.reassign` assigned at a place covering the
+     * document, else at tenant scope.
+     *
+     * @return list<string>
+     */
+    public function admins(ApprovalRequest $request): array
+    {
+        $roles = $this->directory->rolesWith(ApprovalAccess::REASSIGN);
+        $chain = $this->scopes->chainOf(ApprovalAccess::scope($request)->scope()) ?? ['tenant:'.$this->tenants->require()];
+
+        return $this->directory->holdersAt($roles, $chain) ?: $this->directory->holdersAt($roles, ['tenant:'.$this->tenants->require()]);
+    }
+
     /** Who the escalation goes to, for people ("the next level's manager", a role or user name), or null without one. */
     public function describeEscalation(ApprovalRequest $request): ?string
     {

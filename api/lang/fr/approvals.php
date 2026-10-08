@@ -72,7 +72,8 @@ return [
         'blocked' => 'En attente d’un approbateur',
         'auto_approved' => 'Approuvé automatiquement au délai final',
         'auto_rejected' => 'Rejeté automatiquement au délai final',
-        'auto_failed' => 'Le circuit a refusé la décision automatique',
+        'auto_failed' => 'Rappels et escalade arrêtés : ils n’ont pas pu être traités',
+        'auto_approve_refused' => 'Non approuvé automatiquement : personne d’indépendant ne pouvait l’approuver',
         'closed' => 'Clôturé',
     ],
 
@@ -105,6 +106,11 @@ return [
         'attach_forbidden' => 'Seuls les approbateurs et le demandeur peuvent joindre des fichiers à cette approbation.',
         'attachment_limit' => 'Une approbation peut avoir au plus :max fichiers.',
         'bulk_not_allowed' => 'Cette approbation demande un motif : elle ne peut pas être approuvée en lot. Ouvrez-la pour décider.',
+    ],
+
+    'attention' => [
+        'auto_failed' => 'ses rappels ou son escalade n’ont pas pu être traités ; ils ont été arrêtés.',
+        'auto_approve_refused' => 'personne d’autre que le demandeur ne peut l’approuver ; elle n’a donc pas été approuvée automatiquement au délai final.',
     ],
 
     'delegations' => [
@@ -183,6 +189,12 @@ return [
             'subject' => 'Escaladé : approuver {document_type} {document_number}',
             'body' => "Bonjour {recipient_name},\n\n{document_type} {document_number} {document_title} {amount} vous a été escaladé : {waiting_for} n’a pas décidé à temps à l’étape « {step} ».",
             'sms' => '{app_name} : {document_type} {document_number} vous a été escaladé.',
+        ],
+        'attention' => [
+            'label' => 'Approbation à traiter par un administrateur',
+            'subject' => '{document_type} {document_number} demande un administrateur',
+            'body' => "Bonjour {recipient_name},\n\n{document_type} {document_number} {document_title} à l’étape « {step} » demande votre attention : {problem}\n\nOuvrez-la pour la réattribuer ou décider de la suite.",
+            'sms' => '{app_name} : {document_type} {document_number} demande un administrateur.',
         ],
         'delegated' => [
             'label' => 'Approbations qui vous sont déléguées',
