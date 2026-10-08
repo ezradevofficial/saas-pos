@@ -5,11 +5,11 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Icon, ListView, Select, StatusBadge } from '@/components/ds'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { useCompanies } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatWhen } from '@/lib/format'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
-import { useTimeZone } from '@/lib/useTimeZone'
 import { ACTION_RESULT_TONES, DELIVERY_TONES, OUTCOME_TONES, RUN_OUTCOMES } from './automationData'
 
 /** An outcome as a dot and a word. */
@@ -63,10 +63,11 @@ function Detail({ label, children }) {
 function RunDrawer({ runId, onClose }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const timeZone = useTimeZone()
+  const { companies } = useCompanies()
   const query = useQuery({ queryKey: ['automation-runs', runId], queryFn: () => api.get(`automation-runs/${runId}`), enabled: Boolean(runId) })
   const run = query.data?.data
-  const when = (value) => (value ? formatWhen(value, locale, timeZone) : '—')
+  // Times in the run's company zone, like the approvals inbox (lib/companyTime).
+  const when = (value) => (value ? formatCompanyTime(value, locale, companies.find((company) => company.id === run?.company_id)) : '—')
 
   return (
     <Sheet open={Boolean(runId)} onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -152,12 +153,12 @@ function RunDrawer({ runId, onClose }) {
 export function RunsList({ ruleId, rules = [] }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const timeZone = useTimeZone()
+  const { companies } = useCompanies()
   const [searchParams, setSearchParams] = useSearchParams()
   const open = searchParams.get('run')
 
   const columns = [
-    { key: 'created_at', label: t('automation.runs.columns.time'), sortKey: 'created_at', hideable: false, render: (row) => <span className="tabular-nums">{formatWhen(row.created_at, locale, timeZone)}</span> },
+    { key: 'created_at', label: t('automation.runs.columns.time'), sortKey: 'created_at', hideable: false, render: (row) => <span className="tabular-nums">{formatCompanyTime(row.created_at, locale, companies.find((company) => company.id === row.company_id))}</span> },
     ...(ruleId ? [] : [{ key: 'rule', label: t('automation.runs.columns.rule'), render: (row) => <span className="font-medium text-ink">{row.rule_name}</span> }]),
     { key: 'trigger', label: t('automation.runs.columns.trigger'), sortKey: 'trigger_type', render: (row) => t(`automation.triggers.${row.trigger_type}`, { defaultValue: row.trigger_type }) },
     {

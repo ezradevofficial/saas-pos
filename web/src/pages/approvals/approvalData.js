@@ -3,7 +3,7 @@
 // to, and times shown in the company's time zone.
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
-import { formatDateTime } from '@/lib/dates'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { useDebounced } from '@/lib/useDebounced'
 
 /**
@@ -53,43 +53,8 @@ export function peopleOptions(people, { exclude = [] } = {}) {
   return people.filter((person) => !exclude.includes(person.id)).map((person) => ({ value: person.id, label: person.name ?? person.id }))
 }
 
-/** The browser's time zone, or null where Intl cannot say. */
-function browserZone() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
-  } catch {
-    return null
-  }
-}
-
-/** "EAT", "WAT" (or "GMT+1"): the zone's short name at `value`. */
-function zoneName(value, timeZone, locale) {
-  try {
-    const parts = new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, { timeZone, timeZoneName: 'short' }).formatToParts(new Date(value))
-    return parts.find((part) => part.type === 'timeZoneName')?.value ?? null
-  } catch {
-    return null
-  }
-}
-
-/**
- * An instant in the request's company time zone, labelled with the zone's
- * short name when it differs from the browser's ("8 Oct 2026, 17:00 EAT").
- */
-export function formatCompanyTime(value, locale, company) {
-  if (!value) return null
-  const zone = company?.timezone
-  if (!zone) return formatDateTime(value, locale)
-  let text
-  try {
-    text = formatDateTime(value, locale, zone)
-  } catch {
-    return formatDateTime(value, locale)
-  }
-  if (zone === browserZone()) return text
-  const name = zoneName(value, zone, locale)
-  return name ? `${text} ${name}` : text
-}
+/** An instant in the request's company time zone (the app's convention, see lib/companyTime). */
+export { formatCompanyTime }
 
 /** Each tab and the API parameters it sends (APR-04). */
 export const TABS = {
