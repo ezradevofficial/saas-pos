@@ -71,6 +71,23 @@ final class ExportValues
         return ($negative ? '-' : '').$text;
     }
 
+    /**
+     * A decimal string (a rate, a percentage) without floats, grouped, its
+     * trailing zeros dropped: "2850.50000000" => "2,850.5" / "2 850,5".
+     */
+    public function decimal(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        [$whole, $fraction] = explode('.', $value, 2) + [1 => ''];
+        $fraction = rtrim($fraction, '0');
+        $text = $this->integer($whole === '' || $whole === '-' ? $whole.'0' : $whole);
+
+        return $fraction === '' ? $text : $text.$this->decimalMark.$fraction;
+    }
+
     /** A whole number with the language's grouping: 12,450 / 12 450. */
     public function integer(int|string|null $value): ?string
     {

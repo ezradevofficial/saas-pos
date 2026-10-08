@@ -5,12 +5,13 @@ namespace App\Core\Currency\Http\Controllers;
 use App\Core\Currency\Currencies;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\CurrencyUsage;
-use App\Core\Currency\Http\Requests\CurrencyViewRequest;
+use App\Core\Currency\Http\Requests\ListTenantCurrenciesRequest;
 use App\Core\Currency\Http\Requests\StoreTenantCurrencyRequest;
 use App\Core\Currency\Http\Requests\UpdateTenantCurrencyRequest;
 use App\Core\Currency\Http\Resources\TenantCurrencyResource;
 use App\Core\Currency\Models\CompanyCurrency;
 use App\Core\Currency\Models\TenantCurrency;
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -18,6 +19,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * CUR-01: the currencies the tenant uses. Row-level security limits every
@@ -30,9 +32,26 @@ class TenantCurrencyController
         private readonly CurrencyUsage $usage,
     ) {}
 
-    public function index(CurrencyViewRequest $request): AnonymousResourceCollection
+    public function index(ListTenantCurrenciesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        return TenantCurrencyResource::collection(TenantCurrency::query()->orderBy('code')->get());
+        $query = TenantCurrency::query();
+        $search = trim((string) $request->validated('search', ''));
+
+        if ($search !== '') {
+            // The code, or the name in the reader's language (names come from ICU, not the table).
+            $named = TenantCurrency::query()->pluck('code')
+                ->filter(fn (string $code) => mb_stripos($this->catalogue->name($code), $search) !== false)->values()->all();
+            $query->where(fn ($q) => $q->where('code', 'ilike', '%'.addcslashes($search, '\\%_').'%')->orWhereIn('code', $named));
+        }
+
+        $request->applySort($query);
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        // Every currency unless paging is asked for (ListTenantCurrenciesRequest).
+        return TenantCurrencyResource::collection($request->wantsPage() ? $query->paginate($request->perPage())->withQueryString() : $query->get());
     }
 
     public function store(StoreTenantCurrencyRequest $request): TenantCurrencyResource

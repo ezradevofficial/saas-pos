@@ -51,6 +51,20 @@ return [
 
     // CUR-01, CUR-02 : devises.
     'currency' => [
+        // EXP-01 : la liste des devises de l’organisation et son export.
+        'list_title' => 'Devises utilisées',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Devise',
+            'decimals' => 'Décimales',
+            'cash_rounding' => 'Arrondi espèces',
+            'status' => 'Statut',
+            'updated_at' => 'Modifiée le',
+        ],
+        'statuses' => [
+            'active' => 'Activée',
+            'inactive' => 'Désactivée',
+        ],
         'base_currency_locked' => 'La devise de base de cette société est verrouillée, car des montants y ont déjà été comptabilisés.',
         'too_many_reporting_currencies' => 'Une société peut avoir au plus :max devises de présentation. Retirez-en une avant d’en ajouter une autre.',
         'decimals_locked' => 'Des montants dans cette devise sont déjà enregistrés : ses décimales ne peuvent plus changer.',
@@ -71,6 +85,36 @@ return [
 
     // CUR-03, CUR-06, CUR-07 : taux de change.
     'exchange_rate' => [
+        // EXP-01 : l’historique des taux et son export.
+        'list_title' => 'Taux de change de :company',
+        'columns' => [
+            'pair' => 'Paire de devises',
+            'effective_at' => 'En vigueur',
+            'kind' => 'Type',
+            'mid' => 'Taux',
+            'buy' => 'Achat',
+            'sell' => 'Vente',
+            'direction' => 'Sens',
+            'source' => 'Source',
+            'created_at' => 'Saisi le',
+            'from' => 'Du',
+            'to' => 'Au',
+        ],
+        'kinds' => [
+            'reference' => 'Référence',
+            'shop' => 'Boutique',
+        ],
+        'directions' => [
+            'direct' => 'Dans ce sens',
+            'inverse' => 'Sens inverse',
+        ],
+        'sources' => [
+            'manual' => 'Saisi à la main',
+            'bcc' => 'Banque Centrale du Congo',
+            'cbk' => 'Banque centrale du Kenya',
+            'fake' => 'Flux de test',
+            'feed' => 'Flux de taux',
+        ],
         'unavailable' => 'Aucun taux de change de :from vers :to. Saisissez d’abord un taux boutique.',
         'invalid_rate' => 'Saisissez le :attribute sous forme de nombre supérieur à zéro, avec au plus 10 chiffres avant la virgule et 8 après, par exemple 2850.5.',
         'same_currency' => 'Choisissez deux devises différentes.',

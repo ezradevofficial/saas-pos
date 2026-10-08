@@ -2,16 +2,31 @@
 
 namespace App\Core\Currency\Http\Requests;
 
+use App\Core\Currency\Http\Lists\ExchangeRateList;
+use App\Core\Lists\Http\SortsAndExports;
+use App\Core\Lists\ListDefinition;
+
 /**
  * CUR-03: the rate history, newest first: `?pair=USD/CDF` (stored either
  * way; each row's `direction` says which),
  * `?from=` and `?to=` (dates, in the company's time zone; `to` may also be
  * an ISO 8601 instant with its offset, e.g. now, to leave out rates that
  * take effect later the same day), `?kind=` reference or shop,
- * `?per_page` (50, at most 200).
+ * `?per_page` (50, at most 200), `?sort` (newest first by default) and
+ * an export (`?format`, `?columns[]`; ExchangeRateList, EXP-01). No text
+ * search: `?pair` and `?kind` are the list's filters.
  */
 class ListExchangeRatesRequest extends ExchangeRateRequest
 {
+    use SortsAndExports;
+
+    private ?ExchangeRateList $definition = null;
+
+    public function list(): ListDefinition
+    {
+        return $this->definition ??= new ExchangeRateList($this->route('company'));
+    }
+
     public const PER_PAGE = 50;
 
     public const MAX_PER_PAGE = 200;
@@ -22,6 +37,7 @@ class ListExchangeRatesRequest extends ExchangeRateRequest
     public function rules(): array
     {
         return [
+            ...$this->sortAndExportRules(),
             'pair' => ['sometimes', 'string', 'regex:/^[A-Z]{3}\/[A-Z]{3}\z/'],
             'from' => ['sometimes', 'date_format:Y-m-d'],
             'to' => ['sometimes', 'string', 'regex:'.self::TO_PATTERN, 'date', 'after_or_equal:from'],

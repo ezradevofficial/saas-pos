@@ -587,6 +587,8 @@ class TenantIsolationTest extends TestCase
             'auth/sessions' => [],
             'roles?status=all' => ['Clerk A', 'Branch Manager'],
             "users/{$a->id('manager')}/assignments" => ['Clerk A', 'Outlet A'],
+            "companies/{$a->id('company')}/exchange-rates" => ['USD/KES', '129.5', '140'],
+            'tenant/currencies' => ['KES', 'USD'],
         ];
     }
 

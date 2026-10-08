@@ -51,6 +51,20 @@ return [
 
     // CUR-01, CUR-02: currencies.
     'currency' => [
+        // EXP-01: the tenant's currencies list and its export.
+        'list_title' => 'Currencies in use',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Currency',
+            'decimals' => 'Decimals',
+            'cash_rounding' => 'Cash rounding',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'statuses' => [
+            'active' => 'On',
+            'inactive' => 'Off',
+        ],
         'base_currency_locked' => 'This company’s base currency is locked because amounts have already been posted in it.',
         'too_many_reporting_currencies' => 'A company can have at most :max reporting currencies. Remove one before adding another.',
         'decimals_locked' => 'Amounts in this currency are already stored, so its decimals can’t change.',
@@ -71,6 +85,36 @@ return [
 
     // CUR-03, CUR-06, CUR-07: exchange rates.
     'exchange_rate' => [
+        // EXP-01: the rate history list and its export.
+        'list_title' => 'Exchange rates of :company',
+        'columns' => [
+            'pair' => 'Currency pair',
+            'effective_at' => 'Effective',
+            'kind' => 'Kind',
+            'mid' => 'Rate',
+            'buy' => 'Buy',
+            'sell' => 'Sell',
+            'direction' => 'Direction',
+            'source' => 'Source',
+            'created_at' => 'Entered',
+            'from' => 'From',
+            'to' => 'To',
+        ],
+        'kinds' => [
+            'reference' => 'Reference',
+            'shop' => 'Shop',
+        ],
+        'directions' => [
+            'direct' => 'As listed',
+            'inverse' => 'Inverse',
+        ],
+        'sources' => [
+            'manual' => 'Entered by hand',
+            'bcc' => 'Central Bank of the Congo',
+            'cbk' => 'Central Bank of Kenya',
+            'fake' => 'Test feed',
+            'feed' => 'Rate feed',
+        ],
         'unavailable' => 'There is no exchange rate from :from to :to. Enter a shop rate first.',
         'invalid_rate' => 'Enter the :attribute as a number above zero with at most 10 digits before the point and 8 after, for example 2850.5.',
         'same_currency' => 'Choose two different currencies.',
