@@ -53,7 +53,7 @@ If you used an earlier `docker-compose.yml` that made `app` the container superu
 
 ```sh
 cd api
-composer setup          # install, .env from .env.example, key, migrate as app_owner, sync permissions
+composer setup          # install, .env from .env.example, key, migrate as app_owner, sync catalogues, load country packs and holidays
 ```
 
 To rebuild the database from scratch later:
@@ -180,7 +180,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `NOTIFICATIONS_PUSH_DRIVER`, `NOTIFICATIONS_SMS_DRIVER`, `NOTIFICATIONS_WHATSAPP_DRIVER` empty (channel unavailable), `none` or a real provider, never `fake`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync` and `country-packs:publish`)
+- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync`, `country-packs:publish` and `country-packs:holidays`)
 - [ ] a queue worker running (`php artisan queue:work` or Horizon)
 - [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
 
@@ -196,11 +196,12 @@ Each deploy:
 8. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles, each on the runtime connection under row-level security (ADR 006)
 9. runs `php artisan currencies:sync` (as the owner): upserts the ISO 4217 currency catalogue from ICU (CDF overridden to 0 decimals), then gives each tenant's companies their country's currencies where missing, under row-level security (ADR 003)
 10. runs `php artisan country-packs:publish KE` and `CD` (as the owner): loads `api/country-packs/{KE,CD}/pack.json` as a new pack version when the content changed, a no-op otherwise (CP-01, CP-03). New companies get the pack's tax codes; existing ones add missing codes with `POST companies/{company}/tax-codes/apply-pack`
-11. runs `php artisan uoms:seed-defaults`: gives every tenant that lacks them the default units of measure (EA, KG, G, L, ML, M, BOX, PACK), under row-level security (MD-02). New tenants get them at sign-up.
-12. runs `php artisan payment-methods:seed-defaults`: gives every active company the default payment methods it never had (cash in each of its country's currencies, the country's mobile money wallets and a card method, the last two switched off until configured), under row-level security (MD-04). An entry a company archived is never added again. New companies get them when created.
-13. caches config and routes
-14. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
-15. `php artisan up`, only when every step above succeeded
+11. runs `php artisan country-packs:holidays KE` and `CD` (as the owner): replaces each country's public holidays from `api/country-packs/{KE,CD}/holidays.json`, so running it again is safe. Business-hours timers (WF-09, APR-05) skip these days. Movable holidays listed in the file's `todo` are printed and never guessed.
+12. runs `php artisan uoms:seed-defaults`: gives every tenant that lacks them the default units of measure (EA, KG, G, L, ML, M, BOX, PACK), under row-level security (MD-02). New tenants get them at sign-up.
+13. runs `php artisan payment-methods:seed-defaults`: gives every active company the default payment methods it never had (cash in each of its country's currencies, the country's mobile money wallets and a card method, the last two switched off until configured), under row-level security (MD-04). An entry a company archived is never added again. New companies get them when created.
+14. caches config and routes
+15. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+16. `php artisan up`, only when every step above succeeded
 
 #### Media storage
 

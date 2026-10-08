@@ -123,7 +123,9 @@ jobs:
       # running as the RLS-bound role. permissions:sync upserts the
       # permission catalogue (RBAC-01); currencies:sync upserts the ISO 4217
       # catalogue from ICU (CUR-01); country-packs:publish loads the KE and
-      # CD pack files as new versions when they changed (CP-01, CP-03).
+      # CD pack files as new versions when they changed (CP-01, CP-03);
+      # country-packs:holidays replaces each country's public holidays from
+      # its holidays.json, so re-running it is safe (CP-01, WF-09, APR-05).
       # Horizon is restarted when installed,
       # plain queue workers otherwise.
       # Any failure stops here with the API still in maintenance. See
@@ -151,6 +153,8 @@ jobs:
           php artisan currencies:sync
           php artisan country-packs:publish KE
           php artisan country-packs:publish CD
+          php artisan country-packs:holidays KE
+          php artisan country-packs:holidays CD
           php artisan uoms:seed-defaults
           php artisan payment-methods:seed-defaults
           php artisan config:cache

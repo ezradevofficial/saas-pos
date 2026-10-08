@@ -54,7 +54,9 @@
             "@php artisan permissions:sync",
             "@php artisan currencies:sync",
             "@php artisan country-packs:publish KE",
-            "@php artisan country-packs:publish CD"
+            "@php artisan country-packs:publish CD",
+            "@php artisan country-packs:holidays KE",
+            "@php artisan country-packs:holidays CD"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
