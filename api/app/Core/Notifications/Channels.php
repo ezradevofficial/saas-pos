@@ -23,6 +23,9 @@ final class Channels
     /** Channels whose default text is the short one (`sms` in the language file). */
     public const SHORT = [self::SMS, self::WHATSAPP];
 
+    /** Longest text for SMS and WhatsApp (about three SMS parts); longer rendered text is cut. */
+    public const SHORT_MAX = 480;
+
     /** A template override that applies to every channel without its own (NOT-03). */
     public const ANY = 'all';
 

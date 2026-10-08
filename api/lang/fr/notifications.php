@@ -22,6 +22,7 @@ return [
     'statuses' => [
         'all' => 'Tous',
         'queued' => 'En file d’attente',
+        'sending' => 'Envoi en cours',
         'sent' => 'Envoyé',
         'delivered' => 'Remis',
         'failed' => 'Échec',
@@ -41,6 +42,12 @@ return [
         'no_email' => 'L’utilisateur n’a pas d’adresse e-mail vérifiée.',
         'no_phone' => 'L’utilisateur n’a pas de numéro de téléphone vérifié.',
         'channel_unavailable' => 'Ce canal n’est pas encore configuré.',
+        'user_deactivated' => 'L’utilisateur n’est plus actif.',
+    ],
+
+    'delivery_errors' => [
+        'send_failed' => 'Le serveur de messagerie ou le fournisseur a refusé ou n’a pas répondu.',
+        'job_failed' => 'L’envoi s’est arrêté de façon inattendue.',
     ],
 
     'template_sources' => [
@@ -83,6 +90,7 @@ return [
     ],
 
     'errors' => [
+        'subject_line_break' => 'Un objet tient sur une ligne. Supprimez les retours à la ligne.',
         'unknown_placeholders' => 'Ce texte utilise des champs que cette notification n’a pas : :placeholders. Utilisez uniquement : :allowed.',
         'unknown_event_type' => 'Il n’existe pas de type de notification « :event ». Choisissez-en un dans la liste.',
         'channel_not_offered' => '« :event » n’est pas envoyé par :channel. Choisissez un autre canal.',

@@ -65,6 +65,22 @@ trait NotificationRules
         };
     }
 
+    /** A subject is one line: no line breaks (they could split mail headers). */
+    protected function subjectRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) {
+            if (is_string($value) && preg_match('/[\r\n]/', $value) === 1) {
+                $fail(__('notifications.errors.subject_line_break'));
+            }
+        };
+    }
+
+    /** NOT-01: SMS and WhatsApp texts are short; other channels allow 5000 characters. */
+    protected function bodyMax(mixed $channel): string
+    {
+        return 'max:'.(in_array($channel, Channels::SHORT, true) ? Channels::SHORT_MAX : 5000);
+    }
+
     /** @return array<string, string> */
     protected function notificationAttributes(): array
     {

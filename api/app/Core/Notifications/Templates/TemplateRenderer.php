@@ -44,6 +44,18 @@ final class TemplateRenderer
         }, $template);
     }
 
+    /** One line: runs of whitespace (line breaks too) become one space. */
+    public static function oneLine(string $text): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', $text));
+    }
+
+    /** At most $max characters (never splitting a character), ending in an ellipsis when cut. */
+    public static function truncate(string $text, int $max): string
+    {
+        return mb_strlen($text) <= $max ? $text : rtrim(mb_substr($text, 0, $max - 1)).'…';
+    }
+
     /** Rendered plain text as HTML: escaped, line breaks kept. */
     public static function toHtml(string $text): string
     {

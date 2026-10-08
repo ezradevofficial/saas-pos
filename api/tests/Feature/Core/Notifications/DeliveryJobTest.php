@@ -9,6 +9,7 @@ use App\Core\Notifications\Models\NotificationPreference;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Tests\Concerns\BuildsNotifications;
@@ -62,13 +63,16 @@ class DeliveryJobTest extends TestCase
         $this->smsOnly();
         $this->fakeDriver('sms')->failNext(5, 'Gateway timeout');
 
+        Log::spy();
         $this->sendTest([$this->owner]);
 
+        Log::shouldHaveReceived('warning')->with('Notification delivery attempt failed', \Mockery::on(fn ($context) => $context['error'] === 'RuntimeException: Gateway timeout'))->times(3);
         $this->inTenant(function () {
             $delivery = NotificationDelivery::sole();
             $this->assertSame('failed', $delivery->status);
             $this->assertSame(3, $delivery->attempts);
-            $this->assertSame('RuntimeException: Gateway timeout', $delivery->error);
+            // A safe code on the row; the raw error goes to the log only.
+            $this->assertSame('send_failed', $delivery->error);
             $this->assertNotNull($delivery->failed_at);
             $this->assertNull($delivery->sent_at);
         });
@@ -108,7 +112,7 @@ class DeliveryJobTest extends TestCase
 
         $this->inTenant(function () {
             $email = NotificationDelivery::where('channel', 'email')->sole();
-            $this->assertSame(['failed', 3, 'RuntimeException: SMTP down'], [$email->status, $email->attempts, $email->error]);
+            $this->assertSame(['failed', 3, 'send_failed'], [$email->status, $email->attempts, $email->error]);
             $this->assertSame('delivered', NotificationDelivery::where('channel', 'in_app')->sole()->status);
         });
     }
@@ -180,8 +184,86 @@ class DeliveryJobTest extends TestCase
 
         (new SendDelivery($this->owner->tenant_id, $delivery->id))->failed(new RuntimeException('Worker timed out'));
 
-        $this->inTenant(fn () => $this->assertSame(['failed', 'Worker timed out'], [$delivery->fresh()->status, $delivery->fresh()->error]));
+        $this->inTenant(fn () => $this->assertSame(['failed', 'job_failed'], [$delivery->fresh()->status, $delivery->fresh()->error]));
         $this->assertNull(app(TenantContext::class)->id());
+    }
+
+    public function test_a_delivery_is_claimed_once_and_only_a_stale_claim_is_taken_again(): void
+    {
+        $this->smsOnly();
+        Bus::fake([SendDelivery::class]);
+        $this->sendTest([$this->owner]);
+        $delivery = $this->inTenant(fn () => NotificationDelivery::sole());
+        // Another worker claimed it a minute ago and is sending.
+        $this->inTenant(fn () => NotificationDelivery::whereKey($delivery->id)->update(['status' => 'sending', 'attempts' => 1, 'updated_at' => now()->subMinute()]));
+
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $delivery->id));
+        $this->assertCount(0, $this->fakeDriver('sms')->sent);
+
+        // That worker died: after the timeout the claim is taken again.
+        $this->inTenant(fn () => NotificationDelivery::whereKey($delivery->id)->update(['updated_at' => now()->subMinutes(SendDelivery::CLAIM_TIMEOUT_MINUTES + 1)]));
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $delivery->id));
+
+        $this->assertCount(1, $this->fakeDriver('sms')->sent);
+        $this->inTenant(fn () => $this->assertSame(['delivered', 2], [$delivery->fresh()->status, $delivery->fresh()->attempts]));
+    }
+
+    public function test_a_failure_after_a_successful_hand_over_never_sends_again(): void
+    {
+        $this->smsOnly();
+        Bus::fake([SendDelivery::class]);
+        $this->sendTest([$this->owner]);
+        $delivery = $this->inTenant(fn () => NotificationDelivery::sole());
+        NotificationDelivery::saving(function (NotificationDelivery $row) {
+            if ($row->status === 'delivered') {
+                throw new RuntimeException('Database went away');
+            }
+        });
+
+        try {
+            $this->runJob(new SendDelivery($this->owner->tenant_id, $delivery->id));
+            $this->fail('the failure after sending surfaces to the worker');
+        } catch (RuntimeException $e) {
+            $this->assertSame('Database went away', $e->getMessage());
+        }
+
+        // Not retried by the job, and a second job finds it claimed.
+        Bus::assertNotDispatched(SendDelivery::class, fn (SendDelivery $job) => $job->delay !== null);
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $delivery->id));
+        $this->assertCount(1, $this->fakeDriver('sms')->sent);
+        $this->inTenant(fn () => $this->assertSame('sending', $delivery->fresh()->status));
+    }
+
+    public function test_the_recipient_is_checked_again_when_sending(): void
+    {
+        $this->smsOnly();
+        Bus::fake([SendDelivery::class]);
+        $colleague = $this->reachableColleague();
+        $this->inTenant(fn () => NotificationPreference::create([
+            'user_id' => $colleague->id, 'event_type' => 'core.notification.test', 'channels' => ['in_app' => false, 'sms' => true],
+        ]));
+        $this->sendTest([$this->owner, $colleague]);
+        $rows = $this->inTenant(fn () => NotificationDelivery::orderBy('channel')->get());
+        $ownerSms = $rows->first(fn ($d) => $d->user_id === $this->owner->id);
+        $colleagueEmail = $rows->first(fn ($d) => $d->user_id === $colleague->id && $d->channel === 'email');
+        $colleagueSms = $rows->first(fn ($d) => $d->user_id === $colleague->id && $d->channel === 'sms');
+
+        $this->inTenant(function () use ($colleague) {
+            $this->owner->forceFill(['phone_verified_at' => null])->save();
+            $colleague->forceFill(['email' => 'new-address@example.com'])->save();
+        });
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $ownerSms->id));
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $colleagueEmail->id));
+        $this->inTenant(fn () => $colleague->forceFill(['status' => 'deactivated'])->save());
+        $this->runJob(new SendDelivery($this->owner->tenant_id, $colleagueSms->id));
+
+        $this->inTenant(function () use ($ownerSms, $colleagueEmail, $colleagueSms) {
+            $this->assertSame(['skipped', 'no_phone'], [$ownerSms->fresh()->status, $ownerSms->fresh()->reason]);
+            $this->assertSame(['skipped', 'no_email'], [$colleagueEmail->fresh()->status, $colleagueEmail->fresh()->reason]);
+            $this->assertSame(['skipped', 'user_deactivated'], [$colleagueSms->fresh()->status, $colleagueSms->fresh()->reason]);
+        });
+        Mail::assertNothingSent();
+        $this->assertCount(0, $this->fakeDriver('sms')->sent);
     }
 
     /** Run a job as the worker does: through its middleware (TenantAware). */

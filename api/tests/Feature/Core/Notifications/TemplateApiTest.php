@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Notifications;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Notifications\Models\NotificationPreference;
 use App\Core\Notifications\Models\NotificationTemplate;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Mail;
@@ -106,6 +107,41 @@ class TemplateApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('channel');
 
         $this->getJson('/api/v1/notification-templates/core.report.ready', $this->headersFor())->assertOk()->assertJsonCount(6, 'data.templates');
+    }
+
+    public function test_sms_texts_are_short_and_subjects_are_one_line(): void
+    {
+        $put = fn (array $body) => $this->putJson('/api/v1/notification-templates', $body + ['event_type' => self::EVENT, 'locale' => 'en'], $this->headersFor());
+
+        $put(['channel' => 'sms', 'body' => str_repeat('x', 481)])->assertUnprocessable()->assertJsonValidationErrors('body');
+        $put(['channel' => 'whatsapp', 'body' => str_repeat('x', 481)])->assertUnprocessable()->assertJsonValidationErrors('body');
+        $put(['channel' => 'sms', 'body' => str_repeat('x', 480)])->assertOk();
+        $put(['channel' => 'email', 'body' => 'x', 'subject' => "Line one\r\nBcc: someone@example.com"])->assertUnprocessable()
+            ->assertJsonPath('errors.subject.0', 'A subject is one line. Remove the line breaks.');
+        $put(['channel' => 'email', 'body' => 'x', 'subject' => "Line one\nLine two"])->assertUnprocessable()->assertJsonValidationErrors('subject');
+        $this->postJson('/api/v1/notification-templates/preview', ['event_type' => self::EVENT, 'channel' => 'sms', 'locale' => 'en', 'body' => str_repeat('x', 481)], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('body');
+    }
+
+    public function test_a_long_text_for_all_channels_is_cut_on_sms_and_values_never_break_the_subject(): void
+    {
+        $this->putJson('/api/v1/notification-templates', [
+            'event_type' => self::EVENT, 'channel' => 'all', 'locale' => 'en', 'subject' => 'From {sender_name}', 'body' => str_repeat('é', 600).' {message}',
+        ], $this->headersFor())->assertOk();
+        $this->inTenant(function () {
+            $this->owner->forceFill(['phone' => '+254722000999', 'phone_verified_at' => now()])->save();
+            NotificationPreference::create(['user_id' => $this->owner->id, 'event_type' => self::EVENT, 'channels' => ['sms' => true]]);
+        });
+
+        $this->sendTest([$this->owner], ['sender_name' => "Amina\r\nBcc: x@example.com"]);
+
+        $sms = $this->fakeDriver('sms')->sent[0]->body;
+        $this->assertSame(480, mb_strlen($sms));
+        $this->assertStringEndsWith('é…', $sms);
+        $this->inTenant(function () {
+            $this->assertSame(600 + 1 + strlen('Stock count at 5 pm.'), mb_strlen(InAppNotification::sole()->body), 'other channels keep the full text');
+            $this->assertSame('From Amina Bcc: x@example.com', InAppNotification::sole()->subject);
+        });
     }
 
     public function test_preview_renders_sample_values_escaped_for_html(): void

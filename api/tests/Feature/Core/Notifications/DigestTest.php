@@ -12,6 +12,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsNotifications;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -139,6 +140,55 @@ class DigestTest extends TestCase
             $this->assertSame(['skipped', 'no_email'], [$digest->status, $digest->reason]);
             $this->assertSame(0, NotificationDelivery::where('status', 'pending_digest')->count());
         });
+    }
+
+    public function test_a_deactivated_users_held_emails_are_skipped_not_digested(): void
+    {
+        $colleague = $this->reachableColleague();
+        $this->digestFor($colleague, 'daily');
+        $this->sendAt('2026-10-08T05:00:00Z', [$colleague], 'Item');
+        $this->inTenant(fn () => $colleague->forceFill(['status' => 'deactivated'])->save());
+
+        $this->assertSame(0, $this->runDigests('2026-10-09T04:30:00Z'));
+
+        Mail::assertNothingSent();
+        $this->inTenant(function () {
+            $this->assertSame(0, NotificationDelivery::where('event_type', 'core.notification.digest')->count());
+            $item = NotificationDelivery::where('channel', 'email')->sole();
+            $this->assertSame(['skipped', 'user_deactivated'], [$item->status, $item->reason]);
+        });
+    }
+
+    public function test_items_another_run_has_taken_are_never_digested_twice(): void
+    {
+        $this->digestFor($this->owner, 'daily');
+        $this->sendAt('2026-10-08T05:00:00Z', [$this->owner], 'One');
+        $this->sendAt('2026-10-08T06:00:00Z', [$this->owner], 'Two');
+        // A concurrent run takes one of the items between this run's read and its lock.
+        $taken = false;
+        NotificationDelivery::retrieved(function (NotificationDelivery $item) use (&$taken) {
+            if (! $taken && $item->status === 'pending_digest') {
+                $taken = true;
+                NotificationDelivery::query()->whereKey($item->id)->update(['status' => 'digested']);
+            }
+        });
+
+        $this->assertSame(0, $this->runDigests('2026-10-09T04:30:00Z'));
+
+        Mail::assertNothingSent();
+        $this->inTenant(function () {
+            $this->assertSame(0, NotificationDelivery::where('event_type', 'core.notification.digest')->count());
+            $this->assertSame(1, NotificationDelivery::where('status', 'pending_digest')->count(), 'the rest waits for the next run');
+        });
+    }
+
+    public function test_digest_runs_are_unique_per_tenant(): void
+    {
+        $job = new SendDigests($this->owner->tenant_id, now()->toIso8601String());
+
+        $this->assertInstanceOf(ShouldBeUnique::class, $job);
+        $this->assertSame($this->owner->tenant_id, $job->uniqueId());
+        $this->assertSame(3600, $job->uniqueFor);
     }
 
     public function test_the_digest_job_runs_in_its_tenant_only(): void

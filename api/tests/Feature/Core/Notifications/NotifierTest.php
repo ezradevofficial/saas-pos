@@ -16,6 +16,7 @@ use App\Core\Notifications\Notifier;
 use App\Core\Notifications\UnknownEventType;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Tenancy\TenantContextMissing;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 use Tests\Concerns\BuildsNotifications;
@@ -200,6 +201,28 @@ class NotifierTest extends TestCase
         $this->assertFalse(method_exists($this->owner, 'readNotifications'));
         $this->assertFalse(method_exists($this->owner, 'unreadNotifications'));
         $this->assertTrue(method_exists($this->owner, 'notify'));
+    }
+
+    public function test_only_relative_app_paths_are_kept_as_links(): void
+    {
+        Log::spy();
+
+        foreach (['https://evil.example/login', '//evil.example/x', '/\\evil.example', 'javascript:alert(1)', 'approvals/1', '/a b'] as $link) {
+            $this->sendTest([$this->owner], link: $link);
+        }
+        $this->sendTest([$this->owner], link: '/approvals/42?tab=history');
+
+        $this->inTenant(fn () => $this->assertSame(['/approvals/42?tab=history'], InAppNotification::whereNotNull('link')->pluck('link')->all()));
+        Log::shouldHaveReceived('warning')->with('Notification link dropped: only relative app paths are allowed', \Mockery::any())->times(6);
+        Mail::assertSent(NotificationMail::class, function (NotificationMail $mail) {
+            $html = $mail->render();
+            $this->assertStringNotContainsString('evil.example', $html);
+            $this->assertStringNotContainsString('javascript:', $html);
+
+            return true;
+        });
+        $this->assertNull(NotificationMail::absolute('https://evil.example'));
+        $this->assertNull(NotificationMail::absolute('//evil.example'));
     }
 
     public function test_an_unknown_event_type_or_no_tenant_is_refused(): void

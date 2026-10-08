@@ -12,4 +12,4 @@ Artisan::command('inspire', function () {
 Schedule::command('exchange-rates:fetch')->dailyAt('06:30')->withoutOverlapping();
 
 // NOT-05: notification digests, sent at the digest hour in each user's time zone.
-Schedule::command('notifications:send-digests')->hourly()->withoutOverlapping();
+Schedule::command('notifications:send-digests')->hourly()->withoutOverlapping()->onOneServer();

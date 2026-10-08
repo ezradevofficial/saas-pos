@@ -19,7 +19,7 @@ return new class extends Migration
 {
     public const CHANNELS = ['in_app', 'email', 'push', 'sms', 'whatsapp'];
 
-    public const STATUSES = ['queued', 'sent', 'delivered', 'failed', 'skipped', 'pending_digest', 'digested'];
+    public const STATUSES = ['queued', 'sending', 'sent', 'delivered', 'failed', 'skipped', 'pending_digest', 'digested'];
 
     public function up(): void
     {

@@ -39,7 +39,9 @@ class DeliveryResource extends JsonResource
             'digest' => $this->digest,
             'digest_id' => $this->digest_id,
             'attempts' => $this->attempts,
+            // A safe code; the raw provider error is only in the log.
             'error' => $this->error,
+            'error_label' => $this->error === null ? null : __('notifications.delivery_errors.'.$this->error),
             'next_attempt_at' => $this->next_attempt_at?->toIso8601String(),
             'sent_at' => $this->sent_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),

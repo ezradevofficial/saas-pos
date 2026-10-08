@@ -2,6 +2,7 @@
 
 namespace App\Core\Notifications\Mail;
 
+use App\Core\Notifications\Notifier;
 use App\Core\Notifications\Templates\TemplateRenderer;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -41,15 +42,11 @@ class NotificationMail extends Mailable
         );
     }
 
-    /** A path in the web app becomes a full URL; a full URL is kept. */
+    /** A path in the web app becomes a full URL; anything else is dropped (Notifier::safeLink). */
     public static function absolute(?string $link): ?string
     {
-        if ($link === null || $link === '') {
+        if (Notifier::safeLink($link) === null) {
             return null;
-        }
-
-        if (preg_match('#^https?://#i', $link) === 1) {
-            return $link;
         }
 
         return rtrim((string) config('app.frontend_url'), '/').'/'.ltrim($link, '/');

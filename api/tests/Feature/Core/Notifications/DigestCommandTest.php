@@ -51,5 +51,7 @@ class DigestCommandTest extends TestCase
         $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command ?? '', 'notifications:send-digests'));
         $this->assertCount(1, $events);
         $this->assertSame('0 * * * *', $events->first()->expression);
+        $this->assertTrue($events->first()->onOneServer);
+        $this->assertTrue($events->first()->withoutOverlapping);
     }
 }

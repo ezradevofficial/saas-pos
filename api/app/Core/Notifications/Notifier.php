@@ -12,6 +12,7 @@ use App\Core\Notifications\Templates\Templates;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -47,6 +48,7 @@ class Notifier
     {
         $tenantId = $this->tenants->require();
         $type = $this->types->get($event->type);
+        $link = self::safeLink($event->link, $type->key);
 
         if ($event->recipientIds === []) {
             return collect();
@@ -55,7 +57,7 @@ class Notifier
         // Row-level security: ids of another tenant's users find nothing.
         $users = User::query()
             ->whereIn('id', array_values(array_filter($event->recipientIds, Str::isUuid(...))))
-            ->where('status', '!=', User::STATUS_DEACTIVATED)
+            ->where('status', User::STATUS_ACTIVE)
             ->get();
 
         $overrides = $this->templates->overrides($type);
@@ -63,7 +65,7 @@ class Notifier
         $preferences = NotificationPreference::query()
             ->where('event_type', $type->key)->whereIn('user_id', $users->modelKeys())->get()->keyBy('user_id');
 
-        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId) {
+        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId, $link) {
             $deliveries = collect();
 
             foreach ($users as $user) {
@@ -80,7 +82,7 @@ class Notifier
                         continue;
                     }
 
-                    $message = $this->templates->effective($type, $channel, $locale, $overrides)->render($values);
+                    $message = $this->templates->effective($type, $channel, $locale, $overrides)->render($values, $channel);
                     $row = [
                         'user_id' => $user->id,
                         'event_type' => $type->key,
@@ -88,7 +90,7 @@ class Notifier
                         'locale' => $locale,
                         'subject' => $message->subject,
                         'body' => $message->body,
-                        'link' => $event->link,
+                        'link' => $link,
                     ];
 
                     $delivery = match ($channel) {
@@ -107,6 +109,26 @@ class Notifier
 
             return $deliveries;
         });
+    }
+
+    /**
+     * Links are paths in the web app only (`/approvals/…`): an absolute or
+     * protocol-relative URL never reaches a platform email or the inbox. A
+     * refused link is dropped and logged; the notification still goes out.
+     */
+    public static function safeLink(?string $link, string $eventType = ''): ?string
+    {
+        if ($link === null || $link === '') {
+            return null;
+        }
+
+        if (preg_match('#^/(?![/\\\\])[^\s\\\\]*$#', $link) === 1) {
+            return $link;
+        }
+
+        Log::warning('Notification link dropped: only relative app paths are allowed', ['event_type' => $eventType, 'link' => mb_substr($link, 0, 200)]);
+
+        return null;
     }
 
     /** In-app: in the inbox at once, delivered (NOT-01). */

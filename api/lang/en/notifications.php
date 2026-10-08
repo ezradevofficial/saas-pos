@@ -22,6 +22,7 @@ return [
     'statuses' => [
         'all' => 'All',
         'queued' => 'Queued',
+        'sending' => 'Sending',
         'sent' => 'Sent',
         'delivered' => 'Delivered',
         'failed' => 'Failed',
@@ -41,6 +42,12 @@ return [
         'no_email' => 'The user has no verified email address.',
         'no_phone' => 'The user has no verified phone number.',
         'channel_unavailable' => 'This channel isn’t set up yet.',
+        'user_deactivated' => 'The user is no longer active.',
+    ],
+
+    'delivery_errors' => [
+        'send_failed' => 'The mail server or provider refused or didn’t answer.',
+        'job_failed' => 'Sending stopped unexpectedly.',
     ],
 
     'template_sources' => [
@@ -84,6 +91,7 @@ return [
     ],
 
     'errors' => [
+        'subject_line_break' => 'A subject is one line. Remove the line breaks.',
         'unknown_placeholders' => 'This text uses placeholders this notification doesn’t have: :placeholders. Use only: :allowed.',
         'unknown_event_type' => 'There is no notification type “:event”. Choose one from the list.',
         'channel_not_offered' => '“:event” isn’t sent by :channel. Choose another channel.',

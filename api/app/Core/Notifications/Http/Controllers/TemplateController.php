@@ -90,7 +90,7 @@ class TemplateController
             array_key_exists('subject', $data) && $data['subject'] !== null && trim($data['subject']) !== '' ? $data['subject'] : $effective->subject,
             array_key_exists('body', $data) && $data['body'] !== null ? $data['body'] : $effective->body,
         );
-        $message = $template->render($type->samples());
+        $message = $template->render($type->samples(), $data['channel']);
 
         return new JsonResponse(['data' => [
             'event_type' => $type->key,

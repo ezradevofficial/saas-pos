@@ -32,8 +32,8 @@ class UpdateTemplateRequest extends FormRequest
             'event_type' => ['required', 'string', 'max:100', $this->eventTypeRule()],
             'channel' => ['required', 'string', Rule::in([Channels::ANY, ...Channels::ALL]), $this->channelRule($type, allowAll: true)],
             'locale' => ['required', 'string', Rule::in(Channels::LOCALES)],
-            'subject' => ['sometimes', 'nullable', 'string', 'max:255', $this->placeholdersRule($type)],
-            'body' => ['required', 'string', 'max:5000', $this->placeholdersRule($type)],
+            'subject' => ['sometimes', 'nullable', 'string', 'max:255', $this->subjectRule(), $this->placeholdersRule($type)],
+            'body' => ['required', 'string', $this->bodyMax($this->input('channel')), $this->placeholdersRule($type)],
         ];
     }
 

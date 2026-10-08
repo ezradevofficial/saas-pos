@@ -79,7 +79,7 @@ class DeliveryList extends ListDefinition
             ListColumn::make('status', 'notifications.delivery.columns.status', ['status'], fn (array $row) => __('notifications.statuses.'.$row['status'])),
             ListColumn::text('reason', 'notifications.delivery.columns.reason', 'reason_label'),
             ListColumn::text('attempts', 'notifications.delivery.columns.attempts'),
-            ListColumn::text('error', 'notifications.delivery.columns.error'),
+            ListColumn::text('error', 'notifications.delivery.columns.error', 'error_label'),
             ListColumn::make('sent_at', 'notifications.delivery.columns.sent_at', ['sent_at'],
                 fn (array $row, NotificationDelivery $delivery, ExportValues $values) => $values->dateTime($row['sent_at'])),
         ];

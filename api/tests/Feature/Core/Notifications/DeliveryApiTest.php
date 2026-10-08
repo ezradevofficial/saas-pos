@@ -55,6 +55,25 @@ class DeliveryApiTest extends TestCase
         $this->getJson('/api/v1/notification-deliveries?sort=body', $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('sort');
     }
 
+    public function test_errors_show_as_safe_messages_never_the_raw_provider_error(): void
+    {
+        $this->inTenant(function () {
+            $this->owner->forceFill(['phone' => '+254722000555', 'phone_verified_at' => now()])->save();
+            NotificationPreference::create(['user_id' => $this->owner->id, 'event_type' => 'core.notification.test', 'channels' => ['sms' => true, 'email' => false, 'in_app' => false]]);
+        });
+        $this->fakeDriver('sms')->failNext(3, 'auth token sk_live_secret rejected');
+        $this->sendTest([$this->owner]);
+
+        $response = $this->getJson('/api/v1/notification-deliveries', $this->headersFor())->assertOk()
+            ->assertJsonPath('data.0.status', 'failed')
+            ->assertJsonPath('data.0.error', 'send_failed')
+            ->assertJsonPath('data.0.error_label', 'The mail server or provider refused or didn’t answer.');
+        $this->assertStringNotContainsString('sk_live_secret', $response->getContent());
+        $csv = $this->get('/api/v1/notification-deliveries?format=csv&columns[]=error', $this->headersFor())->assertOk()->streamedContent();
+        $this->assertStringContainsString('The mail server or provider refused', $csv);
+        $this->assertStringNotContainsString('sk_live_secret', $csv);
+    }
+
     public function test_the_log_is_exported_and_the_export_audited(): void
     {
         $this->sendTest([$this->owner]);

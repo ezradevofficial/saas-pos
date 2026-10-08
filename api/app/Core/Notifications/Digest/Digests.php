@@ -59,14 +59,23 @@ class Digests
                 continue;
             }
 
+            // A deactivated user gets nothing more; their held emails are closed.
+            if (! $user->isActive()) {
+                NotificationDelivery::query()
+                    ->whereIn('id', $items->modelKeys())
+                    ->where('status', NotificationDelivery::PENDING_DIGEST)
+                    ->update(['status' => NotificationDelivery::SKIPPED, 'reason' => NotificationDelivery::REASON_USER_DEACTIVATED, 'updated_at' => now()]);
+
+                continue;
+            }
+
             $zone = $this->timezones->for($user);
 
             foreach ([Channels::DIGEST_DAILY, Channels::DIGEST_WEEKLY] as $period) {
                 $boundary = self::lastBoundary($now, $zone, $period);
                 $due = $items->filter(fn (NotificationDelivery $item) => $item->digest === $period && $item->created_at->lt($boundary))->values();
 
-                if ($due->isNotEmpty()) {
-                    $this->queueDigest($tenantId, $user, $period, $due, $zone);
+                if ($due->isNotEmpty() && $this->queueDigest($tenantId, $user, $period, $due, $zone)) {
                     $queued++;
                 }
             }
@@ -94,14 +103,30 @@ class Digests
         return $boundary->utc();
     }
 
-    /** @param Collection<int, NotificationDelivery> $items */
-    private function queueDigest(string $tenantId, User $user, string $period, Collection $items, string $zone): void
+    /**
+     * One digest for $items, unless another run holds or has taken any of
+     * them: the items are locked (skipping rows another run has locked) and
+     * the digest is only created when every one is still held.
+     *
+     * @param  Collection<int, NotificationDelivery>  $items
+     */
+    private function queueDigest(string $tenantId, User $user, string $period, Collection $items, string $zone): bool
     {
         $locale = in_array($user->locale, Channels::LOCALES, true) ? $user->locale : 'en';
         $message = $this->render($period, $items, $locale, $zone);
         $email = $user->email !== null && $user->email_verified_at !== null ? $user->email : null;
 
-        DB::transaction(function () use ($tenantId, $user, $period, $items, $locale, $message, $email) {
+        return DB::transaction(function () use ($tenantId, $user, $period, $items, $locale, $message, $email) {
+            $locked = NotificationDelivery::query()
+                ->whereIn('id', $items->modelKeys())
+                ->where('status', NotificationDelivery::PENDING_DIGEST)
+                ->lock('for update skip locked')
+                ->pluck('id');
+
+            if ($locked->count() !== $items->count()) {
+                return false;
+            }
+
             $digest = NotificationDelivery::create([
                 'user_id' => $user->id,
                 'event_type' => NotificationDelivery::DIGEST_EVENT,
@@ -124,6 +149,8 @@ class Digests
             if ($digest->status === NotificationDelivery::QUEUED) {
                 SendDelivery::dispatch($tenantId, $digest->id)->afterCommit();
             }
+
+            return true;
         });
     }
 
