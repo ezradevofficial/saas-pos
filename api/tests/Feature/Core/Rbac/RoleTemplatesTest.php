@@ -96,7 +96,12 @@ class RoleTemplatesTest extends TestCase
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(79, count($names));
+        // The POS module's catalogue is registered whether or not a tenant has it (RBAC-08 gates it per tenant).
+        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.shift.view', 'pos.shift.open',
+            'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
+            $this->assertContains($name, $names);
+        }
+        $this->assertSame(79 + 12, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
