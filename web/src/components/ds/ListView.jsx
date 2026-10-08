@@ -97,7 +97,7 @@ export function ListView({ list, title, searchable = true, searchLabel, searchPl
                   // The menu stays open so several columns can be switched in a row.
                   onSelect={(event) => event.preventDefault()}
                   onCheckedChange={() => list.toggleColumn(column.key)}
-                  className={cn(menuItemClasses, 'pr-8')}
+                  className={cn(menuItemClasses, 'pr-10')}
                 >
                   {column.label}
                 </DropdownMenuCheckboxItem>
