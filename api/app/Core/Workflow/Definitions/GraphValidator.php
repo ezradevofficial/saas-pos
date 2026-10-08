@@ -6,6 +6,7 @@ use App\Core\Workflow\Conditions\ConditionEvaluator;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\Handlers\ActionHandlers;
 use App\Core\Workflow\Handlers\ApprovalHandler;
+use App\Core\Workflow\Runtime\StageTimers;
 
 /**
  * Checks a flow graph (see FlowGraph) before it is saved and before it is
@@ -37,6 +38,8 @@ class GraphValidator
     public const DUE_UNITS = ['business_hours', 'business_days', 'hours', 'days'];
 
     public const JOIN_MODES = ['all', 'any'];
+
+    public const MAX_STAGE_REMINDERS = 5;
 
     public function __construct(
         private readonly ConditionEvaluator $conditions,
@@ -255,6 +258,10 @@ class GraphValidator
                     if (isset($node[$key]) && ! is_array($node[$key])) {
                         $add('invalid_property', $id, ['property' => $key]);
                     }
+                }
+
+                if ($node['type'] === 'stage') {
+                    $this->checkStageTimers($node, $id, $add);
                 }
 
                 if ($node['type'] === 'approval') {
@@ -503,6 +510,41 @@ class GraphValidator
                     break;
                 }
             }
+        }
+    }
+
+    /**
+     * WF-09: a plain stage's reminders (a list of at most MAX_STAGE_REMINDERS
+     * offsets) and escalation ({after?, to: role or user}; escalation only
+     * notifies, so no `final` or `next_level`), as StageTimers reads them.
+     *
+     * @param  callable(string, ?string, array): void  $add
+     */
+    private function checkStageTimers(array $node, string $id, callable $add): void
+    {
+        $reminders = $node['reminders'] ?? null;
+
+        if ($reminders !== null && (! is_array($reminders) || ! array_is_list($reminders) || count($reminders) > self::MAX_STAGE_REMINDERS
+            || in_array(null, array_map(StageTimers::duration(...), $reminders), true))) {
+            $add('stage_reminders', $id, ['max' => self::MAX_STAGE_REMINDERS]);
+        }
+
+        $escalation = $node['escalation'] ?? null;
+
+        if ($escalation === null || $escalation === []) {
+            return;
+        }
+
+        $to = is_array($escalation) ? ($escalation['to'] ?? null) : null;
+        $valid = is_array($escalation)
+            && StageTimers::escalationTo($escalation) !== null
+            && array_diff(array_keys($escalation), ['after', 'to']) === []
+            && (! isset($escalation['after']) || StageTimers::duration($escalation['after']) !== null)
+            && (isset($escalation['after']) || isset($node['due']))
+            && (($to['type'] ?? null) !== 'role' || $this->roles->unknown([$to['role']]) === []);
+
+        if (! $valid) {
+            $add('stage_escalation', $id);
         }
     }
 

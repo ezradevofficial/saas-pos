@@ -147,6 +147,8 @@ return [
         'approval_without_rejected' => '« :node » a besoin d’un chemin pour « rejeté », afin qu’un rejet ou un délai dépassé mène quelque part.',
         'rejected_reaches_approved' => 'Après un rejet à « :node », le workflow peut encore atteindre « :end », qui se termine approuvé. Menez le rejet vers une fin non approuvée, ou par une autre approbation.',
         'approval_in_parallel' => 'Les approbations ne peuvent pas encore se faire dans des branches parallèles. Utilisez le mode « toutes » ou « majorité » de l’approbation pour une décision de groupe.',
+        'stage_reminders' => 'Les rappels de « :node » doivent être au plus :max délais (un nombre entier d’heures ouvrées, de jours ouvrés, d’heures ou de jours).',
+        'stage_escalation' => 'L’escalade de « :node » doit nommer un rôle ou un utilisateur à prévenir, après un délai ou à l’échéance de l’étape.',
     ],
 
     'actions' => [
@@ -156,6 +158,18 @@ return [
 
     // NOT-02 : ce qu’envoie l’étape « notifier » d’un circuit ({placeholders} remplis pour chaque destinataire).
     'notifications' => [
+        'stage_reminder' => [
+            'label' => 'Rappel d’étape de workflow',
+            'subject' => 'Rappel : {document_type} {document_number} attend à « {step} »',
+            'body' => "Bonjour {recipient_name},\n\n{document_type} {document_number} attend toujours à l’étape « {step} ». Échéance : {due}.\n\nOuvrez-le pour le faire avancer ou le renvoyer.",
+            'sms' => '{app_name} : {document_type} {document_number} attend toujours à « {step} ».',
+        ],
+        'stage_overdue' => [
+            'label' => 'Étape de workflow en retard',
+            'subject' => 'En retard : {document_type} {document_number} à « {step} »',
+            'body' => "Bonjour {recipient_name},\n\n{document_type} {document_number} a dépassé son délai à l’étape « {step} » (échéance {due}).\n\nOuvrez-le pour voir qui le détient et le faire avancer.",
+            'sms' => '{app_name} : {document_type} {document_number} est en retard à « {step} ».',
+        ],
         'notify' => [
             'label' => 'Notification d’étape de circuit',
             'subject' => '{document_type} : {step}',

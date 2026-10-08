@@ -388,4 +388,33 @@ class GraphValidatorTest extends TestCase
         $outside['edges'][] = ['from' => 'close', 'to' => 'refused', 'branch' => 'rejected'];
         $this->assertSame([], $this->codes($outside));
     }
+
+    public function test_stage_reminders_and_escalation(): void
+    {
+        // WF-09: up to five reminder offsets; escalation tells a role or a user.
+        $offsets = array_map(fn (int $h) => ['amount' => $h, 'unit' => 'business_hours'], [1, 2, 4, 8, 16]);
+        $ok = Graphs::linear(['a'], ['a' => [
+            'reminders' => $offsets,
+            'escalation' => ['after' => ['amount' => 2, 'unit' => 'business_days'], 'to' => ['type' => 'role', 'role' => 'template:branch_manager']],
+        ]]);
+        $this->assertSame([], $this->codes($ok));
+
+        $onDue = Graphs::linear(['a'], ['a' => ['due' => ['amount' => 1, 'unit' => 'days'], 'escalation' => ['to' => ['type' => 'user', 'user_id' => $this->owner->id]]]]);
+        $this->assertSame([], $this->codes($onDue));
+
+        $six = Graphs::linear(['a'], ['a' => ['reminders' => [...$offsets, ['amount' => 32, 'unit' => 'hours']]]]);
+        $this->assertSame(['stage_reminders'], $this->codes($six));
+
+        $badOffset = Graphs::linear(['a'], ['a' => ['reminders' => [['amount' => 0, 'unit' => 'hours']]]]);
+        $this->assertSame(['stage_reminders'], $this->codes($badOffset));
+
+        foreach ([
+            ['after' => ['amount' => 1, 'unit' => 'days'], 'to' => 'next_level'],
+            ['after' => ['amount' => 1, 'unit' => 'days'], 'to' => ['type' => 'role', 'role' => 'template:no_such_template']],
+            ['after' => ['amount' => 1, 'unit' => 'days'], 'to' => ['type' => 'user', 'user_id' => $this->owner->id], 'final' => 'approve'],
+            ['to' => ['type' => 'user', 'user_id' => $this->owner->id]], // no after and no time limit
+        ] as $escalation) {
+            $this->assertSame(['stage_escalation'], $this->codes(Graphs::linear(['a'], ['a' => ['escalation' => $escalation]])), json_encode($escalation));
+        }
+    }
 }

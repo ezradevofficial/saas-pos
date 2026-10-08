@@ -74,6 +74,7 @@ class WorkflowEngine
         private readonly StagePermissions $permissions,
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
+        private readonly StageTimers $timers,
     ) {}
 
     /**
@@ -422,7 +423,7 @@ class WorkflowEngine
         ];
     }
 
-    /** WF-09: active positions past their due time (APR-05 reminders and escalation read this). */
+    /** WF-09: active positions past their due time (StageTimers and the approvals service act on their own timers). */
     public function overdue(?\DateTimeInterface $at = null)
     {
         return DocumentWorkflowToken::query()->overdue($at)->with('workflow');
@@ -513,6 +514,9 @@ class WorkflowEngine
         $node = $run->flow->node($nodeId);
         $now = CarbonImmutable::now();
         $due = $node['due'] ?? null;
+        $dueAt = is_array($due)
+            ? $this->calendar->due($now, (int) $due['amount'], (string) $due['unit'], $this->calendar->forCompany($run->scope->companyId))
+            : null;
 
         $token = DocumentWorkflowToken::create([
             'workflow_id' => $run->workflow->id,
@@ -520,9 +524,9 @@ class WorkflowEngine
             'status' => DocumentWorkflowToken::ACTIVE,
             'groups' => $groups,
             'entered_at' => $now,
-            'due_at' => is_array($due)
-                ? $this->calendar->due($now, (int) $due['amount'], (string) $due['unit'], $this->calendar->forCompany($run->scope->companyId))
-                : null,
+            'due_at' => $dueAt,
+            // WF-09: a plain stage's reminders, overdue notice and escalation (StageTimers).
+            'next_timer_at' => $this->timers->first($node, $now, $dueAt, $run->scope->companyId),
             'entered_by' => $run->user?->id,
         ]);
 

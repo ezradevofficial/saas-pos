@@ -8,6 +8,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Workflow\Calendar\BusinessCalendar;
 use App\Core\Workflow\Calendar\Console\LoadPublicHolidays;
 use App\Core\Workflow\Conditions\ConditionEvaluator;
+use App\Core\Workflow\Console\ProcessStageTimersCommand;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowNotificationRequested;
 use App\Core\Workflow\Handlers\ActionHandlers;
@@ -16,6 +17,7 @@ use App\Core\Workflow\Handlers\CreateDocumentAction;
 use App\Core\Workflow\Handlers\ManualApprovalHandler;
 use App\Core\Workflow\Handlers\NotifyAction;
 use App\Core\Workflow\Listeners\SendWorkflowNotification;
+use App\Core\Workflow\Runtime\StageTimers;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -59,8 +61,19 @@ class WorkflowServiceProvider extends ServiceProvider
         ));
         Event::listen(WorkflowNotificationRequested::class, SendWorkflowNotification::class);
 
+        // WF-09: plain stages' reminders and overdue notices (StageTimers).
+        foreach ([StageTimers::REMINDER => 'stage_reminder', StageTimers::OVERDUE => 'stage_overdue'] as $key => $lang) {
+            $this->app->make(EventTypes::class)->register(new EventType(
+                key: $key,
+                placeholders: ['document_type' => 'Purchase requisition', 'document_number' => 'PR-0042', 'step' => 'Check budget', 'due' => '2026-10-08 17:00'],
+                defaultChannels: [Channels::IN_APP, Channels::EMAIL],
+                mandatoryAllowed: true,
+                langKey: 'workflow.notifications.'.$lang,
+            ));
+        }
+
         if ($this->app->runningInConsole()) {
-            $this->commands([LoadPublicHolidays::class]);
+            $this->commands([LoadPublicHolidays::class, ProcessStageTimersCommand::class]);
         }
     }
 }
