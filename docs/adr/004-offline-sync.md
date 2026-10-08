@@ -170,3 +170,7 @@ To check the timing on a device (not possible in CI):
 - Number ranges add a per-device allocation table and a top-up flow. Lost devices waste the unused part of their range, which is acceptable.
 - Because device tokens don't expire, unpairing is the only kill switch. The UI must say so.
 - The design stays Proposed until the phase 4 prototype proves the 7-day offline scenario. Change this ADR then, rather than writing a new one.
+
+### expo-doctor exceptions (2026-10-09)
+
+`pos/package.json` excludes three packages from expo-doctor's React Native Directory check: `@nozbe/watermelondb` (listed as untested on the New Architecture), its dependency `@nozbe/simdjson` (no metadata) and our local `app-crypto` module (not a published package). The WatermelonDB risk is real and accepted for now: the native JSI SQLite adapter must be proven in an Expo development build on Android (RN 0.86, New Architecture) before the POS ships, together with the PBKDF2 timing check above. If it fails there, the fallback is WatermelonDB's non-JSI SQLite adapter or a different store behind the same sync engine.
