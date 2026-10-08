@@ -1,4 +1,4 @@
-import { addNode, connect, edgeId, layout, outputsOf, removeEdges, removeNodes, syncBranches, updateNode } from './graph'
+import { addNode, connect, edgeId, layout, moveNodes, outputsOf, removeEdges, removeNodes, syncBranches, updateNode } from './graph'
 
 const base = () => ({
   nodes: [
@@ -57,5 +57,19 @@ describe('workflow graph (WF-03, WF-05, WF-06)', () => {
     graph = connect(connect(graph, 'check', 'end', 'b2'), 'check', 'review', 'else')
     graph = syncBranches(updateNode(graph, 'check', { branches: [{ key: 'b1', condition: null }] }), 'check')
     expect(graph.edges.filter((edge) => edge.from === 'check')).toEqual([{ from: 'check', to: 'review', branch: 'else' }])
+  })
+})
+
+describe('moveNodes', () => {
+  const placed = { nodes: [{ id: 'a', type: 'start', position: { x: 10, y: 20 } }], edges: [] }
+
+  it('returns the same graph when a click reports a step where it already is, so no draft is saved', () => {
+    expect(moveNodes(placed, { a: { x: 10.2, y: 19.8 } })).toBe(placed)
+  })
+
+  it('records a real move, rounded to whole pixels', () => {
+    const moved = moveNodes(placed, { a: { x: 40.6, y: 20 } })
+    expect(moved).not.toBe(placed)
+    expect(moved.nodes[0].position).toEqual({ x: 41, y: 20 })
   })
 })

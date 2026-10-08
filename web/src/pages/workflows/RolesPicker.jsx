@@ -1,10 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ds'
+import { names } from './roleRefs'
 
-const TEMPLATE = 'template:'
-
-/** Whether a stage's role ref names this role: its id, or `template:<key>` for a system role (WF-08). */
-const names = (ref, role) => ref === role.id || (role.is_system && role.template_key && ref === `${TEMPLATE}${role.template_key}`)
 
 /**
  * Roles allowed to move documents into or out of a stage (WF-08). Refs are

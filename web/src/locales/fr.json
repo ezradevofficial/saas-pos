@@ -2044,7 +2044,7 @@
       "rolesHelp": "Aucun coché : toute personne autorisée sur ce type de document.",
       "due": "Délai",
       "dueHelp": "Les heures ouvrées et les jours fériés du pays de la société sont respectés.",
-      "unit": "Unité pour {{what}}",
+      "unit": "Unité",
       "remindAfter": "Relancer après",
       "escalateAfter": "Escalader après",
       "businessHoursHelp": "Les heures ouvrées et les jours fériés sont respectés.",

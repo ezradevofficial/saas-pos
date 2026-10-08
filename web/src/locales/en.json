@@ -2044,7 +2044,7 @@
       "rolesHelp": "None ticked: anyone allowed to act on this document type.",
       "due": "Time limit",
       "dueHelp": "Business hours and public holidays of the company’s country are skipped.",
-      "unit": "Unit for {{what}}",
+      "unit": "Unit",
       "remindAfter": "Remind after",
       "escalateAfter": "Escalate after",
       "businessHoursHelp": "Business hours and public holidays are skipped.",
