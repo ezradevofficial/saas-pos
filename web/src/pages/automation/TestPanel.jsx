@@ -102,8 +102,9 @@ export function TestPanel({ draft, info, ruleId, dirty, timeZone }) {
         body.values = filledValues(values)
         if (showOld) body.old_values = filledValues(oldValues)
       }
-      // A saved rule without edits is tested as saved; otherwise the editor's version.
-      return ruleId && !dirty ? api.post(`automation-rules/${ruleId}/test`, body) : api.post('automation-rules/test', { ...ruleBody(draft), ...body })
+      // A saved rule without edits is tested as saved; otherwise the editor's version, naming the saved
+      // rule (rule_id) so webhooks sent without their address use the stored one.
+      return ruleId && !dirty ? api.post(`automation-rules/${ruleId}/test`, body) : api.post('automation-rules/test', { ...ruleBody(draft), ...(ruleId ? { rule_id: ruleId } : {}), ...body })
     },
   })
   const result = run.data?.data

@@ -281,7 +281,7 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalled())
     const [path, body] = api.post.mock.calls[0]
     expect(path).toBe('automation-rules/test')
-    expect(body).toMatchObject({ document_type: 'procurement.requisition', trigger: { type: 'field_changed', field: 'note' }, values: { note: 'new' }, old_values: { note: 'old' } })
+    expect(body).toMatchObject({ rule_id: 'r-1', document_type: 'procurement.requisition', trigger: { type: 'field_changed', field: 'note' }, values: { note: 'new' }, old_values: { note: 'old' } })
     expect(await screen.findByText('Can’t tell from a sample')).toBeInTheDocument()
   })
 
@@ -303,6 +303,23 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(api.patch).toHaveBeenCalled())
     expect(api.patch.mock.calls[0][1].actions).toEqual([{ type: 'webhook', id: 'a-1', url: 'https://new.example.com/hook' }])
+  })
+
+  it('tests an edited rule with a saved webhook by naming the rule, without the address', async () => {
+    const hook = { type: 'webhook', id: 'a-1', url_display: 'hooks.example.com/in', has_url: true }
+    mockAutomation(api, { rule: { ...RULE, actions: [hook], has_webhook_secret: true } })
+    api.post.mockResolvedValue({ data: { trigger: { type: 'record_created', description: 'x', matches: true, details: null, next_run_at: null }, conditions: null, would_run: true, actions: [] } })
+    renderApp('/settings/automation-rules/r-1')
+    await screen.findByTestId('webhook-url')
+    type(/^Name/, 'Renamed')
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Test' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('button', { name: 'Run test' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const [path, body] = api.post.mock.calls[0]
+    expect(path).toBe('automation-rules/test')
+    expect(body.rule_id).toBe('r-1')
+    expect(body.name).toBe('Renamed')
+    expect(body.actions).toEqual([{ type: 'webhook', id: 'a-1' }])
   })
 
   it('starts money in the rule’s company’s base currency', async () => {
