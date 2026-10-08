@@ -17,6 +17,14 @@ class TestRequestType extends DocumentType
 {
     public const KEY = 'core.test_request';
 
+    /** AUTO-01: set on an instance whose test raises RecordChanged for it as a module would. */
+    public bool $raisesRecords = false;
+
+    public function raisesRecordEvents(): bool
+    {
+        return $this->raisesRecords;
+    }
+
     public function key(): string
     {
         return self::KEY;
