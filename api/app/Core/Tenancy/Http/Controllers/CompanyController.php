@@ -5,6 +5,7 @@ namespace App\Core\Tenancy\Http\Controllers;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
+use App\Core\Tenancy\Http\Requests\ArchiveRequest;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use App\Core\Tenancy\Http\Requests\StoreCompanyRequest;
 use App\Core\Tenancy\Http\Requests\UpdateCompanyRequest;
@@ -58,14 +59,14 @@ class CompanyController
         return CompanyResource::make($company);
     }
 
-    public function archive(Request $request, Company $company): CompanyResource
+    public function archive(ArchiveRequest $request, Company $company): CompanyResource
     {
         $this->authorizeInScope($request, 'archive', $company);
 
         return CompanyResource::make($this->archiver->archive($company));
     }
 
-    public function restore(Request $request, Company $company): CompanyResource
+    public function restore(ArchiveRequest $request, Company $company): CompanyResource
     {
         $this->authorizeInScope($request, 'restore', $company);
 

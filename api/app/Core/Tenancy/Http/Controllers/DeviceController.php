@@ -6,6 +6,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
 use App\Core\Tenancy\DevicePairing;
+use App\Core\Tenancy\Http\Requests\DeviceActionRequest;
 use App\Core\Tenancy\Http\Requests\DeviceListRequest;
 use App\Core\Tenancy\Http\Requests\StoreDeviceRequest;
 use App\Core\Tenancy\Http\Requests\UpdateDeviceRequest;
@@ -69,7 +70,7 @@ class DeviceController
     }
 
     /** The code is shown once; only its hash is stored. */
-    public function pairingCode(Request $request, Device $device): JsonResponse
+    public function pairingCode(DeviceActionRequest $request, Device $device): JsonResponse
     {
         $this->authorizeInScope($request, 'pair', $device);
         $issued = DB::transaction(function () use ($device) {
@@ -85,21 +86,21 @@ class DeviceController
         ]);
     }
 
-    public function suspend(Request $request, Device $device): DeviceResource
+    public function suspend(DeviceActionRequest $request, Device $device): DeviceResource
     {
         $this->authorizeInScope($request, 'suspend', $device);
 
         return DeviceResource::make($this->pairing->suspend($device));
     }
 
-    public function resume(Request $request, Device $device): DeviceResource
+    public function resume(DeviceActionRequest $request, Device $device): DeviceResource
     {
         $this->authorizeInScope($request, 'suspend', $device);
 
         return DeviceResource::make($this->pairing->resume($device));
     }
 
-    public function unpair(Request $request, Device $device): DeviceResource
+    public function unpair(DeviceActionRequest $request, Device $device): DeviceResource
     {
         $this->authorizeInScope($request, 'pair', $device);
 

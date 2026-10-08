@@ -4,6 +4,7 @@ namespace App\Core\Rbac\Http\Controllers;
 
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Grants;
+use App\Core\Rbac\Http\Requests\RemoveAssignmentRequest;
 use App\Core\Rbac\Http\Requests\StoreAssignmentRequest;
 use App\Core\Rbac\Http\Resources\AssignmentResource;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -53,7 +54,7 @@ class AssignmentController
         return AssignmentResource::make($assignment)->response()->setStatusCode(201);
     }
 
-    public function destroy(Request $request, RoleAssignment $assignment): Response
+    public function destroy(RemoveAssignmentRequest $request, RoleAssignment $assignment): Response
     {
         // RBAC-04: an assignment of a user out of scope is not found.
         abort_unless($request->user()->can('view', $assignment->user), 404);

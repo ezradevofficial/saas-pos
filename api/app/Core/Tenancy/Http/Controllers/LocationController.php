@@ -5,6 +5,7 @@ namespace App\Core\Tenancy\Http\Controllers;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
+use App\Core\Tenancy\Http\Requests\ArchiveRequest;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use App\Core\Tenancy\Http\Requests\StoreLocationRequest;
 use App\Core\Tenancy\Http\Requests\UpdateLocationRequest;
@@ -63,14 +64,14 @@ class LocationController
         return LocationResource::make($location);
     }
 
-    public function archive(Request $request, Location $location): LocationResource
+    public function archive(ArchiveRequest $request, Location $location): LocationResource
     {
         $this->authorizeInScope($request, 'archive', $location);
 
         return LocationResource::make($this->archiver->archive($location));
     }
 
-    public function restore(Request $request, Location $location): LocationResource
+    public function restore(ArchiveRequest $request, Location $location): LocationResource
     {
         $this->authorizeInScope($request, 'restore', $location);
 

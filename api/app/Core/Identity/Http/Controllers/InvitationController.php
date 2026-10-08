@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity\Http\Controllers;
 
+use App\Core\Identity\Http\Requests\RevokeInvitationRequest;
 use App\Core\Identity\Http\Requests\StoreInvitationRequest;
 use App\Core\Identity\Http\Resources\InvitationResource;
 use App\Core\Identity\Models\Invitation;
@@ -13,7 +14,6 @@ use App\Core\Rbac\VisibleScope;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -47,7 +47,7 @@ class InvitationController
         return InvitationResource::make($invitation)->response()->setStatusCode(201);
     }
 
-    public function revoke(Request $request, string $invitation): InvitationResource
+    public function revoke(RevokeInvitationRequest $request, string $invitation): InvitationResource
     {
         abort_unless($request->user()->can('core.user.invite'), 403);
 

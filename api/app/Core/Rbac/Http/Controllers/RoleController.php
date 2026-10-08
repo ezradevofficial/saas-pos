@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Http\Controllers;
 
 use App\Core\Rbac\Http\Requests\CopyRoleRequest;
+use App\Core\Rbac\Http\Requests\RoleActionRequest;
 use App\Core\Rbac\Http\Requests\StoreRoleRequest;
 use App\Core\Rbac\Http\Requests\UpdateRoleRequest;
 use App\Core\Rbac\Http\Resources\RoleResource;
@@ -10,7 +11,6 @@ use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -42,7 +42,7 @@ class RoleController
         return RoleResource::make($role->load('permissions'))->response()->setStatusCode(201);
     }
 
-    public function show(Request $request, Role $role): RoleResource
+    public function show(RoleActionRequest $request, Role $role): RoleResource
     {
         abort_unless($request->user()->can('view', $role), 403);
 
@@ -61,7 +61,7 @@ class RoleController
         return RoleResource::make($copy->load('permissions'))->response()->setStatusCode(201);
     }
 
-    public function archive(Request $request, Role $role): RoleResource
+    public function archive(RoleActionRequest $request, Role $role): RoleResource
     {
         abort_unless($request->user()->can('archive', $role), 403);
 
