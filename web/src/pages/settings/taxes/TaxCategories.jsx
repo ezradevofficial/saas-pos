@@ -5,8 +5,10 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, DataTable, Dialog, Select, TextField } from '@/components/ds'
+import { Alert, Button, Dialog, ListView, Select, TextField } from '@/components/ds'
+import { useCompanies } from '@/layouts/companySelection'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useServerList } from '@/lib/useServerList'
 import { companyScope } from '../finance/useSettingsCompany'
 
 /** Add a tax category: shared or this company's, following the items sharing mode (TEN-08), with this company's default code. */
@@ -78,30 +80,37 @@ function AddCategoryDialog({ company, shared, codes, onClose }) {
   )
 }
 
-/** MD-03: tax categories (shared or per company) and the default tax code each has in this company. */
+/**
+ * MD-03: tax categories (shared, or a company's) the user reaches, and the
+ * default tax code each has in this company; search, sort, pages, columns
+ * and export (EXP-01, LAY-04). The API lists every reached company's
+ * categories (it has no company filter), so "Used by" names the company.
+ */
 export function TaxCategories({ company }) {
   const { t } = useTranslation()
   const { can, tenantWide } = usePermissions()
   const [adding, setAdding] = useState(false)
-  const categories = useQuery({ queryKey: ['tax-categories'], queryFn: () => api.get('tax-categories?per_page=200') })
+  const { companies } = useCompanies()
   const sharing = useQuery({ queryKey: ['master-data-settings'], queryFn: () => api.get('master-data/settings') })
   const codes = useQuery({ queryKey: ['tax-codes', company.id], queryFn: () => api.get(`companies/${company.id}/tax-codes?per_page=200`) })
   const shared = (sharing.data?.data ?? []).find((entry) => entry.data_type === 'items')?.mode !== 'per_company'
   const canAdd = sharing.isSuccess && (shared ? tenantWide('core.tax.edit') : can('core.tax.edit', companyScope(company)))
 
-  const rows = (categories.data?.data ?? []).filter((category) => category.shared || category.company_id === company.id)
+  const companyName = (id) => (id === company.id ? company.name : (companies.find((entry) => entry.id === id)?.name ?? t('taxes.categories.oneCompany')))
   const columns = [
-    { key: 'name', label: t('taxes.categories.name'), render: (row) => <span className="font-medium text-ink">{row.name}</span> },
-    { key: 'scope', label: t('taxes.categories.scope'), render: (row) => (row.shared ? t('taxes.categories.shared') : company.name) },
+    { key: 'name', label: t('taxes.categories.name'), sortKey: 'name', hideable: false, render: (row) => <span className="font-medium text-ink">{row.name}</span> },
+    { key: 'scope', label: t('taxes.categories.scope'), sortKey: 'scope', render: (row) => (row.shared ? t('taxes.categories.shared') : companyName(row.company_id)) },
     {
       key: 'code',
       label: t('taxes.categories.codeHere', { name: company.name }),
+      exportKey: 'codes',
       render: (row) => {
         const entry = row.codes.find((item) => item.company_id === company.id)
         return entry?.code ? <span className="font-mono text-caption text-ink">{entry.code}</span> : <span className="text-ink-muted">{t('taxes.categories.noCode')}</span>
       },
     },
   ]
+  const list = useServerList({ id: 'tax-categories', endpoint: 'tax-categories', queryKey: ['tax-categories'], columns })
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,8 +122,12 @@ export function TaxCategories({ company }) {
           </Button>
         ) : null}
       </div>
-      {categories.isError ? <Alert tone="danger" title={errorMessage(categories.error)} /> : null}
-      <DataTable caption={t('taxes.tabs.categories')} columns={columns} rows={rows} emptyText={categories.isPending ? t('common.loading') : t('taxes.categories.empty')} />
+      <ListView
+        list={list}
+        title={t('taxes.tabs.categories')}
+        searchPlaceholder={t('taxes.categories.searchPlaceholder')}
+        emptyText={list.term ? t('taxes.categories.emptyFiltered') : t('taxes.categories.empty')}
+      />
       {adding ? (
         <AddCategoryDialog
           company={company}

@@ -31,14 +31,22 @@ const CODES = [
   code({ id: 't-3', code: 'VAT_EXEMPT', name: 'VAT exempt', kind: 'exempt', rate_needed: false, current_rate: null }),
 ]
 
+const CATEGORIES = [
+  { id: 'cat-1', company_id: null, shared: true, name: 'Standard goods', codes: [{ company_id: 'c-1', tax_code_id: 't-1', code: 'VAT_STD' }] },
+  { id: 'cat-2', company_id: 'c-2', shared: false, name: 'Imported goods', codes: [] },
+]
+const page = (rows) => ({ data: rows, meta: { last_page: 1, total: rows.length, from: 1, to: rows.length } })
+
 function taxes({ permissions = EDITOR } = {}) {
   mockRoutes(
     api,
     [
+      // Every code (the "Rate needed" count and the category dialog), then the list's pages.
       ['companies/c-1/tax-codes?per_page=200', { data: CODES }],
-      ['tax-categories?per_page=200', { data: [{ id: 'cat-1', company_id: null, shared: true, name: 'Standard goods', codes: [{ company_id: 'c-1', tax_code_id: 't-1', code: 'VAT_STD' }] }] }],
+      [/^companies\/c-1\/tax-codes\?/, page(CODES)],
+      [/^tax-categories\?/, page(CATEGORIES)],
       ['master-data/settings', { data: [{ data_type: 'items', mode: 'shared', changed_at: null }] }],
-      ['companies/c-1/price-lists?per_page=200', { data: [{ id: 'pl-1', name: 'Retail CDF', currency: 'CDF', tax_inclusive: true, is_default: true }] }],
+      [/^companies\/c-1\/price-lists\?/, page([{ id: 'pl-1', name: 'Retail CDF', currency: 'CDF', tax_inclusive: true, is_default: true }])],
       ['tenant/currencies', { data: [{ id: 'tc-1', code: 'CDF', active: true, decimals: 0 }] }],
     ],
     { permissions, companies: [CD_COMPANY] },
@@ -133,10 +141,45 @@ describe('Taxes', () => {
     const category = (await screen.findByText('Standard goods')).closest('tr')
     expect(within(category).getByText('All companies')).toBeInTheDocument()
     expect(within(category).getByText('VAT_STD')).toBeInTheDocument()
+    // Another company's category the user reaches is named by its company.
+    const other = screen.getByText('Imported goods').closest('tr')
+    expect(within(other).getByText('Another company')).toBeInTheDocument()
+    expect(within(other).getByText('No default code')).toBeInTheDocument()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Price lists' }))
     const row = (await screen.findByText('Retail CDF')).closest('tr')
     expect(within(row).getByText('Include tax')).toBeInTheDocument()
     expect(within(row).getByText('Default for CDF')).toBeInTheDocument()
+  })
+
+  it('searches and exports tax codes, and a tab change starts the next list afresh (EXP-01)', async () => {
+    taxes()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'tax-codes-2026-10-08.xlsx' })
+    URL.createObjectURL = vi.fn(() => 'blob:taxes')
+    URL.revokeObjectURL = vi.fn()
+    const calls = (prefix) => api.get.mock.calls.map(([path]) => path).filter((path) => path.startsWith(prefix) && path.includes('per_page=25'))
+    const { router } = renderApp('/settings/taxes')
+    const table = await screen.findByRole('table', { name: 'Tax codes' })
+    await within(table).findByText('VAT_STD')
+    expect(calls('companies/c-1/tax-codes?')[0]).toBe('companies/c-1/tax-codes?per_page=25&page=1')
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'vat' } })
+    await waitFor(() => expect(calls('companies/c-1/tax-codes?').at(-1)).toBe('companies/c-1/tax-codes?search=vat&per_page=25&page=1'))
+    fireEvent.click(within(table).getByRole('button', { name: 'Kind' }))
+    await waitFor(() => expect(calls('companies/c-1/tax-codes?').at(-1)).toBe('companies/c-1/tax-codes?search=vat&sort=kind&per_page=25&page=1'))
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Excel (.xlsx)' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    const [path] = api.download.mock.calls[0]
+    const params = new URLSearchParams(path.split('?')[1])
+    expect(path.startsWith('companies/c-1/tax-codes?')).toBe(true)
+    expect(params.get('format')).toBe('xlsx')
+    expect(params.get('search')).toBe('vat')
+    expect(params.getAll('columns[]')).toEqual(['code', 'name', 'kind', 'rate', 'since'])
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Categories' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=categories'))
+    await waitFor(() => expect(calls('tax-categories?').at(-1)).toBe('tax-categories?per_page=25&page=1'))
   })
 
   it('offers no changes to a user who may only view taxes', async () => {

@@ -961,7 +961,8 @@
       "kind": "Kind",
       "rate": "Rate",
       "since": "Since",
-      "actions": "Actions"
+      "actions": "Actions",
+      "fiscalCode": "Fiscal code"
     },
     "kinds": {
       "vat": "VAT",
@@ -1020,7 +1021,10 @@
       "defaultCode": "Default tax code in {{name}}",
       "empty": "No tax categories yet.",
       "sharedNote": "Items are shared across your companies, so this category is shared too. Other companies set their own default code.",
-      "companyNote": "Items are kept per company, so this category belongs to {{name}}."
+      "companyNote": "Items are kept per company, so this category belongs to {{name}}.",
+      "oneCompany": "Another company",
+      "searchPlaceholder": "Category name",
+      "emptyFiltered": "No tax category matches this search. Try other words."
     },
     "priceLists": {
       "intro": "Price lists hold the prices you sell at, in one currency each.",
@@ -1037,8 +1041,12 @@
       "inclusive": "Prices include tax",
       "inclusiveHelp": "Tax is part of the price shown to customers.",
       "makeDefault": "Make this the default list for its currency",
-      "makeDefaultHelp": "The current default in that currency stops being the default."
-    }
+      "makeDefaultHelp": "The current default in that currency stops being the default.",
+      "searchPlaceholder": "Name or currency",
+      "emptyFiltered": "No price list matches this search. Try other words."
+    },
+    "searchPlaceholder": "Code, name or fiscal code",
+    "emptyFiltered": "No tax code matches this search. Try other words."
   },
   "paymentMethods": {
     "empty": "This company has no payment methods yet.",

@@ -5,11 +5,13 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, DataTable, Dialog, PercentInput, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, DataTable, Dialog, ListView, PercentInput, StatusBadge, TextField } from '@/components/ds'
 import { formatCalendarDate, todayIn } from '@/lib/dates'
+import { actionsColumn } from '@/lib/listColumns'
 import { formatDecimal } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { useServerList } from '@/lib/useServerList'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { companyScope } from '../finance/useSettingsCompany'
 
@@ -142,7 +144,11 @@ function AddRateDialog({ code, company, onClose }) {
   )
 }
 
-/** MD-03, CP-01, CP-02: the company's tax codes with the rate in force. */
+/**
+ * MD-03, CP-01, CP-02: the company's tax codes with the rate in force;
+ * search, sort, pages, columns and export (EXP-01, LAY-04). The "Rate
+ * needed" count reads every code, not just the page shown.
+ */
 export function TaxCodes({ company }) {
   const { t } = useTranslation()
   const locale = useLocale()
@@ -164,13 +170,18 @@ export function TaxCodes({ company }) {
     },
   })
 
-  const rows = codes.data?.data ?? []
-  const needed = rows.filter((code) => code.rate_needed).length
+  const needed = (codes.data?.data ?? []).filter((code) => code.rate_needed).length
 
   const columns = [
-    { key: 'code', label: t('taxes.columns.code'), render: (row) => <span className="font-mono text-caption text-ink">{row.code}</span> },
-    { key: 'name', label: t('taxes.columns.name'), render: (row) => <span className="whitespace-normal">{row.name}</span> },
-    { key: 'kind', label: t('taxes.columns.kind'), render: (row) => t(`taxes.kinds.${row.kind}`) },
+    {
+      key: 'code',
+      label: t('taxes.columns.code'),
+      sortKey: 'code',
+      hideable: false,
+      render: (row) => <span className="font-mono text-caption text-ink">{row.code}</span>,
+    },
+    { key: 'name', label: t('taxes.columns.name'), sortKey: 'name', render: (row) => <span className="whitespace-normal">{row.name}</span> },
+    { key: 'kind', label: t('taxes.columns.kind'), sortKey: 'kind', render: (row) => t(`taxes.kinds.${row.kind}`) },
     { key: 'rate', label: t('taxes.columns.rate'), render: (row) => <CurrentRate code={row} /> },
     {
       key: 'since',
@@ -178,25 +189,28 @@ export function TaxCodes({ company }) {
       render: (row) => (row.current_rate ? formatCalendarDate(row.current_rate.effective_from, locale) : '—'),
     },
     {
-      key: 'actions',
-      label: <span className="sr-only">{t('taxes.columns.actions')}</span>,
-      align: 'end',
-      render: (row) => (
-        <div className="flex justify-end gap-1">
-          {row.kind !== 'exempt' ? (
-            <Button variant="ghost" onClick={() => setHistory(row)} aria-label={t('taxes.ratesOf', { code: row.code })}>
-              {t('taxes.rates')}
-            </Button>
-          ) : null}
-          {canEdit && row.kind !== 'exempt' ? (
-            <Button variant="ghost" icon="plus" onClick={() => setAdding(row)} aria-label={t('taxes.addRate.actionFor', { code: row.code })}>
-              {t('taxes.addRate.action')}
-            </Button>
-          ) : null}
-        </div>
-      ),
+      key: 'fiscal_code',
+      label: t('taxes.columns.fiscalCode'),
+      sortKey: 'fiscal_code',
+      defaultHidden: true,
+      render: (row) => (row.fiscal_code ? <span className="font-mono text-caption text-ink">{row.fiscal_code}</span> : ''),
     },
+    actionsColumn(t('taxes.columns.actions'), (row) => (
+      <div className="flex justify-end gap-1">
+        {row.kind !== 'exempt' ? (
+          <Button variant="ghost" onClick={() => setHistory(row)} aria-label={t('taxes.ratesOf', { code: row.code })}>
+            {t('taxes.rates')}
+          </Button>
+        ) : null}
+        {canEdit && row.kind !== 'exempt' ? (
+          <Button variant="ghost" icon="plus" onClick={() => setAdding(row)} aria-label={t('taxes.addRate.actionFor', { code: row.code })}>
+            {t('taxes.addRate.action')}
+          </Button>
+        ) : null}
+      </div>
+    )),
   ]
+  const list = useServerList({ id: 'tax-codes', endpoint: `companies/${company.id}/tax-codes`, queryKey: taxCodesKey(company.id), columns })
 
   return (
     <div className="flex flex-col gap-4">
@@ -212,15 +226,12 @@ export function TaxCodes({ company }) {
       {applied ? (
         <Alert tone="success" title={applied.added.length ? t('taxes.pack.added', { count: applied.added.length, codes: applied.added.join(', ') }) : t('taxes.pack.nothing')} />
       ) : null}
-      {codes.isError ? <Alert tone="danger" title={errorMessage(codes.error)} action={<Button onClick={() => codes.refetch()}>{t('common.retry')}</Button>} /> : null}
-      <div className="overflow-x-auto">
-        <DataTable
-          caption={t('taxes.tabs.codes')}
-          columns={columns}
-          rows={rows}
-          emptyText={codes.isPending ? t('common.loading') : canEdit ? t('taxes.emptyEdit') : t('taxes.empty')}
-        />
-      </div>
+      <ListView
+        list={list}
+        title={t('taxes.tabs.codes')}
+        searchPlaceholder={t('taxes.searchPlaceholder')}
+        emptyText={list.term ? t('taxes.emptyFiltered') : canEdit ? t('taxes.emptyEdit') : t('taxes.empty')}
+      />
 
       {history ? <RateHistoryDialog code={history} onClose={() => setHistory(null)} /> : null}
       {adding ? <AddRateDialog key={adding.id} code={adding} company={company} onClose={() => setAdding(null)} /> : null}

@@ -961,7 +961,8 @@
       "kind": "Type",
       "rate": "Taux",
       "since": "Depuis",
-      "actions": "Actions"
+      "actions": "Actions",
+      "fiscalCode": "Code fiscal"
     },
     "kinds": {
       "vat": "TVA",
@@ -1020,7 +1021,10 @@
       "defaultCode": "Code de taxe par défaut dans {{name}}",
       "empty": "Aucune catégorie de taxe pour l’instant.",
       "sharedNote": "Les articles sont partagés entre vos sociétés : cette catégorie l’est aussi. Les autres sociétés choisissent leur propre code par défaut.",
-      "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}."
+      "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}.",
+      "oneCompany": "Une autre société",
+      "searchPlaceholder": "Nom de la catégorie",
+      "emptyFiltered": "Aucune catégorie de taxe ne correspond à cette recherche. Essayez d’autres mots."
     },
     "priceLists": {
       "intro": "Les listes de prix contiennent vos prix de vente, chacune dans une devise.",
@@ -1037,8 +1041,12 @@
       "inclusive": "Les prix incluent la taxe",
       "inclusiveHelp": "La taxe fait partie du prix affiché aux clients.",
       "makeDefault": "En faire la liste par défaut de sa devise",
-      "makeDefaultHelp": "La liste par défaut actuelle dans cette devise ne le sera plus."
-    }
+      "makeDefaultHelp": "La liste par défaut actuelle dans cette devise ne le sera plus.",
+      "searchPlaceholder": "Nom ou devise",
+      "emptyFiltered": "Aucune liste de prix ne correspond à cette recherche. Essayez d’autres mots."
+    },
+    "searchPlaceholder": "Code, nom ou code fiscal",
+    "emptyFiltered": "Aucun code de taxe ne correspond à cette recherche. Essayez d’autres mots."
   },
   "paymentMethods": {
     "empty": "Cette société n’a pas encore de moyen de paiement.",
