@@ -369,6 +369,93 @@ return [
         ],
     ],
 
+    // EXP-01 : les listes des utilisateurs, invitations, sessions, rôles et attributions, et leurs exports.
+    'user' => [
+        'list_title' => 'Utilisateurs',
+        'columns' => [
+            'name' => 'Nom',
+            'email' => 'E-mail',
+            'phone' => 'Téléphone',
+            'roles' => 'Rôles',
+            'status' => 'Statut',
+            'two_factor' => 'Double authentification',
+            'last_sign_in_at' => 'Dernière connexion',
+            'created_at' => 'Créé le',
+        ],
+        'statuses' => [
+            'active' => 'Actif',
+            'pending' => 'En attente',
+            'deactivated' => 'Désactivé',
+        ],
+    ],
+
+    'invitation' => [
+        'list_title' => 'Invitations',
+        'columns' => [
+            'name' => 'Nom',
+            'email' => 'E-mail',
+            'phone' => 'Téléphone',
+            'roles' => 'Rôles',
+            'status' => 'Statut',
+            'invited_by' => 'Invité par',
+            'expires_at' => 'Expire le',
+            'created_at' => 'Envoyée le',
+        ],
+        'statuses' => [
+            'pending' => 'En attente',
+            'accepted' => 'Acceptée',
+            'revoked' => 'Révoquée',
+            'expired' => 'Expirée',
+        ],
+    ],
+
+    'session' => [
+        'list_title' => 'Sessions',
+        'columns' => [
+            'device' => 'Appareil',
+            'user_agent' => 'Navigateur ou application',
+            'ip' => 'Adresse IP',
+            'last_active' => 'Dernière activité',
+            'current' => 'Cet appareil',
+            'created_at' => 'Connecté le',
+        ],
+    ],
+
+    'role' => [
+        'list_title' => 'Rôles',
+        'columns' => [
+            'name' => 'Nom',
+            'description' => 'Description',
+            'type' => 'Type',
+            'permissions' => 'Autorisations',
+            'two_factor' => 'Double authentification',
+            'status' => 'Statut',
+        ],
+        'types' => [
+            'system' => 'Système',
+            'custom' => 'Personnalisé',
+        ],
+        'two_factor_required' => 'Obligatoire',
+    ],
+
+    'assignment' => [
+        'list_title' => 'Rôles de :name',
+        'columns' => [
+            'role' => 'Rôle',
+            'scope_type' => 'Niveau',
+            'scope' => 'Où',
+            'granted_by' => 'Attribué par',
+            'granted_at' => 'Attribué le',
+        ],
+        'scope_types' => [
+            'tenant' => 'Toute l’organisation',
+            'company' => 'Société',
+            'branch' => 'Succursale',
+            'location' => 'Emplacement',
+        ],
+        'role_at' => ':role à :scope',
+    ],
+
     // Listes et leurs exports (EXP-01 ; plan listes et sélecteurs).
     'list' => [
         'sort_unknown' => 'Cette liste ne peut pas être triée par « :sort ». Choisissez une autre colonne.',

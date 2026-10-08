@@ -369,6 +369,93 @@ return [
         ],
     ],
 
+    // EXP-01: the users, invitations, sessions, roles and assignments lists and their exports.
+    'user' => [
+        'list_title' => 'Users',
+        'columns' => [
+            'name' => 'Name',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'roles' => 'Roles',
+            'status' => 'Status',
+            'two_factor' => 'Two-factor',
+            'last_sign_in_at' => 'Last signed in',
+            'created_at' => 'Created',
+        ],
+        'statuses' => [
+            'active' => 'Active',
+            'pending' => 'Pending',
+            'deactivated' => 'Deactivated',
+        ],
+    ],
+
+    'invitation' => [
+        'list_title' => 'Invitations',
+        'columns' => [
+            'name' => 'Name',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'roles' => 'Roles',
+            'status' => 'Status',
+            'invited_by' => 'Invited by',
+            'expires_at' => 'Expires',
+            'created_at' => 'Sent',
+        ],
+        'statuses' => [
+            'pending' => 'Pending',
+            'accepted' => 'Accepted',
+            'revoked' => 'Revoked',
+            'expired' => 'Expired',
+        ],
+    ],
+
+    'session' => [
+        'list_title' => 'Sessions',
+        'columns' => [
+            'device' => 'Device',
+            'user_agent' => 'Browser or app',
+            'ip' => 'IP address',
+            'last_active' => 'Last active',
+            'current' => 'This device',
+            'created_at' => 'Signed in',
+        ],
+    ],
+
+    'role' => [
+        'list_title' => 'Roles',
+        'columns' => [
+            'name' => 'Name',
+            'description' => 'Description',
+            'type' => 'Type',
+            'permissions' => 'Permissions',
+            'two_factor' => 'Two-factor',
+            'status' => 'Status',
+        ],
+        'types' => [
+            'system' => 'System',
+            'custom' => 'Custom',
+        ],
+        'two_factor_required' => 'Required',
+    ],
+
+    'assignment' => [
+        'list_title' => 'Roles of :name',
+        'columns' => [
+            'role' => 'Role',
+            'scope_type' => 'Level',
+            'scope' => 'Where',
+            'granted_by' => 'Given by',
+            'granted_at' => 'Given',
+        ],
+        'scope_types' => [
+            'tenant' => 'Whole organisation',
+            'company' => 'Company',
+            'branch' => 'Branch',
+            'location' => 'Location',
+        ],
+        'role_at' => ':role at :scope',
+    ],
+
     // Lists and their exports (EXP-01; lists and pickers plan).
     'list' => [
         'sort_unknown' => 'This list can’t be sorted by “:sort”. Choose another column.',

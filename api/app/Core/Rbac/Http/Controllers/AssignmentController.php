@@ -2,8 +2,10 @@
 
 namespace App\Core\Rbac\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Grants;
+use App\Core\Rbac\Http\Requests\ListAssignmentsRequest;
 use App\Core\Rbac\Http\Requests\RemoveAssignmentRequest;
 use App\Core\Rbac\Http\Requests\StoreAssignmentRequest;
 use App\Core\Rbac\Http\Resources\AssignmentResource;
@@ -11,10 +13,11 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\RoleManager;
 use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * RBAC-04, RBAC-10, RBAC-12: a user's role assignments. Granting is checked
@@ -30,15 +33,29 @@ class AssignmentController
         private readonly ScopeNames $scopeNames,
     ) {}
 
-    public function index(Request $request, User $user): AnonymousResourceCollection
+    public function index(ListAssignmentsRequest $request, User $user, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        abort_unless($request->user()->can('view', $user), 404);
-
         $visible = $this->resolver->visibleIds($request->user(), 'core.user.view');
-        $assignments = $user->assignments()->with(['role', 'creator'])->orderBy('created_at')->orderBy('id')->get()
-            ->filter(fn (RoleAssignment $a) => ScopeNames::covers($visible, $a->scope_type, $a->scope_id))
-            ->values();
-        $this->scopeNames->attach($assignments);
+        // Only the roles held where the reader can see (RBAC-04).
+        $query = ScopeNames::constrain(RoleAssignment::query()->where('user_id', $user->id), $visible);
+        $search = trim((string) $request->validated('search', ''));
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '\\%_').'%';
+            $query->whereHas('role', fn (Builder $q) => $q->where('name', 'ilike', $like));
+        }
+
+        $request->applySort($query);
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        // Every assignment unless paging is asked for (ListAssignmentsRequest).
+        $assignments = $request->wantsPage()
+            ? $query->with(['role', 'creator'])->paginate($request->perPage())->withQueryString()
+            : $query->with(['role', 'creator'])->get();
+        $this->scopeNames->attach($request->wantsPage() ? $assignments->getCollection() : $assignments);
 
         return AssignmentResource::collection($assignments);
     }
