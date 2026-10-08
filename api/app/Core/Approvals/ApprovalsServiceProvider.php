@@ -15,6 +15,9 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Workflow\Handlers\ApprovalHandler;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -59,6 +62,7 @@ class ApprovalsServiceProvider extends ServiceProvider
         $resolvers->register(StageRolesResolver::class, listed: false);
 
         ApprovalNotices::register($this->app->make(EventTypes::class));
+        RateLimiter::for(EmailApprovals::LIMITER, fn (Request $request) => Limit::perMinute(EmailApprovals::PER_MINUTE)->by('ip|'.$request->ip()));
 
         $mail = $this->app->make(MailActions::class);
 

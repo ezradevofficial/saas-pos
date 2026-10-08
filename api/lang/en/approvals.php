@@ -129,7 +129,8 @@ return [
             'used' => 'This link was already used. Sign in to see the approval.',
             'expired' => 'This link has expired. Sign in to decide.',
             'not_waiting' => 'This approval is no longer waiting for you. Sign in to see what happened.',
-            'two_factor' => 'Your role requires two-step sign-in. Sign in to decide.',
+            'two_factor' => 'Your account uses two-step sign-in. Sign in to decide.',
+            'locked' => 'Your account is locked for now. Sign in later to decide.',
         ],
     ],
 

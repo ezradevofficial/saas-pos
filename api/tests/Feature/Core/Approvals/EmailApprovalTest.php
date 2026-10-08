@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\Approvals\EmailApprovals;
 use App\Core\Approvals\Models\ApprovalEmailToken;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
@@ -122,6 +123,39 @@ class EmailApprovalTest extends TestCase
             ->assertJsonPath('data.reason', 'two_factor')->assertJsonPath('data.approval', null);
         $this->postJson('/api/v1/approvals/email/'.$tokens['approve'])->assertForbidden();
         $this->assertSame(ApprovalRequest::PENDING, $this->fresh($approval)->status);
+    }
+
+    public function test_a_user_with_two_factor_on_or_a_locked_account_must_sign_in(): void
+    {
+        $approval = $this->submit($this->approvalGraph());
+        $tokens = $this->links($this->managerA);
+
+        $this->inTenant(fn () => $this->managerA->forceFill(['locked_until' => CarbonImmutable::now()->addMinutes(10)])->saveQuietly());
+        $this->getJson('/api/v1/approvals/email/'.$tokens['approve'])->assertJsonPath('data.reason', 'locked');
+        $this->postJson('/api/v1/approvals/email/'.$tokens['approve'])->assertForbidden();
+
+        // Chosen voluntarily (no role requires it).
+        $this->inTenant(fn () => $this->managerA->forceFill(['locked_until' => null, 'two_factor_method' => 'totp', 'two_factor_secret' => 'SECRET', 'two_factor_confirmed_at' => now()])->saveQuietly());
+        $this->getJson('/api/v1/approvals/email/'.$tokens['approve'])->assertJsonPath('data.reason', 'two_factor');
+        $this->postJson('/api/v1/approvals/email/'.$tokens['approve'])->assertForbidden();
+        $this->assertSame(ApprovalRequest::PENDING, $this->fresh($approval)->status);
+    }
+
+    public function test_email_endpoints_send_no_referrer_and_have_their_own_rate_limit(): void
+    {
+        $this->submit($this->approvalGraph());
+        $tokens = $this->links($this->managerA);
+
+        $this->getJson('/api/v1/approvals/email/'.$tokens['approve'])->assertOk()->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->getJson('/api/v1/approvals/email/'.str_repeat('b', 48))->assertNotFound()->assertHeader('Referrer-Policy', 'no-referrer');
+
+        for ($i = 2; $i < EmailApprovals::PER_MINUTE; $i++) {
+            $this->getJson('/api/v1/approvals/email/'.str_repeat('c', 48));
+        }
+
+        $this->getJson('/api/v1/approvals/email/'.$tokens['approve'])->assertStatus(429);
+        // Sign-in uses another bucket.
+        $this->postJson('/api/v1/auth/sign-in', ['login' => 'nobody@example.com', 'password' => 'x'])->assertStatus(422);
     }
 
     public function test_nodes_without_email_approval_send_no_links(): void

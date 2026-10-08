@@ -129,7 +129,8 @@ return [
             'used' => 'Ce lien a déjà été utilisé. Connectez-vous pour voir l’approbation.',
             'expired' => 'Ce lien a expiré. Connectez-vous pour décider.',
             'not_waiting' => 'Cette approbation ne vous attend plus. Connectez-vous pour voir ce qui s’est passé.',
-            'two_factor' => 'Votre rôle exige une connexion en deux étapes. Connectez-vous pour décider.',
+            'two_factor' => 'Votre compte utilise la connexion en deux étapes. Connectez-vous pour décider.',
+            'locked' => 'Votre compte est bloqué pour le moment. Connectez-vous plus tard pour décider.',
         ],
     ],
 

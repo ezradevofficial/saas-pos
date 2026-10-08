@@ -1,9 +1,11 @@
 <?php
 
+use App\Core\Approvals\EmailApprovals;
 use App\Core\Approvals\Http\Controllers\ApprovalController;
 use App\Core\Approvals\Http\Controllers\AttachmentFileController;
 use App\Core\Approvals\Http\Controllers\DelegationController;
 use App\Core\Approvals\Http\Controllers\EmailApprovalController;
+use App\Core\Approvals\Http\NoReferrer;
 use App\Core\Approvals\Models\ApprovalDelegation;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
@@ -118,8 +120,8 @@ Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')-
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
 // APR-08: an emailed approve/reject link; the single-use token is the credential.
-Route::get('approvals/email/{token}', [EmailApprovalController::class, 'show'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{48}');
-Route::post('approvals/email/{token}', [EmailApprovalController::class, 'confirm'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{48}');
+Route::get('approvals/email/{token}', [EmailApprovalController::class, 'show'])->middleware([NoReferrer::class, 'throttle:'.EmailApprovals::LIMITER])->where('token', '[A-Za-z0-9]{48}');
+Route::post('approvals/email/{token}', [EmailApprovalController::class, 'confirm'])->middleware([NoReferrer::class, 'throttle:'.EmailApprovals::LIMITER])->where('token', '[A-Za-z0-9]{48}');
 
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');

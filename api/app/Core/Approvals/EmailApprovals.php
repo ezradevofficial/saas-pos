@@ -35,6 +35,11 @@ class EmailApprovals
 {
     public const TTL_HOURS = 72;
 
+    // L7: their own rate-limit bucket, per IP (ApprovalsServiceProvider).
+    public const LIMITER = 'approval-email';
+
+    public const PER_MINUTE = 20;
+
     public const OK = 'confirm';
 
     public const SIGN_IN = 'sign_in_required';
@@ -123,7 +128,9 @@ class EmailApprovals
             $row->used_at !== null => 'used',
             ! $assignment->isPending() || ! $request->isPending() || $assignment->step !== $request->step => 'not_waiting',
             $row->expires_at->lessThanOrEqualTo(CarbonImmutable::now()) => 'expired',
-            $this->twoFactor->required($user) => 'two_factor',
+            // M5: a second factor (required or chosen) means a link alone is not enough; so does a locked account.
+            $user->locked_until !== null && $user->locked_until->isFuture() => 'locked',
+            $user->hasTwoFactor() || $this->twoFactor->required($user) => 'two_factor',
             default => null,
         };
 
