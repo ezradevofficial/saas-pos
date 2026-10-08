@@ -8,6 +8,7 @@ use App\Core\Automation\Actions\AutomationContext;
 use App\Core\Automation\Actions\TransientFailure;
 use App\Core\Automation\Chain\AutomationChain;
 use App\Core\Automation\Chain\Cause;
+use App\Core\Automation\Jobs\RetryThrottledRun;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
@@ -24,6 +25,7 @@ use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\WorkflowAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
@@ -33,7 +35,10 @@ use Throwable;
  *
  * dispatch(): a trigger fired. The run is logged at once: throttled when
  * the tenant (600 a minute) or the rule (60 a minute) is over its limit,
- * else queued and handed to a RunAutomationRule job after commit. Date and
+ * else queued and handed to a RunAutomationRule job after commit. A
+ * throttled live trigger is retried once after the throttle window
+ * (RetryThrottledRun); a rule throttled too often in an hour alerts the
+ * administrators once that hour (L3). Date and
  * schedule occurrences carry a dedupe key, so one occurrence runs once.
  *
  * execute(): the job claims the run (attempts + 1), reads the document
@@ -78,7 +83,11 @@ class RuleRunner
             return null;
         }
 
-        $throttled = $this->throttled($rule, $hit);
+        $wait = $this->throttle($rule, $hit);
+        $throttled = $wait !== null;
+        // L3: a throttled live trigger (no dedupe key: nothing scans for it again)
+        // is tried once more after the throttle window.
+        $retryAt = $throttled && $hit->dedupeKey === null ? CarbonImmutable::now()->addSeconds($wait) : null;
 
         try {
             $run = DB::transaction(fn () => AutomationRun::create([
@@ -98,6 +107,7 @@ class RuleRunner
                 'error' => $throttled ? __('automation.errors.throttled') : null,
                 'error_code' => $throttled ? 'throttled' : null,
                 'finished_at' => $throttled ? CarbonImmutable::now() : null,
+                'next_attempt_at' => $retryAt,
             ]));
         } catch (UniqueConstraintViolationException) {
             return null;
@@ -105,9 +115,59 @@ class RuleRunner
 
         if (! $throttled) {
             RunAutomationRule::dispatch($this->tenants->require(), $run->id)->afterCommit();
+
+            return $run;
         }
 
+        if ($retryAt !== null) {
+            RetryThrottledRun::dispatch($this->tenants->require(), $run->id)->delay($retryAt)->afterCommit();
+        }
+
+        $this->countThrottled($rule, $run);
+
         return $run;
+    }
+
+    /**
+     * L3: the one retry of a throttled live run, after the throttle window.
+     * Still throttled: the run stays `throttled` for good (no further
+     * retry). Otherwise it is queued and runs as any other.
+     */
+    public function retryThrottled(string $runId): void
+    {
+        DB::transaction(function () use ($runId) {
+            $run = AutomationRun::query()->whereKey($runId)->lockForUpdate()->first();
+
+            if ($run === null || $run->outcome !== AutomationRun::THROTTLED || $run->next_attempt_at === null) {
+                return;
+            }
+
+            $rule = AutomationRule::query()->find($run->rule_id);
+
+            if ($rule === null || ! $rule->enabled || $rule->isArchived()) {
+                $run->forceFill(['next_attempt_at' => null])->save();
+
+                return;
+            }
+
+            $hit = new TriggerHit($run->trigger_type, is_array($run->trigger) ? $run->trigger : [], $run->document_id, null, $run->company_id);
+
+            if ($this->throttle($rule, $hit) !== null) {
+                $run->forceFill(['next_attempt_at' => null, 'finished_at' => CarbonImmutable::now()])->save();
+                $this->countThrottled($rule, $run);
+
+                return;
+            }
+
+            $run->forceFill([
+                'outcome' => AutomationRun::QUEUED,
+                'error' => null,
+                'error_code' => null,
+                'finished_at' => null,
+                'next_attempt_at' => null,
+            ])->save();
+            RunAutomationRule::dispatch($this->tenants->require(), $run->id)->afterCommit();
+        });
     }
 
     public function execute(string $runId): void
@@ -385,6 +445,21 @@ class RuleRunner
         }
     }
 
+    /**
+     * L3: a rule throttled more than `automation.throttle_alert_after` times
+     * within an hour alerts the automation administrators, at most once an
+     * hour per rule (core.automation.failed).
+     */
+    private function countThrottled(AutomationRule $rule, AutomationRun $run): void
+    {
+        $count = RateLimiter::hit('automation:throttled:'.$rule->id, 3600);
+        $limit = (int) config('automation.throttle_alert_after', 20);
+
+        if ($count > $limit && Cache::add('automation:throttle-alert:'.$rule->id, true, 3600)) {
+            $this->alert->send($rule, $run, __('automation.errors.throttled_often', ['count' => $limit]));
+        }
+    }
+
     private function finish(AutomationRun $run, string $outcome, ?array $results = null, ?string $error = null, ?string $code = null): void
     {
         $run->fill([
@@ -402,9 +477,10 @@ class RuleRunner
      * ran for this document too often lately (a cool-down against edits
      * bouncing between people and rules). Date and schedule scans count
      * against their own per-tenant budget, so they never starve live
-     * triggers.
+     * triggers. Throttled: the seconds until the limit that was hit frees
+     * up; else null (and the run is counted).
      */
-    private function throttled(AutomationRule $rule, TriggerHit $hit): bool
+    private function throttle(AutomationRule $rule, TriggerHit $hit): ?int
     {
         $keys = [
             ($hit->dedupeKey !== null ? 'automation:scan:' : 'automation:tenant:').$rule->tenant_id => (int) config('automation.tenant_runs_per_minute', 600),
@@ -413,14 +489,14 @@ class RuleRunner
 
         foreach ($keys as $key => $max) {
             if (RateLimiter::tooManyAttempts($key, $max)) {
-                return true;
+                return max(1, RateLimiter::availableIn($key));
             }
         }
 
         $documentKey = $hit->documentId === null ? null : 'automation:rule:'.$rule->id.':document:'.$hit->documentId;
 
         if ($documentKey !== null && RateLimiter::tooManyAttempts($documentKey, (int) config('automation.document_runs', 5))) {
-            return true;
+            return max(1, RateLimiter::availableIn($documentKey));
         }
 
         foreach (array_keys($keys) as $key) {
@@ -431,6 +507,6 @@ class RuleRunner
             RateLimiter::hit($documentKey, (int) config('automation.document_window', 600));
         }
 
-        return false;
+        return null;
     }
 }

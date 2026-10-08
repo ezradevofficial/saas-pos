@@ -37,6 +37,10 @@ return [
     'document_runs' => 5,
     'document_window' => 600,
 
+    // AUTO-06: a rule throttled more than this many times in an hour alerts
+    // the automation administrators (once an hour).
+    'throttle_alert_after' => 20,
+
     // AUTO-05: a run or webhook delivery left `running` / `sending` this
     // many minutes is reaped as failed (a worker died).
     'stuck_minutes' => 15,
