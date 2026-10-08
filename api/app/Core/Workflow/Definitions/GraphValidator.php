@@ -157,6 +157,7 @@ class GraphValidator
         } else {
             $this->checkDeadEnds($flow, $add);
             $this->checkParallel($flow, $add);
+            array_push($problems, ...$type->validateFlow($flow));
         }
 
         return $problems;

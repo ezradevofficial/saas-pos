@@ -4,6 +4,7 @@ namespace App\Core\Workflow\DocumentTypes;
 
 use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
+use App\Core\Workflow\Definitions\FlowGraph;
 use LogicException;
 
 /**
@@ -100,6 +101,22 @@ abstract class DocumentType
      *
      * @return array{number: ?string, title: ?string, amount: ?array{amount_minor: string, currency: string}}
      */
+    /**
+     * APR-04: the translation key naming the summary's amount in the
+     * approvals inbox (e.g. "New credit limit"). By default the label of the
+     * type's first money field, the one summary() reads.
+     */
+    public function amountLabel(): ?string
+    {
+        foreach ($this->fields() as $field) {
+            if ($field->type === 'money') {
+                return $field->label;
+            }
+        }
+
+        return null;
+    }
+
     public function summary(string $documentId): array
     {
         $amount = null;
@@ -121,6 +138,31 @@ abstract class DocumentType
         }
 
         return ['number' => null, 'title' => null, 'amount' => $amount];
+    }
+
+    /**
+     * WF-02: the type's own rules on a flow, checked with the graph before
+     * a version is saved as valid or published (after the structural
+     * checks, on an acyclic graph). Problems as GraphValidator reports them.
+     *
+     * @return list<array{code: string, message: string, node: ?string}>
+     */
+    public function validateFlow(FlowGraph $flow): array
+    {
+        return [];
+    }
+
+    /**
+     * APR-04, RBAC-05: parts of summary() hidden from $viewer, among
+     * `title` and `amount` (e.g. the amount when their field rules hide it).
+     * The approvals inbox, its search and export, its notices and emails
+     * and the approve-by-email page leave them out for that viewer.
+     *
+     * @return list<string>
+     */
+    public function hiddenSummaryFields(User $viewer): array
+    {
+        return [];
     }
 
     /**

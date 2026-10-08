@@ -45,5 +45,8 @@
   "v{{version}}",
   "Versions",
   "Condition",
-  "Action"
+  "Action",
+  "{{hours}} h {{minutes}} min",
+  "{{count}} minute",
+  "{{count}} minutes"
 ]

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\MasterData\CreditLimits\CreditLimitChangeType;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
@@ -69,7 +70,10 @@ class ApprovalPickersTest extends TestCase
     public function test_document_types_that_can_have_approvals_and_the_company_time_zone(): void
     {
         $this->getJson('/api/v1/approvals/document-types', $this->headersFor($this->requester))->assertOk()
-            ->assertExactJson(['data' => [['key' => TestRequestType::KEY, 'label' => __('workflow.list_title')]]]);
+            ->assertExactJson(['data' => [
+                ['key' => CreditLimitChangeType::KEY, 'label' => __('core.credit_limit_change.type')],
+                ['key' => TestRequestType::KEY, 'label' => __('workflow.list_title')],
+            ]]);
 
         $approval = $this->submit($this->approvalGraph());
         $this->getJson('/api/v1/approvals', $this->headersFor($this->managerA))->assertJsonPath('data.0.company.timezone', 'Africa/Nairobi');
