@@ -34,6 +34,7 @@ return [
                 'price_list' => 'Listes de prix',
                 'payment_method' => 'Moyens de paiement',
                 'dimension' => 'Départements, centres de coûts et projets',
+                'workflow' => 'Circuits',
             ],
         ],
         'actions' => [
@@ -48,6 +49,7 @@ return [
             'export' => 'Exporter',
             'override' => 'Remplacer',
             'configure' => 'Configurer',
+            'publish' => 'Publier',
         ],
     ],
 

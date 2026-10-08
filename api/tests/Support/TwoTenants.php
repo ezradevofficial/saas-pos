@@ -3,17 +3,24 @@
 namespace Tests\Support;
 
 use App\Core\Identity\Models\PersonalAccessToken;
+use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\InvitationNotification;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
+use App\Core\Workflow\DocumentTypes\DocumentScope;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
+use Tests\Support\Workflow\TestDocuments;
+use Tests\Support\Workflow\TestOrderType;
+use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
 /**
@@ -26,7 +33,8 @@ use Tests\TestCase;
  * master data sharing setting, a shared customer and a per-company
  * supplier, item categories and an item with another unit, barcodes and
  * an image, configured payment methods, departments, cost centres and
- * projects). Field rules, limit rules and module flags have
+ * projects, a published workflow with a document in it that created an
+ * order, working hours). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -50,6 +58,10 @@ final class TwoTenants
         Notification::fake();
         Storage::fake('media');
         app(ModuleRegistry::class)->register(self::MODULE);
+        // WF-01: the test document types (a request that creates orders).
+        TestDocuments::reset();
+        app(DocumentTypeRegistry::class)->register(TestRequestType::class);
+        app(DocumentTypeRegistry::class)->register(TestOrderType::class);
 
         return new self(
             self::tenant($test, 'a', ['email' => 'owner-a@example.com']),
@@ -163,6 +175,33 @@ final class TwoTenants
             $dimensions["{$type}_parent"] = $parent;
         }
 
+        // WF-02..WF-11: the company's flow from the default, its draft replaced
+        // by one that creates an order (WF-07) and published; a document started
+        // (the module's call) and moved once through the API; working hours (WF-09).
+        $workflow = self::ok($test->postJson('/api/v1/workflows', ['document_type' => TestRequestType::KEY, 'company_id' => $company], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/workflows/{$workflow}/draft", ['graph' => [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'order', 'type' => 'action', 'name' => "Order {$upper}", 'action' => 'create_document', 'config' => ['mapping' => 'order', 'on_cancel' => 'cancel']],
+                ['id' => 'review', 'type' => 'stage', 'name' => "Review {$upper}", 'due' => ['amount' => 8, 'unit' => 'business_hours']],
+                ['id' => 'check', 'type' => 'stage', 'name' => "Check {$upper}"],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'order'], ['from' => 'order', 'to' => 'review'],
+                ['from' => 'review', 'to' => 'check'], ['from' => 'check', 'to' => 'end'],
+            ],
+        ]], $owner));
+        $workflowVersion = self::ok($test->postJson("/api/v1/workflows/{$workflow}/publish", [], $owner))->json('data.published.id');
+        $document = app(TenantContext::class)->run($tenantId, function () use ($company, $branch, $ownerId, $upper) {
+            $id = TestDocuments::create(TestRequestType::KEY, ['total' => ['amount_minor' => '100000', 'currency' => 'KES'], 'note' => "Request {$upper}"], new DocumentScope($company, $branch));
+            app(WorkflowEngine::class)->start(TestRequestType::KEY, $id, User::findOrFail($ownerId));
+
+            return $id;
+        });
+        self::ok($test->postJson('/api/v1/document-workflows/'.TestRequestType::KEY."/{$document}/move", [], $owner));
+        self::ok($test->putJson("/api/v1/companies/{$company}/business-hours", ['hours' => ['mon' => [['08:00', '17:00']], 'sat' => [['09:00', '13:00']]]], $owner));
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -242,6 +281,9 @@ final class TwoTenants
                 'item' => $item,
                 'item_image' => $itemImage,
                 'payment_method' => $paymentMethod,
+                'workflow' => $workflow,
+                'workflow_version' => $workflowVersion,
+                'document' => $document,
                 ...$dimensions,
                 'challenge' => $challenge,
             ],

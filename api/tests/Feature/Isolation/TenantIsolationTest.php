@@ -26,6 +26,7 @@ use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\GlobalTables;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
+use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
 /**
@@ -85,6 +86,9 @@ class TenantIsolationTest extends TestCase
         'department' => 'department',
         'cost_centre' => 'cost_centre',
         'project' => 'project',
+        'workflow' => 'workflow',
+        'workflow_version' => 'workflow_version',
+        'document' => 'document', // WF-10: document-workflows/{document_type}/{document}, the test type's document
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -98,6 +102,7 @@ class TenantIsolationTest extends TestCase
     public const GLOBAL_PARAMETERS = [
         'country_pack' => 'KE', // GET country-packs/{country_pack}: the published pack (CP-01)
         'type' => 'party', // GET history/{type}/{record}: a record type name from an allow-list (MD-07); the record is B's
+        'document_type' => TestRequestType::KEY, // WF-01: a registered document type key; the document is B's
     ];
 
     /**
@@ -508,6 +513,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PATCH api/v1/items/{item}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/item-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/workflows', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/workflows/{workflow}/copy', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -996,6 +1003,9 @@ class TenantIsolationTest extends TestCase
             'PATCH api/v1/cost-centres/{cost_centre}' => ['parent_id' => $tenant->id('cost_centre_parent'), 'owner_user_id' => $tenant->id('user')],
             'POST api/v1/companies/{company}/projects' => ['code' => 'HIJACK-P', 'name' => 'Hijack', 'parent_id' => $tenant->id('project_parent'), 'owner_user_id' => $tenant->id('user')],
             'PATCH api/v1/projects/{project}' => ['parent_id' => $tenant->id('project_parent'), 'owner_user_id' => $tenant->id('user')],
+            // WF-02: a flow for the sign-up company (TwoTenants made the company's), and a copy of the company's there.
+            'POST api/v1/workflows' => ['document_type' => TestRequestType::KEY, 'company_id' => $tenant->id('sign_up_company')],
+            'POST api/v1/workflows/{workflow}/copy' => ['company_id' => $tenant->id('sign_up_company'), 'from' => 'published'],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),

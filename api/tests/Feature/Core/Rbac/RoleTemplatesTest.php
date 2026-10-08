@@ -83,13 +83,14 @@ class RoleTemplatesTest extends TestCase
             'core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive',
             'core.payment_method.configure',
             'core.dimension.view', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.archive',
+            'core.workflow.view', 'core.workflow.edit', 'core.workflow.publish',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(63, count($names));
+        $this->assertSame(66, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -223,6 +224,25 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame([], $granted('storekeeper'));
     }
 
+    public function test_templates_grant_workflow_permissions_to_owner_and_admin(): void
+    {
+        // WF-02, spec 6.4: only Owner and Admin edit and publish flows; the
+        // auditor reads them. Documents move through stage roles (WF-08).
+        $this->enter($this->signUp()->json('challenge_id'));
+        $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.workflow.%')->pluck('name')->sort()->values()->all();
+
+        foreach (['owner', 'admin'] as $key) {
+            $this->assertSame(['core.workflow.edit', 'core.workflow.publish', 'core.workflow.view'], $granted($key), $key);
+        }
+
+        $this->assertSame(['core.workflow.view'], $granted('read_only_auditor'));
+
+        foreach (['branch_manager', 'cashier', 'accountant', 'approver', 'procurement_officer'] as $key) {
+            $this->assertSame([], $granted($key), $key);
+        }
+    }
+
     public function test_system_role_names_use_the_tenant_locale(): void
     {
         $this->enter($this->signUp('fr')->json('challenge_id'));
@@ -248,7 +268,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(63, $permissions);
+        $this->assertCount(66, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 
