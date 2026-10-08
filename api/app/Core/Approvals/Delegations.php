@@ -6,6 +6,11 @@ use App\Core\Approvals\Models\ApprovalDelegation;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Models\RoleAssignment;
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\Models\Branch;
+use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -28,6 +33,7 @@ class Delegations
         private readonly ApprovalClock $clock,
         private readonly Auditor $auditor,
         private readonly ApprovalNotices $notices,
+        private readonly ScopeResolver $scopes,
     ) {}
 
     /** @return Collection<int, ApprovalDelegation> delegations to $user not revoked and not ended (by the widest time zone) */
@@ -56,6 +62,57 @@ class Delegations
         return ($delegations ?? $this->to($delegate))->first(
             fn (ApprovalDelegation $d) => $d->from_user_id === $assigneeId && $d->covers($request->document_type, $today),
         );
+    }
+
+    /**
+     * Who $user may delegate to: active colleagues holding a role at a place
+     * overlapping one of $user's own (the same place, above or beneath it);
+     * a user with a tenant-wide role overlaps everyone. At most 50, by name.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function candidates(User $user, string $search = ''): array
+    {
+        $own = RoleAssignment::query()->where('user_id', $user->id)->get(['scope_type', 'scope_id']);
+        $places = [];
+        $everyone = false;
+
+        foreach ($own as $assignment) {
+            if ($assignment->scope_type === Scope::TENANT) {
+                $everyone = true;
+
+                break;
+            }
+
+            array_push($places, ...($this->scopes->chainOf(Scope::of($assignment->scope_type, $assignment->scope_id)) ?? []));
+
+            if ($assignment->scope_type === Scope::COMPANY) {
+                $branches = Branch::query()->where('company_id', $assignment->scope_id)->pluck('id')->all();
+                array_push($places, ...array_map(fn ($id) => 'branch:'.$id, $branches));
+                array_push($places, ...Location::query()->whereIn('branch_id', $branches)->pluck('id')->map(fn ($id) => 'location:'.$id)->all());
+            } elseif ($assignment->scope_type === Scope::BRANCH) {
+                array_push($places, ...Location::query()->where('branch_id', $assignment->scope_id)->pluck('id')->map(fn ($id) => 'location:'.$id)->all());
+            }
+        }
+
+        $places = array_values(array_unique($places));
+
+        if (! $everyone && $places === []) {
+            return [];
+        }
+
+        $holders = RoleAssignment::query()->select('user_id')->when(! $everyone, fn ($q) => $q->where(function ($w) use ($places) {
+            foreach ($places as $place) {
+                [$type, $id] = explode(':', $place, 2);
+                $w->orWhere(fn ($x) => $x->where('scope_type', $type)->where('scope_id', $id));
+            }
+        }));
+        $search = trim($search);
+
+        return User::query()->where('status', User::STATUS_ACTIVE)->whereKeyNot($user->id)->whereIn('id', $holders)
+            ->when($search !== '', fn ($q) => $q->where('name', 'ilike', '%'.addcslashes($search, '\\%_').'%'))
+            ->orderBy('name')->orderBy('id')->limit(50)->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->all();
     }
 
     /** @param array{to_user_id: string, starts_on: string, ends_on: string, document_types?: ?list<string>, note?: ?string} $data */

@@ -3,6 +3,7 @@
 namespace App\Core\Approvals\Http\Controllers;
 
 use App\Core\Approvals\Delegations;
+use App\Core\Approvals\Http\Requests\DelegationCandidatesRequest;
 use App\Core\Approvals\Http\Requests\DelegationRequest;
 use App\Core\Approvals\Http\Requests\StoreDelegationRequest;
 use App\Core\Approvals\Http\Resources\DelegationResource;
@@ -28,6 +29,12 @@ class DelegationController
             ->limit(200)->get();
 
         return DelegationResource::collection($rows);
+    }
+
+    /** GET me/delegation-candidates?search=: {data: [{id, name}]}, at most 50. */
+    public function candidates(DelegationCandidatesRequest $request): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->delegations->candidates($request->user(), (string) $request->validated('search', ''))]);
     }
 
     public function store(StoreDelegationRequest $request): JsonResponse

@@ -340,6 +340,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // own delegations.
     Route::get('approvals', [ApprovalController::class, 'index']);
     Route::post('approvals/bulk-approve', [ApprovalController::class, 'bulkApprove']);
+    Route::get('approvals/document-types', [ApprovalController::class, 'documentTypes']);
+    Route::get('approvals/{approval}/reassign-candidates', [ApprovalController::class, 'reassignCandidates']);
     Route::get('approvals/{approval}', [ApprovalController::class, 'show']);
     Route::post('approvals/{approval}/approve', [ApprovalController::class, 'approve']);
     Route::post('approvals/{approval}/reject', [ApprovalController::class, 'reject']);
@@ -349,6 +351,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('approvals/{approval}/attachments', [ApprovalController::class, 'attach']);
     Route::post('approvals/{approval}/reassign', [ApprovalController::class, 'reassign']);
     Route::get('me/delegations', [DelegationController::class, 'index']);
+    Route::get('me/delegation-candidates', [DelegationController::class, 'candidates']);
     Route::post('me/delegations', [DelegationController::class, 'store']);
     Route::post('me/delegations/{delegation}/revoke', [DelegationController::class, 'revoke']);
 

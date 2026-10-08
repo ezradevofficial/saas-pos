@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\Approvals\Jobs\ProcessApprovalTimers;
 use App\Core\Approvals\Models\ApprovalAssignment;
 use App\Core\Approvals\Models\ApprovalDelegation;
 use Carbon\CarbonImmutable;
-use App\Core\Approvals\Jobs\ProcessApprovalTimers;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;

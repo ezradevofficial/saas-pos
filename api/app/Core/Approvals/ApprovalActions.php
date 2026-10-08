@@ -7,6 +7,7 @@ use App\Core\Approvals\Models\ApprovalAttachment;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Definitions\FlowGraph;
@@ -236,6 +237,38 @@ class ApprovalActions
 
             throw $e;
         }
+    }
+
+    /**
+     * Who a pending request may be reassigned to: active users holding a
+     * role at a place covering the document, without the requester(s), the
+     * step's pending approvers and anyone who already decided a step.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function reassignCandidates(ApprovalRequest $request): array
+    {
+        $chain = $this->scopes->chainOf(ApprovalAccess::scope($request)->scope()) ?? [];
+        $pending = $request->assignments()->where('step', $request->step)->where('status', ApprovalAssignment::PENDING)->pluck('user_id')->all();
+        $voted = $request->assignments()->whereIn('status', [ApprovalAssignment::APPROVED, ApprovalAssignment::REJECTED])->whereNotNull('decided_by')->pluck('decided_by')->all();
+        $without = array_values(array_unique([...$this->routing->excluded($request), ...$pending, ...$voted]));
+
+        if ($chain === []) {
+            return [];
+        }
+
+        return User::query()->where('status', User::STATUS_ACTIVE)
+            ->when($without !== [], fn ($q) => $q->whereNotIn('id', $without))
+            ->whereIn('id', RoleAssignment::query()
+                ->join('roles', 'roles.id', '=', 'role_assignments.role_id')->whereNull('roles.archived_at')
+                ->where(function ($q) use ($chain) {
+                    foreach ($chain as $link) {
+                        [$type, $id] = explode(':', $link, 2);
+                        $q->orWhere(fn ($w) => $w->where('role_assignments.scope_type', $type)->where('role_assignments.scope_id', $id));
+                    }
+                })->select('role_assignments.user_id'))
+            ->orderBy('name')->orderBy('id')->limit(200)->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->all();
     }
 
     /** The new approver may see the document, or holds a role at a place covering it (RBAC-04). */

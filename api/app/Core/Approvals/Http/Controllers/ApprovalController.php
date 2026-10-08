@@ -13,18 +13,21 @@ use App\Core\Approvals\Http\Requests\AttachToApprovalRequest;
 use App\Core\Approvals\Http\Requests\BulkApproveRequest;
 use App\Core\Approvals\Http\Requests\CommentApprovalRequest;
 use App\Core\Approvals\Http\Requests\DecideApprovalRequest;
+use App\Core\Approvals\Http\Requests\DocumentTypesRequest;
 use App\Core\Approvals\Http\Requests\ListApprovalsRequest;
 use App\Core\Approvals\Http\Requests\ReassignApprovalRequest;
+use App\Core\Approvals\Http\Requests\ReassignCandidatesRequest;
 use App\Core\Approvals\Http\Requests\ReturnApprovalRequest;
 use App\Core\Approvals\Http\Resources\ApprovalItemResource;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * APR-03, APR-04, APR-06: the approvals inbox and the actions on a
@@ -57,6 +60,26 @@ class ApprovalController
         }
 
         return ApprovalItemResource::collection($query->paginate($request->perPage())->withQueryString());
+    }
+
+    /** GET approvals/{approval}/reassign-candidates: {data: [{id, name}]} (core.approval.reassign at the document's place). */
+    public function reassignCandidates(ReassignCandidatesRequest $request): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->actions->reassignCandidates($request->approval())]);
+    }
+
+    /** GET approvals/document-types: {data: [{key, label}]}, the active types that can have approvals (inbox filter, delegation types). */
+    public function documentTypes(DocumentTypesRequest $request, DocumentTypeRegistry $types): JsonResponse
+    {
+        $data = [];
+
+        foreach ($types->all() as $type) {
+            if ($type->knowsRequester()) {
+                $data[] = ['key' => $type->key(), 'label' => __($type->label())];
+            }
+        }
+
+        return new JsonResponse(['data' => $data]);
     }
 
     public function show(ApprovalItemRequest $request): JsonResponse

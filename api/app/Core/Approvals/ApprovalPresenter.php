@@ -84,7 +84,10 @@ class ApprovalPresenter
             ],
             'step' => ['node_id' => $request->node_id, 'name' => $request->node_name, 'index' => $request->step + 1, 'count' => $request->steps],
             'mode' => $request->mode,
-            'company' => $request->company_id === null ? null : ['id' => $request->company_id, 'name' => $this->companyName($request->company_id)],
+            // The web shows due and escalation times in the company's time zone.
+            'company' => $request->company_id === null ? null : [
+                'id' => $request->company_id, 'name' => $this->companyName($request->company_id), 'timezone' => $this->clock->timezone($request->company_id),
+            ],
             'requester' => $this->user($request->requester_id),
             'received_at' => $request->received_at?->toIso8601ZuluString(),
             'waiting_since' => $request->level_started_at?->toIso8601ZuluString(),
