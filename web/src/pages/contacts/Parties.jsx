@@ -8,9 +8,12 @@ import { ROLE_PATHS } from './partyData'
 
 const STATUSES = ['active', 'archived']
 
-/** The tag filter: typed, so the URL (and the API) follow once typing stops. */
+/**
+ * The tag filter: typed, so the URL (and the API) follow once typing stops,
+ * or at once when the drawer closes, so no keystroke is lost.
+ */
 function TagField({ label, value, onChange }) {
-  const [tag, setTag] = useTypedText(value, (next) => onChange(next, { replace: true }))
+  const [tag, setTag] = useTypedText(value, (next) => onChange(next, { replace: true }), 300, { flushOnUnmount: true })
   return <TextField label={label} className="w-full" value={tag} onChange={(event) => setTag(event.target.value)} autoComplete="off" />
 }
 

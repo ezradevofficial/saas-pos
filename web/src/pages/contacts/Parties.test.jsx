@@ -81,6 +81,26 @@ describe('Customers and suppliers', () => {
     await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&search=0810&per_page=25&page=1'))
   })
 
+  it('keeps a tag typed just before the drawer closes, by Escape or Show results', async () => {
+    parties()
+    const { router } = renderApp('/contacts/customers')
+    await screen.findByText('Kin Traders SARL')
+
+    let drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Tag'), { target: { value: 'vip ' } })
+    // Closed before the typing pause: the tag is written at once, not dropped.
+    fireEvent.keyDown(drawer, { key: 'Escape' })
+    expect(router.state.location.search).toBe('?tag=vip')
+    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&tag=vip&per_page=25&page=1'))
+    expect(await screen.findByText('Tag: vip')).toBeInTheDocument()
+
+    drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Tag'), { target: { value: 'wholesale' } })
+    fireEvent.click(within(drawer).getByRole('button', { name: /^Show/ }))
+    expect(router.state.location.search).toBe('?tag=wholesale')
+    expect(await screen.findByText('Tag: wholesale')).toBeInTheDocument()
+  })
+
   it('sorts on the server, offers the tax ID column, and exports the visible columns with their API keys (EXP-01, LAY-04)', async () => {
     parties()
     api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'customers-2026-10-08.xlsx' })
