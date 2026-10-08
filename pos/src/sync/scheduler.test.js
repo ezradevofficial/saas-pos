@@ -85,4 +85,19 @@ describe('sync scheduler', () => {
     expect(engine.calls.at(-1)).toEqual({ pull: 'all' });
     scheduler.stop();
   });
+
+  it('never lets a failing run or status load reject', async () => {
+    const engine = fakeEngine();
+    engine.load = async () => {
+      throw new Error('db');
+    };
+    engine.sync = async () => {
+      throw new Error('boom');
+    };
+    const scheduler = createSyncScheduler({ engine, now: () => 0, timers: { setInterval: () => 1, clearInterval: () => {} } });
+
+    await expect(scheduler.start()).resolves.toMatchObject({ error: expect.any(Error) });
+    engine.setPending(1);
+    await expect(scheduler.tick()).resolves.toMatchObject({ error: expect.any(Error) });
+  });
 });

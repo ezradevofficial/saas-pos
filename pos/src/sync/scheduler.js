@@ -37,14 +37,14 @@ export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () 
     }
   }
 
+  // Never rejects: a timer callback has nobody to catch it.
   async function tick() {
     if (online === false) return null;
     const time = now();
     if (time - lastSnapshot >= settings.snapshotMs) return run({ pull: 'all' });
     if (time - lastIncremental >= settings.incrementalMs) return run({ pull: 'incremental' });
-    const { pending } = engine.getStatus();
-    const nextAttempt = pending ? await engine.store.nextAttemptAt() : null;
-    if (pending && nextAttempt !== null && nextAttempt <= time) return run({ pull: false });
+    // Uploads: the engine sends only what is due (and holds groups), so a pass is cheap.
+    if (engine.getStatus().pending) return run({ pull: false });
     return null;
   }
 
@@ -58,7 +58,11 @@ export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () 
 
   return {
     async start() {
-      await engine.load();
+      try {
+        await engine.load();
+      } catch (error) {
+        log('sync status could not be loaded', error);
+      }
       if (netInfo) unsubscribe = netInfo.addEventListener(onNetwork);
       const first = run({ pull: 'all', force: true });
       timer = timers.setInterval(() => {

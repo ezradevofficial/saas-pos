@@ -68,7 +68,9 @@
       "too_many_attempts": "Too many tries. Wait a minute, then enter the code again.",
       "offline": "The server cannot be reached. Check the connection, then try again.",
       "failed": "Pairing did not work. Try again, or ask an admin for a new code."
-    }
+    },
+    "unsent_one": "{{count}} record from this till’s earlier pairing was not uploaded. It is kept for review; ask an admin to pair the till as its former device to send it.",
+    "unsent_other": "{{count}} records from this till’s earlier pairing were not uploaded. They are kept for review; ask an admin to pair the till as its former device to send them."
   },
   "signIn": {
     "title": "Who is selling?",
@@ -102,7 +104,6 @@
     "confirmPin": "Enter the new PIN again",
     "rules": "4 to 6 digits. Managers who approve need 6. Avoid 1234, 0000 and dates.",
     "submit": "Save PIN",
-    "later": "Change it later",
     "mismatch": "The two PINs differ. Enter the new PIN again.",
     "tooShort": "A PIN has 4 to 6 digits.",
     "saved": "Your new PIN is saved.",
@@ -123,6 +124,7 @@
     "accessLost": "The device was unpaired or suspended. Unsent sales stay on this till. Ask an admin to resume the device, then try again.",
     "secretMissing": "This till has no offline sign-in key. Staff can sign in online only until the till is paired again.",
     "pinChangeTitle": "New PIN needed",
-    "pinChangeOffline": "Choose a new PIN when the till is back online."
+    "pinChangeOffline": "Choose a new PIN when the till is back online.",
+    "moduleInactive": "The POS module is not active for your business. Sales stay on this till and upload once it is active again."
   }
 }

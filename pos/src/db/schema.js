@@ -17,9 +17,12 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const data = { name: 'data', type: 'string' };
+// v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
+// a reset or replace removes only rows the server did not send again.
+const seenAt = { name: 'seen_at', type: 'number', isIndexed: true };
 const serverUpdatedAt = { name: 'server_updated_at', type: 'string', isOptional: true };
 
 export const schema = appSchema({
@@ -35,6 +38,7 @@ export const schema = appSchema({
         { name: 'sellable', type: 'boolean' },
         serverUpdatedAt,
         data,
+        seenAt,
       ],
     }),
     tableSchema({
@@ -52,11 +56,12 @@ export const schema = appSchema({
         { name: 'parent_id', type: 'string', isOptional: true, isIndexed: true },
         serverUpdatedAt,
         data,
+        seenAt,
       ],
     }),
     tableSchema({
       name: 'uoms',
-      columns: [{ name: 'code', type: 'string' }, { name: 'name', type: 'string' }, serverUpdatedAt, data],
+      columns: [{ name: 'code', type: 'string' }, { name: 'name', type: 'string' }, serverUpdatedAt, data, seenAt],
     }),
     tableSchema({
       name: 'customers',
@@ -66,29 +71,30 @@ export const schema = appSchema({
         { name: 'phones', type: 'string' },
         serverUpdatedAt,
         data,
+        seenAt,
       ],
     }),
 
     // Synced, snapshots.
-    tableSchema({ name: 'settings', columns: [data] }),
-    tableSchema({ name: 'currencies', columns: [{ name: 'code', type: 'string' }, data] }),
+    tableSchema({ name: 'settings', columns: [data, seenAt] }),
+    tableSchema({ name: 'currencies', columns: [{ name: 'code', type: 'string' }, data, seenAt] }),
     tableSchema({
       name: 'exchange_rates',
-      columns: [{ name: 'base', type: 'string', isIndexed: true }, { name: 'quote', type: 'string', isIndexed: true }, data],
+      columns: [{ name: 'base', type: 'string', isIndexed: true }, { name: 'quote', type: 'string', isIndexed: true }, data, seenAt],
     }),
-    tableSchema({ name: 'tax_codes', columns: [{ name: 'code', type: 'string' }, data] }),
-    tableSchema({ name: 'tax_categories', columns: [{ name: 'name', type: 'string' }, data] }),
+    tableSchema({ name: 'tax_codes', columns: [{ name: 'code', type: 'string' }, data, seenAt] }),
+    tableSchema({ name: 'tax_categories', columns: [{ name: 'name', type: 'string' }, data, seenAt] }),
     tableSchema({
       name: 'price_lists',
-      columns: [{ name: 'name', type: 'string' }, { name: 'currency', type: 'string' }, { name: 'is_default', type: 'boolean' }, data],
+      columns: [{ name: 'name', type: 'string' }, { name: 'currency', type: 'string' }, { name: 'is_default', type: 'boolean' }, data, seenAt],
     }),
     tableSchema({
       name: 'payment_methods',
-      columns: [{ name: 'name', type: 'string' }, { name: 'type', type: 'string' }, { name: 'position', type: 'number' }, data],
+      columns: [{ name: 'name', type: 'string' }, { name: 'type', type: 'string' }, { name: 'position', type: 'number' }, data, seenAt],
     }),
     tableSchema({
       name: 'staff',
-      columns: [{ name: 'name', type: 'string' }, { name: 'locked', type: 'boolean' }, data],
+      columns: [{ name: 'name', type: 'string' }, { name: 'locked', type: 'boolean' }, data, seenAt],
     }),
 
     // Local.
@@ -106,6 +112,8 @@ export const schema = appSchema({
         { name: 'seq', type: 'number', isIndexed: true },
         { name: 'kind', type: 'string', isIndexed: true },
         { name: 'record_id', type: 'string', isIndexed: true },
+        // v2: rows of one group (a shift) upload in order: a later row waits for an earlier pending one.
+        { name: 'group_key', type: 'string', isOptional: true, isIndexed: true },
         { name: 'payload', type: 'string' },
         // pending | failed | acknowledged
         { name: 'status', type: 'string', isIndexed: true },
@@ -135,6 +143,8 @@ export const schema = appSchema({
         { name: 'occurred_at', type: 'string', isOptional: true },
         { name: 'pin_version', type: 'number' },
         { name: 'reported', type: 'boolean' },
+        // v2: the count still to report (kept when a right PIN resets failed_attempts).
+        { name: 'report_failed', type: 'number' },
       ],
     }),
   ],

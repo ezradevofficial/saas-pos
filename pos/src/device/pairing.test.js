@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { NetworkError } from '../sync/api';
 import { createSyncStore } from '../sync/store';
 import { testDatabase } from '../test/testDatabase';
-import { createCredentials, memoryBackend } from './credentials';
+import { createCredentials, memoryBackend, secretEntry } from './credentials';
 import { filterPairingInput, isPairingCode, pairDevice, rotateDeviceSecret } from './pairing';
 
 // TEN-05: pairing; AUTH-06/AUTH-08: device secret kept in the keystore and rotated.
@@ -42,7 +42,7 @@ describe('pairDevice', () => {
 
     expect(result.ok).toBe(true);
     expect(calls[0]).toEqual({ path: 'devices/pair', body: { code: 'ABCDEFGH', device_name: 'Till 1' }, options: { auth: false } });
-    expect(Object.fromEntries(backend.values)).toEqual({ 'device.token': '1|tok', 'device.secret': 'c2VjcmV0', 'device.secret_kid': 'k1' });
+    expect(Object.fromEntries(backend.values)).toEqual({ 'device.token': '1|tok', 'device.secret': JSON.stringify({ secret: 'c2VjcmV0', kid: 'k1' }) });
     await expect(store.device()).resolves.toMatchObject({ id: 'd1', locationId: 'l1' });
     // Nothing secret in the database.
     const raw = JSON.stringify((await store.database.get('device').query().fetch()).map((record) => record._raw));
@@ -101,7 +101,7 @@ describe('rotateDeviceSecret', () => {
   }
 
   it('proves the current secret, keeps the pending one, then activates it', async () => {
-    const credentials = createCredentials(memoryBackend({ 'device.secret': OLD, 'device.secret_kid': 'k1' }));
+    const credentials = createCredentials(memoryBackend(secretEntry(OLD, 'k1')));
     const api = server();
 
     await expect(rotateDeviceSecret({ api, credentials, deviceId: 'd1' })).resolves.toEqual({ ok: true, kid: 'k2' });
@@ -110,7 +110,7 @@ describe('rotateDeviceSecret', () => {
   });
 
   it('keeps the current secret when activation is not answered, and finishes next time', async () => {
-    const credentials = createCredentials(memoryBackend({ 'device.secret': OLD, 'device.secret_kid': 'k1' }));
+    const credentials = createCredentials(memoryBackend(secretEntry(OLD, 'k1')));
     const api = server({ loseRotateAnswer: true });
 
     await expect(rotateDeviceSecret({ api, credentials, deviceId: 'd1' })).rejects.toThrow('network_error');
@@ -119,5 +119,57 @@ describe('rotateDeviceSecret', () => {
     await rotateDeviceSecret({ api, credentials, deviceId: 'd1' });
     await expect(credentials.secret()).resolves.toEqual({ secret: NEW, kid: 'k2' });
     expect(api.calls.filter((path) => path.endsWith('rotate'))).toHaveLength(1);
+  });
+
+  it('on a 422 from activate, promotes when the server already names the pending kid, else drops it', async () => {
+    const credentials = createCredentials(memoryBackend(secretEntry(OLD, 'k1')));
+    await credentials.savePending({ secret: NEW, kid: 'k2' });
+    let currentKid = 'k2';
+    const api = {
+      get: async () => ({ status: 200, body: { device_secret_kid: currentKid } }),
+      post: async () => ({ status: 422, body: { code: 'secret_proof_invalid' } }),
+    };
+
+    await expect(rotateDeviceSecret({ api, credentials, deviceId: 'd1' })).resolves.toEqual({ ok: true, kid: 'k2' });
+    await expect(credentials.secret()).resolves.toEqual({ secret: NEW, kid: 'k2' });
+
+    await credentials.savePending({ secret: OLD, kid: 'k3' });
+    currentKid = 'k2';
+    await expect(rotateDeviceSecret({ api, credentials, deviceId: 'd1' })).resolves.toEqual({ ok: false, error: 'secret_proof_invalid' });
+    await expect(credentials.pending()).resolves.toBeNull();
+    await expect(credentials.secret()).resolves.toEqual({ secret: NEW, kid: 'k2' });
+  });
+});
+
+describe('pairing again (M12)', () => {
+  const paired = (id) => answer(200, { token: `tok-${id}`, device_secret: 'c2VjcmV0', device_secret_kid: 'k9', device: { id, name: 'Till', location_id: 'l1', status: 'active' } });
+
+  it('keeps the outbox and synced data when re-paired as the same device', async () => {
+    const { credentials, store, api } = setup(paired('d1'));
+    await store.saveDevice({ id: 'd1', name: 'Till', location_id: 'l1' });
+    await store.enqueue('pos.sales', 's1', { id: 's1' });
+    await store.setMeta({ auth: 'lost', authCode: 'unauthenticated', entities: [] });
+
+    const result = await pairDevice({ api, credentials, store, code: 'ABCDEFGH', deviceName: 'Till' });
+
+    expect(result).toMatchObject({ ok: true, sameDevice: true, unsent: 0 });
+    expect(await store.counts()).toEqual({ pending: 1, failed: 0 });
+    await expect(store.meta()).resolves.toMatchObject({ auth: 'ok', entities: [] });
+    await expect(credentials.token()).resolves.toBe('tok-d1');
+  });
+
+  it('as another device: drops synced data, keeps unsent records and says how many', async () => {
+    const { credentials, store, api } = setup(paired('d2'));
+    await store.saveDevice({ id: 'd1', name: 'Till', location_id: 'l1' });
+    await store.enqueue('pos.sales', 's1', { id: 's1' });
+    await store.applyPage('staff', { replace: true, upserts: [{ id: 'u1', name: 'Amina' }], tombstones: [], cursor: 'c', has_more: false }, 1);
+
+    const result = await pairDevice({ api, credentials, store, code: 'ABCDEFGH', deviceName: 'Till' });
+
+    expect(result).toMatchObject({ ok: true, sameDevice: false, unsent: 1 });
+    expect(await store.counts()).toEqual({ pending: 1, failed: 0 });
+    await expect(store.staff()).resolves.toEqual([]);
+    await expect(store.cursors(['staff'])).resolves.toEqual({});
+    await expect(store.device()).resolves.toMatchObject({ id: 'd2' });
   });
 });

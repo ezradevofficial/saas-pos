@@ -24,7 +24,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const store = createSyncStore(db);
   const credentials = createCredentials(credentialsBackend);
   const api = apiOverride ?? createApiClient({ baseUrl, getToken: () => credentials.token(), getLocale: () => i18n.language, fetchImpl });
-  const engine = createSyncEngine({ api, store });
+  const engine = createSyncEngine({ api, store, credentials });
   const scheduler = createSyncScheduler({ engine, netInfo });
   const pinGate = createPinGate({
     store,

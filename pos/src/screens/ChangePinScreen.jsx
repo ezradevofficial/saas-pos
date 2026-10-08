@@ -78,9 +78,6 @@ export function ChangePinScreen({ location }) {
           <Button variant="primary" block loading={busy} disabled={pin.length < 4} onPress={next}>
             {step === 'new' ? t('common.continue') : t('changePin.submit')}
           </Button>
-          <Button variant="ghost" block onPress={finishPinChange}>
-            {t('changePin.later')}
-          </Button>
         </View>
       </View>
     </SafeAreaView>

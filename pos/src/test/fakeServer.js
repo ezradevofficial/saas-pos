@@ -69,7 +69,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
           },
         };
       }
-      if (state.authStatus) return { status: state.authStatus, body: { code: state.authStatus === 401 ? 'unauthenticated' : 'device_inactive', message: 'No' } };
+      if (state.authStatus) return { status: state.authStatus, body: { code: state.authStatus === 401 ? 'unauthenticated' : 'device_suspended', message: 'No' } };
       const time = new Date(state.serverTime ?? now()).toISOString();
 
       if (method === 'GET' && path === 'sync/bootstrap') {
@@ -138,6 +138,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
       }
 
       if (method === 'POST' && path === 'pos/pin/attempts') {
+        if (state.pinAnswer) return state.pinAnswer(body);
         state.pinReports.push(...body.reports);
         return { status: 200, body: { data: body.reports } };
       }

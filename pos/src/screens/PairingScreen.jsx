@@ -35,7 +35,7 @@ export function PairingScreen({ onPaired }) {
       } catch {
         // offline right after pairing: the first sync fills it in
       }
-      setPaired({ location });
+      setPaired({ location, unsent: result.unsent ?? 0 });
     } catch {
       setError('failed');
     } finally {
@@ -55,6 +55,7 @@ export function PairingScreen({ onPaired }) {
             <Text className="font-sans text-body-lg text-ink">
               {paired.location ? t('pairing.pairedAt', { location: paired.location }) : t('pairing.pairedNoLocation')}
             </Text>
+            {paired.unsent ? <Alert tone="warning">{t('pairing.unsent', { count: paired.unsent })}</Alert> : null}
             <Button variant="primary" block onPress={onPaired}>
               {t('common.continue')}
             </Button>

@@ -57,7 +57,13 @@ export function createApiClient({ baseUrl, getToken, getLocale = () => 'en', fet
     } catch {
       parsed = null;
     }
-    return { status: response.status, body: parsed };
+    let retryAfter = null;
+    try {
+      retryAfter = response.headers?.get?.('retry-after') ?? null;
+    } catch {
+      retryAfter = null;
+    }
+    return { status: response.status, body: parsed, retryAfter };
   }
 
   return {

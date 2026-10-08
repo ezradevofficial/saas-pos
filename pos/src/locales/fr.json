@@ -68,7 +68,9 @@
       "too_many_attempts": "Trop d’essais. Attendez une minute, puis saisissez à nouveau le code.",
       "offline": "Le serveur est injoignable. Vérifiez la connexion, puis réessayez.",
       "failed": "L’association a échoué. Réessayez, ou demandez un nouveau code à un administrateur."
-    }
+    },
+    "unsent_one": "{{count}} enregistrement de l’association précédente de cette caisse n’a pas été envoyé. Il est conservé pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour l’envoyer.",
+    "unsent_other": "{{count}} enregistrements de l’association précédente de cette caisse n’ont pas été envoyés. Ils sont conservés pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour les envoyer."
   },
   "signIn": {
     "title": "Qui vend ?",
@@ -102,7 +104,6 @@
     "confirmPin": "Saisissez à nouveau le nouveau code PIN",
     "rules": "4 à 6 chiffres. Les responsables qui approuvent en ont besoin de 6. Évitez 1234, 0000 et les dates.",
     "submit": "Enregistrer le code PIN",
-    "later": "Le changer plus tard",
     "mismatch": "Les deux codes PIN diffèrent. Saisissez à nouveau le nouveau code PIN.",
     "tooShort": "Un code PIN compte 4 à 6 chiffres.",
     "saved": "Votre nouveau code PIN est enregistré.",
@@ -123,6 +124,7 @@
     "accessLost": "L’appareil a été dissocié ou suspendu. Les ventes non envoyées restent sur cette caisse. Demandez à un administrateur de réactiver l’appareil, puis réessayez.",
     "secretMissing": "Cette caisse n’a pas de clé de connexion hors ligne. Le personnel ne peut se connecter qu’en ligne jusqu’à une nouvelle association.",
     "pinChangeTitle": "Nouveau code PIN requis",
-    "pinChangeOffline": "Choisissez un nouveau code PIN quand la caisse sera de nouveau en ligne."
+    "pinChangeOffline": "Choisissez un nouveau code PIN quand la caisse sera de nouveau en ligne.",
+    "moduleInactive": "Le module Point de vente n’est pas actif pour votre entreprise. Les ventes restent sur cette caisse et seront envoyées quand il sera de nouveau actif."
   }
 }

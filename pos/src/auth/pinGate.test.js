@@ -1,5 +1,5 @@
 import { createHmac, pbkdf2Sync } from 'node:crypto';
-import { createCredentials, memoryBackend } from '../device/credentials';
+import { createCredentials, memoryBackend, secretEntry } from '../device/credentials';
 import { NetworkError } from '../sync/api';
 import { createSyncEngine } from '../sync/engine';
 import { createSyncStore } from '../sync/store';
@@ -26,7 +26,7 @@ async function setup({ staff, online = false, verify } = {}) {
   const server = fakeServer();
   server.define('staff', { mode: 'snapshot', rows: staff });
   await createSyncEngine({ api: server, store, now: () => Date.now() }).pull();
-  const credentials = createCredentials(memoryBackend({ 'device.secret': SECRET.toString('base64url'), 'device.secret_kid': 'k1' }));
+  const credentials = createCredentials(memoryBackend(secretEntry(SECRET.toString('base64url'), 'k1')));
   const calls = [];
   const api = {
     post: async (path, body) => {
@@ -109,5 +109,23 @@ describe('PIN gate', () => {
     const { gate } = await setup({ staff: [amina({ must_change: true })] });
 
     await expect(gate.signIn({ userId: 'u1', input: '274915' })).resolves.toMatchObject({ ok: true, mustChange: true });
+  });
+
+  it('takes must_change from the online answer, fresher than the synced row', async () => {
+    const owner = amina({ id: 'u9', offline: false, pin: null, must_change: false });
+    const { gate } = await setup({ staff: [owner], online: true, verify: () => ({ status: 200, body: { data: { must_change: true } } }) });
+
+    await expect(gate.signIn({ userId: 'u9', input: '274915' })).resolves.toMatchObject({ ok: true, mustChange: true });
+  });
+
+  it('still reports wrong attempts made before a right PIN', async () => {
+    const { gate, store } = await setup({ staff: [amina()] });
+    await gate.signIn({ userId: 'u1', input: '000000' });
+    await gate.signIn({ userId: 'u1', input: '111111' });
+    await gate.signIn({ userId: 'u1', input: '274915' });
+
+    await expect(store.unreportedPinAttempts()).resolves.toEqual([expect.objectContaining({ userId: 'u1', failedAttempts: 2, locked: false })]);
+    // The count on the till starts again.
+    await expect(gate.signIn({ userId: 'u1', input: '000000' })).resolves.toMatchObject({ attemptsLeft: 4 });
   });
 });

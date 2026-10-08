@@ -35,6 +35,7 @@ export function HomeScreen({ location }) {
             </Alert>
           ) : null}
           {sync.secretMissing ? <Alert tone="warning">{t('home.secretMissing')}</Alert> : null}
+          {sync.moduleInactive ? <Alert tone="warning">{t('home.moduleInactive')}</Alert> : null}
           {pinChange ? (
             <Alert tone="warning" title={t('home.pinChangeTitle')}>
               {t('home.pinChangeOffline')}

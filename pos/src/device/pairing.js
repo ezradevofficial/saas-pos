@@ -49,10 +49,23 @@ export async function pairDevice({ api, credentials, store, code, deviceName }) 
   if (response.status !== 200 || !response.body?.token) return { ok: false, error: 'failed' };
 
   const { token, device_secret: secret, device_secret_kid: kid, device } = response.body;
+  const previous = await store.device();
   await credentials.clear();
   await credentials.save({ token, secret, kid: kid ?? null });
+
+  // Re-paired as the same device (an admin unpaired it and issued a code for it again):
+  // everything stays, the outbox uploads with the new token. As another device: the
+  // synced data (another place, maybe another company) is dropped, but unsent records
+  // are kept; the server will refuse those of the old device and they stay for review.
+  let unsent = 0;
+  if (previous && previous.id !== device.id) {
+    const counts = await store.counts();
+    unsent = counts.pending + counts.failed;
+    await store.resetSyncedData();
+  }
   await store.saveDevice(device);
-  return { ok: true, device };
+  await store.setMeta({ auth: 'ok', authCode: null });
+  return { ok: true, device, sameDevice: Boolean(previous && previous.id === device.id), unsent };
 }
 
 /**
@@ -79,6 +92,16 @@ export async function rotateDeviceSecret({ api, credentials, deviceId }) {
     await credentials.savePending(pending);
   }
   const activated = await api.post('sync/device-secret/activate', { kid: pending.kid, proof: activationProof(pending.secret, deviceId, pending.kid) });
+  if (activated.status === 422) {
+    // Activated before (its answer was lost) or replaced: the server's current kid says which.
+    const bootstrap = await api.get('sync/bootstrap');
+    if (bootstrap.status === 200 && bootstrap.body?.device_secret_kid === pending.kid) {
+      await credentials.promotePending();
+      return { ok: true, kid: pending.kid };
+    }
+    await credentials.clearPending();
+    return { ok: false, error: activated.body?.code ?? 'failed' };
+  }
   if (activated.status !== 200) return { ok: false, error: activated.body?.code ?? 'failed' };
   await credentials.promotePending();
   return { ok: true, kid: pending.kid };

@@ -40,6 +40,8 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
     await store.savePinAttempt({
       userId: staff.id,
       failedAttempts,
+      // Never lower a count the server has not heard of yet.
+      reportFailed: !state.fresh && state.reported === false ? Math.max(state.reportFailed ?? 0, failedAttempts) : failedAttempts,
       locked,
       occurredAt: new Date(now()).toISOString(),
       pinVersion: state.pinVersion,
@@ -49,9 +51,19 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
     return locked ? { ok: false, reason: 'locked' } : { ok: false, reason: 'incorrect', attemptsLeft: Math.max(0, max - failedAttempts) };
   }
 
+  // The count starts again, but wrong attempts the server has not heard of yet are still reported.
   async function recordSuccess(staff, state) {
     if (state.failedAttempts > 0 || !state.fresh) {
-      await store.savePinAttempt({ userId: staff.id, failedAttempts: 0, locked: false, occurredAt: null, pinVersion: state.pinVersion, reported: true });
+      const unreported = !state.fresh && state.reported === false;
+      await store.savePinAttempt({
+        userId: staff.id,
+        failedAttempts: 0,
+        reportFailed: unreported ? state.reportFailed : 0,
+        locked: false,
+        occurredAt: unreported ? state.occurredAt : null,
+        pinVersion: state.pinVersion,
+        reported: !unreported,
+      });
     }
   }
 
@@ -77,9 +89,9 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
       const state = await localState(staff);
       if (staff.locked || state.locked) return { ok: false, reason: 'locked' };
 
-      const success = async (checked) => {
+      const success = async (checked, mustChange = staff.must_change) => {
         await recordSuccess(staff, state);
-        return { ok: true, user: staff, mustChange: Boolean(staff.must_change), checked };
+        return { ok: true, user: staff, mustChange: Boolean(mustChange), checked };
       };
 
       const material = staff[kind];
@@ -97,7 +109,8 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
 
       const response = await verifyOnline(staff, kind, input);
       if (response.reason) return { ok: false, reason: response.reason };
-      if (response.status === 200) return success('online');
+      // The server's answer is fresher than the synced staff row.
+      if (response.status === 200) return success('online', response.body?.data?.must_change ?? staff.must_change);
       const code = response.body?.code;
       if (response.status === 401 || response.status === 403) return { ok: false, reason: 'access_lost' };
       if (response.status === 423 || code === 'pin_locked') {

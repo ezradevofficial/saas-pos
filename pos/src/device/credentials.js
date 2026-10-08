@@ -4,7 +4,9 @@ import { Platform } from 'react-native';
 /**
  * TEN-05, AUTH-06, AUTH-08: the device token and device secret live in the
  * platform keystore (Android Keystore / iOS Keychain through
- * expo-secure-store), never in the database or AsyncStorage.
+ * expo-secure-store), never in the database or AsyncStorage. A secret and
+ * its key id are one JSON value, so they are written together or not at
+ * all.
  *
  * The Expo web preview has no keystore: it keeps them in this tab's memory
  * and sessionStorage so Playwright checks can pair. The web build is a
@@ -12,11 +14,10 @@ import { Platform } from 'react-native';
  */
 const KEYS = {
   token: 'device.token',
+  // {"secret": base64url, "kid": string}
   secret: 'device.secret',
-  secretKid: 'device.secret_kid',
-  // A rotated secret the server issued but has not activated yet (DeviceSecrets::rotate).
-  pendingSecret: 'device.pending_secret',
-  pendingKid: 'device.pending_kid',
+  // A rotated secret the server issued and may not have activated yet (DeviceSecrets::rotate).
+  pending: 'device.pending_secret',
 };
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
@@ -54,14 +55,25 @@ const nativeStore = {
   remove: (key) => SecureStore.deleteItemAsync(key, OPTIONS),
 };
 
+function readSecret(text) {
+  try {
+    const value = text ? JSON.parse(text) : null;
+    return value?.secret ? { secret: value.secret, kid: value.kid ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+const writeSecret = ({ secret, kid }) => JSON.stringify({ secret, kid: kid ?? null });
+
 /** The credential store for this platform (or one given, for tests). */
 export function createCredentials(backend = Platform.OS === 'web' ? webStore : nativeStore) {
   let cache = null;
 
   async function load() {
     if (!cache) {
-      const [token, secret, secretKid] = await Promise.all([backend.get(KEYS.token), backend.get(KEYS.secret), backend.get(KEYS.secretKid)]);
-      cache = { token, secret, secretKid };
+      const [token, secret] = await Promise.all([backend.get(KEYS.token), backend.get(KEYS.secret)]);
+      cache = { token, secret: readSecret(secret) };
     }
     return cache;
   }
@@ -72,31 +84,30 @@ export function createCredentials(backend = Platform.OS === 'web' ? webStore : n
     },
     /** { secret: base64url, kid: string | null } or null. */
     async secret() {
-      const { secret, secretKid } = await load();
-      return secret ? { secret, kid: secretKid ?? null } : null;
+      return (await load()).secret;
     },
     async save({ token, secret, kid }) {
       if (token !== undefined) await backend.set(KEYS.token, token);
-      if (secret !== undefined) await backend.set(KEYS.secret, secret);
-      if (kid !== undefined && kid !== null) await backend.set(KEYS.secretKid, String(kid));
+      if (secret) await backend.set(KEYS.secret, writeSecret({ secret, kid }));
       cache = null;
     },
     async pending() {
-      const [secret, kid] = await Promise.all([backend.get(KEYS.pendingSecret), backend.get(KEYS.pendingKid)]);
-      return secret && kid ? { secret, kid } : null;
+      return readSecret(await backend.get(KEYS.pending));
     },
     async savePending({ secret, kid }) {
-      await backend.set(KEYS.pendingSecret, secret);
-      await backend.set(KEYS.pendingKid, String(kid));
+      await backend.set(KEYS.pending, writeSecret({ secret, kid }));
     },
-    /** The pending secret becomes the current one (after the server activated it). */
+    async clearPending() {
+      await backend.remove(KEYS.pending);
+    },
+    /** The pending secret becomes the current one (the server activated it). */
     async promotePending() {
       const pending = await this.pending();
-      if (!pending) return;
-      await backend.set(KEYS.secret, pending.secret);
-      await backend.set(KEYS.secretKid, pending.kid);
-      await Promise.all([backend.remove(KEYS.pendingSecret), backend.remove(KEYS.pendingKid)]);
+      if (!pending) return false;
+      await backend.set(KEYS.secret, writeSecret(pending));
+      await backend.remove(KEYS.pending);
       cache = null;
+      return true;
     },
     async clear() {
       await Promise.all(Object.values(KEYS).map((key) => backend.remove(key)));
@@ -115,3 +126,6 @@ export function memoryBackend(initial = {}) {
     remove: async (key) => void values.delete(key),
   };
 }
+
+/** The keystore entry for a secret, for tests seeding a backend. */
+export const secretEntry = (secret, kid) => ({ [KEYS.secret]: writeSecret({ secret, kid }) });
