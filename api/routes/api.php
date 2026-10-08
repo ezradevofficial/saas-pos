@@ -181,10 +181,11 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     Route::patch('me', [MeController::class, 'update']);
 
-    // AUTH-06: the user's own POS PIN and staff card (password confirmed); never returned.
+    // AUTH-06: the user's own POS PIN and staff card, confirmed with the password (wrong
+    // passwords count towards the account lockout, AUTH-10); never returned.
     Route::get('me/pos-pin', [MyPinController::class, 'show']);
-    Route::put('me/pos-pin', [MyPinController::class, 'update'])->middleware('throttle:auth-ip');
-    Route::delete('me/pos-pin', [MyPinController::class, 'destroy'])->middleware('throttle:auth-ip');
+    Route::put('me/pos-pin', [MyPinController::class, 'update']);
+    Route::delete('me/pos-pin', [MyPinController::class, 'destroy']);
 
     // AUTH-02, AUTH-09, L10N-01: the tenant's settings (core.settings.edit, tenant scope).
     Route::get('tenant/settings', [TenantSettingsController::class, 'show']);
