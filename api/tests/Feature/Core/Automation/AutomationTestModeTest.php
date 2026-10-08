@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Automation\FakeHostResolver;
@@ -171,6 +172,29 @@ class AutomationTestModeTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
         $this->postJson('/api/v1/automation-rules/test', [...$body, 'trigger' => ['type' => 'whenever']], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors(['trigger']);
+    }
+
+    public function test_an_edited_rule_is_tested_with_its_stored_webhook_address(): void
+    {
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in?token=abc']]);
+        $actionId = $rule->actions[0]['id'];
+        // The editor's unsaved state: webhook URLs are write-only, so the action comes back without one.
+        $body = [
+            'document_type' => TestTaskType::KEY,
+            'trigger' => ['type' => 'record_created'],
+            'actions' => [['type' => 'webhook', 'id' => $actionId]],
+        ];
+
+        $this->postJson('/api/v1/automation-rules/test', [...$body, 'rule_id' => $rule->id], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.would_run', true);
+        Http::assertNothingSent();
+
+        // Without the rule it was edited from there is no address to test with.
+        $this->postJson('/api/v1/automation-rules/test', $body, $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
+        // An id that names no rule the user sees is refused like an unknown one.
+        $this->postJson('/api/v1/automation-rules/test', [...$body, 'rule_id' => (string) Str::uuid7()], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['rule_id']);
     }
 
     public function test_a_document_the_user_cannot_see_or_of_another_tenant_is_not_found(): void
