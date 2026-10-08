@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\SessionTimeout;
 use App\Core\Notifications\Sms\LogSmsSender;
+use App\Core\Notifications\Sms\NullSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
@@ -18,7 +19,17 @@ class IdentityServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bindIf(SmsSender::class, LogSmsSender::class);
+        // The log driver only where messages may land in a log (local,
+        // testing) or when chosen explicitly (refused elsewhere by
+        // EnvironmentGuard). Anywhere else without a provider, sending throws.
+        $this->app->bindIf(SmsSender::class, function ($app) {
+            $driver = config('services.sms.driver') ?? ($app->environment(['local', 'testing']) ? 'log' : null);
+
+            return match ($driver) {
+                'log' => new LogSmsSender,
+                default => new NullSmsSender,
+            };
+        });
     }
 
     public function boot(): void

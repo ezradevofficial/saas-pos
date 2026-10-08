@@ -9,7 +9,6 @@ const KNOWN = new Set([
   'invitation_stale',
   'contact_unverified',
   'system_role',
-  'device_suspended',
   'device_not_pairable',
   'device_not_suspended',
   'forbidden',

@@ -23,6 +23,7 @@ use App\Core\Tenancy\Http\Controllers\CompanyController;
 use App\Core\Tenancy\Http\Controllers\DeviceController;
 use App\Core\Tenancy\Http\Controllers\DevicePairingController;
 use App\Core\Tenancy\Http\Controllers\LocationController;
+use App\Core\Tenancy\Http\Controllers\TenantSettingsController;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -75,6 +76,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::delete('auth/sessions/{id}', [SessionController::class, 'destroy']);
 
     Route::patch('me', [MeController::class, 'update']);
+
+    // AUTH-02, AUTH-09, L10N-01: the tenant's settings (core.settings.edit, tenant scope).
+    Route::get('tenant/settings', [TenantSettingsController::class, 'show']);
+    Route::patch('tenant/settings', [TenantSettingsController::class, 'update']);
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
 

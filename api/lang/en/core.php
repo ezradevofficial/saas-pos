@@ -12,7 +12,7 @@ return [
         'forbidden' => 'You don’t have permission to do this.',
         'not_found' => 'We couldn’t find what you asked for.',
         'method_not_allowed' => 'This action isn’t available here.',
-        'too_many_requests' => 'Too many requests. Try again in :seconds seconds.',
+        'too_many_requests' => 'Too many requests. Try again in :seconds second.|Too many requests. Try again in :seconds seconds.',
         'http_error' => 'The request couldn’t be completed. Check it and try again.',
         'server_error' => 'Something went wrong on our side. Try again in a moment.',
     ],
@@ -28,8 +28,16 @@ return [
     // TEN-05: POS devices.
     'devices' => [
         'not_pairable' => 'This device is already paired or suspended. Unpair it before pairing it again.',
-        'suspended' => 'This device is suspended. Resume it before unpairing it.',
         'not_suspended' => 'This device isn’t suspended, so there is nothing to resume.',
         'invalid_pairing_code' => 'This pairing code isn’t valid or has expired. Ask for a new code and try again.',
+    ],
+
+    // AUTH-02, AUTH-09, L10N-01: tenant settings.
+    'settings' => [
+        'attributes' => [
+            'password_min_length' => 'minimum password length',
+            'session_timeout_minutes' => 'session timeout',
+            'default_locale' => 'default language',
+        ],
     ],
 ];

@@ -173,7 +173,6 @@
       "invitation_stale": "This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.",
       "contact_unverified": "This person never verified an email or phone number, so they can’t be reactivated. Invite them again instead.",
       "system_role": "System roles can’t be changed. Copy the role to customise it.",
-      "device_suspended": "This device is suspended. Resume it before unpairing it.",
       "device_not_pairable": "This device is already paired or suspended. Unpair it before pairing it again.",
       "device_not_suspended": "This device isn’t suspended, so there is nothing to resume.",
       "forbidden": "You don’t have permission to do this. Ask an administrator if you need it."
@@ -189,6 +188,7 @@
     "organisation": "Organisation",
     "users": "Users",
     "roles": "Roles",
+    "security": "Security",
     "appearance": "Appearance",
     "sessions": "Sessions"
   },
@@ -676,5 +676,18 @@
     "archiveConfirm": "Archive role",
     "keepRole": "Keep role",
     "emptyReadOnly": "No roles to show."
+  },
+  "security": {
+    "title": "Security",
+    "description": "Password and session rules for everyone in your organisation, and the language new people start with.",
+    "passwordMin": "Minimum password length",
+    "passwordMinHelp": "8 to 64 characters. Applies the next time someone sets a password.",
+    "characters": "characters",
+    "sessionTimeout": "Session timeout",
+    "sessionTimeoutHelp": "15 to 480 minutes without activity before someone is signed out.",
+    "minutes": "minutes",
+    "defaultLocale": "Default language",
+    "defaultLocaleHelp": "Used for emails and for people who haven’t chosen a language.",
+    "saved": "Settings saved."
   }
 }

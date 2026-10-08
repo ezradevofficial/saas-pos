@@ -2,7 +2,7 @@
 
 return [
     'failed' => 'Ces identifiants ne correspondent à aucun compte.',
-    'throttle' => 'Trop de tentatives de connexion. Réessayez dans :seconds secondes.',
+    'throttle' => 'Trop de tentatives de connexion. Réessayez dans :seconds seconde.|Trop de tentatives de connexion. Réessayez dans :seconds secondes.',
 
     'password' => [
         'incorrect' => 'Le mot de passe fourni est incorrect.',
@@ -13,7 +13,7 @@ return [
     'unverified' => 'Vérifiez d’abord votre e-mail ou votre téléphone. Nous vous avons envoyé un nouveau code.',
     'unverified_wait' => 'Vérifiez d’abord votre e-mail ou votre téléphone. Utilisez le code déjà envoyé, ou patientez un peu et reconnectez-vous pour en recevoir un nouveau.',
     'deactivated' => 'Ce compte est désactivé. Demandez à votre administrateur de le réactiver.',
-    'locked' => 'Trop d’échecs de connexion. Réessayez dans :minutes minutes.',
+    'locked' => 'Trop d’échecs de connexion. Réessayez dans :minutes minute.|Trop d’échecs de connexion. Réessayez dans :minutes minutes.',
 
     'code' => [
         'invalid' => 'Ce code n’est pas valide. Vérifiez-le et réessayez.',
@@ -53,22 +53,22 @@ return [
     'notifications' => [
         'greeting' => 'Bonjour :name,',
         'verification_code' => [
-            'expiry' => 'Il expire dans :minutes minutes et ne fonctionne qu’une fois.',
+            'expiry' => 'Il expire dans :minutes minute et ne fonctionne qu’une fois.|Il expire dans :minutes minutes et ne fonctionne qu’une fois.',
             'ignore' => 'Si vous ne l’avez pas demandé, ignorez ce message.',
             'verify_contact' => [
                 'subject' => 'Votre code de vérification :app',
                 'line' => 'Votre code de vérification est :code.',
-                'sms' => 'Code de vérification :app : :code. Il expire dans :minutes minutes.',
+                'sms' => 'Code de vérification :app : :code. Il expire dans :minutes minute.|Code de vérification :app : :code. Il expire dans :minutes minutes.',
             ],
             'two_factor' => [
                 'subject' => 'Votre code de connexion :app',
                 'line' => 'Votre code de vérification en deux étapes est :code.',
-                'sms' => 'Code de connexion :app : :code. Il expire dans :minutes minutes. Ne le partagez jamais.',
+                'sms' => 'Code de connexion :app : :code. Il expire dans :minutes minute. Ne le partagez jamais.|Code de connexion :app : :code. Il expire dans :minutes minutes. Ne le partagez jamais.',
             ],
             'password_reset' => [
                 'subject' => 'Réinitialisez votre mot de passe :app',
                 'line' => 'Votre code de réinitialisation du mot de passe est :code.',
-                'sms' => 'Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minutes.',
+                'sms' => 'Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minute.|Code de réinitialisation du mot de passe :app : :code. Il expire dans :minutes minutes.',
             ],
         ],
         'invitation' => [

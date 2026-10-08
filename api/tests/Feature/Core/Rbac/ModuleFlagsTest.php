@@ -11,7 +11,6 @@ use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\TenantContext;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Tests\Concerns\BuildsRbac;
@@ -34,7 +33,7 @@ class ModuleFlagsTest extends TestCase
 
         app(ModuleRegistry::class)->register('demo');
         app(PermissionRegistry::class)->register('demo', ['thing' => ['view']]);
-        Artisan::call('permissions:sync');
+        $this->syncPermissionCatalogue();
 
         Route::middleware(['api', 'auth:sanctum', 'tenant', 'module:demo'])
             ->get('/api/v1/demo/things', fn () => ['ok' => true]);
@@ -135,7 +134,7 @@ class ModuleFlagsTest extends TestCase
         // A module registered and synced after the tenant's roles were seeded.
         app(ModuleRegistry::class)->register('extra');
         app(PermissionRegistry::class)->register('extra', ['widget' => ['view', 'edit']]);
-        Artisan::call('permissions:sync');
+        $this->syncPermissionCatalogue();
 
         $owner = Role::where('template_key', 'owner')->sole();
         $auditor = Role::where('template_key', 'read_only_auditor')->sole();

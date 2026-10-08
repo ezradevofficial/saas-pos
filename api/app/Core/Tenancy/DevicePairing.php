@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\DB;
  * TEN-05: pairing a POS device. An admin issues a one-time 8-character code
  * (shown once, stored as a sha256 hash, valid 15 minutes); the device sends
  * it to the public pair endpoint and receives its own token (ability
- * `device`). Unpairing revokes the device's tokens; a suspended device's
- * tokens are refused until it is resumed. Pair, suspend, resume and unpair
- * are audited (AUD-01).
+ * `device`). Unpairing revokes the device's tokens, from active or suspended
+ * (a lost or stolen device is unpaired without being resumed first); a
+ * suspended device's tokens are refused until it is resumed. Pair, suspend,
+ * resume and unpair are audited (AUD-01).
  */
 class DevicePairing
 {
@@ -155,16 +156,14 @@ class DevicePairing
     }
 
     /**
-     * Revoke the device's tokens and pairing. A suspended device must be
-     * resumed first, so only `core.device.archive` lifts a suspension.
+     * Revoke the device's tokens and pairing (`core.device.pair`), from
+     * active, pending or suspended. A suspended device is never resumed on
+     * the way: its tokens are deleted while it is still refused, so the old
+     * token never authenticates again.
      */
     public function unpair(Device $device): Device
     {
         return $this->locked($device, function (Device $device) {
-            if ($device->status === Device::STATUS_SUSPENDED) {
-                throw new ApiException(422, 'device_suspended', __('core.devices.suspended'));
-            }
-
             if ($device->status === Device::STATUS_UNPAIRED) {
                 return $device;
             }

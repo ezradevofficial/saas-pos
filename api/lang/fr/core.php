@@ -12,7 +12,7 @@ return [
         'forbidden' => 'Vous n’avez pas la permission d’effectuer cette action.',
         'not_found' => 'Nous n’avons pas trouvé ce que vous cherchez.',
         'method_not_allowed' => 'Cette action n’est pas disponible ici.',
-        'too_many_requests' => 'Trop de requêtes. Réessayez dans :seconds secondes.',
+        'too_many_requests' => 'Trop de requêtes. Réessayez dans :seconds seconde.|Trop de requêtes. Réessayez dans :seconds secondes.',
         'http_error' => 'La requête n’a pas pu aboutir. Vérifiez-la et réessayez.',
         'server_error' => 'Une erreur s’est produite de notre côté. Réessayez dans un instant.',
     ],
@@ -28,8 +28,16 @@ return [
     // TEN-05 : appareils de caisse.
     'devices' => [
         'not_pairable' => 'Cet appareil est déjà associé ou suspendu. Dissociez-le avant de l’associer à nouveau.',
-        'suspended' => 'Cet appareil est suspendu. Réactivez-le avant de le dissocier.',
         'not_suspended' => 'Cet appareil n’est pas suspendu : il n’y a rien à réactiver.',
         'invalid_pairing_code' => 'Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code et réessayez.',
+    ],
+
+    // AUTH-02, AUTH-09, L10N-01: tenant settings.
+    'settings' => [
+        'attributes' => [
+            'password_min_length' => 'longueur minimale du mot de passe',
+            'session_timeout_minutes' => 'délai d’expiration de session',
+            'default_locale' => 'langue par défaut',
+        ],
     ],
 ];

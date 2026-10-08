@@ -6,6 +6,7 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\SignInRequest;
 use App\Core\Identity\Http\Responses\TokenResponse;
 use App\Core\Identity\Services\Authenticate;
+use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Identity\Services\SignInResult;
 use Illuminate\Http\JsonResponse;
 
@@ -29,7 +30,7 @@ class SignInController
                 'challenge_id' => $result->challengeId,
             ]),
             SignInResult::LOCKED => throw new ApiException(
-                423, 'locked', __('auth.locked', ['minutes' => (int) ceil($result->retryAfter / 60)]),
+                423, 'locked', LoginThrottle::lockedMessage($result->retryAfter),
                 headers: ['Retry-After' => $result->retryAfter],
             ),
             // Inside the send limits no new code goes out: the earlier one

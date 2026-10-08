@@ -40,8 +40,8 @@ Spatie 8 is configured with UUID keys and our own models: `App\Core\Rbac\Models\
 
 - Modules register their permissions in `PermissionRegistry`.
 - `php artisan permissions:sync` upserts them into the global `permissions` table. It never deletes, and it warns about names that are no longer declared.
-- `composer migrate:fresh` seeds the catalogue, `composer setup` syncs it, and every deploy runs the sync.
-- The catalogue table is global (ADR 002). The runtime role can therefore write it, because `permissions:sync` runs as `app`. Accepted: no endpoint writes it, and moving the sync to the owner connection is a possible hardening.
+- `composer migrate:fresh` seeds the catalogue, `composer setup` syncs it, and every deploy runs the sync. The sync then refreshes every tenant's system roles (see Consequences).
+- The catalogue table is global (ADR 002) and **only the schema owner writes it**. `permissions:sync` (and the seeder that calls it) writes through the `pgsql_owner` connection. The runtime role `app` has `SELECT` only on `permissions` (and `migrations`): a deleted permission cascades to `role_has_permissions` of every tenant, so a runtime write would cross tenants. `PermissionCatalogueWritesTest` proves `app` is refused.
 
 **Tenant roles under RLS (RBAC-02, RBAC-03).**
 
@@ -89,6 +89,7 @@ Any other argument, for example a `User`, returns `null`, so that model's policy
 - Creating or editing a role can only add permissions the actor holds at tenant scope.
 - **Permissions of inactive modules get no exemption.** They count when checking what the actor holds, so they cannot be handed out now and take effect on activation.
 - `PATCH roles` merges the role's existing inactive-module permissions into the submitted set, because clients never see them. Consequence: such permissions cannot be removed through `PATCH` until the module is active. This is deliberate.
+- **Adding or removing an assignment** takes, besides seeing the user, `core.role.assign` covering **that assignment's own scope** (`Grants::assertManagesScope`, 403 `cannot_grant`). A branch manager who sees a company admin through their branch role cannot remove or add a company-scoped assignment. Removal also runs `OwnerGuard` in the same transaction (RBAC-10).
 - Scopes and roles must exist in the tenant (404 otherwise, so ids out of scope are never confirmed). They must not be archived for a new grant (422 `parent_archived`).
 
 **Owner safety (RBAC-10, `OwnerGuard`).**
@@ -129,7 +130,7 @@ Any other argument, for example a `User`, returns `null`, so that model's policy
 ## Consequences
 
 - No tenant can see or be served another tenant's roles. The database enforces it with RLS on `roles` and their links, and the cache does with per-tenant keys. The tests prove it with a warm cache.
-- **System roles need a refresh job when the catalogue grows.** Seeded system roles copy their templates' permissions at provisioning time. When a deploy adds new `core.*` permissions to a template, existing tenants' system roles do not get them until a per-tenant refresh job runs. That job should be tied to `permissions:sync`. Module activation already refreshes.
+- **System roles follow the catalogue.** Seeded system roles copy their templates' permissions at provisioning time. After upserting the catalogue, `permissions:sync` (run on every deploy) lists every tenant id as the owner, then enters each tenant (`TenantContext::run`, runtime connection, RLS applies) and re-expands its system roles from `role-templates.php`. Changes are audited as `rbac.role.permissions_update` with no actor, and the tenant's permission cache is flushed after commit. Custom roles are never touched. Module activation also refreshes. `SystemRoleRefreshTest` covers it.
 - Each `can()` costs about two or three queries (assignments plus the cached role links). A per-request memo can follow profiling.
 - `ScopeResolver`'s missing-name memo lives as long as a worker. It fails closed: a permission synced later is not seen until the cache key changes or the worker restarts. Scope it per request if that becomes a problem.
 - A small race remains: a request reads before commit and writes the cache after the flush. A versioned cache key would close it.

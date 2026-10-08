@@ -82,7 +82,7 @@ cp pos/.env.example pos/.env
 | POS web preview (Playwright checks) | `npm run web -w pos` | 3009 |
 | POS on a device or simulator (Expo) | `npm run dev:pos`, then `a` (Android) or `i` (iOS) | |
 
-Mail and SMS use the `log` driver locally. Verification codes appear in `api/storage/logs/laravel.log`.
+Mail and SMS use the `log` driver locally (SMS falls back to the log only in `local` and `testing`). Verification codes appear in `api/storage/logs/laravel.log`. Outside `local` and `testing` these drivers are refused at boot (see the pre-deploy checklist).
 
 ## Tests
 
@@ -101,6 +101,17 @@ Run the tests you touched while working. CI runs everything.
 - The API tests run against the `app_test` database as role `app`, never SQLite.
 - The Isolation suite seeds two tenants and proves that nothing of tenant B is visible to tenant A. It covers every table, every route, lists and exports.
 - After changing `design/tokens.json` or the tokens build, run `npm run build -w @app/tokens` and commit `packages/tokens/dist`.
+
+## Tenant settings
+
+Each tenant sets its own password minimum (AUTH-02), session idle timeout (AUTH-09) and default language (L10N-01):
+
+| Endpoint | Body | Who |
+| --- | --- | --- |
+| `GET /api/v1/tenant/settings` | | `core.settings.edit` at tenant scope |
+| `PATCH /api/v1/tenant/settings` | `password_min_length` 8 to 64, `session_timeout_minutes` 15 to 480, `default_locale` `en` or `fr` (each optional) | `core.settings.edit` at tenant scope |
+
+Changes are audited as `core.settings.update` with the changed values before and after. In the web app: Settings, Security.
 
 ## CI
 
@@ -155,13 +166,25 @@ Prepare each host once:
 - The database roles from `api/database/scripts/create-roles.sql`, with strong passwords set via `ALTER ROLE`
 - Connect directly or through **session** pooling only. The tenant setting is session-level, so transaction pooling would leak it (ADR 002).
 
+### Pre-deploy checklist
+
+Outside `local` and `testing`, the API refuses to boot with development drivers (`App\Core\Support\EnvironmentGuard`). The deploy's `composer install` fails with the list of problems. Before the first deploy of an environment, set in `<path>/api/.env`:
+
+- [ ] `APP_ENV` (e.g. `dev`, `staging`, `production`), `APP_KEY`, `APP_DEBUG=false`, `APP_URL`
+- [ ] `MAIL_MAILER` a real mailer (`smtp`, `ses`, `postmark`, `resend`), never `log` or `array`, with its credentials and `MAIL_FROM_ADDRESS`
+- [ ] `SMS_DRIVER` a real provider, never `log`. Without one, any text message (phone sign-up, SMS codes) fails with `SmsNotConfigured`.
+- [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
+- [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
+- [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and `permissions:sync`)
+- [ ] a queue worker running (`php artisan queue:work` or Horizon)
+
 Each deploy:
 
 1. builds the web app
 2. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
 3. runs `composer install --no-dev`, then `php artisan config:clear`
 4. runs `php artisan migrate --database=pgsql_owner --force`
-5. runs `php artisan permissions:sync`
+5. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles (ADR 006)
 6. caches config and routes
 7. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
 

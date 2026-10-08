@@ -19,6 +19,7 @@ import InviteUser from './pages/settings/InviteUser'
 import Organisation from './pages/settings/Organisation'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
+import Security from './pages/settings/Security'
 import Sessions from './pages/settings/Sessions'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
@@ -116,7 +117,7 @@ export const routes = [
       {
         path: '/settings/roles/new',
         element: (
-          <RequirePermission permission="core.role.create">
+          <RequirePermission permission="core.role.create" tenantWide>
             <RoleDetail />
           </RequirePermission>
         ),
@@ -126,6 +127,14 @@ export const routes = [
         element: (
           <RequirePermission permission="core.role.view">
             <RoleDetail />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/settings/security',
+        element: (
+          <RequirePermission permission="core.settings.edit" tenantWide>
+            <Security />
           </RequirePermission>
         ),
       },

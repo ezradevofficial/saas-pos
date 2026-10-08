@@ -210,4 +210,21 @@ describe('Organisation', () => {
     fireEvent.click(confirm)
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('devices/d-1/unpair'))
   })
+
+  it('offers Resume and Unpair for a suspended device, without resuming first', async () => {
+    organisation({ devices: [{ ...DEVICES[0], status: 'suspended' }] })
+    api.post.mockResolvedValue({ data: {} })
+    renderApp('/settings/organisation')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Devices of Front till' }))
+    const till = (await screen.findByText('Till 1')).closest('li')
+    expect(within(till).getByRole('button', { name: 'Resume Till 1' })).toBeInTheDocument()
+    expect(within(till).queryByRole('button', { name: 'Suspend Till 1' })).not.toBeInTheDocument()
+
+    fireEvent.click(within(till).getByRole('button', { name: 'Unpair Till 1' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Unpair Till 1?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unpair device' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('devices/d-1/unpair'))
+    expect(api.post).not.toHaveBeenCalledWith('devices/d-1/resume')
+  })
 })

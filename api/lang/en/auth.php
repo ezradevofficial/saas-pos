@@ -2,7 +2,7 @@
 
 return [
     'failed' => 'These credentials do not match our records.',
-    'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
+    'throttle' => 'Too many sign-in attempts. Try again in :seconds second.|Too many sign-in attempts. Try again in :seconds seconds.',
 
     'password' => [
         'incorrect' => 'The provided password is incorrect.',
@@ -13,7 +13,7 @@ return [
     'unverified' => 'Verify your email or phone first. We’ve sent you a new code.',
     'unverified_wait' => 'Verify your email or phone first. Use the code we already sent you, or wait a little and sign in again to get a new one.',
     'deactivated' => 'This account is deactivated. Ask your administrator to reactivate it.',
-    'locked' => 'Too many failed sign-ins. Try again in :minutes minutes.',
+    'locked' => 'Too many failed sign-ins. Try again in :minutes minute.|Too many failed sign-ins. Try again in :minutes minutes.',
 
     'code' => [
         'invalid' => 'This code is not valid. Check it and try again.',
@@ -53,22 +53,22 @@ return [
     'notifications' => [
         'greeting' => 'Hello :name,',
         'verification_code' => [
-            'expiry' => 'It expires in :minutes minutes and works once.',
+            'expiry' => 'It expires in :minutes minute and works once.|It expires in :minutes minutes and works once.',
             'ignore' => 'If you didn’t ask for it, you can ignore this message.',
             'verify_contact' => [
                 'subject' => 'Your :app verification code',
                 'line' => 'Your verification code is :code.',
-                'sms' => ':app verification code: :code. It expires in :minutes minutes.',
+                'sms' => ':app verification code: :code. It expires in :minutes minute.|:app verification code: :code. It expires in :minutes minutes.',
             ],
             'two_factor' => [
                 'subject' => 'Your :app sign-in code',
                 'line' => 'Your two-step verification code is :code.',
-                'sms' => ':app sign-in code: :code. It expires in :minutes minutes. Never share it.',
+                'sms' => ':app sign-in code: :code. It expires in :minutes minute. Never share it.|:app sign-in code: :code. It expires in :minutes minutes. Never share it.',
             ],
             'password_reset' => [
                 'subject' => 'Reset your :app password',
                 'line' => 'Your password reset code is :code.',
-                'sms' => ':app password reset code: :code. It expires in :minutes minutes.',
+                'sms' => ':app password reset code: :code. It expires in :minutes minute.|:app password reset code: :code. It expires in :minutes minutes.',
             ],
         ],
         'invitation' => [

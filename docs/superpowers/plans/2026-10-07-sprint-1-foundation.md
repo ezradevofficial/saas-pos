@@ -454,5 +454,5 @@ Plus `tenants` itself has forced RLS keyed on `id`.
 
 ## Self-review notes
 
-- Spec coverage for Sprint 1 IDs: TEN-01 (T1, T3, T14), TEN-02..05 (T3, T8), TEN-06 (T3, T8), AUTH-01 (T6), AUTH-02 (T6), AUTH-03 (T7), AUTH-04 (T7), AUTH-05 (T10), AUTH-09 (T6), AUTH-10 (T6), AUTH-13 (T10), RBAC-01..06 (T9), RBAC-08..10 (T9, T10), RBAC-12 (T10), AUD-01..03 (T4), L10N-01..02 (T5), BR-01 (T2, T11, T13), NFR-12 (T15).
+- Spec coverage for Sprint 1 IDs: TEN-01 (T1, T3, T14), TEN-02..05 (T3, T8), TEN-06 (T3, T8), AUTH-01 (T6), AUTH-02 (T6; tenant minimum editable via `PATCH tenant/settings` and Settings → Security, final fix wave), AUTH-03 (T7), AUTH-04 (T7), AUTH-05 (T10), AUTH-09 (T6; timeout editable via `PATCH tenant/settings`, final fix wave), AUTH-10 (T6), AUTH-13 (T10), RBAC-01..04 (T9), RBAC-05/06 engine only (FieldRules/LimitRules services + tests, T9; admin UI and consumers in phase 4), RBAC-08..10 (T9, T10), RBAC-12 (T10), AUD-01..03 (T4), L10N-01..02 (T5), BR-01 (T2, T11, T13), NFR-12 (T15).
 - Deliberately deferred: AUTH-06..08 (POS PIN, switching, manager override → phase 4), AUTH-11 SSO (phase 8), RBAC-07/11/13 (phase 3/8), AUD-04 search UI (phase 3 with notifications), new-sign-in country detection (needs a GeoIP source; device fingerprint alert ships now).

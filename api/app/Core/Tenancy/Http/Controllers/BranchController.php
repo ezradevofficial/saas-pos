@@ -5,6 +5,7 @@ namespace App\Core\Tenancy\Http\Controllers;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
+use App\Core\Tenancy\Http\Requests\ArchiveRequest;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use App\Core\Tenancy\Http\Requests\StoreBranchRequest;
 use App\Core\Tenancy\Http\Requests\UpdateBranchRequest;
@@ -72,14 +73,14 @@ class BranchController
         return BranchResource::make($branch);
     }
 
-    public function archive(Request $request, Branch $branch): BranchResource
+    public function archive(ArchiveRequest $request, Branch $branch): BranchResource
     {
         $this->authorizeInScope($request, 'archive', $branch);
 
         return BranchResource::make($this->archiver->archive($branch));
     }
 
-    public function restore(Request $request, Branch $branch): BranchResource
+    public function restore(ArchiveRequest $request, Branch $branch): BranchResource
     {
         $this->authorizeInScope($request, 'restore', $branch);
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, clearToken, getToken, onAuthEvent, setCompanyId, setToken } from '@/api/client'
+import { api, clearToken, getToken, onAuthEvent, setCompanyId, setToken, TOKEN_KEY } from '@/api/client'
 import { setLocale } from '@/i18n'
 
 const AuthContext = createContext(null)
@@ -37,6 +37,22 @@ export function AuthProvider({ children }) {
       }),
     [queryClient],
   )
+
+  // Another tab signed in, out or as someone else: this tab follows. The
+  // cached data belonged to the previous token, so it all goes.
+  useEffect(() => {
+    const onStorage = (event) => {
+      // key null: the other tab cleared all storage.
+      if (event.key !== TOKEN_KEY && event.key !== null) return
+      const next = event.key === null ? null : event.newValue
+      setToken(next) // keeps this tab's in-memory copy in step
+      queryClient.removeQueries()
+      setEnrolmentRequired(false)
+      setTokenState(next)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [queryClient])
 
   const me = useQuery({
     queryKey: ['me'],

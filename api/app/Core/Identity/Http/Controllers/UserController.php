@@ -5,6 +5,7 @@ namespace App\Core\Identity\Http\Controllers;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\UpdateUserRequest;
+use App\Core\Identity\Http\Requests\UserActionRequest;
 use App\Core\Identity\Http\Requests\UserListRequest;
 use App\Core\Identity\Http\Resources\UserAdminResource;
 use App\Core\Identity\Models\User;
@@ -72,7 +73,7 @@ class UserController
     }
 
     /** AUTH-13: deactivated, every token revoked, history kept; never the last Owner (RBAC-10). */
-    public function deactivate(Request $request, User $user): UserAdminResource
+    public function deactivate(UserActionRequest $request, User $user): UserAdminResource
     {
         $this->authorize($request, 'deactivate', $user);
 
@@ -93,7 +94,7 @@ class UserController
     }
 
     /** Back to active; only a user who verified a contact (422 `contact_unverified`). */
-    public function reactivate(Request $request, User $user): UserAdminResource
+    public function reactivate(UserActionRequest $request, User $user): UserAdminResource
     {
         $this->authorize($request, 'reactivate', $user);
 
@@ -113,7 +114,7 @@ class UserController
     }
 
     /** AUTH-09: end every session of the user. */
-    public function signOutEverywhere(Request $request, User $user): Response
+    public function signOutEverywhere(UserActionRequest $request, User $user): Response
     {
         $this->authorize($request, 'signOutEverywhere', $user);
 

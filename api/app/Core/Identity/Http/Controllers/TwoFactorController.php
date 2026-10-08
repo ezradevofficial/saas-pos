@@ -112,7 +112,7 @@ class TwoFactorController
         if ($throttle->isLocked($user)) {
             $seconds = $throttle->retryAfter($user);
 
-            throw new ApiException(423, 'locked', __('auth.locked', ['minutes' => (int) ceil($seconds / 60)]), headers: ['Retry-After' => $seconds]);
+            throw new ApiException(423, 'locked', LoginThrottle::lockedMessage($seconds), headers: ['Retry-After' => $seconds]);
         }
 
         if (! Hash::check((string) $request->string('password'), $user->password)) {

@@ -167,7 +167,7 @@ class DeviceApiTest extends TestCase
         });
     }
 
-    public function test_a_suspended_device_cannot_be_unpaired_and_resume_needs_the_archive_permission(): void
+    public function test_resume_needs_the_archive_permission(): void
     {
         // Built before any request: a request switches the default guard.
         $pairer = $this->inTenant(function () {
@@ -180,18 +180,63 @@ class DeviceApiTest extends TestCase
         $this->pair($this->pairingCode($id))->assertOk();
         $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
 
-        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor())
-            ->assertUnprocessable()
-            ->assertJsonPath('code', 'device_suspended');
-
         // core.device.pair without core.device.archive cannot lift a suspension.
         $this->postJson("/api/v1/devices/{$id}/resume", [], $this->headersFor($pairer))->assertForbidden();
-        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor($pairer))->assertUnprocessable();
 
         $pending = $this->createDevice('Till 9');
         $this->postJson("/api/v1/devices/{$pending}/resume", [], $this->headersFor())
             ->assertUnprocessable()
             ->assertJsonPath('code', 'device_not_suspended');
+    }
+
+    public function test_a_suspended_device_is_unpaired_without_resuming_and_its_token_never_works_again(): void
+    {
+        // TEN-05: a lost or stolen device is suspended at once, then unpaired.
+        $pairer = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Pairer', ['core.device.view', 'core.device.pair']), Scope::location($this->locationA->id));
+
+            return $user;
+        });
+        $id = $this->createDevice();
+        $token = $this->pair($this->pairingCode($id))->json('token');
+
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
+        $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertUnauthorized();
+
+        // core.device.pair is enough to unpair; no resume happens on the way.
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor($pairer))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'unpaired')
+            ->assertJsonPath('data.paired_at', null);
+        $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertUnauthorized();
+
+        $this->inTenant(function () use ($id) {
+            $this->assertSame(0, PersonalAccessToken::where('tokenable_id', $id)->count());
+            $this->assertSame(0, AuditEntry::where('action', 'core.device.resume')->where('auditable_id', $id)->count());
+            $unpair = AuditEntry::where('action', 'core.device.unpair')->where('auditable_id', $id)->sole();
+            $this->assertSame('suspended', $unpair->before['status']);
+        });
+
+        // Unpaired, it pairs again with a new code; the old token stays dead.
+        $this->pair($this->pairingCode($id))->assertOk();
+        $this->getJson('/api/v1/devices/me', $this->bearer($token))->assertUnauthorized();
+    }
+
+    public function test_unpair_needs_the_pair_permission(): void
+    {
+        $suspender = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Suspender', ['core.device.view', 'core.device.archive']), Scope::location($this->locationA->id));
+
+            return $user;
+        });
+        $id = $this->createDevice();
+        $this->pair($this->pairingCode($id))->assertOk();
+        $this->postJson("/api/v1/devices/{$id}/suspend", [], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/devices/{$id}/unpair", [], $this->headersFor($suspender))->assertForbidden();
+        $this->inTenant(fn () => $this->assertSame('suspended', Device::findOrFail($id)->status));
     }
 
     public function test_a_device_suspended_before_pairing_resumes_to_pending(): void

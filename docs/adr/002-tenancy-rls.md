@@ -18,6 +18,10 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `app` | `NOSUPERUSER NOBYPASSRLS` | Every request, job and command at runtime. | `pgsql` |
 
 - Default privileges give `app` `SELECT, INSERT, UPDATE, DELETE` on tables, sequence usage and `EXECUTE` on functions created by `app_owner`. Nothing more.
+- Some tables take privileges back from `app`:
+  - `permissions` and `migrations`: `SELECT` only (migration `2026_10_08_000700_restrict_catalogue_writes`). Deleting a permission cascades to `role_has_permissions` in every tenant, so only the owner writes the catalogue (`permissions:sync` runs on `pgsql_owner`, ADR 006).
+  - `audit_logs`: no `UPDATE`, `DELETE` or `TRUNCATE`; a trigger refuses edits by any role, the owner included (AUD-03).
+  - `audit_chain_heads`: no `DELETE` or `TRUNCATE`. The trigger `audit_chain_heads_forward_only` (migration `2026_10_08_000710`) refuses, for every role, an update that lowers `seq` or changes `tenant_id`, and any delete or truncate. A lowered head would hide the entries above it. `Auditor::verify()` also reports entries above the head (re-read in the same statement as the check, so concurrent appends never raise a false alarm).
 - `HealthTest` asserts at runtime that the current role is neither a superuser nor `BYPASSRLS`. The isolation suite asserts the same.
 - `database.default` must stay `pgsql`. `TenantContext::CONNECTION` is hard-coded to `pgsql`, and only that connection receives the tenant setting.
 - Never point the runtime connection at the owner or at a superuser. Either one bypasses every policy below.
@@ -47,6 +51,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 - **`TenantContext::run($tenantId, $fn)`** switches the tenant and restores the previous one, even when `$fn` throws.
   - Queued jobs use it through the `TenantAware` job middleware. Each job carries `$tenantId`.
   - Listeners registered with `onChange()` follow every switch. The per-tenant permission cache is one of them (ADR 006).
+- **Reset between queued jobs.** A queue worker is one long process. `CoreServiceProvider` registers `Queue::before`, `Queue::after`, `Queue::exceptionOccurred` and `Queue::looping` hooks that clear the tenant (`TenantContext::set(null)`) and reset `AuditContext`. A job that set a tenant directly therefore cannot leak it into the next job; `TenantAware` jobs enter their own tenant. Jobs on the `sync` connection run inline in the caller and keep its context (`TenantAware` restores it). `QueueContextResetTest` runs two jobs through a real worker.
 - **Reset at every request.** `ResetTenantContext` is the first global middleware. It clears three things:
   - the tenant
   - the authentication guards
@@ -58,12 +63,12 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 
 | Table | Why it is global |
 | --- | --- |
-| `migrations` | Framework bookkeeping, owned by `app_owner` |
+| `migrations` | Framework bookkeeping, owned by `app_owner`. `app` may only read it. |
 | `cache`, `cache_locks` | Framework cache and lock store. Keys are namespaced by the code. The permission cache key carries the tenant id (ADR 006). |
 | `jobs`, `job_batches`, `failed_jobs` | Queue tables, written before any tenant is set. Each job re-enters its tenant through `TenantAware`. |
 | `personal_access_tokens` | A bearer token is looked up **before** the tenant is known. `PersonalAccessToken::findToken` then sets the context from the token's own `tenant_id`. Code always reaches tokens through their tokenable. |
 | `verification_challenges` | Sign-up, sign-in, 2FA and password-reset codes are checked before a session exists. Only `Identity\Services\Challenges` touches the table, and codes are stored as HMACs. |
-| `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. |
+| `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. `app` may only read it; `permissions:sync` writes it as the owner. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.

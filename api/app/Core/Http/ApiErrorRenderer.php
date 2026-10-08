@@ -46,9 +46,7 @@ class ApiErrorRenderer
             403 => ['forbidden', __('core.errors.forbidden')],
             404 => ['not_found', __('core.errors.not_found')],
             405 => ['method_not_allowed', __('core.errors.method_not_allowed')],
-            429 => ['too_many_requests', __('core.errors.too_many_requests', [
-                'seconds' => (int) ($headers['Retry-After'] ?? 60),
-            ])],
+            429 => ['too_many_requests', self::retryMessage((int) ($headers['Retry-After'] ?? 60))],
             default => $status >= 500
                 ? ['server_error', __('core.errors.server_error')]
                 : ['http_error', __('core.errors.http_error')],
@@ -76,5 +74,11 @@ class ApiErrorRenderer
         }
 
         return new JsonResponse(array_merge($body, $extra), $status, $headers);
+    }
+
+    /** "Try again in N second(s)", pluralised per locale. */
+    public static function retryMessage(int $seconds): string
+    {
+        return trans_choice('core.errors.too_many_requests', $seconds, ['seconds' => $seconds]);
     }
 }

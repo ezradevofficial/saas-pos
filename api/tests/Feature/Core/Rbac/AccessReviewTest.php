@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\Rbac;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Carbon;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -50,6 +51,8 @@ class AccessReviewTest extends TestCase
 
     public function test_the_csv_export_has_a_header_and_one_row_per_assignment(): void
     {
+        // A fixed clock just before midnight: the file name cannot roll over mid-test.
+        Carbon::setTestNow(Carbon::parse('2026-10-08 23:59:59', 'UTC'));
         $this->userWith('cashier', Scope::location($this->locationA->id));
         $tricky = $this->userWith('cashier', Scope::location($this->locationB->id));
         $this->inTenant(fn () => $tricky->forceFill(['name' => '=HYPERLINK("x"), "Bob"'])->save());
@@ -58,7 +61,7 @@ class AccessReviewTest extends TestCase
         $response = $this->get('/api/v1/access-review?format=csv', $this->headersFor())->assertOk();
 
         $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
-        $this->assertStringContainsString('attachment; filename=access-review-'.now()->format('Y-m-d').'.csv', $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('attachment; filename=access-review-2026-10-08.csv', $response->headers->get('Content-Disposition'));
 
         $rows = $this->csv($response->streamedContent());
         $this->assertSame(['user_name', 'user_contact', 'user_status', 'role', 'scope_type', 'scope_name', 'granted_by', 'granted_at'], $rows[0]);

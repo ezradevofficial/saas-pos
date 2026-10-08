@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Notifications;
 
 use App\Core\Notifications\Channels\SmsChannel;
+use App\Core\Notifications\LocalDate;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,7 +38,7 @@ class NewDeviceSignIn extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject(__('auth.notifications.new_device.subject', ['app' => config('app.name')]))
             ->greeting(__('auth.notifications.greeting', ['name' => $this->name]))
-            ->line(__('auth.notifications.new_device.line', ['time' => $this->at->format('Y-m-d H:i').' UTC']))
+            ->line(__('auth.notifications.new_device.line', ['time' => LocalDate::format($this->at, $this->locale)]))
             ->line(__('auth.notifications.new_device.details', [
                 'device' => $this->userAgent ?: '—',
                 'ip' => $this->ip,
@@ -50,7 +51,7 @@ class NewDeviceSignIn extends Notification implements ShouldQueue
     {
         return __('auth.notifications.new_device.sms', [
             'app' => config('app.name'),
-            'time' => $this->at->format('Y-m-d H:i').' UTC',
+            'time' => LocalDate::format($this->at, $this->locale),
         ]);
     }
 }

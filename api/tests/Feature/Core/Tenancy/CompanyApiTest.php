@@ -43,6 +43,25 @@ class CompanyApiTest extends TestCase
         });
     }
 
+    public function test_a_create_through_a_bearer_token_is_attributed_to_the_user_and_their_address(): void
+    {
+        // AUD-02: who and from where, taken from the authenticated request.
+        $headers = $this->headersFor() + ['User-Agent' => 'Back office test'];
+
+        $id = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+            ->postJson('/api/v1/companies', ['name' => 'Audited Ltd', 'country' => 'KE'], $headers)
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->inTenant(function () use ($id) {
+            $entry = AuditEntry::where('action', 'core.company.create')->where('auditable_id', $id)->sole();
+            $this->assertSame($this->owner->id, $entry->user_id);
+            $this->assertSame('203.0.113.7', $entry->ip);
+            $this->assertSame('Back office test', $entry->user_agent);
+            $this->assertNull($entry->device_id);
+        });
+    }
+
     public function test_a_congolese_company_defaults_to_usd(): void
     {
         $this->postJson('/api/v1/companies', ['name' => 'Acme Kin', 'country' => 'CD'], $this->headersFor())

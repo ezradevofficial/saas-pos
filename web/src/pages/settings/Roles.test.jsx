@@ -202,4 +202,16 @@ describe('Roles', () => {
     expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
   })
+
+  it('refuses the new-role page to someone who may create roles only below tenant scope', async () => {
+    roles({
+      permissions: [
+        ...tenant(['core.role.view']),
+        { name: 'core.role.create', scopes: [{ type: 'branch', id: 'b-1' }] },
+      ],
+    })
+    renderApp('/settings/roles/new')
+    expect(await screen.findByRole('heading', { level: 1, name: 'You do not have access to this page' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Role name/)).not.toBeInTheDocument()
+  })
 })

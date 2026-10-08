@@ -3,6 +3,8 @@
 namespace App\Core\Identity\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Identity\Http\Requests\EndSessionRequest;
+use App\Core\Identity\Http\Requests\SignOutRequest;
 use App\Core\Identity\Http\Resources\SessionResource;
 use App\Core\Identity\Models\PersonalAccessToken;
 use Illuminate\Http\Request;
@@ -28,7 +30,7 @@ class SessionController
         return SessionResource::collection($tokens);
     }
 
-    public function destroy(Request $request, string $id): Response
+    public function destroy(EndSessionRequest $request, string $id): Response
     {
         $token = Str::isUuid($id) ? $request->user()->tokens()->whereKey($id)->first() : null;
 
@@ -39,7 +41,7 @@ class SessionController
         return response()->noContent();
     }
 
-    public function signOut(Request $request): Response
+    public function signOut(SignOutRequest $request): Response
     {
         $this->revoke($request, $request->user()->currentAccessToken());
 
