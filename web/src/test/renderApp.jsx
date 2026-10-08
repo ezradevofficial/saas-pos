@@ -39,6 +39,8 @@ export function mockApi(api, { user = OWNER, permissions = ALL_CORE, modules = [
     }
     if (path === 'me') return { data: user }
     if (path === 'me/permissions') return { permissions, modules }
+    // The bell in the app shell (NOT-01).
+    if (path === 'notifications/unread-count') return { data: { unread: 0 } }
     if (path.startsWith('companies')) return { data: companies, meta: { total: companies.length } }
     throw apiError(404, 'not_found', 'Not found.')
   })

@@ -1,0 +1,23 @@
+{
+    "code": "CD",
+    "notes": "Public holidays that fall on the same date every year. Days whose current status is not confirmed from an official source are not entered; they are listed in todo. Labels live in lang/{locale}/holidays.php.",
+    "sources": [],
+    "todo": [
+        "Cite the official source for every entry (the ordonnance fixing public holidays and its latest revision) and confirm each day is still a paid public holiday.",
+        "6 April (Simon Kimbangu day): confirm whether it is a national public holiday and since when.",
+        "2 August (Genocost, remembrance of the Congolese genocide): confirm whether it is a public holiday and since when.",
+        "A holiday falling on a Sunday: confirm whether it moves to another day.",
+        "One-off holidays declared by the government: enter them as single dates when declared."
+    ],
+    "holidays": [
+        {"key": "new_year", "month": 1, "day": 1},
+        {"key": "martyrs_day", "month": 1, "day": 4},
+        {"key": "laurent_desire_kabila_day", "month": 1, "day": 16},
+        {"key": "patrice_lumumba_day", "month": 1, "day": 17},
+        {"key": "labour_day", "month": 5, "day": 1},
+        {"key": "liberation_day", "month": 5, "day": 17},
+        {"key": "independence_day", "month": 6, "day": 30},
+        {"key": "parents_day", "month": 8, "day": 1},
+        {"key": "christmas_day", "month": 12, "day": 25}
+    ]
+}

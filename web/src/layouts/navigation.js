@@ -27,6 +27,9 @@ export const PARTY_VIEW = 'core.party.view'
 
 // WF-02, spec 6.4: who may open the workflows (any one is enough; the API checks again).
 export const WORKFLOW_VIEW = ['core.workflow.view', 'core.workflow.edit', 'core.workflow.publish']
+// NOT-03, NOT-06: the organisation's notification texts and delivery log (tenant-wide).
+export const NOTIFICATION_TEMPLATE_VIEW = ['core.notification_template.view', 'core.notification_template.edit']
+export const NOTIFICATION_DELIVERY_VIEW = 'core.notification_delivery.view'
 
 export const NAV_GROUPS = [
   {
@@ -61,6 +64,24 @@ export const NAV_GROUPS = [
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
+      // NOT-04: everyone chooses their own notification channels.
+      { to: '/settings/notifications', icon: 'bell', label: (t) => t('nav.notifications') },
+      {
+        to: '/settings/notification-templates',
+        icon: 'templates',
+        label: (t) => t('nav.notificationTemplates'),
+        permission: NOTIFICATION_TEMPLATE_VIEW,
+        tenantWide: true,
+        module: 'core',
+      },
+      {
+        to: '/settings/notification-deliveries',
+        icon: 'deliveries',
+        label: (t) => t('nav.notificationDeliveries'),
+        permission: NOTIFICATION_DELIVERY_VIEW,
+        tenantWide: true,
+        module: 'core',
+      },
     ],
   },
   {

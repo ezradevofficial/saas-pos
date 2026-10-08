@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { CompanySwitcher } from './CompanySwitcher'
 import { useCompanies } from './companySelection'
 import { NAV_GROUPS, visibleGroups } from './navigation'
+import { NotificationBell } from './NotificationBell'
 
 const itemClasses = ({ isActive }) =>
   cn(
@@ -47,17 +48,18 @@ export function LogoMark({ tone = 'sidebar' }) {
   )
 }
 
-function LogoBlock() {
+function LogoBlock({ showBell }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const tenantName = user?.tenant?.name
   return (
     <div className="flex items-center gap-3 border-b border-sidebar-border px-2 pb-4">
       <LogoMark />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="truncate text-h3 text-sidebar-ink-active">{t('app.name')}</div>
         {tenantName ? <div className="truncate text-caption text-sidebar-ink">{tenantName}</div> : null}
       </div>
+      {showBell ? <NotificationBell /> : null}
     </div>
   )
 }
@@ -115,8 +117,11 @@ function AccountMenu() {
   )
 }
 
-/** Sidebar content, shared by the desktop sidebar and the phone sheet. */
-export function Sidebar({ onNavigate, className }) {
+/**
+ * Sidebar content, shared by the desktop sidebar and the phone sheet. The
+ * bell sits in the logo block; on phones the top bar carries it instead.
+ */
+export function Sidebar({ onNavigate, showBell = true, className }) {
   const { t } = useTranslation()
   const permissions = usePermissions()
   const { companies, ready } = useCompanies()
@@ -125,7 +130,7 @@ export function Sidebar({ onNavigate, className }) {
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col gap-4 bg-sidebar px-3 py-4', className)}>
-      <LogoBlock />
+      <LogoBlock showBell={showBell} />
       <CompanySwitcher />
       <nav aria-label={t('nav.label')} className="-mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto">
         {groups.map((group) => (

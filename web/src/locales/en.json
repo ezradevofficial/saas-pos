@@ -257,6 +257,9 @@
     "units": "Units",
     "customers": "Customers",
     "suppliers": "Suppliers",
+    "notifications": "Notifications",
+    "notificationTemplates": "Notification templates",
+    "notificationDeliveries": "Delivery log",
     "workflows": "Workflows"
   },
   "shell": {
@@ -1708,6 +1711,147 @@
         "supplier": "Create supplier"
       }
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Everything sent to you in the app. Open one to go to what it is about.",
+    "bell": {
+      "label": "Notifications",
+      "labelUnread_one": "Notifications, {{formatted}} unread",
+      "labelUnread_other": "Notifications, {{formatted}} unread",
+      "title": "Notifications",
+      "latest": "Latest notifications",
+      "empty": "You have no notifications.",
+      "loadFailed": "Notifications couldn’t be loaded. Close this and try again.",
+      "seeAll": "See all"
+    },
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "markReadFor": "Mark “{{subject}}” as read",
+    "archive": "Archive",
+    "archiveFor": "Archive “{{subject}}”",
+    "state": {
+      "read": "Read",
+      "unread": "Unread"
+    },
+    "columns": {
+      "state": "Status",
+      "subject": "Notification",
+      "type": "Type",
+      "received": "Received",
+      "message": "Message",
+      "actions": "Actions"
+    },
+    "tabs": {
+      "unread": "Unread",
+      "all": "All",
+      "archived": "Archived"
+    },
+    "searchPlaceholder": "Search subject or message",
+    "emptyFiltered": "No notifications match this search.",
+    "empty": {
+      "unread": "You have read everything.",
+      "all": "You have no notifications.",
+      "archived": "No archived notifications."
+    }
+  },
+  "notificationPreferences": {
+    "title": "Notifications",
+    "description": "Choose how each kind of notification reaches you.",
+    "channelsFor": "Channels for {{event}}",
+    "required": "Required by your organisation",
+    "emailTiming": "Email timing",
+    "digests": {
+      "immediate": "Immediately",
+      "daily": "Daily digest",
+      "weekly": "Weekly digest"
+    },
+    "digestRequired": "Your organisation requires this email at once.",
+    "saved": "Notification settings saved",
+    "discard": "Discard changes",
+    "empty": "There are no notifications to set up yet."
+  },
+  "notificationTemplates": {
+    "title": "Notification templates",
+    "description": "The texts your organisation sends, per notification, channel and language.",
+    "eventTypes": "Notification types",
+    "locales": {
+      "en": "English",
+      "fr": "French"
+    },
+    "channel": "Channel",
+    "subject": "Subject",
+    "body": "Message",
+    "placeholders": "Placeholders",
+    "placeholdersHelp": "Select a placeholder to insert it where the cursor is.",
+    "insert": "Insert {{placeholder}}",
+    "sample": "Sample: {{sample}}",
+    "preview": "Preview with sample values",
+    "previewUnavailable": "The preview shows once the text uses only this notification’s placeholders.",
+    "previewStale": "This preview is of the last valid text.",
+    "sources": {
+      "default": "Default text",
+      "all": "Your text for all channels",
+      "channel": "Your text for this channel"
+    },
+    "save": "Save template",
+    "saved": "Template saved",
+    "reset": "Reset to default",
+    "resetTitle": "Reset this text to the default?",
+    "resetText": "Your text for this channel and language is removed and the default text is used again.",
+    "keepText": "Keep my text",
+    "resetConfirm": "Reset to default",
+    "resetDone": "Default text restored",
+    "empty": "There are no notification types yet.",
+    "mandatory": {
+      "title": "Required channels",
+      "description": "Users can’t switch these channels off for this notification.",
+      "notAllowed": "This notification can’t be made required.",
+      "saved": "Required channels saved"
+    }
+  },
+  "notificationDeliveries": {
+    "title": "Delivery log",
+    "description": "Every notification your organisation sent, by recipient and channel.",
+    "searchPlaceholder": "Search recipient, address, subject or type",
+    "unknownUser": "Unknown user",
+    "columns": {
+      "created": "Created",
+      "recipient": "Recipient",
+      "sentTo": "Sent to",
+      "type": "Type",
+      "channel": "Channel",
+      "status": "Status",
+      "reason": "Reason or error",
+      "error": "Last error",
+      "attempts": "Attempts",
+      "sent": "Sent"
+    },
+    "channels": {
+      "all": "All channels",
+      "in_app": "In-app",
+      "email": "Email",
+      "push": "Push",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp"
+    },
+    "statuses": {
+      "queued": "Queued",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "pending_digest": "Waiting for digest",
+      "digested": "Sent in a digest"
+    },
+    "filters": {
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "channel": "Channel",
+      "allChannels": "All channels"
+    },
+    "empty": "Nothing has been sent yet.",
+    "emptyFiltered": "No deliveries match these filters."
   },
   "workflows": {
     "title": "Workflows",

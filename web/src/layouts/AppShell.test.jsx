@@ -107,6 +107,36 @@ describe('app shell navigation', () => {
     expect(finance(false)).toEqual(['/settings/currencies'])
   })
 
+  it('offers notification settings to everyone and the admin pages only with tenant-wide permissions (NOT-03, NOT-06, RBAC-09)', () => {
+    const settings = (granted, wide = granted) =>
+      visibleGroups(NAV_GROUPS, {
+        can: (name) => (Array.isArray(name) ? name : [name]).some((one) => granted.includes(one)),
+        tenantWide: (name) => wide.includes(name),
+        hasModule: () => true,
+      })
+        .find((g) => g.id === 'settings')
+        .items.map((item) => item.to)
+        .filter((to) => to.includes('notification'))
+
+    expect(settings([])).toEqual(['/settings/notifications'])
+    expect(settings(['core.notification_template.view', 'core.notification_delivery.view'])).toEqual([
+      '/settings/notifications',
+      '/settings/notification-templates',
+      '/settings/notification-deliveries',
+    ])
+    // Granted at one company only: the tenant's texts and log stay hidden.
+    expect(settings(['core.notification_template.edit', 'core.notification_delivery.view'], [])).toEqual(['/settings/notifications'])
+  })
+
+  it('shows Notifications under Settings and the bell to every signed-in user', async () => {
+    mockApi(api, { companies: COMPANIES })
+    renderApp('/')
+    const nav = await mainNav()
+    expect(await within(nav).findByRole('link', { name: 'Notifications' })).toHaveAttribute('href', '/settings/notifications')
+    expect(within(nav).queryByRole('link', { name: 'Notification templates' })).not.toBeInTheDocument()
+    expect((await screen.findAllByRole('button', { name: 'Notifications' })).length).toBeGreaterThan(0)
+  })
+
   it('offers all companies to a tenant-wide user and remembers the choice', async () => {
     mockApi(api, { companies: COMPANIES })
     renderApp('/')

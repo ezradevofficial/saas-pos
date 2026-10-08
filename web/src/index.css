@@ -163,6 +163,18 @@
 @utility max-h-picker {
   max-height: calc(var(--space-12) * 6);
 }
+/* 352px: the notifications popover, never past the screen. */
+@utility w-panel {
+  width: min(calc(var(--space-12) * 7 + var(--space-4)), calc(100vw - var(--space-4) * 2));
+}
+/* 384px: the tallest the notifications popover's list grows before it scrolls. */
+@utility max-h-panel {
+  max-height: calc(var(--space-12) * 8);
+}
+/* 160px: a template's text box before it grows with its content. */
+@utility min-h-textbox {
+  min-height: calc(var(--space-10) * 4);
+}
 /* 192px: the QR code shown while setting up an authenticator app. */
 @utility size-qr {
   width: calc(var(--space-12) * 4);

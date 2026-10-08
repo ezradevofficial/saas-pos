@@ -49,13 +49,35 @@ use App\Core\Tenancy\Http\Controllers\DevicePairingController;
 use App\Core\Tenancy\Http\Controllers\LocationController;
 use App\Core\Tenancy\Http\Controllers\TenantSettingsController;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Http\Controllers\BusinessHoursController;
+use App\Core\Workflow\Http\Controllers\DocumentTypeController;
+use App\Core\Workflow\Http\Controllers\DocumentWorkflowController;
+use App\Core\Workflow\Http\Controllers\WorkflowDefinitionController;
+use App\Core\Workflow\Http\Controllers\WorkflowVersionController;
+use App\Core\Workflow\Models\WorkflowDefinition;
+use App\Core\Workflow\Models\WorkflowVersion;
+use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'notification', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
+
+Route::pattern('document_type', '[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*');
+Route::model('workflow', WorkflowDefinition::class);
+Route::model('workflow_version', WorkflowVersion::class);
+
+// WF-10: {document_type}/{document} is the document's running flow, else
+// its latest; a type of an inactive module, or a document without a flow
+// in this tenant (row-level security), is not found.
+Route::bind('document', function (string $value, $route) {
+    $type = app(DocumentTypeRegistry::class)->find((string) $route->parameter('document_type'));
+
+    return ($type === null ? null : app(WorkflowEngine::class)->current($type->key(), $value)) ?? abort(404);
+});
 
 // MD-05: one controller serves every kind of dimension, so its routes bind the model explicitly.
 foreach (Dimensions::TYPES as $parameter => $model) {
@@ -267,6 +289,31 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('users/{user}/assignments', [AssignmentController::class, 'store']);
     Route::delete('assignments/{assignment}', [AssignmentController::class, 'destroy']);
     Route::get('access-review', AccessReviewController::class);
+
+    // WF-01..WF-09, APR-09, spec 6.4: document types, flows and their versions.
+    Route::get('workflow/document-types', [DocumentTypeController::class, 'index']);
+    Route::get('workflows', [WorkflowDefinitionController::class, 'index']);
+    Route::post('workflows', [WorkflowDefinitionController::class, 'store']);
+    Route::get('workflows/{workflow}', [WorkflowDefinitionController::class, 'show']);
+    Route::get('workflows/{workflow}/versions', [WorkflowDefinitionController::class, 'versions']);
+    Route::put('workflows/{workflow}/draft', [WorkflowDefinitionController::class, 'updateDraft']);
+    Route::post('workflows/{workflow}/validate', [WorkflowDefinitionController::class, 'validateDraft']);
+    Route::post('workflows/{workflow}/publish', [WorkflowDefinitionController::class, 'publish']);
+    Route::post('workflows/{workflow}/rollback', [WorkflowDefinitionController::class, 'rollback']);
+    Route::post('workflows/{workflow}/copy', [WorkflowDefinitionController::class, 'copy']);
+    Route::post('workflows/{workflow}/restore-default', [WorkflowDefinitionController::class, 'restoreDefault']);
+    Route::post('workflows/{workflow}/test', [WorkflowDefinitionController::class, 'test']);
+    Route::get('workflow-versions/{workflow_version}', [WorkflowVersionController::class, 'show']);
+
+    // WF-04, WF-08, WF-10, WF-11: a document's flow, by type and document id.
+    Route::get('document-workflows/{document_type}/{document}', [DocumentWorkflowController::class, 'show']);
+    Route::post('document-workflows/{document_type}/{document}/move', [DocumentWorkflowController::class, 'move']);
+    Route::post('document-workflows/{document_type}/{document}/return', [DocumentWorkflowController::class, 'return']);
+    Route::post('document-workflows/{document_type}/{document}/cancel', [DocumentWorkflowController::class, 'cancel']);
+
+    // WF-09, APR-05: a company's working hours for time limits.
+    Route::get('companies/{company}/business-hours', [BusinessHoursController::class, 'show']);
+    Route::put('companies/{company}/business-hours', [BusinessHoursController::class, 'update']);
 
     // NOT-01: the signed-in user's own inbox (no permission: everyone has one).
     Route::get('notifications', [InboxController::class, 'index']);
