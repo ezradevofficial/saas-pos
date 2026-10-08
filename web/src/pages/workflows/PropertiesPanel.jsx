@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next'
 import { Alert, Button, Checkbox, Select, TextField } from '@/components/ds'
 import { ConditionEditor } from './ConditionEditor'
 import { displayName, kindLabel } from './describe'
-import { RolesPicker } from './RolesPicker'
-import { APPROVAL_MODES, CHANNELS, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, ON_CANCEL, OUTCOMES } from './workflowData'
+import { roleRefsOf, toFrom, userIdsOf } from './notifyRecipients'
+import { PeoplePicker, RolesPicker } from './RolesPicker'
+import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, ON_CANCEL, OUTCOMES } from './workflowData'
 
 /** A whole number of time units (1 to 10,000), or nothing: `{ amount, unit }` | null. */
 function DurationField({ label, help, value, onChange }) {
@@ -245,11 +246,12 @@ function ConditionSettings({ node, change, changeBranches, context }) {
 
 function ActionSettings({ node, change, context }) {
   const { t } = useTranslation()
-  const { nextDocuments, types, actionHandlers, roles } = context
+  const { nextDocuments, types, actionHandlers, roles, users } = context
   const config = node.config ?? {}
   const setConfig = (changes) => change({ config: { ...config, ...changes } })
   const next = nextDocuments.find((one) => one.key === config.mapping)
-  const channels = config.channels ?? []
+  const roleRefs = roleRefsOf(config.to)
+  const userIds = userIdsOf(config.to)
 
   return (
     <>
@@ -257,7 +259,7 @@ function ActionSettings({ node, change, context }) {
         label={t('workflows.fields.action')}
         options={actionHandlers.map((key) => ({ value: key, label: t(`workflows.actionNames.${key}`, { defaultValue: key }) }))}
         value={node.action ?? ''}
-        onChange={(event) => change({ action: event.target.value, config: event.target.value === 'create_document' ? { on_cancel: 'keep' } : {} })}
+        onChange={(event) => change({ action: event.target.value, config: event.target.value === 'create_document' ? { on_cancel: 'keep' } : event.target.value === 'notify' ? { to: [] } : {} })}
       />
       {node.action === 'create_document' ? (
         <>
@@ -289,19 +291,19 @@ function ActionSettings({ node, change, context }) {
       ) : null}
       {node.action === 'notify' ? (
         <>
-          <RolesPicker label={t('workflows.fields.notifyRoles')} roles={roles} value={config.roles} onChange={(next) => setConfig({ roles: next })} />
-          <fieldset className="flex flex-col gap-2">
-            <legend className="pb-1 text-label text-ink">{t('workflows.fields.channels')}</legend>
-            {CHANNELS.map((channel) => (
-              <Checkbox
-                key={channel}
-                label={t(`workflows.channels.${channel}`)}
-                checked={channels.includes(channel)}
-                onChange={(event) => setConfig({ channels: event.target.checked ? [...channels, channel] : channels.filter((one) => one !== channel) })}
-              />
-            ))}
-          </fieldset>
-          <TextField label={t('workflows.fields.message')} value={config.message ?? ''} maxLength={500} onChange={(event) => setConfig({ message: event.target.value })} />
+          <p className="text-caption text-ink-muted">{t('workflows.fields.notifyHelp')}</p>
+          <RolesPicker label={t('workflows.fields.notifyRoles')} roles={roles} value={roleRefs} onChange={(next) => setConfig({ to: toFrom(next, userIds) })} />
+          <PeoplePicker label={t('workflows.fields.notifyPeople')} users={users} value={userIds} onChange={(next) => setConfig({ to: toFrom(roleRefs, next) })} />
+          <TextField
+            label={t('workflows.fields.message')}
+            help={t('workflows.fields.messageHelp')}
+            value={config.message ?? ''}
+            maxLength={500}
+            onChange={(event) => {
+              const { message: _old, ...rest } = config
+              change({ config: event.target.value === '' ? rest : { ...rest, message: event.target.value } })
+            }}
+          />
         </>
       ) : null}
     </>

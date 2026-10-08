@@ -24,9 +24,6 @@ export const APPROVAL_MODES = ['any', 'all', 'majority']
 /** At the final timeout (APR-05): nothing, approve or reject automatically. */
 export const FINAL_ACTIONS = ['none', 'approve', 'reject']
 
-/** Notification channels (NOT-01); the API sends only those configured. */
-export const CHANNELS = ['in_app', 'email', 'sms', 'whatsapp']
-
 /**
  * Approver types (APR-02) offered until the API lists its own resolvers
  * (`meta.approver_types` of workflow/document-types). Each type names the
@@ -77,14 +74,14 @@ function normalizeApproverTypes(list) {
     .map((entry) => ({ key: entry.key, label: entry.label, params: Array.isArray(entry.params) ? entry.params : (DEFAULT_APPROVER_TYPES.find((one) => one.key === entry.key)?.params ?? []) }))
 }
 
-/** Active roles (role pickers) and users (named approvers), loaded once per visit. */
+/** Active roles (role pickers) and active users (named approvers, notify recipients), loaded once per visit. */
 export function useRoleOptions() {
   const query = useQuery({ queryKey: ['roles', 'options'], queryFn: () => api.get('roles?per_page=200') })
   return query.data?.data ?? []
 }
 
 export function useUserOptions(enabled = true) {
-  const query = useQuery({ queryKey: ['users', 'options'], queryFn: () => api.get('users?per_page=200'), enabled })
+  const query = useQuery({ queryKey: ['users', 'options', 'active'], queryFn: () => api.get('users?status=active&per_page=200'), enabled })
   return query.data?.data ?? []
 }
 

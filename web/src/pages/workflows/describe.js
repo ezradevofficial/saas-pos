@@ -2,6 +2,7 @@
 // requester's branch · escalates after 8 business hours") and plain
 // descriptions of conditions ("Total is more than KES 250,000.00").
 import { formatAmount } from '@/lib/money'
+import { roleRefsOf, userIdsOf } from './notifyRecipients'
 
 const EMPTY_OPS = new Set(['empty', 'not_empty'])
 
@@ -118,8 +119,12 @@ export function summarize(t, node, context = {}) {
         const target = next ? (types.find((type) => type.key === next.target)?.label ?? next.label) : null
         parts.push(target ? t('workflows.summary.createDocument', { document: target }) : t('workflows.summary.chooseDocument'))
       } else if (node.action === 'notify') {
-        const channels = (node.config?.channels ?? []).map((channel) => t(`workflows.channels.${channel}`))
-        parts.push(channels.length ? t('workflows.summary.notifyBy', { channels: channels.join(', ') }) : t('workflows.summary.notify'))
+        const { roles = [], users = [] } = context
+        const names = [
+          ...roleRefsOf(node.config?.to).map((ref) => roleName(roles, ref)),
+          ...userIdsOf(node.config?.to).map((id) => users.find((user) => user.id === id)?.name ?? t('workflows.approver.namedPerson')),
+        ]
+        parts.push(names.length ? t('workflows.summary.notifies', { recipients: names.join(', ') }) : t('workflows.summary.notifyNobody'))
       } else {
         parts.push(node.action ?? t('workflows.summary.chooseAction'))
       }

@@ -1933,13 +1933,15 @@
       "copyLine": "{{source}} vers {{target}}",
       "onCancel": "Si ce workflow est annulé",
       "notifyRoles": "Qui est notifié",
-      "channels": "Canaux",
       "message": "Message à envoyer",
       "parallelHelp": "Reliez cette étape à deux étapes ou plus ; elles se déroulent en même temps jusqu’à sa jonction.",
       "split": "Réunit les branches de",
       "chooseSplit": "Choisissez une étape en parallèle",
       "joinMode": "Continuer quand",
-      "outcome": "Résultat"
+      "outcome": "Résultat",
+      "notifyHelp": "Chaque personne est prévenue par les canaux choisis dans ses préférences de notification.",
+      "notifyPeople": "Personnes nommées",
+      "messageHelp": "Facultatif, 500 caractères au plus, ajouté à la notification."
     },
     "approverTypes": {
       "branch_manager": "Responsable de l’agence du demandeur",
@@ -1984,12 +1986,6 @@
       "create_document": "Créer un document",
       "notify": "Envoyer une notification"
     },
-    "channels": {
-      "in_app": "Dans l’application",
-      "email": "E-mail",
-      "sms": "SMS",
-      "whatsapp": "WhatsApp"
-    },
     "unitNames": {
       "business_hours": "Heures ouvrées",
       "business_days": "Jours ouvrés",
@@ -2027,9 +2023,9 @@
       },
       "createDocument": "Crée un brouillon : {{document}}",
       "chooseDocument": "Choisissez le document à créer",
-      "notify": "Envoie une notification",
-      "notifyBy": "Notifie par {{channels}}",
-      "chooseAction": "Choisissez une action"
+      "chooseAction": "Choisissez une action",
+      "notifies": "Notifie {{recipients}}",
+      "notifyNobody": "Choisissez qui est notifié"
     },
     "condition": {
       "none": "Aucune règle : toujours remplie.",
@@ -2164,6 +2160,10 @@
         "would_run": "S’exécuterait",
         "end": "Terminé"
       }
+    },
+    "people": {
+      "unknown": "Personne inconnue ou inactive ({{id}})",
+      "none": "Aucune personne active pour l’instant."
     }
   }
 }

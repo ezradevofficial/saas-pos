@@ -1933,13 +1933,15 @@
       "copyLine": "{{source}} into {{target}}",
       "onCancel": "If this workflow is cancelled",
       "notifyRoles": "Who is notified",
-      "channels": "Channels",
       "message": "Message",
       "parallelHelp": "Connect this step to two or more steps; they run at the same time until its join.",
       "split": "Joins the branches of",
       "chooseSplit": "Choose a parallel step",
       "joinMode": "Continue when",
-      "outcome": "Outcome"
+      "outcome": "Outcome",
+      "notifyHelp": "Each person is told in the channels they chose in their notification preferences.",
+      "notifyPeople": "Named people",
+      "messageHelp": "Optional, up to 500 characters, added to the notification."
     },
     "approverTypes": {
       "branch_manager": "Manager of the requester’s branch",
@@ -1984,12 +1986,6 @@
       "create_document": "Create a document",
       "notify": "Send a notification"
     },
-    "channels": {
-      "in_app": "In-app",
-      "email": "Email",
-      "sms": "SMS",
-      "whatsapp": "WhatsApp"
-    },
     "unitNames": {
       "business_hours": "Business hours",
       "business_days": "Business days",
@@ -2027,9 +2023,9 @@
       },
       "createDocument": "Creates a draft {{document}}",
       "chooseDocument": "Choose the document to create",
-      "notify": "Sends a notification",
-      "notifyBy": "Notifies by {{channels}}",
-      "chooseAction": "Choose an action"
+      "chooseAction": "Choose an action",
+      "notifies": "Notifies {{recipients}}",
+      "notifyNobody": "Choose who is notified"
     },
     "condition": {
       "none": "No rule: always holds.",
@@ -2164,6 +2160,10 @@
         "would_run": "Would run",
         "end": "Ended"
       }
+    },
+    "people": {
+      "unknown": "Unknown or inactive person ({{id}})",
+      "none": "No active people yet."
     }
   }
 }

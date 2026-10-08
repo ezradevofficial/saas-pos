@@ -82,7 +82,7 @@ export function createNode(graph, kind, position, names = {}) {
       break
     case 'notify':
       node.action = 'notify'
-      node.config = {}
+      node.config = { to: [] }
       break
     case 'create_document':
       node.action = 'create_document'

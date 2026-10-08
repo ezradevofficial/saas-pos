@@ -48,3 +48,30 @@ export function RolesPicker({ label, help, value = [], onChange, roles, disabled
     </fieldset>
   )
 }
+
+/** Named people (notify steps): active users, ticked by id; ids no longer listed show so they can be removed. */
+export function PeoplePicker({ label, help, value = [], onChange, users, disabled }) {
+  const { t } = useTranslation()
+  const ids = Array.isArray(value) ? value : []
+  const unknown = ids.filter((id) => !users.some((user) => user.id === id))
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2" disabled={disabled}>
+      <legend className="pb-1 text-label text-ink">{label}</legend>
+      {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
+      <div className="flex max-h-picker flex-col gap-2 overflow-auto">
+        {users.map((user) => (
+          <Checkbox
+            key={user.id}
+            label={user.name}
+            checked={ids.includes(user.id)}
+            onChange={(event) => onChange(event.target.checked ? [...ids, user.id] : ids.filter((id) => id !== user.id))}
+          />
+        ))}
+        {unknown.map((id) => (
+          <Checkbox key={id} label={t('workflows.people.unknown', { id })} checked onChange={() => onChange(ids.filter((one) => one !== id))} />
+        ))}
+        {users.length === 0 && unknown.length === 0 ? <span className="text-caption text-ink-muted">{t('workflows.people.none')}</span> : null}
+      </div>
+    </fieldset>
+  )
+}

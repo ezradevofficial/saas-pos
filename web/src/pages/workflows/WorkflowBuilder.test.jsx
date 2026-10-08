@@ -90,6 +90,36 @@ describe('Workflow builder (spec 6.4, WF-03..WF-09, APR-09)', () => {
     expect(within(node(container, 'big')).getByText('Total is at least KES 250,000.00 or Category is services')).toBeInTheDocument()
   })
 
+  it('sets who a notify step writes to as role and user entries, with an optional message', async () => {
+    const { container } = await openBuilder()
+    fireEvent.click(screen.getByRole('button', { name: 'Add Notify' }))
+    await waitFor(() => expect(node(container, 'action_2')).not.toBeNull())
+    expect(within(node(container, 'action_2')).getByText('Choose who is notified')).toBeInTheDocument()
+    const panel = screen.getByRole('complementary', { name: 'Step settings' })
+    expect(within(panel).queryByText('Channels')).not.toBeInTheDocument()
+    fireEvent.click(within(within(panel).getByRole('group', { name: 'Who is notified' })).getByLabelText('Administrator'))
+    fireEvent.click(within(within(panel).getByRole('group', { name: 'Named people' })).getByLabelText('Baraka Mwangi'))
+    fireEvent.change(within(panel).getByLabelText('Message'), { target: { value: 'Please check the order.' } })
+    expect(within(node(container, 'action_2')).getByText('Notifies Administrator, Baraka Mwangi')).toBeInTheDocument()
+    await waitFor(() => expect(api.put).toHaveBeenCalled(), { timeout: 3000 })
+    expect(lastPut()[1].graph.nodes.find((one) => one.id === 'action_2')).toMatchObject({
+      type: 'action',
+      action: 'notify',
+      config: { to: ['role:0192a1b2-0000-7000-8000-0000000000a1', 'user:0192a1b2-0000-7000-8000-0000000000b2'], message: 'Please check the order.' },
+    })
+  })
+
+  it('reads notify recipients named by role template key', async () => {
+    const graph = {
+      ...GRAPH,
+      nodes: GRAPH.nodes.map((one) => (one.id === 'po' ? { ...one, action: 'notify', config: { to: ['role:admin', 'role:template:admin'] } } : one)),
+    }
+    mockWorkflows(api, { workflow: { ...WORKFLOW, draft: { ...WORKFLOW.draft, graph } } })
+    const { container } = renderApp('/settings/workflows/w-1')
+    await waitFor(() => expect(node(container, 'po')).not.toBeNull())
+    expect(await within(node(container, 'po')).findByText('Notifies Administrator, Administrator')).toBeInTheDocument()
+  })
+
   it('adds a step from the palette, then undoes and redoes it', async () => {
     const { container } = await openBuilder()
     fireEvent.click(screen.getByRole('button', { name: 'Add Stage' }))
