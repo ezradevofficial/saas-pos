@@ -18,6 +18,7 @@ class CompanyResource extends JsonResource
             'tax_id' => $this->tax_id,
             'country' => $this->country,
             'base_currency' => $this->base_currency,
+            'base_currency_locked' => $this->base_currency_locked_at !== null,
             'fiscal_year_start_month' => $this->fiscal_year_start_month,
             'address' => (object) ($this->address ?? []),
             'timezone' => $this->timezone,

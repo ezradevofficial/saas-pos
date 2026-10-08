@@ -40,4 +40,23 @@ return [
             'default_locale' => 'default language',
         ],
     ],
+
+    // CUR-01, CUR-02: currencies.
+    'currency' => [
+        'base_currency_locked' => 'This company’s base currency is locked because amounts have already been posted in it.',
+        'too_many_reporting_currencies' => 'A company can have at most :max reporting currencies. Remove one before adding another.',
+        'decimals_locked' => 'Amounts in this currency are already stored, so its decimals can’t change.',
+        'in_use' => 'A company uses this currency as its base or reporting currency. Change the company first.',
+        'not_active' => 'Activate this currency for your organisation first.',
+        'not_in_catalogue' => 'Choose a current ISO 4217 currency.',
+        'attributes' => [
+            'code' => 'currency',
+            'decimals' => 'decimals',
+            'cash_rounding_minor' => 'cash rounding',
+            'active' => 'active',
+            'base_currency' => 'base currency',
+            'reporting_currencies' => 'reporting currencies',
+            'reporting_currency' => 'reporting currency',
+        ],
+    ],
 ];

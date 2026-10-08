@@ -3,7 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Core\Rbac\Console\SyncPermissions;
-use Database\Seeders\PermissionCatalogueSeeder;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -14,13 +14,14 @@ trait RefreshTenantDatabase
 
     /**
      * Migrations run as the schema owner; tests run as the RLS-bound app
-     * role. The permission catalogue (RBAC-01) is seeded once per process,
-     * right after the migrations and before the per-test transaction, so it
-     * is committed and every test (and sign-up's role templates) sees it.
+     * role. The global catalogues (permissions RBAC-01, currencies CUR-01)
+     * are seeded once per process, right after the migrations and before
+     * the per-test transaction, so they are committed and every test (and
+     * sign-up's role templates and currencies) sees them.
      */
     protected function migrateFreshUsing(): array
     {
-        return ['--database' => 'pgsql_owner', '--seed' => true, '--seeder' => PermissionCatalogueSeeder::class];
+        return ['--database' => 'pgsql_owner', '--seed' => true, '--seeder' => DatabaseSeeder::class];
     }
 
     /**

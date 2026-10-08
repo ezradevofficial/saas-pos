@@ -30,7 +30,7 @@ return [
     [
         'key' => 'branch_manager',
         'permissions' => [
-            'core.company.view', 'core.branch.view', 'core.branch.edit',
+            'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view',
             'core.location.*', 'core.device.*',
             'core.user.view', 'core.user.invite', 'core.user.edit',
             'core.role.view', 'core.role.assign', 'core.audit.view',
@@ -69,7 +69,7 @@ return [
     [
         'key' => 'accountant',
         'permissions' => [
-            'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view',
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,

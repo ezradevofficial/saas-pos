@@ -20,6 +20,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 - Default privileges give `app` `SELECT, INSERT, UPDATE, DELETE` on tables, sequence usage and `EXECUTE` on functions created by `app_owner`. Nothing more.
 - Some tables take privileges back from `app`:
   - `permissions` and `migrations`: `SELECT` only (migration `2026_10_08_000700_restrict_catalogue_writes`). Deleting a permission cascades to `role_has_permissions` in every tenant, so only the owner writes the catalogue (`permissions:sync` runs on `pgsql_owner`, ADR 006).
+  - `currencies`: `SELECT` only (revoked in migration `2026_10_09_000100_create_currency_tables`). The ISO 4217 catalogue is shared by every tenant; `currencies:sync` writes it as the owner. `CurrencyCatalogueTest` proves `app` is refused.
   - `audit_logs`: no `UPDATE`, `DELETE` or `TRUNCATE`; a trigger refuses edits by any role, the owner included (AUD-03).
   - `audit_chain_heads`: no `DELETE` or `TRUNCATE`. The trigger `audit_chain_heads_forward_only` (migration `2026_10_08_000710`) refuses, for every role, an update that lowers `seq` or changes `tenant_id`, and any delete or truncate. A lowered head would hide the entries above it. `Auditor::verify()` also reports entries above the head (re-read in the same statement as the check, so concurrent appends never raise a false alarm).
 - `HealthTest` asserts at runtime that the current role is neither a superuser nor `BYPASSRLS`. The isolation suite asserts the same.
@@ -69,6 +70,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `personal_access_tokens` | A bearer token is looked up **before** the tenant is known. `PersonalAccessToken::findToken` then sets the context from the token's own `tenant_id`. Code always reaches tokens through their tokenable. |
 | `verification_challenges` | Sign-up, sign-in, 2FA and password-reset codes are checked before a session exists. Only `Identity\Services\Challenges` touches the table, and codes are stored as HMACs. |
 | `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. `app` may only read it; `permissions:sync` writes it as the owner. |
+| `currencies` | The ISO 4217 catalogue (CUR-01), the same for every tenant and with no `tenant_id`. `app` may only read it; `currencies:sync` writes it as the owner. The currencies a tenant uses (`tenant_currencies`) and a company's reporting currencies (`company_reporting_currencies`) are tenant tables. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.

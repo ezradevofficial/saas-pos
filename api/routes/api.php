@@ -1,5 +1,8 @@
 <?php
 
+use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
+use App\Core\Currency\Http\Controllers\CurrencyController;
+use App\Core\Currency\Http\Controllers\TenantCurrencyController;
 use App\Core\Identity\Http\Controllers\AcceptInvitationController;
 use App\Core\Identity\Http\Controllers\InvitationController;
 use App\Core\Identity\Http\Controllers\MeController;
@@ -29,7 +32,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment'] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -97,6 +100,15 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
         Route::post("{$resource}/{{$parameter}}/archive", [$controller, 'archive']);
         Route::post("{$resource}/{{$parameter}}/restore", [$controller, 'restore']);
     }
+
+    // CUR-01, CUR-02: the ISO catalogue, the tenant's currencies (edited at
+    // tenant scope) and each company's base and reporting currencies.
+    Route::get('currencies', [CurrencyController::class, 'index']);
+    Route::get('tenant/currencies', [TenantCurrencyController::class, 'index']);
+    Route::post('tenant/currencies', [TenantCurrencyController::class, 'store']);
+    Route::patch('tenant/currencies/{tenant_currency}', [TenantCurrencyController::class, 'update']);
+    Route::get('companies/{company}/currencies', [CompanyCurrencyController::class, 'show']);
+    Route::put('companies/{company}/currencies', [CompanyCurrencyController::class, 'update']);
 
     Route::post('devices/{device}/pairing-code', [DeviceController::class, 'pairingCode']);
     Route::post('devices/{device}/suspend', [DeviceController::class, 'suspend']);

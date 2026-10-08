@@ -66,6 +66,7 @@ class TenantIsolationTest extends TestCase
         'role' => 'role',
         'invitation' => 'invitation',
         'assignment' => 'assignment',
+        'tenant_currency' => 'tenant_currency',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
