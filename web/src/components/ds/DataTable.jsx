@@ -90,7 +90,7 @@ export function DataTable({ columns = [], rows = [], caption, emptyText, selecte
                   {columns.map((column) => (
                     <TableCell
                       key={column.key}
-                      className={cn('px-4 py-3', column.align === 'end' && 'text-right', column.numeric && 'tabular-nums')}
+                      className={cn('px-4 py-3', column.align === 'end' && 'text-right', column.numeric && 'tabular-nums', column.wrap && 'whitespace-normal')}
                     >
                       {column.render ? column.render(row) : row[column.key]}
                     </TableCell>

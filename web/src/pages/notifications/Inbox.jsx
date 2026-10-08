@@ -53,6 +53,8 @@ function NotificationList({ tab, status }) {
       label: t('notifications.columns.subject'),
       sortKey: 'subject',
       hideable: false,
+      // Long subjects and messages wrap instead of pushing the actions off screen.
+      wrap: true,
       render: (notification) => (
         <div className="flex min-w-0 flex-col">
           <span className={notification.read_at ? 'text-ink' : 'font-medium text-ink'}>{notification.subject}</span>
