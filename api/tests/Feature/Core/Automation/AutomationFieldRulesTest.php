@@ -106,6 +106,25 @@ class AutomationFieldRulesTest extends TestCase
         Http::assertSent(fn (Request $request) => (json_decode($request->body(), true)['fields']['amount'] ?? null) === $this->kes(987654));
     }
 
+    public function test_the_run_log_leaves_out_checks_and_trigger_fields_hidden_from_the_reader(): void
+    {
+        $rule = $this->saveRule(['type' => 'record_updated', 'fields' => ['amount', 'quantity']], [['type' => 'update_field', 'field' => 'note', 'value' => 'x']], [
+            'conditions' => ['all' => [['field' => 'amount', 'op' => 'gt', 'value' => $this->kes(1)], ['field' => 'quantity', 'op' => 'gt', 'value' => '1']]],
+        ]);
+        $id = $this->quietTask(['amount' => $this->kes(5), 'quantity' => '1']);
+        $this->changeTask($id, ['amount' => $this->kes(10), 'quantity' => '5']);
+        $run = $this->runs($rule)->sole();
+
+        $owner = $this->getJson("/api/v1/automation-runs/{$run->id}", $this->headersFor())->assertOk();
+        $this->assertSame(['amount', 'quantity'], array_column($owner->json('data.conditions.checks'), 'field'));
+        $this->assertEqualsCanonicalizing(['amount', 'quantity'], $owner->json('data.trigger.fields'));
+
+        $clerk = $this->getJson("/api/v1/automation-runs/{$run->id}", $this->headersFor($this->clerk))->assertOk();
+        $this->assertSame(['quantity'], array_column($clerk->json('data.conditions.checks'), 'field'));
+        $this->assertSame(['quantity'], $clerk->json('data.trigger.fields'));
+        $this->assertStringNotContainsString('amount', json_encode($clerk->json('data.conditions')));
+    }
+
     public function test_test_mode_shows_nothing_of_a_field_hidden_from_the_tester(): void
     {
         // The owner's rule tests the amount; the clerk may read and test it.

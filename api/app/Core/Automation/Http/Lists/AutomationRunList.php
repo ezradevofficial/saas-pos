@@ -74,6 +74,6 @@ class AutomationRunList extends ListDefinition
 
     public function exportRelations(): array
     {
-        return ['rule'];
+        return ['rule', 'deliveries'];
     }
 }

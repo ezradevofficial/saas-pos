@@ -378,13 +378,19 @@ class AutomationRunsTest extends TestCase
         $beta = $this->inTenant(fn () => $this->company('Beta'));
         $betaRule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], ['company_id' => $beta->id]);
         $acmeRule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'note', 'value' => 'x']], ['company_id' => $this->acme->id]);
+        $everywhere = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'quantity', 'value' => '1']]);
         $this->createTask();
         $this->createTask([], new DocumentScope($beta->id));
         $acmeAdmin = $this->userWith('admin', Scope::company($this->acme->id));
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
 
         $seen = $this->getJson('/api/v1/automation-runs', $this->headersFor($acmeAdmin))->assertOk()->json('data');
-        $this->assertSame([$acmeRule->id], array_values(array_unique(array_column($seen, 'rule_id'))));
+        $this->assertEqualsCanonicalizing([$acmeRule->id, $everywhere->id], array_values(array_unique(array_column($seen, 'rule_id'))));
+        // The rule for every company: only its run for Acme's task.
+        $this->assertSame([$this->acme->id], array_column(array_filter($seen, fn ($r) => $r['rule_id'] === $everywhere->id), 'company_id'));
+        $betaRunOfEverywhere = $this->runs($everywhere)->firstWhere('company_id', $beta->id);
+        $this->getJson("/api/v1/automation-runs/{$betaRunOfEverywhere->id}", $this->headersFor($acmeAdmin))->assertNotFound();
+        $this->getJson("/api/v1/automation-runs/{$betaRunOfEverywhere->id}", $this->headersFor())->assertOk();
         $betaRun = $this->runs($betaRule)->sole();
         $this->getJson("/api/v1/automation-runs/{$betaRun->id}", $this->headersFor($acmeAdmin))->assertNotFound();
         $this->getJson('/api/v1/automation-runs?rule='.$betaRule->id, $this->headersFor($acmeAdmin))->assertUnprocessable();

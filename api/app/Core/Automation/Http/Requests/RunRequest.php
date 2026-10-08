@@ -12,7 +12,12 @@ class RunRequest extends FormRequest
     public function authorize(): bool
     {
         $run = $this->run();
-        abort_unless($run->rule !== null && app(AutomationAccess::class)->sees($this->user(), $run->rule), 404);
+        $access = app(AutomationAccess::class);
+        $companies = $access->companyIds($this->user());
+
+        // A rule the reader sees, for a document in one of their companies.
+        abort_unless($run->rule !== null && $access->sees($this->user(), $run->rule)
+            && ($companies === null || $run->company_id === null || in_array($run->company_id, $companies, true)), 404);
 
         return true;
     }

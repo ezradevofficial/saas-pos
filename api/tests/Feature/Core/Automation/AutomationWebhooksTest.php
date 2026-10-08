@@ -7,6 +7,7 @@ use App\Core\Automation\Models\WebhookDelivery;
 use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Automation\Webhooks\Signature;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Rbac\Scope;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -86,6 +87,25 @@ class AutomationWebhooksTest extends TestCase
                 // The committed state: the earlier action's change is in it.
                 && $payload['fields']['urgent'] === true;
         });
+    }
+
+    public function test_the_run_log_shows_deliveries_and_their_answers_only_to_tenant_automation_editors(): void
+    {
+        Http::fake(['*' => Http::response('receiver says hello', 200)]);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in?token=abc']]);
+        $this->createTask();
+        $run = $this->runs($rule)->sole();
+        $auditor = $this->userWith('read_only_auditor', Scope::tenant());
+
+        $owner = $this->getJson("/api/v1/automation-runs/{$run->id}", $this->headersFor())->assertOk();
+        $owner->assertJsonPath('data.deliveries.0.status', 'delivered')
+            ->assertJsonPath('data.deliveries.0.url_display', 'https://hooks.example.com/in')
+            ->assertJsonPath('data.deliveries.0.response_body', 'receiver says hello');
+        $this->assertStringNotContainsString('token=abc', $owner->getContent());
+
+        $this->getJson("/api/v1/automation-runs/{$run->id}", $this->headersFor($auditor))->assertOk()
+            ->assertJsonPath('data.deliveries.0.response_status', 200)
+            ->assertJsonPath('data.deliveries.0.response_body', null);
     }
 
     public function test_a_run_that_rolls_back_sends_nothing(): void

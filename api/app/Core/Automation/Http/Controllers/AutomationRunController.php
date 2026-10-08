@@ -13,7 +13,7 @@ use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/** AUTO-05: the run log, of the rules the user may see (RBAC-04). */
+/** AUTO-05: the run log, of the rules the user may see, for documents in their companies (RBAC-04). */
 class AutomationRunController
 {
     public function index(ListRunsRequest $request, AutomationAccess $access, DocumentTypeRegistry $types, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -25,7 +25,12 @@ class AutomationRunController
             $rules->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
         }
 
-        $query = AutomationRun::query()->with('rule')->whereIn('rule_id', $rules->select('id'));
+        $query = AutomationRun::query()->with(['rule', 'deliveries'])->whereIn('rule_id', $rules->select('id'));
+
+        // RBAC-04: runs of a rule for every company only for documents in the reader's companies.
+        if ($companies !== null) {
+            $query->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
+        }
 
         if (($rule = $request->validated('rule')) !== null) {
             $query->where('rule_id', $rule);
@@ -46,6 +51,6 @@ class AutomationRunController
 
     public function show(RunRequest $request, AutomationRun $automationRun): AutomationRunResource
     {
-        return AutomationRunResource::make($automationRun->load('rule'));
+        return AutomationRunResource::make($automationRun->load(['rule', 'deliveries']));
     }
 }
