@@ -31,7 +31,7 @@ combobox everywhere. The owner's words win; record it in
   the JSON, so fields hidden by field rules (RBAC-05) never appear; a hidden
   column is dropped. Headers and values in the user's language: translated
   enums, money as "KES 12,450.00", dates in the company or user time zone.
-- PDF: at most 2,000 rows (422 with "Too many rows for a PDF. Narrow the
+- PDF: at most 500 rows (422 with "Too many rows for a PDF. Narrow the
   filters or export to Excel."). Black on white, A4 landscape, title,
   filters summary, generated at, page numbers. Excel/CSV: streamed, no cap
   beyond the request timeout; CSV starts with a UTF-8 BOM so Excel opens
