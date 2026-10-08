@@ -553,6 +553,57 @@ class ListSortAndExportTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(ListExport::EXPORTS_PER_MINUTE + 1, AuditEntry::where('action', 'core.item.export')->count()));
     }
 
+    public function test_filtering_by_a_hidden_field_is_refused(): void
+    {
+        $clerk = $this->inTenant(function () {
+            $role = $this->role('Clerk', ['core.item.view']);
+
+            foreach (['barcodes', 'category_id', 'type'] as $field) {
+                FieldRule::create(['role_id' => $role->id, 'resource' => 'item', 'field' => $field, 'mode' => 'hidden']);
+            }
+
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::tenant());
+
+            return $user;
+        });
+        $drinks = $this->category('Drinks');
+        $this->item('H1', ['category_id' => $drinks, 'barcodes' => [['barcode' => '999111']]]);
+        $clerkHeaders = $this->headersFor($clerk);
+
+        // RBAC-05: the matching rows alone would reveal the hidden values.
+        foreach (["category={$drinks}" => 'category', 'type=stock' => 'type', 'barcode=999111' => 'barcode'] as $query => $field) {
+            $this->getJson("/api/v1/items?{$query}", $clerkHeaders)->assertUnprocessable()
+                ->assertJsonPath("errors.{$field}.0", 'You can’t filter by a field you can’t see.');
+            $this->get("/api/v1/items?{$query}&format=csv", [...$clerkHeaders, 'Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors($field);
+            // The owner, without those rules, may.
+            $this->assertCount(1, $this->ids("/api/v1/items?{$query}"));
+        }
+
+        $this->getJson('/api/v1/items?type=stock', [...$clerkHeaders, 'Accept-Language' => 'fr'])->assertUnprocessable()
+            ->assertJsonPath('errors.type.0', 'Vous ne pouvez pas filtrer par un champ que vous ne voyez pas.');
+        $this->getJson('/api/v1/items', $clerkHeaders)->assertOk();
+        $this->inTenant(fn () => $this->assertSame(0, AuditEntry::where('action', 'core.item.export')->count()));
+    }
+
+    public function test_the_access_review_export_shares_the_exports_rate_limit(): void
+    {
+        $this->item('P1');
+
+        for ($i = 0; $i < ListExport::EXPORTS_PER_MINUTE - 1; $i++) {
+            $this->get('/api/v1/items?format=csv&columns[]=code', $this->headersFor())->assertOk();
+        }
+
+        $this->get('/api/v1/access-review?format=csv', $this->headersFor())->assertOk();
+        $this->get('/api/v1/access-review?format=csv', [...$this->headersFor(), 'Accept' => 'application/json'])->assertStatus(429)
+            ->assertJsonPath('code', 'too_many_exports');
+        $this->get('/api/v1/items?format=csv', [...$this->headersFor(), 'Accept' => 'application/json'])->assertStatus(429);
+        // The JSON access review is not an export.
+        $this->getJson('/api/v1/access-review', $this->headersFor())->assertOk();
+
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.access_review.export')->count()));
+    }
+
     public function test_rows_are_read_in_the_requesters_tenant_whatever_context_is_left_when_the_body_streams(): void
     {
         $this->item('MINE', ['name' => 'Mine']);

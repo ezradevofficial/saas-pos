@@ -2,15 +2,18 @@
 
 namespace Tests\Feature\Isolation;
 
+use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -206,6 +209,9 @@ class TenantIsolationTest extends TestCase
 
         $this->tenants = TwoTenants::build($this);
         app(TenantContext::class)->set(null);
+        // EXP-01: the suite exports every list many times a minute; the
+        // limit itself is tested in ListSortAndExportTest.
+        RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------

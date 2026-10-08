@@ -377,10 +377,13 @@ return [
         'generated_at' => 'Généré le :date',
         'page_of' => 'Page :page sur :pages',
         'sort_hidden' => 'Vous ne pouvez pas trier par un champ que vous ne voyez pas. Choisissez une autre colonne.',
+        'filter_hidden' => 'Vous ne pouvez pas filtrer par un champ que vous ne voyez pas.',
         'columns_hidden' => 'Vous ne voyez aucune des colonnes demandées. Choisissez d’autres colonnes à exporter.',
         'too_many_exports' => 'Trop d’exports. Réessayez dans :seconds seconde.|Trop d’exports. Réessayez dans :seconds secondes.',
         'search' => 'Recherche',
         'status' => 'Statut',
+        'yes' => 'Oui',
+        'no' => 'Non',
         'statuses' => [
             'active' => 'Actif',
             'archived' => 'Archivé',

@@ -27,8 +27,12 @@ abstract class ListDefinition
     /** Translated title printed on a PDF. */
     abstract public function title(array $filters): string;
 
-    /** The field rules resource the API resource applies (RBAC-05). */
-    abstract public function fieldRules(): string;
+    /**
+     * The field rules resource the API resource applies (RBAC-05), or null
+     * when the resource applies none (nothing is hidden from sort, search
+     * or export then).
+     */
+    abstract public function fieldRules(): ?string;
 
     /**
      * Output keys built from several columns: hidden when any of them is
@@ -51,7 +55,7 @@ abstract class ListDefinition
      */
     abstract public function sorts(): array;
 
-    /** The sort used when the request names none (ascending). */
+    /** The sort used when the request names none: a key, `-key` for descending. */
     abstract public function defaultSort(): string;
 
     /** @return list<ListColumn> exportable columns, in their default order */
@@ -94,7 +98,9 @@ abstract class ListDefinition
      */
     public function hiddenFields(Request $request): array
     {
-        return HidesFields::hidden($request, $this->fieldRules());
+        $resource = $this->fieldRules();
+
+        return $resource === null ? [] : HidesFields::hidden($request, $resource);
     }
 
     /**
@@ -134,7 +140,7 @@ abstract class ListDefinition
 
             $sort = $this->defaultSort();
 
-            if ($this->hides($this->sorts()[$sort]->fields, $hidden)) {
+            if ($this->hides($this->sorts()[ltrim($sort, '-')]->fields, $hidden)) {
                 return $query->orderBy($query->qualifyColumn('id'));
             }
         }

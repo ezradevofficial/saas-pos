@@ -377,10 +377,13 @@ return [
         'generated_at' => 'Generated :date',
         'page_of' => 'Page :page of :pages',
         'sort_hidden' => 'You can’t sort by a field you can’t see. Choose another column.',
+        'filter_hidden' => 'You can’t filter by a field you can’t see.',
         'columns_hidden' => 'You can’t see any of the columns asked for. Choose other columns to export.',
         'too_many_exports' => 'Too many exports. Try again in :seconds second.|Too many exports. Try again in :seconds seconds.',
         'search' => 'Search',
         'status' => 'Status',
+        'yes' => 'Yes',
+        'no' => 'No',
         'statuses' => [
             'active' => 'Active',
             'archived' => 'Archived',
