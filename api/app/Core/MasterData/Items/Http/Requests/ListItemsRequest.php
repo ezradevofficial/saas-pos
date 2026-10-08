@@ -17,7 +17,8 @@ use Illuminate\Validation\Rule;
  * `?search=` (code prefix, English or French name, or an exact barcode),
  * `?barcode=` (exact, normalised: the POS lookup), `?category=` (that
  * category and those beneath it), `?type=`, `?status`, `?per_page`,
- * `?sort` and an export (`?format`, `?columns[]`; ItemList, EXP-01).
+ * `?sort` (a filter on a field hidden by field rules is refused, 422,
+ * like a sort on it; RBAC-05) and an export (`?format`, `?columns[]`; ItemList, EXP-01).
  */
 class ListItemsRequest extends FormRequest
 {
@@ -38,21 +39,22 @@ class ListItemsRequest extends FormRequest
         return [
             ...$this->listRules(),
             'search' => ['sometimes', 'string', 'max:100'],
-            'barcode' => ['sometimes', 'string', 'max:64', function (string $attribute, mixed $value, Closure $fail) {
+            // RBAC-05: a filter on a hidden field is refused like a sort on it.
+            'barcode' => ['sometimes', 'string', 'max:64', $this->visibleFilter('barcodes'), function (string $attribute, mixed $value, Closure $fail) {
                 if (Barcode::normalise($value) === null) {
                     $fail(__('core.item.barcode_invalid'));
                 }
             }],
             // A category shared or of a company whose items the user lists:
             // another is refused as unknown (the filter summary names it).
-            'category' => ['sometimes', 'uuid', Rule::exists('item_categories', 'id')->where(function ($query) {
+            'category' => ['sometimes', 'uuid', $this->visibleFilter('category_id'), Rule::exists('item_categories', 'id')->where(function ($query) {
                 $companies = app(ItemPolicy::class)->listableCompanies($this->user());
 
                 if ($companies !== null) {
                     $query->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
                 }
             })],
-            'type' => ['sometimes', 'string', Rule::in(Item::TYPES)],
+            'type' => ['sometimes', 'string', $this->visibleFilter('type'), Rule::in(Item::TYPES)],
         ];
     }
 

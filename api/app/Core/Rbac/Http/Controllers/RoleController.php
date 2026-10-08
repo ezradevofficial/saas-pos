@@ -2,16 +2,18 @@
 
 namespace App\Core\Rbac\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\Rbac\Http\Requests\CopyRoleRequest;
+use App\Core\Rbac\Http\Requests\ListRolesRequest;
 use App\Core\Rbac\Http\Requests\RoleActionRequest;
 use App\Core\Rbac\Http\Requests\StoreRoleRequest;
 use App\Core\Rbac\Http\Requests\UpdateRoleRequest;
 use App\Core\Rbac\Http\Resources\RoleResource;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
-use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * RBAC-02, RBAC-12: the tenant's roles. Listed from any scope holding
@@ -22,17 +24,16 @@ class RoleController
 {
     public function __construct(private readonly RoleManager $manager) {}
 
-    public function index(ListRequest $request): AnonymousResourceCollection
+    public function index(ListRolesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        abort_unless($request->user()->can('viewAny', Role::class), 403);
+        $query = $request->applySearch($request->applyStatus(Role::query()), ['name' => 'name', 'description' => 'description']);
+        $request->applySort($query);
 
-        return RoleResource::collection(
-            $request->applyStatus(Role::query())
-                ->with('permissions:id,name')
-                ->orderByDesc('is_system')->orderBy('name')->orderBy('id')
-                ->paginate($request->perPage())
-                ->withQueryString(),
-        );
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return RoleResource::collection($query->with('permissions:id,name')->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreRoleRequest $request): JsonResponse

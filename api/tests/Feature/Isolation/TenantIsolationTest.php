@@ -2,15 +2,18 @@
 
 namespace Tests\Feature\Isolation;
 
+use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -206,6 +209,9 @@ class TenantIsolationTest extends TestCase
 
         $this->tenants = TwoTenants::build($this);
         app(TenantContext::class)->set(null);
+        // EXP-01: the suite exports every list many times a minute; the
+        // limit itself is tested in ListSortAndExportTest.
+        RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -295,7 +301,7 @@ class TenantIsolationTest extends TestCase
                 foreach (self::LIST_QUERIES as $query) {
                     $uri = $this->uriWith($route, $a).($query === [] ? '' : '?'.http_build_query($query));
                     $response = $this->json('GET', $uri, [], $a->bearer());
-                    $query === [] ? $response->assertOk() : $this->assertContains($response->status(), [200, 422], "GET {$uri} answered {$response->status()}");
+                    $query === [] ? $response->assertOk() : $this->assertContains($response->getStatusCode(), [200, 422], "GET {$uri} answered {$response->getStatusCode()}");
                     $this->assertBodyHasNothingOf($b, $response, "GET {$uri}");
                     $called++;
                 }
@@ -312,7 +318,7 @@ class TenantIsolationTest extends TestCase
                     $called++;
 
                     // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
-                    $this->assertSame(404, $response->status(), "{$method} {$uri} with tenant B's ids answered {$response->status()} to tenant A: {$response->getContent()}");
+                    $this->assertSame(404, $response->getStatusCode(), "{$method} {$uri} with tenant B's ids answered {$response->getStatusCode()} to tenant A: {$response->getContent()}");
                     $this->assertBodyHasNothingOf($b, $response, "{$method} {$uri}");
 
                     // Control: the same GET with A's own ids works (a route may refuse
@@ -320,7 +326,7 @@ class TenantIsolationTest extends TestCase
                     // is isolation, not a bad URL.
                     if ($method === 'GET') {
                         $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $a->bearer());
-                        $query === [] ? $control->assertOk() : $this->assertContains($control->status(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->status()}");
+                        $query === [] ? $control->assertOk() : $this->assertContains($control->getStatusCode(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->getStatusCode()}");
                         $this->assertBodyHasNothingOf($b, $control, "GET {$this->uriWith($route, $a)}{$suffix}");
                     }
                 }
@@ -344,7 +350,7 @@ class TenantIsolationTest extends TestCase
 
         // `?category=` takes an id: B's category is refused, A's selects A's item (and its subcategories').
         $refused = $this->json('GET', "/api/v1/items?category={$b->id('item_category_parent')}", [], $a->bearer());
-        $this->assertSame(422, $refused->status());
+        $this->assertSame(422, $refused->getStatusCode());
         $this->assertBodyHasNothingOf($b, $refused, 'GET items?category= with B\'s category');
         $own = $this->json('GET', "/api/v1/items?category={$a->id('item_category_parent')}", [], $a->bearer())->assertOk();
         $this->assertSame([$a->id('item')], array_column($own->json('data'), 'id'));
@@ -432,7 +438,7 @@ class TenantIsolationTest extends TestCase
             $fixture = self::HISTORY_TYPES[$type];
 
             $refused = $this->getJson("/api/v1/history/{$type}/{$b->id($fixture)}", $a->bearer());
-            $this->assertSame(404, $refused->status(), "GET history/{$type} with tenant B's record answered {$refused->status()}");
+            $this->assertSame(404, $refused->getStatusCode(), "GET history/{$type} with tenant B's record answered {$refused->getStatusCode()}");
             $this->assertBodyHasNothingOf($b, $refused, "GET history/{$type} with B's record");
 
             // Control: A's own record has a history, and it shows nothing of B.
@@ -477,14 +483,14 @@ class TenantIsolationTest extends TestCase
 
                 foreach ($this->hijackVariants($base, $idFields, $b, self::ROUTE_REFERENCE_FIELDS[$key] ?? []) as $label => $body) {
                     $response = $this->json($method, $uri, $body, $a->bearer());
-                    $this->assertContains($response->status(), [404, 422], "{$key} with {$label} of tenant B answered {$response->status()}: {$response->getContent()}");
+                    $this->assertContains($response->getStatusCode(), [404, 422], "{$key} with {$label} of tenant B answered {$response->getStatusCode()}: {$response->getContent()}");
                     $this->assertBodyHasNothingOf($b, $response, "{$key} with {$label}");
                     $hijacked[$key][] = $label;
                 }
 
                 // Control: the same body with A's own ids is accepted, so the refusals are about B's ids.
                 $control = $this->json($method, $uri, $base, $a->bearer());
-                $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->status()}: {$control->getContent()}");
+                $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}");
             }
         }
 
@@ -538,11 +544,15 @@ class TenantIsolationTest extends TestCase
     {
         $a = $this->tenants->a;
         $b = $this->tenants->b;
-        $theirs = ['Customer B', 'Supplier B', 'P00000000B', 'ITEM-B', 'Article B', 'Goods B sub', '+254700000302'];
+        $theirs = ['Customer B', 'Supplier B', 'P00000000B', 'ITEM-B', 'Article B', 'Goods B', '+254700000302',
+            'Owner B', 'Manager B', 'Cashier B', 'Clerk B', 'Retail B', 'Unit B', 'Root B', 'Outlet B', 'Branch B',
+            'key-b', 'secret-b', 'pass-b', '17437b'];
+        // MD-04: payment method settings and credentials never reach an export, A's own included.
+        $secrets = ['key-a', 'secret-a', 'pass-a', '17437a'];
 
-        foreach (['items' => ['ITEM-A', 'Article A'], 'parties' => ['Customer A', 'Supplier A', '+254700000301']] as $list => $ours) {
+        foreach ($this->exportedLists($a) as $list => $ours) {
             foreach (['csv', 'xlsx', 'pdf'] as $format) {
-                $response = $this->get("/api/v1/{$list}?format={$format}&status=all", $a->bearer())->assertOk();
+                $response = $this->get("/api/v1/{$list}".(str_contains($list, '?') ? '&' : '?')."format={$format}", $a->bearer())->assertOk();
                 $body = $response->streamedContent();
 
                 if ($format === 'pdf') {
@@ -560,8 +570,42 @@ class TenantIsolationTest extends TestCase
                 foreach ([...$theirs, ...$this->identifiersOf($b)] as $value) {
                     $this->assertStringNotContainsString($value, $text, "A's {$list} {$format} export contains {$value} of tenant B");
                 }
+
+                foreach ($secrets as $value) {
+                    $this->assertStringNotContainsString($value, $text, "A's {$list} {$format} export contains the credential or setting {$value}");
+                }
             }
         }
+    }
+
+    /**
+     * Every exported list (EXP-01), with values of tenant A each export
+     * must show (the control).
+     *
+     * @return array<string, list<string>>
+     */
+    private function exportedLists(TenantFixture $a): array
+    {
+        return [
+            'items?status=all' => ['ITEM-A', 'Article A'],
+            'parties?status=all' => ['Customer A', 'Supplier A', '+254700000301'],
+            'users' => ['Owner A', 'Manager A', 'Branch Manager at Branch A'],
+            'invitations' => ['Cashier A', 'Cashier at Outlet A'],
+            'auth/sessions' => [],
+            'roles?status=all' => ['Clerk A', 'Branch Manager'],
+            "users/{$a->id('manager')}/assignments" => ['Clerk A', 'Outlet A'],
+            "companies/{$a->id('company')}/exchange-rates" => ['USD/KES', '129.5', '140'],
+            'tenant/currencies' => ['KES', 'USD'],
+            "companies/{$a->id('company')}/tax-codes?status=all" => ['VAT_STD', '12.5%'],
+            'tax-categories?status=all' => ['Goods A', 'VAT_STD in Company A'],
+            "companies/{$a->id('company')}/price-lists?status=all" => ['Retail A'],
+            'uoms?status=all' => ['EA', 'BOX'],
+            'item-categories?status=all' => ['Goods A', 'Goods A sub'],
+            "companies/{$a->id('company')}/payment-methods?status=all" => ['M-Pesa', 'Cash KES'],
+            "companies/{$a->id('company')}/departments?status=all" => ['A-1', 'Unit A renamed', 'Root A'],
+            "companies/{$a->id('company')}/cost-centres?status=all" => ['A-1', 'Unit A renamed'],
+            "companies/{$a->id('company')}/projects?status=all" => ['A-1', 'Unit A renamed'],
+        ];
     }
 
     /** Every cell of an xlsx file, as one string. */
@@ -613,7 +657,7 @@ class TenantIsolationTest extends TestCase
             ->where('purpose', VerificationChallenge::PURPOSE_TWO_FACTOR)->sole();
 
         $refused = $this->postJson('/api/v1/me/two-factor/sms/confirm', ['code' => $code], $a->bearer());
-        $this->assertContains($refused->status(), [403, 404, 422], 'tenant A confirmed with tenant B\'s two-factor code');
+        $this->assertContains($refused->getStatusCode(), [403, 404, 422], 'tenant A confirmed with tenant B\'s two-factor code');
         $this->assertNull($challenge->fresh()->consumed_at, "tenant A consumed tenant B's challenge");
 
         // Control: B's own code still works.

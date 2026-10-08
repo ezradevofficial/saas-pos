@@ -11,6 +11,7 @@ use App\Core\Currency\Http\Resources\ExchangeRateResource;
 use App\Core\Currency\Models\ExchangeRate;
 use App\Core\Currency\Models\RateAlert;
 use App\Core\Currency\Rate;
+use App\Core\Exports\ListExport;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
@@ -21,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * CUR-03: a company's rate history and the rates in force; CUR-07: shop
@@ -36,7 +38,7 @@ class ExchangeRateController
         private readonly Auditor $auditor,
     ) {}
 
-    public function index(ListExchangeRatesRequest $request, Company $company): AnonymousResourceCollection
+    public function index(ListExchangeRatesRequest $request, Company $company, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = ExchangeRate::query()->where('company_id', $company->id);
 
@@ -64,8 +66,16 @@ class ExchangeRateController
             $query->where('kind', $request->validated('kind'));
         }
 
+        $request->applySort($query);
+
+        if ($request->wantsExport()) {
+            $request->list()->directionFrom($pairBase);
+
+            return $export->download($request, $query);
+        }
+
         return ExchangeRateResource::collection(
-            $query->orderByDesc('effective_at')->orderByDesc('id')->paginate($request->perPage())->withQueryString()
+            $query->paginate($request->perPage())->withQueryString()
                 ->through(fn (ExchangeRate $rate) => $pairBase === null ? $rate : $rate->setDirection($rate->base === $pairBase ? 'direct' : 'inverse')),
         );
     }

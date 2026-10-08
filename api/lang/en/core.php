@@ -51,6 +51,20 @@ return [
 
     // CUR-01, CUR-02: currencies.
     'currency' => [
+        // EXP-01: the tenant's currencies list and its export.
+        'list_title' => 'Currencies in use',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Currency',
+            'decimals' => 'Decimals',
+            'cash_rounding' => 'Cash rounding',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'statuses' => [
+            'active' => 'On',
+            'inactive' => 'Off',
+        ],
         'base_currency_locked' => 'This company’s base currency is locked because amounts have already been posted in it.',
         'too_many_reporting_currencies' => 'A company can have at most :max reporting currencies. Remove one before adding another.',
         'decimals_locked' => 'Amounts in this currency are already stored, so its decimals can’t change.',
@@ -71,6 +85,36 @@ return [
 
     // CUR-03, CUR-06, CUR-07: exchange rates.
     'exchange_rate' => [
+        // EXP-01: the rate history list and its export.
+        'list_title' => 'Exchange rates of :company',
+        'columns' => [
+            'pair' => 'Currency pair',
+            'effective_at' => 'Effective',
+            'kind' => 'Kind',
+            'mid' => 'Rate',
+            'buy' => 'Buy',
+            'sell' => 'Sell',
+            'direction' => 'Direction',
+            'source' => 'Source',
+            'created_at' => 'Entered',
+            'from' => 'From',
+            'to' => 'To',
+        ],
+        'kinds' => [
+            'reference' => 'Reference',
+            'shop' => 'Shop',
+        ],
+        'directions' => [
+            'direct' => 'As listed',
+            'inverse' => 'Inverse',
+        ],
+        'sources' => [
+            'manual' => 'Entered by hand',
+            'bcc' => 'Central Bank of the Congo',
+            'cbk' => 'Central Bank of Kenya',
+            'fake' => 'Test feed',
+            'feed' => 'Rate feed',
+        ],
         'unavailable' => 'There is no exchange rate from :from to :to. Enter a shop rate first.',
         'invalid_rate' => 'Enter the :attribute as a number above zero with at most 10 digits before the point and 8 after, for example 2850.5.',
         'same_currency' => 'Choose two different currencies.',
@@ -90,6 +134,37 @@ return [
 
     // MD-03, CP-01, CP-02: tax codes, rates, categories.
     'tax' => [
+        // EXP-01: the tax codes and tax categories lists and their exports.
+        'list_title' => 'Tax codes of :company',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'kind' => 'Kind',
+            'rate' => 'Rate',
+            'since' => 'Since',
+            'fiscal_code' => 'Fiscal code',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'kinds' => [
+            'vat' => 'VAT',
+            'withholding' => 'Withholding',
+            'excise' => 'Excise',
+            'exempt' => 'Exempt',
+            'zero_rated' => 'Zero-rated',
+        ],
+        'rate_needed' => 'Rate needed',
+        'exempt' => 'Exempt',
+        'categories_title' => 'Tax categories',
+        'category_columns' => [
+            'name' => 'Name',
+            'scope' => 'Used by',
+            'codes' => 'Default tax codes',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'all_companies' => 'All companies',
+        'code_in_company' => ':code in :company',
         'code_archived' => 'The tax code :code is archived. Restore it before using it or adding a rate.',
         'rate_missing' => 'The tax code :code has no confirmed rate on :date. Enter its rate before using it.',
         'rate_overlap' => 'A rate already starts on or after this date (latest start :date). Choose a date after :date.',
@@ -118,6 +193,18 @@ return [
 
     // MD-03: price lists.
     'price_list' => [
+        // EXP-01: the price lists list and its export.
+        'list_title' => 'Price lists of :company',
+        'columns' => [
+            'name' => 'Name',
+            'currency' => 'Currency',
+            'prices' => 'Prices',
+            'default' => 'Default',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'include_tax' => 'Include tax',
+        'exclude_tax' => 'Exclude tax',
         'archived_default' => 'An archived price list can’t be the default. Restore it first.',
         'attributes' => [
             'name' => 'name',
@@ -280,6 +367,18 @@ return [
     ],
 
     'item_category' => [
+        // EXP-01: the item categories list and its export.
+        'list_title' => 'Item categories',
+        'columns' => [
+            'name' => 'Name',
+            'parent' => 'Parent',
+            'scope' => 'Used by',
+            'colour' => 'Colour',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
+        'all_companies' => 'All companies',
         'parent_other_scope' => 'Choose a parent category of the same company, or a shared one for a shared category.',
         'parent_cycle' => 'A category can’t sit under itself or one of its subcategories. Choose another parent.',
         'too_deep' => 'Categories go up to :max levels deep. Choose a parent higher in the tree.',
@@ -295,6 +394,23 @@ return [
     ],
 
     'uom' => [
+        // EXP-01: the units list and its export.
+        'list_title' => 'Units',
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'kind' => 'Kind',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
+        'kinds' => [
+            'count' => 'Count',
+            'weight' => 'Weight',
+            'volume' => 'Volume',
+            'length' => 'Length',
+            'time' => 'Time',
+        ],
         'code_invalid' => 'Codes use capital letters, numbers and underscores, up to 10 characters.',
         'code_taken' => 'Another active unit already uses the code :code. Choose another code.',
         'code_taken_race' => 'Another unit took this code while you were saving. Choose another code.',
@@ -318,6 +434,41 @@ return [
 
     // MD-04: payment methods.
     'payment_method' => [
+        // EXP-01: the payment methods list and its export (never settings or credentials).
+        'list_title' => 'Payment methods of :company',
+        'columns' => [
+            'position' => 'Order',
+            'name' => 'Name',
+            'type' => 'Type',
+            'provider' => 'Provider',
+            'currency' => 'Currency',
+            'till' => 'At the till',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'types' => [
+            'cash' => 'Cash',
+            'mobile_money' => 'Mobile money',
+            'card' => 'Card',
+            'credit' => 'Credit',
+            'voucher' => 'Vouchers',
+            'points' => 'Loyalty points',
+            'bank_transfer' => 'Bank transfer',
+        ],
+        'providers' => [
+            'mpesa_ke' => 'M-Pesa (Safaricom Daraja)',
+            'airtel_ke' => 'Airtel Money Kenya',
+            'vodacom_mpesa_cd' => 'M-Pesa (Vodacom Congo)',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Card payments provider',
+        ],
+        'till_statuses' => [
+            'on' => 'On',
+            'off' => 'Off',
+            'setup' => 'Setup needed',
+        ],
         'type_invalid' => 'Choose cash, mobile money, card, credit, voucher, points or bank transfer. The type of an existing payment method can’t change.',
         'provider_invalid' => 'Choose a supported payment provider. The provider of an existing payment method can’t change.',
         'provider_required' => 'Mobile money and card payment methods need a provider. Choose one.',
@@ -354,6 +505,21 @@ return [
 
     // MD-05: departments, cost centres and projects.
     'dimension' => [
+        // EXP-01: the departments, cost centres and projects lists and their exports.
+        'list_titles' => [
+            'department' => 'Departments of :company',
+            'cost_centre' => 'Cost centres of :company',
+            'project' => 'Projects of :company',
+        ],
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'parent' => 'Parent',
+            'owner' => 'Owner',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
         'code_invalid' => 'Codes start with a letter or number and use letters, numbers, dots, dashes and underscores, up to 30 characters.',
         'code_taken' => 'Another active record of the company already uses this code. Choose another code.',
         'parent_other_company' => 'Choose an active parent of the same company.',
@@ -369,6 +535,93 @@ return [
         ],
     ],
 
+    // EXP-01: the users, invitations, sessions, roles and assignments lists and their exports.
+    'user' => [
+        'list_title' => 'Users',
+        'columns' => [
+            'name' => 'Name',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'roles' => 'Roles',
+            'status' => 'Status',
+            'two_factor' => 'Two-factor',
+            'last_sign_in_at' => 'Last signed in',
+            'created_at' => 'Created',
+        ],
+        'statuses' => [
+            'active' => 'Active',
+            'pending' => 'Pending',
+            'deactivated' => 'Deactivated',
+        ],
+    ],
+
+    'invitation' => [
+        'list_title' => 'Invitations',
+        'columns' => [
+            'name' => 'Name',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'roles' => 'Roles',
+            'status' => 'Status',
+            'invited_by' => 'Invited by',
+            'expires_at' => 'Expires',
+            'created_at' => 'Sent',
+        ],
+        'statuses' => [
+            'pending' => 'Pending',
+            'accepted' => 'Accepted',
+            'revoked' => 'Revoked',
+            'expired' => 'Expired',
+        ],
+    ],
+
+    'session' => [
+        'list_title' => 'Sessions',
+        'columns' => [
+            'device' => 'Device',
+            'user_agent' => 'Browser or app',
+            'ip' => 'IP address',
+            'last_active' => 'Last active',
+            'current' => 'This device',
+            'created_at' => 'Signed in',
+        ],
+    ],
+
+    'role' => [
+        'list_title' => 'Roles',
+        'columns' => [
+            'name' => 'Name',
+            'description' => 'Description',
+            'type' => 'Type',
+            'permissions' => 'Permissions',
+            'two_factor' => 'Two-factor',
+            'status' => 'Status',
+        ],
+        'types' => [
+            'system' => 'System',
+            'custom' => 'Custom',
+        ],
+        'two_factor_required' => 'Required',
+    ],
+
+    'assignment' => [
+        'list_title' => 'Roles of :name',
+        'columns' => [
+            'role' => 'Role',
+            'scope_type' => 'Level',
+            'scope' => 'Where',
+            'granted_by' => 'Given by',
+            'granted_at' => 'Given',
+        ],
+        'scope_types' => [
+            'tenant' => 'Whole organisation',
+            'company' => 'Company',
+            'branch' => 'Branch',
+            'location' => 'Location',
+        ],
+        'role_at' => ':role at :scope',
+    ],
+
     // Lists and their exports (EXP-01; lists and pickers plan).
     'list' => [
         'sort_unknown' => 'This list can’t be sorted by “:sort”. Choose another column.',
@@ -377,10 +630,14 @@ return [
         'generated_at' => 'Generated :date',
         'page_of' => 'Page :page of :pages',
         'sort_hidden' => 'You can’t sort by a field you can’t see. Choose another column.',
+        'someone_hidden' => 'Someone you can’t see',
+        'filter_hidden' => 'You can’t filter by a field you can’t see.',
         'columns_hidden' => 'You can’t see any of the columns asked for. Choose other columns to export.',
         'too_many_exports' => 'Too many exports. Try again in :seconds second.|Too many exports. Try again in :seconds seconds.',
         'search' => 'Search',
         'status' => 'Status',
+        'yes' => 'Yes',
+        'no' => 'No',
         'statuses' => [
             'active' => 'Active',
             'archived' => 'Archived',

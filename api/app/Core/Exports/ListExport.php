@@ -171,9 +171,10 @@ class ListExport
 
     /**
      * EXP-01: at most EXPORT_LIMITER's exports per user per minute, any
-     * format (429 with Retry-After above it).
+     * format (429 with Retry-After above it). Other exports (the access
+     * review) call it too, so they share the allowance.
      */
-    private function throttle(Request $request): void
+    public function throttle(Request $request): void
     {
         $limit = RateLimiter::limiter(self::EXPORT_LIMITER)($request);
         $key = self::EXPORT_LIMITER.'|'.$limit->key;

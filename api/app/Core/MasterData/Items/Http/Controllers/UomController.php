@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Items\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\Items\Http\Requests\ListUomsRequest;
 use App\Core\MasterData\Items\Http\Requests\StoreUomRequest;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-02: the tenant's units of measure. Codes are unique among active
@@ -31,11 +33,16 @@ class UomController
 {
     public function __construct(private readonly MasterDataSharing $sharing) {}
 
-    public function index(ListUomsRequest $request): AnonymousResourceCollection
+    public function index(ListUomsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        return UomResource::collection(
-            $request->applyStatus(Uom::query())->orderBy('code')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        $query = $request->applySearch($request->applyStatus(Uom::query()), ['code' => 'code', 'name' => 'name']);
+        $request->applySort($query);
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return UomResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreUomRequest $request): JsonResponse

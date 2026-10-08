@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\Exports\SpreadsheetCell;
 use App\Core\Rbac\Http\Requests\AccessReviewRequest;
 use App\Core\Rbac\Http\Resources\AccessReviewResource;
@@ -18,7 +19,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /**
  * RBAC-11: who holds which (active) role where, granted by whom and when,
  * within the actor's scope. JSON is paginated; `?format=csv` streams every
- * row and is audited as `core.access_review.export`.
+ * row and is audited as `core.access_review.export`, within the same
+ * per-user allowance as list exports (the `exports` rate limiter, EXP-01).
  */
 class AccessReviewController
 {
@@ -31,6 +33,7 @@ class AccessReviewController
         private readonly ScopeNames $scopeNames,
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
+        private readonly ListExport $exports,
     ) {}
 
     public function __invoke(AccessReviewRequest $request): AnonymousResourceCollection|StreamedResponse
@@ -38,6 +41,8 @@ class AccessReviewController
         $visible = $this->resolver->visibleIds($request->user(), $request->permission());
 
         if ($request->wantsCsv()) {
+            $this->exports->throttle($request);
+
             return $this->csv($visible);
         }
 

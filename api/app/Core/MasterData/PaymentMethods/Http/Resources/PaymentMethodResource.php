@@ -22,6 +22,15 @@ class PaymentMethodResource extends JsonResource
 {
     public const FIELD_RULES = 'payment_method';
 
+    /** Output keys built from secret or setting columns: hidden when any of them is (RBAC-05). */
+    public const SOURCES = [
+        'secrets_set' => ['secrets'],
+        'setting_keys' => ['settings'],
+        'secret_keys' => ['secrets'],
+        'configured' => ['settings', 'secrets'],
+        'missing' => ['settings', 'secrets'],
+    ];
+
     public function toArray(Request $request): array
     {
         $providers = app(PaymentProviders::class);
@@ -46,12 +55,6 @@ class PaymentMethodResource extends JsonResource
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
 
-        return HidesFields::apply($request, self::FIELD_RULES, $fields, [
-            'secrets_set' => ['secrets'],
-            'setting_keys' => ['settings'],
-            'secret_keys' => ['secrets'],
-            'configured' => ['settings', 'secrets'],
-            'missing' => ['settings', 'secrets'],
-        ]);
+        return HidesFields::apply($request, self::FIELD_RULES, $fields, self::SOURCES);
     }
 }

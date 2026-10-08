@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Taxes\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\Taxes\Http\Requests\ListPriceListsRequest;
 use App\Core\MasterData\Taxes\Http\Requests\PriceListActionRequest;
 use App\Core\MasterData\Taxes\Http\Requests\PriceListRequest;
@@ -17,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-03: a company's price lists, tax-inclusive or exclusive. One active
@@ -30,13 +32,16 @@ class PriceListController
 {
     public function __construct(private readonly Archiver $archiver) {}
 
-    public function index(ListPriceListsRequest $request, Company $company): AnonymousResourceCollection
+    public function index(ListPriceListsRequest $request, Company $company, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = PriceList::query()->where('company_id', $company->id);
+        $query = $request->applySearch($request->applyStatus(PriceList::query()->where('company_id', $company->id)), ['name' => 'name', 'currency' => 'currency']);
+        $request->applySort($query);
 
-        return PriceListResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return PriceListResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StorePriceListRequest $request, Company $company): JsonResponse

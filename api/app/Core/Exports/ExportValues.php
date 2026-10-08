@@ -71,6 +71,23 @@ final class ExportValues
         return ($negative ? '-' : '').$text;
     }
 
+    /**
+     * A decimal string (a rate, a percentage) without floats, grouped, its
+     * trailing zeros dropped: "2850.50000000" => "2,850.5" / "2 850,5".
+     */
+    public function decimal(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        [$whole, $fraction] = explode('.', $value, 2) + [1 => ''];
+        $fraction = rtrim($fraction, '0');
+        $text = $this->integer($whole === '' || $whole === '-' ? $whole.'0' : $whole);
+
+        return $fraction === '' ? $text : $text.$this->decimalMark.$fraction;
+    }
+
     /** A whole number with the language's grouping: 12,450 / 12 450. */
     public function integer(int|string|null $value): ?string
     {
@@ -137,7 +154,17 @@ final class ExportValues
         return implode($this->groupMark, $groups);
     }
 
-    private function formatDate(CarbonImmutable $date): string
+    /** A calendar date (`Y-m-d`, no time zone) as "7 Oct 2026". */
+    public function date(?string $ymd): ?string
+    {
+        if ($ymd === null || $ymd === '') {
+            return null;
+        }
+
+        return $this->formatDate(CarbonImmutable::createFromFormat('!Y-m-d', substr($ymd, 0, 10), 'UTC'), 'd MMM y');
+    }
+
+    private function formatDate(CarbonImmutable $date, string $pattern = 'd MMM y, HH:mm'): string
     {
         $formatter = new IntlDateFormatter(
             self::DATE_LOCALES[$this->locale] ?? self::DATE_LOCALES['en'],
@@ -145,7 +172,7 @@ final class ExportValues
             IntlDateFormatter::NONE,
             $date->getTimezone(),
             IntlDateFormatter::GREGORIAN,
-            'd MMM y, HH:mm',
+            $pattern,
         );
 
         return (string) $formatter->format($date);
