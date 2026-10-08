@@ -10,7 +10,7 @@ const fieldNamesOf = (to) =>
     .map((entry) => entry.slice(6))
 
 /** The `to` list from roles, people and user fields (the engine's `role:`, `user:` and `field:` prefixes). */
-export const recipientsFrom = (roleRefs, userIds, fieldNames) => [
+const recipientsFrom = (roleRefs, userIds, fieldNames) => [
   ...roleRefs.map((ref) => `role:${ref}`),
   ...userIds.map((id) => `user:${id}`),
   ...fieldNames.map((name) => `field:${name}`),

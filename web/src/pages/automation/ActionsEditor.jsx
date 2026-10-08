@@ -9,7 +9,6 @@ import { RecipientsPicker } from './RecipientsPicker'
 import { StagePicker } from './TriggerEditor'
 import { WebhookSecretPanel } from './WebhookSecretPanel'
 
-const CURRENT = '__current'
 const SKIP = '__skip'
 const FIXED = '__fixed'
 

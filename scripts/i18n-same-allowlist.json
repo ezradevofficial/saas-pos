@@ -45,5 +45,8 @@
   "v{{version}}",
   "Versions",
   "Condition",
-  "Action"
+  "Action",
+  "Date",
+  "Conditions",
+  "Version {{version}}"
 ]
