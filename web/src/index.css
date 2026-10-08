@@ -152,6 +152,14 @@
 @utility max-w-auth {
   max-width: calc(var(--space-10) * 11);
 }
+/* A picker's popup is as wide as the control that opened it (Radix measures it). */
+@utility w-trigger {
+  width: var(--radix-popover-trigger-width);
+}
+/* 288px: the tallest a picker's option list grows before it scrolls. */
+@utility max-h-picker {
+  max-height: calc(var(--space-12) * 6);
+}
 /* 192px: the QR code shown while setting up an authenticator app. */
 @utility size-qr {
   width: calc(var(--space-12) * 4);

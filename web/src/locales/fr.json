@@ -80,6 +80,10 @@
       "range": "Saisissez un nombre jusqu’à {{max}}.",
       "noDecimals": "Cette devise n’a pas de décimales. Saisissez un nombre entier.",
       "ambiguousComma": "Vérifiez le séparateur décimal : tapez {{thousands}} pour des milliers, ou {{decimal}} pour un nombre avec décimales."
+    },
+    "combobox": {
+      "search": "Rechercher",
+      "noMatches": "Aucun résultat"
     }
   },
   "dev": {
