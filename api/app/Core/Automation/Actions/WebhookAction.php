@@ -2,35 +2,29 @@
 
 namespace App\Core\Automation\Actions;
 
-use App\Core\Automation\Webhooks\WebhookRefused;
+use App\Core\Automation\Jobs\SendWebhookDelivery;
+use App\Core\Automation\Models\WebhookDelivery;
 use App\Core\Automation\Webhooks\WebhookSender;
 use App\Core\Workflow\DocumentTypes\DocumentType;
-use Carbon\CarbonImmutable;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Str;
 
 /**
- * AUTO-03 "call webhook": `{"type": "webhook", "url": "https://…"}` POSTs
+ * AUTO-03 "call webhook": `{"type": "webhook", "url": "https://..."}` POSTs
  * JSON to an HTTPS endpoint, signed with the rule's secret (Signature):
  *
- *   {"event": "automation.rule_run", "id": "<run id>", "occurred_at": "…Z",
- *    "rule": {"id", "name", "version"}, "trigger": {"type", …},
- *    "document": {"type", "id"} | null, "fields": {…the document's values}}
+ *   {"event": "automation.rule_run", "id": "<run id>:<action index>", "occurred_at": "...Z",
+ *    "rule": {"id", "name", "version"}, "trigger": {"type", ...},
+ *    "document": {"type", "id"} | null, "fields": {...the document's values}}
  *
- * `fields` holds only the fields the rule's user may see (RBAC-05).
- * SSRF protection lives in WebhookSender. A refused address fails the run
- * at once; an unreachable receiver or a 5xx, 408 or 429 answer is retried;
- * other answers fail the run. The log keeps the status and the first
- * kilobyte of the answer, never the secret. `X-Webhook-Id` is the run id,
- * the same on every attempt, so receivers can ignore repeats.
+ * Running the action only writes a WebhookDelivery (an outbox row) in the
+ * run's transaction: the run never waits on HTTP, and nothing is sent for
+ * a run that rolled back. WebhookDeliveries sends it after commit, with
+ * its own retries, building `fields` from the committed document and
+ * leaving out fields the rule's user may not see (RBAC-05).
  */
 class WebhookAction implements AutomationAction
 {
     public const KEY = 'webhook';
-
-    private const RETRY_STATUSES = [408, 429];
-
-    public function __construct(private readonly WebhookSender $sender) {}
 
     public function key(): string
     {
@@ -71,55 +65,35 @@ class WebhookAction implements AutomationAction
     {
         $secret = $context->rule->webhook_secret;
 
-        if (! is_string($secret) || $secret === '') {
+        if (! is_string($secret) || $secret === '' || $context->run === null) {
             throw new ActionFailed(__('automation.errors.no_webhook_secret'));
         }
 
-        try {
-            $target = $this->sender->target((string) ($action['url'] ?? ''));
-        } catch (WebhookRefused $e) {
-            throw new ActionFailed(__('automation.webhook.refused.'.$e->reason));
+        $url = (string) ($action['url'] ?? '');
+
+        if (($reason = WebhookSender::urlProblem($url)) !== null) {
+            throw new ActionFailed(__('automation.webhook.refused.'.$reason));
         }
 
-        $id = $context->run?->id ?? (string) Str::uuid7();
-        $body = (string) json_encode($this->payload($id, $context), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        // The outbox: written with the run's other changes, sent only once they are committed.
+        $delivery = WebhookDelivery::create([
+            'run_id' => $context->run->id,
+            'rule_id' => $context->rule->id,
+            'action_index' => $context->actionIndex,
+            'url' => $url,
+            'payload' => [
+                'event' => 'automation.rule_run',
+                'id' => $context->run->id.':'.$context->actionIndex,
+                'rule' => ['id' => $context->rule->id, 'name' => $context->rule->name, 'version' => $context->rule->version],
+                'trigger' => ['type' => $context->run->trigger_type, ...($context->run->trigger ?? [])],
+                'document' => $context->documentId === null ? null : ['type' => $context->type->key(), 'id' => $context->documentId],
+            ],
+            'status' => WebhookDelivery::PENDING,
+        ]);
 
-        try {
-            $response = $this->sender->send($target, $body, $secret, $id);
-        } catch (ConnectionException) {
-            throw new TransientFailure(__('automation.webhook.unreachable', ['url' => self::shown($target->url)]));
-        }
+        SendWebhookDelivery::dispatch($delivery->tenant_id, $delivery->id)->afterCommit();
 
-        $status = $response['status'];
-        $result = ['url' => self::shown($target->url), 'status' => $status, 'response' => $response['body']];
-
-        if ($status >= 200 && $status < 300) {
-            return $result;
-        }
-
-        $message = __('automation.webhook.status', ['status' => $status]);
-
-        if ($status >= 500 || in_array($status, self::RETRY_STATUSES, true)) {
-            throw new TransientFailure($message);
-        }
-
-        throw new ActionFailed($message);
-    }
-
-    /** @return array<string, mixed> */
-    private function payload(string $id, AutomationContext $context): array
-    {
-        $run = $context->run;
-
-        return [
-            'event' => 'automation.rule_run',
-            'id' => $id,
-            'occurred_at' => CarbonImmutable::now()->toIso8601ZuluString(),
-            'rule' => ['id' => $context->rule->id, 'name' => $context->rule->name, 'version' => $context->rule->version],
-            'trigger' => ['type' => $run?->trigger_type ?? ($context->rule->trigger['type'] ?? null), ...($run?->trigger ?? [])],
-            'document' => $context->documentId === null ? null : ['type' => $context->type->key(), 'id' => $context->documentId],
-            'fields' => $context->documentId === null ? (object) [] : (object) $context->visibleValues(),
-        ];
+        return ['delivery_id' => $delivery->id, 'url' => self::shown($url)];
     }
 
     /** The URL without its query string (which may carry a token) for logs and test mode. */

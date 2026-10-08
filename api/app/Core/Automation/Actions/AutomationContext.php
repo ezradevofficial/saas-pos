@@ -36,6 +36,9 @@ final class AutomationContext
         public readonly array $hidden = [],
     ) {}
 
+    /** The position of the action running now in the rule's list (set by the runner). */
+    public int $actionIndex = 0;
+
     /** @return array<string, mixed> the values without the fields hidden from the rule's user */
     public function visibleValues(): array
     {

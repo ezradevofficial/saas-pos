@@ -208,6 +208,8 @@ return [
     ],
 
     'errors' => [
+        'company_changed' => 'The document moved to another company, so this company’s rule didn’t run.',
+        'after_commit' => 'The rule ran, but something that reacted to its changes failed. The details are in the system log.',
         'no_webhook_secret' => 'The rule has no webhook signing secret. Rotate the secret, then try again.',
         'run_as_unavailable' => 'The person the rule acts as is no longer active or lost a permission the rule needs, so the rule was switched off. Check it and switch it on again to run it as yourself.',
         'rule_invalid' => 'The rule has problems. Fix the items listed, then try again.',

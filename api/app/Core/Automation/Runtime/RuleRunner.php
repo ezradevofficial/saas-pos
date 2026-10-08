@@ -6,7 +6,6 @@ use App\Core\Automation\Actions\ActionFailed;
 use App\Core\Automation\Actions\AutomationActions;
 use App\Core\Automation\Actions\AutomationContext;
 use App\Core\Automation\Actions\TransientFailure;
-use App\Core\Automation\Actions\WebhookAction;
 use App\Core\Automation\Chain\AutomationChain;
 use App\Core\Automation\Chain\Cause;
 use App\Core\Automation\Jobs\RunAutomationRule;
@@ -77,7 +76,7 @@ class RuleRunner
             return null;
         }
 
-        $throttled = $this->throttled($rule);
+        $throttled = $this->throttled($rule, $hit);
 
         try {
             $run = DB::transaction(fn () => AutomationRun::create([
@@ -87,6 +86,7 @@ class RuleRunner
                 'trigger' => $hit->details,
                 'document_type' => $hit->documentId === null ? null : $rule->document_type,
                 'document_id' => $hit->documentId,
+                'company_id' => $hit->companyId,
                 'outcome' => $throttled ? AutomationRun::THROTTLED : AutomationRun::QUEUED,
                 'chain_id' => $cause->chainId,
                 'depth' => $cause->depth + 1,
@@ -154,13 +154,20 @@ class RuleRunner
                 return;
             }
 
+            // The document moved to another company since it was triggered.
+            if ($rule->company_id !== null && $scope->companyId !== $rule->company_id) {
+                $this->finish($run, AutomationRun::SKIPPED, error: __('automation.errors.company_changed'), code: 'company_changed');
+
+                return;
+            }
+
             $values = $type->fieldValues($run->document_id);
         }
 
         $timezone = $this->timezones->forCompany($scope->companyId ?? $rule->company_id) ?? 'UTC';
         $actor = $rule->actorId() === null ? null : User::query()->whereKey($rule->actorId())->where('status', User::STATUS_ACTIVE)->first();
 
-        if ($actor === null || ! $this->actorMayRun($rule, $type, $actor)) {
+        if ($actor === null || ! $this->actorMayRun($rule, $type, $actor, $scope)) {
             $this->runAsUnavailable($run, $rule);
 
             return;
@@ -190,40 +197,68 @@ class RuleRunner
         $context = new AutomationContext($rule, $run, $type, $run->document_id, $scope, $values, $actor, $timezone, $locale, $this->visibility->hidden($actor, $type));
         $results = [];
         $current = 0;
+        $committed = false;
 
         try {
-            $this->chain->within($incoming->through($rule->id, $run->depth), function () use ($rule, $context, &$results, &$current) {
-                DB::transaction(function () use ($rule, $context, &$results, &$current) {
+            $this->chain->within($incoming->through($rule->id, $run->depth), function () use ($rule, $run, $context, &$results, &$current, &$committed) {
+                DB::transaction(function () use ($rule, $run, $context, &$results, &$current, &$committed) {
+                    // Registered first, so it runs first once the transaction has
+                    // committed: before any after-commit listener that might throw.
+                    DB::afterCommit(function () use (&$committed) {
+                        $committed = true;
+                    });
+
                     foreach ($rule->actions as $i => $action) {
                         $current = $i;
+                        $context->actionIndex = $i;
                         $handler = $this->actions->find((string) ($action['type'] ?? ''))
                             ?? throw new ActionFailed(__('automation.errors.action_unavailable'));
                         $results[$i] = ['type' => $handler->key(), 'status' => 'done', 'result' => $handler->run($action, $context)];
                     }
+
+                    // The outcome commits with the actions: it can never be retried after.
+                    $this->finish($run, AutomationRun::SUCCEEDED, array_values($results));
                 });
             });
-        } catch (ActionFailed $e) {
-            $this->fail($run, $rule, $this->failedResults($rule, $results, $current, $e->getMessage()), $e->getMessage(), 'action_failed');
-
-            return;
-        } catch (TransientFailure $e) {
-            $this->retry($run, $rule, $this->failedResults($rule, $results, $current, $e->getMessage()), $e->getMessage());
-
-            return;
         } catch (Throwable $e) {
-            report($e);
-            $message = __('automation.errors.unexpected');
-            $this->retry($run, $rule, $this->failedResults($rule, $results, $current, $message), $message);
+            if ($committed) {
+                // H2: the actions are committed; an error after that (a listener
+                // reacting to their changes) is logged, never retried.
+                report($e);
+                AutomationRun::query()->whereKey($run->id)->update([
+                    'error' => __('automation.errors.after_commit'),
+                    'error_code' => 'after_commit_error',
+                    'updated_at' => CarbonImmutable::now(),
+                ]);
 
-            return;
+                return;
+            }
+
+            $this->failed($run, $rule, $results, $current, $e);
+        }
+    }
+
+    /** The actions' transaction rolled back: fail at once, or retry. */
+    private function failed(AutomationRun $run, AutomationRule $rule, array $results, int $current, Throwable $e): void
+    {
+        $known = $e instanceof ActionFailed || $e instanceof TransientFailure;
+
+        if (! $known) {
+            report($e);
         }
 
-        $this->finish($run, AutomationRun::SUCCEEDED, array_values($results));
+        $message = $known ? $e->getMessage() : __('automation.errors.unexpected');
+        $results = $this->failedResults($rule, $results, $current, $message);
+
+        // A refusal retrying cannot fix fails at once; anything else is tried again.
+        $e instanceof ActionFailed
+            ? $this->fail($run, $rule, $results, $message, 'action_failed')
+            : $this->retry($run, $rule, $results, $message);
     }
 
     /**
      * Each action's result after a failure at $current: earlier ones were
-     * undone with the transaction (a webhook already sent stays sent),
+     * undone with the transaction (a webhook in the outbox was never sent),
      * later ones never ran.
      *
      * @return list<array<string, mixed>>
@@ -236,7 +271,7 @@ class RuleRunner
             $type = (string) ($action['type'] ?? '');
 
             $out[] = match (true) {
-                $i < $current => [...$results[$i], 'status' => $type === WebhookAction::KEY ? 'done' : 'rolled_back'],
+                $i < $current => [...$results[$i], 'status' => 'rolled_back'],
                 $i === $current => ['type' => $type, 'status' => 'failed', 'error' => $message],
                 default => ['type' => $type, 'status' => 'not_run'],
             };
@@ -275,10 +310,10 @@ class RuleRunner
         $this->alert->send($rule, $run);
     }
 
-    /** The rule's user may still do everything the rule does, at the rule's scope. */
-    private function actorMayRun(AutomationRule $rule, DocumentType $type, User $actor): bool
+    /** The rule's user may still do everything the rule does, for this document. */
+    private function actorMayRun(AutomationRule $rule, DocumentType $type, User $actor, DocumentScope $scope): bool
     {
-        $scope = new DocumentScope($rule->company_id);
+        // Automation rights at the rule's level; seeing and acting on the document at its own place.
         $at = $rule->company_id === null ? Scope::tenant() : Scope::company($rule->company_id);
 
         if (! $actor->can('core.automation.edit', $at) || ! $this->access->seesDocument($actor, $type, $scope)) {
@@ -325,19 +360,39 @@ class RuleRunner
         ])->save();
     }
 
-    /** AUTO-06: over the tenant's or the rule's runs per minute. */
-    private function throttled(AutomationRule $rule): bool
+    /**
+     * AUTO-06: over the tenant's or the rule's runs per minute, or the rule
+     * ran for this document too often lately (a cool-down against edits
+     * bouncing between people and rules). Date and schedule scans count
+     * against their own per-tenant budget, so they never starve live
+     * triggers.
+     */
+    private function throttled(AutomationRule $rule, TriggerHit $hit): bool
     {
-        $tenantKey = 'automation:tenant:'.$rule->tenant_id;
-        $ruleKey = 'automation:rule:'.$rule->id;
+        $keys = [
+            ($hit->dedupeKey !== null ? 'automation:scan:' : 'automation:tenant:').$rule->tenant_id => (int) config('automation.tenant_runs_per_minute', 600),
+            'automation:rule:'.$rule->id => (int) config('automation.rule_runs_per_minute', 60),
+        ];
 
-        if (RateLimiter::tooManyAttempts($tenantKey, (int) config('automation.tenant_runs_per_minute', 600))
-            || RateLimiter::tooManyAttempts($ruleKey, (int) config('automation.rule_runs_per_minute', 60))) {
+        foreach ($keys as $key => $max) {
+            if (RateLimiter::tooManyAttempts($key, $max)) {
+                return true;
+            }
+        }
+
+        $documentKey = $hit->documentId === null ? null : 'automation:rule:'.$rule->id.':document:'.$hit->documentId;
+
+        if ($documentKey !== null && RateLimiter::tooManyAttempts($documentKey, (int) config('automation.document_runs', 5))) {
             return true;
         }
 
-        RateLimiter::hit($tenantKey, 60);
-        RateLimiter::hit($ruleKey, 60);
+        foreach (array_keys($keys) as $key) {
+            RateLimiter::hit($key, 60);
+        }
+
+        if ($documentKey !== null) {
+            RateLimiter::hit($documentKey, (int) config('automation.document_window', 600));
+        }
 
         return false;
     }

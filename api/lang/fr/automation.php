@@ -208,6 +208,8 @@ return [
     ],
 
     'errors' => [
+        'company_changed' => 'Le document a changé de société : la règle de cette société ne s’est donc pas exécutée.',
+        'after_commit' => 'La règle s’est exécutée, mais une réaction à ses changements a échoué. Les détails sont dans le journal système.',
         'no_webhook_secret' => 'La règle n’a pas de secret de signature de webhook. Renouvelez le secret, puis réessayez.',
         'run_as_unavailable' => 'La personne au nom de qui la règle agit n’est plus active ou a perdu une autorisation nécessaire : la règle a été désactivée. Vérifiez-la et réactivez-la pour l’exécuter en votre nom.',
         'rule_invalid' => 'La règle comporte des problèmes. Corrigez les éléments indiqués, puis réessayez.',

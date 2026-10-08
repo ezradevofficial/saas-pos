@@ -37,6 +37,9 @@ class WebhookGuardTest extends TestCase
             'benchmarking' => '198.18.0.1',
             'multicast' => '224.0.0.1',
             'reserved' => '240.0.0.1',
+            'AS112 v4' => '192.31.196.1',
+            'AMT' => '192.52.193.1',
+            'AS112 direct' => '192.175.48.1',
             'broadcast' => '255.255.255.255',
             'IPv6 unspecified' => '::',
             'IPv6 loopback' => '::1',
@@ -137,13 +140,20 @@ class WebhookGuardTest extends TestCase
 
         $this->assertSame(1, $dns->lookups['rebind.example.com']);
         $this->assertSame('93.184.216.34', $target->ip);
-        $this->assertSame(['rebind.example.com:8443:93.184.216.34'], $options['curl'][CURLOPT_RESOLVE]);
+        $this->assertSame(['curl' => [CURLOPT_RESOLVE => ['rebind.example.com:8443:93.184.216.34']]], array_intersect_key($options, ['curl' => 1]));
         $this->assertFalse($options['allow_redirects']);
-        $this->assertFalse($options['curl'][CURLOPT_FOLLOWLOCATION]);
-        $this->assertSame(CURLPROTO_HTTPS, $options['curl'][CURLOPT_PROTOCOLS]);
+        $this->assertSame(['https'], $options['protocols']);
         $this->assertSame('', $options['proxy']);
         $this->assertSame(5, $options['timeout']);
         $this->assertSame(5, $options['connect_timeout']);
+        $this->assertArrayNotHasKey('stream', $options, 'the stream handler would ignore the pin');
+    }
+
+    public function test_an_ip_literal_needs_no_pin(): void
+    {
+        $sender = new WebhookSender(new FakeHostResolver);
+
+        $this->assertArrayNotHasKey('curl', $sender->options($sender->target('https://93.184.216.34/in')));
     }
 
     public function test_an_ipv6_answer_is_pinned_in_brackets(): void

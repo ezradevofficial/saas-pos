@@ -4,6 +4,7 @@ namespace App\Core\Automation\Runtime;
 
 use App\Core\Automation\Capabilities\FindsDocumentsByDate;
 use App\Core\Automation\Models\AutomationRule;
+use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Triggers\TriggerHit;
 use App\Core\Automation\Triggers\Triggers;
 use App\Core\Tenancy\Models\Company;
@@ -21,6 +22,8 @@ use Carbon\CarbonImmutable;
  *   `automation.date_scan_hour` in the company's time zone, each live
  *   date rule asks its type for the documents whose date falls on the
  *   target day; each runs once (dedupe key `date:<document>:<target day>`).
+ *   Every scan also looks at yesterday, so a day the scans missed is
+ *   caught up. A throttled schedule occurrence is not moved on.
  */
 class TimedTriggers
 {
@@ -40,9 +43,16 @@ class TimedTriggers
 
         foreach ($due as $rule) {
             $occurrence = CarbonImmutable::instance($rule->next_run_at)->utc();
-            $hit = new TriggerHit(Triggers::SCHEDULE, ['occurrence' => $occurrence->toIso8601ZuluString()], null, 'schedule:'.$occurrence->toIso8601ZuluString());
+            $hit = new TriggerHit(Triggers::SCHEDULE, ['occurrence' => $occurrence->toIso8601ZuluString()], null, 'schedule:'.$occurrence->toIso8601ZuluString(), $rule->company_id);
 
-            if ($this->types->find($rule->document_type) !== null && $this->runner->dispatch($rule, $hit, null) !== null) {
+            $run = $this->types->find($rule->document_type) === null ? null : $this->runner->dispatch($rule, $hit, null);
+
+            // A throttled occurrence is tried again at the next scan (next minute).
+            if ($run?->outcome === AutomationRun::THROTTLED) {
+                continue;
+            }
+
+            if ($run !== null) {
                 $queued++;
             }
 
@@ -81,17 +91,29 @@ class TimedTriggers
                 $timezone = $company->timezone ?: 'UTC';
                 $local = $at->setTimezone($timezone);
 
-                if ($local->hour < $hour) {
-                    continue;
+                // Today's scan once its hour has come; yesterday's again, to catch
+                // up a day the scans missed (an occurrence runs once either way),
+                // for rules that already existed at yesterday's scan hour.
+                $days = [];
+                $yesterday = $local->subDay()->startOfDay()->setTime($hour, 0);
+
+                if ($rule->created_at !== null && CarbonImmutable::instance($rule->created_at)->lessThanOrEqualTo($yesterday)) {
+                    $days[] = $yesterday->toDateString();
                 }
 
-                $target = Triggers::targetDate($rule->trigger, $local->toDateString());
+                if ($local->hour >= $hour) {
+                    $days[] = $local->toDateString();
+                }
 
-                foreach ($type->documentsOnDate((string) $rule->trigger['field'], $target, $company->id, $timezone) as $documentId) {
-                    $hit = new TriggerHit(Triggers::DATE, ['field' => $rule->trigger['field'], 'date' => $target], $documentId, "date:{$documentId}:{$target}");
+                foreach ($days as $day) {
+                    $target = Triggers::targetDate($rule->trigger, $day);
 
-                    if ($this->runner->dispatch($rule, $hit, null) !== null) {
-                        $queued++;
+                    foreach ($type->documentsOnDate((string) $rule->trigger['field'], $target, $company->id, $timezone) as $documentId) {
+                        $hit = new TriggerHit(Triggers::DATE, ['field' => $rule->trigger['field'], 'date' => $target], $documentId, "date:{$documentId}:{$target}", $company->id);
+
+                        if ($this->runner->dispatch($rule, $hit, null) !== null) {
+                            $queued++;
+                        }
                     }
                 }
             }

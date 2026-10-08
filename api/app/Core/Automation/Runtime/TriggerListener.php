@@ -14,6 +14,7 @@ use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowStageEntered;
 use App\Core\Workflow\Events\WorkflowStageLeft;
+use Throwable;
 
 /**
  * AUTO-01: record changes (RecordChanged) and stage moves (the workflow
@@ -93,8 +94,16 @@ class TriggerListener
 
             $details = $match($rule, $type, $scope);
 
-            if ($details !== null) {
-                $this->runner->dispatch($rule, new TriggerHit($rule->trigger_type, $details, $documentId), $cause);
+            if ($details === null) {
+                continue;
+            }
+
+            // The change that fired the rule has committed; a failure to log or
+            // queue one rule's run must not reach it, nor stop the other rules.
+            try {
+                $this->runner->dispatch($rule, new TriggerHit($rule->trigger_type, $details, $documentId, null, $scope->companyId), $cause);
+            } catch (Throwable $e) {
+                report($e);
             }
         }
     }

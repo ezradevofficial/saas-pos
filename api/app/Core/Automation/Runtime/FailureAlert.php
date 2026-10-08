@@ -22,12 +22,12 @@ class FailureAlert
 
     public function __construct(private readonly Notifier $notifier) {}
 
-    public function send(AutomationRule $rule, AutomationRun $run): void
+    public function send(AutomationRule $rule, AutomationRun $run, ?string $error = null): void
     {
         $this->notifier->send(new NotificationEvent(
             self::EVENT,
             $this->administrators(),
-            ['rule_name' => $rule->name, 'error' => (string) $run->error, 'attempts' => (string) $run->attempts],
+            ['rule_name' => $rule->name, 'error' => $error ?? (string) $run->error, 'attempts' => (string) $run->attempts],
             '/automation-rules/'.$rule->id.'/runs/'.$run->id,
         ));
     }
