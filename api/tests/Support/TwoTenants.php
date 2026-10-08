@@ -127,15 +127,15 @@ final class TwoTenants
         // MD-02: units from sign-up; a category under another; an item with a
         // box of 12, a barcode for each unit and an image, renamed once (history).
         $uoms = collect(self::ok($test->getJson('/api/v1/uoms?per_page=200', $owner))->json('data'))->pluck('id', 'code');
-        $parentCategory = self::ok($test->postJson('/api/v1/item-categories', ['name_en' => "Goods {$upper}"], $owner), 201)->json('data.id');
-        $itemCategory = self::ok($test->postJson('/api/v1/item-categories', ['name_en' => "Goods {$upper} sub", 'parent_id' => $parentCategory], $owner), 201)->json('data.id');
+        $parentCategory = self::ok($test->postJson('/api/v1/item-categories', ['name' => "Goods {$upper}"], $owner), 201)->json('data.id');
+        $itemCategory = self::ok($test->postJson('/api/v1/item-categories', ['name' => "Goods {$upper} sub", 'parent_id' => $parentCategory], $owner), 201)->json('data.id');
         $item = self::ok($test->postJson('/api/v1/items', [
-            'code' => "ITEM-{$upper}", 'name_en' => "Item {$upper}", 'type' => 'stock', 'base_uom_id' => $uoms['EA'],
+            'code' => "ITEM-{$upper}", 'name' => "Item {$upper}", 'type' => 'stock', 'base_uom_id' => $uoms['EA'],
             'category_id' => $itemCategory, 'tax_category_id' => $taxCategory,
             'uoms' => [['uom_id' => $uoms['BOX'], 'factor' => '12']],
             'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $uoms['BOX']]],
         ], $owner), 201)->json('data.id');
-        self::ok($test->patchJson("/api/v1/items/{$item}", ['name_fr' => "Article {$upper}"], $owner));
+        self::ok($test->patchJson("/api/v1/items/{$item}", ['name' => "Article {$upper}"], $owner));
         $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
             ->json('data.images.0.id');
 

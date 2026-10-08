@@ -39,25 +39,25 @@ class ItemCategoryAndUomApiTest extends TestCase
         return $this->postJson('/api/v1/item-categories', $body, $headers ?? $this->headersFor());
     }
 
-    public function test_units_are_listed_with_both_names_and_codes_are_unique_case_insensitively(): void
+    public function test_units_are_listed_with_their_name_and_codes_are_unique_case_insensitively(): void
     {
         $list = $this->getJson('/api/v1/uoms?per_page=200', $this->headersFor())->assertOk();
         $this->assertSame(['BOX', 'EA', 'G', 'KG', 'L', 'M', 'ML', 'PACK'], array_column($list->json('data'), 'code'));
         $each = collect($list->json('data'))->firstWhere('code', 'EA');
-        $this->assertSame(['Each', 'Each', 'Pièce', 'count'], [$each['name'], $each['name_en'], $each['name_fr'], $each['kind']]);
+        $this->assertSame(['Each', 'count'], [$each['name'], $each['kind']]);
 
-        $crate = $this->postJson('/api/v1/uoms', ['code' => ' crate ', 'name_en' => 'Crate', 'name_fr' => 'Caisse', 'kind' => 'count'], $this->headersFor())
+        $crate = $this->postJson('/api/v1/uoms', ['code' => ' crate ', 'name' => 'Crate', 'kind' => 'count'], $this->headersFor())
             ->assertCreated()->assertJsonPath('data.code', 'CRATE')->json('data.id');
-        $this->postJson('/api/v1/uoms', ['code' => 'Crate', 'name_en' => 'Crate 2', 'name_fr' => 'Caisse 2', 'kind' => 'count'], $this->headersFor())
+        $this->postJson('/api/v1/uoms', ['code' => 'Crate', 'name' => 'Crate 2', 'kind' => 'count'], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('code');
-        $this->postJson('/api/v1/uoms', ['code' => 'two words', 'name_en' => 'X', 'name_fr' => 'X', 'kind' => 'mass'], $this->headersFor())
+        $this->postJson('/api/v1/uoms', ['code' => 'two words', 'name' => 'X', 'kind' => 'mass'], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors(['code', 'kind']);
         $this->patchJson("/api/v1/uoms/{$crate}", ['code' => 'box'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('code');
-        $this->patchJson("/api/v1/uoms/{$crate}", ['name_fr' => 'Cageot'], $this->headersFor())->assertOk()->assertJsonPath('data.name_fr', 'Cageot');
+        $this->patchJson("/api/v1/uoms/{$crate}", ['name' => 'Cageot'], $this->headersFor())->assertOk()->assertJsonPath('data.name', 'Cageot');
 
         // Archived: the code is free again; restoring is refused while it is taken.
         $this->postJson("/api/v1/uoms/{$crate}/archive", [], $this->headersFor())->assertOk();
-        $this->postJson('/api/v1/uoms', ['code' => 'CRATE', 'name_en' => 'Crate', 'name_fr' => 'Caisse', 'kind' => 'count'], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/uoms', ['code' => 'CRATE', 'name' => 'Crate', 'kind' => 'count'], $this->headersFor())->assertCreated();
         $this->postJson("/api/v1/uoms/{$crate}/restore", [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('code');
 
         $this->getJson("/api/v1/history/uom/{$crate}", $this->headersFor())->assertOk()
@@ -74,12 +74,12 @@ class ItemCategoryAndUomApiTest extends TestCase
         $this->getJson('/api/v1/uoms', $manager)->assertOk();
         $this->getJson("/api/v1/uoms/{$box}", $companyAdmin)->assertOk();
         // A unit is every company's: a company admin does not change it.
-        $this->patchJson("/api/v1/uoms/{$box}", ['name_en' => 'Carton'], $companyAdmin)->assertForbidden();
-        $this->postJson('/api/v1/uoms', ['code' => 'TRAY', 'name_en' => 'Tray', 'name_fr' => 'Plateau', 'kind' => 'count'], $companyAdmin)->assertForbidden();
+        $this->patchJson("/api/v1/uoms/{$box}", ['name' => 'Carton'], $companyAdmin)->assertForbidden();
+        $this->postJson('/api/v1/uoms', ['code' => 'TRAY', 'name' => 'Tray', 'kind' => 'count'], $companyAdmin)->assertForbidden();
         $this->getJson('/api/v1/uoms', $hr)->assertForbidden();
         $this->getJson("/api/v1/uoms/{$box}", $hr)->assertNotFound();
 
-        $this->postJson('/api/v1/items', ['code' => 'I1', 'name_en' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->uom('EA'),
+        $this->postJson('/api/v1/items', ['code' => 'I1', 'name' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->uom('EA'),
             'uoms' => [['uom_id' => $box, 'factor' => '10']]], $this->headersFor())->assertCreated();
 
         $this->postJson("/api/v1/uoms/{$box}/archive", [], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'uom_in_use');
@@ -89,15 +89,15 @@ class ItemCategoryAndUomApiTest extends TestCase
 
     public function test_categories_form_a_tree_without_cycles(): void
     {
-        $root = $this->category(['name_en' => 'Drinks', 'colour' => 'primary'])->assertCreated()
+        $root = $this->category(['name' => 'Drinks', 'colour' => 'primary'])->assertCreated()
             ->assertJsonPath('data.shared', true)->assertJsonPath('data.colour', 'primary')->json('data.id');
-        $child = $this->category(['name_fr' => 'Boissons gazeuses', 'parent_id' => $root])->assertCreated()
+        $child = $this->category(['name' => 'Boissons gazeuses', 'parent_id' => $root])->assertCreated()
             ->assertJsonPath('data.name', 'Boissons gazeuses')->json('data.id');
-        $grandchild = $this->category(['name_en' => 'Cola', 'parent_id' => $child])->assertCreated()->json('data.id');
+        $grandchild = $this->category(['name' => 'Cola', 'parent_id' => $child])->assertCreated()->json('data.id');
 
-        $this->category(['name_en' => null])->assertUnprocessable()->assertJsonValidationErrors('name_en');
-        $this->category(['name_en' => 'X', 'colour' => '#ff0000'])->assertUnprocessable()->assertJsonValidationErrors('colour');
-        $this->category(['name_en' => 'X', 'company_id' => $this->acme->id])->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        $this->category(['name' => null])->assertUnprocessable()->assertJsonValidationErrors('name');
+        $this->category(['name' => 'X', 'colour' => '#ff0000'])->assertUnprocessable()->assertJsonValidationErrors('colour');
+        $this->category(['name' => 'X', 'company_id' => $this->acme->id])->assertUnprocessable()->assertJsonValidationErrors('company_id');
 
         $this->patchJson("/api/v1/item-categories/{$root}", ['parent_id' => $grandchild], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('parent_id');
@@ -109,16 +109,16 @@ class ItemCategoryAndUomApiTest extends TestCase
         // At most six levels.
         $parent = $grandchild;
         foreach (range(3, 6) as $level) {
-            $parent = $this->category(['name_en' => "Level {$level}", 'parent_id' => $parent])->assertCreated()->json('data.id');
+            $parent = $this->category(['name' => "Level {$level}", 'parent_id' => $parent])->assertCreated()->json('data.id');
         }
-        $this->category(['name_en' => 'Level 7', 'parent_id' => $parent])->assertUnprocessable()->assertJsonValidationErrors('parent_id');
+        $this->category(['name' => 'Level 7', 'parent_id' => $parent])->assertUnprocessable()->assertJsonValidationErrors('parent_id');
     }
 
     public function test_a_category_in_use_is_kept_and_a_child_is_restored_after_its_parent(): void
     {
-        $root = $this->category(['name_en' => 'Food'])->assertCreated()->json('data.id');
-        $child = $this->category(['name_en' => 'Bakery', 'parent_id' => $root])->assertCreated()->json('data.id');
-        $this->postJson('/api/v1/items', ['code' => 'BRD', 'name_en' => 'Bread', 'type' => 'stock', 'base_uom_id' => $this->uom('EA'), 'category_id' => $child], $this->headersFor())
+        $root = $this->category(['name' => 'Food'])->assertCreated()->json('data.id');
+        $child = $this->category(['name' => 'Bakery', 'parent_id' => $root])->assertCreated()->json('data.id');
+        $this->postJson('/api/v1/items', ['code' => 'BRD', 'name' => 'Bread', 'type' => 'stock', 'base_uom_id' => $this->uom('EA'), 'category_id' => $child], $this->headersFor())
             ->assertCreated();
 
         $this->postJson("/api/v1/item-categories/{$root}/archive", [], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'category_in_use');
@@ -139,15 +139,15 @@ class ItemCategoryAndUomApiTest extends TestCase
 
     public function test_category_permissions(): void
     {
-        $id = $this->category(['name_en' => 'Tools'])->assertCreated()->json('data.id');
+        $id = $this->category(['name' => 'Tools'])->assertCreated()->json('data.id');
 
         $cashier = $this->headersFor($this->userWith('cashier', Scope::location($this->locationA->id)));
         $this->getJson("/api/v1/item-categories/{$id}", $cashier)->assertOk();
-        $this->category(['name_en' => 'X'], $cashier)->assertForbidden();
-        $this->patchJson("/api/v1/item-categories/{$id}", ['name_en' => 'X'], $cashier)->assertForbidden();
+        $this->category(['name' => 'X'], $cashier)->assertForbidden();
+        $this->patchJson("/api/v1/item-categories/{$id}", ['name' => 'X'], $cashier)->assertForbidden();
 
         $storekeeper = $this->headersFor($this->userWith('storekeeper', Scope::location($this->locationA->id)));
-        $this->patchJson("/api/v1/item-categories/{$id}", ['name_en' => 'Hand tools'], $storekeeper)->assertOk();
+        $this->patchJson("/api/v1/item-categories/{$id}", ['name' => 'Hand tools'], $storekeeper)->assertOk();
         $this->postJson("/api/v1/item-categories/{$id}/archive", [], $storekeeper)->assertForbidden();
 
         $hr = $this->headersFor($this->userWith('hr_officer', Scope::tenant()));
@@ -157,8 +157,8 @@ class ItemCategoryAndUomApiTest extends TestCase
 
     public function test_a_parent_archived_between_validation_and_the_lock_is_refused(): void
     {
-        $parent = $this->category(['name_en' => 'Parent'])->assertCreated()->json('data.id');
-        $child = $this->category(['name_en' => 'Child'])->assertCreated()->json('data.id');
+        $parent = $this->category(['name' => 'Parent'])->assertCreated()->json('data.id');
+        $child = $this->category(['name' => 'Child'])->assertCreated()->json('data.id');
 
         // Simulates a concurrent archive right after the writer takes the items sharing lock.
         $raced = false;

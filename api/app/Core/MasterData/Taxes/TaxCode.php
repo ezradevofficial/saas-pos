@@ -28,7 +28,7 @@ class TaxCode extends Model implements HasScope
 
     public const KINDS = ['vat', 'withholding', 'excise', 'exempt', 'zero_rated'];
 
-    protected $fillable = ['company_id', 'code', 'name_en', 'name_fr', 'kind', 'pack_code', 'fiscal_code'];
+    protected $fillable = ['company_id', 'code', 'name', 'kind', 'pack_code', 'fiscal_code'];
 
     public function company(): BelongsTo
     {
@@ -67,11 +67,6 @@ class TaxCode extends Model implements HasScope
     public function isExempt(): bool
     {
         return $this->kind === 'exempt';
-    }
-
-    public function name(?string $locale = null): string
-    {
-        return ($locale ?? app()->getLocale()) === 'fr' ? $this->name_fr : $this->name_en;
     }
 
     /** A percentage as stored, numeric(9,4): "12.5" => "12.5000". */

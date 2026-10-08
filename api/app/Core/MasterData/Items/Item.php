@@ -35,7 +35,7 @@ class Item extends Model
 
     public const MAX_IMAGES = 8;
 
-    protected $fillable = ['company_id', 'code', 'name_en', 'name_fr', 'category_id', 'type', 'base_uom_id', 'tax_category_id'];
+    protected $fillable = ['company_id', 'code', 'name', 'category_id', 'type', 'base_uom_id', 'tax_category_id'];
 
     protected $attributes = ['custom' => '{}'];
 
@@ -82,11 +82,5 @@ class Item extends Model
     public function isShared(): bool
     {
         return $this->company_id === null;
-    }
-
-    /** The name in the current language, else the other one. */
-    public function name(): string
-    {
-        return app()->getLocale() === 'fr' ? ($this->name_fr ?? $this->name_en) : ($this->name_en ?? $this->name_fr);
     }
 }

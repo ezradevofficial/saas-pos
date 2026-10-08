@@ -100,6 +100,8 @@ class PackPropagationTest extends TestCase
         // This tenant entered its own standard rate.
         $this->asTenant($own, fn () => app(TaxRates::class)->add(TaxCode::where('code', 'VAT_STD')->sole(), '10', CarbonImmutable::parse('2026-03-01')));
         $ownBefore = $this->rates($own, 'VAT_STD');
+        // The untouched tenant renamed its code: the name is its own (MD-02).
+        $this->asTenant($untouched, fn () => TaxCode::where('code', 'VAT_STD')->sole()->update(['name' => 'Our VAT']));
         $this->assertSame('tenant', $ownBefore[1][4]);
 
         $onOwner = [];
@@ -123,6 +125,8 @@ class PackPropagationTest extends TestCase
             [null, '2026-01-01', '2026-06-30', true, 'pack'],
             ['12.5000', '2026-07-01', null, false, 'pack'],
         ], $this->rates($untouched, 'VAT_STD'));
+        // Propagation touches rates only, never the tenant's name.
+        $this->asTenant($untouched, fn () => $this->assertSame('Our VAT', TaxCode::where('code', 'VAT_STD')->sole()->name));
         // Other codes were already equal to the pack.
         $this->assertSame([[null, '2026-01-01', null, true, 'pack']], $this->rates($untouched, 'VAT_WHT'));
 

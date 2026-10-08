@@ -35,7 +35,7 @@ class PaymentMethod extends Model implements HasScope
     /** Types that are linked to a provider (and need one). */
     public const PROVIDER_TYPES = ['mobile_money', 'card'];
 
-    protected $fillable = ['company_id', 'type', 'name_en', 'name_fr', 'currency', 'provider', 'settings', 'secrets', 'active', 'position'];
+    protected $fillable = ['company_id', 'type', 'name', 'currency', 'provider', 'settings', 'secrets', 'active', 'position'];
 
     protected $hidden = ['secrets'];
 
@@ -76,11 +76,6 @@ class PaymentMethod extends Model implements HasScope
 
         static::created($marker);
         static::updated($marker);
-    }
-
-    public function name(?string $locale = null): string
-    {
-        return ($locale ?? app()->getLocale()) === 'fr' ? $this->name_fr : $this->name_en;
     }
 
     public function needsProvider(): bool

@@ -1,7 +1,5 @@
 {
     "code": "CD",
-    "name_en": "Democratic Republic of the Congo",
-    "name_fr": "République démocratique du Congo",
     "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %).",
     "sources": [],
     "todo": [
@@ -15,8 +13,6 @@
     "tax_codes": [
         {
             "code": "VAT_STD",
-            "name_en": "VAT, standard rate",
-            "name_fr": "TVA, taux normal",
             "kind": "vat",
             "rate": null,
             "needs_confirmation": true,
@@ -26,8 +22,6 @@
         },
         {
             "code": "VAT_ZERO",
-            "name_en": "VAT, zero-rated",
-            "name_fr": "TVA, taux zéro",
             "kind": "zero_rated",
             "rate": "0",
             "needs_confirmation": false,
@@ -37,8 +31,6 @@
         },
         {
             "code": "VAT_EXEMPT",
-            "name_en": "VAT exempt",
-            "name_fr": "Exonéré de TVA",
             "kind": "exempt",
             "rate": null,
             "needs_confirmation": false,

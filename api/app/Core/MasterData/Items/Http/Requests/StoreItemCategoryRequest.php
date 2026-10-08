@@ -22,9 +22,6 @@ class StoreItemCategoryRequest extends FormRequest
     /** RBAC-05: input refused when its field is hidden or read-only for the user. */
     protected string $fieldRulesResource = 'item_category';
 
-    /** @var array<string, list<string>> input key => field rule names it writes */
-    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
-
     public function authorize(): bool
     {
         $companyId = $this->input('company_id');

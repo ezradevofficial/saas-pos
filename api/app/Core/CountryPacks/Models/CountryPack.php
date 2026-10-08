@@ -2,6 +2,7 @@
 
 namespace App\Core\CountryPacks\Models;
 
+use App\Core\CountryPacks\PackLabels;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * One published version of a country pack (CP-01, CP-03): global reference
  * data, read by every tenant, written only by `country-packs:publish` as the
- * schema owner. The summary holds the pack's names, notes, sources, the
+ * schema owner. The summary holds the pack's notes, sources, the
  * figures still to confirm (`todo`) and the change from the previous version.
  */
 class CountryPack extends Model
@@ -40,8 +41,6 @@ class CountryPack extends Model
 
     public function name(?string $locale = null): string
     {
-        return ($locale ?? app()->getLocale()) === 'fr'
-            ? ($this->summary['name_fr'] ?? $this->code)
-            : ($this->summary['name_en'] ?? $this->code);
+        return PackLabels::pack($this->code, $locale);
     }
 }

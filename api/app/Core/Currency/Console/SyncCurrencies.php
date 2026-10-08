@@ -38,7 +38,7 @@ class SyncCurrencies extends Command
             DB::connection(SyncPermissions::OWNER_CONNECTION)->table('currencies')->upsert(
                 $rows,
                 ['code'],
-                ['numeric_code', 'name_en', 'name_fr', 'default_decimals', 'active_in_iso', 'updated_at'],
+                ['numeric_code', 'default_decimals', 'active_in_iso', 'updated_at'],
             );
         });
 

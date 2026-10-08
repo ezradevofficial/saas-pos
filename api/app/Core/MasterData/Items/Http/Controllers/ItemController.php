@@ -190,8 +190,8 @@ class ItemController
     }
 
     /**
-     * Code prefix, English or French name (contains, or trigram-similar),
-     * or the exact barcode; most similar names first.
+     * Code prefix, name (contains, or trigram-similar), or the exact
+     * barcode; most similar names first.
      */
     private function search(Builder $query, string $search): void
     {
@@ -201,15 +201,13 @@ class ItemController
 
         $query->where(function (Builder $q) use ($search, $like, $prefix, $barcode) {
             $q->whereRaw('lower(code::text) like ?', [$prefix])
-                ->orWhere('name_en', 'ilike', $like)
-                ->orWhere('name_fr', 'ilike', $like)
-                ->orWhereRaw('name_en % ?', [$search])
-                ->orWhereRaw('name_fr % ?', [$search]);
+                ->orWhere('name', 'ilike', $like)
+                ->orWhereRaw('name % ?', [$search]);
 
             if ($barcode !== null) {
                 $q->orWhereIn('id', ItemBarcode::query()->select('item_id')->where('barcode', $barcode));
             }
-        })->orderByRaw("greatest(similarity(coalesce(name_en, ''), ?), similarity(coalesce(name_fr, ''), ?)) desc", [$search, $search]);
+        })->orderByRaw('similarity(name, ?) desc', [$search]);
     }
 
     /**

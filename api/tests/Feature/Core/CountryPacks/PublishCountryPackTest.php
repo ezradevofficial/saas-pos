@@ -4,6 +4,8 @@ namespace Tests\Feature\Core\CountryPacks;
 
 use App\Core\CountryPacks\Models\CountryPack;
 use App\Core\CountryPacks\Models\PackTaxCode;
+use App\Core\CountryPacks\PackFile;
+use App\Core\CountryPacks\PackLabels;
 use App\Core\Rbac\Console\SyncPermissions;
 use Database\Seeders\CountryPackCatalogueSeeder;
 use Illuminate\Database\QueryException;
@@ -34,14 +36,12 @@ class PublishCountryPackTest extends TestCase
     {
         return array_merge([
             'code' => self::CODE,
-            'name_en' => 'Test country',
-            'name_fr' => 'Pays de test',
             'notes' => 'Test pack.',
             'sources' => [],
             'todo' => ['VAT_STD: the standard rate.'],
             'tax_codes' => $taxCodes ?: [
-                ['code' => 'VAT_STD', 'name_en' => 'VAT', 'name_fr' => 'TVA', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
-                ['code' => 'VAT_ZERO', 'name_en' => 'Zero', 'name_fr' => 'Zéro', 'kind' => 'zero_rated', 'rate' => 0, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+                ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+                ['code' => 'VAT_ZERO', 'kind' => 'zero_rated', 'rate' => 0, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
             ],
         ], $overrides);
     }
@@ -119,9 +119,9 @@ class PublishCountryPackTest extends TestCase
         $first = CountryPack::latest(self::CODE);
 
         $changed = $this->pack(taxCodes: [
-            ['code' => 'VAT_STD', 'name_en' => 'VAT', 'name_fr' => 'TVA', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30', 'fiscal_code' => null],
-            ['code' => 'VAT_STD', 'name_en' => 'VAT', 'name_fr' => 'TVA', 'kind' => 'vat', 'rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01', 'effective_to' => null, 'fiscal_code' => 'B'],
-            ['code' => 'VAT_EXEMPT', 'name_en' => 'Exempt', 'name_fr' => 'Exonéré', 'kind' => 'exempt', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30', 'fiscal_code' => null],
+            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01', 'effective_to' => null, 'fiscal_code' => 'B'],
+            ['code' => 'VAT_EXEMPT', 'kind' => 'exempt', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
         ]);
         $this->artisan('country-packs:publish', ['code' => self::CODE, '--file' => $this->file($changed)])
             ->expectsOutputToContain('version 2')->assertSuccessful();
@@ -139,7 +139,7 @@ class PublishCountryPackTest extends TestCase
 
     public function test_a_pack_that_would_invent_or_contradict_a_rate_is_refused(): void
     {
-        $row = ['code' => 'X', 'name_en' => 'X', 'name_fr' => 'X', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null];
+        $row = ['code' => 'X', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null];
 
         foreach ([
             'null rate not flagged' => [$row],
@@ -171,9 +171,31 @@ class PublishCountryPackTest extends TestCase
         $this->assertSame(0, CountryPack::where('code', self::CODE)->count());
     }
 
+    public function test_labels_live_in_translation_files_not_in_the_pack(): void
+    {
+        // Platform-core-spec Conventions, CP-01: a pack carrying names is refused.
+        $this->assertSame(1, $this->publish($this->pack(['name' => 'Test country'])), 'pack name');
+        $row = $this->pack()['tax_codes'][0];
+        $this->assertSame(1, $this->publish($this->pack(taxCodes: [['label' => 'VAT'] + $row])), 'code label');
+        $this->assertSame(0, CountryPack::where('code', self::CODE)->count());
+
+        // Every shipped pack and code has a label in every supported language.
+        foreach (['KE', 'CD'] as $code) {
+            $this->assertSame([], PackLabels::missing(PackFile::read(PackFile::path($code))), $code);
+        }
+
+        $this->assertSame('TVA, taux normal', PackLabels::taxCode('CD', 'VAT_STD', 'fr'));
+        $this->assertSame('VAT, standard rate', PackLabels::taxCode('KE', 'VAT_STD', 'en'));
+        $this->assertSame('République démocratique du Congo', CountryPack::latest('CD')->name('fr'));
+        // A label nobody wrote shows the code; publishing warns.
+        $this->assertSame('VAT_STD', PackLabels::taxCode(self::CODE, 'VAT_STD', 'en'));
+        $this->artisan('country-packs:publish', ['code' => self::CODE, '--file' => $this->file($this->pack())])
+            ->expectsOutputToContain('Label missing')->assertSuccessful();
+    }
+
     public function test_rates_as_strings_or_integers_and_consecutive_periods_are_accepted(): void
     {
-        $row = ['code' => 'VAT_STD', 'name_en' => 'VAT', 'name_fr' => 'TVA', 'kind' => 'vat', 'needs_confirmation' => false, 'effective_to' => null, 'fiscal_code' => null];
+        $row = ['code' => 'VAT_STD', 'kind' => 'vat', 'needs_confirmation' => false, 'effective_to' => null, 'fiscal_code' => null];
 
         $this->assertSame(0, $this->publish($this->pack(taxCodes: [
             ['rate' => 10, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30'] + $row,

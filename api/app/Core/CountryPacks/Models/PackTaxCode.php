@@ -2,6 +2,7 @@
 
 namespace App\Core\CountryPacks\Models;
 
+use App\Core\CountryPacks\PackLabels;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +20,7 @@ class PackTaxCode extends Model
     protected $table = 'country_pack_tax_codes';
 
     protected $fillable = [
-        'country_pack_id', 'code', 'name_en', 'name_fr', 'kind', 'rate',
+        'country_pack_id', 'code', 'kind', 'rate',
         'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code',
     ];
 
@@ -30,6 +31,12 @@ class PackTaxCode extends Model
             'effective_from' => 'immutable_date',
             'effective_to' => 'immutable_date',
         ];
+    }
+
+    /** The code's label in $locale (the app locale by default), from translation files (PackLabels). */
+    public function label(?string $locale = null): string
+    {
+        return PackLabels::taxCode($this->pack->code, $this->code, $locale);
     }
 
     public function pack(): BelongsTo

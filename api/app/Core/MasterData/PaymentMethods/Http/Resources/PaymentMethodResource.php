@@ -31,9 +31,7 @@ class PaymentMethodResource extends JsonResource
             'id' => $this->id,
             'company_id' => $this->company_id,
             'type' => $this->type,
-            'name' => $this->name(),
-            'name_en' => $this->name_en,
-            'name_fr' => $this->name_fr,
+            'name' => $this->name,
             'currency' => $this->currency,
             'provider' => $this->provider,
             'settings' => (object) ($this->settings ?? []),
@@ -49,7 +47,6 @@ class PaymentMethodResource extends JsonResource
         ];
 
         return HidesFields::apply($request, self::FIELD_RULES, $fields, [
-            'name' => ['name_en', 'name_fr'],
             'secrets_set' => ['secrets'],
             'setting_keys' => ['settings'],
             'secret_keys' => ['secrets'],

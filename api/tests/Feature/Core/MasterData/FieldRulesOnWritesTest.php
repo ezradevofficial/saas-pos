@@ -105,7 +105,7 @@ class FieldRulesOnWritesTest extends TestCase
     {
         $users = $this->restrictedBoth('item', 'barcodes');
         $nameRestricted = $this->restricted('item', 'name', 'readonly');
-        $item = $this->postJson('/api/v1/items', ['code' => 'SODA', 'name_en' => 'Soda', 'type' => 'stock', 'base_uom_id' => $this->eachUom], $this->headersFor())
+        $item = $this->postJson('/api/v1/items', ['code' => 'SODA', 'name' => 'Soda', 'type' => 'stock', 'base_uom_id' => $this->eachUom], $this->headersFor())
             ->assertCreated()->json('data.id');
 
         foreach (['readonly', 'hidden'] as $mode) {
@@ -113,29 +113,29 @@ class FieldRulesOnWritesTest extends TestCase
 
             $this->assertRefused($this->patchJson("/api/v1/items/{$item}", ['barcodes' => [['barcode' => '123456']]], $headers), 'barcodes');
             $this->assertRefused($this->postJson('/api/v1/items', [
-                'code' => "NEW-{$mode}", 'name_en' => 'New', 'type' => 'stock', 'base_uom_id' => $this->eachUom, 'barcodes' => [['barcode' => '999']],
+                'code' => "NEW-{$mode}", 'name' => 'New', 'type' => 'stock', 'base_uom_id' => $this->eachUom, 'barcodes' => [['barcode' => '999']],
             ], $headers), 'barcodes');
-            $this->patchJson("/api/v1/items/{$item}", ['name_fr' => "Soda {$mode}"], $headers)->assertOk();
+            $this->patchJson("/api/v1/items/{$item}", ['name' => "Soda {$mode}"], $headers)->assertOk();
         }
 
-        // A rule on the composite `name` covers both language inputs.
+        // A rule on `name` guards the one name input.
         $headers = $this->headersFor($nameRestricted);
-        $this->assertRefused($this->patchJson("/api/v1/items/{$item}", ['name_en' => 'Pop'], $headers), 'name_en');
-        $this->patchJson("/api/v1/items/{$item}", ['type' => 'service'], $headers)->assertOk()->assertJsonPath('data.name_en', 'Soda');
+        $this->assertRefused($this->patchJson("/api/v1/items/{$item}", ['name' => 'Pop'], $headers), 'name');
+        $this->patchJson("/api/v1/items/{$item}", ['type' => 'service'], $headers)->assertOk()->assertJsonPath('data.name', 'Soda hidden');
     }
 
     public function test_item_category_fields(): void
     {
         $users = $this->restrictedBoth('item_category', 'colour');
-        $category = $this->postJson('/api/v1/item-categories', ['name_en' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
+        $category = $this->postJson('/api/v1/item-categories', ['name' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
 
         foreach (['readonly', 'hidden'] as $mode) {
             $headers = $this->headersFor($users[$mode]);
 
             $this->assertRefused($this->patchJson("/api/v1/item-categories/{$category}", ['colour' => '#112233'], $headers), 'colour');
-            $this->assertRefused($this->postJson('/api/v1/item-categories', ['name_en' => "New {$mode}", 'colour' => '#112233'], $headers), 'colour');
-            $this->patchJson("/api/v1/item-categories/{$category}", ['name_en' => "Drinks {$mode}"], $headers)->assertOk()
-                ->assertJsonPath('data.name_en', "Drinks {$mode}");
+            $this->assertRefused($this->postJson('/api/v1/item-categories', ['name' => "New {$mode}", 'colour' => '#112233'], $headers), 'colour');
+            $this->patchJson("/api/v1/item-categories/{$category}", ['name' => "Drinks {$mode}"], $headers)->assertOk()
+                ->assertJsonPath('data.name', "Drinks {$mode}");
         }
     }
 
@@ -149,18 +149,18 @@ class FieldRulesOnWritesTest extends TestCase
 
             $this->assertRefused($this->patchJson("/api/v1/payment-methods/{$cash}", ['currency' => 'USD'], $headers), 'currency');
             $this->assertRefused($this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", [
-                'type' => 'cash', 'currency' => 'USD', 'name_en' => 'Float', 'name_fr' => 'Fonds',
+                'type' => 'cash', 'currency' => 'USD', 'name' => 'Float',
             ], $headers), 'currency');
-            $this->patchJson("/api/v1/payment-methods/{$cash}", ['name_en' => "Cash {$mode}"], $headers)->assertOk();
+            $this->patchJson("/api/v1/payment-methods/{$cash}", ['name' => "Cash {$mode}"], $headers)->assertOk();
         }
 
-        $this->inTenant(fn () => $this->assertSame(['KES', 'Cash hidden'], [PaymentMethod::findOrFail($cash)->currency, PaymentMethod::findOrFail($cash)->name_en]));
+        $this->inTenant(fn () => $this->assertSame(['KES', 'Cash hidden'], [PaymentMethod::findOrFail($cash)->currency, PaymentMethod::findOrFail($cash)->name]));
     }
 
     public function test_the_refusal_is_in_the_users_language(): void
     {
         $headers = $this->headersFor($this->restricted('item_category', 'colour', 'readonly'));
-        $category = $this->postJson('/api/v1/item-categories', ['name_en' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
+        $category = $this->postJson('/api/v1/item-categories', ['name' => 'Drinks'], $this->headersFor())->assertCreated()->json('data.id');
 
         $this->patchJson("/api/v1/item-categories/{$category}", ['colour' => '#112233'], [...$headers, 'Accept-Language' => 'fr'])
             ->assertUnprocessable()->assertJsonPath('message', __('rbac.errors.field_readonly', ['field' => 'colour'], 'fr'));

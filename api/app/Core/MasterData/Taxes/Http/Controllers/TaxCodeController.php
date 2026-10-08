@@ -59,8 +59,7 @@ class TaxCodeController
                 $code = TaxCode::create([
                     'company_id' => $company->id,
                     'code' => $data['code'],
-                    'name_en' => $data['name_en'],
-                    'name_fr' => $data['name_fr'],
+                    'name' => $data['name'],
                     'kind' => $data['kind'],
                     'fiscal_code' => $data['fiscal_code'] ?? null,
                 ]);

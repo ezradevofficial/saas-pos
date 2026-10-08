@@ -47,7 +47,7 @@ class ItemApiTest extends TestCase
     private function create(array $body, ?array $headers = null)
     {
         return $this->postJson('/api/v1/items', [
-            'name_en' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->uoms['EA'], ...$body,
+            'name' => 'Item', 'type' => 'stock', 'base_uom_id' => $this->uoms['EA'], ...$body,
         ], $headers ?? $this->headersFor());
     }
 
@@ -58,7 +58,7 @@ class ItemApiTest extends TestCase
 
     private function category(string $name, ?string $parent = null): string
     {
-        return $this->postJson('/api/v1/item-categories', ['name_en' => $name, 'parent_id' => $parent], $this->headersFor())
+        return $this->postJson('/api/v1/item-categories', ['name' => $name, 'parent_id' => $parent], $this->headersFor())
             ->assertCreated()->json('data.id');
     }
 
@@ -69,8 +69,7 @@ class ItemApiTest extends TestCase
 
         $response = $this->create([
             'code' => 'SODA-500',
-            'name_en' => 'Soda 500 ml',
-            'name_fr' => 'Soda 500 ml (FR)',
+            'name' => 'Soda 500 ml',
             'category_id' => $category,
             'tax_category_id' => $taxCategory,
             'uoms' => [['uom_id' => $this->uoms['BOX'], 'factor' => '24', 'is_purchase_default' => true], ['uom_id' => $this->uoms['PACK'], 'factor' => 6.5]],
@@ -96,9 +95,9 @@ class ItemApiTest extends TestCase
         $this->assertSame(['factor' => '24', 'is_sales_default' => false, 'is_purchase_default' => true], collect($uoms['BOX'])->only(['factor', 'is_sales_default', 'is_purchase_default'])->all());
         $this->assertSame('6.5', $uoms['PACK']['factor']);
 
-        // French names follow the language; English when there is no French one.
+        // MD-02: one name, shown as typed whatever the reader's language.
         $this->getJson('/api/v1/items/'.$response->json('data.id'), [...$this->headersFor(), 'Accept-Language' => 'fr'])
-            ->assertOk()->assertJsonPath('data.name', 'Soda 500 ml (FR)');
+            ->assertOk()->assertJsonPath('data.name', 'Soda 500 ml');
 
         $this->inTenant(function () use ($response) {
             $id = $response->json('data.id');
@@ -112,7 +111,7 @@ class ItemApiTest extends TestCase
     public function test_validation_refuses_bad_input(): void
     {
         $this->create(['code' => 'has space', 'type' => 'gadget'])->assertUnprocessable()->assertJsonValidationErrors(['code', 'type']);
-        $this->create(['code' => 'X1', 'name_en' => null, 'name_fr' => ''])->assertUnprocessable()->assertJsonValidationErrors('name_en');
+        $this->create(['code' => 'X1', 'name' => null])->assertUnprocessable()->assertJsonValidationErrors('name');
         $this->create(['code' => 'X1', 'base_uom_id' => null])->assertUnprocessable()->assertJsonValidationErrors('base_uom_id');
         // The base unit is implicit (factor 1); factors are positive with at most 6 decimals.
         $this->create(['code' => 'X1', 'uoms' => [['uom_id' => $this->uoms['EA'], 'factor' => '1']]])
@@ -137,7 +136,7 @@ class ItemApiTest extends TestCase
         // Items are shared (TEN-08): no company.
         $this->create(['code' => 'X1', 'company_id' => $this->acme->id])->assertUnprocessable()->assertJsonValidationErrors('company_id');
 
-        $archivedUom = $this->inTenant(fn () => tap(Uom::create(['code' => 'OLD', 'name_en' => 'Old', 'name_fr' => 'Ancien', 'kind' => 'count']))->archive()->id);
+        $archivedUom = $this->inTenant(fn () => tap(Uom::create(['code' => 'OLD', 'name' => 'Old', 'kind' => 'count']))->archive()->id);
         $this->create(['code' => 'X1', 'base_uom_id' => $archivedUom])->assertUnprocessable()->assertJsonValidationErrors('base_uom_id');
 
         $this->inTenant(fn () => $this->assertSame(0, Item::count()));
@@ -242,17 +241,17 @@ class ItemApiTest extends TestCase
         $soft = $this->category('Soft drinks', $drinks);
         $food = $this->category('Food');
 
-        $cola = $this->item('COLA-330', ['name_en' => 'Cola can', 'name_fr' => 'Canette de cola', 'category_id' => $soft, 'barcodes' => [['barcode' => '5449000000996']]]);
-        $water = $this->item('WAT-1', ['name_en' => 'Mineral water', 'category_id' => $drinks]);
-        $bread = $this->item('BRD-1', ['name_en' => 'Bread', 'category_id' => $food]);
-        $delivery = $this->item('SRV-DEL', ['name_en' => 'Delivery', 'type' => 'service']);
+        $cola = $this->item('COLA-330', ['name' => 'Cola can', 'category_id' => $soft, 'barcodes' => [['barcode' => '5449000000996']]]);
+        $water = $this->item('WAT-1', ['name' => 'Mineral water', 'category_id' => $drinks]);
+        $bread = $this->item('BRD-1', ['name' => 'Bread', 'category_id' => $food]);
+        $delivery = $this->item('SRV-DEL', ['name' => 'Delivery', 'type' => 'service']);
 
         $ids = fn (string $query) => array_column($this->getJson('/api/v1/items?'.$query, $this->headersFor())->assertOk()->json('data'), 'id');
 
         // Code prefix, case-insensitive.
         $this->assertSame([$cola], $ids('search=cola-'));
-        // Names in either language, contains or similar.
-        $this->assertSame([$cola], $ids('search=canette'));
+        // The name, contains or similar (MD-02: one name).
+        $this->assertSame([$cola], $ids('search=can'));
         $this->assertSame([$water], $ids('search=minral+water'));
         // The exact barcode, normalised.
         $this->assertSame([$cola], $ids('search=5449-0000-00996'));
@@ -280,7 +279,7 @@ class ItemApiTest extends TestCase
 
     public function test_permissions_follow_the_templates(): void
     {
-        $id = $this->item('P1', ['name_en' => 'Pen']);
+        $id = $this->item('P1', ['name' => 'Pen']);
 
         $cashier = $this->headersFor($this->userWith('cashier', Scope::location($this->locationA->id)));
         $this->getJson('/api/v1/items', $cashier)->assertOk()->assertJsonPath('data.0.id', $id);
@@ -288,15 +287,15 @@ class ItemApiTest extends TestCase
         $this->getJson('/api/v1/item-categories', $cashier)->assertOk();
         $this->getJson('/api/v1/uoms', $cashier)->assertOk();
         $this->create(['code' => 'P2'], $cashier)->assertForbidden();
-        $this->patchJson("/api/v1/items/{$id}", ['name_en' => 'X'], $cashier)->assertForbidden();
+        $this->patchJson("/api/v1/items/{$id}", ['name' => 'X'], $cashier)->assertForbidden();
         $this->postJson("/api/v1/items/{$id}/archive", [], $cashier)->assertForbidden();
 
         // Storekeepers and buyers keep the catalogue; only Owner and Admin archive.
         $storekeeper = $this->headersFor($this->userWith('storekeeper', Scope::location($this->locationA->id)));
         $this->create(['code' => 'P2'], $storekeeper)->assertCreated();
-        $this->patchJson("/api/v1/items/{$id}", ['name_en' => 'Blue pen'], $storekeeper)->assertOk();
+        $this->patchJson("/api/v1/items/{$id}", ['name' => 'Blue pen'], $storekeeper)->assertOk();
         $this->postJson("/api/v1/items/{$id}/archive", [], $storekeeper)->assertForbidden();
-        $this->postJson('/api/v1/item-categories', ['name_en' => 'Stationery'], $storekeeper)->assertCreated();
+        $this->postJson('/api/v1/item-categories', ['name' => 'Stationery'], $storekeeper)->assertCreated();
 
         $auditor = $this->headersFor($this->userWith('read_only_auditor', Scope::tenant()));
         $this->getJson("/api/v1/items/{$id}", $auditor)->assertOk();
@@ -320,12 +319,12 @@ class ItemApiTest extends TestCase
             return $user;
         });
 
-        $id = $this->item('H1', ['name_en' => 'Hammer', 'barcodes' => [['barcode' => '999']]]);
-        $this->patchJson("/api/v1/items/{$id}", ['name_en' => 'Claw hammer'], $this->headersFor())->assertOk();
+        $id = $this->item('H1', ['name' => 'Hammer', 'barcodes' => [['barcode' => '999']]]);
+        $this->patchJson("/api/v1/items/{$id}", ['name' => 'Claw hammer'], $this->headersFor())->assertOk();
 
         $this->getJson("/api/v1/history/item/{$id}", $this->headersFor())->assertOk()
             ->assertJsonPath('data.0.action', 'core.item.update')
-            ->assertJsonPath('data.0.after', ['name_en' => 'Claw hammer'])
+            ->assertJsonPath('data.0.after', ['name' => 'Claw hammer'])
             ->assertJsonCount(3, 'data');
 
         $this->getJson("/api/v1/items/{$id}", $this->headersFor($clerk))->assertOk()->assertJsonMissingPath('data.barcodes')->assertJsonPath('data.code', 'H1');
@@ -335,11 +334,11 @@ class ItemApiTest extends TestCase
 
     public function test_possible_duplicates_are_warned_never_blocking(): void
     {
-        $first = $this->item('D1', ['name_en' => 'Sugar 1 kg']);
+        $first = $this->item('D1', ['name' => 'Sugar 1 kg']);
 
-        $this->create(['code' => 'D2', 'name_en' => 'Sugar 1kg'])->assertCreated()
+        $this->create(['code' => 'D2', 'name' => 'Sugar 1kg'])->assertCreated()
             ->assertJsonPath('meta.possible_duplicates', [['id' => $first, 'code' => 'D1', 'name' => 'Sugar 1 kg', 'reason' => 'name']]);
-        $this->create(['code' => 'D3', 'name_en' => 'Salt'])->assertCreated()->assertJsonPath('meta.possible_duplicates', []);
+        $this->create(['code' => 'D3', 'name' => 'Salt'])->assertCreated()->assertJsonPath('meta.possible_duplicates', []);
     }
 
     public function test_the_base_unit_changes_only_with_the_full_unit_and_barcode_lists(): void
@@ -375,7 +374,7 @@ class ItemApiTest extends TestCase
     {
         $category = $this->category('Seasonal');
         $taxCategory = $this->inTenant(fn () => TaxCategory::create(['name' => 'Seasonal tax'])->id);
-        $crate = $this->postJson('/api/v1/uoms', ['code' => 'CRATE', 'name_en' => 'Crate', 'name_fr' => 'Caisse', 'kind' => 'count'], $this->headersFor())->json('data.id');
+        $crate = $this->postJson('/api/v1/uoms', ['code' => 'CRATE', 'name' => 'Crate', 'kind' => 'count'], $this->headersFor())->json('data.id');
         $id = $this->item('R1', ['category_id' => $category, 'tax_category_id' => $taxCategory, 'base_uom_id' => $crate]);
 
         $this->postJson("/api/v1/items/{$id}/archive", [], $this->headersFor())->assertOk();

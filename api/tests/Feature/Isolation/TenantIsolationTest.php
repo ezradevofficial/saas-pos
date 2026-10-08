@@ -868,7 +868,7 @@ class TenantIsolationTest extends TestCase
             'PATCH api/v1/parties/{party}' => ['company_id' => $tenant->id('company'), 'price_list_id' => $tenant->id('price_list')],
             // MD-02: a shared item in A's category and tax category, with a box and a barcode for it.
             'POST api/v1/items' => [
-                'code' => 'HIJACK-ITEM', 'name_en' => 'Hijack item', 'type' => 'stock', 'base_uom_id' => $tenant->id('uom'),
+                'code' => 'HIJACK-ITEM', 'name' => 'Hijack item', 'type' => 'stock', 'base_uom_id' => $tenant->id('uom'),
                 'category_id' => $tenant->id('item_category'), 'tax_category_id' => $tenant->id('tax_category'),
                 'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '6']],
                 'barcodes' => [['barcode' => 'HIJACK1', 'uom_id' => $tenant->id('uom_box')]],
@@ -878,7 +878,7 @@ class TenantIsolationTest extends TestCase
                 'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '12']],
                 'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $tenant->id('uom_box')]],
             ],
-            'POST api/v1/item-categories' => ['name_en' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
+            'POST api/v1/item-categories' => ['name' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
             'PATCH api/v1/item-categories/{item_category}' => ['parent_id' => $tenant->id('item_category_parent')],
             // MD-05: a child of the company's parent row, owned by the Owner.
             'POST api/v1/companies/{company}/departments' => ['code' => 'HIJACK-D', 'name' => 'Hijack', 'parent_id' => $tenant->id('department_parent'), 'owner_user_id' => $tenant->id('user')],

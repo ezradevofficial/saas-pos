@@ -32,7 +32,7 @@ class TaxCalculatorTest extends TestCase
     /** @param list<array{0: ?string, 1: string, 2?: ?string, 3?: bool}> $rates [rate, from, to, needs_confirmation] */
     private function code(string $code, string $kind, array $rates = []): TaxCode
     {
-        $model = new TaxCode(['code' => $code, 'kind' => $kind, 'name_en' => $code, 'name_fr' => $code]);
+        $model = new TaxCode(['code' => $code, 'kind' => $kind, 'name' => $code]);
         $model->id = (string) Str::uuid7();
         $model->setRelation('rates', collect(array_map(fn (array $r) => new TaxRate([
             'rate' => $r[0],

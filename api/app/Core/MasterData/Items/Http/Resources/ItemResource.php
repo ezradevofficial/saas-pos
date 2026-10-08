@@ -34,9 +34,7 @@ class ItemResource extends JsonResource
             'company_id' => $this->company_id,
             'shared' => $this->isShared(),
             'code' => (string) $this->code,
-            'name' => $this->name(),
-            'name_en' => $this->name_en,
-            'name_fr' => $this->name_fr,
+            'name' => $this->name,
             'type' => $this->type,
             'category_id' => $this->category_id,
             'base_uom_id' => $this->base_uom_id,
@@ -65,6 +63,6 @@ class ItemResource extends JsonResource
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
-        ], ['name' => ['name_en', 'name_fr']]);
+        ]);
     }
 }

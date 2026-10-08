@@ -24,8 +24,7 @@ return new class extends Migration
             $table->tenantId();
             $table->foreignUuid('company_id')->constrained()->restrictOnDelete();
             $table->string('type', 20);
-            $table->string('name_en', 100);
-            $table->string('name_fr', 100);
+            $table->string('name', 100);
             $table->char('currency', 3)->nullable();
             $table->string('provider', 30)->nullable();
             $table->jsonb('settings')->default('{}');

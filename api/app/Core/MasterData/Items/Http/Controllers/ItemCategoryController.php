@@ -44,7 +44,7 @@ class ItemCategoryController
         }
 
         return ItemCategoryResource::collection(
-            $request->applyStatus($query)->orderByRaw('coalesce(name_en, name_fr)')->orderBy('id')
+            $request->applyStatus($query)->orderBy('name')->orderBy('id')
                 ->paginate($request->perPage())->withQueryString(),
         );
     }
@@ -167,6 +167,6 @@ class ItemCategoryController
 
     private function attributes(array $data): array
     {
-        return array_intersect_key($data, array_flip(['parent_id', 'name_en', 'name_fr', 'colour']));
+        return array_intersect_key($data, array_flip(['parent_id', 'name', 'colour']));
     }
 }
