@@ -51,6 +51,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 - **`TenantContext::run($tenantId, $fn)`** switches the tenant and restores the previous one, even when `$fn` throws.
   - Queued jobs use it through the `TenantAware` job middleware. Each job carries `$tenantId`.
   - Listeners registered with `onChange()` follow every switch. The per-tenant permission cache is one of them (ADR 006).
+- **Reset between queued jobs.** A queue worker is one long process. `CoreServiceProvider` registers `Queue::before`, `Queue::after`, `Queue::exceptionOccurred` and `Queue::looping` hooks that clear the tenant (`TenantContext::set(null)`) and reset `AuditContext`. A job that set a tenant directly therefore cannot leak it into the next job; `TenantAware` jobs enter their own tenant. Jobs on the `sync` connection run inline in the caller and keep its context (`TenantAware` restores it). `QueueContextResetTest` runs two jobs through a real worker.
 - **Reset at every request.** `ResetTenantContext` is the first global middleware. It clears three things:
   - the tenant
   - the authentication guards

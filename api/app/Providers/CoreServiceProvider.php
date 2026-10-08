@@ -14,7 +14,11 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ColumnDefinition;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobExceptionOccurred;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
@@ -59,11 +63,55 @@ class CoreServiceProvider extends ServiceProvider
             $this->resyncTenant($event->connection, onlyWhenSet: false);
         });
 
+        $this->resetContextBetweenJobs();
+
         // TEN-01: a new or re-established connection has no tenant setting.
         // On the first connect there is nothing to apply, so no query runs.
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) {
             $this->resyncTenant($event->connection, onlyWhenSet: true);
         });
+    }
+
+    /**
+     * Review focus 3: a queue worker is one long process. Before and after
+     * every job, and on every loop, the tenant and the audit context are
+     * cleared, so nothing a job set leaks into the next one. TenantAware
+     * jobs then enter their own tenant. Jobs on the `sync` connection run
+     * inline inside the caller (a request or a command) and keep its
+     * context: TenantAware restores it after the job.
+     */
+    private function resetContextBetweenJobs(): void
+    {
+        $reset = function (bool $onlyWhenSet = false): void {
+            $tenants = $this->app->make(TenantContext::class);
+
+            // The loop runs every few seconds when idle: no query unless needed.
+            if (! $onlyWhenSet || $tenants->id() !== null) {
+                $tenants->set(null);
+            }
+
+            $this->app->make(AuditContext::class)->reset();
+        };
+
+        Queue::before(function (JobProcessing $event) use ($reset) {
+            if ($event->connectionName !== 'sync') {
+                $reset();
+            }
+        });
+
+        Queue::after(function (JobProcessed $event) use ($reset) {
+            if ($event->connectionName !== 'sync') {
+                $reset();
+            }
+        });
+
+        Queue::exceptionOccurred(function (JobExceptionOccurred $event) use ($reset) {
+            if ($event->connectionName !== 'sync') {
+                $reset();
+            }
+        });
+
+        Queue::looping(fn () => $reset(onlyWhenSet: true));
     }
 
     private function resyncTenant(Connection $connection, bool $onlyWhenSet): void
