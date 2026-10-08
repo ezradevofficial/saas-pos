@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Outlet } from 'react-router'
 import { Button, Icon } from '@/components/ds'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
 
 /**
@@ -48,11 +49,12 @@ export function AppShell() {
                   <Icon name="x" size={18} />
                 </Button>
               </SheetClose>
-              <Sidebar onNavigate={() => setMenuOpen(false)} />
+              <Sidebar onNavigate={() => setMenuOpen(false)} showBell={false} />
             </SheetContent>
           </Sheet>
           <LogoMark />
-          <span className="truncate text-h3 text-sidebar-ink-active">{t('app.name')}</span>
+          <span className="min-w-0 flex-1 truncate text-h3 text-sidebar-ink-active">{t('app.name')}</span>
+          <NotificationBell />
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">

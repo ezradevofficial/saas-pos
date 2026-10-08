@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   ArrowUp,
+  Bell,
   Building2,
   Contact,
   Check,
@@ -22,6 +23,7 @@ import {
   Copy,
   CreditCard,
   Download,
+  FileText,
   FolderTree,
   History,
   ImagePlus,
@@ -41,6 +43,7 @@ import {
   RefreshCw,
   Ruler,
   Search,
+  Send,
   Share2,
   Shapes,
   ShieldCheck,
@@ -107,6 +110,9 @@ const ICONS = {
   first: ChevronsLeft,
   last: ChevronsRight,
   columns: Columns3,
+  bell: Bell,
+  templates: FileText,
+  deliveries: Send,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

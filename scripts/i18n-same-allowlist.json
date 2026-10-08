@@ -36,5 +36,9 @@
   "{{count}} images",
   "Active",
   "Excel (.xlsx)",
-  "Invitations"
+  "Invitations",
+  "Notifications",
+  "Notification",
+  "Message",
+  "WhatsApp"
 ]

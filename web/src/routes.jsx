@@ -8,6 +8,8 @@ import {
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
   ITEM_VIEW,
+  NOTIFICATION_DELIVERY_VIEW,
+  NOTIFICATION_TEMPLATE_VIEW,
   ORGANISATION_VIEW,
   PARTY_VIEW,
   PAYMENT_METHOD_VIEW,
@@ -31,6 +33,7 @@ import Parties from './pages/contacts/Parties'
 import PartyDetail from './pages/contacts/PartyDetail'
 import NewParty from './pages/contacts/PartyForm'
 import Home from './pages/Home'
+import Inbox from './pages/notifications/Inbox'
 import NotFound from './pages/NotFound'
 import Appearance from './pages/settings/Appearance'
 import Currencies from './pages/settings/Currencies'
@@ -38,6 +41,9 @@ import Dimensions from './pages/settings/Dimensions'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import InviteUser from './pages/settings/InviteUser'
 import MasterDataSharing from './pages/settings/MasterDataSharing'
+import NotificationDeliveries from './pages/settings/NotificationDeliveries'
+import NotificationPreferences from './pages/settings/NotificationPreferences'
+import NotificationTemplates from './pages/settings/NotificationTemplates'
 import Organisation from './pages/settings/Organisation'
 import PaymentMethods from './pages/settings/PaymentMethods'
 import RoleDetail from './pages/settings/RoleDetail'
@@ -196,6 +202,25 @@ export const routes = [
       },
       { path: '/settings/appearance', element: <Appearance /> },
       { path: '/settings/sessions', element: <Sessions /> },
+      // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.
+      { path: '/notifications', element: <Inbox /> },
+      { path: '/settings/notifications', element: <NotificationPreferences /> },
+      {
+        path: '/settings/notification-templates',
+        element: (
+          <RequirePermission permission={NOTIFICATION_TEMPLATE_VIEW} tenantWide>
+            <NotificationTemplates />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/settings/notification-deliveries',
+        element: (
+          <RequirePermission permission={NOTIFICATION_DELIVERY_VIEW} tenantWide>
+            <NotificationDeliveries />
+          </RequirePermission>
+        ),
+      },
       { path: '*', element: <NotFound /> },
     ],
   },
