@@ -64,5 +64,8 @@ class FetchExchangeRatesCommandTest extends TestCase
         $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command ?? '', 'exchange-rates:fetch'));
         $this->assertCount(1, $events);
         $this->assertSame('30 6 * * *', $events->first()->expression);
+        // One server fetches, and a slow run is never doubled.
+        $this->assertTrue($events->first()->onOneServer);
+        $this->assertTrue($events->first()->withoutOverlapping);
     }
 }
