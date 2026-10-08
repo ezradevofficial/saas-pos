@@ -2,8 +2,10 @@
 
 namespace App\Core\Automation\Webhooks;
 
-use Illuminate\Http\Client\ConnectionException;
+use GuzzleHttp\Handler\CurlHandler;
 use Illuminate\Support\Facades\Http;
+use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 /**
  * AUTO-03 "call webhook", with SSRF protection:
@@ -15,10 +17,11 @@ use Illuminate\Support\Facades\Http;
  *   be public (AddressGuard); the request then connects to that checked
  *   address (CURLOPT_RESOLVE pins it), so a DNS answer that changes
  *   between the check and the connection (rebinding) is never used;
- * - no redirects are followed, no proxy from the environment is used, the
- *   whole call times out after `automation.webhook_timeout` seconds;
- * - only the status and the first `automation.webhook_response_bytes`
- *   bytes of the answer are read.
+ * - only HTTPS, no redirects, no proxy from the environment; the whole
+ *   call times out after `automation.webhook_timeout` seconds;
+ * - an answer over `automation.webhook_max_download` bytes is cut off and
+ *   only its status and the first `automation.webhook_response_bytes`
+ *   bytes are kept.
  */
 class WebhookSender
 {
@@ -98,65 +101,80 @@ class WebhookSender
         return new WebhookTarget($url, $host, $port, $addresses[0]);
     }
 
-    /** The HTTP client options for a call to $target (pinned address, no redirects, timeouts). */
+    /**
+     * The request options for a call to $target: HTTPS only, no redirects,
+     * no proxy, timeouts, and for a host name the checked address pinned
+     * (CURLOPT_RESOLVE; an IP literal needs no pin). The curl handler is
+     * forced by send(), so the pin always applies.
+     */
     public function options(WebhookTarget $target): array
     {
         $timeout = (int) config('automation.webhook_timeout', 5);
-
-        return [
+        $options = [
             'allow_redirects' => false,
+            'protocols' => ['https'],
             'timeout' => $timeout,
             'connect_timeout' => $timeout,
             'proxy' => '',
-            'stream' => true,
-            'curl' => [
-                CURLOPT_RESOLVE => [$target->resolveEntry()],
-                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-                CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-                CURLOPT_FOLLOWLOCATION => false,
-            ],
         ];
+
+        if (filter_var($target->host, FILTER_VALIDATE_IP) === false) {
+            $options['curl'] = [CURLOPT_RESOLVE => [$target->resolveEntry()]];
+        }
+
+        return $options;
     }
 
     /**
-     * POST the signed JSON body. Returns the status and the start of the
-     * answer; throws ConnectionException when the host cannot be reached.
+     * POST the signed JSON body through curl. Returns the status and the
+     * first `automation.webhook_response_bytes` of the answer; an answer
+     * larger than `automation.webhook_max_download` is cut off (its status
+     * is kept, its body dropped). Throws WebhookUnreachable when no answer
+     * came (refused, timed out, TLS failure).
      *
      * @return array{status: int, body: string}
-     *
-     * @throws ConnectionException
      */
     public function send(WebhookTarget $target, string $body, string $secret, string $id, ?int $timestamp = null): array
     {
         $timestamp ??= time();
+        $cap = (int) config('automation.webhook_max_download', 65536);
+        $status = null;
+        $tooLarge = false;
 
-        $response = Http::withOptions($this->options($target))
-            ->withHeaders([
-                'User-Agent' => 'automation-webhook/1',
-                Signature::ID_HEADER => $id,
-                Signature::TIMESTAMP_HEADER => (string) $timestamp,
-                Signature::SIGNATURE_HEADER => Signature::sign($secret, $timestamp, $body),
-            ])
-            ->withBody($body, 'application/json')
-            ->post($target->url);
+        $options = [
+            ...$this->options($target),
+            'on_headers' => function (ResponseInterface $response) use (&$status, &$tooLarge, $cap) {
+                $status = $response->getStatusCode();
+                $length = $response->getHeaderLine('Content-Length');
+                $tooLarge = $length !== '' && (int) $length > $cap;
+            },
+            // Returning true aborts the transfer.
+            'progress' => fn ($total, $downloaded) => $tooLarge || $downloaded > $cap,
+        ];
 
-        $stream = $response->toPsrResponse()->getBody();
-        $limit = (int) config('automation.webhook_response_bytes', 1024);
-        $start = '';
-
-        while (strlen($start) < $limit && ! $stream->eof()) {
-            $chunk = $stream->read($limit - strlen($start));
-
-            if ($chunk === '') {
-                break;
+        try {
+            $response = Http::setHandler(new CurlHandler)
+                ->withOptions($options)
+                ->withHeaders([
+                    'User-Agent' => 'automation-webhook/1',
+                    Signature::ID_HEADER => $id,
+                    Signature::TIMESTAMP_HEADER => (string) $timestamp,
+                    Signature::SIGNATURE_HEADER => Signature::sign($secret, $timestamp, $body),
+                ])
+                ->withBody($body, 'application/json')
+                ->post($target->url);
+        } catch (Throwable $e) {
+            if ($status !== null) {
+                // Answered, but the body was too large (or broke off): keep the status.
+                return ['status' => $status, 'body' => ''];
             }
 
-            $start .= $chunk;
+            throw new WebhookUnreachable($e);
         }
 
-        $stream->close();
+        $limit = (int) config('automation.webhook_response_bytes', 1024);
 
-        return ['status' => $response->status(), 'body' => mb_scrub($start, 'UTF-8')];
+        return ['status' => $response->status(), 'body' => mb_scrub(substr($response->body(), 0, $limit), 'UTF-8')];
     }
 
     private static function host(string $host): string

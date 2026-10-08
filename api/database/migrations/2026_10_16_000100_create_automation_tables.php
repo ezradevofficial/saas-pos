@@ -60,6 +60,8 @@ return new class extends Migration
             $table->jsonb('trigger')->default('{}');
             $table->string('document_type', 100)->nullable();
             $table->uuid('document_id')->nullable();
+            // The document's company when triggered: the run log is shown per company (RBAC-04).
+            $table->foreignUuid('company_id')->nullable()->constrained()->restrictOnDelete();
             $table->string('outcome', 20);
             $table->jsonb('conditions')->nullable();
             $table->jsonb('actions')->default('[]');
@@ -83,10 +85,39 @@ return new class extends Migration
         DB::statement("alter table automation_runs add constraint automation_runs_outcome_check check (outcome in ('queued', 'running', 'retrying', 'succeeded', 'skipped', 'failed', 'throttled', 'loop_blocked'))");
         DB::statement('create unique index automation_runs_dedupe on automation_runs (rule_id, dedupe_key) where dedupe_key is not null');
         Rls::enable('automation_runs');
+
+        // AUTO-03 webhooks as an outbox: written in the run's transaction (so
+        // only committed runs call out), sent afterwards by their own queued
+        // job with its own retries. The URL is stored encrypted (it may carry
+        // a token); the log keeps the status and the first kilobyte.
+        Schema::create('automation_webhook_deliveries', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->tenantId();
+            $table->foreignUuid('run_id')->constrained('automation_runs')->restrictOnDelete();
+            $table->foreignUuid('rule_id')->constrained('automation_rules')->restrictOnDelete();
+            $table->smallInteger('action_index');
+            $table->text('url');
+            $table->jsonb('payload');
+            $table->string('status', 20);
+            $table->smallInteger('attempts')->default(0);
+            $table->smallInteger('response_status')->nullable();
+            $table->text('response_body')->nullable();
+            $table->text('error')->nullable();
+            $table->timestampTz('next_attempt_at')->nullable();
+            $table->timestampTz('delivered_at')->nullable();
+            $table->timestampsTz();
+
+            $table->unique(['run_id', 'action_index']);
+            $table->index(['tenant_id', 'status']);
+        });
+
+        DB::statement("alter table automation_webhook_deliveries add constraint automation_webhook_deliveries_status_check check (status in ('pending', 'sending', 'retrying', 'delivered', 'failed'))");
+        Rls::enable('automation_webhook_deliveries');
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('automation_webhook_deliveries');
         Schema::dropIfExists('automation_runs');
         Schema::dropIfExists('automation_rules');
     }

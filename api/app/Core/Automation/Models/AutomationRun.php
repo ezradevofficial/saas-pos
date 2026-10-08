@@ -6,6 +6,7 @@ use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One run of a rule (AUTO-05): the rule version, the trigger, the document,
@@ -57,7 +58,7 @@ class AutomationRun extends Model
     public const OUTCOMES = [self::QUEUED, self::RUNNING, self::RETRYING, self::SUCCEEDED, self::SKIPPED, self::FAILED, self::THROTTLED, self::LOOP_BLOCKED];
 
     protected $fillable = [
-        'rule_id', 'rule_version', 'trigger_type', 'trigger', 'document_type', 'document_id', 'outcome',
+        'rule_id', 'rule_version', 'trigger_type', 'trigger', 'document_type', 'document_id', 'company_id', 'outcome',
         'conditions', 'actions', 'error', 'error_code', 'attempts', 'chain_id', 'depth', 'chain', 'dedupe_key',
         'started_at', 'finished_at', 'next_attempt_at',
     ];
@@ -83,6 +84,11 @@ class AutomationRun extends Model
     public function rule(): BelongsTo
     {
         return $this->belongsTo(AutomationRule::class, 'rule_id');
+    }
+
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(WebhookDelivery::class, 'run_id')->orderBy('action_index');
     }
 
     public function isFinished(): bool
