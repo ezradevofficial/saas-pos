@@ -53,6 +53,8 @@ return [
             'core.party.view', 'core.party.create',
             'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view',
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
+            // AUTH-06: signs in at the tills where the role is held.
+            'pos.till.sign_in',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
