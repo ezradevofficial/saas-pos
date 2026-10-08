@@ -10,7 +10,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * NFR-06: no request is served with development drivers outside local and
- * testing (EnvironmentGuard). Global, first in the stack, so `/up` fails too.
+ * testing (EnvironmentGuard). Global, so `/up` fails too. It runs after
+ * PreventRequestsDuringMaintenance: while the app is down (every deploy),
+ * requests get the 503 maintenance response, not the guard's error.
  */
 class EnforceEnvironment
 {

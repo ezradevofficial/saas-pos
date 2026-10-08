@@ -124,12 +124,18 @@ final class EnvironmentGuard
     private static function mailProblem(Repository $config): ?string
     {
         $mailer = $config->get('mail.default');
+
+        if (! is_string($mailer) || $mailer === '') {
+            return 'mail mailer is not set (set MAIL_MAILER)';
+        }
+
         $pending = [$mailer];
         $seen = [];
 
         while ($pending !== []) {
             $name = array_shift($pending);
 
+            // A failover may list a mailer twice or itself: check each once.
             if (! is_string($name) || isset($seen[$name])) {
                 continue;
             }

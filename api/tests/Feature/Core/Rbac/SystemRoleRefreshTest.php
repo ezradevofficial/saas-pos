@@ -159,4 +159,19 @@ class SystemRoleRefreshTest extends TestCase
             });
         }
     }
+
+    public function test_the_sync_restores_the_default_connection_it_was_given(): void
+    {
+        $this->signUp('a@example.com', 'Amani Stores');
+
+        DB::setDefaultConnection('pgsql_owner');
+
+        try {
+            $this->assertSame(0, Artisan::call('permissions:sync'));
+            // The refresh switched to the runtime connection, then back.
+            $this->assertSame('pgsql_owner', DB::getDefaultConnection());
+        } finally {
+            DB::setDefaultConnection('pgsql');
+        }
+    }
 }

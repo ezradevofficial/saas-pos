@@ -73,6 +73,30 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      # From here until `artisan up` at the very end, the API answers 503
+      # (maintenance), so a deploy that stops halfway (failed preflight or
+      # migration) never serves new code against an old schema. The
+      # maintenance flag lives in storage/, which the rsync never touches.
+      # A first deploy has no artisan or vendor/ yet: nothing to take down.
+      # If the previous release cannot boot at all, `down` fails: the deploy
+      # warns and continues, since that release is not serving anyway.
+      - name: Put the API in maintenance mode
+        env:
+          HOST: ${{ secrets.host }}
+          DEPLOY_USER: ${{ secrets.user }}
+          DEPLOY_PATH: ${{ secrets.path }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" \
+            "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
+          set -uo pipefail
+          cd "$DEPLOY_PATH/api" 2>/dev/null || { echo "First deploy: no API yet."; exit 0; }
+          if [ -f artisan ] && [ -f vendor/autoload.php ]; then
+            php artisan down --retry=60 || echo "::warning::php artisan down failed; the previous release could not boot."
+          else
+            echo "First deploy: no API yet."
+          fi
+          REMOTE
+
       # The host's .env, storage/, vendor/ and cached bootstrap files are
       # excluded, so --delete never touches them.
       - name: Rsync build to host
@@ -99,7 +123,9 @@ jobs:
       # running as the RLS-bound role. permissions:sync upserts the
       # permission catalogue (RBAC-01). Horizon is restarted when installed,
       # plain queue workers otherwise.
-      - name: Install, migrate and restart workers
+      # Any failure stops here with the API still in maintenance. See
+      # README "If a deploy stops".
+      - name: Install, migrate, restart workers and go live
         env:
           HOST: ${{ secrets.host }}
           DEPLOY_USER: ${{ secrets.user }}
@@ -126,4 +152,6 @@ jobs:
           else
             php artisan queue:restart
           fi
+          # Only once every step above succeeded.
+          php artisan up
           REMOTE

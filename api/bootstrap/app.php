@@ -27,7 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // use `tenant` after auth.
         $middleware->prepend(ResetTenantContext::class);
         // NFR-06: no request served with development drivers (EnvironmentGuard).
-        $middleware->prepend(EnforceEnvironment::class);
+        // Appended, so it runs after PreventRequestsDuringMaintenance: while
+        // the app is down (deploys), every request gets the 503 page.
+        $middleware->append(EnforceEnvironment::class);
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);

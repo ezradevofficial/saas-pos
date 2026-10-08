@@ -8,6 +8,8 @@ use App\Core\Notifications\Sms\SmsNotConfigured;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Support\EnvironmentGuard;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Foundation\MaintenanceMode;
+use Illuminate\Events\Dispatcher;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Process;
@@ -58,6 +60,9 @@ class EnvironmentGuardTest extends TestCase
             ['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'log'],
             ['mail.default' => 'failover'],
             ['mail.default' => 'missing'],
+            // MAIL_MAILER=null in .env is PHP null; an empty value is ''.
+            ['mail.default' => null],
+            ['mail.default' => ''],
             ['services.sms.driver' => 'log'],
             ['cache.default' => 'database'],
             ['cache.default' => 'array'],
@@ -132,11 +137,56 @@ class EnvironmentGuardTest extends TestCase
         $this->production();
         event(new Looping('redis', 'default'));
 
-        // Checked once per worker process: later ticks do not re-read config.
+        // Intent: the check runs on the first tick only (the loop runs every
+        // few seconds). Had this second tick been checked, the database cache
+        // below would have thrown; the worker re-checks when it restarts.
         config(['cache.default' => 'database']);
         event(new Looping('redis', 'default'));
 
-        $this->addToAssertionCount(1);
+        $this->assertSame(1, $this->problemsOnFreshWorker(), 'a new worker process still checks');
+    }
+
+    /** A fresh guard listener (a new worker) sees the problem on its first tick. */
+    private function problemsOnFreshWorker(): int
+    {
+        $events = new Dispatcher($this->app);
+        EnvironmentGuard::listen($this->app, $events);
+
+        try {
+            $events->dispatch(new Looping('redis', 'default'));
+        } catch (RuntimeException) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    public function test_the_maintenance_page_is_served_even_when_the_guard_would_refuse(): void
+    {
+        $this->production(['mail.default' => 'log']);
+        $this->app->instance(MaintenanceMode::class, new class implements MaintenanceMode
+        {
+            public function activate(array $payload): void {}
+
+            public function deactivate(): void {}
+
+            public function active(): bool
+            {
+                return true;
+            }
+
+            public function data(): array
+            {
+                return ['status' => 503, 'retry' => 60, 'except' => []];
+            }
+        });
+
+        $this->postJson('/api/v1/auth/sign-in')->assertStatus(503)->assertHeader('Retry-After', '60');
+        $this->get('/')->assertStatus(503);
+
+        // `/up` is never in maintenance (Laravel's health route): it keeps
+        // reporting the misconfiguration to the load balancer.
+        $this->getJson('/up')->assertStatus(500);
     }
 
     public function test_the_scheduler_and_workers_are_refused_with_development_drivers(): void
