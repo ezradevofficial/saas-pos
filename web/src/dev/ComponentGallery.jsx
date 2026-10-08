@@ -35,6 +35,8 @@ const TEST_TENANT_PRIMARY = '#7c2d12'
 const SUPPLIERS = { a: 'Bidco Africa', b: 'Unga Group', c: 'Kapa Oil Refineries' }
 const PEOPLE = { requester: 'Amina Otieno', delegate: 'Peter Mwangi' }
 const BRANCHES = ['Westlands', 'Kilimani', 'Gombe']
+// Long enough to show the search; accents prove "societe" finds "Société".
+const SUPPLIER_CHOICES = ['Bidco Africa', 'Brookside Dairy', 'Kapa Oil Refineries', 'Société Congolaise des Brasseries', 'Unga Group', 'Équateur Distribution', { value: 'old', label: 'Mumias Sugar (archived)', disabled: true }]
 
 function Section({ title, children }) {
   return (
@@ -147,6 +149,8 @@ export default function ComponentGallery() {
           <Select label={t('dev.gallery.sample.branch')} placeholder={t('dev.gallery.sample.branchPlaceholder')} options={BRANCHES} defaultValue="" />
           <Select label={t('dev.gallery.sample.currency')} options={['KES', 'USD', 'CDF']} defaultValue="KES" />
           <Select label={t('dev.gallery.sample.currency')} options={['KES', 'USD', 'CDF']} defaultValue="" placeholder="—" error={t('dev.gallery.sample.currencyError')} />
+          <Select label={t('dev.gallery.sample.supplier')} placeholder={t('dev.gallery.sample.supplierPlaceholder')} options={SUPPLIER_CHOICES} />
+          <Select label={t('dev.gallery.sample.currency')} options={['KES', 'USD', 'CDF']} defaultValue="USD" disabled />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-3">

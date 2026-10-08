@@ -121,6 +121,7 @@
         "companyCode": "Code de la société",
         "branch": "Succursale",
         "branchPlaceholder": "Choisissez une succursale",
+        "supplierPlaceholder": "Choisissez un fournisseur",
         "currency": "Devise",
         "currencyError": "Choisissez une devise",
         "smsReceipts": "Envoyer les reçus par SMS",

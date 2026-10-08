@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Combobox, normalizeOptions } from './Combobox'
+import { normalizeOptions } from '@/lib/options'
+import { Combobox } from './Combobox'
 import { controlWrapClasses, Field } from './Field'
 
 // A labelled, searchable picker (owner ruling 2026-10-08: no native <select>).

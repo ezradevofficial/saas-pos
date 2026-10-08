@@ -3,25 +3,9 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { normalizeOptions, normalizeSearch } from '@/lib/options'
 import { cn } from '@/lib/utils'
 import { Icon } from './Icon'
-
-/** Lower case without accents, so "societe" finds "Société". */
-export function normalizeSearch(text) {
-  return String(text ?? '')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-}
-
-/** Options as strings or { value, label, disabled }, normalised to objects with string values. */
-export function normalizeOptions(options = []) {
-  return options.map((option) =>
-    typeof option === 'string'
-      ? { value: option, label: option, disabled: false }
-      : { value: String(option.value ?? ''), label: option.label ?? String(option.value ?? ''), disabled: Boolean(option.disabled) },
-  )
-}
 
 // A key that is never empty: cmdk falls back to the item's text for an empty value.
 const itemKey = (index) => `option-${index}`

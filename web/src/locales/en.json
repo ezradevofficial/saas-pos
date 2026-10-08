@@ -121,6 +121,7 @@
         "companyCode": "Company code",
         "branch": "Branch",
         "branchPlaceholder": "Choose a branch",
+        "supplierPlaceholder": "Choose a supplier",
         "currency": "Currency",
         "currencyError": "Choose a currency",
         "smsReceipts": "Send receipts by SMS",
