@@ -40,5 +40,10 @@
   "Notifications",
   "Notification",
   "Message",
-  "WhatsApp"
+  "WhatsApp",
+  "Workflows",
+  "v{{version}}",
+  "Versions",
+  "Condition",
+  "Action"
 ]

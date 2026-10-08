@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet } from 'react-router'
+import { Outlet, useMatches } from 'react-router'
 import { Button, Icon } from '@/components/ds'
+import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
 
 /**
  * Back office layout (design system, Layout): a 232px sidebar and the
- * content on surface-100, at most 1280px wide with space-10 padding. Below
+ * content on surface-100, at most 1280px wide (full width for a route
+ * with `handle.wide`) with space-10 padding. Below
  * 768px the sidebar becomes a top bar whose menu button opens it in a sheet.
  */
 export function AppShell() {
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
+  // A page whose route says `handle: { wide: true }` (the workflow canvas) uses the full width.
+  const wide = useMatches().some((match) => match.handle?.wide)
 
   return (
     <div className="flex min-h-screen bg-surface-100 text-body text-ink">
@@ -58,7 +62,7 @@ export function AppShell() {
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">
-          <div className="mx-auto flex max-w-content flex-col gap-6">
+          <div className={cn('mx-auto flex flex-col gap-6', !wide && 'max-w-content')}>
             <Outlet />
           </div>
         </main>
