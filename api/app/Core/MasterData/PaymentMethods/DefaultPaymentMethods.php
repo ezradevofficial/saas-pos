@@ -9,7 +9,8 @@ use App\Core\Tenancy\Models\Company;
 /**
  * MD-04: the payment methods a company starts with. Cash in each currency
  * of its country's default set that is active in the tenant (KE: KES, USD;
- * CD: USD, CDF), switched on; the country's mobile money wallets and a
+ * CD: USD, CDF), switched on when seeded at company creation and off
+ * when added later (a back-fill must not open new tills); the country's mobile money wallets and a
  * card method, switched off until their provider is configured. Names in
  * English and French from `core.payment_method.defaults.*`.
  *
@@ -22,8 +23,11 @@ class DefaultPaymentMethods
 {
     public function __construct(private readonly PaymentProviders $providers) {}
 
-    /** Seed $company's missing defaults; returns how many were created. */
-    public function seed(Company $company): int
+    /**
+     * Seed $company's missing defaults; returns how many were created.
+     * $activateCash: true at company creation; false for a back-fill.
+     */
+    public function seed(Company $company, bool $activateCash = true): int
     {
         Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
 
@@ -45,7 +49,7 @@ class DefaultPaymentMethods
                 'currency' => $currency,
                 'name_en' => __('core.payment_method.defaults.cash', ['currency' => $currency], 'en'),
                 'name_fr' => __('core.payment_method.defaults.cash', ['currency' => $currency], 'fr'),
-                'active' => true,
+                'active' => $activateCash,
                 'position' => ++$position,
             ]);
             $created++;
