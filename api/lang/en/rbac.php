@@ -27,6 +27,8 @@ return [
                 'audit' => 'Audit log',
                 'settings' => 'Settings',
                 'access_review' => 'Access review',
+                'currency' => 'Currencies',
+                'exchange_rate' => 'Exchange rates',
             ],
         ],
         'actions' => [
@@ -39,6 +41,7 @@ return [
             'deactivate' => 'Deactivate',
             'assign' => 'Assign',
             'export' => 'Export',
+            'override' => 'Override',
         ],
     ],
 

@@ -24,6 +24,7 @@ class PermissionRegistry
         'settings' => ['edit'],
         'access_review' => ['view', 'export'],
         'currency' => ['view', 'edit'],
+        'exchange_rate' => ['view', 'override'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

@@ -27,6 +27,8 @@ return [
                 'audit' => 'Journal d’audit',
                 'settings' => 'Paramètres',
                 'access_review' => 'Revue des accès',
+                'currency' => 'Devises',
+                'exchange_rate' => 'Taux de change',
             ],
         ],
         'actions' => [
@@ -39,6 +41,7 @@ return [
             'deactivate' => 'Désactiver',
             'assign' => 'Attribuer',
             'export' => 'Exporter',
+            'override' => 'Remplacer',
         ],
     ],
 

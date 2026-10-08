@@ -25,7 +25,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final class MoneyAmount implements DataAwareRule, ValidationRule
 {
-    private const PATTERN = '/^-?\d+(\.\d+)?$/';
+    private const PATTERN = '/^-?\d+(\.\d+)?\z/';
 
     private array $data = [];
 
@@ -85,7 +85,7 @@ final class MoneyAmount implements DataAwareRule, ValidationRule
 
         $currency = $this->currency ?? data_get($this->data, $this->currencyField);
 
-        if (! is_string($currency) || preg_match('/^[A-Z]{3}$/', $currency) !== 1) {
+        if (! is_string($currency) || preg_match('/^[A-Z]{3}\z/', $currency) !== 1) {
             return;
         }
 

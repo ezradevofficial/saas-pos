@@ -21,7 +21,13 @@ class Company extends Model implements HasScope
 
     protected $fillable = [
         'tenant_id', 'name', 'legal_name', 'tax_id', 'country', 'base_currency',
-        'fiscal_year_start_month', 'address', 'timezone',
+        'fiscal_year_start_month', 'address', 'timezone', 'rate_feed', 'rate_tolerance_percent',
+    ];
+
+    /** CUR-03, CUR-07: the database defaults, so a new instance carries them. */
+    protected $attributes = [
+        'rate_feed' => 'none',
+        'rate_tolerance_percent' => '5.00',
     ];
 
     protected function casts(): array

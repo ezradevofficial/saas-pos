@@ -3,6 +3,7 @@
 namespace App\Core\Tenancy\Http\Resources;
 
 use App\Core\Tenancy\Models\Company;
+use Brick\Math\BigDecimal;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,8 @@ class CompanyResource extends JsonResource
             'fiscal_year_start_month' => $this->fiscal_year_start_month,
             'address' => (object) ($this->address ?? []),
             'timezone' => $this->timezone,
+            'rate_feed' => $this->rate_feed,
+            'rate_tolerance_percent' => $this->rate_tolerance_percent === null ? null : (string) BigDecimal::of((string) $this->rate_tolerance_percent)->toScale(2),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

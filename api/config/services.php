@@ -34,6 +34,14 @@ return [
         'driver' => env('SMS_DRIVER'),
     ],
 
+    // CUR-03: reference-rate feeds. Without a URL a feed is not configured
+    // and the daily fetch skips it (logged). The endpoint answers the
+    // normalised JSON documented in App\Core\Currency\Feeds\EndpointFeed.
+    'rate_feeds' => [
+        'cbk' => ['url' => env('RATE_FEED_CBK_URL')],
+        'bcc' => ['url' => env('RATE_FEED_BCC_URL')],
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
