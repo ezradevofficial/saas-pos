@@ -62,6 +62,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
+        'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
     ];
 
     /**
@@ -101,6 +102,9 @@ class TenantIsolationTest extends TestCase
         'approval' => 'approval', // APR-04: approvals/{approval}, a request waiting for the manager
         'credit_limit_change' => 'credit_limit_change', // WF-01: credit-limit-changes/{credit_limit_change}, a pending request
         'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
+        'payment_intent' => 'payment_intent', // payments/intents/{payment_intent} (device), a manual payment at the till's location
+        'payment_receipt' => 'payment_receipt', // payment-receipts/{payment_receipt}/match, money received that matched nothing
+        'fiscal_submission' => 'fiscal_submission', // fiscal-submissions/{fiscal_submission}[/retry], an accepted sale
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -148,6 +152,8 @@ class TenantIsolationTest extends TestCase
         'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
         'manager_user_id' => 'user', // AUTH-08: the manager authorising an override (the owner)
         'cashier_user_id' => 'manager', // AUTH-08: the cashier the override is for
+        'payment_method_id' => 'payment_method', // payments: the method a till asks money through
+        'payment_intent_id' => 'payment_intent', // payments: the payment a received amount is matched to
         'scope_id' => null,
     ];
 
@@ -563,6 +569,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/pos/pin/attempts', $hijacked);
         $this->assertArrayHasKey('POST api/v1/pos/override', $hijacked);
         $this->assertArrayHasKey('POST api/v1/pos/pin/change', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/payments/intents', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/payment-receipts/{payment_receipt}/match', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -672,6 +680,11 @@ class TenantIsolationTest extends TestCase
 
             // APR-04: the oversight list of approvals.
             'approvals?view=all&status=all' => ['Approve A', 'Waiting'],
+
+            // Payments and fiscal: the till's payments, money received, the fiscal queue.
+            "companies/{$a->id('company')}/payment-intents" => ['QJK3AMANUAL', 'Code entered'],
+            "companies/{$a->id('company')}/payment-receipts" => ['QJK3ALOOSE1', 'KES 700.00'],
+            "companies/{$a->id('company')}/fiscal-submissions" => ['Sale', 'Accepted'],
         ];
     }
 
@@ -1105,6 +1118,13 @@ class TenantIsolationTest extends TestCase
             ],
             // The owner picks a new PIN at the till (the last device route the suite calls with it).
             'POST api/v1/pos/pin/change' => ['user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'new_pin' => '739104'],
+            // Payments (device token): a manual M-Pesa payment by the owner at the till.
+            'POST api/v1/payments/intents' => [
+                'payment_method_id' => $tenant->id('payment_method'), 'mode' => 'manual', 'amount_minor' => '10000', 'currency' => 'KES',
+                'receipt' => 'QJK3HIJACK'.strtoupper(Str::random(4)), 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'),
+            ],
+            // Payments: the money received matched to the till's manual payment.
+            'POST api/v1/payment-receipts/{payment_receipt}/match' => ['payment_intent_id' => $tenant->id('payment_intent')],
             default => null,
         };
     }
