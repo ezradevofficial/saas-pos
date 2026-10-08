@@ -3,7 +3,17 @@ import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
 import { AuthLayout } from './layouts/AuthLayout'
-import { DIMENSION_VIEW, EXCHANGE_RATE_VIEW, ORGANISATION_VIEW, PAYMENT_METHOD_VIEW, TAX_VIEW } from './layouts/navigation'
+import {
+  CATEGORY_VIEW,
+  DIMENSION_VIEW,
+  EXCHANGE_RATE_VIEW,
+  ITEM_VIEW,
+  ORGANISATION_VIEW,
+  PARTY_VIEW,
+  PAYMENT_METHOD_VIEW,
+  TAX_VIEW,
+  UOM_VIEW,
+} from './layouts/navigation'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -12,6 +22,14 @@ import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
 import TwoFactorEnrol from './pages/auth/TwoFactorEnrol'
 import Verify from './pages/auth/Verify'
+import Categories from './pages/catalogue/Categories'
+import ItemDetail from './pages/catalogue/ItemDetail'
+import NewItem from './pages/catalogue/ItemForm'
+import Items from './pages/catalogue/Items'
+import Units from './pages/catalogue/Units'
+import Parties from './pages/contacts/Parties'
+import PartyDetail from './pages/contacts/PartyDetail'
+import NewParty from './pages/contacts/PartyForm'
 import Home from './pages/Home'
 import NotFound from './pages/NotFound'
 import Appearance from './pages/settings/Appearance'
@@ -80,6 +98,23 @@ export const routes = [
     ),
     children: [
       { path: '/', element: <Home /> },
+      // MD-02: the catalogue.
+      ...[
+        ['/catalogue/items', ITEM_VIEW, <Items key="items" />],
+        ['/catalogue/items/new', 'core.item.create', <NewItem key="new-item" />],
+        ['/catalogue/items/:itemId', ITEM_VIEW, <ItemDetail key="item" />],
+        ['/catalogue/categories', CATEGORY_VIEW, <Categories key="categories" />],
+        ['/catalogue/units', UOM_VIEW, <Units key="units" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // MD-01: customers and suppliers.
+      ...['customer', 'supplier'].flatMap((role) => {
+        const base = `/contacts/${role}s`
+        return [
+          { path: base, element: <RequirePermission permission={PARTY_VIEW}><Parties key={role} role={role} /></RequirePermission> },
+          { path: `${base}/new`, element: <RequirePermission permission="core.party.create"><NewParty key={role} role={role} /></RequirePermission> },
+          { path: `${base}/:partyId`, element: <RequirePermission permission={PARTY_VIEW}><PartyDetail key={role} role={role} /></RequirePermission> },
+        ]
+      }),
       {
         path: '/settings/organisation',
         element: (

@@ -117,3 +117,22 @@ export function PercentInput({ value, onChange, ...rest }) {
     />
   )
 }
+
+/**
+ * A plain decimal (a unit factor, MD-02): above zero by default, up to
+ * `maxDecimals` decimals and `maxIntegerDigits` before the point;
+ * reported as a decimal string ("12", "0.5").
+ */
+export function DecimalInput({ value, onChange, maxDecimals = 6, maxIntegerDigits = 12, positive = true, ...rest }) {
+  return (
+    <NumberField
+      {...rest}
+      value={value}
+      example={formatDecimal('12.5', useLocale())}
+      options={{ maxDecimals, maxIntegerDigits, positive }}
+      toText={(decimal, locale) => formatDecimal(decimal, locale)}
+      fromParsed={(decimal) => decimal}
+      onChange={onChange}
+    />
+  )
+}

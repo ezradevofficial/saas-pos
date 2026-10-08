@@ -1,0 +1,131 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { api } from '@/api/client'
+import { catalogue, ITEM } from '@/test/catalogue'
+import { renderApp, resetSession, signedIn } from '@/test/renderApp'
+
+vi.mock('@/api/client', async (importOriginal) => ({
+  ...(await importOriginal()),
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), download: vi.fn(), upload: vi.fn() },
+}))
+
+const listCalls = () => api.get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('items?'))
+
+describe('Items', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+
+  it('lists items with their category, unit and barcode, and opens one', async () => {
+    catalogue(api)
+    const { router } = renderApp('/catalogue/items')
+    const table = await screen.findByRole('table', { name: 'Items' })
+    const row = (await within(table).findByText('Soda 500 ml')).closest('tr')
+    expect(within(row).getByText('SODA-500')).toBeInTheDocument()
+    expect(await within(row).findByText('Sodas')).toBeInTheDocument()
+    expect(within(row).getByText('EA')).toBeInTheDocument()
+    expect(within(row).getByText('6001234567890')).toBeInTheDocument()
+    expect(within(row).getByText('+1 more')).toBeInTheDocument()
+    fireEvent.click(row)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/catalogue/items/i-1'))
+  })
+
+  it('searches after typing stops (a barcode works too), filters and pages on the server', async () => {
+    catalogue(api)
+    renderApp('/catalogue/items')
+    await screen.findByText('Soda 500 ml')
+    expect(listCalls()[0]).toBe('items?status=active&per_page=25&page=1')
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: '6001' } })
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: '6001234567890' } })
+    await waitFor(() => expect(listCalls().at(-1)).toBe('items?status=active&per_page=25&page=1&search=6001234567890'))
+    // Debounced: the half-typed value was never asked for.
+    expect(listCalls().some((path) => path.includes('search=6001&'))).toBe(false)
+
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'cat-1' } })
+    await waitFor(() => expect(listCalls().at(-1)).toContain('category=cat-1'))
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'service' } })
+    await waitFor(() => expect(listCalls().at(-1)).toContain('type=service'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('page=2'))
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Archived' }))
+    await waitFor(() => expect(listCalls().at(-1)).toMatch(/^items\?status=archived&per_page=25&page=1/))
+  })
+
+  it('creates an item with two units, barcodes per unit, and names possible duplicates without blocking', async () => {
+    catalogue(api, { item: { ...ITEM, id: 'i-9' } })
+    api.post.mockResolvedValue({
+      data: { ...ITEM, id: 'i-9' },
+      meta: { possible_duplicates: [{ id: 'i-1', code: 'SODA-500', name: 'Soda 500 ml', reason: 'name' }] },
+    })
+    const { router } = renderApp('/catalogue/items/new')
+
+    fireEvent.change(await screen.findByLabelText(/^Code/), { target: { value: 'SODA-330' } })
+    fireEvent.change(screen.getByLabelText('Name in English'), { target: { value: 'Soda 330 ml' } })
+    fireEvent.change(screen.getByLabelText('Name in French'), { target: { value: 'Soda 33 cl' } })
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'cat-2' } })
+    const base = screen.getByLabelText(/^Base unit/)
+    await waitFor(() => expect(base).toHaveValue('u-ea'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add unit' }))
+    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: 'u-box' } })
+    fireEvent.change(screen.getByLabelText(/^Contains \(EA\)/), { target: { value: '12' } })
+    fireEvent.click(screen.getByLabelText('Default for sales'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add barcode' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add barcode' }))
+    const barcodes = screen.getAllByLabelText('Barcode')
+    fireEvent.change(barcodes[0], { target: { value: '6001234500001' } })
+    fireEvent.change(barcodes[1], { target: { value: ' 6001234500002 ' } })
+    const list = screen.getByRole('list', { name: 'Barcodes' })
+    fireEvent.change(within(list).getAllByLabelText('Unit')[1], { target: { value: 'u-box' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('items', {
+        code: 'SODA-330',
+        name_en: 'Soda 330 ml',
+        name_fr: 'Soda 33 cl',
+        type: 'stock',
+        category_id: 'cat-2',
+        base_uom_id: 'u-ea',
+        uoms: [{ uom_id: 'u-box', factor: '12', is_sales_default: true, is_purchase_default: false }],
+        barcodes: [
+          { barcode: '6001234500001', uom_id: null },
+          { barcode: '6001234500002', uom_id: 'u-box' },
+        ],
+      }),
+    )
+    await waitFor(() => expect(router.state.location.pathname).toBe('/catalogue/items/i-9'))
+    expect(await screen.findByText('This item may already exist')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'SODA-500 · Soda 500 ml' })).toHaveAttribute('href', '/catalogue/items/i-1')
+  })
+
+  it('asks for the company when items are kept per company', async () => {
+    catalogue(api, { mode: 'per_company' })
+    api.post.mockResolvedValue({ data: { ...ITEM, id: 'i-9', company_id: 'c-1' }, meta: { possible_duplicates: [] } })
+    renderApp('/catalogue/items/new')
+    const company = await screen.findByLabelText(/^Company/)
+    // The only company is chosen already.
+    await waitFor(() => expect(company).toHaveValue('c-1'))
+    fireEvent.change(screen.getByLabelText(/^Code/), { target: { value: 'RICE-5' } })
+    fireEvent.change(screen.getByLabelText('Name in English'), { target: { value: 'Rice 5 kg' } })
+    await waitFor(() => expect(screen.getByLabelText(/^Base unit/)).toHaveValue('u-ea'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('items', expect.objectContaining({ company_id: 'c-1', code: 'RICE-5' })))
+  })
+
+  it('shows a unit factor that is not a number when the form is submitted, without sending', async () => {
+    catalogue(api)
+    renderApp('/catalogue/items/new')
+    fireEvent.change(await screen.findByLabelText(/^Code/), { target: { value: 'X1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add unit' }))
+    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: 'u-box' } })
+    fireEvent.change(screen.getByLabelText(/^Contains/), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }))
+    expect(await screen.findByText('Enter a number above zero.')).toBeInTheDocument()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+})

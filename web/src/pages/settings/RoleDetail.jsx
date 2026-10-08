@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Checkbox, Icon, StatusBadge, Switch, TextField } from '@/components/ds'
+import { HistoryPanel } from '@/components/HistoryPanel'
+import { Alert, Button, Card, Checkbox, Icon, StatusBadge, Switch, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
 import { CopyRoleDialog } from './roles/CopyRoleDialog'
 import { PermissionMatrix } from './roles/PermissionMatrix'
@@ -148,6 +150,9 @@ export default function RoleDetail() {
   const [copying, setCopying] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const creating = !roleId
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'history' ? 'history' : 'details'
+  const timeZone = useTimeZone()
 
   const role = useQuery({ queryKey: ['roles', 'detail', roleId], queryFn: () => api.get(`roles/${roleId}`), enabled: !creating })
   const catalogue = useQuery({ queryKey: ['permissions'], queryFn: () => api.get('permissions'), staleTime: 5 * 60_000 })
@@ -216,7 +221,23 @@ export default function RoleDetail() {
           {t('roles.systemText')}
         </Alert>
       ) : null}
-      <RoleForm key={data?.id ?? 'new'} role={data} catalogue={catalogue.data?.data ?? {}} editable={editable} />
+      {creating ? null : (
+        <Tabs
+          items={[
+            { value: 'details', label: t('items.tabs.details') },
+            { value: 'history', label: t('items.tabs.history') },
+          ]}
+          value={tab}
+          onChange={(next) => setParams(next === 'history' ? { tab: 'history' } : {}, { replace: true })}
+        />
+      )}
+      {creating || tab === 'details' ? (
+        <RoleForm key={data?.id ?? 'new'} role={data} catalogue={catalogue.data?.data ?? {}} editable={editable} />
+      ) : (
+        <Card>
+          <HistoryPanel type="role" recordId={data.id} timeZone={timeZone} />
+        </Card>
+      )}
       {copying ? <CopyRoleDialog role={data} onClose={() => setCopying(false)} /> : null}
       <ConfirmDialog
         open={archiving}

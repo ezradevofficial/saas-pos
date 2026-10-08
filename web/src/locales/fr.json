@@ -202,7 +202,9 @@
       "overview": "Vue d'ensemble",
       "settings": "Paramètres",
       "finance": "Finances",
-      "masterData": "Données de référence"
+      "masterData": "Données de référence",
+      "catalogue": "Catalogue",
+      "contacts": "Contacts"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -216,7 +218,12 @@
     "taxes": "Taxes",
     "paymentMethods": "Moyens de paiement",
     "dimensions": "Axes analytiques",
-    "sharing": "Partage"
+    "sharing": "Partage",
+    "items": "Articles",
+    "categories": "Catégories",
+    "units": "Unités",
+    "customers": "Clients",
+    "suppliers": "Fournisseurs"
   },
   "shell": {
     "account": "Menu du compte",
@@ -1166,6 +1173,474 @@
       "assigned_other": "Les {{type}} sont maintenant propres à chaque société. {{count}} fiches ont été rattachées à {{company}}.",
       "perCompany": "Les {{type}} sont maintenant propres à chaque société.",
       "shared": "Les {{type}} sont maintenant partagés entre les sociétés."
+    }
+  },
+  "catalogue": {
+    "items": {
+      "title": "Articles",
+      "description": "Ce que vous vendez et achetez : codes, noms, unités, codes-barres et images."
+    },
+    "categories": {
+      "title": "Catégories",
+      "description": "Regroupez les articles en arborescence. Les catégories archivées gardent leurs articles."
+    },
+    "units": {
+      "title": "Unités",
+      "description": "Les unités de mesure communes à toutes les sociétés, comme pièce, kilogramme ou carton."
+    }
+  },
+  "contacts": {
+    "customers": {
+      "title": "Clients",
+      "description": "Les personnes et organisations à qui vous vendez."
+    },
+    "suppliers": {
+      "title": "Fournisseurs",
+      "description": "Les personnes et organisations auprès de qui vous achetez."
+    }
+  },
+  "pager": {
+    "label": "Pages",
+    "pageOf": "Page {{page}} sur {{last}}",
+    "previous": "Précédente",
+    "next": "Suivante"
+  },
+  "duplicates": {
+    "title": {
+      "item_one": "Cet article existe peut-être déjà",
+      "item_other": "Cet article existe peut-être déjà",
+      "party_one": "Ce contact existe peut-être déjà",
+      "party_other": "Ce contact existe peut-être déjà"
+    },
+    "text": {
+      "item": "Il a été enregistré. Vérifiez ces articles et archivez-en un s’il s’agit du même.",
+      "party": "Il a été enregistré. Vérifiez ces contacts et archivez-en un s’il s’agit du même."
+    },
+    "reasons": {
+      "barcode": "même code-barres",
+      "name": "nom proche",
+      "phone": "même numéro de téléphone",
+      "tax_id": "même identifiant fiscal"
+    },
+    "dismiss": "Masquer"
+  },
+  "history": {
+    "title": "Historique",
+    "empty": "Aucune modification enregistrée pour l’instant.",
+    "more": "Voir les modifications plus anciennes",
+    "system": "Système",
+    "none": "Non défini",
+    "unknown": "Inconnu",
+    "yes": "Oui",
+    "no": "Non",
+    "changedTo": "remplacé par",
+    "open": "Historique",
+    "openFor": "Historique de {{name}}",
+    "dialogTitle": "Historique de {{name}}",
+    "close": "Fermer",
+    "actions": {
+      "create": "Créé",
+      "update": "Modifié",
+      "archive": "Archivé",
+      "restore": "Restauré",
+      "delete": "Supprimé",
+      "image_add": "Image ajoutée",
+      "image_delete": "Image supprimée",
+      "images_reorder": "Images réordonnées",
+      "units_update": "Unités modifiées",
+      "barcodes_update": "Codes-barres modifiés",
+      "permissions_update": "Permissions modifiées",
+      "codes_update": "Codes de taxe modifiés",
+      "currencies_update": "Devises modifiées",
+      "secrets_change": "Paramètres du prestataire modifiés",
+      "apply_pack": "Pack pays appliqué",
+      "pack_update": "Pack pays mis à jour",
+      "deactivate": "Désactivé",
+      "reactivate": "Réactivé",
+      "invite": "Invité",
+      "invitation_accept": "Invitation acceptée",
+      "invitation_revoke": "Invitation révoquée",
+      "sign_out_everywhere": "Déconnecté partout",
+      "pair": "Appairé",
+      "changed": "Modifié"
+    },
+    "fields": {
+      "name": "Nom",
+      "name_en": "Nom (anglais)",
+      "name_fr": "Nom (français)",
+      "code": "Code",
+      "type": "Type",
+      "kind": "Nature",
+      "category_id": "Catégorie",
+      "base_uom_id": "Unité de base",
+      "tax_category_id": "Catégorie de taxe",
+      "company_id": "Société",
+      "branch_id": "Succursale",
+      "parent_id": "Parent",
+      "legal_name": "Raison sociale",
+      "tax_id": "Identifiant fiscal",
+      "roles": "Rôles",
+      "tags": "Étiquettes",
+      "phones": "Numéros de téléphone",
+      "emails": "Adresses e-mail",
+      "addresses": "Adresses",
+      "currency": "Devise",
+      "payment_terms_days": "Délai de paiement (jours)",
+      "credit_limit_minor": "Plafond de crédit",
+      "credit_limit_currency": "Devise du plafond de crédit",
+      "price_list_id": "Liste de prix",
+      "uoms": "Autres unités",
+      "barcodes": "Codes-barres",
+      "images": "Images",
+      "colour": "Couleur",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "status": "Statut",
+      "locale": "Langue",
+      "country": "Pays",
+      "timezone": "Fuseau horaire",
+      "base_currency": "Devise de base",
+      "permissions": "Permissions",
+      "active": "Actif",
+      "description": "Description",
+      "address": "Adresse",
+      "owner_user_id": "Responsable",
+      "custom": "Champs personnalisés"
+    }
+  },
+  "items": {
+    "add": "Ajouter un article",
+    "back": "Tous les articles",
+    "newTitle": "Nouvel article",
+    "newText": "Donnez à l’article un code et au moins un nom. Les unités, codes-barres et images peuvent suivre.",
+    "search": "Rechercher",
+    "searchPlaceholder": "Code, nom ou code-barres",
+    "pages": "Pages d’articles",
+    "moreBarcodes": "+{{count}} autres",
+    "emptyFiltered": "Aucun article ne correspond. Essayez une autre recherche ou un autre filtre.",
+    "empty": {
+      "active": "Aucun article pour l’instant.",
+      "archived": "Aucun article archivé."
+    },
+    "status": {
+      "active": "Actifs",
+      "archived": "Archivés",
+      "activeOne": "Actif",
+      "archivedOne": "Archivé"
+    },
+    "filters": {
+      "category": "Catégorie",
+      "allCategories": "Toutes les catégories",
+      "type": "Type",
+      "allTypes": "Tous les types"
+    },
+    "columns": {
+      "code": "Code",
+      "name": "Nom",
+      "category": "Catégorie",
+      "type": "Type",
+      "unit": "Unité de base",
+      "barcode": "Code-barres"
+    },
+    "types": {
+      "stock": "Article stocké",
+      "service": "Service",
+      "non_stock": "Article non stocké",
+      "kit": "Kit"
+    },
+    "tabs": {
+      "details": "Détails",
+      "history": "Historique"
+    },
+    "notFound": "Cet article n’existe pas ou vous ne pouvez pas le voir. Revenez à la liste et choisissez-en un autre.",
+    "saved": "{{name}} enregistré.",
+    "archive": "Archiver l’article",
+    "restore": "Restaurer l’article",
+    "archiveTitle": "Archiver {{name}} ?",
+    "archiveText": "Il quitte le catalogue et les caisses. Son historique est conservé et vous pourrez le restaurer.",
+    "archiveConfirm": "Archiver l’article",
+    "keep": "Garder l’article",
+    "form": {
+      "details": "Détails",
+      "company": "Société",
+      "companyHelp": "Les articles sont tenus par société. Choisissez à quelle société appartient cet article.",
+      "chooseCompany": "Choisissez une société",
+      "code": "Code",
+      "codeHelp": "Lettres, chiffres et . _ - / sans espaces, unique dans le catalogue.",
+      "type": "Type",
+      "nameEn": "Nom en anglais",
+      "nameFr": "Nom en français",
+      "namesHelp": "Donnez au moins un nom. Chaque langue affiche le sien, ou l’autre s’il manque.",
+      "category": "Catégorie",
+      "noCategory": "Aucune catégorie",
+      "unknownCategory": "Une catégorie que vous ne voyez pas",
+      "taxCategory": "Catégorie de taxe",
+      "noTaxCategory": "Aucune catégorie de taxe",
+      "units": "Unités",
+      "unitsHelp": "Les autres unités se comptent dans l’unité de base, par exemple un carton de 12.",
+      "baseUnit": "Unité de base",
+      "baseUnitHelp": "L’unité dans laquelle le stock est compté.",
+      "baseChanged": "L’unité de base a changé : vérifiez chaque facteur ci-dessous, ils se comptent dans la nouvelle unité de base.",
+      "chooseUnit": "Choisissez une unité",
+      "unknownUnit": "Une unité que vous ne voyez pas",
+      "otherUnits": "Autres unités",
+      "noOtherUnits": "Aucune autre unité. Ajoutez-en une pour vendre ou acheter par carton ou paquet.",
+      "unit": "Unité",
+      "unitN": "unité {{n}}",
+      "factor": "Contient ({{base}})",
+      "factorRequired": "Saisissez combien d’unités de base contient une de cette unité.",
+      "unitRequired": "Choisissez une unité.",
+      "salesDefault": "Par défaut à la vente",
+      "purchaseDefault": "Par défaut à l’achat",
+      "addUnit": "Ajouter une unité",
+      "removeUnit": "Retirer {{unit}}",
+      "remove": "Retirer",
+      "barcodes": "Codes-barres",
+      "barcodesHelp": "Scannés en caisse. Chaque code-barres correspond à une unité.",
+      "barcode": "Code-barres",
+      "barcodeN": "code-barres {{n}}",
+      "barcodeUnit": "Unité",
+      "baseUnitOption": "{{unit}} (unité de base)",
+      "noBarcodes": "Aucun code-barres pour l’instant.",
+      "addBarcode": "Ajouter un code-barres",
+      "removeBarcode": "Retirer le code-barres {{barcode}}",
+      "create": "Créer l’article"
+    },
+    "images": {
+      "title": "Images",
+      "subtitle": "JPEG, PNG ou WebP jusqu’à 2 Mo, {{max}} au plus. La première image s’affiche en premier.",
+      "add": "Ajouter une image",
+      "choose": "Choisir un fichier image",
+      "empty": "Aucune image pour l’instant.",
+      "full": "Cet article a {{max}} images, le maximum. Retirez-en une pour en ajouter une autre.",
+      "uploading": "Envoi de {{name}} : {{percent}} %",
+      "progress": "Progression de l’envoi",
+      "alt": "Image {{n}} de {{name}}",
+      "position": "Image {{n}}",
+      "moveEarlier": "Avancer l’image {{n}}",
+      "moveLater": "Reculer l’image {{n}}",
+      "movedTo": "Image déplacée en position {{position}} sur {{total}}.",
+      "remove": "Retirer l’image {{n}}",
+      "removeTitle": "Retirer l’image {{n}} ?",
+      "removeText": "Le fichier est supprimé. La modification reste dans l’historique de l’article.",
+      "removeConfirm": "Retirer l’image",
+      "keep": "Garder l’image",
+      "wrongType": "Ce fichier n’est pas une image JPEG, PNG ou WebP. Choisissez un autre fichier.",
+      "tooLarge": "Cette image fait {{size}}, plus que {{max}}. Choisissez un fichier plus petit."
+    },
+    "history": {
+      "unit": "{{unit}} × {{factor}}",
+      "images_one": "{{count}} image",
+      "images_other": "{{count}} images"
+    }
+  },
+  "categories": {
+    "add": "Ajouter une catégorie",
+    "addTitle": "Ajouter une catégorie",
+    "addChild": "Ajouter une sous-catégorie",
+    "addUnder": "Ajouter une sous-catégorie sous {{name}}",
+    "edit": "Modifier",
+    "editName": "Modifier {{name}}",
+    "editTitle": "Modifier {{name}}",
+    "archive": "Archiver",
+    "archiveName": "Archiver {{name}}",
+    "restore": "Restaurer",
+    "restoreName": "Restaurer {{name}}",
+    "archived": "Archivée",
+    "showArchived": "Afficher les catégories archivées",
+    "empty": "Aucune catégorie pour l’instant.",
+    "shared": "Partagée par toutes les sociétés",
+    "oneCompany": "Une société",
+    "archiveTitle": "Archiver {{name}} ?",
+    "archiveText": "Elle n’est plus proposée pour les nouveaux articles. Ses articles la gardent jusqu’à ce que vous les modifiiez.",
+    "archiveConfirm": "Archiver la catégorie",
+    "keep": "Garder la catégorie",
+    "errors": {
+      "inUse": "Cette catégorie a des sous-catégories actives. Déplacez-les ou archivez-les d’abord.",
+      "parentArchived": "Sa catégorie parente est archivée. Restaurez d’abord le parent."
+    },
+    "fields": {
+      "company": "Société",
+      "companyHelp": "Les catégories suivent les articles : tenues par société.",
+      "nameEn": "Nom en anglais",
+      "nameFr": "Nom en français",
+      "namesHelp": "Donnez au moins un nom.",
+      "parent": "Parent",
+      "noParent": "Aucun (premier niveau)"
+    }
+  },
+  "units": {
+    "add": "Ajouter une unité",
+    "addTitle": "Ajouter une unité",
+    "edit": "Modifier",
+    "editCode": "Modifier {{code}}",
+    "editTitle": "Modifier {{code}}",
+    "archive": "Archiver",
+    "archiveCode": "Archiver {{code}}",
+    "restore": "Restaurer",
+    "restoreCode": "Restaurer {{code}}",
+    "active": "Active",
+    "archived": "Archivée",
+    "tabs": {
+      "active": "Actives",
+      "archived": "Archivées"
+    },
+    "empty": {
+      "active": "Aucune unité pour l’instant.",
+      "archived": "Aucune unité archivée."
+    },
+    "columns": {
+      "code": "Code",
+      "name": "Nom",
+      "kind": "Nature",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "count": "Quantité",
+      "weight": "Poids",
+      "volume": "Volume",
+      "length": "Longueur",
+      "time": "Durée"
+    },
+    "fields": {
+      "code": "Code",
+      "codeHelp": "Jusqu’à 10 majuscules, chiffres ou _, comme CARTON12.",
+      "nameEn": "Nom en anglais",
+      "nameFr": "Nom en français",
+      "kind": "Nature"
+    },
+    "archiveTitle": "Archiver {{code}} ?",
+    "archiveText": "Elle n’est plus proposée pour les nouveaux articles. Les unités sont communes à toutes les sociétés : cela s’applique à toutes.",
+    "archiveConfirm": "Archiver l’unité",
+    "keep": "Garder l’unité",
+    "errors": {
+      "inUse": "Des articles actifs utilisent cette unité. Modifiez d’abord ces articles."
+    }
+  },
+  "parties": {
+    "add": {
+      "customer": "Ajouter un client",
+      "supplier": "Ajouter un fournisseur"
+    },
+    "back": {
+      "customer": "Tous les clients",
+      "supplier": "Tous les fournisseurs"
+    },
+    "newTitle": {
+      "customer": "Nouveau client",
+      "supplier": "Nouveau fournisseur"
+    },
+    "newText": "Un nom suffit pour commencer. Ajoutez des numéros de téléphone pour que la caisse les retrouve.",
+    "search": "Rechercher",
+    "searchPlaceholder": "Nom, identifiant fiscal ou téléphone",
+    "pages": "Pages de contacts",
+    "emptyFiltered": "Aucun contact ne correspond. Essayez une autre recherche ou étiquette.",
+    "filters": {
+      "tag": "Étiquette"
+    },
+    "empty": {
+      "customer": {
+        "active": "Aucun client pour l’instant.",
+        "archived": "Aucun client archivé."
+      },
+      "supplier": {
+        "active": "Aucun fournisseur pour l’instant.",
+        "archived": "Aucun fournisseur archivé."
+      }
+    },
+    "status": {
+      "active": "Actifs",
+      "archived": "Archivés",
+      "activeOne": "Actif",
+      "archivedOne": "Archivé"
+    },
+    "columns": {
+      "name": "Nom",
+      "phone": "Téléphone",
+      "email": "E-mail",
+      "tags": "Étiquettes",
+      "creditLimit": "Plafond de crédit"
+    },
+    "kinds": {
+      "person": "Personne",
+      "organisation": "Organisation"
+    },
+    "roles": {
+      "customer": "Client",
+      "supplier": "Fournisseur",
+      "contact": "Contact",
+      "employee_link": "Employé"
+    },
+    "notFound": "Ce contact n’existe pas ou vous ne pouvez pas le voir. Revenez à la liste et choisissez-en un autre.",
+    "unnamed": "Contact sans nom",
+    "saved": "{{name}} enregistré.",
+    "archive": "Archiver",
+    "restore": "Restaurer",
+    "archiveTitle": "Archiver {{name}} ?",
+    "archiveText": "Il n’apparaît plus dans les listes ni en caisse. Son historique est conservé et vous pourrez le restaurer.",
+    "archiveConfirm": "Archiver le contact",
+    "keep": "Garder le contact",
+    "form": {
+      "details": "Détails",
+      "kind": "Nature",
+      "name": "Nom",
+      "legalName": "Raison sociale",
+      "legalNameHelp": "Telle qu’enregistrée, si elle diffère du nom.",
+      "taxId": "Identifiant fiscal",
+      "taxIdHelp": "PIN KRA au Kenya, NIF en RD Congo.",
+      "roles": "Rôles",
+      "rolesRequired": "Choisissez au moins un rôle.",
+      "company": "Société",
+      "companyHelp": "Ces contacts sont tenus par société. Choisissez à quelle société appartient ce contact.",
+      "companyChangeHelp": "Avec ces rôles, le contact est tenu par société. Choisissez la société qui le garde.",
+      "becomesShared": "Avec ces rôles, le contact est partagé par toutes les sociétés.",
+      "confirmShared": "Partager ce contact avec toutes les sociétés",
+      "confirmSharedRequired": "Confirmez que toutes les sociétés peuvent voir ce contact, ou gardez ses rôles.",
+      "contact": "Téléphone et e-mail",
+      "phones": "Numéros de téléphone",
+      "phone": "Téléphone {{n}}",
+      "phoneLabelExample": "Mobile, bureau…",
+      "addPhone": "Ajouter un numéro",
+      "removePhone": "Retirer le téléphone {{n}}",
+      "emails": "Adresses e-mail",
+      "email": "E-mail {{n}}",
+      "emailLabelExample": "Facturation, commandes…",
+      "addEmail": "Ajouter une adresse e-mail",
+      "removeEmail": "Retirer l’e-mail {{n}}",
+      "label": "Libellé",
+      "addresses": "Adresses",
+      "addressN": "Adresse {{n}}",
+      "noAddresses": "Aucune adresse pour l’instant.",
+      "addressLabel": "Libellé",
+      "addressLabelExample": "Boutique, entrepôt…",
+      "line1": "Rue et numéro",
+      "line2": "Bâtiment, étage",
+      "city": "Ville",
+      "region": "Comté ou province",
+      "postalCode": "Code postal",
+      "country": "Pays",
+      "noCountry": "Non défini",
+      "addAddress": "Ajouter une adresse",
+      "removeAddress": "Retirer l’adresse {{n}}",
+      "terms": "Conditions",
+      "currency": "Devise",
+      "currencyHelp": "La devise utilisée par défaut sur ses documents.",
+      "noCurrency": "La devise de base de la société",
+      "paymentTerms": "Délai de paiement",
+      "paymentTermsHelp": "Jours pour payer une facture, de 0 à 365.",
+      "days": "jours",
+      "creditCurrency": "Devise du plafond de crédit",
+      "creditLimit": "Plafond de crédit",
+      "creditLimitHelp": "Laissez vide pour aucun plafond.",
+      "priceList": "Liste de prix",
+      "noPriceList": "Les prix par défaut",
+      "tags": "Étiquettes",
+      "tagsHelp": "Séparez les étiquettes par des virgules, comme grossiste, vip.",
+      "create": {
+        "customer": "Créer le client",
+        "supplier": "Créer le fournisseur"
+      }
     }
   }
 }

@@ -214,4 +214,13 @@ describe('Roles', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'You do not have access to this page' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/Role name/)).not.toBeInTheDocument()
   })
+
+  it('shows a role’s history in its own tab, permissions by name (MD-07)', async () => {
+    roles({ extra: { 'history/role/r-sup?per_page=20&page=1': { data: [{ id: 'h-1', action: 'rbac.role.permissions_update', actor: { id: 'u-1', name: 'Amina Otieno' }, before: { permissions: ['core.user.view'] }, after: { permissions: ['core.user.view', 'core.user.edit'] }, occurred_at: '2026-10-08T08:00:00Z' }], meta: { current_page: 1, last_page: 1 } } } })
+    renderApp('/settings/roles/r-sup')
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'History' }))
+    const list = await screen.findByRole('list', { name: 'History' })
+    expect(within(list).getByText('Permissions changed')).toBeInTheDocument()
+    expect(within(list).getByText('core.user.view, core.user.edit')).toBeInTheDocument()
+  })
 })

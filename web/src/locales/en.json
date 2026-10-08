@@ -202,7 +202,9 @@
       "overview": "Overview",
       "settings": "Settings",
       "finance": "Finance",
-      "masterData": "Master data"
+      "masterData": "Master data",
+      "catalogue": "Catalogue",
+      "contacts": "Contacts"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -216,7 +218,12 @@
     "taxes": "Taxes",
     "paymentMethods": "Payment methods",
     "dimensions": "Dimensions",
-    "sharing": "Sharing"
+    "sharing": "Sharing",
+    "items": "Items",
+    "categories": "Categories",
+    "units": "Units",
+    "customers": "Customers",
+    "suppliers": "Suppliers"
   },
   "shell": {
     "account": "Account menu",
@@ -1166,6 +1173,474 @@
       "assigned_other": "{{type}} are now kept per company. {{count}} records went to {{company}}.",
       "perCompany": "{{type}} are now kept per company.",
       "shared": "{{type}} are now shared across companies."
+    }
+  },
+  "catalogue": {
+    "items": {
+      "title": "Items",
+      "description": "What you sell and buy: codes, names, units, barcodes and images."
+    },
+    "categories": {
+      "title": "Categories",
+      "description": "Group items in a tree. Archived categories keep their items."
+    },
+    "units": {
+      "title": "Units",
+      "description": "Units of measure every company shares, such as each, kilogram or box."
+    }
+  },
+  "contacts": {
+    "customers": {
+      "title": "Customers",
+      "description": "People and organisations you sell to."
+    },
+    "suppliers": {
+      "title": "Suppliers",
+      "description": "People and organisations you buy from."
+    }
+  },
+  "pager": {
+    "label": "Pages",
+    "pageOf": "Page {{page}} of {{last}}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "duplicates": {
+    "title": {
+      "item_one": "This item may already exist",
+      "item_other": "This item may already exist",
+      "party_one": "This contact may already exist",
+      "party_other": "This contact may already exist"
+    },
+    "text": {
+      "item": "It was saved. Check these items and archive one if they are the same.",
+      "party": "It was saved. Check these contacts and archive one if they are the same."
+    },
+    "reasons": {
+      "barcode": "same barcode",
+      "name": "similar name",
+      "phone": "same phone number",
+      "tax_id": "same tax ID"
+    },
+    "dismiss": "Dismiss"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No changes recorded yet.",
+    "more": "Show older changes",
+    "system": "System",
+    "none": "Not set",
+    "unknown": "Unknown",
+    "yes": "Yes",
+    "no": "No",
+    "changedTo": "changed to",
+    "open": "History",
+    "openFor": "History of {{name}}",
+    "dialogTitle": "History of {{name}}",
+    "close": "Close",
+    "actions": {
+      "create": "Created",
+      "update": "Updated",
+      "archive": "Archived",
+      "restore": "Restored",
+      "delete": "Removed",
+      "image_add": "Image added",
+      "image_delete": "Image removed",
+      "images_reorder": "Images reordered",
+      "units_update": "Units changed",
+      "barcodes_update": "Barcodes changed",
+      "permissions_update": "Permissions changed",
+      "codes_update": "Tax codes changed",
+      "currencies_update": "Currencies changed",
+      "secrets_change": "Provider settings changed",
+      "apply_pack": "Country pack applied",
+      "pack_update": "Country pack updated",
+      "deactivate": "Deactivated",
+      "reactivate": "Reactivated",
+      "invite": "Invited",
+      "invitation_accept": "Invitation accepted",
+      "invitation_revoke": "Invitation revoked",
+      "sign_out_everywhere": "Signed out everywhere",
+      "pair": "Paired",
+      "changed": "Changed"
+    },
+    "fields": {
+      "name": "Name",
+      "name_en": "Name (English)",
+      "name_fr": "Name (French)",
+      "code": "Code",
+      "type": "Type",
+      "kind": "Kind",
+      "category_id": "Category",
+      "base_uom_id": "Base unit",
+      "tax_category_id": "Tax category",
+      "company_id": "Company",
+      "branch_id": "Branch",
+      "parent_id": "Parent",
+      "legal_name": "Legal name",
+      "tax_id": "Tax ID",
+      "roles": "Roles",
+      "tags": "Tags",
+      "phones": "Phone numbers",
+      "emails": "Email addresses",
+      "addresses": "Addresses",
+      "currency": "Currency",
+      "payment_terms_days": "Payment terms (days)",
+      "credit_limit_minor": "Credit limit",
+      "credit_limit_currency": "Credit limit currency",
+      "price_list_id": "Price list",
+      "uoms": "Other units",
+      "barcodes": "Barcodes",
+      "images": "Images",
+      "colour": "Colour",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "locale": "Language",
+      "country": "Country",
+      "timezone": "Time zone",
+      "base_currency": "Base currency",
+      "permissions": "Permissions",
+      "active": "Active",
+      "description": "Description",
+      "address": "Address",
+      "owner_user_id": "Owner",
+      "custom": "Custom fields"
+    }
+  },
+  "items": {
+    "add": "Add item",
+    "back": "All items",
+    "newTitle": "New item",
+    "newText": "Give the item a code and at least one name. Units, barcodes and images can follow.",
+    "search": "Search",
+    "searchPlaceholder": "Code, name or barcode",
+    "pages": "Item pages",
+    "moreBarcodes": "+{{count}} more",
+    "emptyFiltered": "No items match. Try another search or filter.",
+    "empty": {
+      "active": "No items yet.",
+      "archived": "No archived items."
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived",
+      "activeOne": "Active",
+      "archivedOne": "Archived"
+    },
+    "filters": {
+      "category": "Category",
+      "allCategories": "All categories",
+      "type": "Type",
+      "allTypes": "All types"
+    },
+    "columns": {
+      "code": "Code",
+      "name": "Name",
+      "category": "Category",
+      "type": "Type",
+      "unit": "Base unit",
+      "barcode": "Barcode"
+    },
+    "types": {
+      "stock": "Stock item",
+      "service": "Service",
+      "non_stock": "Non-stock item",
+      "kit": "Kit"
+    },
+    "tabs": {
+      "details": "Details",
+      "history": "History"
+    },
+    "notFound": "This item does not exist or you cannot see it. Go back to the list and choose another.",
+    "saved": "{{name}} saved.",
+    "archive": "Archive item",
+    "restore": "Restore item",
+    "archiveTitle": "Archive {{name}}?",
+    "archiveText": "It leaves the catalogue and the tills. Its history is kept and you can restore it later.",
+    "archiveConfirm": "Archive item",
+    "keep": "Keep item",
+    "form": {
+      "details": "Details",
+      "company": "Company",
+      "companyHelp": "Items are kept per company. Choose whose item this is.",
+      "chooseCompany": "Choose a company",
+      "code": "Code",
+      "codeHelp": "Letters, digits and . _ - / with no spaces, unique in the catalogue.",
+      "type": "Type",
+      "nameEn": "Name in English",
+      "nameFr": "Name in French",
+      "namesHelp": "Give at least one name. Each language shows its own, or the other when one is missing.",
+      "category": "Category",
+      "noCategory": "No category",
+      "unknownCategory": "A category you cannot see",
+      "taxCategory": "Tax category",
+      "noTaxCategory": "No tax category",
+      "units": "Units",
+      "unitsHelp": "Other units are counted in the base unit, for example a box of 12.",
+      "baseUnit": "Base unit",
+      "baseUnitHelp": "The unit stock is counted in.",
+      "baseChanged": "The base unit changed: check each factor below, they are counted in the new base unit.",
+      "chooseUnit": "Choose a unit",
+      "unknownUnit": "A unit you cannot see",
+      "otherUnits": "Other units",
+      "noOtherUnits": "No other units. Add one to sell or buy in boxes or packs.",
+      "unit": "Unit",
+      "unitN": "unit {{n}}",
+      "factor": "Contains ({{base}})",
+      "factorRequired": "Enter how many base units one of this unit contains.",
+      "unitRequired": "Choose a unit.",
+      "salesDefault": "Default for sales",
+      "purchaseDefault": "Default for purchases",
+      "addUnit": "Add unit",
+      "removeUnit": "Remove {{unit}}",
+      "remove": "Remove",
+      "barcodes": "Barcodes",
+      "barcodesHelp": "Scanned at the till. Each barcode belongs to one unit.",
+      "barcode": "Barcode",
+      "barcodeN": "barcode {{n}}",
+      "barcodeUnit": "Unit",
+      "baseUnitOption": "{{unit}} (base unit)",
+      "noBarcodes": "No barcodes yet.",
+      "addBarcode": "Add barcode",
+      "removeBarcode": "Remove barcode {{barcode}}",
+      "create": "Create item"
+    },
+    "images": {
+      "title": "Images",
+      "subtitle": "JPEG, PNG or WebP up to 2 MB, at most {{max}}. The first image is shown first.",
+      "add": "Add image",
+      "choose": "Choose an image file",
+      "empty": "No images yet.",
+      "full": "This item has {{max}} images, the most it can have. Remove one to add another.",
+      "uploading": "Uploading {{name}}: {{percent}}%",
+      "progress": "Upload progress",
+      "alt": "Image {{n}} of {{name}}",
+      "position": "Image {{n}}",
+      "moveEarlier": "Move image {{n}} earlier",
+      "moveLater": "Move image {{n}} later",
+      "movedTo": "Image moved to position {{position}} of {{total}}.",
+      "remove": "Remove image {{n}}",
+      "removeTitle": "Remove image {{n}}?",
+      "removeText": "The file is deleted. The change is kept in the item’s history.",
+      "removeConfirm": "Remove image",
+      "keep": "Keep image",
+      "wrongType": "This file is not a JPEG, PNG or WebP image. Choose another file.",
+      "tooLarge": "This image is {{size}}, more than {{max}}. Choose a smaller file."
+    },
+    "history": {
+      "unit": "{{unit}} × {{factor}}",
+      "images_one": "{{count}} image",
+      "images_other": "{{count}} images"
+    }
+  },
+  "categories": {
+    "add": "Add category",
+    "addTitle": "Add a category",
+    "addChild": "Add subcategory",
+    "addUnder": "Add a subcategory under {{name}}",
+    "edit": "Edit",
+    "editName": "Edit {{name}}",
+    "editTitle": "Edit {{name}}",
+    "archive": "Archive",
+    "archiveName": "Archive {{name}}",
+    "restore": "Restore",
+    "restoreName": "Restore {{name}}",
+    "archived": "Archived",
+    "showArchived": "Show archived categories",
+    "empty": "No categories yet.",
+    "shared": "Shared by every company",
+    "oneCompany": "One company",
+    "archiveTitle": "Archive {{name}}?",
+    "archiveText": "It is no longer offered for new items. Items in it keep it until you change them.",
+    "archiveConfirm": "Archive category",
+    "keep": "Keep category",
+    "errors": {
+      "inUse": "This category has active subcategories. Move or archive them first.",
+      "parentArchived": "Its parent category is archived. Restore the parent first."
+    },
+    "fields": {
+      "company": "Company",
+      "companyHelp": "Categories follow items: kept per company.",
+      "nameEn": "Name in English",
+      "nameFr": "Name in French",
+      "namesHelp": "Give at least one name.",
+      "parent": "Parent",
+      "noParent": "None (top level)"
+    }
+  },
+  "units": {
+    "add": "Add unit",
+    "addTitle": "Add a unit",
+    "edit": "Edit",
+    "editCode": "Edit {{code}}",
+    "editTitle": "Edit {{code}}",
+    "archive": "Archive",
+    "archiveCode": "Archive {{code}}",
+    "restore": "Restore",
+    "restoreCode": "Restore {{code}}",
+    "active": "Active",
+    "archived": "Archived",
+    "tabs": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "empty": {
+      "active": "No units yet.",
+      "archived": "No archived units."
+    },
+    "columns": {
+      "code": "Code",
+      "name": "Name",
+      "kind": "Kind",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "count": "Count",
+      "weight": "Weight",
+      "volume": "Volume",
+      "length": "Length",
+      "time": "Time"
+    },
+    "fields": {
+      "code": "Code",
+      "codeHelp": "Up to 10 capital letters, digits or _, such as BOX12.",
+      "nameEn": "Name in English",
+      "nameFr": "Name in French",
+      "kind": "Kind"
+    },
+    "archiveTitle": "Archive {{code}}?",
+    "archiveText": "It is no longer offered for new items. Every company shares units, so this applies to all of them.",
+    "archiveConfirm": "Archive unit",
+    "keep": "Keep unit",
+    "errors": {
+      "inUse": "Active items use this unit. Change those items first."
+    }
+  },
+  "parties": {
+    "add": {
+      "customer": "Add customer",
+      "supplier": "Add supplier"
+    },
+    "back": {
+      "customer": "All customers",
+      "supplier": "All suppliers"
+    },
+    "newTitle": {
+      "customer": "New customer",
+      "supplier": "New supplier"
+    },
+    "newText": "A name is enough to start. Add phone numbers so the till can find them.",
+    "search": "Search",
+    "searchPlaceholder": "Name, tax ID or phone number",
+    "pages": "Contact pages",
+    "emptyFiltered": "No contacts match. Try another search or tag.",
+    "filters": {
+      "tag": "Tag"
+    },
+    "empty": {
+      "customer": {
+        "active": "No customers yet.",
+        "archived": "No archived customers."
+      },
+      "supplier": {
+        "active": "No suppliers yet.",
+        "archived": "No archived suppliers."
+      }
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived",
+      "activeOne": "Active",
+      "archivedOne": "Archived"
+    },
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "tags": "Tags",
+      "creditLimit": "Credit limit"
+    },
+    "kinds": {
+      "person": "Person",
+      "organisation": "Organisation"
+    },
+    "roles": {
+      "customer": "Customer",
+      "supplier": "Supplier",
+      "contact": "Contact",
+      "employee_link": "Employee"
+    },
+    "notFound": "This contact does not exist or you cannot see it. Go back to the list and choose another.",
+    "unnamed": "Unnamed contact",
+    "saved": "{{name}} saved.",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archiveTitle": "Archive {{name}}?",
+    "archiveText": "They no longer appear in lists or at the till. Their history is kept and you can restore them later.",
+    "archiveConfirm": "Archive contact",
+    "keep": "Keep contact",
+    "form": {
+      "details": "Details",
+      "kind": "Kind",
+      "name": "Name",
+      "legalName": "Legal name",
+      "legalNameHelp": "As registered, if different from the name.",
+      "taxId": "Tax ID",
+      "taxIdHelp": "KRA PIN in Kenya, NIF in the DR Congo.",
+      "roles": "Roles",
+      "rolesRequired": "Choose at least one role.",
+      "company": "Company",
+      "companyHelp": "These contacts are kept per company. Choose whose contact this is.",
+      "companyChangeHelp": "With these roles the contact is kept per company. Choose which company keeps it.",
+      "becomesShared": "With these roles the contact is shared by every company.",
+      "confirmShared": "Share this contact with every company",
+      "confirmSharedRequired": "Confirm that every company may see this contact, or keep its roles.",
+      "contact": "Phone and email",
+      "phones": "Phone numbers",
+      "phone": "Phone {{n}}",
+      "phoneLabelExample": "Mobile, office…",
+      "addPhone": "Add phone number",
+      "removePhone": "Remove phone {{n}}",
+      "emails": "Email addresses",
+      "email": "Email {{n}}",
+      "emailLabelExample": "Billing, orders…",
+      "addEmail": "Add email address",
+      "removeEmail": "Remove email {{n}}",
+      "label": "Label",
+      "addresses": "Addresses",
+      "addressN": "Address {{n}}",
+      "noAddresses": "No addresses yet.",
+      "addressLabel": "Label",
+      "addressLabelExample": "Shop, warehouse…",
+      "line1": "Street and number",
+      "line2": "Building, floor",
+      "city": "City",
+      "region": "County or province",
+      "postalCode": "Postal code",
+      "country": "Country",
+      "noCountry": "Not set",
+      "addAddress": "Add address",
+      "removeAddress": "Remove address {{n}}",
+      "terms": "Terms",
+      "currency": "Currency",
+      "currencyHelp": "The currency their documents use by default.",
+      "noCurrency": "The company’s base currency",
+      "paymentTerms": "Payment terms",
+      "paymentTermsHelp": "Days to pay an invoice, 0 to 365.",
+      "days": "days",
+      "creditCurrency": "Credit limit currency",
+      "creditLimit": "Credit limit",
+      "creditLimitHelp": "Leave empty for no limit.",
+      "priceList": "Price list",
+      "noPriceList": "The default prices",
+      "tags": "Tags",
+      "tagsHelp": "Separate tags with commas, such as wholesale, vip.",
+      "create": {
+        "customer": "Create customer",
+        "supplier": "Create supplier"
+      }
     }
   }
 }

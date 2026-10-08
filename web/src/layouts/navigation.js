@@ -3,7 +3,8 @@
  * which any one is enough) shows only when the user has it somewhere (with
  * `tenantWide`, only at tenant scope); an item with `module` only while that
  * module is active.
- * Overview, Settings, Finance (currencies, rates, taxes, payment methods)
+ * Overview, Catalogue (items, categories, units), Contacts (customers,
+ * suppliers), Settings, Finance (currencies, rates, taxes, payment methods)
  * and Master data; later modules add their groups here.
  */
 // A user who sees any level of the organisation (a cashier sees their
@@ -16,11 +17,34 @@ export const TAX_VIEW = ['core.tax.view', 'core.tax.edit']
 export const PAYMENT_METHOD_VIEW = ['core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive']
 export const DIMENSION_VIEW = ['core.dimension.view', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.archive']
 
+// MD-01, MD-02: who may read the catalogue and contacts (the API checks again).
+export const ITEM_VIEW = 'core.item.view'
+export const CATEGORY_VIEW = 'core.item_category.view'
+export const UOM_VIEW = ['core.uom.view', 'core.uom.edit']
+export const PARTY_VIEW = 'core.party.view'
+
 export const NAV_GROUPS = [
   {
     id: 'overview',
     label: (t) => t('nav.groups.overview'),
     items: [{ to: '/', end: true, icon: 'dashboard', label: (t) => t('nav.dashboard') }],
+  },
+  {
+    id: 'catalogue',
+    label: (t) => t('nav.groups.catalogue'),
+    items: [
+      { to: '/catalogue/items', icon: 'items', label: (t) => t('nav.items'), permission: ITEM_VIEW, module: 'core' },
+      { to: '/catalogue/categories', icon: 'categories', label: (t) => t('nav.categories'), permission: CATEGORY_VIEW, module: 'core' },
+      { to: '/catalogue/units', icon: 'units', label: (t) => t('nav.units'), permission: UOM_VIEW, module: 'core' },
+    ],
+  },
+  {
+    id: 'contacts',
+    label: (t) => t('nav.groups.contacts'),
+    items: [
+      { to: '/contacts/customers', icon: 'customers', label: (t) => t('nav.customers'), permission: PARTY_VIEW, module: 'core' },
+      { to: '/contacts/suppliers', icon: 'suppliers', label: (t) => t('nav.suppliers'), permission: PARTY_VIEW, module: 'core' },
+    ],
   },
   {
     id: 'settings',

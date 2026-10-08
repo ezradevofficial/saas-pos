@@ -227,4 +227,15 @@ describe('Organisation', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('devices/d-1/unpair'))
     expect(api.post).not.toHaveBeenCalledWith('devices/d-1/resume')
   })
+
+  it('opens the history of a company, branch or location in a dialog (MD-07)', async () => {
+    organisation()
+    const get = api.get.getMockImplementation()
+    api.get.mockImplementation(async (path) => (path === 'history/branch/b-1?per_page=20&page=1' ? { data: [{ id: 'h-1', action: 'core.branch.update', actor: { id: 'u-1', name: 'Amina Otieno' }, before: { name: 'Westlands Mall' }, after: { name: 'Westlands' }, occurred_at: '2026-10-08T08:00:00Z' }], meta: { current_page: 1, last_page: 1 } } : get(path)))
+    renderApp('/settings/organisation')
+    fireEvent.click(await screen.findByRole('button', { name: 'History of Westlands' }))
+    const dialog = await screen.findByRole('dialog', { name: 'History of Westlands' })
+    expect(await within(dialog).findByText('Updated')).toBeInTheDocument()
+    expect(within(dialog).getByText('Westlands Mall')).toBeInTheDocument()
+  })
 })

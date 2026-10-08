@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, DataTable, Icon, Select, StatusBadge, TextField } from '@/components/ds'
+import { HistoryPanel } from '@/components/HistoryPanel'
+import { Alert, Button, Card, DataTable, Icon, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDate } from '@/lib/dates'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
 import { AssignmentFields } from './users/AssignmentFields'
 import { assignmentBody, emptyAssignment, offeredRow, USER_TONES, useGrantOptions } from './users/assignments'
@@ -220,6 +222,9 @@ export default function UserDetail() {
   const { can } = usePermissions()
   const [confirm, setConfirm] = useState(null) // 'deactivate' | 'reactivate' | 'signOut'
   const [signedOut, setSignedOut] = useState(false)
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'history' ? 'history' : 'details'
+  const timeZone = useTimeZone()
   const query = useQuery({ queryKey: ['users', 'detail', userId], queryFn: () => api.get(`users/${userId}`) })
   const user = query.data?.data
 
@@ -303,10 +308,24 @@ export default function UserDetail() {
         }
       />
       {signedOut ? <Alert tone="success" title={t('users.detail.signedOut', { name })} /> : null}
-      <div className="flex flex-col gap-5">
-        <ProfileCard key={user.id} user={user} canEdit={can('core.user.edit')} />
-        <RolesCard user={user} canAssign={can('core.role.assign')} />
-      </div>
+      <Tabs
+        items={[
+          { value: 'details', label: t('items.tabs.details') },
+          { value: 'history', label: t('items.tabs.history') },
+        ]}
+        value={tab}
+        onChange={(next) => setParams(next === 'history' ? { tab: 'history' } : {}, { replace: true })}
+      />
+      {tab === 'details' ? (
+        <div className="flex flex-col gap-5">
+          <ProfileCard key={user.id} user={user} canEdit={can('core.user.edit')} />
+          <RolesCard user={user} canAssign={can('core.role.assign')} />
+        </div>
+      ) : (
+        <Card>
+          <HistoryPanel type="user" recordId={user.id} timeZone={timeZone} />
+        </Card>
+      )}
       <ConfirmDialog
         open={Boolean(current)}
         title={current?.title ?? ''}

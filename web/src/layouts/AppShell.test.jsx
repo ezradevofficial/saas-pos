@@ -83,7 +83,20 @@ describe('app shell navigation', () => {
       [{ id: 'g', label: () => 'G', items: [{ to: '/x', label: () => 'X', module: 'inventory' }] }, ...NAV_GROUPS],
       { can: () => true, hasModule: (m) => m === 'core' },
     )
-    expect(groups.map((g) => g.id)).toEqual(['overview', 'settings', 'finance', 'masterData'])
+    expect(groups.map((g) => g.id)).toEqual(['overview', 'catalogue', 'contacts', 'settings', 'finance', 'masterData'])
+  })
+
+  it('shows Catalogue and Contacts only with their view permissions (MD-01, MD-02)', () => {
+    const only = (names) => visibleGroups(NAV_GROUPS, { can: (name) => (Array.isArray(name) ? name : [name]).some((one) => names.includes(one)), hasModule: () => true })
+    const labels = (groups, id) => groups.find((g) => g.id === id)?.items.map((item) => item.to) ?? []
+
+    const cashier = only(['core.item.view', 'core.party.view'])
+    expect(labels(cashier, 'catalogue')).toEqual(['/catalogue/items'])
+    expect(labels(cashier, 'contacts')).toEqual(['/contacts/customers', '/contacts/suppliers'])
+
+    const stock = only(['core.item.view', 'core.item_category.view', 'core.uom.view'])
+    expect(labels(stock, 'catalogue')).toEqual(['/catalogue/items', '/catalogue/categories', '/catalogue/units'])
+    expect(stock.some((g) => g.id === 'contacts')).toBe(false)
   })
 
   it('offers all companies to a tenant-wide user and remembers the choice', async () => {

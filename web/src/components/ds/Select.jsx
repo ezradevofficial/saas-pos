@@ -13,7 +13,14 @@ export function Select({ label, help, error, placeholder, options = [], classNam
   const startOnPlaceholder = placeholder && rest.value === undefined && rest.defaultValue === undefined
   return (
     <Field id={selectId} label={label} help={help} error={error} required={required} className={className}>
-      <div className={cn(controlWrapClasses, error && 'border-danger hover:border-danger')}>
+      <div
+        className={cn(
+          controlWrapClasses,
+          // A disabled <option> (the placeholder, an archived choice) must not grey the whole control.
+          !rest.disabled && 'has-disabled:border-border-strong has-disabled:bg-surface-200 has-disabled:hover:border-ink-muted',
+          error && 'border-danger hover:border-danger',
+        )}
+      >
         <select
           id={selectId}
           required={required}
