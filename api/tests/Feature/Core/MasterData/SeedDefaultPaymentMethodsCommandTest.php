@@ -49,21 +49,28 @@ class SeedDefaultPaymentMethodsCommandTest extends TestCase
         $congo = $this->signUp('cd@example.com', 'CD');
         $this->asTenant($congo, fn () => $this->assertSame(7, PaymentMethod::query()->count()));
 
-        // Kenya archived M-Pesa and never had Airtel Money (as for a company created before MD-04).
+        // Kenya archived M-Pesa and never had Airtel Money or cash USD (as for a company created before MD-04).
         $this->asTenant($kenya, function () {
+            $this->assertTrue(PaymentMethod::query()->where('currency', 'USD')->sole()->active, 'cash seeded at creation is on');
             PaymentMethod::query()->where('provider', 'mpesa_ke')->sole()->archive();
             DB::table('payment_methods')->where('provider', 'airtel_ke')->delete();
+            DB::table('payment_methods')->where('type', 'cash')->where('currency', 'USD')->delete();
         });
 
         $this->assertSame(0, Artisan::call('payment-methods:seed-defaults'));
-        $this->assertMatchesRegularExpression('/^1 payment methods created in 2 companies/', Artisan::output());
+        $this->assertMatchesRegularExpression('/^2 payment methods created in 2 companies/', Artisan::output());
 
         $this->asTenant($kenya, function () {
             $this->assertSame(5, PaymentMethod::query()->count());
             $this->assertNotNull(PaymentMethod::query()->where('provider', 'mpesa_ke')->sole()->archived_at);
+            // A back-fill adds cash switched off: it never opens a new till on its own (MD-04).
+            $usd = PaymentMethod::query()->where('type', 'cash')->where('currency', 'USD')->sole();
+            $this->assertFalse($usd->active);
+            $this->assertSame(6, $usd->position);
             $airtel = PaymentMethod::query()->where('provider', 'airtel_ke')->sole();
             $this->assertFalse($airtel->active);
-            $this->assertSame(6, $airtel->position);
+            $this->assertSame(7, $airtel->position);
+            $this->assertTrue(PaymentMethod::query()->where('currency', 'KES')->sole()->active);
         });
         $this->asTenant($congo, fn () => $this->assertSame(7, PaymentMethod::query()->count()));
 

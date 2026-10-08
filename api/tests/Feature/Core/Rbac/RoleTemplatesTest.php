@@ -81,6 +81,7 @@ class RoleTemplatesTest extends TestCase
             'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.item_category.archive',
             'core.uom.view', 'core.uom.edit',
             'core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive',
+            'core.payment_method.configure',
             'core.dimension.view', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.archive',
         ] as $name) {
             $this->assertContains($name, $names);
@@ -88,7 +89,7 @@ class RoleTemplatesTest extends TestCase
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(62, count($names));
+        $this->assertSame(63, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -188,8 +189,10 @@ class RoleTemplatesTest extends TestCase
 
     public function test_templates_grant_payment_method_and_dimension_permissions_by_job(): void
     {
-        // MD-04, MD-05: tills and managers read payment methods; HR and
-        // buyers read dimensions; the accountant keeps both; the auditor reads.
+        // MD-04, MD-05: tills, managers and the accountant read payment
+        // methods (only Owner and Admin manage and configure them: provider
+        // credentials are a fraud path); HR and buyers read dimensions; the
+        // accountant keeps dimensions; the auditor reads.
         $this->enter($this->signUp()->json('challenge_id'));
         $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
             ->where(fn ($q) => $q->where('name', 'like', 'core.payment_method.%')->orWhere('name', 'like', 'core.dimension.%'))
@@ -197,12 +200,16 @@ class RoleTemplatesTest extends TestCase
 
         $all = [
             'core.dimension.archive', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.view',
-            'core.payment_method.archive', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.view',
+            'core.payment_method.archive', 'core.payment_method.configure', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.view',
         ];
 
-        foreach (['owner', 'admin', 'accountant'] as $key) {
+        foreach (['owner', 'admin'] as $key) {
             $this->assertSame($all, $granted($key), $key);
         }
+
+        $this->assertSame([
+            'core.dimension.archive', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.view', 'core.payment_method.view',
+        ], $granted('accountant'));
 
         foreach (['branch_manager', 'cashier'] as $key) {
             $this->assertSame(['core.payment_method.view'], $granted($key), $key);
@@ -241,7 +248,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(62, $permissions);
+        $this->assertCount(63, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

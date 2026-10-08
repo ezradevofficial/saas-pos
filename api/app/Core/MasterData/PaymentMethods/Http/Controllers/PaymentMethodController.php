@@ -26,8 +26,8 @@ use Illuminate\Support\Facades\DB;
  * setting and secret of its provider (`provider_not_configured`), a cash
  * method a currency active in the tenant (`currency_not_active`). Settings
  * and secrets are merged key by key; a null value clears a key. Secrets
- * never leave the server. Archived, never deleted (TEN-06); a restored
- * method goes to the end of the order.
+ * never leave the server. Archived, never deleted (TEN-06): archiving
+ * switches a method off; a restored method goes to the end of the order.
  */
 class PaymentMethodController
 {
@@ -127,6 +127,8 @@ class PaymentMethodController
     public function archive(PaymentMethodActionRequest $request, PaymentMethod $paymentMethod): PaymentMethodResource
     {
         if (! $paymentMethod->isArchived()) {
+            // An archived method takes no money: it is switched off with the same save.
+            $paymentMethod->active = false;
             $paymentMethod->archive();
         }
 

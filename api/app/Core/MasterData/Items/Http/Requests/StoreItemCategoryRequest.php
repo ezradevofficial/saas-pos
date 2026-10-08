@@ -4,6 +4,7 @@ namespace App\Core\MasterData\Items\Http\Requests;
 
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Items\ItemCategoryPolicy;
+use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -16,6 +17,14 @@ use Illuminate\Validation\Validator;
  */
 class StoreItemCategoryRequest extends FormRequest
 {
+    use GuardsFieldRules;
+
+    /** RBAC-05: input refused when its field is hidden or read-only for the user. */
+    protected string $fieldRulesResource = 'item_category';
+
+    /** @var array<string, list<string>> input key => field rule names it writes */
+    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
+
     public function authorize(): bool
     {
         $companyId = $this->input('company_id');

@@ -9,6 +9,7 @@ return [
         'last_owner' => 'Votre organisation doit garder au moins un propriétaire actif.',
         'cannot_grant' => 'Vous ne pouvez attribuer que des rôles dont vous détenez les permissions, là où vous gérez les accès. Seul un propriétaire peut attribuer ou retirer le rôle Propriétaire.',
         'already_assigned' => 'Cet utilisateur a déjà ce rôle ici.',
+        'field_readonly' => 'Vous ne pouvez pas modifier le champ :field. Retirez-le, ou demandez l’accès à un administrateur.',
     ],
 
     // RBAC-01 : libellés du catalogue des permissions (GET permissions).
@@ -46,6 +47,7 @@ return [
             'assign' => 'Attribuer',
             'export' => 'Exporter',
             'override' => 'Remplacer',
+            'configure' => 'Configurer',
         ],
     ],
 

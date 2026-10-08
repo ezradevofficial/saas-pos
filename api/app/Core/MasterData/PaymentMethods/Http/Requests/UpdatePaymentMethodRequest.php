@@ -2,6 +2,9 @@
 
 namespace App\Core\MasterData\PaymentMethods\Http\Requests;
 
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Rbac\Http\Requests\GuardsFieldRules;
+
 /**
  * MD-04: rename a payment method, change a cash method's currency, set or
  * clear provider settings and secrets (a null value clears a key), switch
@@ -10,7 +13,20 @@ namespace App\Core\MasterData\PaymentMethods\Http\Requests;
  */
 class UpdatePaymentMethodRequest extends PaymentMethodRequest
 {
+    use GuardsFieldRules, GuardsProviderConfig;
+
+    /** RBAC-05: input refused when its field is hidden or read-only for the user. */
+    protected string $fieldRulesResource = 'payment_method';
+
+    /** @var array<string, list<string>> input key => field rule names it writes */
+    protected array $fieldRulesInputs = ['name_en' => ['name'], 'name_fr' => ['name']];
+
     protected bool $edits = true;
+
+    protected function configuredMethod(): ?PaymentMethod
+    {
+        return $this->paymentMethod();
+    }
 
     public function rules(): array
     {

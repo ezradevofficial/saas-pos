@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\History\Http;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\MasterData\History\HistoryTypes;
 use App\Core\MasterData\Support\TextArray;
 use App\Core\Rbac\FieldRules;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,11 +19,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 class HistoryController
 {
-    public function __invoke(HistoryRequest $request, FieldRules $fieldRules): AnonymousResourceCollection
+    public function __invoke(HistoryRequest $request, FieldRules $fieldRules, HistoryTypes $types): AnonymousResourceCollection
     {
         $record = $request->record();
         $resource = $request->fieldRulesResource();
-        $hidden = $resource === null ? [] : $fieldRules->for($request->user(), $resource)['hidden'];
+        $hidden = $resource === null ? [] : $types->withDerived((string) $request->route('type'), $fieldRules->for($request->user(), $resource)['hidden']);
 
         $query = AuditEntry::query()
             ->leftJoin('users', 'users.id', '=', 'audit_logs.user_id')

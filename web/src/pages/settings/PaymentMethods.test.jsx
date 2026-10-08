@@ -7,7 +7,7 @@ vi.mock('@/api/client', async (importOriginal) => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), download: vi.fn() },
 }))
 
-const EDITOR = tenantWide(['core.company.view', 'core.payment_method.view', 'core.payment_method.edit'])
+const EDITOR = tenantWide(['core.company.view', 'core.payment_method.view', 'core.payment_method.edit', 'core.payment_method.configure'])
 const method = (overrides) => ({
   company_id: 'c-1',
   provider: null,
@@ -148,5 +148,14 @@ describe('PaymentMethods', () => {
     expect(await screen.findByRole('switch', { name: 'Use Cash USD at the till' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Move/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Settings for/ })).not.toBeInTheDocument()
+  })
+
+  it('keeps provider settings and switching mobile money or card to users who may configure them', async () => {
+    methods(undefined, tenantWide(['core.company.view', 'core.payment_method.view', 'core.payment_method.edit']))
+    renderApp('/settings/payment-methods')
+    expect(await screen.findByRole('switch', { name: 'Use Cash USD at the till' })).toBeEnabled()
+    expect(screen.getByRole('switch', { name: 'Use M-Pesa at the till' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /Settings for/ })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Move/ }).length).toBeGreaterThan(0)
   })
 })

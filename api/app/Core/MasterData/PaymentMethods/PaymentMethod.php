@@ -27,7 +27,10 @@ class PaymentMethod extends Model implements HasScope
     public const TYPES = ['cash', 'mobile_money', 'card', 'credit', 'voucher', 'points', 'bank_transfer'];
 
     /** Any of these at, above or beneath the company lets a user read its payment methods. */
-    public const PERMISSIONS = ['core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive'];
+    public const PERMISSIONS = ['core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive', 'core.payment_method.configure'];
+
+    /** Changes provider settings, secrets and the provider, and switches on mobile money or card methods. */
+    public const CONFIGURE = 'core.payment_method.configure';
 
     /** Types that are linked to a provider (and need one). */
     public const PROVIDER_TYPES = ['mobile_money', 'card'];

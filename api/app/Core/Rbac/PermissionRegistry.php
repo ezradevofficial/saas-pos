@@ -32,7 +32,7 @@ class PermissionRegistry
         'item' => ['view', 'create', 'edit', 'archive'],
         'item_category' => ['view', 'create', 'edit', 'archive'],
         'uom' => ['view', 'edit'],
-        'payment_method' => ['view', 'create', 'edit', 'archive'],
+        'payment_method' => ['view', 'create', 'edit', 'archive', 'configure'],
         'dimension' => ['view', 'create', 'edit', 'archive'],
     ];
 

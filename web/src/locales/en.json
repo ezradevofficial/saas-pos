@@ -6,7 +6,11 @@
     "loading": "Loading",
     "retry": "Try again",
     "cancel": "Cancel",
-    "save": "Save changes"
+    "save": "Save changes",
+    "tabs": {
+      "details": "Details",
+      "history": "History"
+    }
   },
   "ds": {
     "field": {

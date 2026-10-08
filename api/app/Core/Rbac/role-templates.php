@@ -79,7 +79,7 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create', 'core.party.edit',
-            'core.payment_method.*', 'core.dimension.*',
+            'core.payment_method.view', 'core.dimension.*',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,

@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * default payment methods. Lists tenant ids as the schema owner, then
  * seeds each tenant's companies inside its own tenant context (runtime
  * connection, row-level security applies). Idempotent: an entry a company
- * has ever had, archived included, is never added again. Safe on every
+ * has ever had, archived included, is never added again; cash methods it
+ * adds are switched off, for the tenant to switch on. Safe on every
  * deploy (after `uoms:seed-defaults`).
  */
 class SeedDefaultPaymentMethodsCommand extends Command
@@ -33,7 +34,7 @@ class SeedDefaultPaymentMethodsCommand extends Command
             $tenants->run($tenantId, function () use ($defaults, &$created, &$companies) {
                 foreach (Company::query()->whereNull('archived_at')->orderBy('id')->pluck('id') as $companyId) {
                     $created += DB::connection(TenantContext::CONNECTION)->transaction(
-                        fn () => $defaults->seed(Company::query()->findOrFail($companyId)),
+                        fn () => $defaults->seed(Company::query()->findOrFail($companyId), activateCash: false),
                     );
                     $companies++;
                 }

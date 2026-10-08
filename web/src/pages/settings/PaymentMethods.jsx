@@ -207,7 +207,7 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
   )
 }
 
-function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings, toggling, error, focus }) {
+function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggle, onSettings, toggling, error, focus }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const name = methodName(method, locale)
@@ -223,6 +223,9 @@ function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings,
     ;(pressed.current && !pressed.current.disabled ? pressed : other).current?.focus()
   }, [focus, method.id])
   const meta = method.provider ? t(`paymentMethods.providers.${method.provider}`, { defaultValue: t('paymentMethods.providers.other') }) : method.currency
+  // MD-04: provider credentials and switching on mobile money or card need `configure`.
+  const providerType = PROVIDER_TYPES.includes(method.type)
+  const canToggle = canEdit && (!providerType || canConfigure)
   const status = method.active
     ? { tone: 'success', label: t('paymentMethods.status.on') }
     : PROVIDER_TYPES.includes(method.type) && !method.configured
@@ -240,7 +243,7 @@ function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings,
           {meta && meta !== name ? <span className="text-caption text-ink-muted">{meta}</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          {canEdit && PROVIDER_TYPES.includes(method.type) ? (
+          {canConfigure && providerType ? (
             <Button variant="ghost" icon="key" onClick={onSettings} aria-label={t('paymentMethods.settings.actionFor', { name })}>
               {t('paymentMethods.settings.action')}
             </Button>
@@ -254,7 +257,7 @@ function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings,
           <Switch
             className="ml-2"
             checked={method.active}
-            disabled={!canEdit || toggling}
+            disabled={!canToggle || toggling}
             aria-label={t('paymentMethods.toggle', { name })}
             onChange={onToggle}
           />
@@ -278,6 +281,7 @@ export default function PaymentMethods() {
   const keyList = useKeyList()
   const { company, picker, ready } = useSettingsCompany()
   const canEdit = company ? can('core.payment_method.edit', companyScope(company)) : false
+  const canConfigure = canEdit && company ? can('core.payment_method.configure', companyScope(company)) : false
   const [settingsFor, setSettingsFor] = useState(null)
   const [rowError, setRowError] = useState(null) // { id, message }
   const [focus, setFocus] = useState(null) // { id, step }: the row just moved
@@ -357,6 +361,7 @@ export default function PaymentMethods() {
                   key={method.id}
                   method={method}
                   canEdit={canEdit}
+                  canConfigure={canConfigure}
                   first={index === 0}
                   last={index === group.methods.length - 1}
                   onMove={(step) => move(group, index, step)}
