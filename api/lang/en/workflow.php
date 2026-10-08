@@ -144,6 +144,9 @@ return [
         'dead_end' => 'No end can be reached after “:node”.',
         'branch_escapes' => 'Every branch of “:node” must reach “:join” before the workflow ends.',
         'join_split_mismatch' => '“:node” receives steps that are not part of its parallel step.',
+        'approval_without_rejected' => '“:node” needs a path for “rejected”, so a rejection or a timeout has somewhere to go.',
+        'rejected_reaches_approved' => 'After “:node” rejects, the workflow can still reach “:end”, which ends approved. Lead the rejection to an end that isn’t approved, or through another approval.',
+        'approval_in_parallel' => 'Approvals can’t run in parallel branches yet. Use the approval’s “all” or “majority” mode for a group decision.',
     ],
 
     'actions' => [

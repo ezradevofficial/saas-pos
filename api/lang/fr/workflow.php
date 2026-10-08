@@ -144,6 +144,9 @@ return [
         'dead_end' => 'Aucune fin n’est atteignable après « :node ».',
         'branch_escapes' => 'Chaque branche de « :node » doit atteindre « :join » avant la fin du circuit.',
         'join_split_mismatch' => '« :node » reçoit des étapes qui ne font pas partie de son étape parallèle.',
+        'approval_without_rejected' => '« :node » a besoin d’un chemin pour « rejeté », afin qu’un rejet ou un délai dépassé mène quelque part.',
+        'rejected_reaches_approved' => 'Après un rejet à « :node », le workflow peut encore atteindre « :end », qui se termine approuvé. Menez le rejet vers une fin non approuvée, ou par une autre approbation.',
+        'approval_in_parallel' => 'Les approbations ne peuvent pas encore se faire dans des branches parallèles. Utilisez le mode « toutes » ou « majorité » de l’approbation pour une décision de groupe.',
     ],
 
     'actions' => [

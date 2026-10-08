@@ -15,6 +15,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\Events\WorkflowCompleted;
 use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use App\Core\Workflow\Models\DocumentWorkflow;
@@ -471,6 +472,29 @@ class CreditLimitChangeApiTest extends TestCase
 
         $response = $this->postJson("/api/v1/workflows/{$workflow}/publish", [], $this->headersFor())->assertUnprocessable();
         $this->assertStringContainsString('approval_required', $response->getContent());
+    }
+
+    public function test_a_rejection_counts_as_no_approval_on_the_way_to_approved(): void
+    {
+        // H1: start → approve → (rejected) → review → approved end.
+        $type = app(CreditLimitChangeType::class);
+        $flow = FlowGraph::fromArray([
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => 'Approve'],
+                ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
+                ['id' => 'done', 'type' => 'end', 'outcome' => 'approved', 'name' => 'Done'],
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'approve'],
+                ['from' => 'approve', 'to' => 'done', 'branch' => 'approved'],
+                ['from' => 'approve', 'to' => 'review', 'branch' => 'rejected'],
+                ['from' => 'review', 'to' => 'done'],
+            ],
+        ]);
+
+        $this->assertSame(['approval_required'], array_column($type->validateFlow($flow), 'code'));
+        $this->assertSame([], $type->validateFlow(FlowGraph::fromArray($type->defaultFlow('KE'))));
     }
 
     public function test_the_flow_is_acted_on_with_the_approve_permission_and_company_colleagues_cancel(): void

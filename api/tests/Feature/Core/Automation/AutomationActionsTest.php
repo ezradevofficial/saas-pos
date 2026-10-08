@@ -91,8 +91,9 @@ class AutomationActionsTest extends TestCase
                 ['id' => 'start', 'type' => 'start'],
                 ['id' => 'approve', 'type' => 'approval', 'name' => 'Manager approves', 'approval' => ['approver' => ['type' => 'user', 'user_id' => $manager->id]]],
                 ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+                ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'],
             ],
-            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved']],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']],
         ]);
         $rule = $this->inTenant(fn () => app(Rules::class)->create([
             'name' => 'Approve for them', 'document_type' => TestRequestType::KEY, 'enabled' => true,

@@ -19,7 +19,9 @@ use App\Core\Workflow\Handlers\ApprovalHandler;
  * names, invalid entry/exit/branch conditions or conditions on unknown
  * fields, unknown roles, bad time limits, joins without their split (and
  * parallel branches that leave before the join), unknown actions or
- * next-document mappings, and the approval handler's own checks. A draft
+ * next-document mappings, the approval handler's own checks, approvals
+ * without a `rejected` path (H2), inside a parallel block, or whose
+ * rejection can still end `approved` (H1). A draft
  * with any of them is not published.
  *
  * Each problem: `code`, `message` (translated), `node` (id or null).
@@ -157,6 +159,7 @@ class GraphValidator
         } else {
             $this->checkDeadEnds($flow, $add);
             $this->checkParallel($flow, $add);
+            $this->checkRejections($flow, $add);
             array_push($problems, ...$type->validateFlow($flow));
         }
 
@@ -185,6 +188,9 @@ class GraphValidator
 
         if (! $ok) {
             $add('wrong_edges.'.$node['type'], $id);
+        } elseif ($node['type'] === 'approval' && ! in_array('rejected', $branches, true)) {
+            // H2: a rejection (or a timeout ending in `reject`) needs a path.
+            $add('approval_without_rejected', $id);
         }
 
         if ($node['type'] === 'start' && $flow->incoming($id) !== []) {
@@ -466,9 +472,58 @@ class GraphValidator
                 $inside += $seen;
             }
 
+            // Owner decision: a join carries no outcome, so a rejection inside a
+            // branch could still end `approved` after the join. Group decisions
+            // use the approval's own `all` or `majority` mode instead.
+            // Every node after the split and before the join, branches that escape included.
+            $between = [];
+            $queue = array_column($flow->outgoing($split), 'to');
+
+            while ($queue !== []) {
+                $current = array_shift($queue);
+
+                if ($current === $join || isset($between[$current])) {
+                    continue;
+                }
+
+                $between[$current] = true;
+                array_push($queue, ...array_column($flow->outgoing($current), 'to'));
+            }
+
+            foreach (array_keys($between) as $id) {
+                if ($flow->type($id) === 'approval') {
+                    $add('approval_in_parallel', $id);
+                }
+            }
+
             foreach ($flow->incoming($join) as $edge) {
                 if ($edge['from'] !== $split && ! isset($inside[$edge['from']])) {
                     $add('join_split_mismatch', $join);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * H1: after an approval's `rejected` edge, no `approved` end may be
+     * reached without another approval's `approved` edge on the way.
+     *
+     * @param  callable(string, ?string, array): void  $add
+     */
+    private function checkRejections(FlowGraph $flow, callable $add): void
+    {
+        foreach ($flow->nodesOfType('approval') as $approval) {
+            $rejected = $flow->next($approval, 'rejected');
+
+            if ($rejected === null) {
+                continue;
+            }
+
+            foreach ($flow->reachableWithoutApproval([$rejected]) as $id) {
+                if ($flow->type($id) === 'end' && ($flow->node($id)['outcome'] ?? null) === 'approved') {
+                    $add('rejected_reaches_approved', $approval, ['end' => $flow->name($id)]);
 
                     break;
                 }

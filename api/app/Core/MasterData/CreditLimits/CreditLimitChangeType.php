@@ -123,7 +123,8 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
 
     /**
      * M4: an `approved` end must not be reachable from the start without
-     * passing an approval node, or a flow could raise limits unapproved.
+     * passing an approval node's `approved` edge, or a flow could raise
+     * limits unapproved (H1: a path after a rejection counts as unapproved).
      */
     public function validateFlow(FlowGraph $flow): array
     {
@@ -133,27 +134,15 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
             return [];
         }
 
-        $seen = [$start => true];
-        $queue = [$start];
         $problems = [];
 
-        while ($queue !== []) {
-            $id = array_shift($queue);
+        // H1: approval nodes pass only along `rejected` (an approved end
+        // after a rejection is as unapproved as one with no approval at all).
+        foreach ($flow->reachableWithoutApproval([$start]) as $id) {
             $node = $flow->node($id) ?? [];
-
-            if (($node['type'] ?? null) === 'approval') {
-                continue;
-            }
 
             if (($node['type'] ?? null) === 'end' && ($node['outcome'] ?? null) === 'approved') {
                 $problems[] = ['code' => 'approval_required', 'message' => __('core.credit_limit_change.validation.approval_required', ['node' => $flow->name($id)]), 'node' => $id];
-            }
-
-            foreach ($flow->outgoing($id) as $edge) {
-                if (! isset($seen[$edge['to']])) {
-                    $seen[$edge['to']] = true;
-                    $queue[] = $edge['to'];
-                }
             }
         }
 

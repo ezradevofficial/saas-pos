@@ -132,7 +132,8 @@ class GraphValidatorTest extends TestCase
 
         $noRejected = $graph;
         $noRejected['edges'] = array_values(array_filter($graph['edges'], fn ($e) => ! ($e['from'] === 'branch_manager' && $e['branch'] === 'rejected')));
-        $this->assertNotContains('wrong_edges.approval', $this->codes($noRejected), 'a rejected path is optional');
+        $this->assertNotContains('wrong_edges.approval', $this->codes($noRejected));
+        $this->assertContains('approval_without_rejected', $this->codes($noRejected), 'H2: a rejection needs a path');
 
         $noApproved = $graph;
         $noApproved['edges'] = array_values(array_filter($graph['edges'], fn ($e) => ! ($e['from'] === 'branch_manager' && ($e['branch'] ?? null) === 'approved')));
@@ -305,5 +306,86 @@ class GraphValidatorTest extends TestCase
         [$k] = $this->node($graph, 'approved');
         $badOutcome['nodes'][$k]['outcome'] = 'Approved!';
         $this->assertContains('invalid_property', $this->codes($badOutcome));
+    }
+
+    /** start → approve → (approved: end approved, rejected: ...$rejectedPath). */
+    private function rejectionGraph(array $nodes, array $edges): array
+    {
+        return [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => 'Manager approves', 'approval' => ['approver' => ['type' => 'branch_manager']]],
+                ['id' => 'approved', 'type' => 'end', 'name' => 'Approved', 'outcome' => 'approved'],
+                ['id' => 'rejected', 'type' => 'end', 'name' => 'Rejected', 'outcome' => 'rejected'],
+                ...$nodes,
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'approve'],
+                ['from' => 'approve', 'to' => 'approved', 'branch' => 'approved'],
+                ...$edges,
+            ],
+        ];
+    }
+
+    public function test_a_rejection_cannot_reach_an_approved_end_without_another_approval(): void
+    {
+        // H1: rejected leads straight to the approved end.
+        $direct = $this->rejectionGraph([], [['from' => 'approve', 'to' => 'approved', 'branch' => 'rejected']]);
+        $this->assertContains('rejected_reaches_approved', $this->codes($direct));
+
+        // Through a stage and a condition, both branches ending approved.
+        $via = $this->rejectionGraph([
+            ['id' => 'rework', 'type' => 'stage', 'name' => 'Rework'],
+            ['id' => 'urgent', 'type' => 'condition', 'name' => 'Urgent?', 'condition' => ['field' => 'urgent', 'op' => 'eq', 'value' => true]],
+        ], [
+            ['from' => 'approve', 'to' => 'rework', 'branch' => 'rejected'],
+            ['from' => 'rework', 'to' => 'urgent'],
+            ['from' => 'urgent', 'to' => 'rejected', 'branch' => 'yes'],
+            ['from' => 'urgent', 'to' => 'approved', 'branch' => 'no'],
+        ]);
+        $problems = $this->inTenant(fn () => app(GraphValidator::class)->validate($via, app(DocumentTypeRegistry::class)->get(TestRequestType::KEY)));
+        $this->assertContains(['code' => 'rejected_reaches_approved', 'message' => 'After “Manager approves” rejects, the workflow can still reach “Approved”, which ends approved. Lead the rejection to an end that isn’t approved, or through another approval.', 'node' => 'approve'], $problems);
+
+        // An optional second approval can be skipped along `approved`: still refused.
+        $optional = $this->rejectionGraph([
+            ['id' => 'director', 'type' => 'approval', 'name' => 'Director', 'mandatory' => false,
+                'entry' => ['field' => 'urgent', 'op' => 'eq', 'value' => true], 'approval' => ['approver' => ['type' => 'branch_manager']]],
+        ], [
+            ['from' => 'approve', 'to' => 'director', 'branch' => 'rejected'],
+            ['from' => 'director', 'to' => 'approved', 'branch' => 'approved'],
+            ['from' => 'director', 'to' => 'rejected', 'branch' => 'rejected'],
+        ]);
+        $this->assertContains('rejected_reaches_approved', $this->codes($optional));
+
+        // A second (mandatory) approval re-decides: allowed.
+        $second = $optional;
+        $second['nodes'][4] = ['id' => 'director', 'type' => 'approval', 'name' => 'Director', 'approval' => ['approver' => ['type' => 'branch_manager']]];
+        $this->assertSame([], $this->codes($second));
+
+        // Rejected to a rejected end: fine.
+        $this->assertSame([], $this->codes($this->rejectionGraph([], [['from' => 'approve', 'to' => 'rejected', 'branch' => 'rejected']])));
+    }
+
+    public function test_approvals_are_refused_inside_parallel_branches(): void
+    {
+        $graph = Graphs::parallel();
+        $graph['nodes'][3] = ['id' => 'it', 'type' => 'approval', 'name' => 'IT approves', 'approval' => ['approver' => ['type' => 'branch_manager']]];
+        $graph['nodes'][] = ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'];
+        $graph['edges'][] = ['from' => 'it', 'to' => 'refused', 'branch' => 'rejected'];
+
+        $problems = $this->inTenant(fn () => app(GraphValidator::class)->validate($graph, app(DocumentTypeRegistry::class)->get(TestRequestType::KEY)));
+
+        $this->assertContains([
+            'code' => 'approval_in_parallel',
+            'message' => 'Approvals can’t run in parallel branches yet. Use the approval’s “all” or “majority” mode for a group decision.',
+            'node' => 'it',
+        ], $problems);
+
+        // Before the split and after the join is fine.
+        $outside = Graphs::parallel();
+        $outside['nodes'][6] = ['id' => 'close', 'type' => 'approval', 'name' => 'Close', 'approval' => ['approver' => ['type' => 'branch_manager']]];
+        $outside['nodes'][] = ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'];
+        $outside['edges'][] = ['from' => 'close', 'to' => 'refused', 'branch' => 'rejected'];
+        $this->assertSame([], $this->codes($outside));
     }
 }

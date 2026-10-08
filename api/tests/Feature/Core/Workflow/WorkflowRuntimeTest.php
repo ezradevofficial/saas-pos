@@ -188,16 +188,16 @@ class WorkflowRuntimeTest extends TestCase
         $this->assertSame([DocumentWorkflow::COMPLETED, 'rejected'], [$workflow->status, $workflow->outcome]);
         $this->assertSame([], $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)));
 
-        // A stage takes no outcome; an approval without a rejected path refuses a rejection.
+        // A stage takes no outcome.
         $this->publishFlow(Graphs::linear(['review']));
         $stage = $this->start($this->document());
         $this->assertSame('outcome_not_allowed', $this->refused(fn () => $this->engine()->move($stage, $this->owner, null, 'approved'))->errorCode);
 
+        // H2: an approval without a rejected path is not published (the engine still refuses a rejection there).
         $graph = Graphs::linear(['review']);
         $graph['nodes'][1]['type'] = 'approval';
-        $this->publishFlow($graph);
-        $approval = $this->start($this->document());
-        $this->assertSame('no_rejected_path', $this->refused(fn () => $this->engine()->move($approval, $this->owner, null, 'rejected'))->errorCode);
+        $problems = $this->inTenant(fn () => app(GraphValidator::class)->validate($graph, app(DocumentTypeRegistry::class)->get(TestRequestType::KEY)));
+        $this->assertSame(['approval_without_rejected'], array_column($problems, 'code'));
     }
 
     public function test_an_entry_rule_blocks_a_mandatory_stage_with_the_reason_and_changes_nothing(): void
@@ -613,6 +613,8 @@ class WorkflowRuntimeTest extends TestCase
 
         $graph = Graphs::linear(['manager']);
         $graph['nodes'][1]['type'] = 'approval';
+        $graph['nodes'][] = ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'];
+        $graph['edges'][] = ['from' => 'manager', 'to' => 'refused', 'branch' => 'rejected'];
         $this->publishFlow($graph);
         $workflow = $this->start($this->document());
 

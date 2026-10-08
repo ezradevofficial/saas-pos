@@ -323,8 +323,9 @@ final class TwoTenants
                 ['id' => 'start', 'type' => 'start'],
                 ['id' => 'approve', 'type' => 'approval', 'name' => "Approve {$upper}", 'approval' => ['approver' => ['type' => 'user', 'user_id' => $managerId]]],
                 ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+                ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'],
             ],
-            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end']],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']],
         ]], $owner));
         self::ok($test->postJson("/api/v1/workflows/{$everyCompany}/publish", [], $owner));
         $approval = app(TenantContext::class)->run($tenantId, function () use ($signUpCompany, $upper) {
