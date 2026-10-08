@@ -20,6 +20,11 @@ export const REQUISITION = {
   user_fields: ['owner'],
   date_fields: ['needed_by'],
   capabilities: ['update_fields', 'assign_users', 'dates', 'create_drafts', 'credit_hold'],
+  raises_record_events: true,
+  stages: [
+    { id: 'review', name: 'Review', kind: 'stage', company_id: null },
+    { id: 'approval', name: 'Manager approval', kind: 'approval', company_id: null },
+  ],
   triggers: ['record_created', 'record_updated', 'record_archived', 'field_changed', 'stage_entered', 'stage_left', 'date', 'threshold', 'schedule'],
   actions: ['update_field', 'change_stage', 'assign_user', 'notify', 'create_document', 'set_credit_hold', 'webhook'],
 }
@@ -38,6 +43,25 @@ export const ORDER = {
   capabilities: ['create_drafts'],
   triggers: ['record_created', 'record_updated', 'record_archived', 'field_changed', 'stage_entered', 'stage_left', 'threshold', 'schedule'],
   actions: ['change_stage', 'notify', 'create_document', 'webhook'],
+}
+
+/** A type whose module raises no record events, with a flow of one approval (AUTO-01). */
+export const CREDIT_LIMIT_CHANGE = {
+  key: 'core.credit_limit_change',
+  label: 'Credit limit change',
+  fields: [
+    { name: 'party', type: 'reference', label: 'Party', values: [], reference: 'core.party', operators: ['eq', 'ne', 'in', 'not_in', 'empty', 'not_empty'] },
+    { name: 'requested_limit', type: 'money', label: 'Requested limit', values: [], reference: null, operators: MONEY_OPS },
+  ],
+  writable_fields: [],
+  assignable_fields: [],
+  user_fields: [],
+  date_fields: [],
+  capabilities: [],
+  raises_record_events: false,
+  stages: [{ id: 'approve', name: 'Accountant approves', kind: 'approval', company_id: null }],
+  triggers: ['stage_entered', 'stage_left', 'schedule'],
+  actions: ['notify', 'create_document', 'webhook'],
 }
 
 export const CATALOGUE = {
@@ -93,6 +117,7 @@ export const RUN = {
   trigger: {},
   document_type: 'procurement.requisition',
   document_id: '0192a1b2-0000-7000-8000-00000000d0c1',
+  document: { id: '0192a1b2-0000-7000-8000-00000000d0c1', number: 'PR-0042', title: 'Office chairs', link: '/document-workflows/procurement.requisition/0192a1b2-0000-7000-8000-00000000d0c1' },
   outcome: 'failed',
   conditions: { passed: true, checks: [], failures: [] },
   actions: [
@@ -104,7 +129,8 @@ export const RUN = {
   error_code: 'action_failed',
   attempts: 3,
   chain_id: 'ch-1',
-  depth: 0,
+  depth: 1,
+  caused_by_rule: false,
   started_at: '2026-10-07T08:00:00Z',
   finished_at: '2026-10-07T08:00:02Z',
   next_attempt_at: null,
@@ -123,7 +149,6 @@ export function mockAutomation(api, { rule = RULE, permissions = AUTOMATION_PERM
       [`automation-rules/${rule.id}`, { data: rule }],
       // The rule a new rule's first save creates (the editor reads it again after saving).
       ['automation-rules/r-2', { data: { ...rule, id: 'r-2' } }],
-      [/^workflows\?type=/, { data: [] }],
       ['roles?per_page=200', { data: [{ id: ROLE_ID, name: 'Finance', is_system: false, template_key: null }] }],
       ['users?status=active&per_page=200', { data: [{ id: USER_ID, name: 'Baraka Mwangi' }] }],
     ],

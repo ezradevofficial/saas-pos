@@ -338,6 +338,8 @@ class AutomationRunsTest extends TestCase
         $this->assertSame([3, 'succeeded'], [$this->runs($three)->sole()->depth, $this->runs($three)->sole()->outcome]);
         $this->assertSame([4, 'loop_blocked'], [$this->runs($four)->sole()->depth, $this->runs($four)->sole()->outcome]);
         $this->assertSame([$one->id, $two->id, $three->id], $this->runs($four)->sole()->chain);
+        $this->getJson("/api/v1/automation-runs/{$this->runs($one)->sole()->id}", $this->headersFor())->assertOk()->assertJsonPath('data.caused_by_rule', false);
+        $this->getJson("/api/v1/automation-runs/{$this->runs($two)->sole()->id}", $this->headersFor())->assertOk()->assertJsonPath('data.caused_by_rule', true);
         $this->assertSame('open', $this->taskValues($id)['status']);
         $this->assertTrue($this->taskValues($id)['urgent']);
     }

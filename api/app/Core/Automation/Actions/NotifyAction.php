@@ -25,7 +25,8 @@ use Illuminate\Support\Str;
  * With a document, only people who may see it are notified (the others
  * are listed as skipped in the run log). Subject and message are the
  * tenant's one text (NOT-03 owner decision) with `{field}` placeholders
- * filled from the document in the organisation's language. The link is
+ * filled from the document in the organisation's language (a reference
+ * field as its display value: a party's name, not its id). The link is
  * the document's page when the type offers one (relative paths only).
  */
 class NotifyAction implements AutomationAction
@@ -173,6 +174,6 @@ class NotifyAction implements AutomationAction
         return $this->text->render($text, $context->type, $context->documentId === null ? [] : $context->visibleValues(), [
             'document_type' => __($context->type->label(), [], $context->locale),
             'rule_name' => $context->rule->name,
-        ], $context->locale, $context->timezone);
+        ], $context->locale, $context->timezone, $context->visibleDisplayValues());
     }
 }

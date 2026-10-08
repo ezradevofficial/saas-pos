@@ -2,6 +2,7 @@
 
 namespace App\Core\Workflow\Listeners;
 
+use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
@@ -84,8 +85,19 @@ class SendWorkflowNotification
         });
     }
 
-    /** The web app's page for a document's flow. */
+    /**
+     * The web app's page for a document: the type's own page when it has
+     * one (LinksDocuments), else the generic flow status page (WF-10).
+     */
     public static function link(string $documentType, string $documentId): string
+    {
+        $type = app(DocumentTypeRegistry::class)->find($documentType);
+
+        return $type instanceof LinksDocuments ? $type->documentLink($documentId) : self::statusLink($documentType, $documentId);
+    }
+
+    /** WF-10: the generic page of a document's flow (status, steps, history). */
+    public static function statusLink(string $documentType, string $documentId): string
     {
         return '/document-workflows/'.rawurlencode($documentType).'/'.rawurlencode($documentId);
     }

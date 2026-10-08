@@ -14,7 +14,9 @@ use App\Core\Workflow\DocumentTypes\FieldDefinition;
  * ("KES 12,450.00"), dates as "7 Oct 2026", booleans as yes/no, in the
  * given language and time zone. A tenant's text is one text (NOT-03 owner
  * decision): the placeholders are filled once, in the organisation's
- * language, and the same text goes to everyone.
+ * language, and the same text goes to everyone. A reference field fills in
+ * as its display value (DocumentType::displayValues(): a party's name, not
+ * its id); a field hidden from the rule's user fills in as nothing.
  */
 class FieldText
 {
@@ -41,19 +43,28 @@ class FieldText
     /**
      * @param  array<string, mixed>  $values
      * @param  array<string, string>  $builtIn  document_type, rule_name
+     * @param  array<string, string>  $display  reference fields' display values (DocumentType::displayValues())
      */
-    public function render(string $text, DocumentType $type, array $values, array $builtIn, string $locale, string $timezone): string
+    public function render(string $text, DocumentType $type, array $values, array $builtIn, string $locale, string $timezone, array $display = []): string
     {
         $fields = $type->fieldsByName();
 
-        return (string) preg_replace_callback(self::PLACEHOLDER, function (array $match) use ($fields, $values, $builtIn, $locale, $timezone) {
+        return (string) preg_replace_callback(self::PLACEHOLDER, function (array $match) use ($fields, $values, $builtIn, $locale, $timezone, $display) {
             $name = $match[1];
 
             if (array_key_exists($name, $builtIn)) {
                 return $builtIn[$name];
             }
 
-            return isset($fields[$name]) ? $this->format($fields[$name], $values[$name] ?? null, $locale, $timezone) : $match[0];
+            if (! isset($fields[$name])) {
+                return $match[0];
+            }
+
+            if ($fields[$name]->type === 'reference' && array_key_exists($name, $display) && array_key_exists($name, $values)) {
+                return $display[$name];
+            }
+
+            return $this->format($fields[$name], $values[$name] ?? null, $locale, $timezone);
         }, $text);
     }
 

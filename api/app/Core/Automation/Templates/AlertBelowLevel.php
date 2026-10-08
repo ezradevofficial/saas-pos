@@ -29,7 +29,8 @@ class AlertBelowLevel implements RuleTemplate
 
     public function appliesTo(DocumentType $type): bool
     {
-        return self::fields($type) !== [];
+        // A threshold fires on record changes (AUTO-01).
+        return $type->raisesRecordEvents() && self::fields($type) !== [];
     }
 
     public function parameters(DocumentType $type): array

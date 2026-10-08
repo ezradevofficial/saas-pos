@@ -16,6 +16,7 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Events\WorkflowCompleted;
+use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Mail;
@@ -585,6 +586,33 @@ class CreditLimitChangeApiTest extends TestCase
 
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
         $this->getJson("/api/v1/parties/{$party}", $this->headersFor())->assertJsonPath('data.credit_limit', ['amount_minor' => '250000', 'currency' => 'CDF']);
+    }
+
+    public function test_its_flow_status_names_the_request_and_links_to_its_own_page(): void
+    {
+        $id = $this->request()->assertCreated()->json('data.id');
+        $url = '/api/v1/document-workflows/'.CreditLimitChangeType::KEY.'/'.$id;
+
+        // WF-10: number and title from the summary; the type's own page (LinksDocuments).
+        $this->getJson($url, $this->headersFor())->assertOk()
+            ->assertJsonPath('data.document.number', 'CLC-000001')
+            ->assertJsonPath('data.document.title', 'Duka Moja Ltd')
+            ->assertJsonPath('data.document.link', '/contacts/credit-limit-changes?change='.$id);
+        // Workflow notifications and approvals link there too.
+        $this->assertSame('/contacts/credit-limit-changes?change='.$id, $this->inTenant(fn () => SendWorkflowNotification::link(CreditLimitChangeType::KEY, $id)));
+
+        // RBAC-05: a viewer whose field rules hide the party's name sees no title.
+        $user = $this->inTenant(function () {
+            $role = $this->role('Nameless approver', ['core.party.view']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::tenant());
+
+            return $user;
+        });
+        $this->getJson($url, $this->headersFor($user))->assertOk()
+            ->assertJsonPath('data.document.number', 'CLC-000001')
+            ->assertJsonPath('data.document.title', null);
     }
 
     public function test_a_hidden_party_name_is_masked_and_never_searched(): void

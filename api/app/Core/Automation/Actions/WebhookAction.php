@@ -16,6 +16,9 @@ use Illuminate\Support\Str;
  *    "rule": {"id", "name", "version"}, "trigger": {"type", ...},
  *    "document": {"type", "id"} | null, "fields": {...the document's values}}
  *
+ * A reference field keeps its id and gains `<field>_label`, its display
+ * value (DocumentType::displayValues(), e.g. the party's name).
+ *
  * Running the action only writes a WebhookDelivery (an outbox row) in the
  * run's transaction: the run never waits on HTTP, and nothing is sent for
  * a run that rolled back. WebhookDeliveries sends it after commit, with

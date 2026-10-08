@@ -47,10 +47,11 @@ class AutomationTemplatesTest extends TestCase
             ['name' => 'days', 'kind' => 'days', 'default' => 7],
             ['name' => 'to', 'kind' => 'recipients', 'default' => ['field:owner']],
         ], $remind['document_types'][0]['parameters']);
-        $this->assertContains(TestRequestType::KEY, array_column($all['core.alert_below_level']['document_types'], 'key'));
+        // A threshold fires on record changes: only types that raise them (AUTO-01).
+        $this->assertSame([TestTaskType::KEY], array_column($all['core.alert_below_level']['document_types'], 'key'));
 
         $forRequests = $this->getJson('/api/v1/automation-templates?type='.TestRequestType::KEY, $this->headersFor())->assertOk()->json('data');
-        $this->assertSame(['core.alert_below_level'], array_column($forRequests, 'key'));
+        $this->assertSame([], array_column($forRequests, 'key'));
 
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->getJson('/api/v1/automation-templates', $this->headersFor($cashier))->assertForbidden();

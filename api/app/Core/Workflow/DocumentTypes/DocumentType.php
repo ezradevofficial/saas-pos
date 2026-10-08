@@ -52,6 +52,46 @@ abstract class DocumentType
      */
     abstract public function actPermission(): string;
 
+    /**
+     * AUTO-03, AUTO-04: what a person reads for the document's reference
+     * fields (a party's name instead of its id), for notification
+     * placeholders, test mode and webhook `<field>_label`s.
+     *
+     * @return array<string, string> field name => display value
+     */
+    public function displayValues(string $documentId, ?User $viewer = null): array
+    {
+        return $this->displayValuesOf($this->fieldValues($documentId), $viewer);
+    }
+
+    /**
+     * displayValues() from values already read (or a test's sample). By
+     * default the names of the platform's own reference targets
+     * (core.party, core.company, core.branch, core.location, core.user,
+     * see ReferenceLabels), empty when $viewer's field rules hide the name
+     * (RBAC-05). A type with references to its module's records overrides
+     * this and adds its own; fields left out show as given.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array<string, string>
+     */
+    public function displayValuesOf(array $values, ?User $viewer = null): array
+    {
+        return app(ReferenceLabels::class)->of($this->fields(), $values, $viewer);
+    }
+
+    /**
+     * AUTO-01: whether the module raises RecordChanged for this type's
+     * documents (RaisesRecordChanges) when they are created, changed or
+     * archived. Only then may rules use the record triggers
+     * (record_created, record_updated, record_archived, field_changed,
+     * threshold); a type that never raises them would never fire one.
+     */
+    public function raisesRecordEvents(): bool
+    {
+        return false;
+    }
+
     /** @return list<string> actions the module allows on the document (WF-01), e.g. submit, approve, cancel */
     public function actions(): array
     {

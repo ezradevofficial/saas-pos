@@ -45,6 +45,25 @@ final class AutomationContext
         return array_diff_key($this->values, array_flip($this->hidden));
     }
 
+    /** @var array<string, string>|null */
+    private ?array $displayValues = null;
+
+    /**
+     * AUTO-03: what a person reads for the visible reference fields (a
+     * party's name, not its id), through the type's displayValuesOf(), as
+     * the rule's user sees it (RBAC-05: a hidden field is left out).
+     *
+     * @return array<string, string>
+     */
+    public function visibleDisplayValues(): array
+    {
+        if ($this->documentId === null) {
+            return [];
+        }
+
+        return $this->displayValues ??= array_diff_key($this->type->displayValuesOf($this->visibleValues(), $this->actor), array_flip($this->hidden));
+    }
+
     public function requireDocument(): string
     {
         return $this->documentId ?? throw new ActionFailed(__('automation.errors.no_document'));

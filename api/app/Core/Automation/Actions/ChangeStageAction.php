@@ -2,6 +2,7 @@
 
 namespace App\Core\Automation\Actions;
 
+use App\Core\Automation\Runtime\FlowStages;
 use App\Core\Http\ApiException;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\Runtime\WorkflowEngine;
@@ -16,7 +17,9 @@ use App\Core\Workflow\Runtime\WorkflowEngine;
  *
  * The move is made as the rule's last editor; a move the engine refuses
  * (blocked, not allowed, no running workflow) fails the run with the
- * engine's reason.
+ * engine's reason. At save the type must have a flow with a `stage` node
+ * (for the rule's company or every company), and a named stage must be one
+ * of them (FlowStages): approval nodes are decided by approvers.
  */
 class ChangeStageAction implements AutomationAction
 {
@@ -24,7 +27,10 @@ class ChangeStageAction implements AutomationAction
 
     private const STAGE = '/^[A-Za-z0-9_-]{1,64}$/';
 
-    public function __construct(private readonly WorkflowEngine $engine) {}
+    public function __construct(
+        private readonly WorkflowEngine $engine,
+        private readonly FlowStages $stages,
+    ) {}
 
     public function key(): string
     {
@@ -48,6 +54,11 @@ class ChangeStageAction implements AutomationAction
 
         if (($mode === 'return' || $stage !== null) && (! is_string($stage) || preg_match(self::STAGE, $stage) !== 1)) {
             $problems[] = __('automation.validation.stage_id');
+        } elseif (($movable = $this->stages->movable($rule->type->key(), $rule->companyId)) === []) {
+            // Only `stage` nodes move this way; approvals are decided by approvers.
+            $problems[] = __('automation.validation.stage_unavailable');
+        } elseif (is_string($stage) && ! in_array($stage, $movable, true)) {
+            $problems[] = __('automation.validation.stage_unknown', ['stage' => $stage]);
         }
 
         if ($mode === 'return' && (! is_string($action['reason'] ?? null) || trim($action['reason']) === '' || mb_strlen($action['reason']) > 500)) {

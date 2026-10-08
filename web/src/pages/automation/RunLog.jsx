@@ -1,21 +1,53 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Icon, ListView, StatusBadge } from '@/components/ds'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { useCompanies } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatWhen } from '@/lib/format'
+import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
-import { useTimeZone } from '@/lib/useTimeZone'
 import { ACTION_RESULT_TONES, DELIVERY_TONES, OUTCOME_TONES, RUN_OUTCOMES } from './automationData'
 
 /** An outcome as a dot and a word. */
 export function Outcome({ outcome }) {
   const { t } = useTranslation()
   return <StatusBadge tone={OUTCOME_TONES[outcome] ?? 'neutral'}>{t(`automation.outcomes.${outcome}`, { defaultValue: outcome })}</StatusBadge>
+}
+
+/**
+ * What started a run (AUTO-06): another rule only when its chain holds one
+ * (`caused_by_rule`); otherwise what the trigger reacts to. Every run is at
+ * least level 1, so the level alone never means another rule started it.
+ */
+function runCause(run, t) {
+  if (run.caused_by_rule) return t('automation.runs.cause.rule', { level: run.depth })
+  if (run.trigger_type === 'schedule') return t('automation.runs.cause.schedule')
+  if (run.trigger_type === 'date') return t('automation.runs.cause.date')
+  if (run.trigger_type === 'stage_entered' || run.trigger_type === 'stage_left') return t('automation.runs.cause.workflow')
+  return t('automation.runs.cause.change')
+}
+
+/**
+ * A run's document (AUTO-05): its number, else its title (the API leaves
+ * out a title hidden from the reader), else its short id; a link when the
+ * API gives one (a relative app path only).
+ */
+function DocumentName({ run }) {
+  const { t } = useTranslation()
+  if (!run.document_id) return <span className="text-ink-muted">{t('automation.runs.noDocument')}</span>
+  const name = run.document?.number ?? run.document?.title
+  const text = name ? <span>{name}</span> : <span className="font-mono text-caption">{run.document_id.slice(0, 8)}</span>
+  const link = run.document?.link
+  if (!link?.startsWith('/') || link.startsWith('//')) return text
+  return (
+    <Link to={link} onClick={(event) => event.stopPropagation()} className="text-primary hover:text-primary-hover">
+      {text}
+    </Link>
+  )
 }
 
 function Detail({ label, children }) {
@@ -31,10 +63,11 @@ function Detail({ label, children }) {
 function RunDrawer({ runId, onClose }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const timeZone = useTimeZone()
+  const { companies } = useCompanies()
   const query = useQuery({ queryKey: ['automation-runs', runId], queryFn: () => api.get(`automation-runs/${runId}`), enabled: Boolean(runId) })
   const run = query.data?.data
-  const when = (value) => (value ? formatWhen(value, locale, timeZone) : '—')
+  // Times in the run's company zone, like the approvals inbox (lib/companyTime).
+  const when = (value) => (value ? formatCompanyTime(value, locale, companies.find((company) => company.id === run?.company_id)) : '—')
 
   return (
     <Sheet open={Boolean(runId)} onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -64,12 +97,12 @@ function RunDrawer({ runId, onClose }) {
                 </Detail>
                 <Detail label={t('automation.runs.columns.trigger')}>{t(`automation.triggers.${run.trigger_type}`, { defaultValue: run.trigger_type })}</Detail>
                 <Detail label={t('automation.runs.version')}>{t('automation.runs.versionValue', { version: run.rule_version })}</Detail>
-                <Detail label={t('automation.runs.columns.document')}>{run.document_id ? <span className="font-mono text-caption break-all">{run.document_id}</span> : t('automation.runs.noDocument')}</Detail>
+                <Detail label={t('automation.runs.columns.document')}><DocumentName run={run} /></Detail>
                 <Detail label={t('automation.runs.started')}>{when(run.started_at ?? run.created_at)}</Detail>
                 <Detail label={t('automation.runs.finished')}>{when(run.finished_at)}</Detail>
                 {run.next_attempt_at ? <Detail label={t('automation.runs.nextAttempt')}>{when(run.next_attempt_at)}</Detail> : null}
                 {run.conditions ? <Detail label={t('automation.runs.conditions')}>{run.conditions.passed ? t('automation.test.passed') : t('automation.test.failed')}</Detail> : null}
-                {run.depth ? <Detail label={t('automation.runs.depth')}>{run.depth}</Detail> : null}
+                <Detail label={t('automation.runs.startedBy')}>{runCause(run, t)}</Detail>
               </dl>
               {run.error ? <Alert tone="danger" title={run.error} /> : null}
               <section aria-labelledby="run-actions" className="flex flex-col gap-2">
@@ -120,18 +153,18 @@ function RunDrawer({ runId, onClose }) {
 export function RunsList({ ruleId, rules = [] }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const timeZone = useTimeZone()
+  const { companies } = useCompanies()
   const [searchParams, setSearchParams] = useSearchParams()
   const open = searchParams.get('run')
 
   const columns = [
-    { key: 'created_at', label: t('automation.runs.columns.time'), sortKey: 'created_at', hideable: false, render: (row) => <span className="tabular-nums">{formatWhen(row.created_at, locale, timeZone)}</span> },
+    { key: 'created_at', label: t('automation.runs.columns.time'), sortKey: 'created_at', hideable: false, render: (row) => <span className="tabular-nums">{formatCompanyTime(row.created_at, locale, companies.find((company) => company.id === row.company_id))}</span> },
     ...(ruleId ? [] : [{ key: 'rule', label: t('automation.runs.columns.rule'), render: (row) => <span className="font-medium text-ink">{row.rule_name}</span> }]),
     { key: 'trigger', label: t('automation.runs.columns.trigger'), sortKey: 'trigger_type', render: (row) => t(`automation.triggers.${row.trigger_type}`, { defaultValue: row.trigger_type }) },
     {
       key: 'document_id',
       label: t('automation.runs.columns.document'),
-      render: (row) => (row.document_id ? <span className="font-mono text-caption">{row.document_id.slice(0, 8)}</span> : <span className="text-ink-muted">{t('automation.runs.noDocument')}</span>),
+      render: (row) => <DocumentName run={row} />,
     },
     { key: 'outcome', label: t('automation.runs.columns.outcome'), sortKey: 'outcome', render: (row) => <Outcome outcome={row.outcome} /> },
     { key: 'attempts', label: t('automation.runs.columns.attempts'), align: 'end', numeric: true, render: (row) => row.attempts },

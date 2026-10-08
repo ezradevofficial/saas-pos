@@ -139,6 +139,7 @@ class TenantIsolationTest extends TestCase
         'tax_category_id' => 'tax_category',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
+        'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
         'from_user_id' => 'user', // APR-06: reassign from a pending approver
         'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
         'scope_id' => null,

@@ -9,6 +9,7 @@ use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Automation\Capabilities\UpdatesFields;
 use App\Core\Automation\Events\RaisesRecordChanges;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\FieldRules;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
@@ -65,6 +66,12 @@ class TestTaskType extends DocumentType implements AssignsUsers, FindsDocumentsB
     public function scope(string $documentId): ?DocumentScope
     {
         return TestDocuments::find(self::KEY, $documentId)['scope'] ?? null;
+    }
+
+    /** Its writes raise RecordChanged (RaisesRecordChanges), so record triggers work. */
+    public function raisesRecordEvents(): bool
+    {
+        return true;
     }
 
     public function viewPermission(): string
@@ -138,6 +145,20 @@ class TestTaskType extends DocumentType implements AssignsUsers, FindsDocumentsB
     public function documentLink(string $documentId): string
     {
         return '/tasks/'.$documentId;
+    }
+
+    /** APR-04 summary: a `number` value when the task has one, its title as the title. */
+    public function summary(string $documentId): array
+    {
+        $values = $this->fieldValues($documentId);
+
+        return ['number' => $values['number'] ?? null, 'title' => $values['title'] ?? null, 'amount' => null];
+    }
+
+    /** RBAC-05: the title when the field rules hide it. */
+    public function hiddenSummaryFields(User $viewer): array
+    {
+        return in_array('title', app(FieldRules::class)->for($viewer, self::KEY)['hidden'], true) ? ['title'] : [];
     }
 
     public function createDraft(array $values, DocumentScope $scope, ?User $by): string

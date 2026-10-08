@@ -68,28 +68,26 @@ export function needsDocument(actionsMeta, key) {
 }
 
 /**
- * The stages of a document type's flows (WF-02), for stage triggers and
- * "change stage": stage and approval nodes of each flow's live version
- * (else its draft), by node id. Empty when the type has no flow yet.
+ * The stages of a document type's flows (WF-02) for a rule of `companyId`
+ * (null: every company), from the catalogue's `stages`: the stage and
+ * approval nodes of each flow's live version and draft, by node id, from
+ * that company's flow and the one for every company (a rule for every
+ * company sees them all). Stage triggers may name either kind; "change
+ * stage" only `stage` nodes (see movableStages). Empty when the type has
+ * no flow yet. The catalogue carries them because the workflow list
+ * leaves graphs out.
  */
-export function useFlowStages(documentType) {
-  const query = useQuery({
-    queryKey: ['workflows', 'stages', documentType],
-    queryFn: () => api.get(`workflows?type=${encodeURIComponent(documentType)}&per_page=100`),
-    enabled: Boolean(documentType),
-    staleTime: 60_000,
-  })
+export function flowStages(info, companyId) {
   const stages = []
-  for (const flow of query.data?.data ?? []) {
-    const graph = flow.published?.graph ?? flow.draft?.graph
-    for (const node of graph?.nodes ?? []) {
-      if ((node.type === 'stage' || node.type === 'approval') && !stages.some((one) => one.id === node.id)) {
-        stages.push({ id: node.id, name: node.name || node.id })
-      }
-    }
+  for (const stage of info?.stages ?? []) {
+    if (companyId && stage.company_id && stage.company_id !== companyId) continue
+    if (!stages.some((one) => one.id === stage.id)) stages.push({ id: stage.id, name: stage.name || stage.id, kind: stage.kind })
   }
-  return { stages, isLoading: query.isPending && Boolean(documentType) }
+  return stages
 }
+
+/** The stages "change stage" can move: approvals are decided by their approvers. */
+export const movableStages = (stages) => stages.filter((stage) => stage.kind === 'stage')
 
 /** What the user may do with a rule (RBAC-04): edit at its company, or tenant-wide for a rule of every company. */
 export function useAutomationRights(companyId) {

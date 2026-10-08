@@ -15,7 +15,7 @@ import { ConditionEditor } from '@/pages/workflows/ConditionEditor'
 import { useRoleOptions, useUserOptions } from '@/pages/workflows/workflowData'
 import { ActionsEditor } from './ActionsEditor'
 import { RuleStatus } from './AutomationRules'
-import { hasDocument, newTrigger, ruleBody, useAutomationCatalogue, useAutomationRights, useFlowStages } from './automationData'
+import { flowStages, hasDocument, newTrigger, ruleBody, useAutomationCatalogue, useAutomationRights } from './automationData'
 import { summarizeRule } from './describeRule'
 import { RunsList } from './RunLog'
 import { TestPanel } from './TestPanel'
@@ -116,7 +116,7 @@ export default function RuleEditor() {
 
   const draft = state?.draft
   const info = types.find((one) => one.key === draft?.document_type)
-  const { stages } = useFlowStages(draft?.document_type)
+  const stages = flowStages(info, draft?.company_id ?? null)
   const timeZone = useTimeZone(draft?.company_id ?? undefined)
   const status = isNew ? 'new' : (rule?.status ?? 'disabled')
   const readOnly = !rights.canEdit || status === 'archived'

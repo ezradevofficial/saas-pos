@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\CreditLimits;
 
+use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\FieldRules;
@@ -28,7 +29,7 @@ use Illuminate\Support\Str;
  * adds one in the builder (a condition on `increase`) with its own
  * threshold. A flow must pass an approval before an `approved` end.
  */
-class CreditLimitChangeType extends DocumentType
+class CreditLimitChangeType extends DocumentType implements LinksDocuments
 {
     public const KEY = 'core.credit_limit_change';
 
@@ -102,6 +103,12 @@ class CreditLimitChangeType extends DocumentType
     public function requesterId(string $documentId): ?string
     {
         return $this->find($documentId)?->requested_by;
+    }
+
+    /** The request opens in the credit limit changes list (its dialog shows where its flow is). */
+    public function documentLink(string $documentId): string
+    {
+        return '/contacts/credit-limit-changes?change='.rawurlencode($documentId);
     }
 
     public function viewPermission(): string

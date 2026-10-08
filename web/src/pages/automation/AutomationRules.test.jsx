@@ -127,6 +127,69 @@ describe('Automation run log (AUTO-05)', () => {
     expect(within(drawer).getByText('3')).toBeInTheDocument()
   })
 
+  it('names each run’s document by its number, else its title, else its short id, linked when the API gives a link', async () => {
+    const rows = [
+      { ...RUN, id: 'run-a' },
+      { ...RUN, id: 'run-b', document_id: '0192a1b2-0000-7000-8000-00000000d0c2', document: { id: '0192a1b2-0000-7000-8000-00000000d0c2', number: null, title: 'Office desks', link: null } },
+      { ...RUN, id: 'run-c', document_id: '0192abcd-0000-7000-8000-00000000d0c3', document: null },
+    ]
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page(rows)], [/^automation-rules\?status=all/, page([RULE])]] })
+    const { router } = renderApp('/settings/automation-runs')
+    const table = await screen.findByRole('table', { name: 'Automation runs' })
+    const link = await within(table).findByRole('link', { name: 'PR-0042' })
+    expect(link).toHaveAttribute('href', RUN.document.link)
+    expect(within(table).getByText('Office desks')).toBeInTheDocument()
+    expect(within(table).queryByRole('link', { name: 'Office desks' })).not.toBeInTheDocument()
+    expect(within(table).getByText('0192abcd')).toBeInTheDocument()
+    fireEvent.click(link)
+    await waitFor(() => expect(router.state.location.pathname).toBe(RUN.document.link))
+  })
+
+  it('shows run times in the run’s company time zone, named when it differs from the browser, as approvals do', async () => {
+    const kinshasa = { ...RUN, id: 'run-k', company_id: 'c-2', created_at: '2026-10-07T14:00:00Z', started_at: '2026-10-07T14:00:00Z' }
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page([kinshasa])], ['automation-runs/run-k', { data: kinshasa }], [/^automation-rules\?status=all/, page([RULE])]] })
+    renderApp('/settings/automation-runs')
+    const table = await screen.findByRole('table', { name: 'Automation runs' })
+    // 14:00 UTC is 15:00 in Kinshasa.
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const expected = browser === 'Africa/Kinshasa' ? /^7 Oct 2026, 15:00$/ : /^7 Oct 2026, 15:00 (WAT|GMT\+1)$/
+    const cell = await within(table).findByText(expected)
+    fireEvent.click(cell)
+    const drawer = await screen.findByRole('dialog', { name: 'Run details' })
+    expect(await within(drawer).findByText(expected)).toBeInTheDocument()
+  })
+
+  it('opens the run drawer on a row click anywhere but the document name, which alone is a link', async () => {
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page([RUN])], ['automation-runs/run-1', { data: RUN }], [/^automation-rules\?status=all/, page([RULE])]] })
+    const { router } = renderApp('/settings/automation-runs')
+    const table = await screen.findByRole('table', { name: 'Automation runs' })
+    const link = await within(table).findByRole('link', { name: 'PR-0042' })
+    const row = link.closest('tr')
+    expect(within(row).getAllByRole('link')).toHaveLength(1)
+
+    // The document cell outside the name, and any other cell, open the drawer.
+    fireEvent.click(link.closest('td'))
+    expect(await screen.findByRole('dialog', { name: 'Run details' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/automation-runs')
+    expect(router.state.location.search).toBe('?run=run-1')
+  })
+
+  it('says another rule started a run only when its chain holds one (AUTO-06)', async () => {
+    const byWorkflow = { ...RUN, id: 'run-7', trigger_type: 'stage_left', depth: 1, caused_by_rule: false }
+    const byRule = { ...RUN, id: 'run-8', trigger_type: 'field_changed', depth: 2, caused_by_rule: true }
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page([byWorkflow])], ['automation-runs/run-7', { data: byWorkflow }], ['automation-runs/run-8', { data: byRule }], [/^automation-rules\?status=all/, page([RULE])]] })
+    renderApp('/settings/automation-runs?run=run-7')
+    let drawer = await screen.findByRole('dialog', { name: 'Run details' })
+    expect(await within(drawer).findByText('A workflow move')).toBeInTheDocument()
+    expect(within(drawer).queryByText(/Another rule/)).not.toBeInTheDocument()
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Run details' })).not.toBeInTheDocument())
+
+    renderApp('/settings/automation-runs?run=run-8')
+    drawer = await screen.findByRole('dialog', { name: 'Run details' })
+    expect(await within(drawer).findByText('Another rule (level 2)')).toBeInTheDocument()
+  })
+
   it('filters by outcome and shows a rule’s runs on its Runs tab', async () => {
     mockAutomation(api, { extra: [[/^automation-runs\?/, page(OUTCOMES)]] })
     renderApp('/settings/automation-rules/r-1?tab=runs')

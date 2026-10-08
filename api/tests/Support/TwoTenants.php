@@ -76,7 +76,10 @@ final class TwoTenants
         app(ModuleRegistry::class)->register(self::MODULE);
         // WF-01: the test document types (a request that creates orders).
         TestDocuments::reset();
-        app(DocumentTypeRegistry::class)->register(TestRequestType::class);
+        // AUTO-01: the fixture raises RecordChanged for requests as their module would.
+        $requests = new TestRequestType;
+        $requests->raisesRecords = true;
+        app(DocumentTypeRegistry::class)->register($requests);
         app(DocumentTypeRegistry::class)->register(TestOrderType::class);
 
         return new self(
