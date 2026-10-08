@@ -59,6 +59,7 @@ import {
   WifiOff,
   Workflow,
   X,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -123,6 +124,7 @@ const ICONS = {
   deliveries: Send,
   approvals: SquareCheckBig,
   attach: Paperclip,
+  automation: Zap,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

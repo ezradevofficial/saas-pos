@@ -4,6 +4,7 @@ import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
 import { AuthLayout } from './layouts/AuthLayout'
 import {
+  AUTOMATION_VIEW,
   CATEGORY_VIEW,
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
@@ -17,6 +18,9 @@ import {
   UOM_VIEW,
   WORKFLOW_VIEW,
 } from './layouts/navigation'
+import AutomationRules from './pages/automation/AutomationRules'
+import RuleEditor from './pages/automation/RuleEditor'
+import AutomationRuns from './pages/automation/RunLog'
 import Approvals from './pages/approvals/Approvals'
 import EmailApproval from './pages/approvals/EmailApproval'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
@@ -225,6 +229,12 @@ export const routes = [
           </RequirePermission>
         ),
       },
+      // AUTO-01..AUTO-07: automation rules, their editor (and test mode) and the run log.
+      ...[
+        ['/settings/automation-rules', <AutomationRules key="automation-rules" />],
+        ['/settings/automation-rules/:ruleId', <RuleEditor key="automation-rule" />],
+        ['/settings/automation-runs', <AutomationRuns key="automation-runs" />],
+      ].map(([path, page]) => ({ path, element: <RequirePermission permission={AUTOMATION_VIEW}>{page}</RequirePermission> })),
       { path: '/settings/appearance', element: <Appearance /> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.
