@@ -68,12 +68,16 @@ class DevicePinController
         $device = $request->device();
         $states = [];
 
-        // Only staff of this device's location can have tried a PIN here.
         foreach ($request->validated('reports') as $report) {
-            $this->staffMember($device, $report['user_id']);
-        }
+            // Only staff of this device's location can have tried a PIN here. Someone who
+            // left the location since is skipped, not a reason to refuse the batch: the
+            // device drops that report.
+            if ($this->staff->at(DeviceScope::of($device), $report['user_id']) === []) {
+                $states[] = ['user_id' => $report['user_id'], 'skipped' => 'not_staff_here'];
 
-        foreach ($request->validated('reports') as $report) {
+                continue;
+            }
+
             $states[] = $this->pins->report(
                 $device,
                 $report['user_id'],
