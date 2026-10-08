@@ -129,7 +129,7 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     fireEvent.click(screen.getByLabelText('Only when it changes to'))
     chooseOption(screen.getAllByLabelText('Only when it changes to').find((one) => one.getAttribute('role') === 'combobox'), 'services')
     addAction('Change stage')
-    type('Stage to complete', 'review')
+    chooseOption('Stage to complete', 'Review')
     fireEvent.click(screen.getByRole('button', { name: 'Save switched off' }))
     await waitFor(() => expect(savedBody()).toBeTruthy())
     expect(savedBody().trigger).toEqual({ type: 'field_changed', field: 'category', to: 'services' })
@@ -148,7 +148,7 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     expect((await saveChanges()).trigger).toEqual({ type: 'record_updated', fields: ['quantity'] })
 
     chooseOption('Trigger', 'Stage left')
-    type('Stage', 'approval', trigger())
+    chooseOption(within(trigger()).getByLabelText('Stage'), 'Manager approval')
     chooseOption('How it leaves', 'Sent back')
     expect((await saveChanges()).trigger).toEqual({ type: 'stage_left', stage: 'approval', how: 'returned' })
 
@@ -168,18 +168,35 @@ describe('Automation rule editor (AUTO-01..AUTO-04)', () => {
     expect(actions).not.toContain('Update a field')
   })
 
-  it('offers the stages of the type’s workflow', async () => {
-    mockAutomation(api, {
-      extra: [[/^workflows\?type=/, { data: [{ id: 'w-1', published: { graph: { nodes: [{ id: 'start', type: 'start' }, { id: 'budget', type: 'stage', name: 'Check budget' }, { id: 'cfo', type: 'approval', name: 'CFO approves' }] } }, draft: null }] }]],
-    })
+  it('offers the approval nodes of a flow for every company as stages to watch', async () => {
+    mockAutomation(api, { extra: [['automation/catalogue', { ...CATALOGUE, data: [...CATALOGUE.data, CREDIT_LIMIT_CHANGE] }]] })
     await openNew()
+    await waitForOption('Document type', 'Credit limit change')
+    chooseOption('Document type', 'Credit limit change')
     chooseOption('Trigger', 'Stage entered')
-    await waitFor(() => expect(within(trigger()).getByLabelText('Stage').getAttribute('role')).toBe('combobox'))
-    chooseOption(within(trigger()).getByLabelText('Stage'), 'CFO approves')
-    expect(screen.getByTestId('rule-summary')).toHaveTextContent('When a Purchase requisition enters “CFO approves”')
+    expect(within(trigger()).getByLabelText('Stage').getAttribute('role')).toBe('combobox')
+    expect(screen.queryByText(/has no workflow yet/)).not.toBeInTheDocument()
+    expect(optionTexts(within(trigger()).getByLabelText('Stage'))).toEqual(['Any stage', 'Accountant approves'])
+    chooseOption(within(trigger()).getByLabelText('Stage'), 'Accountant approves')
+    expect(screen.getByTestId('rule-summary')).toHaveTextContent('When a Credit limit change enters “Accountant approves”')
+    addAction('Send a notification')
     fireEvent.click(screen.getByRole('button', { name: 'Save switched off' }))
     await waitFor(() => expect(savedBody()).toBeTruthy())
-    expect(savedBody().trigger).toEqual({ type: 'stage_entered', stage: 'cfo' })
+    expect(savedBody().trigger).toEqual({ type: 'stage_entered', stage: 'approve' })
+  })
+
+  it('moves only stage nodes, of the rule’s company’s flow or the one for every company', async () => {
+    const requisition = { ...CATALOGUE.data[0], stages: [...CATALOGUE.data[0].stages, { id: 'budget', name: 'Check budget', kind: 'stage', company_id: 'c-2' }] }
+    mockAutomation(api, { extra: [['automation/catalogue', { ...CATALOGUE, data: [requisition, CATALOGUE.data[1]] }]] })
+    await openNew()
+    chooseOption('Trigger', 'Stage entered')
+    expect(optionTexts(within(trigger()).getByLabelText('Stage'))).toEqual(['Any stage', 'Review', 'Manager approval', 'Check budget'])
+    addAction('Change stage')
+    expect(optionTexts(within(actionItem(1)).getByLabelText('Stage to complete'))).toEqual(['The current stage', 'Review', 'Check budget'])
+
+    chooseOption(within(screen.getByText('Details', { selector: 'h3' }).closest('[data-slot="card"]')).getByLabelText('Company'), 'Amani Retail Ltd')
+    expect(optionTexts(within(trigger()).getByLabelText('Stage'))).toEqual(['Any stage', 'Review', 'Manager approval'])
+    expect(optionTexts(within(actionItem(1)).getByLabelText('Stage to complete'))).toEqual(['The current stage', 'Review'])
   })
 
   it('reorders and removes actions', async () => {

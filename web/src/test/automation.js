@@ -20,6 +20,11 @@ export const REQUISITION = {
   user_fields: ['owner'],
   date_fields: ['needed_by'],
   capabilities: ['update_fields', 'assign_users', 'dates', 'create_drafts', 'credit_hold'],
+  raises_record_events: true,
+  stages: [
+    { id: 'review', name: 'Review', kind: 'stage', company_id: null },
+    { id: 'approval', name: 'Manager approval', kind: 'approval', company_id: null },
+  ],
   triggers: ['record_created', 'record_updated', 'record_archived', 'field_changed', 'stage_entered', 'stage_left', 'date', 'threshold', 'schedule'],
   actions: ['update_field', 'change_stage', 'assign_user', 'notify', 'create_document', 'set_credit_hold', 'webhook'],
 }
@@ -144,7 +149,6 @@ export function mockAutomation(api, { rule = RULE, permissions = AUTOMATION_PERM
       [`automation-rules/${rule.id}`, { data: rule }],
       // The rule a new rule's first save creates (the editor reads it again after saving).
       ['automation-rules/r-2', { data: { ...rule, id: 'r-2' } }],
-      [/^workflows\?type=/, { data: [] }],
       ['roles?per_page=200', { data: [{ id: ROLE_ID, name: 'Finance', is_system: false, template_key: null }] }],
       ['users?status=active&per_page=200', { data: [{ id: USER_ID, name: 'Baraka Mwangi' }] }],
     ],

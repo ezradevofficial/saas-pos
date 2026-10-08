@@ -6,7 +6,7 @@ import { ValueInput } from '@/pages/workflows/ConditionEditor'
 import { emptyValue } from '@/pages/workflows/conditionValues'
 import { useMoneyDefaults } from '@/lib/defaultCurrency'
 import { cn } from '@/lib/utils'
-import { needsDocument, newAction } from './automationData'
+import { movableStages, needsDocument, newAction } from './automationData'
 import { RecipientsPicker } from './RecipientsPicker'
 import { StagePicker } from './TriggerEditor'
 import { WebhookSecretPanel } from './WebhookSecretPanel'
@@ -58,7 +58,7 @@ function ChangeStageForm({ action, set, stages }) {
       <StagePicker
         label={returning ? t('automation.actions.returnTo') : t('automation.actions.completeStage')}
         value={action.stage || undefined}
-        stages={stages}
+        stages={movableStages(stages)}
         anyLabel={returning ? undefined : t('automation.actions.currentStage')}
         required={returning}
         onChange={(stage) => set({ stage: returning ? (stage ?? '') : stage })}
@@ -312,9 +312,10 @@ const FORMS = {
  * with its own settings. Actions that need a document are not offered on
  * a schedule.
  */
-export function ActionsEditor({ actions, onChange, info, stages, withDocument, context, errors = {}, sectionError }) {
+export function ActionsEditor({ actions, onChange, info, stages = [], withDocument, context, errors = {}, sectionError }) {
   const { t } = useTranslation()
-  const offered = (info?.actions ?? []).filter((key) => withDocument || !needsDocument(context.actionsMeta, key))
+  // "Change stage" needs a stage node in the rule's company's flow (the API refuses it otherwise).
+  const offered = (info?.actions ?? []).filter((key) => (withDocument || !needsDocument(context.actionsMeta, key)) && (key !== 'change_stage' || movableStages(stages).length > 0))
   const [adding, setAdding] = useState('')
   const kind = offered.includes(adding) ? adding : (offered[0] ?? '')
   const full = actions.length >= context.limits.actions
