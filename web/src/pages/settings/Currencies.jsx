@@ -5,11 +5,13 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, DataTable, Dialog, MoneyInput, Select, StatusBadge, Switch } from '@/components/ds'
+import { Alert, Button, Card, Dialog, ListView, MoneyInput, Select, StatusBadge, Switch } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatMinor } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { actionsColumn } from '@/lib/listColumns'
 import { useLocale } from '@/lib/useLocale'
+import { useServerList } from '@/lib/useServerList'
 import { companyScope, useSettingsCompany, useTenantCurrencies } from './finance/useSettingsCompany'
 
 const MAX_REPORTING = 3
@@ -339,6 +341,8 @@ export default function Currencies() {
     {
       key: 'code',
       label: t('currencies.columns.currency'),
+      sortKey: 'code',
+      hideable: false,
       render: (row) => (
         <div className="flex flex-col">
           <span className="font-medium text-ink">{row.code}</span>
@@ -346,11 +350,22 @@ export default function Currencies() {
         </div>
       ),
     },
-    { key: 'decimals', label: t('currencies.columns.decimals'), numeric: true, align: 'end' },
-    { key: 'rounding', label: t('currencies.columns.rounding'), numeric: true, align: 'end', render: (row) => roundingLabel(row, locale) },
+    { key: 'name', label: t('currencies.columns.name'), defaultHidden: true, render: (row) => row.name },
+    { key: 'decimals', label: t('currencies.columns.decimals'), sortKey: 'decimals', numeric: true, align: 'end' },
+    {
+      key: 'rounding',
+      label: t('currencies.columns.rounding'),
+      sortKey: 'cash_rounding',
+      exportKey: 'cash_rounding',
+      numeric: true,
+      align: 'end',
+      render: (row) => roundingLabel(row, locale),
+    },
     {
       key: 'active',
       label: t('currencies.columns.status'),
+      sortKey: 'status',
+      exportKey: 'status',
       render: (row) =>
         canEdit ? (
           <span className="flex items-center gap-2">
@@ -368,19 +383,16 @@ export default function Currencies() {
     },
     ...(canEdit
       ? [
-          {
-            key: 'actions',
-            label: <span className="sr-only">{t('currencies.columns.actions')}</span>,
-            align: 'end',
-            render: (row) => (
-              <Button variant="ghost" icon="edit" onClick={() => setEditing(row)} aria-label={t('currencies.editCode', { code: row.code })}>
-                {t('currencies.edit.action')}
-              </Button>
-            ),
-          },
+          actionsColumn(t('currencies.columns.actions'), (row) => (
+            <Button variant="ghost" icon="edit" onClick={() => setEditing(row)} aria-label={t('currencies.editCode', { code: row.code })}>
+              {t('currencies.edit.action')}
+            </Button>
+          )),
         ]
       : []),
   ]
+  // The table pages (the pickers read every currency through useTenantCurrencies).
+  const list = useServerList({ id: 'tenant-currencies', endpoint: 'tenant/currencies', queryKey: ['tenant-currencies'], columns })
 
   return (
     <>
@@ -395,18 +407,17 @@ export default function Currencies() {
           ) : null
         }
       />
-      {currencies.isError ? <Alert tone="danger" title={errorMessage(currencies.error)} action={<Button onClick={() => currencies.refetch()}>{t('common.retry')}</Button>} /> : null}
       {toggle.isError ? <Alert tone="danger" title={errorMessage(toggle.error)} /> : null}
       <section className="flex flex-col gap-3" aria-labelledby="tenant-currencies-title">
         <h2 id="tenant-currencies-title" className="text-h2 text-ink">
           {t('currencies.tenant.title')}
         </h2>
         <p className="text-ink-muted">{t('currencies.tenant.description')}</p>
-        <DataTable
-          caption={t('currencies.tenant.title')}
-          columns={columns}
-          rows={currencies.all}
-          emptyText={currencies.isPending ? t('common.loading') : t('currencies.tenant.empty')}
+        <ListView
+          list={list}
+          title={t('currencies.tenant.title')}
+          searchPlaceholder={t('currencies.searchPlaceholder')}
+          emptyText={list.term ? t('currencies.emptyFiltered') : t('currencies.tenant.empty')}
         />
       </section>
       {picker}

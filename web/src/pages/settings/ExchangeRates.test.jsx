@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { ratePairs } from './finance/rates'
 
@@ -25,7 +26,7 @@ function rates({ shop = SHOP } = {}) {
       [/exchange-rates\?.*kind=reference/, { data: [REFERENCE] }],
       [/exchange-rates\?.*kind=shop/, { data: shop ? [shop] : [] }],
       [/exchange-rates\/current/, shop ? { data: { ...shop, value: shop.mid } } : apiError(422, 'rate_unavailable', 'No rate.')],
-      [/exchange-rates\?pair/, { data: [shop, REFERENCE, INVERSE].filter(Boolean), meta: { last_page: 1 } }],
+      [/exchange-rates\?pair/, { data: [shop, REFERENCE, INVERSE].filter(Boolean), meta: { last_page: 1, total: shop ? 3 : 2, from: 1, to: shop ? 3 : 2 } }],
     ],
     { permissions: PERMISSIONS, companies: [CD_COMPANY] },
   )
@@ -61,6 +62,33 @@ describe('ExchangeRates', () => {
     expect(within(history).getByText('Inverse')).toBeInTheDocument()
     expect(within(history).getAllByText('As listed').length).toBe(2)
     expect(within(history).getByText(/0\.00035088/)).toBeInTheDocument()
+  })
+
+  it('filters the history by kind, sorts it by a header and exports it, with no search box (EXP-01)', async () => {
+    rates()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'exchange-rates-2026-10-08.pdf' })
+    URL.createObjectURL = vi.fn(() => 'blob:rates')
+    URL.revokeObjectURL = vi.fn()
+    const historyCalls = () => api.get.mock.calls.map(([path]) => path).filter((path) => path.includes('per_page=25'))
+    renderApp('/settings/exchange-rates')
+    const history = await screen.findByRole('table', { name: 'Rate history for USD/CDF' })
+    await waitFor(() => expect(historyCalls()[0]).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&per_page=25&page=1'))
+    expect(await screen.findByText('Showing 1–3 of 3')).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+
+    chooseOption('Kind', 'Shop')
+    await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&per_page=25&page=1'))
+    fireEvent.click(within(history).getByRole('button', { name: 'Rate' }))
+    await waitFor(() => expect(historyCalls().at(-1)).toBe('companies/c-1/exchange-rates?pair=USD%2FCDF&kind=shop&sort=mid&per_page=25&page=1'))
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'PDF' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    const [path] = api.download.mock.calls[0]
+    const params = new URLSearchParams(path.split('?')[1])
+    expect(path.startsWith('companies/c-1/exchange-rates?')).toBe(true)
+    expect(Object.fromEntries(['pair', 'kind', 'sort', 'format'].map((name) => [name, params.get(name)]))).toEqual({ pair: 'USD/CDF', kind: 'shop', sort: 'mid', format: 'pdf' })
+    expect(params.getAll('columns[]')).toEqual(['effective_at', 'kind', 'mid', 'buy', 'sell', 'direction', 'source'])
   })
 
   it('sets a shop rate and shows the tolerance warning as a warning, not an error', async () => {

@@ -5,16 +5,16 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Checkbox, DataTable, Dialog, RateInput, Select, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Card, Checkbox, Dialog, ListView, RateInput, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime, localDateTimeIn, zonedToUtc } from '@/lib/dates'
 import { formatDecimal } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { useServerList } from '@/lib/useServerList'
 import { pairsFromRates, ratePairs } from './finance/rates'
 import { companyScope, useSettingsCompany, useTenantCurrencies } from './finance/useSettingsCompany'
 
-const PER_PAGE = 20
 const KINDS = ['reference', 'shop']
 
 /** "1 USD = CDF 2,850" for a rate as stored. */
@@ -217,68 +217,67 @@ function ToleranceWarning({ warning, pair, onDismiss }) {
   )
 }
 
+/**
+ * CUR-03: the pair's rates, newest first; the kind filter, sortable
+ * headers, pages, columns and export (EXP-01, LAY-04). No text search:
+ * the API filters rates by pair and kind only.
+ */
 function RateHistory({ company, pair }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const [kind, setKind] = useState('')
-  const [page, setPage] = useState(1)
-  const params = new URLSearchParams({ pair, per_page: String(PER_PAGE), page: String(page) })
-  if (kind) params.set('kind', kind)
-  const history = useQuery({
-    queryKey: ['exchange-rates', company.id, 'history', pair, kind, page],
-    queryFn: () => api.get(`companies/${company.id}/exchange-rates?${params}`),
-    placeholderData: (previous) => previous,
-  })
-  const rows = history.data?.data ?? []
-  const lastPage = history.data?.meta?.last_page ?? 1
 
   const columns = [
-    { key: 'effective_at', label: t('rates.columns.effective'), render: (row) => formatDateTime(row.effective_at, locale, company.timezone) },
-    { key: 'kind', label: t('rates.columns.kind'), render: (row) => t(`rates.kinds.${row.kind}`) },
-    { key: 'mid', label: t('rates.columns.mid'), render: (row) => <RateValue rate={row} /> },
-    { key: 'buy', label: t('rates.columns.buy'), numeric: true, align: 'end', render: (row) => (row.buy ? formatDecimal(row.buy, locale) : '—') },
-    { key: 'sell', label: t('rates.columns.sell'), numeric: true, align: 'end', render: (row) => (row.sell ? formatDecimal(row.sell, locale) : '—') },
+    {
+      key: 'effective_at',
+      label: t('rates.columns.effective'),
+      sortKey: 'effective_at',
+      hideable: false,
+      render: (row) => formatDateTime(row.effective_at, locale, company.timezone),
+    },
+    { key: 'kind', label: t('rates.columns.kind'), sortKey: 'kind', render: (row) => t(`rates.kinds.${row.kind}`) },
+    { key: 'mid', label: t('rates.columns.mid'), sortKey: 'mid', render: (row) => <RateValue rate={row} /> },
+    { key: 'buy', label: t('rates.columns.buy'), sortKey: 'buy', numeric: true, align: 'end', render: (row) => (row.buy ? formatDecimal(row.buy, locale) : '—') },
+    { key: 'sell', label: t('rates.columns.sell'), sortKey: 'sell', numeric: true, align: 'end', render: (row) => (row.sell ? formatDecimal(row.sell, locale) : '—') },
     { key: 'direction', label: t('rates.columns.direction'), render: (row) => t(`rates.directions.${row.direction ?? 'direct'}`) },
-    { key: 'source', label: t('rates.columns.source'), render: (row) => sourceLabel(t, row.source) },
+    { key: 'source', label: t('rates.columns.source'), sortKey: 'source', render: (row) => sourceLabel(t, row.source) },
+    {
+      key: 'created_at',
+      label: t('rates.columns.entered'),
+      sortKey: 'created_at',
+      defaultHidden: true,
+      render: (row) => (row.created_at ? formatDateTime(row.created_at, locale, company.timezone) : ''),
+    },
   ]
+
+  const list = useServerList({
+    id: 'exchange-rates',
+    endpoint: `companies/${company.id}/exchange-rates`,
+    queryKey: ['exchange-rates', company.id, 'history', pair],
+    params: { pair },
+    filters: { kind: '' },
+    columns,
+  })
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="rate-history-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 id="rate-history-title" className="text-h2 text-ink">
-          {t('rates.history.title')}
-        </h2>
-        <Select
-          label={t('rates.history.kind')}
-          className="w-full max-w-field sm:w-auto"
-          options={[{ value: '', label: t('rates.history.allKinds') }, ...KINDS.map((value) => ({ value, label: t(`rates.kinds.${value}`) }))]}
-          value={kind}
-          onChange={(event) => {
-            setKind(event.target.value)
-            setPage(1)
-          }}
-        />
-      </div>
-      {history.isError ? <Alert tone="danger" title={errorMessage(history.error)} /> : null}
-      <div className="overflow-x-auto">
-        <DataTable
-          caption={t('rates.history.caption', { pair })}
-          columns={columns}
-          rows={rows}
-          emptyText={history.isPending ? t('common.loading') : t('rates.history.empty')}
-        />
-      </div>
-      {lastPage > 1 ? (
-        <div className="flex items-center justify-end gap-2">
-          <span className="text-caption text-ink-muted">{t('rates.history.page', { page, pages: lastPage })}</span>
-          <Button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
-            {t('rates.history.newer')}
-          </Button>
-          <Button disabled={page >= lastPage} onClick={() => setPage((value) => value + 1)}>
-            {t('rates.history.older')}
-          </Button>
-        </div>
-      ) : null}
+      <h2 id="rate-history-title" className="text-h2 text-ink">
+        {t('rates.history.title')}
+      </h2>
+      <ListView
+        list={list}
+        title={t('rates.history.caption', { pair })}
+        searchable={false}
+        filters={
+          <Select
+            label={t('rates.history.kind')}
+            className="w-full max-w-field sm:w-auto"
+            options={[{ value: '', label: t('rates.history.allKinds') }, ...KINDS.map((value) => ({ value, label: t(`rates.kinds.${value}`) }))]}
+            value={list.filters.kind}
+            onChange={(event) => list.setFilter('kind', event.target.value)}
+          />
+        }
+        emptyText={list.filters.kind ? t('rates.history.emptyKind') : t('rates.history.empty')}
+      />
     </section>
   )
 }

@@ -818,7 +818,8 @@
       "decimals": "Decimals",
       "rounding": "Cash rounding",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "name": "Name"
     },
     "status": {
       "active": "On",
@@ -860,7 +861,9 @@
       "none": "None",
       "save": "Save currencies",
       "saved": "Currencies saved."
-    }
+    },
+    "searchPlaceholder": "Code or name",
+    "emptyFiltered": "No currency matches this search. Try other words."
   },
   "rates": {
     "pair": "Currency pair",
@@ -904,7 +907,8 @@
       "buy": "Buy",
       "sell": "Sell",
       "direction": "Direction",
-      "source": "Source"
+      "source": "Source",
+      "entered": "Entered"
     },
     "history": {
       "title": "History",
@@ -912,9 +916,7 @@
       "allKinds": "All kinds",
       "caption": "Rate history for {{pair}}",
       "empty": "No rates for this pair yet.",
-      "page": "Page {{page}} of {{pages}}",
-      "newer": "Newer",
-      "older": "Older"
+      "emptyKind": "No rates of this kind for this pair yet."
     },
     "dialog": {
       "action": "Set shop rate",

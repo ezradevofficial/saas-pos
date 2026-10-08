@@ -818,7 +818,8 @@
       "decimals": "Décimales",
       "rounding": "Arrondi espèces",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "name": "Nom"
     },
     "status": {
       "active": "Activée",
@@ -860,7 +861,9 @@
       "none": "Aucune",
       "save": "Enregistrer les devises",
       "saved": "Devises enregistrées."
-    }
+    },
+    "searchPlaceholder": "Code ou nom",
+    "emptyFiltered": "Aucune devise ne correspond à cette recherche. Essayez d’autres mots."
   },
   "rates": {
     "pair": "Paire de devises",
@@ -904,7 +907,8 @@
       "buy": "Achat",
       "sell": "Vente",
       "direction": "Sens",
-      "source": "Source"
+      "source": "Source",
+      "entered": "Saisi le"
     },
     "history": {
       "title": "Historique",
@@ -912,9 +916,7 @@
       "allKinds": "Tous les types",
       "caption": "Historique des taux pour {{pair}}",
       "empty": "Aucun taux pour cette paire pour l’instant.",
-      "page": "Page {{page}} sur {{pages}}",
-      "newer": "Plus récents",
-      "older": "Plus anciens"
+      "emptyKind": "Aucun taux de ce type pour cette paire pour l’instant."
     },
     "dialog": {
       "action": "Fixer le taux boutique",
