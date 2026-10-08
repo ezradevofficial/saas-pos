@@ -1852,6 +1852,7 @@
     },
     "statuses": {
       "queued": "Queued",
+      "sending": "Sending",
       "sent": "Sent",
       "delivered": "Delivered",
       "failed": "Failed",

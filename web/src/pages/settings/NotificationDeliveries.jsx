@@ -5,13 +5,14 @@ import { formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 
-const DELIVERY_STATUSES = ['queued', 'sent', 'delivered', 'failed', 'skipped', 'pending_digest', 'digested']
+const DELIVERY_STATUSES = ['queued', 'sending', 'sent', 'delivered', 'failed', 'skipped', 'pending_digest', 'digested']
 const CHANNELS = ['in_app', 'email', 'push', 'sms', 'whatsapp']
 
 /** Status as a dot and a word: only a failure is red; waiting is neutral. */
 const TONES = {
   queued: 'neutral',
   pending_digest: 'neutral',
+  sending: 'info',
   sent: 'info',
   delivered: 'success',
   digested: 'success',

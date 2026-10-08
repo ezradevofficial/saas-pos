@@ -1852,6 +1852,7 @@
     },
     "statuses": {
       "queued": "En file d’attente",
+      "sending": "En cours d’envoi",
       "sent": "Envoyé",
       "delivered": "Remis",
       "failed": "Échec",
