@@ -1,6 +1,6 @@
 // MD-07: reading audit entries for the history panel: action labels,
 // the fields an entry changed, and values for display.
-import { formatInteger, formatMoney, formatWhen } from './format'
+import { formatDecimal, formatInteger, formatMoney, formatWhen } from './format'
 
 // Bookkeeping columns: never shown as a changed field (archive and restore have their own action label).
 const SKIP = new Set(['id', 'tenant_id', 'created_at', 'updated_at', 'archived_at', 'credit_limit_change'])
@@ -74,7 +74,20 @@ export const FIELDS = new Set([
   'address',
   'owner_user_id',
   'custom',
+  'item_id',
+  'uom_id',
+  'effective_from',
+  'min_quantity',
+  'amount_minor',
 ])
+
+// MD-03 follow-up: which price an item price entry is about, listed even when unchanged.
+const PRICE_CONTEXT = ['price_list_id', 'item_id', 'uom_id', 'effective_from', 'min_quantity']
+const PRICE_VERBS = new Set(['create', 'update', 'archive', 'restore'])
+const isPriceAction = (action) => String(action ?? '').startsWith('core.item_price.')
+
+/** The fields that name what an entry is about (an item price's list, item, unit, start and quantity), else none. */
+export const contextFields = (action) => (isPriceAction(action) ? PRICE_CONTEXT : [])
 
 /**
  * "core.item.units_update" → its label; unknown actions fall back to
@@ -85,6 +98,7 @@ export const FIELDS = new Set([
 export function actionLabel(t, action, entry) {
   const verb = String(action ?? '').split('.').pop()
   if (verb === 'credit_limit_apply') return t('history.actions.credit_limit_apply', { number: entry?.after?.credit_limit_change ?? '' })
+  if (isPriceAction(action) && PRICE_VERBS.has(verb)) return t(`history.actions.price_${verb}`)
   return ACTIONS.has(verb) ? t(`history.actions.${verb}`) : t('history.actions.changed')
 }
 
@@ -95,15 +109,23 @@ export const humanise = (key) => {
 
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
-/** The fields an entry changed: union of before and after, unchanged ones and bookkeeping left out. */
-export function changedFields(before, after) {
+/**
+ * The fields an entry changed: union of before and after, unchanged ones
+ * and bookkeeping left out. `context` fields (contextFields) come first
+ * whenever the entry has them, changed or not.
+ */
+export function changedFields(before, after, context = []) {
   const keys = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((key) => !SKIP.has(key))
   const empty = (value) =>
     value === null || value === undefined || value === '' || (typeof value === 'object' && Object.keys(value).length === 0)
   // A new record lists only the values it was given.
   const changed = keys.filter((key) => (!before ? !empty(after?.[key]) : !after || !same(before[key], after[key])))
   // A money amount and its currency read as one value ("KES 12,450.00").
-  return changed.filter((key) => !(key.endsWith('_currency') && changed.includes(key.replace(/_currency$/, '_minor'))))
+  const fields = changed.filter(
+    (key) => !(key.endsWith('_currency') && changed.includes(key.replace(/_currency$/, '_minor'))) && !(key === 'currency' && changed.includes('amount_minor')),
+  )
+  const present = context.filter((key) => (after && key in after) || (before && key in before))
+  return [...present, ...fields.filter((key) => !present.includes(key))]
 }
 
 /**
@@ -119,6 +141,7 @@ export function formatHistoryValue(key, value, snapshot, { t, locale, timeZone, 
     const currency = snapshot?.[key.replace(/_minor$/, '_currency')] ?? snapshot?.currency
     return currency ? formatMoney(value, currency, locale) : formatInteger(value, locale)
   }
+  if (key === 'min_quantity') return formatDecimal(String(value), locale)
   if (typeof value === 'number') return Number.isInteger(value) ? formatInteger(value, locale) : String(value)
   if (typeof value === 'string') return formatWhen(value, locale, timeZone) ?? value
   const describe = (entry) =>

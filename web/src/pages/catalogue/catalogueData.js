@@ -1,6 +1,7 @@
 // MD-02 on the client: units, categories and tax categories for the
 // catalogue screens, and the item types. Lists are small (at most 200).
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { usePermissions } from '@/auth/usePermissions'
 import { CATEGORY_VIEW, UOM_VIEW } from '@/layouts/navigation'
@@ -60,3 +61,18 @@ export function categoryOptions(categories, companyId) {
 
 /** "PCS · Pieces" */
 export const uomLabel = (uom) => (uom ? `${uom.code} · ${uom.name}` : '')
+
+/**
+ * The units an item is priced in (MD-03 follow-up): its base unit first,
+ * then its other units, as Select options.
+ */
+export function useItemUnitOptions(item) {
+  const { t } = useTranslation()
+  const uoms = useUoms()
+  if (!item) return []
+  const codeOf = (id) => uoms.all.find((uom) => uom.id === id)?.code
+  return [
+    { value: item.base_uom_id, label: t('prices.baseUnit', { unit: codeOf(item.base_uom_id) ?? t('prices.baseUnitUnknown') }) },
+    ...(item.uoms ?? []).map((uom) => ({ value: uom.uom_id, label: uom.code || codeOf(uom.uom_id) || uom.uom_id })),
+  ]
+}

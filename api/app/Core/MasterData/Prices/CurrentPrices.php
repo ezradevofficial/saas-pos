@@ -65,6 +65,8 @@ class CurrentPrices
                 'tax_inclusive' => $list->tax_inclusive,
                 'is_default' => $list->is_default,
                 'can_edit' => ! $frozen && $this->access->canEdit($user, $list->company_id),
+                // Today in the company's time zone: the default start of a new price.
+                'today' => $day,
                 'prices' => $this->rows($current),
                 'scheduled' => $this->rows($scheduled),
             ];

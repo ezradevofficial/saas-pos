@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
@@ -88,7 +89,7 @@ function AddPriceListDialog({ company, currencies, onClose }) {
 /**
  * MD-03: the company's price lists, tax-inclusive or exclusive, one
  * default per currency; search, sort, pages, columns and export (EXP-01,
- * LAY-04).
+ * LAY-04). A row opens the list's prices (PriceListDetail).
  */
 export function PriceLists({ company }) {
   const { t } = useTranslation()
@@ -96,6 +97,7 @@ export function PriceLists({ company }) {
   const canEdit = can('core.price_list.edit', companyScope(company))
   const currencies = useTenantCurrencies()
   const [adding, setAdding] = useState(false)
+  const navigate = useNavigate()
 
   const columns = [
     { key: 'name', label: t('taxes.priceLists.name'), sortKey: 'name', hideable: false, render: (row) => <span className="font-medium text-ink">{row.name}</span> },
@@ -129,6 +131,7 @@ export function PriceLists({ company }) {
       <ListView
         list={list}
         title={t('taxes.tabs.priceLists')}
+        onRowClick={(row) => navigate(`/settings/taxes/price-lists/${row.id}`)}
         searchPlaceholder={t('taxes.priceLists.searchPlaceholder')}
         emptyText={list.term ? t('taxes.priceLists.emptyFiltered') : t('taxes.priceLists.empty')}
       />

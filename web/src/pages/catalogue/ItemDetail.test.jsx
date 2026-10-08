@@ -155,4 +155,64 @@ describe('Item detail', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('items/i-1/archive'))
     expect(await screen.findByRole('button', { name: 'Restore item' })).toBeInTheDocument()
   })
+  describe('prices', () => {
+    const RETAIL = {
+      price_list_id: 'pl-1',
+      name: 'Retail',
+      company_id: 'c-1',
+      currency: 'CDF',
+      tax_inclusive: true,
+      is_default: true,
+      can_edit: true,
+      today: '2026-10-08',
+      prices: [{ id: 'p-1', uom_id: 'u-ea', uom_code: 'EA', amount_minor: '1500', currency: 'CDF', effective_from: '2026-10-01', min_quantity: '1' }],
+      scheduled: [{ id: 'p-2', uom_id: 'u-ea', uom_code: 'EA', amount_minor: '1750', currency: 'CDF', effective_from: '2026-11-01', min_quantity: '1' }],
+    }
+    const withPrices = (lists) => ({ ...ITEM, prices: lists })
+    const currencies = ['tenant/currencies', { data: [{ id: 'tc-1', code: 'CDF', active: true, decimals: 0 }] }]
+
+    it('shows each price list with today’s and scheduled prices, and sets a price in whole francs', async () => {
+      catalogue(api, { item: withPrices([RETAIL]), extra: [currencies] })
+      api.post.mockResolvedValue({ data: {} })
+      renderApp('/catalogue/items/i-1')
+
+      const section = await screen.findByRole('region', { name: 'Retail' })
+      expect(within(within(section).getByRole('list', { name: 'Current prices in Retail' })).getByText('1,500')).toBeInTheDocument()
+      expect(within(within(section).getByRole('list', { name: 'Scheduled prices in Retail' })).getByText('1,750')).toBeInTheDocument()
+
+      fireEvent.click(within(section).getByRole('button', { name: 'Set a price in Retail' }))
+      const dialog = await screen.findByRole('dialog')
+      chooseOption(within(dialog).getByLabelText(/^Unit/), 'BOX')
+      fireEvent.change(within(dialog).getByRole('textbox', { name: /^Price/ }), { target: { value: '33000' } })
+      fireEvent.change(within(dialog).getByLabelText(/^From$/), { target: { value: '2026-12-01' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save price' }))
+
+      await waitFor(() =>
+        expect(api.post).toHaveBeenCalledWith('price-lists/pl-1/prices', {
+          item_id: 'i-1',
+          uom_id: 'u-box',
+          amount_minor: '33000',
+          currency: 'CDF',
+          effective_from: '2026-12-01',
+          min_quantity: '1',
+        }),
+      )
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    })
+
+    it('shows prices without edit when the user may not change them', async () => {
+      catalogue(api, { item: withPrices([{ ...RETAIL, can_edit: false }]), extra: [currencies] })
+      renderApp('/catalogue/items/i-1')
+      const section = await screen.findByRole('region', { name: 'Retail' })
+      expect(within(section).queryByRole('button', { name: 'Set a price in Retail' })).not.toBeInTheDocument()
+      expect(within(section).queryByRole('button', { name: /Edit the price/ })).not.toBeInTheDocument()
+    })
+
+    it('has no prices card when the API leaves prices out', async () => {
+      catalogue(api)
+      renderApp('/catalogue/items/i-1')
+      expect(await screen.findByRole('button', { name: 'Save changes' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Prices' })).not.toBeInTheDocument()
+    })
+  })
 })

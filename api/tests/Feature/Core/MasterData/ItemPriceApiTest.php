@@ -210,6 +210,7 @@ class ItemPriceApiTest extends TestCase
         $this->getJson("/api/v1/items/{$this->soda}", $this->headersFor())->assertOk()
             ->assertJsonPath('data.prices.0.price_list_id', $this->kes)
             ->assertJsonPath('data.prices.0.can_edit', true)
+            ->assertJsonPath('data.prices.0.today', self::TODAY)
             ->assertJsonPath('data.prices.0.prices.0.amount_minor', '1000')
             ->assertJsonCount(1, 'data.prices.0.prices')
             ->assertJsonPath('data.prices.0.scheduled.0.amount_minor', '1200');

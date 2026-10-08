@@ -1081,6 +1081,85 @@
     "searchPlaceholder": "Code, name or fiscal code",
     "emptyFiltered": "No tax code matches this search. Try other words."
   },
+  "prices": {
+    "back": "Back to price lists",
+    "eyebrow": "Price list",
+    "notFound": "This price list wasn’t found. It may belong to a company you can’t see.",
+    "noAccess": "You can’t see the prices of this list. Ask an administrator for access to prices.",
+    "listArchived": "Archived",
+    "tabs": {
+      "prices": "Prices",
+      "history": "History"
+    },
+    "title": "Prices of {{list}}",
+    "intro": "Prices in {{currency}}, per item and unit. A price with a later start date replaces the current one on that day.",
+    "add": "Add price",
+    "edit": "Edit",
+    "editFor": "Edit the price of {{item}} per {{unit}}",
+    "archiveFor": "Archive the price of {{item}} per {{unit}}",
+    "archiveTitle": "Archive the price of {{item}} per {{unit}}?",
+    "archiveText": "The price stops applying at once. Its history is kept.",
+    "archiveConfirm": "Archive price",
+    "keep": "Keep price",
+    "searchPlaceholder": "Item code, item name or unit",
+    "empty": "This price list has no prices yet.",
+    "emptyEdit": "This price list has no prices yet. Add a price to start selling from it.",
+    "emptyFiltered": "No price matches this search. Try other words.",
+    "hidden": "Hidden",
+    "anItem": "An item",
+    "baseUnit": "{{unit}} (base unit)",
+    "baseUnitUnknown": "Base unit",
+    "fromQuantity": "from {{quantity}}",
+    "columns": {
+      "item": "Item",
+      "unit": "Unit",
+      "amount": "Price",
+      "from": "From",
+      "minQuantity": "From quantity",
+      "state": "In force",
+      "actions": "Actions"
+    },
+    "states": {
+      "all": "All prices",
+      "current": "Current",
+      "scheduled": "Scheduled",
+      "replaced": "Replaced"
+    },
+    "dialog": {
+      "addTitle": "Add a price to {{list}}",
+      "editTitle": "Edit a price in {{list}}",
+      "formLabel": "Price details",
+      "submit": "Save price",
+      "item": "Item",
+      "chooseItem": "Choose an item",
+      "itemRequired": "Choose the item.",
+      "unit": "Unit",
+      "chooseUnit": "Choose a unit",
+      "unitRequired": "Choose the unit.",
+      "amount": "Price",
+      "amountHelp": "In {{currency}}, the currency of this price list.",
+      "amountRequired": "Enter the price.",
+      "from": "From",
+      "fromHelp": "Today by default. Choose a later date to schedule a change.",
+      "minQuantity": "From quantity",
+      "minQuantityHelp": "The price applies when at least this many units are sold.",
+      "quantityRequired": "Enter the quantity, 1 for every sale."
+    },
+    "item": {
+      "title": "Prices",
+      "subtitle": "The price in each price list, per unit.",
+      "noLists": "No price lists yet. Add one in Taxes, under Price lists.",
+      "none": "No price in this list yet.",
+      "set": "Set price",
+      "setFor": "Set a price in {{list}}",
+      "edit": "Edit",
+      "editFor": "Edit the price per {{unit}}",
+      "since": "Since {{date}}",
+      "startsOn": "From {{date}}",
+      "currentIn": "Current prices in {{list}}",
+      "scheduledIn": "Scheduled prices in {{list}}"
+    }
+  },
   "paymentMethods": {
     "empty": "This company has no payment methods yet.",
     "types": {
@@ -1353,7 +1432,11 @@
       "sign_out_everywhere": "Signed out everywhere",
       "pair": "Paired",
       "changed": "Changed",
-      "credit_limit_apply": "Credit limit changed via {{number}}"
+      "credit_limit_apply": "Credit limit changed via {{number}}",
+      "price_create": "Price added",
+      "price_update": "Price changed",
+      "price_archive": "Price archived",
+      "price_restore": "Price restored"
     },
     "fields": {
       "name": "Name",
@@ -1394,7 +1477,12 @@
       "description": "Description",
       "address": "Address",
       "owner_user_id": "Owner",
-      "custom": "Custom fields"
+      "custom": "Custom fields",
+      "item_id": "Item",
+      "uom_id": "Unit",
+      "effective_from": "From",
+      "min_quantity": "From quantity",
+      "amount_minor": "Price"
     }
   },
   "items": {
