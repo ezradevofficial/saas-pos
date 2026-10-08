@@ -121,8 +121,8 @@ class EmailApprovals
 
         $reason = match (true) {
             $row->used_at !== null => 'used',
-            $row->expires_at->lessThanOrEqualTo(CarbonImmutable::now()) => 'expired',
             ! $assignment->isPending() || ! $request->isPending() || $assignment->step !== $request->step => 'not_waiting',
+            $row->expires_at->lessThanOrEqualTo(CarbonImmutable::now()) => 'expired',
             $this->twoFactor->required($user) => 'two_factor',
             default => null,
         };
