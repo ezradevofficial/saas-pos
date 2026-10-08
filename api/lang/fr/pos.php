@@ -13,6 +13,7 @@ return [
     ],
 
     'errors' => [
+        'override_reference_required' => 'L’approbation du responsable doit indiquer l’élément concerné. Mettez la caisse à jour et renvoyez-le.',
         'payload_mismatch' => 'Un élément avec cet identifiant a déjà été envoyé avec un autre contenu. Donnez un nouvel identifiant au nouvel élément sur la caisse.',
         'override_invalid' => 'L’approbation du responsable n’a pas pu être vérifiée. Demandez au responsable d’approuver de nouveau avec son code PIN.',
         'override_expired' => 'L’approbation du responsable a expiré. Demandez au responsable d’approuver de nouveau.',

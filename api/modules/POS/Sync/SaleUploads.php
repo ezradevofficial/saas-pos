@@ -417,6 +417,10 @@ class SaleUploads
             $flags->add($approval->flag(), $index + 1);
         }
 
+        foreach ($approval->reviewFlags() as $code) {
+            $flags->add($code, $index + 1);
+        }
+
         return $approval;
     }
 

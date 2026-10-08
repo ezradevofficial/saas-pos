@@ -85,7 +85,7 @@ class Authority
             $manager = $proof === null ? $named : $this->user($proof->managerUserId, "{$field}.manager_user_id");
 
             if ($manager !== null && $allowed($manager)) {
-                return new Approval($manager, $proof !== null);
+                return new Approval($manager, $proof !== null && $proof->qualifies, $proof?->offline ?? false);
             }
 
             if (! $allowed($actor)) {

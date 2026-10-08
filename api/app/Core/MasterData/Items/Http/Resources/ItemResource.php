@@ -17,13 +17,30 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * for the base unit; `images` carry a temporary URL for the requesting
  * user, valid ItemImages::URL_MINUTES. Fields hidden from the user by
  * field rules on `item` (RBAC-05) are left out, as in its history; they
- * are named as the model's columns, plus `uoms`, `barcodes` and `images`.
+ * are named as the model's columns, plus `uoms`, `barcodes`, `images` and
+ * `prices` (the item's prices per price list, on the detail endpoint).
  *
  * @mixin Item
  */
 class ItemResource extends JsonResource
 {
     public const FIELD_RULES = 'item';
+
+    /**
+     * MD-03 follow-up: the item's prices per price list (CurrentPrices),
+     * set on the detail endpoint only; hidden with the `prices` field.
+     *
+     * @var list<array<string, mixed>>|null
+     */
+    public ?array $prices = null;
+
+    /** @param list<array<string, mixed>>|null $prices */
+    public function withPrices(?array $prices): static
+    {
+        $this->prices = $prices;
+
+        return $this;
+    }
 
     public function toArray(Request $request): array
     {
@@ -60,6 +77,7 @@ class ItemResource extends JsonResource
                 'height' => $image->height,
                 'size' => $image->size,
             ])->values()->all()),
+            'prices' => $this->when($this->prices !== null, fn () => $this->prices),
             'custom' => (object) ($this->custom ?? []),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

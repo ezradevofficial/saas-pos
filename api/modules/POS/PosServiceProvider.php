@@ -8,6 +8,7 @@ use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Events\DeviceUnpaired;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -17,7 +18,8 @@ use Modules\POS\Listeners\RetireDeviceRanges;
 use Modules\POS\Sync\CoreOverrides;
 use Modules\POS\Sync\OverrideVerifier;
 use Modules\POS\Sync\Sellability;
-use Modules\POS\Sync\UnverifiedOverrides;
+use Modules\POS\Sync\Sources\NumberRangeSource;
+use Modules\POS\Sync\Sources\OpenShiftSource;
 
 /**
  * The POS module (docs/modules/pos.md). Registered for every tenant, as
@@ -38,13 +40,15 @@ class PosServiceProvider extends ServiceProvider
         'cash' => ['move'],
         'price' => ['override'],
         'discount' => ['give'],
+        // AUTH-06: signs in at the tills where the role is held (core's sync.sign_in_permission).
+        'till' => ['sign_in'],
     ];
 
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/pos.php', 'pos');
         // AUTH-07, AUTH-08: core's PIN verifier once it is installed, else nothing is provable (held).
-        $this->app->bindIf(OverrideVerifier::class, class_exists('App\\Core\\Identity\\Pin\\OverrideVerifier') ? CoreOverrides::class : UnverifiedOverrides::class);
+        $this->app->bindIf(OverrideVerifier::class, CoreOverrides::class);
         $this->app->scoped(Sellability::class);
     }
 
@@ -63,6 +67,11 @@ class PosServiceProvider extends ServiceProvider
             || DB::table('pos_sale_payments')->where('currency', $code)->exists()
             || DB::table('pos_shift_balances')->where('currency', $code)->exists()
             || DB::table('pos_cash_movements')->where('currency', $code)->exists());
+
+        // NFR-04: what the till pulls from the POS module (core's sync API).
+        $sources = $this->app->make(SyncSources::class);
+        $sources->register(new NumberRangeSource);
+        $sources->register(new OpenShiftSource);
 
         // NUM-02: a lost device's ranges stop when it is unpaired.
         Event::listen(DeviceUnpaired::class, RetireDeviceRanges::class);

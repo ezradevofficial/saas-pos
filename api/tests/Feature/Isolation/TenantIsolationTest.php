@@ -24,6 +24,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\RegistersTillModule;
 use Tests\Support\GlobalTables;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
@@ -40,7 +41,7 @@ use Tests\TestCase;
  */
 class TenantIsolationTest extends TestCase
 {
-    use RefreshTenantDatabase;
+    use RefreshTenantDatabase, RegistersTillModule;
 
     /**
      * Routes that take no bearer token, with why they cannot leak another
@@ -86,6 +87,7 @@ class TenantIsolationTest extends TestCase
         'item_category' => 'item_category',
         'uom' => 'uom',
         'item_image' => 'item_image',
+        'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',
@@ -143,11 +145,14 @@ class TenantIsolationTest extends TestCase
         'base_uom_id' => 'uom',
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
+        'item_id' => 'item', // MD-03 follow-up: the item a price is for
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
         'from_user_id' => 'user', // APR-06: reassign from a pending approver
         'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
+        'manager_user_id' => 'user', // AUTH-08: the manager authorising an override (the owner)
+        'cashier_user_id' => 'manager', // AUTH-08: the cashier the override is for
         // POS-09: ids a till uploads (the device's own shift, sale and line; users; master data).
         'shift_id' => 'pos_shift',
         'sale_id' => 'pos_sale',
@@ -156,8 +161,6 @@ class TenantIsolationTest extends TestCase
         'opened_by_id' => 'user',
         'closed_by_id' => 'user',
         'voided_by_id' => 'user',
-        'manager_user_id' => 'manager', // AUTH-08: a manager's override
-        'cashier_user_id' => 'user', // AUTH-08: the cashier an override was given to
         'number_range_id' => 'pos_number_range', // NUM-02, M1: the range the till numbered from
         'customer_id' => 'customer',
         'item_id' => 'item',
@@ -230,9 +233,13 @@ class TenantIsolationTest extends TestCase
         ['channel' => 'email', 'status' => 'all'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
+        // MD-03 follow-up: a price list's prices in force (both tenants priced their item).
+        ['state' => 'current'],
 
         // APR-04: the approvals inbox's oversight view and overdue filter.
         ['view' => 'all', 'status' => 'all', 'overdue' => '0'],
+        // NFR-04: a device pull of some entities from the start, one row per page.
+        ['entities' => ['items', 'customers', 'staff', 'exchange_rates'], 'cursors' => ['items' => '', 'customers' => ''], 'limit' => 1],
         // M3, H2: review filters (sales and the held list).
         ['flagged' => '1', 'flag' => 'actor_unverified', 'reviewed' => '0', 'kind' => 'refund'],
     ];
@@ -245,7 +252,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'kind'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed'];
 
     private TwoTenants $tenants;
 
@@ -256,11 +263,16 @@ class TenantIsolationTest extends TestCase
     {
         parent::setUp();
 
+        // AUTH-06..AUTH-08: till permissions for the staff, PIN and override routes.
+        $this->registerTillModule();
         $this->tenants = TwoTenants::build($this);
         app(TenantContext::class)->set(null);
         // EXP-01: the suite exports every list many times a minute; the
         // limit itself is tested in ListSortAndExportTest.
         RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
+        // NFR-04: the suite calls the device routes far more than a till would.
+        RateLimiter::for('device-sync', fn () => Limit::none());
+        RateLimiter::for('device-secret', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -374,7 +386,7 @@ class TenantIsolationTest extends TestCase
                     // another list's filter, but never as not found), so the 404 above
                     // is isolation, not a bad URL.
                     if ($method === 'GET') {
-                        $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $a->bearer());
+                        $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $this->bearerFor($route, $a));
                         $query === [] ? $control->assertOk() : $this->assertContains($control->getStatusCode(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->getStatusCode()}");
                         $this->assertBodyHasNothingOf($b, $control, "GET {$this->uriWith($route, $a)}{$suffix}");
                     }
@@ -555,6 +567,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PUT api/v1/master-data/settings', $hijacked);
         $this->assertArrayHasKey('POST api/v1/items', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/items/{item}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/price-lists/{price_list}/prices', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/price-lists/{price_list}/prices/bulk', $hijacked);
         $this->assertArrayHasKey('POST api/v1/item-categories', $hijacked);
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows', $hijacked);
@@ -564,6 +578,10 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/automation-templates/use', $hijacked);
         $this->assertArrayHasKey('POST api/v1/approvals/{approval}/reassign', $hijacked);
         $this->assertArrayHasKey('POST api/v1/me/delegations', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/verify', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/attempts', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/override', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/change', $hijacked);
         $this->assertArrayHasKey('PUT api/v1/numbering/formats', $hijacked);
         foreach (['sales', 'shifts', 'cash-movements', 'voids', 'refunds'] as $upload) {
             $this->assertArrayHasKey("POST api/v1/pos/{$upload}", $hijacked);
@@ -836,7 +854,7 @@ class TenantIsolationTest extends TestCase
         return array_diff($route->parameterNames(), array_keys(self::GLOBAL_PARAMETERS)) === [];
     }
 
-    /** The tenant's device token on a till's route (TEN-05), else its Owner's. */
+    /** TEN-05: device routes are called with the tenant's paired device, every other route as its Owner. */
     private function bearerFor(RoutingRoute $route, TenantFixture $tenant): array
     {
         return in_array(EnsureDeviceToken::class, $route->gatherMiddleware(), true) ? $tenant->bearer('device') : $tenant->bearer();
@@ -1066,6 +1084,9 @@ class TenantIsolationTest extends TestCase
                 'uoms' => [['uom_id' => $tenant->id('uom_box'), 'factor' => '12']],
                 'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $tenant->id('uom_box')]],
             ],
+            // MD-03 follow-up: the item's box in the company's default list, one price or a batch.
+            'POST api/v1/price-lists/{price_list}/prices' => ['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'amount_minor' => '130000', 'currency' => 'KES'],
+            'POST api/v1/price-lists/{price_list}/prices/bulk' => ['prices' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'amount_minor' => '131000', 'currency' => 'KES']]],
             'POST api/v1/item-categories' => ['name' => 'Hijack category', 'parent_id' => $tenant->id('item_category_parent')],
             'PATCH api/v1/item-categories/{item_category}' => ['parent_id' => $tenant->id('item_category_parent')],
             // MD-05: a child of the company's parent row, owned by the Owner.
@@ -1125,17 +1146,25 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/pos/cash-movements' => ['movements' => [[
                 'id' => (string) Str::uuid7(), 'shift_id' => $tenant->id('pos_shift'), 'user_id' => $tenant->id('user'), 'kind' => 'pay_out',
                 'currency' => 'KES', 'amount_minor' => '500', 'reason' => 'Hijack check', 'occurred_at' => now()->toIso8601String(),
-                'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
             ]]],
             'POST api/v1/pos/voids' => ['voids' => [[
                 'id' => (string) Str::uuid7(), 'sale_id' => $tenant->id('pos_sale_spare'), 'voided_by_id' => $tenant->id('user'),
-                'voided_at' => now()->toIso8601String(), 'reason' => 'Hijack check', 'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
+                'voided_at' => now()->toIso8601String(), 'reason' => 'Hijack check',
             ]]],
             'POST api/v1/pos/refunds' => ['refunds' => [[
                 ...TwoTenants::posRefund(fn () => (string) Str::uuid7(), ['id' => $tenant->id('pos_sale'), 'lines' => [['id' => $tenant->id('pos_sale_line')]]],
                     $tenant->id('pos_shift'), $tenant->id('user'), 2, str_replace('{000001}', '000002', $tenant->id('pos_refund_pattern')), $tenant->id('payment_method')),
-                'override' => ['manager_user_id' => $tenant->id('manager'), 'cashier_user_id' => $tenant->id('user')],
             ]]],
+            // AUTH-06..AUTH-08, from A's device: the owner signs in, a report of no
+            // wrong PINs, and the owner approving a void for the manager.
+            'POST api/v1/pos/pin/verify' => ['user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN],
+            'POST api/v1/pos/pin/attempts' => ['reports' => [['user_id' => $tenant->id('user'), 'failed_attempts' => 0, 'locked' => false]]],
+            'POST api/v1/pos/override' => [
+                'manager_user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'permission' => 'pos.sale.void', 'cashier_user_id' => $tenant->id('manager'),
+                'reference' => 'sale-hijack-check',
+            ],
+            // The owner picks a new PIN at the till (the last device route the suite calls with it).
+            'POST api/v1/pos/pin/change' => ['user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'new_pin' => '739104'],
             default => null,
         };
     }

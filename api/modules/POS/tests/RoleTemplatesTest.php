@@ -19,7 +19,7 @@ class RoleTemplatesTest extends TestCase
     private const ALL = [
         'pos.cash.move', 'pos.discount.give', 'pos.price.override',
         'pos.sale.create', 'pos.sale.print', 'pos.sale.refund', 'pos.sale.review', 'pos.sale.view', 'pos.sale.void',
-        'pos.shift.close', 'pos.shift.manage', 'pos.shift.open', 'pos.shift.view',
+        'pos.shift.close', 'pos.shift.manage', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in',
     ];
 
     /** @return list<string> the pos.* permissions $template holds at location A */
@@ -43,7 +43,7 @@ class RoleTemplatesTest extends TestCase
     {
         $this->setUpPos();
 
-        $this->assertSame(['pos.discount.give', 'pos.sale.create', 'pos.sale.print', 'pos.sale.view', 'pos.shift.close', 'pos.shift.open', 'pos.shift.view'], $this->posPermissions('cashier'));
+        $this->assertSame(['pos.sale.create', 'pos.sale.print', 'pos.sale.view', 'pos.shift.close', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in'], $this->posPermissions('cashier'));
         $this->assertSame(self::ALL, $this->posPermissions('branch_manager'));
         $this->assertSame(['pos.sale.view', 'pos.shift.view'], $this->posPermissions('accountant'));
         $this->assertSame(['pos.sale.view', 'pos.shift.view'], $this->posPermissions('read_only_auditor'));

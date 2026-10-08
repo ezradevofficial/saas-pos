@@ -15,7 +15,14 @@ final class Approval
     public function __construct(
         public readonly ?User $approver = null,
         public readonly bool $verified = false,
+        public readonly bool $offline = false,
     ) {}
+
+    /** Flags for review on an applied action: an offline override (the device checked the PIN). */
+    public function reviewFlags(): array
+    {
+        return $this->verified && $this->offline ? ['override_offline'] : [];
+    }
 
     public function byOverride(): bool
     {

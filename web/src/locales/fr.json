@@ -1081,6 +1081,88 @@
     "searchPlaceholder": "Code, nom ou code fiscal",
     "emptyFiltered": "Aucun code de taxe ne correspond à cette recherche. Essayez d’autres mots."
   },
+  "prices": {
+    "back": "Retour aux listes de prix",
+    "eyebrow": "Liste de prix",
+    "notFound": "Cette liste de prix est introuvable. Elle appartient peut-être à une société que vous ne voyez pas.",
+    "noAccess": "Vous ne pouvez pas voir les prix de cette liste. Demandez l’accès aux prix à un administrateur.",
+    "listArchived": "Archivée",
+    "tabs": {
+      "prices": "Prix",
+      "history": "Historique"
+    },
+    "title": "Prix de {{list}}",
+    "intro": "Prix en {{currency}}, par article et par unité. Un prix avec une date de début plus tardive remplace le prix actuel ce jour-là.",
+    "add": "Ajouter un prix",
+    "edit": "Modifier",
+    "editFor": "Modifier le prix de {{item}} par {{unit}}",
+    "archiveFor": "Archiver le prix de {{item}} par {{unit}}",
+    "archiveTitle": "Archiver le prix de {{item}} par {{unit}} ?",
+    "archiveText": "Le prix cesse de s’appliquer immédiatement. Son historique est conservé.",
+    "archiveConfirm": "Archiver le prix",
+    "keep": "Garder le prix",
+    "searchPlaceholder": "Code article, nom de l’article ou unité",
+    "empty": "Cette liste de prix n’a pas encore de prix.",
+    "emptyEdit": "Cette liste de prix n’a pas encore de prix. Ajoutez un prix pour commencer à vendre avec elle.",
+    "emptyFiltered": "Aucun prix ne correspond à cette recherche. Essayez d’autres mots.",
+    "hidden": "Masqué",
+    "anItem": "Un article",
+    "baseUnit": "{{unit}} (unité de base)",
+    "baseUnitUnknown": "Unité de base",
+    "fromQuantity": "à partir de {{quantity}}",
+    "columns": {
+      "item": "Article",
+      "unit": "Unité",
+      "amount": "Prix",
+      "from": "À partir du",
+      "minQuantity": "À partir de la quantité",
+      "state": "En vigueur",
+      "actions": "Actions"
+    },
+    "states": {
+      "all": "Tous les prix",
+      "current": "En vigueur",
+      "scheduled": "Programmé",
+      "replaced": "Remplacé"
+    },
+    "dialog": {
+      "addTitle": "Ajouter un prix à {{list}}",
+      "editTitle": "Modifier un prix de {{list}}",
+      "formLabel": "Détails du prix",
+      "submit": "Enregistrer le prix",
+      "item": "Article",
+      "chooseItem": "Choisissez un article",
+      "itemRequired": "Choisissez l’article.",
+      "unit": "Unité",
+      "chooseUnit": "Choisissez une unité",
+      "unitRequired": "Choisissez l’unité.",
+      "amount": "Prix",
+      "amountHelp": "En {{currency}}, la devise de cette liste de prix.",
+      "amountRequired": "Saisissez le prix.",
+      "from": "À partir du",
+      "fromHelp": "Aujourd’hui par défaut. Choisissez une date plus tardive pour programmer un changement. Seul le premier prix d’un article peut commencer dans le passé.",
+      "minQuantity": "À partir de la quantité",
+      "minQuantityHelp": "Le prix s’applique quand au moins ce nombre d’unités est vendu.",
+      "quantityRequired": "Saisissez la quantité, 1 pour toute vente.",
+      "newFromToday": "Le nouveau prix s’applique à partir d’aujourd’hui. Le prix actuel reste dans l’historique.",
+      "breakAbove": "Ce prix dépasse le prix unitaire de {{price}}. Les clients qui achètent cette quantité paieraient plus par unité. Enregistrez-le seulement si c’est voulu."
+    },
+    "item": {
+      "title": "Prix",
+      "subtitle": "Le prix dans chaque liste de prix, par unité.",
+      "noLists": "Aucune liste de prix pour l’instant. Ajoutez-en une dans Taxes, sous Listes de prix.",
+      "none": "Pas encore de prix dans cette liste.",
+      "set": "Définir un prix",
+      "setFor": "Définir un prix dans {{list}}",
+      "edit": "Modifier",
+      "editFor": "Modifier le prix par {{unit}}",
+      "since": "Depuis le {{date}}",
+      "startsOn": "À partir du {{date}}",
+      "currentIn": "Prix en vigueur dans {{list}}",
+      "scheduledIn": "Prix programmés dans {{list}}"
+    },
+    "itemHidden": "Article"
+  },
   "paymentMethods": {
     "empty": "Cette société n’a pas encore de moyen de paiement.",
     "types": {
@@ -1353,7 +1435,11 @@
       "sign_out_everywhere": "Déconnecté partout",
       "pair": "Appairé",
       "changed": "Modifié",
-      "credit_limit_apply": "Plafond de crédit modifié par {{number}}"
+      "credit_limit_apply": "Plafond de crédit modifié par {{number}}",
+      "price_create": "Prix ajouté",
+      "price_update": "Prix modifié",
+      "price_archive": "Prix archivé",
+      "price_restore": "Prix restauré"
     },
     "fields": {
       "name": "Nom",
@@ -1394,7 +1480,12 @@
       "description": "Description",
       "address": "Adresse",
       "owner_user_id": "Responsable",
-      "custom": "Champs personnalisés"
+      "custom": "Champs personnalisés",
+      "item_id": "Article",
+      "uom_id": "Unité",
+      "effective_from": "À partir du",
+      "min_quantity": "À partir de la quantité",
+      "amount_minor": "Prix"
     }
   },
   "items": {

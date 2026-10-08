@@ -49,6 +49,9 @@ class Device extends Model implements HasScope
             'pairing_code_expires_at' => 'datetime',
             'paired_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'last_pull_at' => 'datetime',
+            'last_push_at' => 'datetime',
+            'last_bootstrap_at' => 'datetime',
         ];
     }
 

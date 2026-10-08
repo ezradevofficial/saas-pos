@@ -56,8 +56,13 @@ reference `pos_sales`.
 | `pos.price.override` | Sell at a price other than the list price |
 | `pos.discount.give` | Give a line discount, up to `max_discount_percent` |
 
-Role templates: **Cashier** sells, prints, views sales and shifts, opens and
-closes their own shift and gives discounts within their limit; **Branch
+| `pos.sale.review` | Acknowledge a flagged sale |
+| `pos.till.sign_in` | Sign in at the tills where the role is held (AUTH-06) |
+
+Role templates: **Cashier** signs in, sells, prints, views sales and shifts,
+and opens and closes their own shift; discounts need a manager, since
+`pos.discount.give` approves overrides and its holders need 6-digit PINs
+(AUTH-08); **Branch
 Manager** holds `pos.*` (voids, refunds, overrides, cash movements, other
 cashiers' shifts) within limits; **Accountant** and **Read-only Auditor** read
 (`pos.*.view`). The Owner role has no limits; any other role without a limit
@@ -89,7 +94,7 @@ Prefix `/api/v1`. Every route is behind `module:pos` (403 `module_inactive`).
 | `POST pos/voids` | `{voids: [{id, sale_id, voided_by_id, voided_at, reason, override?}]}` | `pos.sale.void` or override |
 | `POST pos/refunds` | `{refunds: [{id, sale_id, shift_id, cashier_id, receipt_seq, receipt_number, refunded_at, reason, total_minor, lines: [{id, sale_line_id, qty}], payments: [...], override?}]}` | `pos.sale.refund` within `max_refund_amount` or override |
 
-A sale: `{id, shift_id, cashier_id, customer_id?, receipt_seq, receipt_number, sold_at, offline?, currency, price_list_id?, lines: [{id, item_id, item_name?, uom_id, qty, unit_price_minor, list_price_minor?, price_list_id?, tax_inclusive, discount_minor, tax_code_id?, tax_rate?, tax_minor, total_minor, override?}], totals: {subtotal_minor, discount_minor, tax_minor, total_minor}, payments: [{id, payment_method_id, currency, amount_minor, amount_in_sale_minor, rate?: {rate, base, quote, kind?, effective_at?}, provider_reference?, status?: confirmed\|pending}], change?: {currency, amount_minor, rate?}}`. Ids are UUID v7 made on the device; amounts are minor units as digit strings; quantities decimal strings; `override` is `{manager_id, proof}` (AUTH-08). Line rules: gross = round(unit price × qty); total = gross − discount (inclusive) or + tax (exclusive); subtotal = Σ gross.
+A sale: `{id, shift_id, cashier_id, actor_proof?, customer_id?, receipt_seq, receipt_number, number_range_id?, sold_at, offline?, currency, price_list_id?, lines: [{id, item_id, item_name?, uom_id, qty, unit_price_minor, list_price_minor?, price_list_id?, tax_inclusive, discount_minor, tax_code_id?, tax_rate?, tax_minor, total_minor, override?, price_override?, actor_proof?}], totals: {subtotal_minor, discount_minor, tax_minor, total_minor}, payments: [{id, payment_method_id, currency, amount_minor, amount_in_sale_minor, rate?: {rate, base, quote, kind?, effective_at?}, provider_reference?, status?: confirmed\|pending}], change?: {currency, amount_minor, rate?}}`. Ids are UUID v7 made on the device; amounts are minor units as digit strings; quantities decimal strings; `override` (a discount) and `price_override` (a price) take core's override shape, `{token}` online or the offline signed form `{id, kid, manager_user_id, cashier_user_id, permission, reference, authorised_at, signature}` with `reference` = the record's id (AUTH-08); `actor_proof` is reserved for AUTH-07 sign-in attestations. Voids, refunds and cash pay-outs whose override or actor can't be proven are held (`status: held`) until approved in the back office (`GET pos/held`, `POST pos/{voids|refunds|cash-movements}/{id}/approve|reject`); sales and pay-ins are kept and flagged. A resend of an id with other content is `payload_mismatch`. Line rules: gross = round(unit price × qty); total = gross − discount (inclusive) or + tax (exclusive); subtotal = Σ gross.
 
 Every upload answers `{results: [{id, status: stored, ...}|{id, status: rejected, error: {code, message, field, retryable}}]}`: 200 when anything was stored, 422 `upload_rejected` when nothing was.
 

@@ -15,6 +15,31 @@ return [
     'deactivated' => 'This account is deactivated. Ask your administrator to reactivate it.',
     'locked' => 'Too many failed sign-ins. Try again in :minutes minute.|Too many failed sign-ins. Try again in :minutes minutes.',
 
+    // AUTH-06..AUTH-08: POS PINs, staff cards and manager overrides.
+    'pin' => [
+        'format' => 'Enter a PIN of 4 to 6 digits.',
+        'weak' => 'This PIN is too easy to guess. Avoid repeated digits, runs such as 1234 and common PINs.',
+        'card_format' => 'Scan the card again: its code should be 6 to 64 letters or digits.',
+        'saved' => 'Your POS PIN is saved.',
+        'reset' => 'The POS PIN is reset. Give the new PIN to the person in private.',
+        'removed' => 'The POS PIN is removed. A new PIN is needed to sign in at a till.',
+        'locked' => 'This PIN is locked on this till after too many wrong attempts. Ask a manager to reset your PIN.',
+        'not_set' => 'You have no POS PIN yet. Set one in your account settings, or ask a manager.',
+        'incorrect' => 'Wrong PIN. :count attempt left before the PIN locks on this till.|Wrong PIN. :count attempts left before the PIN locks on this till.',
+        'not_staff_here' => 'This person has no role at this till’s location. Ask a manager to give them one.',
+        'six_digits' => 'People who can approve voids, refunds and price changes need a 6-digit PIN. Choose 6 digits.',
+    ],
+    'override' => [
+        'invalid' => 'This manager approval isn’t valid. Ask the manager to enter their PIN again.',
+        'expired' => 'This manager approval has expired. Ask the manager to enter their PIN again.',
+        'mismatch' => 'This manager approval was given for another action. Ask the manager to approve this one.',
+        'replayed' => 'This manager approval has already been used. Ask the manager to approve this action.',
+        'not_permitted' => 'This manager isn’t allowed to approve this action here. Ask a manager who is.',
+        'unknown_permission' => 'Choose an action that exists.',
+        'reference_required' => 'A manager approval must name the sale or line it is for. Approve the action again.',
+        'already_applied' => 'This manager approval was already applied to this action. Nothing more to do.',
+    ],
+
     'code' => [
         'invalid' => 'This code is not valid. Check it and try again.',
         'expired' => 'This code has expired. Ask for a new one.',

@@ -96,6 +96,10 @@ class CashMovementUploads
             $flags->add($approval->flag());
         }
 
+        foreach ($approval->reviewFlags() as $code) {
+            $flags->add($code);
+        }
+
         $movement = CashMovement::create([
             'id' => $data['id'],
             'shift_id' => $shift->id,

@@ -157,14 +157,17 @@ class SaleUploadTest extends TestCase
         $this->assertSame([['code' => 'tax_differs', 'line' => 1, 'detail' => ['expected_tax_minor' => '11111', 'tax_code' => 'VAT_T']]], $response->json('results.0.flags'));
         $this->inTenant(fn () => $this->assertSame('10000', (string) SaleLine::where('line_no', 1)->sole()->tax_minor));
 
-        // A cashier without a discount limit and without a price override permission.
+        // A cashier without the discount permission and without a price override permission.
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $discounted = $this->line(['unit_price_minor' => '50000', 'list_price_minor' => '60000', 'discount_minor' => '10000', 'tax_minor' => '10000', 'total_minor' => '90000']);
         $response = $this->upload([$this->saleBody($this->shift, 2, ['cashier_id' => $cashier->id, 'lines' => [$discounted]])])->assertOk();
         $this->assertEqualsCanonicalizing(['discount_unauthorised', 'price_override_unauthorised'], array_column($response->json('results.0.flags'), 'code'));
 
         // With a 10 % limit the same discount is the cashier's own; a manager's override covers the price.
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('cashier')->id, 'key' => 'max_discount_percent', 'value' => '10']));
+        $this->inTenant(function () {
+            $this->roles->get('cashier')->givePermissionTo('pos.discount.give');
+            LimitRule::create(['role_id' => $this->roles->get('cashier')->id, 'key' => 'max_discount_percent', 'value' => '10']);
+        });
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
         $approved = [...$discounted, 'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'price_override' => $this->override($manager->id)];
         $response = $this->upload([$this->saleBody($this->shift, 3, ['cashier_id' => $cashier->id, 'lines' => [$approved]])])->assertOk();

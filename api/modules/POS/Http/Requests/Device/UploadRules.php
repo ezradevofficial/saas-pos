@@ -99,6 +99,7 @@ trait UploadRules
             $prefix => ['nullable', 'array'],
             "{$prefix}.token" => ['nullable', 'string', 'max:2000'],
             "{$prefix}.id" => ['nullable', 'uuid'],
+            "{$prefix}.kid" => ['nullable', 'string', 'max:100'],
             "{$prefix}.manager_user_id" => ['nullable', 'uuid'],
             "{$prefix}.cashier_user_id" => ['nullable', 'uuid'],
             "{$prefix}.permission" => ['nullable', 'string', 'max:60'],

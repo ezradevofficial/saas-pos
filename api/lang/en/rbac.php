@@ -33,6 +33,7 @@ return [
                 'exchange_rate' => 'Exchange rates',
                 'tax' => 'Taxes',
                 'price_list' => 'Price lists',
+                'price' => 'Item prices',
                 'payment_method' => 'Payment methods',
                 'dimension' => 'Departments, cost centres and projects',
                 'workflow' => 'Workflows',

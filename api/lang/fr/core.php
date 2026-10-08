@@ -32,6 +32,13 @@ return [
         'invalid_pairing_code' => 'Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code et réessayez.',
     ],
 
+    // NFR-04 : synchronisation des appareils.
+    'sync' => [
+        'invalid_cursor' => 'La position de synchronisation de :entity n’est pas valide. Synchronisez :entity de nouveau depuis le début.',
+        'unknown_entity' => 'Cette caisse a demandé des données (:entity) qui ne sont pas disponibles. Mettez l’application à jour et synchronisez de nouveau.',
+        'secret_proof_invalid' => 'Cette caisse n’a pas pu prouver sa clé. Recommencez le changement de clé ; si l’échec persiste, dissociez la caisse et associez-la de nouveau.',
+    ],
+
     // AUTH-02, AUTH-09, L10N-01: tenant settings.
     'settings' => [
         'attributes' => [
@@ -208,11 +215,54 @@ return [
         'include_tax' => 'TTC',
         'exclude_tax' => 'HT',
         'archived_default' => 'Une liste de prix archivée ne peut pas être la liste par défaut. Restaurez-la d’abord.',
+        'currency_has_prices' => 'Cette liste de prix contient des prix en :currency : sa devise ne peut pas changer. Créez une liste de prix pour l’autre devise.',
         'attributes' => [
             'name' => 'nom',
             'currency' => 'devise',
             'tax_inclusive' => 'prix taxes comprises',
             'is_default' => 'liste de prix par défaut',
+        ],
+    ],
+
+    // MD-03, suite : prix des articles dans une liste de prix.
+    'price' => [
+        // EXP-01 : les prix d’une liste de prix et leur export.
+        'list_title' => 'Prix de :list',
+        'columns' => [
+            'item_code' => 'Code article',
+            'item_name' => 'Article',
+            'unit' => 'Unité',
+            'amount' => 'Prix',
+            'effective_from' => 'À partir du',
+            'min_quantity' => 'À partir de la quantité',
+            'state' => 'En vigueur',
+            'status' => 'Statut',
+            'updated_at' => 'Modifié le',
+        ],
+        'states' => [
+            'current' => 'En vigueur',
+            'scheduled' => 'Programmé',
+            'replaced' => 'Remplacé',
+        ],
+        'price_list_archived' => 'Cette liste de prix est archivée. Restaurez-la avant de modifier ses prix.',
+        'currency_mismatch' => 'Les prix de cette liste sont en :currency. Saisissez le montant en :currency.',
+        'item_missing' => 'Cet article est introuvable. Choisissez un autre article.',
+        'item_archived' => 'Cet article est archivé. Restaurez-le avant de lui donner un prix.',
+        'item_other_company' => 'Cet article appartient à une autre société. Choisissez un article partagé ou un article de la société de cette liste de prix.',
+        'uom_not_on_item' => 'Cette unité n’est pas une unité de l’article. Choisissez son unité de base ou l’une de ses autres unités.',
+        'duplicate_row' => 'La ligne :row définit déjà cet article, cette unité, cette date de début et cette quantité. Gardez l’une des deux.',
+        'effective_from_past' => 'Les prix antérieurs à aujourd’hui font partie de l’historique et ne peuvent pas changer. Faites commencer le nouveau prix aujourd’hui ou plus tard.',
+        'price_exists' => 'Un autre prix actif a le même article, la même unité, la même date de début et la même quantité. Modifiez-le ou archivez-le d’abord.',
+        'amount_invalid' => 'Saisissez le prix en nombre entier d’unités mineures, par exemple 12450 pour KES 124,50.',
+        'min_quantity_invalid' => 'Saisissez une quantité supérieure à zéro, avec au plus 6 décimales.',
+        'attributes' => [
+            'prices' => 'prix',
+            'item' => 'article',
+            'unit' => 'unité',
+            'amount' => 'prix',
+            'currency' => 'devise',
+            'effective_from' => 'date de début',
+            'min_quantity' => 'à partir de la quantité',
         ],
     ],
 

@@ -9,6 +9,7 @@ use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\Identity\Pin\OverrideVerifier;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
@@ -16,6 +17,7 @@ use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -40,7 +42,8 @@ use Tests\TestCase;
  * branches, locations, an archived location, a paired device, a custom
  * role, an accepted and a pending invitation, an assignment, tenant and
  * reporting currencies, exchange rates and a rate alert, tax codes and
- * rates from the country pack, a tax category and a price list, a
+ * rates from the country pack, a tax category and a price list with a
+ * price for the item's box, a
  * master data sharing setting, a shared customer and a per-company
  * supplier, item categories and an item with another unit, barcodes and
  * an image, configured payment methods, departments, cost centres and
@@ -62,6 +65,9 @@ final class TwoTenants
     public const PASSWORD = 'violet-harbour-42';
 
     public const MODULE = 'isolation';
+
+    /** AUTH-06: the owner's POS PIN in both tenants (6 digits: owners approve overrides, AUTH-08). */
+    public const PIN = '482619';
 
     private function __construct(
         public readonly TenantFixture $a,
@@ -170,6 +176,13 @@ final class TwoTenants
             'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $uoms['BOX']]],
         ], $owner), 201)->json('data.id');
         self::ok($test->patchJson("/api/v1/items/{$item}", ['name' => "Article {$upper}"], $owner));
+        // MD-03 follow-up: the item's box priced in the default list, then repriced (history).
+        $itemPrice = self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", [
+            'item_id' => $item, 'uom_id' => $uoms['BOX'], 'amount_minor' => '120000', 'currency' => 'KES',
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", [
+            'item_id' => $item, 'uom_id' => $uoms['BOX'], 'amount_minor' => '125000', 'currency' => 'KES',
+        ], $owner));
         $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
             ->json('data.images.0.id');
 
@@ -350,6 +363,22 @@ final class TwoTenants
             'requested_limit' => ['amount_minor' => '5000000', 'currency' => 'KES'], 'reason' => "Season {$upper}",
         ], $owner), 201)->json('data.id');
 
+        // AUTH-06..AUTH-08, NFR-04: the till module on (the suite registers it),
+        // the owner's POS PIN, a wrong PIN the device reported for the manager,
+        // a manager override used for a sale, and a customer who is now only a
+        // contact (a sync tombstone). The device pulls everything once.
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pos'));
+        self::ok($test->putJson('/api/v1/me/pos-pin', ['password' => self::PASSWORD, 'pin' => self::PIN], $owner));
+        $till = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        self::ok($test->postJson('/api/v1/pos/pin/attempts', ['reports' => [['user_id' => $managerId, 'failed_attempts' => 1, 'locked' => false]]], $till));
+        $overrideToken = self::ok($test->postJson('/api/v1/pos/override', [
+            'manager_user_id' => $ownerId, 'pin' => self::PIN, 'permission' => 'pos.sale.void', 'cashier_user_id' => $managerId, 'reference' => "sale-{$key}",
+        ], $till))->json('data.token');
+        app(TenantContext::class)->run($tenantId, fn () => app(OverrideVerifier::class)->redeem(Device::findOrFail($device), ['token' => $overrideToken], 'pos.sale.void', "sale-{$key}"));
+        $formerCustomer = self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "Former customer {$upper}", 'roles' => ['customer']], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/parties/{$formerCustomer}", ['roles' => ['contact']], $owner));
+        self::ok($test->getJson('/api/v1/sync/pull', $till));
+
         // POS (docs/modules/pos.md), NUM-01, NUM-02: the module switched on (no
         // API yet), then the till as it works: receipt and refund ranges (the
         // tenant's number formats seeded on first use), a shift with a float,
@@ -389,6 +418,7 @@ final class TwoTenants
                 'item_category_parent' => $parentCategory,
                 'item' => $item,
                 'item_image' => $itemImage,
+                'item_price' => $itemPrice,
                 'payment_method' => $paymentMethod,
                 'workflow' => $workflow,
                 'workflow_version' => $workflowVersion,

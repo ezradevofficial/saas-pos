@@ -31,7 +31,7 @@ return [
         'key' => 'branch_manager',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.branch.edit', 'core.currency.view', 'core.exchange_rate.view',
-            'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create',
+            'core.tax.view', 'core.price_list.view', 'core.price.view', 'core.party.view', 'core.party.create',
             // WF-01: asks for credit limit changes (decided through their flow).
             'core.credit_limit.request',
             'core.item.view', 'core.item.create', 'core.item.edit', 'core.item_category.view', 'core.uom.view',
@@ -51,9 +51,12 @@ return [
         'permissions' => [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.party.view', 'core.party.create',
-            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view',
-            // POS-01, POS-04, POS-07: sells, opens and closes their own shift, gives discounts within their limit.
-            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close', 'pos.discount.give',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
+            // POS-01, POS-04: sells, opens and closes their own shift. Discounts need a manager
+            // (pos.discount.give approves overrides, so its holders need 6-digit PINs, AUTH-08).
+            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            // AUTH-06: signs in at the tills where the role is held.
+            'pos.till.sign_in',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -62,7 +65,7 @@ return [
         'key' => 'waiter',
         'permissions' => [
             'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
-            'core.item.view', 'core.item_category.view', 'core.uom.view',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view',
             'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
         ],
         'is_owner' => false,
@@ -83,7 +86,7 @@ return [
         'key' => 'accountant',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
-            'core.tax.view', 'core.price_list.view', 'core.party.view', 'core.party.create', 'core.party.edit',
+            'core.tax.view', 'core.price_list.view', 'core.price.view', 'core.party.view', 'core.party.create', 'core.party.edit',
             'core.credit_limit.request', 'core.credit_limit.approve',
             'core.payment_method.view', 'core.dimension.*',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',

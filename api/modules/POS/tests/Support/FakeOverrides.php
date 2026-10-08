@@ -23,7 +23,7 @@ class FakeOverrides implements OverrideVerifier
     public function redeem(Device $device, array $override, string $permission, string $reference): ?OverrideProof
     {
         return match ($override['signature'] ?? null) {
-            self::VALID => new OverrideProof((string) $override['manager_user_id'], $override['cashier_user_id'] ?? null, true, true),
+            self::VALID => new OverrideProof((string) $override['manager_user_id'], $override['cashier_user_id'] ?? null, qualifies: true, offline: ($override['mode'] ?? null) === 'offline'),
             'bad' => throw new Rejection('override_invalid', 'override'),
             default => null,
         };

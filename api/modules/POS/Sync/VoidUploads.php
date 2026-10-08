@@ -92,6 +92,10 @@ class VoidUploads
             $flags->add($approval->flag());
         }
 
+        foreach ($approval->reviewFlags() as $code) {
+            $flags->add($code);
+        }
+
         if (Shift::query()->whereKey($sale->shift_id)->value('status') === Shift::CLOSED) {
             $flags->add('received_after_close');
         }

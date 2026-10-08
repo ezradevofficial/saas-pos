@@ -18,8 +18,7 @@ use App\Core\Tenancy\Models\Device;
  *   $user was signed in on the till for $reference. False when absent or
  *   not verifiable.
  *
- * Bound to CoreOverrides when core's App\Core\Identity\Pin\OverrideVerifier
- * exists (branch feat/core-sync), else to UnverifiedOverrides.
+ * Bound to CoreOverrides (core's App\Core\Identity\Pin\OverrideVerifier).
  */
 interface OverrideVerifier
 {

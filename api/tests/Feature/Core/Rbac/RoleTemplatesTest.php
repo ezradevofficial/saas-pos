@@ -74,7 +74,7 @@ class RoleTemplatesTest extends TestCase
             'core.role.view', 'core.role.create', 'core.role.edit', 'core.role.archive', 'core.role.assign',
             'core.audit.view', 'core.audit.export', 'core.settings.edit', 'core.access_review.view',
             'core.access_review.export', 'core.currency.view', 'core.currency.edit',
-            'core.tax.view', 'core.tax.edit', 'core.price_list.view', 'core.price_list.edit',
+            'core.tax.view', 'core.tax.edit', 'core.price_list.view', 'core.price_list.edit', 'core.price.view', 'core.price.edit',
             'core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive',
             'core.master_data_settings.edit',
             'core.item.view', 'core.item.create', 'core.item.edit', 'core.item.archive',
@@ -97,11 +97,11 @@ class RoleTemplatesTest extends TestCase
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
         // The POS module's catalogue is registered whether or not a tenant has it (RBAC-08 gates it per tenant).
-        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.sale.review', 'pos.shift.view', 'pos.shift.open',
+        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.sale.review', 'pos.shift.view', 'pos.till.sign_in', 'pos.shift.open',
             'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
             $this->assertContains($name, $names);
         }
-        $this->assertSame(79 + 13, count($names));
+        $this->assertSame(81 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -168,6 +168,27 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core.party.view'], $party('read_only_auditor'));
         $this->assertSame([], $party('storekeeper'));
+    }
+
+    public function test_templates_grant_price_permissions_by_job(): void
+    {
+        // MD-03 follow-up: tills and managers read prices (the POS sells with
+        // them), accountants and the auditor read them; only Owner and Admin
+        // change them.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $prices = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.price.%')->pluck('name')->sort()->values()->all();
+
+        $this->assertSame(['core.price.edit', 'core.price.view'], $prices('owner'));
+        $this->assertSame(['core.price.edit', 'core.price.view'], $prices('admin'));
+
+        foreach (['branch_manager', 'cashier', 'waiter', 'accountant', 'read_only_auditor'] as $key) {
+            $this->assertSame(['core.price.view'], $prices($key), $key);
+        }
+
+        foreach (['storekeeper', 'procurement_officer', 'hr_officer'] as $key) {
+            $this->assertSame([], $prices($key), $key);
+        }
     }
 
     public function test_templates_grant_item_permissions_by_job(): void
@@ -303,7 +324,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(79, $permissions);
+        $this->assertCount(81, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

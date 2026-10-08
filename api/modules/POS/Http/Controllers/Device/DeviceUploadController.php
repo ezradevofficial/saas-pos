@@ -2,6 +2,7 @@
 
 namespace Modules\POS\Http\Controllers\Device;
 
+use App\Core\Sync\DeviceSyncStatus;
 use Illuminate\Http\JsonResponse;
 use Modules\POS\Http\Requests\Device\AllocateNumberRangesRequest;
 use Modules\POS\Http\Requests\Device\UploadCashMovementsRequest;
@@ -76,6 +77,9 @@ class DeviceUploadController
     /** @param list<array<string, mixed>> $results */
     private function respond(array $results): JsonResponse
     {
+        // NFR-04: the back office shows when each till last pushed.
+        app(DeviceSyncStatus::class)->recordPush(request()->user());
+
         if (! collect($results)->contains('status', UploadResults::STORED)) {
             return response()->json([
                 'message' => __('pos.errors.upload_rejected'),

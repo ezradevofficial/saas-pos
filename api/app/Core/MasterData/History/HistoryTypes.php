@@ -4,6 +4,7 @@ namespace App\Core\MasterData\History;
 
 use App\Core\Identity\Models\User;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -19,6 +20,9 @@ class HistoryTypes
 {
     /** @var array<string, array{model: class-string<Model>, resource: ?string, viewer: Closure(User, Model): bool, derived: array<string, list<string>>}> */
     private array $types = [];
+
+    /** @var array<string, list<array{model: class-string<Model>, ids: Closure(User, Model): ?Builder}>> */
+    private array $related = [];
 
     /**
      * @param  class-string<Model>  $model
@@ -47,6 +51,40 @@ class HistoryTypes
         $derived = $this->types[$type]['derived'] ?? [];
 
         return array_values(array_unique([...$hidden, ...array_merge([], ...array_map(fn (string $field) => $derived[$field] ?? [], $hidden))]));
+    }
+
+    /**
+     * Changes of other records shown in a record's history: an item's and
+     * a price list's prices (`core.item_price.*`). `$ids(user, record)`
+     * returns a query selecting the related records' ids the user may see
+     * there, or null when they may see none (permissions, RBAC-05).
+     *
+     * @param  class-string<Model>  $model
+     * @param  Closure(User, Model): ?Builder  $ids
+     */
+    public function relate(string $type, string $model, Closure $ids): void
+    {
+        $this->related[$type][] = ['model' => $model, 'ids' => $ids];
+    }
+
+    /**
+     * The related records' morph class => a query of their ids the user may see.
+     *
+     * @return array<string, Builder>
+     */
+    public function related(string $type, User $user, Model $record): array
+    {
+        $related = [];
+
+        foreach ($this->related[$type] ?? [] as $entry) {
+            $ids = ($entry['ids'])($user, $record);
+
+            if ($ids !== null) {
+                $related[(new $entry['model'])->getMorphClass()] = $ids;
+            }
+        }
+
+        return $related;
     }
 
     public function has(string $type): bool

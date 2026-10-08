@@ -15,6 +15,7 @@ return [
     // POS-09: why an uploaded record was refused. The till shows the message;
     // records marked retryable are sent again later.
     'errors' => [
+        'override_reference_required' => 'The manager approval must name the record it is for. Update the till and send it again.',
         'payload_mismatch' => 'A record with this id was already sent with other content. Give the new record a new id on the till.',
         'override_invalid' => 'The manager\'s approval could not be checked. Ask the manager to approve again with their PIN.',
         'override_expired' => 'The manager\'s approval has expired. Ask the manager to approve again.',

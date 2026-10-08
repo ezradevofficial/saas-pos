@@ -99,6 +99,14 @@ return [
             // Timestamps are UTC end to end, whatever the server's zone.
             'timezone' => 'UTC',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // NFR-04, ADR 004: the runtime role never sits idle in a transaction
+            // (that would hold back every device's sync) and no statement runs
+            // away. Sent in the connection string: no extra round trip. Exports
+            // read in chunks, so no single statement needs long. Empty to disable.
+            'server_options' => array_filter([
+                'idle_in_transaction_session_timeout' => env('DB_IDLE_IN_TRANSACTION_TIMEOUT', '60s'),
+                'statement_timeout' => env('DB_STATEMENT_TIMEOUT', '120s'),
+            ]),
         ],
 
         'pgsql_owner' => [
