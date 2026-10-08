@@ -14,7 +14,6 @@ final class RuleContext
         public readonly bool $hasDocument,
         public readonly ?string $companyId,
         public readonly ?User $editor,
-        public readonly bool $hasWebhookSecret,
     ) {}
 
     public function scope(): DocumentScope

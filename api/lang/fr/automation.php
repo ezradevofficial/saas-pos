@@ -150,6 +150,7 @@ return [
     ],
 
     'validation' => [
+        'hidden_fields' => 'Vous ne voyez pas ces champs, la règle ne peut donc pas les utiliser : :fields.',
         'trigger_type' => 'Choisissez ce qui déclenche la règle.',
         'trigger_extra' => 'Le déclencheur contient des réglages qui ne lui correspondent pas. Supprimez-les.',
         'trigger_fields' => 'Choisissez au moins un champ de ce type de document à surveiller.',
@@ -196,13 +197,19 @@ return [
         'create_value' => 'La valeur de « :field » n’est pas valide, ou le champ est déjà copié depuis le document.',
         'credit_hold' => 'Choisissez de bloquer ou de débloquer le crédit du client.',
         'credit_reason' => 'Donnez un motif de 255 caractères au plus.',
-        'webhook_secret' => 'Les webhooks ont besoin d’un secret de signature. Ajoutez-en un d’au moins 16 caractères à la règle.',
+        'webhook_secret_generated' => 'Le secret de signature est créé pour vous quand vous ajoutez un webhook. Renouvelez-le pour en obtenir un nouveau.',
         'document_not_found' => 'Ce document n’existe pas ou vous ne pouvez pas le voir. Choisissez-en un autre.',
         'unknown_template' => 'Ce modèle n’existe pas. Choisissez-en un dans la liste.',
         'template_not_applicable' => 'Ce modèle ne s’applique pas à ce type de document. Choisissez-en un autre.',
     ],
 
+    'test' => [
+        'hidden_condition' => 'Une condition sur un champ que vous ne voyez pas n’est pas remplie.',
+    ],
+
     'errors' => [
+        'no_webhook_secret' => 'La règle n’a pas de secret de signature de webhook. Renouvelez le secret, puis réessayez.',
+        'run_as_unavailable' => 'La personne au nom de qui la règle agit n’est plus active ou a perdu une autorisation nécessaire : la règle a été désactivée. Vérifiez-la et réactivez-la pour l’exécuter en votre nom.',
         'rule_invalid' => 'La règle comporte des problèmes. Corrigez les éléments indiqués, puis réessayez.',
         'rule_archived' => 'Cette règle est archivée et ne peut pas être activée. Copiez-la dans une nouvelle règle.',
         'rule_off' => 'La règle a été désactivée avant son exécution.',

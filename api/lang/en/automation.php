@@ -150,6 +150,7 @@ return [
     ],
 
     'validation' => [
+        'hidden_fields' => 'You can’t see these fields, so the rule can’t use them: :fields.',
         'trigger_type' => 'Choose what starts the rule.',
         'trigger_extra' => 'The trigger has settings that don’t belong to it. Remove them.',
         'trigger_fields' => 'Choose at least one field of this document type to watch.',
@@ -196,13 +197,19 @@ return [
         'create_value' => 'The value for “:field” isn’t valid, or the field is already copied from the document.',
         'credit_hold' => 'Choose whether to put the customer on credit hold or take them off it.',
         'credit_reason' => 'Give a reason of at most 255 characters.',
-        'webhook_secret' => 'Webhooks need a signing secret. Add one of at least 16 characters to the rule.',
+        'webhook_secret_generated' => 'The signing secret is created for you when you add a webhook. Rotate it to get a new one.',
         'document_not_found' => 'That document doesn’t exist or you can’t see it. Choose another one.',
         'unknown_template' => 'That template doesn’t exist. Choose one from the list.',
         'template_not_applicable' => 'This template can’t be used with that document type. Choose another one.',
     ],
 
+    'test' => [
+        'hidden_condition' => 'A condition on a field you can’t see is not met.',
+    ],
+
     'errors' => [
+        'no_webhook_secret' => 'The rule has no webhook signing secret. Rotate the secret, then try again.',
+        'run_as_unavailable' => 'The person the rule acts as is no longer active or lost a permission the rule needs, so the rule was switched off. Check it and switch it on again to run it as yourself.',
         'rule_invalid' => 'The rule has problems. Fix the items listed, then try again.',
         'rule_archived' => 'This rule is archived, so it can’t be switched on. Copy it into a new rule instead.',
         'rule_off' => 'The rule was switched off before it ran.',

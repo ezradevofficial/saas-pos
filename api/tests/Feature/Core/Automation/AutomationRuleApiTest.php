@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * AUTO-01..AUTO-03 API: rules are created, read, edited (each change a new
  * version), enabled, disabled and archived (never deleted), every change
- * audited without the webhook secret, which is never returned. Rules are
+ * audited without the webhook secret (generated, returned once). Rules are
  * validated whole (trigger, conditions, actions, the author's rights).
  * `core.automation.view|edit` at the company (tenant scope for a rule of
  * every company); another tenant's rules are not found. The catalogue
@@ -73,31 +73,59 @@ class AutomationRuleApiTest extends TestCase
         $this->assertFalse($audit->after['has_webhook_secret']);
     }
 
-    public function test_the_webhook_secret_is_stored_encrypted_and_never_returned_or_audited(): void
+    public function test_the_webhook_secret_is_generated_returned_once_stored_encrypted_and_rotated(): void
     {
-        $secret = 'a-long-shared-secret-1234';
+        // Admins never type the secret in.
+        $this->postJson('/api/v1/automation-rules', $this->body(['webhook_secret' => 'my-own-secret-123456']), $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['webhook_secret']);
+
+        // A rule without a webhook has none.
+        $plain = $this->postJson('/api/v1/automation-rules', $this->body(), $this->headersFor())->assertCreated();
+        $plain->assertJsonPath('data.has_webhook_secret', false)->assertJsonMissingPath('data.webhook_secret');
+
         $response = $this->postJson('/api/v1/automation-rules', $this->body([
             'actions' => [['type' => 'webhook', 'url' => 'https://hooks.example.com/in']],
-            'webhook_secret' => $secret,
         ]), $this->headersFor())->assertCreated();
-
         $id = $response->json('data.id');
+        $secret = $response->json('data.webhook_secret');
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $secret);
         $response->assertJsonPath('data.has_webhook_secret', true);
-        $this->assertStringNotContainsString($secret, $response->getContent());
-        $this->assertStringNotContainsString($secret, $this->getJson("/api/v1/automation-rules/{$id}", $this->headersFor())->getContent());
+
+        // Never again: not on read, list, edit or switching.
+        $this->assertStringNotContainsString($secret, $this->getJson("/api/v1/automation-rules/{$id}", $this->headersFor())->assertJsonMissingPath('data.webhook_secret')->getContent());
         $this->assertStringNotContainsString($secret, $this->getJson('/api/v1/automation-rules', $this->headersFor())->getContent());
-        $this->inTenant(function () use ($id, $secret) {
+        $this->assertStringNotContainsString($secret, $this->patchJson("/api/v1/automation-rules/{$id}", ['name' => 'Renamed'], $this->headersFor())->assertOk()->getContent());
+        $this->assertStringNotContainsString($secret, $this->postJson("/api/v1/automation-rules/{$id}/enable", [], $this->headersFor())->assertOk()->getContent());
+
+        // Rotating returns a new one once; the old one is gone.
+        $rotated = $this->postJson("/api/v1/automation-rules/{$id}/webhook-secret/rotate", [], $this->headersFor())->assertOk()->json('data.webhook_secret');
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $rotated);
+        $this->assertNotSame($secret, $rotated);
+
+        $this->inTenant(function () use ($id, $secret, $rotated) {
             $stored = DB::table('automation_rules')->where('id', $id)->value('webhook_secret');
-            $this->assertNotSame($secret, $stored);
-            $this->assertSame($secret, AutomationRule::query()->find($id)->webhook_secret);
-            $this->assertStringNotContainsString($secret, json_encode(AuditEntry::query()->get()->toArray()));
+            $this->assertStringNotContainsString($rotated, $stored, 'stored encrypted');
+            $this->assertSame($rotated, AutomationRule::query()->find($id)->webhook_secret);
+            $audit = json_encode(AuditEntry::query()->get()->toArray());
+            $this->assertStringNotContainsString($secret, $audit);
+            $this->assertStringNotContainsString($rotated, $audit);
+            $this->assertTrue(AuditEntry::query()->where('action', 'core.automation.rotate_secret')->where('auditable_id', $id)->exists());
         });
 
-        // Removing the secret while a webhook remains is refused; with the webhook gone it is allowed.
-        $this->patchJson("/api/v1/automation-rules/{$id}", ['webhook_secret' => null], $this->headersFor())
-            ->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
-        $this->patchJson("/api/v1/automation-rules/{$id}", ['webhook_secret' => null, 'actions' => [$this->notifyOwner()]], $this->headersFor())
-            ->assertOk()->assertJsonPath('data.has_webhook_secret', false);
+        // Rotating needs edit rights; another tenant gets not found.
+        $auditor = $this->userWith('read_only_auditor', Scope::tenant());
+        $this->postJson("/api/v1/automation-rules/{$id}/webhook-secret/rotate", [], $this->headersFor($auditor))->assertForbidden();
+        $this->postJson("/api/v1/automation-rules/{$id}/webhook-secret/rotate", [], $this->headersFor($this->otherTenant()['user']))->assertNotFound();
+    }
+
+    public function test_adding_the_first_webhook_on_edit_generates_the_secret(): void
+    {
+        $id = $this->postJson('/api/v1/automation-rules', $this->body(), $this->headersFor())->assertCreated()->json('data.id');
+
+        $secret = $this->patchJson("/api/v1/automation-rules/{$id}", ['actions' => [['type' => 'webhook', 'url' => 'https://hooks.example.com/in']]], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.has_webhook_secret', true)->json('data.webhook_secret');
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $secret);
+        $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.automation.update')->sole()->after['secret_created']));
     }
 
     public function test_rules_are_validated_whole(): void
@@ -119,8 +147,8 @@ class AutomationRuleApiTest extends TestCase
         $post(['actions' => [['type' => 'notify', 'to' => ['field:title'], 'subject' => 'x', 'message' => 'y']]])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
         $post(['actions' => [['type' => 'notify', 'to' => ['role:admin'], 'subject' => 'x {secret_field}', 'message' => 'y']]])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
         $post(['actions' => [['type' => 'webhook', 'url' => 'http://hooks.example.com']]])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
-        $post(['actions' => [['type' => 'webhook', 'url' => 'https://169.254.169.254/latest']], 'webhook_secret' => 'a-long-shared-secret-1234'])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
-        $post(['actions' => [['type' => 'webhook', 'url' => 'https://hooks.example.com']], 'webhook_secret' => 'short'])->assertUnprocessable()->assertJsonValidationErrors(['webhook_secret']);
+        $post(['actions' => [['type' => 'webhook', 'url' => 'https://169.254.169.254/latest']]])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
+        $post(['actions' => [['type' => 'webhook', 'url' => 'https://hooks.example.com']], 'webhook_secret' => 'typed-in-secret-123'])->assertUnprocessable()->assertJsonValidationErrors(['webhook_secret']);
         $post(['actions' => [['type' => 'create_document', 'target' => TestOrderTypeKey::KEY, 'mapping' => ['amount' => 'title']]]])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
         // A schedule has no document: no conditions, no document actions.
         $post(['trigger' => ['type' => 'schedule', 'every' => 'day', 'time' => '08:00'], 'conditions' => null])->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);

@@ -71,7 +71,6 @@ class AutomationTestModeTest extends TestCase
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
         $rule = $this->saveRule(['type' => 'field_changed', 'field' => 'status', 'to' => 'approved'], $this->everyAction($manager->id), [
             'conditions' => ['field' => 'amount', 'op' => 'gt', 'value' => $this->kes(100000)],
-            'webhook_secret' => 'a-long-shared-secret-1234',
         ]);
         $id = $this->quietTask(['amount' => $this->kes(500000), 'status' => 'open']);
         $headers = $this->headersFor(); // signing in is audited: before counting
@@ -106,7 +105,7 @@ class AutomationTestModeTest extends TestCase
         $this->assertSame('Would put the customer on credit hold: Over limit', $descriptions[4]);
         $this->assertSame('Would complete the current stage and move the document on.', $descriptions[5]);
         $this->assertSame('Would send the document, signed, to https://hooks.example.com/in.', $descriptions[6]);
-        $this->assertStringNotContainsString('a-long-shared-secret', $response->getContent());
+        $this->assertStringNotContainsString($rule->revealedSecret, $response->getContent());
     }
 
     public function test_sample_values_check_the_trigger_and_explain_failed_conditions(): void

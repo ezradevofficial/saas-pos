@@ -14,7 +14,8 @@ use App\Core\Workflow\WorkflowAccess;
  * condition JSON, AUTO-02) and actions against its document type, and
  * that the person saving it may do what it does: see the type's documents
  * at the rule's scope, and hold each action's extra permissions there (a
- * rule never acts beyond its author).
+ * rule never acts beyond its author), and that the trigger, conditions and
+ * copied fields read no field the author's field rules hide (RBAC-05).
  *
  * Problems: `path` (trigger, conditions, actions.N) and a translated
  * `message`.
@@ -29,6 +30,7 @@ class RuleValidator
         private readonly AutomationActions $actions,
         private readonly WorkflowAccess $access,
         private readonly RuleTimezone $timezones,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /**
@@ -78,6 +80,28 @@ class RuleValidator
 
         if ($editor !== null && ! $this->access->seesDocument($editor, $type, $scope)) {
             $add('document_type', __('automation.validation.cannot_see_type', ['type' => __($type->label())]));
+        }
+
+        // RBAC-05: like a hidden sort or filter, a rule may not read a field hidden from its author.
+        $hidden = $this->visibility->hidden($editor, $type);
+
+        if ($hidden !== []) {
+            $read = [
+                'trigger' => is_array($trigger) ? array_values(array_filter([...(array) ($trigger['fields'] ?? []), $trigger['field'] ?? null], 'is_string')) : [],
+                'conditions' => is_array($conditions) ? $this->conditions->fieldsOf($conditions) : [],
+            ];
+
+            foreach ($actions as $i => $action) {
+                if (is_array($action) && ($action['type'] ?? null) === 'create_document' && is_array($action['mapping'] ?? null)) {
+                    $read["actions.{$i}"] = array_values(array_filter($action['mapping'], 'is_string'));
+                }
+            }
+
+            foreach ($read as $path => $fields) {
+                if (($blocked = array_values(array_intersect($fields, $hidden))) !== []) {
+                    $add($path, __('automation.validation.hidden_fields', ['fields' => implode(', ', $blocked)]));
+                }
+            }
         }
 
         foreach ($actions as $i => $action) {

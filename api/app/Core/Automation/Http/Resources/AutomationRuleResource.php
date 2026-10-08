@@ -10,7 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * An automation rule (AUTO-01..AUTO-03) as the editor reads it. The webhook
- * secret is never returned: `has_webhook_secret` says whether one is set.
+ * secret is returned once, in the response that generated it
+ * (`webhook_secret`); after that only `has_webhook_secret` says one is set.
  *
  * @mixin AutomationRule
  */
@@ -35,6 +36,8 @@ class AutomationRuleResource extends JsonResource
             'status' => $this->archived_at !== null ? 'archived' : ($this->enabled ? 'enabled' : 'disabled'),
             'version' => $this->version,
             'has_webhook_secret' => $this->webhook_secret !== null,
+            // Only in the response that created or rotated it.
+            'webhook_secret' => $this->when($this->resource->revealedSecret !== null, fn () => $this->resource->revealedSecret),
             'next_run_at' => $this->next_run_at?->toIso8601ZuluString(),
             'created_by' => $this->created_by,
             'updated_by' => $this->updated_by,

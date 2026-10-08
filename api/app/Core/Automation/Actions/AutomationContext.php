@@ -13,11 +13,16 @@ use App\Core\Workflow\DocumentTypes\DocumentType;
  * the rule, the run (null in test mode), the document (null for a
  * schedule) with its scope and field values, the user the rule acts as
  * (its last editor; null when no longer active) and the time zone dates
- * are read in (the company's).
+ * are read in (the company's). `hidden` are the fields the rule's user
+ * may not see (RBAC-05): what leaves the system (webhooks, notification
+ * text, test mode) is built from visibleValues().
  */
 final class AutomationContext
 {
-    /** @param array<string, mixed> $values the document's field values */
+    /**
+     * @param  array<string, mixed>  $values  the document's field values
+     * @param  list<string>  $hidden  fields hidden from the rule's user by field rules
+     */
     public function __construct(
         public readonly AutomationRule $rule,
         public readonly ?AutomationRun $run,
@@ -28,7 +33,14 @@ final class AutomationContext
         public readonly ?User $actor,
         public readonly string $timezone,
         public readonly string $locale = 'en',
+        public readonly array $hidden = [],
     ) {}
+
+    /** @return array<string, mixed> the values without the fields hidden from the rule's user */
+    public function visibleValues(): array
+    {
+        return array_diff_key($this->values, array_flip($this->hidden));
+    }
 
     public function requireDocument(): string
     {

@@ -10,8 +10,7 @@ use Illuminate\Validation\Validator;
  * AUTO-04: POST automation-rules/test with a rule that is not saved (the
  * editor's current state) plus {values?, old_values?, document_id?}.
  * Checked as a new rule would be (StoreRuleRequest's permissions and
- * validation); nothing is saved or run. A webhook action needs no secret
- * here: nothing is sent.
+ * validation); nothing is saved or run.
  */
 class TestUnsavedRuleRequest extends StoreRuleRequest
 {
@@ -29,7 +28,7 @@ class TestUnsavedRuleRequest extends StoreRuleRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition(), true));
+        $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition()));
     }
 
     protected function testedType(): ?DocumentType

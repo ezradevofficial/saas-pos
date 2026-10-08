@@ -189,9 +189,10 @@ class AutomationActionsTest extends TestCase
 
     public function test_a_webhook_is_signed_sent_to_the_checked_address_and_logged_briefly(): void
     {
-        $secret = 'a-long-shared-secret-1234';
         Http::fake(['https://hooks.example.com/*' => Http::response(str_repeat('x', 3000), 200)]);
-        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in?token=abc']], ['webhook_secret' => $secret]);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in?token=abc']]);
+        $secret = $rule->revealedSecret;
+        $this->assertSame(43, strlen($secret), 'a generated secret: 32 random bytes, base64url');
 
         $id = $this->createTask(['amount' => $this->kes(1000)]);
 
@@ -222,7 +223,7 @@ class AutomationActionsTest extends TestCase
     public function test_a_webhook_to_a_private_address_fails_without_any_request(): void
     {
         Http::fake();
-        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://intranet.example.com/hook']], ['webhook_secret' => 'a-long-shared-secret-1234']);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://intranet.example.com/hook']]);
 
         $this->createTask();
 
@@ -236,7 +237,7 @@ class AutomationActionsTest extends TestCase
     public function test_a_webhook_answering_4xx_fails_without_retrying(): void
     {
         Http::fake(['*' => Http::response('nope', 404)]);
-        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in']], ['webhook_secret' => 'a-long-shared-secret-1234']);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'webhook', 'url' => 'https://hooks.example.com/in']]);
 
         $this->createTask();
 
@@ -251,6 +252,7 @@ class AutomationActionsTest extends TestCase
     {
         $this->publishFlow(Graphs::linear(['review', 'check'], ['review' => ['exit_roles' => ['template:accountant']]]));
         $accountant = $this->userWith('accountant', Scope::tenant());
+        $this->inTenant(fn () => $this->assign($accountant, $this->roles->get('admin'), Scope::tenant()));
         $rule = $this->inTenant(fn () => app(Rules::class)->create([
             'name' => 'Move on', 'document_type' => TestRequestType::KEY, 'enabled' => true,
             'trigger' => ['type' => 'stage_entered', 'stage' => 'review'],

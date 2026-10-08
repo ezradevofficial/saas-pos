@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  *    "rule": {"id", "name", "version"}, "trigger": {"type", …},
  *    "document": {"type", "id"} | null, "fields": {…the document's values}}
  *
+ * `fields` holds only the fields the rule's user may see (RBAC-05).
  * SSRF protection lives in WebhookSender. A refused address fails the run
  * at once; an unreachable receiver or a 5xx, 408 or 429 answer is retried;
  * other answers fail the run. The log keeps the status and the first
@@ -49,10 +50,6 @@ class WebhookAction implements AutomationAction
             $problems[] = __('automation.webhook.refused.'.$reason);
         }
 
-        if (! $rule->hasWebhookSecret) {
-            $problems[] = __('automation.validation.webhook_secret');
-        }
-
         if (array_diff(array_keys($action), ['type', 'url']) !== []) {
             $problems[] = __('automation.validation.action_extra');
         }
@@ -75,7 +72,7 @@ class WebhookAction implements AutomationAction
         $secret = $context->rule->webhook_secret;
 
         if (! is_string($secret) || $secret === '') {
-            throw new ActionFailed(__('automation.validation.webhook_secret'));
+            throw new ActionFailed(__('automation.errors.no_webhook_secret'));
         }
 
         try {
@@ -121,7 +118,7 @@ class WebhookAction implements AutomationAction
             'rule' => ['id' => $context->rule->id, 'name' => $context->rule->name, 'version' => $context->rule->version],
             'trigger' => ['type' => $run?->trigger_type ?? ($context->rule->trigger['type'] ?? null), ...($run?->trigger ?? [])],
             'document' => $context->documentId === null ? null : ['type' => $context->type->key(), 'id' => $context->documentId],
-            'fields' => $context->documentId === null ? (object) [] : (object) $context->values,
+            'fields' => $context->documentId === null ? (object) [] : (object) $context->visibleValues(),
         ];
     }
 

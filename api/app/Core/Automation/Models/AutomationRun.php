@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?array $conditions
  * @property array $actions
  * @property ?string $error
+ * @property ?string $error_code
  * @property int $attempts
  * @property string $chain_id
  * @property int $depth
@@ -57,7 +58,7 @@ class AutomationRun extends Model
 
     protected $fillable = [
         'rule_id', 'rule_version', 'trigger_type', 'trigger', 'document_type', 'document_id', 'outcome',
-        'conditions', 'actions', 'error', 'attempts', 'chain_id', 'depth', 'chain', 'dedupe_key',
+        'conditions', 'actions', 'error', 'error_code', 'attempts', 'chain_id', 'depth', 'chain', 'dedupe_key',
         'started_at', 'finished_at', 'next_attempt_at',
     ];
 

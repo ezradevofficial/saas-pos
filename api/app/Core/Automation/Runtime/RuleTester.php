@@ -9,8 +9,10 @@ use App\Core\Automation\Triggers\FieldChange;
 use App\Core\Automation\Triggers\ScheduleRecurrence;
 use App\Core\Automation\Triggers\Triggers;
 use App\Core\Identity\Models\User;
+use App\Core\Workflow\Conditions\ConditionCheck;
 use App\Core\Workflow\Conditions\ConditionDescriber;
 use App\Core\Workflow\Conditions\ConditionEvaluator;
+use App\Core\Workflow\Conditions\ConditionResult;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use Carbon\CarbonImmutable;
@@ -22,6 +24,11 @@ use Carbon\CarbonImmutable;
  * can tell (a change needs the values before it, `old_values`; a stage
  * move cannot be simulated), the conditions are evaluated and explained,
  * and each action describes what it would do.
+ *
+ * RBAC-05: fields hidden by field rules from the rule's user (its last
+ * editor; the tester for an unsaved rule) or from the tester are left out
+ * of everything shown: action descriptions are built without them, and a
+ * comparison on such a field shows neither value nor reason.
  */
 class RuleTester
 {
@@ -32,6 +39,7 @@ class RuleTester
         private readonly ConditionDescriber $describer,
         private readonly AutomationActions $actions,
         private readonly RuleTimezone $timezones,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /**
@@ -39,8 +47,12 @@ class RuleTester
      * @param  array<string, mixed>|null  $oldValues  the values before a change, for change triggers
      * @return array<string, mixed>
      */
-    public function test(AutomationRule $rule, DocumentType $type, ?string $documentId, ?DocumentScope $scope, array $values, ?array $oldValues, ?User $actor): array
+    public function test(AutomationRule $rule, DocumentType $type, ?string $documentId, ?DocumentScope $scope, array $values, ?array $oldValues, User $viewer): array
     {
+        $actor = $rule->actorId() === null ? $viewer
+            : User::query()->whereKey($rule->actorId())->where('status', User::STATUS_ACTIVE)->first();
+        $hidden = array_values(array_unique([...$this->visibility->hidden($actor, $type), ...$this->visibility->hidden($viewer, $type)]));
+
         $trigger = $rule->trigger;
         $hasDocument = Triggers::hasDocument($trigger);
         $scope ??= new DocumentScope($rule->company_id);
@@ -55,12 +67,12 @@ class RuleTester
         if ($hasDocument) {
             $result = $this->conditions->evaluate($rule->conditions, $values, $fields, $timezone);
             $passed = $result->passed;
-            $conditions = [...$result->toArray(), 'reasons' => $this->describer->reasons($result, $fields, $timezone)];
+            $conditions = $this->conditionsShown($result, $fields, $timezone, $hidden);
         }
 
         $context = new AutomationContext(
             $rule, null, $type, $hasDocument ? ($documentId ?? 'sample') : null, $scope,
-            $hasDocument ? $values : [], $actor, $timezone, app()->getLocale(),
+            $hasDocument ? $values : [], $actor, $timezone, app()->getLocale(), $hidden,
         );
 
         return [
@@ -81,6 +93,32 @@ class RuleTester
                     'description' => $handler?->describe($action, $context) ?? __('automation.errors.action_unavailable'),
                 ];
             }, array_values($rule->actions)),
+        ];
+    }
+
+    /**
+     * The conditions' outcome without the values or reasons of hidden fields.
+     *
+     * @param  list<string>  $hidden
+     * @return array<string, mixed>
+     */
+    private function conditionsShown(ConditionResult $result, array $fields, string $timezone, array $hidden): array
+    {
+        $shown = fn (ConditionCheck $check) => in_array($check->field, $hidden, true) || in_array($check->other, $hidden, true)
+            ? ['field' => $check->field, 'op' => $check->op, 'passed' => $check->passed, 'hidden' => true]
+            : $check->toArray();
+        $visibleFailures = array_values(array_filter($result->failures, fn (ConditionCheck $c) => ! in_array($c->field, $hidden, true) && ! in_array($c->other, $hidden, true)));
+        $reasons = $this->describer->reasons(new ConditionResult($result->passed, $result->checks, $visibleFailures), $fields, $timezone);
+
+        if (count($visibleFailures) < count($result->failures)) {
+            $reasons[] = __('automation.test.hidden_condition');
+        }
+
+        return [
+            'passed' => $result->passed,
+            'checks' => array_map($shown, $result->checks),
+            'failures' => array_map($shown, $result->failures),
+            'reasons' => $reasons,
         ];
     }
 

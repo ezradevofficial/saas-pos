@@ -10,7 +10,8 @@ use Illuminate\Validation\Validator;
 
 /**
  * AUTO-01..AUTO-03: POST automation-rules {name, document_type,
- * company_id?, trigger, conditions?, actions, webhook_secret?, enabled?}.
+ * company_id?, trigger, conditions?, actions, enabled?}. A rule with a
+ * webhook gets a generated signing secret, returned in this response only.
  * `core.automation.edit` at the company, or at tenant scope for a rule of
  * every company. Saved switched off unless `enabled` is true.
  */
@@ -42,6 +43,6 @@ class StoreRuleRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition(), is_string($this->input('webhook_secret')) && $this->input('webhook_secret') !== ''));
+        $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition()));
     }
 }

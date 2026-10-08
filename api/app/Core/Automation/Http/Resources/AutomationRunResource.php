@@ -29,6 +29,7 @@ class AutomationRunResource extends JsonResource
             'conditions' => $this->conditions,
             'actions' => $this->actions ?? [],
             'error' => $this->error,
+            'error_code' => $this->error_code,
             'attempts' => $this->attempts,
             'chain_id' => $this->chain_id,
             'depth' => $this->depth,

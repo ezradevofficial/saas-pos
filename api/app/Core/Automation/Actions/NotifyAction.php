@@ -169,7 +169,8 @@ class NotifyAction implements AutomationAction
 
     private function render(string $text, AutomationContext $context): string
     {
-        return $this->text->render($text, $context->type, $context->documentId === null ? [] : $context->values, [
+        // RBAC-05: a field hidden from the rule's user fills in as nothing.
+        return $this->text->render($text, $context->type, $context->documentId === null ? [] : $context->visibleValues(), [
             'document_type' => __($context->type->label(), [], $context->locale),
             'rule_name' => $context->rule->name,
         ], $context->locale, $context->timezone);

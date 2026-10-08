@@ -134,7 +134,7 @@ class CreateDocumentAction implements AutomationAction
         $values = [];
 
         foreach ((array) ($action['mapping'] ?? []) as $to => $from) {
-            $values[$to] = $context->documentId === null ? null : ($context->values[$from] ?? null);
+            $values[$to] = $context->documentId === null ? null : ($context->visibleValues()[$from] ?? null);
         }
 
         foreach ((array) ($action['values'] ?? []) as $to => $value) {

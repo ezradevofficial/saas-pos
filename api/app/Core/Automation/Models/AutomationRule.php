@@ -46,6 +46,9 @@ class AutomationRule extends Model
 
     protected $hidden = ['webhook_secret'];
 
+    /** A secret just generated (Rules), returned once in that response; never stored in plain text. */
+    public ?string $revealedSecret = null;
+
     protected $attributes = ['enabled' => false, 'version' => 1];
 
     protected function casts(): array

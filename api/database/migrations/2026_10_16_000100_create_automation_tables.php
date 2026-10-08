@@ -64,6 +64,8 @@ return new class extends Migration
             $table->jsonb('conditions')->nullable();
             $table->jsonb('actions')->default('[]');
             $table->text('error')->nullable();
+            // Why it ended as it did, for the editor (run_as_unavailable, throttled, ...).
+            $table->string('error_code', 50)->nullable();
             $table->smallInteger('attempts')->default(0);
             $table->uuid('chain_id');
             $table->smallInteger('depth')->default(1);

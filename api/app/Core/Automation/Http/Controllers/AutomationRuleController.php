@@ -70,7 +70,7 @@ class AutomationRuleController
     {
         $rule = $this->rules->create($request->validated(), $request->user());
 
-        return AutomationRuleResource::make($rule->fresh('company'))->response()->setStatusCode(201);
+        return AutomationRuleResource::make($rule->load('company'))->response()->setStatusCode(201);
     }
 
     public function show(RuleRequest $request, AutomationRule $automationRule): AutomationRuleResource
@@ -82,7 +82,13 @@ class AutomationRuleController
     {
         $rule = $this->rules->update($automationRule, $request->validated(), $request->user());
 
-        return AutomationRuleResource::make($rule->fresh('company'));
+        return AutomationRuleResource::make($rule->load('company'));
+    }
+
+    /** AUTO-03: a new webhook signing secret, returned in this response only. */
+    public function rotateSecret(ChangeRuleRequest $request, AutomationRule $automationRule): AutomationRuleResource
+    {
+        return AutomationRuleResource::make($this->rules->rotateSecret($automationRule, $request->user())->load('company'));
     }
 
     public function enable(ChangeRuleRequest $request, AutomationRule $automationRule, RuleValidator $validator): AutomationRuleResource
@@ -138,7 +144,7 @@ class AutomationRuleController
     {
         $type = $this->types->find($rule->document_type)
             ?? throw new ApiException(422, 'type_unavailable', __('automation.errors.type_unavailable'));
-        $context = new RuleContext($type, Triggers::hasDocument($rule->trigger), $rule->company_id, $user, $rule->webhook_secret !== null);
+        $context = new RuleContext($type, Triggers::hasDocument($rule->trigger), $rule->company_id, $user);
         $problems = $validator->validate($rule->definition(), $context);
 
         if ($problems !== []) {

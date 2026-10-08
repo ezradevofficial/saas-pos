@@ -14,11 +14,14 @@ use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Triggers\TriggerHit;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Conditions\ConditionEvaluator;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
+use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\WorkflowAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +45,13 @@ use Throwable;
  * permanent refusal (ActionFailed) fails the run at once; anything else
  * is retried with backoff up to `automation.attempts`. A run that fails
  * for good alerts the tenant's automation administrators.
+ *
+ * The rule acts as its last editor. When that person is no longer active,
+ * or no longer holds what the rule needs (automation edit, seeing the
+ * type, each action's permissions) at the rule's scope, the rule is
+ * switched off (audited), the run fails with `run_as_unavailable` and the
+ * administrators are alerted once. Fields their field rules hide never
+ * leave through the actions (RBAC-05).
  */
 class RuleRunner
 {
@@ -53,6 +63,9 @@ class RuleRunner
         private readonly RuleTimezone $timezones,
         private readonly FailureAlert $alert,
         private readonly TenantContext $tenants,
+        private readonly Rules $rules,
+        private readonly WorkflowAccess $access,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /** Log a run for a fired trigger and queue it; null when the occurrence already ran. */
@@ -81,6 +94,7 @@ class RuleRunner
                 // A throttled occurrence keeps no key: the next scan may still run it.
                 'dedupe_key' => $throttled ? null : $hit->dedupeKey,
                 'error' => $throttled ? __('automation.errors.throttled') : null,
+                'error_code' => $throttled ? 'throttled' : null,
                 'finished_at' => $throttled ? CarbonImmutable::now() : null,
             ]));
         } catch (UniqueConstraintViolationException) {
@@ -114,7 +128,7 @@ class RuleRunner
         $rule = AutomationRule::query()->find($run->rule_id);
 
         if ($rule === null || ! $rule->enabled || $rule->isArchived()) {
-            $this->finish($run, AutomationRun::SKIPPED, error: __('automation.errors.rule_off'));
+            $this->finish($run, AutomationRun::SKIPPED, error: __('automation.errors.rule_off'), code: 'rule_off');
 
             return;
         }
@@ -123,7 +137,7 @@ class RuleRunner
         $type = $this->types->find($rule->document_type);
 
         if ($type === null) {
-            $this->fail($run, $rule, [], __('automation.errors.type_unavailable'));
+            $this->fail($run, $rule, [], __('automation.errors.type_unavailable'), 'type_unavailable');
 
             return;
         }
@@ -135,7 +149,7 @@ class RuleRunner
             $scope = $type->scope($run->document_id);
 
             if ($scope === null) {
-                $this->fail($run, $rule, [], __('automation.errors.document_unavailable'));
+                $this->fail($run, $rule, [], __('automation.errors.document_unavailable'), 'document_unavailable');
 
                 return;
             }
@@ -144,6 +158,13 @@ class RuleRunner
         }
 
         $timezone = $this->timezones->forCompany($scope->companyId ?? $rule->company_id) ?? 'UTC';
+        $actor = $rule->actorId() === null ? null : User::query()->whereKey($rule->actorId())->where('status', User::STATUS_ACTIVE)->first();
+
+        if ($actor === null || ! $this->actorMayRun($rule, $type, $actor)) {
+            $this->runAsUnavailable($run, $rule);
+
+            return;
+        }
 
         if ($run->document_id !== null) {
             $result = $this->conditions->evaluate($rule->conditions, $values, $type->fieldsByName(), $timezone);
@@ -160,14 +181,13 @@ class RuleRunner
         $incoming = new Cause($run->chain_id, $run->depth - 1, $run->chain);
 
         if ($incoming->contains($rule->id) || $run->depth > (int) config('automation.max_depth', 3)) {
-            $this->finish($run, AutomationRun::LOOP_BLOCKED, error: __('automation.errors.loop_blocked', ['max' => (int) config('automation.max_depth', 3)]));
+            $this->finish($run, AutomationRun::LOOP_BLOCKED, error: __('automation.errors.loop_blocked', ['max' => (int) config('automation.max_depth', 3)]), code: 'loop_blocked');
 
             return;
         }
 
-        $actor = $rule->actorId() === null ? null : User::query()->whereKey($rule->actorId())->where('status', User::STATUS_ACTIVE)->first();
         $locale = Tenant::query()->whereKey($this->tenants->require())->value('default_locale') ?: 'en';
-        $context = new AutomationContext($rule, $run, $type, $run->document_id, $scope, $values, $actor, $timezone, $locale);
+        $context = new AutomationContext($rule, $run, $type, $run->document_id, $scope, $values, $actor, $timezone, $locale, $this->visibility->hidden($actor, $type));
         $results = [];
         $current = 0;
 
@@ -183,7 +203,7 @@ class RuleRunner
                 });
             });
         } catch (ActionFailed $e) {
-            $this->fail($run, $rule, $this->failedResults($rule, $results, $current, $e->getMessage()), $e->getMessage());
+            $this->fail($run, $rule, $this->failedResults($rule, $results, $current, $e->getMessage()), $e->getMessage(), 'action_failed');
 
             return;
         } catch (TransientFailure $e) {
@@ -230,7 +250,7 @@ class RuleRunner
         $attempts = (int) config('automation.attempts', 3);
 
         if ($run->attempts >= $attempts) {
-            $this->fail($run, $rule, $results, $message);
+            $this->fail($run, $rule, $results, $message, 'attempts_exhausted');
 
             return;
         }
@@ -242,24 +262,64 @@ class RuleRunner
             'outcome' => AutomationRun::RETRYING,
             'actions' => $results,
             'error' => $message,
+            'error_code' => 'retrying',
             'next_attempt_at' => CarbonImmutable::now()->addSeconds($delay),
         ])->save();
 
         RunAutomationRule::dispatch($this->tenants->require(), $run->id)->delay($delay)->afterCommit();
     }
 
-    private function fail(AutomationRun $run, AutomationRule $rule, array $results, string $message): void
+    private function fail(AutomationRun $run, AutomationRule $rule, array $results, string $message, string $code): void
     {
-        $this->finish($run, AutomationRun::FAILED, $results, $message);
+        $this->finish($run, AutomationRun::FAILED, $results, $message, $code);
         $this->alert->send($rule, $run);
     }
 
-    private function finish(AutomationRun $run, string $outcome, ?array $results = null, ?string $error = null): void
+    /** The rule's user may still do everything the rule does, at the rule's scope. */
+    private function actorMayRun(AutomationRule $rule, DocumentType $type, User $actor): bool
+    {
+        $scope = new DocumentScope($rule->company_id);
+        $at = $rule->company_id === null ? Scope::tenant() : Scope::company($rule->company_id);
+
+        if (! $actor->can('core.automation.edit', $at) || ! $this->access->seesDocument($actor, $type, $scope)) {
+            return false;
+        }
+
+        foreach ($rule->actions as $action) {
+            $handler = $this->actions->find((string) ($action['type'] ?? ''));
+
+            foreach ($handler?->requiredPermissions($action, $type) ?? [] as $permission) {
+                if (! $actor->can($permission, $scope->scope())) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The rule's user is gone or lost a permission it needs: switch the rule
+     * off, fail the run, and alert the administrators once (only the run
+     * that switched it off alerts; later runs find it off).
+     */
+    private function runAsUnavailable(AutomationRun $run, AutomationRule $rule): void
+    {
+        $switchedOff = $this->rules->switchOff($rule, 'run_as_unavailable');
+        $this->finish($run, AutomationRun::FAILED, [], __('automation.errors.run_as_unavailable'), 'run_as_unavailable');
+
+        if ($switchedOff) {
+            $this->alert->send($rule, $run);
+        }
+    }
+
+    private function finish(AutomationRun $run, string $outcome, ?array $results = null, ?string $error = null, ?string $code = null): void
     {
         $run->fill([
             'outcome' => $outcome,
             'actions' => $results ?? $run->actions,
             'error' => $error,
+            'error_code' => $code,
             'finished_at' => CarbonImmutable::now(),
             'next_attempt_at' => null,
         ])->save();

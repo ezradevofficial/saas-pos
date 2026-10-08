@@ -335,6 +335,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('automation-rules/{automation_rule}/disable', [AutomationRuleController::class, 'disable']);
     Route::post('automation-rules/{automation_rule}/archive', [AutomationRuleController::class, 'archive']);
     Route::post('automation-rules/{automation_rule}/test', [AutomationRuleController::class, 'test']);
+    Route::post('automation-rules/{automation_rule}/webhook-secret/rotate', [AutomationRuleController::class, 'rotateSecret']);
     Route::get('automation-runs', [AutomationRunController::class, 'index']);
     Route::get('automation-runs/{automation_run}', [AutomationRunController::class, 'show']);
     Route::get('automation-templates', [AutomationTemplateController::class, 'index']);

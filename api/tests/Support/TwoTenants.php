@@ -290,9 +290,10 @@ final class TwoTenants
             'trigger' => ['type' => 'record_created'],
             'conditions' => ['field' => 'note', 'op' => 'not_empty'],
             'actions' => [['type' => 'notify', 'to' => ["user:{$ownerId}"], 'subject' => 'Automation {note}', 'message' => 'Created {total}.']],
-            'webhook_secret' => "secret-{$key}-0123456789",
             'enabled' => true,
         ], $owner), 201)->json('data.id');
+        // AUTO-03: a generated webhook signing secret (returned once); B's must never reach A.
+        $webhookSecret = self::ok($test->postJson("/api/v1/automation-rules/{$rule}/webhook-secret/rotate", [], $owner))->json('data.webhook_secret');
         $automationRun = app(TenantContext::class)->run($tenantId, function () use ($tenantId, $document, $rule) {
             RecordChanged::dispatch($tenantId, TestRequestType::KEY, $document, RecordChanged::CREATED, [], TestDocuments::find(TestRequestType::KEY, $document)['values']);
 
@@ -342,7 +343,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret])),
         );
     }
 

@@ -9,8 +9,8 @@ use Illuminate\Validation\Validator;
 
 /**
  * PATCH automation-rules/{rule}: any of name, document_type, company_id,
- * trigger, conditions, actions, webhook_secret (null removes it; it is
- * never returned). The whole rule is checked again; moving it to another
+ * trigger, conditions, actions. Adding the first webhook generates the
+ * signing secret, returned in this response only. The whole rule is checked again; moving it to another
  * company needs `core.automation.edit` there too. Each change raises the
  * version and is audited.
  */
@@ -55,15 +55,12 @@ class UpdateRuleRequest extends RuleRequest
     public function withValidator(Validator $validator): void
     {
         $rule = $this->rule();
-        $hasSecret = array_key_exists('webhook_secret', $this->all())
-            ? is_string($this->input('webhook_secret')) && $this->input('webhook_secret') !== ''
-            : $rule->webhook_secret !== null;
 
         $validator->after(fn (Validator $v) => $this->checkDefinition($v, $this->mergedDefinition([
             'name' => $rule->name,
             'document_type' => $rule->document_type,
             'company_id' => $rule->company_id,
             ...$rule->definition(),
-        ]), $hasSecret));
+        ])));
     }
 }

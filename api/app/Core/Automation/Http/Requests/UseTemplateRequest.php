@@ -50,7 +50,7 @@ class UseTemplateRequest extends StoreRuleRequest
                 return;
             }
 
-            $this->checkDefinition($v, $this->definition(), false);
+            $this->checkDefinition($v, $this->definition());
         });
     }
 
