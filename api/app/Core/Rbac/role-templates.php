@@ -52,7 +52,8 @@ return [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.party.view', 'core.party.create',
             'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view',
-            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
+            // POS-01, POS-04, POS-07: sells, opens and closes their own shift, gives discounts within their limit.
+            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close', 'pos.discount.give',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

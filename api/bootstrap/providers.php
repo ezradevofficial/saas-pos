@@ -14,6 +14,7 @@ use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
+use Modules\POS\PosServiceProvider;
 
 return [
     AppServiceProvider::class,
@@ -29,5 +30,6 @@ return [
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
+    PosServiceProvider::class,
     HorizonServiceProvider::class,
 ];
