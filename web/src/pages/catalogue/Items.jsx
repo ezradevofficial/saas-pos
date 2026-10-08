@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { usePermissions } from '@/auth/usePermissions'
-import { Button, ListView, Select, Tabs } from '@/components/ds'
+import { Button, ListView, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList } from '@/lib/useServerList'
 import { categoryTree, ITEM_TYPES, useItemCategories, useUoms } from './catalogueData'
@@ -90,30 +90,26 @@ export default function Items() {
         title={t('catalogue.items.title')}
         searchLabel={t('items.search')}
         searchPlaceholder={t('items.searchPlaceholder')}
-        filters={
-          <>
-            <Select
-              label={t('items.filters.category')}
-              className="min-w-0 flex-1"
-              options={[
-                { value: '', label: t('items.filters.allCategories') },
-                ...categoryTree(categories.all.filter((entry) => !entry.archived_at)).map(({ row, depth }) => ({
-                  value: row.id,
-                  label: `${'— '.repeat(depth)}${row?.name ?? ''}`,
-                })),
-              ]}
-              value={category}
-              onChange={(event) => list.setFilter('category', event.target.value)}
-            />
-            <Select
-              label={t('items.filters.type')}
-              className="min-w-0 flex-1"
-              options={[{ value: '', label: t('items.filters.allTypes') }, ...ITEM_TYPES.map((value) => ({ value, label: t(`items.types.${value}`) }))]}
-              value={type}
-              onChange={(event) => list.setFilter('type', event.target.value)}
-            />
-          </>
-        }
+        filterFields={[
+          {
+            name: 'category',
+            label: t('items.filters.category'),
+            options: [
+              { value: '', label: t('items.filters.allCategories') },
+              ...categoryTree(categories.all.filter((entry) => !entry.archived_at)).map(({ row, depth }) => ({
+                value: row.id,
+                label: `${'— '.repeat(depth)}${row?.name ?? ''}`,
+              })),
+            ],
+            // The chip names the category without its depth dashes.
+            valueLabel: (id) => categoryName(id) || id,
+          },
+          {
+            name: 'type',
+            label: t('items.filters.type'),
+            options: [{ value: '', label: t('items.filters.allTypes') }, ...ITEM_TYPES.map((value) => ({ value, label: t(`items.types.${value}`) }))],
+          },
+        ]}
         onRowClick={(item) => navigate(`/catalogue/items/${item.id}`)}
         emptyText={filtered ? t('items.emptyFiltered') : t(`items.empty.${status}`)}
       />
