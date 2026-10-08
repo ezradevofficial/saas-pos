@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Taxes\Http\Controllers;
 
 use App\Core\Exports\ListExport;
+use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Taxes\Http\Requests\ListPriceListsRequest;
 use App\Core\MasterData\Taxes\Http\Requests\PriceListActionRequest;
 use App\Core\MasterData\Taxes\Http\Requests\PriceListRequest;
@@ -26,7 +27,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * previous one (each change audited). Archived, never deleted (TEN-06); an
  * archived list stops being a default and can't be made one; restoring a
  * former default whose currency has another default meanwhile restores it
- * as a plain list.
+ * as a plain list. A list's currency is locked once it has prices (any,
+ * archived too): they are amounts in that currency (ADR 003).
  */
 class PriceListController
 {
@@ -80,6 +82,11 @@ class PriceListController
 
             if ($list->isArchived() && ($data['is_default'] ?? false)) {
                 throw ValidationException::withMessages(['is_default' => __('core.price_list.archived_default')]);
+            }
+
+            // ADR 003: stored prices are minor units of the list's currency.
+            if (isset($data['currency']) && $data['currency'] !== $list->currency && ItemPrice::query()->where('price_list_id', $list->id)->exists()) {
+                throw ValidationException::withMessages(['currency' => __('core.price_list.currency_has_prices', ['currency' => $list->currency])]);
             }
 
             $list->fill($data);

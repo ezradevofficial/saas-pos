@@ -44,6 +44,7 @@ use App\Core\MasterData\Items\Http\Controllers\MediaController;
 use App\Core\MasterData\Items\Http\Controllers\UomController;
 use App\Core\MasterData\Parties\Http\Controllers\PartyController;
 use App\Core\MasterData\PaymentMethods\Http\Controllers\PaymentMethodController;
+use App\Core\MasterData\Prices\Http\Controllers\ItemPriceController;
 use App\Core\MasterData\Sharing\Http\MasterDataSettingsController;
 use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCategoryController;
@@ -79,7 +80,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -228,6 +229,14 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('price-lists/{price_list}', [PriceListController::class, 'update']);
     Route::post('price-lists/{price_list}/archive', [PriceListController::class, 'archive']);
     Route::post('price-lists/{price_list}/restore', [PriceListController::class, 'restore']);
+
+    // MD-03 follow-up: item prices per list and unit, effective-dated, with
+    // quantity breaks; one or up to 500 at once (all or nothing).
+    Route::get('price-lists/{price_list}/prices', [ItemPriceController::class, 'index']);
+    Route::post('price-lists/{price_list}/prices', [ItemPriceController::class, 'store']);
+    Route::post('price-lists/{price_list}/prices/bulk', [ItemPriceController::class, 'bulk']);
+    Route::post('item-prices/{item_price}/archive', [ItemPriceController::class, 'archive']);
+    Route::post('item-prices/{item_price}/restore', [ItemPriceController::class, 'restore']);
 
     // MD-04: payment methods per company, in till order; provider secrets
     // are written here and never returned.

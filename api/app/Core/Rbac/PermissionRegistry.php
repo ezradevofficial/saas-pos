@@ -27,6 +27,8 @@ class PermissionRegistry
         'exchange_rate' => ['view', 'override'],
         'tax' => ['view', 'edit'],
         'price_list' => ['view', 'edit'],
+        // MD-03 follow-up: item prices in a company's price lists (read: the POS sells with them).
+        'price' => ['view', 'edit'],
         'party' => ['view', 'create', 'edit', 'archive'],
         // MD-01, WF-01: ask for a party's credit limit to change (through its
         // flow), act on that flow (approve: stages naming no roles, cancel,
