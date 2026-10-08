@@ -32,6 +32,11 @@ use App\Core\MasterData\Sharing\Http\MasterDataSettingsController;
 use App\Core\MasterData\Taxes\Http\Controllers\PriceListController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCategoryController;
 use App\Core\MasterData\Taxes\Http\Controllers\TaxCodeController;
+use App\Core\Notifications\Http\Controllers\DeliveryController;
+use App\Core\Notifications\Http\Controllers\InboxController;
+use App\Core\Notifications\Http\Controllers\NotificationSettingsController;
+use App\Core\Notifications\Http\Controllers\PreferenceController;
+use App\Core\Notifications\Http\Controllers\TemplateController;
 use App\Core\Rbac\Http\Controllers\AccessReviewController;
 use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
@@ -57,7 +62,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -309,4 +314,32 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // WF-09, APR-05: a company's working hours for time limits.
     Route::get('companies/{company}/business-hours', [BusinessHoursController::class, 'show']);
     Route::put('companies/{company}/business-hours', [BusinessHoursController::class, 'update']);
+
+    // NOT-01: the signed-in user's own inbox (no permission: everyone has one).
+    Route::get('notifications', [InboxController::class, 'index']);
+    Route::get('notifications/unread-count', [InboxController::class, 'unreadCount']);
+    Route::post('notifications/read-all', [InboxController::class, 'readAll']);
+    Route::post('notifications/{notification}/read', [InboxController::class, 'read']);
+    Route::post('notifications/{notification}/archive', [InboxController::class, 'archive']);
+
+    // NOT-04, NOT-05: the user's own channels and digest per event type.
+    Route::get('me/notification-preferences', [PreferenceController::class, 'show']);
+    Route::put('me/notification-preferences', [PreferenceController::class, 'update']);
+
+    // NOT-02, NOT-04: event types with the tenant's mandatory channels; the
+    // admin's toggles (core.notification_settings.edit).
+    Route::get('notification-event-types', [NotificationSettingsController::class, 'eventTypes']);
+    Route::put('notification-settings', [NotificationSettingsController::class, 'update']);
+
+    // NOT-03: texts per event type, channel and language. Writes name the
+    // template in the body: event type keys are global, never a tenant row.
+    Route::get('notification-templates', [TemplateController::class, 'index']);
+    Route::put('notification-templates', [TemplateController::class, 'update']);
+    Route::post('notification-templates/reset', [TemplateController::class, 'reset']);
+    Route::post('notification-templates/preview', [TemplateController::class, 'preview']);
+    Route::get('notification-templates/{event_type}', [TemplateController::class, 'show'])
+        ->where('event_type', '[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*');
+
+    // NOT-06: the delivery log (core.notification_delivery.view).
+    Route::get('notification-deliveries', [DeliveryController::class, 'index']);
 });

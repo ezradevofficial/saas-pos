@@ -64,6 +64,8 @@ class EnvironmentGuardTest extends TestCase
             ['mail.default' => null],
             ['mail.default' => ''],
             ['services.sms.driver' => 'log'],
+            // NOT-01: a fake push, SMS or WhatsApp driver delivers nothing.
+            ['notifications.drivers.whatsapp' => 'fake'],
             ['cache.default' => 'database'],
             ['cache.default' => 'array'],
             ['queue.default' => 'sync'],

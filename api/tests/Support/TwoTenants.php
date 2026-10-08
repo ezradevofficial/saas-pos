@@ -6,6 +6,10 @@ use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\InvitationNotification;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Notifications\NotificationEvent;
+use App\Core\Notifications\NotificationsServiceProvider;
+use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
@@ -34,7 +38,9 @@ use Tests\TestCase;
  * supplier, item categories and an item with another unit, barcodes and
  * an image, configured payment methods, departments, cost centres and
  * projects, a published workflow with a document in it that created an
- * order, working hours). Field rules, limit rules and module flags have
+ * order, working hours, notification texts, settings and preferences, and
+ * a notification sent to the owner and the manager). Field rules, limit
+ * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -248,6 +254,30 @@ final class TwoTenants
             app(ModuleRegistry::class)->deactivate(self::MODULE);
         });
 
+        // NOT-03, NOT-04, NOT-05: the tenant's own text, a mandatory channel,
+        // and the owner's preferences (SMS on, email in a daily digest).
+        $notificationEvent = NotificationsServiceProvider::TEST_EVENT;
+        self::ok($test->putJson('/api/v1/notification-templates', [
+            'event_type' => $notificationEvent, 'channel' => 'all', 'locale' => 'en',
+            'subject' => "Isolation {$upper} from {sender_name}", 'body' => 'Note: {message}',
+        ], $owner));
+        self::ok($test->putJson('/api/v1/notification-settings', [
+            'event_types' => [['event_type' => $notificationEvent, 'mandatory_channels' => ['in_app']]],
+        ], $owner));
+        self::ok($test->putJson('/api/v1/me/notification-preferences', [
+            'preferences' => [['event_type' => $notificationEvent, 'channels' => ['sms' => true], 'digest' => 'daily']],
+        ], $owner));
+
+        // NOT-01, NOT-02, NOT-06: a notification to the owner and the manager
+        // (inbox rows and deliveries on each channel), sent as a module would.
+        $notification = app(TenantContext::class)->run($tenantId, function () use ($notificationEvent, $ownerId, $managerId, $upper) {
+            app(Notifier::class)->send(new NotificationEvent($notificationEvent, [$ownerId, $managerId], [
+                'sender_name' => "Owner {$upper}", 'message' => "Stock count {$upper}",
+            ], '/notifications'));
+
+            return InAppNotification::where('user_id', $ownerId)->value('id');
+        });
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -284,6 +314,7 @@ final class TwoTenants
                 'workflow' => $workflow,
                 'workflow_version' => $workflowVersion,
                 'document' => $document,
+                'notification' => $notification,
                 ...$dimensions,
                 'challenge' => $challenge,
             ],

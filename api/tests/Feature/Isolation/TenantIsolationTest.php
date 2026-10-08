@@ -89,6 +89,7 @@ class TenantIsolationTest extends TestCase
         'workflow' => 'workflow',
         'workflow_version' => 'workflow_version',
         'document' => 'document', // WF-10: document-workflows/{document_type}/{document}, the test type's document
+        'notification' => 'notification', // NOT-01: POST notifications/{notification}/read|archive
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -103,6 +104,7 @@ class TenantIsolationTest extends TestCase
         'country_pack' => 'KE', // GET country-packs/{country_pack}: the published pack (CP-01)
         'type' => 'party', // GET history/{type}/{record}: a record type name from an allow-list (MD-07); the record is B's
         'document_type' => TestRequestType::KEY, // WF-01: a registered document type key; the document is B's
+        'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
     ];
 
     /**
@@ -191,6 +193,8 @@ class TenantIsolationTest extends TestCase
         ['search' => 'Item', 'type' => 'stock', 'barcode' => '6161000000001'],
         // EXP-01: list exports (items and parties); the sort and columns both lists have.
         ['format' => 'csv', 'status' => 'all', 'sort' => '-created_at', 'columns' => ['name']],
+        // NOT-06: the delivery log's channel filter (both tenants sent email).
+        ['channel' => 'email', 'status' => 'all'],
     ];
 
     /**
@@ -201,7 +205,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel'];
 
     private TwoTenants $tenants;
 
@@ -615,6 +619,9 @@ class TenantIsolationTest extends TestCase
             "companies/{$a->id('company')}/departments?status=all" => ['A-1', 'Unit A renamed', 'Root A'],
             "companies/{$a->id('company')}/cost-centres?status=all" => ['A-1', 'Unit A renamed'],
             "companies/{$a->id('company')}/projects?status=all" => ['A-1', 'Unit A renamed'],
+            // NOT-01, NOT-06: the owner's inbox and the delivery log.
+            'notifications?status=all' => ['Isolation A from Owner A', 'Note: Stock count A'],
+            'notification-deliveries' => ['Owner A', 'Manager A', 'manager-a@example.com'],
         ];
     }
 

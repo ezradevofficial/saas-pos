@@ -36,6 +36,9 @@ class PermissionRegistry
         'dimension' => ['view', 'create', 'edit', 'archive'],
         // WF-01..WF-11, APR-09: flow definitions; documents move through stage roles (WF-08).
         'workflow' => ['view', 'edit', 'publish'],
+        'notification_template' => ['view', 'edit'],
+        'notification_settings' => ['edit'],
+        'notification_delivery' => ['view'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';
