@@ -343,7 +343,7 @@ function Builder({ workflow, type, refetch }) {
 
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row">
         {!readOnly ? (
-          <aside aria-label={t('workflows.palette.label')} className="rounded-lg border border-border bg-surface-200 p-4 lg:w-56 lg:shrink-0">
+          <aside aria-label={t('workflows.palette.label')} className="rounded-lg border border-border bg-surface-200 p-4 lg:w-palette lg:shrink-0">
             <Palette onAdd={(kind) => add(kind)} hasStart={graph.nodes.some((node) => node.type === 'start')} />
           </aside>
         ) : null}
@@ -366,7 +366,7 @@ function Builder({ workflow, type, refetch }) {
         </section>
 
         {!phone ? (
-          <aside aria-label={t('workflows.panel.label')} className="rounded-lg border border-border bg-surface-200 p-5 lg:max-h-flow lg:w-80 lg:shrink-0 lg:overflow-auto">
+          <aside aria-label={t('workflows.panel.label')} className="rounded-lg border border-border bg-surface-200 p-5 lg:max-h-flow lg:w-inspector lg:shrink-0 lg:overflow-auto">
             <PropertiesPanel
               graph={graph}
               node={selected}

@@ -193,7 +193,7 @@ export function Devices({ location, chain, archived }) {
           {list.map((device) => (
             <li key={device.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
               <div className="flex min-w-0 flex-1 items-start gap-2">
-                <Icon name="device" className="mt-0.5 text-ink-muted" />
+                <Icon name="device" className="mt-px text-ink-muted" />
                 <div className="flex min-w-0 flex-col">
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="font-medium text-ink">{device.name}</span>

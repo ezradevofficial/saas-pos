@@ -299,6 +299,90 @@ return [
         ],
     ],
 
+    // MD-01, WF-01 : demandes de modification de plafond de crédit (CreditLimitChangeType).
+    'credit_limit_change' => [
+        'type' => 'Modification de plafond de crédit',
+        'list_title' => 'Modifications de plafond de crédit',
+        'fields' => [
+            'party' => 'Client',
+            'current_limit' => 'Plafond actuel',
+            'requested_limit' => 'Plafond demandé',
+            'increase' => 'Augmentation',
+            'reason' => 'Motif',
+            'company' => 'Société',
+        ],
+        // WF-02 : noms des étapes du flux par défaut, écrits une fois dans la langue de la première personne qui l’utilise.
+        'flow' => [
+            'start' => 'Modification demandée',
+            'approve' => 'Approbation du comptable',
+            'approved' => 'Approuvée',
+            'rejected' => 'Refusée',
+        ],
+        'columns' => [
+            'number' => 'Numéro',
+            'party' => 'Client',
+            'company' => 'Société',
+            'current_limit' => 'Plafond actuel',
+            'requested_limit' => 'Plafond demandé',
+            'increase' => 'Variation',
+            'reason' => 'Motif',
+            'status' => 'Statut',
+            'requested_by' => 'Demandé par',
+            'created_at' => 'Demandée le',
+            'decided_at' => 'Décidée le',
+        ],
+        'statuses' => [
+            'draft' => 'Brouillon',
+            'pending' => 'En attente d’approbation',
+            'approved' => 'Approuvée, pas encore appliquée',
+            'rejected' => 'Refusée',
+            'cancelled' => 'Annulée',
+            'applied' => 'Appliquée',
+            'conflicted' => 'Conflit : non appliquée',
+        ],
+        'attributes' => [
+            'party' => 'client',
+            'company' => 'société',
+            'requested_limit' => 'plafond demandé',
+            'currency' => 'devise',
+            'reason' => 'motif',
+            'cancel_reason' => 'motif de l’annulation',
+        ],
+        'notifications' => [
+            'conflicted' => [
+                'label' => 'Modification de plafond non appliquée : client modifié',
+                'subject' => '{document_number} a été approuvée mais pas appliquée',
+                'body' => "Bonjour {recipient_name},\n\nLa modification de plafond de crédit approuvée {document_number} pour {party_name} n’a pas été appliquée.\n\n{problem}",
+                'sms' => '{app_name} : la modification de plafond {document_number} a été approuvée mais pas appliquée.',
+            ],
+            'apply_failed' => [
+                'label' => 'Modification de plafond non appliquée',
+                'subject' => '{document_number} a été approuvée mais pas appliquée',
+                'body' => "Bonjour {recipient_name},\n\nLa modification de plafond de crédit approuvée {document_number} pour {party_name} n’a pas été appliquée.\n\n{problem}",
+                'sms' => '{app_name} : la modification de plafond {document_number} a été approuvée mais pas appliquée.',
+            ],
+        ],
+        'conflicts' => [
+            'limit_changed' => 'Le plafond de crédit du client a changé après la demande. Faites une nouvelle demande à partir du plafond actuel.',
+            'party_archived' => 'Le client a été archivé après la demande.',
+        ],
+        'validation' => [
+            'approval_required' => 'Une modification de plafond ne peut se terminer « approuvée » qu’après une étape d’approbation : « :node » peut être atteinte sans approbation.',
+        ],
+        'errors' => [
+            'amount' => 'Saisissez le plafond demandé en unités mineures entières, par exemple « 25000000 » pour KES 250 000,00.',
+            'currency' => 'Le plafond de crédit de ce client est en :currency. Demandez le nouveau plafond en :currency.',
+            'unchanged' => 'Le plafond demandé est identique au plafond actuel. Saisissez un autre montant.',
+            'open' => 'Une modification du plafond de ce client attend déjà une décision. Attendez-la ou annulez-la d’abord.',
+            'not_open' => 'Cette demande n’attend plus de décision : elle ne peut plus être annulée.',
+            'company_of_party' => 'Ce client appartient à une seule société : la demande concerne cette société. Ne précisez pas de société.',
+            'company_required' => 'Ce client est partagé entre vos sociétés. Choisissez la société concernée par la demande.',
+            'needs_request' => 'Augmenter ou supprimer ce plafond de crédit, ou en changer la devise, demande une approbation. Baissez-le, ou utilisez « Demander une modification » sur la fiche du client.',
+            'apply_failed' => 'Le nouveau plafond n’a pas pu être enregistré après plusieurs essais. Appliquez à nouveau la demande.',
+            'not_approved' => 'Seule une demande approuvée et pas encore appliquée peut être appliquée.',
+        ],
+    ],
+
     // MD-02 : articles, catégories d’articles, unités de mesure.
     'item' => [
         // EXP-01 : la liste des articles et son export.

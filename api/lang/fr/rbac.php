@@ -39,6 +39,7 @@ return [
                 'notification_settings' => 'Paramètres des notifications',
                 'notification_delivery' => 'Envois de notifications',
                 'approval' => 'Approbations',
+                'credit_limit' => 'Plafonds de crédit',
             ],
         ],
         'actions' => [
@@ -56,6 +57,9 @@ return [
             'publish' => 'Publier',
             'view_all' => 'Tout voir',
             'reassign' => 'Réattribuer',
+            'request' => 'Demander',
+            'approve' => 'Approuver',
+            'set_directly' => 'Fixer directement',
         ],
     ],
 

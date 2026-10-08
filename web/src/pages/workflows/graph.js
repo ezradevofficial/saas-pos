@@ -157,12 +157,18 @@ export function connect(graph, from, to, branch = null) {
 
 /** Moves nodes (positions rounded to whole pixels). */
 export function moveNodes(graph, positions) {
-  return {
-    ...graph,
-    nodes: graph.nodes.map((node) =>
-      positions[node.id] ? { ...node, position: { x: Math.round(positions[node.id].x), y: Math.round(positions[node.id].y) } } : node,
-    ),
-  }
+  let moved = false
+  const nodes = graph.nodes.map((node) => {
+    const to = positions[node.id]
+    if (!to) return node
+    const position = { x: Math.round(to.x), y: Math.round(to.y) }
+    // A click reports a "move" to where the step already is: not an edit.
+    if (node.position && node.position.x === position.x && node.position.y === position.y) return node
+    moved = true
+    return { ...node, position }
+  })
+  // The same graph back, so the history records nothing and no draft is saved.
+  return moved ? { ...graph, nodes } : graph
 }
 
 /**

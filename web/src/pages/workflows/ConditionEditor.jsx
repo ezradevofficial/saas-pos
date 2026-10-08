@@ -62,7 +62,7 @@ export function ValueInput({ field, op = 'eq', value, onChange, label, error }) 
             options={money.currency && !currencies.includes(money.currency) ? [money.currency, ...currencies] : currencies}
             value={money.currency}
             onChange={(event) => onChange({ ...money, currency: event.target.value })}
-            className="w-24 shrink-0"
+            className="w-operator shrink-0"
           />
           <MoneyInput
             key={money.currency}

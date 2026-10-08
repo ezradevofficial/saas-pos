@@ -28,6 +28,10 @@ class PermissionRegistry
         'tax' => ['view', 'edit'],
         'price_list' => ['view', 'edit'],
         'party' => ['view', 'create', 'edit', 'archive'],
+        // MD-01, WF-01: ask for a party's credit limit to change (through its
+        // flow), act on that flow (approve: stages naming no roles, cancel,
+        // return), or set a limit directly, raises included (Owner, Admin).
+        'credit_limit' => ['request', 'approve', 'set_directly'],
         'master_data_settings' => ['edit'],
         'item' => ['view', 'create', 'edit', 'archive'],
         'item_category' => ['view', 'create', 'edit', 'archive'],
@@ -43,6 +47,8 @@ class PermissionRegistry
         'notification_template' => ['view', 'edit'],
         'notification_settings' => ['edit'],
         'notification_delivery' => ['view'],
+        // AUTO-01..AUTO-07: automation rules and their run log.
+        'automation' => ['view', 'edit'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

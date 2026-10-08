@@ -13,6 +13,7 @@ import { rolesPerCompany, useSharingModes } from '@/lib/masterData'
 import { decimalsOf, minorToDecimal, toMinor } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany'
+import { CREDIT_SET_DIRECTLY } from './creditLimitData'
 import { PARTY_KINDS, PARTY_ROLES, ROLE_PATHS } from './partyData'
 
 const COUNTRIES = ['KE', 'CD']
@@ -60,12 +61,12 @@ const blankToNull = (value) => (value.trim() === '' ? null : value.trim())
  * (company_change_needs_confirmation). Fields hidden by field rules
  * (RBAC-05) are not in `party`: neither shown nor sent.
  */
-export function PartyForm({ party, role, readOnly = false, onSaved }) {
+export function PartyForm({ party, role, readOnly = false, onRequestChange = null, onSaved }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const formRef = useRef(null)
   const alertRef = useRef(null)
-  const { can } = usePermissions()
+  const { can, canWithin, tenantWide } = usePermissions()
   const { modes } = useSharingModes()
   const { companies } = useCompanies()
   const { company: selected } = useCompanySelection()
@@ -75,6 +76,11 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
   const [submitted, setSubmitted] = useState(false)
   const creating = !party
   const shows = (field) => creating || field in party
+  // WF-01: without core.credit_limit.set_directly (tenant-wide for a shared
+  // party) the limit may only be lowered, or set where there is none (no
+  // limit means unlimited); a raise is refused by the API and asked for
+  // through a credit limit change request instead.
+  const canSetCredit = party?.company_id ? canWithin(CREDIT_SET_DIRECTLY, [{ type: 'company', id: party.company_id }]) : tenantWide(CREDIT_SET_DIRECTLY)
 
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const setRow = (list, key, patch) => setValues((current) => ({ ...current, [list]: current[list].map((row) => (row.key === key ? { ...row, ...patch } : row)) }))
@@ -186,6 +192,8 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
     ...rowFields,
   ])
   useErrorFocus(formRef, alertRef, mutation.error)
+  // WF-01: the API refused a raise; the error shows under the field with a way to ask for it.
+  const needsRequest = mutation.error?.code === 'credit_limit_needs_request'
   const tagError = errors.fields.tags ?? Object.entries(mutation.error?.errors ?? {}).find(([key]) => key.startsWith('tags.'))?.[1]?.[0]
   // Rows are sent without blanks: an error for the nth sent row belongs to the nth non-blank row.
   const sentIndex = (list, row, filled) => values[list].filter(filled).indexOf(row)
@@ -447,7 +455,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                 <MoneyInput
                   key={creditCurrency}
                   label={t('parties.form.creditLimit')}
-                  help={t('parties.form.creditLimitHelp')}
+                  help={canSetCredit ? t('parties.form.creditLimitHelp') : t('creditLimits.lowerOnly')}
                   currency={creditCurrency}
                   decimals={creditDecimals}
                   value={values.credit_limit}
@@ -455,6 +463,13 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                   error={errors.fields.credit_limit}
                   showErrors={submitted}
                 />
+                {needsRequest && onRequestChange ? (
+                  <div className="sm:col-span-2">
+                    <button type="button" className="text-label text-primary hover:text-primary-hover" onClick={onRequestChange}>
+                      {t('creditLimits.request.open')}
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : null}
             {shows('price_list_id') && canPriceLists ? (

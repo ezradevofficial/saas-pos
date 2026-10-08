@@ -7,10 +7,12 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { DuplicatesAlert } from '@/components/DuplicatesAlert'
 import { HistoryPanel } from '@/components/HistoryPanel'
-import { Alert, Button, Card, Icon, StatusBadge, Tabs } from '@/components/ds'
+import { Alert, Button, Card, Icon, Money, StatusBadge, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
+import { CREDIT_REQUEST } from './creditLimitData'
+import { PartyCreditChanges, RequestCreditChangeDialog } from './creditLimits'
 import { PartyForm } from './PartyForm'
 import { ROLE_PATHS } from './partyData'
 
@@ -26,7 +28,13 @@ function usePartyHistoryFields() {
   }
 }
 
-/** MD-01, MD-06, MD-07: one customer or supplier: Details (with possible duplicates) and History. */
+const TABS = ['details', 'credit', 'history']
+
+/**
+ * MD-01, MD-06, MD-07: one customer or supplier: Details (with possible
+ * duplicates), Credit limit changes (WF-01, WF-10) and History. Whoever may
+ * request a credit limit change does it from here.
+ */
 export default function PartyDetail({ role }) {
   const { t } = useTranslation()
   const { partyId } = useParams()
@@ -38,7 +46,9 @@ export default function PartyDetail({ role }) {
   const [duplicates, setDuplicates] = useState(() => location.state?.duplicates ?? [])
   const [saved, setSaved] = useState(Boolean(location.state?.created))
   const [archiving, setArchiving] = useState(false)
-  const tab = params.get('tab') === 'history' ? 'history' : 'details'
+  const [requesting, setRequesting] = useState(false)
+  const [requested, setRequested] = useState(null)
+  const asked = params.get('tab')
   const query = useQuery({ queryKey: detailKey(partyId), queryFn: () => api.get(`parties/${partyId}`) })
   const party = query.data?.data
   const timeZone = useTimeZone(party?.company_id)
@@ -73,6 +83,11 @@ export default function PartyDetail({ role }) {
   const allowed = (name) => (party.company_id ? canWithin(name, [{ type: 'company', id: party.company_id }]) : can(name))
   const archived = Boolean(party.archived_at)
   const canEdit = allowed('core.party.edit') && !archived
+  // RBAC-05: the credit limit (and its changes) only when field rules show it.
+  const seesCredit = 'credit_limit' in party
+  const canRequest = seesCredit && !archived && can(CREDIT_REQUEST)
+  const tabs = TABS.filter((name) => name !== 'credit' || seesCredit)
+  const tab = tabs.includes(asked) ? asked : 'details'
 
   return (
     <>
@@ -104,20 +119,47 @@ export default function PartyDetail({ role }) {
       {saved ? <Alert tone="success" title={t('parties.saved', { name: party.name ?? '' })} /> : null}
       {action.isError && !archiving ? <Alert tone="danger" title={errorMessage(action.error)} /> : null}
       <DuplicatesAlert kind="party" matches={duplicates} linkTo={(match) => `/contacts/${path}/${match.id}`} onDismiss={() => setDuplicates([])} />
+      {requested ? <Alert tone="success" title={t('creditLimits.request.sent', { number: requested.number })} /> : null}
+      {seesCredit ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-label text-ink-muted">{t('parties.form.creditLimit')}</span>
+              {party.credit_limit ? (
+                <Money amount={party.credit_limit.amount_minor} currency={party.credit_limit.currency} />
+              ) : (
+                <span className="text-ink">{t('creditLimits.noLimit')}</span>
+              )}
+            </div>
+            {canRequest ? (
+              <Button
+                onClick={() => {
+                  setRequested(null)
+                  setRequesting(true)
+                }}
+              >
+                {t('creditLimits.request.open')}
+              </Button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
       <Tabs
-        items={[
-          { value: 'details', label: t('items.tabs.details') },
-          { value: 'history', label: t('items.tabs.history') },
-        ]}
+        items={tabs.map((value) => ({ value, label: value === 'credit' ? t('creditLimits.tab') : t(`items.tabs.${value}`) }))}
         value={tab}
-        onChange={(next) => setParams(next === 'history' ? { tab: 'history' } : {}, { replace: true })}
+        onChange={(next) => setParams(next === 'details' ? {} : { tab: next }, { replace: true })}
       />
-      {tab === 'details' ? (
+      {tab === 'credit' ? (
+        <Card>
+          <PartyCreditChanges party={party} timeZone={timeZone} />
+        </Card>
+      ) : tab === 'details' ? (
         <PartyForm
           key={party.id}
           party={party}
           role={role}
           readOnly={!canEdit}
+          onRequestChange={canRequest ? () => setRequesting(true) : null}
           onSaved={(response) => {
             setSaved(true)
             setDuplicates(response.meta?.possible_duplicates ?? [])
@@ -128,6 +170,17 @@ export default function PartyDetail({ role }) {
           <HistoryPanel type="party" recordId={party.id} timeZone={timeZone} fields={historyFields} />
         </Card>
       )}
+      {canRequest && requesting ? (
+        <RequestCreditChangeDialog
+          open
+          party={party}
+          onClose={() => setRequesting(false)}
+          onRequested={(change) => {
+            setRequesting(false)
+            setRequested(change)
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={archiving}
         title={t('parties.archiveTitle', { name: party.name ?? '' })}

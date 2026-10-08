@@ -74,7 +74,7 @@ function ApprovalItem({ item, selected, checked, onCheck, onOpen }) {
           </span>
           {amount ? (
             <span className="flex flex-col items-end">
-              <span className="text-caption text-ink-muted">{t('approvals.list.amount')}</span>
+              <span className="text-caption text-ink-muted">{item?.document?.amount_label ?? t('approvals.list.amount')}</span>
               <Money amount={amount.amount_minor} currency={amount.currency} />
             </span>
           ) : null}

@@ -8,6 +8,12 @@ use App\Core\Approvals\Http\Controllers\EmailApprovalController;
 use App\Core\Approvals\Http\NoReferrer;
 use App\Core\Approvals\Models\ApprovalDelegation;
 use App\Core\Approvals\Models\ApprovalRequest;
+use App\Core\Automation\Http\Controllers\AutomationCatalogueController;
+use App\Core\Automation\Http\Controllers\AutomationRuleController;
+use App\Core\Automation\Http\Controllers\AutomationRunController;
+use App\Core\Automation\Http\Controllers\AutomationTemplateController;
+use App\Core\Automation\Models\AutomationRule;
+use App\Core\Automation\Models\AutomationRun;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
 use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
@@ -26,6 +32,8 @@ use App\Core\Identity\Http\Controllers\VerifyController;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\CreditLimits\CreditLimitChange;
+use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
 use App\Core\MasterData\Dimensions\Dimensions;
 use App\Core\MasterData\Dimensions\Http\Controllers\DimensionController;
 use App\Core\MasterData\History\Http\HistoryController;
@@ -70,15 +78,18 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
 Route::pattern('document_type', '[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*');
 Route::model('workflow', WorkflowDefinition::class);
 Route::model('workflow_version', WorkflowVersion::class);
+Route::model('automation_rule', AutomationRule::class);
+Route::model('automation_run', AutomationRun::class);
 Route::model('approval', ApprovalRequest::class);
 Route::model('delegation', ApprovalDelegation::class);
+Route::model('credit_limit_change', CreditLimitChange::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -247,6 +258,14 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
     Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
 
+    // MD-01, WF-01, WF-10, WF-11: credit limit change requests, decided
+    // through their flow and applied to the party when approved.
+    Route::get('credit-limit-changes', [CreditLimitChangeController::class, 'index']);
+    Route::post('credit-limit-changes', [CreditLimitChangeController::class, 'store']);
+    Route::get('credit-limit-changes/{credit_limit_change}', [CreditLimitChangeController::class, 'show']);
+    Route::post('credit-limit-changes/{credit_limit_change}/cancel', [CreditLimitChangeController::class, 'cancel']);
+    Route::post('credit-limit-changes/{credit_limit_change}/apply', [CreditLimitChangeController::class, 'apply']);
+
     // MD-02: units of measure (the tenant's), item categories and items,
     // shared or per company (TEN-08), with barcodes and images.
     Route::get('uoms', [UomController::class, 'index']);
@@ -333,6 +352,24 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // WF-09, APR-05: a company's working hours for time limits.
     Route::get('companies/{company}/business-hours', [BusinessHoursController::class, 'show']);
     Route::put('companies/{company}/business-hours', [BusinessHoursController::class, 'update']);
+
+    // AUTO-01..AUTO-07: automation rules, test mode, the run log, templates
+    // and what the editor may offer per document type.
+    Route::get('automation/catalogue', AutomationCatalogueController::class);
+    Route::get('automation-rules', [AutomationRuleController::class, 'index']);
+    Route::post('automation-rules', [AutomationRuleController::class, 'store']);
+    Route::post('automation-rules/test', [AutomationRuleController::class, 'testUnsaved']);
+    Route::get('automation-rules/{automation_rule}', [AutomationRuleController::class, 'show']);
+    Route::patch('automation-rules/{automation_rule}', [AutomationRuleController::class, 'update']);
+    Route::post('automation-rules/{automation_rule}/enable', [AutomationRuleController::class, 'enable']);
+    Route::post('automation-rules/{automation_rule}/disable', [AutomationRuleController::class, 'disable']);
+    Route::post('automation-rules/{automation_rule}/archive', [AutomationRuleController::class, 'archive']);
+    Route::post('automation-rules/{automation_rule}/test', [AutomationRuleController::class, 'test']);
+    Route::post('automation-rules/{automation_rule}/webhook-secret/rotate', [AutomationRuleController::class, 'rotateSecret']);
+    Route::get('automation-runs', [AutomationRunController::class, 'index']);
+    Route::get('automation-runs/{automation_run}', [AutomationRunController::class, 'show']);
+    Route::get('automation-templates', [AutomationTemplateController::class, 'index']);
+    Route::post('automation-templates/use', [AutomationTemplateController::class, 'use']);
 
     // APR-03, APR-04, APR-06: the approvals inbox, a request's detail and
     // actions (acting needs only being its approver or their delegate),

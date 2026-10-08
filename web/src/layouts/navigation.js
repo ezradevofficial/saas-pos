@@ -6,7 +6,7 @@
  * company) only when the user can view a company, so a cashier scoped to a
  * location is not offered a page that would open empty (RBAC-04, RBAC-09).
  * Overview, Catalogue (items, categories, units), Contacts (customers,
- * suppliers), Settings, Finance (currencies, rates, taxes, payment methods)
+ * suppliers, credit limit changes), Settings, Finance (currencies, rates, taxes, payment methods)
  * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
  */
 // A user who sees any level of the organisation (a cashier sees their
@@ -60,6 +60,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/contacts/customers', icon: 'customers', label: (t) => t('nav.customers'), permission: PARTY_VIEW, module: 'core' },
       { to: '/contacts/suppliers', icon: 'suppliers', label: (t) => t('nav.suppliers'), permission: PARTY_VIEW, module: 'core' },
+      { to: '/contacts/credit-limit-changes', icon: 'creditLimits', label: (t) => t('nav.creditLimitChanges'), permission: PARTY_VIEW, module: 'core' },
     ],
   },
   {

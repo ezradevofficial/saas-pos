@@ -24,7 +24,7 @@ function NodeRow({ icon, name, meta, archived, actions, className, heading: Name
   return (
     <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 py-3', className)}>
       <div className="flex min-w-0 flex-1 items-start gap-2">
-        <Icon name={icon} className="mt-0.5 text-ink-muted" />
+        <Icon name={icon} className="mt-px text-ink-muted" />
         <div className="flex min-w-0 flex-col">
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Name className="font-medium text-ink">{name}</Name>

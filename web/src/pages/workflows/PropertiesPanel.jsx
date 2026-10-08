@@ -3,6 +3,7 @@ import { Alert, Button, Checkbox, Select, TextField } from '@/components/ds'
 import { ConditionEditor } from './ConditionEditor'
 import { displayName, kindLabel } from './describe'
 import { roleRefsOf, toFrom, userIdsOf } from './notifyRecipients'
+import { names as roleNamedBy } from './roleRefs'
 import { PeoplePicker, RolesPicker } from './RolesPicker'
 import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, ON_CANCEL, OUTCOMES } from './workflowData'
 
@@ -11,27 +12,29 @@ function DurationField({ label, help, value, onChange }) {
   const { t } = useTranslation()
   const unit = value?.unit ?? 'business_hours'
   return (
-    <div className="grid grid-cols-2 items-end gap-3">
-      <TextField
-        label={label}
-        help={help}
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={10000}
-        step={1}
-        value={value?.amount ?? ''}
-        onChange={(event) => {
-          const amount = Number.parseInt(event.target.value, 10)
-          onChange(Number.isInteger(amount) && amount >= 1 ? { amount: Math.min(amount, 10000), unit } : null)
-        }}
-      />
-      <Select
-        label={t('workflows.fields.unit', { what: label })}
-        options={DUE_UNITS.map((one) => ({ value: one, label: t(`workflows.unitNames.${one}`) }))}
-        value={unit}
-        onChange={(event) => onChange(value?.amount ? { amount: value.amount, unit: event.target.value } : null)}
-      />
+    <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-2 items-end gap-3">
+        <TextField
+          label={label}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={10000}
+          step={1}
+          value={value?.amount ?? ''}
+          onChange={(event) => {
+            const amount = Number.parseInt(event.target.value, 10)
+            onChange(Number.isInteger(amount) && amount >= 1 ? { amount: Math.min(amount, 10000), unit } : null)
+          }}
+        />
+        <Select
+          label={t('workflows.fields.unit')}
+          options={DUE_UNITS.map((one) => ({ value: one, label: t(`workflows.unitNames.${one}`) }))}
+          value={unit}
+          onChange={(event) => onChange(value?.amount ? { amount: value.amount, unit: event.target.value } : null)}
+        />
+      </div>
+      {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
     </div>
   )
 }
@@ -46,7 +49,8 @@ function ApproverParams({ approver, params, onChange, roles, users }) {
           label={t('workflows.fields.role')}
           options={roles.map((role) => ({ value: role.id, label: role.name }))}
           placeholder={t('workflows.fields.chooseRole')}
-          value={approver.role ?? ''}
+          // A default flow names system roles by template (`template:admin`); show the tenant's role for it.
+          value={roles.find((role) => roleNamedBy(approver.role, role))?.id ?? approver.role ?? ''}
           onChange={(event) => onChange({ ...approver, role: event.target.value })}
         />
       ) : null}
