@@ -138,7 +138,13 @@ function ComparisonRow({ value, fields, onChange, onRemove, index }) {
           label={t('workflows.condition.operator')}
           options={operators.map((op) => ({ value: op, label: t(`workflows.operators.${op}`) }))}
           value={value.op}
-          onChange={(event) => onChange(comparison(field, event.target.value))}
+          onChange={(event) => {
+            const op = event.target.value
+            // A value (or other field) typed for one comparison carries over to another of the same shape.
+            const scalar = (one) => !UNARY.has(one) && !LISTS.has(one)
+            if (scalar(op) && scalar(value.op)) onChange({ ...value, op })
+            else onChange(comparison(field, op))
+          }}
         />
       </div>
       {canCompareOther ? (

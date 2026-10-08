@@ -188,7 +188,12 @@ export function TestDialog({ open, workflowId, graph, fields, onClose, onResult,
   const [outcomes, setOutcomes] = useState({})
   const approvals = graph.nodes.filter((node) => node.type === 'approval')
   const run = useMutation({
-    mutationFn: () => api.post(`workflows/${workflowId}/test`, { values: sampleValues(fields, values), outcomes, graph }),
+    mutationFn: () =>
+      api.post(`workflows/${workflowId}/test`, {
+        values: sampleValues(fields, values),
+        outcomes: Object.fromEntries(approvals.map((node) => [node.id, outcomes[node.id] ?? 'approved'])),
+        graph,
+      }),
     onSuccess: (response) => onResult(response?.data ?? null),
   })
   const names = new Map(graph.nodes.map((node) => [node.id, displayName(t, node)]))

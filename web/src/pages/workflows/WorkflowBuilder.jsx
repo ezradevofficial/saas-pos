@@ -62,14 +62,15 @@ function Builder({ workflow, type, refetch }) {
   const [issues, setIssues] = useState(null) // list of problems once validated
   const [tested, setTested] = useState(null) // { result, version }: a test describes the graph it ran on
   const [dialog, setDialog] = useState(null) // publish | versions | copy | restore | test
-  const [saveState, setSaveState] = useState({ status: 'idle', error: null, version: 0 })
+  const [saveState, setSaveState] = useState({ status: 'idle', error: null, version: 0, attempted: 0 })
 
   const versions = useQuery({ queryKey: ['workflows', workflow.id, 'versions'], queryFn: () => api.get(`workflows/${workflow.id}/versions`) })
   const live = (versions.data?.data ?? []).find((one) => one.status === 'published') ?? (workflow.published ? { ...workflow.published, in_progress: 0 } : null)
   const draft = workflow.draft
 
   // Autosave: the draft is PUT once editing pauses; the answer lists what still blocks publishing.
-  const dirty = edited && !readOnly && saveState.version !== version
+  // Dirty: edited since the last save attempt (a failed save waits for the next edit, or Publish).
+  const dirty = edited && !readOnly && saveState.version !== version && saveState.attempted !== version
   const latest = useRef({ graph, version, dirty, showIssues: false })
   useEffect(() => {
     latest.current = { graph, version, dirty, showIssues: issues !== null }
@@ -79,10 +80,10 @@ function Builder({ workflow, type, refetch }) {
   const save = useCallback(async () => {
     const { graph: body, version: saving, showIssues } = latest.current
     latest.current = { ...latest.current, dirty: false }
-    setSaveState((current) => ({ ...current, status: 'saving', error: null }))
+    setSaveState((current) => ({ ...current, status: 'saving', error: null, attempted: saving }))
     try {
       const response = await api.put(`workflows/${workflow.id}/draft`, { graph: body })
-      setSaveState({ status: 'saved', error: null, version: saving })
+      setSaveState((current) => ({ ...current, status: current.attempted === saving ? 'saved' : current.status, error: null, version: saving }))
       if (showIssues && Array.isArray(response?.meta?.problems)) setIssues(response.meta.problems)
       if (response?.data) {
         queryClient.setQueryData(['workflows', workflow.id], (current) =>
@@ -108,7 +109,7 @@ function Builder({ workflow, type, refetch }) {
 
   /** Saves now if an edit is waiting, and waits for any save on its way. */
   const flush = async () => {
-    if (latest.current.dirty) savePromise.current = save()
+    if (latest.current.dirty || saveState.status === 'error') savePromise.current = save()
     return savePromise.current ? savePromise.current : true
   }
 
@@ -135,7 +136,7 @@ function Builder({ workflow, type, refetch }) {
   const validate = useMutation({
     mutationFn: async () => {
       await flush()
-      return api.post(`workflows/${workflow.id}/validate`, { graph: latest.current })
+      return api.post(`workflows/${workflow.id}/validate`, { graph: latest.current.graph })
     },
     onSuccess: (response) => {
       const problems = response?.data?.problems ?? []
