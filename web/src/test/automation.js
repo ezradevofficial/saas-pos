@@ -93,6 +93,7 @@ export const RUN = {
   trigger: {},
   document_type: 'procurement.requisition',
   document_id: '0192a1b2-0000-7000-8000-00000000d0c1',
+  document: { id: '0192a1b2-0000-7000-8000-00000000d0c1', number: 'PR-0042', title: 'Office chairs', link: '/document-workflows/procurement.requisition/0192a1b2-0000-7000-8000-00000000d0c1' },
   outcome: 'failed',
   conditions: { passed: true, checks: [], failures: [] },
   actions: [

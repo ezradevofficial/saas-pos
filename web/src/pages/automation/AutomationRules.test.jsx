@@ -122,6 +122,24 @@ describe('Automation run log (AUTO-05)', () => {
     expect(within(drawer).getByText('3')).toBeInTheDocument()
   })
 
+  it('names each run’s document by its number, else its title, else its short id, linked when the API gives a link', async () => {
+    const rows = [
+      { ...RUN, id: 'run-a' },
+      { ...RUN, id: 'run-b', document_id: '0192a1b2-0000-7000-8000-00000000d0c2', document: { id: '0192a1b2-0000-7000-8000-00000000d0c2', number: null, title: 'Office desks', link: null } },
+      { ...RUN, id: 'run-c', document_id: '0192abcd-0000-7000-8000-00000000d0c3', document: null },
+    ]
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page(rows)], [/^automation-rules\?status=all/, page([RULE])]] })
+    const { router } = renderApp('/settings/automation-runs')
+    const table = await screen.findByRole('table', { name: 'Automation runs' })
+    const link = await within(table).findByRole('link', { name: 'PR-0042' })
+    expect(link).toHaveAttribute('href', RUN.document.link)
+    expect(within(table).getByText('Office desks')).toBeInTheDocument()
+    expect(within(table).queryByRole('link', { name: 'Office desks' })).not.toBeInTheDocument()
+    expect(within(table).getByText('0192abcd')).toBeInTheDocument()
+    fireEvent.click(link)
+    await waitFor(() => expect(router.state.location.pathname).toBe(RUN.document.link))
+  })
+
   it('says another rule started a run only when its chain holds one (AUTO-06)', async () => {
     const byWorkflow = { ...RUN, id: 'run-7', trigger_type: 'stage_left', depth: 1, caused_by_rule: false }
     const byRule = { ...RUN, id: 'run-8', trigger_type: 'field_changed', depth: 2, caused_by_rule: true }

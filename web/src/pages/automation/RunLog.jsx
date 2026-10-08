@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Icon, ListView, Select, StatusBadge } from '@/components/ds'
@@ -29,6 +29,25 @@ function runCause(run, t) {
   if (run.trigger_type === 'date') return t('automation.runs.cause.date')
   if (run.trigger_type === 'stage_entered' || run.trigger_type === 'stage_left') return t('automation.runs.cause.workflow')
   return t('automation.runs.cause.change')
+}
+
+/**
+ * A run's document (AUTO-05): its number, else its title (the API leaves
+ * out a title hidden from the reader), else its short id; a link when the
+ * API gives one (a relative app path only).
+ */
+function DocumentName({ run }) {
+  const { t } = useTranslation()
+  if (!run.document_id) return <span className="text-ink-muted">{t('automation.runs.noDocument')}</span>
+  const name = run.document?.number ?? run.document?.title
+  const text = name ? <span>{name}</span> : <span className="font-mono text-caption">{run.document_id.slice(0, 8)}</span>
+  const link = run.document?.link
+  if (!link?.startsWith('/') || link.startsWith('//')) return text
+  return (
+    <Link to={link} onClick={(event) => event.stopPropagation()} className="text-primary hover:text-primary-hover">
+      {text}
+    </Link>
+  )
 }
 
 function Detail({ label, children }) {
@@ -77,7 +96,7 @@ function RunDrawer({ runId, onClose }) {
                 </Detail>
                 <Detail label={t('automation.runs.columns.trigger')}>{t(`automation.triggers.${run.trigger_type}`, { defaultValue: run.trigger_type })}</Detail>
                 <Detail label={t('automation.runs.version')}>{t('automation.runs.versionValue', { version: run.rule_version })}</Detail>
-                <Detail label={t('automation.runs.columns.document')}>{run.document_id ? <span className="font-mono text-caption break-all">{run.document_id}</span> : t('automation.runs.noDocument')}</Detail>
+                <Detail label={t('automation.runs.columns.document')}><DocumentName run={run} /></Detail>
                 <Detail label={t('automation.runs.started')}>{when(run.started_at ?? run.created_at)}</Detail>
                 <Detail label={t('automation.runs.finished')}>{when(run.finished_at)}</Detail>
                 {run.next_attempt_at ? <Detail label={t('automation.runs.nextAttempt')}>{when(run.next_attempt_at)}</Detail> : null}
@@ -144,7 +163,7 @@ export function RunsList({ ruleId, rules = [] }) {
     {
       key: 'document_id',
       label: t('automation.runs.columns.document'),
-      render: (row) => (row.document_id ? <span className="font-mono text-caption">{row.document_id.slice(0, 8)}</span> : <span className="text-ink-muted">{t('automation.runs.noDocument')}</span>),
+      render: (row) => <DocumentName run={row} />,
     },
     { key: 'outcome', label: t('automation.runs.columns.outcome'), sortKey: 'outcome', render: (row) => <Outcome outcome={row.outcome} /> },
     { key: 'attempts', label: t('automation.runs.columns.attempts'), align: 'end', numeric: true, render: (row) => row.attempts },
