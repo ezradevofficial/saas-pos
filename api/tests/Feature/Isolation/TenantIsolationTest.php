@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -180,6 +181,8 @@ class TenantIsolationTest extends TestCase
         ['search' => 'Customer', 'role' => 'customer', 'tag' => 'vip'],
         // MD-02: both tenants have a stock item "Item A|B" with this barcode.
         ['search' => 'Item', 'type' => 'stock', 'barcode' => '6161000000001'],
+        // EXP-01: list exports (items and parties); the sort and columns both lists have.
+        ['format' => 'csv', 'status' => 'all', 'sort' => '-created_at', 'columns' => ['name']],
     ];
 
     /**
@@ -190,7 +193,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'sort', 'columns'];
 
     private TwoTenants $tenants;
 
@@ -523,6 +526,65 @@ class TenantIsolationTest extends TestCase
         foreach (['Tenant B', 'Owner B', 'Manager B', 'Company B', 'Branch B', 'Outlet B', 'Clerk B'] as $name) {
             $this->assertStringNotContainsString($name, $csv);
         }
+    }
+
+    /**
+     * EXP-01: list exports read the same tenant-bound query as the list,
+     * inside the tenant's own context while streaming. CSV and the cells
+     * of the Excel file are checked as text (an xlsx is a zip, a PDF is
+     * compressed: their bytes prove nothing); every format answers.
+     */
+    public function test_list_exports_of_tenant_a_contain_nothing_of_tenant_b(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $theirs = ['Customer B', 'Supplier B', 'P00000000B', 'ITEM-B', 'Article B', 'Goods B sub', '+254700000302'];
+
+        foreach (['items' => ['ITEM-A', 'Article A'], 'parties' => ['Customer A', 'Supplier A', '+254700000301']] as $list => $ours) {
+            foreach (['csv', 'xlsx', 'pdf'] as $format) {
+                $response = $this->get("/api/v1/{$list}?format={$format}&status=all", $a->bearer())->assertOk();
+                $body = $response->streamedContent();
+
+                if ($format === 'pdf') {
+                    $this->assertStringStartsWith('%PDF-', $body);
+
+                    continue;
+                }
+
+                $text = $format === 'csv' ? $body : $this->xlsxText($body);
+
+                foreach ($ours as $value) {
+                    $this->assertStringContainsString($value, $text, "control: A's {$list} {$format} export lists {$value}");
+                }
+
+                foreach ([...$theirs, ...$this->identifiersOf($b)] as $value) {
+                    $this->assertStringNotContainsString($value, $text, "A's {$list} {$format} export contains {$value} of tenant B");
+                }
+            }
+        }
+    }
+
+    /** Every cell of an xlsx file, as one string. */
+    private function xlsxText(string $content): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'isolation-xlsx-');
+        file_put_contents($path, $content);
+        $reader = new XlsxReader;
+        $reader->open($path);
+        $cells = [];
+
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                foreach ($row->cells as $cell) {
+                    $cells[] = (string) $cell->getValue();
+                }
+            }
+        }
+
+        $reader->close();
+        unlink($path);
+
+        return implode("\n", $cells);
     }
 
     // ---- Global tables ----------------------------------------------------

@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Items\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Items\Barcode;
 use App\Core\MasterData\Items\Http\Requests\ItemActionRequest;
@@ -30,6 +31,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-02: the items catalogue, shared or per company (TEN-08). Codes and
@@ -52,7 +54,7 @@ class ItemController
         private readonly ItemReferences $references,
     ) {}
 
-    public function index(ListItemsRequest $request): AnonymousResourceCollection
+    public function index(ListItemsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = Item::query()->with(self::RELATIONS);
         $companies = $this->policy->listableCompanies($request->user());
@@ -79,9 +81,14 @@ class ItemController
             $this->search($query, $search);
         }
 
-        return ItemResource::collection(
-            $request->applyStatus($query)->orderBy('code')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        // Most similar names first when searching, unless a sort is asked for.
+        $request->applySort($request->applyStatus($query), $search === '' ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]));
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return ItemResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreItemRequest $request): JsonResponse
@@ -191,7 +198,7 @@ class ItemController
 
     /**
      * Code prefix, name (contains, or trigram-similar), or the exact
-     * barcode; most similar names first.
+     * barcode.
      */
     private function search(Builder $query, string $search): void
     {
@@ -207,7 +214,7 @@ class ItemController
             if ($barcode !== null) {
                 $q->orWhereIn('id', ItemBarcode::query()->select('item_id')->where('barcode', $barcode));
             }
-        })->orderByRaw('similarity(name, ?) desc', [$search]);
+        });
     }
 
     /**

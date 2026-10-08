@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Parties\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Parties\Http\Requests\ListPartiesRequest;
 use App\Core\MasterData\Parties\Http\Requests\PartyActionRequest;
@@ -23,6 +24,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-01: parties (customers, suppliers, contacts, employee links), shared
@@ -38,7 +40,7 @@ class PartyController
         private readonly DuplicateFinder $duplicates,
     ) {}
 
-    public function index(ListPartiesRequest $request): AnonymousResourceCollection
+    public function index(ListPartiesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = Party::query();
         $companies = $this->policy->listableCompanies($request->user());
@@ -61,9 +63,14 @@ class PartyController
             $this->search($query, $search);
         }
 
-        return PartyResource::collection(
-            $request->applyStatus($query)->orderBy('name')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        // Most similar names first when searching, unless a sort is asked for.
+        $request->applySort($request->applyStatus($query), $search === '' ? null : fn (Builder $q) => $q->orderByRaw('similarity(name, ?) desc', [$search]));
+
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return PartyResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StorePartyRequest $request): JsonResponse
@@ -130,7 +137,7 @@ class PartyController
 
     /**
      * Name or legal name (contains, or trigram-similar), the tax ID, or a
-     * phone containing the digits typed; most similar names first.
+     * phone containing the digits typed.
      */
     private function search(Builder $query, string $search): void
     {
@@ -147,7 +154,7 @@ class PartyController
             if (strlen($digits) >= 4) {
                 $q->orWhereRaw('phones::text like ?', ['%'.$digits.'%']);
             }
-        })->orderByRaw('similarity(name, ?) desc', [$search]);
+        });
     }
 
     /**

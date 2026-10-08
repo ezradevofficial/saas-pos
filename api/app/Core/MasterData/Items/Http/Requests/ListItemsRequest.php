@@ -2,8 +2,10 @@
 
 namespace App\Core\MasterData\Items\Http\Requests;
 
-use App\Core\MasterData\Http\Requests\ListsArchivable;
+use App\Core\Lists\Http\ListsRecords;
+use App\Core\Lists\ListDefinition;
 use App\Core\MasterData\Items\Barcode;
+use App\Core\MasterData\Items\Http\Lists\ItemList;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemPolicy;
 use Closure;
@@ -14,11 +16,17 @@ use Illuminate\Validation\Rule;
  * MD-02: list items the user can view (`core.item.view` anywhere):
  * `?search=` (code prefix, English or French name, or an exact barcode),
  * `?barcode=` (exact, normalised: the POS lookup), `?category=` (that
- * category and those beneath it), `?type=`, `?status`, `?per_page`.
+ * category and those beneath it), `?type=`, `?status`, `?per_page`,
+ * `?sort` and an export (`?format`, `?columns[]`; ItemList, EXP-01).
  */
 class ListItemsRequest extends FormRequest
 {
-    use ListsArchivable;
+    use ListsRecords;
+
+    public function list(): ListDefinition
+    {
+        return new ItemList;
+    }
 
     public function authorize(): bool
     {

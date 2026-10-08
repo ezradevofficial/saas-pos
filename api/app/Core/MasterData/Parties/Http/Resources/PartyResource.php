@@ -20,7 +20,7 @@ class PartyResource extends JsonResource
     public const FIELD_RULES = 'party';
 
     /** Output keys built from several columns: hidden when any of them is. */
-    private const SOURCES = ['credit_limit' => ['credit_limit_minor', 'credit_limit_currency']];
+    public const SOURCES = ['credit_limit' => ['credit_limit_minor', 'credit_limit_currency']];
 
     public function toArray(Request $request): array
     {
