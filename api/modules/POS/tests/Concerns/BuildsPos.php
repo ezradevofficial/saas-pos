@@ -8,6 +8,7 @@ use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategoryCode;
@@ -71,6 +72,8 @@ trait BuildsPos
             TaxCategoryCode::create(['tax_category_id' => $this->goods->id, 'company_id' => $this->acme->id, 'tax_code_id' => $this->vat->id]);
             $this->soap = Item::create(['code' => 'SOAP', 'name' => 'Soap', 'type' => 'stock', 'base_uom_id' => $this->each->id, 'tax_category_id' => $this->goods->id]);
             $this->retail = PriceList::create(['company_id' => $this->acme->id, 'name' => 'Retail', 'currency' => 'KES', 'tax_inclusive' => true, 'is_default' => true]);
+            // M4: the server's price for the soap, as the till sells it.
+            ItemPrice::create(['price_list_id' => $this->retail->id, 'item_id' => $this->soap->id, 'uom_id' => $this->each->id, 'amount_minor' => '56250', 'currency' => 'KES', 'effective_from' => '2026-01-01']);
 
             $this->methods = [
                 'cash_kes' => PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash KES', 'currency' => 'KES', 'active' => true, 'position' => 1]),

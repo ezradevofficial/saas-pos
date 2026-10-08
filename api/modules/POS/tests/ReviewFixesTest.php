@@ -3,6 +3,8 @@
 namespace Modules\POS\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\MasterData\Items\ItemUom;
+use App\Core\MasterData\Items\Uom;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Rbac\Scope;
 use Modules\POS\Models\NumberRange;
@@ -122,6 +124,17 @@ class ReviewFixesTest extends TestCase
     {
         $this->upload([$this->saleBody($this->shift, 1, ['lines' => [$this->line(['list_price_minor' => null])]])])->assertOk()
             ->assertJsonPath('results.0.flags.0.code', 'list_price_missing');
+    }
+
+    public function test_a_price_other_than_the_servers_is_kept_and_flagged(): void
+    {
+        $this->upload([$this->saleBody($this->shift, 1, ['lines' => [$this->line(['unit_price_minor' => '50000', 'list_price_minor' => '50000', 'tax_minor' => '11111', 'total_minor' => '100000'])]])])
+            ->assertOk()->assertJsonPath('results.0.flags', [['code' => 'price_differs', 'line' => 1, 'detail' => ['expected_unit_price_minor' => '56250']]]);
+        // A box is priced from the base unit (12 × KES 562.50): selling it at one soap's price differs.
+        $box = $this->inTenant(fn () => Uom::create(['code' => 'BX', 'name' => 'Box', 'kind' => 'count']));
+        $this->inTenant(fn () => ItemUom::create(['item_id' => $this->soap->id, 'uom_id' => $box->id, 'factor' => '12']));
+        $this->upload([$this->saleBody($this->shift, 2, ['lines' => [$this->line(['uom_id' => $box->id])]])])->assertOk()
+            ->assertJsonPath('results.0.flags.0.code', 'price_differs');
     }
 
     public function test_a_resend_with_other_content_under_the_same_id_is_refused(): void

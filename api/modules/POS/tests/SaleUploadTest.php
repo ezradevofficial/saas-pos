@@ -154,14 +154,14 @@ class SaleUploadTest extends TestCase
         // Tax as sold differs from the server's 12.5 % (11111 for an inclusive 100000).
         $taxed = $this->line(['unit_price_minor' => '50000', 'list_price_minor' => '50000', 'tax_minor' => '10000', 'total_minor' => '100000']);
         $response = $this->upload([$this->saleBody($this->shift, 1, ['lines' => [$taxed]])])->assertOk();
-        $this->assertSame([['code' => 'tax_differs', 'line' => 1, 'detail' => ['expected_tax_minor' => '11111', 'tax_code' => 'VAT_T']]], $response->json('results.0.flags'));
+        $this->assertSame([['code' => 'tax_differs', 'line' => 1, 'detail' => ['expected_tax_minor' => '11111', 'tax_code' => 'VAT_T']]], $this->flagsBut($response, 'price_differs'));
         $this->inTenant(fn () => $this->assertSame('10000', (string) SaleLine::where('line_no', 1)->sole()->tax_minor));
 
         // A cashier without the discount permission and without a price override permission.
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $discounted = $this->line(['unit_price_minor' => '50000', 'list_price_minor' => '60000', 'discount_minor' => '10000', 'tax_minor' => '10000', 'total_minor' => '90000']);
         $response = $this->upload([$this->saleBody($this->shift, 2, ['cashier_id' => $cashier->id, 'lines' => [$discounted]])])->assertOk();
-        $this->assertEqualsCanonicalizing(['discount_unauthorised', 'price_override_unauthorised'], array_column($response->json('results.0.flags'), 'code'));
+        $this->assertEqualsCanonicalizing(['discount_unauthorised', 'price_override_unauthorised'], array_column($this->flagsBut($response, 'price_differs'), 'code'));
 
         // With a 10 % limit the same discount is the cashier's own; a manager's override covers the price.
         $this->inTenant(function () {
@@ -171,7 +171,7 @@ class SaleUploadTest extends TestCase
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
         $approved = [...$discounted, 'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'price_override' => $this->override($manager->id)];
         $response = $this->upload([$this->saleBody($this->shift, 3, ['cashier_id' => $cashier->id, 'lines' => [$approved]])])->assertOk();
-        $this->assertSame([], $response->json('results.0.flags'));
+        $this->assertSame([], $this->flagsBut($response, 'price_differs'));
 
         // H3: money in is never held: an override or a cashier that can't be proven is kept and flagged.
         $unproven = [...$discounted, 'id' => $this->id(), 'price_override' => $this->override($manager->id, proven: false)];
@@ -180,13 +180,19 @@ class SaleUploadTest extends TestCase
             ['code' => 'actor_unverified'],
             ['code' => 'actor_unverified', 'line' => 1],
             ['code' => 'override_unverified', 'line' => 1],
-        ], $response->json('results.0.flags'));
+        ], $this->flagsBut($response, 'price_differs'));
         $this->inTenant(function () use ($approved, $manager) {
             $line = SaleLine::findOrFail($approved['id']);
             $this->assertSame([null, $manager->id], [$line->discount_override_by, $line->price_override_by]);
             $this->assertSame(2, AuditEntry::where('action', 'pos.sale.price_override')->where('on_behalf_of_user_id', $manager->id)->count());
             $this->assertSame(3, AuditEntry::where('action', 'pos.sale.discount')->count());
         });
+    }
+
+    /** The sale's flags without $code (the prices in this test differ from the server's on purpose). */
+    private function flagsBut($response, string $code): array
+    {
+        return array_values(array_filter($response->json('results.0.flags'), fn (array $flag) => $flag['code'] !== $code));
     }
 
     public function test_line_and_sale_sums_must_add_up(): void

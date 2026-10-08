@@ -16,6 +16,7 @@ use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\Prices\PriceResolver;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
@@ -47,7 +48,8 @@ use Modules\POS\Models\Shift;
  *   (tax_differs, rate_differs, discount_unauthorised,
  *   price_override_unauthorised, cashier_not_permitted, received_after_close,
  *   override_unverified, actor_unverified, change_rate_differs,
- *   list_price_missing, clock_ahead), never refused. Money in is never held:
+ *   list_price_missing, price_unknown, price_differs, clock_ahead), never
+ *   refused. Money in is never held:
  *   a cashier or override the server can't prove is flagged.
  * - **Same id, other content** (`payload_mismatch`): refused, the stored
  *   sale stays as it was.
@@ -77,6 +79,7 @@ class SaleUploads
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
         private readonly ShiftCash $cash,
+        private readonly PriceResolver $prices,
     ) {}
 
     /**
@@ -358,10 +361,19 @@ class SaleUploads
                 $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
         }
 
-        // M4: a line on a price list without the list price can't be checked.
-        // TODO(item prices, feat/item-prices): compare with core's resolved price once on main.
-        if ($list !== null && $listPrice === null) {
-            $flags->add('list_price_missing', $index + 1);
+        // M4: the server's price for the line (core item prices), compared, never imposed.
+        if ($list !== null) {
+            if ($listPrice === null) {
+                $flags->add('list_price_missing', $index + 1);
+            }
+
+            $resolved = $this->prices->priceFor($item, $line['uom_id'], $list, $at, (string) $line['qty']);
+
+            if ($resolved === null) {
+                $flags->add('price_unknown', $index + 1);
+            } elseif ($resolved->money->minor() !== (string) ($listPrice ?? $line['unit_price_minor'])) {
+                $flags->add('price_differs', $index + 1, ['expected_unit_price_minor' => $resolved->money->minor()]);
+            }
         }
 
         return [
