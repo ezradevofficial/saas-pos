@@ -4,7 +4,8 @@
 import { apiUrl } from '@/config'
 import i18n from '@/i18n'
 
-const TOKEN_KEY = 'app.token'
+/** The localStorage key of the bearer token; other tabs watch it (AuthProvider). */
+export const TOKEN_KEY = 'app.token'
 const COMPANY_KEY = 'app.companyId'
 
 // localStorage can be blocked (private mode, storage policies); values then
