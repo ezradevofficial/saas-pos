@@ -6,12 +6,14 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { HistoryDialog } from '@/components/HistoryDialog'
-import { Alert, Button, DataTable, Dialog, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
+import { Alert, Button, Dialog, ListView, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { actionsColumn } from '@/lib/listColumns'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
-import { UOM_KINDS, useUoms } from './catalogueData'
+import { UOM_KINDS } from './catalogueData'
 
 const STATUSES = ['active', 'archived']
 
@@ -84,15 +86,17 @@ function UnitDialog({ record, onClose }) {
   )
 }
 
-/** MD-02: the tenant's units of measure, shared by every company; changed only at tenant scope. */
+/**
+ * MD-02: the tenant's units of measure, shared by every company; changed
+ * only at tenant scope. Active or archived; search, sort, pages, columns
+ * and export (EXP-01, LAY-04).
+ */
 export default function Units() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { tenantWide } = usePermissions()
   const canEdit = tenantWide('core.uom.edit')
-  const uoms = useUoms()
   const timeZone = useTimeZone()
-  const [status, setStatus] = useState('active')
   const [dialog, setDialog] = useState(null) // { record? }
   const [archiving, setArchiving] = useState(null)
   const [history, setHistory] = useState(null)
@@ -110,51 +114,47 @@ export default function Units() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['uoms'] }),
   })
 
-  const rows = uoms.all.filter((uom) => (status === 'archived' ? uom.archived_at : !uom.archived_at)).sort((a, b) => a.code.localeCompare(b.code))
   const columns = [
-    { key: 'code', label: t('units.columns.code'), render: (uom) => <span className="font-mono text-caption text-ink">{uom.code}</span> },
-    { key: 'name', label: t('units.columns.name'), render: (uom) => <span className="font-medium text-ink">{(uom?.name ?? '')}</span> },
-    { key: 'kind', label: t('units.columns.kind'), render: (uom) => t(`units.kinds.${uom.kind}`, { defaultValue: uom.kind }) },
+    { key: 'code', label: t('units.columns.code'), sortKey: 'code', hideable: false, render: (uom) => <span className="font-mono text-caption text-ink">{uom.code}</span> },
+    { key: 'name', label: t('units.columns.name'), sortKey: 'name', render: (uom) => <span className="font-medium text-ink">{uom?.name ?? ''}</span> },
+    { key: 'kind', label: t('units.columns.kind'), sortKey: 'kind', render: (uom) => t(`units.kinds.${uom.kind}`, { defaultValue: uom.kind }) },
     {
       key: 'status',
       label: t('units.columns.status'),
       render: (uom) => <StatusBadge tone={uom.archived_at ? 'neutral' : 'success'}>{uom.archived_at ? t('units.archived') : t('units.active')}</StatusBadge>,
     },
-    {
-      key: 'actions',
-      label: <span className="sr-only">{t('units.columns.actions')}</span>,
-      align: 'end',
-      render: (uom) => (
-        <span className="flex flex-wrap justify-end gap-1">
-          {canEdit && !uom.archived_at ? (
-            <Button variant="ghost" icon="edit" onClick={() => setDialog({ record: uom })} aria-label={t('units.editCode', { code: uom.code })}>
-              {t('units.edit')}
-            </Button>
-          ) : null}
-          <Button variant="ghost" icon="history" onClick={() => setHistory(uom)} aria-label={t('history.openFor', { name: uom.code })}>
-            {t('history.open')}
+    actionsColumn(t('units.columns.actions'), (uom) => (
+      <span className="flex flex-wrap justify-end gap-1">
+        {canEdit && !uom.archived_at ? (
+          <Button variant="ghost" icon="edit" onClick={() => setDialog({ record: uom })} aria-label={t('units.editCode', { code: uom.code })}>
+            {t('units.edit')}
           </Button>
-          {canEdit ? (
-            uom.archived_at ? (
-              <Button
-                variant="ghost"
-                icon="restore"
-                loading={restore.isPending && restore.variables?.id === uom.id}
-                onClick={() => restore.mutate(uom)}
-                aria-label={t('units.restoreCode', { code: uom.code })}
-              >
-                {t('units.restore')}
-              </Button>
-            ) : (
-              <Button variant="ghost" icon="archive" onClick={() => setArchiving(uom)} aria-label={t('units.archiveCode', { code: uom.code })}>
-                {t('units.archive')}
-              </Button>
-            )
-          ) : null}
-        </span>
-      ),
-    },
+        ) : null}
+        <Button variant="ghost" icon="history" onClick={() => setHistory(uom)} aria-label={t('history.openFor', { name: uom.code })}>
+          {t('history.open')}
+        </Button>
+        {canEdit ? (
+          uom.archived_at ? (
+            <Button
+              variant="ghost"
+              icon="restore"
+              loading={restore.isPending && restore.variables?.id === uom.id}
+              onClick={() => restore.mutate(uom)}
+              aria-label={t('units.restoreCode', { code: uom.code })}
+            >
+              {t('units.restore')}
+            </Button>
+          ) : (
+            <Button variant="ghost" icon="archive" onClick={() => setArchiving(uom)} aria-label={t('units.archiveCode', { code: uom.code })}>
+              {t('units.archive')}
+            </Button>
+          )
+        ) : null}
+      </span>
+    )),
   ]
+  const list = useServerList({ id: 'uoms', endpoint: 'uoms', queryKey: ['uoms'], filters: { status: 'active' }, columns })
+  const { status } = list.filters
 
   return (
     <>
@@ -169,10 +169,14 @@ export default function Units() {
           ) : null
         }
       />
-      <Tabs items={STATUSES.map((value) => ({ value, label: t(`units.tabs.${value}`) }))} value={status} onChange={setStatus} />
-      {uoms.isError ? <Alert tone="danger" title={errorMessage(uoms.error)} action={<Button onClick={() => uoms.refetch()}>{t('common.retry')}</Button>} /> : null}
+      <Tabs items={STATUSES.map((value) => ({ value, label: t(`units.tabs.${value}`) }))} value={status} onChange={(next) => list.setFilter('status', next)} />
       {restore.isError ? <Alert tone="danger" title={errorMessage(restore.error, overrides)} /> : null}
-      <DataTable caption={t('catalogue.units.title')} columns={columns} rows={rows} emptyText={uoms.isPending ? t('common.loading') : t(`units.empty.${status}`)} />
+      <ListView
+        list={list}
+        title={t('catalogue.units.title')}
+        searchPlaceholder={t('units.searchPlaceholder')}
+        emptyText={list.term ? t('units.emptyFiltered') : t(`units.empty.${status}`)}
+      />
       {dialog ? <UnitDialog key={dialog.record?.id ?? 'new'} record={dialog.record ?? null} onClose={() => setDialog(null)} /> : null}
       <HistoryDialog record={history} type="uom" name={history?.code ?? ''} timeZone={timeZone} onClose={() => setHistory(null)} />
       <ConfirmDialog

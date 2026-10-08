@@ -1565,7 +1565,9 @@
     "keep": "Garder l’unité",
     "errors": {
       "inUse": "Des articles actifs utilisent cette unité. Modifiez d’abord ces articles."
-    }
+    },
+    "searchPlaceholder": "Code ou nom",
+    "emptyFiltered": "Aucune unité ne correspond à cette recherche. Essayez d’autres mots."
   },
   "parties": {
     "add": {

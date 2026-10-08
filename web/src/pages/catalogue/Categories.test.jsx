@@ -58,6 +58,19 @@ describe('Categories', () => {
     expect(within(dialog).getByText('Amina Otieno')).toBeInTheDocument()
   })
 
+  it('exports the tree with the archived filter it shows (EXP-01)', async () => {
+    catalogue(api)
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: null })
+    URL.createObjectURL = vi.fn(() => 'blob:list')
+    URL.revokeObjectURL = vi.fn()
+    renderApp('/catalogue/categories')
+    await screen.findByRole('list', { name: 'Categories' })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Excel (.xlsx)' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    expect(api.download).toHaveBeenCalledWith('item-categories?status=active&format=xlsx')
+  })
+
   it('offers no changes to a user who may only view categories', async () => {
     catalogue(api, { permissions: tenantWide(['core.item_category.view']) })
     renderApp('/catalogue/categories')

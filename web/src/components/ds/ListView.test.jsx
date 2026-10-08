@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/App'
 import { api } from '@/api/client'
 import { setLocale } from '@/i18n'
+import { actionsColumn } from '@/lib/listColumns'
 import { columnsStorageKey, useServerList } from '@/lib/useServerList'
 import { chooseOption } from '@/test/combobox'
 import { apiError, OWNER, resetSession, signedIn } from '@/test/renderApp'
@@ -22,12 +23,13 @@ const COLUMNS = [
   { key: 'notes', label: 'Notes', exportKey: null },
 ]
 
-function Things({ columns = COLUMNS }) {
+function Things({ columns = COLUMNS, searchable = true }) {
   const list = useServerList({ id: 'things', endpoint: 'things', filters: { status: 'active' }, columns })
   return (
     <ListView
       list={list}
       title="Things"
+      searchable={searchable}
       searchPlaceholder="Name or code"
       filters={
         <Select
@@ -274,5 +276,26 @@ describe('ListView and useServerList', () => {
     openMenu('Export')
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Excel (.xlsx)' }))
     expect(await screen.findByText('Too many exports in a short time. Wait a minute and try again.')).toBeInTheDocument()
+  })
+
+  it('keeps a row actions column on screen but out of the Columns menu and the export, and can drop the search box', async () => {
+    mockList()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'things.csv' })
+    URL.createObjectURL = vi.fn(() => 'blob:things')
+    URL.revokeObjectURL = vi.fn()
+    const columns = [...COLUMNS.slice(0, 2), actionsColumn('Actions', (row) => <button type="button">Edit {row.name}</button>)]
+    renderList('/things', { columns, searchable: false })
+    await screen.findByRole('button', { name: 'Edit Thing 1' })
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument()
+    openMenu('Columns')
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Code' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Actions' })).not.toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    openMenu('Export')
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'CSV' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    expect(new URLSearchParams(api.download.mock.calls[0][0].split('?')[1]).getAll('columns[]')).toEqual(['name', 'code'])
   })
 })

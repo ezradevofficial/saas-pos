@@ -1565,7 +1565,9 @@
     "keep": "Keep unit",
     "errors": {
       "inUse": "Active items use this unit. Change those items first."
-    }
+    },
+    "searchPlaceholder": "Code or name",
+    "emptyFiltered": "No unit matches this search. Try other words."
   },
   "parties": {
     "add": {
