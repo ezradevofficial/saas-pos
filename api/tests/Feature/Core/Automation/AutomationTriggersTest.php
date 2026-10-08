@@ -4,12 +4,14 @@ namespace Tests\Feature\Core\Automation;
 
 use App\Core\Automation\Jobs\ScanTimedTriggers;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Automation\Runtime\Reaper;
 use App\Core\Automation\Runtime\Rules;
 use App\Core\Automation\Runtime\TimedTriggers;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Workflow\Graphs;
@@ -181,7 +183,7 @@ class AutomationTriggersTest extends TestCase
         $this->quietTask(['due_on' => '2026-10-11'], new DocumentScope($otherCompany->id));
         $companyRule = $this->saveRule(['type' => 'date', 'field' => 'due_on', 'days' => 3, 'when' => 'before'], [$this->notifyOwner()], ['company_id' => $this->acme->id]);
 
-        $scan = fn (string $at) => $this->inTenant(fn () => (new ScanTimedTriggers($this->owner->tenant_id, ScanTimedTriggers::DATES, $at))->handle(app(TimedTriggers::class)));
+        $scan = fn (string $at) => $this->inTenant(fn () => (new ScanTimedTriggers($this->owner->tenant_id, ScanTimedTriggers::DATES, $at))->handle(app(TimedTriggers::class), app(Reaper::class)));
 
         $scan('2026-10-08T02:30:00Z'); // 05:30 in Nairobi: before the scan hour
         $this->assertCount(0, $this->runs($rule));
@@ -217,6 +219,58 @@ class AutomationTriggersTest extends TestCase
         $this->assertSame(1, $this->notified());
         // Next: Monday 12 October 08:00 Nairobi.
         $this->assertSame('2026-10-12T05:00:00+00:00', $this->inTenant(fn () => $rule->fresh()->next_run_at->toIso8601String()));
+    }
+
+    public function test_a_throttled_schedule_occurrence_is_tried_again_at_the_next_scan(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-08T03:00:00Z');
+        $rule = $this->saveRule(['type' => 'schedule', 'every' => 'day', 'time' => '08:00'], [$this->notifyOwner('Daily', 'Count the stock.')]);
+        $scan = fn (string $at) => $this->inTenant(fn () => app(TimedTriggers::class)->schedules(CarbonImmutable::parse($at)));
+        // The rule used its one run this minute.
+        config(['automation.rule_runs_per_minute' => 1]);
+        RateLimiter::hit('automation:rule:'.$rule->id, 60);
+
+        $this->assertSame(0, $scan('2026-10-08T05:00:10Z'));
+        $this->assertSame('throttled', $this->runs($rule)->sole()->outcome);
+        $this->assertSame('2026-10-08T05:00:00+00:00', $this->inTenant(fn () => $rule->fresh()->next_run_at->toIso8601String()), 'not moved on');
+
+        RateLimiter::clear('automation:rule:'.$rule->id);
+        $this->assertSame(1, $scan('2026-10-08T05:01:10Z'));
+        $this->assertSame(['throttled', 'succeeded'], $this->runs($rule)->pluck('outcome')->all());
+        $this->assertSame('2026-10-09T05:00:00+00:00', $this->inTenant(fn () => $rule->fresh()->next_run_at->toIso8601String()));
+    }
+
+    public function test_a_date_scan_catches_up_the_previous_day_once(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-01T00:00:00Z');
+        $rule = $this->saveRule(['type' => 'date', 'field' => 'due_on', 'days' => 3, 'when' => 'before'], [$this->notifyOwner()]);
+        CarbonImmutable::setTestNow();
+        // Due on the 10th: yesterday's (7 Oct) occurrence was missed.
+        $missed = $this->quietTask(['due_on' => '2026-10-10']);
+        $today = $this->quietTask(['due_on' => '2026-10-11']);
+        $scan = fn (string $at) => $this->inTenant(fn () => app(TimedTriggers::class)->dates(CarbonImmutable::parse($at)));
+
+        $scan('2026-10-08T01:00:00Z'); // 04:00 in Nairobi: today's hour has not come; yesterday is caught up
+        $this->assertSame([$missed], $this->runs($rule)->pluck('document_id')->all());
+
+        $scan('2026-10-08T04:00:00Z');
+        $scan('2026-10-08T05:00:00Z');
+        $this->assertEqualsCanonicalizing([$missed, $today], $this->runs($rule)->pluck('document_id')->all(), 'each once');
+    }
+
+    public function test_scans_have_their_own_budget_and_never_starve_live_triggers(): void
+    {
+        config(['automation.tenant_runs_per_minute' => 1]);
+        $live = $this->saveRule(['type' => 'record_created'], [$this->notifyOwner()]);
+        $date = $this->saveRule(['type' => 'date', 'field' => 'due_on', 'days' => 0, 'when' => 'on'], [$this->notifyOwner()]);
+        $this->quietTask(['due_on' => '2026-10-08']);
+        $this->quietTask(['due_on' => '2026-10-08']);
+
+        $this->inTenant(fn () => app(TimedTriggers::class)->dates(CarbonImmutable::parse('2026-10-08T05:00:00Z')));
+        $this->assertSame(['succeeded', 'throttled'], $this->runs($date)->pluck('outcome')->all(), 'the scan used up its own budget');
+
+        $this->createTask();
+        $this->assertSame('succeeded', $this->runs($live)->sole()->outcome, 'a live trigger still runs');
     }
 
     public function test_rules_that_are_off_archived_of_another_company_or_type_never_fire(): void

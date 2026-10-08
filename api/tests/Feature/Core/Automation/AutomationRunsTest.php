@@ -7,13 +7,17 @@ use App\Core\Automation\Chain\AutomationChain;
 use App\Core\Automation\Chain\Cause;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Jobs\RunAutomationRule;
+use App\Core\Automation\Jobs\SendWebhookDelivery;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Automation\Models\WebhookDelivery;
+use App\Core\Automation\Runtime\Reaper;
 use App\Core\Automation\Runtime\RuleRunner;
 use App\Core\Automation\Runtime\Rules;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
@@ -276,6 +280,28 @@ class AutomationRunsTest extends TestCase
         $outcomes = $this->runs($rule)->where('document_id', $id)->pluck('outcome')->all();
         $this->assertSame([...array_fill(0, 5, 'succeeded'), 'throttled'], $outcomes);
         $this->assertSame('succeeded', $this->runs($rule)->firstWhere('document_id', $other)->outcome, 'another document has its own allowance');
+    }
+
+    public function test_the_reaper_fails_runs_a_dead_worker_left_and_resends_lost_webhooks(): void
+    {
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], ['name' => 'Flag']);
+        Bus::fake();
+        $this->createTask();
+        $run = $this->runs($rule)->sole();
+        $this->inTenant(function () use ($run, $rule) {
+            AutomationRun::query()->whereKey($run->id)->update(['outcome' => 'running', 'attempts' => 1, 'updated_at' => now()->subMinutes(20)]);
+            $fresh = AutomationRun::create(['rule_id' => $rule->id, 'rule_version' => 1, 'trigger_type' => 'record_created', 'outcome' => 'running', 'chain_id' => (string) Str::uuid7()]);
+            WebhookDelivery::create(['run_id' => $fresh->id, 'rule_id' => $rule->id, 'action_index' => 0, 'url' => 'https://hooks.example.com', 'payload' => [], 'status' => 'pending'])
+                ->forceFill(['created_at' => now()->subMinutes(30)])->save();
+        });
+
+        $result = $this->inTenant(fn () => app(Reaper::class)->reap(CarbonImmutable::now()));
+
+        $this->assertSame(['runs' => 1, 'deliveries' => 1], $result);
+        $this->assertSame(['failed', 'stuck'], $this->inTenant(fn () => [$run->fresh()->outcome, $run->fresh()->error_code]));
+        $this->assertSame('running', $this->runs($rule)->last()->outcome, 'a recent run is left alone');
+        Bus::assertDispatched(SendWebhookDelivery::class);
+        $this->assertSame(1, $this->inTenant(fn () => InAppNotification::query()->where('event_type', 'core.automation.failed')->count()));
     }
 
     public function test_a_rule_never_retriggers_itself(): void

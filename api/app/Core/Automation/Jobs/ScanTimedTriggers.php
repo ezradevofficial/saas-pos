@@ -2,6 +2,7 @@
 
 namespace App\Core\Automation\Jobs;
 
+use App\Core\Automation\Runtime\Reaper;
 use App\Core\Automation\Runtime\TimedTriggers;
 use App\Core\Tenancy\Jobs\TenantAware;
 use Carbon\CarbonImmutable;
@@ -24,6 +25,9 @@ class ScanTimedTriggers implements ShouldBeUnique, ShouldQueue
 
     public const DATES = 'dates';
 
+    /** AUTO-05: runs and webhook deliveries a dead worker left behind (Reaper). */
+    public const REAP = 'reap';
+
     public int $uniqueFor = 600;
 
     public function __construct(
@@ -45,10 +49,14 @@ class ScanTimedTriggers implements ShouldBeUnique, ShouldQueue
         return [new TenantAware];
     }
 
-    public function handle(TimedTriggers $triggers): void
+    public function handle(TimedTriggers $triggers, Reaper $reaper): void
     {
         $at = CarbonImmutable::parse($this->at)->utc();
 
-        DB::transaction(fn () => $this->kind === self::DATES ? $triggers->dates($at) : $triggers->schedules($at));
+        DB::transaction(fn () => match ($this->kind) {
+            self::DATES => $triggers->dates($at),
+            self::REAP => $reaper->reap($at),
+            default => $triggers->schedules($at),
+        });
     }
 }

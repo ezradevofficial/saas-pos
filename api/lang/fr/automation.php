@@ -209,6 +209,7 @@ return [
     ],
 
     'errors' => [
+        'stuck' => 'L’exécution s’est arrêtée sans se terminer (un processus s’est arrêté). Vérifiez ce qu’elle a modifié, puis relancez-la si besoin.',
         'out_of_scope' => 'Ignorée : la personne au nom de qui la règle agit ne peut pas voir ou modifier ce document.',
         'release_forbidden' => 'La personne au nom de qui la règle agit ne peut pas lever les blocages de crédit : le blocage reste. Demandez à une personne autorisée d’enregistrer la règle.',
         'company_changed' => 'Le document a changé de société : la règle de cette société ne s’est donc pas exécutée.',

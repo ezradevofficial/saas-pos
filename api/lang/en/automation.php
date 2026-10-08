@@ -209,6 +209,7 @@ return [
     ],
 
     'errors' => [
+        'stuck' => 'The run stopped without finishing (a worker stopped). Check what it changed, then run it again if needed.',
         'out_of_scope' => 'Skipped: the person the rule acts as can’t see or change this document.',
         'release_forbidden' => 'The person the rule acts as may not lift credit holds, so the hold stays. Ask someone who may lift it to save the rule.',
         'company_changed' => 'The document moved to another company, so this company’s rule didn’t run.',

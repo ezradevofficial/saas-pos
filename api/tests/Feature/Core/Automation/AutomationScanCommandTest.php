@@ -58,7 +58,7 @@ class AutomationScanCommandTest extends TestCase
         $this->artisan('automation:scan', ['kind' => 'weekly'])->assertExitCode(2);
 
         $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command ?? '', 'automation:scan'))->values();
-        $this->assertSame(['* * * * *', '0 * * * *'], $events->pluck('expression')->all());
+        $this->assertSame(['* * * * *', '0 * * * *', '*/5 * * * *'], $events->pluck('expression')->all());
         $this->assertTrue($events->every(fn ($e) => $e->onOneServer && $e->withoutOverlapping));
     }
 }

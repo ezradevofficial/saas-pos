@@ -17,3 +17,6 @@ Schedule::command('notifications:send-digests')->hourly()->withoutOverlapping()-
 // AUTO-01: schedule triggers every minute, date triggers hourly (each company's day starts at its own hour).
 Schedule::command('automation:scan schedules')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('automation:scan dates')->hourly()->withoutOverlapping()->onOneServer();
+
+// AUTO-05: runs and webhook deliveries a dead worker left behind.
+Schedule::command('automation:scan reap')->everyFiveMinutes()->withoutOverlapping()->onOneServer();

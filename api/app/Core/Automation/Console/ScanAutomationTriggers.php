@@ -10,13 +10,15 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * AUTO-01: queue a ScanTimedTriggers job for every tenant with live rules
- * of the kind: schedules every minute, dates hourly (routes/console.php).
+ * of the kind: schedules every minute, dates hourly (routes/console.php);
+ * and `reap` every five minutes for tenants with runs or webhook
+ * deliveries a dead worker left behind (Reaper).
  * Tenant ids are read as the schema owner; everything else runs in each
  * tenant's own context.
  */
 class ScanAutomationTriggers extends Command
 {
-    protected $signature = 'automation:scan {kind : schedules or dates} {--at= : The time to act as (ISO 8601), now by default}';
+    protected $signature = 'automation:scan {kind : schedules, dates or reap} {--at= : The time to act as (ISO 8601), now by default}';
 
     protected $description = 'Queue the automation schedule or date triggers that are due';
 
@@ -24,22 +26,31 @@ class ScanAutomationTriggers extends Command
     {
         $kind = (string) $this->argument('kind');
 
-        if (! in_array($kind, [ScanTimedTriggers::SCHEDULES, ScanTimedTriggers::DATES], true)) {
-            $this->components->error('The kind must be schedules or dates.');
+        if (! in_array($kind, [ScanTimedTriggers::SCHEDULES, ScanTimedTriggers::DATES, ScanTimedTriggers::REAP], true)) {
+            $this->components->error('The kind must be schedules, dates or reap.');
 
             return self::INVALID;
         }
 
         $at = CarbonImmutable::parse($this->option('at') ?? 'now')->utc();
-        $query = DB::connection(SyncPermissions::OWNER_CONNECTION)->table('automation_rules')
-            ->where('enabled', true)->whereNull('archived_at')
-            ->where('trigger_type', $kind === ScanTimedTriggers::DATES ? 'date' : 'schedule');
+        $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
 
-        if ($kind === ScanTimedTriggers::SCHEDULES) {
-            $query->where('next_run_at', '<=', $at);
+        if ($kind === ScanTimedTriggers::REAP) {
+            $stale = $at->subMinutes((int) config('automation.stuck_minutes', 15));
+            $query = $owner->table('automation_runs')->select('tenant_id')->where('outcome', 'running')->where('updated_at', '<', $stale)
+                ->union($owner->table('automation_webhook_deliveries')->select('tenant_id')->whereIn('status', ['sending', 'pending', 'retrying'])->where('updated_at', '<', $stale));
+            $tenantIds = $owner->query()->fromSub($query, 't')->distinct()->orderBy('tenant_id')->pluck('tenant_id');
+        } else {
+            $query = $owner->table('automation_rules')
+                ->where('enabled', true)->whereNull('archived_at')
+                ->where('trigger_type', $kind === ScanTimedTriggers::DATES ? 'date' : 'schedule');
+
+            if ($kind === ScanTimedTriggers::SCHEDULES) {
+                $query->where('next_run_at', '<=', $at);
+            }
+
+            $tenantIds = $query->distinct()->orderBy('tenant_id')->pluck('tenant_id');
         }
-
-        $tenantIds = $query->distinct()->orderBy('tenant_id')->pluck('tenant_id');
 
         foreach ($tenantIds as $tenantId) {
             ScanTimedTriggers::dispatch($tenantId, $kind, $at->toIso8601String());
