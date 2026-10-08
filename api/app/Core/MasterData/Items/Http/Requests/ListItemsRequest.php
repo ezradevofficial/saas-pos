@@ -15,6 +15,7 @@ use Illuminate\Validation\Rule;
 /**
  * MD-02: list items the user can view (`core.item.view` anywhere):
  * `?search=` (code prefix, English or French name, or an exact barcode),
+ * `?company=` (items shared or of that company),
  * `?barcode=` (exact, normalised: the POS lookup), `?category=` (that
  * category and those beneath it), `?type=`, `?status`, `?per_page`,
  * `?sort` (a filter on a field hidden by field rules is refused, 422,
@@ -55,11 +56,13 @@ class ListItemsRequest extends FormRequest
                 }
             })],
             'type' => ['sometimes', 'string', $this->visibleFilter('type'), Rule::in(Item::TYPES)],
+            // MD-03 follow-up: items a company can sell (shared or its own), e.g. to price them in its lists.
+            'company' => ['sometimes', 'uuid', $this->visibleFilter('company_id'), Rule::exists('companies', 'id')],
         ];
     }
 
     public function attributes(): array
     {
-        return ['category' => __('core.item.attributes.category'), 'type' => __('core.item.attributes.type'), 'barcode' => __('core.item.attributes.barcode')];
+        return ['company' => __('core.item.attributes.company'), 'category' => __('core.item.attributes.category'), 'type' => __('core.item.attributes.type'), 'barcode' => __('core.item.attributes.barcode')];
     }
 }

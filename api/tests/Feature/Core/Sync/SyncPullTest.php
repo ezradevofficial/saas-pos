@@ -60,7 +60,7 @@ class SyncPullTest extends TestCase
         $response = $this->getJson('/api/v1/sync/bootstrap', $this->deviceHeaders($this->till))->assertOk();
 
         $keys = array_column($response->json('entities'), 'key');
-        $this->assertSame(['settings', 'currencies', 'exchange_rates', 'tax_codes', 'tax_categories', 'price_lists', 'payment_methods', 'uoms', 'item_categories', 'items', 'customers', 'staff'], $keys);
+        $this->assertSame(['settings', 'currencies', 'exchange_rates', 'tax_codes', 'tax_categories', 'price_lists', 'payment_methods', 'uoms', 'item_categories', 'items', 'item_prices', 'customers', 'staff'], $keys);
         $this->assertSame('incremental', collect($response->json('entities'))->firstWhere('key', 'items')['mode']);
         $this->assertSame('snapshot', collect($response->json('entities'))->firstWhere('key', 'staff')['mode']);
         $response->assertJsonPath('device.id', $this->till['id'])

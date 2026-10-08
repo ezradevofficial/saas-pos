@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\MasterData\Support\TextArray;
 use App\Core\Rbac\FieldRules;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -16,6 +17,9 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  * password resets) stay in the audit log, behind `core.audit.view`.
  * Fields hidden from the user by field rules (RBAC-05) are removed from
  * before and after, and entries that only changed them are left out.
+ * Changes of related records registered with HistoryTypes::relate (an
+ * item's and a price list's prices) are included where the user may see
+ * them.
  */
 class HistoryController
 {
@@ -25,10 +29,18 @@ class HistoryController
         $resource = $request->fieldRulesResource();
         $hidden = $resource === null ? [] : $types->withDerived((string) $request->route('type'), $fieldRules->for($request->user(), $resource)['hidden']);
 
+        // Changes of related records (an item's prices) the user may see there.
+        $related = $types->related((string) $request->route('type'), $request->user(), $record);
+
         $query = AuditEntry::query()
             ->leftJoin('users', 'users.id', '=', 'audit_logs.user_id')
-            ->where('audit_logs.auditable_type', $record->getMorphClass())
-            ->where('audit_logs.auditable_id', (string) $record->getKey())
+            ->where(function (Builder $q) use ($record, $related) {
+                $q->where('audit_logs.auditable_type', $record->getMorphClass())->where('audit_logs.auditable_id', (string) $record->getKey());
+
+                foreach ($related as $type => $ids) {
+                    $q->orWhere(fn (Builder $r) => $r->where('audit_logs.auditable_type', $type)->whereIn('audit_logs.auditable_id', $ids));
+                }
+            })
             ->where('audit_logs.module', '!=', 'auth')
             ->orderByDesc('audit_logs.seq')
             ->select(['audit_logs.id', 'audit_logs.action', 'audit_logs.user_id', 'audit_logs.before', 'audit_logs.after', 'audit_logs.occurred_at', 'users.name as actor_name']);

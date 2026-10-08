@@ -59,6 +59,7 @@ import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
 import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
+import PriceListDetail from './pages/settings/taxes/PriceListDetail'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
 import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
@@ -214,6 +215,8 @@ export const routes = [
         ['/settings/currencies', 'core.currency.view', <Currencies key="currencies" />],
         ['/settings/exchange-rates', EXCHANGE_RATE_VIEW, <ExchangeRates key="rates" />],
         ['/settings/taxes', TAX_VIEW, <Taxes key="taxes" />],
+        // MD-03 follow-up: one price list's prices.
+        ['/settings/taxes/price-lists/:priceListId', ['core.price_list.view', 'core.price_list.edit'], <PriceListDetail key="price-list" />],
         ['/settings/payment-methods', PAYMENT_METHOD_VIEW, <PaymentMethods key="payment-methods" />],
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),

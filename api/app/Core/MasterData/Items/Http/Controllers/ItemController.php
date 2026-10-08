@@ -21,6 +21,7 @@ use App\Core\MasterData\Items\ItemReferences;
 use App\Core\MasterData\Items\ItemSharing;
 use App\Core\MasterData\Items\ItemUniqueness;
 use App\Core\MasterData\Items\ItemUom;
+use App\Core\MasterData\Prices\CurrentPrices;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
@@ -61,6 +62,10 @@ class ItemController
 
         if ($companies !== null) {
             $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
+        }
+
+        if ($request->filled('company')) {
+            $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhere('company_id', $request->validated('company')));
         }
 
         if ($request->filled('type')) {
@@ -118,9 +123,10 @@ class ItemController
         return $this->respond($request, $item, 201, duplicates: true);
     }
 
-    public function show(ItemRequest $request, Item $item): JsonResponse
+    /** With the item's prices per price list the user reads (MD-03 follow-up). */
+    public function show(ItemRequest $request, Item $item, CurrentPrices $prices): JsonResponse
     {
-        return $this->respond($request, $item);
+        return ItemResource::make($item->load(self::RELATIONS))->withPrices($prices->forItem($item, $request->user()))->response();
     }
 
     public function update(UpdateItemRequest $request, Item $item): JsonResponse

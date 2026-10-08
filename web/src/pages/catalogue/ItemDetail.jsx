@@ -15,6 +15,7 @@ import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGES, useItemCategories, useTaxCategories, useUoms } from './catalogueData'
 import { ItemForm } from './ItemForm'
+import { ItemPrices } from './ItemPrices'
 
 const detailKey = (id) => ['items', 'detail', id]
 
@@ -203,8 +204,12 @@ function ItemImages({ item, canEdit }) {
   )
 }
 
-/** History labels for an item's own fields: units, barcodes, category and type by name, not id. */
-function useItemHistoryFields() {
+/**
+ * History labels for an item's own fields: units, barcodes, category and
+ * type by name, not id; and for its price changes (MD-03 follow-up), the
+ * price list by name (from the lists the item's prices show).
+ */
+function useItemHistoryFields(item) {
   const { t } = useTranslation()
   const locale = useLocale()
   const uoms = useUoms()
@@ -231,10 +236,14 @@ function useItemHistoryFields() {
         Array.isArray(list) && list.length ? list.map((entry) => (entry.uom_id ? `${entry.barcode} (${code(entry.uom_id)})` : entry.barcode)).join(', ') : none,
     },
     images: { format: (list) => (Array.isArray(list) ? t('items.history.images', { count: list.length }) : none) },
+    uom_id: { format: (value) => (value ? code(value) : none) },
+    price_list_id: { format: (value) => (item?.prices ?? []).find((list) => list.price_list_id === value)?.name ?? t('history.unknown') },
+    // The item itself: every entry here is about it.
+    item_id: { hidden: true },
   }
 }
 
-/** MD-02, MD-07: one item, Details (form, images) and History. */
+/** MD-02, MD-07: one item, Details (form, images, prices) and History. */
 export default function ItemDetail() {
   const { t } = useTranslation()
   const { itemId } = useParams()
@@ -249,7 +258,7 @@ export default function ItemDetail() {
   const query = useQuery({ queryKey: detailKey(itemId), queryFn: () => api.get(`items/${itemId}`) })
   const item = query.data?.data
   const timeZone = useTimeZone(item?.company_id)
-  const historyFields = useItemHistoryFields()
+  const historyFields = useItemHistoryFields(item)
 
   const action = useMutation({
     mutationFn: (kind) => api.post(`items/${itemId}/${kind}`),
@@ -333,6 +342,7 @@ export default function ItemDetail() {
             }}
           />
           {'images' in item ? <ItemImages item={item} canEdit={canEdit} /> : null}
+          {'prices' in item ? <ItemPrices item={item} detailKey={detailKey(item.id)} /> : null}
         </div>
       ) : (
         <Card>
