@@ -341,6 +341,7 @@ return [
             'rejected' => 'Rejected',
             'cancelled' => 'Cancelled',
             'applied' => 'Applied',
+            'conflicted' => 'Conflicting change, not applied',
         ],
         'attributes' => [
             'party' => 'customer',
@@ -351,12 +352,22 @@ return [
             'cancel_reason' => 'reason for cancelling',
         ],
         'notifications' => [
+            'conflicted' => [
+                'label' => 'Credit limit change not applied: customer changed',
+                'subject' => '{document_number} was approved but not applied',
+                'body' => "Hello {recipient_name},\n\nThe approved credit limit change {document_number} for {party_name} was not applied.\n\n{problem}",
+                'sms' => '{app_name}: credit limit change {document_number} was approved but not applied.',
+            ],
             'apply_failed' => [
                 'label' => 'Credit limit change not applied',
                 'subject' => '{document_number} was approved but not applied',
                 'body' => "Hello {recipient_name},\n\nThe approved credit limit change {document_number} for {party_name} was not applied.\n\n{problem}",
                 'sms' => '{app_name}: credit limit change {document_number} was approved but not applied.',
             ],
+        ],
+        'conflicts' => [
+            'limit_changed' => 'The customer’s credit limit changed after the request was made. Make a new request from the current limit.',
+            'party_archived' => 'The customer was archived after the request was made.',
         ],
         'errors' => [
             'amount' => 'Enter the requested limit as a whole number of minor units, for example "25000000" for KES 250,000.00.',
@@ -367,7 +378,6 @@ return [
             'company_of_party' => 'This customer belongs to one company, so the request is for that company. Leave the company out.',
             'company_required' => 'This customer is shared across your companies. Choose the company the request is for.',
             'needs_request' => 'Raising or removing this credit limit, or changing its currency, needs approval. Lower it, or use “Request a change” on the customer’s page.',
-            'conflict' => ':number can’t be applied: the customer’s credit limit is now in :currency, not :requested. Set the limit back in :requested, then apply the request again.',
             'apply_failed' => 'The new limit couldn’t be saved after several tries. Apply the request again.',
             'not_approved' => 'Only an approved request that isn’t applied yet can be applied.',
         ],

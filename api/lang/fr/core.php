@@ -341,6 +341,7 @@ return [
             'rejected' => 'Refusée',
             'cancelled' => 'Annulée',
             'applied' => 'Appliquée',
+            'conflicted' => 'Conflit : non appliquée',
         ],
         'attributes' => [
             'party' => 'client',
@@ -351,12 +352,22 @@ return [
             'cancel_reason' => 'motif de l’annulation',
         ],
         'notifications' => [
+            'conflicted' => [
+                'label' => 'Modification de plafond non appliquée : client modifié',
+                'subject' => '{document_number} a été approuvée mais pas appliquée',
+                'body' => "Bonjour {recipient_name},\n\nLa modification de plafond de crédit approuvée {document_number} pour {party_name} n’a pas été appliquée.\n\n{problem}",
+                'sms' => '{app_name} : la modification de plafond {document_number} a été approuvée mais pas appliquée.',
+            ],
             'apply_failed' => [
                 'label' => 'Modification de plafond non appliquée',
                 'subject' => '{document_number} a été approuvée mais pas appliquée',
                 'body' => "Bonjour {recipient_name},\n\nLa modification de plafond de crédit approuvée {document_number} pour {party_name} n’a pas été appliquée.\n\n{problem}",
                 'sms' => '{app_name} : la modification de plafond {document_number} a été approuvée mais pas appliquée.',
             ],
+        ],
+        'conflicts' => [
+            'limit_changed' => 'Le plafond de crédit du client a changé après la demande. Faites une nouvelle demande à partir du plafond actuel.',
+            'party_archived' => 'Le client a été archivé après la demande.',
         ],
         'errors' => [
             'amount' => 'Saisissez le plafond demandé en unités mineures entières, par exemple « 25000000 » pour KES 250 000,00.',
@@ -367,7 +378,6 @@ return [
             'company_of_party' => 'Ce client appartient à une seule société : la demande concerne cette société. Ne précisez pas de société.',
             'company_required' => 'Ce client est partagé entre vos sociétés. Choisissez la société concernée par la demande.',
             'needs_request' => 'Augmenter ou supprimer ce plafond de crédit, ou en changer la devise, demande une approbation. Baissez-le, ou utilisez « Demander une modification » sur la fiche du client.',
-            'conflict' => ':number ne peut pas être appliquée : le plafond du client est maintenant en :currency, et non en :requested. Remettez le plafond en :requested, puis appliquez à nouveau la demande.',
             'apply_failed' => 'Le nouveau plafond n’a pas pu être enregistré après plusieurs essais. Appliquez à nouveau la demande.',
             'not_approved' => 'Seule une demande approuvée et pas encore appliquée peut être appliquée.',
         ],

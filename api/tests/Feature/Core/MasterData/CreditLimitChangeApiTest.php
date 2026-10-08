@@ -333,29 +333,56 @@ class CreditLimitChangeApiTest extends TestCase
         $this->assertSame('applied', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status));
     }
 
-    public function test_a_conflict_is_not_applied_notifies_set_directly_holders_and_can_be_applied_again(): void
+    public function test_a_failed_apply_notifies_set_directly_holders_who_apply_it_again(): void
     {
         $change = $this->request()->assertCreated()->json('data.id');
         $admin = $this->named('admin', Scope::company($this->acme->id), 'Ada Admin');
-        // Meanwhile the owner moves the limit to another currency.
-        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '1000', 'credit_limit_currency' => 'USD'], $this->headersFor())->assertOk();
-
+        Queue::fake();
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
+        // The job gave up (say, the database was away): approved, not applied.
+        (new ApplyCreditLimitChange($this->owner->tenant_id, $change))->failed(new \RuntimeException('down'));
         $this->getJson("/api/v1/credit-limit-changes/{$change}", $this->headersFor($admin))
             ->assertJsonPath('data.status', 'approved')->assertJsonPath('data.can_apply', true);
         $notified = $this->inTenant(fn () => InAppNotification::query()->where('event_type', ApplyCreditLimitChange::FAILED_EVENT)->pluck('user_id')->all());
         $this->assertEqualsCanonicalizing([$this->owner->id, $admin->id], $notified);
-        $this->assertNotContains($this->accountant->id, $notified);
 
-        // Only set_directly holders apply again; a conflict still refuses.
         $url = "/api/v1/credit-limit-changes/{$change}/apply";
         $this->postJson($url, [], $this->headersFor($this->accountant))->assertForbidden();
-        $this->postJson($url, [], $this->headersFor($admin))->assertUnprocessable()->assertJsonPath('code', 'credit_limit_conflict');
-
-        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '150000', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
         $this->postJson($url, [], $this->headersFor($admin))->assertOk()->assertJsonPath('data.status', 'applied')->assertJsonPath('data.can_apply', false);
         $this->assertSame('25000000', $this->partyLimit());
         $this->postJson($url, [], $this->headersFor($admin))->assertUnprocessable()->assertJsonPath('code', 'credit_limit_change_not_approved');
+    }
+
+    public function test_a_limit_changed_since_the_request_is_not_overwritten_and_the_request_is_conflicted(): void
+    {
+        $change = $this->request()->assertCreated()->json('data.id');
+        // Meanwhile the owner lowers the limit directly.
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '120000', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        $this->assertSame('12000000', $this->partyLimit());
+        $this->getJson("/api/v1/credit-limit-changes/{$change}", $this->headersFor())
+            ->assertJsonPath('data.status', 'conflicted')->assertJsonPath('data.can_apply', false);
+        $this->assertSame(0, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.party.credit_limit_apply')->count()));
+        $entry = $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.credit_limit_change.conflict')->sole());
+        $this->assertSame('limit_changed', $entry->after['reason']);
+        $notified = $this->inTenant(fn () => InAppNotification::query()->where('event_type', CreditLimitChanges::CONFLICT_EVENT)->pluck('user_id')->all());
+        $this->assertEqualsCanonicalizing([$this->manager->id, $this->accountant->id], $notified);
+        // A new request can follow.
+        $this->request(['requested_limit' => ['amount_minor' => '25000000', 'currency' => 'KES']])->assertCreated();
+    }
+
+    public function test_an_archived_party_is_never_changed(): void
+    {
+        $change = $this->request()->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/parties/{$this->customer}/archive", [], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        $this->assertSame('15000000', $this->partyLimit());
+        $this->assertSame('party_archived', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->conflict_reason));
+        $this->assertSame('conflicted', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status));
     }
 }

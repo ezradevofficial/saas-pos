@@ -15,7 +15,7 @@ import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany
 import { CREDIT_REQUEST, creditChangesKey } from './creditLimitData'
 
 
-const TONES = { draft: 'neutral', pending: 'info', approved: 'warning', applied: 'success', rejected: 'danger', cancelled: 'neutral' }
+const TONES = { draft: 'neutral', pending: 'info', approved: 'warning', applied: 'success', rejected: 'danger', cancelled: 'neutral', conflicted: 'danger' }
 
 /** A request's status: a dot and a word. */
 export function CreditStatus({ status }) {

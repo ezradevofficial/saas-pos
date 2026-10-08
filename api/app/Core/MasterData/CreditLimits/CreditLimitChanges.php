@@ -7,6 +7,8 @@ use App\Core\Currency\Money;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Notifications\NotificationEvent;
+use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\TenantContext;
@@ -27,9 +29,9 @@ use Illuminate\Support\Facades\DB;
  *   queues ApplyCreditLimitChange (retried, then the set_directly holders
  *   at its company are told); any other outcome rejects it.
  * - apply(): writes the requested limit to the party, once: only an
- *   approved request is applied, under a lock, and the party's limit is
- *   read again (a limit now in another currency is a conflict, not
- *   overwritten). Audited as `core.party.credit_limit_apply` by the system
+ *   approved request is applied, under a lock; when the party's limit
+ *   changed since the request or the party was archived, the request is
+ *   marked conflicted instead and its requester and approver are told. Audited as `core.party.credit_limit_apply` by the system
  *   on behalf of the decider, with the request's number, so the party's
  *   history reads "Credit limit changed via CLC-000123" (MD-07).
  * - cancelled(): its flow was cancelled; the party is untouched.
@@ -42,6 +44,9 @@ use Illuminate\Support\Facades\DB;
  */
 class CreditLimitChanges
 {
+    /** NOT-02: an approved change was not applied because the party changed meanwhile. */
+    public const CONFLICT_EVENT = 'core.credit_limit_change.conflicted';
+
     public function __construct(
         private readonly WorkflowEngine $engine,
         private readonly CreditLimitChangeNumbers $numbers,
@@ -136,12 +141,16 @@ class CreditLimitChanges
     /**
      * Write an approved request's limit to the party and mark it applied.
      * Idempotent: a request that is not (or no longer) approved is left
-     * alone and false returned. A party whose limit is now in another
-     * currency than the request's is a conflict (CreditLimitConflict).
+     * alone (false). Under the party's lock the live limit is compared with
+     * the request's snapshot: when it changed since (amount or currency),
+     * or the party is archived, nothing is written; the request becomes
+     * conflicted (audited) and its requester and approver are told.
      */
     public function apply(string $changeId): bool
     {
-        return $this->transaction(function () use ($changeId) {
+        $conflicted = null;
+
+        $applied = $this->transaction(function () use ($changeId, &$conflicted) {
             $change = CreditLimitChange::query()->whereKey($changeId)->lockForUpdate()->first();
 
             if ($change === null || $change->status !== CreditLimitChange::APPROVED) {
@@ -149,10 +158,22 @@ class CreditLimitChanges
             }
 
             $party = Party::query()->whereKey($change->party_id)->lockForUpdate()->firstOrFail();
-            $current = $party->creditLimit();
+            $live = $party->creditLimit();
+            $snapshot = $change->currentLimit();
+            $reason = match (true) {
+                $party->isArchived() => CreditLimitChange::CONFLICT_ARCHIVED,
+                ! self::sameLimit($live, $snapshot) => CreditLimitChange::CONFLICT_LIMIT_CHANGED,
+                default => null,
+            };
 
-            if ($current !== null && $current->currency() !== $change->requested_limit_currency) {
-                throw CreditLimitConflict::currency($change, $current->currency());
+            if ($reason !== null) {
+                $change->fill(['status' => CreditLimitChange::CONFLICTED, 'conflict_reason' => $reason])->save();
+                $this->auditor->record('core.credit_limit_change.conflict', $change, null, [
+                    'reason' => $reason, 'party_limit' => $live?->jsonSerialize(), 'snapshot' => $snapshot?->jsonSerialize(),
+                ], ['user_id' => null, 'on_behalf_of_user_id' => $change->decided_by]);
+                $conflicted = $change;
+
+                return false;
             }
 
             $keys = ['credit_limit_minor', 'credit_limit_currency'];
@@ -175,6 +196,33 @@ class CreditLimitChanges
 
             return true;
         });
+
+        if ($conflicted !== null) {
+            $this->notifyConflict($conflicted);
+        }
+
+        return $applied;
+    }
+
+    private static function sameLimit(?Money $a, ?Money $b): bool
+    {
+        return $a === null || $b === null ? $a === $b : $a->equals($b);
+    }
+
+    /** NOT-02: tell the requester and the approver that the approved change was not applied. */
+    private function notifyConflict(CreditLimitChange $change): void
+    {
+        $users = array_values(array_unique(array_filter([$change->requested_by, $change->decided_by])));
+
+        if ($users === []) {
+            return;
+        }
+
+        app(Notifier::class)->send(new NotificationEvent(self::CONFLICT_EVENT, $users, [
+            'document_number' => $change->number,
+            'party_name' => (string) Party::query()->whereKey($change->party_id)->value('name'),
+            'problem' => __('core.credit_limit_change.conflicts.'.$change->conflict_reason),
+        ], '/contacts/credit-limit-changes'));
     }
 
     /** WF-11: the request's flow was cancelled; the party is untouched. */

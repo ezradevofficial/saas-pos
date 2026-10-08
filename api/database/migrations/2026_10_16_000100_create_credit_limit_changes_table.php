@@ -35,6 +35,8 @@ return new class extends Migration
             $table->timestampTz('decided_at')->nullable();
             $table->timestampTz('applied_at')->nullable();
             $table->timestampTz('cancelled_at')->nullable();
+            // Why an approved request was not applied: the party changed meanwhile (H1).
+            $table->string('conflict_reason', 30)->nullable();
             $table->timestampsTz();
 
             $table->foreign(['tenant_id', 'requested_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
@@ -47,7 +49,7 @@ return new class extends Migration
             $table->index('company_id');
         });
 
-        DB::statement("alter table credit_limit_changes add constraint credit_limit_changes_status_check check (status in ('draft', 'pending', 'approved', 'rejected', 'cancelled', 'applied'))");
+        DB::statement("alter table credit_limit_changes add constraint credit_limit_changes_status_check check (status in ('draft', 'pending', 'approved', 'rejected', 'cancelled', 'applied', 'conflicted'))");
         DB::statement('alter table credit_limit_changes add constraint credit_limit_changes_current_check check ((current_limit_minor is null) = (current_limit_currency is null) and (current_limit_minor is null or current_limit_minor >= 0))');
         DB::statement('alter table credit_limit_changes add constraint credit_limit_changes_requested_check check (requested_limit_minor >= 0)');
         // One open request per party at a time.

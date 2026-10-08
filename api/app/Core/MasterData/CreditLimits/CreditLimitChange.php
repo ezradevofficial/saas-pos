@@ -18,7 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * to the party when approved (CreditLimitChanges::decide).
  *
  * Status: pending (its flow is running) → applied (approved and written to
- * the party), rejected or cancelled. `approved` is the moment between the
+ * the party), conflicted (approved, but the party's limit changed or the
+ * party was archived since the request: not written), rejected or cancelled. `approved` is the moment between the
  * decision and the party write (never left there unless applying failed);
  * `draft` is reserved for requests saved before submitting. Never deleted
  * (TEN-06); every change audited as `core.credit_limit_change.*`.
@@ -51,7 +52,15 @@ class CreditLimitChange extends Model
 
     public const APPLIED = 'applied';
 
-    public const STATUSES = [self::DRAFT, self::PENDING, self::APPROVED, self::REJECTED, self::CANCELLED, self::APPLIED];
+    /** Approved, but the party changed since the request (its limit, or archived): not applied. */
+    public const CONFLICTED = 'conflicted';
+
+    public const STATUSES = [self::DRAFT, self::PENDING, self::APPROVED, self::REJECTED, self::CANCELLED, self::APPLIED, self::CONFLICTED];
+
+    /** conflict_reason values. */
+    public const CONFLICT_LIMIT_CHANGED = 'limit_changed';
+
+    public const CONFLICT_ARCHIVED = 'party_archived';
 
     /** Statuses of a request still open (one per party at a time). */
     public const OPEN = [self::DRAFT, self::PENDING];
@@ -59,7 +68,7 @@ class CreditLimitChange extends Model
     protected $fillable = [
         'seq', 'number', 'party_id', 'company_id', 'current_limit_minor', 'current_limit_currency',
         'requested_limit_minor', 'requested_limit_currency', 'reason', 'status', 'requested_by',
-        'decided_by', 'decided_at', 'applied_at', 'cancelled_at',
+        'decided_by', 'decided_at', 'applied_at', 'cancelled_at', 'conflict_reason',
     ];
 
     protected function casts(): array

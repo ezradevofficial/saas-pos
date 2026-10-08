@@ -19,8 +19,9 @@ use Throwable;
  * Applies an approved credit limit change to its party (CreditLimitChanges::
  * apply), inside the request's tenant (TenantAware: row-level security).
  * Idempotent: a request already applied, or no longer approved, is left
- * alone. An error is retried (3 tries, backing off); a conflict (the
- * party's limit is now in another currency) is not. When it finally fails
+ * alone; a party changed since the request makes it conflicted (see
+ * CreditLimitChanges::apply). An error is retried (3 tries, backing off).
+ * When it finally fails
  * the request stays approved, not applied, and the holders of
  * `core.credit_limit.set_directly` at its company are told
  * (`core.credit_limit_change.apply_failed`), who can apply it again.
@@ -51,12 +52,7 @@ class ApplyCreditLimitChange implements ShouldQueue
 
     public function handle(CreditLimitChanges $changes): void
     {
-        try {
-            $changes->apply($this->changeId);
-        } catch (CreditLimitConflict $conflict) {
-            // Retrying does not help: tell the people who can sort it out.
-            $this->fail($conflict);
-        }
+        $changes->apply($this->changeId);
     }
 
     public function failed(?Throwable $exception = null): void
@@ -84,7 +80,7 @@ class ApplyCreditLimitChange implements ShouldQueue
         app(Notifier::class)->send(new NotificationEvent(self::FAILED_EVENT, $users, [
             'document_number' => $change->number,
             'party_name' => (string) $change->party?->name,
-            'problem' => $exception instanceof CreditLimitConflict ? $exception->getMessage() : __('core.credit_limit_change.errors.apply_failed'),
+            'problem' => __('core.credit_limit_change.errors.apply_failed'),
         ], '/contacts/credit-limit-changes'));
     }
 }
