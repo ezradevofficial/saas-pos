@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 export function Tabs({ items = [], value, onChange, className }) {
   return (
     <TabsPrimitive value={value} onValueChange={(next) => onChange?.(next)} className={cn('gap-0', className)}>
-      <TabsList variant="line" className="h-auto w-full justify-start gap-5 overflow-x-auto rounded-none border-b border-border p-0">
+      <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-x-5 rounded-none border-b border-border p-0">
         {items.map((item) => (
           <TabsTrigger
             key={item.value}
