@@ -122,6 +122,22 @@ describe('Automation run log (AUTO-05)', () => {
     expect(within(drawer).getByText('3')).toBeInTheDocument()
   })
 
+  it('says another rule started a run only when its chain holds one (AUTO-06)', async () => {
+    const byWorkflow = { ...RUN, id: 'run-7', trigger_type: 'stage_left', depth: 1, caused_by_rule: false }
+    const byRule = { ...RUN, id: 'run-8', trigger_type: 'field_changed', depth: 2, caused_by_rule: true }
+    mockAutomation(api, { extra: [[/^automation-runs\?/, page([byWorkflow])], ['automation-runs/run-7', { data: byWorkflow }], ['automation-runs/run-8', { data: byRule }], [/^automation-rules\?status=all/, page([RULE])]] })
+    renderApp('/settings/automation-runs?run=run-7')
+    let drawer = await screen.findByRole('dialog', { name: 'Run details' })
+    expect(await within(drawer).findByText('A workflow move')).toBeInTheDocument()
+    expect(within(drawer).queryByText(/Another rule/)).not.toBeInTheDocument()
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Run details' })).not.toBeInTheDocument())
+
+    renderApp('/settings/automation-runs?run=run-8')
+    drawer = await screen.findByRole('dialog', { name: 'Run details' })
+    expect(await within(drawer).findByText('Another rule (level 2)')).toBeInTheDocument()
+  })
+
   it('filters by outcome and shows a rule’s runs on its Runs tab', async () => {
     mockAutomation(api, { extra: [[/^automation-runs\?/, page(OUTCOMES)]] })
     renderApp('/settings/automation-rules/r-1?tab=runs')

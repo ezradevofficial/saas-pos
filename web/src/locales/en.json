@@ -2921,7 +2921,14 @@
       "finished": "Finished",
       "nextAttempt": "Next attempt",
       "conditions": "Conditions",
-      "depth": "Started by another rule, level",
+      "startedBy": "Started by",
+      "cause": {
+        "rule": "Another rule (level {{level}})",
+        "change": "A change to the document",
+        "workflow": "A workflow move",
+        "date": "A date on the document",
+        "schedule": "The schedule"
+      },
       "actions": "Actions",
       "noActions": "No action ran.",
       "columns": {

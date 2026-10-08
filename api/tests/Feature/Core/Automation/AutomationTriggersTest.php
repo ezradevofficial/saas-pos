@@ -170,6 +170,10 @@ class AutomationTriggersTest extends TestCase
         $this->assertCount(1, $this->runs($entered), 'entering "check" is not "review"');
         $this->assertEquals(['stage' => 'review', 'how' => 'completed'], $this->runs($left)->sole()->trigger);
         $this->assertSame(AutomationRun::SUCCEEDED, $this->runs($left)->sole()->outcome);
+
+        // AUTO-06: a workflow move started these runs, not another rule.
+        $this->getJson("/api/v1/automation-runs/{$this->runs($left)->sole()->id}", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.caused_by_rule', false)->assertJsonPath('data.depth', 1);
     }
 
     public function test_a_date_trigger_runs_once_per_document_and_day_after_the_local_scan_hour(): void

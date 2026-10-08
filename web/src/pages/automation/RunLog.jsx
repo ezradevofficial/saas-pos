@@ -18,6 +18,19 @@ export function Outcome({ outcome }) {
   return <StatusBadge tone={OUTCOME_TONES[outcome] ?? 'neutral'}>{t(`automation.outcomes.${outcome}`, { defaultValue: outcome })}</StatusBadge>
 }
 
+/**
+ * What started a run (AUTO-06): another rule only when its chain holds one
+ * (`caused_by_rule`); otherwise what the trigger reacts to. Every run is at
+ * least level 1, so the level alone never means another rule started it.
+ */
+function runCause(run, t) {
+  if (run.caused_by_rule) return t('automation.runs.cause.rule', { level: run.depth })
+  if (run.trigger_type === 'schedule') return t('automation.runs.cause.schedule')
+  if (run.trigger_type === 'date') return t('automation.runs.cause.date')
+  if (run.trigger_type === 'stage_entered' || run.trigger_type === 'stage_left') return t('automation.runs.cause.workflow')
+  return t('automation.runs.cause.change')
+}
+
 function Detail({ label, children }) {
   return (
     <div className="flex flex-col gap-1">
@@ -69,7 +82,7 @@ function RunDrawer({ runId, onClose }) {
                 <Detail label={t('automation.runs.finished')}>{when(run.finished_at)}</Detail>
                 {run.next_attempt_at ? <Detail label={t('automation.runs.nextAttempt')}>{when(run.next_attempt_at)}</Detail> : null}
                 {run.conditions ? <Detail label={t('automation.runs.conditions')}>{run.conditions.passed ? t('automation.test.passed') : t('automation.test.failed')}</Detail> : null}
-                {run.depth ? <Detail label={t('automation.runs.depth')}>{run.depth}</Detail> : null}
+                <Detail label={t('automation.runs.startedBy')}>{runCause(run, t)}</Detail>
               </dl>
               {run.error ? <Alert tone="danger" title={run.error} /> : null}
               <section aria-labelledby="run-actions" className="flex flex-col gap-2">

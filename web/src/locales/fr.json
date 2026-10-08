@@ -2921,7 +2921,14 @@
       "finished": "Fin",
       "nextAttempt": "Prochain essai",
       "conditions": "Conditions",
-      "depth": "Lancée par une autre règle, niveau",
+      "startedBy": "Lancée par",
+      "cause": {
+        "rule": "Une autre règle (niveau {{level}})",
+        "change": "Une modification du document",
+        "workflow": "Un passage dans le workflow",
+        "date": "Une date du document",
+        "schedule": "La planification"
+      },
       "actions": "Actions",
       "noActions": "Aucune action exécutée.",
       "columns": {

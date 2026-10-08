@@ -59,6 +59,8 @@ class AutomationRunResource extends JsonResource
             'attempts' => $this->attempts,
             'chain_id' => $this->chain_id,
             'depth' => $this->depth,
+            // AUTO-06: a run started by another rule's action (its chain holds a rule), not by a person's change, a workflow move or a schedule.
+            'caused_by_rule' => ($this->chain ?? []) !== [],
             'started_at' => $this->started_at?->toIso8601ZuluString(),
             'finished_at' => $this->finished_at?->toIso8601ZuluString(),
             'next_attempt_at' => $this->next_attempt_at?->toIso8601ZuluString(),
