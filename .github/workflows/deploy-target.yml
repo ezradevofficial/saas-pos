@@ -93,7 +93,9 @@ jobs:
           rsync -az --delete -e "$ssh_cmd" \
             web/dist/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/web/"
 
-      # Migrations run as the schema owner (pgsql_owner); the app keeps
+      # The previous release's cached config is deleted first, so nothing
+      # boots with it. app:preflight gates the migration. Migrations run as
+      # the schema owner (pgsql_owner); the app keeps
       # running as the RLS-bound role. permissions:sync upserts the
       # permission catalogue (RBAC-01). Horizon is restarted when installed,
       # plain queue workers otherwise.
@@ -107,9 +109,14 @@ jobs:
             "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
           set -euo pipefail
           cd "$DEPLOY_PATH/api"
+          # Drop the previous release's cached config and routes before
+          # anything boots the new code (composer runs package:discover).
+          rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php
           composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
-          # Drop the previous release's cached config before anything reads it.
           php artisan config:clear
+          # NFR-06: stop before migrating when the host is not ready (drivers,
+          # APP_KEY, APP_DEBUG, database roles). Prints every check.
+          php artisan app:preflight
           php artisan migrate --database=pgsql_owner --force
           php artisan permissions:sync
           php artisan config:cache

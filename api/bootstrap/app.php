@@ -4,6 +4,7 @@ use App\Core\Http\ApiErrorRenderer;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
+use App\Core\Support\Http\EnforceEnvironment;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Http\RequireTenant;
 use App\Core\Tenancy\Http\ResetTenantContext;
@@ -25,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // TEN-01: every request starts without a tenant; routes that need one
         // use `tenant` after auth.
         $middleware->prepend(ResetTenantContext::class);
+        // NFR-06: no request served with development drivers (EnvironmentGuard).
+        $middleware->prepend(EnforceEnvironment::class);
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);

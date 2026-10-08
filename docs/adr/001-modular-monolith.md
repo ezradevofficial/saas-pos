@@ -59,11 +59,14 @@ Three clients use the platform: a React web app (back office), an Expo / React N
 - Each deploy:
   1. builds the web app
   2. rsyncs `api/` and `web/dist` to the host. The host's `.env`, `storage/` and `vendor/` are never touched.
-  3. on the host: `composer install --no-dev`, then `php artisan config:clear`, so the previous release's cached config is never used
-  4. `php artisan migrate --database=pgsql_owner --force`. Migrations run as the schema owner (ADR 002).
-  5. `php artisan permissions:sync` (RBAC-01)
-  6. config and route caches
-  7. `php artisan horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+  3. on the host: deletes `bootstrap/cache/config.php` and `routes-*.php`, so the previous release's cached config is never booted by the new code (`composer install` runs `package:discover`)
+  4. `composer install --no-dev`, then `php artisan config:clear`
+  5. `php artisan app:preflight`: prints every readiness check (drivers, `APP_KEY`, `APP_DEBUG`, database roles) and stops the deploy when one fails
+  6. `php artisan migrate --database=pgsql_owner --force`. Migrations run as the schema owner (ADR 002).
+  7. `php artisan permissions:sync` (RBAC-01)
+  8. config and route caches
+  9. `php artisan horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+- **Environment guard (NFR-06).** Development drivers (log or array mail, log SMS, non-Redis cache or queue) are refused outside `local` and `testing` at the runtime entry points only: a global HTTP middleware, a queue worker's first loop, and the scheduler and worker commands. It never runs while the app boots. In Sprint 1 it ran in a service provider's `boot`, so `package:discover` during `composer install` threw with the previous release's cached config, and even `config:clear` could not run: one bad `.env` took the host down with no way to repair it through artisan. `app:preflight` reports the same checks without throwing.
 
 ## Consequences
 

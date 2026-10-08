@@ -8,8 +8,10 @@ use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\ScopeResolver;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsRbac;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -111,5 +113,50 @@ class SystemRoleRefreshTest extends TestCase
                 ->where('auditable_id', Role::where('template_key', 'owner')->sole()->id)
                 ->count(),
         ));
+    }
+
+    /**
+     * `composer migrate:fresh` seeds with `--database=pgsql_owner`, which
+     * makes the owner (BYPASSRLS) the default connection while the seeder
+     * runs `permissions:sync`. Each tenant's refresh must still run on the
+     * runtime connection, under row-level security: it reads, changes and
+     * audits only that tenant's roles.
+     */
+    public function test_the_seeder_refreshes_each_tenant_under_row_level_security_when_the_owner_is_the_default(): void
+    {
+        $tenantA = $this->signUp('a@example.com', 'Amani Stores');
+        $tenantB = $this->signUp('b@example.com', 'Baraka Stores');
+
+        $tenantQueriesOnOwner = [];
+        DB::listen(function (QueryExecuted $query) use (&$tenantQueriesOnOwner) {
+            if ($query->connectionName === 'pgsql_owner'
+                && preg_match('/"(roles|role_has_permissions|audit_logs)"/', $query->sql)) {
+                $tenantQueriesOnOwner[] = $query->sql;
+            }
+        });
+
+        app(PermissionRegistry::class)->register('core', ['seed_probe' => ['view']]);
+        $this->assertSame(0, Artisan::call('db:seed', [
+            '--class' => 'PermissionCatalogueSeeder',
+            '--database' => 'pgsql_owner',
+            '--force' => true,
+        ]));
+
+        $this->assertSame([], $tenantQueriesOnOwner);
+        $this->assertSame('pgsql', DB::getDefaultConnection());
+
+        foreach ([$tenantA, $tenantB] as $tenantId) {
+            $this->asTenant($tenantId, function () use ($tenantId) {
+                $owner = Role::where('template_key', 'owner')->sole();
+                $this->assertContains('core.seed_probe.view', $owner->permissionNames());
+
+                // Audited once, by this tenant's own refresh.
+                $entry = AuditEntry::where('action', 'rbac.role.permissions_update')
+                    ->where('auditable_id', $owner->id)
+                    ->sole();
+                $this->assertSame($tenantId, $entry->tenant_id);
+                $this->assertContains('core.seed_probe.view', $entry->after['permissions']);
+            });
+        }
     }
 }
