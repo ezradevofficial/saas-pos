@@ -366,6 +366,9 @@ return [
             'limit_changed' => 'The customer’s credit limit changed after the request was made. Make a new request from the current limit.',
             'party_archived' => 'The customer was archived after the request was made.',
         ],
+        'validation' => [
+            'approval_required' => 'A credit limit change can only end “approved” after an approval step: “:node” can be reached without one.',
+        ],
         'errors' => [
             'amount' => 'Enter the requested limit as a whole number of minor units, for example "25000000" for KES 250,000.00.',
             'currency' => 'This customer’s credit limit is in :currency. Request the new limit in :currency.',

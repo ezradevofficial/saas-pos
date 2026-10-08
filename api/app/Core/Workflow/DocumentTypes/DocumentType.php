@@ -4,6 +4,7 @@ namespace App\Core\Workflow\DocumentTypes;
 
 use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
+use App\Core\Workflow\Definitions\FlowGraph;
 use LogicException;
 
 /**
@@ -121,6 +122,18 @@ abstract class DocumentType
         }
 
         return ['number' => null, 'title' => null, 'amount' => $amount];
+    }
+
+    /**
+     * WF-02: the type's own rules on a flow, checked with the graph before
+     * a version is saved as valid or published (after the structural
+     * checks, on an acyclic graph). Problems as GraphValidator reports them.
+     *
+     * @return list<array{code: string, message: string, node: ?string}>
+     */
+    public function validateFlow(FlowGraph $flow): array
+    {
+        return [];
     }
 
     /**

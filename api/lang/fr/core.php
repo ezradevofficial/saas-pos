@@ -366,6 +366,9 @@ return [
             'limit_changed' => 'Le plafond de crédit du client a changé après la demande. Faites une nouvelle demande à partir du plafond actuel.',
             'party_archived' => 'Le client a été archivé après la demande.',
         ],
+        'validation' => [
+            'approval_required' => 'Une modification de plafond ne peut se terminer « approuvée » qu’après une étape d’approbation : « :node » peut être atteinte sans approbation.',
+        ],
         'errors' => [
             'amount' => 'Saisissez le plafond demandé en unités mineures entières, par exemple « 25000000 » pour KES 250 000,00.',
             'currency' => 'Le plafond de crédit de ce client est en :currency. Demandez le nouveau plafond en :currency.',

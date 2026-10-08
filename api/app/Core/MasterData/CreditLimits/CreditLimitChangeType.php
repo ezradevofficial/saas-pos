@@ -5,6 +5,7 @@ namespace App\Core\MasterData\CreditLimits;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\FieldRules;
+use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
@@ -31,8 +32,11 @@ class CreditLimitChangeType extends DocumentType
 {
     public const KEY = 'core.credit_limit_change';
 
-    /** Who may submit a request, and act on its flow where a stage names no roles (WF-08). */
+    /** Who may submit a request. */
     public const REQUEST = 'core.credit_limit.request';
+
+    /** Who acts on the flow (WF-08: stages naming no roles, cancel, return): Accountant, Admin, Owner. */
+    public const APPROVE = 'core.credit_limit.approve';
 
     /** Who may set a limit on the party directly, raises included (Owner, Admin). */
     public const SET_DIRECTLY = 'core.credit_limit.set_directly';
@@ -98,7 +102,46 @@ class CreditLimitChangeType extends DocumentType
 
     public function actPermission(): string
     {
-        return self::REQUEST;
+        return self::APPROVE;
+    }
+
+    /**
+     * M4: an `approved` end must not be reachable from the start without
+     * passing an approval node, or a flow could raise limits unapproved.
+     */
+    public function validateFlow(FlowGraph $flow): array
+    {
+        $start = $flow->start();
+
+        if ($start === null) {
+            return [];
+        }
+
+        $seen = [$start => true];
+        $queue = [$start];
+        $problems = [];
+
+        while ($queue !== []) {
+            $id = array_shift($queue);
+            $node = $flow->node($id) ?? [];
+
+            if (($node['type'] ?? null) === 'approval') {
+                continue;
+            }
+
+            if (($node['type'] ?? null) === 'end' && ($node['outcome'] ?? null) === 'approved') {
+                $problems[] = ['code' => 'approval_required', 'message' => __('core.credit_limit_change.validation.approval_required', ['node' => $flow->name($id)]), 'node' => $id];
+            }
+
+            foreach ($flow->outgoing($id) as $edge) {
+                if (! isset($seen[$edge['to']])) {
+                    $seen[$edge['to']] = true;
+                    $queue[] = $edge['to'];
+                }
+            }
+        }
+
+        return $problems;
     }
 
     public function actions(): array

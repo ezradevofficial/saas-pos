@@ -58,6 +58,7 @@ return [
             'view_all' => 'Tout voir',
             'reassign' => 'Réattribuer',
             'request' => 'Demander',
+            'approve' => 'Approuver',
             'set_directly' => 'Fixer directement',
         ],
     ],

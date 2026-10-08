@@ -255,7 +255,7 @@ class CreditLimitChanges
             throw new ApiException(422, 'credit_limit_change_not_open', $message);
         }
 
-        $actor = $this->resolver->can($by, CreditLimitChangeType::REQUEST, Scope::company($change->company_id)) ? $by : null;
+        $actor = $this->resolver->can($by, CreditLimitChangeType::APPROVE, Scope::company($change->company_id)) ? $by : null;
         $this->engine->cancel($workflow, $actor, $reason);
     }
 

@@ -58,6 +58,7 @@ return [
             'view_all' => 'View all',
             'reassign' => 'Reassign',
             'request' => 'Request',
+            'approve' => 'Approve',
             'set_directly' => 'Set directly',
         ],
     ],

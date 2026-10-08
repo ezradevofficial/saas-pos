@@ -9,6 +9,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChanges;
+use App\Core\MasterData\CreditLimits\CreditLimitChangeType;
 use App\Core\MasterData\Parties\Http\Requests\UpdatePartyRequest;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Models\InAppNotification;
@@ -445,5 +446,32 @@ class CreditLimitChangeApiTest extends TestCase
         $all = $this->getJson('/api/v1/approvals?view=all&status=all', $this->headersFor())->assertOk()->json('data.0.document');
         $this->assertSame(['amount_minor' => '25000000', 'currency' => 'KES'], $all['amount']);
         $this->assertSame('Duka Moja Ltd', $all['title']);
+    }
+
+    public function test_a_flow_cannot_reach_approved_without_an_approval(): void
+    {
+        $workflow = $this->postJson('/api/v1/workflows', ['document_type' => 'core.credit_limit_change', 'company_id' => null], $this->headersFor())->assertCreated()->json('data.id');
+        $this->putJson("/api/v1/workflows/{$workflow}/draft", ['graph' => [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
+                ['id' => 'done', 'type' => 'end', 'outcome' => 'approved', 'name' => 'Done'],
+            ],
+            'edges' => [['from' => 'start', 'to' => 'review'], ['from' => 'review', 'to' => 'done']],
+        ]], $this->headersFor())->assertOk();
+
+        $response = $this->postJson("/api/v1/workflows/{$workflow}/publish", [], $this->headersFor())->assertUnprocessable();
+        $this->assertStringContainsString('approval_required', $response->getContent());
+    }
+
+    public function test_the_flow_is_acted_on_with_the_approve_permission_and_company_colleagues_cancel(): void
+    {
+        $this->assertSame('core.credit_limit.approve', app(CreditLimitChangeType::class)->actPermission());
+        $change = $this->request()->assertCreated()->json('data.id');
+
+        // The Accountant (approve and request at the company) cancels the branch manager's request, named in the flow.
+        $this->postJson("/api/v1/credit-limit-changes/{$change}/cancel", ['reason' => 'Duplicate'], $this->headersFor($this->accountant))->assertOk()
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('meta.workflow.cancelled_by.id', $this->accountant->id);
     }
 }
