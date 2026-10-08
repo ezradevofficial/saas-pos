@@ -5,6 +5,7 @@ namespace App\Core\Automation\Actions;
 use App\Core\Automation\Capabilities\Capabilities;
 use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Automation\Runtime\FieldText;
+use App\Core\Automation\Runtime\FieldVisibility;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
@@ -44,6 +45,7 @@ class NotifyAction implements AutomationAction
         private readonly Notifier $notifier,
         private readonly WorkflowAccess $access,
         private readonly FieldText $text,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     public function key(): string
@@ -116,13 +118,24 @@ class NotifyAction implements AutomationAction
     {
         [$sent, $skipped] = $this->resolve($action, $context);
 
-        if ($sent !== []) {
+        // M3 (RBAC-05): recipients grouped by the fields hidden from them (on top of
+        // those hidden from the rule's user); each group's text leaves its fields out.
+        $groups = [];
+
+        foreach (User::query()->whereKey($sent)->orderBy('id')->get() as $user) {
+            $hidden = $context->documentId === null ? [] : $this->visibility->hidden($user, $context->type);
+            sort($hidden);
+            $groups[implode(',', $hidden)][] = (string) $user->id;
+        }
+
+        foreach ($groups as $key => $ids) {
+            $hidden = array_values(array_unique([...$context->hidden, ...($key === '' ? [] : explode(',', $key))]));
             $this->notifier->send(new NotificationEvent(
                 self::EVENT,
-                $sent,
+                $ids,
                 [
-                    'subject' => $this->render((string) ($action['subject'] ?? ''), $context),
-                    'message' => $this->render((string) ($action['message'] ?? ''), $context),
+                    'subject' => $this->render((string) ($action['subject'] ?? ''), $context, $hidden),
+                    'message' => $this->render((string) ($action['message'] ?? ''), $context, $hidden),
                     'rule_name' => $context->rule->name,
                     'document_type' => __($context->type->label(), [], $context->locale),
                 ],
@@ -168,12 +181,16 @@ class NotifyAction implements AutomationAction
         return [$sent, $skipped];
     }
 
-    private function render(string $text, AutomationContext $context): string
+    /** @param list<string>|null $hidden fields to leave out (null: those hidden from the rule's user) */
+    private function render(string $text, AutomationContext $context, ?array $hidden = null): string
     {
-        // RBAC-05: a field hidden from the rule's user fills in as nothing.
-        return $this->text->render($text, $context->type, $context->documentId === null ? [] : $context->visibleValues(), [
+        // RBAC-05: a field hidden from the rule's user (or the recipients) fills in as nothing.
+        $values = $hidden === null ? $context->visibleValues() : array_diff_key($context->values, array_flip($hidden));
+        $display = $hidden === null ? $context->visibleDisplayValues() : array_diff_key($context->visibleDisplayValues(), array_flip($hidden));
+
+        return $this->text->render($text, $context->type, $context->documentId === null ? [] : $values, [
             'document_type' => __($context->type->label(), [], $context->locale),
             'rule_name' => $context->rule->name,
-        ], $context->locale, $context->timezone, $context->visibleDisplayValues());
+        ], $context->locale, $context->timezone, $display);
     }
 }
