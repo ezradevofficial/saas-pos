@@ -12,6 +12,7 @@ use App\Core\Sync\Sources\CurrencySource;
 use App\Core\Sync\Sources\CustomerSource;
 use App\Core\Sync\Sources\ExchangeRateSource;
 use App\Core\Sync\Sources\ItemCategorySource;
+use App\Core\Sync\Sources\ItemPriceSource;
 use App\Core\Sync\Sources\ItemSource;
 use App\Core\Sync\Sources\PaymentMethodSource;
 use App\Core\Sync\Sources\PriceListSource;
@@ -46,6 +47,7 @@ class SyncServiceProvider extends ServiceProvider
         UomSource::class,
         ItemCategorySource::class,
         ItemSource::class,
+        ItemPriceSource::class,
         CustomerSource::class,
         StaffSource::class,
     ];
