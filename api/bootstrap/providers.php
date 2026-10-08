@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
@@ -20,4 +21,5 @@ return [
     MasterDataServiceProvider::class,
     WorkflowServiceProvider::class,
     NotificationsServiceProvider::class,
+    AutomationServiceProvider::class,
 ];

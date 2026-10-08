@@ -39,6 +39,8 @@ class PermissionRegistry
         'notification_template' => ['view', 'edit'],
         'notification_settings' => ['edit'],
         'notification_delivery' => ['view'],
+        // AUTO-01..AUTO-07: automation rules and their run log.
+        'automation' => ['view', 'edit'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

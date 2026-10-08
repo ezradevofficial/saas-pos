@@ -86,13 +86,14 @@ class RoleTemplatesTest extends TestCase
             'core.workflow.view', 'core.workflow.edit', 'core.workflow.publish',
             'core.notification_template.view', 'core.notification_template.edit', 'core.notification_settings.edit',
             'core.notification_delivery.view',
+            'core.automation.view', 'core.automation.edit',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(70, count($names));
+        $this->assertSame(72, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -250,6 +251,25 @@ class RoleTemplatesTest extends TestCase
         }
     }
 
+    public function test_templates_grant_automation_permissions_to_owner_and_admin(): void
+    {
+        // AUTO-01..AUTO-07: Owner and Admin build automation rules; the
+        // auditor reads them and their run log.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.automation.%')->pluck('name')->sort()->values()->all();
+
+        foreach (['owner', 'admin'] as $key) {
+            $this->assertSame(['core.automation.edit', 'core.automation.view'], $granted($key), $key);
+        }
+
+        $this->assertSame(['core.automation.view'], $granted('read_only_auditor'));
+
+        foreach (['branch_manager', 'cashier', 'accountant', 'approver', 'procurement_officer'] as $key) {
+            $this->assertSame([], $granted($key), $key);
+        }
+    }
+
     public function test_system_role_names_use_the_tenant_locale(): void
     {
         $this->enter($this->signUp('fr')->json('challenge_id'));
@@ -275,7 +295,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(70, $permissions);
+        $this->assertCount(72, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 
