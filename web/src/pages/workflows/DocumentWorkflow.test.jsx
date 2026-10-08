@@ -1,7 +1,9 @@
-import { screen, within } from '@testing-library/react'
-import { api } from '@/api/client'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { api, ApiError } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { COMPANIES } from '@/test/workflows'
+import { returnTargets } from './documentFlow'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -104,5 +106,128 @@ describe('Document workflow status page (WF-10)', () => {
     mockRoutes(api, [[URL, apiError(403, 'forbidden', 'Not allowed.')]], { companies: COMPANIES })
     renderApp('/document-workflows/core.credit_limit_change/clc-1')
     expect(await screen.findByRole('heading', { name: /access/i })).toBeInTheDocument()
+  })
+})
+
+// WF-11: a document at a plain stage the viewer may move on, after a completed "Draft" stage.
+const AT_STAGE = {
+  ...STATUS,
+  current: [{ ...STATUS.current[0], token_id: 't-2', node_id: 'check', name: 'Stock check', type: 'stage', holders: { roles: [], users: [{ id: 'u-1', name: 'Mary Manager' }], permission: null }, can_move: true }],
+  history: [
+    STATUS.history[0],
+    { type: 'entered', node_id: 'draft', node_name: 'Draft', user: null, reason: null, data: {}, occurred_at: '2026-10-07T14:00:00Z' },
+    { type: 'left', node_id: 'draft', node_name: 'Draft', user: { id: 'u-1', name: 'Mary Manager' }, reason: null, data: { how: 'completed' }, occurred_at: '2026-10-07T14:10:00Z' },
+    { type: 'entered', node_id: 'check', node_name: 'Stock check', user: null, reason: null, data: {}, occurred_at: '2026-10-07T14:10:00Z' },
+  ],
+}
+
+describe('Document workflow actions (WF-11)', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+
+  it('offers no actions to someone who cannot move an open stage, and links an approval step to its approval', async () => {
+    mockRoutes(api, [[URL, { data: STATUS }]], { companies: COMPANIES })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    expect(await screen.findByRole('link', { name: 'Open the approval' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Move on/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Return to an earlier stage' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel the flow' })).not.toBeInTheDocument()
+  })
+
+  it('never offers Move on for an approval step, even when the API allows manual completion', async () => {
+    mockRoutes(api, [[URL, { data: { ...STATUS, current: [{ ...STATUS.current[0], can_move: true }] } }]], { companies: COMPANIES })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    expect(await screen.findByRole('link', { name: 'Open the approval' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Move on/ })).not.toBeInTheDocument()
+  })
+
+  it('moves a stage on and shows the new status', async () => {
+    mockRoutes(api, [[URL, { data: AT_STAGE }]], { companies: COMPANIES })
+    api.post.mockResolvedValue({ data: { ...AT_STAGE, status: 'completed', current: [], completed_at: '2026-10-07T15:00:00Z' } })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Move on from Stock check' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`${URL}/move`, { node: 'check' }))
+    expect(await screen.findByText('No step is open.')).toBeInTheDocument()
+    expect(screen.getAllByText('Completed').length).toBeGreaterThan(0)
+  })
+
+  it('shows the rules that stopped a move', async () => {
+    mockRoutes(api, [[URL, { data: AT_STAGE }]], { companies: COMPANIES })
+    api.post.mockRejectedValue(new ApiError({ status: 422, code: 'exit_blocked', message: 'Stock check cannot be left yet.', data: { reasons: ['Attach the delivery note.'] } }))
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Move on from Stock check' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Stock check cannot be left yet.')
+    expect(within(alert).getByText('Attach the delivery note.')).toBeInTheDocument()
+  })
+
+  it('returns the document to a stage it passed, with a required reason', async () => {
+    mockRoutes(api, [[URL, { data: AT_STAGE }]], { companies: COMPANIES })
+    api.post.mockResolvedValue({ data: { ...AT_STAGE, current: [{ ...AT_STAGE.current[0], node_id: 'draft', name: 'Draft' }] } })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Return to an earlier stage' }))
+    const confirm = screen.getByRole('button', { name: 'Return the document' })
+    // The only earlier stage is chosen already; the reason is required.
+    expect(screen.getByLabelText(/Return to/)).toHaveTextContent('Draft')
+    expect(confirm).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/Reason for returning/), { target: { value: 'Prices changed' } })
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`${URL}/return`, { node: 'draft', reason: 'Prices changed' }))
+    await waitFor(() => expect(screen.queryByLabelText(/Reason for returning/)).not.toBeInTheDocument())
+    expect(screen.getByText('Draft', { selector: 'span.font-medium' })).toBeInTheDocument()
+  })
+
+  it('cancels the flow after an in-page confirmation with a reason', async () => {
+    mockRoutes(api, [[URL, { data: AT_STAGE }]], { companies: COMPANIES })
+    api.post.mockResolvedValue({ data: { ...AT_STAGE, status: 'cancelled', current: [], cancelled_at: '2026-10-07T15:00:00Z', cancel_reason: 'Customer withdrew' } })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel the flow' }))
+    expect(screen.getByRole('heading', { name: 'Cancel this flow?' })).toBeInTheDocument()
+    const confirm = screen.getAllByRole('button', { name: 'Cancel the flow' }).at(-1)
+    expect(confirm).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/Reason for cancelling/), { target: { value: 'Customer withdrew' } })
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`${URL}/cancel`, { reason: 'Customer withdrew' }))
+    expect(await screen.findByText(/Customer withdrew/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel the flow' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the flow when the confirmation is dismissed', async () => {
+    mockRoutes(api, [[URL, { data: AT_STAGE }]], { companies: COMPANIES })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel the flow' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it as it is' }))
+    expect(screen.queryByLabelText(/Reason for cancelling/)).not.toBeInTheDocument()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it("uses the API's return targets and permissions when it sends them", async () => {
+    const flow = { ...AT_STAGE, can_cancel: false, can_return: true, return_targets: [{ node_id: 'intake', name: 'Intake' }, { node_id: 'draft', name: 'Draft' }] }
+    expect(returnTargets(flow)).toEqual([
+      { value: 'intake', label: 'Intake' },
+      { value: 'draft', label: 'Draft' },
+    ])
+    mockRoutes(api, [[URL, { data: flow }]], { companies: COMPANIES })
+    api.post.mockResolvedValue({ data: flow })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Return to an earlier stage' }))
+    expect(screen.queryByRole('button', { name: 'Cancel the flow' })).not.toBeInTheDocument()
+    chooseOption(/Return to/, 'Intake')
+    fireEvent.change(screen.getByLabelText(/Reason for returning/), { target: { value: 'Missing ID' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Return the document' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(`${URL}/return`, { node: 'intake', reason: 'Missing ID' }))
   })
 })

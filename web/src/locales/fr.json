@@ -2486,6 +2486,23 @@
       "hours": "{{hours}} h {{minutes}} min",
       "minutes_one": "{{count}} min",
       "minutes_other": "{{count}} min"
+    },
+    "actions": {
+      "label": "Actions sur le workflow",
+      "moveOn": "Passer à la suite",
+      "moveOnFrom": "Passer à la suite après {{step}}",
+      "return": "Renvoyer à une étape précédente",
+      "returnTitle": "Renvoyer à une étape précédente",
+      "returnTo": "Renvoyer à",
+      "returnPick": "Choisissez une étape",
+      "returnReason": "Motif du renvoi",
+      "returnConfirm": "Renvoyer le document",
+      "cancel": "Annuler le workflow",
+      "cancelTitle": "Annuler ce workflow ?",
+      "cancelHelp": "Ses étapes ouvertes se ferment et le document quitte le workflow. Cette action est définitive.",
+      "cancelReason": "Motif de l’annulation",
+      "cancelConfirm": "Annuler le workflow",
+      "keep": "Ne rien changer"
     }
   },
   "approvals": {

@@ -2486,6 +2486,23 @@
       "hours": "{{hours}} h {{minutes}} min",
       "minutes_one": "{{count}} min",
       "minutes_other": "{{count}} min"
+    },
+    "actions": {
+      "label": "Flow actions",
+      "moveOn": "Move on",
+      "moveOnFrom": "Move on from {{step}}",
+      "return": "Return to an earlier stage",
+      "returnTitle": "Return to an earlier stage",
+      "returnTo": "Return to",
+      "returnPick": "Choose a stage",
+      "returnReason": "Reason for returning",
+      "returnConfirm": "Return the document",
+      "cancel": "Cancel the flow",
+      "cancelTitle": "Cancel this flow?",
+      "cancelHelp": "Its open steps close and the document leaves the flow. This cannot be undone.",
+      "cancelReason": "Reason for cancelling",
+      "cancelConfirm": "Cancel the flow",
+      "keep": "Keep it as it is"
     }
   },
   "approvals": {
