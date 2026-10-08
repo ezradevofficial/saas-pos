@@ -53,12 +53,14 @@ class ShiftUploadTest extends TestCase
         $this->shifts([$this->shiftBody()])->assertUnprocessable()
             ->assertJsonPath('results.0.error.code', 'shift_already_open')
             ->assertJsonPath('results.0.error.retryable', true);
+        // A shift sent already closed (opened and closed offline) never takes the open slot.
+        $this->shifts([[...$this->shiftBody(), 'closing' => $this->closing()]])->assertOk()->assertJsonPath('results.0.shift_status', 'closed');
 
         $this->inTenant(function () use ($body) {
             $shift = Shift::findOrFail($body['id']);
             $this->assertSame([$this->locationA->id, $this->till->id, $this->owner->id], [$shift->location_id, $shift->device_id, $shift->opened_by]);
             $this->assertSame('500000', (string) ShiftBalance::where('shift_id', $shift->id)->sole()->opening_minor);
-            $this->assertSame(1, AuditEntry::where('action', 'pos.shift.open')->count());
+            $this->assertSame(2, AuditEntry::where('action', 'pos.shift.open')->count());
         });
     }
 

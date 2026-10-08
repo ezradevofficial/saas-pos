@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
@@ -46,7 +47,8 @@ use Tests\TestCase;
  * projects, a published workflow with a document in it that created an
  * order, working hours, notification texts, settings and preferences, and
  * a notification sent to the owner and the manager, an automation rule
- * and its run). Field rules, limit
+ * and its run, and the POS module with a till's ranges, shift, sales, a void,
+ * a refund and a cash movement). Field rules, limit
  * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
@@ -348,6 +350,13 @@ final class TwoTenants
             'requested_limit' => ['amount_minor' => '5000000', 'currency' => 'KES'], 'reason' => "Season {$upper}",
         ], $owner), 201)->json('data.id');
 
+        // POS (docs/modules/pos.md), NUM-01, NUM-02: the module switched on (no
+        // API yet), then the till as it works: receipt and refund ranges (the
+        // tenant's number formats seeded on first use), a shift with a float,
+        // three M-Pesa sales by the owner (one voided, one partly refunded,
+        // one left for the isolation suite to void) and a cash pay-in.
+        $pos = self::pos($test, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -391,11 +400,92 @@ final class TwoTenants
                 'delegation' => $delegation,
                 'credit_limit_change' => $creditLimitChange,
                 ...$dimensions,
+                ...$pos,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
             contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}"])),
         );
+    }
+
+    /**
+     * The POS fixture of one tenant, made through the device API.
+     *
+     * @return array<string, string> pos_shift, pos_sale (partly refunded), pos_sale_line, pos_sale_spare (completed, untouched), and the range patterns
+     */
+    private static function pos(TestCase $test, string $tenantId, string $ownerId, string $deviceToken, string $item, string $uom, string $priceList, string $paymentMethod, string $taxCode): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pos'));
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        $id = fn () => (string) Str::uuid7();
+
+        $receipts = self::ok($test->postJson('/api/v1/pos/number-ranges', ['document_type' => 'pos.receipt'], $device))->json('data.0.pattern');
+        $refunds = self::ok($test->postJson('/api/v1/pos/number-ranges', ['document_type' => 'pos.refund'], $device))->json('data.0.pattern');
+
+        $shift = $id();
+        self::ok($test->postJson('/api/v1/pos/shifts', ['shifts' => [[
+            'id' => $shift, 'opened_by_id' => $ownerId, 'opened_at' => now()->subHour()->toIso8601String(),
+            'opening_float' => [['currency' => 'KES', 'amount_minor' => '500000']],
+        ]]], $device))->assertJsonPath('results.0.status', 'stored');
+
+        $sales = [];
+        foreach ([1, 2, 3] as $seq) {
+            $sales[] = self::posSale($id, $shift, $ownerId, $seq, str_replace('{000001}', sprintf('%06d', $seq), $receipts), $item, $uom, $priceList, $paymentMethod, $taxCode);
+        }
+        $stored = self::ok($test->postJson('/api/v1/pos/sales', ['sales' => $sales], $device));
+        Assert::assertSame(['stored', 'stored', 'stored'], array_column($stored->json('results'), 'status'), 'TwoTenants POS sales: '.$stored->getContent());
+
+        self::ok($test->postJson('/api/v1/pos/voids', ['voids' => [[
+            'id' => $id(), 'sale_id' => $sales[1]['id'], 'voided_by_id' => $ownerId, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
+        ]]], $device))->assertJsonPath('results.0.status', 'stored');
+        self::ok($test->postJson('/api/v1/pos/refunds', ['refunds' => [self::posRefund($id, $sales[0], $shift, $ownerId, 1, str_replace('{000001}', '000001', $refunds), $paymentMethod)]], $device))
+            ->assertJsonPath('results.0.status', 'stored');
+        self::ok($test->postJson('/api/v1/pos/cash-movements', ['movements' => [[
+            'id' => $id(), 'shift_id' => $shift, 'user_id' => $ownerId, 'kind' => 'pay_in', 'currency' => 'KES',
+            'amount_minor' => '100000', 'reason' => 'Float top-up', 'occurred_at' => now()->toIso8601String(),
+        ]]], $device))->assertJsonPath('results.0.status', 'stored');
+
+        return [
+            'pos_shift' => $shift,
+            'pos_sale' => $sales[0]['id'],
+            'pos_sale_line' => $sales[0]['lines'][0]['id'],
+            'pos_sale_spare' => $sales[2]['id'],
+            'pos_receipt_pattern' => $receipts,
+            'pos_refund_pattern' => $refunds,
+        ];
+    }
+
+    /** A sale of 2 × the item at KES 562.50, tax included at the fixture's test rate (12.5 %), paid by M-Pesa. */
+    public static function posSale(callable $id, string $shift, string $cashier, int $seq, string $number, string $item, string $uom, string $priceList, string $paymentMethod, string $taxCode): array
+    {
+        return [
+            'id' => $id(), 'shift_id' => $shift, 'cashier_id' => $cashier, 'customer_id' => null,
+            'receipt_seq' => $seq, 'receipt_number' => $number, 'sold_at' => now()->subMinutes(10)->toIso8601String(),
+            'currency' => 'KES', 'price_list_id' => $priceList,
+            'lines' => [[
+                'id' => $id(), 'item_id' => $item, 'uom_id' => $uom, 'qty' => '2', 'unit_price_minor' => '56250', 'list_price_minor' => '56250',
+                'price_list_id' => $priceList, 'tax_inclusive' => true, 'discount_minor' => '0', 'tax_code_id' => $taxCode, 'tax_rate' => '12.5000',
+                'tax_minor' => '12500', 'total_minor' => '112500',
+            ]],
+            'totals' => ['subtotal_minor' => '112500', 'discount_minor' => '0', 'tax_minor' => '12500', 'total_minor' => '112500'],
+            'payments' => [[
+                'id' => $id(), 'payment_method_id' => $paymentMethod, 'currency' => 'KES', 'amount_minor' => '112500', 'amount_in_sale_minor' => '112500',
+                'provider_reference' => 'QK'.$seq, 'status' => 'confirmed',
+            ]],
+            'change' => ['currency' => 'KES', 'amount_minor' => '0'],
+        ];
+    }
+
+    /** One of the sale's two units refunded by M-Pesa. */
+    public static function posRefund(callable $id, array $sale, string $shift, string $cashier, int $seq, string $number, string $paymentMethod): array
+    {
+        return [
+            'id' => $id(), 'sale_id' => $sale['id'], 'shift_id' => $shift, 'cashier_id' => $cashier,
+            'receipt_seq' => $seq, 'receipt_number' => $number, 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged',
+            'total_minor' => '56250',
+            'lines' => [['id' => $id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
+            'payments' => [['id' => $id(), 'payment_method_id' => $paymentMethod, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250', 'provider_reference' => 'RF'.$seq]],
+        ];
     }
 
     private static function ok(TestResponse $response, int $status = 200): TestResponse

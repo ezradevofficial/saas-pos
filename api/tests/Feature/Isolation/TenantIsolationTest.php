@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
+use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
@@ -98,6 +99,8 @@ class TenantIsolationTest extends TestCase
         'approval' => 'approval', // APR-04: approvals/{approval}, a request waiting for the manager
         'credit_limit_change' => 'credit_limit_change', // WF-01: credit-limit-changes/{credit_limit_change}, a pending request
         'delegation' => 'delegation', // APR-06: me/delegations/{delegation}/revoke, the manager's delegation (A's owner gets 404 on B's)
+        'pos_sale' => 'pos_sale', // POS-12: pos/sales/{pos_sale}, a partly refunded sale
+        'pos_shift' => 'pos_shift', // POS-12: pos/shifts/{pos_shift}, the till's open shift
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -142,6 +145,18 @@ class TenantIsolationTest extends TestCase
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
         'from_user_id' => 'user', // APR-06: reassign from a pending approver
         'to_user_id' => 'user', // APR-06: reassign to, or delegate to, a user
+        // POS-09: ids a till uploads (the device's own shift, sale and line; users; master data).
+        'shift_id' => 'pos_shift',
+        'sale_id' => 'pos_sale',
+        'sale_line_id' => 'pos_sale_line',
+        'cashier_id' => 'user',
+        'opened_by_id' => 'user',
+        'closed_by_id' => 'user',
+        'voided_by_id' => 'user',
+        'manager_id' => 'manager', // AUTH-08: a manager's override
+        'customer_id' => 'customer',
+        'item_id' => 'item',
+        'payment_method_id' => 'payment_method',
         'scope_id' => null,
     ];
 
@@ -220,10 +235,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'branch', 'location'];
 
     private TwoTenants $tenants;
 
@@ -341,7 +356,7 @@ class TenantIsolationTest extends TestCase
                 foreach ($method === 'GET' ? self::LIST_QUERIES : [[]] as $query) {
                     $suffix = $query === [] ? '' : '?'.http_build_query($query);
                     $uri = $this->uriWith($route, $b).$suffix;
-                    $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $a->bearer());
+                    $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $this->bearerFor($route, $a));
                     $called++;
 
                     // 404 exactly: A's Owner holds every permission, so a 403 here would hide whether the id was resolved.
@@ -512,14 +527,14 @@ class TenantIsolationTest extends TestCase
                 $uri = $this->uriWith($route, $a);
 
                 foreach ($this->hijackVariants($base, $idFields, $b, self::ROUTE_REFERENCE_FIELDS[$key] ?? []) as $label => $body) {
-                    $response = $this->json($method, $uri, $body, $a->bearer());
+                    $response = $this->json($method, $uri, $body, $this->bearerFor($route, $a));
                     $this->assertContains($response->getStatusCode(), [404, 422], "{$key} with {$label} of tenant B answered {$response->getStatusCode()}: {$response->getContent()}");
                     $this->assertBodyHasNothingOf($b, $response, "{$key} with {$label}");
                     $hijacked[$key][] = $label;
                 }
 
                 // Control: the same body with A's own ids is accepted, so the refusals are about B's ids.
-                $control = $this->json($method, $uri, $base, $a->bearer());
+                $control = $this->json($method, $uri, $base, $this->bearerFor($route, $a));
                 $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}");
             }
         }
@@ -542,6 +557,10 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/automation-templates/use', $hijacked);
         $this->assertArrayHasKey('POST api/v1/approvals/{approval}/reassign', $hijacked);
         $this->assertArrayHasKey('POST api/v1/me/delegations', $hijacked);
+        $this->assertArrayHasKey('PUT api/v1/numbering/formats', $hijacked);
+        foreach (['sales', 'shifts', 'cash-movements', 'voids', 'refunds'] as $upload) {
+            $this->assertArrayHasKey("POST api/v1/pos/{$upload}", $hijacked);
+        }
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -651,6 +670,10 @@ class TenantIsolationTest extends TestCase
 
             // APR-04: the oversight list of approvals.
             'approvals?view=all&status=all' => ['Approve A', 'Waiting'],
+
+            // POS-12: sales and shifts of A's till.
+            'pos/sales?status=all' => ['Outlet A', 'Owner A', 'KES 1,125.00'],
+            'pos/shifts' => ['Outlet A', 'Owner A', 'KES 5,000.00'],
         ];
     }
 
@@ -804,6 +827,12 @@ class TenantIsolationTest extends TestCase
     private function hasOnlyGlobalParameters(RoutingRoute $route): bool
     {
         return array_diff($route->parameterNames(), array_keys(self::GLOBAL_PARAMETERS)) === [];
+    }
+
+    /** The tenant's device token on a till's route (TEN-05), else its Owner's. */
+    private function bearerFor(RoutingRoute $route, TenantFixture $tenant): array
+    {
+        return in_array(EnsureDeviceToken::class, $route->gatherMiddleware(), true) ? $tenant->bearer('device') : $tenant->bearer();
     }
 
     /** A body every mutating route would accept, pointing at more of B where a route takes ids. */
@@ -1065,6 +1094,41 @@ class TenantIsolationTest extends TestCase
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
             ],
+            // NUM-01: a branch's receipt format.
+            'PUT api/v1/numbering/formats' => [
+                'document_type' => 'pos.receipt', 'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'),
+                'pattern' => 'R-{BRANCH}-{000001}', 'reset' => 'never',
+            ],
+            // POS-09 (device token): a sale on the till's open shift with a manager's
+            // override on its line; a shift opened and closed in one upload; a pay-in
+            // with an override; a void of the spare sale; the second unit of the
+            // refunded sale given back.
+            'POST api/v1/pos/sales' => ['sales' => [[
+                ...($sale = TwoTenants::posSale(fn () => (string) Str::uuid7(), $tenant->id('pos_shift'), $tenant->id('user'), 50,
+                    str_replace('{000001}', '000050', $tenant->id('pos_receipt_pattern')), $tenant->id('item'), $tenant->id('uom'),
+                    $tenant->id('price_list'), $tenant->id('payment_method'), $tenant->id('tax_code'))),
+                'customer_id' => $tenant->id('customer'),
+                'lines' => [[...$sale['lines'][0], 'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null]]],
+            ]]],
+            'POST api/v1/pos/shifts' => ['shifts' => [[
+                'id' => (string) Str::uuid7(), 'opened_by_id' => $tenant->id('user'), 'opened_at' => now()->subMinutes(30)->toIso8601String(),
+                'opening_float' => [['currency' => 'KES', 'amount_minor' => '1000']],
+                'closing' => ['closed_by_id' => $tenant->id('user'), 'closed_at' => now()->toIso8601String(), 'counted' => [['currency' => 'KES', 'amount_minor' => '1000']]],
+            ]]],
+            'POST api/v1/pos/cash-movements' => ['movements' => [[
+                'id' => (string) Str::uuid7(), 'shift_id' => $tenant->id('pos_shift'), 'user_id' => $tenant->id('user'), 'kind' => 'pay_out',
+                'currency' => 'KES', 'amount_minor' => '500', 'reason' => 'Hijack check', 'occurred_at' => now()->toIso8601String(),
+                'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+            ]]],
+            'POST api/v1/pos/voids' => ['voids' => [[
+                'id' => (string) Str::uuid7(), 'sale_id' => $tenant->id('pos_sale_spare'), 'voided_by_id' => $tenant->id('user'),
+                'voided_at' => now()->toIso8601String(), 'reason' => 'Hijack check', 'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+            ]]],
+            'POST api/v1/pos/refunds' => ['refunds' => [[
+                ...TwoTenants::posRefund(fn () => (string) Str::uuid7(), ['id' => $tenant->id('pos_sale'), 'lines' => [['id' => $tenant->id('pos_sale_line')]]],
+                    $tenant->id('pos_shift'), $tenant->id('user'), 2, str_replace('{000001}', '000002', $tenant->id('pos_refund_pattern')), $tenant->id('payment_method')),
+                'override' => ['manager_id' => $tenant->id('manager'), 'proof' => null],
+            ]]],
             default => null,
         };
     }

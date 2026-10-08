@@ -4,6 +4,7 @@ namespace Modules\POS\Sync;
 
 use App\Core\Audit\Auditor;
 use App\Core\Currency\Models\TenantCurrency;
+use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
@@ -64,16 +65,23 @@ class ShiftUploads
             throw new Rejection('id_conflict', 'id');
         }
 
-        $shift ??= $this->open($place, $data);
+        $closing = $data['closing'] ?? null;
 
-        if (($data['closing'] ?? null) !== null && $shift->isOpen()) {
-            $this->close($place, $shift, $data['closing']);
+        if ($shift === null) {
+            return $this->open($place, $data, $closing);
+        }
+
+        if ($closing !== null && $shift->isOpen()) {
+            $closer = $this->closer($place, $shift->opened_by, $closing);
+            $shift->forceFill(['status' => Shift::CLOSED, 'closed_by' => $closer->id, 'closed_at' => CarbonImmutable::parse($closing['closed_at'])->utc()])->save();
+            $this->settle($shift, $closer, $closing);
         }
 
         return $shift;
     }
 
-    private function open(DevicePlace $place, array $data): Shift
+    /** A new shift; one sent already closed is stored closed (it never holds the device's one open slot). */
+    private function open(DevicePlace $place, array $data, ?array $closing): Shift
     {
         $opener = $this->authority->user($data['opened_by_id'], 'opened_by_id');
 
@@ -81,9 +89,9 @@ class ShiftUploads
             throw new Rejection('not_permitted', 'opened_by_id');
         }
 
-        $closing = ($data['closing'] ?? null) !== null;
+        $closer = $closing === null ? null : $this->closer($place, $opener->id, $closing);
 
-        if (! $closing && Shift::query()->where('device_id', $place->device->id)->where('status', Shift::OPEN)->exists()) {
+        if ($closer === null && Shift::query()->where('device_id', $place->device->id)->where('status', Shift::OPEN)->exists()) {
             throw new Rejection('shift_already_open', 'id', retryable: true);
         }
 
@@ -91,9 +99,11 @@ class ShiftUploads
         $shift = Shift::create([
             'id' => $data['id'],
             ...$place->columns(),
-            'status' => Shift::OPEN,
+            'status' => $closer === null ? Shift::OPEN : Shift::CLOSED,
             'opened_by' => $opener->id,
             'opened_at' => $openedAt,
+            'closed_by' => $closer?->id,
+            'closed_at' => $closer === null ? null : CarbonImmutable::parse($closing['closed_at'])->utc(),
             'received_at' => now(),
         ]);
 
@@ -107,18 +117,29 @@ class ShiftUploads
         ], ['user_id' => $opener->id, 'device_time' => $openedAt]);
         ShiftOpened::dispatch($this->tenants->require(), $shift->id);
 
+        if ($closer !== null) {
+            $this->settle($shift, $closer, $closing);
+        }
+
         return $shift;
     }
 
-    private function close(DevicePlace $place, Shift $shift, array $closing): void
+    /** Who closes: the opener with `pos.shift.close`, anyone else with `pos.shift.manage`. */
+    private function closer(DevicePlace $place, string $openedBy, array $closing): User
     {
         $closer = $this->authority->user($closing['closed_by_id'], 'closing.closed_by_id');
-        $permission = $closer->id === $shift->opened_by ? 'pos.shift.close' : 'pos.shift.manage';
+        $permission = $closer->id === $openedBy ? 'pos.shift.close' : 'pos.shift.manage';
 
         if (! $this->authority->can($closer, $permission, $place->scope())) {
             throw new Rejection('not_permitted', 'closing.closed_by_id');
         }
 
+        return $closer;
+    }
+
+    /** The cash-up: expected, counted and variance per currency; the shift closed, audited and announced. */
+    private function settle(Shift $shift, User $closer, array $closing): void
+    {
         $closedAt = CarbonImmutable::parse($closing['closed_at'])->utc();
         $counted = [];
 
