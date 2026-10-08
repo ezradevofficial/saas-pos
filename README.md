@@ -177,6 +177,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `APP_ENV` (e.g. `dev`, `staging`, `production`), `APP_KEY`, `APP_DEBUG=false`, `APP_URL`
 - [ ] `MAIL_MAILER` a real mailer (`smtp`, `ses`, `postmark`, `resend`), never `log` or `array`, with its credentials and `MAIL_FROM_ADDRESS`
 - [ ] `SMS_DRIVER` a real provider, never `log`. Without one, any text message (phone sign-up, SMS codes) fails with `SmsNotConfigured`.
+- [ ] `NOTIFICATIONS_PUSH_DRIVER`, `NOTIFICATIONS_SMS_DRIVER`, `NOTIFICATIONS_WHATSAPP_DRIVER` empty (channel unavailable), `none` or a real provider, never `fake`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync` and `country-packs:publish`)

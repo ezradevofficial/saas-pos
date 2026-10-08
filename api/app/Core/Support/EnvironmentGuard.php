@@ -12,7 +12,8 @@ use RuntimeException;
 /**
  * NFR-06: development drivers never serve a real environment. Outside
  * `local` and `testing`, the runtime entry points refuse to run when mail
- * goes to the log or an array, SMS goes to the log, or the cache or queue
+ * goes to the log or an array, SMS goes to the log, a notification
+ * channel uses the fake driver, or the cache or queue
  * is not Redis (README, pre-deploy checklist).
  *
  * Enforced only where the app does real work: every HTTP request
@@ -102,12 +103,17 @@ final class EnvironmentGuard
     {
         $cache = $config->get('cache.default');
         $queue = $config->get('queue.default');
+        $fake = array_keys(array_filter((array) $config->get('notifications.drivers', []), fn ($driver) => $driver === 'fake'));
 
         return [
             'Mail transport' => self::mailProblem($config),
             'SMS driver' => $config->get('services.sms.driver') === 'log'
                 ? 'SMS driver is log (set SMS_DRIVER)'
                 : null,
+            // NOT-01: the fake push/SMS/WhatsApp driver delivers nothing.
+            'Notification drivers' => $fake === []
+                ? null
+                : 'notification drivers are fake for '.implode(', ', $fake).' (set NOTIFICATIONS_*_DRIVER)',
             'Cache store' => $cache === 'redis'
                 ? null
                 : 'cache store is '.var_export($cache, true).', not redis (set CACHE_STORE=redis)',

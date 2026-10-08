@@ -34,6 +34,9 @@ return [
                 'price_list' => 'Listes de prix',
                 'payment_method' => 'Moyens de paiement',
                 'dimension' => 'Départements, centres de coûts et projets',
+                'notification_template' => 'Modèles de notification',
+                'notification_settings' => 'Paramètres des notifications',
+                'notification_delivery' => 'Envois de notifications',
             ],
         ],
         'actions' => [

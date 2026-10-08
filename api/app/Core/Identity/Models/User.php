@@ -4,6 +4,7 @@ namespace App\Core\Identity\Models;
 
 use App\Core\Audit\Audited;
 use App\Core\Identity\Policies\UserPolicy;
+use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\BelongsToTenant;
 use Database\Factories\UserFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Notifications\RoutesNotifications;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
@@ -27,7 +28,7 @@ use Laravel\Sanctum\NewAccessToken;
 class User extends Authenticatable implements HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
-    use Audited, BelongsToTenant, HasApiTokens, HasFactory, HasUuids, Notifiable;
+    use Audited, BelongsToTenant, HasApiTokens, HasFactory, HasUuids, RoutesNotifications;
 
     public const STATUS_PENDING = 'pending';
 
@@ -68,6 +69,17 @@ class User extends Authenticatable implements HasLocalePreference
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
+    }
+
+    /**
+     * NOT-01: the user's in-app notifications. Laravel's Notifiable is not
+     * used: its database notifications (notifications(), readNotifications(),
+     * unreadNotifications()) assume another shape of the `notifications`
+     * table. RoutesNotifications keeps notify() for sign-in codes (AUTH-01).
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(InAppNotification::class);
     }
 
     /** RBAC-04: the roles this user holds, and where. */
