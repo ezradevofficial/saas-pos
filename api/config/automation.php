@@ -2,8 +2,9 @@
 
 // AUTO-01..AUTO-07: automation rules (App\Core\Automation).
 return [
-    // The queue rule runs and trigger scans go on.
-    'queue' => env('AUTOMATION_QUEUE', 'default'),
+    // The queue rule runs, trigger scans and webhook deliveries go on
+    // (its own Horizon supervisor, config/horizon.php).
+    'queue' => env('AUTOMATION_QUEUE', 'automation'),
 
     // AUTO-05: attempts per run, and the wait (seconds) before the second
     // and third attempt.

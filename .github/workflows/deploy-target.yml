@@ -4,7 +4,7 @@
 #   <path>/api        Laravel app; <path>/api/.env and storage/ live only on
 #                     the host and are never overwritten
 #   <path>/web        the built web app (static files served by the web server)
-# The host has PHP 8.3 with pdo_pgsql, Composer, and its .env points the
+# The host has PHP 8.3 with pdo_pgsql, pcntl and posix, Composer, and its .env points the
 # runtime connection at role `app` and DB_OWNER_* at `app_owner` (ADR 002).
 name: Deploy target
 
@@ -126,8 +126,11 @@ jobs:
       # CD pack files as new versions when they changed (CP-01, CP-03);
       # country-packs:holidays replaces each country's public holidays from
       # its holidays.json, so re-running it is safe (CP-01, WF-09, APR-05).
-      # Horizon is restarted when installed,
-      # plain queue workers otherwise.
+      # horizon:terminate stops this host's Horizon master gracefully (its
+      # process manager starts it again on the new code); queue:restart
+      # also tells any other worker sharing the Redis cache to restart.
+      # A separate queue host must run horizon:terminate itself after it
+      # receives the release (README "Queue workers").
       # Any failure stops here with the API still in maintenance. See
       # README "If a deploy stops".
       - name: Install, migrate, restart workers and go live
@@ -159,11 +162,8 @@ jobs:
           php artisan payment-methods:seed-defaults
           php artisan config:cache
           php artisan route:cache
-          if php artisan list --raw | grep -q '^horizon:terminate'; then
-            php artisan horizon:terminate
-          else
-            php artisan queue:restart
-          fi
+          php artisan horizon:terminate
+          php artisan queue:restart
           # Only once every step above succeeded.
           php artisan up
           REMOTE

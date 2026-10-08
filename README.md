@@ -77,7 +77,8 @@ cp pos/.env.example pos/.env
 | What | Command | Port |
 | --- | --- | --- |
 | API | `npm run dev:api` (or `cd api && php artisan serve --port=8008`) | 8008 |
-| Queue worker (codes, notifications) | `cd api && php artisan queue:work` | |
+| Queue workers (Horizon: `default`, `notifications`, `automation`) | `cd api && php artisan horizon` (dashboard at `http://localhost:8008/horizon`, local only) | |
+| Scheduler (timers, digests, automation scans, rates) | `cd api && php artisan schedule:work` | |
 | Web app | `npm run dev:web` (`strictPort`) | 3008 |
 | POS web preview (Playwright checks) | `npm run web -w pos` | 3009 |
 | POS on a device or simulator (Expo) | `npm run dev:pos`, then `a` (Android) or `i` (iOS) | |
@@ -157,7 +158,7 @@ Repository **variables**:
 
 Prepare each host once:
 
-- PHP 8.3 with `pdo_pgsql`, Composer, and a web server that serves:
+- PHP 8.3 with `pdo_pgsql`, `intl`, `pcntl` and `posix` (Horizon), Composer, and a web server that serves:
   - `<path>/web` as the web app
   - `<path>/api/public` as the API
 - `<path>/api/.env`:
@@ -168,7 +169,7 @@ Prepare each host once:
 
 ### Pre-deploy checklist
 
-Outside `local` and `testing`, the API refuses to serve with development drivers (`App\Core\Support\EnvironmentGuard`, NFR-06): every HTTP request, a queue worker's first loop, and `schedule:run`, `schedule:work`, `queue:work` and `queue:listen` fail with the list of problems. Bootstrap and deploy commands (`composer install`'s `package:discover`, `config:*`, `optimize*`, `down`, `up`) never check, so a host with a bad config can always be repaired.
+Outside `local` and `testing`, the API refuses to serve with development drivers (`App\Core\Support\EnvironmentGuard`, NFR-06): every HTTP request, a queue worker's first loop, and `schedule:run`, `schedule:work`, `queue:work`, `queue:listen` and `horizon` fail with the list of problems. Bootstrap and deploy commands (`composer install`'s `package:discover`, `config:*`, `optimize*`, `down`, `up`) never check, so a host with a bad config can always be repaired.
 
 `php artisan app:preflight` prints every check (mail transport, SMS driver, cache store, queue connection, `APP_KEY`, `APP_DEBUG`, and that the runtime database role is neither superuser nor BYPASSRLS and the owner is not a superuser) and exits 1 when one fails. The deploy runs it before migrating. Run it on the host after editing `.env`.
 
@@ -181,7 +182,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
-- [ ] a queue worker running (`php artisan queue:work` or Horizon)
+- [ ] Horizon and the scheduler running, see [Queue workers](#queue-workers)
 - [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
 
 Each deploy:
@@ -200,8 +201,62 @@ Each deploy:
 12. runs `php artisan uoms:seed-defaults`: gives every tenant that lacks them the default units of measure (EA, KG, G, L, ML, M, BOX, PACK), under row-level security (MD-02). New tenants get them at sign-up.
 13. runs `php artisan payment-methods:seed-defaults`: gives every active company the default payment methods it never had (cash in each of its country's currencies, the country's mobile money wallets and a card method, the last two switched off until configured), under row-level security (MD-04). An entry a company archived is never added again. New companies get them when created.
 14. caches config and routes
-15. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+15. restarts the workers: `php artisan horizon:terminate` (the process manager starts Horizon again on the new code) and `php artisan queue:restart`
 16. `php artisan up`, only when every step above succeeded
+
+#### Queue workers
+
+Jobs run on three Redis queues, each with its own Horizon supervisor (`api/config/horizon.php`), so a burst of one kind never delays the others:
+
+| Queue | Jobs | Processes (dev, staging, production) |
+| --- | --- | --- |
+| `default` | reference-rate fetches, queued mail and every other job | 1 to 4 |
+| `notifications` (`NOTIFICATIONS_QUEUE`) | notification deliveries, digests, approval timers | 1 to 6 |
+| `automation` (`AUTOMATION_QUEUE`) | rule runs, timed-trigger scans, webhook deliveries | 1 to 6 |
+
+Each job has 60 seconds (a webhook gives up after 7), below the Redis `retry_after` of 90.
+
+The queue host (or the API host while dev and staging run on one server) runs `php artisan horizon` and the scheduler under systemd. Its `.env` needs the runtime role only, not `DB_OWNER_*` (ADR 002). Example units, with `<path>` and `<user>` replaced:
+
+```ini
+# /etc/systemd/system/app-horizon.service
+[Unit]
+Description=Queue workers (Horizon)
+After=network.target redis.service
+
+[Service]
+User=<user>
+WorkingDirectory=<path>/api
+ExecStart=/usr/bin/php artisan horizon
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```ini
+# /etc/systemd/system/app-scheduler.service
+[Unit]
+Description=Scheduler
+After=network.target
+
+[Service]
+User=<user>
+WorkingDirectory=<path>/api
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable both with `systemctl enable --now app-horizon app-scheduler`. On each deploy, `horizon:terminate` lets running jobs finish and stops Horizon; systemd starts it again on the new code. A separate queue host must receive the same release and run `php artisan horizon:terminate` itself (the command only signals Horizon on the host it runs on). Run the scheduler on one host only, or keep it on several: every scheduled command is `onOneServer()`.
+
+The Horizon dashboard (`/horizon`) shows every tenant's job payloads. It opens only when `APP_ENV=local`; elsewhere the `viewHorizon` gate refuses everyone until platform administrators exist.
 
 #### Media storage
 
