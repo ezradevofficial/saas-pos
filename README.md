@@ -102,6 +102,17 @@ Run the tests you touched while working. CI runs everything.
 - The Isolation suite seeds two tenants and proves that nothing of tenant B is visible to tenant A. It covers every table, every route, lists and exports.
 - After changing `design/tokens.json` or the tokens build, run `npm run build -w @app/tokens` and commit `packages/tokens/dist`.
 
+## Tenant settings
+
+Each tenant sets its own password minimum (AUTH-02), session idle timeout (AUTH-09) and default language (L10N-01):
+
+| Endpoint | Body | Who |
+| --- | --- | --- |
+| `GET /api/v1/tenant/settings` | | `core.settings.edit` at tenant scope |
+| `PATCH /api/v1/tenant/settings` | `password_min_length` 8 to 64, `session_timeout_minutes` 15 to 480, `default_locale` `en` or `fr` (each optional) | `core.settings.edit` at tenant scope |
+
+Changes are audited as `core.settings.update` with the changed values before and after. In the web app: Settings, Security.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and on every push to `main`. A newer push cancels the run it supersedes. The jobs:
