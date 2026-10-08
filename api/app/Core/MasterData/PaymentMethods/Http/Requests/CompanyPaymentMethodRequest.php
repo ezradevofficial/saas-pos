@@ -10,7 +10,7 @@ abstract class CompanyPaymentMethodRequest extends CompanyResourceRequest
 {
     protected string $resource = 'payment_method';
 
-    protected array $readActions = ['view', 'create', 'edit', 'archive'];
+    protected array $readActions = ['view', 'create', 'edit', 'archive', 'configure'];
 
     protected function targetCompany(): Company
     {

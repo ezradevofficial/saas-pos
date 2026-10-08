@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\PaymentMethods\Http\Requests;
 
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
+
 /**
  * MD-04: rename a payment method, change a cash method's currency, set or
  * clear provider settings and secrets (a null value clears a key), switch
@@ -10,7 +12,14 @@ namespace App\Core\MasterData\PaymentMethods\Http\Requests;
  */
 class UpdatePaymentMethodRequest extends PaymentMethodRequest
 {
+    use GuardsProviderConfig;
+
     protected bool $edits = true;
+
+    protected function configuredMethod(): ?PaymentMethod
+    {
+        return $this->paymentMethod();
+    }
 
     public function rules(): array
     {

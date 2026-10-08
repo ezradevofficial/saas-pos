@@ -273,11 +273,17 @@ class PaymentMethodApiTest extends TestCase
         $this->getJson("/api/v1/payment-methods/{$id}", $manager)->assertOk();
         $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $manager)->assertForbidden();
 
-        // The accountant manages them at the company.
+        // The accountant reads them at the company; the admin manages them.
         $accountant = $this->headersFor($this->userWith('accountant', Scope::company($this->acme->id)));
-        $create($accountant)->assertCreated();
-        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Cash shillings'], $accountant)->assertOk();
-        $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $accountant)->assertOk();
+        $this->getJson("/api/v1/payment-methods/{$id}", $accountant)->assertOk();
+        $create($accountant)->assertForbidden();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Cash shillings'], $accountant)->assertForbidden();
+        $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $accountant)->assertForbidden();
+
+        $admin = $this->headersFor($this->userWith('admin', Scope::company($this->acme->id)));
+        $create($admin)->assertCreated();
+        $this->patchJson("/api/v1/payment-methods/{$id}", ['name_en' => 'Cash shillings'], $admin)->assertOk();
+        $this->postJson("/api/v1/payment-methods/{$id}/archive", [], $admin)->assertOk();
 
         // Each action needs its own permission.
         $creator = $this->headersFor($creator);
@@ -291,5 +297,53 @@ class PaymentMethodApiTest extends TestCase
         $other = $this->otherTenant();
         $this->getJson("/api/v1/payment-methods/{$id}", $this->bearer($this->tokenFor($other['user'])))->assertNotFound();
         $this->getJson("/api/v1/companies/{$this->acme->id}/payment-methods", $this->bearer($this->tokenFor($other['user'])))->assertNotFound();
+    }
+
+    public function test_provider_settings_secrets_and_switching_on_need_configure(): void
+    {
+        // MD-04: provider credentials are a fraud path; only a role with
+        // `core.payment_method.configure` (Owner, Admin) changes them or
+        // switches on a mobile money or card method.
+        $editor = $this->inTenant(function () {
+            $role = $this->role('Method editor', ['core.company.view', 'core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::company($this->acme->id));
+
+            return $user;
+        });
+        $accountant = $this->headersFor($this->userWith('accountant', Scope::company($this->acme->id)));
+        $admin = $this->headersFor($this->userWith('admin', Scope::company($this->acme->id)));
+        $editor = $this->headersFor($editor);
+        $mpesa = $this->idOf('mpesa_ke');
+        $url = "/api/v1/payment-methods/{$mpesa}";
+
+        // The accountant reads, nothing more.
+        $this->patchJson($url, ['secrets' => ['passkey' => 'pk-'.self::SECRET]], $accountant)->assertForbidden();
+        $this->patchJson($url, ['settings' => ['shortcode' => '600000']], $accountant)->assertForbidden();
+        $this->patchJson($url, ['active' => true], $accountant)->assertForbidden();
+
+        // `edit` alone renames, but neither configures nor switches M-Pesa on.
+        $this->patchJson($url, ['name_en' => 'Lipa na M-Pesa'], $editor)->assertOk();
+        $this->patchJson($url, ['secrets' => ['passkey' => 'pk-'.self::SECRET]], $editor)->assertForbidden();
+        $this->patchJson($url, ['settings' => ['shortcode' => '600000']], $editor)->assertForbidden();
+        $this->patchJson($url, ['active' => true], $editor)->assertForbidden();
+        $this->postJson("/api/v1/companies/{$this->acme->id}/payment-methods", [
+            'type' => 'card', 'provider' => 'card_aggregator', 'name_en' => 'Visa', 'name_fr' => 'Visa',
+        ], $editor)->assertForbidden();
+        // Cash and other methods without a provider stay with `edit`.
+        $this->patchJson("/api/v1/payment-methods/{$this->idOf('cash:KES')}", ['active' => false], $editor)->assertOk();
+        $this->patchJson("/api/v1/payment-methods/{$this->idOf('cash:KES')}", ['active' => true], $editor)->assertOk();
+
+        $this->inTenant(function () use ($mpesa) {
+            $method = PaymentMethod::findOrFail($mpesa);
+            $this->assertSame([], $method->settings);
+            $this->assertNull($method->secrets);
+            $this->assertFalse($method->active);
+        });
+
+        // The admin configures and switches it on; the editor may then switch it off.
+        $this->patchJson($url, [...$this->mpesaConfig(), 'active' => true], $admin)->assertOk()->assertJsonPath('data.active', true);
+        $this->patchJson($url, ['active' => false], $editor)->assertOk()->assertJsonPath('data.active', false);
+        $this->patchJson($url, ['active' => true], $editor)->assertForbidden();
     }
 }

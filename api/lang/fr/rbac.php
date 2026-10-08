@@ -46,6 +46,7 @@ return [
             'assign' => 'Attribuer',
             'export' => 'Exporter',
             'override' => 'Remplacer',
+            'configure' => 'Configurer',
         ],
     ],
 
