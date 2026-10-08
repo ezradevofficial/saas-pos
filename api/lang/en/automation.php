@@ -145,7 +145,7 @@ return [
             'private_address' => 'The webhook address points to a private or internal network, which isn’t allowed. Use a public address.',
             'unresolved' => 'The webhook host name can’t be found. Check the address.',
         ],
-        'unreachable' => 'The webhook at :url couldn’t be reached. It will be tried again.',
+        'unreachable' => 'The webhook at :url couldn’t be reached. Check that the receiving system is running.',
         'status' => 'The webhook answered :status.',
     ],
 
@@ -220,7 +220,7 @@ return [
         'no_workflow' => 'The document isn’t in a running workflow, so its stage can’t change.',
         'loop_blocked' => 'Stopped: the rule would start itself again, or more than :max rules triggered one another.',
         'throttled' => 'Held back: too many rules ran in the last minute.',
-        'unexpected' => 'Something went wrong while running the rule. It will be tried again.',
+        'unexpected' => 'Something went wrong while running the rule. If it keeps failing, check its actions or contact support.',
     ],
 
     'templates' => [

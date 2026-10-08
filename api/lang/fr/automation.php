@@ -145,7 +145,7 @@ return [
             'private_address' => 'L’adresse du webhook mène à un réseau privé ou interne, ce qui n’est pas autorisé. Utilisez une adresse publique.',
             'unresolved' => 'Le nom d’hôte du webhook est introuvable. Vérifiez l’adresse.',
         ],
-        'unreachable' => 'Le webhook :url n’a pas pu être joint. Une nouvelle tentative aura lieu.',
+        'unreachable' => 'Le webhook :url n’a pas pu être joint. Vérifiez que le système destinataire fonctionne.',
         'status' => 'Le webhook a répondu :status.',
     ],
 
@@ -220,7 +220,7 @@ return [
         'no_workflow' => 'Le document n’est pas dans un workflow en cours, son étape ne peut donc pas changer.',
         'loop_blocked' => 'Arrêtée : la règle se déclencherait à nouveau elle-même, ou plus de :max règles se sont déclenchées en chaîne.',
         'throttled' => 'Retenue : trop de règles ont été exécutées au cours de la dernière minute.',
-        'unexpected' => 'Un problème est survenu pendant l’exécution de la règle. Une nouvelle tentative aura lieu.',
+        'unexpected' => 'Un problème est survenu pendant l’exécution de la règle. Si cela se reproduit, vérifiez ses actions ou contactez l’assistance.',
     ],
 
     'templates' => [

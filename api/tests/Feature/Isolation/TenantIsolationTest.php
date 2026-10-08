@@ -90,6 +90,8 @@ class TenantIsolationTest extends TestCase
         'workflow_version' => 'workflow_version',
         'document' => 'document', // WF-10: document-workflows/{document_type}/{document}, the test type's document
         'notification' => 'notification', // NOT-01: POST notifications/{notification}/read|archive
+        'automation_rule' => 'automation_rule', // AUTO-01..AUTO-04: automation-rules/{automation_rule}[/enable|disable|archive|test]
+        'automation_run' => 'automation_run', // AUTO-05: automation-runs/{automation_run}
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -129,6 +131,7 @@ class TenantIsolationTest extends TestCase
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
+        'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
         'scope_id' => null,
     ];
 
@@ -195,6 +198,8 @@ class TenantIsolationTest extends TestCase
         ['format' => 'csv', 'status' => 'all', 'sort' => '-created_at', 'columns' => ['name']],
         // NOT-06: the delivery log's channel filter (both tenants sent email).
         ['channel' => 'email', 'status' => 'all'],
+        // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
+        ['outcome' => 'succeeded'],
     ];
 
     /**
@@ -202,10 +207,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'rule' => 'automation_rule'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'outcome', 'rule'];
 
     private TwoTenants $tenants;
 
@@ -519,6 +524,9 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('PATCH api/v1/item-categories/{item_category}', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows', $hijacked);
         $this->assertArrayHasKey('POST api/v1/workflows/{workflow}/copy', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/automation-rules', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/automation-rules/{automation_rule}/test', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/automation-templates/use', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -622,6 +630,9 @@ class TenantIsolationTest extends TestCase
             // NOT-01, NOT-06: the owner's inbox and the delivery log.
             'notifications?status=all' => ['Isolation A from Owner A', 'Note: Stock count A'],
             'notification-deliveries' => ['Owner A', 'Manager A', 'manager-a@example.com'],
+            // AUTO-01, AUTO-05: the rules and the run log.
+            'automation-rules?status=all' => ['Rule A'],
+            'automation-runs' => ['Rule A', 'Done'],
         ];
     }
 
@@ -1013,12 +1024,33 @@ class TenantIsolationTest extends TestCase
             // WF-02: a flow for the sign-up company (TwoTenants made the company's), and a copy of the company's there.
             'POST api/v1/workflows' => ['document_type' => TestRequestType::KEY, 'company_id' => $tenant->id('sign_up_company')],
             'POST api/v1/workflows/{workflow}/copy' => ['company_id' => $tenant->id('sign_up_company'), 'from' => 'published'],
+            // AUTO-01..AUTO-04, AUTO-07: a rule for A's company, the same rule tested unsaved, a test
+            // against A's document, and a template used for A's company.
+            'POST api/v1/automation-rules' => [...self::automationRule(), 'company_id' => $tenant->id('company')],
+            'PATCH api/v1/automation-rules/{automation_rule}' => ['company_id' => $tenant->id('company')],
+            'POST api/v1/automation-rules/test' => [...self::automationRule(), 'company_id' => $tenant->id('company')],
+            'POST api/v1/automation-rules/{automation_rule}/test' => ['document_id' => $tenant->id('document')],
+            'POST api/v1/automation-templates/use' => [
+                'template' => 'core.alert_below_level', 'document_type' => TestRequestType::KEY, 'company_id' => $tenant->id('company'),
+                'params' => ['field' => 'total', 'value' => ['amount_minor' => '100', 'currency' => 'KES']],
+            ],
             // TEN-08: customers move to per company, every shared one to A's company.
             'PUT api/v1/master-data/settings' => [
                 'data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $tenant->id('company'),
             ],
             default => null,
         };
+    }
+
+    /** A valid automation rule body (on the test request type, notifying the Admin role). */
+    private static function automationRule(): array
+    {
+        return [
+            'name' => 'Hijack rule',
+            'document_type' => TestRequestType::KEY,
+            'trigger' => ['type' => 'record_created'],
+            'actions' => [['type' => 'notify', 'to' => ['role:admin'], 'subject' => 'New {note}', 'message' => 'A request was created.']],
+        ];
     }
 
     /**
