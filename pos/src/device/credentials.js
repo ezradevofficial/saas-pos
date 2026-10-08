@@ -10,7 +10,14 @@ import { Platform } from 'react-native';
  * and sessionStorage so Playwright checks can pair. The web build is a
  * preview, never a till.
  */
-const KEYS = { token: 'device.token', secret: 'device.secret', secretKid: 'device.secret_kid' };
+const KEYS = {
+  token: 'device.token',
+  secret: 'device.secret',
+  secretKid: 'device.secret_kid',
+  // A rotated secret the server issued but has not activated yet (DeviceSecrets::rotate).
+  pendingSecret: 'device.pending_secret',
+  pendingKid: 'device.pending_kid',
+};
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
 const memory = new Map();
@@ -72,6 +79,23 @@ export function createCredentials(backend = Platform.OS === 'web' ? webStore : n
       if (token !== undefined) await backend.set(KEYS.token, token);
       if (secret !== undefined) await backend.set(KEYS.secret, secret);
       if (kid !== undefined && kid !== null) await backend.set(KEYS.secretKid, String(kid));
+      cache = null;
+    },
+    async pending() {
+      const [secret, kid] = await Promise.all([backend.get(KEYS.pendingSecret), backend.get(KEYS.pendingKid)]);
+      return secret && kid ? { secret, kid } : null;
+    },
+    async savePending({ secret, kid }) {
+      await backend.set(KEYS.pendingSecret, secret);
+      await backend.set(KEYS.pendingKid, String(kid));
+    },
+    /** The pending secret becomes the current one (after the server activated it). */
+    async promotePending() {
+      const pending = await this.pending();
+      if (!pending) return;
+      await backend.set(KEYS.secret, pending.secret);
+      await backend.set(KEYS.secretKid, pending.kid);
+      await Promise.all([backend.remove(KEYS.pendingSecret), backend.remove(KEYS.pendingKid)]);
       cache = null;
     },
     async clear() {
