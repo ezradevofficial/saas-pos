@@ -53,7 +53,7 @@ class TaxCodeApiTest extends TestCase
         // The unconfirmed standard rate is copied as needed, never filled in.
         $std = $codes['VAT_STD'];
         $this->assertSame(['vat', 'VAT_STD', null, true], [$std['kind'], $std['pack_code'], $std['current_rate']['rate'], $std['rate_needed']]);
-        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true]], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $std['rates']));
+        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'source' => 'pack']], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $std['rates']));
         $this->assertSame(['0.0000', false], [$codes['VAT_ZERO']['current_rate']['rate'], $codes['VAT_ZERO']['rate_needed']]);
         $this->assertSame([[], null, false], [$codes['VAT_EXEMPT']['rates'], $codes['VAT_EXEMPT']['current_rate'], $codes['VAT_EXEMPT']['rate_needed']]);
         $this->assertSame('TVA, taux normal', $std['name_fr']);
@@ -131,8 +131,8 @@ class TaxCodeApiTest extends TestCase
             ['kind' => 'exempt', 'rate' => '5'],
             ['kind' => 'zero_rated', 'rate' => '5', 'effective_from' => '2026-01-01'],
             ['kind' => 'vat', 'rate' => '100.5', 'effective_from' => '2026-01-01'],
-            ['kind' => 'vat', 'rate' => '16.00001', 'effective_from' => '2026-01-01'],
-            ['kind' => 'vat', 'rate' => '16'],
+            ['kind' => 'vat', 'rate' => '12.50001', 'effective_from' => '2026-01-01'],
+            ['kind' => 'vat', 'rate' => '12.5'],
             ['kind' => 'sales_tax', 'effective_from' => '2026-01-01'],
         ] as $invalid) {
             $this->postJson("/api/v1/companies/{$this->acme->id}/tax-codes", ['code' => 'BAD', 'name_en' => 'Bad', 'name_fr' => 'Mauvais', ...$invalid], $this->headersFor())
@@ -176,6 +176,38 @@ class TaxCodeApiTest extends TestCase
             $close = AuditEntry::where('action', 'core.tax_rate.update')->where('after->effective_to', '!=', null)->get();
             $this->assertCount(1, $close);
         });
+    }
+
+    public function test_a_period_still_awaiting_confirmation_is_confirmed_on_its_own_start_date(): void
+    {
+        $this->applyPack();
+        $std = $this->codeId('VAT_STD');
+
+        // A figure was entered but is still marked for confirmation (as a pack may ship it).
+        $this->inTenant(fn () => TaxRate::where('tax_code_id', $std)->sole()->fill(['rate' => '10', 'needs_confirmation' => true])->save());
+        $this->getJson("/api/v1/tax-codes/{$std}", $this->headersFor())->assertJsonPath('data.rate_needed', true);
+
+        $rates = $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2026-01-01'], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.rate_needed', false)->json('data.rates');
+        $this->assertSame([['12.5000', '2026-01-01', null, false, 'tenant']], array_map(fn ($r) => [$r['rate'], $r['effective_from'], $r['effective_to'], $r['needs_confirmation'], $r['source']], $rates));
+
+        // Once confirmed, the same date is history: refused.
+        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '10', 'effective_from' => '2026-01-01'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'tax_rate_overlap');
+    }
+
+    public function test_an_archived_code_takes_no_new_rate(): void
+    {
+        $this->applyPack();
+        $std = $this->codeId('VAT_STD');
+        $this->postJson("/api/v1/tax-codes/{$std}/archive", [], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2027-01-01'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'tax_code_archived');
+        $this->inTenant(fn () => $this->assertSame(1, TaxRate::where('tax_code_id', $std)->count()));
+
+        $this->postJson("/api/v1/tax-codes/{$std}/restore", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2027-01-01'], $this->headersFor())->assertCreated();
     }
 
     public function test_archive_and_restore(): void

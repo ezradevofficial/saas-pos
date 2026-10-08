@@ -62,6 +62,41 @@ class PriceListApiTest extends TestCase
         });
     }
 
+    public function test_an_archived_list_cannot_be_made_the_default(): void
+    {
+        $id = $this->create(['name' => 'Old', 'currency' => 'KES'])->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/price-lists/{$id}/archive", [], $this->headersFor())->assertOk();
+
+        $this->patchJson("/api/v1/price-lists/{$id}", ['is_default' => true], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('is_default');
+        $this->inTenant(fn () => $this->assertFalse(PriceList::findOrFail($id)->is_default));
+
+        // Other changes to an archived list are still allowed.
+        $this->patchJson("/api/v1/price-lists/{$id}", ['name' => 'Older', 'is_default' => false], $this->headersFor())->assertOk();
+    }
+
+    public function test_restoring_a_former_default_keeps_the_current_default(): void
+    {
+        $old = $this->create(['name' => 'Old', 'currency' => 'KES', 'is_default' => true])->assertCreated()->json('data.id');
+
+        // An archived list still flagged as default (e.g. from before archiving cleared the flag).
+        $this->inTenant(function () use ($old) {
+            $list = PriceList::findOrFail($old);
+            $list->archive();
+            $this->assertTrue($list->fresh()->is_default);
+        });
+        $this->create(['name' => 'New', 'currency' => 'KES', 'is_default' => true])->assertCreated();
+
+        $this->postJson("/api/v1/price-lists/{$old}/restore", [], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.archived_at', null)->assertJsonPath('data.is_default', false);
+        $this->assertSame(['KES' => 'New'], $this->defaults());
+
+        // With no other default, a former default comes back as the default.
+        $lone = $this->create(['name' => 'Dollar', 'currency' => 'USD', 'is_default' => true])->json('data.id');
+        $this->inTenant(fn () => PriceList::findOrFail($lone)->archive());
+        $this->postJson("/api/v1/price-lists/{$lone}/restore", [], $this->headersFor())->assertOk()->assertJsonPath('data.is_default', true);
+    }
+
     public function test_the_database_refuses_a_second_active_default(): void
     {
         $this->create(['name' => 'A', 'currency' => 'KES', 'is_default' => true])->assertCreated();

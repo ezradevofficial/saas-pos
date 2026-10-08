@@ -11,9 +11,12 @@ use InvalidArgumentException;
 /**
  * A country pack data file (`country-packs/{CODE}/pack.json`, CP-01):
  * tax code structure with effective-dated rates. Validated before it is
- * published. A rate is a percentage given as a string or number, or null
- * when no figure is confirmed; a null rate must say `needs_confirmation`
- * (exempt codes have no rate; zero-rated codes are 0 by definition).
+ * published. A rate is a percentage given as a string ("12.5") or an
+ * integer, never a JSON float (floats lose precision), or null when no
+ * figure is confirmed; a null rate must say `needs_confirmation` (exempt
+ * codes have no rate; zero-rated codes are 0 by definition). A code's
+ * periods never overlap, at most one is open-ended, and all have the same
+ * kind.
  */
 final class PackFile
 {
@@ -81,8 +84,8 @@ final class PackFile
             }
 
             if ($rate !== null) {
-                if (! (is_int($rate) || is_float($rate) || is_string($rate)) || preg_match('/^\d{1,3}(\.\d{1,4})?\z/', (string) $rate) !== 1 || BigDecimal::of((string) $rate)->isGreaterThan(100)) {
-                    throw new InvalidArgumentException("{$where}: rate must be a percentage between 0 and 100 with at most 4 decimals, or null.");
+                if (! (is_int($rate) || is_string($rate)) || preg_match('/^\d{1,3}(\.\d{1,4})?\z/', (string) $rate) !== 1 || BigDecimal::of((string) $rate)->isGreaterThan(100)) {
+                    throw new InvalidArgumentException("{$where}: rate must be a percentage between 0 and 100 with at most 4 decimals, as a string or an integer (never a JSON float), or null.");
                 }
 
                 $data['tax_codes'][$index]['rate'] = TaxCode::normaliseRate((string) $rate);
@@ -105,7 +108,44 @@ final class PackFile
             $seen[$key] = true;
         }
 
+        self::checkPeriods($data['tax_codes']);
+
         return new self($data);
+    }
+
+    /**
+     * Each code's periods: same kind, no overlap (dates inclusive), at most
+     * one open-ended (which is then the latest).
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private static function checkPeriods(array $rows): void
+    {
+        $byCode = [];
+
+        foreach ($rows as $row) {
+            $byCode[$row['code']][] = $row;
+        }
+
+        foreach ($byCode as $code => $periods) {
+            if (count(array_unique(array_column($periods, 'kind'))) > 1) {
+                throw new InvalidArgumentException("{$code}: every period of a code has the same kind.");
+            }
+
+            if (count(array_filter($periods, fn (array $row) => $row['effective_to'] === null)) > 1) {
+                throw new InvalidArgumentException("{$code}: at most one period is open-ended.");
+            }
+
+            usort($periods, fn (array $a, array $b) => strcmp($a['effective_from'], $b['effective_from']));
+
+            for ($i = 1; $i < count($periods); $i++) {
+                $previous = $periods[$i - 1];
+
+                if ($previous['effective_to'] === null || $previous['effective_to'] >= $periods[$i]['effective_from']) {
+                    throw new InvalidArgumentException("{$code}: the period from {$previous['effective_from']} overlaps the period from {$periods[$i]['effective_from']}.");
+                }
+            }
+        }
     }
 
     public function code(): string

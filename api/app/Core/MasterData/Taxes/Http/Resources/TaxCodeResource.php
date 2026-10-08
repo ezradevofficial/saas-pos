@@ -19,8 +19,8 @@ class TaxCodeResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $today = CarbonImmutable::now($this->company?->timezone ?: 'UTC');
-        $current = $this->isExempt() ? null : $this->rateOn($today);
+        // rateOn resolves today in the company's time zone.
+        $current = $this->isExempt() ? null : $this->rateOn(CarbonImmutable::now());
 
         return [
             'id' => $this->id,

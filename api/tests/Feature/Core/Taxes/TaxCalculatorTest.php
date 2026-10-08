@@ -3,17 +3,21 @@
 namespace Tests\Feature\Core\Taxes;
 
 use App\Core\Currency\Money;
+use App\Core\Http\ApiException;
 use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\MasterData\Taxes\TaxRateMissing;
+use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 // MD-03, CP-02: tax on a line, exclusive and inclusive, half-up per line,
-// codes add (never compound), effective-dated rates, missing rates refused.
-// The percentages here are test inputs, not real-world rates.
+// codes add (never compound), effective-dated rates in the company's time
+// zone, missing rates and archived codes refused, withholding left out by
+// default. The percentages here are synthetic test inputs (12.5, 10, 5,
+// 2.5), never real-world rates.
 class TaxCalculatorTest extends TestCase
 {
     private TaxCalculator $calculator;
@@ -65,30 +69,32 @@ class TaxCalculatorTest extends TestCase
 
     public function test_exclusive_tax_is_added_to_the_net(): void
     {
-        $this->assertSame(['100000', ['16000'], '116000'], $this->line(Money::ofMinor(100000, 'KES'), [$this->vat('16')], false));
+        $this->assertSame(['100000', ['12500'], '112500'], $this->line(Money::ofMinor(100000, 'KES'), [$this->vat('12.5')], false));
     }
 
     public function test_inclusive_tax_is_backed_out_of_the_gross(): void
     {
-        $this->assertSame(['100000', ['16000'], '116000'], $this->line(Money::ofMinor(116000, 'KES'), [$this->vat('16')], true));
-        // 99999 × 16 / 116 = 13792.97 → 13793
-        $this->assertSame(['86206', ['13793'], '99999'], $this->line(Money::ofMinor(99999, 'KES'), [$this->vat('16')], true));
+        $this->assertSame(['100000', ['12500'], '112500'], $this->line(Money::ofMinor(112500, 'KES'), [$this->vat('12.5')], true));
+        // 100000 × 12.5 / 112.5 = 11111.11 → 11111
+        $this->assertSame(['88889', ['11111'], '100000'], $this->line(Money::ofMinor(100000, 'KES'), [$this->vat('12.5')], true));
     }
 
     public function test_cdf_has_no_decimals_and_rounds_half_up_per_line(): void
     {
         // CDF minor unit is the franc (0 decimals).
-        $this->assertSame(['862', ['138'], '1000'], $this->line(Money::ofMinor(1000, 'CDF'), [$this->vat('16')], true));
-        $this->assertSame(['1003', ['160'], '1163'], $this->line(Money::ofMinor(1003, 'CDF'), [$this->vat('16')], false));
-        $this->assertSame(['1004', ['161'], '1165'], $this->line(Money::ofMinor(1004, 'CDF'), [$this->vat('16')], false));
+        // 1000 × 12.5 / 112.5 = 111.11 → 111
+        $this->assertSame(['889', ['111'], '1000'], $this->line(Money::ofMinor(1000, 'CDF'), [$this->vat('12.5')], true));
+        // 1003 × 12.5 % = 125.375 → 125; 1004 × 12.5 % = 125.5 → 126 (half up).
+        $this->assertSame(['1003', ['125'], '1128'], $this->line(Money::ofMinor(1003, 'CDF'), [$this->vat('12.5')], false));
+        $this->assertSame(['1004', ['126'], '1130'], $this->line(Money::ofMinor(1004, 'CDF'), [$this->vat('12.5')], false));
         // Exactly half: 100 × 2.5 % = 2.5 → 3.
         $this->assertSame(['100', ['3'], '103'], $this->line(Money::ofMinor(100, 'CDF'), [$this->vat('2.5')], false));
     }
 
     public function test_a_refund_line_rounds_symmetrically(): void
     {
-        $this->assertSame(['-1004', ['-161'], '-1165'], $this->line(Money::ofMinor(-1004, 'CDF'), [$this->vat('16')], false));
-        $this->assertSame(['-862', ['-138'], '-1000'], $this->line(Money::ofMinor(-1000, 'CDF'), [$this->vat('16')], true));
+        $this->assertSame(['-1004', ['-126'], '-1130'], $this->line(Money::ofMinor(-1004, 'CDF'), [$this->vat('12.5')], false));
+        $this->assertSame(['-889', ['-111'], '-1000'], $this->line(Money::ofMinor(-1000, 'CDF'), [$this->vat('12.5')], true));
     }
 
     public function test_several_codes_add_and_never_compound(): void
@@ -115,15 +121,15 @@ class TaxCalculatorTest extends TestCase
         $this->assertSame(['0', '0'], [$result->tax[0]->amount->minor(), $result->tax[1]->amount->minor()]);
 
         // Next to a taxed code, the exempt one takes no share.
-        $this->assertSame(['1000', ['0', '160'], '1160'], $this->line(Money::ofMinor(1160, 'KES'), [$exempt, $this->vat('16')], true));
+        $this->assertSame(['1000', ['0', '125'], '1125'], $this->line(Money::ofMinor(1125, 'KES'), [$exempt, $this->vat('12.5')], true));
     }
 
     public function test_the_rate_in_force_on_the_date_applies(): void
     {
-        $code = $this->code('VAT', 'vat', [['14', '2026-01-01', '2026-06-30'], ['16', '2026-07-01']]);
+        $code = $this->code('VAT', 'vat', [['10', '2026-01-01', '2026-06-30'], ['12.5', '2026-07-01']]);
 
-        $this->assertSame(['1000', ['140'], '1140'], $this->line(Money::ofMinor(1000, 'KES'), [$code], false, '2026-06-30'));
-        $this->assertSame(['1000', ['160'], '1160'], $this->line(Money::ofMinor(1000, 'KES'), [$code], false, '2026-07-01'));
+        $this->assertSame(['1000', ['100'], '1100'], $this->line(Money::ofMinor(1000, 'KES'), [$code], false, '2026-06-30'));
+        $this->assertSame(['1000', ['125'], '1125'], $this->line(Money::ofMinor(1000, 'KES'), [$code], false, '2026-07-01'));
     }
 
     public function test_a_missing_rate_is_refused_and_names_the_code(): void
@@ -131,7 +137,7 @@ class TaxCalculatorTest extends TestCase
         $needed = $this->code('VAT_STD', 'vat', [[null, '2026-01-01']]);
 
         try {
-            $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$this->vat('16'), $needed], false, $this->on());
+            $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$this->vat('12.5'), $needed], false, $this->on());
             $this->fail('A null rate was used');
         } catch (TaxRateMissing $e) {
             $this->assertSame(422, $e->getStatusCode());
@@ -142,7 +148,7 @@ class TaxCalculatorTest extends TestCase
 
         // No rate on the date (before the first one) is missing too.
         $this->expectException(TaxRateMissing::class);
-        $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$this->vat('16')], false, $this->on('2025-12-31'));
+        $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$this->vat('12.5')], false, $this->on('2025-12-31'));
     }
 
     public function test_a_rate_still_marked_for_confirmation_is_refused(): void
@@ -150,7 +156,58 @@ class TaxCalculatorTest extends TestCase
         $unconfirmed = $this->code('WHT', 'withholding', [['2', '2026-01-01', null, true]]);
 
         $this->expectException(TaxRateMissing::class);
-        $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$unconfirmed], false, $this->on());
+        $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$unconfirmed], false, $this->on(), includeWithholding: true);
+    }
+
+    public function test_the_date_is_the_company_local_date_of_the_instant(): void
+    {
+        $code = $this->code('VAT', 'vat', [['10', '2026-01-01', '2026-06-30'], ['12.5', '2026-07-01']]);
+        $code->setRelation('company', (new Company)->forceFill(['timezone' => 'Africa/Nairobi']));
+
+        // 21:30 UTC on 30 June is 00:30 on 1 July in Nairobi (UTC+3): the new day's rate.
+        $result = $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$code], false, CarbonImmutable::parse('2026-06-30T21:30:00Z'));
+        $this->assertSame('125', $result->tax[0]->amount->minor());
+
+        // One second before local midnight: still the old rate.
+        $result = $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$code], false, CarbonImmutable::parse('2026-06-30T20:59:59Z'));
+        $this->assertSame('100', $result->tax[0]->amount->minor());
+        $this->assertSame('2026-07-01', $code->localDate(CarbonImmutable::parse('2026-06-30T21:30:00Z')));
+
+        // Without a company time zone the instant's UTC date applies.
+        $utc = $this->code('VAT', 'vat', [['10', '2026-01-01', '2026-06-30'], ['12.5', '2026-07-01']]);
+        $this->assertSame('100', $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$utc], false, CarbonImmutable::parse('2026-06-30T21:30:00Z'))->tax[0]->amount->minor());
+    }
+
+    public function test_withholding_codes_are_left_out_unless_asked_for(): void
+    {
+        $wht = $this->code('WHT', 'withholding', [['2', '2026-01-01']]);
+        $codes = [$this->vat('10'), $wht];
+
+        // Default: withholding is not charged on a sale line.
+        $this->assertSame(['1000', ['100'], '1100'], $this->line(Money::ofMinor(1000, 'KES'), $codes, false));
+
+        // Even a withholding code with no confirmed rate does not block the line.
+        $needed = $this->code('WHT', 'withholding', [[null, '2026-01-01']]);
+        $this->assertSame(['1000', ['100'], '1100'], $this->line(Money::ofMinor(1000, 'KES'), [$this->vat('10'), $needed], false));
+
+        $result = $this->calculator->forLine(Money::ofMinor(1000, 'KES'), $codes, false, $this->on(), includeWithholding: true);
+        $this->assertSame([['VAT', '100'], ['WHT', '20']], array_map(fn ($t) => [$t->code, $t->amount->minor()], $result->tax));
+        $this->assertSame('1120', $result->gross->minor());
+    }
+
+    public function test_an_archived_code_is_refused(): void
+    {
+        $code = $this->vat('10');
+        $code->archived_at = now();
+
+        try {
+            $this->calculator->forLine(Money::ofMinor(1000, 'KES'), [$code], false, $this->on());
+            $this->fail('An archived code was used');
+        } catch (ApiException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('tax_code_archived', $e->errorCode);
+            $this->assertSame('VAT', $e->extra['tax_code']);
+        }
     }
 
     public function test_no_codes_means_no_tax(): void

@@ -45,11 +45,14 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->foreignUuid('tax_code_id')->constrained()->restrictOnDelete();
-            // Percent (16.0000 = 16 %). NULL: rate needed (never invented).
+            // Percent (12.5000 = 12.5 %). NULL: rate needed (never invented).
             $table->decimal('rate', 9, 4)->nullable();
             $table->date('effective_from');
             $table->date('effective_to')->nullable();
             $table->boolean('needs_confirmation')->default(false);
+            // CP-02, CP-03: 'pack' rows were copied from the country pack and
+            // follow its new versions; 'tenant' rows were entered by the tenant.
+            $table->string('source', 10)->default('tenant');
             $table->timestampsTz();
 
             $table->unique(['tax_code_id', 'effective_from']);
@@ -57,6 +60,7 @@ return new class extends Migration
 
         DB::statement('alter table tax_rates add constraint tax_rates_rate_check check (rate is null or (rate >= 0 and rate <= 100))');
         DB::statement('alter table tax_rates add constraint tax_rates_unconfirmed_check check (rate is not null or needs_confirmation)');
+        DB::statement("alter table tax_rates add constraint tax_rates_source_check check (source in ('pack', 'tenant'))");
         DB::statement('alter table tax_rates add constraint tax_rates_dates_check check (effective_to is null or effective_to >= effective_from)');
 
         Rls::enable('tax_rates');

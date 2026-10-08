@@ -2,7 +2,7 @@
     "code": "KE",
     "name_en": "Kenya",
     "name_fr": "Kenya",
-    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (16 = 16 %).",
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %).",
     "sources": [],
     "todo": [
         "VAT_STD: the standard VAT rate, with its legal reference and effective date (KRA / VAT Act).",

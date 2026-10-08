@@ -73,6 +73,7 @@ class TaxCodeController
                         'rate' => $rate === null ? null : TaxCode::normaliseRate($rate),
                         'effective_from' => $data['effective_from'],
                         'needs_confirmation' => $rate === null,
+                        'source' => TaxRate::SOURCE_TENANT,
                     ]);
                 }
 

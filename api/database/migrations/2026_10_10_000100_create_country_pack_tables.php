@@ -38,7 +38,7 @@ return new class extends Migration
             $table->string('name_en');
             $table->string('name_fr');
             $table->string('kind', 20);
-            // Percent (16.0000 = 16 %). NULL: no confirmed figure.
+            // Percent (12.5000 = 12.5 %). NULL: no confirmed figure.
             $table->decimal('rate', 9, 4)->nullable();
             $table->boolean('needs_confirmation');
             $table->date('effective_from');

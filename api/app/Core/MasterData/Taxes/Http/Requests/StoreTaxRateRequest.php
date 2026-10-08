@@ -7,7 +7,7 @@ use Illuminate\Validation\Validator;
 
 /**
  * CP-02: a new rate of a tax code from `effective_from`, a percentage
- * (16 = 16 %). It closes the previous rate the day before.
+ * (12.5 = 12.5 %). It closes the previous rate the day before.
  */
 class StoreTaxRateRequest extends TaxCodeRequest
 {

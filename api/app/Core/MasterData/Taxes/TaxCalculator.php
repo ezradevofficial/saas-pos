@@ -3,15 +3,17 @@
 namespace App\Core\MasterData\Taxes;
 
 use App\Core\Currency\Money;
+use App\Core\Http\ApiException;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use InvalidArgumentException;
 
 /**
  * Tax on one line (MD-03), in minor units, rounded half-up once per line
- * (ADR 003). Rates are percentages, effective on $date (the document's
- * local date, CP-02). Several codes on a line add up; they never compound.
+ * (ADR 003). Rates are percentages, effective on the date of the instant
+ * $at in each code's company time zone (CP-02). Several codes on a line add
+ * up; they never compound.
  *
  * Exclusive (price list without tax): each code's tax = net × r / 100;
  * gross = net + Σ tax.
@@ -21,7 +23,13 @@ use InvalidArgumentException;
  * net = gross − tax.
  *
  * Exempt codes add no tax (and carry no rate). A code without a confirmed
- * rate on $date throws TaxRateMissing (422 `tax_rate_missing`).
+ * rate on that date throws TaxRateMissing (422 `tax_rate_missing`); an
+ * archived code is refused (422 `tax_code_archived`).
+ *
+ * Withholding codes are left out (no amount in the result) unless
+ * $includeWithholding is true: withholding is withheld by the buyer when
+ * paying, not charged on a sale line (ADR 007). Callers that do account
+ * for it (purchase invoices, payments) pass true.
  */
 class TaxCalculator
 {
@@ -29,7 +37,7 @@ class TaxCalculator
     private const RATIO_SCALE = 4;
 
     /** @param list<TaxCode> $codes */
-    public function forLine(Money $amount, array $codes, bool $inclusive, CarbonImmutable $date): TaxLineResult
+    public function forLine(Money $amount, array $codes, bool $inclusive, CarbonInterface $at, bool $includeWithholding = false): TaxLineResult
     {
         $applied = [];
 
@@ -38,16 +46,24 @@ class TaxCalculator
                 throw new InvalidArgumentException('Tax codes must be TaxCode models.');
             }
 
+            if ($code->isArchived()) {
+                throw new ApiException(422, 'tax_code_archived', __('core.tax.code_archived', ['code' => $code->code]), extra: ['tax_code' => $code->code]);
+            }
+
+            if ($code->kind === 'withholding' && ! $includeWithholding) {
+                continue;
+            }
+
             if ($code->isExempt()) {
                 $applied[] = [$code, null];
 
                 continue;
             }
 
-            $rate = $code->rateOn($date);
+            $rate = $code->rateOn($at);
 
             if ($rate === null || $rate->isNeeded()) {
-                throw TaxRateMissing::for($code, $date->toDateString());
+                throw TaxRateMissing::for($code, $code->localDate($at));
             }
 
             $applied[] = [$code, BigDecimal::of($rate->rate)];

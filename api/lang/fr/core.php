@@ -90,6 +90,7 @@ return [
 
     // MD-03, CP-01, CP-02 : codes de taxe, taux, catégories.
     'tax' => [
+        'code_archived' => 'Le code de taxe :code est archivé. Restaurez-le avant de l’utiliser ou d’y ajouter un taux.',
         'rate_missing' => 'Le code de taxe :code n’a pas de taux confirmé au :date. Saisissez son taux avant de l’utiliser.',
         'rate_overlap' => 'Un taux commence déjà à cette date ou après (dernier début : :date). Choisissez une date postérieure au :date.',
         'exempt_has_no_rate' => 'Un code de taxe exonéré n’a pas de taux.',
@@ -116,6 +117,7 @@ return [
 
     // MD-03 : listes de prix.
     'price_list' => [
+        'archived_default' => 'Une liste de prix archivée ne peut pas être la liste par défaut. Restaurez-la d’abord.',
         'attributes' => [
             'name' => 'nom',
             'currency' => 'devise',

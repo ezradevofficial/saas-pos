@@ -5,8 +5,10 @@ namespace Tests\Feature\Core\CountryPacks;
 use App\Core\CountryPacks\Models\CountryPack;
 use App\Core\CountryPacks\Models\PackTaxCode;
 use App\Core\Rbac\Console\SyncPermissions;
+use Database\Seeders\CountryPackCatalogueSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -144,9 +146,22 @@ class PublishCountryPackTest extends TestCase
             'exempt with a rate' => [['kind' => 'exempt', 'rate' => '5'] + $row],
             'zero-rated not zero' => [['kind' => 'zero_rated', 'rate' => '1', 'needs_confirmation' => false] + $row],
             'rate above 100' => [['rate' => '101', 'needs_confirmation' => false] + $row],
-            'float-like rate' => [['rate' => '16.00001', 'needs_confirmation' => false] + $row],
+            'float-like rate' => [['rate' => '12.50001', 'needs_confirmation' => false] + $row],
             'unknown kind' => [['kind' => 'sales_tax', 'needs_confirmation' => true] + $row],
             'ends before it starts' => [['needs_confirmation' => true, 'effective_to' => '2025-01-01'] + $row],
+            'rate as a JSON float' => [['rate' => 12.5, 'needs_confirmation' => false] + $row],
+            'overlapping periods' => [
+                ['rate' => '10', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
+                ['rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-06-30'] + $row,
+            ],
+            'two open-ended periods' => [
+                ['rate' => '10', 'needs_confirmation' => false] + $row,
+                ['rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
+            ],
+            'kind changes between periods' => [
+                ['rate' => '10', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
+                ['kind' => 'excise', 'rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
+            ],
         ] as $case => $codes) {
             $this->assertSame(1, $this->publish($this->pack(taxCodes: $codes)), $case);
         }
@@ -156,12 +171,36 @@ class PublishCountryPackTest extends TestCase
         $this->assertSame(0, CountryPack::where('code', self::CODE)->count());
     }
 
+    public function test_rates_as_strings_or_integers_and_consecutive_periods_are_accepted(): void
+    {
+        $row = ['code' => 'VAT_STD', 'name_en' => 'VAT', 'name_fr' => 'TVA', 'kind' => 'vat', 'needs_confirmation' => false, 'effective_to' => null, 'fiscal_code' => null];
+
+        $this->assertSame(0, $this->publish($this->pack(taxCodes: [
+            ['rate' => 10, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30'] + $row,
+            ['rate' => '12.5', 'effective_from' => '2026-07-01'] + $row,
+        ])));
+        $this->assertSame(['10.0000', '12.5000'], CountryPack::latest(self::CODE)->taxCodes()->orderBy('effective_from')->pluck('rate')->all());
+    }
+
+    public function test_the_seeder_fails_when_a_pack_does_not_publish(): void
+    {
+        $seeder = new class extends CountryPackCatalogueSeeder
+        {
+            // No file exists for this pack: the command exits non-zero.
+            public const PACKS = ['ZZ'];
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Publishing the ZZ country pack failed');
+        $seeder->run();
+    }
+
     public function test_the_runtime_role_cannot_write_the_pack_tables(): void
     {
         $pack = CountryPack::latest('KE');
 
         foreach ([
-            fn () => DB::update("update country_pack_tax_codes set rate = 16 where code = 'VAT_STD'"),
+            fn () => DB::update("update country_pack_tax_codes set rate = 12.5 where code = 'VAT_STD'"),
             fn () => DB::update('update country_packs set version = 9'),
             fn () => DB::delete('delete from country_pack_tax_codes'),
             fn () => DB::delete('delete from country_packs'),

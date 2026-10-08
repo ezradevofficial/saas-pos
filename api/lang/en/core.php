@@ -90,6 +90,7 @@ return [
 
     // MD-03, CP-01, CP-02: tax codes, rates, categories.
     'tax' => [
+        'code_archived' => 'The tax code :code is archived. Restore it before using it or adding a rate.',
         'rate_missing' => 'The tax code :code has no confirmed rate on :date. Enter its rate before using it.',
         'rate_overlap' => 'A rate already starts on or after this date (latest start :date). Choose a date after :date.',
         'exempt_has_no_rate' => 'An exempt tax code has no rate.',
@@ -116,6 +117,7 @@ return [
 
     // MD-03: price lists.
     'price_list' => [
+        'archived_default' => 'An archived price list can’t be the default. Restore it first.',
         'attributes' => [
             'name' => 'name',
             'currency' => 'currency',
