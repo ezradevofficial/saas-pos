@@ -5,10 +5,12 @@ namespace App\Core\MasterData\Parties\Http\Requests;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\Money;
 use App\Core\Currency\Rules\MoneyAmount;
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Support\PhoneNumber;
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Parties\Party;
+use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\MasterData\Parties\PartyRoles;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\PriceList;
@@ -22,6 +24,8 @@ use Illuminate\Validation\Validator;
  *
  * - `company_id` follows the sharing mode of the party's roles (TEN-08):
  *   required when any of them is per company, refused when all are shared.
+ *   A role change that would set or clear it needs `company_id` in the
+ *   request (null to share), else 422 `company_change_needs_confirmation`.
  * - Phones become E.164 (country of the party's company, else of the
  *   tenant's first company); emails lower case; tags lower case, once each;
  *   tax IDs upper case without spaces.
@@ -88,6 +92,15 @@ final class PartyRules
             return;
         }
 
+        // A role change that would share the party or tie it to a company
+        // is explicit: the request names company_id (null to share).
+        if ($party !== null && array_key_exists('roles', $input) && ! array_key_exists('company_id', $input)
+            && PartyRoles::perCompany($input['roles'], app(MasterDataSharing::class)) !== ($party->company_id !== null)) {
+            throw new ApiException(422, 'company_change_needs_confirmation', __('core.party.company_change_needs_confirmation'), [
+                'company_id' => [__('core.party.company_change_needs_confirmation')],
+            ]);
+        }
+
         $companyId = self::companyId($input, $party);
 
         if ($companyId === false) {
@@ -104,7 +117,7 @@ final class PartyRules
 
         $reach = app(CompanyReach::class);
 
-        if ($party !== null && $companyId !== null && $companyId !== $party->company_id && ! $reach->reachesRecord($user, $companyId, [$permission])) {
+        if ($party !== null && $companyId !== null && $companyId !== $party->company_id && ! app(PartyPolicy::class)->editIn($user, $companyId)) {
             $validator->errors()->add('company_id', __('core.party.company_not_reached'));
         }
 

@@ -3,18 +3,58 @@
 namespace App\Core\MasterData\Parties\Http\Resources;
 
 use App\Core\MasterData\Parties\Party;
+use App\Core\Rbac\FieldRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A party (MD-01). `credit_limit` is {amount_minor, currency} with the
- * amount as a string (ADR 003), or null.
+ * amount as a string (ADR 003), or null. Fields hidden from the user by
+ * field rules on `party` (RBAC-05) are left out, as in its history.
  *
  * @mixin Party
  */
 class PartyResource extends JsonResource
 {
+    /** RBAC-05: the field rules resource; fields are named as the model's columns. */
+    public const FIELD_RULES = 'party';
+
+    /** Output keys built from several columns: hidden when any of them is. */
+    private const SOURCES = ['credit_limit' => ['credit_limit_minor', 'credit_limit_currency']];
+
     public function toArray(Request $request): array
+    {
+        $hidden = $this->hiddenFields($request);
+
+        return array_filter($this->fields(), fn (string $key) => ! in_array($key, $hidden, true)
+            && array_intersect(self::SOURCES[$key] ?? [], $hidden) === [], ARRAY_FILTER_USE_KEY);
+    }
+
+    /**
+     * The fields hidden from the requesting user, read once per request
+     * (lists render many parties).
+     *
+     * @return list<string>
+     */
+    private function hiddenFields(Request $request): array
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return [];
+        }
+
+        $key = 'field_rules.'.self::FIELD_RULES;
+
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(FieldRules::class)->for($user, self::FIELD_RULES)['hidden']);
+        }
+
+        return $request->attributes->get($key);
+    }
+
+    /** @return array<string, mixed> */
+    private function fields(): array
     {
         return [
             'id' => $this->id,

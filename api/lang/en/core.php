@@ -146,6 +146,7 @@ return [
         'company_required' => 'This data is kept per company. Choose the company this record belongs to.',
         'company_not_allowed' => 'This data is shared across the group, so the record can’t belong to one company. Remove the company.',
         'company_not_reached' => 'You can’t move records to this company. Choose a company you work in.',
+        'company_change_needs_confirmation' => 'This role change would move the record between shared and one company. Send the company, or none to share it, to confirm.',
         'price_list_other_company' => 'Choose an active price list of this record’s company.',
         'phone_invalid' => 'Enter the phone number with its country code, for example +254712345678.',
         'tag_invalid' => 'Tags use letters, numbers, spaces, hyphens and underscores, up to 40 characters.',

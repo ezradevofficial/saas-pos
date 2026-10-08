@@ -3,8 +3,10 @@
 namespace Tests\Feature\Core\MasterData;
 
 use App\Core\Audit\Auditor;
+use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\Taxes\ApplyCountryPack;
 use App\Core\MasterData\Taxes\TaxCode;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Company;
 use Tests\Concerns\BuildsOrganisation;
@@ -73,6 +75,43 @@ class RecordHistoryTest extends TestCase
         $actions = array_column($this->getJson("/api/v1/history/user/{$this->owner->id}", $this->headersFor())->assertOk()->json('data'), 'action');
         $this->assertNotEmpty($actions);
         $this->assertEmpty(array_filter($actions, fn ($a) => str_starts_with($a, 'auth.')));
+    }
+
+    public function test_fields_hidden_by_field_rules_are_left_out_of_history_and_the_party(): void
+    {
+        // RBAC-05: a role that may not see credit limits. Built before any request.
+        $clerk = $this->inTenant(function () {
+            app(TenantCurrencies::class)->activate('KES');
+            $role = $this->role('Party clerk', ['core.party.view', 'core.party.edit']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'credit_limit_minor', 'mode' => FieldRule::HIDDEN]);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::tenant());
+
+            return $user;
+        });
+
+        $id = $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Baraka', 'roles' => ['customer'], 'credit_limit' => '100', 'credit_limit_currency' => 'KES'], $this->headersFor())->json('data.id');
+        $this->patchJson("/api/v1/parties/{$id}", ['credit_limit' => '200', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/parties/{$id}", ['name' => 'Baraka Mwangi'], $this->headersFor())->assertOk();
+
+        // The owner sees all three entries, with the limit.
+        $owner = $this->getJson("/api/v1/history/party/{$id}", $this->headersFor())->assertOk();
+        $this->assertSame(['core.party.update', 'core.party.update', 'core.party.create'], array_column($owner->json('data'), 'action'));
+        $this->assertSame(['credit_limit_minor' => 10000], $owner->json('data.1.before'));
+
+        // The clerk: the limit-only change is gone, and no entry shows the limit.
+        $clerkHeaders = $this->headersFor($clerk);
+        $history = $this->getJson("/api/v1/history/party/{$id}", $clerkHeaders)->assertOk()->assertJsonPath('meta.total', 2);
+        $this->assertSame(['core.party.update', 'core.party.create'], array_column($history->json('data'), 'action'));
+        $this->assertArrayNotHasKey('credit_limit_minor', $history->json('data.1.after'));
+        $this->assertSame('KES', $history->json('data.1.after.credit_limit_currency'));
+        $this->assertStringNotContainsString('credit_limit_minor', $history->getContent());
+
+        // Detail and list agree with the history.
+        $this->assertArrayNotHasKey('credit_limit', $this->getJson("/api/v1/parties/{$id}", $clerkHeaders)->assertOk()->json('data'));
+        $this->assertArrayNotHasKey('credit_limit', $this->getJson('/api/v1/parties', $clerkHeaders)->assertOk()->json('data.0'));
+        $this->assertArrayNotHasKey('credit_limit', $this->patchJson("/api/v1/parties/{$id}", ['name' => 'B. Mwangi'], $clerkHeaders)->assertOk()->json('data'));
+        $this->assertSame(['amount_minor' => '20000', 'currency' => 'KES'], $this->getJson("/api/v1/parties/{$id}", $this->headersFor())->json('data.credit_limit'));
     }
 
     public function test_history_needs_view_on_the_record_and_unknown_types_are_not_found(): void

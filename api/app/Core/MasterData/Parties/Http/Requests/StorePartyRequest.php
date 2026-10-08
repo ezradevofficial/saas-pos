@@ -22,6 +22,11 @@ class StorePartyRequest extends FormRequest
         $companyId = $this->input('company_id');
         $policy = app(PartyPolicy::class);
 
+        // No create permission anywhere: forbidden, whatever the body names.
+        if (! app(CompanyReach::class)->anywhere($this->user(), ['core.party.create'])) {
+            return false;
+        }
+
         if ($companyId === null) {
             return $policy->create($this->user());
         }

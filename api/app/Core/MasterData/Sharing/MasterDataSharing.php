@@ -93,7 +93,11 @@ class MasterDataSharing
     }
 
     /**
-     * @return array{assigned: int, released: int}
+     * Lock order: the type's advisory lock first (exclusive), then rows.
+     * Writers do the same (shared advisory lock, then their row), so a
+     * switch and a writer never wait on each other in opposite order.
+     *
+     * @return array<string, int> assigned, released, and providers' extra counts
      *
      * @throws ApiException records_need_company | confirmation_required
      */
@@ -132,10 +136,14 @@ class MasterDataSharing
             $setting->fill(['mode' => $mode, 'changed_at' => now()])->save();
 
             foreach ($this->records[$dataType] ?? [] as $records) {
-                if ($mode === self::PER_COMPANY) {
-                    $result['assigned'] += $assignToCompanyId === null ? 0 : $records->assignTo($assignToCompanyId);
-                } else {
-                    $result['released'] += $records->release();
+                $counts = match (true) {
+                    $mode === self::SHARED => $records->release(),
+                    $assignToCompanyId !== null => $records->assignTo($assignToCompanyId),
+                    default => [],
+                };
+
+                foreach ($counts as $name => $count) {
+                    $result[$name] = ($result[$name] ?? 0) + $count;
                 }
             }
 

@@ -20,7 +20,7 @@ class TaxCategorySharedRecords implements SharedRecords
         return TaxCategory::query()->whereNull('company_id')->count();
     }
 
-    public function assignTo(string $companyId): int
+    public function assignTo(string $companyId): array
     {
         $count = 0;
 
@@ -40,10 +40,10 @@ class TaxCategorySharedRecords implements SharedRecords
             $count++;
         });
 
-        return $count;
+        return ['assigned' => $count];
     }
 
-    public function release(): int
+    public function release(): array
     {
         $count = 0;
 
@@ -53,6 +53,6 @@ class TaxCategorySharedRecords implements SharedRecords
             $count++;
         });
 
-        return $count;
+        return ['released' => $count];
     }
 }

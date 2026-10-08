@@ -5,6 +5,7 @@ namespace App\Core\MasterData\Parties;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Sharing\SharedRecords;
 use App\Core\MasterData\Support\TextArray;
+use App\Core\MasterData\Taxes\PriceList;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -25,20 +26,30 @@ class PartySharedRecords implements SharedRecords
         return $this->ofType()->whereNull('company_id')->count();
     }
 
-    public function assignTo(string $companyId): int
+    /**
+     * A party's price list belongs to one company: one of another company
+     * than the party's new one is cleared (counted as price_lists_cleared).
+     */
+    public function assignTo(string $companyId): array
     {
-        $count = 0;
+        $counts = ['assigned' => 0, 'price_lists_cleared' => 0];
 
-        $this->ofType()->whereNull('company_id')->lazyById()->each(function (Party $party) use ($companyId, &$count) {
+        $this->ofType()->whereNull('company_id')->lazyById()->each(function (Party $party) use ($companyId, &$counts) {
             $party->company_id = $companyId;
+
+            if ($party->price_list_id !== null && PriceList::query()->whereKey($party->price_list_id)->value('company_id') !== $companyId) {
+                $party->price_list_id = null;
+                $counts['price_lists_cleared']++;
+            }
+
             $party->save();
-            $count++;
+            $counts['assigned']++;
         });
 
-        return $count;
+        return $counts;
     }
 
-    public function release(): int
+    public function release(): array
     {
         $count = 0;
 
@@ -50,7 +61,7 @@ class PartySharedRecords implements SharedRecords
             }
         });
 
-        return $count;
+        return ['released' => $count];
     }
 
     private function ofType(): Builder

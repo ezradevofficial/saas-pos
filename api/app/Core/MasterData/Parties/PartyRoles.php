@@ -28,6 +28,9 @@ final class PartyRoles
         self::EMPLOYEE_LINK => 'employees',
     ];
 
+    /** Every data type a party can follow (the update path locks them all, TEN-08). */
+    public const PARTY_DATA_TYPES = ['customers', 'suppliers', 'employees'];
+
     /**
      * @param  list<string>  $roles
      * @return list<string>

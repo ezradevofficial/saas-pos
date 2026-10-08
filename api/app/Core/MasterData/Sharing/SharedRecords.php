@@ -15,9 +15,20 @@ interface SharedRecords
     /** Records with no company that a switch to per_company must assign. */
     public function unassignedCount(): int;
 
-    /** Assign every record with no company to $companyId; returns how many. */
-    public function assignTo(string $companyId): int;
+    /**
+     * Assign every record with no company to $companyId. Returns counts by
+     * name, summed into the switch result and its audit entry: at least
+     * `assigned`, plus what else changed (e.g. `price_lists_cleared`).
+     *
+     * @return array<string, int>
+     */
+    public function assignTo(string $companyId): array;
 
-    /** Clear the company of every record now shared; returns how many. */
-    public function release(): int;
+    /**
+     * Clear the company of every record now shared. Returns counts by name,
+     * at least `released`.
+     *
+     * @return array<string, int>
+     */
+    public function release(): array;
 }

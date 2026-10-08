@@ -93,12 +93,14 @@ class PartyController
         $data = $request->validated();
 
         $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party, $data) {
+            // Lock order, as in MasterDataSharing::switch: the sharing locks
+            // first (every party type: the stored roles are only known once
+            // the row is read), then the row. Never the other way round.
+            $this->sharing->lockForWrite(PartyRoles::PARTY_DATA_TYPES);
             $party = Party::query()->whereKey($party->id)->lockForUpdate()->firstOrFail();
             $companyId = PartyRules::companyId($data, $party) ?: null;
             $attributes = PartyRules::attributes($data, $companyId);
-            $roles = $attributes['roles'] ?? $party->roles;
-            $this->sharing->lockForWrite(PartyRoles::dataTypes([...$roles, ...$party->roles]));
-            $this->assertModeUnchanged($roles, $companyId);
+            $this->assertModeUnchanged($attributes['roles'] ?? $party->roles, $companyId);
 
             $party->fill(['company_id' => $companyId, ...$attributes])->save();
 

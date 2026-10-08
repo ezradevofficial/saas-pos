@@ -5,6 +5,7 @@ namespace App\Core\MasterData;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\History\HistoryTypes;
+use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\MasterData\Parties\PartySharedRecords;
@@ -47,14 +48,14 @@ class MasterDataServiceProvider extends ServiceProvider
         $history = $this->app->make(HistoryTypes::class);
         $reach = fn () => $this->app->make(CompanyReach::class);
 
-        $history->register('party', Party::class, fn (User $user, Party $party) => $this->app->make(PartyPolicy::class)->view($user, $party));
-        $history->register('tax_code', TaxCode::class, fn (User $user, TaxCode $code) => $reach()->reachesRecord($user, $code->company_id, ['core.tax.view', 'core.tax.edit']));
-        $history->register('tax_category', TaxCategory::class, fn (User $user, TaxCategory $category) => $reach()->reachesRecord($user, $category->company_id, ['core.tax.view', 'core.tax.edit']));
-        $history->register('price_list', PriceList::class, fn (User $user, PriceList $list) => $reach()->reachesRecord($user, $list->company_id, ['core.price_list.view', 'core.price_list.edit']));
-        $history->register('company', Company::class);
-        $history->register('branch', Branch::class);
-        $history->register('location', Location::class);
-        $history->register('user', User::class);
-        $history->register('role', Role::class);
+        $history->register('party', Party::class, PartyResource::FIELD_RULES, fn (User $user, Party $party) => $this->app->make(PartyPolicy::class)->view($user, $party));
+        $history->register('tax_code', TaxCode::class, null, fn (User $user, TaxCode $code) => $reach()->reachesRecord($user, $code->company_id, ['core.tax.view', 'core.tax.edit']));
+        $history->register('tax_category', TaxCategory::class, null, fn (User $user, TaxCategory $category) => $reach()->reachesRecord($user, $category->company_id, ['core.tax.view', 'core.tax.edit']));
+        $history->register('price_list', PriceList::class, null, fn (User $user, PriceList $list) => $reach()->reachesRecord($user, $list->company_id, ['core.price_list.view', 'core.price_list.edit']));
+        $history->register('company', Company::class, null);
+        $history->register('branch', Branch::class, null);
+        $history->register('location', Location::class, null);
+        $history->register('user', User::class, null);
+        $history->register('role', Role::class, null);
     }
 }

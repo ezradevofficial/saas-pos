@@ -9,6 +9,7 @@ use App\Core\MasterData\Sharing\MasterDataSetting;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Sharing\SharingSwitchGuard;
 use App\Core\MasterData\Taxes\ApplyCountryPack;
+use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
@@ -16,6 +17,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -137,14 +139,125 @@ class MasterDataSharingTest extends TestCase
         $this->patchJson("/api/v1/parties/{$globexSupplier}", ['company_id' => null], $this->headersFor())
             ->assertUnprocessable()->assertJsonValidationErrors('company_id');
 
-        // Adding a per-company role to a shared customer needs a company.
-        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer', 'supplier']], $this->headersFor())
-            ->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        // Adding a per-company role to a shared customer names its company.
         $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer', 'supplier'], 'company_id' => $this->acme->id], $this->headersFor())
             ->assertOk()->assertJsonPath('data.company_id', $this->acme->id);
-        // ... and dropping it shares the party again.
-        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer']], $this->headersFor())
+        // ... and dropping it shares the party again, explicitly.
+        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer'], 'company_id' => null], $this->headersFor())
             ->assertOk()->assertJsonPath('data.company_id', null);
+    }
+
+    public function test_a_role_change_that_moves_a_party_needs_company_id_in_the_request(): void
+    {
+        $this->settings(['data_type' => 'suppliers', 'mode' => 'per_company'])->assertOk();
+        $customer = $this->party(['name' => 'Shared customer', 'roles' => ['customer']])->json('data.id');
+        $supplier = $this->party(['name' => 'Acme supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id])->json('data.id');
+
+        // Shared -> per company: refused without company_id, then done with it.
+        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer', 'supplier']], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'company_change_needs_confirmation')->assertJsonValidationErrors('company_id');
+        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer', 'supplier'], 'company_id' => null], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        $this->patchJson("/api/v1/parties/{$customer}", ['roles' => ['customer', 'supplier'], 'company_id' => $this->globex->id], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.company_id', $this->globex->id);
+
+        // Per company -> shared: refused without company_id, refused with a company, done with null.
+        $this->patchJson("/api/v1/parties/{$supplier}", ['roles' => ['customer']], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'company_change_needs_confirmation');
+        $this->patchJson("/api/v1/parties/{$supplier}", ['roles' => ['customer'], 'company_id' => $this->acme->id], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        $this->inTenant(fn () => $this->assertSame($this->acme->id, Party::findOrFail($supplier)->company_id));
+        $this->patchJson("/api/v1/parties/{$supplier}", ['roles' => ['customer'], 'company_id' => null], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.company_id', null);
+
+        // A role change that keeps the party where it is needs nothing more.
+        $this->patchJson("/api/v1/parties/{$supplier}", ['roles' => ['customer', 'contact']], $this->headersFor())->assertOk();
+    }
+
+    public function test_changing_a_company_party_needs_a_scope_covering_the_company(): void
+    {
+        // Built before any request: a request switches the default guard.
+        $branchUser = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Branch party clerk', ['core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive']), Scope::branch($this->branchA->id));
+
+            return $user;
+        });
+        $this->settings(['data_type' => 'suppliers', 'mode' => 'per_company'])->assertOk();
+        $supplier = $this->party(['name' => 'Acme supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id])->json('data.id');
+        $customer = $this->party(['name' => 'Shared customer', 'roles' => ['customer']])->json('data.id');
+        $headers = $this->headersFor($branchUser);
+
+        // View and create follow the touched rule ...
+        $this->getJson("/api/v1/parties/{$supplier}", $headers)->assertOk();
+        $this->party(['name' => 'Branch supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id], $headers)->assertCreated();
+        // ... changing the company's party needs the company (or tenant) scope.
+        $this->patchJson("/api/v1/parties/{$supplier}", ['name' => 'Renamed'], $headers)->assertForbidden();
+        $this->postJson("/api/v1/parties/{$supplier}/archive", [], $headers)->assertForbidden();
+        // Shared parties are changed from any scope.
+        $this->patchJson("/api/v1/parties/{$customer}", ['name' => 'Renamed customer'], $headers)->assertOk();
+        $this->postJson("/api/v1/parties/{$customer}/archive", [], $headers)->assertOk();
+
+        // A user without any create permission is forbidden, even naming a company.
+        $storekeeper = $this->headersFor($this->userWith('storekeeper', Scope::location($this->locationA->id)));
+        $this->party(['name' => 'X', 'roles' => ['supplier'], 'company_id' => $this->acme->id], $storekeeper)->assertForbidden();
+        $this->party(['name' => 'X', 'roles' => ['supplier'], 'company_id' => $this->globex->id], $storekeeper)->assertForbidden();
+    }
+
+    public function test_switching_to_per_company_clears_price_lists_of_other_companies(): void
+    {
+        [$acmeList, $globexList] = $this->inTenant(fn () => [
+            PriceList::create(['company_id' => $this->acme->id, 'name' => 'Acme retail', 'currency' => 'KES'])->id,
+            PriceList::create(['company_id' => $this->globex->id, 'name' => 'Globex retail', 'currency' => 'KES'])->id,
+        ]);
+        $keeps = $this->party(['name' => 'Acme priced', 'roles' => ['customer'], 'price_list_id' => $acmeList])->json('data.id');
+        $loses = $this->party(['name' => 'Globex priced', 'roles' => ['customer'], 'price_list_id' => $globexList])->json('data.id');
+
+        $this->settings(['data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $this->acme->id])
+            ->assertOk()->assertJsonPath('meta.assigned', 2)->assertJsonPath('meta.price_lists_cleared', 1);
+
+        $this->inTenant(function () use ($keeps, $loses, $globexList) {
+            $this->assertSame([$keeps => true, $loses => false], [
+                $keeps => Party::findOrFail($keeps)->price_list_id !== null,
+                $loses => Party::findOrFail($loses)->price_list_id !== null,
+            ]);
+            $move = AuditEntry::where('action', 'core.party.update')->where('auditable_id', $loses)->sole();
+            $this->assertSame($globexList, $move->before['price_list_id']);
+            $this->assertNull($move->after['price_list_id']);
+            $this->assertSame(1, AuditEntry::where('action', 'core.master_data_settings.update')->sole()->after['price_lists_cleared']);
+        });
+    }
+
+    public function test_writers_and_switches_take_the_sharing_lock_before_row_locks(): void
+    {
+        $this->settings(['data_type' => 'suppliers', 'mode' => 'per_company'])->assertOk();
+        $id = $this->party(['name' => 'Locked', 'roles' => ['customer']])->json('data.id');
+        $this->party(['name' => 'Other', 'roles' => ['customer']])->assertCreated();
+
+        $statements = [];
+        DB::listen(function ($query) use (&$statements) {
+            $statements[] = $query->sql;
+        });
+        $position = function (string $needle) use (&$statements) {
+            return collect($statements)->search(fn (string $sql) => str_contains($sql, $needle));
+        };
+
+        // Update: every party type's shared advisory lock, then the row lock.
+        $this->patchJson("/api/v1/parties/{$id}", ['name' => 'Locked too'], $this->headersFor())->assertOk();
+        $advisory = collect($statements)->filter(fn (string $sql) => str_contains($sql, 'pg_advisory_xact_lock_shared'))->keys();
+        $this->assertCount(3, $advisory, 'customers, suppliers and employees are locked');
+        $rowLock = $position('for update');
+        $this->assertNotFalse($rowLock);
+        $this->assertLessThan($rowLock, $advisory->max(), 'advisory locks come before the row lock');
+
+        // Switch: the exclusive advisory lock, then the rows it changes.
+        $statements = [];
+        $this->settings(['data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $this->acme->id])->assertOk();
+        $exclusive = $position('select pg_advisory_xact_lock(');
+        $firstRowWrite = $position('update "parties"');
+        $this->assertNotFalse($exclusive);
+        $this->assertNotFalse($firstRowWrite);
+        $this->assertLessThan($firstRowWrite, $exclusive);
     }
 
     public function test_switching_to_per_company_assigns_every_record_or_is_refused(): void

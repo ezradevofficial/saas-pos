@@ -36,6 +36,12 @@ class HistoryRequest extends FormRequest
         ];
     }
 
+    /** The FieldRules resource of the record's type (RBAC-05), or null. */
+    public function fieldRulesResource(): ?string
+    {
+        return app(HistoryTypes::class)->resource((string) $this->route('type'));
+    }
+
     public function record(): Model
     {
         return $this->record;

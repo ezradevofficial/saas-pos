@@ -5,6 +5,7 @@ namespace Tests\Feature\Isolation;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\MasterData\History\HistoryTypes;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route as RoutingRoute;
@@ -103,6 +104,23 @@ class TenantIsolationTest extends TestCase
         'price_list_id' => 'price_list',
         'assign_to_company_id' => 'company',
         'scope_id' => null,
+    ];
+
+    /**
+     * MD-07: every history type (HistoryTypes::names()) => which of B's ids
+     * is a record of that type. A type registered without an entry here
+     * fails the suite.
+     */
+    public const HISTORY_TYPES = [
+        'party' => 'party',
+        'tax_code' => 'tax_code',
+        'tax_category' => 'tax_category',
+        'price_list' => 'price_list',
+        'company' => 'company',
+        'branch' => 'branch',
+        'location' => 'location',
+        'user' => 'user',
+        'role' => 'role',
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
@@ -336,6 +354,31 @@ class TenantIsolationTest extends TestCase
         }
 
         $this->assertGreaterThan(5, $checked);
+    }
+
+    public function test_every_history_type_refuses_tenant_b_records(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $types = app(HistoryTypes::class)->names();
+        $this->assertNotEmpty($types);
+
+        foreach ($types as $type) {
+            $this->assertArrayHasKey($type, self::HISTORY_TYPES, sprintf(
+                'The history type [%s] has no fixture: add it to %s::HISTORY_TYPES and give both tenants a record of that type in tests/Support/TwoTenants.php.',
+                $type, self::class,
+            ));
+            $fixture = self::HISTORY_TYPES[$type];
+
+            $refused = $this->getJson("/api/v1/history/{$type}/{$b->id($fixture)}", $a->bearer());
+            $this->assertSame(404, $refused->status(), "GET history/{$type} with tenant B's record answered {$refused->status()}");
+            $this->assertBodyHasNothingOf($b, $refused, "GET history/{$type} with B's record");
+
+            // Control: A's own record has a history, and it shows nothing of B.
+            $own = $this->getJson("/api/v1/history/{$type}/{$a->id($fixture)}", $a->bearer())->assertOk();
+            $this->assertNotEmpty($own->json('data'), "history/{$type} of A's own record is empty, so the check proves nothing");
+            $this->assertBodyHasNothingOf($b, $own, "GET history/{$type} with A's record");
+        }
     }
 
     // ---- Ids in request bodies -------------------------------------------
