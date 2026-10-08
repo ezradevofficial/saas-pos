@@ -434,6 +434,41 @@ return [
 
     // MD-04: payment methods.
     'payment_method' => [
+        // EXP-01: the payment methods list and its export (never settings or credentials).
+        'list_title' => 'Payment methods of :company',
+        'columns' => [
+            'position' => 'Order',
+            'name' => 'Name',
+            'type' => 'Type',
+            'provider' => 'Provider',
+            'currency' => 'Currency',
+            'till' => 'At the till',
+            'status' => 'Status',
+            'updated_at' => 'Updated',
+        ],
+        'types' => [
+            'cash' => 'Cash',
+            'mobile_money' => 'Mobile money',
+            'card' => 'Card',
+            'credit' => 'Credit',
+            'voucher' => 'Vouchers',
+            'points' => 'Loyalty points',
+            'bank_transfer' => 'Bank transfer',
+        ],
+        'providers' => [
+            'mpesa_ke' => 'M-Pesa (Safaricom Daraja)',
+            'airtel_ke' => 'Airtel Money Kenya',
+            'vodacom_mpesa_cd' => 'M-Pesa (Vodacom Congo)',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Card payments provider',
+        ],
+        'till_statuses' => [
+            'on' => 'On',
+            'off' => 'Off',
+            'setup' => 'Setup needed',
+        ],
         'type_invalid' => 'Choose cash, mobile money, card, credit, voucher, points or bank transfer. The type of an existing payment method can’t change.',
         'provider_invalid' => 'Choose a supported payment provider. The provider of an existing payment method can’t change.',
         'provider_required' => 'Mobile money and card payment methods need a provider. Choose one.',
@@ -470,6 +505,22 @@ return [
 
     // MD-05: departments, cost centres and projects.
     'dimension' => [
+        // EXP-01: the departments, cost centres and projects lists and their exports.
+        'list_titles' => [
+            'department' => 'Departments of :company',
+            'cost_centre' => 'Cost centres of :company',
+            'project' => 'Projects of :company',
+        ],
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Name',
+            'parent' => 'Parent',
+            'owner' => 'Owner',
+            'status' => 'Status',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+        ],
+        'owner_hidden' => 'Someone you can’t see',
         'code_invalid' => 'Codes start with a letter or number and use letters, numbers, dots, dashes and underscores, up to 30 characters.',
         'code_taken' => 'Another active record of the company already uses this code. Choose another code.',
         'parent_other_company' => 'Choose an active parent of the same company.',

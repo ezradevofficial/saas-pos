@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Dimensions\Http\Controllers;
 
+use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\Dimensions\Dimension;
 use App\Core\MasterData\Dimensions\Http\Requests\DimensionActionRequest;
@@ -18,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * MD-05: a company's departments, cost centres and projects (one
@@ -31,13 +33,16 @@ class DimensionController
 {
     public function __construct(private readonly Archiver $archiver) {}
 
-    public function index(ListDimensionsRequest $request, Company $company): AnonymousResourceCollection
+    public function index(ListDimensionsRequest $request, Company $company, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
         $query = $request->model()::query()->where('company_id', $company->id);
+        $request->applySort($request->applySearch($request->applyStatus($query), ['code' => 'code', 'name' => 'name']));
 
-        return DimensionResource::collection(
-            $request->applyStatus($query)->orderBy('code')->orderBy('id')->paginate($request->perPage())->withQueryString(),
-        );
+        if ($request->wantsExport()) {
+            return $export->download($request, $query);
+        }
+
+        return DimensionResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
     public function store(StoreDimensionRequest $request, Company $company): JsonResponse

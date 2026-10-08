@@ -434,6 +434,41 @@ return [
 
     // MD-04 : moyens de paiement.
     'payment_method' => [
+        // EXP-01 : la liste des moyens de paiement et son export (jamais les réglages ni les identifiants).
+        'list_title' => 'Moyens de paiement de :company',
+        'columns' => [
+            'position' => 'Ordre',
+            'name' => 'Nom',
+            'type' => 'Type',
+            'provider' => 'Prestataire',
+            'currency' => 'Devise',
+            'till' => 'En caisse',
+            'status' => 'Statut',
+            'updated_at' => 'Modifié le',
+        ],
+        'types' => [
+            'cash' => 'Espèces',
+            'mobile_money' => 'Mobile money',
+            'card' => 'Carte',
+            'credit' => 'Crédit',
+            'voucher' => 'Bons d’achat',
+            'points' => 'Points de fidélité',
+            'bank_transfer' => 'Virement bancaire',
+        ],
+        'providers' => [
+            'mpesa_ke' => 'M-Pesa (Safaricom Daraja)',
+            'airtel_ke' => 'Airtel Money Kenya',
+            'vodacom_mpesa_cd' => 'M-Pesa (Vodacom Congo)',
+            'orange_money_cd' => 'Orange Money',
+            'airtel_money_cd' => 'Airtel Money',
+            'afrimoney_cd' => 'Afrimoney',
+            'card_aggregator' => 'Prestataire de paiement par carte',
+        ],
+        'till_statuses' => [
+            'on' => 'Activé',
+            'off' => 'Désactivé',
+            'setup' => 'À configurer',
+        ],
         'type_invalid' => 'Choisissez espèces, mobile money, carte, crédit, bon, points ou virement bancaire. Le type d’un moyen de paiement existant ne peut pas changer.',
         'provider_invalid' => 'Choisissez un fournisseur de paiement pris en charge. Le fournisseur d’un moyen de paiement existant ne peut pas changer.',
         'provider_required' => 'Les moyens de paiement mobile money et carte ont besoin d’un fournisseur. Choisissez-en un.',
@@ -470,6 +505,22 @@ return [
 
     // MD-05 : départements, centres de coûts et projets.
     'dimension' => [
+        // EXP-01 : les listes des départements, centres de coûts et projets et leurs exports.
+        'list_titles' => [
+            'department' => 'Départements de :company',
+            'cost_centre' => 'Centres de coûts de :company',
+            'project' => 'Projets de :company',
+        ],
+        'columns' => [
+            'code' => 'Code',
+            'name' => 'Nom',
+            'parent' => 'Fiche parente',
+            'owner' => 'Responsable',
+            'status' => 'Statut',
+            'created_at' => 'Créée le',
+            'updated_at' => 'Modifiée le',
+        ],
+        'owner_hidden' => 'Une personne que vous ne voyez pas',
         'code_invalid' => 'Les codes commencent par une lettre ou un chiffre et utilisent des lettres, des chiffres, des points, des tirets et des traits de soulignement, jusqu’à 30 caractères.',
         'code_taken' => 'Un autre enregistrement actif de la société utilise déjà ce code. Choisissez un autre code.',
         'parent_other_company' => 'Choisissez un parent actif de la même société.',

@@ -545,7 +545,10 @@ class TenantIsolationTest extends TestCase
         $a = $this->tenants->a;
         $b = $this->tenants->b;
         $theirs = ['Customer B', 'Supplier B', 'P00000000B', 'ITEM-B', 'Article B', 'Goods B', '+254700000302',
-            'Owner B', 'Manager B', 'Cashier B', 'Clerk B', 'Retail B', 'Unit B', 'Root B', 'Outlet B', 'Branch B'];
+            'Owner B', 'Manager B', 'Cashier B', 'Clerk B', 'Retail B', 'Unit B', 'Root B', 'Outlet B', 'Branch B',
+            'key-b', 'secret-b', 'pass-b', '17437b'];
+        // MD-04: payment method settings and credentials never reach an export, A's own included.
+        $secrets = ['key-a', 'secret-a', 'pass-a', '17437a'];
 
         foreach ($this->exportedLists($a) as $list => $ours) {
             foreach (['csv', 'xlsx', 'pdf'] as $format) {
@@ -566,6 +569,10 @@ class TenantIsolationTest extends TestCase
 
                 foreach ([...$theirs, ...$this->identifiersOf($b)] as $value) {
                     $this->assertStringNotContainsString($value, $text, "A's {$list} {$format} export contains {$value} of tenant B");
+                }
+
+                foreach ($secrets as $value) {
+                    $this->assertStringNotContainsString($value, $text, "A's {$list} {$format} export contains the credential or setting {$value}");
                 }
             }
         }
@@ -594,6 +601,10 @@ class TenantIsolationTest extends TestCase
             "companies/{$a->id('company')}/price-lists?status=all" => ['Retail A'],
             'uoms?status=all' => ['EA', 'BOX'],
             'item-categories?status=all' => ['Goods A', 'Goods A sub'],
+            "companies/{$a->id('company')}/payment-methods?status=all" => ['M-Pesa', 'Cash KES'],
+            "companies/{$a->id('company')}/departments?status=all" => ['A-1', 'Unit A renamed', 'Root A'],
+            "companies/{$a->id('company')}/cost-centres?status=all" => ['A-1', 'Unit A renamed'],
+            "companies/{$a->id('company')}/projects?status=all" => ['A-1', 'Unit A renamed'],
         ];
     }
 
