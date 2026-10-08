@@ -222,44 +222,7 @@ class WorkflowEngine
     {
         return $this->transaction(function () use ($workflow, $by, $nodeId, $reason, $authorised) {
             $run = $this->open($workflow, $by, checkEnter: false);
-            $target = $run->flow->node($nodeId);
-
-            $passed = $target !== null && in_array($target['type'], FlowGraph::HOLDING, true)
-                ? DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->where('node_id', $nodeId)
-                    ->where('status', DocumentWorkflowToken::DONE)->latest('entered_at')->first()
-                : null;
-
-            if ($passed === null) {
-                throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
-            }
-
-            $branch = $passed->groups ?? [];
-            $affected = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING])
-                ->filter(fn (DocumentWorkflowToken $t) => array_slice($t->groups ?? [], 0, count($branch)) === $branch)
-                ->values();
-            $active = $affected->where('status', DocumentWorkflowToken::ACTIVE)->values();
-            $later = $run->flow->reachableFrom($nodeId);
-
-            if ($affected->isEmpty()) {
-                // The branch already joined: nothing of it is open any more.
-                $code = $branch === [] ? 'return_target' : 'return_inside_parallel';
-
-                throw new ApiException(422, $code, __('workflow.errors.'.$code));
-            }
-
-            if (! $affected->every(fn (DocumentWorkflowToken $t) => in_array($t->node_id, $later, true))) {
-                throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
-            }
-
-            $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
-            $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
-                fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
-            ));
-
-            if ($refused !== null) {
-                throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($refused->node_id)]), [], $refused->node_id, 403);
-            }
-
+            [$branch, $affected] = $this->returnPlan($run, $nodeId, $by, $authorised, $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]));
             $from = [];
 
             foreach ($affected as $token) {
@@ -287,14 +250,8 @@ class WorkflowEngine
             $run = $this->open($workflow, $by, checkEnter: false);
             $open = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]);
 
-            if ($by !== null) {
-                $allowed = $by->can($run->type->actPermission(), $run->scope->scope())
-                    || $open->contains(fn (DocumentWorkflowToken $t) => $t->status === DocumentWorkflowToken::ACTIVE
-                        && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type));
-
-                if (! $allowed) {
-                    throw new ApiException(403, 'forbidden', __('workflow.errors.cancel_forbidden'));
-                }
+            if ($by !== null && ! $this->mayCancel($run, $by, $open)) {
+                throw new ApiException(403, 'forbidden', __('workflow.errors.cancel_forbidden'));
             }
 
             foreach ($open as $token) {
@@ -410,6 +367,8 @@ class WorkflowEngine
             'cancelled_by' => $user($workflow->cancelled_by),
             'cancel_reason' => $workflow->cancel_reason,
             'current' => $current,
+            // Additive (the status page's Cancel and Return actions).
+            ...$this->actionsFor($run, $viewer),
             'history' => $events->map(fn (DocumentWorkflowEvent $e) => [
                 'type' => $e->type,
                 'node_id' => $e->node_id,
@@ -432,6 +391,102 @@ class WorkflowEngine
     public function overdue(?\DateTimeInterface $at = null)
     {
         return DocumentWorkflowToken::query()->overdue($at)->with('workflow');
+    }
+
+    /**
+     * WF-11: whether $by may cancel: the type's act permission, or the exit
+     * rights of a stage the document is at.
+     *
+     * @param  Collection<int, DocumentWorkflowToken>  $open
+     */
+    private function mayCancel(Run $run, User $by, Collection $open): bool
+    {
+        return $by->can($run->type->actPermission(), $run->scope->scope())
+            || $open->contains(fn (DocumentWorkflowToken $t) => $t->status === DocumentWorkflowToken::ACTIVE
+                && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type));
+    }
+
+    /**
+     * WF-11: what a return to $nodeId would close ([branch groups, affected
+     * positions]), or the refusal returnTo() answers with (ApiException).
+     *
+     * @param  Collection<int, DocumentWorkflowToken>  $open  active and waiting positions
+     * @return array{0: list<string>, 1: Collection<int, DocumentWorkflowToken>}
+     */
+    private function returnPlan(Run $run, string $nodeId, User $by, bool $authorised, Collection $open): array
+    {
+        $target = $run->flow->node($nodeId);
+
+        $passed = $target !== null && in_array($target['type'], FlowGraph::HOLDING, true)
+            ? DocumentWorkflowToken::query()->where('workflow_id', $run->workflow->id)->where('node_id', $nodeId)
+                ->where('status', DocumentWorkflowToken::DONE)->latest('entered_at')->first()
+            : null;
+
+        if ($passed === null) {
+            throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
+        }
+
+        $branch = $passed->groups ?? [];
+        $affected = $open
+            ->filter(fn (DocumentWorkflowToken $t) => array_slice($t->groups ?? [], 0, count($branch)) === $branch)
+            ->values();
+        $active = $affected->where('status', DocumentWorkflowToken::ACTIVE)->values();
+        $later = $run->flow->reachableFrom($nodeId);
+
+        if ($affected->isEmpty()) {
+            // The branch already joined: nothing of it is open any more.
+            $code = $branch === [] ? 'return_target' : 'return_inside_parallel';
+
+            throw new ApiException(422, $code, __('workflow.errors.'.$code));
+        }
+
+        if (! $affected->every(fn (DocumentWorkflowToken $t) => in_array($t->node_id, $later, true))) {
+            throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
+        }
+
+        $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
+        $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
+            fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
+        ));
+
+        if ($refused !== null) {
+            throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($refused->node_id)]), [], $refused->node_id, 403);
+        }
+
+        return [$branch, $affected];
+    }
+
+    /**
+     * For the status page: what $viewer may do now, with the same checks
+     * the cancel and return endpoints make.
+     *
+     * @return array{can_cancel: bool, can_return: bool, return_targets: list<array{node_id: string, name: string}>}
+     */
+    private function actionsFor(Run $run, ?User $viewer): array
+    {
+        if ($viewer === null || ! $run->workflow->isRunning()) {
+            return ['can_cancel' => false, 'can_return' => false, 'return_targets' => []];
+        }
+
+        $open = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]);
+        $passed = DocumentWorkflowToken::query()->where('workflow_id', $run->workflow->id)->where('status', DocumentWorkflowToken::DONE)
+            ->orderBy('entered_at')->orderBy('id')->pluck('node_id')->unique()->values();
+        $targets = [];
+
+        foreach ($passed as $nodeId) {
+            if (! in_array($run->flow->type($nodeId), FlowGraph::HOLDING, true)) {
+                continue;
+            }
+
+            try {
+                $this->returnPlan($run, $nodeId, $viewer, false, $open);
+                $targets[] = ['node_id' => $nodeId, 'name' => $run->flow->name($nodeId)];
+            } catch (ApiException) {
+                // Not a target this viewer may return to now.
+            }
+        }
+
+        return ['can_cancel' => $this->mayCancel($run, $viewer, $open), 'can_return' => $targets !== [], 'return_targets' => $targets];
     }
 
     // ---- traversal --------------------------------------------------------
