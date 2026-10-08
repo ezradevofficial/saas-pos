@@ -162,9 +162,11 @@ describe('ListView and useServerList', () => {
     })
     const { router } = renderList('/things?sort=code')
     await waitFor(() => expect(router.state.location.search).toBe(''))
-    expect(await screen.findByText(reason)).toBeInTheDocument()
+    // Said once, however many renders ran before the URL changed.
+    await waitFor(() => expect(screen.getAllByText(reason)).toHaveLength(1))
     expect(await screen.findByText('Thing 1')).toBeInTheDocument()
-    expect(listCalls().at(-1)).toBe('things?status=active&per_page=25&page=1')
+    await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=active&per_page=25&page=1'))
+    expect(listCalls().filter((path) => path.includes('sort='))).toEqual(['things?status=active&sort=code&per_page=25&page=1'])
   })
 
   it('asks for the chosen rows per page from page 1', async () => {
