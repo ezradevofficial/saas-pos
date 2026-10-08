@@ -1,32 +1,14 @@
 import { useTranslation } from 'react-i18next'
 import { Button, Checkbox, DecimalInput, MoneyInput, Select, TextField } from '@/components/ds'
-import { CURRENCY_DECIMALS } from '@/lib/money'
+import { useMoneyDefaults } from '@/lib/defaultCurrency'
 import { cn } from '@/lib/utils'
+import { emptyValue, LISTS, UNARY } from './conditionValues'
 
-const UNARY = new Set(['empty', 'not_empty'])
-const LISTS = new Set(['in', 'not_in'])
 const MAX_DEPTH = 3
-const CURRENCIES = Object.keys(CURRENCY_DECIMALS)
 
-/** A starting value for a comparison on `field` with `op`. */
-function emptyValue(field, op) {
-  if (UNARY.has(op)) return undefined
-  if (LISTS.has(op)) return []
-  switch (field?.type) {
-    case 'money':
-      return { amount_minor: '', currency: 'KES' }
-    case 'boolean':
-      return true
-    case 'enum':
-      return field.values?.[0] ?? ''
-    default:
-      return ''
-  }
-}
-
-function comparison(field, op = field?.operators?.[0] ?? 'eq') {
+function comparison(field, currency, op = field?.operators?.[0] ?? 'eq') {
   const next = { field: field?.name ?? '', op }
-  const value = emptyValue(field, op)
+  const value = emptyValue(field, op, currency)
   if (value !== undefined) next.value = value
   return next
 }
@@ -34,6 +16,7 @@ function comparison(field, op = field?.operators?.[0] ?? 'eq') {
 /** A value typed for its field: money, number, date, an enum's values, yes/no or text. */
 export function ValueInput({ field, op = 'eq', value, onChange, label, error }) {
   const { t } = useTranslation()
+  const { currency, options: currencies } = useMoneyDefaults()
   if (LISTS.has(op)) {
     const list = Array.isArray(value) ? value : []
     if (field?.type === 'enum') {
@@ -71,12 +54,12 @@ export function ValueInput({ field, op = 'eq', value, onChange, label, error }) 
 
   switch (field?.type) {
     case 'money': {
-      const money = value && typeof value === 'object' ? value : { amount_minor: '', currency: 'KES' }
+      const money = value && typeof value === 'object' ? value : { amount_minor: '', currency }
       return (
         <div className="flex min-w-0 items-end gap-2">
           <Select
             label={t('workflows.condition.currency')}
-            options={CURRENCIES}
+            options={money.currency && !currencies.includes(money.currency) ? [money.currency, ...currencies] : currencies}
             value={money.currency}
             onChange={(event) => onChange({ ...money, currency: event.target.value })}
             className="w-operator shrink-0"
@@ -118,6 +101,7 @@ export function ValueInput({ field, op = 'eq', value, onChange, label, error }) 
 
 function ComparisonRow({ value, fields, onChange, onRemove, index }) {
   const { t } = useTranslation()
+  const { currency } = useMoneyDefaults()
   const field = fields.find((one) => one.name === value.field)
   const operators = field?.operators ?? []
   const others = fields.filter((one) => one.name !== field?.name && one.type === field?.type)
@@ -132,7 +116,7 @@ function ComparisonRow({ value, fields, onChange, onRemove, index }) {
           options={fields.map((one) => ({ value: one.name, label: one.label }))}
           value={value.field}
           placeholder={t('workflows.condition.chooseField')}
-          onChange={(event) => onChange(comparison(fields.find((one) => one.name === event.target.value)))}
+          onChange={(event) => onChange(comparison(fields.find((one) => one.name === event.target.value), currency))}
         />
         <Select
           label={t('workflows.condition.operator')}
@@ -143,7 +127,7 @@ function ComparisonRow({ value, fields, onChange, onRemove, index }) {
             // A value (or other field) typed for one comparison carries over to another of the same shape.
             const scalar = (one) => !UNARY.has(one) && !LISTS.has(one)
             if (scalar(op) && scalar(value.op)) onChange({ ...value, op })
-            else onChange(comparison(field, op))
+            else onChange(comparison(field, currency, op))
           }}
         />
       </div>
@@ -157,7 +141,7 @@ function ComparisonRow({ value, fields, onChange, onRemove, index }) {
           value={comparesOther ? 'other' : 'value'}
           onChange={(event) => {
             if (event.target.value === 'other') onChange({ field: value.field, op: value.op, other: others[0].name })
-            else onChange(comparison(field, value.op))
+            else onChange(comparison(field, currency, value.op))
           }}
         />
       ) : null}
@@ -195,6 +179,7 @@ const isGroup = (condition) => Boolean(condition && (Array.isArray(condition.all
  */
 export function ConditionEditor({ label, help, value, onChange, fields, depth = 0, onRemove }) {
   const { t } = useTranslation()
+  const { currency } = useMoneyDefaults()
   const group = value == null ? null : isGroup(value) ? value : { all: [value] }
   const mode = group && Array.isArray(group.any) ? 'any' : 'all'
   const items = group ? group[mode] : []
@@ -213,7 +198,7 @@ export function ConditionEditor({ label, help, value, onChange, fields, depth = 
           {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
         </div>
         <span className="text-caption text-ink-muted">{t('workflows.condition.none')}</span>
-        <Button icon="plus" className="self-start" disabled={fields.length === 0} onClick={() => add(comparison(fields[0]))}>
+        <Button icon="plus" className="self-start" disabled={fields.length === 0} onClick={() => add(comparison(fields[0], currency))}>
           {t('workflows.condition.addRule')}
         </Button>
       </div>
@@ -256,11 +241,11 @@ export function ConditionEditor({ label, help, value, onChange, fields, depth = 
         ),
       )}
       <div className="flex flex-wrap gap-2">
-        <Button icon="plus" onClick={() => add(comparison(fields[0]))}>
+        <Button icon="plus" onClick={() => add(comparison(fields[0], currency))}>
           {t('workflows.condition.addRule')}
         </Button>
         {depth + 1 < MAX_DEPTH ? (
-          <Button variant="ghost" icon="plus" onClick={() => add({ [mode === 'all' ? 'any' : 'all']: [comparison(fields[0])] })}>
+          <Button variant="ghost" icon="plus" onClick={() => add({ [mode === 'all' ? 'any' : 'all']: [comparison(fields[0], currency)] })}>
             {t('workflows.condition.addGroup')}
           </Button>
         ) : null}

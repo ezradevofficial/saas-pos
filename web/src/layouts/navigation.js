@@ -7,7 +7,7 @@
  * location is not offered a page that would open empty (RBAC-04, RBAC-09).
  * Overview, Catalogue (items, categories, units), Contacts (customers,
  * suppliers, credit limit changes), Settings, Finance (currencies, rates, taxes, payment methods)
- * Workspace (approvals), Automation (workflows) and Master data; later modules add their groups here.
+ * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -30,6 +30,8 @@ export const WORKFLOW_VIEW = ['core.workflow.view', 'core.workflow.edit', 'core.
 // NOT-03, NOT-06: the organisation's notification texts and delivery log (tenant-wide).
 export const NOTIFICATION_TEMPLATE_VIEW = ['core.notification_template.view', 'core.notification_template.edit']
 export const NOTIFICATION_DELIVERY_VIEW = 'core.notification_delivery.view'
+// AUTO-01..AUTO-07: who may open the automation rules and their run log (the API checks again).
+export const AUTOMATION_VIEW = ['core.automation.view', 'core.automation.edit']
 
 export const NAV_GROUPS = [
   {
@@ -104,7 +106,10 @@ export const NAV_GROUPS = [
   {
     id: 'automation',
     label: (t) => t('nav.groups.automation'),
-    items: [{ to: '/settings/workflows', icon: 'workflows', label: (t) => t('nav.workflows'), permission: WORKFLOW_VIEW, module: 'core' }],
+    items: [
+      { to: '/settings/workflows', icon: 'workflows', label: (t) => t('nav.workflows'), permission: WORKFLOW_VIEW, module: 'core' },
+      { to: '/settings/automation-rules', icon: 'automation', label: (t) => t('nav.automationRules'), permission: AUTOMATION_VIEW, module: 'core' },
+    ],
   },
   {
     id: 'masterData',
