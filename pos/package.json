@@ -48,6 +48,15 @@
         "react",
         "react-dom"
       ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "@nozbe/watermelondb",
+          "@nozbe/simdjson",
+          "app-crypto"
+        ]
+      }
     }
   }
 }
