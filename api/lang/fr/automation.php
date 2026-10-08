@@ -208,6 +208,8 @@ return [
     ],
 
     'errors' => [
+        'out_of_scope' => 'Ignorée : la personne au nom de qui la règle agit ne peut pas voir ou modifier ce document.',
+        'release_forbidden' => 'La personne au nom de qui la règle agit ne peut pas lever les blocages de crédit : le blocage reste. Demandez à une personne autorisée d’enregistrer la règle.',
         'company_changed' => 'Le document a changé de société : la règle de cette société ne s’est donc pas exécutée.',
         'after_commit' => 'La règle s’est exécutée, mais une réaction à ses changements a échoué. Les détails sont dans le journal système.',
         'no_webhook_secret' => 'La règle n’a pas de secret de signature de webhook. Renouvelez le secret, puis réessayez.',

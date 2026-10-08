@@ -13,6 +13,7 @@ use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Triggers\TriggerHit;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\CompanyReach;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -65,6 +66,7 @@ class RuleRunner
         private readonly Rules $rules,
         private readonly WorkflowAccess $access,
         private readonly FieldVisibility $visibility,
+        private readonly CompanyReach $reach,
     ) {}
 
     /** Log a run for a fired trigger and queue it; null when the occurrence already ran. */
@@ -167,8 +169,15 @@ class RuleRunner
         $timezone = $this->timezones->forCompany($scope->companyId ?? $rule->company_id) ?? 'UTC';
         $actor = $rule->actorId() === null ? null : User::query()->whereKey($rule->actorId())->where('status', User::STATUS_ACTIVE)->first();
 
-        if ($actor === null || ! $this->actorMayRun($rule, $type, $actor, $scope)) {
+        if ($actor === null || ! $this->actorKeepsRule($rule, $type, $actor)) {
             $this->runAsUnavailable($run, $rule);
+
+            return;
+        }
+
+        // M5: this document is outside what the rule's user may see or change.
+        if (! $this->actorReaches($rule, $type, $actor, $scope, $run->document_id !== null)) {
+            $this->finish($run, AutomationRun::SKIPPED, error: __('automation.errors.out_of_scope'), code: 'out_of_scope');
 
             return;
         }
@@ -310,27 +319,55 @@ class RuleRunner
         $this->alert->send($rule, $run);
     }
 
-    /** The rule's user may still do everything the rule does, for this document. */
-    private function actorMayRun(AutomationRule $rule, DocumentType $type, User $actor, DocumentScope $scope): bool
+    /**
+     * The rule's user still holds what the rule needs at all: automation
+     * rights at the rule's level, and seeing the type and each action's
+     * permissions somewhere. Losing one switches the rule off.
+     */
+    private function actorKeepsRule(AutomationRule $rule, DocumentType $type, User $actor): bool
     {
-        // Automation rights at the rule's level; seeing and acting on the document at its own place.
         $at = $rule->company_id === null ? Scope::tenant() : Scope::company($rule->company_id);
 
-        if (! $actor->can('core.automation.edit', $at) || ! $this->access->seesDocument($actor, $type, $scope)) {
+        if (! $actor->can('core.automation.edit', $at) || ! $this->reach->anywhere($actor, [$type->viewPermission(), $type->actPermission()])) {
             return false;
         }
 
-        foreach ($rule->actions as $action) {
-            $handler = $this->actions->find((string) ($action['type'] ?? ''));
-
-            foreach ($handler?->requiredPermissions($action, $type) ?? [] as $permission) {
-                if (! $actor->can($permission, $scope->scope())) {
-                    return false;
-                }
+        foreach ($this->permissions($rule, $type) as $permission) {
+            if (! $this->reach->anywhere($actor, [$permission])) {
+                return false;
             }
         }
 
         return true;
+    }
+
+    /** The rule's user may see this document and do the rule's actions at its own place (branch, location). */
+    private function actorReaches(AutomationRule $rule, DocumentType $type, User $actor, DocumentScope $scope, bool $hasDocument): bool
+    {
+        if ($hasDocument && ! $this->access->seesDocument($actor, $type, $scope)) {
+            return false;
+        }
+
+        foreach ($this->permissions($rule, $type) as $permission) {
+            if (! $actor->can($permission, $scope->scope())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<string> */
+    private function permissions(AutomationRule $rule, DocumentType $type): array
+    {
+        $permissions = [];
+
+        foreach ($rule->actions as $action) {
+            $handler = $this->actions->find((string) ($action['type'] ?? ''));
+            array_push($permissions, ...($handler?->requiredPermissions($action, $type) ?? []));
+        }
+
+        return array_values(array_unique($permissions));
     }
 
     /**

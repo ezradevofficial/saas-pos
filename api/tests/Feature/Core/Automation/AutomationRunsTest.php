@@ -20,6 +20,7 @@ use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\ReadsListExports;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Automation\TestTaskType;
+use Tests\Support\Workflow\TestDocuments;
 use Tests\TestCase;
 
 /**
@@ -206,6 +207,39 @@ class AutomationRunsTest extends TestCase
         $this->createTask(); // no exception reaches the module
 
         $this->assertSame(2, $calls);
+    }
+
+    public function test_a_document_outside_the_rule_users_reach_is_skipped_and_one_that_moved_company_too(): void
+    {
+        // Automation for the whole tenant, but tasks only at branch A.
+        $author = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Automation', ['core.automation.view', 'core.automation.edit']), Scope::tenant());
+            $this->assign($user, $this->role('Branch A tasks', ['core.party.view', 'core.party.edit']), Scope::branch($this->branchA->id));
+
+            return $user;
+        });
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], [], $author);
+
+        $here = $this->createTask();
+        $there = $this->createTask([], new DocumentScope($this->acme->id, $this->branchB->id));
+
+        $this->assertTrue($this->taskValues($here)['urgent']);
+        $this->assertArrayNotHasKey('urgent', $this->taskValues($there));
+        $this->assertSame(['succeeded', 'skipped'], $this->runs($rule)->pluck('outcome')->all());
+        $this->assertSame('out_of_scope', $this->runs($rule)->last()->error_code);
+        $this->assertTrue($this->inTenant(fn () => $rule->fresh()->enabled), 'not switched off: the rule still works where its user reaches');
+
+        // A company rule's run for a document that moved to another company is skipped.
+        $beta = $this->inTenant(fn () => $this->company('Beta'));
+        $acmeRule = $this->saveRule(['type' => 'field_changed', 'field' => 'status'], [['type' => 'update_field', 'field' => 'note', 'value' => 'x']], ['company_id' => $this->acme->id]);
+        Bus::fake();
+        $id = $this->quietTask();
+        $this->changeTask($id, ['status' => 'closed']);
+        $this->inTenant(fn () => TestDocuments::move($id, new DocumentScope($beta->id)));
+        $run = $this->runs($acmeRule)->sole();
+        $this->inTenant(fn () => app(RuleRunner::class)->execute($run->id));
+        $this->assertSame(['skipped', 'company_changed'], $this->inTenant(fn () => [$run->fresh()->outcome, $run->fresh()->error_code]));
     }
 
     public function test_a_rule_never_retriggers_itself(): void

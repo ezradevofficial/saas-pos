@@ -11,6 +11,11 @@ use App\Core\Identity\Models\User;
  * (architecture rule 1). updateField() runs inside the rule's transaction
  * and the tenant's context; it applies the module's own rules and throws
  * (an ApiException with a translated message) to refuse.
+ *
+ * Never list a field whose change needs an approval or a stronger
+ * permission (a credit limit, a price, a discount, a status that releases
+ * goods): automation would bypass that control. Such changes go through the
+ * type's own workflow (a credit limit change document, task 5).
  */
 interface UpdatesFields
 {

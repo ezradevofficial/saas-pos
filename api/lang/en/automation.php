@@ -208,6 +208,8 @@ return [
     ],
 
     'errors' => [
+        'out_of_scope' => 'Skipped: the person the rule acts as can’t see or change this document.',
+        'release_forbidden' => 'The person the rule acts as may not lift credit holds, so the hold stays. Ask someone who may lift it to save the rule.',
         'company_changed' => 'The document moved to another company, so this company’s rule didn’t run.',
         'after_commit' => 'The rule ran, but something that reacted to its changes failed. The details are in the system log.',
         'no_webhook_secret' => 'The rule has no webhook signing secret. Rotate the secret, then try again.',

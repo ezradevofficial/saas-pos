@@ -9,6 +9,8 @@ use App\Core\Workflow\DocumentTypes\DocumentType;
  * AUTO-03 "set credit hold": `{"type": "set_credit_hold", "hold": true,
  * "reason": "Invoice 30 days overdue"}` (false lifts it). Offered for
  * types that implement HoldsCredit (the party credit type of task 5).
+ * Lifting a hold needs the type's release permission (on save and on
+ * every run, as the rule's user at the document's scope).
  */
 class SetCreditHoldAction implements AutomationAction
 {
@@ -49,7 +51,9 @@ class SetCreditHoldAction implements AutomationAction
 
     public function requiredPermissions(array $action, DocumentType $type): array
     {
-        return [$type->actPermission()];
+        $release = ($action['hold'] ?? true) === false && $type instanceof HoldsCredit ? [$type->releaseHoldPermission()] : [];
+
+        return [$type->actPermission(), ...$release];
     }
 
     public function describe(array $action, AutomationContext $context): string
@@ -65,7 +69,13 @@ class SetCreditHoldAction implements AutomationAction
             throw new ActionFailed(__('automation.errors.capability_missing'));
         }
 
-        $context->type->setCreditHold($documentId, (bool) ($action['hold'] ?? true), (string) ($action['reason'] ?? ''), $context->actor);
+        $hold = (bool) ($action['hold'] ?? true);
+
+        if (! $hold && ($context->actor === null || ! $context->actor->can($context->type->releaseHoldPermission(), $context->scope->scope()))) {
+            throw new ActionFailed(__('automation.errors.release_forbidden'));
+        }
+
+        $context->type->setCreditHold($documentId, $hold, (string) ($action['reason'] ?? ''), $context->actor);
 
         return ['hold' => (bool) ($action['hold'] ?? true)];
     }

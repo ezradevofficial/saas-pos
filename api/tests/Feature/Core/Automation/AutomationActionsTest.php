@@ -168,6 +168,31 @@ class AutomationActionsTest extends TestCase
         $this->assertSame('Invoice 30 days overdue', $this->taskValues($id)['note']);
     }
 
+    public function test_lifting_a_credit_hold_needs_the_types_release_permission(): void
+    {
+        // May change tasks but not lift holds (core.party.archive for the test type).
+        $clerk = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Credit clerk', ['core.automation.view', 'core.automation.edit', 'core.party.view', 'core.party.edit']), Scope::tenant());
+
+            return $user;
+        });
+        $body = fn (bool $hold) => [
+            'name' => 'Hold', 'document_type' => 'core.test_task', 'trigger' => ['type' => 'record_created'],
+            'actions' => [['type' => 'set_credit_hold', 'hold' => $hold, 'reason' => 'Paid']],
+        ];
+
+        $this->postJson('/api/v1/automation-rules', $body(false), $this->headersFor($clerk))->assertUnprocessable()->assertJsonValidationErrors(['actions.0']);
+        $this->postJson('/api/v1/automation-rules', $body(true), $this->headersFor($clerk))->assertCreated();
+        $this->postJson('/api/v1/automation-rules', $body(false), $this->headersFor())->assertCreated();
+
+        // A releasing rule acting as someone without the permission never lifts the hold.
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'set_credit_hold', 'hold' => false, 'reason' => 'Paid']], [], $clerk);
+        $id = $this->createTask(['on_hold' => true]);
+        $this->assertTrue($this->taskValues($id)['on_hold']);
+        $this->assertSame('run_as_unavailable', $this->runs($rule)->sole()->error_code);
+    }
+
     public function test_a_failing_action_undoes_the_earlier_ones_and_skips_the_rest(): void
     {
         $rule = $this->saveRule(['type' => 'record_created'], [

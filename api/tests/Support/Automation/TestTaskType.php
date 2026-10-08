@@ -108,6 +108,11 @@ class TestTaskType extends DocumentType implements AssignsUsers, FindsDocumentsB
         $this->write($documentId, ['on_hold' => $hold, 'note' => $reason], $by);
     }
 
+    public function releaseHoldPermission(): string
+    {
+        return 'core.party.archive';
+    }
+
     public function documentsOnDate(string $field, string $date, string $companyId, string $timezone): array
     {
         $ids = [];
