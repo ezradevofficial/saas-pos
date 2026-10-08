@@ -93,6 +93,7 @@ return [
     ],
 
     'errors' => [
+        'bulk_item_failed' => 'Cette approbation n’a pas pu être approuvée. Ouvrez-la pour réessayer.',
         'self_reassign' => 'Vous ne pouvez pas réattribuer votre propre demande.',
         'target_decided' => 'Cette personne a déjà décidé de cette demande. Choisissez quelqu’un d’autre.',
         'target_out_of_scope' => 'Cette personne n’a pas d’accès là où se trouve ce document. Choisissez quelqu’un qui y a un rôle.',

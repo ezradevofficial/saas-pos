@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\Approvals\ApprovalDecisions;
 use App\Core\Approvals\Models\ApprovalAction;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -288,6 +290,21 @@ class ApprovalApiTest extends TestCase
             ->assertOk()->assertJsonPath('data.failed.0.code', 'bulk_not_allowed');
     }
 
+    public function test_bulk_approve_reports_an_unexpected_failure_and_keeps_the_others(): void
+    {
+        $bad = $this->submit($this->approvalGraph());
+        $good = $this->submit($this->approvalGraph(), publish: false);
+        $real = app(ApprovalDecisions::class);
+        $this->mock(ApprovalDecisions::class, fn ($mock) => $mock->shouldReceive('decide')->andReturnUsing(
+            fn (ApprovalRequest $request, ...$rest) => $request->id === $bad->id ? throw new RuntimeException('boom') : $real->decide($request, ...$rest),
+        ));
+
+        $response = $this->postJson('/api/v1/approvals/bulk-approve', ['ids' => [$bad->id, $good->id]], $this->headersFor($this->managerA))->assertOk();
+        $this->assertSame([$good->id], $response->json('data.approved'));
+        $this->assertSame([['id' => $bad->id, 'code' => 'error', 'message' => __('approvals.errors.bulk_item_failed')]], $response->json('data.failed'));
+        $this->assertSame(['pending', 'approved'], [$this->fresh($bad)->status, $this->fresh($good)->status]);
+    }
+
     public function test_in_progress_requests_keep_their_versions_configuration(): void
     {
         $approval = $this->submit($this->approvalGraph());
@@ -340,16 +357,19 @@ class ApprovalApiTest extends TestCase
         $graph['nodes'][2]['approval']['approver'] = ['type' => 'user', 'user_id' => $plain->id];
         $approval = $this->submit($graph);
 
-        // The approver cannot see test documents (core.party.view): fields and pass/fail only.
+        // The approver cannot see test documents (core.party.view): the steps taken only.
         $route = $this->getJson($this->approvalUrl($approval), $this->headersFor($plain))->assertOk()->json('data.route');
         $this->assertSame('big', $route[0]['node_id']);
         $this->assertSame('no', $route[0]['branch']);
-        $this->assertSame([['branch' => 'no', 'field' => 'total', 'label' => __('workflow.columns.document_type'), 'op' => 'gt', 'passed' => false]], $route[0]['checks']);
+        $this->assertSame('Total over KES 250,000?', $route[0]['node_name']);
+        $this->assertNull($route[0]['checks']);
         $this->assertNull($route[0]['explanations']);
+        $this->assertStringNotContainsString('total', json_encode($route));
         $this->assertStringNotContainsString('120,000', json_encode($route));
 
         // The owner sees the document: sentences from its current values.
         $owner = $this->getJson($this->approvalUrl($approval), $this->headersFor())->json('data.route');
+        $this->assertSame([['branch' => 'no', 'field' => 'total', 'label' => __('workflow.columns.document_type'), 'op' => 'gt', 'passed' => false]], $owner[0]['checks']);
         $this->assertStringContainsString('KES 120,000.00', implode(' ', $owner[0]['explanations']));
     }
 }

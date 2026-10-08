@@ -93,6 +93,7 @@ return [
     ],
 
     'errors' => [
+        'bulk_item_failed' => 'This approval could not be approved. Open it to try again.',
         'self_reassign' => 'You cannot reassign your own request.',
         'target_decided' => 'That person already decided on this request. Choose someone else.',
         'target_out_of_scope' => 'That person has no access where this document belongs. Choose someone with a role there.',

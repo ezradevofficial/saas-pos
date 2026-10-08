@@ -28,9 +28,9 @@ use Illuminate\Support\Facades\URL;
  * where the document may be returned to, and "why this route").
  *
  * "Why this route" lists the condition steps the document passed before
- * reaching the approval, with the fields compared and whether each held,
- * never the stored values; a viewer who may see the document itself
- * (WF-10) also gets sentences built from its current values.
+ * reaching the approval and the branch each took. Only a viewer who may
+ * see the document itself (WF-10) also gets the fields compared, whether
+ * each held, and sentences built from its current values.
  */
 class ApprovalPresenter
 {
@@ -255,7 +255,8 @@ class ApprovalPresenter
                 'node_name' => $flow->name((string) $event->node_id),
                 'kind' => $event->type,
                 'branch' => $event->type === 'condition' ? ($event->data['branch'] ?? null) : 'skipped',
-                'checks' => $checks,
+                // L8: people who cannot see the document get the steps taken only, no fields or results.
+                'checks' => $seesDocument ? $checks : null,
                 'explanations' => $explanations,
             ];
         })->values()->all();

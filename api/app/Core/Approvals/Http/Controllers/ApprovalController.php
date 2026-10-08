@@ -21,6 +21,8 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -143,6 +145,10 @@ class ApprovalController
                 $approved[] = $id;
             } catch (ApiException $e) {
                 $failed[] = ['id' => $id, 'code' => $e->errorCode, 'message' => $e->getMessage()];
+            } catch (Throwable $e) {
+                // L10: each item decides in its own transaction; one failure never turns the batch into a 500.
+                Log::error('Bulk approval item failed', ['approval_id' => $id, 'error' => $e::class.': '.$e->getMessage()]);
+                $failed[] = ['id' => $id, 'code' => 'error', 'message' => __('approvals.errors.bulk_item_failed')];
             }
         }
 
