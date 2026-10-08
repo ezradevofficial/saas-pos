@@ -33,6 +33,7 @@ class DelegationResource extends JsonResource
             'note' => $this->note,
             'status' => match (true) {
                 $this->revoked_at !== null => 'revoked',
+                ($this->fromUser !== null && ! $this->fromUser->isActive()) || ($this->toUser !== null && ! $this->toUser->isActive()) => 'ended',
                 $today < $starts => 'scheduled',
                 $today > $ends => 'ended',
                 default => 'active',

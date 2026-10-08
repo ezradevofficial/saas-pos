@@ -93,6 +93,10 @@ return [
     ],
 
     'errors' => [
+        'self_reassign' => 'You cannot reassign your own request.',
+        'target_decided' => 'That person already decided on this request. Choose someone else.',
+        'target_out_of_scope' => 'That person has no access where this document belongs. Choose someone with a role there.',
+        'already_decided' => 'You already decided on this request. Someone else must decide this step.',
         'not_pending' => 'This approval is no longer waiting for a decision. Refresh to see what happened.',
         'not_assignee' => 'This approval is not waiting for you. Ask an administrator to reassign it if you should decide it.',
         'reason_required' => 'Give a reason for this decision.',

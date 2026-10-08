@@ -140,7 +140,9 @@ class ApprovalApiTest extends TestCase
         $status->assertJsonPath('data.current.0.holders.blocked', 'no_approver');
 
         $this->getJson($this->approvalUrl($blocked), $this->headersFor())->assertOk()->assertJsonPath('data.blocked_reason', 'no_approver');
-        $this->postJson($this->approvalUrl($blocked, '/reassign'), ['from_user_id' => null, 'to_user_id' => $this->accountant->id], $this->headersFor())->assertOk();
+        // The owner requested it, so cannot reassign it; the branch manager can.
+        $this->postJson($this->approvalUrl($blocked, '/reassign'), ['from_user_id' => null, 'to_user_id' => $this->accountant->id], $this->headersFor())->assertForbidden();
+        $this->postJson($this->approvalUrl($blocked, '/reassign'), ['from_user_id' => null, 'to_user_id' => $this->accountant->id], $this->headersFor($this->managerA))->assertOk();
         $this->assertSame([$this->accountant->id], $this->pendingApprovers($blocked));
         $this->assertNull($this->fresh($blocked)->blocked_reason);
     }

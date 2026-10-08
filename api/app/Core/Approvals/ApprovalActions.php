@@ -7,6 +7,7 @@ use App\Core\Approvals\Models\ApprovalAttachment;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\Models\DocumentWorkflowToken;
@@ -31,8 +32,10 @@ use Throwable;
  * - attach files: approvers, delegates and the requester, on a pending
  *   request (PDF, images, text, CSV, Word and Excel; 10 MB; 20 per request);
  * - reassign: `core.approval.reassign` at the document's place moves a
- *   pending assignment to another active user, never the requester and not
- *   someone already on the step.
+ *   pending assignment to another active user who can see the document
+ *   (or holds a role covering it); never to the requester, someone already
+ *   on the step or anyone who already decided a step (four eyes), and never
+ *   by the requester.
  *
  * Everything is written to the request's history and audited.
  */
@@ -61,6 +64,7 @@ class ApprovalActions
         private readonly ApprovalNotices $notices,
         private readonly WorkflowEngine $engine,
         private readonly TenantContext $tenants,
+        private readonly ScopeResolver $scopes,
     ) {}
 
     public function returnForChanges(ApprovalRequest $request, User $by, string $nodeId, string $reason): ApprovalRequest
@@ -141,6 +145,11 @@ class ApprovalActions
                 throw new ApiException(422, 'approval_not_pending', __('approvals.errors.not_pending'));
             }
 
+            // The requester never moves their own request to someone of their choice.
+            if (in_array($by->id, $this->routing->excluded($request), true)) {
+                throw new ApiException(403, 'self_approval', __('approvals.errors.self_reassign'));
+            }
+
             $from = $fromUserId === '' ? null : $request->assignments()->where('step', $request->step)
                 ->where('status', ApprovalAssignment::PENDING)->where('user_id', $fromUserId)->first();
 
@@ -149,8 +158,17 @@ class ApprovalActions
                 throw new ApiException(422, 'not_pending_approver', __('approvals.errors.not_pending_approver'), ['from_user_id' => [__('approvals.errors.not_pending_approver')]]);
             }
 
+            // Four eyes: whoever already decided a step of this request cannot take another.
+            if ($this->access->hasVoted($request, $toUserId)) {
+                throw new ApiException(422, 'already_decided', __('approvals.errors.target_decided'), ['to_user_id' => [__('approvals.errors.target_decided')]]);
+            }
+
             if ($this->routing->eligible($request, [$toUserId]) === []) {
                 throw new ApiException(422, 'ineligible_approver', __('approvals.errors.ineligible_approver'), ['to_user_id' => [__('approvals.errors.ineligible_approver')]]);
+            }
+
+            if (! $this->mayHold($request, User::query()->findOrFail($toUserId))) {
+                throw new ApiException(422, 'cannot_see_document', __('approvals.errors.target_out_of_scope'), ['to_user_id' => [__('approvals.errors.target_out_of_scope')]]);
             }
 
             if ($request->assignments()->where('step', $request->step)->where('status', ApprovalAssignment::PENDING)->where('user_id', $toUserId)->exists()) {
@@ -218,6 +236,13 @@ class ApprovalActions
 
             throw $e;
         }
+    }
+
+    /** The new approver may see the document, or holds a role at a place covering it (RBAC-04). */
+    private function mayHold(ApprovalRequest $request, User $target): bool
+    {
+        return $this->access->seesDocument($target, $request)
+            || $this->scopes->roleIds($target, ApprovalAccess::scope($request)->scope()) !== [];
     }
 
     private function assertMayAttach(ApprovalRequest $request, User $by): void

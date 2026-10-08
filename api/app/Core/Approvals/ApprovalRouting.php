@@ -170,7 +170,10 @@ class ApprovalRouting
      */
     public function eligible(ApprovalRequest $request, array $candidates, array $also = []): array
     {
-        $candidates = array_values(array_diff(array_unique($candidates), $this->excluded($request), $also));
+        // Four eyes: nobody who already decided a step of this request is asked again.
+        $voted = $request->exists ? $request->assignments()->whereNotNull('decided_by')
+            ->whereIn('status', [ApprovalAssignment::APPROVED, ApprovalAssignment::REJECTED])->pluck('decided_by')->all() : [];
+        $candidates = array_values(array_diff(array_unique($candidates), $this->excluded($request), $also, $voted));
 
         if ($candidates === []) {
             return [];

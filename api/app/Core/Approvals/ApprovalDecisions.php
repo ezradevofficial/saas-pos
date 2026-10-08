@@ -57,6 +57,10 @@ class ApprovalDecisions
                 throw new ApiException(422, 'approval_not_pending', __('approvals.errors.not_pending'));
             }
 
+            if ($this->access->hasVoted($request, $by->id)) {
+                throw new ApiException(403, 'already_decided', __('approvals.errors.already_decided'));
+            }
+
             $acting = $this->access->acting($request, $by);
 
             if ($acting === null) {

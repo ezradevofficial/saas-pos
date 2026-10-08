@@ -14,6 +14,8 @@ use Illuminate\Support\Collection;
  * Who may see and act on an approval request (APR-03, APR-04, APR-06,
  * RBAC-04):
  *
+ * - four eyes: one person counts once per request: whoever approved or
+ *   rejected any step (themselves or as a delegate) cannot act again;
  * - acting needs only being a pending approver of the current step, or
  *   the active delegate of one (no permission); never the requester
  *   (APR-07, checked by the decision itself);
@@ -50,7 +52,8 @@ class ApprovalAccess
      */
     public function acting(ApprovalRequest $request, User $user, ?Collection $delegations = null): ?array
     {
-        if (! $request->isPending()) {
+        // Four eyes: one person counts once per request (no second vote as someone's delegate, no second chain step).
+        if (! $request->isPending() || $this->hasVoted($request, $user->id)) {
             return null;
         }
 
@@ -69,6 +72,13 @@ class ApprovalAccess
         }
 
         return null;
+    }
+
+    /** Whether $userId already approved or rejected any step of the request, for themselves or as a delegate. */
+    public function hasVoted(ApprovalRequest $request, string $userId): bool
+    {
+        return $request->assignments()->where('decided_by', $userId)
+            ->whereIn('status', [ApprovalAssignment::APPROVED, ApprovalAssignment::REJECTED])->exists();
     }
 
     public function sees(User $user, ApprovalRequest $request): bool

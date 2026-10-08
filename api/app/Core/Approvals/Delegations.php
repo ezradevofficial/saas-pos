@@ -36,6 +36,9 @@ class Delegations
         return ApprovalDelegation::query()
             ->where('to_user_id', $user->id)
             ->whereNull('revoked_at')
+            // A delegation ends while the delegator or the delegate is deactivated.
+            ->whereHas('fromUser', fn ($q) => $q->where('status', User::STATUS_ACTIVE))
+            ->whereHas('toUser', fn ($q) => $q->where('status', User::STATUS_ACTIVE))
             ->where('ends_on', '>=', CarbonImmutable::now()->subDay()->toDateString())
             ->where('starts_on', '<=', CarbonImmutable::now()->addDay()->toDateString())
             ->get();

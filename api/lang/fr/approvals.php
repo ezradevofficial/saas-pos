@@ -93,6 +93,10 @@ return [
     ],
 
     'errors' => [
+        'self_reassign' => 'Vous ne pouvez pas réattribuer votre propre demande.',
+        'target_decided' => 'Cette personne a déjà décidé de cette demande. Choisissez quelqu’un d’autre.',
+        'target_out_of_scope' => 'Cette personne n’a pas d’accès là où se trouve ce document. Choisissez quelqu’un qui y a un rôle.',
+        'already_decided' => 'Vous avez déjà décidé de cette demande. Une autre personne doit décider de cette étape.',
         'not_pending' => 'Cette approbation n’attend plus de décision. Actualisez pour voir ce qui s’est passé.',
         'not_assignee' => 'Cette approbation ne vous attend pas. Demandez à un administrateur de vous la réattribuer si vous devez en décider.',
         'reason_required' => 'Indiquez un motif pour cette décision.',

@@ -23,7 +23,7 @@ class DelegationController
         $user = $request->user();
         $rows = ApprovalDelegation::query()
             ->where(fn ($q) => $q->where('from_user_id', $user->id)->orWhere('to_user_id', $user->id))
-            ->with(['fromUser:id,name', 'toUser:id,name'])
+            ->with(['fromUser:id,name,status', 'toUser:id,name,status'])
             ->orderByDesc('created_at')->orderByDesc('id')
             ->limit(200)->get();
 
@@ -34,11 +34,11 @@ class DelegationController
     {
         $delegation = $this->delegations->create($request->user(), $request->validated());
 
-        return DelegationResource::make($delegation->load(['fromUser:id,name', 'toUser:id,name']))->response()->setStatusCode(201);
+        return DelegationResource::make($delegation->load(['fromUser:id,name,status', 'toUser:id,name,status']))->response()->setStatusCode(201);
     }
 
     public function revoke(DelegationRequest $request): DelegationResource
     {
-        return DelegationResource::make($this->delegations->revoke($request->delegation(), $request->user())->load(['fromUser:id,name', 'toUser:id,name']));
+        return DelegationResource::make($this->delegations->revoke($request->delegation(), $request->user())->load(['fromUser:id,name,status', 'toUser:id,name,status']));
     }
 }
