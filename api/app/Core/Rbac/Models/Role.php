@@ -72,10 +72,16 @@ class Role extends SpatieRole
         }
     }
 
-    /** @return list<string> permission names, sorted */
+    /**
+     * Permission names sorted in PHP (byte order), as RoleResource lists
+     * them: the database collation may order `core.item_category.*` and
+     * `core.item.*` the other way round.
+     *
+     * @return list<string>
+     */
     public function permissionNames(): array
     {
-        return $this->permissions()->orderBy('name')->pluck('name')->all();
+        return $this->permissions()->pluck('name')->sort()->values()->all();
     }
 
     /**

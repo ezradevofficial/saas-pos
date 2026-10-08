@@ -77,13 +77,16 @@ class RoleTemplatesTest extends TestCase
             'core.tax.view', 'core.tax.edit', 'core.price_list.view', 'core.price_list.edit',
             'core.party.view', 'core.party.create', 'core.party.edit', 'core.party.archive',
             'core.master_data_settings.edit',
+            'core.item.view', 'core.item.create', 'core.item.edit', 'core.item.archive',
+            'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.item_category.archive',
+            'core.uom.view', 'core.uom.edit',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(44, count($names));
+        $this->assertSame(54, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -147,6 +150,40 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame([], $party('storekeeper'));
     }
 
+    public function test_templates_grant_item_permissions_by_job(): void
+    {
+        // MD-02: tills read the catalogue; managers, storekeepers and buyers
+        // keep items; storekeepers also keep categories; only Owner and Admin
+        // archive or change units; the auditor only reads.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $items = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where(fn ($q) => $q->where('name', 'like', 'core.item.%')->orWhere('name', 'like', 'core.item_category.%')->orWhere('name', 'like', 'core.uom.%'))
+            ->pluck('name')->sort()->values()->all();
+
+        $all = [
+            'core.item.archive', 'core.item.create', 'core.item.edit', 'core.item.view',
+            'core.item_category.archive', 'core.item_category.create', 'core.item_category.edit', 'core.item_category.view',
+            'core.uom.edit', 'core.uom.view',
+        ];
+        $this->assertSame($all, $items('owner'));
+        $this->assertSame($all, $items('admin'));
+
+        foreach (['cashier', 'waiter'] as $key) {
+            $this->assertSame(['core.item.view', 'core.item_category.view', 'core.uom.view'], $items($key), $key);
+        }
+
+        foreach (['branch_manager', 'procurement_officer'] as $key) {
+            $this->assertSame(['core.item.create', 'core.item.edit', 'core.item.view', 'core.item_category.view', 'core.uom.view'], $items($key), $key);
+        }
+
+        $this->assertSame([
+            'core.item.create', 'core.item.edit', 'core.item.view',
+            'core.item_category.create', 'core.item_category.edit', 'core.item_category.view', 'core.uom.view',
+        ], $items('storekeeper'));
+        $this->assertSame(['core.item.view', 'core.item_category.view', 'core.uom.view'], $items('read_only_auditor'));
+        $this->assertSame([], $items('hr_officer'));
+    }
+
     public function test_system_role_names_use_the_tenant_locale(): void
     {
         $this->enter($this->signUp('fr')->json('challenge_id'));
@@ -172,7 +209,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(44, $permissions);
+        $this->assertCount(54, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

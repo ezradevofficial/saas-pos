@@ -72,9 +72,12 @@ class MasterDataSharingTest extends TestCase
         $manager = $this->headersFor($this->userWith('branch_manager', Scope::branch($this->branchA->id)));
         $companyAdmin = $this->headersFor($this->userWith('admin', Scope::company($this->acme->id)));
         $storekeeper = $this->headersFor($this->userWith('storekeeper', Scope::location($this->locationA->id)));
+        $hrOfficer = $this->headersFor($this->userWith('hr_officer', Scope::location($this->locationA->id)));
 
+        // Item creators read the mode (MD-02); users without master data permissions do not.
         $this->getJson('/api/v1/master-data/settings', $manager)->assertOk();
-        $this->getJson('/api/v1/master-data/settings', $storekeeper)->assertForbidden();
+        $this->getJson('/api/v1/master-data/settings', $storekeeper)->assertOk();
+        $this->getJson('/api/v1/master-data/settings', $hrOfficer)->assertForbidden();
         $this->settings(['data_type' => 'suppliers', 'mode' => 'per_company'], $manager)->assertForbidden();
         $this->settings(['data_type' => 'suppliers', 'mode' => 'per_company'], $companyAdmin)->assertForbidden();
 

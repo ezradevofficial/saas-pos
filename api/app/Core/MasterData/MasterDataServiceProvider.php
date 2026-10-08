@@ -5,6 +5,19 @@ namespace App\Core\MasterData;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\History\HistoryTypes;
+use App\Core\MasterData\Items\Console\SeedDefaultUomsCommand;
+use App\Core\MasterData\Items\Http\Resources\ItemCategoryResource;
+use App\Core\MasterData\Items\Http\Resources\ItemResource;
+use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemCategory;
+use App\Core\MasterData\Items\ItemCategoryPolicy;
+use App\Core\MasterData\Items\ItemCategorySharedRecords;
+use App\Core\MasterData\Items\ItemCodesGuard;
+use App\Core\MasterData\Items\ItemPolicy;
+use App\Core\MasterData\Items\ItemSharedRecords;
+use App\Core\MasterData\Items\Listeners\SeedDefaultUoms;
+use App\Core\MasterData\Items\Uom;
+use App\Core\MasterData\Items\UomPolicy;
 use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
@@ -15,14 +28,19 @@ use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategorySharedRecords;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Rbac\Models\Role;
+use App\Core\Tenancy\Events\TenantProvisioned;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * TEN-08 sharing modes, MD-01 parties, MD-06 duplicate warnings and MD-07
- * record history. Modules add their sharable records, switch guards and
+ * TEN-08 sharing modes, MD-01 parties, MD-02 items, MD-06 duplicate
+ * warnings and MD-07 record history. Modules add their sharable records, switch guards and
  * history types in their own providers.
  */
 class MasterDataServiceProvider extends ServiceProvider
@@ -42,8 +60,22 @@ class MasterDataServiceProvider extends ServiceProvider
             $sharing->records($type, new PartySharedRecords($type, $sharing));
         }
 
-        // Items point to tax categories: they share or split together.
+        // Items point to tax categories and item categories: they share or
+        // split together. Codes and barcodes must stay unique (review focus 4).
         $sharing->records('items', $this->app->make(TaxCategorySharedRecords::class));
+        $sharing->records('items', new ItemCategorySharedRecords);
+        $sharing->records('items', new ItemSharedRecords);
+        $sharing->guard(new ItemCodesGuard);
+
+        // MD-02: signed item image URLs, 120 a minute per IP.
+        RateLimiter::for('media', fn (Request $request) => Limit::perMinute(120)->by('ip|'.$request->ip()));
+
+        // MD-02: every tenant starts with the default units.
+        Event::listen(TenantProvisioned::class, SeedDefaultUoms::class);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([SeedDefaultUomsCommand::class]);
+        }
 
         $history = $this->app->make(HistoryTypes::class);
         $reach = fn () => $this->app->make(CompanyReach::class);
@@ -52,6 +84,9 @@ class MasterDataServiceProvider extends ServiceProvider
         $history->register('tax_code', TaxCode::class, null, fn (User $user, TaxCode $code) => $reach()->reachesRecord($user, $code->company_id, ['core.tax.view', 'core.tax.edit']));
         $history->register('tax_category', TaxCategory::class, null, fn (User $user, TaxCategory $category) => $reach()->reachesRecord($user, $category->company_id, ['core.tax.view', 'core.tax.edit']));
         $history->register('price_list', PriceList::class, null, fn (User $user, PriceList $list) => $reach()->reachesRecord($user, $list->company_id, ['core.price_list.view', 'core.price_list.edit']));
+        $history->register('item', Item::class, ItemResource::FIELD_RULES, fn (User $user, Item $item) => $this->app->make(ItemPolicy::class)->view($user, $item));
+        $history->register('item_category', ItemCategory::class, ItemCategoryResource::FIELD_RULES, fn (User $user, ItemCategory $category) => $this->app->make(ItemCategoryPolicy::class)->view($user, $category));
+        $history->register('uom', Uom::class, null, fn (User $user, Uom $uom) => $this->app->make(UomPolicy::class)->view($user, $uom));
         $history->register('company', Company::class, null);
         $history->register('branch', Branch::class, null);
         $history->register('location', Location::class, null);

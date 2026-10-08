@@ -174,7 +174,8 @@ class InvitationTest extends TestCase
         $inviter = $this->inTenant(function () {
             $user = $this->colleague($this->owner);
             $this->assign($user, $this->role('Inviter', ['core.user.invite']), Scope::location($this->locationA->id));
-            $this->assign($user, $this->role('Assigner', ['core.role.assign', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view']), Scope::branch($this->branchA->id));
+            // Every permission of the cashier template, so only the invite permission is missing.
+            $this->assign($user, $this->role('Assigner', ['core.role.assign', ...$this->roles->get('cashier')->permissionNames()]), Scope::branch($this->branchA->id));
 
             return $user;
         });

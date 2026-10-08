@@ -181,6 +181,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations, `permissions:sync`, `currencies:sync` and `country-packs:publish`)
 - [ ] a queue worker running (`php artisan queue:work` or Horizon)
+- [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
 
 Each deploy:
 
@@ -194,9 +195,26 @@ Each deploy:
 8. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles, each on the runtime connection under row-level security (ADR 006)
 9. runs `php artisan currencies:sync` (as the owner): upserts the ISO 4217 currency catalogue from ICU (CDF overridden to 0 decimals), then gives each tenant's companies their country's currencies where missing, under row-level security (ADR 003)
 10. runs `php artisan country-packs:publish KE` and `CD` (as the owner): loads `api/country-packs/{KE,CD}/pack.json` as a new pack version when the content changed, a no-op otherwise (CP-01, CP-03). New companies get the pack's tax codes; existing ones add missing codes with `POST companies/{company}/tax-codes/apply-pack`
-11. caches config and routes
-12. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
-13. `php artisan up`, only when every step above succeeded
+11. runs `php artisan uoms:seed-defaults`: gives every tenant that lacks them the default units of measure (EA, KG, G, L, ML, M, BOX, PACK), under row-level security (MD-02). New tenants get them at sign-up.
+12. caches config and routes
+13. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+14. `php artisan up`, only when every step above succeeded
+
+#### Media storage
+
+Item images (MD-02) live on the `media` disk, at `tenants/{tenant}/items/{item}/{uuid}.{ext}`. They are never served from a public path. The API returns temporary URLs, valid 15 minutes.
+
+- **Local driver** (default, development and tests): files under `api/storage/app/media`. URLs point to the signed route `GET /api/v1/media/{path}`, which checks the tenant and that the user may still view the item.
+- **Linode Object Storage** (production): an S3-compatible bucket, private (no public ACL). URLs are presigned by the object store. This needs the `league/flysystem-aws-s3-v3` package, which is not installed yet. Add it before switching the driver. Set in `<path>/api/.env`:
+
+| Variable | Value |
+| --- | --- |
+| `MEDIA_DISK_DRIVER` | `s3` |
+| `MEDIA_ACCESS_KEY_ID` / `MEDIA_SECRET_ACCESS_KEY` | An Object Storage access key limited to the bucket (read/write) |
+| `MEDIA_REGION` | The cluster's region, e.g. `eu-central-1` or `us-east-1` |
+| `MEDIA_ENDPOINT` | The cluster endpoint, e.g. `https://eu-central-1.linodeobjects.com` |
+| `MEDIA_BUCKET` | The bucket name |
+| `MEDIA_USE_PATH_STYLE_ENDPOINT` | `false` (Linode supports virtual-hosted style) |
 
 #### If a deploy stops
 

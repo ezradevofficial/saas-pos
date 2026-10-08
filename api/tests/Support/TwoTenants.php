@@ -9,7 +9,9 @@ use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\TestCase;
@@ -22,7 +24,8 @@ use Tests\TestCase;
  * reporting currencies, exchange rates and a rate alert, tax codes and
  * rates from the country pack, a tax category and a price list, a
  * master data sharing setting, a shared customer and a per-company
- * supplier). Field rules, limit rules and module flags have
+ * supplier, item categories and an item with another unit, barcodes and
+ * an image). Field rules, limit rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
  * missing filter shows up as a leak.
@@ -44,6 +47,7 @@ final class TwoTenants
     public static function build(TestCase $test): self
     {
         Notification::fake();
+        Storage::fake('media');
         app(ModuleRegistry::class)->register(self::MODULE);
 
         return new self(
@@ -119,6 +123,21 @@ final class TwoTenants
         ], $owner), 201)->json('data.id');
         self::ok($test->patchJson("/api/v1/parties/{$party}", ['legal_name' => "Supplier {$upper} Limited"], $owner));
 
+        // MD-02: units from sign-up; a category under another; an item with a
+        // box of 12, a barcode for each unit and an image, renamed once (history).
+        $uoms = collect(self::ok($test->getJson('/api/v1/uoms?per_page=200', $owner))->json('data'))->pluck('id', 'code');
+        $parentCategory = self::ok($test->postJson('/api/v1/item-categories', ['name_en' => "Goods {$upper}"], $owner), 201)->json('data.id');
+        $itemCategory = self::ok($test->postJson('/api/v1/item-categories', ['name_en' => "Goods {$upper} sub", 'parent_id' => $parentCategory], $owner), 201)->json('data.id');
+        $item = self::ok($test->postJson('/api/v1/items', [
+            'code' => "ITEM-{$upper}", 'name_en' => "Item {$upper}", 'type' => 'stock', 'base_uom_id' => $uoms['EA'],
+            'category_id' => $itemCategory, 'tax_category_id' => $taxCategory,
+            'uoms' => [['uom_id' => $uoms['BOX'], 'factor' => '12']],
+            'barcodes' => [['barcode' => '6161000000001'], ['barcode' => '6161000000018', 'uom_id' => $uoms['BOX']]],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/items/{$item}", ['name_fr' => "Article {$upper}"], $owner));
+        $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
+            ->json('data.images.0.id');
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -191,6 +210,12 @@ final class TwoTenants
                 'price_list' => $priceList,
                 'party' => $party,
                 'customer' => $customer,
+                'uom' => $uoms['EA'],
+                'uom_box' => $uoms['BOX'],
+                'item_category' => $itemCategory,
+                'item_category_parent' => $parentCategory,
+                'item' => $item,
+                'item_image' => $itemImage,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
