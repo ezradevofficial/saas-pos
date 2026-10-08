@@ -187,6 +187,21 @@ class NotifierTest extends TestCase
         $this->asTenant($other['user']->tenant_id, fn () => $this->assertSame(0, NotificationDelivery::count() + InAppNotification::count()));
     }
 
+    public function test_users_reach_the_inbox_only_through_our_model_and_keep_notify(): void
+    {
+        $this->sendTest([$this->owner]);
+
+        $this->inTenant(function () {
+            $relation = $this->owner->notifications();
+            $this->assertInstanceOf(InAppNotification::class, $relation->getRelated());
+            $this->assertSame(1, $relation->count());
+        });
+        // Laravel's database-notification shape is gone; notify() (sign-in codes) stays.
+        $this->assertFalse(method_exists($this->owner, 'readNotifications'));
+        $this->assertFalse(method_exists($this->owner, 'unreadNotifications'));
+        $this->assertTrue(method_exists($this->owner, 'notify'));
+    }
+
     public function test_an_unknown_event_type_or_no_tenant_is_refused(): void
     {
         $this->expectException(UnknownEventType::class);
