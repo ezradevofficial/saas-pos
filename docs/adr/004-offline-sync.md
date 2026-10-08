@@ -48,7 +48,7 @@ Built in `App\Core\Sync`. Still Proposed until the 7-day offline test passes (Ta
 - `GET sync/bootstrap`: server time (clock-skew check), the device, where it sits (`settings`), the entities to pull in order (`key`, `mode`, `module`, `version`), page sizes and the PIN scheme.
 - `GET sync/pull?entities[]=items&cursors[items]=...&limit=500`: per entity `{mode, reset, replace, upserts, tombstones, cursor, has_more}`. Without `entities`, every entity the tenant has.
 - `GET sync/media/{item_image}`: an item image, for items the device may hold.
-- `POST sync/device-secret`: a new device secret (below).
+- `GET sync/device-secret/challenge`, `POST sync/device-secret/rotate`, `POST sync/device-secret/activate`: rotating the device secret (below).
 
 **Registry.** `SyncSources` lists the entities. Core registers settings, currencies, exchange rates, tax codes, tax categories, price lists, payment methods, units, item categories, items, customers and staff. Modules register their own sources. For example, the POS module adds its settings and number ranges. An entity of a module the tenant has not activated is not served (RBAC-08).
 
@@ -56,14 +56,19 @@ Built in `App\Core\Sync`. Still Proposed until the 7-day offline test passes (Ta
 
 - *Incremental* (items, item categories, units, customers): pages of changes since an opaque cursor, plus tombstones.
 - *Snapshot* (staff, taxes, payment methods, currencies, rates, settings, price lists): small sets sent whole. The cursor is a hash of the rows. An unchanged set costs nothing, and a changed set replaces the device's copy (`replace: true`). This suits sets whose membership depends on several tables. For example, "who works at this location" changes when a role, an assignment or a user changes. Per-row tombstones would be fragile there.
+- *Snapshot cache (NFR-05).* A device's snapshot rows are rebuilt at most every `sync.snapshot_ttl_seconds` (30 by default; `SnapshotCache`). PIN changes, lockouts and device secret changes invalidate the tenant's cache at once. Other snapshot changes (a new payment method, a rate, a price list, a role change) reach tills within the TTL.
 
-**Cursor: transaction id, not `updated_at`.** This deviates from the wording "updated_at cursors". A cursor on `updated_at` loses rows. A transaction that started earlier but commits later writes an `updated_at` older than rows already handed out, so a device that pulled in between never sees it. It also depends on the app servers' clocks. Instead:
+**Cursor: transaction id, not `updated_at`.** This deviates from the wording "updated_at cursors" in CLAUDE.md. Its intent is that no update is ever lost, and this design meets that intent better (accepted by the owner, phase 4). A cursor on `updated_at` loses rows. A transaction that started earlier but commits later writes an `updated_at` older than rows already handed out, so a device that pulled in between never sees it. It also depends on the app servers' clocks. Instead:
 
 - Every synced table has `sync_xid` (the writing transaction's id) and `sync_seq` (a global sequence). The database trigger `sync_stamp` sets both on every insert and update, never PHP.
 - Changes are paged in `(sync_xid, sync_seq)` order. Equal timestamps cannot tie: `sync_seq` is unique.
 - A pull hands out only rows whose `sync_xid` is below `pg_snapshot_xmin(pg_current_snapshot())`, the oldest transaction still running. Below that horizon every transaction has finished, and no later one can get a smaller id. So nothing ever lands behind a cursor, whatever the commit order or clocks.
 - `updated_at` is still sent in the payload.
-- Cost: a transaction left open (a long import, an idle-in-transaction session) delays every device's changes until it ends. Changes are delayed, never lost. Keep write transactions short.
+- Cost: the horizon is cluster wide. A transaction left open (a long import, an idle-in-transaction session, a prepared transaction, another database on the same cluster) delays every device's changes until it ends. Changes are delayed, never lost, and rows are never skipped to catch up. Guards:
+  - the runtime connection sets `idle_in_transaction_session_timeout = 60s` and `statement_timeout = 120s` (`server_options` in `config/database.php`); the database default for idle transactions is also 60 seconds (migration `2026_10_19_000200`; the schema owner may not alter roles)
+  - `max_prepared_transactions = 0`, and the database runs on a cluster of its own (deploy README)
+  - `SyncLag` measures the hold-back. It is shown on `GET /up` as `X-Sync-Lag-Seconds` and `X-Sync-Lag-Xids`, and by `php artisan sync:lag` (exit 1 when lagging). Above 2 minutes it logs a warning.
+  - in tests only, a pull's own uncommitted transaction counts as committed for itself (tests read inside their wrapping transaction). Production pulls never write before reading.
 - `SyncConcurrencyTest` proves it with real concurrent connections.
 
 The cursor is `base64url("i1.{version}.{xid}.{seq}")` for incremental entities and `base64url("s1.{version}.{sha256}")` for snapshots. A source raises its `version` when its payload changes meaning. Devices holding an older cursor then get `reset: true` and the entity from the start.
@@ -75,13 +80,25 @@ The cursor is `base64url("i1.{version}.{xid}.{seq}")` for incremental entities a
 - Whether a changed id becomes an upsert or a tombstone is decided by its state at pull time, so the device always ends with the latest state.
 - Tombstones are not pruned yet. When they are, a cursor older than the retention will need `reset`.
 
-**Items are self-contained.** An item carries its other units, barcodes and images (`url` = `/api/v1/sync/media/{id}`). Changes to those rows re-stamp the item by trigger (they are replaced wholesale on edit). So do changes to the tax data that decides `sellable`: tax rates, a category's default code, a code's archive. An item is `sellable: false` with a `reason` (`tax_category_missing`, `tax_code_missing`, `tax_code_archived`, `tax_rate_needed`) when its tax for the device's company is not known today (`ItemTaxStatus`). Rates are never guessed. The `tax_codes` entity carries every dated rate, so the device re-checks when a dated rate starts while it is offline.
+**Items are self-contained.** An item carries its other units, barcodes and images (`url` = `/api/v1/sync/media/{id}`). Changes to those rows re-stamp the item by trigger (they are replaced wholesale on edit). Changes to the tax data that decides `sellable` (tax rates, a category's default code, a code's archive) re-stamp the items concerned from a queued job after commit (`RestampItemsForTax`), 500 rows per statement: a VAT change can touch every item, and one long transaction would hold back every device. An item is `sellable: false` with a `reason` (`tax_category_missing`, `tax_code_missing`, `tax_code_archived`, `tax_rate_needed`) when its tax for the device's company is not known today (`ItemTaxStatus`). Rates are never guessed. The `tax_codes` entity carries every dated rate, so the device re-checks when a dated rate starts while it is offline. `sellable` is the till's guide, not the authority: the server re-checks the tax of every line when the sale is uploaded (the POS module).
 
 **Minimal fields.** Devices have no user, so field rules (RBAC-05) cannot be applied when pulling. Each entity sends only what a till needs. For example, customers have no emails or addresses, and payment methods have no settings or secrets. Each staff row carries that user's field rules for `item` and `party`, and the till hides those fields from whoever is signed in.
 
+**Customer data on tills (data minimisation decision).** A till holds the customers of its company and the group's shared ones: name, phone numbers, tax ID, currency, price list, payment terms and credit limit. That is what selling on account and printing fiscal receipts offline needs. A stolen till therefore exposes those fields for those customers. This is accepted for now. The owner may revisit it, for example by syncing only customers with recent sales at the location and looking up the rest online.
+
 ### POS PINs, device secrets and manager overrides (AUTH-06..AUTH-08)
 
-**Device secret.** Each paired device gets 32 random bytes, returned once in the pairing answer as `device_secret` (base64url) and replaceable with `POST sync/device-secret`. The server keeps it encrypted with the application key. Unpairing clears it. The app keeps it in the platform keystore (Android Keystore / iOS Keychain), apart from its SQLite database.
+**Device secrets and rotation.** Each paired device has secrets of 32 random bytes, each named by a key id (`kid`). They are kept in `device_secrets`, encrypted with the application key, with `issued_at`, `activated_at` and `retired_at`. At any time one is current, at most one is pending, and retired ones are kept.
+
+- *Pairing* returns the first one once, as `device_secret` (base64url) with `device_secret_kid`. Unpairing retires them all.
+- *Storage on the device.* The app keeps both its secret and its device token in the platform keystore (Android Keystore / iOS Keychain, through SecureStore), never in its SQLite database.
+- *Rotation* proves possession at each step, and a lost answer is harmless:
+  1. `GET sync/device-secret/challenge` returns a one-time `nonce`, valid for 5 minutes.
+  2. `POST sync/device-secret/rotate {kid, nonce, proof}`, with `proof = base64url(HMAC-SHA256(current secret, "rotate:v1\n{device_id}\n{nonce}"))`, returns a *pending* secret and its `kid`. The current secret stays current. A new rotation replaces a pending secret whose answer was lost.
+  3. `POST sync/device-secret/activate {kid, proof}`, with `proof = base64url(HMAC-SHA256(new secret, "activate:v1\n{device_id}\n{kid}"))`, makes the new secret current and retires the old one.
+- Rotation is limited to 15 steps an hour per device (5 rotations).
+- *A device that lost its secret cannot rotate.* The only way back is to unpair and pair it again.
+- *Whoever holds a device's current secret can mint offline overrides as that device* (below) and check its staff's PINs offline. The token and the secret together are the device's identity. That is why both live in the keystore, and why offline overrides are device claims that are reviewed.
 
 **PIN storage.** A PIN is 4 to 6 digits. Repeated digits, runs (1234, 987654), repeated pairs or triples and common PINs are refused. A staff card code is 6 to 64 letters or digits, compared in upper case. The server stores, per user:
 
@@ -90,13 +107,20 @@ The cursor is `base64url("i1.{version}.{xid}.{seq}")` for incremental entities a
 
 It never stores the PIN.
 
-**Offline verification.** The staff entity gives each device, per user, `{scheme: "pbkdf2-sha256+hmac-sha256/v1", salt, iterations, verifier}`. The verifier is `HMAC-SHA256(device secret, "pin:v1:{user_id}:" || PBKDF2 key)` (`card:v1:` for the card). The app recomputes it from the PIN typed and compares in constant time. Each device therefore gets a different verifier, bound to the user, and the verifier cannot be checked without the device secret.
+**Offline verification.** The staff entity gives each device, per user, `{scheme: "pbkdf2-sha256+hmac-sha256/v1", kid, salt, iterations, verifier}`. The verifier is `HMAC-SHA256(device secret kid, "pin:v1:{user_id}:" || PBKDF2 key)` (`card:v1:` for the card), always under the device's *current* secret. The app recomputes it from the PIN typed and compares in constant time. Each device therefore gets a different verifier, bound to the user, and the verifier cannot be checked without the device secret.
+
+**Who is staff, and whose material a till holds.**
+
+- *Staff.* Staff of a location hold `pos.till.sign_in` through a role covering it. The cashier template has it; branch managers and Owners get it through `pos.*` and `*`.
+- *Offline material.* PIN material goes to a device only when that permission comes from an assignment at the company, branch or location, or from a tenant-wide role that is not an Owner role, which is a deliberate grant. Owners covered only by the `*` template appear as staff with `offline: false` and no material. They sign in online, or get a role where they work. Without this rule, their PIN material would sit on every till of the group.
+- *Six-digit PINs.* Holders of a permission that approves overrides (`pos.sale.void`, `pos.sale.refund`, `pos.price.override`, `pos.discount.give`, set in `sync.override_permissions`) must choose 6 digits. Someone who gains such a role with a shorter PIN gets `must_change`.
+- *Changing a PIN.* A PIN an administrator sets for someone else is `must_change`. The till asks for a new PIN (`POST pos/pin/change`, online, current PIN checked with lockout) before anything else. Administrators changing their own PIN through `users/{self}/pos-pin` confirm their password, as on `me/pos-pin`.
 
 **Lockout.**
 
 - Wrong attempts count per user and device. The fifth locks the user's PIN on that device until a new PIN is set, by the user or by an administrator with `core.user.edit`.
 - Online, `POST pos/pin/verify` counts under a row lock.
-- Offline, the device enforces the count itself and reports it with `POST pos/pin/attempts`. Reports only ever raise the count, so a report can never unlock.
+- Offline, the device enforces the count itself and reports it with `POST pos/pin/attempts`, for staff of its location only. Reports only ever raise the count, so a report can never unlock. A lock is audited once.
 - The staff entity carries each user's lock state on that device.
 
 **Threat model.**
@@ -104,7 +128,7 @@ It never stores the PIN.
 - Someone with the device's database *and* its secret (a rooted or stolen device) can test all 10^6 six-digit PINs offline. Each guess costs one PBKDF2 at 150,000 iterations, so hours on a phone and minutes on a GPU. A 4-digit PIN falls much faster. The 5-attempt lockout does not apply to such an attacker.
 - With the database alone, the verifiers are useless, because the secret stays in the keystore.
 - Mitigations:
-  - unpair a lost device: its token and secret die, and so do its verifiers and offline override signatures
+  - unpair a lost device: its token dies, its secrets are retired, and nothing it signs afterwards verifies (an override must be dated while its secret was current)
   - rotate PINs (any change gives every device a new verifier)
   - prefer 6-digit PINs
   - online sign-in is rate-limited and locked server-side
@@ -112,16 +136,20 @@ It never stores the PIN.
 
 **Manager override (AUTH-08).**
 
-- *Online.* `POST pos/override` checks the manager's PIN, with the same lockout. It then checks that the manager holds the permission at the device's location, and returns `ovr1.{payload}.{HMAC-SHA256(k, "ovr1.{payload}")}` with `k = HMAC-SHA256(app key, "pos-override-token:v1")`. The payload binds tenant, device, manager, cashier, permission and record (when given), and expires after 120 seconds.
-- *Offline.* The device checks the manager's PIN itself and signs:
+- *Online.* `POST pos/override {manager_user_id, pin|card, permission, cashier_user_id?, reference}` checks the manager's PIN, with the same lockout. It then checks that the manager holds the permission at the device's location, and returns `ovr1.{payload}.{HMAC-SHA256(k, "ovr1.{payload}")}` with `k = HMAC-SHA256(app key, "pos-override-token:v1")`. The payload binds tenant, device, manager, cashier, permission and the record (`reference`, required), and expires after 120 seconds.
+- *Offline.* The device checks the manager's PIN itself and signs, with `HMAC-SHA256(device secret kid)`:
 
   ```
-  override:v1\n{device_id}\n{id}\n{manager_user_id}\n{cashier_user_id}\n{permission}\n{reference}\n{authorised_at}
+  override:v2\n{device_id}\n{kid}\n{id}\n{manager_user_id}\n{cashier_user_id}\n{permission}\n{reference}\n{authorised_at}
   ```
 
-  with `HMAC-SHA256(device secret)`. Offline overrides do not expire.
-- *Redemption.* `OverrideVerifier::redeem()`, called by the POS module with the action it records, checks either form. Each override id is used once (`override_redemptions`). Re-uploading the same action answers the same. Any other use is refused (`override_replayed`).
-- Both users are recorded and audited (`core.user.override_issue`, `core.user.override_redeem`). `managerHoldsPermission` says whether the manager still holds the permission, so offline overrides by someone since demoted are flagged, not lost.
+  `authorised_at` must fall while that secret was current, from its issue to its retirement (or now), with 10 minutes of clock skew. Otherwise offline overrides do not expire.
+- *Redemption.* The POS module calls `OverrideVerifier::redeem($device, $override, $permission, $reference)` with the action it records. It checks either form. `reference` (the sale or line id) is required.
+  - Each override id is used once (`override_redemptions`).
+  - Using it again for the same device, permission and record throws `OverrideAlreadyApplied` (409 `override_already_applied`, carrying the earlier result). The caller must treat this as "already recorded", never as a fresh approval.
+  - Any other use is refused (`override_replayed`).
+- *Recording.* Both users are recorded and audited (`core.user.override_issue`, `core.user.override_redeem`). The result says whether the manager is still active (`managerActive`), still works at the location (`managerStaffAtLocation`) and still holds the permission there (`managerHoldsPermission`).
+- *Review.* Offline overrides are the device's claim: anyone holding the device secret could have signed one. The POS module records every offline override, and every override whose flags are not all true, for review (`needsReview()`). Tasks 1 and 6 show them in the back office. They are never dropped: the device wins for completed sales.
 
 **Sync status.** Devices record `last_pull_at`, `last_push_at` (the POS module calls `DeviceSyncStatus::recordPush`) and `last_bootstrap_at`, written at most once a minute, and shown in the devices API.
 
@@ -129,7 +157,7 @@ It never stores the PIN.
 
 - The server's sale endpoints must be idempotent by UUID from day one, and sale tables need a unique key on the device-generated id.
 - Master-data tables need a server-written change marker and an index that serves the cursor queries: `sync_xid`/`sync_seq` stamped by the database, indexed with `tenant_id` (see Master data pull).
-- A long-running write transaction delays every device's changes until it commits (never loses them).
+- A long-running write transaction delays every device's changes until it commits (never loses them). Timeouts and the lag metric guard against it.
 - Number ranges add a per-device allocation table and a top-up flow. Lost devices waste the unused part of their range, which is acceptable.
 - Because device tokens don't expire, unpairing is the only kill switch. The UI must say so.
 - The design stays Proposed until the phase 4 prototype proves the 7-day offline scenario. Change this ADR then, rather than writing a new one.
