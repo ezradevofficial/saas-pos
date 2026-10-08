@@ -3,6 +3,8 @@
 namespace Tests\Feature\Core\Automation;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Automation\Chain\AutomationChain;
+use App\Core\Automation\Chain\Cause;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Models\AutomationRun;
@@ -15,11 +17,13 @@ use App\Core\Workflow\DocumentTypes\DocumentScope;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\ReadsListExports;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Automation\TestTaskType;
+use Tests\Support\Automation\WriteTaskLater;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\TestCase;
 
@@ -240,6 +244,38 @@ class AutomationRunsTest extends TestCase
         $run = $this->runs($acmeRule)->sole();
         $this->inTenant(fn () => app(RuleRunner::class)->execute($run->id));
         $this->assertSame(['skipped', 'company_changed'], $this->inTenant(fn () => [$run->fresh()->outcome, $run->fresh()->error_code]));
+    }
+
+    public function test_a_queued_job_carries_the_chain_it_was_created_in(): void
+    {
+        $rule = $this->saveRule(['type' => 'field_changed', 'field' => 'note'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]]);
+        $id = $this->quietTask();
+        $chain = new Cause((string) Str::uuid7(), 3, [(string) Str::uuid7()]);
+
+        // Created while a rule at depth 3 runs; handled later, outside it.
+        $job = app(AutomationChain::class)->within($chain, fn () => new WriteTaskLater($this->owner->tenant_id, $id, ['note' => 'later']));
+        $this->assertNull(app(AutomationChain::class)->current());
+        dispatch_sync($job);
+
+        $run = $this->runs($rule)->sole();
+        $this->assertSame([$chain->chainId, 4, AutomationRun::LOOP_BLOCKED], [$run->chain_id, $run->depth, $run->outcome]);
+        $this->assertArrayNotHasKey('urgent', $this->taskValues($id));
+    }
+
+    public function test_one_rule_runs_for_one_document_at_most_five_times_in_ten_minutes(): void
+    {
+        $rule = $this->saveRule(['type' => 'record_updated', 'fields' => ['note']], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]]);
+        $id = $this->quietTask();
+        $other = $this->quietTask();
+
+        foreach (range(1, 6) as $i) {
+            $this->changeTask($id, ['note' => "edit {$i}"]);
+        }
+        $this->changeTask($other, ['note' => 'edit']);
+
+        $outcomes = $this->runs($rule)->where('document_id', $id)->pluck('outcome')->all();
+        $this->assertSame([...array_fill(0, 5, 'succeeded'), 'throttled'], $outcomes);
+        $this->assertSame('succeeded', $this->runs($rule)->firstWhere('document_id', $other)->outcome, 'another document has its own allowance');
     }
 
     public function test_a_rule_never_retriggers_itself(): void
