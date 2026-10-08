@@ -20,6 +20,7 @@ import { setLocale } from '@/i18n'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { CompanySwitcher } from './CompanySwitcher'
+import { useCompanies } from './companySelection'
 import { NAV_GROUPS, visibleGroups } from './navigation'
 
 const itemClasses = ({ isActive }) =>
@@ -118,7 +119,8 @@ function AccountMenu() {
 export function Sidebar({ onNavigate, className }) {
   const { t } = useTranslation()
   const permissions = usePermissions()
-  const groups = permissions.isLoading ? [] : visibleGroups(NAV_GROUPS, permissions)
+  const { companies, ready } = useCompanies()
+  const groups = permissions.isLoading ? [] : visibleGroups(NAV_GROUPS, { ...permissions, hasCompany: ready && companies.length > 0 })
   const baseId = useId()
 
   return (

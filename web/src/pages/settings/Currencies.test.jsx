@@ -120,7 +120,7 @@ describe('Currencies', () => {
     renderApp('/settings/currencies')
     const nav = (await screen.findAllByRole('navigation', { name: 'Main' }))[0]
     expect(await within(nav).findByRole('link', { name: 'Currencies' })).toBeInTheDocument()
-    expect(within(nav).getByRole('link', { name: 'Taxes' })).toBeInTheDocument()
+    expect(await within(nav).findByRole('link', { name: 'Taxes' })).toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Exchange rates' })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Payment methods' })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Sharing' })).not.toBeInTheDocument()

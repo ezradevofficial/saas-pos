@@ -99,6 +99,14 @@ describe('app shell navigation', () => {
     expect(stock.some((g) => g.id === 'contacts')).toBe(false)
   })
 
+  it('hides pages that work on one company from a user with no company in reach (RBAC-04, RBAC-09)', () => {
+    const can = (name) => (Array.isArray(name) ? name : [name]).some((one) => ['core.currency.view', 'core.exchange_rate.view', 'core.payment_method.view'].includes(one))
+    const finance = (hasCompany) => visibleGroups(NAV_GROUPS, { can, hasModule: () => true, hasCompany }).find((g) => g.id === 'finance')?.items.map((item) => item.to)
+
+    expect(finance(true)).toEqual(['/settings/currencies', '/settings/exchange-rates', '/settings/payment-methods'])
+    expect(finance(false)).toEqual(['/settings/currencies'])
+  })
+
   it('offers all companies to a tenant-wide user and remembers the choice', async () => {
     mockApi(api, { companies: COMPANIES })
     renderApp('/')
