@@ -40,6 +40,7 @@ import {
   Pencil,
   Percent,
   Plus,
+  Redo2,
   RefreshCw,
   Ruler,
   Search,
@@ -51,8 +52,10 @@ import {
   Trash2,
   TriangleAlert,
   Truck,
+  Undo2,
   Users,
   WifiOff,
+  Workflow,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -110,6 +113,9 @@ const ICONS = {
   first: ChevronsLeft,
   last: ChevronsRight,
   columns: Columns3,
+  workflows: Workflow,
+  undo: Undo2,
+  redo: Redo2,
   bell: Bell,
   templates: FileText,
   deliveries: Send,

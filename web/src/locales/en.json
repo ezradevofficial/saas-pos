@@ -236,7 +236,8 @@
       "finance": "Finance",
       "masterData": "Master data",
       "catalogue": "Catalogue",
-      "contacts": "Contacts"
+      "contacts": "Contacts",
+      "automation": "Automation"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -258,7 +259,8 @@
     "suppliers": "Suppliers",
     "notifications": "Notifications",
     "notificationTemplates": "Notification templates",
-    "notificationDeliveries": "Delivery log"
+    "notificationDeliveries": "Delivery log",
+    "workflows": "Workflows"
   },
   "shell": {
     "account": "Account menu",
@@ -1771,12 +1773,8 @@
   },
   "notificationTemplates": {
     "title": "Notification templates",
-    "description": "The texts your organisation sends, per notification, channel and language.",
+    "description": "The texts your organisation sends, per notification and channel.",
     "eventTypes": "Notification types",
-    "locales": {
-      "en": "English",
-      "fr": "French"
-    },
     "channel": "Channel",
     "subject": "Subject",
     "body": "Message",
@@ -1794,11 +1792,11 @@
     },
     "save": "Save template",
     "saved": "Template saved",
-    "reset": "Reset to default",
-    "resetTitle": "Reset this text to the default?",
-    "resetText": "Your text for this channel and language is removed and the default text is used again.",
+    "reset": "Use default",
+    "resetTitle": "Use the default text?",
+    "resetText": "Your text for this channel is removed. Everyone then receives the default text, in their own language.",
     "keepText": "Keep my text",
-    "resetConfirm": "Reset to default",
+    "resetConfirm": "Use default",
     "resetDone": "Default text restored",
     "empty": "There are no notification types yet.",
     "mandatory": {
@@ -1806,7 +1804,10 @@
       "description": "Users can’t switch these channels off for this notification.",
       "notAllowed": "This notification can’t be made required.",
       "saved": "Required channels saved"
-    }
+    },
+    "singleLanguage": "Written once, in your organisation’s language. Everyone receives this text.",
+    "defaultTitle": "Built-in default",
+    "defaultHelp": "Shown in your language. When you have no text of your own, each person receives it in their own language."
   },
   "notificationDeliveries": {
     "title": "Delivery log",
@@ -1850,5 +1851,462 @@
     },
     "empty": "Nothing has been sent yet.",
     "emptyFiltered": "No deliveries match these filters."
+  },
+  "workflows": {
+    "title": "Workflows",
+    "description": "The stages, approvals and actions each document type goes through, per company.",
+    "searchPlaceholder": "Search document types",
+    "allCompanies": "All companies",
+    "versionShort": "v{{version}}",
+    "notPublished": "Not published",
+    "noDraft": "No draft",
+    "empty": "No workflows yet. Create one to change how a document type is approved.",
+    "emptyNoTypes": "No document types are available. Activate a module that registers them.",
+    "breadcrumb": "Breadcrumb",
+    "columns": {
+      "documentType": "Document type",
+      "company": "Company",
+      "live": "Live version",
+      "draft": "Draft",
+      "updated": "Updated"
+    },
+    "filters": {
+      "type": "Document type",
+      "allTypes": "All document types",
+      "company": "Company"
+    },
+    "create": {
+      "open": "Create workflow",
+      "title": "Create a workflow",
+      "body": "The workflow starts as a draft copy of the document type’s default. Nothing changes for documents until you publish it.",
+      "type": "Document type",
+      "company": "Company",
+      "confirm": "Create and open"
+    },
+    "header": {
+      "draft": "Draft v{{version}}",
+      "live": "Live v{{version}}",
+      "liveOnly": "v{{version}} is live",
+      "liveWithProgress_one": "v{{version}} is live · {{count}} document in progress stays on v{{version}}",
+      "liveWithProgress_other": "v{{version}} is live · {{count}} documents in progress stay on v{{version}}"
+    },
+    "actions": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "validate": "Check for problems",
+      "test": "Test with a sample",
+      "more": "More",
+      "versions": "Versions",
+      "copy": "Copy to another company",
+      "restoreDefault": "Restore the default",
+      "publish": "Publish v{{version}}"
+    },
+    "save": {
+      "pending": "Unsaved changes",
+      "saving": "Saving",
+      "saved": "Draft saved",
+      "failed": "The draft couldn’t be saved. Fix the problem below; your changes stay on the canvas.",
+      "failedBeforePublish": "The draft couldn’t be saved, so it wasn’t published. Fix the problem shown, then publish again."
+    },
+    "readOnly": {
+      "phone": "Workflows are read-only on a phone. Open this page on a tablet or computer to edit.",
+      "noRight": "You can view this workflow. Ask an administrator for the right to edit it."
+    },
+    "issues": {
+      "title": "Problems to fix before publishing",
+      "count_one": "{{count}} problem to fix before publishing",
+      "count_other": "{{count}} problems to fix before publishing",
+      "hide": "Hide problems",
+      "none": "No problems found. The draft can be published."
+    },
+    "palette": {
+      "label": "Building blocks",
+      "title": "Drag onto the flow",
+      "add": "Add {{name}}",
+      "items": {
+        "start": {
+          "name": "Start",
+          "description": "Where every document begins"
+        },
+        "stage": {
+          "name": "Stage",
+          "description": "A step the document moves through"
+        },
+        "approval": {
+          "name": "Approval",
+          "description": "One person, a role, or a group"
+        },
+        "condition": {
+          "name": "Condition",
+          "description": "Branch by amount, branch, field"
+        },
+        "parallel": {
+          "name": "Parallel",
+          "description": "Steps that run at the same time"
+        },
+        "notify": {
+          "name": "Notify",
+          "description": "In-app, email, SMS or WhatsApp"
+        },
+        "create_document": {
+          "name": "Create document",
+          "description": "For example, requisition to order"
+        },
+        "end": {
+          "name": "End",
+          "description": "Where the flow finishes"
+        }
+      }
+    },
+    "defaults": {
+      "start": "Start",
+      "stage": "New stage",
+      "approval": "New approval",
+      "condition": "New condition",
+      "notify": "Send a notification",
+      "createDocument": "Create the next document",
+      "join": "Join",
+      "parallel": "Parallel steps",
+      "unnamed": "Unnamed step",
+      "endOutcome": "End: {{outcome}}"
+    },
+    "kinds": {
+      "start": "Start",
+      "end": "End",
+      "stage": "Stage",
+      "stageEntry": "Stage · entry rule",
+      "approval": "Approval",
+      "condition": "Condition",
+      "parallel": "Parallel",
+      "join": "Join",
+      "action_create": "Action · create document",
+      "action_notify": "Action · notify",
+      "action_other": "Action"
+    },
+    "outcomes": {
+      "approved": "approved",
+      "rejected": "rejected",
+      "completed": "completed",
+      "cancelled": "cancelled"
+    },
+    "branches": {
+      "yes": "Yes",
+      "no": "No",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "else": "Otherwise"
+    },
+    "canvas": {
+      "label": "Flow",
+      "input": "Connect into this step",
+      "output": "Connect to the next step",
+      "outputNamed": "Connect “{{branch}}” to the next step",
+      "needsAttention": "Needs attention",
+      "edge": "From {{from}} to {{to}}{{branch}}",
+      "controls": "Zoom controls",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Fit the flow on screen",
+      "interactive": "Lock or unlock the canvas",
+      "minimap": "Mini-map",
+      "handle": "Connection point",
+      "a11y": {
+        "node": "Press Enter or Space to select this step. Press Delete to remove it and Escape to cancel.",
+        "nodeKeyboard": "Press Enter or Space to select this step, then use the arrow keys to move it. Press Delete to remove it and Escape to cancel.",
+        "moved": "Moved the step {{direction}}. New position: x {{x}}, y {{y}}.",
+        "edge": "Press Enter or Space to select this link, then Delete to remove it or Escape to cancel."
+      }
+    },
+    "panel": {
+      "label": "Step settings",
+      "legend": "Settings of {{name}}",
+      "caption": "{{kind}} step",
+      "emptyTitle": "Step settings",
+      "empty": "Select a step on the canvas to change it, or add one from the building blocks.",
+      "emptyReadOnly": "Select a step on the canvas to see its settings.",
+      "delete": "Delete step"
+    },
+    "fields": {
+      "name": "Name",
+      "mandatory": "Required stage",
+      "mandatoryHelp": "An optional stage is skipped when its entry rule isn’t met; a required one stops the document.",
+      "entry": "Entry rule",
+      "entryHelp": "Must hold for the document to enter this step.",
+      "exit": "Exit rule",
+      "exitHelp": "Must hold for the document to leave this step, for example a three-way match.",
+      "enterRoles": "Who may move documents in",
+      "exitRoles": "Who may move documents out",
+      "manualRoles": "Who may decide it by hand",
+      "rolesHelp": "None ticked: anyone allowed to act on this document type.",
+      "due": "Time limit",
+      "dueHelp": "Business hours and public holidays of the company’s country are skipped.",
+      "unit": "Unit for {{what}}",
+      "remindAfter": "Remind after",
+      "escalateAfter": "Escalate after",
+      "businessHoursHelp": "Business hours and public holidays are skipped.",
+      "escalateTo": "Escalate to",
+      "final": "At the final timeout",
+      "approver": "Who approves",
+      "mode": "If several people can approve",
+      "role": "Role",
+      "chooseRole": "Choose a role",
+      "person": "Person",
+      "choosePerson": "Choose a person",
+      "levels": "Levels up",
+      "allowDelegation": "Allow delegation when the approver is away",
+      "allowEmail": "Allow approval by email link",
+      "requireReason": "Require a reason to reject or return",
+      "noSelfApproval": "The requester can never approve their own document. It moves to the next eligible approver.",
+      "conditionKind": "Kind of question",
+      "yesNo": "Yes or no",
+      "severalBranches": "Several branches",
+      "question": "Rule",
+      "questionHelp": "Documents that meet the rule follow Yes; the others follow No.",
+      "branchName": "Branch name",
+      "branchRule": "Branch rule",
+      "branchDefault": "Branch {{number}}",
+      "addBranch": "Add a branch",
+      "removeBranch": "Remove branch",
+      "elseHelp": "Branches are checked in order. Documents that meet none follow Otherwise.",
+      "action": "Action",
+      "mapping": "Document to create",
+      "chooseDocument": "Choose a document",
+      "noDocuments": "This document type creates no other documents",
+      "copies": "Copies these fields",
+      "copyLine": "{{source}} into {{target}}",
+      "onCancel": "If this workflow is cancelled",
+      "notifyRoles": "Who is notified",
+      "message": "Message",
+      "parallelHelp": "Connect this step to two or more steps; they run at the same time until its join.",
+      "split": "Joins the branches of",
+      "chooseSplit": "Choose a parallel step",
+      "joinMode": "Continue when",
+      "outcome": "Outcome",
+      "notifyHelp": "Each person is told in the channels they chose in their notification preferences.",
+      "notifyPeople": "Named people",
+      "messageHelp": "Optional, up to 500 characters, added to the notification."
+    },
+    "approverTypes": {
+      "branch_manager": "Manager of the requester’s branch",
+      "department_head": "Head of the requester’s department",
+      "cost_centre_owner": "Cost centre owner",
+      "manager_levels_up": "Manager some levels up",
+      "role": "Anyone with a role",
+      "user": "A named person",
+      "line_manager": "Requester’s line manager"
+    },
+    "approver": {
+      "none": "No approver chosen",
+      "namedPerson": "A named person",
+      "roleNamed": "Role: {{role}}",
+      "levelsUp_one": "Manager {{count}} level up",
+      "levelsUp_other": "Manager {{count}} levels up"
+    },
+    "escalateTo": {
+      "next_level": "Next level up",
+      "role": "Anyone with a role",
+      "user": "A named person"
+    },
+    "finalActions": {
+      "none": "Keep waiting",
+      "approve": "Approve automatically",
+      "reject": "Reject automatically"
+    },
+    "modes": {
+      "any": "Any one of them",
+      "all": "All of them",
+      "majority": "Most of them"
+    },
+    "joinModes": {
+      "all": "Every branch is done",
+      "any": "Any one branch is done"
+    },
+    "onCancel": {
+      "keep": "Keep the created document",
+      "cancel": "Cancel the created document too"
+    },
+    "actionNames": {
+      "create_document": "Create a document",
+      "notify": "Send a notification"
+    },
+    "unitNames": {
+      "business_hours": "Business hours",
+      "business_days": "Business days",
+      "hours": "Hours",
+      "days": "Days"
+    },
+    "units": {
+      "business_hours_one": "{{count}} business hour",
+      "business_hours_other": "{{count}} business hours",
+      "business_days_one": "{{count}} business day",
+      "business_days_other": "{{count}} business days",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days"
+    },
+    "summary": {
+      "stage": "A step the document moves through",
+      "entry": "Enters only if {{rule}}",
+      "exit": "Leaves only if {{rule}}",
+      "optional": "Optional",
+      "due": "due within {{duration}}",
+      "escalates": "escalates after {{duration}}",
+      "final": {
+        "approve": "auto-approves at the end",
+        "reject": "auto-rejects at the end"
+      },
+      "branches_one": "{{count}} path",
+      "branches_other": "{{count}} paths",
+      "noRule": "No rule yet",
+      "parallel": "Runs its branches at the same time",
+      "join": {
+        "all": "Waits for every branch",
+        "any": "Waits for any one branch"
+      },
+      "createDocument": "Creates a draft {{document}}",
+      "chooseDocument": "Choose the document to create",
+      "chooseAction": "Choose an action",
+      "notifies": "Notifies {{recipients}}",
+      "notifyNobody": "Choose who is notified"
+    },
+    "condition": {
+      "none": "No rule: always holds.",
+      "addRule": "Add a rule",
+      "addGroup": "Add a group",
+      "removeRule": "Remove rule",
+      "removeGroup": "Remove group",
+      "match": "Match",
+      "matchAll": "All of these rules (and)",
+      "matchAny": "Any of these rules (or)",
+      "ruleNumber": "Rule {{number}}",
+      "groupNumber": "Group {{number}}",
+      "field": "Field",
+      "chooseField": "Choose a field",
+      "operator": "Comparison",
+      "value": "Value",
+      "compareWith": "Compare with",
+      "aValue": "A value",
+      "anotherField": "Another field",
+      "otherField": "Other field",
+      "currency": "Currency",
+      "listHelp": "Separate values with commas.",
+      "yes": "Yes",
+      "no": "No",
+      "andJoin": " and ",
+      "orJoin": " or "
+    },
+    "operators": {
+      "eq": "is",
+      "ne": "is not",
+      "gt": "is more than",
+      "gte": "is at least",
+      "lt": "is less than",
+      "lte": "is at most",
+      "in": "is one of",
+      "not_in": "is none of",
+      "contains": "contains",
+      "empty": "is empty",
+      "not_empty": "is filled in"
+    },
+    "operatorPhrases": {
+      "eq": "{{field}} is {{value}}",
+      "ne": "{{field}} is not {{value}}",
+      "gt": "{{field}} is more than {{value}}",
+      "gte": "{{field}} is at least {{value}}",
+      "lt": "{{field}} is less than {{value}}",
+      "lte": "{{field}} is at most {{value}}",
+      "in": "{{field}} is one of {{value}}",
+      "not_in": "{{field}} is none of {{value}}",
+      "contains": "{{field}} contains “{{value}}”",
+      "empty": "{{field}} is empty",
+      "not_empty": "{{field}} is filled in"
+    },
+    "roles": {
+      "unknown": "Unknown or archived role ({{ref}})",
+      "none": "No roles yet."
+    },
+    "publish": {
+      "title": "Publish v{{version}}?",
+      "body": "New documents will follow v{{version}} from now on.",
+      "inProgress_one": "{{count}} document in progress stays on v{{version}} until it finishes.",
+      "inProgress_other": "{{count}} documents in progress stay on v{{version}} until they finish.",
+      "noneInProgress": "No documents are in progress on v{{version}}.",
+      "keepEditing": "Keep editing",
+      "confirm": "Publish v{{version}}",
+      "done": "v{{version}} is live."
+    },
+    "versions": {
+      "title": "Versions",
+      "number": "v{{version}}",
+      "status": {
+        "draft": "Draft",
+        "published": "Live",
+        "archived": "Earlier"
+      },
+      "source": {
+        "default": "From the default",
+        "draft": "Edited",
+        "copy": "Copied",
+        "rollback": "Rolled back"
+      },
+      "publishedAt": "published {{when}}",
+      "inProgress_one": "{{count}} in progress",
+      "inProgress_other": "{{count}} in progress",
+      "rollBackTo": "Roll back to v{{version}}",
+      "confirmText": "Publish a copy of v{{version}}?",
+      "rolledBack": "The earlier version is live again."
+    },
+    "copy": {
+      "title": "Copy to another company",
+      "body": "The copy becomes that company’s draft. Its live workflow doesn’t change until someone publishes the draft.",
+      "company": "Company",
+      "chooseCompany": "Choose a company",
+      "from": "Copy",
+      "fromLive": "The live version (v{{version}})",
+      "fromDraft": "The draft (v{{version}})",
+      "confirm": "Copy workflow",
+      "done": "Copied to {{company}} as a draft."
+    },
+    "restore": {
+      "title": "Restore the default workflow?",
+      "body": "The draft is replaced by the document type’s default. The live version keeps running until you publish.",
+      "confirm": "Restore the default",
+      "keep": "Keep my draft"
+    },
+    "test": {
+      "title": "Test with a sample",
+      "body": "Enter sample values and the decision for each approval. The test walks the flow on the canvas without saving or sending anything.",
+      "decision": "Decision at {{name}}",
+      "run": "Run the test",
+      "resultTitle": "Path taken",
+      "invalid": "The flow has problems, so it can’t be tested. Fix the problems listed first.",
+      "blocked": "Stops at {{name}}",
+      "ends": "Ends: {{outcome}}",
+      "bannerEnds": "Showing a test path. It ends {{outcome}}.",
+      "bannerBlocked": "Showing a test path. It stops at {{name}}.",
+      "details": "Show details",
+      "clear": "Clear test",
+      "showOnCanvas": "Show on the canvas",
+      "results": {
+        "start": "Started",
+        "completed": "Completed",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "skipped": "Skipped",
+        "blocked": "Blocked",
+        "yes": "Yes",
+        "no": "No",
+        "else": "Otherwise",
+        "split": "Split",
+        "joined": "Joined",
+        "would_run": "Would run",
+        "end": "Ended"
+      }
+    },
+    "people": {
+      "unknown": "Unknown or inactive person ({{id}})",
+      "none": "No active people yet."
+    }
   }
 }

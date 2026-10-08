@@ -40,6 +40,15 @@ the type's registered accessor (architecture rule 1).
   (Phase 6). Phase 3 ships the channel adapters and delivery tracking.
 - Approve by email (APR-08, Should) ships with signed single-use links.
 
+## Owner decisions
+
+- 2026-10-08, NOT-03: a tenant's notification text is one text per event
+  type and channel, written once in the organisation's language and sent as
+  is to every recipient (no per-language versions). Built-in defaults
+  (`api/lang/{en,fr}/notifications.php`) stay translated and go out in the
+  recipient's language when the tenant has not customised that event and
+  channel.
+
 ## Tasks
 
 | # | Task | Risk | After |

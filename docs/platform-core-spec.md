@@ -13,6 +13,7 @@ The platform core is the always-on layer every module depends on; this spec defi
 **Conventions**
 
 - Business records (items, categories, units, tax codes, payment methods, custom field labels and the like) have one name, in the language the business types it. Only the platform's own wording and the reference data it ships (currency names, country-pack labels) are translated, through translation files keyed by code. Adding a language never adds columns or form fields.
+- Tenant-written texts (names, notification texts) are single-language: written once, in the organisation's language, and shown or sent as is to everyone whatever their app language. Only the built-in defaults are translated, into each reader's language (owner decision 2026-10-08).
 
 - Each requirement has an ID such as `TEN-01` (area code + number) so stories, tests and code can reference it.
 - "Must" = required at launch. "Should" = expected at launch, can slip to the first update if time runs out. "Later" = after launch.
@@ -226,7 +227,7 @@ Each tenant can make the platform look like its own system; availability per pla
 |--------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
 | NOT-01 | Channels                 | In-app (bell + inbox), email, mobile push; SMS and WhatsApp through providers we select per country, paid with prepaid message credits customers buy in-app (cost plus a 20–30% margin); low-balance alerts | Must     |
 | NOT-02 | One notification service | All modules send through the core service using templates and events; no module sends email or SMS directly                                                                                                 | Must     |
-| NOT-03 | Editable templates       | Admin edits notification text per event and language with placeholders (e.g. {document_number}, {amount})                                                                                                   | Must     |
+| NOT-03 | Editable templates       | Admin edits notification text per event (one text, in the organisation's language; built-in defaults are translated per recipient), with placeholders (e.g. {document_number}, {amount}) | Must     |
 | NOT-04 | User preferences         | Users choose channels per notification type; admins can make some mandatory (e.g. approvals)                                                                                                                | Must     |
 | NOT-05 | Digest                   | Option for a daily or weekly summary instead of individual messages                                                                                                                                         | Should   |
 | NOT-06 | Delivery tracking        | Status per message (sent, delivered, failed) with retries                                                                                                                                                   | Must     |

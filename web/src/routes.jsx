@@ -15,6 +15,7 @@ import {
   PAYMENT_METHOD_VIEW,
   TAX_VIEW,
   UOM_VIEW,
+  WORKFLOW_VIEW,
 } from './layouts/navigation'
 import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -53,6 +54,8 @@ import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
+import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
+import Workflows from './pages/workflows/Workflows'
 
 // Development only: every design-system component in its states.
 const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./dev/ComponentGallery.jsx')) : null
@@ -197,6 +200,17 @@ export const routes = [
         element: (
           <RequirePermission permission="core.master_data_settings.edit" tenantWide>
             <MasterDataSharing />
+          </RequirePermission>
+        ),
+      },
+      // WF-02, spec 6.4: workflows and the builder (full width for the canvas).
+      { path: '/settings/workflows', element: <RequirePermission permission={WORKFLOW_VIEW}><Workflows /></RequirePermission> },
+      {
+        path: '/settings/workflows/:workflowId',
+        handle: { wide: true },
+        element: (
+          <RequirePermission permission={WORKFLOW_VIEW}>
+            <WorkflowBuilder />
           </RequirePermission>
         ),
       },

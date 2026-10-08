@@ -2,7 +2,8 @@
 
 // NOT-01..NOT-06 : le service de notifications. Les textes des événements
 // utilisent la syntaxe {placeholder} (NOT-03) ; ce sont des textes par
-// défaut qu’un client peut remplacer par canal et par langue.
+// défaut, envoyés dans la langue de chaque destinataire, qu’un client peut
+// remplacer par canal par un seul texte qui lui est propre.
 return [
     'channels' => [
         'all' => 'Tous les canaux',
