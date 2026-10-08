@@ -94,6 +94,8 @@ function DimensionDialog({ company, kind, record, rows, owners, onClose }) {
     return result
   }, [record, rows])
   const parents = rows.filter((row) => !row.archived_at && !below.has(row.id))
+  // An archived current parent stays visible (selected, not choosable) until another is picked.
+  const archivedParent = record?.parent_id ? rows.find((row) => row.id === record.parent_id && row.archived_at) : null
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -103,6 +105,8 @@ function DimensionDialog({ company, kind, record, rows, owners, onClose }) {
         parent_id: values.parent_id || null,
         owner_user_id: values.owner_user_id || null,
       }
+      // An unchanged parent is not sent: an archived one would be refused.
+      if (record && body.parent_id === (record.parent_id ?? null)) delete body.parent_id
       return record ? api.patch(`${path}/${record.id}`, body) : api.post(`companies/${company.id}/${path}`, body)
     },
     onSuccess: async () => {
@@ -160,7 +164,12 @@ function DimensionDialog({ company, kind, record, rows, owners, onClose }) {
         <TextField label={t('dimensions.fields.name')} value={values.name} onChange={set('name')} error={errors.fields.name} required />
         <Select
           label={t('dimensions.fields.parent')}
-          options={[{ value: '', label: t('dimensions.fields.noParent') }, ...parents.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` }))]}
+          options={[
+            { value: '', label: t('dimensions.fields.noParent') },
+            ...(archivedParent ? [{ value: archivedParent.id, label: t('dimensions.fields.archivedParent', { name: `${archivedParent.code} · ${archivedParent.name}` }), disabled: true }] : []),
+            ...parents.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` })),
+          ]}
+          help={archivedParent && values.parent_id === archivedParent.id ? t('dimensions.fields.archivedParentHelp') : undefined}
           value={values.parent_id}
           onChange={set('parent_id')}
           error={errors.fields.parent_id}

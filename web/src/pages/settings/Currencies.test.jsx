@@ -59,7 +59,41 @@ describe('Currencies', () => {
     expect(within(dialog).getByLabelText('Decimals')).toBeDisabled()
     fireEvent.change(within(dialog).getByLabelText(/Cash rounding/), { target: { value: '100' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('tenant/currencies/tc-1', { cash_rounding_minor: 100 }))
+    // Minor units as a string (ADR 003).
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('tenant/currencies/tc-1', { cash_rounding_minor: '100' }))
+  })
+
+  it('clears the cash rounding when the decimals change instead of reinterpreting it', async () => {
+    currencies()
+    api.patch.mockResolvedValue({ data: CURRENCIES[1] })
+    renderApp('/settings/currencies')
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit KES' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit KES' })
+    expect(within(dialog).getByLabelText(/Cash rounding/)).toHaveValue('1.00')
+    fireEvent.change(within(dialog).getByLabelText('Decimals'), { target: { value: '0' } })
+    expect(within(dialog).getByLabelText(/Cash rounding/)).toHaveValue('')
+    expect(within(dialog).getByText(/The decimals changed, so the cash rounding was cleared/)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    expect(await within(dialog).findByText('Enter the cash rounding amount.')).toBeInTheDocument()
+    expect(api.patch).not.toHaveBeenCalled()
+    fireEvent.change(within(dialog).getByLabelText(/Cash rounding/), { target: { value: '5' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('tenant/currencies/tc-2', { cash_rounding_minor: '5', decimals: 0 }))
+  })
+
+  it('shows why an invalid cash rounding cannot be added when the form is submitted', async () => {
+    currencies()
+    renderApp('/settings/currencies')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add currency' }))
+    const dialog = await screen.findByRole('dialog')
+    const select = within(dialog).getByLabelText(/^Currency/)
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'EUR · Euro' })).toBeInTheDocument())
+    fireEvent.change(select, { target: { value: 'EUR' } })
+    // Typed but never left: the reason shows once the form is submitted.
+    fireEvent.change(within(dialog).getByLabelText(/Cash rounding/), { target: { value: '0.555' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add currency' }))
+    expect(await within(dialog).findByText('Use at most 2 decimal places.')).toBeInTheDocument()
+    expect(api.post).not.toHaveBeenCalled()
   })
 
   it('saves the company base and reporting currencies', async () => {

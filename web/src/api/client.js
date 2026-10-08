@@ -146,6 +146,43 @@ function failure(response, data, token) {
   throw error
 }
 
+/**
+ * A multipart upload (an item image) with progress: `onProgress(fraction)`
+ * from 0 to 1 while the file is sent. XMLHttpRequest, since fetch reports
+ * no upload progress. Answers and errors as `request` does.
+ */
+function upload(path, formData, { onProgress } = {}) {
+  const token = getToken()
+  const headers = headersFor()
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${apiUrl}/api/v1/${path.replace(/^\//, '')}`)
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total)
+    }
+    xhr.onerror = () => reject(new ApiError({ status: 0, code: 'network_error', message: i18n.t('errors.network') }))
+    xhr.onload = () => {
+      let data = null
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null
+      } catch {
+        data = null
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data)
+        return
+      }
+      try {
+        failure({ status: xhr.status }, data, token)
+      } catch (error) {
+        reject(error)
+      }
+    }
+    xhr.send(formData)
+  })
+}
+
 export const api = {
   get: (path) => request('GET', path),
   post: (path, body = {}) => request('POST', path, body),
@@ -153,6 +190,7 @@ export const api = {
   put: (path, body = {}) => request('PUT', path, body),
   delete: (path) => request('DELETE', path),
   download,
+  upload,
 }
 
 /** A short device label for the sessions list ("Chrome on macOS"). */

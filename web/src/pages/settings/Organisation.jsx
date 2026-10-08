@@ -5,7 +5,9 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Icon, StatusBadge, Switch } from '@/components/ds'
+import { HistoryDialog } from '@/components/HistoryDialog'
 import { PageHeader } from '@/layouts/PageHeader'
+import { useTimeZone } from '@/lib/useTimeZone'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Devices } from './organisation/Devices'
@@ -52,7 +54,9 @@ export default function Organisation() {
   const [dialog, setDialog] = useState(null) // { kind: 'create' | 'edit', level, record?, parent? }
   const [archiving, setArchiving] = useState(null) // { level, record }
   const [openDevices, setOpenDevices] = useState(() => new Set())
+  const [history, setHistory] = useState(null) // { level, record }
 
+  const historyZone = useTimeZone()
   const companies = useQuery({ queryKey: ['companies', 'organisation'], queryFn: () => api.get(LIST('companies')) })
   const branches = useQuery({ queryKey: ['branches', 'organisation'], queryFn: () => api.get(LIST('branches')) })
   const locations = useQuery({ queryKey: ['locations', 'organisation'], queryFn: () => api.get(LIST('locations')) })
@@ -89,11 +93,16 @@ export default function Organisation() {
       return next
     })
 
-  /** Edit, archive or restore, when permitted at this record or above. */
+  /** Edit, archive or restore, when permitted at this record or above; its history (MD-07) for anyone who sees it. */
   const recordActions = (level, record, chain) => {
     const actions = []
     if (!record.visible) return actions
     const archived = isArchived(record)
+    actions.push(
+      <Button key="history" variant="ghost" icon="history" onClick={() => setHistory({ level, record })} aria-label={t('history.openFor', { name: record.name })}>
+        {t('history.open')}
+      </Button>,
+    )
     if (!archived && canWithin(`core.${level}.edit`, chain)) {
       actions.push(
         <Button key="edit" variant="ghost" icon="edit" onClick={() => setDialog({ kind: 'edit', level, record })} aria-label={t('organisation.editName', { name: record.name })}>
@@ -287,6 +296,13 @@ export default function Organisation() {
           onClose={() => setDialog(null)}
         />
       ) : null}
+      <HistoryDialog
+        record={history?.record ?? null}
+        type={history?.level}
+        name={history?.record.name ?? ''}
+        timeZone={history?.record.timezone ?? historyZone}
+        onClose={() => setHistory(null)}
+      />
       <ConfirmDialog
         open={Boolean(archiving)}
         title={archiving ? t('organisation.archiveTitle', { name: archiving.record.name }) : ''}

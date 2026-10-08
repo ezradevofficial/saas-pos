@@ -125,6 +125,7 @@ function AddRateDialog({ code, company, onClose }) {
           value={rate}
           onChange={setRate}
           error={errors.fields.rate ?? (missing && rate === '' ? t('taxes.addRate.rateRequired') : undefined)}
+          showErrors={missing}
           required
         />
         <TextField

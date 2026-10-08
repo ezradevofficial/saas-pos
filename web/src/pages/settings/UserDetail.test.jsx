@@ -179,4 +179,17 @@ describe('UserDetail', () => {
     expect(screen.queryByRole('button', { name: 'Give a role' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Remove/ })).not.toBeInTheDocument()
   })
+
+  it('shows the user’s history in its own tab (MD-07)', async () => {
+    detail()
+    const get = api.get.getMockImplementation()
+    api.get.mockImplementation(async (path) =>
+      path === 'history/user/u-2?per_page=20&page=1' ? { data: [{ id: 'h-1', action: 'core.user.deactivate', actor: { id: 'u-1', name: 'Amina Otieno' }, before: { status: 'active' }, after: { status: 'deactivated' }, occurred_at: '2026-10-08T08:00:00Z' }], meta: { current_page: 1, last_page: 1 } } : get(path),
+    )
+    renderApp('/settings/users/u-2')
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'History' }))
+    const list = await screen.findByRole('list', { name: 'History' })
+    expect(within(list).getByText('Deactivated')).toBeInTheDocument()
+    expect(within(list).getByText('Amina Otieno')).toBeInTheDocument()
+  })
 })

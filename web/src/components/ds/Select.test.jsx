@@ -38,4 +38,12 @@ describe('Select placeholder', () => {
     render(<Select label="Branch" placeholder="Choose a branch" options={['Westlands', 'Gombe']} defaultValue="Gombe" />)
     expect(screen.getByLabelText('Branch')).toHaveValue('Gombe')
   })
+
+  it('offers a disabled option without greying the whole control', () => {
+    render(<Select label="Parent" options={[{ value: 'a', label: 'Old (archived)', disabled: true }, { value: 'b', label: 'New' }]} value="a" onChange={() => {}} />)
+    expect(screen.getByRole('option', { name: 'Old (archived)' })).toBeDisabled()
+    const wrapper = screen.getByLabelText('Parent').parentElement
+    expect(wrapper).toHaveClass('has-disabled:bg-surface-200')
+    expect(wrapper).not.toHaveClass('has-disabled:bg-surface-300')
+  })
 })

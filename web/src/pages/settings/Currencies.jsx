@@ -32,10 +32,12 @@ function AddCurrencyDialog({ existing, onClose }) {
   const [code, setCode] = useState('')
   const [rounding, setRounding] = useState('')
   const [localError, setLocalError] = useState(null)
+  const [submitted, setSubmitted] = useState(false)
   const choice = options.find((currency) => currency.code === code)
 
   const mutation = useMutation({
-    mutationFn: () => api.post('tenant/currencies', { code, ...(rounding ? { cash_rounding_minor: Number(rounding) } : {}) }),
+    // Minor units travel as a string of digits (ADR 003); the API's integer rule reads it.
+    mutationFn: () => api.post('tenant/currencies', { code, ...(rounding ? { cash_rounding_minor: rounding } : {}) }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tenant-currencies'] })
       onClose()
@@ -67,8 +69,10 @@ function AddCurrencyDialog({ existing, onClose }) {
         className="flex flex-col gap-4 pt-1"
         onSubmit={(event) => {
           event.preventDefault()
+          setSubmitted(true)
           if (!code) return setLocalError(t('currencies.add.chooseCurrency'))
-          if (rounding === null) return setLocalError(t('currencies.fields.roundingInvalid'))
+          // An invalid amount shows its own reason under the field (showErrors).
+          if (rounding === null) return
           setLocalError(null)
           mutation.mutate()
         }}
@@ -100,6 +104,7 @@ function AddCurrencyDialog({ existing, onClose }) {
             value={rounding}
             onChange={setRounding}
             error={errors.fields.cash_rounding_minor}
+            showErrors={submitted}
           />
         ) : null}
       </form>
@@ -107,7 +112,12 @@ function AddCurrencyDialog({ existing, onClose }) {
   )
 }
 
-/** Change a tenant currency's decimals (until amounts are stored in it) and cash rounding. */
+/**
+ * Change a tenant currency's decimals (until amounts are stored in it) and
+ * cash rounding. The rounding is minor units of the current decimals, so
+ * changing the decimals clears it: the user types it again rather than
+ * having "50" silently become 0.50 or 5.0.
+ */
 function EditCurrencyDialog({ currency, onClose }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -116,10 +126,13 @@ function EditCurrencyDialog({ currency, onClose }) {
   const alertRef = useRef(null)
   const [decimals, setDecimals] = useState(String(currency.decimals))
   const [rounding, setRounding] = useState(String(currency.cash_rounding_minor))
+  const [cleared, setCleared] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body = { cash_rounding_minor: Number(rounding) }
+      // Minor units travel as a string of digits (ADR 003); the API's integer rule reads it.
+      const body = { cash_rounding_minor: rounding }
       if (!currency.decimals_locked) body.decimals = Number(decimals)
       return api.patch(`tenant/currencies/${currency.id}`, body)
     },
@@ -154,6 +167,7 @@ function EditCurrencyDialog({ currency, onClose }) {
         className="flex flex-col gap-4 pt-1"
         onSubmit={(event) => {
           event.preventDefault()
+          setSubmitted(true)
           if (!rounding) return
           mutation.mutate()
         }}
@@ -168,19 +182,24 @@ function EditCurrencyDialog({ currency, onClose }) {
           help={currency.decimals_locked ? t('currencies.fields.decimalsLocked') : t('currencies.fields.decimalsHelp')}
           options={DECIMAL_CHOICES.map((value) => ({ value: String(value), label: String(value) }))}
           value={decimals}
-          onChange={(event) => setDecimals(event.target.value)}
+          onChange={(event) => {
+            setDecimals(event.target.value)
+            setRounding('')
+            setCleared(true)
+          }}
           disabled={currency.decimals_locked}
           error={errors.fields.decimals}
         />
         <MoneyInput
           key={decimals}
           label={t('currencies.fields.rounding')}
-          help={t('currencies.fields.roundingHelp')}
+          help={cleared ? t('currencies.fields.roundingCleared') : t('currencies.fields.roundingHelp')}
           currency={currency.code}
           decimals={Number(decimals)}
           value={rounding}
           onChange={setRounding}
-          error={errors.fields.cash_rounding_minor ?? (rounding === '' ? t('currencies.fields.roundingRequired') : undefined)}
+          error={errors.fields.cash_rounding_minor ?? (submitted && rounding === '' ? t('currencies.fields.roundingRequired') : undefined)}
+          showErrors={submitted}
           required
         />
       </form>

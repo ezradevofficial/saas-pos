@@ -106,6 +106,37 @@ describe('ExchangeRates', () => {
     )
   })
 
+  it('asks for the latest rates up to now, not the whole of today', async () => {
+    rates()
+    renderApp('/settings/exchange-rates')
+    await screen.findByRole('heading', { name: 'Shop rate' })
+    const latest = api.get.mock.calls.map(([path]) => path).filter((path) => path.includes('per_page=1'))
+    expect(latest.length).toBeGreaterThan(0)
+    for (const path of latest) {
+      const to = new URLSearchParams(path.split('?')[1]).get('to')
+      expect(to).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    }
+  })
+
+  it('works for a user who may read rates but not the currency settings', async () => {
+    mockRoutes(
+      api,
+      [
+        ['tenant/currencies', apiError(403, 'forbidden', 'Forbidden.')],
+        ['companies/c-1/exchange-rates?per_page=200', { data: [REFERENCE, INVERSE], meta: { last_page: 1 } }],
+        [/exchange-rates\?.*kind=reference/, { data: [REFERENCE] }],
+        [/exchange-rates\?.*kind=shop/, { data: [] }],
+        [/exchange-rates\/current/, { data: { ...REFERENCE, value: REFERENCE.mid } }],
+        [/exchange-rates\?pair/, { data: [REFERENCE], meta: { last_page: 1 } }],
+      ],
+      { permissions: tenantWide(['core.company.view', 'core.exchange_rate.view']), companies: [CD_COMPANY] },
+    )
+    renderApp('/settings/exchange-rates')
+    expect(await screen.findByRole('heading', { name: 'Reference rate' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Currency pair')).toHaveValue('USD/CDF')
+    expect(api.get).not.toHaveBeenCalledWith('tenant/currencies')
+  })
+
   it('hides Set shop rate from a user who may only view rates', async () => {
     mockRoutes(
       api,

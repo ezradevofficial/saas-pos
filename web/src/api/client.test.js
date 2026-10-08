@@ -160,3 +160,57 @@ describe('api client', () => {
     await expect(api.download('access-review?format=csv')).rejects.toMatchObject({ status: 403, code: 'forbidden' })
   })
 })
+
+describe('api.upload', () => {
+  let sent
+  class FakeXhr {
+    constructor() {
+      this.headers = {}
+      this.upload = {}
+      sent = this
+    }
+    open(method, url) {
+      this.method = method
+      this.url = url
+    }
+    setRequestHeader(name, value) {
+      this.headers[name] = value
+    }
+    send(body) {
+      this.body = body
+    }
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('XMLHttpRequest', FakeXhr)
+    clearToken()
+    setCompanyId(null)
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('posts the form with the token, reports progress and answers like request', async () => {
+    setToken('t-1')
+    const progress = vi.fn()
+    const form = new FormData()
+    const promise = api.upload('items/i-1/images', form, { onProgress: progress })
+    expect(sent.method).toBe('POST')
+    expect(sent.url).toMatch(/\/api\/v1\/items\/i-1\/images$/)
+    expect(sent.headers.Authorization).toBe('Bearer t-1')
+    expect(sent.headers['Content-Type']).toBeUndefined()
+    expect(sent.body).toBe(form)
+    sent.upload.onprogress({ lengthComputable: true, loaded: 50, total: 200 })
+    expect(progress).toHaveBeenCalledWith(0.25)
+    sent.status = 201
+    sent.responseText = JSON.stringify({ data: { id: 'i-1' } })
+    sent.onload()
+    await expect(promise).resolves.toEqual({ data: { id: 'i-1' } })
+  })
+
+  it('turns a refusal into an ApiError with its field errors', async () => {
+    const promise = api.upload('items/i-1/images', new FormData())
+    sent.status = 422
+    sent.responseText = JSON.stringify({ message: 'Too large.', code: 'validation_failed', errors: { image: ['Too large.'] } })
+    sent.onload()
+    await expect(promise).rejects.toMatchObject({ status: 422, errors: { image: ['Too large.'] } })
+  })
+})

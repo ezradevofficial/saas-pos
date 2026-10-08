@@ -28,6 +28,9 @@ describe('Accept invitation', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
     expect(api.post).toHaveBeenCalledWith(`auth/invitations/${TOKEN}/accept`, { name: 'Peter Mwangi', password: 'a long password' })
     expect(getToken()).toBe('peter-token')
+    // The used invitation is not asked for again (it would answer 410).
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(api.get.mock.calls.filter(([path]) => path === `auth/invitations/${TOKEN}`)).toHaveLength(1)
   })
 
   it('asks a signed-in user to sign out first, then shows the invitation', async () => {
