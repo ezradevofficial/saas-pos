@@ -6,7 +6,10 @@
     "loading": "Chargement",
     "retry": "Réessayer",
     "cancel": "Annuler",
-    "save": "Enregistrer les modifications"
+    "save": "Enregistrer les modifications",
+    "back": "Retour",
+    "continue": "Continuer",
+    "syncNow": "Synchroniser"
   },
   "ds": {
     "button": {
@@ -47,5 +50,81 @@
     "sale": "Vente en cours",
     "items_one": "{{count}} article",
     "items_other": "{{count}} articles"
+  },
+  "pairing": {
+    "title": "Associer cette caisse",
+    "intro": "Demandez un code d’association à un administrateur, dans Paramètres, Appareils. Le code ne sert qu’une fois et expire après 15 minutes.",
+    "code": "Code d’association",
+    "codeHelp": "8 lettres et chiffres. Il n’y a ni 0, ni O, ni 1, ni I, ni L.",
+    "name": "Nom de la caisse",
+    "nameHelp": "Les administrateurs voient ce nom dans la liste des appareils.",
+    "submit": "Associer la caisse",
+    "pairedTitle": "Caisse associée",
+    "pairedAt": "Cette caisse vend désormais pour {{location}}.",
+    "pairedNoLocation": "Cette caisse est associée. Son emplacement apparaîtra après la première synchronisation.",
+    "errors": {
+      "invalid_code": "Ce code d’association n’est pas valide ou a expiré. Demandez un nouveau code à un administrateur.",
+      "name_required": "Saisissez un nom pour cette caisse.",
+      "too_many_attempts": "Trop d’essais. Attendez une minute, puis saisissez à nouveau le code.",
+      "offline": "Le serveur est injoignable. Vérifiez la connexion, puis réessayez.",
+      "failed": "L’association a échoué. Réessayez, ou demandez un nouveau code à un administrateur."
+    },
+    "unsent_one": "{{count}} enregistrement de l’association précédente de cette caisse n’a pas été envoyé. Il est conservé pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour l’envoyer.",
+    "unsent_other": "{{count}} enregistrements de l’association précédente de cette caisse n’ont pas été envoyés. Ils sont conservés pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour les envoyer."
+  },
+  "signIn": {
+    "title": "Qui vend ?",
+    "subtitle": "Choisissez votre nom, puis saisissez votre code PIN.",
+    "empty": "Personne ne peut encore se connecter à cette caisse. Demandez à un administrateur de donner un rôle au personnel de cet emplacement, puis synchronisez.",
+    "locked": "Bloqué",
+    "pinFor": "Code PIN de {{name}}",
+    "pinEntered_one": "{{count}} chiffre saisi",
+    "pinEntered_other": "{{count}} chiffres saisis",
+    "submit": "Se connecter",
+    "checking": "Vérification",
+    "otherPerson": "Choisir une autre personne",
+    "keypad": "Clavier du code PIN",
+    "delete": "Effacer le dernier chiffre",
+    "clear": "Effacer tout",
+    "errors": {
+      "incorrect_one": "Code PIN incorrect. Encore {{count}} essai avant le blocage de ce code PIN sur cette caisse.",
+      "incorrect_other": "Code PIN incorrect. Encore {{count}} essais avant le blocage de ce code PIN sur cette caisse.",
+      "locked": "Ce code PIN est bloqué sur cette caisse après 5 essais incorrects. Définissez un nouveau code PIN dans le back-office, ou demandez à un responsable de le réinitialiser.",
+      "not_set": "Vous n’avez pas encore de code PIN. Définissez-en un dans le back-office, dans votre profil.",
+      "not_staff": "Vous ne pouvez pas vous connecter à cette caisse. Demandez à un administrateur de vous donner un rôle à cet emplacement.",
+      "online_required": "Votre code PIN ne peut être vérifié qu’en ligne. Connectez la caisse, puis réessayez.",
+      "access_lost": "Cette caisse a perdu son accès. Demandez à un administrateur de vérifier l’appareil.",
+      "failed": "La connexion a échoué. Réessayez."
+    }
+  },
+  "changePin": {
+    "title": "Choisir un nouveau code PIN",
+    "intro": "Votre code PIN a été réinitialisé. Choisissez-en un nouveau avant de vendre.",
+    "newPin": "Nouveau code PIN",
+    "confirmPin": "Saisissez à nouveau le nouveau code PIN",
+    "rules": "4 à 6 chiffres. Les responsables qui approuvent en ont besoin de 6. Évitez 1234, 0000 et les dates.",
+    "submit": "Enregistrer le code PIN",
+    "mismatch": "Les deux codes PIN diffèrent. Saisissez à nouveau le nouveau code PIN.",
+    "tooShort": "Un code PIN compte 4 à 6 chiffres.",
+    "saved": "Votre nouveau code PIN est enregistré.",
+    "offline": "Changer de code PIN nécessite une connexion. Vous pouvez vendre maintenant ; la demande reviendra quand la caisse sera en ligne.",
+    "failed": "Le code PIN n’a pas été changé. Réessayez."
+  },
+  "home": {
+    "ready": "Prêt à vendre",
+    "signedInAs": "Connecté : {{name}}",
+    "location": "Emplacement : {{location}}",
+    "lastSynced": "Dernière synchronisation à {{time}}",
+    "neverSynced": "Pas encore synchronisé",
+    "switchUser": "Changer d’utilisateur",
+    "sellingSoon": "L’écran de vente arrive dans la prochaine version.",
+    "failed_one": "{{count}} enregistrement a été refusé par le serveur et doit être examiné.",
+    "failed_other": "{{count}} enregistrements ont été refusés par le serveur et doivent être examinés.",
+    "accessLostTitle": "Cette caisse a perdu son accès",
+    "accessLost": "L’appareil a été dissocié ou suspendu. Les ventes non envoyées restent sur cette caisse. Demandez à un administrateur de réactiver l’appareil, puis réessayez.",
+    "secretMissing": "Cette caisse n’a pas de clé de connexion hors ligne. Le personnel ne peut se connecter qu’en ligne jusqu’à une nouvelle association.",
+    "pinChangeTitle": "Nouveau code PIN requis",
+    "pinChangeOffline": "Choisissez un nouveau code PIN quand la caisse sera de nouveau en ligne.",
+    "moduleInactive": "Le module Point de vente n’est pas actif pour votre entreprise. Les ventes restent sur cette caisse et seront envoyées quand il sera de nouveau actif."
   }
 }

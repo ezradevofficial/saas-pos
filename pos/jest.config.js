@@ -12,6 +12,12 @@ const reactDom = packageDir('react-dom');
 module.exports = {
   preset: 'jest-expo',
   setupFiles: ['./jest.setup.js'],
+  // jest-expo's list, plus @noble/hashes (ES modules only) and WatermelonDB.
+  transformIgnorePatterns: [
+    '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@noble|@nozbe))',
+    '/node_modules/react-native-reanimated/plugin/',
+    '/node_modules/@react-native/babel-preset/',
+  ],
   moduleNameMapper: {
     '^react$': react,
     '^react/(.*)$': `${react}/$1`,

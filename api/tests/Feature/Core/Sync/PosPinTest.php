@@ -321,10 +321,15 @@ class PosPinTest extends TestCase
         $this->postJson('/api/v1/pos/pin/attempts', ['reports' => [['user_id' => $other['user']->id, 'failed_attempts' => 1, 'locked' => false]]], $this->deviceHeaders($this->till))
             ->assertUnprocessable();
 
-        // Only staff of this till's location.
+        // Only staff of this till's location: others are skipped, the rest of the batch counts.
         $elsewhere = $this->userWith('cashier', Scope::location($this->locationB->id));
-        $this->postJson('/api/v1/pos/pin/attempts', ['reports' => [['user_id' => $elsewhere->id, 'failed_attempts' => 5, 'locked' => true]]], $this->deviceHeaders($this->till))
-            ->assertUnprocessable()->assertJsonPath('code', 'not_staff_here');
+        $this->postJson('/api/v1/pos/pin/attempts', ['reports' => [
+            ['user_id' => $elsewhere->id, 'failed_attempts' => 5, 'locked' => true],
+            ['user_id' => $this->owner->id, 'failed_attempts' => 1, 'locked' => false],
+        ]], $this->deviceHeaders($this->till))
+            ->assertOk()
+            ->assertJsonPath('data.0', ['user_id' => $elsewhere->id, 'skipped' => 'not_staff_here'])
+            ->assertJsonPath('data.1.failed_attempts', 1);
         $this->inTenant(fn () => $this->assertSame(0, DevicePinState::query()->where('user_id', $elsewhere->id)->count()));
     }
 

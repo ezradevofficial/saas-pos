@@ -151,6 +151,15 @@ It never stores the PIN.
 - *Recording.* Both users are recorded and audited (`core.user.override_issue`, `core.user.override_redeem`). The result says whether the manager is still active (`managerActive`), still works at the location (`managerStaffAtLocation`) and still holds the permission there (`managerHoldsPermission`).
 - *Review.* Offline overrides are the device's claim: anyone holding the device secret could have signed one. The POS module records every offline override, and every override whose flags are not all true, for review (`needsReview()`). Tasks 1 and 6 show them in the back office. They are never dropped: the device wins for completed sales.
 
+**PIN check speed on the till (POS app).** Hermes has no JIT, so PBKDF2 at 150,000 iterations in pure JavaScript (@noble/hashes) takes about 14 s on an M-series Mac without JIT, and longer on a low-end Android phone. The app therefore derives the key natively, through its own local Expo module `pos/modules/app-crypto` (no third-party dependency): Android `SecretKeyFactory("PBKDF2WithHmacSHA256")`, iOS CommonCrypto `CCKeyDerivationPBKDF`. `src/auth/pinCrypto.js` tries the native module, then WebCrypto (web preview, Jest), then @noble/hashes, falling back on any error. The server's iteration count is not lowered.
+
+To check the timing on a device (not possible in CI):
+
+1. Build a development build (`npx expo run:android` or `npx expo run:ios`). The module is autolinked from `pos/modules`.
+2. In the app's JS console, run `require('./src/auth/pinCrypto').pbkdf2Engines()`. It must list `native` first.
+3. Time a derivation: `const t = Date.now(); await require('./src/auth/pinCrypto').pbkdf2Sha256(new TextEncoder().encode('482913'), new Uint8Array(16), 150000); Date.now() - t`. Expect well under a second on a mid-range phone. Record the phone and the result in the phase report.
+4. Sign in with a staff PIN offline (airplane mode) and confirm it is accepted.
+
 **Sync status.** Devices record `last_pull_at`, `last_push_at` (the POS module calls `DeviceSyncStatus::recordPush`) and `last_bootstrap_at`, written at most once a minute, and shown in the devices API.
 
 ## Consequences

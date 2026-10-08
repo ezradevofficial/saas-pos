@@ -417,6 +417,12 @@ class SyncPullTest extends TestCase
             ->assertUnprocessable();
         $this->getJson('/api/v1/sync/bootstrap', $headers)->assertJsonPath('device_secret_kid', $rotated['kid']);
 
+        // The activation answer was lost: asking again for the now current kid answers the same, once audited.
+        $again = fn (string $secret) => $this->postJson('/api/v1/sync/device-secret/activate', ['kid' => $rotated['kid'], 'proof' => $this->proof($secret, "activate:v1\n{$this->till['id']}\n{$rotated['kid']}")], $headers);
+        $again($rotated['secret'])->assertOk()->assertJsonPath('kid', $rotated['kid'])->assertJsonPath('status', 'current');
+        $again($this->till['secret'])->assertUnprocessable();
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::query()->where('action', 'core.device.secret_activate')->count()));
+
         $this->inTenant(function () use ($rotated) {
             $statuses = DeviceSecret::query()->where('device_id', $this->till['id'])->pluck('status', 'kid')->all();
             $this->assertSame('current', $statuses[$rotated['kid']]);

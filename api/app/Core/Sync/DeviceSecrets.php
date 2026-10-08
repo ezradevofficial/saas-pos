@@ -99,12 +99,21 @@ class DeviceSecrets
         });
     }
 
-    /** Step 3: the pending secret becomes current once the device proves it holds it. */
+    /** Step 3: the pending secret becomes current once the device proves it holds it. Asking again for the current kid (a lost answer) answers the same. */
     public function activate(Device $device, string $kid, string $proof): DeviceSecret
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($device, $kid, $proof) {
             $pending = DeviceSecret::query()->where('device_id', $device->id)->where('kid', $kid)
                 ->where('status', DeviceSecret::PENDING)->lockForUpdate()->first();
+
+            // Already activated (the device lost the answer and asks again): the same answer.
+            if ($pending === null) {
+                $current = $this->current($device);
+
+                if ($current !== null && $current->kid === $kid && $this->proves($current, "activate:v1\n{$device->id}\n{$kid}", $proof)) {
+                    return $current;
+                }
+            }
 
             if ($pending === null || ! $this->proves($pending, "activate:v1\n{$device->id}\n{$kid}", $proof)) {
                 throw new ApiException(422, 'secret_proof_invalid', __('core.sync.secret_proof_invalid'));
