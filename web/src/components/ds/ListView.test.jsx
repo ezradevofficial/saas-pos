@@ -133,6 +133,22 @@ describe('ListView and useServerList', () => {
     expect(router.state.location.search).toBe('')
   })
 
+  it('falls back to the default order and says why when the API refuses a sort (RBAC-05)', async () => {
+    const reason = 'You can’t sort by a field you can’t see. Choose another column.'
+    api.get.mockImplementation(async (path) => {
+      if (path === 'me') return { data: OWNER }
+      if (path === 'me/permissions') return { permissions: [], modules: ['core'] }
+      if (path.includes('sort=code')) throw apiError(422, 'validation_failed', reason, { sort: [reason] })
+      if (path.startsWith('things?')) return answer(path, 3)
+      throw apiError(404, 'not_found', 'Not found.')
+    })
+    const { router } = renderList('/things?sort=code')
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(await screen.findByText(reason)).toBeInTheDocument()
+    expect(await screen.findByText('Thing 1')).toBeInTheDocument()
+    expect(listCalls().at(-1)).toBe('things?status=active&per_page=25&page=1')
+  })
+
   it('asks for the chosen rows per page from page 1', async () => {
     mockList()
     const { router } = renderList('/things?page=3')

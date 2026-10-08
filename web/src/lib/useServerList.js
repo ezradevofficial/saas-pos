@@ -156,6 +156,15 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     if (pastTheEnd) update({ page: lastPage }, { replace: true })
   })
 
+  // A sort the API refuses (a field the user's rules hide, RBAC-05, or an
+  // old link): say why and fall back to the default order.
+  const sortRefused = query.error?.status === 422 && Boolean(query.error.errors?.sort) && sort !== defaultSort
+  useEffect(() => {
+    if (!sortRefused) return
+    toast.error(query.error.errors.sort[0] ?? query.error.message)
+    update({ sort: defaultSort }, { replace: true })
+  })
+
   // Columns: hidden keys per user and list (LAY-04, a personal choice).
   const storageKey = columnsStorageKey(user?.id, id)
   const [hiddenState, setHiddenState] = useState(() => ({ key: storageKey, hidden: readHidden(storageKey) }))
