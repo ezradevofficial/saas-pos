@@ -43,6 +43,12 @@ class SendWorkflowNotification implements ShouldQueue
         private readonly WorkflowAccess $access,
     ) {}
 
+    /** It sends notifications: the notifications queue. */
+    public function viaQueue(): string
+    {
+        return (string) config('notifications.queue');
+    }
+
     public function handle(WorkflowNotificationRequested $event): void
     {
         $this->tenants->run($event->tenantId, function () use ($event) {

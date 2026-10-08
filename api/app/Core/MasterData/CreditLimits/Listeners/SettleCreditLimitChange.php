@@ -32,6 +32,12 @@ class SettleCreditLimitChange implements ShouldQueue
         private readonly WorkflowEngine $engine,
     ) {}
 
+    /** Settling is ordinary work: the default queue (ApplyCreditLimitChange follows on its own). */
+    public function viaQueue(): string
+    {
+        return 'default';
+    }
+
     /** Only credit limit changes' flows are queued at all. */
     public function shouldQueue(WorkflowCompleted|WorkflowCancelled $event): bool
     {

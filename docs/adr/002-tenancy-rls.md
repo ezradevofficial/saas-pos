@@ -95,7 +95,7 @@ Each function is `language sql stable security definer`:
 
 ### Scheduled fan-out: tenant ids through security-definer functions
 
-Amended in Phase 3. The scheduled commands must find the tenants that have work due before any tenant is set. They used to read those ids through the owner connection, which meant the scheduler host held the owner's `BYPASSRLS` credentials. They now call functions owned by `app_owner` (migration `2026_10_18_000100_create_scheduler_tenant_functions`), on the runtime connection, through `App\Core\Tenancy\DueTenants`:
+Amended in Phase 3. The scheduled commands must find the tenants that have work due before any tenant is set. They used to read those ids through the owner connection, which meant the scheduler host held the owner's `BYPASSRLS` credentials. They now call functions owned by `app_owner` (migrations `2026_10_18_000100_create_scheduler_tenant_functions` and `2026_10_18_000400_create_workflow_scheduler_tenant_functions`), on the runtime connection, through `App\Core\Tenancy\DueTenants`:
 
 | Function | Used by | Returns the tenants with |
 | --- | --- | --- |
@@ -104,6 +104,8 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `automation:scan reap` (AUTO-05) | runs or webhook deliveries untouched since `p_stale_before` |
 | `app_tenants_with_pending_digests()` | `notifications:send-digests` (NOT-05) | emails held for a digest |
 | `app_active_tenant_ids()` | `exchange-rates:fetch` (CUR-03) | status `active` |
+| `app_tenants_with_due_stage_timers(p_at timestamptz)` | `workflow:process-stage-timers` (WF-09) | an active stage position whose reminder, overdue notice or escalation is due |
+| `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
 
 They follow the same rules as the lookups above: `security definer`, `search_path` pinned, schema-qualified names, revoked from `PUBLIC`, granted to the runtime role, and they return `setof uuid`, never a row. `DueTenantsTest` checks each of these properties. Each command then dispatches one job per tenant, and the job does the work in that tenant's context under row-level security.
 

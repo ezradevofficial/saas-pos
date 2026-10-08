@@ -5,32 +5,28 @@ namespace Tests\Feature\Core\Workflow;
 use App\Core\Workflow\Jobs\ProcessStageTimers;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsWorkflows;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\Support\Workflow\Graphs;
 use Tests\TestCase;
 
 /**
  * WF-09: `workflow:process-stage-timers` queues one ProcessStageTimers job
  * per tenant with a stage timer due, every five minutes, on one server,
- * without overlapping. The command reads tenant ids as the schema owner,
- * which cannot see uncommitted rows, so this test commits and the next
- * test migrates afresh.
+ * without overlapping. Tenant ids come from a security-definer function on
+ * the runtime connection (DueTenants), so the test runs with the owner
+ * connection unusable (ADR 002) and inside the usual test transaction.
  */
 class StageTimersCommandTest extends TestCase
 {
-    use BuildsWorkflows, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
+    use BuildsWorkflows, RefreshTenantDatabase, WithoutOwnerConnection;
 
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
-        RefreshDatabaseState::$migrated = false;
 
         parent::tearDown();
     }
@@ -45,12 +41,14 @@ class StageTimersCommandTest extends TestCase
         // A tenant with nothing due gets no run.
         $this->otherTenant();
 
+        $this->withoutOwnerConnection();
         Bus::fake();
         $this->artisan('workflow:process-stage-timers', ['--at' => '2026-10-07T07:30:00Z'])->assertSuccessful();
         Bus::assertNotDispatched(ProcessStageTimers::class);
 
         $this->artisan('workflow:process-stage-timers', ['--at' => '2026-10-07T08:00:00Z'])->assertSuccessful();
         Bus::assertDispatchedTimes(ProcessStageTimers::class, 1);
+        Bus::assertDispatched(ProcessStageTimers::class, fn (ProcessStageTimers $job) => $job->queue === 'notifications');
         Bus::assertDispatched(ProcessStageTimers::class, fn (ProcessStageTimers $job) => $job->tenantId === $this->owner->tenant_id
             && $job->at === '2026-10-07T08:00:00+00:00');
         $this->assertSame($this->owner->tenant_id, (new ProcessStageTimers($this->owner->tenant_id, 'x'))->uniqueId());

@@ -12,32 +12,29 @@ use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Events\CallQueuedListener;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
 /**
  * M4 (WF-10, WF-11): settling a credit limit change and sending workflow
  * notifications are queued listeners (after commit), so a failure there
  * never fails the approver's request; `credit-limits:reconcile` settles
- * changes still pending whose flow ended. The command reads tenant ids as
- * the schema owner, which cannot see uncommitted rows, so this test
- * commits and the next test migrates afresh.
+ * changes still pending whose flow ended. Tenant ids come from a
+ * security-definer function on the runtime connection (DueTenants), so
+ * the test runs with the owner connection unusable (ADR 002) and inside
+ * the usual test transaction.
  */
 class CreditLimitReconcileTest extends TestCase
 {
-    use BuildsOrganisation, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
+    use BuildsOrganisation, RefreshTenantDatabase, WithoutOwnerConnection;
 
     protected function tearDown(): void
     {
         $this->travelBack();
-        RefreshDatabaseState::$migrated = false;
 
         parent::tearDown();
     }
@@ -76,9 +73,11 @@ class CreditLimitReconcileTest extends TestCase
         // The settle listener is queued and never runs (say, its worker died): the approver still gets 200.
         Queue::fake();
         $this->postJson("/api/v1/approvals/{$approval->id}/approve", [], $this->headersFor($accountant))->assertOk();
-        Queue::assertPushed(CallQueuedListener::class, fn (CallQueuedListener $job) => $job->class === SettleCreditLimitChange::class);
+        Queue::assertPushedOn('default', CallQueuedListener::class, fn (CallQueuedListener $job) => $job->class === SettleCreditLimitChange::class);
         $status = fn () => $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status);
         $this->assertSame('pending', $status());
+
+        $this->withoutOwnerConnection();
 
         // Within the grace period the reconcile pass leaves it to the listener.
         $this->artisan('credit-limits:reconcile')->assertSuccessful();

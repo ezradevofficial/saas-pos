@@ -40,6 +40,8 @@ class ApplyCreditLimitChange implements ShouldQueue
         public string $changeId,
     ) {
         $this->afterCommit();
+        // Ordinary work (its failure notice goes through the Notifier, which queues its own sends).
+        $this->onQueue('default');
     }
 
     /** @return list<object> */
