@@ -134,6 +134,7 @@ return [
 
     // MD-03, CP-01, CP-02 : codes de taxe, taux, catégories.
     'tax' => [
+        'company_unreached' => 'Choisissez une société dans laquelle vous travaillez.',
         // EXP-01 : les listes des codes et catégories de taxe et leurs exports.
         'list_title' => 'Codes de taxe de :company',
         'columns' => [
@@ -157,6 +158,7 @@ return [
         'exempt' => 'Exonéré',
         'categories_title' => 'Catégories de taxe',
         'category_columns' => [
+            'company' => 'Société',
             'name' => 'Nom',
             'scope' => 'Utilisée par',
             'codes' => 'Codes de taxe par défaut',
@@ -566,6 +568,14 @@ return [
             'invited_by' => 'Invité par',
             'expires_at' => 'Expire le',
             'created_at' => 'Envoyée le',
+        ],
+        'status_filter' => [
+            'open' => 'En attente ou expirées',
+            'pending' => 'En attente',
+            'expired' => 'Expirées',
+            'accepted' => 'Acceptées',
+            'revoked' => 'Révoquées',
+            'all' => 'Toutes',
         ],
         'statuses' => [
             'pending' => 'En attente',

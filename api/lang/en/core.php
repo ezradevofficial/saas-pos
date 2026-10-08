@@ -134,6 +134,7 @@ return [
 
     // MD-03, CP-01, CP-02: tax codes, rates, categories.
     'tax' => [
+        'company_unreached' => 'Choose a company you work in.',
         // EXP-01: the tax codes and tax categories lists and their exports.
         'list_title' => 'Tax codes of :company',
         'columns' => [
@@ -157,6 +158,7 @@ return [
         'exempt' => 'Exempt',
         'categories_title' => 'Tax categories',
         'category_columns' => [
+            'company' => 'Company',
             'name' => 'Name',
             'scope' => 'Used by',
             'codes' => 'Default tax codes',
@@ -566,6 +568,14 @@ return [
             'invited_by' => 'Invited by',
             'expires_at' => 'Expires',
             'created_at' => 'Sent',
+        ],
+        'status_filter' => [
+            'open' => 'Pending or expired',
+            'pending' => 'Pending',
+            'expired' => 'Expired',
+            'accepted' => 'Accepted',
+            'revoked' => 'Revoked',
+            'all' => 'All',
         ],
         'statuses' => [
             'pending' => 'Pending',

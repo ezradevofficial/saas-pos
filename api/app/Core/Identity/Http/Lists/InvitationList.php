@@ -124,6 +124,9 @@ class InvitationList extends ListDefinition
 
     public function filterSummary(array $filters, ExportValues $values): array
     {
-        return $this->searchAndStatus($filters, archivable: false);
+        return [
+            ...$this->searchAndStatus($filters, archivable: false),
+            __('core.list.status') => __('core.invitation.status_filter.'.($filters['status'] ?? 'open')),
+        ];
     }
 }

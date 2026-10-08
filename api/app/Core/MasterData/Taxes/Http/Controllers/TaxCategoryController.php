@@ -47,6 +47,11 @@ class TaxCategoryController
             $query->where(fn ($q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
         }
 
+        if (($company = $request->company()) !== null) {
+            // Shared categories and that company's (MD-03), for one company's tax settings.
+            $query->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $company));
+        }
+
         $request->applySort($request->applySearch($request->applyStatus($query), ['name' => 'name']));
 
         if ($request->wantsExport()) {

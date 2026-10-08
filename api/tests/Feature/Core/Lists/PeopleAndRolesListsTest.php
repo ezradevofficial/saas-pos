@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Lists;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Notification;
@@ -99,6 +100,37 @@ class PeopleAndRolesListsTest extends TestCase
         $this->assertCount(3, $rows);
 
         $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.invitation.export')->count()));
+    }
+
+    public function test_invitations_filter_by_status_open_by_default_in_the_list_and_the_export(): void
+    {
+        $pending = $this->invite('Pendo', 'pendo@example.com');
+        $expired = $this->invite('Eli', 'eli@example.com');
+        $accepted = $this->invite('Ada', 'ada@example.com');
+        $revoked = $this->invite('Rafiki', 'rafiki@example.com');
+        $this->inTenant(function () use ($expired, $accepted, $revoked) {
+            Invitation::whereKey($expired)->update(['expires_at' => now()->subDay()]);
+            Invitation::whereKey($accepted)->update(['accepted_at' => now()]);
+            Invitation::whereKey($revoked)->update(['revoked_at' => now()]);
+        });
+        $ids = fn (string $query) => $this->listIds("/api/v1/invitations?sort=name{$query}", $this->headersFor());
+
+        // Open (pending or expired) by default: the ones still to act on.
+        $this->assertSame([$expired, $pending], $ids(''));
+        $this->assertSame([$expired, $pending], $ids('&status=open'));
+        $this->assertSame([$pending], $ids('&status=pending'));
+        $this->assertSame([$expired], $ids('&status=expired'));
+        $this->assertSame([$accepted], $ids('&status=accepted'));
+        $this->assertSame([$revoked], $ids('&status=revoked'));
+        $this->assertSame([$accepted, $expired, $pending, $revoked], $ids('&status=all'));
+        $this->getJson('/api/v1/invitations?status=archived', $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->getJson('/api/v1/invitations?per_page=1', $this->headersFor())->assertOk()->assertJsonPath('meta.total', 2);
+
+        $rows = $this->csvRows($this->get('/api/v1/invitations?format=csv&sort=name&columns[]=name&columns[]=status', $this->headersFor())->assertOk());
+        $this->assertSame([['Name', 'Status'], ['Eli', 'Expired'], ['Pendo', 'Pending']], $rows);
+        $rows = $this->csvRows($this->get('/api/v1/invitations?format=csv&status=revoked&columns[]=name&columns[]=status', $this->headersFor())->assertOk());
+        $this->assertSame([['Name', 'Status'], ['Rafiki', 'Revoked']], $rows);
+        $this->inTenant(fn () => $this->assertSame('revoked', AuditEntry::where('action', 'core.invitation.export')->orderByDesc('seq')->first()->after['filters']['status']));
     }
 
     public function test_an_invitations_export_shows_only_grants_and_inviters_in_the_readers_scope(): void

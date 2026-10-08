@@ -101,6 +101,12 @@ class TaxCategoryList extends ListDefinition
 
     public function filterSummary(array $filters, ExportValues $values): array
     {
-        return $this->searchAndStatus($filters);
+        $summary = $this->searchAndStatus($filters);
+
+        if (($filters['company'] ?? null) !== null) {
+            $summary[__('core.tax.category_columns.company')] = $this->companyNames()[$filters['company']] ?? '';
+        }
+
+        return $summary;
     }
 }

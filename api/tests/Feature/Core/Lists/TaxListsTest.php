@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\Lists;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\Taxes\PriceList;
+use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\Rbac\Scope;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\ReadsListExports;
@@ -93,6 +94,41 @@ class TaxListsTest extends TestCase
         $this->assertSame(['Goods', 'All companies', 'VAT_STD in Acme', 'Active'], array_slice($rows[2], 0, 4));
 
         $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.tax_category.export')->count()));
+    }
+
+    public function test_tax_categories_filter_by_a_company_the_user_reaches_with_the_shared_ones(): void
+    {
+        [$beta, $shared, $acmeOwn, $betaOwn] = $this->inTenant(function () {
+            $beta = $this->company('Beta');
+
+            return [
+                $beta,
+                TaxCategory::create(['company_id' => null, 'name' => 'Shared goods'])->id,
+                TaxCategory::create(['company_id' => $this->acme->id, 'name' => 'Acme goods'])->id,
+                TaxCategory::create(['company_id' => $beta->id, 'name' => 'Beta goods'])->id,
+            ];
+        });
+
+        $this->assertSame([$acmeOwn, $betaOwn, $shared], $this->listIds('/api/v1/tax-categories', $this->headersFor()));
+        $this->assertSame([$acmeOwn, $shared], $this->listIds("/api/v1/tax-categories?company={$this->acme->id}", $this->headersFor()));
+        $this->assertSame([$betaOwn, $shared], $this->listIds("/api/v1/tax-categories?company={$beta->id}", $this->headersFor()));
+
+        $rows = $this->csvRows($this->get("/api/v1/tax-categories?format=csv&company={$beta->id}&columns[]=name&columns[]=scope", $this->headersFor())->assertOk());
+        $this->assertSame([['Name', 'Used by'], ['Beta goods', 'Beta'], ['Shared goods', 'All companies']], $rows);
+        $this->inTenant(fn () => $this->assertSame($beta->id, AuditEntry::where('action', 'core.tax_category.export')->first()->after['filters']['company']));
+
+        // A company out of reach, unknown, or another tenant's: the same refusal, nothing revealed.
+        $accountant = $this->headersFor($this->userWith('accountant', Scope::company($this->acme->id)));
+        $this->assertSame([$acmeOwn, $shared], $this->listIds("/api/v1/tax-categories?company={$this->acme->id}", $accountant));
+        $other = $this->otherTenant();
+        foreach ([$beta->id, $other['company']->id, '0190a1b2-0000-7000-8000-000000000000', 'nope'] as $company) {
+            $this->getJson("/api/v1/tax-categories?company={$company}", $accountant)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('company')
+                ->assertJsonPath('errors.company.0', 'Choose a company you work in.');
+        }
+        $this->getJson("/api/v1/tax-categories?company={$other['company']->id}", $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('company');
+        $this->refusedExport("/api/v1/tax-categories?format=csv&company={$beta->id}", $accountant)->assertUnprocessable();
     }
 
     public function test_price_lists_search_sort_and_export(): void
