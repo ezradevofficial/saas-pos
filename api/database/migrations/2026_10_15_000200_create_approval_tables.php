@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Schema;
 // approval_attachments: files on the media disk (APR-03).
 // approval_delegations: a user's delegation of approvals for a date range (APR-06).
 // approval_email_tokens: single-use approve/reject links, hashed (APR-08).
+// References to users, requests and assignments are composite (tenant_id, id),
+// so a row can never point at another tenant's row.
 return new class extends Migration
 {
     public function up(): void
@@ -40,7 +42,8 @@ return new class extends Migration
             $table->string('document_title', 255)->nullable();
             $table->bigInteger('amount_minor')->nullable();
             $table->char('currency', 3)->nullable();
-            $table->foreignUuid('requester_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->uuid('requester_id')->nullable();
+            $table->foreign(['tenant_id', 'requester_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             // The node's normalised `approval`, `escalation`, `reminders` and `due` (ApprovalConfig).
             $table->jsonb('config');
             $table->string('mode', 10);
@@ -62,6 +65,8 @@ return new class extends Migration
             $table->timestampTz('decided_at')->nullable();
             $table->timestampsTz();
 
+            // Composite keys: rows referencing a request or assignment stay in its tenant.
+            $table->unique(['tenant_id', 'id']);
             $table->index(['tenant_id', 'status', 'received_at']);
             $table->index('workflow_id');
         });
@@ -76,21 +81,28 @@ return new class extends Migration
         Schema::create('approval_assignments', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('request_id')->constrained('approval_requests')->restrictOnDelete();
-            $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
+            $table->uuid('request_id');
+            $table->foreign(['tenant_id', 'request_id'])->references(['tenant_id', 'id'])->on('approval_requests')->restrictOnDelete();
+            $table->uuid('user_id');
+            $table->foreign(['tenant_id', 'user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->smallInteger('step')->default(0);
             // resolved | fallback (next eligible approver, APR-07) | escalated | reassigned
             $table->string('source', 20);
-            $table->foreignUuid('reassigned_from')->nullable()->constrained('users')->restrictOnDelete();
-            $table->foreignUuid('reassigned_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->uuid('reassigned_from')->nullable();
+            $table->foreign(['tenant_id', 'reassigned_from'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
+            $table->uuid('reassigned_by')->nullable();
+            $table->foreign(['tenant_id', 'reassigned_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             // pending | approved | rejected | returned | closed | reassigned
             $table->string('status', 20);
-            $table->foreignUuid('decided_by')->nullable()->constrained('users')->restrictOnDelete();
-            $table->foreignUuid('on_behalf_of')->nullable()->constrained('users')->restrictOnDelete();
+            $table->uuid('decided_by')->nullable();
+            $table->foreign(['tenant_id', 'decided_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
+            $table->uuid('on_behalf_of')->nullable();
+            $table->foreign(['tenant_id', 'on_behalf_of'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->timestampTz('decided_at')->nullable();
             $table->text('comment')->nullable();
             $table->timestampsTz();
 
+            $table->unique(['tenant_id', 'id']);
             $table->index(['request_id', 'status']);
             $table->index(['tenant_id', 'user_id', 'status']);
         });
@@ -103,11 +115,15 @@ return new class extends Migration
         Schema::create('approval_actions', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('request_id')->constrained('approval_requests')->restrictOnDelete();
-            $table->foreignUuid('assignment_id')->nullable()->constrained('approval_assignments')->restrictOnDelete();
+            $table->uuid('request_id');
+            $table->foreign(['tenant_id', 'request_id'])->references(['tenant_id', 'id'])->on('approval_requests')->restrictOnDelete();
+            $table->uuid('assignment_id')->nullable();
+            $table->foreign(['tenant_id', 'assignment_id'])->references(['tenant_id', 'id'])->on('approval_assignments')->restrictOnDelete();
             $table->string('type', 30);
-            $table->foreignUuid('user_id')->nullable()->constrained('users')->restrictOnDelete();
-            $table->foreignUuid('on_behalf_of')->nullable()->constrained('users')->restrictOnDelete();
+            $table->uuid('user_id')->nullable();
+            $table->foreign(['tenant_id', 'user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
+            $table->uuid('on_behalf_of')->nullable();
+            $table->foreign(['tenant_id', 'on_behalf_of'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->text('comment')->nullable();
             $table->jsonb('data')->default('{}');
             $table->timestampTz('occurred_at', 6);
@@ -133,8 +149,10 @@ return new class extends Migration
         Schema::create('approval_attachments', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('request_id')->constrained('approval_requests')->restrictOnDelete();
-            $table->foreignUuid('uploaded_by')->constrained('users')->restrictOnDelete();
+            $table->uuid('request_id');
+            $table->foreign(['tenant_id', 'request_id'])->references(['tenant_id', 'id'])->on('approval_requests')->restrictOnDelete();
+            $table->uuid('uploaded_by');
+            $table->foreign(['tenant_id', 'uploaded_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->string('disk', 30);
             $table->string('path', 255)->unique();
             $table->string('name', 255);
@@ -150,17 +168,21 @@ return new class extends Migration
         Schema::create('approval_delegations', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('from_user_id')->constrained('users')->restrictOnDelete();
-            $table->foreignUuid('to_user_id')->constrained('users')->restrictOnDelete();
+            $table->uuid('from_user_id');
+            $table->foreign(['tenant_id', 'from_user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
+            $table->uuid('to_user_id');
+            $table->foreign(['tenant_id', 'to_user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             // Dates in the time zone of each request's company.
             $table->date('starts_on');
             $table->date('ends_on');
             // Document type keys, or null for every type.
             $table->jsonb('document_types')->nullable();
             $table->text('note')->nullable();
-            $table->foreignUuid('created_by')->constrained('users')->restrictOnDelete();
+            $table->uuid('created_by');
+            $table->foreign(['tenant_id', 'created_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->timestampTz('revoked_at')->nullable();
-            $table->foreignUuid('revoked_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->uuid('revoked_by')->nullable();
+            $table->foreign(['tenant_id', 'revoked_by'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->timestampsTz();
 
             $table->index(['tenant_id', 'to_user_id']);
@@ -174,8 +196,10 @@ return new class extends Migration
         Schema::create('approval_email_tokens', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
-            $table->foreignUuid('assignment_id')->constrained('approval_assignments')->restrictOnDelete();
-            $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
+            $table->uuid('assignment_id');
+            $table->foreign(['tenant_id', 'assignment_id'])->references(['tenant_id', 'id'])->on('approval_assignments')->restrictOnDelete();
+            $table->uuid('user_id');
+            $table->foreign(['tenant_id', 'user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
             $table->string('action', 10);
             $table->char('token_hash', 64)->unique();
             $table->timestampTz('expires_at');
