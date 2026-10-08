@@ -9,6 +9,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\CreditLimitChanges;
+use App\Core\MasterData\Parties\Http\Requests\UpdatePartyRequest;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
@@ -384,5 +385,37 @@ class CreditLimitChangeApiTest extends TestCase
         $this->assertSame('15000000', $this->partyLimit());
         $this->assertSame('party_archived', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->conflict_reason));
         $this->assertSame('conflicted', $this->inTenant(fn () => CreditLimitChange::query()->findOrFail($change)->status));
+    }
+
+    public function test_a_direct_edit_is_checked_again_against_the_locked_row(): void
+    {
+        // Validation sees KES 150,000 and allows lowering to KES 120,000; before the
+        // transaction someone lowers the party to KES 100,000, so 120,000 is now a raise.
+        $this->app->afterResolving(UpdatePartyRequest::class, function () {
+            $this->inTenant(fn () => Party::query()->whereKey($this->customer)->firstOrFail()->forceFill(['credit_limit_minor' => 10000000])->saveQuietly());
+        });
+
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '120000', 'credit_limit_currency' => 'KES'], $this->headersFor($this->accountant))
+            ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
+        $this->assertSame('10000000', $this->partyLimit());
+    }
+
+    public function test_set_directly_is_tenant_wide_for_shared_parties_and_checked_at_both_companies_on_a_move(): void
+    {
+        // The customer is shared: an Admin of one company may not raise its limit.
+        $companyAdmin = $this->named('admin', Scope::company($this->acme->id), 'Cora Company Admin');
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '200000', 'credit_limit_currency' => 'KES'], $this->headersFor($companyAdmin))
+            ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
+
+        // Customers kept per company: Acme's customer, moved to Beta while raising.
+        $beta = $this->inTenant(fn () => $this->company('Beta'));
+        $this->putJson('/api/v1/master-data/settings', ['data_type' => 'customers', 'mode' => 'per_company', 'assign_to_company_id' => $this->acme->id, 'confirm' => true], $this->headersFor())->assertOk();
+        $this->inTenant(fn () => $this->assign($companyAdmin, $this->roles->get('accountant'), Scope::company($beta->id)));
+        $url = "/api/v1/parties/{$this->customer}";
+
+        $this->patchJson($url, ['credit_limit' => '200000', 'credit_limit_currency' => 'KES', 'company_id' => $beta->id], $this->headersFor($companyAdmin))
+            ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_needs_request');
+        $this->patchJson($url, ['credit_limit' => '200000', 'credit_limit_currency' => 'KES'], $this->headersFor($companyAdmin))->assertOk();
+        $this->assertSame('20000000', $this->partyLimit());
     }
 }

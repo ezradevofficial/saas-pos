@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Parties\Http\Controllers;
 
 use App\Core\Exports\ListExport;
+use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Parties\Http\Requests\ListPartiesRequest;
 use App\Core\MasterData\Parties\Http\Requests\PartyActionRequest;
@@ -99,8 +100,9 @@ class PartyController
     public function update(UpdatePartyRequest $request, Party $party): JsonResponse
     {
         $data = $request->validated();
+        $user = $request->user();
 
-        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party, $data) {
+        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party, $data, $user) {
             // Lock order, as in MasterDataSharing::switch: the sharing locks
             // first (every party type: the stored roles are only known once
             // the row is read), then the row. Never the other way round.
@@ -109,6 +111,11 @@ class PartyController
             $companyId = PartyRules::companyId($data, $party) ?: null;
             $attributes = PartyRules::attributes($data, $companyId);
             $this->assertModeUnchanged($attributes['roles'] ?? $party->roles, $companyId);
+
+            // M1, WF-01: the credit limit rule again, against the locked row.
+            if (array_key_exists('credit_limit', $data)) {
+                app(CreditLimitChanges::class)->assertDirectChange($user, $party->creditLimit(), CreditLimitChanges::limitFrom($data), [$party->company_id, $companyId]);
+            }
 
             $party->fill(['company_id' => $companyId, ...$attributes])->save();
 

@@ -33,9 +33,11 @@ use Illuminate\Validation\Validator;
  * - A price list is active and of the party's company; for a shared party,
  *   of a company the user reaches with the party permission in use.
  * - The credit limit is typed in major units of its currency (ADR 003).
- *   Lowering it in its currency needs only the party permission; any
- *   other change also needs `core.credit_limit.set_directly`, else 422
- *   `credit_limit_needs_request` (ask through a credit limit change).
+ *   Lowering it in its currency, or setting one where there is none (no
+ *   limit means unlimited), needs only the party permission; raising,
+ *   removing it or changing its currency also needs
+ *   `core.credit_limit.set_directly`, else 422 `credit_limit_needs_request`
+ *   (ask through a credit limit change).
  */
 final class PartyRules
 {
@@ -119,16 +121,15 @@ final class PartyRules
             return;
         }
 
-        // WF-01: a raise (a first limit, removing it, another currency) goes
-        // through a credit limit change request unless the user may set it directly.
+        // WF-01: a raise (removing the limit, another currency) goes through a
+        // credit limit change request unless the user may set it directly at
+        // the party's company before and after (tenant-wide when shared).
+        // Checked again under the row lock when saving (PartyController).
         if (array_key_exists('credit_limit', $input)) {
-            $limit = $input['credit_limit'] === null
-                ? null
-                : Money::parse((string) $input['credit_limit'], (string) $input['credit_limit_currency'], app(CurrencyDecimals::class));
-
-            if (CreditLimitChanges::needsApproval($party?->creditLimit(), $limit) && ! app(CreditLimitChanges::class)->canSetDirectly($user, $companyId)) {
-                throw CreditLimitChanges::needsRequestError();
-            }
+            app(CreditLimitChanges::class)->assertDirectChange(
+                $user, $party?->creditLimit(), CreditLimitChanges::limitFrom($input),
+                $party === null ? [$companyId] : [$party->company_id, $companyId],
+            );
         }
 
         $reach = app(CompanyReach::class);

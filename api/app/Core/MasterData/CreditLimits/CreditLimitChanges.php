@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\CreditLimits;
 
 use App\Core\Audit\Auditor;
+use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\Money;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
@@ -258,12 +259,44 @@ class CreditLimitChanges
         $this->engine->cancel($workflow, $actor, $reason);
     }
 
-    /** Whether $user may set a limit on a party of $companyId (null: shared) without a request. */
+    /**
+     * Whether $user may set a limit on a party of $companyId without a
+     * request: at that company (a company or tenant role); for a shared
+     * party (null), tenant-wide, since its limit applies in every company.
+     */
     public function canSetDirectly(User $user, ?string $companyId): bool
     {
-        return $companyId === null
-            ? $this->resolver->can($user, CreditLimitChangeType::SET_DIRECTLY)
-            : $this->resolver->can($user, CreditLimitChangeType::SET_DIRECTLY, Scope::company($companyId));
+        return $this->resolver->can($user, CreditLimitChangeType::SET_DIRECTLY, $companyId === null ? Scope::tenant() : Scope::company($companyId));
+    }
+
+    /**
+     * A direct edit of a limit from $current to $new: refused (422
+     * credit_limit_needs_request) when it needs approval and the user may
+     * not set it directly at every one of $companyIds (the party's company
+     * before and after the edit; null: shared). Called by validation and
+     * again inside the saving transaction against the locked row (M1).
+     *
+     * @param  list<?string>  $companyIds
+     */
+    public function assertDirectChange(User $user, ?Money $current, ?Money $new, array $companyIds): void
+    {
+        if (! self::needsApproval($current, $new)) {
+            return;
+        }
+
+        foreach (array_unique($companyIds, SORT_REGULAR) as $companyId) {
+            if (! $this->canSetDirectly($user, $companyId)) {
+                throw self::needsRequestError();
+            }
+        }
+    }
+
+    /** The limit a party request body sets (`credit_limit` in major units, ADR 003), or null for none. */
+    public static function limitFrom(array $data): ?Money
+    {
+        return ($data['credit_limit'] ?? null) === null
+            ? null
+            : Money::parse((string) $data['credit_limit'], (string) $data['credit_limit_currency'], app(CurrencyDecimals::class));
     }
 
     /**
