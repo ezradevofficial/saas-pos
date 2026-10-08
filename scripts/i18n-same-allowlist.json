@@ -48,5 +48,8 @@
   "Action",
   "{{hours}} h {{minutes}} min",
   "{{count}} minute",
-  "{{count}} minutes"
+  "{{count}} minutes",
+  "Date",
+  "Conditions",
+  "Version {{version}}"
 ]

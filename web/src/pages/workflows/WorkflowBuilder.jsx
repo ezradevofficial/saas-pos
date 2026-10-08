@@ -11,6 +11,7 @@ import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, StatusBadge } from '@/components/ds'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useCompanies } from '@/layouts/companySelection'
+import { MoneyCompany } from '@/lib/defaultCurrency'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { useLocale } from '@/lib/useLocale'
 import { usePageTitle } from '@/lib/usePageTitle'
@@ -466,7 +467,10 @@ export default function WorkflowBuilder() {
 
   return (
     <ReactFlowProvider>
-      <Builder key={workflow.id} workflow={workflow} type={types.types.find((one) => one.key === workflow.document_type)} refetch={query.refetch} />
+      {/* Money in conditions and samples starts in the flow's company's currency (CUR-01). */}
+      <MoneyCompany value={workflow.company_id ?? null}>
+        <Builder key={workflow.id} workflow={workflow} type={types.types.find((one) => one.key === workflow.document_type)} refetch={query.refetch} />
+      </MoneyCompany>
     </ReactFlowProvider>
   )
 }
