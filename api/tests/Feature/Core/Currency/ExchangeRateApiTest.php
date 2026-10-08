@@ -263,6 +263,24 @@ class ExchangeRateApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['pair', 'to', 'kind']);
     }
 
+    public function test_to_as_an_instant_leaves_out_rates_effective_later_that_day(): void
+    {
+        $this->rate('USD', 'CDF', '2800', 'shop', '2026-10-02 08:00:00Z');
+        $this->rate('USD', 'CDF', '2900', 'shop', '2026-10-02 15:00:00Z');
+
+        $atNoon = $this->getJson($this->url('?pair=USD/CDF&kind=shop&per_page=1&to=2026-10-02T12:00:00.000Z'), $this->headersFor())->assertOk();
+        $this->assertSame(['2800.00000000'], array_column($atNoon->json('data'), 'mid'));
+
+        $withOffset = $this->getJson($this->url('?pair=USD/CDF&kind=shop&per_page=1&to='.urlencode('2026-10-02T18:00:00+03:00')), $this->headersFor())->assertOk();
+        $this->assertSame(['2900.00000000'], array_column($withOffset->json('data'), 'mid'));
+
+        // A plain date still covers the whole day in the company's time zone.
+        $wholeDay = $this->getJson($this->url('?pair=USD/CDF&kind=shop&per_page=1&to=2026-10-02'), $this->headersFor())->assertOk();
+        $this->assertSame(['2900.00000000'], array_column($wholeDay->json('data'), 'mid'));
+
+        $this->getJson($this->url('?to=2026-10-02T12:00'), $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors(['to']);
+    }
+
     public function test_another_tenants_company_is_not_found(): void
     {
         $other = $this->otherTenant();

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
@@ -207,10 +207,21 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
   )
 }
 
-function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings, toggling, error }) {
+function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings, toggling, error, focus }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const name = methodName(method, locale)
+  const upRef = useRef(null)
+  const downRef = useRef(null)
+
+  // After a move the row is put in its new place: focus goes back to the
+  // arrow pressed, or to the other one when the pressed one is now disabled.
+  useEffect(() => {
+    if (focus?.id !== method.id) return
+    const pressed = focus.step < 0 ? upRef : downRef
+    const other = focus.step < 0 ? downRef : upRef
+    ;(pressed.current && !pressed.current.disabled ? pressed : other).current?.focus()
+  }, [focus, method.id])
   const meta = method.provider ? t(`paymentMethods.providers.${method.provider}`, { defaultValue: t('paymentMethods.providers.other') }) : method.currency
   const status = method.active
     ? { tone: 'success', label: t('paymentMethods.status.on') }
@@ -236,8 +247,8 @@ function MethodRow({ method, canEdit, first, last, onMove, onToggle, onSettings,
           ) : null}
           {canEdit ? (
             <>
-              <Button variant="ghost" icon="up" className="size-icon-btn px-0" disabled={first} onClick={() => onMove(-1)} aria-label={t('paymentMethods.moveUp', { name })} />
-              <Button variant="ghost" icon="down" className="size-icon-btn px-0" disabled={last} onClick={() => onMove(1)} aria-label={t('paymentMethods.moveDown', { name })} />
+              <Button ref={upRef} variant="ghost" icon="up" className="size-icon-btn px-0" disabled={first} onClick={() => onMove(-1)} aria-label={t('paymentMethods.moveUp', { name })} />
+              <Button ref={downRef} variant="ghost" icon="down" className="size-icon-btn px-0" disabled={last} onClick={() => onMove(1)} aria-label={t('paymentMethods.moveDown', { name })} />
             </>
           ) : null}
           <Switch
@@ -269,6 +280,8 @@ export default function PaymentMethods() {
   const canEdit = company ? can('core.payment_method.edit', companyScope(company)) : false
   const [settingsFor, setSettingsFor] = useState(null)
   const [rowError, setRowError] = useState(null) // { id, message }
+  const [focus, setFocus] = useState(null) // { id, step }: the row just moved
+  const [announcement, setAnnouncement] = useState('')
 
   const methods = useQuery({
     queryKey: methodsKey(company?.id),
@@ -300,25 +313,27 @@ export default function PaymentMethods() {
   })
 
   const reorder = useMutation({
-    mutationFn: (ids) => api.put(`companies/${company.id}/payment-methods/order`, { ids }),
-    onMutate: (ids) => {
-      setRowError(null)
-      const key = methodsKey(company.id)
-      const previous = queryClient.getQueryData(key)
-      queryClient.setQueryData(key, (data) =>
-        data ? { ...data, data: data.data.map((method) => ({ ...method, position: ids.indexOf(method.id) + 1 })) } : data,
-      )
-      return { previous }
-    },
-    onError: (_error, _ids, context) => queryClient.setQueryData(methodsKey(company.id), context?.previous),
+    mutationFn: ({ ids }) => api.put(`companies/${company.id}/payment-methods/order`, { ids }),
+    onMutate: () => setRowError(null),
+    onError: (_error, { previous }) => queryClient.setQueryData(methodsKey(company.id), previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: methodsKey(company.id) }),
   })
 
   const move = (group, index, step) => {
     const order = groups.map((entry) => entry.methods.map((method) => method.id))
     const ids = order[groups.indexOf(group)]
+    const method = group.methods[index]
     ;[ids[index], ids[index + step]] = [ids[index + step], ids[index]]
-    reorder.mutate(order.flat())
+    const all = order.flat()
+    // The new order shows at once (in this render), so focus lands on the row in its new place.
+    const key = methodsKey(company.id)
+    const previous = queryClient.getQueryData(key)
+    queryClient.setQueryData(key, (data) =>
+      data ? { ...data, data: data.data.map((entry) => ({ ...entry, position: all.indexOf(entry.id) + 1 })) } : data,
+    )
+    setFocus({ id: method.id, step })
+    setAnnouncement(t('paymentMethods.movedTo', { name: methodName(method, locale), position: index + step + 1, total: ids.length }))
+    reorder.mutate({ ids: all, previous })
   }
 
   return (
@@ -329,6 +344,9 @@ export default function PaymentMethods() {
       {ready && !company ? <Alert tone="info" title={t('finance.company.none')} /> : null}
       {methods.isError ? <Alert tone="danger" title={errorMessage(methods.error)} action={<Button onClick={() => methods.refetch()}>{t('common.retry')}</Button>} /> : null}
       {reorder.isError ? <Alert tone="danger" title={errorMessage(reorder.error)} /> : null}
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
       {company && methods.isSuccess && list.length === 0 ? <Alert tone="info" title={t('paymentMethods.empty')} /> : null}
       <div className="flex flex-col gap-5">
         {groups.map((group) => (
@@ -353,6 +371,7 @@ export default function PaymentMethods() {
                   onSettings={() => setSettingsFor(method)}
                   toggling={toggle.isPending && toggle.variables?.method.id === method.id}
                   error={rowError?.id === method.id ? rowError.message : null}
+                  focus={focus}
                 />
               ))}
             </ul>

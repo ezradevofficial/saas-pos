@@ -7,11 +7,11 @@ import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, DataTable, Dialog, RateInput, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { formatDateTime, localDateTimeIn, todayIn, zonedToUtc } from '@/lib/dates'
+import { formatDateTime, localDateTimeIn, zonedToUtc } from '@/lib/dates'
 import { formatDecimal } from '@/lib/money'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
-import { ratePairs } from './finance/rates'
+import { pairsFromRates, ratePairs } from './finance/rates'
 import { companyScope, useSettingsCompany, useTenantCurrencies } from './finance/useSettingsCompany'
 
 const PER_PAGE = 20
@@ -137,6 +137,7 @@ function ShopRateDialog({ company, pair, onClose, onSaved }) {
         className="flex flex-col gap-4 pt-1"
         onSubmit={(event) => {
           event.preventDefault()
+          // A field left invalid (null) shows its reason once submitted (showErrors).
           if (!values.mid || values.buy === null || values.sell === null) {
             setMissing(true)
             return
@@ -156,11 +157,28 @@ function ShopRateDialog({ company, pair, onClose, onSaved }) {
           value={values.mid}
           onChange={set('mid')}
           error={errors.fields.mid ?? (missing && values.mid === '' ? t('rates.dialog.midRequired') : undefined)}
+          showErrors={missing}
           required
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <RateInput label={t('rates.dialog.buy')} help={t('rates.dialog.buyHelp', { base })} prefix={quote} value={values.buy} onChange={set('buy')} error={errors.fields.buy} />
-          <RateInput label={t('rates.dialog.sell')} help={t('rates.dialog.sellHelp', { base })} prefix={quote} value={values.sell} onChange={set('sell')} error={errors.fields.sell} />
+          <RateInput
+            label={t('rates.dialog.buy')}
+            help={t('rates.dialog.buyHelp', { base })}
+            prefix={quote}
+            value={values.buy}
+            onChange={set('buy')}
+            error={errors.fields.buy}
+            showErrors={missing}
+          />
+          <RateInput
+            label={t('rates.dialog.sell')}
+            help={t('rates.dialog.sellHelp', { base })}
+            prefix={quote}
+            value={values.sell}
+            onChange={set('sell')}
+            error={errors.fields.sell}
+            showErrors={missing}
+          />
         </div>
         <Checkbox label={t('rates.dialog.now')} checked={now} onChange={(event) => setNow(event.target.checked)} />
         {now ? null : (
@@ -265,11 +283,15 @@ function RateHistory({ company, pair }) {
   )
 }
 
-/** The latest reference and shop rate of a pair, and which one is in force (CUR-03: shop wins). */
+/**
+ * The latest reference and shop rate of a pair, and which one is in force
+ * (CUR-03: shop wins). "Latest" is up to now, so a rate set to take effect
+ * later today is not shown as the latest yet.
+ */
 function useLatestRates(company, pair) {
   const latest = (kind) => ({
     queryKey: ['exchange-rates', company.id, 'latest', pair, kind],
-    queryFn: () => api.get(`companies/${company.id}/exchange-rates?${new URLSearchParams({ pair, kind, per_page: '1', to: todayIn(company.timezone) })}`),
+    queryFn: () => api.get(`companies/${company.id}/exchange-rates?${new URLSearchParams({ pair, kind, per_page: '1', to: new Date().toISOString() })}`),
   })
   const reference = useQuery(latest('reference'))
   const shop = useQuery(latest('shop'))
@@ -339,6 +361,32 @@ function PairRates({ company, pair }) {
 }
 
 /**
+ * The pairs to show: from the tenant's active currencies, or, for a user
+ * who may read rates but not the currency settings (403 on
+ * tenant/currencies), from the company's rates themselves.
+ */
+function usePairs(company) {
+  const { can } = usePermissions()
+  const readsCurrencies = can('core.currency.view')
+  const currencies = useTenantCurrencies({ enabled: readsCurrencies })
+  const forbidden = !readsCurrencies || currencies.error?.status === 403
+  const rates = useQuery({
+    queryKey: ['exchange-rates', company?.id, 'pairs'],
+    queryFn: () => api.get(`companies/${company.id}/exchange-rates?per_page=200`),
+    enabled: Boolean(company) && forbidden,
+  })
+  if (!company) return { pairs: [], loading: false, error: null }
+  if (forbidden) {
+    return { pairs: pairsFromRates(rates.data?.data ?? [], company.base_currency), loading: rates.isPending, error: rates.error }
+  }
+  return {
+    pairs: ratePairs(currencies.active.map((currency) => currency.code), company.base_currency),
+    loading: currencies.isPending,
+    error: currencies.error,
+  }
+}
+
+/**
  * CUR-03, CUR-07: a company's exchange rates per pair: the latest
  * reference and shop rates (the shop rate wins), entering a shop rate (a
  * warning when it moves more than the company's tolerance) and the history.
@@ -346,8 +394,7 @@ function PairRates({ company, pair }) {
 export default function ExchangeRates() {
   const { t } = useTranslation()
   const { company, picker, ready } = useSettingsCompany()
-  const currencies = useTenantCurrencies()
-  const pairs = company ? ratePairs(currencies.active.map((currency) => currency.code), company.base_currency) : []
+  const { pairs, loading, error } = usePairs(company)
   const [chosen, setChosen] = useState('')
   const pair = pairs.includes(chosen) ? chosen : (pairs.find((value) => value.startsWith('USD/')) ?? pairs[0] ?? '')
 
@@ -355,10 +402,10 @@ export default function ExchangeRates() {
     <>
       <PageHeader title={t('settings.exchangeRates.title')} description={t('settings.exchangeRates.description')} />
       {picker}
-      {currencies.isError ? <Alert tone="danger" title={errorMessage(currencies.error)} /> : null}
-      {!ready || currencies.isPending ? <p className="text-ink-muted">{t('common.loading')}</p> : null}
+      {error ? <Alert tone="danger" title={errorMessage(error)} /> : null}
+      {!ready || loading ? <p className="text-ink-muted">{t('common.loading')}</p> : null}
       {ready && !company ? <Alert tone="info" title={t('finance.company.none')} /> : null}
-      {company && !currencies.isPending && pairs.length === 0 ? <Alert tone="info" title={t('rates.noPairs')} /> : null}
+      {company && !loading && !error && pairs.length === 0 ? <Alert tone="info" title={t('rates.noPairs')} /> : null}
       {company && pair ? (
         <>
           <Select

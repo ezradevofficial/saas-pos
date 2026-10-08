@@ -93,6 +93,20 @@ describe('PaymentMethods', () => {
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('companies/c-1/payment-methods/order', { ids: ['pm-2', 'pm-1', 'pm-3'] }))
   })
 
+  it('keeps focus on the moved method and announces its new place', async () => {
+    methods()
+    api.put.mockResolvedValue({ data: [] })
+    renderApp('/settings/payment-methods')
+
+    const down = await screen.findByRole('button', { name: 'Move Cash USD down' })
+    down.focus()
+    fireEvent.click(down)
+    // Now last of its group: "down" is disabled, so focus moves to its "up".
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Move Cash USD down' })).toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Move Cash USD up' })).toHaveFocus()
+    expect(screen.getByText('Cash USD moved to position 2 of 2.')).toBeInTheDocument()
+  })
+
   it('never shows saved secrets: "Saved", then Replace or Remove', async () => {
     methods([USD, { ...MPESA, settings: { merchant_id: 'M-77' }, secrets_set: { api_key: true }, missing: [], configured: true }])
     api.patch.mockResolvedValue({ data: MPESA })

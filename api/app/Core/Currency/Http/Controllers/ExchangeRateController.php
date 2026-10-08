@@ -54,7 +54,9 @@ class ExchangeRateController
             $query->where('effective_at', '>=', CarbonImmutable::parse($request->validated('from'), $company->timezone)->startOfDay()->utc());
         }
 
-        if ($request->filled('to')) {
+        if ($request->filled('to') && $request->toIsInstant()) {
+            $query->where('effective_at', '<=', CarbonImmutable::parse($request->validated('to'))->utc());
+        } elseif ($request->filled('to')) {
             $query->where('effective_at', '<', CarbonImmutable::parse($request->validated('to'), $company->timezone)->addDay()->startOfDay()->utc());
         }
 

@@ -32,7 +32,7 @@ export function Select({ label, help, error, placeholder, options = [], classNam
             const value = typeof option === 'string' ? option : option.value
             const text = typeof option === 'string' ? option : option.label
             return (
-              <option key={value} value={value}>
+              <option key={value} value={value} disabled={typeof option === 'string' ? undefined : option.disabled}>
                 {text}
               </option>
             )

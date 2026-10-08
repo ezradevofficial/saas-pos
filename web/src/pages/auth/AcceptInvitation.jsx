@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
@@ -15,7 +15,11 @@ export default function AcceptInvitation() {
   const { token } = useParams()
   const { token: sessionToken, user, signIn, signOut } = useAuth()
   const navigate = useNavigate()
-  const invitation = useQuery({ queryKey: ['invitation', token], queryFn: () => api.get(`auth/invitations/${token}`) })
+  const queryClient = useQueryClient()
+  // Once accepted the invitation is used up (410): signing in clears the
+  // cache, so the query is switched off first and never asked again.
+  const [accepted, setAccepted] = useState(false)
+  const invitation = useQuery({ queryKey: ['invitation', token], queryFn: () => api.get(`auth/invitations/${token}`), enabled: !accepted })
   const [values, setValues] = useState({ name: null, password: '' })
 
   const mutation = useMutation({
@@ -24,7 +28,9 @@ export default function AcceptInvitation() {
         name: values.name ?? invitation.data?.name ?? '',
         password: values.password,
       }),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      setAccepted(true)
+      await queryClient.cancelQueries({ queryKey: ['invitation', token] })
       signIn(data)
       navigate('/', { replace: true })
     },

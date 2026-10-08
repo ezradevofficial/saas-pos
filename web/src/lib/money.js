@@ -149,3 +149,17 @@ export function formatDecimal(value, locale = 'en', { minDecimals = 0 } = {}) {
 export function formatMinor(minor, decimals, locale = 'en') {
   return formatDecimal(minorToDecimal(minor, decimals), locale, { minDecimals: decimals })
 }
+
+/**
+ * In French a rate typed as "2,850" (a lone comma, then exactly three
+ * digits) is most likely 2 850 typed the English way, though it reads as
+ * 2.85: refused with a sentence asking which was meant (rates are often in
+ * the thousands, CDF per USD). "2 850" or "2,8500" say it unambiguously.
+ */
+export function ambiguousFrenchComma(text, locale) {
+  if (!String(locale).toLowerCase().startsWith('fr')) return null
+  const match = /^\s*(\d{1,3}),(\d{3})\s*$/.exec(String(text ?? ''))
+  if (!match) return null
+  const [, whole, part] = match
+  return { key: 'ambiguousComma', values: { thousands: `${whole} ${part}`, decimal: `${whole},${part}0` } }
+}

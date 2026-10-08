@@ -97,3 +97,46 @@ describe('PercentInput', () => {
     expect(screen.getByText('Enter a number up to 100.')).toBeInTheDocument()
   })
 })
+
+describe('showErrors', () => {
+  it('shows the reason without the field being left, once the form says so', () => {
+    const { rerender } = render(<MoneyInput label="Amount" currency="USD" value="" onChange={() => {}} />)
+    type(screen.getByLabelText('Amount'), '1.234')
+    expect(screen.queryByText('Use at most 2 decimal places.')).not.toBeInTheDocument()
+    rerender(<MoneyInput label="Amount" currency="USD" value="" onChange={() => {}} showErrors />)
+    expect(screen.getByText('Use at most 2 decimal places.')).toBeInTheDocument()
+  })
+})
+
+describe('RateInput in French', () => {
+  afterEach(async () => {
+    await act(() => i18n.changeLanguage('en'))
+  })
+
+  it('asks which was meant for a lone comma and three digits', async () => {
+    await act(() => i18n.changeLanguage('fr'))
+    const onChange = vi.fn()
+    render(<RateInput label="Taux" value="" onChange={onChange} />)
+    const input = screen.getByLabelText('Taux')
+    type(input, '2,850')
+    expect(onChange).toHaveBeenLastCalledWith(null)
+    fireEvent.blur(input)
+    expect(screen.getByText('Vérifiez le séparateur décimal : tapez 2 850 pour des milliers, ou 2,8500 pour un nombre avec décimales.')).toBeInTheDocument()
+    type(input, '2 850')
+    expect(onChange).toHaveBeenLastCalledWith('2850')
+    type(input, '2,8500')
+    expect(onChange).toHaveBeenLastCalledWith('2.8500')
+    type(input, '2,85')
+    expect(onChange).toHaveBeenLastCalledWith('2.85')
+  })
+
+  it('never second-guesses a stored rate it wrote itself', async () => {
+    await act(() => i18n.changeLanguage('fr'))
+    const onChange = vi.fn()
+    render(<RateInput label="Taux" value="2.125" onChange={onChange} />)
+    const input = screen.getByLabelText('Taux')
+    expect(input).toHaveValue('2,125')
+    fireEvent.blur(input)
+    expect(input).not.toHaveAttribute('aria-invalid')
+  })
+})

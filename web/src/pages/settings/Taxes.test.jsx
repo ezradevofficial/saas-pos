@@ -81,6 +81,18 @@ describe('Taxes', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
+  it('shows why a typed rate is invalid when the form is submitted', async () => {
+    taxes()
+    renderApp('/settings/taxes')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a rate to VAT_STD' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add a rate to VAT_STD' })
+    fireEvent.change(within(dialog).getByLabelText(/^Rate/), { target: { value: '120' } })
+    fireEvent.change(within(dialog).getByLabelText(/Effective from/), { target: { value: '2026-11-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add rate' }))
+    expect(await within(dialog).findByText('Enter a number up to 100.')).toBeInTheDocument()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
   it('shows a refused rate under the field', async () => {
     taxes()
     api.post.mockRejectedValue(apiError(422, 'validation_failed', 'Some fields need attention.', { rate: ['A zero-rated code’s rate is 0.'] }))

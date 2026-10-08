@@ -108,6 +108,20 @@ class TenantCurrencyApiTest extends TestCase
         });
     }
 
+    public function test_cash_rounding_may_be_sent_as_a_string_of_digits(): void
+    {
+        // The web sends minor units as strings (ADR 003); the integer rule accepts digits.
+        $usd = $this->currency('USD');
+
+        $this->patchJson("/api/v1/tenant/currencies/{$usd->id}", ['cash_rounding_minor' => '25'], $this->headersFor())
+            ->assertOk()
+            ->assertJsonPath('data.cash_rounding_minor', 25);
+        $this->patchJson("/api/v1/tenant/currencies/{$usd->id}", ['cash_rounding_minor' => '2.5'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['cash_rounding_minor']);
+        $this->postJson('/api/v1/tenant/currencies', ['code' => 'CDF', 'cash_rounding_minor' => '50'], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.cash_rounding_minor', 50);
+    }
+
     public function test_decimals_lock_once_an_amount_in_the_currency_is_stored(): void
     {
         $usage = app(CurrencyUsage::class);

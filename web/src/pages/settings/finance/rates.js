@@ -23,3 +23,22 @@ export function ratePairs(codes, baseCurrency) {
   const touchesBase = (pair) => pair.split('/').includes(baseCurrency)
   return pairs.sort((x, y) => Number(!touchesBase(x)) - Number(!touchesBase(y)) || x.localeCompare(y))
 }
+
+/**
+ * The pairs of a company's stored rates, each once and read the same way
+ * as ratePairs (USD as the base, else the company's base currency as the
+ * quote): for a user who may read rates but not the currency settings.
+ */
+export function pairsFromRates(rates, baseCurrency) {
+  const codes = new Map()
+  for (const rate of rates) {
+    const key = [rate.base, rate.quote].sort().join('/')
+    codes.set(key, [rate.base, rate.quote])
+  }
+  const pairs = new Set()
+  for (const [a, b] of codes.values()) {
+    for (const pair of ratePairs([a, b], baseCurrency)) pairs.add(pair)
+  }
+  const touchesBase = (pair) => pair.split('/').includes(baseCurrency)
+  return [...pairs].sort((x, y) => Number(!touchesBase(x)) - Number(!touchesBase(y)) || x.localeCompare(y))
+}

@@ -85,4 +85,33 @@ describe('Dimensions', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('cost-centres/cc-1/archive'))
     expect(await within(dialog).findByText('This record has active records under it. Move or archive them first.')).toBeInTheDocument()
   })
+
+  it('shows an archived current parent as selected but not choosable, and does not resend it', async () => {
+    mockRoutes(
+      api,
+      [
+        ['companies/c-1/departments?status=all&per_page=200', { data: [] }],
+        [
+          'companies/c-1/cost-centres?status=all&per_page=200',
+          { data: [row({ id: 'cc-1', code: 'OPS', name: 'Operations', archived_at: '2026-10-01T00:00:00Z' }), row({ id: 'cc-2', code: 'OPS-KIN', name: 'Kinshasa operations', parent_id: 'cc-1' })] },
+        ],
+        ['users?status=active&per_page=200', { data: USERS }],
+        ['branches?per_page=200', { data: [] }],
+        ['locations?per_page=200', { data: [] }],
+      ],
+      { permissions: EDITOR, companies: [CD_COMPANY] },
+    )
+    api.patch.mockResolvedValue({ data: row({ id: 'cc-2' }) })
+    renderApp('/settings/dimensions')
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Cost centres' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Kinshasa operations' }))
+    const dialog = await screen.findByRole('dialog')
+    const parent = within(dialog).getByLabelText('Parent')
+    expect(parent).toHaveValue('cc-1')
+    expect(within(parent).getByRole('option', { name: 'OPS · Operations (archived)' })).toBeDisabled()
+    expect(within(dialog).getByText('The current parent is archived. Keep it, or choose an active one.')).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByLabelText(/^Name/), { target: { value: 'Kinshasa ops' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('cost-centres/cc-2', { code: 'OPS-KIN', name: 'Kinshasa ops', owner_user_id: null }))
+  })
 })

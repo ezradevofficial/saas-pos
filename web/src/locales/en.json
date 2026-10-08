@@ -74,7 +74,8 @@
       "integer": "This number is too large. Check it and try again.",
       "positive": "Enter a number above zero.",
       "range": "Enter a number up to {{max}}.",
-      "noDecimals": "This currency has no decimals. Enter a whole number."
+      "noDecimals": "This currency has no decimals. Enter a whole number.",
+      "ambiguousComma": "Check the decimal separator: type {{thousands}} for thousands, or {{decimal}} for a number with decimals."
     }
   },
   "dev": {
@@ -783,8 +784,8 @@
       "decimalsLocked": "Amounts are already stored in this currency, so its decimals are locked.",
       "rounding": "Cash rounding",
       "roundingHelp": "Cash totals round to a multiple of this amount, for example CDF 50 or KES 1.00.",
-      "roundingInvalid": "Enter a valid cash rounding amount, or leave it empty.",
-      "roundingRequired": "Enter the cash rounding amount."
+      "roundingRequired": "Enter the cash rounding amount.",
+      "roundingCleared": "The decimals changed, so the cash rounding was cleared. Enter it again in the new decimals."
     },
     "company": {
       "subtitle": "Base and reporting currencies",
@@ -1037,7 +1038,8 @@
       "remove": "Remove",
       "removeKey": "Remove {{key}}",
       "keep": "Keep"
-    }
+    },
+    "movedTo": "{{name}} moved to position {{position}} of {{total}}."
   },
   "dimensions": {
     "tabs": {
@@ -1093,7 +1095,9 @@
       "noParent": "None (top level)",
       "owner": "Owner",
       "ownerHelp": "Someone who can view {{name}}. Approvals go to them.",
-      "noOwner": "No owner"
+      "noOwner": "No owner",
+      "archivedParent": "{{name}} (archived)",
+      "archivedParentHelp": "The current parent is archived. Keep it, or choose an active one."
     },
     "errors": {
       "inUse": "This record has active records under it. Move or archive them first.",

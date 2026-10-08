@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { decimalsOf, decimalToMinor, formatDecimal, formatMinor, parseDecimal } from '@/lib/money'
+import { ambiguousFrenchComma, decimalsOf, decimalToMinor, formatDecimal, formatMinor, parseDecimal } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { TextField } from './TextField'
 
@@ -10,18 +10,28 @@ import { TextField } from './TextField'
  * the text the user typed and reports `onChange(value)`:
  * - "" when empty,
  * - null while the text is not a valid number (the reason shows under the
- *   field once the user leaves it),
+ *   field once the user leaves it, or at once with `showErrors`, which a
+ *   form sets when it is submitted),
  * - otherwise the value (see each input below).
  * An `error` from the form (e.g. the API) wins over the input's own.
+ * `check(text, locale)` may refuse a number the parser accepts:
+ * `{ key, values }` names the message (`ds.numberInput.{key}`).
  */
-function NumberField({ value, toText, fromParsed, options, example, onChange, onBlur, error, help, ...rest }) {
+function NumberField({ value, toText, fromParsed, options, example, check, showErrors = false, onChange, onBlur, error, help, ...rest }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const [text, setText] = useState(() => (value === '' || value === null || value === undefined ? '' : toText(value, locale)))
+  // Text the field wrote itself (the starting value, or a tidied one) is never second-guessed by `check`.
+  const [written, setWritten] = useState(text)
   const [touched, setTouched] = useState(false)
-  const parsed = parseDecimal(text, { locale, ...options })
+  const read = (input) => {
+    const result = parseDecimal(input, { locale, ...options })
+    const refused = result.error || input === written ? null : check?.(input, locale)
+    return refused ? { value: '', error: refused.key, values: refused.values } : result
+  }
+  const parsed = read(text)
   const reason = parsed.error === 'decimals' && options.maxDecimals === 0 ? 'noDecimals' : parsed.error
-  const own = touched && reason ? t(`ds.numberInput.${reason}`, { example, count: options.maxDecimals, max: options.max }) : null
+  const own = (touched || showErrors) && reason ? t(`ds.numberInput.${reason}`, { example, count: options.maxDecimals, max: options.max, ...parsed.values }) : null
 
   return (
     <TextField
@@ -34,13 +44,17 @@ function NumberField({ value, toText, fromParsed, options, example, onChange, on
       onChange={(event) => {
         const next = event.target.value
         setText(next)
-        const result = parseDecimal(next, { locale, ...options })
+        const result = read(next)
         onChange?.(result.error ? null : result.value === '' ? '' : fromParsed(result.value))
       }}
       onBlur={(event) => {
         setTouched(true)
         // Tidy a valid number into the language's format ("12450.5" → "12,450.50").
-        if (!parsed.error && parsed.value !== '') setText(toText(fromParsed(parsed.value), locale))
+        if (!parsed.error && parsed.value !== '') {
+          const tidy = toText(fromParsed(parsed.value), locale)
+          setText(tidy)
+          setWritten(tidy)
+        }
         onBlur?.(event)
       }}
     />
@@ -78,6 +92,7 @@ export function RateInput({ value, onChange, ...rest }) {
     <NumberField
       {...rest}
       value={value}
+      check={ambiguousFrenchComma}
       example={formatDecimal('2850.5', useLocale())}
       options={{ maxDecimals: 8, maxIntegerDigits: 10, positive: true }}
       toText={(decimal, locale) => formatDecimal(decimal, locale)}

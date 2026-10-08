@@ -74,7 +74,8 @@
       "integer": "Ce nombre est trop grand. Vérifiez-le et réessayez.",
       "positive": "Saisissez un nombre supérieur à zéro.",
       "range": "Saisissez un nombre jusqu’à {{max}}.",
-      "noDecimals": "Cette devise n’a pas de décimales. Saisissez un nombre entier."
+      "noDecimals": "Cette devise n’a pas de décimales. Saisissez un nombre entier.",
+      "ambiguousComma": "Vérifiez le séparateur décimal : tapez {{thousands}} pour des milliers, ou {{decimal}} pour un nombre avec décimales."
     }
   },
   "dev": {
@@ -783,8 +784,8 @@
       "decimalsLocked": "Des montants sont déjà enregistrés dans cette devise : ses décimales sont verrouillées.",
       "rounding": "Arrondi espèces",
       "roundingHelp": "Les totaux en espèces sont arrondis à un multiple de ce montant, par exemple CDF 50 ou KES 1,00.",
-      "roundingInvalid": "Saisissez un arrondi valide, ou laissez le champ vide.",
-      "roundingRequired": "Saisissez le montant de l’arrondi."
+      "roundingRequired": "Saisissez le montant de l’arrondi.",
+      "roundingCleared": "Les décimales ont changé, l’arrondi de caisse a donc été effacé. Saisissez-le de nouveau avec les nouvelles décimales."
     },
     "company": {
       "subtitle": "Devises de base et de reporting",
@@ -1037,7 +1038,8 @@
       "remove": "Retirer",
       "removeKey": "Retirer {{key}}",
       "keep": "Conserver"
-    }
+    },
+    "movedTo": "{{name}} déplacé en position {{position}} sur {{total}}."
   },
   "dimensions": {
     "tabs": {
@@ -1093,7 +1095,9 @@
       "noParent": "Aucun (premier niveau)",
       "owner": "Responsable",
       "ownerHelp": "Une personne qui peut voir {{name}}. Les approbations lui sont envoyées.",
-      "noOwner": "Aucun responsable"
+      "noOwner": "Aucun responsable",
+      "archivedParent": "{{name}} (archivé)",
+      "archivedParentHelp": "Le parent actuel est archivé. Gardez-le ou choisissez-en un actif."
     },
     "errors": {
       "inUse": "Cette fiche a des fiches actives en dessous. Déplacez-les ou archivez-les d’abord.",
