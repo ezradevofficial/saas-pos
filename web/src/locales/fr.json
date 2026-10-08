@@ -2116,7 +2116,10 @@
       "modeChainHelp": "S’applique à chaque approbateur de la chaîne.",
       "reminderNumber": "Relance {{number}} après",
       "reminderRemove": "Retirer la relance {{number}}",
-      "reminderAdd": "Ajouter une relance"
+      "reminderAdd": "Ajouter une relance",
+      "stageEscalateTo": "Prévenir quelqu’un en cas d’attente trop longue",
+      "stageEscalateHelp": "Un simple avis : l’étape reste où elle est.",
+      "stageEscalateAfterHelp": "Laissez vide pour prévenir lorsque l’étape est en retard."
     },
     "approverTypes": {
       "branch_manager": "Responsable de l’agence du demandeur",
@@ -2137,7 +2140,8 @@
     "escalateTo": {
       "next_level": "Niveau supérieur",
       "role": "Toute personne ayant un rôle",
-      "user": "Une personne nommée"
+      "user": "Une personne nommée",
+      "none": "Personne"
     },
     "finalActions": {
       "none": "Continuer d’attendre",
@@ -2497,7 +2501,12 @@
       "joined": "Branches réunies à {{step}}",
       "action": "Action exécutée à {{step}}",
       "condition": "Condition vérifiée à {{step}}",
-      "notified": "Notification envoyée à {{step}}"
+      "notified": "Notification envoyée à {{step}}",
+      "reminded": "Relance envoyée pour {{step}}",
+      "remindedNumber": "Relance {{number}} envoyée pour {{step}}",
+      "overdue": "{{step}} est en retard",
+      "escalated": "{{step}} escaladé",
+      "actionKept": "Document créé auparavant conservé à {{step}}"
     },
     "duration": {
       "days": "{{days}} j {{hours}} h",

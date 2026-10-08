@@ -119,6 +119,9 @@ const AT_STAGE = {
     { type: 'left', node_id: 'draft', node_name: 'Draft', user: { id: 'u-1', name: 'Mary Manager' }, reason: null, data: { how: 'completed' }, occurred_at: '2026-10-07T14:10:00Z' },
     { type: 'entered', node_id: 'check', node_name: 'Stock check', user: null, reason: null, data: {}, occurred_at: '2026-10-07T14:10:00Z' },
   ],
+  can_cancel: true,
+  can_return: true,
+  return_targets: [{ node_id: 'draft', name: 'Draft' }],
 }
 
 describe('Document workflow actions (WF-11)', () => {
@@ -136,6 +139,33 @@ describe('Document workflow actions (WF-11)', () => {
     expect(screen.queryByRole('button', { name: /Move on/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Return to an earlier stage' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel the flow' })).not.toBeInTheDocument()
+  })
+
+  it('follows can_return and can_cancel from the API, even for someone who may move the stage', async () => {
+    mockRoutes(api, [[URL, { data: { ...AT_STAGE, can_cancel: false, can_return: false } }]], { companies: COMPANIES })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    expect(await screen.findByRole('button', { name: 'Move on from Stock check' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Return to an earlier stage' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel the flow' })).not.toBeInTheDocument()
+  })
+
+  it('labels stage timer events and a kept document in the history (WF-09)', async () => {
+    const history = [
+      ...AT_STAGE.history,
+      { type: 'reminded', node_id: 'check', node_name: 'Stock check', user: null, reason: null, data: { users: [], reminder: 2 }, occurred_at: '2026-10-07T16:00:00Z' },
+      { type: 'overdue', node_id: 'check', node_name: 'Stock check', user: null, reason: null, data: { users: [] }, occurred_at: '2026-10-07T17:00:00Z' },
+      { type: 'escalated', node_id: 'check', node_name: 'Stock check', user: null, reason: null, data: { users: [] }, occurred_at: '2026-10-07T18:00:00Z' },
+      { type: 'action', node_id: 'po', node_name: 'Create order', user: null, reason: null, data: { action: 'create_document', result: { kept: true } }, occurred_at: '2026-10-07T19:00:00Z' },
+    ]
+    mockRoutes(api, [[URL, { data: { ...AT_STAGE, history } }]], { companies: COMPANIES })
+    renderApp('/document-workflows/core.credit_limit_change/clc-1')
+
+    const list = await screen.findByRole('list', { name: 'History' })
+    expect(within(list).getByText('Sent reminder 2 for Stock check')).toBeInTheDocument()
+    expect(within(list).getByText('Stock check became overdue')).toBeInTheDocument()
+    expect(within(list).getByText('Escalated Stock check')).toBeInTheDocument()
+    expect(within(list).getByText('Kept the document created earlier at Create order')).toBeInTheDocument()
   })
 
   it('never offers Move on for an approval step, even when the API allows manual completion', async () => {

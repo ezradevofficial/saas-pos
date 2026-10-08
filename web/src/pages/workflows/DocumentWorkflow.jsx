@@ -10,7 +10,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import NotFound, { NoAccess } from '@/pages/NotFound'
-import { returnTargets } from './documentFlow'
+import { eventLabel, returnTargets } from './documentFlow'
 import { useDuration } from './useDuration'
 
 const STATUS_TONES = { running: 'info', completed: 'success', cancelled: 'neutral' }
@@ -58,9 +58,8 @@ function ActionError({ error }) {
 
 /**
  * WF-11: Return to an earlier stage and Cancel, each confirmed in the page
- * with a reason (required by the API). Shown to people who may act on the
- * flow: the API's `can_return` / `can_cancel` when it sends them, else
- * whoever may move one of its open stages.
+ * with a reason (required by the API). Shown as the API allows them
+ * (`can_return` with `return_targets`, `can_cancel`).
  */
 function FlowActions({ flow, run }) {
   const { t } = useTranslation()
@@ -68,9 +67,8 @@ function FlowActions({ flow, run }) {
   const [target, setTarget] = useState('')
   const [reason, setReason] = useState('')
   const targets = returnTargets(flow)
-  const mayAct = flow.status === 'running' && (flow.current ?? []).some((step) => step.can_move)
-  const canCancel = flow.status === 'running' && (flow.can_cancel ?? mayAct)
-  const canReturn = flow.status === 'running' && (flow.can_return ?? mayAct) && targets.length > 0
+  const canCancel = flow.status === 'running' && flow.can_cancel === true
+  const canReturn = flow.status === 'running' && flow.can_return === true && targets.length > 0
   if (!canCancel && !canReturn) return null
 
   const open = (next) => {
@@ -266,7 +264,7 @@ export default function DocumentWorkflow() {
               <ol className="flex flex-col gap-2" aria-label={t('documentWorkflow.history')}>
                 {flow.history.map((event, index) => (
                   <li key={`${event.type}-${index}`} className="flex flex-wrap gap-x-2 text-body">
-                    <span className="text-ink">{t(`documentWorkflow.events.${event.type}`, { defaultValue: event.type, step: event.node_name ?? '' })}</span>
+                    <span className="text-ink">{eventLabel(t, event)}</span>
                     {event.user?.name ? <span className="text-ink-muted">{event.user.name}</span> : null}
                     <span className="text-ink-muted tabular-nums">{when(event.occurred_at)}</span>
                     {event.reason ? <span className="w-full text-ink-muted">{event.reason}</span> : null}

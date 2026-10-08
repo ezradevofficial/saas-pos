@@ -6,7 +6,7 @@ import { displayName, kindLabel } from './describe'
 import { roleRefsOf, toFrom, userIdsOf } from './notifyRecipients'
 import { names as roleNamedBy } from './roleRefs'
 import { PeoplePicker, RolesPicker } from './RolesPicker'
-import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, MAX_CHAIN, MAX_REMINDERS, ON_CANCEL, OUTCOMES } from './workflowData'
+import { APPROVAL_MODES, DUE_UNITS, ESCALATE_TO, FINAL_ACTIONS, JOIN_MODES, MAX_CHAIN, MAX_REMINDERS, ON_CANCEL, OUTCOMES, STAGE_ESCALATE_TO } from './workflowData'
 
 /** A whole number of time units (1 to 10,000), or nothing: `{ amount, unit }` | null. */
 function DurationField({ label, help, value, onChange }) {
@@ -146,7 +146,7 @@ function ApprovalChain({ chain, onChange, context }) {
   )
 }
 
-/** APR-05: up to MAX_REMINDERS reminders, each after its own wait (`reminders: [{amount, unit}]`). */
+/** APR-05, WF-09: up to MAX_REMINDERS reminders (approvals and stages), each after its own wait (`reminders: [{amount, unit}]`). */
 function RemindersField({ value, onChange }) {
   const { t } = useTranslation()
   const reminders = Array.isArray(value) ? value : []
@@ -195,6 +195,47 @@ function RemindersField({ value, onChange }) {
   )
 }
 
+/**
+ * WF-09: a stage's escalation tells a role or a named person once the
+ * stage has waited `after` (else from its due time). It only notifies, so
+ * there is no "next level" and no automatic outcome: `{after?, to}`.
+ */
+function StageEscalation({ node, change, context }) {
+  const { t } = useTranslation()
+  const { roles, users } = context
+  const escalation = node.escalation ?? null
+  const to = escalation?.to ?? null
+  const toInfo = ESCALATE_TO.find((one) => one.key === to?.type)
+  const set = (next) => change({ escalation: next })
+  return (
+    <>
+      <Select
+        label={t('workflows.fields.stageEscalateTo')}
+        help={t('workflows.fields.stageEscalateHelp')}
+        options={['none', ...STAGE_ESCALATE_TO].map((key) => ({ value: key, label: t(`workflows.escalateTo.${key}`) }))}
+        value={to?.type ?? 'none'}
+        onChange={(event) => set(event.target.value === 'none' ? undefined : { ...(escalation?.after ? { after: escalation.after } : {}), to: { type: event.target.value } })}
+      />
+      {to ? (
+        <>
+          <ApproverParams approver={to} params={toInfo?.params ?? []} roles={roles} users={users} onChange={(next) => set({ ...escalation, to: next })} />
+          <DurationField
+            label={t('workflows.fields.escalateAfter')}
+            help={t('workflows.fields.stageEscalateAfterHelp')}
+            value={escalation.after ?? null}
+            onChange={(after) => {
+              const next = { ...escalation }
+              if (after) next.after = after
+              else delete next.after
+              set(next)
+            }}
+          />
+        </>
+      ) : null}
+    </>
+  )
+}
+
 function StageSettings({ node, change, context }) {
   const { t } = useTranslation()
   const { fields, roles } = context
@@ -223,11 +264,8 @@ function StageSettings({ node, change, context }) {
       {node.type === 'stage' ? (
         <>
           <DurationField label={t('workflows.fields.due')} help={t('workflows.fields.dueHelp')} value={node.due} onChange={(due) => change({ due })} />
-          <DurationField
-            label={t('workflows.fields.remindAfter')}
-            value={node.reminders?.[0] ?? null}
-            onChange={(reminder) => change({ reminders: reminder ? [reminder] : [] })}
-          />
+          <RemindersField value={node.reminders} onChange={(reminders) => change({ reminders })} />
+          <StageEscalation node={node} change={change} context={context} />
         </>
       ) : null}
     </>

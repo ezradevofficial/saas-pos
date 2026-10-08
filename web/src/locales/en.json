@@ -2116,7 +2116,10 @@
       "modeChainHelp": "Applies at each approver in the chain.",
       "reminderNumber": "Reminder {{number}} after",
       "reminderRemove": "Remove reminder {{number}}",
-      "reminderAdd": "Add a reminder"
+      "reminderAdd": "Add a reminder",
+      "stageEscalateTo": "Tell someone when it waits too long",
+      "stageEscalateHelp": "A notice only: the stage stays where it is.",
+      "stageEscalateAfterHelp": "Leave empty to tell them when the stage is overdue."
     },
     "approverTypes": {
       "branch_manager": "Manager of the requester’s branch",
@@ -2137,7 +2140,8 @@
     "escalateTo": {
       "next_level": "Next level up",
       "role": "Anyone with a role",
-      "user": "A named person"
+      "user": "A named person",
+      "none": "Nobody"
     },
     "finalActions": {
       "none": "Keep waiting",
@@ -2497,7 +2501,12 @@
       "joined": "Branches joined at {{step}}",
       "action": "Ran an action at {{step}}",
       "condition": "Checked a condition at {{step}}",
-      "notified": "Sent a notification at {{step}}"
+      "notified": "Sent a notification at {{step}}",
+      "reminded": "Sent a reminder for {{step}}",
+      "remindedNumber": "Sent reminder {{number}} for {{step}}",
+      "overdue": "{{step}} became overdue",
+      "escalated": "Escalated {{step}}",
+      "actionKept": "Kept the document created earlier at {{step}}"
     },
     "duration": {
       "days": "{{days}} d {{hours}} h",
