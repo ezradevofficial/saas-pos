@@ -53,8 +53,9 @@ class AutomationCapabilitiesTest extends TestCase
                 ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
                 ['id' => 'approve', 'type' => 'approval', 'name' => 'Manager approves', 'approval' => ['approver' => ['type' => 'user', 'user_id' => $this->owner->id]]],
                 ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+                ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'],
             ],
-            'edges' => [['from' => 'start', 'to' => 'review'], ['from' => 'review', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved']],
+            'edges' => [['from' => 'start', 'to' => 'review'], ['from' => 'review', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']],
         ];
     }
 
@@ -106,7 +107,7 @@ class AutomationCapabilitiesTest extends TestCase
     {
         $flow = $this->approvalFlow();
         $flow['nodes'] = array_values(array_filter($flow['nodes'], fn (array $n) => $n['id'] !== 'review'));
-        $flow['edges'] = [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved']];
+        $flow['edges'] = [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']];
         $this->publishFlow($flow);
 
         $type = $this->catalogueType(TestRequestType::KEY);

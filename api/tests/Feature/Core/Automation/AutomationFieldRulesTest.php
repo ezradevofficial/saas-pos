@@ -107,6 +107,23 @@ class AutomationFieldRulesTest extends TestCase
         Http::assertSent(fn (Request $request) => (json_decode($request->body(), true)['fields']['amount'] ?? null) == $this->kes(987654));
     }
 
+    public function test_notification_text_leaves_out_fields_hidden_from_each_recipient(): void
+    {
+        // M3 (RBAC-05): the owner's rule (sees the amount) tells the owner and the clerk (doesn't).
+        $this->saveRule(['type' => 'record_created'], [
+            ['type' => 'notify', 'to' => ["user:{$this->clerk->id}", "user:{$this->owner->id}"], 'subject' => 'Task {title} {amount}', 'message' => 'Worth {amount}, {quantity} units.'],
+        ]);
+
+        $this->createTask(['amount' => $this->kes(987654), 'quantity' => '4']);
+
+        $this->inTenant(function () {
+            $notes = InAppNotification::query()->where('event_type', 'core.automation.notify')->get()->keyBy('user_id');
+            $this->assertStringContainsString('Worth , 4 units.', $notes[$this->clerk->id]->body);
+            $this->assertStringNotContainsString('9,876.54', $notes[$this->clerk->id]->body.$notes[$this->clerk->id]->subject);
+            $this->assertStringContainsString('Worth KES 9,876.54, 4 units.', $notes[$this->owner->id]->body);
+        });
+    }
+
     public function test_the_run_log_leaves_out_checks_and_trigger_fields_hidden_from_the_reader(): void
     {
         $rule = $this->saveRule(['type' => 'record_updated', 'fields' => ['amount', 'quantity']], [['type' => 'update_field', 'field' => 'note', 'value' => 'x']], [

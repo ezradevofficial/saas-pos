@@ -121,6 +121,7 @@ return [
     'delegations' => [
         'all_types' => 'tous les types de documents',
         'too_long' => 'Une délégation dure au plus un an.',
+        'not_candidate' => 'Choisissez une personne qui travaille dans l’un de vos sites.',
     ],
 
     'email' => [

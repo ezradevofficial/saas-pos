@@ -9,11 +9,13 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
 /**
@@ -78,6 +80,19 @@ class EmailApprovalTest extends TestCase
         // Single use: both links are spent.
         $this->getJson('/api/v1/approvals/email/'.$tokens['approve'])->assertOk()->assertJsonPath('data.status', 'sign_in_required')->assertJsonPath('data.reason', 'used');
         $this->postJson('/api/v1/approvals/email/'.$tokens['reject'], ['comment' => 'No'])->assertForbidden()->assertJsonPath('code', 'sign_in_required');
+    }
+
+    public function test_a_blocked_email_approval_never_shows_values_of_hidden_fields(): void
+    {
+        // H3 (RBAC-05): the approve link is refused by the exit rule on `total`, which branch managers can't see.
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'resource' => TestRequestType::KEY, 'field' => 'total', 'mode' => 'hidden']));
+        $this->submit($this->approvalGraph([], ['exit' => ['field' => 'total', 'op' => 'lt', 'value' => ['amount_minor' => '100', 'currency' => 'KES']]]));
+        $tokens = $this->links($this->managerA);
+
+        $response = $this->postJson('/api/v1/approvals/email/'.$tokens['approve'])->assertUnprocessable()->assertJsonPath('code', 'exit_blocked');
+
+        $this->assertSame(['A rule you can’t see was not met.'], $response->json('reasons'));
+        $this->assertStringNotContainsString('120,000', $response->getContent());
     }
 
     public function test_the_reject_link_needs_a_reason(): void

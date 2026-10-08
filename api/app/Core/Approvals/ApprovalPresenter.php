@@ -7,6 +7,7 @@ use App\Core\Approvals\Models\ApprovalAssignment;
 use App\Core\Approvals\Models\ApprovalAttachment;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Approvals\Resolvers\ApproverResolvers;
+use App\Core\Automation\Runtime\FieldVisibility;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Conditions\ConditionDescriber;
@@ -49,6 +50,7 @@ class ApprovalPresenter
         private readonly ConditionEvaluator $evaluator,
         private readonly ConditionDescriber $describer,
         private readonly ApprovalClock $clock,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /** @return array<string, mixed> */
@@ -146,7 +148,7 @@ class ApprovalPresenter
                 'allow_email' => (bool) ($request->config['allow_email'] ?? true),
             ],
             'document_link' => $seesDocument ? SendWorkflowNotification::link($request->document_type, $request->document_id) : null,
-            'route' => $this->route($request, $seesDocument),
+            'route' => $this->route($request, $seesDocument, $viewer),
             'approvers' => $request->assignments()->orderBy('step')->orderBy('created_at')->orderBy('id')->get()
                 ->map(fn (ApprovalAssignment $a) => [
                     'id' => $a->id,
@@ -202,11 +204,12 @@ class ApprovalPresenter
 
     /**
      * "Why this route": the conditions passed (and optional steps skipped)
-     * before the document reached this approval.
+     * before the document reached this approval. M2 (RBAC-05): checks on
+     * fields the viewer's field rules hide are left out.
      *
      * @return list<array<string, mixed>>
      */
-    private function route(ApprovalRequest $request, bool $seesDocument): array
+    private function route(ApprovalRequest $request, bool $seesDocument, User $viewer): array
     {
         $type = $this->types->find($request->document_type);
         $flow = WorkflowVersion::query()->find($request->version_id)?->flow();
@@ -221,14 +224,19 @@ class ApprovalPresenter
             ->orderBy('occurred_at')->orderBy('id')->get();
         $values = null;
         $timezone = $this->clock->timezone($request->company_id);
+        $hidden = $seesDocument ? $this->visibility->hidden($viewer, $type) : [];
 
-        return $events->map(function (DocumentWorkflowEvent $event) use ($flow, $fields, $type, $request, $seesDocument, &$values, $timezone) {
+        return $events->map(function (DocumentWorkflowEvent $event) use ($flow, $fields, $type, $request, $seesDocument, &$values, $timezone, $hidden) {
             $node = $flow->node((string) $event->node_id) ?? [];
             $outlines = $event->type === 'condition' ? ($event->data['results'] ?? []) : [['branch' => null, ...($event->data['condition'] ?? [])]];
             $checks = [];
 
             foreach ($outlines as $outline) {
                 foreach ($outline['checks'] ?? [] as $check) {
+                    if (in_array($check['field'] ?? null, $hidden, true)) {
+                        continue;
+                    }
+
                     $checks[] = [
                         'branch' => $outline['branch'] ?? null,
                         'field' => $check['field'] ?? null,
@@ -250,6 +258,10 @@ class ApprovalPresenter
 
                 foreach (array_filter($conditions, 'is_array') as $condition) {
                     foreach ($this->evaluator->evaluate($condition, $values, $fields, $timezone)->checks as $check) {
+                        if (in_array($check->field, $hidden, true) || in_array($check->other, $hidden, true)) {
+                            continue;
+                        }
+
                         $explanations[] = $this->describer->describe($check, $fields, $timezone);
                     }
                 }

@@ -5,6 +5,8 @@ namespace Tests\Feature\Core\Workflow;
 use App\Core\Audit\AuditEntry;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\Models\FieldRule;
+use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Definitions\FlowDefinitions;
@@ -188,16 +190,16 @@ class WorkflowRuntimeTest extends TestCase
         $this->assertSame([DocumentWorkflow::COMPLETED, 'rejected'], [$workflow->status, $workflow->outcome]);
         $this->assertSame([], $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)));
 
-        // A stage takes no outcome; an approval without a rejected path refuses a rejection.
+        // A stage takes no outcome.
         $this->publishFlow(Graphs::linear(['review']));
         $stage = $this->start($this->document());
         $this->assertSame('outcome_not_allowed', $this->refused(fn () => $this->engine()->move($stage, $this->owner, null, 'approved'))->errorCode);
 
+        // H2: an approval without a rejected path is not published (the engine still refuses a rejection there).
         $graph = Graphs::linear(['review']);
         $graph['nodes'][1]['type'] = 'approval';
-        $this->publishFlow($graph);
-        $approval = $this->start($this->document());
-        $this->assertSame('no_rejected_path', $this->refused(fn () => $this->engine()->move($approval, $this->owner, null, 'rejected'))->errorCode);
+        $problems = $this->inTenant(fn () => app(GraphValidator::class)->validate($graph, app(DocumentTypeRegistry::class)->get(TestRequestType::KEY)));
+        $this->assertSame(['approval_without_rejected'], array_column($problems, 'code'));
     }
 
     public function test_an_entry_rule_blocks_a_mandatory_stage_with_the_reason_and_changes_nothing(): void
@@ -360,6 +362,84 @@ class WorkflowRuntimeTest extends TestCase
 
         // And on again from there.
         $this->assertSame(['review'], $this->at($this->move($workflow)));
+    }
+
+    public function test_blocked_reasons_never_show_rules_on_fields_the_mover_cannot_see(): void
+    {
+        // H3 (RBAC-05): the exit rule checks `total` (hidden from the mover) and `quantity` (visible).
+        [$mover, $blind, $seer] = $this->inTenant(function () {
+            $movers = $this->role('Movers', ['core.party.view']);
+            FieldRule::create(['role_id' => $movers->id, 'resource' => TestRequestType::KEY, 'field' => 'total', 'mode' => 'hidden']);
+            $mover = $this->colleague($this->owner);
+            $this->assign($mover, $movers, Scope::company($this->acme->id));
+            // May complete the stage, but can't see the document at all.
+            $blind = $this->colleague($this->owner);
+            $this->assign($blind, $movers, Scope::branch($this->branchB->id));
+            $this->assign($blind, $this->role('Stage only'), Scope::company($this->acme->id));
+
+            // Another role without the field rule: sees `total`.
+            $seer = $this->colleague($this->owner);
+            $this->assign($seer, $movers, Scope::company($this->acme->id));
+            $this->assign($seer, $this->role('Viewers', ['core.party.view']), Scope::company($this->acme->id));
+
+            return [$mover, $blind, $seer];
+        });
+        $roleIds = $this->inTenant(fn () => Role::query()->whereIn('name', ['Movers', 'Stage only'])->pluck('id')->all());
+        $this->publishFlow(Graphs::linear(['review'], ['review' => [
+            'exit_roles' => $roleIds,
+            'exit' => ['all' => [
+                ['field' => 'total', 'op' => 'lt', 'value' => Graphs::kes(100)],
+                ['field' => 'quantity', 'op' => 'gt', 'value' => '5'],
+            ]],
+        ]]));
+        $workflow = $this->start($this->document(['total' => Graphs::kes(9900000), 'quantity' => '2']));
+
+        $reasons = $this->blocked(fn () => $this->engine()->move($workflow, $mover))->reasons;
+        $this->assertCount(2, $reasons);
+        $this->assertStringNotContainsString('99,000', implode(' ', $reasons));
+        $this->assertSame('A rule you can’t see was not met.', $reasons[1]);
+
+        $this->assertSame(['A rule you can’t see was not met.'], $this->blocked(fn () => $this->engine()->move($workflow, $blind))->reasons);
+
+        // Someone who sees every field: both reasons, with the values.
+        $this->assertStringContainsString('99,000', implode(' ', $this->blocked(fn () => $this->engine()->move($workflow, $seer))->reasons));
+    }
+
+    public function test_passing_a_create_document_step_again_after_a_return_keeps_the_document(): void
+    {
+        // M3 (WF-07, WF-11): start → draft → create order → review → end.
+        $this->publishFlow([
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'draft', 'type' => 'stage', 'name' => 'Draft'],
+                ['id' => 'create_order', 'type' => 'action', 'name' => 'Create order', 'action' => 'create_document', 'config' => ['mapping' => 'order']],
+                ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
+                ['id' => 'end', 'type' => 'end', 'outcome' => 'completed'],
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'draft'], ['from' => 'draft', 'to' => 'create_order'],
+                ['from' => 'create_order', 'to' => 'review'], ['from' => 'review', 'to' => 'end'],
+            ],
+        ]);
+        $workflow = $this->move($this->start($this->document(['total' => Graphs::kes(500)])));
+        $orders = $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY));
+        $this->assertCount(1, $orders);
+
+        $workflow = $this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'draft', 'Fix the total'));
+        $workflow = $this->move($workflow);
+
+        $this->assertSame(['review'], $this->at($workflow));
+        $this->assertCount(1, $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)), 'not created twice');
+        $this->assertSame(1, $this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->count()));
+        $actions = $this->inTenant(fn () => DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->where('type', 'action')->orderBy('occurred_at')->orderBy('id')->get());
+        $this->assertSame([null, true], $actions->map(fn ($e) => $e->data['result']['kept'] ?? null)->all());
+        $this->assertSame($orders[0]['id'], $actions[1]->data['result']['document_id']);
+
+        // Once the created order is cancelled, passing again creates a new one.
+        $this->inTenant(fn () => TestDocuments::setStatus($orders[0]['id'], 'cancelled'));
+        $workflow = $this->move($this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'draft', 'Again')));
+        $this->assertCount(2, $this->inTenant(fn () => TestDocuments::ofType(TestOrderType::KEY)));
+        $this->assertSame(2, $this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->count()));
     }
 
     /** start → prepare → split → (it → it_check, payroll) → join(all) → close → end, stage options merged per id. */
@@ -613,6 +693,8 @@ class WorkflowRuntimeTest extends TestCase
 
         $graph = Graphs::linear(['manager']);
         $graph['nodes'][1]['type'] = 'approval';
+        $graph['nodes'][] = ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'];
+        $graph['edges'][] = ['from' => 'manager', 'to' => 'refused', 'branch' => 'rejected'];
         $this->publishFlow($graph);
         $workflow = $this->start($this->document());
 

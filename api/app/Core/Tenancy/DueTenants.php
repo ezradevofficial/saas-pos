@@ -33,6 +33,18 @@ class DueTenants
         return $this->ids('app_tenants_with_stuck_automation(?::timestamptz)', [$staleBefore->toIso8601String()]);
     }
 
+    /** @return list<string> WF-09: stage reminders, overdue notices or escalations due at $at. */
+    public function withDueStageTimers(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_due_stage_timers(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> M4: credit limit changes still pending whose flow ended before $before. */
+    public function withUnsettledCreditChanges(CarbonInterface $before): array
+    {
+        return $this->ids('app_tenants_with_unsettled_credit_changes(?::timestamptz)', [$before->toIso8601String()]);
+    }
+
     /** @return list<string> NOT-05: emails held for a digest. */
     public function withPendingDigests(): array
     {

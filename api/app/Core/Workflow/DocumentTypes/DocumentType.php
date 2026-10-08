@@ -128,6 +128,16 @@ abstract class DocumentType
         throw new LogicException("The document type [{$this->key()}] cannot create drafts.");
     }
 
+    /**
+     * WF-07: whether a document a flow created is cancelled (or gone), so a
+     * flow passing the same action again after a return creates a new one
+     * instead of keeping it. By default: gone when it has no scope.
+     */
+    public function isCancelled(string $documentId): bool
+    {
+        return $this->scope($documentId) === null;
+    }
+
     /** WF-11: cancel a document a cancelled flow had created (on_cancel: cancel). */
     public function cancelDocument(string $documentId, string $reason, ?User $by): void
     {

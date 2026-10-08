@@ -14,16 +14,25 @@ use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Models\WorkflowVersion;
 use App\Core\Workflow\WorkflowAccess;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
 /**
  * NOT-02 for flows: a `notify` node ran (after its move committed). In the
  * flow's tenant, resolve the node's recipients within the document's
  * scope, keep those who may see the document (the history records who
  * was sent to and who was skipped) and send `core.workflow.notify` through the Notifier, linking to
- * the document's flow page (a relative app path only).
+ * the document's flow page (a relative app path only). M4: queued after
+ * commit, run in the event's tenant, so a failure never fails the move.
  */
-class SendWorkflowNotification
+class SendWorkflowNotification implements ShouldQueue
 {
+    public bool $afterCommit = true;
+
+    public int $tries = 3;
+
+    /** @var list<int> */
+    public array $backoff = [10, 60];
+
     public const EVENT = 'core.workflow.notify';
 
     public function __construct(
@@ -33,6 +42,12 @@ class SendWorkflowNotification
         private readonly Notifier $notifier,
         private readonly WorkflowAccess $access,
     ) {}
+
+    /** It sends notifications: the notifications queue. */
+    public function viaQueue(): string
+    {
+        return (string) config('notifications.queue');
+    }
 
     public function handle(WorkflowNotificationRequested $event): void
     {

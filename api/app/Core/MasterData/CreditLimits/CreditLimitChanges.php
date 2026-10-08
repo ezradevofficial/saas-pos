@@ -8,8 +8,6 @@ use App\Core\Currency\Money;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
-use App\Core\Notifications\NotificationEvent;
-use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\TenantContext;
@@ -224,11 +222,12 @@ class CreditLimitChanges
             return;
         }
 
-        app(Notifier::class)->send(new NotificationEvent(self::CONFLICT_EVENT, $users, [
+        // L2: the party's name only to those who may see it.
+        app(CreditLimitChangeType::class)->notify(self::CONFLICT_EVENT, $users, [
             'document_number' => $change->number,
             'party_name' => (string) Party::query()->whereKey($change->party_id)->value('name'),
             'problem' => __('core.credit_limit_change.conflicts.'.$change->conflict_reason),
-        ], '/contacts/credit-limit-changes'));
+        ], '/contacts/credit-limit-changes');
     }
 
     /** WF-11: the request's flow was cancelled; the party is untouched. */

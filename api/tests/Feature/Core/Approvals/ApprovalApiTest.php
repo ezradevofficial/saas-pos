@@ -7,6 +7,7 @@ use App\Core\Approvals\Models\ApprovalAction;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use Carbon\CarbonImmutable;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
 /**
@@ -371,5 +373,20 @@ class ApprovalApiTest extends TestCase
         $owner = $this->getJson($this->approvalUrl($approval), $this->headersFor())->json('data.route');
         $this->assertSame([['branch' => 'no', 'field' => 'total', 'label' => __('workflow.columns.document_type'), 'op' => 'gt', 'passed' => false]], $owner[0]['checks']);
         $this->assertStringContainsString('KES 120,000.00', implode(' ', $owner[0]['explanations']));
+
+        // M2 (RBAC-05): someone who sees the document but whose field rules hide `total` gets no check or sentence on it.
+        $hiddenTotal = $this->inTenant(function () {
+            $role = $this->role('No totals', ['core.party.view', 'core.approval.view_all']);
+            FieldRule::create(['role_id' => $role->id, 'resource' => TestRequestType::KEY, 'field' => 'total', 'mode' => 'hidden']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::tenant());
+
+            return $user;
+        });
+        $route = $this->getJson($this->approvalUrl($approval), $this->headersFor($hiddenTotal))->assertOk()->json('data.route');
+        $this->assertSame('big', $route[0]['node_id']);
+        $this->assertSame([], $route[0]['checks']);
+        $this->assertSame([], $route[0]['explanations']);
+        $this->assertStringNotContainsString('120,000', json_encode($route));
     }
 }

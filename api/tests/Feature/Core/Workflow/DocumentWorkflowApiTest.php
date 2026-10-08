@@ -134,6 +134,39 @@ class DocumentWorkflowApiTest extends TestCase
         $this->postJson($this->workflowUrl($id, '/move'), [], $this->headersFor($accountant))->assertOk()->assertJsonPath('data.status', 'completed');
     }
 
+    public function test_status_says_whether_the_viewer_may_cancel_and_where_they_may_return(): void
+    {
+        // prepare (accountants) → split → (it, payroll) → join → close.
+        $graph = Graphs::parallel('all');
+        $graph['nodes'][1] = ['id' => 'prepare', 'type' => 'stage', 'name' => 'Prepare', 'exit_roles' => ['template:accountant']];
+        $this->publishFlow($graph);
+        $id = $this->document();
+        $this->start($id);
+
+        $owner = fn () => $this->getJson($this->workflowUrl($id), $this->headersFor())->assertOk();
+        $owner()->assertJsonPath('data.can_cancel', true)->assertJsonPath('data.can_return', false)->assertJsonPath('data.return_targets', []);
+
+        // A viewer without rights on the stage: neither.
+        $managerA = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->getJson($this->workflowUrl($id), $this->headersFor($managerA))->assertOk()
+            ->assertJsonPath('data.can_cancel', false)->assertJsonPath('data.can_return', false);
+
+        // Into the parallel branches (an accountant completes Prepare): back to "Prepare" (closing both) is offered.
+        $accountant = $this->userWith('accountant', Scope::company($this->acme->id));
+        $this->postJson($this->workflowUrl($id, '/move'), [], $this->headersFor($accountant))->assertOk();
+        $owner()->assertJsonPath('data.can_return', true)->assertJsonPath('data.return_targets', [['node_id' => 'prepare', 'name' => 'Prepare']]);
+
+        // IT done (its branch waits at the join): "IT setup" is offered too, as payroll is still open.
+        $this->postJson($this->workflowUrl($id, '/move'), ['node' => 'it'], $this->headersFor())->assertOk();
+        $this->assertEqualsCanonicalizing(['prepare', 'it'], array_column($owner()->json('data.return_targets'), 'node_id'));
+        // The offered target is accepted by the endpoint.
+        $this->postJson($this->workflowUrl($id, '/return'), ['node' => 'it', 'reason' => 'Laptop missing'], $this->headersFor())->assertOk();
+
+        // An ended flow offers nothing.
+        $this->postJson($this->workflowUrl($id, '/cancel'), ['reason' => 'Done'], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.can_cancel', false)->assertJsonPath('data.can_return', false)->assertJsonPath('data.return_targets', []);
+    }
+
     public function test_unknown_types_documents_and_other_tenants_are_not_found(): void
     {
         $this->publishFlow(Graphs::linear(['review']));

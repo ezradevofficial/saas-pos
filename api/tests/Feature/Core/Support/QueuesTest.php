@@ -3,11 +3,16 @@
 namespace Tests\Feature\Core\Support;
 
 use App\Core\Approvals\Jobs\ProcessApprovalTimers;
+use App\Core\Automation\Jobs\RetryThrottledRun;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Jobs\ScanTimedTriggers;
 use App\Core\Automation\Jobs\SendWebhookDelivery;
+use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
+use App\Core\MasterData\CreditLimits\Listeners\SettleCreditLimitChange;
 use App\Core\Notifications\Jobs\SendDelivery;
 use App\Core\Notifications\Jobs\SendDigests;
+use App\Core\Workflow\Jobs\ProcessStageTimers;
+use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Laravel\Horizon\Horizon;
@@ -36,11 +41,18 @@ class QueuesTest extends TestCase
         RunAutomationRule::dispatch($tenant, $id);
         ScanTimedTriggers::dispatch($tenant, ScanTimedTriggers::SCHEDULES, $at);
         SendWebhookDelivery::dispatch($tenant, $id);
+        ProcessStageTimers::dispatch($tenant, $at);
+        RetryThrottledRun::dispatch($tenant, $id);
+        ApplyCreditLimitChange::dispatch($tenant, $id);
 
-        foreach ([SendDelivery::class, SendDigests::class, ProcessApprovalTimers::class] as $job) {
+        Queue::assertPushedOn('default', ApplyCreditLimitChange::class);
+        $this->assertSame('default', app(SettleCreditLimitChange::class)->viaQueue());
+        $this->assertSame('notifications', app(SendWorkflowNotification::class)->viaQueue());
+
+        foreach ([SendDelivery::class, SendDigests::class, ProcessApprovalTimers::class, ProcessStageTimers::class] as $job) {
             Queue::assertPushedOn('notifications', $job);
         }
-        foreach ([RunAutomationRule::class, ScanTimedTriggers::class, SendWebhookDelivery::class] as $job) {
+        foreach ([RunAutomationRule::class, ScanTimedTriggers::class, SendWebhookDelivery::class, RetryThrottledRun::class] as $job) {
             Queue::assertPushedOn('automation', $job);
         }
     }

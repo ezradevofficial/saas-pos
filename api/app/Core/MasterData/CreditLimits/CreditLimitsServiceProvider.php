@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\CreditLimits;
 
+use App\Core\MasterData\CreditLimits\Console\ReconcileCreditLimitChanges;
 use App\Core\MasterData\CreditLimits\Listeners\SettleCreditLimitChange;
 use App\Core\Notifications\Channels;
 use App\Core\Notifications\EventType;
@@ -26,6 +27,10 @@ class CreditLimitsServiceProvider extends ServiceProvider
 
         Event::listen(WorkflowCompleted::class, SettleCreditLimitChange::class);
         Event::listen(WorkflowCancelled::class, SettleCreditLimitChange::class);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([ReconcileCreditLimitChanges::class]);
+        }
 
         // NOT-02: an approved change that could not be applied (an error; the party changed meanwhile).
         foreach ([ApplyCreditLimitChange::FAILED_EVENT => 'apply_failed', CreditLimitChanges::CONFLICT_EVENT => 'conflicted'] as $key => $lang) {
