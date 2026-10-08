@@ -255,7 +255,10 @@
     "categories": "Catégories",
     "units": "Unités",
     "customers": "Clients",
-    "suppliers": "Fournisseurs"
+    "suppliers": "Fournisseurs",
+    "notifications": "Notifications",
+    "notificationTemplates": "Modèles de notification",
+    "notificationDeliveries": "Journal des envois"
   },
   "shell": {
     "account": "Menu du compte",
@@ -1706,5 +1709,146 @@
         "supplier": "Créer le fournisseur"
       }
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Tout ce qui vous a été envoyé dans l’application. Ouvrez-en une pour aller à ce qu’elle concerne.",
+    "bell": {
+      "label": "Notifications",
+      "labelUnread_one": "Notifications, {{formatted}} non lue",
+      "labelUnread_other": "Notifications, {{formatted}} non lues",
+      "title": "Notifications",
+      "latest": "Dernières notifications",
+      "empty": "Vous n’avez aucune notification.",
+      "loadFailed": "Impossible de charger les notifications. Fermez ce panneau et réessayez.",
+      "seeAll": "Tout voir"
+    },
+    "markAllRead": "Tout marquer comme lu",
+    "markRead": "Marquer comme lue",
+    "markReadFor": "Marquer « {{subject}} » comme lue",
+    "archive": "Archiver",
+    "archiveFor": "Archiver « {{subject}} »",
+    "state": {
+      "read": "Lue",
+      "unread": "Non lue"
+    },
+    "columns": {
+      "state": "Statut",
+      "subject": "Notification",
+      "type": "Type",
+      "received": "Reçue",
+      "message": "Message",
+      "actions": "Actions"
+    },
+    "tabs": {
+      "unread": "Non lues",
+      "all": "Toutes",
+      "archived": "Archivées"
+    },
+    "searchPlaceholder": "Rechercher un objet ou un message",
+    "emptyFiltered": "Aucune notification ne correspond à cette recherche.",
+    "empty": {
+      "unread": "Vous avez tout lu.",
+      "all": "Vous n’avez aucune notification.",
+      "archived": "Aucune notification archivée."
+    }
+  },
+  "notificationPreferences": {
+    "title": "Notifications",
+    "description": "Choisissez comment chaque type de notification vous parvient.",
+    "channelsFor": "Canaux pour {{event}}",
+    "required": "Exigé par votre organisation",
+    "emailTiming": "Envoi des e-mails",
+    "digests": {
+      "immediate": "Immédiatement",
+      "daily": "Résumé quotidien",
+      "weekly": "Résumé hebdomadaire"
+    },
+    "digestRequired": "Votre organisation exige cet e-mail immédiatement.",
+    "saved": "Paramètres de notification enregistrés",
+    "discard": "Annuler les modifications",
+    "empty": "Il n’y a encore aucune notification à configurer."
+  },
+  "notificationTemplates": {
+    "title": "Modèles de notification",
+    "description": "Les textes envoyés par votre organisation, par notification, canal et langue.",
+    "eventTypes": "Types de notification",
+    "locales": {
+      "en": "Anglais",
+      "fr": "Français"
+    },
+    "channel": "Canal",
+    "subject": "Objet",
+    "body": "Message",
+    "placeholders": "Variables",
+    "placeholdersHelp": "Sélectionnez une variable pour l’insérer à l’emplacement du curseur.",
+    "insert": "Insérer {{placeholder}}",
+    "sample": "Exemple : {{sample}}",
+    "preview": "Aperçu avec des valeurs d’exemple",
+    "previewUnavailable": "L’aperçu s’affiche dès que le texte n’utilise que les variables de cette notification.",
+    "previewStale": "Cet aperçu montre le dernier texte valide.",
+    "sources": {
+      "default": "Texte par défaut",
+      "all": "Votre texte pour tous les canaux",
+      "channel": "Votre texte pour ce canal"
+    },
+    "save": "Enregistrer le modèle",
+    "saved": "Modèle enregistré",
+    "reset": "Rétablir le texte par défaut",
+    "resetTitle": "Rétablir le texte par défaut ?",
+    "resetText": "Votre texte pour ce canal et cette langue est supprimé et le texte par défaut est de nouveau utilisé.",
+    "keepText": "Garder mon texte",
+    "resetConfirm": "Rétablir le texte par défaut",
+    "resetDone": "Texte par défaut rétabli",
+    "empty": "Il n’y a encore aucun type de notification.",
+    "mandatory": {
+      "title": "Canaux obligatoires",
+      "description": "Les utilisateurs ne peuvent pas désactiver ces canaux pour cette notification.",
+      "notAllowed": "Cette notification ne peut pas être rendue obligatoire.",
+      "saved": "Canaux obligatoires enregistrés"
+    }
+  },
+  "notificationDeliveries": {
+    "title": "Journal des envois",
+    "description": "Chaque notification envoyée par votre organisation, par destinataire et par canal.",
+    "searchPlaceholder": "Rechercher un destinataire, une adresse, un objet ou un type",
+    "unknownUser": "Utilisateur inconnu",
+    "columns": {
+      "created": "Créée",
+      "recipient": "Destinataire",
+      "sentTo": "Envoyée à",
+      "type": "Type",
+      "channel": "Canal",
+      "status": "Statut",
+      "reason": "Motif ou erreur",
+      "error": "Dernière erreur",
+      "attempts": "Tentatives",
+      "sent": "Envoyée"
+    },
+    "channels": {
+      "all": "Tous les canaux",
+      "in_app": "Dans l’application",
+      "email": "E-mail",
+      "push": "Notification push",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp"
+    },
+    "statuses": {
+      "queued": "En file d’attente",
+      "sent": "Envoyé",
+      "delivered": "Remis",
+      "failed": "Échec",
+      "skipped": "Ignoré",
+      "pending_digest": "En attente du résumé",
+      "digested": "Envoyé dans un résumé"
+    },
+    "filters": {
+      "status": "Statut",
+      "allStatuses": "Tous les statuts",
+      "channel": "Canal",
+      "allChannels": "Tous les canaux"
+    },
+    "empty": "Rien n’a encore été envoyé.",
+    "emptyFiltered": "Aucun envoi ne correspond à ces filtres."
   }
 }
