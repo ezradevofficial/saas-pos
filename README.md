@@ -166,6 +166,11 @@ Prepare each host once:
   - `APP_ENV`, `APP_KEY`, Redis and mail settings
 - The database roles from `api/database/scripts/create-roles.sql`, with strong passwords set via `ALTER ROLE`
 - Connect directly or through **session** pooling only. The tenant setting is session-level, so transaction pooling would leak it (ADR 002).
+- POS device sync waits for the oldest running transaction **on the whole cluster** (ADR 004), so:
+  - give the database a PostgreSQL cluster (or Managed PostgreSQL instance) of its own: no other application's long transactions there
+  - set `max_prepared_transactions = 0` (the default); a forgotten prepared transaction would hold every till back
+  - keep the runtime connection's timeouts: `DB_IDLE_IN_TRANSACTION_TIMEOUT` (default `60s`) and `DB_STATEMENT_TIMEOUT` (default `120s`); exports read in chunks, so no statement needs longer
+  - monitor `X-Sync-Lag-Seconds` on `GET /up`, or `php artisan sync:lag` (exit 1 above 2 minutes); a warning is also logged
 
 ### Pre-deploy checklist
 
