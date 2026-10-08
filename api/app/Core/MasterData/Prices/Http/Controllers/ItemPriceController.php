@@ -73,11 +73,7 @@ class ItemPriceController
 
     public function archive(ItemPriceActionRequest $request, ItemPrice $itemPrice): ItemPriceResource
     {
-        if (! $itemPrice->isArchived()) {
-            $itemPrice->archive();
-        }
-
-        return ItemPriceResource::make($itemPrice->load(self::RELATIONS));
+        return ItemPriceResource::make($this->writer->archive($itemPrice)->load(self::RELATIONS));
     }
 
     public function restore(ItemPriceActionRequest $request, ItemPrice $itemPrice): ItemPriceResource

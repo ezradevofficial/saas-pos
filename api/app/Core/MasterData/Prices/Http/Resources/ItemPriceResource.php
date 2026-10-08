@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Prices\Http\Resources;
 
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
+use App\Core\MasterData\Prices\Http\ItemVisibility;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Prices\PriceAccess;
 use Illuminate\Http\Request;
@@ -15,7 +16,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * today in the company's time zone), `scheduled` (starts later) or
  * `replaced` (a later price of the same unit and break is in force).
  *
- * RBAC-05, on the `item` field rules resource: `item_code` and `item_name`
+ * `item_code` and `item_name` are left out for a user who can't view the
+ * item (`core.item.view`; ItemVisibility). RBAC-05, on the `item` field
+ * rules resource: `item_code` and `item_name`
  * go with the item's `code` and `name`; `amount_minor` with `prices`.
  *
  * @mixin ItemPrice
@@ -31,12 +34,16 @@ class ItemPriceResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        // RBAC-04: the item's code and name only for users who may view the item.
+        $visibility = ItemVisibility::for($request, $this->price_list_id);
+        $seesItem = fn () => $this->item->company_id === null ? $visibility['shared'] : $visibility['company'];
+
         return HidesFields::apply($request, PriceAccess::FIELD_RULES, [
             'id' => $this->id,
             'price_list_id' => $this->price_list_id,
             'item_id' => $this->item_id,
-            'item_code' => $this->whenLoaded('item', fn () => (string) $this->item->code),
-            'item_name' => $this->whenLoaded('item', fn () => $this->item->name),
+            'item_code' => $this->when($this->relationLoaded('item') && $seesItem(), fn () => (string) $this->item->code),
+            'item_name' => $this->when($this->relationLoaded('item') && $seesItem(), fn () => $this->item->name),
             'uom_id' => $this->uom_id,
             'uom_code' => $this->whenLoaded('uom', fn () => strtoupper((string) $this->uom->code)),
             'amount_minor' => (string) $this->amount_minor,

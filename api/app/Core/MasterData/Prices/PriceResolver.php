@@ -11,6 +11,7 @@ use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use InvalidArgumentException;
 
 /**
  * The price of an item in a unit (MD-03 follow-up), for the POS and any
@@ -21,7 +22,8 @@ use Illuminate\Database\Eloquent\Builder;
  * archived list: no price (null).
  *
  * Which day: `$at` (now by default) as a date in the list's company's time
- * zone; a `Y-m-d` string is taken as that date.
+ * zone; a `Y-m-d` string is taken as that date (anything else throws
+ * InvalidArgumentException).
  *
  * Which price, among the list's active prices of the item effective on
  * that day (`effective_from` <= day):
@@ -38,7 +40,7 @@ use Illuminate\Database\Eloquent\Builder;
  *    to the amount tendered (CUR-06).
  * 3. Else null.
  *
- * The item must be the list's company's or shared (TEN-08), and the unit
+ * The item must be active, the list's company's or shared (TEN-08), and the unit
  * its base unit or one of its other units; otherwise null. Prices left
  * from an item's earlier company or removed units are never used.
  */
@@ -58,7 +60,7 @@ class PriceResolver
             return null;
         }
 
-        if ($item->company_id !== null && $item->company_id !== $list->company_id) {
+        if ($item->isArchived() || ($item->company_id !== null && $item->company_id !== $list->company_id)) {
             return null;
         }
 
@@ -119,7 +121,13 @@ class PriceResolver
     private function day(PriceList $list, CarbonInterface|string|null $at): string
     {
         if (is_string($at)) {
-            return CarbonImmutable::createFromFormat('!Y-m-d', $at, 'UTC')->toDateString();
+            $date = preg_match('/^\d{4}-\d{2}-\d{2}\z/', $at) === 1 ? CarbonImmutable::createFromFormat('!Y-m-d', $at, 'UTC') : false;
+
+            if ($date === false || $date->toDateString() !== $at) {
+                throw new InvalidArgumentException("Price date [{$at}] is not a calendar date (Y-m-d). Pass a date such as 2026-10-08, or a Carbon instance.");
+            }
+
+            return $at;
         }
 
         $zone = Company::query()->whereKey($list->company_id)->value('timezone') ?: 'UTC';

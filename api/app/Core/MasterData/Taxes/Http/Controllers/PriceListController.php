@@ -15,6 +15,7 @@ use App\Core\Tenancy\Archiver;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -76,9 +77,27 @@ class PriceListController
     {
         $data = $request->validated();
 
-        $list = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($priceList, $data) {
+        try {
+            $list = $this->updating($priceList, $data);
+        } catch (QueryException $e) {
+            // A price stored meanwhile in the old currency: the composite key refused the change.
+            if ($e->getCode() === '23503' && isset($data['currency'])) {
+                throw ValidationException::withMessages(['currency' => __('core.price_list.currency_has_prices', ['currency' => $priceList->currency])]);
+            }
+
+            throw $e;
+        }
+
+        return PriceListResource::make($list);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function updating(PriceList $priceList, array $data): PriceList
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($priceList, $data) {
             Company::query()->whereKey($priceList->company_id)->lockForUpdate()->firstOrFail();
-            $list = PriceList::query()->whereKey($priceList->id)->firstOrFail();
+            // Locked like price writes (PriceWriter), so no first price slips in before the currency check.
+            $list = PriceList::query()->whereKey($priceList->id)->lockForUpdate()->firstOrFail();
 
             if ($list->isArchived() && ($data['is_default'] ?? false)) {
                 throw ValidationException::withMessages(['is_default' => __('core.price_list.archived_default')]);
@@ -99,8 +118,6 @@ class PriceListController
 
             return $list;
         });
-
-        return PriceListResource::make($list);
     }
 
     public function archive(PriceListActionRequest $request, PriceList $priceList): PriceListResource

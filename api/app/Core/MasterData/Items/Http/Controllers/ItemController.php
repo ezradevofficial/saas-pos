@@ -64,6 +64,10 @@ class ItemController
             $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhereIn('company_id', $companies));
         }
 
+        if ($request->filled('company')) {
+            $query->where(fn (Builder $q) => $q->whereNull('company_id')->orWhere('company_id', $request->validated('company')));
+        }
+
         if ($request->filled('type')) {
             $query->where('type', $request->validated('type'));
         }

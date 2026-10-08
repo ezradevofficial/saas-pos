@@ -24,7 +24,12 @@ use Illuminate\Validation\ValidationException;
  * - the item is active and shared or the list's company's (TEN-08:
  *   `item_other_company`), and the unit is its base unit or one of its
  *   other units (`uom_not_on_item`);
- * - the same list, item, unit, start date and quantity break once per call.
+ * - the same list, item, unit, start date and quantity break once per call;
+ * - no start before today (`effective_from_past`), except for the first
+ *   price of the item, unit and quantity break in the list: past prices
+ *   are history and never change. A change to the current price is a new
+ *   price from today (the old one stays as history); a scheduled price
+ *   (starting later) is changed in place.
  *
  * Then each row is an upsert: the active price with the same list, item,
  * unit, start date (default: today in the company's time zone) and
@@ -55,6 +60,7 @@ class PriceWriter
             ], $rows);
 
             $this->check($list, $rows, $prefix);
+            $this->checkDates($list, $rows, $today, $prefix);
 
             return array_map(fn (array $row) => $this->upsert($list, $row), $rows);
         });
@@ -66,6 +72,24 @@ class PriceWriter
         $zone = Company::query()->whereKey($list->company_id)->value('timezone') ?: 'UTC';
 
         return CarbonImmutable::now($zone)->toDateString();
+    }
+
+    /**
+     * Archive a price under its list's lock, so a write to the list never
+     * sees it half-archived.
+     */
+    public function archive(ItemPrice $price): ItemPrice
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($price) {
+            PriceList::query()->whereKey($price->price_list_id)->lockForUpdate()->firstOrFail();
+            $price = ItemPrice::query()->whereKey($price->id)->lockForUpdate()->firstOrFail();
+
+            if (! $price->isArchived()) {
+                $price->archive();
+            }
+
+            return $price;
+        });
     }
 
     /** @param list<array<string, mixed>> $rows */
@@ -116,6 +140,39 @@ class PriceWriter
     }
 
     /**
+     * Past prices are history: a start before today only for the first
+     * price of its item, unit and quantity break in the list.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function checkDates(PriceList $list, array $rows, string $today, ?string $prefix): void
+    {
+        $errors = [];
+
+        foreach ($rows as $index => $row) {
+            if ($row['effective_from'] >= $today) {
+                continue;
+            }
+
+            $priced = ItemPrice::query()
+                ->where('price_list_id', $list->id)
+                ->where('item_id', $row['item_id'])
+                ->where('uom_id', $row['uom_id'])
+                ->where('min_quantity', $row['min_quantity'])
+                ->whereNull('archived_at')
+                ->exists();
+
+            if ($priced) {
+                $errors[$prefix === null ? 'effective_from' : "{$prefix}.{$index}.effective_from"][] = __('core.price.effective_from_past');
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $row
      * @return array{price: ItemPrice, created: bool}
      */
@@ -128,6 +185,7 @@ class PriceWriter
             ->where('effective_from', $row['effective_from'])
             ->where('min_quantity', $row['min_quantity'])
             ->whereNull('archived_at')
+            ->lockForUpdate()
             ->first();
 
         if ($price !== null) {
@@ -153,13 +211,14 @@ class PriceWriter
     /**
      * Restore an archived price: refused while another active price has
      * its list, item, unit, start date and quantity break (422
-     * `price_exists`), or while its list is archived.
+     * `price_exists`), while its list is archived, or when the item no
+     * longer takes it (archived, moved to another company, unit removed).
      */
     public function restore(ItemPrice $price): ItemPrice
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($price) {
             $list = PriceList::query()->whereKey($price->price_list_id)->lockForUpdate()->firstOrFail();
-            $price = ItemPrice::query()->whereKey($price->id)->firstOrFail();
+            $price = ItemPrice::query()->whereKey($price->id)->lockForUpdate()->firstOrFail();
 
             if (! $price->isArchived()) {
                 return $price;
@@ -168,6 +227,12 @@ class PriceWriter
             if ($list->isArchived()) {
                 throw new ApiException(422, 'price_list_archived', __('core.price.price_list_archived'));
             }
+
+            // The item must still take this price: active, shared or the list's company's, the unit still its.
+            $this->check($list, [[
+                'item_id' => $price->item_id, 'uom_id' => $price->uom_id, 'currency' => $price->currency,
+                'effective_from' => $price->effective_from->toDateString(), 'min_quantity' => (string) $price->min_quantity,
+            ]], null);
 
             $taken = ItemPrice::query()
                 ->where('price_list_id', $price->price_list_id)

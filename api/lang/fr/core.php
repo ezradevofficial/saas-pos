@@ -244,6 +244,7 @@ return [
         'item_other_company' => 'Cet article appartient à une autre société. Choisissez un article partagé ou un article de la société de cette liste de prix.',
         'uom_not_on_item' => 'Cette unité n’est pas une unité de l’article. Choisissez son unité de base ou l’une de ses autres unités.',
         'duplicate_row' => 'La ligne :row définit déjà cet article, cette unité, cette date de début et cette quantité. Gardez l’une des deux.',
+        'effective_from_past' => 'Les prix antérieurs à aujourd’hui font partie de l’historique et ne peuvent pas changer. Faites commencer le nouveau prix aujourd’hui ou plus tard.',
         'price_exists' => 'Un autre prix actif a le même article, la même unité, la même date de début et la même quantité. Modifiez-le ou archivez-le d’abord.',
         'amount_invalid' => 'Saisissez le prix en nombre entier d’unités mineures, par exemple 12450 pour KES 124,50.',
         'min_quantity_invalid' => 'Saisissez une quantité supérieure à zéro, avec au plus 6 décimales.',

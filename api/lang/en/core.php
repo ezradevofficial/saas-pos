@@ -244,6 +244,7 @@ return [
         'item_other_company' => 'This item belongs to another company. Choose a shared item or one of this price list’s company.',
         'uom_not_on_item' => 'This unit isn’t one of the item’s units. Choose its base unit or one of its other units.',
         'duplicate_row' => 'Row :row already sets this item, unit, start date and quantity. Keep one of them.',
+        'effective_from_past' => 'Prices before today are history and can’t change. Start the new price today or later.',
         'price_exists' => 'Another active price has the same item, unit, start date and quantity. Change or archive it first.',
         'amount_invalid' => 'Enter the price as a whole number of minor units, for example 12450 for KES 124.50.',
         'min_quantity_invalid' => 'Enter a quantity above zero, with up to 6 decimals.',

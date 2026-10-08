@@ -414,4 +414,109 @@ class ItemPriceApiTest extends TestCase
         $this->assertSame([['Item code', 'Price', 'From'], ['SODA', 'KES 124.50', '8 Oct 2026'], ['WATER', 'KES 50.00', '8 Oct 2026']], $rows);
         $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.item_price.export')->count()));
     }
+
+    public function test_past_prices_are_history(): void
+    {
+        // The first price of an item and unit may start in the past.
+        $this->set(['amount_minor' => '900', 'effective_from' => '2026-01-01'])->assertCreated();
+        // Then nothing more before today, not even the same row.
+        $this->set(['amount_minor' => '950', 'effective_from' => '2026-01-01'])->assertUnprocessable()->assertJsonValidationErrors('effective_from');
+        $this->set(['amount_minor' => '950', 'effective_from' => '2026-10-07'])->assertUnprocessable()->assertJsonValidationErrors('effective_from');
+        // Another quantity break is a first price too.
+        $this->set(['amount_minor' => '850', 'effective_from' => '2026-01-01', 'min_quantity' => '10'])->assertCreated();
+
+        // Changing the current price: a new price from today; the old one stays as history.
+        $this->set(['amount_minor' => '1000'])->assertCreated();
+        // A scheduled price changes in place.
+        $scheduled = $this->set(['amount_minor' => '1200', 'effective_from' => '2026-11-01'])->assertCreated()->json('data.id');
+        $this->set(['amount_minor' => '1250', 'effective_from' => '2026-11-01'])->assertOk()->assertJsonPath('data.id', $scheduled);
+
+        $this->inTenant(fn () => $this->assertSame(['2026-01-01 900', '2026-01-01 850', '2026-10-08 1000', '2026-11-01 1250'], ItemPrice::orderBy('effective_from')->orderByDesc('amount_minor')->get()
+            ->map(fn (ItemPrice $price) => "{$price->effective_from->toDateString()} {$price->amount_minor}")->all()));
+
+        // Bulk names the row.
+        $this->postJson("/api/v1/price-lists/{$this->kes}/prices/bulk", ['prices' => [
+            ['item_id' => $this->soda, 'uom_id' => $this->uoms['BOX'], 'amount_minor' => '1', 'currency' => 'KES'],
+            ['item_id' => $this->soda, 'uom_id' => $this->uoms['EA'], 'amount_minor' => '1', 'currency' => 'KES', 'effective_from' => '2026-05-01'],
+        ]], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('prices.1.effective_from');
+    }
+
+    public function test_restore_checks_the_item_still_takes_the_price(): void
+    {
+        $id = $this->set(['amount_minor' => '100', 'uom_id' => $this->uoms['BOX']])->json('data.id');
+        $this->postJson("/api/v1/item-prices/{$id}/archive", [], $this->headersFor())->assertOk();
+
+        // The box is no longer one of the item's units.
+        $this->patchJson("/api/v1/items/{$this->soda}", ['uoms' => [['uom_id' => $this->uoms['PACK'], 'factor' => '2.5']]], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/item-prices/{$id}/restore", [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('uom_id');
+
+        $each = $this->set(['amount_minor' => '10'])->json('data.id');
+        $this->postJson("/api/v1/item-prices/{$each}/archive", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/items/{$this->soda}/archive", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/item-prices/{$each}/restore", [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('item_id');
+    }
+
+    public function test_the_resolver_skips_archived_items_and_refuses_bad_dates(): void
+    {
+        $this->set(['amount_minor' => '100'])->assertCreated();
+
+        $this->inTenant(function () {
+            $item = Item::findOrFail($this->soda);
+            $list = PriceList::findOrFail($this->kes);
+            $this->assertSame('100', $this->resolver()->priceFor($item, $this->uoms['EA'], $list)->money->minor());
+
+            foreach (['2026-13-01', '8 Oct 2026', '2026-10-08 10:00'] as $bad) {
+                try {
+                    $this->resolver()->priceFor($item, $this->uoms['EA'], $list, $bad);
+                    $this->fail("[{$bad}] was accepted.");
+                } catch (\InvalidArgumentException $e) {
+                    $this->assertStringContainsString('is not a calendar date', $e->getMessage());
+                }
+            }
+
+            $item->archive();
+            $this->assertNull($this->resolver()->priceFor($item->fresh(), $this->uoms['EA'], $list));
+        });
+    }
+
+    public function test_item_codes_and_names_need_item_view(): void
+    {
+        $this->set(['amount_minor' => '100'])->assertCreated();
+        $reader = $this->inTenant(function () {
+            $role = $this->role('Price reader', ['core.price.view', 'core.price_list.view']);
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $role, Scope::company($this->acme->id));
+
+            return $this->headersFor($user);
+        });
+        $url = "/api/v1/price-lists/{$this->kes}/prices";
+
+        $this->getJson($url, $reader)->assertOk()
+            ->assertJsonPath('data.0.amount_minor', '100')
+            ->assertJsonPath('data.0.uom_code', 'EA')
+            ->assertJsonMissingPath('data.0.item_code')
+            ->assertJsonMissingPath('data.0.item_name');
+        // Neither searched nor sorted on.
+        $this->getJson("{$url}?search=SODA", $reader)->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson("{$url}?sort=item_code", $reader)->assertUnprocessable()->assertJsonValidationErrors('sort');
+
+        // A cashier views items: codes and names show.
+        $cashier = $this->headersFor($this->userWith('cashier', Scope::location($this->locationA->id)));
+        $this->getJson($url, $cashier)->assertOk()->assertJsonPath('data.0.item_code', 'SODA');
+    }
+
+    public function test_items_can_be_listed_for_a_company(): void
+    {
+        [$beta, $betaItem, $acmeItem] = $this->inTenant(function () {
+            $beta = $this->company('Beta');
+            $make = fn (string $code, Company $company) => Item::create(['company_id' => $company->id, 'code' => $code, 'name' => $code, 'type' => 'stock', 'base_uom_id' => $this->uoms['EA']])->id;
+
+            return [$beta, $make('BETA-1', $beta), $make('ACME-1', $this->acme)];
+        });
+
+        $codes = fn (string $company) => collect($this->getJson("/api/v1/items?company={$company}&sort=code", $this->headersFor())->assertOk()->json('data'))->pluck('code')->all();
+        $this->assertSame(['ACME-1', 'SODA'], $codes($this->acme->id));
+        $this->assertSame(['BETA-1', 'SODA'], $codes($beta->id));
+        $this->getJson('/api/v1/items?company=01a11d4c-0000-7000-8000-000000000000', $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('company');
+    }
 }

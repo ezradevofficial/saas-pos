@@ -6,12 +6,14 @@ use App\Core\Exports\ExportValues;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
 use App\Core\Lists\ListSort;
+use App\Core\MasterData\Prices\Http\ItemVisibility;
 use App\Core\MasterData\Prices\Http\Resources\ItemPriceResource;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Prices\PriceAccess;
 use App\Core\MasterData\Taxes\PriceList;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -41,6 +43,18 @@ class ItemPriceList extends ListDefinition
     public function fieldRules(): ?string
     {
         return PriceAccess::FIELD_RULES;
+    }
+
+    /**
+     * The item's code and name are hidden too from a user who can't view
+     * the list's company's items (`core.item.view`): search, sort and
+     * export skip them (RBAC-04).
+     */
+    public function hiddenFields(Request $request): array
+    {
+        $hidden = parent::hiddenFields($request);
+
+        return ItemVisibility::for($request, $this->priceList->id)['company'] ? $hidden : array_values(array_unique([...$hidden, 'code', 'name']));
     }
 
     public function fieldSources(): array
