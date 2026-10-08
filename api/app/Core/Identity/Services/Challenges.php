@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity\Services;
 
+use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
@@ -302,7 +303,7 @@ class Challenges
         $seconds = max(1, $seconds);
 
         return new ApiException(
-            429, 'too_many_requests', __('core.errors.too_many_requests', ['seconds' => $seconds]),
+            429, 'too_many_requests', ApiErrorRenderer::retryMessage($seconds),
             headers: ['Retry-After' => $seconds],
         );
     }

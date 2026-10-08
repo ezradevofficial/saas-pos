@@ -15,6 +15,14 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class LoginThrottle
 {
+    /** AUTH-10: "Try again in N minute(s)", rounded up, pluralised per locale. */
+    public static function lockedMessage(int $seconds): string
+    {
+        $minutes = max(1, (int) ceil($seconds / 60));
+
+        return trans_choice('auth.locked', $minutes, ['minutes' => $minutes]);
+    }
+
     public const MAX_FAILURES = 5;
 
     public const LOCK_MINUTES = 15;

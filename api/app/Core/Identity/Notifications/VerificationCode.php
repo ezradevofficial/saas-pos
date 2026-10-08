@@ -31,14 +31,14 @@ class VerificationCode extends Notification
             ->subject(__($this->key('subject'), ['app' => config('app.name')]))
             ->greeting(__('auth.notifications.greeting', ['name' => $notifiable->name]))
             ->line(__($this->key('line'), ['code' => $this->code]))
-            ->line(__('auth.notifications.verification_code.expiry', ['minutes' => $this->minutes]))
+            ->line(trans_choice('auth.notifications.verification_code.expiry', $this->minutes, ['minutes' => $this->minutes]))
             ->line(__('auth.notifications.verification_code.ignore'))
             ->salutation(config('app.name'));
     }
 
     public function toSms(object $notifiable): string
     {
-        return __($this->key('sms'), [
+        return trans_choice($this->key('sms'), $this->minutes, [
             'app' => config('app.name'),
             'code' => $this->code,
             'minutes' => $this->minutes,

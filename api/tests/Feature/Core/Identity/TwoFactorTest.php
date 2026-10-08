@@ -294,7 +294,7 @@ class TwoFactorTest extends TestCase
             ->assertJsonPath('destination_masked', fn ($masked) => is_string($masked) && ! str_contains($masked, '712345'));
         Notification::assertSentTo($user, VerificationCode::class, fn (VerificationCode $n) => $n->channel === 'sms'
             && $n->purpose === 'two_factor'
-            && $n->toSms($user) === __('auth.notifications.verification_code.two_factor.sms', ['app' => config('app.name'), 'code' => $n->code, 'minutes' => 30]));
+            && $n->toSms($user) === trans_choice('auth.notifications.verification_code.two_factor.sms', 30, ['app' => config('app.name'), 'code' => $n->code, 'minutes' => 30]));
 
         $this->postJson('/api/v1/me/two-factor/sms/confirm', ['code' => $this->wrong($this->lastCode())], $this->bearer($token))
             ->assertStatus(422);
