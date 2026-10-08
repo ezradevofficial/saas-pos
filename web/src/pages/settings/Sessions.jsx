@@ -1,21 +1,25 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
-import { Alert, Button, DataTable, Dialog, StatusBadge } from '@/components/ds'
+import { Alert, Button, Dialog, ListView, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
+import { actionsColumn } from '@/lib/listColumns'
+import { useServerList } from '@/lib/useServerList'
 
-/** AUTH-09: where the user is signed in, with sign-out per session. */
+/**
+ * AUTH-09: where the user is signed in, with sign-out per session; search,
+ * sort, pages, columns and export (EXP-01, LAY-04).
+ */
 export default function Sessions() {
   const { t } = useTranslation()
   const locale = useLocale()
   const { signOut } = useAuth()
   const queryClient = useQueryClient()
   const [confirmCurrent, setConfirmCurrent] = useState(false)
-  const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api.get('auth/sessions') })
 
   const end = useMutation({
     mutationFn: (session) => api.delete(`auth/sessions/${session.id}`),
@@ -26,6 +30,8 @@ export default function Sessions() {
     {
       key: 'device',
       label: t('sessions.device'),
+      sortKey: 'device',
+      hideable: false,
       render: (session) => (
         <div className="flex min-w-0 flex-col">
           <span className="font-medium text-ink">{session.name || t('sessions.unknownDevice')}</span>
@@ -33,10 +39,18 @@ export default function Sessions() {
         </div>
       ),
     },
-    { key: 'ip', label: t('sessions.ip'), render: (session) => session.ip ?? '' },
+    {
+      key: 'user_agent',
+      label: t('sessions.browser'),
+      defaultHidden: true,
+      render: (session) => <span className="text-caption text-ink-muted">{session.user_agent ?? ''}</span>,
+    },
+    { key: 'ip', label: t('sessions.ip'), sortKey: 'ip', render: (session) => <span className="tabular-nums">{session.ip ?? ''}</span> },
     {
       key: 'last',
       label: t('sessions.lastActive'),
+      sortKey: 'last_active',
+      exportKey: 'last_active',
       render: (session) =>
         session.current ? (
           <StatusBadge tone="success">{t('sessions.thisDevice')}</StatusBadge>
@@ -45,37 +59,35 @@ export default function Sessions() {
         ),
     },
     {
-      key: 'action',
-      label: <span className="sr-only">{t('sessions.actions')}</span>,
-      align: 'end',
-      render: (session) => (
-        <Button
-          variant="danger"
-          loading={end.isPending && end.variables?.id === session.id}
-          onClick={() => (session.current ? setConfirmCurrent(true) : end.mutate(session))}
-          aria-label={t('sessions.signOutOf', { device: session.name || t('sessions.unknownDevice') })}
-        >
-          {t('sessions.signOut')}
-        </Button>
-      ),
+      key: 'created_at',
+      label: t('sessions.signedIn'),
+      sortKey: 'created_at',
+      defaultHidden: true,
+      render: (session) => (session.created_at ? formatDateTime(session.created_at, locale) : ''),
     },
+    actionsColumn(t('sessions.actions'), (session) => (
+      <Button
+        variant="danger"
+        loading={end.isPending && end.variables?.id === session.id}
+        onClick={() => (session.current ? setConfirmCurrent(true) : end.mutate(session))}
+        aria-label={t('sessions.signOutOf', { device: session.name || t('sessions.unknownDevice') })}
+      >
+        {t('sessions.signOut')}
+      </Button>
+    )),
   ]
+  const list = useServerList({ id: 'sessions', endpoint: 'auth/sessions', queryKey: ['sessions'], columns })
 
   return (
     <>
       <PageHeader title={t('sessions.title')} description={t('sessions.description')} />
-      {sessions.isError ? (
-        <Alert tone="danger" title={sessions.error.message} action={<Button onClick={() => sessions.refetch()}>{t('common.retry')}</Button>} />
-      ) : null}
       {end.isError ? <Alert tone="danger" title={end.error.message} /> : null}
-      <div className="overflow-x-auto">
-        <DataTable
-          caption={t('sessions.title')}
-          columns={columns}
-          rows={sessions.data?.data ?? []}
-          emptyText={sessions.isPending ? t('common.loading') : t('sessions.empty')}
-        />
-      </div>
+      <ListView
+        list={list}
+        title={t('sessions.title')}
+        searchPlaceholder={t('sessions.searchPlaceholder')}
+        emptyText={list.term ? t('sessions.emptyFiltered') : t('sessions.empty')}
+      />
       <Dialog
         open={confirmCurrent}
         title={t('sessions.confirmTitle')}

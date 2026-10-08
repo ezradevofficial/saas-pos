@@ -59,9 +59,17 @@ function users({ permissions = ADMIN, invitations = INVITATIONS, extra = {} } = 
     permissions,
     companies: COMPANIES,
     extra: {
-      'users?status=active&per_page=50&page=1': { data: [AMINA, JOSEPH], meta: { last_page: 1 } },
-      'users?status=deactivated&per_page=50&page=1': { data: [], meta: { last_page: 1 } },
-      'invitations?per_page=200': () => ({ data: typeof invitations === 'function' ? invitations() : invitations }),
+      'users?status=active&per_page=25&page=1': { data: [AMINA, JOSEPH], meta: { last_page: 1, total: 2, from: 1, to: 2 } },
+      'users?status=deactivated&per_page=25&page=1': { data: [], meta: { last_page: 1, total: 0 } },
+      // The API filters by status: open (pending or expired) unless asked otherwise.
+      'invitations?status=open&per_page=25&page=1': () => {
+        const data = (typeof invitations === 'function' ? invitations() : invitations).filter((entry) => ['pending', 'expired'].includes(entry.status))
+        return { data, meta: { last_page: 1, total: data.length, from: data.length ? 1 : null, to: data.length } }
+      },
+      'invitations?status=accepted&per_page=25&page=1': () => {
+        const data = (typeof invitations === 'function' ? invitations() : invitations).filter((entry) => entry.status === 'accepted')
+        return { data, meta: { last_page: 1, total: data.length, from: data.length ? 1 : null, to: data.length } }
+      },
       'roles?per_page=200': { data: ROLES },
       'companies?per_page=200': { data: COMPANIES },
       'branches?per_page=200': { data: BRANCHES },
@@ -89,6 +97,43 @@ describe('Users', () => {
     expect(within(row).getByText('Cashier at Front till')).toBeInTheDocument()
     expect(within(row).getByText('Active')).toBeInTheDocument()
     expect(screen.getByText('Owner at Amani Retail Group')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–2 of 2')).toBeInTheDocument()
+  })
+
+  it('searches, sorts by a header, changes rows per page and exports the visible columns (EXP-01)', async () => {
+    users()
+    // Every users page answers with the same two people.
+    const fallback = api.get.getMockImplementation()
+    api.get.mockImplementation(async (path) => (path.startsWith('users?') ? { data: [AMINA, JOSEPH], meta: { last_page: 1, total: 2, from: 1, to: 2 } } : fallback(path)))
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'users-2026-10-08.csv' })
+    URL.createObjectURL = vi.fn(() => 'blob:users')
+    URL.revokeObjectURL = vi.fn()
+    const usersCalls = () => api.get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('users?'))
+    renderApp('/settings/users')
+    const table = await screen.findByRole('table', { name: 'Active' })
+    await within(table).findByText('Joseph Mwangi')
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'joseph' } })
+    await waitFor(() => expect(usersCalls().at(-1)).toBe('users?status=active&search=joseph&per_page=25&page=1'))
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Email' }))
+    await waitFor(() => expect(usersCalls().at(-1)).toBe('users?status=active&search=joseph&sort=email&per_page=25&page=1'))
+    expect(within(table).getByRole('columnheader', { name: /Email/ })).toHaveAttribute('aria-sort', 'ascending')
+
+    chooseOption('Rows per page', '50')
+    await waitFor(() => expect(usersCalls().at(-1)).toBe('users?status=active&search=joseph&sort=email&per_page=50&page=1'))
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'CSV' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    const [path] = api.download.mock.calls[0]
+    const params = new URLSearchParams(path.split('?')[1])
+    expect(path.startsWith('users?')).toBe(true)
+    expect(params.get('status')).toBe('active')
+    expect(params.get('format')).toBe('csv')
+    expect(params.get('sort')).toBe('email')
+    expect(params.get('page')).toBeNull()
+    expect(params.getAll('columns[]')).toEqual(['name', 'email', 'phone', 'roles', 'status'])
   })
 
   it('switches to deactivated users and shows the empty sentence', async () => {
@@ -96,7 +141,7 @@ describe('Users', () => {
     renderApp('/settings/users')
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Deactivated' }))
     expect(await screen.findByText('No one has been deactivated.')).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith('users?status=deactivated&per_page=50&page=1')
+    expect(api.get).toHaveBeenCalledWith('users?status=deactivated&per_page=25&page=1')
   })
 
   it('opens a user from the list', async () => {
@@ -106,7 +151,7 @@ describe('Users', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/settings/users/u-2'))
   })
 
-  it('shows pending invitations with role and place names, and revokes after confirming', async () => {
+  it('shows open invitations with role and place names, other statuses on request, and revokes a pending one after confirming', async () => {
     let invitations = INVITATIONS
     users({ invitations: () => invitations })
     api.post.mockImplementation(async () => {
@@ -118,9 +163,19 @@ describe('Users', () => {
     const row = (await screen.findByText('Grace Wanjiru')).closest('tr')
     expect(await within(row).findByText('Cashier at Front till · Westlands')).toBeInTheDocument()
     expect(within(row).getByText('15 Oct 2026')).toBeInTheDocument()
+    expect(within(row).getByText('Pending')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–1 of 1')).toBeInTheDocument()
     expect(screen.queryByText('Old invite')).not.toBeInTheDocument()
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Revoke the invitation for Grace Wanjiru' }))
+    // Accepted invitations show when asked for, without a Revoke button.
+    chooseOption('Status', 'Accepted')
+    const old = (await screen.findByText('Old invite')).closest('tr')
+    expect(within(old).getByText('Accepted')).toBeInTheDocument()
+    expect(within(old).queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
+    chooseOption('Status', 'Pending or expired')
+    const pending = (await screen.findByText('Grace Wanjiru')).closest('tr')
+
+    fireEvent.click(within(pending).getByRole('button', { name: 'Revoke the invitation for Grace Wanjiru' }))
     const dialog = await screen.findByRole('dialog', { name: 'Revoke the invitation for Grace Wanjiru?' })
     expect(api.post).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke invitation' }))
@@ -134,7 +189,7 @@ describe('Users', () => {
     await screen.findByText('Joseph Mwangi')
     expect(screen.queryByRole('button', { name: 'Invite user' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Export access review' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Pending invitations' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Invitations' })).not.toBeInTheDocument()
   })
 
   it('downloads the access review CSV with the bearer token through the client', async () => {
@@ -164,11 +219,11 @@ describe('Users', () => {
     renderApp('/settings/users?tab=invitations')
     expect(await screen.findByText('Joseph Mwangi')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true')
-    expect(api.get).not.toHaveBeenCalledWith('invitations?per_page=200')
+    expect(api.get.mock.calls.some(([path]) => path.startsWith('invitations'))).toBe(false)
   })
 
   it('offers an invitation from the empty Active list', async () => {
-    users({ extra: { 'users?status=active&per_page=50&page=1': { data: [], meta: { last_page: 1 } } } })
+    users({ extra: { 'users?status=active&per_page=25&page=1': { data: [], meta: { last_page: 1, total: 0 } } } })
     const { router } = renderApp('/settings/users')
     const empty = (await screen.findByText('No active users in your part of the organisation yet.')).closest('td')
     fireEvent.click(within(empty).getByRole('button', { name: 'Invite user' }))

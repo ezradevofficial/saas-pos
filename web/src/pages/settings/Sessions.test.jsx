@@ -20,18 +20,23 @@ describe('Sessions', () => {
   })
 
   it('lists sessions and marks this device', async () => {
-    mockApi(api, { extra: { 'auth/sessions': { data: SESSIONS } } })
+    mockApi(api, { extra: { 'auth/sessions?per_page=25&page=1': { data: SESSIONS, meta: { last_page: 1, total: 2, from: 1, to: 2 } } } })
     renderApp('/settings/sessions')
     const row = (await screen.findByText('Chrome · macOS')).closest('tr')
     expect(within(row).getByText('This device')).toBeInTheDocument()
     const other = screen.getByText('Safari · iOS').closest('tr')
     expect(within(other).getByText('10.0.0.2')).toBeInTheDocument()
     expect(within(other).getByText(/6 Oct 2026/)).toBeInTheDocument()
+    // The browser is a column the user can show (export key user_agent); hidden by default.
+    expect(screen.queryByRole('columnheader', { name: 'Browser or app' })).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Browser or app' }))
+    expect(screen.getByRole('columnheader', { name: 'Browser or app', hidden: true })).toBeInTheDocument()
   })
 
   it('signs out of another session', async () => {
     let sessions = SESSIONS
-    mockApi(api, { extra: { 'auth/sessions': () => ({ data: sessions }) } })
+    mockApi(api, { extra: { 'auth/sessions?per_page=25&page=1': () => ({ data: sessions, meta: { last_page: 1, total: sessions.length, from: 1, to: sessions.length } }) } })
     api.delete.mockImplementation(async () => {
       sessions = [SESSIONS[0]]
       return null
@@ -43,7 +48,7 @@ describe('Sessions', () => {
   })
 
   it('asks before signing out of this device', async () => {
-    mockApi(api, { extra: { 'auth/sessions': { data: SESSIONS } } })
+    mockApi(api, { extra: { 'auth/sessions?per_page=25&page=1': { data: SESSIONS, meta: { last_page: 1, total: 2, from: 1, to: 2 } } } })
     api.post.mockResolvedValue(null)
     const { router } = renderApp('/settings/sessions')
 
@@ -61,7 +66,7 @@ describe('Sessions', () => {
   })
 
   it('names a session without a device name "Unknown device"', async () => {
-    mockApi(api, { extra: { 'auth/sessions': { data: [{ ...SESSIONS[1], name: '' }] } } })
+    mockApi(api, { extra: { 'auth/sessions?per_page=25&page=1': { data: [{ ...SESSIONS[1], name: '' }], meta: { last_page: 1, total: 1, from: 1, to: 1 } } } })
     renderApp('/settings/sessions')
     expect(await screen.findByText('Unknown device')).toBeInTheDocument()
   })

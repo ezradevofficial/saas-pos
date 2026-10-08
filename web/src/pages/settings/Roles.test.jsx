@@ -47,6 +47,8 @@ function roles({ permissions = MANAGER, extra = {} } = {}) {
     permissions,
     extra: {
       'roles?per_page=200': { data: [CASHIER, SUPERVISOR] },
+      'roles?per_page=25&page=1': { data: [CASHIER, SUPERVISOR], meta: { last_page: 1, total: 2, from: 1, to: 2 } },
+      'roles?sort=name&per_page=25&page=1': { data: [CASHIER, SUPERVISOR], meta: { last_page: 1, total: 2, from: 1, to: 2 } },
       'roles/r-cashier': { data: CASHIER },
       'roles/r-sup': { data: SUPERVISOR },
       permissions: { data: CATALOGUE },
@@ -75,6 +77,17 @@ describe('Roles', () => {
     expect(within(supervisor).getByText('1 permission')).toBeInTheDocument()
     expect(within(supervisor).getByText('Required')).toBeInTheDocument()
     expect(within(supervisor).queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Showing 1–2 of 2')).toBeInTheDocument()
+  })
+
+  it('sorts roles by name from the header (EXP-01)', async () => {
+    roles()
+    renderApp('/settings/roles')
+    const table = await screen.findByRole('table', { name: 'Roles' })
+    await within(table).findByText('Cashier')
+    fireEvent.click(within(table).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('roles?sort=name&per_page=25&page=1'))
+    expect(within(table).getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'ascending')
   })
 
   it('copies a system role and opens the copy', async () => {
@@ -187,7 +200,7 @@ describe('Roles', () => {
   })
 
   it('offers Create role from the empty list', async () => {
-    roles({ extra: { 'roles?per_page=200': { data: [] } } })
+    roles({ extra: { 'roles?per_page=25&page=1': { data: [], meta: { last_page: 1, total: 0 } } } })
     const { router } = renderApp('/settings/roles')
     const empty = (await screen.findByText('No roles yet. Create one to group permissions.')).closest('td')
     fireEvent.click(within(empty).getByRole('button', { name: 'Create role' }))

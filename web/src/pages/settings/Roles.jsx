@@ -1,33 +1,44 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { api } from '@/api/client'
-import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, DataTable, StatusBadge } from '@/components/ds'
+import { Button, ListView, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { actionsColumn } from '@/lib/listColumns'
+import { useServerList } from '@/lib/useServerList'
 import { CopyRoleDialog } from './roles/CopyRoleDialog'
 
-/** RBAC-02, RBAC-03: the tenant's roles. System roles are marked and copied; custom roles open for editing. */
+/**
+ * RBAC-02, RBAC-03: the tenant's roles. System roles are marked and copied;
+ * custom roles open for editing. Search, sort (system roles first by
+ * default), pages, columns and export (EXP-01, LAY-04).
+ */
 export default function Roles() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { tenantWide } = usePermissions()
   const [copying, setCopying] = useState(null)
-  const roles = useQuery({ queryKey: ['roles', 'list'], queryFn: () => api.get('roles?per_page=200') })
   const canCreate = tenantWide('core.role.create')
 
   const columns = [
     {
       key: 'name',
       label: t('roles.columns.name'),
+      sortKey: 'name',
+      hideable: false,
       render: (role) => (
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="font-medium text-ink">{role.name}</span>
           {role.is_system ? <StatusBadge tone="neutral">{t('roles.system')}</StatusBadge> : null}
         </span>
       ),
+    },
+    {
+      key: 'type',
+      label: t('roles.columns.type'),
+      sortKey: 'type',
+      defaultHidden: true,
+      render: (role) => (role.is_system ? t('roles.types.system') : t('roles.types.custom')),
     },
     { key: 'description', label: t('roles.columns.description'), render: (role) => <span className="text-ink-muted">{role.description ?? ''}</span> },
     {
@@ -40,28 +51,27 @@ export default function Roles() {
     {
       key: 'twoFactor',
       label: t('roles.columns.twoFactor'),
+      sortKey: 'two_factor',
+      exportKey: 'two_factor',
       render: (role) => (role.requires_two_factor ? <StatusBadge tone="info">{t('roles.twoFactorRequired')}</StatusBadge> : null),
     },
-    {
-      key: 'action',
-      label: <span className="sr-only">{t('roles.columns.actions')}</span>,
-      align: 'end',
-      render: (role) =>
-        role.is_system && canCreate ? (
-          <Button
-            variant="ghost"
-            icon="copy"
-            onClick={(event) => {
-              event.stopPropagation()
-              setCopying(role)
-            }}
-            aria-label={t('roles.copyRole', { name: role.name })}
-          >
-            {t('roles.copy')}
-          </Button>
-        ) : null,
-    },
+    actionsColumn(t('roles.columns.actions'), (role) =>
+      role.is_system && canCreate ? (
+        <Button
+          variant="ghost"
+          icon="copy"
+          onClick={(event) => {
+            event.stopPropagation()
+            setCopying(role)
+          }}
+          aria-label={t('roles.copyRole', { name: role.name })}
+        >
+          {t('roles.copy')}
+        </Button>
+      ) : null,
+    ),
   ]
+  const list = useServerList({ id: 'roles', endpoint: 'roles', queryKey: ['roles'], columns })
 
   return (
     <>
@@ -76,15 +86,14 @@ export default function Roles() {
           ) : null
         }
       />
-      {roles.isError ? <Alert tone="danger" title={errorMessage(roles.error)} action={<Button onClick={() => roles.refetch()}>{t('common.retry')}</Button>} /> : null}
-      <DataTable
-        caption={t('settings.roles.title')}
-        columns={columns}
-        rows={roles.data?.data ?? []}
+      <ListView
+        list={list}
+        title={t('settings.roles.title')}
+        searchPlaceholder={t('roles.searchPlaceholder')}
         onRowClick={(role) => navigate(`/settings/roles/${role.id}`)}
         emptyText={
-          roles.isPending ? (
-            t('common.loading')
+          list.term ? (
+            t('roles.emptyFiltered')
           ) : canCreate ? (
             <span className="flex flex-col items-center gap-3">
               {t('roles.empty')}

@@ -33,7 +33,7 @@ class InvitationController
 
     public function index(ListInvitationsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = $this->visible(Invitation::query(), $request->list()->visible());
+        $query = $request->applyStatus($this->visible(Invitation::query(), $request->list()->visible()));
         $request->applySort($request->applySearch($query, ['name' => 'name', 'email' => 'email', 'phone' => 'phone']));
 
         if ($request->wantsExport()) {

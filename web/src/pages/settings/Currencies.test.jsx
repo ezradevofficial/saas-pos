@@ -20,6 +20,8 @@ function currencies({ permissions = EDITOR, locked = false } = {}) {
     api,
     [
       ['tenant/currencies', { data: CURRENCIES }],
+      // The table pages; the pickers read every currency (no page params).
+      [/^tenant\/currencies\?/, { data: CURRENCIES, meta: { last_page: 1, total: 3, from: 1, to: 3 } }],
       ['companies/c-1/currencies', { data: { base_currency: 'CDF', reporting_currencies: ['USD'], base_currency_locked: locked, base_currency_locked_at: null } }],
       ['currencies', { data: [{ code: 'EUR', name: 'Euro', default_decimals: 2, active_in_iso: true }] }],
     ],
@@ -40,6 +42,24 @@ describe('Currencies', () => {
     const cdf = (await screen.findByText('Congolese franc')).closest('tr')
     expect(within(cdf).getByText('CDF 50')).toBeInTheDocument()
     expect(within((await screen.findByText('Kenyan shilling')).closest('tr')).getByText('KES 1.00')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–3 of 3')).toBeInTheDocument()
+  })
+
+  it('searches and sorts the table on the server while pickers keep the whole list (EXP-01)', async () => {
+    currencies()
+    const tableCalls = () => api.get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('tenant/currencies?'))
+    renderApp('/settings/currencies')
+    const table = await screen.findByRole('table', { name: 'Currencies in use' })
+    await within(table).findByText('Congolese franc')
+    expect(tableCalls()[0]).toBe('tenant/currencies?per_page=25&page=1')
+    expect(api.get).toHaveBeenCalledWith('tenant/currencies')
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'franc' } })
+    await waitFor(() => expect(tableCalls().at(-1)).toBe('tenant/currencies?search=franc&per_page=25&page=1'))
+    fireEvent.click(within(table).getByRole('button', { name: 'Decimals' }))
+    await waitFor(() => expect(tableCalls().at(-1)).toBe('tenant/currencies?search=franc&sort=decimals&per_page=25&page=1'))
+    fireEvent.click(within(table).getByRole('button', { name: 'Decimals' }))
+    await waitFor(() => expect(tableCalls().at(-1)).toBe('tenant/currencies?search=franc&sort=-decimals&per_page=25&page=1'))
   })
 
   it('explains why a currency in use cannot be switched off', async () => {

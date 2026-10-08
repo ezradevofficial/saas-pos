@@ -48,6 +48,19 @@ describe('PaymentMethods', () => {
     signedIn()
   })
 
+  it('exports the company’s payment methods (EXP-01)', async () => {
+    methods()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: null })
+    URL.createObjectURL = vi.fn(() => 'blob:list')
+    URL.revokeObjectURL = vi.fn()
+    renderApp('/settings/payment-methods')
+    await screen.findByText('Cash USD')
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'CSV' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    expect(api.download).toHaveBeenCalledWith('companies/c-1/payment-methods?format=csv')
+  })
+
   it('groups methods by type in till order and marks providers that need setting up', async () => {
     methods()
     renderApp('/settings/payment-methods')

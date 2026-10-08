@@ -51,6 +51,20 @@ describe('Dimensions', () => {
     expect(within(items[1]).getByText('Kinshasa operations').closest('div.flex-col')).toHaveClass('border-l')
   })
 
+  it('exports the cost centres of the company (EXP-01)', async () => {
+    dimensions()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: null })
+    URL.createObjectURL = vi.fn(() => 'blob:list')
+    URL.revokeObjectURL = vi.fn()
+    renderApp('/settings/dimensions')
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Cost centres' }))
+    await screen.findByRole('list', { name: 'Cost centres' })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'PDF' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    expect(api.download).toHaveBeenCalledWith('companies/c-1/cost-centres?status=active&format=pdf')
+  })
+
   it('adds a cost centre with a parent and an owner who can view the company', async () => {
     dimensions()
     api.post.mockResolvedValue({ data: row({ id: 'cc-3' }) })

@@ -189,14 +189,14 @@ class TenantIsolationTest extends TestCase
     ];
 
     /**
-     * Query parameters that take a row id (`?category=` on items, MD-02) =>
-     * which id. The list check sends B's id, and A's as a control
-     * (idQueries()).
+     * Query parameters that take a row id (`?category=` on items, MD-02;
+     * `?company=` on tax categories, MD-03) => which id. The list check
+     * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'sort', 'columns'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns'];
 
     private TwoTenants $tenants;
 
@@ -392,6 +392,9 @@ class TenantIsolationTest extends TestCase
         // Control: filtering by A's own category finds A's item, by B's finds nothing (MD-02).
         $this->assertNotEmpty($this->get('/api/v1/items?category='.$a->id('item_category'), $a->bearer('owner'))->assertOk()->json('data'));
         $this->get('/api/v1/items?category='.$b->id('item_category'), $a->bearer('owner'))->assertUnprocessable();
+        // Control: tax categories of A's own company are listed, B's company is refused (MD-03).
+        $this->assertNotEmpty($this->get('/api/v1/tax-categories?status=all&company='.$a->id('company'), $a->bearer('owner'))->assertOk()->json('data'));
+        $this->get('/api/v1/tax-categories?company='.$b->id('company'), $a->bearer('owner'))->assertUnprocessable();
     }
 
     /**

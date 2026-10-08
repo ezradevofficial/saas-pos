@@ -5,9 +5,10 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Dialog, Select, StatusBadge, Switch, Tabs, TextField } from '@/components/ds'
+import { Alert, Button, Card, Dialog, ExportMenu, Select, StatusBadge, Switch, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useListExport } from '@/lib/useServerList'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from './ConfirmDialog'
 import { companyScope, useSettingsCompany } from './finance/useSettingsCompany'
@@ -201,6 +202,8 @@ function DimensionList({ company, kind }) {
   const owners = useOwnerOptions(company)
   const [showArchived, setShowArchived] = useState(false)
   const [dialog, setDialog] = useState(null) // { record? }
+  // A tree stays a tree (paging or sorting would split parents from children): Export only (EXP-01).
+  const exporter = useListExport({ id: path, endpoint: `companies/${company.id}/${path}` })
   const [archiving, setArchiving] = useState(null)
 
   const list = useQuery({ queryKey: listKey(company.id, kind), queryFn: () => api.get(`companies/${company.id}/${path}?status=all&per_page=200`) })
@@ -226,11 +229,14 @@ function DimensionList({ company, kind }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-ink-muted">{t(`dimensions.intro.${kind}`)}</p>
-        {canCreate ? (
-          <Button variant="primary" icon="plus" onClick={() => setDialog({})}>
-            {t(`dimensions.add.${kind}`)}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <ExportMenu onExport={(format) => exporter.exportTo(format, { status: showArchived ? 'all' : 'active' })} exporting={exporter.exporting} />
+          {canCreate ? (
+            <Button variant="primary" icon="plus" onClick={() => setDialog({})}>
+              {t(`dimensions.add.${kind}`)}
+            </Button>
+          ) : null}
+        </div>
       </div>
       {rows.some((row) => row.archived_at) ? <Switch label={t('dimensions.showArchived')} checked={showArchived} onChange={setShowArchived} /> : null}
       {list.isError ? <Alert tone="danger" title={errorMessage(list.error)} action={<Button onClick={() => list.refetch()}>{t('common.retry')}</Button>} /> : null}

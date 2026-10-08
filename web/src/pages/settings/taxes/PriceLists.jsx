@@ -1,12 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Checkbox, DataTable, Dialog, Select, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Checkbox, Dialog, ListView, Select, StatusBadge, TextField } from '@/components/ds'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useServerList } from '@/lib/useServerList'
 import { companyScope, useTenantCurrencies } from '../finance/useSettingsCompany'
 
 function AddPriceListDialog({ company, currencies, onClose }) {
@@ -84,21 +85,36 @@ function AddPriceListDialog({ company, currencies, onClose }) {
   )
 }
 
-/** MD-03: the company's price lists, tax-inclusive or exclusive, one default per currency. */
+/**
+ * MD-03: the company's price lists, tax-inclusive or exclusive, one
+ * default per currency; search, sort, pages, columns and export (EXP-01,
+ * LAY-04).
+ */
 export function PriceLists({ company }) {
   const { t } = useTranslation()
   const { can } = usePermissions()
   const canEdit = can('core.price_list.edit', companyScope(company))
   const currencies = useTenantCurrencies()
   const [adding, setAdding] = useState(false)
-  const lists = useQuery({ queryKey: ['price-lists', company.id], queryFn: () => api.get(`companies/${company.id}/price-lists?per_page=200`) })
 
   const columns = [
-    { key: 'name', label: t('taxes.priceLists.name'), render: (row) => <span className="font-medium text-ink">{row.name}</span> },
-    { key: 'currency', label: t('taxes.priceLists.currency') },
-    { key: 'tax', label: t('taxes.priceLists.prices'), render: (row) => (row.tax_inclusive ? t('taxes.priceLists.includeTax') : t('taxes.priceLists.excludeTax')) },
-    { key: 'default', label: t('taxes.priceLists.default'), render: (row) => (row.is_default ? <StatusBadge tone="info">{t('taxes.priceLists.defaultFor', { currency: row.currency })}</StatusBadge> : null) },
+    { key: 'name', label: t('taxes.priceLists.name'), sortKey: 'name', hideable: false, render: (row) => <span className="font-medium text-ink">{row.name}</span> },
+    { key: 'currency', label: t('taxes.priceLists.currency'), sortKey: 'currency' },
+    {
+      key: 'tax',
+      label: t('taxes.priceLists.prices'),
+      sortKey: 'prices',
+      exportKey: 'prices',
+      render: (row) => (row.tax_inclusive ? t('taxes.priceLists.includeTax') : t('taxes.priceLists.excludeTax')),
+    },
+    {
+      key: 'default',
+      label: t('taxes.priceLists.default'),
+      sortKey: 'default',
+      render: (row) => (row.is_default ? <StatusBadge tone="info">{t('taxes.priceLists.defaultFor', { currency: row.currency })}</StatusBadge> : null),
+    },
   ]
+  const list = useServerList({ id: 'price-lists', endpoint: `companies/${company.id}/price-lists`, queryKey: ['price-lists', company.id], columns })
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,8 +126,12 @@ export function PriceLists({ company }) {
           </Button>
         ) : null}
       </div>
-      {lists.isError ? <Alert tone="danger" title={errorMessage(lists.error)} /> : null}
-      <DataTable caption={t('taxes.tabs.priceLists')} columns={columns} rows={lists.data?.data ?? []} emptyText={lists.isPending ? t('common.loading') : t('taxes.priceLists.empty')} />
+      <ListView
+        list={list}
+        title={t('taxes.tabs.priceLists')}
+        searchPlaceholder={t('taxes.priceLists.searchPlaceholder')}
+        emptyText={list.term ? t('taxes.priceLists.emptyFiltered') : t('taxes.priceLists.empty')}
+      />
       {adding ? <AddPriceListDialog company={company} currencies={currencies.active} onClose={() => setAdding(false)} /> : null}
     </div>
   )

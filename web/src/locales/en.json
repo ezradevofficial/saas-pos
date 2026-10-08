@@ -472,7 +472,11 @@
     "confirmTitle": "Sign out of this device?",
     "confirmText": "You will go back to the sign-in page. Your other sessions stay signed in.",
     "stay": "Stay signed in",
-    "signOutHere": "Sign out"
+    "signOutHere": "Sign out",
+    "signedIn": "Signed in",
+    "searchPlaceholder": "Device, IP address or browser",
+    "emptyFiltered": "No session matches this search. Try other words.",
+    "browser": "Browser or app"
   },
   "organisation": {
     "status": {
@@ -605,19 +609,24 @@
     "backToUsers": "Users",
     "tabs": {
       "active": "Active",
-      "invitations": "Pending invitations",
+      "invitations": "Invitations",
       "deactivated": "Deactivated"
     },
     "columns": {
       "name": "Name",
-      "contact": "Email or phone",
       "roles": "Roles",
       "status": "Status",
       "expires": "Expires",
       "actions": "Actions",
       "role": "Role",
       "where": "Where",
-      "granted": "Given"
+      "granted": "Given",
+      "email": "Email",
+      "phone": "Phone",
+      "twoFactor": "Two-factor",
+      "lastSignIn": "Last sign-in",
+      "invited": "Invited",
+      "grantedBy": "Given by"
     },
     "status": {
       "active": "Active",
@@ -638,17 +647,12 @@
       "branch": "Branch",
       "location": "Location"
     },
-    "invitationExpired": "Expired",
     "revoke": "Revoke",
     "revokeFor": "Revoke the invitation for {{name}}",
     "revokeTitle": "Revoke the invitation for {{name}}?",
     "revokeText": "The link stops working at once. You can send a new invitation later.",
     "revokeConfirm": "Revoke invitation",
     "keepInvitation": "Keep invitation",
-    "pages": "Pages",
-    "pageOf": "Page {{page}} of {{last}}",
-    "previous": "Previous",
-    "next": "Next",
     "fields": {
       "name": "Full name",
       "contact": "Email or phone number",
@@ -714,8 +718,32 @@
       "reactivate": "Reactivate",
       "reactivateTitle": "Reactivate {{name}}?",
       "reactivateText": "They can sign in again with their password and get the roles they held.",
-      "reactivateConfirm": "Reactivate {{name}}"
-    }
+      "reactivateConfirm": "Reactivate {{name}}",
+      "searchRoles": "Search roles",
+      "noRolesFound": "No role matches this search. Try other words."
+    },
+    "invitationStatus": {
+      "pending": "Pending",
+      "expired": "Expired",
+      "accepted": "Accepted",
+      "revoked": "Revoked"
+    },
+    "twoFactorOn": "On",
+    "twoFactorOff": "Off",
+    "searchPlaceholder": "Name, email or phone",
+    "emptyFiltered": "No one matches this search. Try other words.",
+    "filters": {
+      "status": "Status"
+    },
+    "invitationFilter": {
+      "open": "Pending or expired",
+      "pending": "Pending",
+      "expired": "Expired",
+      "accepted": "Accepted",
+      "revoked": "Revoked",
+      "all": "All"
+    },
+    "emptyStatus": "No invitations with this status."
   },
   "roles": {
     "create": "Create role",
@@ -733,7 +761,8 @@
       "description": "Description",
       "permissions": "Permissions",
       "twoFactor": "Two-factor",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type"
     },
     "permissionCount_one": "{{count}} permission",
     "permissionCount_other": "{{count}} permissions",
@@ -764,7 +793,13 @@
     "archiveText": "People who hold this role lose its permissions at once. Their other roles and history stay.",
     "archiveConfirm": "Archive role",
     "keepRole": "Keep role",
-    "emptyReadOnly": "No roles to show."
+    "emptyReadOnly": "No roles to show.",
+    "types": {
+      "system": "System",
+      "custom": "Custom"
+    },
+    "searchPlaceholder": "Name or description",
+    "emptyFiltered": "No role matches this search. Try other words."
   },
   "security": {
     "title": "Security",
@@ -797,7 +832,8 @@
       "decimals": "Decimals",
       "rounding": "Cash rounding",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "name": "Name"
     },
     "status": {
       "active": "On",
@@ -839,7 +875,9 @@
       "none": "None",
       "save": "Save currencies",
       "saved": "Currencies saved."
-    }
+    },
+    "searchPlaceholder": "Code or name",
+    "emptyFiltered": "No currency matches this search. Try other words."
   },
   "rates": {
     "pair": "Currency pair",
@@ -883,7 +921,8 @@
       "buy": "Buy",
       "sell": "Sell",
       "direction": "Direction",
-      "source": "Source"
+      "source": "Source",
+      "entered": "Entered"
     },
     "history": {
       "title": "History",
@@ -891,9 +930,7 @@
       "allKinds": "All kinds",
       "caption": "Rate history for {{pair}}",
       "empty": "No rates for this pair yet.",
-      "page": "Page {{page}} of {{pages}}",
-      "newer": "Newer",
-      "older": "Older"
+      "emptyKind": "No rates of this kind for this pair yet."
     },
     "dialog": {
       "action": "Set shop rate",
@@ -938,7 +975,8 @@
       "kind": "Kind",
       "rate": "Rate",
       "since": "Since",
-      "actions": "Actions"
+      "actions": "Actions",
+      "fiscalCode": "Fiscal code"
     },
     "kinds": {
       "vat": "VAT",
@@ -997,7 +1035,9 @@
       "defaultCode": "Default tax code in {{name}}",
       "empty": "No tax categories yet.",
       "sharedNote": "Items are shared across your companies, so this category is shared too. Other companies set their own default code.",
-      "companyNote": "Items are kept per company, so this category belongs to {{name}}."
+      "companyNote": "Items are kept per company, so this category belongs to {{name}}.",
+      "searchPlaceholder": "Category name",
+      "emptyFiltered": "No tax category matches this search. Try other words."
     },
     "priceLists": {
       "intro": "Price lists hold the prices you sell at, in one currency each.",
@@ -1014,8 +1054,12 @@
       "inclusive": "Prices include tax",
       "inclusiveHelp": "Tax is part of the price shown to customers.",
       "makeDefault": "Make this the default list for its currency",
-      "makeDefaultHelp": "The current default in that currency stops being the default."
-    }
+      "makeDefaultHelp": "The current default in that currency stops being the default.",
+      "searchPlaceholder": "Name or currency",
+      "emptyFiltered": "No price list matches this search. Try other words."
+    },
+    "searchPlaceholder": "Code, name or fiscal code",
+    "emptyFiltered": "No tax code matches this search. Try other words."
   },
   "paymentMethods": {
     "empty": "This company has no payment methods yet.",
@@ -1534,7 +1578,9 @@
     "keep": "Keep unit",
     "errors": {
       "inUse": "Active items use this unit. Change those items first."
-    }
+    },
+    "searchPlaceholder": "Code or name",
+    "emptyFiltered": "No unit matches this search. Try other words."
   },
   "parties": {
     "add": {

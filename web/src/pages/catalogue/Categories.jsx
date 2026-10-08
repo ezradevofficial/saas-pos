@@ -6,11 +6,12 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { HistoryDialog } from '@/components/HistoryDialog'
-import { Alert, Button, Card, Dialog, Select, StatusBadge, Switch, TextField } from '@/components/ds'
+import { Alert, Button, Card, Dialog, ExportMenu, Select, StatusBadge, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { perCompany, useSharingModes } from '@/lib/masterData'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useListExport } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
@@ -137,7 +138,12 @@ function CategoryDialog({ record, parent, rows, onClose }) {
   )
 }
 
-/** MD-02: item categories as a tree, shared or per company with items (TEN-08); archived, never deleted. */
+/**
+ * MD-02: item categories as a tree, shared or per company with items
+ * (TEN-08); archived, never deleted. The tree stays a tree (paging or
+ * sorting would break parents from their children), so it has the Export
+ * menu (EXP-01) but no ListView.
+ */
 export default function Categories() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -145,6 +151,7 @@ export default function Categories() {
   const categories = useItemCategories()
   const { companies } = useCompanies()
   const [showArchived, setShowArchived] = useState(false)
+  const exporter = useListExport({ id: 'item-categories', endpoint: 'item-categories' })
   const [dialog, setDialog] = useState(null) // { record?, parent? }
   const [archiving, setArchiving] = useState(null)
   const [history, setHistory] = useState(null)
@@ -175,11 +182,14 @@ export default function Categories() {
         title={t('catalogue.categories.title')}
         description={t('catalogue.categories.description')}
         actions={
-          canCreate ? (
-            <Button variant="primary" icon="plus" onClick={() => setDialog({})}>
-              {t('categories.add')}
-            </Button>
-          ) : null
+          <>
+            <ExportMenu onExport={(format) => exporter.exportTo(format, { status: showArchived ? 'all' : 'active' })} exporting={exporter.exporting} />
+            {canCreate ? (
+              <Button variant="primary" icon="plus" onClick={() => setDialog({})}>
+                {t('categories.add')}
+              </Button>
+            ) : null}
+          </>
         }
       />
       {rows.some((row) => row.archived_at) ? <Switch label={t('categories.showArchived')} checked={showArchived} onChange={setShowArchived} /> : null}

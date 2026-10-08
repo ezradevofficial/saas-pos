@@ -284,6 +284,10 @@ class InvitationTest extends TestCase
             ->assertStatus(410)
             ->assertJsonPath('code', 'invitation_revoked');
         $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.user.invitation_revoke')->count()));
+
+        // The list shows open invitations by default; a revoked one only when asked for.
+        $this->getJson('/api/v1/invitations', $this->headersFor())->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/invitations?status=revoked', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $id);
     }
 
     public function test_an_assignment_no_longer_valid_makes_the_invitation_stale(): void

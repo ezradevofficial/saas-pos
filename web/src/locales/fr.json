@@ -472,7 +472,11 @@
     "confirmTitle": "Se déconnecter de cet appareil ?",
     "confirmText": "Vous reviendrez à la page de connexion. Vos autres sessions restent connectées.",
     "stay": "Rester connecté",
-    "signOutHere": "Se déconnecter"
+    "signOutHere": "Se déconnecter",
+    "signedIn": "Connexion le",
+    "searchPlaceholder": "Appareil, adresse IP ou navigateur",
+    "emptyFiltered": "Aucune session ne correspond à cette recherche. Essayez d’autres mots.",
+    "browser": "Navigateur ou application"
   },
   "organisation": {
     "status": {
@@ -605,19 +609,24 @@
     "backToUsers": "Utilisateurs",
     "tabs": {
       "active": "Actifs",
-      "invitations": "Invitations en attente",
+      "invitations": "Invitations",
       "deactivated": "Désactivés"
     },
     "columns": {
       "name": "Nom",
-      "contact": "E-mail ou téléphone",
       "roles": "Rôles",
       "status": "Statut",
       "expires": "Expire le",
       "actions": "Actions",
       "role": "Rôle",
       "where": "Où",
-      "granted": "Attribué"
+      "granted": "Attribué",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "twoFactor": "Double authentification",
+      "lastSignIn": "Dernière connexion",
+      "invited": "Invitée le",
+      "grantedBy": "Attribué par"
     },
     "status": {
       "active": "Actif",
@@ -638,17 +647,12 @@
       "branch": "Succursale",
       "location": "Emplacement"
     },
-    "invitationExpired": "Expirée",
     "revoke": "Révoquer",
     "revokeFor": "Révoquer l’invitation de {{name}}",
     "revokeTitle": "Révoquer l’invitation de {{name}} ?",
     "revokeText": "Le lien cesse de fonctionner immédiatement. Vous pourrez envoyer une nouvelle invitation plus tard.",
     "revokeConfirm": "Révoquer l’invitation",
     "keepInvitation": "Garder l’invitation",
-    "pages": "Pages de résultats",
-    "pageOf": "Page {{page}} sur {{last}}",
-    "previous": "Précédente",
-    "next": "Suivante",
     "fields": {
       "name": "Nom complet",
       "contact": "E-mail ou numéro de téléphone",
@@ -714,8 +718,32 @@
       "reactivate": "Réactiver",
       "reactivateTitle": "Réactiver {{name}} ?",
       "reactivateText": "La personne peut se reconnecter avec son mot de passe et retrouve ses rôles.",
-      "reactivateConfirm": "Réactiver {{name}}"
-    }
+      "reactivateConfirm": "Réactiver {{name}}",
+      "searchRoles": "Rechercher un rôle",
+      "noRolesFound": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
+    },
+    "invitationStatus": {
+      "pending": "En attente",
+      "expired": "Expirée",
+      "accepted": "Acceptée",
+      "revoked": "Révoquée"
+    },
+    "twoFactorOn": "Activée",
+    "twoFactorOff": "Désactivée",
+    "searchPlaceholder": "Nom, e-mail ou téléphone",
+    "emptyFiltered": "Personne ne correspond à cette recherche. Essayez d’autres mots.",
+    "filters": {
+      "status": "Statut"
+    },
+    "invitationFilter": {
+      "open": "En attente ou expirées",
+      "pending": "En attente",
+      "expired": "Expirées",
+      "accepted": "Acceptées",
+      "revoked": "Révoquées",
+      "all": "Toutes"
+    },
+    "emptyStatus": "Aucune invitation avec ce statut."
   },
   "roles": {
     "create": "Créer un rôle",
@@ -733,7 +761,8 @@
       "description": "Description du rôle",
       "permissions": "Autorisations",
       "twoFactor": "Double authentification",
-      "actions": "Actions"
+      "actions": "Actions",
+      "type": "Type"
     },
     "permissionCount_one": "{{count}} autorisation",
     "permissionCount_other": "{{count}} autorisations",
@@ -764,7 +793,13 @@
     "archiveText": "Les personnes ayant ce rôle perdent immédiatement ses autorisations. Leurs autres rôles et leur historique sont conservés.",
     "archiveConfirm": "Archiver le rôle",
     "keepRole": "Garder le rôle",
-    "emptyReadOnly": "Aucun rôle à afficher."
+    "emptyReadOnly": "Aucun rôle à afficher.",
+    "types": {
+      "system": "Système",
+      "custom": "Personnalisé"
+    },
+    "searchPlaceholder": "Nom ou description",
+    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
   },
   "security": {
     "title": "Sécurité",
@@ -797,7 +832,8 @@
       "decimals": "Décimales",
       "rounding": "Arrondi espèces",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "name": "Nom"
     },
     "status": {
       "active": "Activée",
@@ -839,7 +875,9 @@
       "none": "Aucune",
       "save": "Enregistrer les devises",
       "saved": "Devises enregistrées."
-    }
+    },
+    "searchPlaceholder": "Code ou nom",
+    "emptyFiltered": "Aucune devise ne correspond à cette recherche. Essayez d’autres mots."
   },
   "rates": {
     "pair": "Paire de devises",
@@ -883,7 +921,8 @@
       "buy": "Achat",
       "sell": "Vente",
       "direction": "Sens",
-      "source": "Source"
+      "source": "Source",
+      "entered": "Saisi le"
     },
     "history": {
       "title": "Historique",
@@ -891,9 +930,7 @@
       "allKinds": "Tous les types",
       "caption": "Historique des taux pour {{pair}}",
       "empty": "Aucun taux pour cette paire pour l’instant.",
-      "page": "Page {{page}} sur {{pages}}",
-      "newer": "Plus récents",
-      "older": "Plus anciens"
+      "emptyKind": "Aucun taux de ce type pour cette paire pour l’instant."
     },
     "dialog": {
       "action": "Fixer le taux boutique",
@@ -938,7 +975,8 @@
       "kind": "Type",
       "rate": "Taux",
       "since": "Depuis",
-      "actions": "Actions"
+      "actions": "Actions",
+      "fiscalCode": "Code fiscal"
     },
     "kinds": {
       "vat": "TVA",
@@ -997,7 +1035,9 @@
       "defaultCode": "Code de taxe par défaut dans {{name}}",
       "empty": "Aucune catégorie de taxe pour l’instant.",
       "sharedNote": "Les articles sont partagés entre vos sociétés : cette catégorie l’est aussi. Les autres sociétés choisissent leur propre code par défaut.",
-      "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}."
+      "companyNote": "Les articles sont propres à chaque société : cette catégorie appartient à {{name}}.",
+      "searchPlaceholder": "Nom de la catégorie",
+      "emptyFiltered": "Aucune catégorie de taxe ne correspond à cette recherche. Essayez d’autres mots."
     },
     "priceLists": {
       "intro": "Les listes de prix contiennent vos prix de vente, chacune dans une devise.",
@@ -1014,8 +1054,12 @@
       "inclusive": "Les prix incluent la taxe",
       "inclusiveHelp": "La taxe fait partie du prix affiché aux clients.",
       "makeDefault": "En faire la liste par défaut de sa devise",
-      "makeDefaultHelp": "La liste par défaut actuelle dans cette devise ne le sera plus."
-    }
+      "makeDefaultHelp": "La liste par défaut actuelle dans cette devise ne le sera plus.",
+      "searchPlaceholder": "Nom ou devise",
+      "emptyFiltered": "Aucune liste de prix ne correspond à cette recherche. Essayez d’autres mots."
+    },
+    "searchPlaceholder": "Code, nom ou code fiscal",
+    "emptyFiltered": "Aucun code de taxe ne correspond à cette recherche. Essayez d’autres mots."
   },
   "paymentMethods": {
     "empty": "Cette société n’a pas encore de moyen de paiement.",
@@ -1534,7 +1578,9 @@
     "keep": "Garder l’unité",
     "errors": {
       "inUse": "Des articles actifs utilisent cette unité. Modifiez d’abord ces articles."
-    }
+    },
+    "searchPlaceholder": "Code ou nom",
+    "emptyFiltered": "Aucune unité ne correspond à cette recherche. Essayez d’autres mots."
   },
   "parties": {
     "add": {

@@ -31,6 +31,11 @@ function detail(user = JOSEPH, { permissions = ADMIN } = {}) {
     permissions,
     extra: {
       [`users/${user.id}`]: () => ({ data: current }),
+      // RBAC-04: the roles list is its own server list.
+      [`users/${user.id}/assignments?per_page=25&page=1`]: () => ({
+        data: current.roles ?? [],
+        meta: { last_page: 1, total: current.roles?.length ?? 0, from: 1, to: current.roles?.length ?? 0 },
+      }),
       'roles?per_page=200': { data: ROLES },
       'companies?per_page=200': { data: [] },
       'branches?per_page=200': { data: [] },
@@ -54,10 +59,18 @@ describe('UserDetail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Joseph Mwangi' })).toBeInTheDocument()
     expect(screen.getByText('joseph@example.com')).toBeInTheDocument()
-    const row = screen.getByText('Cashier').closest('tr')
+    const row = (await screen.findByText('Cashier')).closest('tr')
     expect(within(row).getByText('Front till')).toBeInTheDocument()
     expect(within(row).getByText('by Amina Otieno')).toBeInTheDocument()
     expect(within(row).getByText('7 Oct 2026')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–1 of 1')).toBeInTheDocument()
+    // Who gave the role can be its own column (export key granted_by); hidden by default.
+    expect(screen.queryByRole('columnheader', { name: 'Given by' })).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Given by' }))
+    expect(screen.getByRole('columnheader', { name: 'Given by', hidden: true })).toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
 
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: 'Joseph K. Mwangi' } })
     chooseOption(screen.getByLabelText(/Language/), 'Français')

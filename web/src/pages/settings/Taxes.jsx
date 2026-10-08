@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -22,7 +22,10 @@ export default function Taxes() {
     { value: 'categories', label: t('taxes.tabs.categories') },
     ...(can(['core.price_list.view', 'core.price_list.edit']) ? [{ value: 'priceLists', label: t('taxes.tabs.priceLists') }] : []),
   ]
-  const [tab, setTab] = useState('codes')
+  // The tab lives in the URL; changing it clears the list's search, sort and page (each tab is its own list).
+  const [params, setParams] = useSearchParams()
+  const tab = tabs.some((entry) => entry.value === params.get('tab')) ? params.get('tab') : 'codes'
+  const setTab = (next) => setParams(next === 'codes' ? {} : { tab: next }, { replace: true })
 
   return (
     <>

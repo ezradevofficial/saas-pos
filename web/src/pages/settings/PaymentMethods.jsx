@@ -5,10 +5,11 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Dialog, StatusBadge, Switch, TextField } from '@/components/ds'
+import { Alert, Button, Card, Dialog, ExportMenu, StatusBadge, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
+import { useListExport } from '@/lib/useServerList'
 import { companyScope, useSettingsCompany } from './finance/useSettingsCompany'
 
 const TYPES = ['cash', 'mobile_money', 'card', 'credit', 'voucher', 'points', 'bank_transfer']
@@ -280,6 +281,8 @@ export default function PaymentMethods() {
   const [rowError, setRowError] = useState(null) // { id, message }
   const [focus, setFocus] = useState(null) // { id, step }: the row just moved
   const [announcement, setAnnouncement] = useState('')
+  // Cards by type in till order (moved with buttons) stay as they are; the list exports (EXP-01).
+  const exporter = useListExport({ id: 'payment-methods', endpoint: `companies/${company?.id}/payment-methods` })
 
   const methods = useQuery({
     queryKey: methodsKey(company?.id),
@@ -336,7 +339,11 @@ export default function PaymentMethods() {
 
   return (
     <>
-      <PageHeader title={t('settings.paymentMethods.title')} description={t('settings.paymentMethods.description')} />
+      <PageHeader
+        title={t('settings.paymentMethods.title')}
+        description={t('settings.paymentMethods.description')}
+        actions={company ? <ExportMenu onExport={(format) => exporter.exportTo(format)} exporting={exporter.exporting} /> : null}
+      />
       {picker}
       {!ready || (company && methods.isPending) ? <p className="text-ink-muted">{t('common.loading')}</p> : null}
       {ready && !company ? <Alert tone="info" title={t('finance.company.none')} /> : null}
