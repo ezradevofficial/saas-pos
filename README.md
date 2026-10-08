@@ -82,7 +82,7 @@ cp pos/.env.example pos/.env
 | POS web preview (Playwright checks) | `npm run web -w pos` | 3009 |
 | POS on a device or simulator (Expo) | `npm run dev:pos`, then `a` (Android) or `i` (iOS) | |
 
-Mail and SMS use the `log` driver locally (SMS falls back to the log only in `local` and `testing`). Verification codes appear in `api/storage/logs/laravel.log`. Outside `local` and `testing` these drivers are refused at boot (see the pre-deploy checklist).
+Mail and SMS use the `log` driver locally (SMS falls back to the log only in `local` and `testing`). Verification codes appear in `api/storage/logs/laravel.log`. Outside `local` and `testing` these drivers are refused by every request, queue worker and the scheduler (see the pre-deploy checklist).
 
 ## Tests
 
@@ -168,7 +168,11 @@ Prepare each host once:
 
 ### Pre-deploy checklist
 
-Outside `local` and `testing`, the API refuses to boot with development drivers (`App\Core\Support\EnvironmentGuard`). The deploy's `composer install` fails with the list of problems. Before the first deploy of an environment, set in `<path>/api/.env`:
+Outside `local` and `testing`, the API refuses to serve with development drivers (`App\Core\Support\EnvironmentGuard`, NFR-06): every HTTP request, a queue worker's first loop, and `schedule:run`, `schedule:work`, `queue:work` and `queue:listen` fail with the list of problems. Bootstrap and deploy commands (`composer install`'s `package:discover`, `config:*`, `optimize*`, `down`, `up`) never check, so a host with a bad config can always be repaired.
+
+`php artisan app:preflight` prints every check (mail transport, SMS driver, cache store, queue connection, `APP_KEY`, `APP_DEBUG`, and that the runtime database role is neither superuser nor BYPASSRLS and the owner is not a superuser) and exits 1 when one fails. The deploy runs it before migrating. Run it on the host after editing `.env`.
+
+Before the first deploy of an environment, set in `<path>/api/.env`:
 
 - [ ] `APP_ENV` (e.g. `dev`, `staging`, `production`), `APP_KEY`, `APP_DEBUG=false`, `APP_URL`
 - [ ] `MAIL_MAILER` a real mailer (`smtp`, `ses`, `postmark`, `resend`), never `log` or `array`, with its credentials and `MAIL_FROM_ADDRESS`
@@ -181,12 +185,26 @@ Outside `local` and `testing`, the API refuses to boot with development drivers 
 Each deploy:
 
 1. builds the web app
-2. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
-3. runs `composer install --no-dev`, then `php artisan config:clear`
-4. runs `php artisan migrate --database=pgsql_owner --force`
-5. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles (ADR 006)
-6. caches config and routes
-7. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+2. puts the API in maintenance (`php artisan down --retry=60`, with the release already on the host; skipped on a first deploy). Requests get 503 until the last step.
+3. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
+4. deletes the previous release's `bootstrap/cache/config.php` and `routes-*.php`, so nothing boots with them
+5. runs `composer install --no-dev`, then `php artisan config:clear`
+6. runs `php artisan app:preflight`; the deploy stops here if a check fails
+7. runs `php artisan migrate --database=pgsql_owner --force`
+8. runs `php artisan permissions:sync` (as the owner): upserts the permission catalogue and refreshes every tenant's system roles, each on the runtime connection under row-level security (ADR 006)
+9. caches config and routes
+10. restarts the workers: `horizon:terminate` when Horizon is installed, `queue:restart` otherwise
+11. `php artisan up`, only when every step above succeeded
+
+#### If a deploy stops
+
+A failed step (most often `app:preflight` or a migration) leaves the API in maintenance: it answers 503, never new code against an old schema. `/up` (the health route) is never in maintenance; when drivers are wrong it still reports the guard's error. To recover:
+
+1. Read the failed step's log in the Actions run (preflight prints every check).
+2. Fix the cause on the host, usually `<path>/api/.env`, and check it with `php artisan app:preflight`.
+3. Re-run the workflow. Or, on the host, run the remaining steps above in order, then `php artisan up`.
+
+Only requests, queue workers and the scheduler run the environment guard. Every other artisan command works on a misconfigured host.
 
 ## Architecture decisions
 

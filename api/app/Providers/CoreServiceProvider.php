@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Console\VerifyAuditChain;
+use App\Core\Support\Console\Preflight;
 use App\Core\Support\EnvironmentGuard;
 use App\Core\Tenancy\Rls;
 use App\Core\Tenancy\TenantContext;
@@ -36,11 +37,13 @@ class CoreServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // No log mailer, log SMS, or non-Redis cache or queue outside local and testing.
-        EnvironmentGuard::enforce($this->app);
-
+        // NFR-06: no log mailer, log SMS, or non-Redis cache or queue outside
+        // local and testing. Checked at the runtime entry points (requests via
+        // EnforceEnvironment, workers, the scheduler), never at boot, so
+        // `package:discover` and `config:clear` work with a stale config cache.
         if ($this->app->runningInConsole()) {
-            $this->commands([VerifyAuditChain::class]);
+            EnvironmentGuard::listen($this->app, $this->app->make('events'));
+            $this->commands([VerifyAuditChain::class, Preflight::class]);
         }
 
         // TEN-05: public device pairing, 10 attempts a minute per IP and 300

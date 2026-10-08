@@ -24,7 +24,8 @@ use Spatie\Permission\PermissionRegistrar;
  * (RBAC-03), so a permission added to the catalogue reaches the Owner,
  * Admin and every other template whose patterns match it. Tenant ids are
  * listed as the owner; each refresh runs on the runtime connection inside
- * that tenant's context (row-level security applies), is audited as
+ * that tenant's context (row-level security applies, whatever the default
+ * connection, e.g. when seeding as the owner), is audited as
  * `rbac.role.permissions_update` with no actor, and flushes that tenant's
  * permission cache once committed. Custom roles are never touched.
  */
@@ -89,12 +90,23 @@ class SyncPermissions extends Command
 
         $ids = DB::connection(self::OWNER_CONNECTION)->table('tenants')->orderBy('id')->pluck('id');
 
-        foreach ($ids as $tenantId) {
-            $tenants->run($tenantId, function () use ($templates, $registrar) {
-                $templates->refresh();
-                // Committed by now: drop this tenant's cache key.
-                $registrar->forgetCachedPermissions();
-            });
+        // A seeder run with `--database=pgsql_owner` (composer migrate:fresh)
+        // makes the owner, which bypasses row-level security, the default
+        // connection. Models without an explicit connection (roles, their
+        // permissions, audit entries) must stay on the runtime role.
+        $previous = DB::getDefaultConnection();
+        DB::setDefaultConnection(TenantContext::CONNECTION);
+
+        try {
+            foreach ($ids as $tenantId) {
+                $tenants->run($tenantId, function () use ($templates, $registrar) {
+                    $templates->refresh();
+                    // Committed by now: drop this tenant's cache key.
+                    $registrar->forgetCachedPermissions();
+                });
+            }
+        } finally {
+            DB::setDefaultConnection($previous);
         }
 
         return $ids->count();
