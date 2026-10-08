@@ -14,6 +14,7 @@ use App\Core\Workflow\Conditions\ConditionResult;
 use App\Core\Workflow\Definitions\FlowDefinitions;
 use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
+use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -29,6 +30,7 @@ use App\Core\Workflow\Models\DocumentWorkflowLink;
 use App\Core\Workflow\Models\DocumentWorkflowToken;
 use App\Core\Workflow\Models\WorkflowVersion;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -85,6 +87,16 @@ class WorkflowEngine
         $documentType = $this->types->find($type) ?? throw new ApiException(422, 'unknown_document_type', __('workflow.errors.unknown_document_type'));
         $scope = $documentType->scope($documentId) ?? throw new ApiException(404, 'not_found', __('core.errors.not_found'));
 
+        try {
+            return $this->startIn($documentType, $documentId, $scope, $by);
+        } catch (UniqueConstraintViolationException) {
+            // Another request started this document's flow at the same moment.
+            throw new ApiException(422, 'workflow_running', __('workflow.errors.workflow_running'));
+        }
+    }
+
+    private function startIn(DocumentType $documentType, string $documentId, DocumentScope $scope, ?User $by): DocumentWorkflow
+    {
         return $this->transaction(function () use ($documentType, $documentId, $scope, $by) {
             if ($this->running($documentType->key(), $documentId, lock: true) !== null) {
                 throw new ApiException(422, 'workflow_running', __('workflow.errors.workflow_running'));
@@ -187,44 +199,66 @@ class WorkflowEngine
         });
     }
 
-    /** WF-11: send the document back to a stage it passed, with a reason. */
+    /**
+     * WF-11: send the document back to a stage it passed, with a reason.
+     *
+     * Only the positions of the branch the target is in are closed (every
+     * open position when the target is outside any parallel step): a
+     * sibling branch waiting at its join stays. The returner needs the exit
+     * rights of every active position closed, or the type's act permission,
+     * so one branch's holder cannot pull back another branch's work.
+     */
     public function returnTo(DocumentWorkflow $workflow, User $by, string $nodeId, string $reason): DocumentWorkflow
     {
         return $this->transaction(function () use ($workflow, $by, $nodeId, $reason) {
             $run = $this->open($workflow, $by, checkEnter: false);
-            $active = $this->tokens($run, [DocumentWorkflowToken::ACTIVE]);
             $target = $run->flow->node($nodeId);
 
             $passed = $target !== null && in_array($target['type'], FlowGraph::HOLDING, true)
                 ? DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->where('node_id', $nodeId)
-                    ->whereIn('status', [DocumentWorkflowToken::DONE])->latest('entered_at')->first()
+                    ->where('status', DocumentWorkflowToken::DONE)->latest('entered_at')->first()
                 : null;
 
-            $earlier = $passed !== null && $active->isNotEmpty() && $active->every(
-                fn (DocumentWorkflowToken $t) => in_array($t->node_id, $run->flow->reachableFrom($nodeId), true),
-            );
-
-            if (! $earlier) {
+            if ($passed === null) {
                 throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
             }
 
-            if ($passed->groups !== [] && ($active->count() > 1 || $active->first()->groups !== $passed->groups)) {
-                throw new ApiException(422, 'return_inside_parallel', __('workflow.errors.return_inside_parallel'));
+            $branch = $passed->groups ?? [];
+            $affected = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING])
+                ->filter(fn (DocumentWorkflowToken $t) => array_slice($t->groups ?? [], 0, count($branch)) === $branch)
+                ->values();
+            $active = $affected->where('status', DocumentWorkflowToken::ACTIVE)->values();
+            $later = $run->flow->reachableFrom($nodeId);
+
+            if ($affected->isEmpty()) {
+                // The branch already joined: nothing of it is open any more.
+                $code = $branch === [] ? 'return_target' : 'return_inside_parallel';
+
+                throw new ApiException(422, $code, __('workflow.errors.'.$code));
             }
 
-            if (! $active->contains(fn (DocumentWorkflowToken $t) => $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type))) {
-                throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($active->first()->node_id)]), [], $active->first()->node_id, 403);
+            if (! $affected->every(fn (DocumentWorkflowToken $t) => in_array($t->node_id, $later, true))) {
+                throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
+            }
+
+            $mayAct = $by->can($run->type->actPermission(), $run->scope->scope());
+            $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
+                fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
+            ));
+
+            if ($refused !== null) {
+                throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($refused->node_id)]), [], $refused->node_id, 403);
             }
 
             $from = [];
 
-            foreach ($this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]) as $token) {
+            foreach ($affected as $token) {
                 $from[] = $token->node_id;
                 $this->leave($run, $token, DocumentWorkflowToken::CANCELLED, 'returned', null, $reason);
             }
 
             $this->event($run, 'returned', $nodeId, ['from' => $from], $reason);
-            $this->hold($run, $nodeId, $passed->groups);
+            $this->hold($run, $nodeId, $branch);
             $this->settle($run);
             $this->auditor->record('core.workflow.return', $run->workflow, ['nodes' => $from], ['node' => $nodeId, 'reason' => $reason]);
 
@@ -258,9 +292,20 @@ class WorkflowEngine
             }
 
             $cancelled = [];
+            $kept = [];
 
             foreach (DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->where('on_cancel', 'cancel')->whereNull('cancelled_at')->get() as $link) {
-                $this->types->get($link->target_type)->cancelDocument($link->target_document_id, $reason, $by);
+                $target = $this->types->find($link->target_type);
+
+                // The target's module is no longer active: its document cannot be
+                // reached; the flow is still cancelled and the history says so.
+                if ($target === null) {
+                    $kept[] = ['type' => $link->target_type, 'document_id' => $link->target_document_id, 'reason' => 'module_inactive'];
+
+                    continue;
+                }
+
+                $target->cancelDocument($link->target_document_id, $reason, $by);
                 $link->forceFill(['cancelled_at' => CarbonImmutable::now()])->save();
                 $cancelled[] = ['type' => $link->target_type, 'document_id' => $link->target_document_id];
             }
@@ -272,7 +317,7 @@ class WorkflowEngine
                 'cancel_reason' => $reason,
             ])->save();
 
-            $this->event($run, 'cancelled', null, ['cancelled_documents' => $cancelled], $reason);
+            $this->event($run, 'cancelled', null, ['cancelled_documents' => $cancelled, 'not_cancelled_documents' => $kept], $reason);
             WorkflowCancelled::dispatch($workflow->tenant_id, $workflow->id, $workflow->document_type, $workflow->document_id, $reason, $by?->id);
             $this->auditor->record('core.workflow.cancel', $run->workflow, ['status' => DocumentWorkflow::RUNNING], [
                 'status' => DocumentWorkflow::CANCELLED, 'reason' => $reason, 'cancelled_documents' => $cancelled,
@@ -401,7 +446,7 @@ class WorkflowEngine
                         throw new WorkflowBlocked('entry_blocked', __('workflow.errors.entry_blocked', ['stage' => $run->flow->name($nodeId)]), $this->reasons($run, $result), $nodeId);
                     }
 
-                    $this->event($run, 'skipped', $nodeId, ['condition' => $result->toArray()]);
+                    $this->event($run, 'skipped', $nodeId, ['condition' => $result->outline()]);
                     $this->enter($run, $run->flow->next($nodeId, $node['type'] === 'approval' ? 'approved' : null), $groups);
 
                     return;
@@ -426,8 +471,9 @@ class WorkflowEngine
                 $group = (string) Str::uuid7();
                 $this->event($run, 'split', $nodeId, ['group' => $group]);
 
-                foreach ($run->flow->outgoing($nodeId) as $edge) {
-                    $this->enter($run, $edge['to'], [...$groups, $group]);
+                // Each branch is "{group}#{n}", so a branch's positions can be told from its siblings'.
+                foreach ($run->flow->outgoing($nodeId) as $i => $edge) {
+                    $this->enter($run, $edge['to'], [...$groups, $group.'#'.$i]);
                 }
 
                 return;
@@ -438,7 +484,8 @@ class WorkflowEngine
                 return;
 
             case 'action':
-                $handler = $this->actions->find((string) $node['action']);
+                $handler = $this->actions->find((string) $node['action'])
+                    ?? throw new WorkflowBlocked('action_unavailable', __('workflow.errors.action_unavailable', ['stage' => $run->flow->name($nodeId)]), [], $nodeId);
                 $result = $handler->run(new ActionContext($run->workflow, $node, $run->type, $run->scope, $run->values(), $run->user));
                 $this->event($run, 'action', $nodeId, ['action' => $node['action'], 'result' => $result]);
                 $this->enter($run, $run->flow->next($nodeId), $groups);
@@ -538,11 +585,13 @@ class WorkflowEngine
     /** WF-06: arrive at a join; continue when the branches it waits for are in. */
     private function join(Run $run, string $nodeId, array $node, array $groups): void
     {
-        $group = end($groups);
+        $branch = end($groups);
 
-        if ($group === false) {
+        if ($branch === false) {
             return;
         }
+
+        $group = Run::groupOf($branch);
 
         $outer = array_slice($groups, 0, -1);
 
@@ -557,7 +606,7 @@ class WorkflowEngine
 
         $arrived = DocumentWorkflowToken::query()->where('workflow_id', $run->workflow->id)->where('node_id', $nodeId)
             ->where('status', DocumentWorkflowToken::WAITING)->get()
-            ->filter(fn (DocumentWorkflowToken $t) => last($t->groups ?? []) === $group);
+            ->filter(fn (DocumentWorkflowToken $t) => Run::groupOf((string) last($t->groups ?? [])) === $group);
         $branches = count($run->flow->outgoing((string) $node['split']));
         $mode = $node['mode'] ?? 'all';
 
@@ -574,7 +623,7 @@ class WorkflowEngine
             $run->closedGroups[$group] = true;
 
             foreach ($this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]) as $token) {
-                if (in_array($group, $token->groups ?? [], true)) {
+                if (in_array($group, array_map(Run::groupOf(...), $token->groups ?? []), true)) {
                     $this->leave($run, $token, DocumentWorkflowToken::CANCELLED, 'joined');
                 }
             }
@@ -598,7 +647,7 @@ class WorkflowEngine
 
             foreach ($node['branches'] as $branch) {
                 $result = $this->evaluate($run, $branch['condition'] ?? null);
-                $results[] = ['branch' => $branch['key'], ...$result->toArray()];
+                $results[] = ['branch' => $branch['key'], ...$result->outline()];
 
                 if ($result->passed) {
                     return [$branch['key'], $results];
@@ -610,7 +659,7 @@ class WorkflowEngine
 
         $result = $this->evaluate($run, $node['condition'] ?? null);
 
-        return [$result->passed ? 'yes' : 'no', [['branch' => $result->passed ? 'yes' : 'no', ...$result->toArray()]]];
+        return [$result->passed ? 'yes' : 'no', [['branch' => $result->passed ? 'yes' : 'no', ...$result->outline()]]];
     }
 
     /** After an operation: a flow with nobody left at any stage is complete. */
@@ -683,13 +732,23 @@ class WorkflowEngine
 
     private function evaluate(Run $run, mixed $condition): ConditionResult
     {
-        return $this->conditions->evaluate(is_array($condition) ? $condition : null, is_array($condition) && $condition !== [] ? $run->values() : [], $run->type->fieldsByName());
+        return $this->conditions->evaluate(
+            is_array($condition) ? $condition : null,
+            is_array($condition) && $condition !== [] ? $run->values() : [],
+            $run->type->fieldsByName(),
+            $this->timezone($run),
+        );
     }
 
     /** @return list<string> */
     private function reasons(Run $run, ConditionResult $result): array
     {
-        return $this->describer->reasons($result, $run->type->fieldsByName());
+        return $this->describer->reasons($result, $run->type->fieldsByName(), $this->timezone($run));
+    }
+
+    private function timezone(Run $run): string
+    {
+        return $run->timezone ??= $this->calendar->forCompany($run->scope->companyId)->timezone;
     }
 
     private function step(Run $run, DocumentWorkflowToken $token): ApprovalStep

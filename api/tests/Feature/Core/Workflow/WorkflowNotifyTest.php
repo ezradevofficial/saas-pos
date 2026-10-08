@@ -7,6 +7,7 @@ use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Definitions\GraphValidator;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Runtime\WorkflowBlocked;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\BuildsWorkflows;
@@ -50,8 +51,10 @@ class WorkflowNotifyTest extends TestCase
         $buyerA = $this->userWith('procurement_officer', Scope::branch($this->branchA->id));
         $buyerCompany = $this->userWith('procurement_officer', Scope::company($this->acme->id));
         $buyerB = $this->userWith('procurement_officer', Scope::branch($this->branchB->id));
-        $named = $this->userWith('cashier', Scope::location($this->locationB->id));
-        $this->publishFlow($this->graph(['to' => ['role:procurement_officer', "user:{$named->id}"], 'message' => 'Order the chairs.']));
+        $named = $this->userWith('accountant', Scope::branch($this->branchA->id));
+        // Named, but cannot see a document of branch A: skipped, and the history says so.
+        $blind = $this->userWith('cashier', Scope::location($this->locationB->id));
+        $this->publishFlow($this->graph(['to' => ['role:procurement_officer', "user:{$named->id}", "user:{$blind->id}"], 'message' => 'Order the chairs.']));
 
         $id = $this->document();
         $workflow = $this->start($id);
@@ -59,10 +62,16 @@ class WorkflowNotifyTest extends TestCase
 
         $this->inTenant(fn () => $this->engine()->move($workflow, $this->owner));
 
-        $this->inTenant(function () use ($buyerA, $buyerCompany, $buyerB, $named, $id) {
+        $this->inTenant(function () use ($buyerA, $buyerCompany, $buyerB, $named, $blind, $id, $workflow) {
             $sent = InAppNotification::query()->where('event_type', 'core.workflow.notify')->get();
             $this->assertEqualsCanonicalizing([$buyerA->id, $buyerCompany->id, $named->id], $sent->pluck('user_id')->all());
             $this->assertNotContains($buyerB->id, $sent->pluck('user_id')->all());
+
+            $notified = DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->where('type', 'notified')->sole();
+            $this->assertSame('tell', $notified->node_id);
+            $this->assertEqualsCanonicalizing([$buyerA->id, $buyerCompany->id, $named->id], $notified->data['sent']);
+            $this->assertSame([$blind->id], $notified->data['skipped']);
+            $this->assertSame('cannot_see_document', $notified->data['skipped_reason']);
 
             $mine = $sent->firstWhere('user_id', $buyerA->id);
             $this->assertSame('Workflows: Tell procurement', $mine->subject);

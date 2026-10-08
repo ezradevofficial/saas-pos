@@ -116,6 +116,16 @@ class DocumentWorkflowApiTest extends TestCase
             ->assertJsonPath('message', 'You can’t move documents out of “Review”. Ask someone with a role allowed on that stage.');
         $this->postJson($this->workflowUrl($id, '/cancel'), ['reason' => 'No'], $this->headersFor($managerA))->assertForbidden();
 
+        // M1 regression: designing flows (core.workflow.view) is not reading documents.
+        $designer = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Flow designer', ['core.workflow.view', 'core.workflow.edit']), Scope::tenant());
+
+            return $user;
+        });
+        $this->getJson($this->workflowUrl($id), $this->headersFor($designer))->assertNotFound();
+        $this->getJson('/api/v1/workflows', $this->headersFor($designer))->assertOk();
+
         // A company accountant may.
         $accountant = $this->userWith('accountant', Scope::company($this->acme->id));
         $this->postJson($this->workflowUrl($id, '/move'), [], $this->headersFor($accountant))->assertOk()->assertJsonPath('data.status', 'completed');

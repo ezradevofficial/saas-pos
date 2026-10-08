@@ -3,16 +3,21 @@
 namespace Tests\Feature\Core\Workflow;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Definitions\FlowDefinitions;
+use App\Core\Workflow\Definitions\GraphValidator;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
 use App\Core\Workflow\Events\WorkflowNotificationRequested;
 use App\Core\Workflow\Events\WorkflowStageEntered;
 use App\Core\Workflow\Events\WorkflowStageLeft;
+use App\Core\Workflow\Handlers\ActionHandlers;
 use App\Core\Workflow\Handlers\ApprovalHandler;
 use App\Core\Workflow\Handlers\ApprovalStep;
 use App\Core\Workflow\Models\DocumentWorkflow;
@@ -20,11 +25,13 @@ use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Models\DocumentWorkflowLink;
 use App\Core\Workflow\Models\DocumentWorkflowToken;
 use App\Core\Workflow\Models\WorkflowDefinition;
+use App\Core\Workflow\Models\WorkflowVersion;
 use App\Core\Workflow\Runtime\WorkflowBlocked;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Event;
 use Tests\Concerns\BuildsWorkflows;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\Workflow\ExtOrderType;
 use Tests\Support\Workflow\Graphs;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
@@ -355,19 +362,87 @@ class WorkflowRuntimeTest extends TestCase
         $this->assertSame(['review'], $this->at($this->move($workflow)));
     }
 
-    public function test_return_into_one_parallel_branch_is_refused_but_before_the_split_is_allowed(): void
+    /** start → prepare → split → (it → it_check, payroll) → join(all) → close → end, stage options merged per id. */
+    private function twoStepBranch(array $options = []): array
+    {
+        $graph = Graphs::parallel('all');
+        $graph['nodes'][] = ['id' => 'it_check', 'type' => 'stage', 'name' => 'IT check'];
+        $graph['edges'] = array_values(array_filter($graph['edges'], fn ($e) => $e['from'] !== 'it'));
+        $graph['edges'][] = ['from' => 'it', 'to' => 'it_check'];
+        $graph['edges'][] = ['from' => 'it_check', 'to' => 'join'];
+
+        foreach ($graph['nodes'] as $i => $node) {
+            $graph['nodes'][$i] = [...$node, ...($options[$node['id']] ?? [])];
+        }
+
+        return $graph;
+    }
+
+    public function test_returning_inside_a_branch_keeps_the_sibling_branch_waiting_at_the_join(): void
+    {
+        // H1 regression: the sibling's waiting join position used to be cancelled, so the join never fired.
+        $this->publishFlow($this->twoStepBranch());
+        $workflow = $this->move($this->start($this->document()));
+        $workflow = $this->move($workflow, 'payroll');
+        $workflow = $this->move($workflow, 'it');
+        $this->assertSame(['it_check'], $this->at($workflow));
+
+        $workflow = $this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'it', 'Wrong laptop'));
+        $this->assertSame(['it'], $this->at($workflow));
+        $waiting = $this->inTenant(fn () => DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->where('status', 'waiting')->pluck('node_id')->all());
+        $this->assertSame(['join'], $waiting, 'payroll is still waiting at the join');
+
+        $workflow = $this->move($this->move($workflow, 'it'), 'it_check');
+        $this->assertSame(['close'], $this->at($workflow));
+        $this->assertSame(DocumentWorkflow::COMPLETED, $this->move($workflow)->status);
+    }
+
+    public function test_a_branch_that_reached_its_join_can_be_returned_into(): void
     {
         $this->publishFlow(Graphs::parallel('all'));
         $workflow = $this->move($this->start($this->document()));
         $workflow = $this->move($workflow, 'it');
 
-        $this->assertSame('return_target', $this->refused(fn () => $this->engine()->returnTo($workflow, $this->owner, 'it', 'Redo'))->errorCode);
+        // "it" is done and waits at the join; payroll is untouched.
+        $workflow = $this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'it', 'Redo'));
+        $this->assertSame(['it', 'payroll'], $this->at($workflow));
+        $this->assertSame(0, $this->inTenant(fn () => DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->where('status', 'waiting')->count()));
+
+        $workflow = $this->move($this->move($workflow, 'it'), 'payroll');
+        $this->assertSame(['close'], $this->at($workflow));
+
+        // After the join a branch can no longer be returned into.
+        $this->assertSame('return_inside_parallel', $this->refused(fn () => $this->engine()->returnTo($workflow, $this->owner, 'it', 'Again'))->errorCode);
+    }
+
+    public function test_returning_before_a_split_closes_every_branch_and_needs_rights_on_each(): void
+    {
+        $this->publishFlow(Graphs::parallel('all'));
+        $workflow = $this->move($this->start($this->document()));
+        $workflow = $this->move($workflow, 'it');
 
         $workflow = $this->inTenant(fn () => $this->engine()->returnTo($workflow, $this->owner, 'prepare', 'Start over'));
         $this->assertSame(['prepare'], $this->at($workflow));
         $this->assertSame(0, $this->inTenant(fn () => DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->whereIn('status', ['active', 'waiting'])->where('node_id', '<>', 'prepare')->count()));
-
         $this->assertSame(['it', 'payroll'], $this->at($this->move($workflow)));
+
+        // H1: one branch's holder cannot pull back the other branch's work.
+        $this->publishFlow($this->twoStepBranch([
+            'prepare' => ['exit_roles' => ['template:branch_manager', 'template:owner']],
+            'it' => ['enter_roles' => ['template:branch_manager'], 'exit_roles' => ['template:branch_manager']],
+            'payroll' => ['enter_roles' => ['template:branch_manager'], 'exit_roles' => ['template:hr_officer']],
+        ]));
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $hr = $this->userWith('hr_officer', Scope::company($this->acme->id));
+        $second = $this->move($this->start($this->document()), by: $manager);
+        $this->assertSame(['it', 'payroll'], $this->at($second));
+
+        $refused = $this->blocked(fn () => $this->engine()->returnTo($second, $manager, 'prepare', 'Mine'));
+        $this->assertSame([403, 'stage_forbidden', 'payroll'], [$refused->getStatusCode(), $refused->errorCode, $refused->node]);
+        $this->assertSame('stage_forbidden', $this->blocked(fn () => $this->engine()->returnTo($second, $hr, 'prepare', 'Mine'))->errorCode);
+
+        // The type's act permission (the owner) may.
+        $this->assertSame(['prepare'], $this->at($this->inTenant(fn () => $this->engine()->returnTo($second, $this->owner, 'prepare', 'Redo all'))));
     }
 
     public function test_cancel_keeps_or_cancels_the_documents_the_flow_created(): void
@@ -566,5 +641,129 @@ class WorkflowRuntimeTest extends TestCase
             $this->assertSame(0, WorkflowDefinition::query()->count());
             $this->assertNull(app(FlowDefinitions::class)->publishedFor(TestRequestType::KEY, null));
         });
+    }
+
+    public function test_history_records_which_rules_ran_but_never_the_documents_values(): void
+    {
+        // M1 regression: condition events used to store the compared values.
+        $this->publishFlow(Graphs::requisition());
+        $workflow = $this->start($this->document(['total' => Graphs::kes(31234500), 'budget' => Graphs::kes(98765400), 'note' => 'secret-note']));
+        $workflow = $this->move($this->move($workflow), outcome: 'approved');
+
+        $data = $this->inTenant(fn () => DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->where('type', 'condition')->sole()->data);
+        $this->assertSame('yes', $data['branch']);
+        $this->assertEquals([['field' => 'total', 'op' => 'gt', 'passed' => true, 'problem' => null]], $data['results'][0]['checks']);
+
+        $all = json_encode($this->inTenant(fn () => DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->pluck('data')->all()));
+        $this->assertStringNotContainsString('31234500', $all);
+        $this->assertStringNotContainsString('98765400', $all);
+    }
+
+    public function test_cancel_records_created_documents_whose_module_was_switched_off(): void
+    {
+        // M3 regression: cancel used to fail with a 500 when the target type was gone.
+        app(ModuleRegistry::class)->register(ExtOrderType::MODULE);
+        app(DocumentTypeRegistry::class)->register(ExtOrderType::class);
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate(ExtOrderType::MODULE));
+
+        $graph = Graphs::linear(['review']);
+        $graph['nodes'][] = ['id' => 'order', 'type' => 'action', 'name' => 'Order', 'action' => 'create_document', 'config' => ['mapping' => 'ext_order', 'on_cancel' => 'cancel']];
+        $graph['edges'][0] = ['from' => 'start', 'to' => 'order'];
+        $graph['edges'][] = ['from' => 'order', 'to' => 'review'];
+        $this->publishFlow($graph);
+        $workflow = $this->start($this->document(['total' => Graphs::kes(100)]));
+        $this->assertSame(1, $this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->count()));
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate(ExtOrderType::MODULE));
+        $workflow = $this->inTenant(fn () => $this->engine()->cancel($workflow, $this->owner, 'Not needed'));
+
+        $this->assertSame(DocumentWorkflow::CANCELLED, $workflow->status);
+        $event = $this->inTenant(fn () => DocumentWorkflowEvent::query()->where('workflow_id', $workflow->id)->where('type', 'cancelled')->sole());
+        $this->assertSame([], $event->data['cancelled_documents']);
+        $this->assertSame('module_inactive', $event->data['not_cancelled_documents'][0]['reason']);
+        $this->assertNull($this->inTenant(fn () => DocumentWorkflowLink::query()->where('workflow_id', $workflow->id)->value('cancelled_at')));
+
+        // Moving into a step that creates a document of the switched-off module: 422 with the reason.
+        $second = Graphs::linear(['review']);
+        $second['nodes'][] = ['id' => 'order', 'type' => 'action', 'name' => 'Order', 'action' => 'create_document', 'config' => ['mapping' => 'ext_order']];
+        $second['edges'][1] = ['from' => 'review', 'to' => 'order'];
+        $second['edges'][] = ['from' => 'order', 'to' => 'end'];
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate(ExtOrderType::MODULE));
+        $this->publishFlow($second);
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate(ExtOrderType::MODULE));
+        $running = $this->start($this->document(['total' => Graphs::kes(100)]));
+
+        $blocked = $this->blocked(fn () => $this->engine()->move($running, $this->owner));
+        $this->assertSame([422, 'next_document_unavailable'], [$blocked->getStatusCode(), $blocked->errorCode]);
+        $this->assertSame('The step “Order” creates a document whose module isn’t active. Ask an administrator to activate it or update the workflow.', $blocked->getMessage());
+        $this->assertSame(['review'], $this->at($running));
+    }
+
+    public function test_a_step_whose_action_is_no_longer_registered_answers_422(): void
+    {
+        $graph = Graphs::linear(['review']);
+        $graph['nodes'][] = ['id' => 'tell', 'type' => 'action', 'name' => 'Tell', 'action' => 'notify', 'config' => ['to' => ['role:accountant']]];
+        $graph['edges'][1] = ['from' => 'review', 'to' => 'tell'];
+        $graph['edges'][] = ['from' => 'tell', 'to' => 'end'];
+        $this->publishFlow($graph);
+        $workflow = $this->start($this->document());
+
+        $this->app->instance(ActionHandlers::class, new ActionHandlers($this->app));
+
+        $blocked = $this->blocked(fn () => $this->engine()->move($workflow, $this->owner));
+        $this->assertSame([422, 'action_unavailable', 'tell'], [$blocked->getStatusCode(), $blocked->errorCode, $blocked->node]);
+        $this->assertSame(['review'], $this->at($workflow));
+    }
+
+    public function test_a_concurrent_start_answers_workflow_running(): void
+    {
+        // Low: another request starts the same document between our check and our insert.
+        $this->publishFlow(Graphs::linear(['review']));
+        $id = $this->document();
+        $other = $this->start($this->document());
+
+        $this->app->bind(FlowDefinitions::class, fn ($app) => new class($app->make(DocumentTypeRegistry::class), $app->make(GraphValidator::class), $app->make(Auditor::class), $id, $other) extends FlowDefinitions
+        {
+            public function __construct($types, $validator, $auditor, private string $racing, private DocumentWorkflow $template)
+            {
+                parent::__construct($types, $validator, $auditor);
+            }
+
+            public function publishedFor(string $type, ?string $companyId): ?WorkflowVersion
+            {
+                DocumentWorkflow::create([
+                    'document_type' => $type, 'document_id' => $this->racing, 'version_id' => $this->template->version_id,
+                    'status' => DocumentWorkflow::RUNNING, 'started_at' => now(),
+                ]);
+
+                return parent::publishedFor($type, $companyId);
+            }
+        });
+
+        $refused = $this->refused(fn () => $this->engine()->start(TestRequestType::KEY, $id, $this->owner));
+        $this->assertSame([422, 'workflow_running'], [$refused->getStatusCode(), $refused->errorCode]);
+    }
+
+    public function test_holders_include_roles_at_the_documents_branch_and_company_when_the_type_names_only_a_location(): void
+    {
+        // Low: holders used to read only the ids the type gave, missing the branch and company above a location.
+        $this->publishFlow(Graphs::linear(['review'], ['review' => ['exit_roles' => ['template:accountant']]]));
+        $companyAccountant = $this->userWith('accountant', Scope::company($this->acme->id));
+        $workflow = $this->start($this->document([], new DocumentScope(null, null, $this->locationA->id)));
+
+        $status = $this->inTenant(fn () => $this->engine()->status($workflow, $this->owner));
+        $this->assertSame([$companyAccountant->id], array_column($status['current'][0]['holders']['users'], 'id'));
+    }
+
+    public function test_a_day_rule_reads_a_date_time_on_the_companys_day(): void
+    {
+        // Low: 2026-10-31T22:30Z is already 1 November in Nairobi (UTC+3).
+        $this->publishFlow(Graphs::linear(['november'], ['november' => [
+            'mandatory' => false,
+            'entry' => ['field' => 'needed_by', 'op' => 'gte', 'value' => '2026-11-01'],
+        ]]));
+
+        $this->assertSame(['november'], $this->at($this->start($this->document(['needed_by' => '2026-10-31T22:30:00Z']))));
+        $this->assertSame([], $this->at($this->start($this->document(['needed_by' => '2026-10-31T20:30:00Z']))));
     }
 }

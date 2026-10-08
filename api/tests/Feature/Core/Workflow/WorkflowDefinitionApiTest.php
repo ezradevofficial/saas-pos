@@ -3,14 +3,17 @@
 namespace Tests\Feature\Core\Workflow;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Company;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Models\WorkflowDefinition;
 use App\Core\Workflow\Models\WorkflowVersion;
 use Illuminate\Database\QueryException;
 use Tests\Concerns\BuildsWorkflows;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\Workflow\ExtOrderType;
 use Tests\Support\Workflow\Graphs;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
@@ -54,7 +57,7 @@ class WorkflowDefinitionApiTest extends TestCase
         $this->assertContains('gt', $total['operators']);
         $this->assertNotContains('contains', $total['operators']);
         $this->assertSame(['goods', 'services', 'travel'], collect($type['fields'])->firstWhere('name', 'category')['values']);
-        $this->assertSame(['order'], array_column($type['next_documents'], 'key'));
+        $this->assertSame(['order', 'ext_order'], array_column($type['next_documents'], 'key'));
         $this->assertSame(['create_document', 'notify'], $response->json('meta.action_handlers'));
 
         // Without any workflow permission.
@@ -317,6 +320,23 @@ class WorkflowDefinitionApiTest extends TestCase
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->getJson('/api/v1/workflows', $this->headersFor($cashier))->assertForbidden();
         $this->getJson("/api/v1/workflows/{$acmeFlow['id']}", $this->headersFor($cashier))->assertNotFound();
+    }
+
+    public function test_flows_of_a_type_whose_module_is_switched_off_are_not_found(): void
+    {
+        // M3 regression: such flows used to answer 500.
+        app(ModuleRegistry::class)->register(ExtOrderType::MODULE);
+        app(DocumentTypeRegistry::class)->register(ExtOrderType::class);
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate(ExtOrderType::MODULE));
+
+        $flow = $this->postJson('/api/v1/workflows', ['document_type' => ExtOrderType::KEY], $this->headersFor())->assertCreated()->json('data');
+        $this->getJson("/api/v1/workflows/{$flow['id']}", $this->headersFor())->assertOk();
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate(ExtOrderType::MODULE));
+        $this->getJson("/api/v1/workflows/{$flow['id']}", $this->headersFor())->assertNotFound();
+        $this->postJson("/api/v1/workflows/{$flow['id']}/restore-default", [], $this->headersFor())->assertNotFound();
+        $this->postJson("/api/v1/workflows/{$flow['id']}/validate", [], $this->headersFor())->assertNotFound();
+        $this->assertNotContains($flow['id'], array_column($this->getJson('/api/v1/workflows', $this->headersFor())->json('data'), 'id'));
     }
 
     public function test_another_tenants_flows_are_not_found(): void

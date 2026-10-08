@@ -5,6 +5,7 @@ namespace App\Core\Workflow\Handlers;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Models\DocumentWorkflowLink;
+use App\Core\Workflow\Runtime\WorkflowBlocked;
 
 /**
  * WF-07: create the next document, e.g. a draft purchase order from an
@@ -46,8 +47,15 @@ class CreateDocumentAction implements ActionHandler
     public function run(ActionContext $context): array
     {
         $config = $context->config();
-        $next = $context->type->nextDocument((string) $config['mapping']);
-        $target = $this->types->get($next->target);
+        $next = $context->type->nextDocument((string) ($config['mapping'] ?? ''));
+        $target = $next === null ? null : $this->types->find($next->target);
+
+        // The target's module was switched off (or the mapping withdrawn) after publishing.
+        if ($target === null) {
+            $step = is_string($context->node['name'] ?? null) && $context->node['name'] !== '' ? $context->node['name'] : (string) $context->node['id'];
+
+            throw new WorkflowBlocked('next_document_unavailable', __('workflow.errors.next_document_unavailable', ['stage' => $step]), [], (string) $context->node['id']);
+        }
 
         $documentId = $target->createDraft($next->map($context->values), $context->scope, $context->user);
 

@@ -20,17 +20,20 @@ class ConditionDescriber
      * @param  array<string, FieldDefinition>  $fields
      * @return list<string>
      */
-    public function reasons(ConditionResult $result, array $fields): array
+    public function reasons(ConditionResult $result, array $fields, string $timezone = 'UTC'): array
     {
-        return array_values(array_unique(array_map(fn (ConditionCheck $check) => $this->describe($check, $fields), $result->failures)));
+        return array_values(array_unique(array_map(fn (ConditionCheck $check) => $this->describe($check, $fields, $timezone), $result->failures)));
     }
 
-    /** @param array<string, FieldDefinition> $fields */
-    public function describe(ConditionCheck $check, array $fields): string
+    /**
+     * @param  array<string, FieldDefinition>  $fields
+     * @param  string  $timezone  date-times are shown in it (the document's company's)
+     */
+    public function describe(ConditionCheck $check, array $fields, string $timezone = 'UTC'): string
     {
         $field = $fields[$check->field] ?? null;
         $label = $field === null ? $check->field : __($field->label);
-        $values = new ExportValues(app()->getLocale(), 'UTC', [], $this->decimals);
+        $values = new ExportValues(app()->getLocale(), $timezone, [], $this->decimals);
 
         if ($check->problem === 'currency_mismatch') {
             return __('workflow.conditions.problems.currency_mismatch', [
@@ -68,7 +71,7 @@ class ConditionDescriber
         return match ($field->type) {
             'money' => is_array($value) ? (string) $values->money($value) : (string) json_encode($value),
             'number' => (string) ($values->decimal(is_scalar($value) ? (string) $value : null) ?? ''),
-            'date' => is_string($value) && strlen($value) === 10 ? (string) $values->date($value) : (is_string($value) ? $value : ''),
+            'date' => is_string($value) ? (string) (strlen($value) === 10 ? $values->date($value) : $values->dateTime($value)) : '',
             'boolean' => __('workflow.conditions.'.($value ? 'yes' : 'no')),
             default => is_scalar($value) ? (string) $value : (string) json_encode($value),
         };

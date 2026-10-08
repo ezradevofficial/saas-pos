@@ -54,6 +54,8 @@ class BusinessHoursApiTest extends TestCase
             ['mon' => [['17:00', '08:00']]],
             ['mon' => [['08:00', '12:00'], ['11:00', '17:00']]],
             ['mon' => [['8am', '5pm']]],
+            // M2 regression: a week with no open time.
+            ['mon' => [], 'tue' => []],
         ] as $hours) {
             $this->putJson($this->url(), ['hours' => $hours], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('hours');
         }

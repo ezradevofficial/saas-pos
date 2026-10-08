@@ -24,6 +24,9 @@ return [
     ],
 
     'errors' => [
+        'action_unavailable' => 'L’étape « :stage » lance une action qui n’est plus disponible. Demandez à un administrateur de mettre le circuit à jour.',
+        'next_document_unavailable' => 'L’étape « :stage » crée un document dont le module n’est pas activé. Demandez à un administrateur de l’activer ou de mettre le circuit à jour.',
+        'workflow_busy' => 'Quelqu’un d’autre a modifié ce circuit au même moment. Réessayez.',
         'workflow_invalid' => 'Le circuit comporte des problèmes. Corrigez les étapes indiquées, puis réessayez.',
         'workflow_exists' => 'Ce type de document a déjà un circuit pour cette société. Ouvrez-le plutôt.',
         'no_draft' => 'Il n’y a pas de brouillon à utiliser. Modifiez le circuit pour en commencer un.',
@@ -158,6 +161,7 @@ return [
         'invalid' => 'Les heures ouvrées doivent indiquer les horaires de chaque jour (mon à sun).',
         'invalid_day' => '« :day » n’est pas un jour de la semaine (mon à sun), ou compte plus de quatre plages.',
         'invalid_interval' => 'Les horaires de :day doivent être des paires d’heures comme 08:00 et 17:00, la seconde après la première.',
+        'never_open' => 'Les heures ouvrées doivent compter au moins une plage dans la semaine, sinon les délais n’arriveraient jamais à échéance.',
         'overlap' => 'Les plages de :day se chevauchent.',
     ],
 ];

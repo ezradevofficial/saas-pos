@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Where a document is in its flow (WF-06, WF-10): one row per position.
  * Active rows wait at a stage or approval; waiting rows sit at a join until
  * their parallel branches arrive; done and cancelled rows are history.
- * `groups` lists the parallel splits the position is inside, innermost
+ * `groups` lists the parallel branches ("{split group}#{branch}") the position is inside, innermost
  * last. `due_at` comes from the stage's time limit (WF-09).
  *
  * @property string $id

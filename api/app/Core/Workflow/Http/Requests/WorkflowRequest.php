@@ -2,6 +2,7 @@
 
 namespace App\Core\Workflow\Http\Requests;
 
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Models\WorkflowDefinition;
 use App\Core\Workflow\WorkflowAccess;
 use Illuminate\Foundation\Http\FormRequest;
@@ -21,6 +22,8 @@ class WorkflowRequest extends FormRequest
         $access = app(WorkflowAccess::class);
         $definition = $this->definition();
 
+        // A flow of a type whose module is not active is not found (RBAC-08).
+        abort_unless(app(DocumentTypeRegistry::class)->find($definition->document_type) !== null, 404);
         abort_unless($access->sees($this->user(), $definition), 404);
 
         return $this->action === null || $access->may($this->user(), $this->action, $definition->company_id);

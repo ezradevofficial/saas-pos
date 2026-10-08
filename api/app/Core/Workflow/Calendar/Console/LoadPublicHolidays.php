@@ -3,6 +3,7 @@
 namespace App\Core\Workflow\Calendar\Console;
 
 use App\Core\Rbac\Console\SyncPermissions;
+use App\Core\Workflow\Calendar\BusinessCalendar;
 use App\Core\Workflow\Calendar\HolidayFile;
 use App\Core\Workflow\Calendar\PublicHoliday;
 use Illuminate\Console\Command;
@@ -55,6 +56,7 @@ class LoadPublicHolidays extends Command
             }
         });
 
+        app(BusinessCalendar::class)->forgetHolidays();
         $this->components->info(sprintf('%s: %d public holidays loaded.', $code, count($file->holidays())));
 
         foreach ($file->todo() as $item) {

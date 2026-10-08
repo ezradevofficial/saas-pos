@@ -189,7 +189,7 @@ class FlowDefinitions
             throw new ApiException(422, 'same_company', __('workflow.errors.same_company'));
         }
 
-        return $this->transaction(function () use ($source, $target, $version, $by) {
+        return $this->onceMore(fn () => $this->transaction(function () use ($source, $target, $version, $by) {
             $definition = WorkflowDefinition::query()
                 ->where('document_type', $source->document_type)
                 ->where('company_id', $target?->id)
@@ -219,7 +219,7 @@ class FlowDefinitions
             ]);
 
             return $definition;
-        });
+        }));
     }
 
     /** WF-02: the type's default for the company's country becomes the draft again. */
@@ -283,7 +283,7 @@ class FlowDefinitions
 
         $companyId = $specific ? $company->id : null;
 
-        return $this->transaction(function () use ($type, $companyId, $graph) {
+        return $this->onceMore(fn () => $this->transaction(function () use ($type, $companyId, $graph) {
             $definition = WorkflowDefinition::query()->where('document_type', $type->key())->where('company_id', $companyId)->first()
                 ?? WorkflowDefinition::create(['document_type' => $type->key(), 'company_id' => $companyId]);
             $this->lock($definition);
@@ -299,7 +299,25 @@ class FlowDefinitions
             ]);
 
             return $version;
-        });
+        }));
+    }
+
+    /**
+     * Run $fn again when a concurrent request created the same flow first
+     * (a unique index refused ours; its transaction rolled back to its
+     * savepoint): the second run finds that flow. A second clash is 422.
+     */
+    private function onceMore(callable $fn): mixed
+    {
+        try {
+            return $fn();
+        } catch (UniqueConstraintViolationException) {
+            try {
+                return $fn();
+            } catch (UniqueConstraintViolationException) {
+                throw new ApiException(422, 'workflow_busy', __('workflow.errors.workflow_busy'));
+            }
+        }
     }
 
     private function assertValid(WorkflowDefinition $definition, array $graph): void

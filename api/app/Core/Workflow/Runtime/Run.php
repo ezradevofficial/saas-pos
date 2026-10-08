@@ -24,6 +24,9 @@ final class Run
     /** @var array<string, true> */
     public array $closedGroups = [];
 
+    /** The document's company time zone (conditions read days in it), once known. */
+    public ?string $timezone = null;
+
     public function __construct(
         public readonly DocumentWorkflow $workflow,
         public readonly FlowGraph $flow,
@@ -39,11 +42,17 @@ final class Run
         return $this->values ??= $this->type->fieldValues($this->workflow->document_id);
     }
 
+    /** The parallel group of a branch entry ("{group}#{branch}"). */
+    public static function groupOf(string $branch): string
+    {
+        return strstr($branch, '#', true) ?: $branch;
+    }
+
     /** @param list<string> $groups */
     public function inClosedGroup(array $groups): bool
     {
         foreach ($groups as $group) {
-            if (isset($this->closedGroups[$group])) {
+            if (isset($this->closedGroups[self::groupOf($group)])) {
                 return true;
             }
         }

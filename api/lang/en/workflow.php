@@ -24,6 +24,9 @@ return [
     ],
 
     'errors' => [
+        'action_unavailable' => 'The step “:stage” runs an action that isn’t available any more. Ask an administrator to update the workflow.',
+        'next_document_unavailable' => 'The step “:stage” creates a document whose module isn’t active. Ask an administrator to activate it or update the workflow.',
+        'workflow_busy' => 'Someone else changed this workflow at the same time. Try again.',
         'workflow_invalid' => 'The workflow has problems. Fix the steps listed, then try again.',
         'workflow_exists' => 'This document type already has a workflow for this company. Open it instead.',
         'no_draft' => 'There is no draft to use. Edit the workflow to start one.',
@@ -158,6 +161,7 @@ return [
         'invalid' => 'Working hours must list opening times per day (mon to sun).',
         'invalid_day' => '“:day” is not a day of the week (mon to sun), or has more than four periods.',
         'invalid_interval' => 'The hours of :day must be pairs of times like 08:00 and 17:00, the second later than the first.',
+        'never_open' => 'Working hours need at least one open period in the week, or time limits could never fall due.',
         'overlap' => 'The periods of :day overlap.',
     ],
 ];

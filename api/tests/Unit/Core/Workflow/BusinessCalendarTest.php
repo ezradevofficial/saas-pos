@@ -10,6 +10,8 @@ use App\Core\Workflow\Calendar\PublicHoliday;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -196,11 +198,39 @@ class BusinessCalendarTest extends TestCase
         $this->assertSame(BusinessCalendar::DEFAULT_HOURS, $this->inTenant(fn () => $this->calendar->forCompany($this->branchA->id)->hours), 'an unknown company falls back to the defaults');
     }
 
-    public function test_a_calendar_that_is_never_open_is_refused(): void
+    public function test_a_calendar_that_is_never_open_falls_back_to_elapsed_time_with_a_warning(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        // M2 regression: an all-closed week used to throw (500 on every timed stage).
+        Log::spy();
+        $closed = new CalendarSpec('UTC', ['mon' => [], 'tue' => []], null);
 
-        $this->calendar->due($this->at('2026-10-08 10:00'), 1, 'business_hours', new CalendarSpec('UTC', [], null));
+        $this->assertSame('2026-10-08T11:00:00Z', $this->calendar->due(CarbonImmutable::parse('2026-10-08T10:00:00Z'), 1, 'business_hours', $closed)->toIso8601ZuluString());
+        $this->assertSame('2026-10-10T10:00:00Z', $this->calendar->due(CarbonImmutable::parse('2026-10-08T10:00:00Z'), 2, 'business_days', $closed)->toIso8601ZuluString());
+        Log::shouldHaveReceived('warning')->twice();
+
+        // And such hours are refused when saved.
+        $this->assertSame([__('workflow.business_hours.never_open')], BusinessCalendar::problems(['mon' => [], 'sun' => []]));
+        $this->assertSame([__('workflow.business_hours.never_open')], BusinessCalendar::problems([]));
+    }
+
+    public function test_holidays_are_read_again_after_their_cache_expires_or_a_reload(): void
+    {
+        DB::enableQueryLog();
+        $reads = fn () => count(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'public_holidays')));
+        $day = $this->at('2026-10-20');
+
+        $this->assertTrue($this->calendar->isHoliday($day, 'KE'));
+        $this->assertTrue($this->calendar->isHoliday($day, 'KE'));
+        $this->assertSame(1, $reads());
+
+        CarbonImmutable::setTestNow(CarbonImmutable::now()->addSeconds(BusinessCalendar::HOLIDAY_TTL + 1));
+        $this->calendar->isHoliday($day, 'KE');
+        $this->assertSame(2, $reads());
+
+        $this->calendar->forgetHolidays();
+        $this->calendar->isHoliday($day, 'KE');
+        $this->assertSame(3, $reads());
+        CarbonImmutable::setTestNow();
     }
 
     public function test_working_hours_are_validated(): void

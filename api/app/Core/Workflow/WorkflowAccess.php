@@ -18,8 +18,9 @@ use App\Core\Workflow\Models\WorkflowDefinition;
  *   anywhere; edited with `core.workflow.edit` and published (or rolled
  *   back) with `core.workflow.publish` at the company, or at tenant scope
  *   for the flow of every company;
- * - a document's flow status is seen by people holding the type's view or
- *   act permission, or `core.workflow.view`, at the document's scope.
+ * - a document's flow status and history are seen by people holding the
+ *   type's view or act permission at the document's scope;
+ *   `core.workflow.view` is for designing flows, never for documents.
  */
 class WorkflowAccess
 {
@@ -54,7 +55,7 @@ class WorkflowAccess
 
     public function seesDocument(User $user, DocumentType $type, DocumentScope $scope): bool
     {
-        foreach ([$type->viewPermission(), $type->actPermission(), 'core.workflow.view'] as $permission) {
+        foreach ([$type->viewPermission(), $type->actPermission()] as $permission) {
             if ($user->can($permission, $scope->scope())) {
                 return true;
             }

@@ -156,6 +156,8 @@ class WorkflowDefinitionController
             $this->types->get($workflow->document_type),
             $request->values(),
             (array) $request->validated('outcomes', []),
+            // Days in the sample are read in the flow's company's time zone.
+            $workflow->company?->timezone ?: 'UTC',
         )]);
     }
 

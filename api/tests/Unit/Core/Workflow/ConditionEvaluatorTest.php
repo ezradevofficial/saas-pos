@@ -140,6 +140,17 @@ class ConditionEvaluatorTest extends TestCase
         }
     }
 
+    public function test_a_date_time_compared_with_a_day_is_read_on_the_given_time_zones_day(): void
+    {
+        $condition = ['field' => 'needed_by', 'op' => 'eq', 'value' => '2026-11-01'];
+        $values = ['needed_by' => '2026-10-31T22:30:00Z'];
+
+        $this->assertFalse($this->evaluator->evaluate($condition, $values, $this->fields)->passed, 'still 31 October in UTC');
+        $this->assertTrue($this->evaluator->evaluate($condition, $values, $this->fields, 'Africa/Nairobi')->passed, 'already 1 November in Nairobi');
+        // Instants are compared as instants whatever the zone.
+        $this->assertTrue($this->evaluator->evaluate(['field' => 'submitted_at', 'op' => 'lt', 'value' => '2026-11-01T00:00:00+03:00'], ['submitted_at' => '2026-10-31T20:59:59Z'], $this->fields, 'Africa/Nairobi')->passed);
+    }
+
     public function test_comparing_with_another_field(): void
     {
         $condition = ['field' => 'total', 'op' => 'lte', 'other' => 'budget'];

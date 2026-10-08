@@ -68,7 +68,11 @@ class TestRequestType extends DocumentType
 
     public function nextDocuments(): array
     {
-        return [new NextDocument('order', TestOrderType::KEY, 'workflow.columns.draft', ['amount' => 'total', 'supplier' => 'supplier'])];
+        return [
+            new NextDocument('order', TestOrderType::KEY, 'workflow.columns.draft', ['amount' => 'total', 'supplier' => 'supplier']),
+            // A target in an optional module (ExtOrderType), registered by tests that switch it off.
+            new NextDocument('ext_order', ExtOrderType::KEY, 'workflow.columns.draft', ['amount' => 'total']),
+        ];
     }
 
     public function defaultFlow(?string $country): ?array

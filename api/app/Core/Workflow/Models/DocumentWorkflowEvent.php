@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * One line of a document's flow history (WF-10), append-only (a trigger
  * refuses changes). Types: started, entered, left, skipped, condition,
- * split, joined, action, returned, cancelled, completed.
+ * split, joined, action, notified, returned, cancelled, completed.
  *
  * @property string $type
  * @property ?string $node_id
@@ -22,7 +22,7 @@ class DocumentWorkflowEvent extends Model
 {
     use BelongsToTenant, HasUuids;
 
-    public const TYPES = ['started', 'entered', 'left', 'skipped', 'condition', 'split', 'joined', 'action', 'returned', 'cancelled', 'completed'];
+    public const TYPES = ['started', 'entered', 'left', 'skipped', 'condition', 'split', 'joined', 'action', 'notified', 'returned', 'cancelled', 'completed'];
 
     public $timestamps = false;
 

@@ -24,6 +24,26 @@ final class ConditionResult
         return new self(true);
     }
 
+    /**
+     * What a flow's history keeps: which comparisons were made and how they
+     * went, never the document's values (the history is read by people who
+     * may not see every field).
+     *
+     * @return array{passed: bool, checks: list<array{field: string, op: string, passed: bool, problem: ?string}>}
+     */
+    public function outline(): array
+    {
+        return [
+            'passed' => $this->passed,
+            'checks' => array_map(fn (ConditionCheck $check) => [
+                'field' => $check->field,
+                'op' => $check->op,
+                'passed' => $check->passed,
+                'problem' => $check->problem,
+            ], $this->checks),
+        ];
+    }
+
     /** @return array{passed: bool, checks: list<array<string, mixed>>, failures: list<array<string, mixed>>} */
     public function toArray(): array
     {

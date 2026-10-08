@@ -5,7 +5,6 @@ namespace App\Core\Workflow\Runtime;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ScopeResolver;
-use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Definitions\RoleRefs;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
@@ -22,7 +21,6 @@ class StagePermissions
     public function __construct(
         private readonly RoleRefs $roles,
         private readonly ScopeResolver $resolver,
-        private readonly TenantContext $tenants,
     ) {}
 
     /** @param 'enter'|'exit' $direction */
@@ -71,9 +69,11 @@ class StagePermissions
         }
 
         $roleIds ??= [];
-        $chain = $scope->chain($this->tenants->require());
+        // The document's place and every place above it, as ScopeResolver sees them
+        // (a type may name only a location: its branch and company come from the database).
+        $chain = $this->resolver->chainOf($scope->scope()) ?? [];
 
-        $users = RoleAssignment::query()
+        $users = $chain === [] ? [] : RoleAssignment::query()
             ->join('users', 'users.id', '=', 'role_assignments.user_id')
             ->whereIn('role_assignments.role_id', $roleIds === [] ? ['00000000-0000-0000-0000-000000000000'] : $roleIds)
             ->where('users.status', 'active')

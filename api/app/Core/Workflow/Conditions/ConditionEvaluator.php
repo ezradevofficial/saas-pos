@@ -27,8 +27,12 @@ use Throwable;
  * strings (never floats); money as {"amount_minor": "25000000",
  * "currency": "KES"}, compared in minor units and only within one currency
  * (another currency fails the comparison with `currency_mismatch`, it is
- * never converted); dates as "Y-m-d" (compared by day) or ISO 8601
- * date-times; booleans as true/false; enums as one of the field's values.
+ * never converted; even `ne` fails closed across currencies, since
+ * "different" cannot be decided without a rate); dates as "Y-m-d"
+ * (compared by day: a date-time compared with a day is taken on its day in
+ * the given time zone, the document's company's) or ISO 8601 date-times
+ * (compared as instants); booleans as true/false; enums as one of the
+ * field's values.
  *
  * A null (or empty) condition always holds. All comparisons are evaluated
  * (no short circuit) so a dry run can show every one of them.
@@ -54,18 +58,29 @@ final class ConditionEvaluator
 
     private const LISTS = ['in', 'not_in'];
 
+    /** The time zone days are read in during one evaluate() call. */
+    private string $timezone = 'UTC';
+
     /**
      * @param  array<string, mixed>|null  $condition
      * @param  array<string, mixed>  $values  field name => value
      * @param  array<string, FieldDefinition>  $fields  field name => definition
+     * @param  string  $timezone  where a date-time's day is read when compared with a day
      */
-    public function evaluate(?array $condition, array $values, array $fields): ConditionResult
+    public function evaluate(?array $condition, array $values, array $fields, string $timezone = 'UTC'): ConditionResult
     {
         if ($condition === null || $condition === []) {
             return ConditionResult::pass();
         }
 
-        return $this->node($condition, $values, $fields);
+        $previous = $this->timezone;
+        $this->timezone = $timezone;
+
+        try {
+            return $this->node($condition, $values, $fields);
+        } finally {
+            $this->timezone = $previous;
+        }
     }
 
     /**
@@ -230,6 +245,7 @@ final class ConditionEvaluator
                 return $fail();
             }
 
+            // Fails closed, `ne` included: amounts in two currencies are never compared.
             if ($a['currency'] !== $b['currency']) {
                 return $fail('currency_mismatch');
             }
@@ -320,9 +336,9 @@ final class ConditionEvaluator
         }
 
         if ($dayOnly) {
-            // A day compared with a date-time: compare the days.
-            $x = $this->isDay($a) ? $a : $x->toDateString();
-            $y = $this->isDay($b) ? $b : $y->toDateString();
+            // A day compared with a date-time: compare the days, the date-time's in the time zone.
+            $x = $this->isDay($a) ? $a : $x->setTimezone($this->timezone)->toDateString();
+            $y = $this->isDay($b) ? $b : $y->setTimezone($this->timezone)->toDateString();
 
             return $x <=> $y;
         }

@@ -5,6 +5,7 @@ namespace App\Core\Workflow\Calendar;
 use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 /**
@@ -33,11 +34,24 @@ class BusinessCalendar
         'sun' => [],
     ];
 
-    /** Days searched for the next open minute before giving up (a calendar with no open day). */
-    private const HORIZON_DAYS = 3660;
+    /**
+     * Days searched for the next open minute before giving up: a year and a
+     * month, enough for any calendar with one open day a week and every
+     * holiday; a calendar with none open is answered in elapsed time.
+     */
+    private const HORIZON_DAYS = 400;
 
-    /** @var array<string, array<string, true>> "country|year" => set of Y-m-d */
+    /** Seconds a country's holidays stay cached, so long-running workers see a reload. */
+    public const HOLIDAY_TTL = 600;
+
+    /** @var array<string, array{at: int, days: array<string, true>}> "country|year" => when read, set of Y-m-d */
     private array $holidays = [];
+
+    /** Forget cached holidays (after `country-packs:holidays` in this process). */
+    public function forgetHolidays(): void
+    {
+        $this->holidays = [];
+    }
 
     /** The calendar of a company (UTC with default hours and no holidays without one). */
     public function forCompany(?string $companyId): CalendarSpec
@@ -57,18 +71,31 @@ class BusinessCalendar
         );
     }
 
-    /** When something started at $from with a limit of $amount $unit is due, in UTC. */
+    /**
+     * When something started at $from with a limit of $amount $unit is due,
+     * in UTC. A calendar with no open time within the horizon (all days
+     * closed) never fails the caller: the limit is counted as elapsed time
+     * and a warning is logged.
+     */
     public function due(DateTimeInterface $from, int $amount, string $unit, CalendarSpec $spec): CarbonImmutable
     {
         $start = CarbonImmutable::instance($from);
 
-        return match ($unit) {
-            'business_hours' => $this->addBusinessMinutes($start, $amount * 60, $spec),
-            'business_days' => $this->addBusinessDays($start, $amount, $spec),
-            'hours' => $start->addHours($amount)->utc(),
-            'days' => $start->addDays($amount)->utc(),
-            default => throw new InvalidArgumentException("Unknown time unit [{$unit}]."),
-        };
+        try {
+            return match ($unit) {
+                'business_hours' => $this->addBusinessMinutes($start, $amount * 60, $spec),
+                'business_days' => $this->addBusinessDays($start, $amount, $spec),
+                'hours' => $start->addHours($amount)->utc(),
+                'days' => $start->addDays($amount)->utc(),
+                default => throw new InvalidArgumentException("Unknown time unit [{$unit}]."),
+            };
+        } catch (InvalidArgumentException $e) {
+            Log::warning('Business calendar has no working time; the time limit is counted as elapsed time.', [
+                'unit' => $unit, 'amount' => $amount, 'timezone' => $spec->timezone, 'error' => $e->getMessage(),
+            ]);
+
+            return $unit === 'business_days' || $unit === 'days' ? $start->addDays($amount)->utc() : $start->addHours($amount)->utc();
+        }
     }
 
     public function addBusinessMinutes(DateTimeInterface $from, int $minutes, CalendarSpec $spec): CarbonImmutable
@@ -224,7 +251,8 @@ class BusinessCalendar
     /**
      * Problems with a working hours value (empty when valid): unknown days,
      * times that are not HH:MM (24:00 allowed as a close), an interval that
-     * does not end after it starts, or overlapping intervals.
+     * does not end after it starts, overlapping intervals, or a week with
+     * no open time at all (time limits could never fall due).
      *
      * @return list<string> translated
      */
@@ -269,6 +297,10 @@ class BusinessCalendar
             }
         }
 
+        if ($problems === [] && array_filter($hours, fn ($intervals) => $intervals !== []) === []) {
+            $problems[] = __('workflow.business_hours.never_open');
+        }
+
         return $problems;
     }
 
@@ -277,8 +309,8 @@ class BusinessCalendar
     {
         $key = $country.'|'.$year;
 
-        if (isset($this->holidays[$key])) {
-            return $this->holidays[$key];
+        if (isset($this->holidays[$key]) && CarbonImmutable::now()->getTimestamp() - $this->holidays[$key]['at'] < self::HOLIDAY_TTL) {
+            return $this->holidays[$key]['days'];
         }
 
         $days = [];
@@ -309,6 +341,8 @@ class BusinessCalendar
             }
         }
 
-        return $this->holidays[$key] = $days;
+        $this->holidays[$key] = ['at' => CarbonImmutable::now()->getTimestamp(), 'days' => $days];
+
+        return $days;
     }
 }

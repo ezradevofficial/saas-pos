@@ -37,7 +37,7 @@ class DryRun
      * @param  array<string, string>  $outcomes
      * @return array{valid: bool, problems: list<array<string, mixed>>, path: list<array<string, mixed>>, outcome: ?string, blocked: ?array<string, mixed>}
      */
-    public function run(array $graph, DocumentType $type, array $values, array $outcomes = []): array
+    public function run(array $graph, DocumentType $type, array $values, array $outcomes = [], string $timezone = 'UTC'): array
     {
         $problems = $this->validator->validate($graph, $type);
 
@@ -56,8 +56,8 @@ class DryRun
         // Each pending item: [node id, parallel groups].
         $queue = [[$flow->start(), []]];
 
-        $evaluate = fn (mixed $condition): ConditionResult => $this->conditions->evaluate(is_array($condition) ? $condition : null, $values, $fields);
-        $reasons = fn (ConditionResult $result): array => $this->describer->reasons($result, $fields);
+        $evaluate = fn (mixed $condition): ConditionResult => $this->conditions->evaluate(is_array($condition) ? $condition : null, $values, $fields, $timezone);
+        $reasons = fn (ConditionResult $result): array => $this->describer->reasons($result, $fields, $timezone);
 
         while ($queue !== [] && $blocked === null && $steps++ < self::MAX_STEPS) {
             [$id, $groups] = array_shift($queue);
@@ -118,7 +118,7 @@ class DryRun
 
                 case 'condition':
                     [$branch, $result] = $this->branch($node, $evaluate);
-                    $path[] = [...$step, 'result' => $branch, 'reasons' => $this->explain($result, $fields)];
+                    $path[] = [...$step, 'result' => $branch, 'reasons' => $this->explain($result, $fields, $timezone)];
                     $queue[] = [$flow->next($id, $branch), $groups];
                     break;
 
@@ -187,14 +187,14 @@ class DryRun
     }
 
     /** Why a condition went the way it did: its failures, or the comparisons that held. */
-    private function explain(ConditionResult $result, array $fields): array
+    private function explain(ConditionResult $result, array $fields, string $timezone): array
     {
         if (! $result->passed) {
-            return $this->describer->reasons($result, $fields);
+            return $this->describer->reasons($result, $fields, $timezone);
         }
 
         return array_values(array_map(
-            fn ($check) => __('workflow.conditions.held', ['rule' => $this->describer->describe($check, $fields)]),
+            fn ($check) => __('workflow.conditions.held', ['rule' => $this->describer->describe($check, $fields, $timezone)]),
             array_filter($result->checks, fn ($check) => $check->passed),
         ));
     }
