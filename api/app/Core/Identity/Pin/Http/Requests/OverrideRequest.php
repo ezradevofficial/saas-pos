@@ -9,10 +9,10 @@ use Illuminate\Validation\Rule;
 
 /**
  * AUTH-08: POST pos/override {manager_user_id, pin | card, permission,
- * cashier_user_id?, reference?}, a manager authorises an action on the
+ * cashier_user_id?, reference}, a manager authorises an action on the
  * cashier's device while it is online. `permission` is the catalogue
  * permission the action needs (`pos.sale.void`); `reference` the record
- * it is for, when known (a sale id).
+ * it is for (a sale or line id), which the token is bound to.
  */
 class OverrideRequest extends DeviceRequest
 {
@@ -28,7 +28,8 @@ class OverrideRequest extends DeviceRequest
                 }
             }],
             'cashier_user_id' => ['nullable', 'uuid', Rule::exists('users', 'id')],
-            'reference' => ['nullable', 'string', 'max:100'],
+            // The sale or line the override is for: tokens are bound to it.
+            'reference' => ['required', 'string', 'max:100'],
         ];
     }
 

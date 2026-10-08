@@ -27,6 +27,7 @@ return [
         'not_set' => 'Vous n’avez pas encore de code PIN de caisse. Définissez-en un dans les paramètres de votre compte ou demandez à un responsable.',
         'incorrect' => 'Code PIN erroné. Il reste :count essai avant le blocage du code sur cette caisse.|Code PIN erroné. Il reste :count essais avant le blocage du code sur cette caisse.',
         'not_staff_here' => 'Cette personne n’a pas de rôle sur le site de cette caisse. Demandez à un responsable de lui en attribuer un.',
+        'six_digits' => 'Les personnes qui peuvent valider des annulations, des remboursements et des changements de prix ont besoin d’un code PIN de 6 chiffres. Choisissez 6 chiffres.',
     ],
     'override' => [
         'invalid' => 'Cette validation du responsable n’est pas valide. Demandez au responsable de saisir de nouveau son code PIN.',
@@ -35,6 +36,8 @@ return [
         'replayed' => 'Cette validation du responsable a déjà servi. Demandez au responsable de valider cette action.',
         'not_permitted' => 'Ce responsable n’est pas autorisé à valider cette action ici. Demandez à un responsable qui l’est.',
         'unknown_permission' => 'Choisissez une action qui existe.',
+        'reference_required' => 'Une validation du responsable doit indiquer la vente ou la ligne concernée. Validez de nouveau l’action.',
+        'already_applied' => 'Cette validation du responsable a déjà été appliquée à cette action. Il n’y a rien d’autre à faire.',
     ],
 
     'code' => [

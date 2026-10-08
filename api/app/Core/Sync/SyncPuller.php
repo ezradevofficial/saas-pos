@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\DB;
  * Every transaction below it has committed or rolled back, and no later
  * transaction can get an id below it, so nothing ever lands behind a
  * cursor: no gaps, whatever the commit order or clock. Rows written by a
- * transaction still running wait for the next pull. (The pull's own
- * transaction counts as committed for itself: only tests read inside a
- * writing transaction.)
+ * transaction still running wait for the next pull. (In the `testing`
+ * environment only, the pull's own transaction counts as committed for
+ * itself: tests read inside their wrapping transaction.)
  *
  * What a changed id becomes is decided by its state now: the payload when
  * the device should hold it (visible and active), else a tombstone. A row
@@ -38,7 +38,10 @@ use Illuminate\Support\Facades\DB;
  */
 class SyncPuller
 {
-    public function __construct(private readonly SyncSources $sources) {}
+    public function __construct(
+        private readonly SyncSources $sources,
+        private readonly SnapshotCache $cache,
+    ) {}
 
     /**
      * @param  list<string>  $keys  entities available to the tenant (validated)
@@ -154,7 +157,7 @@ class SyncPuller
             throw SyncCursor::invalid($source->key());
         }
 
-        $rows = $source->rows($scope);
+        $rows = $this->cache->rows($source, $scope, fn () => $source->rows($scope));
         $hash = hash('sha256', json_encode($rows, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR));
         $reset = $cursor !== null && $cursor->version !== $source->version();
         $unchanged = $cursor !== null && ! $reset && hash_equals($cursor->hash, $hash);
@@ -182,6 +185,11 @@ class SyncPuller
             'select pg_snapshot_xmin(pg_current_snapshot())::text::bigint as xmin, pg_current_xact_id_if_assigned()::text::bigint as own',
         );
 
-        return ['xmin' => (int) $row->xmin, 'own' => $row->own === null ? null : (int) $row->own];
+        // Only tests read inside a writing transaction (RefreshDatabase); in
+        // production a pull never writes before reading, and counting its own
+        // uncommitted id would break the horizon's guarantee.
+        $own = app()->environment('testing') && $row->own !== null ? (int) $row->own : null;
+
+        return ['xmin' => (int) $row->xmin, 'own' => $own];
     }
 }

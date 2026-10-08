@@ -24,6 +24,9 @@ class UserPinRequest extends FormRequest
 
     public function rules(): array
     {
-        return $this->isMethod('DELETE') ? [] : $this->newPinRules();
+        // Acting on oneself: the password, as on me/pos-pin.
+        $password = $this->user()->is($this->route('user')) ? ['password' => ['required', 'string', 'max:255']] : [];
+
+        return [...$password, ...($this->isMethod('DELETE') ? [] : $this->newPinRules())];
     }
 }

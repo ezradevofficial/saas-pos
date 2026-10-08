@@ -63,8 +63,8 @@ final class TwoTenants
 
     public const MODULE = 'isolation';
 
-    /** AUTH-06: the owner's POS PIN in both tenants. */
-    public const PIN = '4826';
+    /** AUTH-06: the owner's POS PIN in both tenants (6 digits: owners approve overrides, AUTH-08). */
+    public const PIN = '482619';
 
     private function __construct(
         public readonly TenantFixture $a,

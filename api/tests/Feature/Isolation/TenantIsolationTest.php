@@ -249,6 +249,7 @@ class TenantIsolationTest extends TestCase
         RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
         // NFR-04: the suite calls the device routes far more than a till would.
         RateLimiter::for('device-sync', fn () => Limit::none());
+        RateLimiter::for('device-secret', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -555,6 +556,7 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/pos/pin/verify', $hijacked);
         $this->assertArrayHasKey('POST api/v1/pos/pin/attempts', $hijacked);
         $this->assertArrayHasKey('POST api/v1/pos/override', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/pos/pin/change', $hijacked);
         foreach (array_keys(self::ROUTE_REFERENCE_FIELDS) as $key) {
             $this->assertArrayHasKey($key, $hijacked);
         }
@@ -1090,7 +1092,10 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/pos/pin/attempts' => ['reports' => [['user_id' => $tenant->id('user'), 'failed_attempts' => 0, 'locked' => false]]],
             'POST api/v1/pos/override' => [
                 'manager_user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'permission' => 'pos.sale.void', 'cashier_user_id' => $tenant->id('manager'),
+                'reference' => 'sale-hijack-check',
             ],
+            // The owner picks a new PIN at the till (the last device route the suite calls with it).
+            'POST api/v1/pos/pin/change' => ['user_id' => $tenant->id('user'), 'pin' => TwoTenants::PIN, 'new_pin' => '739104'],
             default => null,
         };
     }

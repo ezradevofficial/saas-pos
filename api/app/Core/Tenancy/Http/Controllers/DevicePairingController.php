@@ -28,6 +28,7 @@ class DevicePairingController
             'token' => $paired['token'],
             // AUTH-06, AUTH-08: kept in the device's secure storage; shown once.
             'device_secret' => $paired['secret'],
+            'device_secret_kid' => $paired['kid'],
             'device' => DeviceResource::make($paired['device'])->resolve($request),
         ]);
     }

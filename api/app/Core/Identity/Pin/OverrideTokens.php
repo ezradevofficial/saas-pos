@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  * with k = HMAC-SHA256(application key, "pos-override-token:v1"). The
  * payload: v (1), jti (the override id), tid (tenant), did (device), mid
  * (manager), cid (cashier or null), perm (the permission), ref (the
- * record, or null), iat and exp (Unix seconds, `sync.override_ttl_seconds`
+ * record it is bound to), iat and exp (Unix seconds, `sync.override_ttl_seconds`
  * apart). The device sends the token with the action it authorises; the
  * POS module redeems it with OverrideVerifier. Issuing is audited as
  * `core.user.override_issue` on the manager.
@@ -33,7 +33,7 @@ class OverrideTokens
     ) {}
 
     /** @return array{token: string, override_id: string, expires_at: string} */
-    public function issue(Device $device, User $manager, ?string $cashierId, string $permission, ?string $reference): array
+    public function issue(Device $device, User $manager, ?string $cashierId, string $permission, string $reference): array
     {
         $now = CarbonImmutable::now();
         $expires = $now->addSeconds(max(10, (int) config('sync.override_ttl_seconds', 120)));

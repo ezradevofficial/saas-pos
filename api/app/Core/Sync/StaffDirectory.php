@@ -12,11 +12,20 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * AUTH-06, AUTH-07, RBAC-04: who works the tills of a device's location.
- * A staff member is an active user holding an active role at a scope
- * covering the location (the tenant, its company, its branch or the
- * location itself) that carries at least one till permission (names
- * starting with a SyncSources till prefix, `pos.` by default) of an
- * active module (RBAC-08). Each comes with those permissions, the limit
+ * A staff member is an active user holding the sign-in permission
+ * (`sync.sign_in_permission`, `pos.till.sign_in`) of an active module
+ * (RBAC-08) through an active role at a scope covering the location (the
+ * tenant, its company, its branch or the location itself).
+ *
+ * `offline` says whether the device may hold the member's PIN material:
+ * only when the sign-in permission comes from an assignment at the
+ * company, branch or location, or from a tenant-wide role that is not an
+ * Owner role. Owners hold every permission through the `*` template, so
+ * their PIN hashes would otherwise sit on every till of the group; they
+ * sign in online, or get a role where they work.
+ *
+ * Each member comes with their till permissions (names starting with a
+ * SyncSources till prefix, `pos.` by default), the limit
  * rules of their covering roles (RBAC-06, the highest value per key) and
  * their field rules for parties and items (RBAC-05, computed as FieldRules
  * does: a field is hidden only when every role the user holds hides it).
@@ -33,7 +42,7 @@ class StaffDirectory
     /**
      * By user id, ordered by name.
      *
-     * @return array<string, array{id: string, name: string, role_ids: list<string>, permissions: list<string>}>
+     * @return array<string, array{id: string, name: string, role_ids: list<string>, permissions: list<string>, offline: bool}>
      */
     public function at(DeviceScope $scope, ?string $onlyUserId = null): array
     {
@@ -48,7 +57,7 @@ class StaffDirectory
             ->when($onlyUserId !== null, fn (Builder $q) => $q->where('role_assignments.user_id', $onlyUserId))
             ->orderBy('users.name')
             ->orderBy('users.id')
-            ->get(['role_assignments.user_id', 'role_assignments.role_id', 'users.name']);
+            ->get(['role_assignments.user_id', 'role_assignments.role_id', 'role_assignments.scope_type', 'roles.is_owner', 'users.name']);
 
         if ($assignments->isEmpty()) {
             return [];
@@ -57,12 +66,15 @@ class StaffDirectory
         $roleIds = $assignments->pluck('role_id')->unique()->values()->all();
         // Resolved here: SyncSources builds the staff source, which needs this class.
         $prefixes = app(SyncSources::class)->tillPermissionPrefixes();
+        $signIn = (string) config('sync.sign_in_permission', 'pos.till.sign_in');
 
         $permissions = $db->table('role_has_permissions')
             ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
             ->whereIn('role_has_permissions.role_id', $roleIds)
             ->whereIn('permissions.module', $this->modules->active())
-            ->where(function (Builder $q) use ($prefixes) {
+            ->where(function (Builder $q) use ($prefixes, $signIn) {
+                $q->where('permissions.name', $signIn);
+
                 foreach ($prefixes as $prefix) {
                     $q->orWhere('permissions.name', 'like', addcslashes($prefix, '\\%_').'%');
                 }
@@ -74,13 +86,22 @@ class StaffDirectory
         $staff = [];
 
         foreach ($assignments as $assignment) {
-            $staff[$assignment->user_id] ??= ['id' => $assignment->user_id, 'name' => $assignment->name, 'role_ids' => [], 'permissions' => []];
+            $granted = $permissions->get($assignment->role_id, []);
+            $staff[$assignment->user_id] ??= ['id' => $assignment->user_id, 'name' => $assignment->name, 'role_ids' => [], 'permissions' => [], 'offline' => false, 'signs_in' => false];
             $staff[$assignment->user_id]['role_ids'][] = $assignment->role_id;
-            array_push($staff[$assignment->user_id]['permissions'], ...$permissions->get($assignment->role_id, []));
+            array_push($staff[$assignment->user_id]['permissions'], ...$granted);
+
+            if (in_array($signIn, $granted, true)) {
+                $staff[$assignment->user_id]['signs_in'] = true;
+                $staff[$assignment->user_id]['offline'] = $staff[$assignment->user_id]['offline']
+                    || $assignment->scope_type !== Scope::TENANT || ! $assignment->is_owner;
+            }
         }
 
         foreach ($staff as $id => $member) {
-            if ($member['permissions'] === []) {
+            unset($staff[$id]['signs_in']);
+
+            if (! $member['signs_in']) {
                 unset($staff[$id]);
 
                 continue;

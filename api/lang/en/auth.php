@@ -27,6 +27,7 @@ return [
         'not_set' => 'You have no POS PIN yet. Set one in your account settings, or ask a manager.',
         'incorrect' => 'Wrong PIN. :count attempt left before the PIN locks on this till.|Wrong PIN. :count attempts left before the PIN locks on this till.',
         'not_staff_here' => 'This person has no role at this till’s location. Ask a manager to give them one.',
+        'six_digits' => 'People who can approve voids, refunds and price changes need a 6-digit PIN. Choose 6 digits.',
     ],
     'override' => [
         'invalid' => 'This manager approval isn’t valid. Ask the manager to enter their PIN again.',
@@ -35,6 +36,8 @@ return [
         'replayed' => 'This manager approval has already been used. Ask the manager to approve this action.',
         'not_permitted' => 'This manager isn’t allowed to approve this action here. Ask a manager who is.',
         'unknown_permission' => 'Choose an action that exists.',
+        'reference_required' => 'A manager approval must name the sale or line it is for. Approve the action again.',
+        'already_applied' => 'This manager approval was already applied to this action. Nothing more to do.',
     ],
 
     'code' => [

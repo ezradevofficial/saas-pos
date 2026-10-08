@@ -9,6 +9,7 @@ use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
 use Illuminate\Testing\TestResponse;
@@ -31,7 +32,7 @@ trait BuildsTill
     /**
      * A device at $location, paired through the API by the owner.
      *
-     * @return array{id: string, token: string, secret: string}
+     * @return array{id: string, token: string, secret: string, kid: string}
      */
     protected function pairTill(Location $location, string $name = 'Till'): array
     {
@@ -39,7 +40,32 @@ trait BuildsTill
         $code = $this->postJson("/api/v1/devices/{$id}/pairing-code", [], $this->headersFor())->assertOk()->json('code');
         $paired = $this->postJson('/api/v1/devices/pair', ['code' => $code, 'device_name' => $name])->assertOk();
 
-        return ['id' => $id, 'token' => $paired->json('token'), 'secret' => $paired->json('device_secret')];
+        return ['id' => $id, 'token' => $paired->json('token'), 'secret' => $paired->json('device_secret'), 'kid' => $paired->json('device_secret_kid')];
+    }
+
+    /** HMAC-SHA256 of $message under a base64url secret, base64url: what the app sends as a proof. */
+    protected function proof(string $secret, string $message): string
+    {
+        return DeviceSecrets::encode(hash_hmac('sha256', $message, DeviceSecrets::decode($secret), true));
+    }
+
+    /**
+     * Rotate $till's secret the way the app does (challenge, rotate, activate).
+     *
+     * @return array{id: string, token: string, secret: string, kid: string}
+     */
+    protected function rotateTill(array $till): array
+    {
+        $nonce = $this->getJson('/api/v1/sync/device-secret/challenge', $this->deviceHeaders($till))->assertOk()->json('nonce');
+        $pending = $this->postJson('/api/v1/sync/device-secret/rotate', [
+            'kid' => $till['kid'], 'nonce' => $nonce, 'proof' => $this->proof($till['secret'], "rotate:v1\n{$till['id']}\n{$nonce}"),
+        ], $this->deviceHeaders($till))->assertOk()->assertJsonPath('status', 'pending');
+        $kid = $pending->json('kid');
+        $this->postJson('/api/v1/sync/device-secret/activate', [
+            'kid' => $kid, 'proof' => $this->proof($pending->json('device_secret'), "activate:v1\n{$till['id']}\n{$kid}"),
+        ], $this->deviceHeaders($till))->assertOk()->assertJsonPath('status', 'current');
+
+        return [...$till, 'secret' => $pending->json('device_secret'), 'kid' => $kid];
     }
 
     protected function deviceHeaders(array $till): array

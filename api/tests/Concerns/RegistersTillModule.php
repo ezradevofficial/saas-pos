@@ -19,6 +19,9 @@ trait RegistersTillModule
         'sale' => ['view', 'create', 'print', 'void', 'refund', 'discount', 'override_price'],
         'shift' => ['open', 'close'],
         'customer' => ['view', 'create'],
+        'till' => ['sign_in'],
+        'price' => ['override'],
+        'discount' => ['give'],
     ];
 
     /** Register the module and its permissions, synced to the catalogue when missing. */

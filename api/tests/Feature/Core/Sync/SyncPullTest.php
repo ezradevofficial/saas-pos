@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Sync;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\Currency\Models\ExchangeRate;
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\MasterData\Items\Item;
@@ -15,15 +16,21 @@ use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxRates;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
 use App\Core\Sync\Contracts\SnapshotSource;
 use App\Core\Sync\DeviceScope;
+use App\Core\Sync\DeviceSecret;
+use App\Core\Sync\DeviceSecrets;
+use App\Core\Sync\Jobs\RestampItemsForTax;
 use App\Core\Sync\SyncCursor;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsTill;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -57,7 +64,7 @@ class SyncPullTest extends TestCase
         $this->assertSame('incremental', collect($response->json('entities'))->firstWhere('key', 'items')['mode']);
         $this->assertSame('snapshot', collect($response->json('entities'))->firstWhere('key', 'staff')['mode']);
         $response->assertJsonPath('device.id', $this->till['id'])
-            ->assertJsonPath('device_secret_issued', true)
+            ->assertJsonPath('device_secret_kid', $this->till['kid'])
             ->assertJsonPath('settings.location.id', $this->locationA->id)
             ->assertJsonPath('settings.branch.id', $this->branchA->id)
             ->assertJsonPath('settings.company.id', $this->acme->id)
@@ -378,6 +385,105 @@ class SyncPullTest extends TestCase
         $this->get($row['images'][0]['url'], $this->deviceHeaders($this->till))->assertOk();
         $this->get('/api/v1/sync/media/'.$foreignImage->id, $this->deviceHeaders($this->till))->assertNotFound();
         $this->get('/api/v1/sync/media/'.$image->id, $this->headersFor())->assertForbidden();
+    }
+
+    public function test_rotating_the_device_secret_takes_proof_at_each_step_and_keeps_the_old_one_until_activation(): void
+    {
+        $headers = $this->deviceHeaders($this->till);
+        $rotate = fn (string $nonce, ?string $secret = null) => $this->postJson('/api/v1/sync/device-secret/rotate', [
+            'kid' => $this->till['kid'], 'nonce' => $nonce, 'proof' => $this->proof($secret ?? $this->till['secret'], "rotate:v1\n{$this->till['id']}\n{$nonce}"),
+        ], $headers);
+
+        // The bearer token alone is not enough: no challenge, a wrong secret, a reused nonce.
+        $this->postJson('/api/v1/sync/device-secret', [], $headers)->assertNotFound();
+        $rotate('made-up')->assertUnprocessable()->assertJsonPath('code', 'secret_proof_invalid');
+        $nonce = $this->getJson('/api/v1/sync/device-secret/challenge', $headers)->assertOk()->json('nonce');
+        $rotate($nonce, DeviceSecrets::encode(random_bytes(32)))->assertUnprocessable();
+        $rotate($nonce)->assertUnprocessable();
+
+        // A rotation whose answer is lost changes nothing: the old secret stays current.
+        $nonce = $this->getJson('/api/v1/sync/device-secret/challenge', $headers)->assertOk()->json('nonce');
+        $lost = $rotate($nonce)->assertOk()->assertJsonPath('status', 'pending');
+        $this->getJson('/api/v1/sync/bootstrap', $headers)->assertJsonPath('device_secret_kid', $this->till['kid']);
+
+        // Activating needs proof of the new secret.
+        $this->postJson('/api/v1/sync/device-secret/activate', ['kid' => $lost->json('kid'), 'proof' => $this->proof($this->till['secret'], "activate:v1\n{$this->till['id']}\n{$lost->json('kid')}")], $headers)
+            ->assertUnprocessable();
+
+        // Starting again replaces the pending secret; the lost one can no longer be activated.
+        $rotated = $this->rotateTill($this->till);
+        $this->assertNotSame($lost->json('kid'), $rotated['kid']);
+        $this->postJson('/api/v1/sync/device-secret/activate', ['kid' => $lost->json('kid'), 'proof' => $this->proof($lost->json('device_secret'), "activate:v1\n{$this->till['id']}\n{$lost->json('kid')}")], $headers)
+            ->assertUnprocessable();
+        $this->getJson('/api/v1/sync/bootstrap', $headers)->assertJsonPath('device_secret_kid', $rotated['kid']);
+
+        $this->inTenant(function () use ($rotated) {
+            $statuses = DeviceSecret::query()->where('device_id', $this->till['id'])->pluck('status', 'kid')->all();
+            $this->assertSame('current', $statuses[$rotated['kid']]);
+            $this->assertSame('retired', $statuses[$this->till['kid']]);
+            $this->assertSame(['core.device.secret_activate', 'core.device.secret_issue', 'core.device.secret_rotate'], AuditEntry::query()->where('action', 'like', 'core.device.secret_%')->distinct()->orderBy('action')->pluck('action')->all());
+        });
+
+        // A few rotations an hour per device.
+        foreach (range(1, 20) as $ignored) {
+            $last = $this->getJson('/api/v1/sync/device-secret/challenge', $headers);
+        }
+        $last->assertStatus(429);
+
+        // Unpairing retires every secret: the only way back is pairing again.
+        $this->postJson("/api/v1/devices/{$this->till['id']}/unpair", [], $this->headersFor())->assertOk();
+        $this->inTenant(fn () => $this->assertSame(0, DeviceSecret::query()->where('device_id', $this->till['id'])->where('status', '!=', 'retired')->count()));
+    }
+
+    public function test_snapshots_are_cached_per_device_until_the_ttl_or_a_pin_change(): void
+    {
+        config(['sync.snapshot_ttl_seconds' => 30]);
+        $this->registerTillModule();
+        $this->activateTill($this->owner->tenant_id);
+        $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
+
+        $first = $this->pull($this->till, ['payment_methods', 'staff'])->assertOk();
+        $this->inTenant(fn () => PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash', 'currency' => 'KES', 'position' => 1, 'active' => true]));
+
+        // Cached: the new payment method waits for the TTL.
+        $this->pull($this->till, ['payment_methods'], ['payment_methods' => $first->json('entities.payment_methods.cursor')])->assertJsonPath('entities.payment_methods.replace', false);
+
+        // A PIN change reaches the tills at once.
+        $this->putJson('/api/v1/me/pos-pin', ['password' => $this->password, 'pin' => '4826'], $this->headersFor($cashier))->assertOk();
+        $staff = collect($this->pull($this->till, ['staff'])->assertOk()->json('entities.staff.upserts'))->firstWhere('id', $cashier->id);
+        $this->assertNotNull($staff['pin']);
+
+        $this->travel(31)->seconds();
+        $this->pull($this->till, ['payment_methods'], ['payment_methods' => $first->json('entities.payment_methods.cursor')])
+            ->assertJsonPath('entities.payment_methods.replace', true)
+            ->assertJsonPath('entities.payment_methods.upserts.0.name', 'Cash');
+    }
+
+    public function test_tax_changes_restamp_items_from_a_queued_job_after_commit(): void
+    {
+        Queue::fake();
+        $taxes = $this->taxes($this->acme, null, 'VAT_Q');
+        Queue::assertPushed(RestampItemsForTax::class);
+
+        $item = $this->makeItem('QUEUED', null, $taxes['category']->id);
+        $cursor = $this->pullAll($this->till, 'items')['cursor'];
+        $this->inTenant(fn () => app(TaxRates::class)->add($taxes['code'], '8', CarbonImmutable::parse('2026-01-01')));
+
+        // The rate change itself re-stamps nothing; the job does.
+        $this->assertSame([], $this->pullAll($this->till, 'items', $cursor)['seen']);
+        $job = Queue::pushed(RestampItemsForTax::class)->last();
+        $this->assertSame([$taxes['code']->id], $job->taxCodeIds);
+        $this->inTenant(fn () => $job->handle());
+        $after = $this->pullAll($this->till, 'items', $cursor);
+        $this->assertSame([$item->id], array_keys($after['upserts']));
+        $this->assertTrue($after['upserts'][$item->id]['sellable']);
+    }
+
+    public function test_the_health_check_reports_the_sync_lag(): void
+    {
+        $this->get('/up')->assertOk()->assertHeader('X-Sync-Lag-Seconds')->assertHeader('X-Sync-Lag-Xids');
+        $this->assertContains(Artisan::call('sync:lag'), [0, 1]);
+        $this->assertArrayHasKey('xid_lag', json_decode(trim(Artisan::output()), true));
     }
 
     public function test_another_tenants_data_never_reaches_the_device(): void

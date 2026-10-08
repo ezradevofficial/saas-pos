@@ -5,12 +5,16 @@ namespace App\Core\Identity\Pin;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\ScopeResolver;
+use App\Core\Sync\DeviceSecret;
 use App\Core\Sync\DeviceSecrets;
+use App\Core\Sync\SnapshotCache;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 /**
  * AUTH-06, AUTH-07: POS PINs and staff cards.
@@ -47,22 +51,32 @@ class Pins
 
     public function __construct(
         private readonly Auditor $auditor,
-        private readonly DeviceSecrets $secrets,
+        private readonly ScopeResolver $resolver,
     ) {}
 
     /**
      * Set $user's PIN (validated by PinRules), and the card: a code sets
      * it, '' clears it, null keeps it. $by is the admin resetting it, or
      * null when users set their own. Clears every lockout of the user.
+     * A PIN an administrator sets for someone else must be changed at the
+     * till first (`must_change`). Users who can approve overrides need 6
+     * digits (AUTH-08; 422 on `pin`).
      */
     public function set(User $user, string $pin, ?string $card, ?User $by = null): UserPin
     {
         $byAdmin = $by !== null && $by->id !== $user->id;
 
+        if (strlen($pin) < 6 && $this->needsSixDigits($user)) {
+            throw ValidationException::withMessages(['pin' => __('auth.pin.six_digits')]);
+        }
+
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($user, $pin, $card, $by, $byAdmin) {
             $record = UserPin::query()->where('user_id', $user->id)->lockForUpdate()->first() ?? new UserPin(['user_id' => $user->id, 'version' => 0]);
 
-            $record->fill(['pin_set_at' => now(), 'set_by' => $by?->id ?? $user->id, 'version' => $record->version + 1]);
+            $record->fill([
+                'pin_set_at' => now(), 'set_by' => $by?->id ?? $user->id, 'version' => $record->version + 1,
+                'pin_digits' => strlen($pin), 'must_change' => $byAdmin,
+            ]);
             $record->fill($this->hashes(self::PIN, $pin));
 
             if ($card !== null) {
@@ -71,11 +85,13 @@ class Pins
 
             $record->save();
             $this->clearLockouts($user);
+            SnapshotCache::bump($user->tenant_id);
 
             $this->auditor->record($byAdmin ? 'core.user.pin_reset' : 'core.user.pin_set', $user, null, [
                 'pin_set' => true,
                 'card_set' => $record->hasCard(),
                 'version' => $record->version,
+                'must_change' => $record->must_change,
             ]);
 
             return $record;
@@ -92,13 +108,32 @@ class Pins
                 return;
             }
 
-            $record->fill([...$this->noHashes(self::PIN), ...$this->noHashes(self::CARD), 'version' => $record->version + 1, 'set_by' => $by?->id ?? $user->id])->save();
+            $record->fill([
+                ...$this->noHashes(self::PIN), ...$this->noHashes(self::CARD),
+                'version' => $record->version + 1, 'set_by' => $by?->id ?? $user->id, 'pin_digits' => null, 'must_change' => false,
+            ])->save();
             $this->clearLockouts($user);
+            SnapshotCache::bump($user->tenant_id);
             $this->auditor->record('core.user.pin_clear', $user, ['pin_set' => true], ['pin_set' => false, 'card_set' => false, 'version' => $record->version]);
         });
     }
 
-    /** @return array{pin_set: bool, card_set: bool, set_at: ?string} */
+    /**
+     * AUTH-08: users holding a permission that approves overrides
+     * (`sync.override_permissions`) anywhere need a 6-digit PIN.
+     */
+    public function needsSixDigits(User $user): bool
+    {
+        foreach ((array) config('sync.override_permissions', []) as $permission) {
+            if ($this->resolver->can($user, $permission)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return array{pin_set: bool, card_set: bool, must_change: bool, set_at: ?string} */
     public function status(User $user): array
     {
         $record = UserPin::query()->where('user_id', $user->id)->first();
@@ -106,17 +141,18 @@ class Pins
         return [
             'pin_set' => (bool) $record?->hasPin(),
             'card_set' => (bool) $record?->hasCard(),
+            'must_change' => (bool) $record?->hasPin() && (bool) $record->must_change,
             'set_at' => $record?->hasPin() ? $record->pin_set_at?->toIso8601String() : null,
         ];
     }
 
     /**
-     * What $device needs to check $kind offline, or null when the user has
-     * none or the device has no secret.
+     * What a device needs to check $kind offline, under its current secret
+     * ($secret, named by `kid`), or null when the user has none.
      *
-     * @return array{scheme: string, salt: string, iterations: int, verifier: string}|null
+     * @return array{scheme: string, kid: string, salt: string, iterations: int, verifier: string}|null
      */
-    public function material(UserPin $record, Device $device, string $kind): ?array
+    public function material(UserPin $record, DeviceSecret $secret, string $kind): ?array
     {
         $salt = $record->{"{$kind}_salt"};
         $key = $record->{"{$kind}_key"};
@@ -125,13 +161,12 @@ class Pins
             return null;
         }
 
-        $verifier = $this->secrets->hmac($device, self::verifierMessage($kind, $record->user_id, DeviceSecrets::decode($key)));
-
-        return $verifier === null ? null : [
+        return [
             'scheme' => self::SCHEME,
+            'kid' => $secret->kid,
             'salt' => $salt,
             'iterations' => (int) $record->{"{$kind}_iterations"},
-            'verifier' => DeviceSecrets::encode($verifier),
+            'verifier' => DeviceSecrets::encode(DeviceSecrets::hmac($secret, self::verifierMessage($kind, $record->user_id, DeviceSecrets::decode($key)))),
         ];
     }
 
@@ -224,6 +259,8 @@ class Pins
         }
 
         $state->save();
+
+        SnapshotCache::bump($state->tenant_id);
 
         if ($state->isLocked()) {
             $this->auditor->record('core.user.pin_locked', User::query()->findOrFail($state->user_id), null, [

@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Sync;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\DevicePinState;
 use App\Core\Identity\Pin\UserPin;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
@@ -89,7 +90,7 @@ class PosPinTest extends TestCase
             $entry = AuditEntry::query()->where('action', 'core.user.pin_set')->sole();
             $this->assertSame($this->cashier->id, $entry->auditable_id);
             $this->assertStringNotContainsString('argon2id', json_encode($entry->after));
-            $this->assertEqualsCanonicalizing(['pin_set' => true, 'card_set' => false, 'version' => 1], $entry->after);
+            $this->assertEqualsCanonicalizing(['pin_set' => true, 'card_set' => false, 'version' => 1, 'must_change' => false], $entry->after);
         });
     }
 
@@ -98,17 +99,35 @@ class PosPinTest extends TestCase
         $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937'], $this->headersFor())
             ->assertOk()
             ->assertJsonPath('data.pin_set', true)
+            ->assertJsonPath('data.must_change', true)
             ->assertJsonMissingPath('data.pin');
-        $this->verify($this->cashier, '5937')->assertOk();
+
+        // A PIN someone else chose is changed at the till first.
+        $this->verify($this->cashier, '5937')->assertOk()->assertJsonPath('data.must_change', true);
+        $this->assertTrue($this->staffRow($this->cashier)['must_change']);
+        $this->postJson('/api/v1/pos/pin/change', ['user_id' => $this->cashier->id, 'pin' => '5937', 'new_pin' => '1234'], $this->deviceHeaders($this->till))
+            ->assertUnprocessable()->assertJsonValidationErrors('new_pin');
+        $this->postJson('/api/v1/pos/pin/change', ['user_id' => $this->cashier->id, 'pin' => '0000', 'new_pin' => '8051'], $this->deviceHeaders($this->till))
+            ->assertUnprocessable()->assertJsonPath('code', 'pin_incorrect');
+        $this->postJson('/api/v1/pos/pin/change', ['user_id' => $this->cashier->id, 'pin' => '5937', 'new_pin' => '8051'], $this->deviceHeaders($this->till))
+            ->assertOk()->assertJsonPath('data.must_change', false);
+        $this->assertFalse($this->staffRow($this->cashier)['must_change']);
+        $this->verify($this->cashier, '8051')->assertOk();
+
+        // An administrator acting on themselves confirms their password, and needs 6 digits (they approve overrides).
+        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '593704'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '5937', 'password' => $this->password], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('pin');
+        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '593704', 'password' => 'wrong-password-9'], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'invalid_password');
+        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '593704', 'password' => $this->password], $this->headersFor())->assertOk()->assertJsonPath('data.must_change', false);
 
         // A cashier cannot reach the owner, nor reset anyone.
         $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '5937'], $this->headersFor($this->cashier))->assertNotFound();
 
         $this->deleteJson("/api/v1/users/{$this->cashier->id}/pos-pin", [], $this->headersFor())->assertOk()->assertJsonPath('data.pin_set', false);
-        $this->verify($this->cashier, '5937')->assertUnprocessable()->assertJsonPath('code', 'pin_not_set');
+        $this->verify($this->cashier, '8051')->assertUnprocessable()->assertJsonPath('code', 'pin_not_set');
 
         $this->inTenant(fn () => $this->assertSame(
-            ['core.user.pin_reset', 'core.user.pin_clear'],
+            ['core.user.pin_reset', 'core.user.pin_set', 'core.user.pin_set', 'core.user.pin_clear'],
             AuditEntry::query()->where('action', 'like', 'core.user.pin_%')->orderBy('seq')->pluck('action')->all(),
         ));
     }
@@ -160,11 +179,20 @@ class PosPinTest extends TestCase
         $other = $this->otherTenant();
         $this->verify($other['user'], '4826')->assertUnprocessable()->assertJsonValidationErrors('user_id');
 
+        // A role with till permissions but not the sign-in one does not make staff.
+        $viewer = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Sales viewer', ['pos.sale.view']), Scope::location($this->locationA->id));
+
+            return $user;
+        });
+
         $staff = collect($this->pull($this->till, ['staff'])->assertOk()->json('entities.staff.upserts'))->pluck('id')->all();
         $this->assertContains($this->cashier->id, $staff);
         $this->assertContains($this->owner->id, $staff);
         $this->assertNotContains($elsewhere->id, $staff);
         $this->assertNotContains($admin->id, $staff);
+        $this->assertNotContains($viewer->id, $staff);
 
         // A deactivated cashier leaves the list.
         $this->inTenant(fn () => $this->cashier->forceFill(['status' => User::STATUS_DEACTIVATED])->saveQuietly());
@@ -179,8 +207,9 @@ class PosPinTest extends TestCase
         $response = $this->pull($this->till, ['staff'])->assertOk();
         $row = collect($response->json('entities.staff.upserts'))->firstWhere('id', $this->cashier->id);
 
-        $this->assertSame(['id', 'name', 'permissions', 'limits', 'field_rules', 'pin', 'card', 'pin_version', 'failed_attempts', 'locked'], array_keys($row));
+        $this->assertSame(['id', 'name', 'permissions', 'limits', 'field_rules', 'offline', 'pin', 'card', 'pin_version', 'must_change', 'failed_attempts', 'locked'], array_keys($row));
         $this->assertSame('pbkdf2-sha256+hmac-sha256/v1', $row['pin']['scheme']);
+        $this->assertSame($this->till['kid'], $row['pin']['kid']);
         $this->assertGreaterThanOrEqual(100000, $row['pin']['iterations']);
         $this->assertTrue($this->deviceAccepts($row['pin'], $this->cashier->id, '4826', $this->till['secret']));
         $this->assertFalse($this->deviceAccepts($row['pin'], $this->cashier->id, '4827', $this->till['secret']));
@@ -201,11 +230,53 @@ class PosPinTest extends TestCase
         $this->assertStringNotContainsString($this->cashier->email, $body);
         $this->assertStringNotContainsString('4826', $body);
 
-        // Rotating the device secret changes the verifiers.
-        $newSecret = $this->postJson('/api/v1/sync/device-secret', [], $this->deviceHeaders($this->till))->assertOk()->json('device_secret');
-        $rotated = $this->staffRow($this->cashier);
-        $this->assertNotSame($row['pin']['verifier'], $rotated['pin']['verifier']);
-        $this->assertTrue($this->deviceAccepts($rotated['pin'], $this->cashier->id, '4826', $newSecret));
+        // Rotating the device secret changes the verifiers, once the new secret is active.
+        $rotated = $this->rotateTill($this->till);
+        $after = $this->staffRow($this->cashier);
+        $this->assertSame($rotated['kid'], $after['pin']['kid']);
+        $this->assertNotSame($row['pin']['verifier'], $after['pin']['verifier']);
+        $this->assertTrue($this->deviceAccepts($after['pin'], $this->cashier->id, '4826', $rotated['secret']));
+    }
+
+    public function test_owners_by_template_sign_in_online_only_unless_they_have_a_role_where_they_work(): void
+    {
+        $this->setPin($this->owner, '593704')->assertOk();
+
+        $row = $this->staffRow($this->owner);
+        $this->assertFalse($row['offline']);
+        $this->assertNull($row['pin']);
+        $this->verify($this->owner, '593704')->assertOk();
+
+        // A tenant-wide role that is not an Owner role grants it deliberately.
+        $supervisor = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Roaming cashier', ['pos.till.sign_in', 'pos.sale.create']), Scope::tenant());
+
+            return $user;
+        });
+        $this->setPin($supervisor, '4826')->assertOk();
+        $this->assertNotNull($this->staffRow($supervisor)['pin']);
+
+        // An Owner who also works here gets the material.
+        $this->inTenant(fn () => $this->assign($this->owner, $this->roles->get('cashier'), Scope::location($this->locationA->id)));
+        $this->assertNotNull($this->staffRow($this->owner)['pin']);
+    }
+
+    public function test_people_who_approve_overrides_need_six_digit_pins(): void
+    {
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->setPin($manager, '4826')->assertUnprocessable()->assertJsonValidationErrors('pin');
+        $this->setPin($manager, '482619')->assertOk();
+
+        // A cashier with a 4-digit PIN who later gets an approving role must choose 6 digits.
+        $this->setPin($this->cashier, '4826')->assertOk();
+        $this->assertFalse($this->staffRow($this->cashier)['must_change']);
+        $this->inTenant(fn () => $this->assign($this->cashier, $this->roles->get('branch_manager'), Scope::branch($this->branchA->id)));
+        $this->assertTrue($this->staffRow($this->cashier)['must_change']);
+        $this->postJson('/api/v1/pos/pin/change', ['user_id' => $this->cashier->id, 'pin' => '4826', 'new_pin' => '8051'], $this->deviceHeaders($this->till))
+            ->assertUnprocessable()->assertJsonValidationErrors('pin');
+        $this->postJson('/api/v1/pos/pin/change', ['user_id' => $this->cashier->id, 'pin' => '4826', 'new_pin' => '805193'], $this->deviceHeaders($this->till))->assertOk();
+        $this->assertFalse($this->staffRow($this->cashier)['must_change']);
     }
 
     public function test_staff_rows_carry_till_permissions_limits_and_field_rules(): void
@@ -241,12 +312,20 @@ class PosPinTest extends TestCase
 
         $report(5, true)->assertOk()->assertJsonPath('data.0.locked', true);
         $report(0, false)->assertOk()->assertJsonPath('data.0.locked', true);
+        $report(7, true)->assertOk()->assertJsonPath('data.0.locked', true);
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::query()->where('action', 'core.user.pin_locked')->count(), 'one entry per lock'));
         $this->verify($this->cashier, '4826')->assertStatus(423);
         $this->assertTrue($this->staffRow($this->cashier)['locked']);
 
         $other = $this->otherTenant();
         $this->postJson('/api/v1/pos/pin/attempts', ['reports' => [['user_id' => $other['user']->id, 'failed_attempts' => 1, 'locked' => false]]], $this->deviceHeaders($this->till))
             ->assertUnprocessable();
+
+        // Only staff of this till's location.
+        $elsewhere = $this->userWith('cashier', Scope::location($this->locationB->id));
+        $this->postJson('/api/v1/pos/pin/attempts', ['reports' => [['user_id' => $elsewhere->id, 'failed_attempts' => 5, 'locked' => true]]], $this->deviceHeaders($this->till))
+            ->assertUnprocessable()->assertJsonPath('code', 'not_staff_here');
+        $this->inTenant(fn () => $this->assertSame(0, DevicePinState::query()->where('user_id', $elsewhere->id)->count()));
     }
 
     public function test_a_staff_card_signs_in_like_a_pin(): void

@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\Schema;
 // company, a party that is no longer a customer) or is deleted writes a
 // `sync_tombstones` row naming the company it left (null: every company).
 //
-// Items carry their units, barcodes and images: a change to any of them,
-// or to the tax data that decides whether the item may be sold (tax rates,
-// a category's default code, a code's archive), re-stamps the item.
+// Items carry their units, barcodes and images: a change to any of them
+// re-stamps the item. Tax changes that decide whether items may be sold
+// re-stamp them from a queued job in small batches (RestampItemsForTax).
 return new class extends Migration
 {
     /** Tables devices pull incrementally, with their entity names for tombstones. */
@@ -156,57 +156,38 @@ return new class extends Migration
             create trigger sync_touch_item_update after update on item_images for each row execute function sync_touch_item();
             create trigger sync_touch_item_delete after delete on item_images for each row execute function sync_touch_item_on_delete();
 
-            -- Whether an item may be sold follows its tax data (CP-02).
-            create or replace function sync_touch_items_of_tax_rate() returns trigger language plpgsql as $$
-            begin
-                update items set sync_seq = 0
-                where tax_category_id in (
-                    select tax_category_id from tax_category_codes
-                    where tax_code_id = case when tg_op = 'DELETE' then old.tax_code_id else new.tax_code_id end
-                );
-                return null;
-            end;
-            $$;
-
-            create or replace function sync_touch_items_of_tax_code() returns trigger language plpgsql as $$
-            begin
-                update items set sync_seq = 0
-                where tax_category_id in (select tax_category_id from tax_category_codes where tax_code_id = new.id);
-                return null;
-            end;
-            $$;
-
-            create or replace function sync_touch_items_of_tax_category() returns trigger language plpgsql as $$
-            begin
-                if tg_op <> 'INSERT' then
-                    update items set sync_seq = 0 where tax_category_id = old.tax_category_id;
-                end if;
-                if tg_op <> 'DELETE' then
-                    update items set sync_seq = 0 where tax_category_id = new.tax_category_id;
-                end if;
-                return null;
-            end;
-            $$;
-
-            create trigger sync_touch_items after insert or update or delete on tax_rates
-                for each row execute function sync_touch_items_of_tax_rate();
-            create trigger sync_touch_items after update of archived_at on tax_codes
-                for each row when (old.archived_at is distinct from new.archived_at)
-                execute function sync_touch_items_of_tax_code();
-            create trigger sync_touch_items after insert or update or delete on tax_category_codes
-                for each row execute function sync_touch_items_of_tax_category();
             SQL);
 
-        // NFR-04, TEN-05: when each device last pulled, pushed and bootstrapped
-        // (back office), and its secret for PIN material and offline override
-        // signatures (AUTH-06, AUTH-08), encrypted by the application.
+        // NFR-04, TEN-05: when each device last pulled, pushed and bootstrapped (back office).
         Schema::table('devices', function (Blueprint $table) {
             $table->timestampTz('last_pull_at')->nullable();
             $table->timestampTz('last_push_at')->nullable();
             $table->timestampTz('last_bootstrap_at')->nullable();
-            $table->text('secret')->nullable();
-            $table->timestampTz('secret_issued_at')->nullable();
         });
+
+        // AUTH-06, AUTH-08: each device's secrets by key id (DeviceSecrets),
+        // encrypted by the application. One current at a time; a rotation
+        // is pending until the device proves it holds the new secret; retired
+        // ones are kept so overrides signed while they were current still verify.
+        Schema::create('device_secrets', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->tenantId();
+            $table->foreignUuid('device_id')->constrained()->restrictOnDelete();
+            $table->string('kid', 32);
+            $table->text('secret');
+            $table->string('status', 10);
+            $table->timestampTz('issued_at');
+            $table->timestampTz('activated_at')->nullable();
+            $table->timestampTz('retired_at')->nullable();
+            $table->timestampsTz();
+
+            $table->unique(['device_id', 'kid']);
+        });
+
+        DB::statement("alter table device_secrets add constraint device_secrets_status_check check (status in ('pending', 'current', 'retired'))");
+        DB::statement("create unique index device_secrets_one_current on device_secrets (device_id) where status = 'current'");
+        DB::statement("create unique index device_secrets_one_pending on device_secrets (device_id) where status = 'pending'");
+        Rls::enable('device_secrets');
 
         // AUTH-06: a user's POS PIN and optional staff card. Argon2id hashes
         // for server checks; a PBKDF2-SHA256 key (encrypted by the
@@ -226,6 +207,10 @@ return new class extends Migration
             $table->text('card_key')->nullable();
             // Raised on every change: devices see a new verifier, lockouts clear.
             $table->integer('version')->default(1);
+            // 4 to 6 (users who can approve overrides need 6, AUTH-08).
+            $table->smallInteger('pin_digits')->nullable();
+            // Set by an administrator for someone else: the till asks for a new PIN first.
+            $table->boolean('must_change')->default(false);
             $table->timestampTz('pin_set_at')->nullable();
             $table->foreignUuid('set_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestampsTz();
@@ -280,19 +265,11 @@ return new class extends Migration
         Schema::dropIfExists('override_redemptions');
         Schema::dropIfExists('device_pin_states');
         Schema::dropIfExists('user_pins');
+        Schema::dropIfExists('device_secrets');
 
         Schema::table('devices', function (Blueprint $table) {
-            $table->dropColumn(['last_pull_at', 'last_push_at', 'last_bootstrap_at', 'secret', 'secret_issued_at']);
+            $table->dropColumn(['last_pull_at', 'last_push_at', 'last_bootstrap_at']);
         });
-
-        DB::unprepared(<<<'SQL'
-            drop trigger if exists sync_touch_items on tax_category_codes;
-            drop trigger if exists sync_touch_items on tax_codes;
-            drop trigger if exists sync_touch_items on tax_rates;
-            drop function if exists sync_touch_items_of_tax_category();
-            drop function if exists sync_touch_items_of_tax_code();
-            drop function if exists sync_touch_items_of_tax_rate();
-            SQL);
 
         foreach (['item_uoms', 'item_barcodes', 'item_images'] as $table) {
             foreach (['insert', 'update', 'delete'] as $op) {

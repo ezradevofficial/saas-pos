@@ -27,7 +27,7 @@ class UserPin extends Model
 
     protected $fillable = [
         'user_id', 'pin_hash', 'pin_salt', 'pin_iterations', 'pin_key',
-        'card_hash', 'card_salt', 'card_iterations', 'card_key', 'version', 'pin_set_at', 'set_by',
+        'card_hash', 'card_salt', 'card_iterations', 'card_key', 'version', 'pin_set_at', 'set_by', 'pin_digits', 'must_change',
     ];
 
     protected $hidden = ['pin_hash', 'pin_salt', 'pin_key', 'card_hash', 'card_salt', 'card_key'];
@@ -40,6 +40,8 @@ class UserPin extends Model
             'pin_iterations' => 'integer',
             'card_iterations' => 'integer',
             'version' => 'integer',
+            'pin_digits' => 'integer',
+            'must_change' => 'boolean',
             'pin_set_at' => 'datetime',
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Core\Identity\Pin\Http\Controllers;
 
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\Http\Requests\ChangePinRequest;
 use App\Core\Identity\Pin\Http\Requests\OverrideRequest;
 use App\Core\Identity\Pin\Http\Requests\ReportPinAttemptsRequest;
 use App\Core\Identity\Pin\Http\Requests\VerifyPinRequest;
@@ -23,7 +24,9 @@ use Illuminate\Http\JsonResponse;
  * POST pos/pin/verify: a staff sign-in checked online (lockout after 5
  * wrong attempts per user and device). Only staff of the device's
  * location (StaffDirectory) can sign in there.
- * POST pos/pin/attempts: wrong attempts the device counted offline.
+ * POST pos/pin/attempts: wrong attempts the device counted offline, for
+ * staff of its location only.
+ * POST pos/pin/change: a new PIN chosen at the till (clears `must_change`).
  * POST pos/override: a manager's PIN entered on the cashier's device,
  * answered with a signed short-lived override token when the manager holds
  * the permission at the device's location.
@@ -41,13 +44,34 @@ class DevicePinController
         $user = $this->staffMember($device, (string) $request->validated('user_id'));
         $this->pins->verify($device, $user, $request->secret(), $request->kind());
 
-        return response()->json(['data' => ['user_id' => $user->id, 'name' => $user->name, 'verified_at' => CarbonImmutable::now()->toIso8601String()]]);
+        return response()->json(['data' => [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'verified_at' => CarbonImmutable::now()->toIso8601String(),
+            'must_change' => $this->pins->status($user)['must_change'],
+        ]]);
+    }
+
+    /** AUTH-06: a new PIN chosen at the till, after the current one is checked (with lockout). */
+    public function change(ChangePinRequest $request): JsonResponse
+    {
+        $device = $request->device();
+        $user = $this->staffMember($device, (string) $request->validated('user_id'));
+        $this->pins->verify($device, $user, (string) $request->validated('pin'));
+        $this->pins->set($user, (string) $request->validated('new_pin'), null);
+
+        return response()->json(['message' => __('auth.pin.saved'), 'data' => $this->pins->status($user)]);
     }
 
     public function attempts(ReportPinAttemptsRequest $request): JsonResponse
     {
         $device = $request->device();
         $states = [];
+
+        // Only staff of this device's location can have tried a PIN here.
+        foreach ($request->validated('reports') as $report) {
+            $this->staffMember($device, $report['user_id']);
+        }
 
         foreach ($request->validated('reports') as $report) {
             $states[] = $this->pins->report(
@@ -74,7 +98,7 @@ class DevicePinController
             throw new ApiException(403, 'override_not_permitted', __('auth.override.not_permitted'));
         }
 
-        $issued = $tokens->issue($device, $manager, $request->validated('cashier_user_id'), $permission, $request->validated('reference'));
+        $issued = $tokens->issue($device, $manager, $request->validated('cashier_user_id'), $permission, (string) $request->validated('reference'));
 
         return response()->json(['data' => [
             'token' => $issued['token'],

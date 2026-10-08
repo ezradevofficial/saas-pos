@@ -37,7 +37,7 @@ class SyncPerformanceTest extends TestCase
             $device = Device::create(['location_id' => $this->locationA->id, 'name' => "Till {$n}"]);
             $device->forceFill(['status' => Device::STATUS_ACTIVE, 'paired_at' => now()])->save();
 
-            return ['id' => $device->id, 'token' => $device->issueToken("Till {$n}", null, null)->plainTextToken, 'secret' => app(DeviceSecrets::class)->issue($device)];
+            return ['id' => $device->id, 'token' => $device->issueToken("Till {$n}", null, null)->plainTextToken, 'secret' => app(DeviceSecrets::class)->issueFirst($device)['secret']];
         })->all());
 
         foreach (range(1, 3) as $n) {

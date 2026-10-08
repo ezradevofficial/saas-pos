@@ -152,11 +152,18 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
     Route::middleware('throttle:device-sync')->group(function () {
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap']);
         Route::get('sync/pull', [SyncController::class, 'pull']);
-        Route::post('sync/device-secret', [SyncController::class, 'rotateSecret']);
         Route::get('sync/media/{item_image}', SyncMediaController::class);
         Route::post('pos/pin/verify', [DevicePinController::class, 'verify']);
         Route::post('pos/pin/attempts', [DevicePinController::class, 'attempts']);
         Route::post('pos/override', [DevicePinController::class, 'override']);
+        Route::post('pos/pin/change', [DevicePinController::class, 'change']);
+    });
+
+    // AUTH-06, AUTH-08: device secret rotation, proven at each step, a few times an hour.
+    Route::middleware('throttle:device-secret')->group(function () {
+        Route::get('sync/device-secret/challenge', [SyncController::class, 'secretChallenge']);
+        Route::post('sync/device-secret/rotate', [SyncController::class, 'rotateSecret']);
+        Route::post('sync/device-secret/activate', [SyncController::class, 'activateSecret']);
     });
 });
 

@@ -36,6 +36,7 @@ return [
     'sync' => [
         'invalid_cursor' => 'La position de synchronisation de :entity n’est pas valide. Synchronisez :entity de nouveau depuis le début.',
         'unknown_entity' => 'Cette caisse a demandé des données (:entity) qui ne sont pas disponibles. Mettez l’application à jour et synchronisez de nouveau.',
+        'secret_proof_invalid' => 'Cette caisse n’a pas pu prouver sa clé. Recommencez le changement de clé ; si l’échec persiste, dissociez la caisse et associez-la de nouveau.',
     ],
 
     // AUTH-02, AUTH-09, L10N-01: tenant settings.

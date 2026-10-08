@@ -79,7 +79,7 @@ class DevicePairing
      * The answer carries the device's own secret (AUTH-06, AUTH-08,
      * DeviceSecrets), shown this once.
      *
-     * @return array{token: string, device: Device, secret: string}
+     * @return array{token: string, device: Device, secret: string, kid: string}
      */
     public function pair(string $code, string $deviceName, ?string $ip, ?string $userAgent): array
     {
@@ -115,10 +115,13 @@ class DevicePairing
                 'paired_at' => now(),
             ]);
 
+            $secret = $this->secrets->issueFirst($device);
+
             return [
                 'token' => $device->issueToken($deviceName, $ip, $userAgent)->plainTextToken,
                 'device' => $device,
-                'secret' => $this->secrets->issue($device),
+                'secret' => $secret['secret'],
+                'kid' => $secret['kid'],
             ];
         }));
     }
@@ -177,8 +180,10 @@ class DevicePairing
                 return $device;
             }
 
-            // The secret goes with the pairing: PIN verifiers and override signatures of the old pairing stop working.
-            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null, 'secret' => null, 'secret_issued_at' => null]);
+            // The secrets go with the pairing: the device's PIN verifiers stop working (DeviceSecrets).
+            $this->secrets->retireAll($device);
+
+            return $this->transition($device, 'unpair', ['status' => Device::STATUS_UNPAIRED, 'paired_at' => null]);
         });
     }
 

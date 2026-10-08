@@ -9,11 +9,11 @@ use Carbon\CarbonImmutable;
  * `reference`. Both users are recorded: the manager who authorised it and
  * the cashier it was authorised for (null when the device did not say).
  *
- * `managerHoldsPermission` is checked at redemption: an offline override
- * stays valid evidence of what happened at the till (the device wins for
- * completed sales), but a manager who has since lost the permission is
- * worth flagging for review. `firstUse` is false when the same override
- * was already redeemed for the same record (an idempotent re-upload).
+ * Checked at redemption: whether the manager is still active, still works
+ * at the device's location (holds the till sign-in permission there) and
+ * still holds the permission there. An offline override stays valid
+ * evidence of what happened at the till, but the POS module flags it for
+ * review when any of these is false (and shows every offline override).
  */
 final class VerifiedOverride
 {
@@ -23,9 +23,16 @@ final class VerifiedOverride
         public readonly string $managerUserId,
         public readonly ?string $cashierUserId,
         public readonly string $permission,
-        public readonly ?string $reference,
+        public readonly string $reference,
         public readonly CarbonImmutable $authorisedAt,
+        public readonly bool $managerActive,
+        public readonly bool $managerStaffAtLocation,
         public readonly bool $managerHoldsPermission,
-        public readonly bool $firstUse,
     ) {}
+
+    /** Offline, or a manager who no longer qualifies: to be reviewed. */
+    public function needsReview(): bool
+    {
+        return $this->mode === OverrideRedemption::OFFLINE || ! $this->managerActive || ! $this->managerStaffAtLocation || ! $this->managerHoldsPermission;
+    }
 }

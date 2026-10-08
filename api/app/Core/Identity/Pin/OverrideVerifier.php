@@ -7,7 +7,10 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use App\Core\Sync\DeviceScope;
+use App\Core\Sync\DeviceSecret;
 use App\Core\Sync\DeviceSecrets;
+use App\Core\Sync\StaffDirectory;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -19,34 +22,49 @@ use Throwable;
  * AUTH-08: checks and uses a manager override that came with an action
  * from a device (a void, refund, price change or big discount). The POS
  * module calls redeem() inside the transaction that records the action,
- * with the permission the action needs and the record it applies to.
+ * with the permission the action needs and the record it applies to
+ * (`reference`: the sale or line id, required).
  *
  * Two forms:
  *
  *  - online, `['token' => 'ovr1....']` from POST pos/override
- *    (OverrideTokens): signature, tenant, device, permission and expiry are
- *    checked; a token naming a record must be used for that record.
+ *    (OverrideTokens): signature, tenant, device, permission, record and
+ *    expiry are checked.
  *
  *  - offline, when the device checked the manager's PIN itself:
- *    `['id', 'manager_user_id', 'cashier_user_id', 'permission',
+ *    `['id', 'kid', 'manager_user_id', 'cashier_user_id', 'permission',
  *    'reference', 'authorised_at', 'signature']`, the signature being
- *    base64url(HMAC-SHA256(device secret, message)) with message the lines
- *        override:v1
+ *    base64url(HMAC-SHA256(device secret `kid`, message)) with message the
+ *    lines
+ *        override:v2
  *        {device id}
+ *        {kid}
  *        {id}
  *        {manager_user_id}
  *        {cashier_user_id or empty}
  *        {permission}
- *        {reference or empty}
+ *        {reference}
  *        {authorised_at, exactly as sent}
- *    joined by "\n" (no trailing newline). Offline overrides do not expire:
- *    the device may upload days later (NFR-04).
+ *    joined by "\n" (no trailing newline). `authorised_at` must fall while
+ *    that secret was current (from its issue to its retirement or now),
+ *    give or take `sync.override_clock_skew_seconds`. Offline overrides do
+ *    not otherwise expire: the device may upload days later (NFR-04). They
+ *    are the device's claim: whoever holds its secret can sign them, so the
+ *    POS module records them for review (`mode` offline, and the flags).
  *
- * Replay: each override id is used once (override_redemptions, unique).
- * Using it again for the same device, permission and record answers the
- * same (an idempotent re-upload, `firstUse` false); for anything else it
- * is refused (409 `override_replayed`). The first use is audited as
+ * Replay: each override id is used once (override_redemptions, unique per
+ * tenant). Using it again for the same device, permission and record
+ * throws OverrideAlreadyApplied (409 `override_already_applied`, carrying
+ * the earlier result): the caller must treat it as "this action was
+ * already recorded", never as a fresh approval. Anything else is refused
+ * (409 `override_replayed`). The first use is audited as
  * `core.user.override_redeem` on the manager, naming both users.
+ *
+ * The result says whether the manager is still active, still works at the
+ * device's location, and still holds the permission there: an offline
+ * override stays evidence of what happened at the till (the device wins
+ * for completed sales), but one by someone who has since lost any of these
+ * is flagged for review.
  */
 class OverrideVerifier
 {
@@ -54,31 +72,43 @@ class OverrideVerifier
         private readonly TenantContext $tenants,
         private readonly DeviceSecrets $secrets,
         private readonly ScopeResolver $resolver,
+        private readonly StaffDirectory $staff,
         private readonly Auditor $auditor,
     ) {}
 
     /**
      * @param  array<string, mixed>  $override
      *
-     * @throws ApiException 422 `override_invalid`, `override_expired`, `override_mismatch`; 409 `override_replayed`
+     * @throws OverrideAlreadyApplied 409 `override_already_applied`
+     * @throws ApiException 422 `override_invalid`, `override_expired`, `override_mismatch`, `override_reference_required`; 409 `override_replayed`
      */
-    public function redeem(Device $device, array $override, string $permission, ?string $reference): VerifiedOverride
+    public function redeem(Device $device, array $override, string $permission, string $reference): VerifiedOverride
     {
+        if (trim($reference) === '') {
+            throw new ApiException(422, 'override_reference_required', __('auth.override.reference_required'));
+        }
+
         $claims = isset($override['token']) && is_string($override['token'])
             ? $this->online($device, $override['token'], $permission, $reference)
             : $this->offline($device, $override, $permission, $reference);
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->use($device, $claims));
+        $result = DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->use($device, $claims));
+
+        if (! $result['first']) {
+            throw new OverrideAlreadyApplied($result['override']);
+        }
+
+        return $result['override'];
     }
 
     /** The canonical message an offline override signs. */
-    public static function offlineMessage(string $deviceId, string $id, string $managerId, ?string $cashierId, string $permission, ?string $reference, string $authorisedAt): string
+    public static function offlineMessage(string $deviceId, string $kid, string $id, string $managerId, ?string $cashierId, string $permission, string $reference, string $authorisedAt): string
     {
-        return implode("\n", ['override:v1', $deviceId, $id, $managerId, $cashierId ?? '', $permission, $reference ?? '', $authorisedAt]);
+        return implode("\n", ['override:v2', $deviceId, $kid, $id, $managerId, $cashierId ?? '', $permission, $reference, $authorisedAt]);
     }
 
     /** @return array<string, mixed> */
-    private function online(Device $device, string $token, string $permission, ?string $reference): array
+    private function online(Device $device, string $token, string $permission, string $reference): array
     {
         $payload = OverrideTokens::read($token);
 
@@ -90,7 +120,7 @@ class OverrideVerifier
             throw new ApiException(422, 'override_expired', __('auth.override.expired'));
         }
 
-        if (($payload['perm'] ?? null) !== $permission || (($payload['ref'] ?? null) !== null && $payload['ref'] !== $reference)) {
+        if (($payload['perm'] ?? null) !== $permission || ($payload['ref'] ?? null) !== $reference) {
             throw new ApiException(422, 'override_mismatch', __('auth.override.mismatch'));
         }
 
@@ -109,16 +139,16 @@ class OverrideVerifier
      * @param  array<string, mixed>  $override
      * @return array<string, mixed>
      */
-    private function offline(Device $device, array $override, string $permission, ?string $reference): array
+    private function offline(Device $device, array $override, string $permission, string $reference): array
     {
         $field = fn (string $key) => isset($override[$key]) && is_string($override[$key]) && $override[$key] !== '' ? $override[$key] : null;
-        [$id, $manager, $cashier, $signed, $signedReference, $at, $signature] = [
-            $field('id'), $field('manager_user_id'), $field('cashier_user_id'), $field('permission'),
+        [$id, $kid, $manager, $cashier, $signed, $signedReference, $at, $signature] = [
+            $field('id'), $field('kid'), $field('manager_user_id'), $field('cashier_user_id'), $field('permission'),
             $field('reference'), $field('authorised_at'), $field('signature'),
         ];
 
-        if ($id === null || ! Str::isUuid($id) || $manager === null || ! Str::isUuid($manager) || ($cashier !== null && ! Str::isUuid($cashier))
-            || $signed === null || $at === null || $signature === null) {
+        if ($id === null || ! Str::isUuid($id) || $kid === null || $manager === null || ! Str::isUuid($manager) || ($cashier !== null && ! Str::isUuid($cashier))
+            || $signed === null || $signedReference === null || $at === null || $signature === null) {
             throw $this->invalid();
         }
 
@@ -128,10 +158,11 @@ class OverrideVerifier
             throw $this->invalid();
         }
 
-        $expected = $this->secrets->hmac($device, self::offlineMessage($device->id, $id, $manager, $cashier, $signed, $signedReference, $at));
+        $secret = $this->secrets->byKid($device, $kid);
         $given = base64_decode(strtr($signature, '-_', '+/'), true);
+        $expected = $secret === null ? null : DeviceSecrets::hmac($secret, self::offlineMessage($device->id, $kid, $id, $manager, $cashier, $signed, $signedReference, $at));
 
-        if ($expected === null || ! is_string($given) || ! hash_equals($expected, $given)) {
+        if ($expected === null || ! is_string($given) || ! hash_equals($expected, $given) || ! $this->whileCurrent($secret, $authorisedAt)) {
             throw $this->invalid();
         }
 
@@ -150,8 +181,23 @@ class OverrideVerifier
         ];
     }
 
-    /** @param array<string, mixed> $claims */
-    private function use(Device $device, array $claims): VerifiedOverride
+    /** $at falls while $secret was current (it was activated), within the allowed clock skew. */
+    private function whileCurrent(DeviceSecret $secret, CarbonImmutable $at): bool
+    {
+        $skew = (int) config('sync.override_clock_skew_seconds', 600);
+        $until = ($secret->retired_at ?? CarbonImmutable::now())->addSeconds($skew);
+
+        return $secret->activated_at !== null
+            && $at->greaterThanOrEqualTo($secret->issued_at->subSeconds($skew))
+            && $at->lessThanOrEqualTo($until)
+            && $at->lessThanOrEqualTo(CarbonImmutable::now()->addSeconds($skew));
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     * @return array{first: bool, override: VerifiedOverride}
+     */
+    private function use(Device $device, array $claims): array
     {
         // Row-level security: users of another tenant are not found.
         $manager = User::query()->whereKey($claims['manager'])->first() ?? throw $this->invalid();
@@ -184,9 +230,23 @@ class OverrideVerifier
             throw new ApiException(409, 'override_replayed', __('auth.override.replayed'));
         }
 
-        $firstUse = $row->id === $rowId;
+        $first = $row->id === $rowId;
+        $location = Scope::location($device->location_id);
 
-        if ($firstUse) {
+        $verified = new VerifiedOverride(
+            overrideId: $claims['id'],
+            mode: $claims['mode'],
+            managerUserId: $manager->id,
+            cashierUserId: $row->cashier_user_id,
+            permission: $claims['permission'],
+            reference: $claims['reference'],
+            authorisedAt: $row->authorised_at,
+            managerActive: $manager->isActive(),
+            managerStaffAtLocation: $this->staff->at(DeviceScope::of($device), $manager->id) !== [],
+            managerHoldsPermission: $this->resolver->can($manager, $claims['permission'], $location),
+        );
+
+        if ($first) {
             $this->auditor->record('core.user.override_redeem', $manager, null, [
                 'override_id' => $claims['id'],
                 'mode' => $claims['mode'],
@@ -196,20 +256,13 @@ class OverrideVerifier
                 'permission' => $claims['permission'],
                 'reference' => $claims['reference'],
                 'authorised_at' => $row->authorised_at->toIso8601String(),
+                'manager_active' => $verified->managerActive,
+                'manager_staff_at_location' => $verified->managerStaffAtLocation,
+                'manager_holds_permission' => $verified->managerHoldsPermission,
             ]);
         }
 
-        return new VerifiedOverride(
-            overrideId: $claims['id'],
-            mode: $claims['mode'],
-            managerUserId: $manager->id,
-            cashierUserId: $row->cashier_user_id,
-            permission: $claims['permission'],
-            reference: $claims['reference'],
-            authorisedAt: $row->authorised_at,
-            managerHoldsPermission: $this->resolver->can($manager, $claims['permission'], Scope::location($device->location_id)),
-            firstUse: $firstUse,
-        );
+        return ['first' => $first, 'override' => $verified];
     }
 
     private function invalid(): ApiException
