@@ -2,12 +2,17 @@
 
 namespace Tests\Feature\Core\Sync;
 
+use App\Core\Currency\Models\ExchangeRate;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
 use App\Core\MasterData\Items\ItemCategory;
+use App\Core\MasterData\Items\ItemImages;
 use App\Core\MasterData\Items\ItemUom;
+use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxRates;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\Contracts\SnapshotSource;
@@ -17,7 +22,9 @@ use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsTill;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -229,7 +236,7 @@ class SyncPullTest extends TestCase
         $blocked = $this->makeItem('BLOCKED', null, $needed['category']->id);
         $fine = $this->makeItem('FINE', null, $known['category']->id);
         $untaxed = $this->makeItem('NOCAT');
-        $foreignCategory = $this->inTenant(fn () => \App\Core\MasterData\Taxes\TaxCategory::create(['name' => 'No code here']));
+        $foreignCategory = $this->inTenant(fn () => TaxCategory::create(['name' => 'No code here']));
         $noCode = $this->makeItem('NOCODE', null, $foreignCategory->id);
 
         $pulled = $this->pullAll($this->till, 'items');
@@ -285,12 +292,12 @@ class SyncPullTest extends TestCase
     public function test_exchange_rates_carry_the_rate_in_force_and_later_ones(): void
     {
         $this->inTenant(function () {
-            \App\Core\Currency\Models\TenantCurrency::create(['code' => 'KES', 'decimals' => 2]);
-            \App\Core\Currency\Models\TenantCurrency::create(['code' => 'USD', 'decimals' => 2]);
-            \App\Core\Currency\Models\ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'reference', 'mid' => '129', 'effective_at' => now()->subDays(2), 'source' => 'test']);
-            \App\Core\Currency\Models\ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '130', 'effective_at' => now()->subDay(), 'source' => 'test']);
-            \App\Core\Currency\Models\ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '131.5', 'effective_at' => now()->addDay(), 'source' => 'test']);
-            \App\Core\Currency\Models\ExchangeRate::create(['company_id' => $this->other->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '999', 'effective_at' => now()->subDay(), 'source' => 'test']);
+            TenantCurrency::create(['code' => 'KES', 'decimals' => 2]);
+            TenantCurrency::create(['code' => 'USD', 'decimals' => 2]);
+            ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'reference', 'mid' => '129', 'effective_at' => now()->subDays(2), 'source' => 'test']);
+            ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '130', 'effective_at' => now()->subDay(), 'source' => 'test']);
+            ExchangeRate::create(['company_id' => $this->acme->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '131.5', 'effective_at' => now()->addDay(), 'source' => 'test']);
+            ExchangeRate::create(['company_id' => $this->other->id, 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'mid' => '999', 'effective_at' => now()->subDay(), 'source' => 'test']);
         });
 
         $rows = $this->pull($this->till, ['exchange_rates'])->assertOk()->json('entities.exchange_rates.upserts');
@@ -357,12 +364,12 @@ class SyncPullTest extends TestCase
 
     public function test_item_images_reach_the_device_only_for_items_it_may_hold(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('media');
+        Storage::fake('media');
         $own = $this->makeItem('IMG');
         $foreign = $this->makeItem('IMGX', $this->other);
         [$image, $foreignImage] = $this->inTenant(fn () => [
-            app(\App\Core\MasterData\Items\ItemImages::class)->add($own, \Illuminate\Http\UploadedFile::fake()->image('a.jpg', 8, 8)),
-            app(\App\Core\MasterData\Items\ItemImages::class)->add($foreign, \Illuminate\Http\UploadedFile::fake()->image('b.jpg', 8, 8)),
+            app(ItemImages::class)->add($own, UploadedFile::fake()->image('a.jpg', 8, 8)),
+            app(ItemImages::class)->add($foreign, UploadedFile::fake()->image('b.jpg', 8, 8)),
         ]);
 
         $row = $this->pullAll($this->till, 'items')['upserts'][$own->id];
@@ -378,7 +385,7 @@ class SyncPullTest extends TestCase
         $other = $this->otherTenant();
         $foreign = $this->asTenant($other['user']->tenant_id, fn () => Item::create([
             'code' => 'THEIRS', 'name' => 'Their item', 'type' => 'stock',
-            'base_uom_id' => \App\Core\MasterData\Items\Uom::create(['code' => 'EA', 'name' => 'Each', 'kind' => 'count'])->id,
+            'base_uom_id' => Uom::create(['code' => 'EA', 'name' => 'Each', 'kind' => 'count'])->id,
         ]));
         $this->makeItem('MINE');
 

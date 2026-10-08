@@ -4,6 +4,7 @@ namespace App\Core\Identity\Pin\Http\Requests;
 
 use App\Core\Identity\Pin\PinRules;
 use Closure;
+use Illuminate\Validation\ValidationException;
 
 /** AUTH-06: validation of a new PIN and staff card code (PinRules). */
 trait ValidatesNewPin
@@ -37,7 +38,7 @@ trait ValidatesNewPin
 
             try {
                 $assert($value);
-            } catch (\Illuminate\Validation\ValidationException $e) {
+            } catch (ValidationException $e) {
                 $fail(collect($e->errors())->flatten()->first());
             }
         };

@@ -44,7 +44,7 @@ class SyncSources
             throw new InvalidArgumentException("Sync source [{$key}] must be incremental or a snapshot.");
         }
 
-        if (isset($this->sources[$key]) && $this->sources[$key]::class !== $source::class) {
+        if (isset($this->sources[$key]) && $source::class !== $this->sources[$key]::class) {
             throw new InvalidArgumentException("Sync entity [{$key}] is already registered.");
         }
 

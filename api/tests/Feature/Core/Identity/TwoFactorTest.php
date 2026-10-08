@@ -13,6 +13,7 @@ use App\Core\Identity\Services\TwoFactor;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -487,13 +488,16 @@ class TwoFactorTest extends TestCase
             'POST api/v1/me/two-factor/totp/confirm',
             'POST api/v1/me/two-factor/sms',
             'POST api/v1/me/two-factor/sms/confirm',
-            // TEN-05: device tokens only (EnsureDeviceToken); user tokens are refused there.
-            'GET api/v1/devices/me',
         ];
         $seen = [];
 
         foreach (Route::getRoutes() as $route) {
             if (! in_array('auth:sanctum', $route->gatherMiddleware(), true)) {
+                continue;
+            }
+
+            // TEN-05: device routes (devices/me, sync, POS PINs) take device tokens only; user tokens are refused there.
+            if (in_array(EnsureDeviceToken::class, $route->gatherMiddleware(), true)) {
                 continue;
             }
 

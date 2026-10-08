@@ -5,6 +5,7 @@ namespace Tests\Unit\Core\Sync;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Pin\PinRules;
 use App\Core\Sync\SyncCursor;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -34,7 +35,7 @@ class PinRulesAndCursorTest extends TestCase
             try {
                 PinRules::assertPin($bad);
                 $this->fail("{$bad} accepted");
-            } catch (\Illuminate\Validation\ValidationException) {
+            } catch (ValidationException) {
                 $this->addToAssertionCount(1);
             }
         }
