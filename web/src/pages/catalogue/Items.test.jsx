@@ -40,7 +40,7 @@ describe('Items', () => {
 
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: '6001' } })
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: '6001234567890' } })
-    await waitFor(() => expect(listCalls().at(-1)).toBe('items?status=active&per_page=25&page=1&search=6001234567890'))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('items?status=active&search=6001234567890&per_page=25&page=1'))
     // Debounced: the half-typed value was never asked for.
     expect(listCalls().some((path) => path.includes('search=6001&'))).toBe(false)
 
@@ -50,10 +50,37 @@ describe('Items', () => {
     chooseOption('Type', 'Service')
     await waitFor(() => expect(listCalls().at(-1)).toContain('type=service'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('page=2'))
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Archived' }))
-    await waitFor(() => expect(listCalls().at(-1)).toMatch(/^items\?status=archived&per_page=25&page=1/))
+    // A new filter starts again on page 1; search and the other filters stay.
+    await waitFor(() => expect(listCalls().at(-1)).toBe('items?status=archived&category=cat-1&type=service&search=6001234567890&per_page=25&page=1'))
+  })
+
+  it('keeps the list state in the URL, sorts by a header and exports the visible columns (EXP-01, LAY-04)', async () => {
+    catalogue(api)
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'items-2026-10-08.xlsx' })
+    URL.createObjectURL = vi.fn(() => 'blob:items')
+    URL.revokeObjectURL = vi.fn()
+    const { router } = renderApp('/catalogue/items?type=service&sort=-code&page=2')
+    const table = await screen.findByRole('table', { name: 'Items' })
+    await waitFor(() => expect(listCalls()[0]).toBe('items?status=active&type=service&sort=-code&per_page=25&page=2'))
+    expect(within(table).getByRole('columnheader', { name: /Code/ })).toHaveAttribute('aria-sort', 'descending')
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?type=service&sort=name'))
+    expect(listCalls().at(-1)).toBe('items?status=active&type=service&sort=name&per_page=25&page=1')
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Excel (.xlsx)' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    const [path] = api.download.mock.calls[0]
+    const params = new URLSearchParams(path.split('?')[1])
+    expect(path.startsWith('items?')).toBe(true)
+    expect(params.get('format')).toBe('xlsx')
+    expect(params.get('sort')).toBe('name')
+    expect(params.get('page')).toBeNull()
+    expect(params.getAll('columns[]')).toEqual(['code', 'name', 'category', 'type', 'base_unit', 'barcodes'])
   })
 
   it('creates an item with two units, barcodes per unit, and names possible duplicates without blocking', async () => {

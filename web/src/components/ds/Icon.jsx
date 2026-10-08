@@ -9,10 +9,15 @@ import {
   Contact,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronRight,
   ChevronsUpDown,
   Clock,
   Coins,
+  Columns3,
   Cloud,
   Copy,
   CreditCard,
@@ -97,6 +102,11 @@ const ICONS = {
   history: History,
   image: ImagePlus,
   search: Search,
+  chevronLeft: ChevronLeft,
+  chevronUp: ChevronUp,
+  first: ChevronsLeft,
+  last: ChevronsRight,
+  columns: Columns3,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

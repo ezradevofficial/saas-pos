@@ -84,6 +84,29 @@
     "combobox": {
       "search": "Rechercher",
       "noMatches": "Aucun résultat"
+    },
+    "listView": {
+      "search": "Rechercher",
+      "columns": "Colonnes",
+      "showColumns": "Colonnes affichées",
+      "export": "Exporter",
+      "formats": {
+        "xlsx": "Excel (.xlsx)",
+        "csv": "CSV",
+        "pdf": "PDF"
+      },
+      "exporting": "Préparation de l’export…",
+      "exported": "Export téléchargé.",
+      "exportTooOften": "Trop d’exports en peu de temps. Patientez une minute puis réessayez.",
+      "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+      "noRecords": "Aucun enregistrement",
+      "perPage": "Lignes par page",
+      "pages": "Pages de résultats",
+      "pageOf": "Page {{page}} sur {{last}}",
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
     }
   },
   "dev": {
@@ -1208,12 +1231,6 @@
       "description": "Les personnes et organisations auprès de qui vous achetez."
     }
   },
-  "pager": {
-    "label": "Pages",
-    "pageOf": "Page {{page}} sur {{last}}",
-    "previous": "Précédente",
-    "next": "Suivante"
-  },
   "duplicates": {
     "title": {
       "item_one": "Cet article existe peut-être déjà",
@@ -1322,7 +1339,6 @@
     "newText": "Donnez à l’article un code et un nom. Les unités, codes-barres et images peuvent suivre.",
     "search": "Rechercher",
     "searchPlaceholder": "Code, nom ou code-barres",
-    "pages": "Pages d’articles",
     "moreBarcodes": "+{{count}} autres",
     "emptyFiltered": "Aucun article ne correspond. Essayez une autre recherche ou un autre filtre.",
     "empty": {
@@ -1536,7 +1552,6 @@
     "newText": "Un nom suffit pour commencer. Ajoutez des numéros de téléphone pour que la caisse les retrouve.",
     "search": "Rechercher",
     "searchPlaceholder": "Nom, identifiant fiscal ou téléphone",
-    "pages": "Pages de contacts",
     "emptyFiltered": "Aucun contact ne correspond. Essayez une autre recherche ou étiquette.",
     "filters": {
       "tag": "Étiquette"
@@ -1562,7 +1577,8 @@
       "phone": "Téléphone",
       "email": "E-mail",
       "tags": "Étiquettes",
-      "creditLimit": "Plafond de crédit"
+      "creditLimit": "Plafond de crédit",
+      "taxId": "Identifiant fiscal"
     },
     "kinds": {
       "person": "Personne",
