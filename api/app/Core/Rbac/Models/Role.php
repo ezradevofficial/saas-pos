@@ -37,6 +37,9 @@ class Role extends SpatieRole
 
     protected string $auditResource = 'role';
 
+    /** Never inferred from the request's guard (a sanctum request would otherwise look for sanctum rows). */
+    protected $guard_name = Permission::GUARD;
+
     protected $fillable = ['name', 'guard_name', 'description', 'requires_two_factor'];
 
     protected $attributes = [

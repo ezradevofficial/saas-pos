@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Dimensions\Http\Lists;
 
 use App\Core\Exports\ExportValues;
+use App\Core\Identity\Http\Lists\VisibleUserNames;
 use App\Core\Identity\Models\User;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
@@ -10,8 +11,6 @@ use App\Core\Lists\ListSort;
 use App\Core\MasterData\Dimensions\Dimension;
 use App\Core\MasterData\Dimensions\Dimensions;
 use App\Core\MasterData\Dimensions\Http\Resources\DimensionResource;
-use App\Core\Rbac\ScopeNames;
-use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -28,8 +27,7 @@ class DimensionList extends ListDefinition
     /** @var array<string, string>|null parent labels by id */
     private ?array $parents = null;
 
-    /** @var array<string, string>|null names of the users the reader sees, by id */
-    private ?array $owners = null;
+    private ?VisibleUserNames $owners = null;
 
     public function __construct(
         private readonly string $type,
@@ -96,7 +94,7 @@ class DimensionList extends ListDefinition
             ListColumn::make('parent', 'core.dimension.columns.parent', ['parent_id'],
                 fn (array $row) => $row['parent_id'] === null ? null : ($this->parents()[$row['parent_id']] ?? null)),
             ListColumn::make('owner', 'core.dimension.columns.owner', ['owner_user_id'],
-                fn (array $row) => $row['owner_user_id'] === null ? null : ($this->owners()[$row['owner_user_id']] ?? __('core.dimension.owner_hidden'))),
+                fn (array $row) => ($this->owners ??= new VisibleUserNames($this->reader))->label($row['owner_user_id'])),
             ListColumn::archiveStatus('core.dimension.columns.status'),
             ListColumn::make('created_at', 'core.dimension.columns.created_at', ['created_at'],
                 fn (array $row, Dimension $dimension, ExportValues $values) => $values->dateTime($row['created_at'], $dimension->company_id)),
@@ -110,24 +108,6 @@ class DimensionList extends ListDefinition
     {
         return $this->parents ??= $this->model()::query()->where('company_id', $this->company->id)->get(['id', 'code', 'name'])
             ->mapWithKeys(fn (Dimension $row) => [$row->id => "{$row->code} · {$row->name}"])->all();
-    }
-
-    /** @return array<string, string> names of the users the reader may see (RBAC-04), by id */
-    private function owners(): array
-    {
-        if ($this->owners !== null) {
-            return $this->owners;
-        }
-
-        $visible = app(ScopeResolver::class)->visibleIds($this->reader, 'core.user.view');
-        $query = User::query();
-
-        if (! $visible->all) {
-            $query->whereHas('assignments', fn (Builder $q) => ScopeNames::constrain($q, $visible));
-        }
-
-        // The reader always sees their own name.
-        return $this->owners = [...$query->pluck('name', 'id')->all(), $this->reader->id => $this->reader->name];
     }
 
     public function filterSummary(array $filters, ExportValues $values): array

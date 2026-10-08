@@ -19,15 +19,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * The invitations list (AUTH-05): sort keys and exportable columns
- * (EXP-01). A role's place is named only when the reader's
- * `core.user.invite` scope covers it, its level otherwise (RBAC-04). No
- * field rules apply to invitations.
+ * (EXP-01). Only the roles granted inside the reader's
+ * `core.user.invite` scope are listed, and the inviter is named only when
+ * the reader may see that user (RBAC-04). No field rules apply.
  */
 class InvitationList extends ListDefinition
 {
     public const PERMISSION = 'core.user.invite';
 
     private ?VisibleScope $visible = null;
+
+    private ?VisibleUserNames $users = null;
 
     public function __construct(private readonly User $reader) {}
 
@@ -90,7 +92,8 @@ class InvitationList extends ListDefinition
             ListColumn::make('status', 'core.invitation.columns.status', ['status'],
                 fn (array $row, Invitation $invitation, ExportValues $values) => $values->enum('core.invitation.statuses', $row['status'])),
             ListColumn::make('invited_by', 'core.invitation.columns.invited_by', ['invited_by'],
-                fn (array $row, Invitation $invitation) => $invitation->inviter?->name),
+                // Named only when the reader may see the inviter (RBAC-04).
+                fn (array $row) => ($this->users ??= new VisibleUserNames($this->reader))->label($row['invited_by'])),
             ListColumn::make('expires_at', 'core.invitation.columns.expires_at', ['expires_at'],
                 fn (array $row, Invitation $invitation, ExportValues $values) => $values->dateTime($row['expires_at'])),
             ListColumn::make('created_at', 'core.invitation.columns.created_at', ['created_at'],
@@ -99,25 +102,24 @@ class InvitationList extends ListDefinition
     }
 
     /**
-     * "Role at where" for each assignment the invitation will grant.
+     * "Role at where" for each assignment the invitation will grant inside
+     * the reader's scope; grants elsewhere are left out (RBAC-04), as in
+     * the users export.
      *
      * @param  list<array{role_id?: string, scope_type?: string, scope_id?: ?string}>  $assignments
      * @return list<string>
      */
     private function roles(array $assignments, ExportValues $values): array
     {
-        $grants = array_map(fn (array $a) => (object) ['role_id' => $a['role_id'] ?? null, 'scope_type' => $a['scope_type'] ?? '', 'scope_id' => $a['scope_id'] ?? null], $assignments);
-        $roles = Role::query()->whereKey(array_filter(array_column($grants, 'role_id')))->pluck('name', 'id');
         $visible = $this->visible();
-        // Only the places the reader's scope covers are named (RBAC-04).
-        app(ScopeNames::class)->attach(array_filter($grants, fn (object $g) => $g->scope_id !== null && ScopeNames::covers($visible, $g->scope_type, $g->scope_id)));
+        $grants = array_values(array_filter(
+            array_map(fn (array $a) => (object) ['role_id' => $a['role_id'] ?? null, 'scope_type' => $a['scope_type'] ?? '', 'scope_id' => $a['scope_id'] ?? null], $assignments),
+            fn (object $g) => $g->scope_id !== null && ScopeNames::covers($visible, $g->scope_type, $g->scope_id),
+        ));
+        $roles = Role::query()->whereKey(array_filter(array_column($grants, 'role_id')))->pluck('name', 'id');
+        app(ScopeNames::class)->attach($grants);
 
         return array_map(fn (object $g) => AssignmentLabels::roleAt($values, $roles[$g->role_id] ?? null, $g->scope_type, $g->scopeName ?? null), $grants);
-    }
-
-    public function exportRelations(): array
-    {
-        return ['inviter:id,name'];
     }
 
     public function filterSummary(array $filters, ExportValues $values): array

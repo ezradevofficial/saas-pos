@@ -101,6 +101,31 @@ class PeopleAndRolesListsTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.invitation.export')->count()));
     }
 
+    public function test_an_invitations_export_shows_only_grants_and_inviters_in_the_readers_scope(): void
+    {
+        $cashier = $this->roles->get('cashier')->id;
+        $this->postJson('/api/v1/invitations', [
+            'name' => 'Bahati',
+            'email' => 'bahati@example.com',
+            'assignments' => [
+                ['role_id' => $cashier, 'scope_type' => 'location', 'scope_id' => $this->locationA->id],
+                ['role_id' => $cashier, 'scope_type' => 'location', 'scope_id' => $this->locationB->id],
+            ],
+        ], $this->headersFor())->assertCreated();
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $columns = '?format=csv&columns[]=name&columns[]=roles&columns[]=invited_by';
+
+        // The Owner (tenant scope) is out of a branch manager's sight; the branch B grant is left out.
+        $rows = $this->csvRows($this->get("/api/v1/invitations{$columns}", $this->headersFor($manager))->assertOk());
+        $this->assertSame([['Name', 'Roles', 'Invited by'], ['Bahati', 'Cashier at Outlet A', 'Someone you can’t see']], $rows);
+        $fr = $this->csvRows($this->get("/api/v1/invitations{$columns}", [...$this->headersFor($manager), 'Accept-Language' => 'fr'])->assertOk());
+        $this->assertSame('Une personne que vous ne voyez pas', $fr[1][2]);
+
+        // The Owner sees every grant and their own name.
+        $rows = $this->csvRows($this->get("/api/v1/invitations{$columns}", $this->headersFor())->assertOk());
+        $this->assertSame(['Bahati', 'Cashier at Outlet A, Cashier at Outlet B', 'Owner'], $rows[1]);
+    }
+
     public function test_sessions_sort_page_and_export_the_users_own_sessions(): void
     {
         $older = $this->signIn($this->owner->email, extra: ['device_name' => 'Back office laptop'])->assertOk()->json('token');

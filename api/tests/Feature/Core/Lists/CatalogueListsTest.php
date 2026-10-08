@@ -80,6 +80,9 @@ class CatalogueListsTest extends TestCase
 
     public function test_a_hidden_category_name_is_not_sorted_searched_or_exported(): void
     {
+        // Records first, through the API: the role below is still built on the right guard.
+        $drinks = $this->category('Drinks');
+        $this->category('Soda', $drinks);
         $clerk = $this->inTenant(function () {
             $role = $this->role('Clerk', ['core.item_category.view']);
             FieldRule::create(['role_id' => $role->id, 'resource' => 'item_category', 'field' => 'name', 'mode' => 'hidden']);
@@ -88,8 +91,6 @@ class CatalogueListsTest extends TestCase
 
             return $user;
         });
-        $drinks = $this->category('Drinks');
-        $this->category('Soda', $drinks);
         $headers = $this->headersFor($clerk);
 
         $this->getJson('/api/v1/item-categories?sort=name', $headers)->assertUnprocessable()->assertJsonPath('errors.sort.0', 'You can’t sort by a field you can’t see. Choose another column.');
