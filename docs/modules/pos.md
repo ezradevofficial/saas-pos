@@ -1,0 +1,86 @@
+# POS module spec (phase 4: retail mode)
+
+Source: concept note sections 3, 5 (POS row), 6.4, 7.1 and 7.2; platform
+core spec (NUM-01, NUM-02, CUR-04 to CUR-06, CUR-09, RBAC-06, AUTH-06 to
+AUTH-08, NFR-03, NFR-04); ADR 003 (money), ADR 004 (offline sync). When this
+file and the core spec disagree, the core spec wins.
+
+## Scope
+
+The POS is a module (`api/modules/POS`, permissions `pos.*`), sold and
+switched on per tenant (RBAC-08). It works with only the core installed: it
+reads core master data (items, units, tax codes, price lists, parties,
+payment methods, currencies and rates) and raises events. It never reads
+another module's tables.
+
+**Phase 4 builds the retail mode**: scan or search, cart, pay; returns;
+shifts. The other verticals of concept note section 3 (restaurant, quick
+service, bar, hotel, pharmacy, wholesale, route sales, salon, fuel) are later
+**modes built from the same blocks**: when payment happens (upfront, at the
+end, on credit), what an order attaches to (nothing, table, tab, room,
+appointment, route), fulfilment and pricing. Nothing in the retail tables
+assumes there is no table or tab: a later mode adds its own tables that
+reference `pos_sales`.
+
+## Requirements
+
+| ID | Requirement | Priority |
+| --- | --- | --- |
+| POS-01 | **Sale.** A completed sale records the device, location, branch, company, shift, cashier (AUTH-07), optional customer, lines (item, unit, quantity, unit price, price list, discount, tax code, rate and amount, line total), payments and totals in minor units of the sale currency. The device generates its UUID v7. | Must |
+| POS-02 | **Held sales.** A cart can be parked and resumed on the same device. Held carts live on the device only; they are not sales and never reach the server until completed. | Must |
+| POS-03 | **Split and multi-currency tender (CUR-06).** One sale is paid by any mix of methods and currencies; change is given in a chosen currency, rounded down to its cash rounding. Each payment stores its currency, amount, amount in the sale currency and the rate used; the sale stores base-currency amounts and its FX snapshot (CUR-04). | Must |
+| POS-04 | **Shifts and cash-up.** A cashier opens a shift with an opening float per currency and closes it by counting cash per currency. The server computes expected cash per currency and the variance. Pay-ins and pay-outs are recorded with a reason. | Must |
+| POS-05 | **Voids and returns.** A void cancels a whole completed sale; a return refunds some lines or quantities. Both are new records that reference the sale (append-only, ADR 004). Each needs the permission (`pos.sale.void`, `pos.sale.refund`) or a manager override (AUTH-08); refunds respect the approver's `max_refund_amount` (RBAC-06). | Must |
+| POS-06 | **Receipts.** Every sale and refund carries a number from the device's pre-allocated range (NUM-02), formatted by the document type's number format (NUM-01). The receipt shows the currency code first on every amount and, when the company sells in two currencies, both prices (CUR-05). Printed receipts are black on white; fiscal elements are locked (TPL). | Must |
+| POS-07 | **Discounts and price overrides within limits.** A line discount above the cashier's `max_discount_percent`, or a price different from the list price, needs `pos.discount.give` / `pos.price.override` within limits, or a manager override (AUTH-08). Both users are recorded and audited (AUD-01). | Must |
+| POS-08 | **Customers on sales.** A sale may name a customer (a core party with the customer role, shared or of the sale's company). | Must |
+| POS-09 | **Offline selling (NFR-04).** The till sells for 7 days without a connection. Sales, shifts, cash movements, voids and refunds are uploaded idempotently by UUID; the device wins for completed sales (prices as sold are kept, differences are flagged, not refused); the server wins for master data. Receipts use cached rates (CUR-09) and the sale records the rate used. | Must |
+| POS-10 | **Fiscal (KRA eTIMS, DRC DGI).** Every sale and refund is queued for the authority on the server and retried until accepted; the device shows "pending" while offline. (Phase 4 Task 3 builds the queue and adapters; this module raises the events it listens to.) | Must |
+| POS-11 | **Tax at sale.** Tax per line from the item's tax category → the company's tax code, rate effective at the sale time in the company's time zone, inclusive or exclusive per price list (MD-03). A taxable item whose rate is "Rate needed" cannot be sold: the till blocks it (`sellable: false, reason: rate_needed`) and the API refuses the sale. Rates are never invented. | Must |
+| POS-12 | **Back-office lists.** Sales and shifts lists with search, sort and export (EXP-01), scoped by company, branch and location (RBAC-04), and their detail. | Must |
+| POS-13 | **Events.** `SaleCompleted`, `SaleVoided`, `SaleRefunded`, `ShiftOpened`, `ShiftClosed`, dispatched after commit, for the fiscal queue, Accounting, Inventory and Loyalty when those are active. | Must |
+
+## Permissions
+
+| Permission | What it allows |
+| --- | --- |
+| `pos.sale.view` | Read sales (back office) |
+| `pos.sale.create` | Sell at the till |
+| `pos.sale.print` | Reprint a receipt |
+| `pos.sale.void` | Void a completed sale |
+| `pos.sale.refund` | Refund lines of a sale, up to `max_refund_amount` |
+| `pos.shift.view` | Read shifts |
+| `pos.shift.open`, `pos.shift.close` | Open and close one's own shift |
+| `pos.shift.manage` | Close another cashier's shift |
+| `pos.cash.move` | Pay cash in or out of the drawer |
+| `pos.price.override` | Sell at a price other than the list price |
+| `pos.discount.give` | Give a line discount, up to `max_discount_percent` |
+
+Role templates: **Cashier** sells, prints, views sales and shifts, opens and
+closes their own shift and gives discounts within their limit; **Branch
+Manager** holds `pos.*` (voids, refunds, overrides, cash movements, other
+cashiers' shifts) within limits; **Accountant** and **Read-only Auditor** read
+(`pos.*.view`). The Owner role has no limits; any other role without a limit
+rule is not allowed the limited action (RBAC-06).
+
+## Acceptance criteria (phase 4)
+
+1. Uploading the same sale twice stores one row and answers the same result both times; a batch with one bad sale stores the others.
+2. A sale naming another device's shift, receipt range or location, or another tenant's ids, is refused.
+3. A sale with an item whose tax rate is "Rate needed" is refused with `rate_needed`, naming the item; the sync data marks the item not sellable.
+4. A sale paid in USD and CDF with change in CDF stores each payment's rate and amount in the sale currency, the change, the rounding kept, and base-currency amounts.
+5. Receipt numbers come from device ranges that never overlap, even when devices ask at the same time.
+6. A refund above the approver's refund limit, or without permission or override, is refused; a refund never exceeds the quantity sold.
+7. Closing a shift computes expected cash per currency (opening float + cash taken − change given + pay-ins − pay-outs − cash refunds) and the variance.
+8. Every new table has row-level security and is covered by the tenant isolation suite.
+
+## Deferred
+
+- Restaurant, quick service, bar, hotel, pharmacy, wholesale, route sales, salon and fuel modes (tables, tabs, rooms, kitchen display and printers, courses, tips, appointments, pump readings).
+- Scales and weighed items, PLU codes, barcode label printing, customer display.
+- Loyalty: points, vouchers, gift cards, store credit as tender (Loyalty module).
+- Promotions engine (Loyalty module); this phase only has manual line discounts.
+- Inventory deduction and costing: Inventory listens to `SaleCompleted` and `SaleRefunded` once it exists. Accounting journals likewise.
+- Item prices per price list are not in core master data yet: the till sends the list price it used; server-side price comparison waits for item prices.
+- Serial numbers, batches and expiry (Inventory).
+- Credit sales on account (Loyalty and credit).
