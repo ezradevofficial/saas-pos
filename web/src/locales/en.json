@@ -1231,12 +1231,6 @@
       "description": "People and organisations you buy from."
     }
   },
-  "pager": {
-    "label": "Pages",
-    "pageOf": "Page {{page}} of {{last}}",
-    "previous": "Previous",
-    "next": "Next"
-  },
   "duplicates": {
     "title": {
       "item_one": "This item may already exist",
@@ -1345,7 +1339,6 @@
     "newText": "Give the item a code and a name. Units, barcodes and images can follow.",
     "search": "Search",
     "searchPlaceholder": "Code, name or barcode",
-    "pages": "Item pages",
     "moreBarcodes": "+{{count}} more",
     "emptyFiltered": "No items match. Try another search or filter.",
     "empty": {
@@ -1559,7 +1552,6 @@
     "newText": "A name is enough to start. Add phone numbers so the till can find them.",
     "search": "Search",
     "searchPlaceholder": "Name, tax ID or phone number",
-    "pages": "Contact pages",
     "emptyFiltered": "No contacts match. Try another search or tag.",
     "filters": {
       "tag": "Tag"

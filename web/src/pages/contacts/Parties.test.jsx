@@ -75,6 +75,35 @@ describe('Customers and suppliers', () => {
     await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&tag=vip&search=0810&per_page=25&page=1'))
   })
 
+  it('sorts on the server, offers the tax ID column, and exports the visible columns with their API keys (EXP-01, LAY-04)', async () => {
+    parties()
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'customers-2026-10-08.xlsx' })
+    URL.createObjectURL = vi.fn(() => 'blob:customers')
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderApp('/contacts/customers')
+    const table = await screen.findByRole('table', { name: 'Customers' })
+    expect(within(table).queryByRole('columnheader', { name: /Tax ID/ })).not.toBeInTheDocument()
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('parties?role=customer&status=active&sort=name&per_page=25&page=1'))
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Tax ID' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Email' }))
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(await within(table).findByRole('cell', { name: 'A1234567B' })).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Excel (.xlsx)' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    const params = new URLSearchParams(api.download.mock.calls[0][0].split('?')[1])
+    expect(params.get('role')).toBe('customer')
+    expect(params.get('sort')).toBe('name')
+    expect(params.getAll('columns[]')).toEqual(['name', 'phones', 'tax_id', 'tags', 'credit_limit'])
+    click.mockRestore()
+  })
+
   it('lists suppliers with their own filter', async () => {
     parties()
     renderApp('/contacts/suppliers')

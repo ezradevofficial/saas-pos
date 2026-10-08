@@ -53,4 +53,38 @@ describe('DataTable', () => {
     fireEvent.keyDown(selected, { key: 'Enter' })
     expect(onRowClick).toHaveBeenCalledWith(rows[1])
   })
+
+  it('gives sortable columns a header button with aria-sort when onSort is given (EXP-01)', () => {
+    const onSort = vi.fn()
+    const sortable = [
+      { key: 'number', label: 'Number', sortKey: 'number' },
+      { key: 'total', label: 'Total', align: 'end', sortKey: 'total' },
+      { key: 'note', label: 'Note' },
+    ]
+    const { rerender } = render(<DataTable columns={sortable} rows={[]} sort="-total" onSort={onSort} />)
+    expect(screen.getByRole('columnheader', { name: 'Number' })).toHaveAttribute('aria-sort', 'none')
+    expect(screen.getByRole('columnheader', { name: 'Total' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: 'Note' })).not.toHaveAttribute('aria-sort')
+    fireEvent.click(screen.getByRole('button', { name: 'Number' }))
+    expect(onSort).toHaveBeenCalledWith('number')
+
+    rerender(<DataTable columns={sortable} rows={[]} sort="number" onSort={onSort} />)
+    expect(screen.getByRole('columnheader', { name: 'Number' })).toHaveAttribute('aria-sort', 'ascending')
+
+    // Without onSort the headers stay plain text (pages not yet on ListView).
+    rerender(<DataTable columns={sortable} rows={[]} sort="number" />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Number' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('shows Loading while the first page loads and dims rows while the next one does', () => {
+    const { rerender } = render(<DataTable columns={columns} rows={[]} loading emptyText="No purchase orders yet." />)
+    expect(screen.getByText('Loading')).toBeInTheDocument()
+    expect(screen.queryByText('No purchase orders yet.')).not.toBeInTheDocument()
+
+    rerender(<DataTable columns={columns} rows={[{ id: 'a', number: 'PO-1', total: '1' }]} stale />)
+    const body = screen.getByText('PO-1').closest('tbody')
+    expect(body).toHaveClass('opacity-60')
+    expect(body).toHaveAttribute('aria-busy', 'true')
+  })
 })
