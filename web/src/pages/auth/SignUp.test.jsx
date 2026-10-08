@@ -3,6 +3,7 @@ import { api, getToken } from '@/api/client'
 import i18n from '@/i18n'
 import { apiError, mockApi, OWNER, renderApp, resetSession } from '@/test/renderApp'
 import { contactPayload } from '@/lib/contact'
+import { chooseOption } from '@/test/combobox'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -69,7 +70,7 @@ describe('Sign up and verify', () => {
 
   it('switches the page to French when French is chosen', async () => {
     renderApp('/sign-up')
-    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'fr' } })
+    chooseOption(screen.getByRole('combobox', { name: 'Language' }), 'Français')
     expect(await screen.findByRole('heading', { level: 1, name: 'Créez votre compte' })).toBeInTheDocument()
   })
 

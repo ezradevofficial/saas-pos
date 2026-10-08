@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { apiError, mockApi, renderApp, resetSession, signedIn } from '@/test/renderApp'
+import { chooseOption } from '@/test/combobox'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -76,7 +77,7 @@ describe('Organisation', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Add a location to Westlands' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add a location to Westlands' })
     fireEvent.change(within(dialog).getByLabelText(/Name/), { target: { value: 'Back store' } })
-    fireEvent.change(within(dialog).getByLabelText(/Type/), { target: { value: 'store' } })
+    chooseOption(within(dialog).getByLabelText(/Type/), 'Store')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add location' }))
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('branches/b-1/locations', { name: 'Back store', type: 'store' }))

@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -51,7 +52,7 @@ describe('MasterDataSharing', () => {
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('master-data/settings', { data_type: 'items', mode: 'per_company' }))
     expect(await within(dialog).findByText('12 records have no company. Choose the company that receives them, then try again.')).toBeInTheDocument()
 
-    fireEvent.change(within(dialog).getByLabelText(/Company that receives/), { target: { value: 'c-2' } })
+    chooseOption(within(dialog).getByLabelText(/Company that receives/), 'Lubumbashi Trading')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep per company' }))
     await waitFor(() =>
       expect(api.put).toHaveBeenLastCalledWith('master-data/settings', { data_type: 'items', mode: 'per_company', assign_to_company_id: 'c-2' }),
@@ -82,7 +83,7 @@ describe('MasterDataSharing', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Change sharing for Items' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText(/Company that receives/), { target: { value: 'c-1' } })
+    chooseOption(within(dialog).getByLabelText(/Company that receives/), 'Kin Market')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep per company' }))
     expect(await within(dialog).findByText('More than one company uses these codes: SKU-1, 6001234. Change them so each is unique, then try again.')).toBeInTheDocument()
   })

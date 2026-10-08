@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption, optionTexts, waitForOption } from '@/test/combobox'
 import { apiError, mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -203,17 +204,17 @@ describe('InviteUser', () => {
     fireEvent.change(screen.getByLabelText(/Email or phone number/), { target: { value: 'grace@example.com' } })
 
     const first = screen.getByRole('group', { name: 'Role 1' })
-    await waitFor(() => expect(within(first).getAllByRole('option', { name: 'Cashier' }).length).toBe(1))
-    fireEvent.change(within(first).getByLabelText(/^Role/), { target: { value: 'r-cashier' } })
+    await waitForOption(within(first).getByLabelText(/^Role/), 'Cashier')
+    chooseOption(within(first).getByLabelText(/^Role/), 'Cashier')
     expect(within(first).getByLabelText(/Applies to/)).toHaveValue('location')
-    await waitFor(() => expect(within(first).getAllByRole('option', { name: 'Front till · Westlands' }).length).toBe(1))
-    fireEvent.change(within(first).getByLabelText(/^Location/), { target: { value: 'l-1' } })
+    await waitForOption(within(first).getByLabelText(/^Location/), 'Front till · Westlands')
+    chooseOption(within(first).getByLabelText(/^Location/), 'Front till · Westlands')
 
     fireEvent.click(screen.getByRole('button', { name: 'Add another role' }))
     const second = screen.getByRole('group', { name: 'Role 2' })
-    fireEvent.change(within(second).getByLabelText(/^Role/), { target: { value: 'r-cashier' } })
-    fireEvent.change(within(second).getByLabelText(/Applies to/), { target: { value: 'branch' } })
-    fireEvent.change(within(second).getByLabelText(/^Branch/), { target: { value: 'b-1' } })
+    chooseOption(within(second).getByLabelText(/^Role/), 'Cashier')
+    chooseOption(within(second).getByLabelText(/Applies to/), 'Branch')
+    chooseOption(within(second).getByLabelText(/^Branch/), 'Westlands · Amani Retail')
 
     fireEvent.click(screen.getByRole('button', { name: 'Send invitation' }))
     await waitFor(() =>
@@ -237,10 +238,13 @@ describe('InviteUser', () => {
     renderApp('/settings/users/invite')
 
     const row = await screen.findByRole('group', { name: 'Role 1' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Cashier' }).length).toBe(1))
-    fireEvent.change(within(row).getByLabelText(/^Role/), { target: { value: 'r-cashier' } })
+    // While the place lists load, the row cannot be filled in at all.
+    expect(within(row).getByLabelText(/^Role/)).toBeDisabled()
+    expect(within(row).getByLabelText(/Applies to/)).toBeDisabled()
     release()
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Front till · Westlands' }).length).toBe(1))
+    await waitFor(() => expect(within(row).getByLabelText(/^Role/)).toBeEnabled())
+    chooseOption(within(row).getByLabelText(/^Role/), 'Cashier')
+    await waitForOption(within(row).getByLabelText(/^Location/), 'Front till · Westlands')
     expect(within(row).getByLabelText(/Applies to/)).toHaveValue('location')
   })
 
@@ -250,12 +254,12 @@ describe('InviteUser', () => {
     renderApp('/settings/users/invite')
 
     const row = await screen.findByRole('group', { name: 'Role 1' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Owner' }).length).toBe(1))
-    expect(within(row).getByRole('option', { name: 'Whole organisation' })).toBeInTheDocument()
+    await waitForOption(within(row).getByLabelText(/^Role/), 'Owner')
+    expect(optionTexts(within(row).getByLabelText(/Applies to/))).toContain('Whole organisation')
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: 'Peter' } })
     fireEvent.change(screen.getByLabelText(/Email or phone number/), { target: { value: '+254 712 000 111' } })
-    fireEvent.change(within(row).getByLabelText(/^Role/), { target: { value: 'r-owner' } })
-    fireEvent.change(within(row).getByLabelText(/Applies to/), { target: { value: 'tenant' } })
+    chooseOption(within(row).getByLabelText(/^Role/), 'Owner')
+    chooseOption(within(row).getByLabelText(/Applies to/), 'Whole organisation')
     fireEvent.click(screen.getByRole('button', { name: 'Send invitation' }))
 
     await waitFor(() =>
@@ -291,19 +295,14 @@ describe('InviteUser', () => {
     renderApp('/settings/users/invite')
 
     const row = await screen.findByRole('group', { name: 'Role 1' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Front till · Westlands' }).length).toBe(1))
-    const roleNames = within(within(row).getByLabelText(/^Role/))
-      .getAllByRole('option')
-      .map((option) => option.textContent)
-    expect(roleNames).toEqual(['Choose a role', 'Cashier'])
-    const types = within(within(row).getByLabelText(/Applies to/))
-      .getAllByRole('option')
-      .map((option) => option.textContent)
-    expect(types).toEqual(['Branch', 'Location'])
-    expect(within(row).queryByRole('option', { name: 'Gombe till · Gombe' })).not.toBeInTheDocument()
-    fireEvent.change(within(row).getByLabelText(/Applies to/), { target: { value: 'branch' } })
-    expect(within(row).getByRole('option', { name: 'Westlands · Amani Retail' })).toBeInTheDocument()
-    expect(within(row).queryByRole('option', { name: 'Gombe · Amani Retail' })).not.toBeInTheDocument()
+    await waitForOption(within(row).getByLabelText(/^Location/), 'Front till · Westlands')
+    expect(optionTexts(within(row).getByLabelText(/^Role/))).toEqual(['Cashier'])
+    expect(optionTexts(within(row).getByLabelText(/Applies to/))).toEqual(['Branch', 'Location'])
+    expect(optionTexts(within(row).getByLabelText(/^Location/))).not.toContain('Gombe till · Gombe')
+    chooseOption(within(row).getByLabelText(/Applies to/), 'Branch')
+    const branches = optionTexts(within(row).getByLabelText(/^Branch/))
+    expect(branches).toContain('Westlands · Amani Retail')
+    expect(branches).not.toContain('Gombe · Amani Retail')
   })
 
   it('shows field errors under the fields and cannot_grant as a sentence', async () => {
@@ -316,8 +315,8 @@ describe('InviteUser', () => {
     users({ permissions: scoped })
     renderApp('/settings/users/invite')
     const row = await screen.findByRole('group', { name: 'Role 1' })
-    await waitFor(() => expect(within(row).getAllByRole('option', { name: 'Location' }).length).toBe(1))
-    expect(within(row).queryByRole('option', { name: 'Whole organisation' })).not.toBeInTheDocument()
+    await waitForOption(within(row).getByLabelText(/Applies to/), 'Location')
+    expect(optionTexts(within(row).getByLabelText(/Applies to/))).not.toContain('Whole organisation')
 
     api.post.mockRejectedValueOnce(
       apiError(422, 'validation_failed', 'Some fields need attention.', {

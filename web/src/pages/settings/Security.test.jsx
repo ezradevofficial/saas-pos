@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { apiError, ALL_CORE, mockApi, renderApp, resetSession, signedIn } from '@/test/renderApp'
+import { chooseOption } from '@/test/combobox'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -38,7 +39,7 @@ describe('Security settings', () => {
 
     fireEvent.change(minimum, { target: { value: '12' } })
     fireEvent.change(screen.getByLabelText(/Session timeout/), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText(/Default language/), { target: { value: 'fr' } })
+    chooseOption(screen.getByLabelText(/Default language/), 'Français')
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() =>

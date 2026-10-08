@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption, waitForOption } from '@/test/combobox'
 import { apiError, CD_COMPANY, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -70,7 +71,7 @@ describe('Currencies', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Edit KES' }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit KES' })
     expect(within(dialog).getByLabelText(/Cash rounding/)).toHaveValue('1.00')
-    fireEvent.change(within(dialog).getByLabelText('Decimals'), { target: { value: '0' } })
+    chooseOption(within(dialog).getByLabelText('Decimals'), '0')
     expect(within(dialog).getByLabelText(/Cash rounding/)).toHaveValue('')
     expect(within(dialog).getByText(/The decimals changed, so the cash rounding was cleared/)).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
@@ -87,8 +88,8 @@ describe('Currencies', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Add currency' }))
     const dialog = await screen.findByRole('dialog')
     const select = within(dialog).getByLabelText(/^Currency/)
-    await waitFor(() => expect(within(select).getByRole('option', { name: 'EUR · Euro' })).toBeInTheDocument())
-    fireEvent.change(select, { target: { value: 'EUR' } })
+    await waitForOption(select, 'EUR · Euro')
+    chooseOption(select, 'EUR · Euro')
     // Typed but never left: the reason shows once the form is submitted.
     fireEvent.change(within(dialog).getByLabelText(/Cash rounding/), { target: { value: '0.555' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add currency' }))
@@ -102,7 +103,7 @@ describe('Currencies', () => {
     renderApp('/settings/currencies')
     const reporting2 = await screen.findByLabelText('Reporting currency 2')
     expect(screen.getByLabelText('Reporting currency 1')).toHaveValue('USD')
-    fireEvent.change(reporting2, { target: { value: 'KES' } })
+    chooseOption(reporting2, 'KES')
     fireEvent.click(screen.getByRole('button', { name: 'Save currencies' }))
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('companies/c-1/currencies', { base_currency: 'CDF', reporting_currencies: ['USD', 'KES'] }))
     expect(await screen.findByText('Currencies saved.')).toBeInTheDocument()
