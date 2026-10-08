@@ -236,6 +236,7 @@ return [
         'no_workflow' => 'Le document n’est pas dans un workflow en cours, son étape ne peut donc pas changer.',
         'loop_blocked' => 'Arrêtée : la règle se déclencherait à nouveau elle-même, ou plus de :max règles se sont déclenchées en chaîne.',
         'throttled' => 'Retenue : trop de règles ont été exécutées au cours de la dernière minute.',
+        'throttled_often' => 'Cette règle a dépassé la limite de fréquence plus de :count fois au cours de la dernière heure, certaines exécutions n’ont donc pas eu lieu. Vérifiez ce qui la déclenche.',
         'unexpected' => 'Un problème est survenu pendant l’exécution de la règle. Si cela se reproduit, vérifiez ses actions ou contactez l’assistance.',
     ],
 

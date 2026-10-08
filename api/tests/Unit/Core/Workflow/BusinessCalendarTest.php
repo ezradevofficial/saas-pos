@@ -72,8 +72,13 @@ class BusinessCalendarTest extends TestCase
 
     public function test_loading_again_replaces_the_rows_and_the_runtime_role_cannot_write_them(): void
     {
-        $this->assertSame(0, Artisan::call('country-packs:holidays', ['code' => 'KE']));
-        $this->assertSame(7, PublicHoliday::query()->where('country', 'KE')->count());
+        // The deploy runs the loader on every release (H3): twice in a row
+        // leaves the same rows, never duplicates.
+        foreach ([1, 2] as $run) {
+            $this->assertSame(0, Artisan::call('country-packs:holidays', ['code' => 'KE']));
+            $this->assertSame(7, PublicHoliday::query()->where('country', 'KE')->count());
+        }
+        $this->assertSame(9, PublicHoliday::query()->where('country', 'CD')->count());
 
         $this->expectException(QueryException::class);
         PublicHoliday::query()->create(['country' => 'KE', 'key' => 'invented', 'month' => 2, 'day' => 2]);

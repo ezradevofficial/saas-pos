@@ -3,32 +3,29 @@
 namespace Tests\Feature\Core\Automation;
 
 use App\Core\Automation\Jobs\ScanTimedTriggers;
+use App\Core\Automation\Models\AutomationRun;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Bus;
 use Tests\Concerns\BuildsAutomation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
 /**
  * AUTO-01: `automation:scan schedules` (every minute) and `automation:scan
  * dates` (hourly) queue one ScanTimedTriggers job per tenant with live
- * rules of that kind (schedules only when one is due). The command lists
- * tenants as the schema owner, which cannot see uncommitted rows, so this
- * test commits and the next test migrates afresh.
+ * rules of that kind (schedules only when one is due). Tenant ids come
+ * from security-definer functions on the runtime connection, so the test
+ * runs with the owner connection unusable (ADR 002).
  */
 class AutomationScanCommandTest extends TestCase
 {
-    use BuildsAutomation, RefreshTenantDatabase;
-
-    /** @var list<string> */
-    protected array $connectionsToTransact = [];
+    use BuildsAutomation, RefreshTenantDatabase, WithoutOwnerConnection;
 
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
-        RefreshDatabaseState::$migrated = false;
 
         parent::tearDown();
     }
@@ -42,6 +39,7 @@ class AutomationScanCommandTest extends TestCase
         $this->saveRule(['type' => 'date', 'field' => 'due_on', 'days' => 1, 'when' => 'before'], [$this->notifyOwner()]);
         $this->otherTenant(); // no rules: no scans
 
+        $this->withoutOwnerConnection();
         Bus::fake();
         $this->artisan('automation:scan', ['kind' => 'schedules', '--at' => '2026-10-08T04:00:00Z'])->assertSuccessful();
         Bus::assertNotDispatched(ScanTimedTriggers::class);
@@ -60,5 +58,27 @@ class AutomationScanCommandTest extends TestCase
         $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command ?? '', 'automation:scan'))->values();
         $this->assertSame(['* * * * *', '0 * * * *', '*/5 * * * *'], $events->pluck('expression')->all());
         $this->assertTrue($events->every(fn ($e) => $e->onOneServer && $e->withoutOverlapping));
+    }
+
+    public function test_the_reap_scan_queues_only_tenants_with_work_a_dead_worker_left(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-08T03:00:00Z');
+        $this->setUpAutomation();
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], ['name' => 'Flag']);
+        Bus::fake();
+        $this->createTask();
+        $this->inTenant(fn () => AutomationRun::query()->where('rule_id', $rule->id)
+            ->update(['outcome' => 'running', 'updated_at' => CarbonImmutable::now()->subMinutes(20)]));
+        $this->otherTenant(); // nothing left behind: no reap
+
+        $this->withoutOwnerConnection();
+        Bus::fake();
+        // Ten minutes ago is not stale yet (stuck_minutes defaults to 15).
+        $this->artisan('automation:scan', ['kind' => 'reap', '--at' => '2026-10-08T02:50:00Z'])->assertSuccessful();
+        Bus::assertNotDispatched(ScanTimedTriggers::class);
+
+        $this->artisan('automation:scan', ['kind' => 'reap', '--at' => '2026-10-08T03:00:00Z'])->assertSuccessful();
+        Bus::assertDispatchedTimes(ScanTimedTriggers::class, 1);
+        Bus::assertDispatched(ScanTimedTriggers::class, fn (ScanTimedTriggers $job) => $job->tenantId === $this->owner->tenant_id && $job->kind === 'reap');
     }
 }

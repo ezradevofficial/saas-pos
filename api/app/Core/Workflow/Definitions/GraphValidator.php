@@ -6,6 +6,7 @@ use App\Core\Workflow\Conditions\ConditionEvaluator;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\Handlers\ActionHandlers;
 use App\Core\Workflow\Handlers\ApprovalHandler;
+use App\Core\Workflow\Runtime\StageTimers;
 
 /**
  * Checks a flow graph (see FlowGraph) before it is saved and before it is
@@ -19,7 +20,9 @@ use App\Core\Workflow\Handlers\ApprovalHandler;
  * names, invalid entry/exit/branch conditions or conditions on unknown
  * fields, unknown roles, bad time limits, joins without their split (and
  * parallel branches that leave before the join), unknown actions or
- * next-document mappings, and the approval handler's own checks. A draft
+ * next-document mappings, the approval handler's own checks, approvals
+ * without a `rejected` path (H2), inside a parallel block, or whose
+ * rejection can still end `approved` (H1). A draft
  * with any of them is not published.
  *
  * Each problem: `code`, `message` (translated), `node` (id or null).
@@ -35,6 +38,8 @@ class GraphValidator
     public const DUE_UNITS = ['business_hours', 'business_days', 'hours', 'days'];
 
     public const JOIN_MODES = ['all', 'any'];
+
+    public const MAX_STAGE_REMINDERS = 5;
 
     public function __construct(
         private readonly ConditionEvaluator $conditions,
@@ -157,6 +162,7 @@ class GraphValidator
         } else {
             $this->checkDeadEnds($flow, $add);
             $this->checkParallel($flow, $add);
+            $this->checkRejections($flow, $add);
             array_push($problems, ...$type->validateFlow($flow));
         }
 
@@ -185,6 +191,9 @@ class GraphValidator
 
         if (! $ok) {
             $add('wrong_edges.'.$node['type'], $id);
+        } elseif ($node['type'] === 'approval' && ! in_array('rejected', $branches, true)) {
+            // H2: a rejection (or a timeout ending in `reject`) needs a path.
+            $add('approval_without_rejected', $id);
         }
 
         if ($node['type'] === 'start' && $flow->incoming($id) !== []) {
@@ -249,6 +258,10 @@ class GraphValidator
                     if (isset($node[$key]) && ! is_array($node[$key])) {
                         $add('invalid_property', $id, ['property' => $key]);
                     }
+                }
+
+                if ($node['type'] === 'stage') {
+                    $this->checkStageTimers($node, $id, $add);
                 }
 
                 if ($node['type'] === 'approval') {
@@ -466,9 +479,93 @@ class GraphValidator
                 $inside += $seen;
             }
 
+            // Owner decision: a join carries no outcome, so a rejection inside a
+            // branch could still end `approved` after the join. Group decisions
+            // use the approval's own `all` or `majority` mode instead.
+            // Every node after the split and before the join, branches that escape included.
+            $between = [];
+            $queue = array_column($flow->outgoing($split), 'to');
+
+            while ($queue !== []) {
+                $current = array_shift($queue);
+
+                if ($current === $join || isset($between[$current])) {
+                    continue;
+                }
+
+                $between[$current] = true;
+                array_push($queue, ...array_column($flow->outgoing($current), 'to'));
+            }
+
+            foreach (array_keys($between) as $id) {
+                if ($flow->type($id) === 'approval') {
+                    $add('approval_in_parallel', $id);
+                }
+            }
+
             foreach ($flow->incoming($join) as $edge) {
                 if ($edge['from'] !== $split && ! isset($inside[$edge['from']])) {
                     $add('join_split_mismatch', $join);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * WF-09: a plain stage's reminders (a list of at most MAX_STAGE_REMINDERS
+     * offsets) and escalation ({after?, to: role or user}; escalation only
+     * notifies, so no `final` or `next_level`), as StageTimers reads them.
+     *
+     * @param  callable(string, ?string, array): void  $add
+     */
+    private function checkStageTimers(array $node, string $id, callable $add): void
+    {
+        $reminders = $node['reminders'] ?? null;
+
+        if ($reminders !== null && (! is_array($reminders) || ! array_is_list($reminders) || count($reminders) > self::MAX_STAGE_REMINDERS
+            || in_array(null, array_map(StageTimers::duration(...), $reminders), true))) {
+            $add('stage_reminders', $id, ['max' => self::MAX_STAGE_REMINDERS]);
+        }
+
+        $escalation = $node['escalation'] ?? null;
+
+        if ($escalation === null || $escalation === []) {
+            return;
+        }
+
+        $to = is_array($escalation) ? ($escalation['to'] ?? null) : null;
+        $valid = is_array($escalation)
+            && StageTimers::escalationTo($escalation) !== null
+            && array_diff(array_keys($escalation), ['after', 'to']) === []
+            && (! isset($escalation['after']) || StageTimers::duration($escalation['after']) !== null)
+            && (isset($escalation['after']) || isset($node['due']))
+            && (($to['type'] ?? null) !== 'role' || $this->roles->unknown([$to['role']]) === []);
+
+        if (! $valid) {
+            $add('stage_escalation', $id);
+        }
+    }
+
+    /**
+     * H1: after an approval's `rejected` edge, no `approved` end may be
+     * reached without another approval's `approved` edge on the way.
+     *
+     * @param  callable(string, ?string, array): void  $add
+     */
+    private function checkRejections(FlowGraph $flow, callable $add): void
+    {
+        foreach ($flow->nodesOfType('approval') as $approval) {
+            $rejected = $flow->next($approval, 'rejected');
+
+            if ($rejected === null) {
+                continue;
+            }
+
+            foreach ($flow->reachableWithoutApproval([$rejected]) as $id) {
+                if ($flow->type($id) === 'end' && ($flow->node($id)['outcome'] ?? null) === 'approved') {
+                    $add('rejected_reaches_approved', $approval, ['end' => $flow->name($id)]);
 
                     break;
                 }

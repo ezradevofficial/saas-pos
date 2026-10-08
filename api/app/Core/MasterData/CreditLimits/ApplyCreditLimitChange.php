@@ -3,8 +3,6 @@
 namespace App\Core\MasterData\CreditLimits;
 
 use App\Core\Approvals\Resolvers\ApproverDirectory;
-use App\Core\Notifications\NotificationEvent;
-use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Jobs\TenantAware;
@@ -42,6 +40,8 @@ class ApplyCreditLimitChange implements ShouldQueue
         public string $changeId,
     ) {
         $this->afterCommit();
+        // Ordinary work (its failure notice goes through the Notifier, which queues its own sends).
+        $this->onQueue('default');
     }
 
     /** @return list<object> */
@@ -77,10 +77,11 @@ class ApplyCreditLimitChange implements ShouldQueue
             return;
         }
 
-        app(Notifier::class)->send(new NotificationEvent(self::FAILED_EVENT, $users, [
+        // L2: the party's name only to those who may see it.
+        app(CreditLimitChangeType::class)->notify(self::FAILED_EVENT, $users, [
             'document_number' => $change->number,
             'party_name' => (string) $change->party?->name,
             'problem' => __('core.credit_limit_change.errors.apply_failed'),
-        ], '/contacts/credit-limit-changes'));
+        ], '/contacts/credit-limit-changes');
     }
 }

@@ -30,12 +30,42 @@ class AuditContext
 
     private DateTimeInterface|string|null $deviceTime = null;
 
+    /** @var array<string, mixed> recorded with each entry under `after.metadata` (e.g. the automation rule and run) */
+    private array $metadata = [];
+
     /** Forget everything set so far (a new request starts empty). */
     public function reset(): void
     {
         $this->userId = $this->onBehalfOfUserId = $this->ip = $this->userAgent = null;
         $this->deviceId = $this->locationId = null;
         $this->deviceTime = null;
+        $this->metadata = [];
+    }
+
+    /**
+     * M6 (AUD-02): run $fn with $userId as the acting user and $metadata
+     * recorded with every entry, then restore what was set before (an
+     * automation rule acting as its user, with the rule and run ids).
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function actingAs(?string $userId, array $metadata, callable $fn): mixed
+    {
+        [$userId, $this->userId] = [$this->userId, $userId];
+        [$metadata, $this->metadata] = [$this->metadata, $metadata];
+
+        try {
+            return $fn();
+        } finally {
+            $this->userId = $userId;
+            $this->metadata = $metadata;
+        }
+    }
+
+    /** @return array<string, mixed> */
+    public function metadata(): array
+    {
+        return $this->metadata;
     }
 
     public function setUserId(?string $userId): static

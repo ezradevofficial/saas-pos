@@ -4,15 +4,14 @@ namespace App\Core\Identity\Services;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Identity\IdentityNotices;
 use App\Core\Identity\Models\LoginEvent;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
-use App\Core\Identity\Notifications\NewDeviceSignIn;
 use App\Core\Identity\Support\LoginIdentifier;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 /**
@@ -127,14 +126,10 @@ class Authenticate
         });
 
         if ($newDevice) {
-            // Queued, to the address rather than the model: a worker has no
-            // tenant context to reload the user under RLS.
-            // The sign-in has committed: a queue that cannot be reached is
-            // reported, never turned into an error.
-            [$channel, $route] = $user->email !== null ? ['mail', $user->email] : ['sms', $user->phone];
-            rescue(fn () => Notification::route($channel, $route)->notify(
-                (new NewDeviceSignIn($user->name, $channel, $ip, $userAgent, now()))->locale($user->locale),
-            ), report: true);
+            // Through the Notifier (ADR 009): mandatory, by email, or by SMS
+            // without a verified email. The sign-in has committed: a failure
+            // is reported, never turned into an error.
+            rescue(fn () => app(IdentityNotices::class)->newDevice($user, $ip, $userAgent, now()), report: true);
         }
 
         return $plain;

@@ -152,6 +152,43 @@ final class FlowGraph
         return array_keys($seen);
     }
 
+    /**
+     * H1: ids of every node reachable from $from (included) without
+     * passing an approval: out of a mandatory approval node only its
+     * `rejected` edge is followed (its `approved` edge needs a decision).
+     * An optional approval (`mandatory: false`) can be skipped along its
+     * `approved` edge when its entry rule fails, so both its edges are
+     * followed.
+     *
+     * @param  list<string>  $from
+     * @return list<string>
+     */
+    public function reachableWithoutApproval(array $from): array
+    {
+        $seen = [];
+        $queue = $from;
+
+        while ($queue !== []) {
+            $current = array_shift($queue);
+
+            if (isset($seen[$current]) || ! isset($this->nodes[$current])) {
+                continue;
+            }
+
+            $seen[$current] = true;
+            $node = $this->nodes[$current];
+            $gated = $node['type'] === 'approval' && ($node['mandatory'] ?? true) !== false;
+
+            foreach ($this->outgoing($current) as $edge) {
+                if (! $gated || $edge['branch'] === 'rejected') {
+                    $queue[] = $edge['to'];
+                }
+            }
+        }
+
+        return array_keys($seen);
+    }
+
     /** @return array{nodes: list<array<string, mixed>>, edges: list<array<string, mixed>>} */
     public function toArray(): array
     {

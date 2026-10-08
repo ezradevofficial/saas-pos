@@ -15,6 +15,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\Events\WorkflowCompleted;
 use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use App\Core\Workflow\Models\DocumentWorkflow;
@@ -328,7 +329,7 @@ class CreditLimitChangeApiTest extends TestCase
     public function test_the_apply_job_is_queued_after_approval_with_retries_and_is_idempotent(): void
     {
         $change = $this->request()->assertCreated()->json('data.id');
-        Queue::fake();
+        Queue::fake([ApplyCreditLimitChange::class]);
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
         // Decided: approved, not applied until the job runs.
@@ -350,7 +351,7 @@ class CreditLimitChangeApiTest extends TestCase
     {
         $change = $this->request()->assertCreated()->json('data.id');
         $admin = $this->named('admin', Scope::company($this->acme->id), 'Ada Admin');
-        Queue::fake();
+        Queue::fake([ApplyCreditLimitChange::class]);
         $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
 
         // The job gave up (say, the database was away): approved, not applied.
@@ -385,6 +386,37 @@ class CreditLimitChangeApiTest extends TestCase
         $this->assertEqualsCanonicalizing([$this->manager->id, $this->accountant->id], $notified);
         // A new request can follow.
         $this->request(['requested_limit' => ['amount_minor' => '25000000', 'currency' => 'KES']])->assertCreated();
+    }
+
+    public function test_conflict_and_apply_failed_notices_leave_out_a_hidden_party_name(): void
+    {
+        // L2 (RBAC-05): accountants may not see party names; the requester (branch manager) may.
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('accountant')->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']));
+        $change = $this->request()->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/parties/{$this->customer}", ['credit_limit' => '120000', 'credit_limit_currency' => 'KES'], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/approvals/{$this->approval($change)->id}/approve", [], $this->headersFor($this->accountant))->assertOk();
+
+        $bodies = $this->inTenant(fn () => InAppNotification::query()->where('event_type', CreditLimitChanges::CONFLICT_EVENT)->pluck('body', 'user_id'));
+        $this->assertStringContainsString('Duka Moja Ltd', $bodies[$this->manager->id]);
+        $this->assertStringNotContainsString('Duka Moja Ltd', $bodies[$this->accountant->id]);
+
+        // apply_failed: an accountant holding set_directly gets no name either.
+        $second = $this->inTenant(function () {
+            $id = CreditLimitChange::query()->where('status', 'conflicted')->value('id');
+            CreditLimitChange::query()->whereKey($id)->update(['status' => CreditLimitChange::APPROVED]);
+
+            return $id;
+        });
+        $this->inTenant(function () {
+            $role = $this->role('Setter', ['core.credit_limit.set_directly']);
+            $this->assign($this->accountant, $role, Scope::tenant());
+            FieldRule::create(['role_id' => $role->id, 'resource' => 'party', 'field' => 'name', 'mode' => 'hidden']);
+        });
+        $this->inTenant(fn () => ApplyCreditLimitChange::notifyFailure($second, null));
+        $failed = $this->inTenant(fn () => InAppNotification::query()->where('event_type', ApplyCreditLimitChange::FAILED_EVENT)->pluck('body', 'user_id'));
+        $this->assertArrayHasKey($this->accountant->id, $failed->all());
+        $this->assertStringNotContainsString('Duka Moja Ltd', $failed[$this->accountant->id]);
+        $this->assertStringContainsString('Duka Moja Ltd', $failed[$this->owner->id]);
     }
 
     public function test_an_archived_party_is_never_changed(): void
@@ -471,6 +503,29 @@ class CreditLimitChangeApiTest extends TestCase
 
         $response = $this->postJson("/api/v1/workflows/{$workflow}/publish", [], $this->headersFor())->assertUnprocessable();
         $this->assertStringContainsString('approval_required', $response->getContent());
+    }
+
+    public function test_a_rejection_counts_as_no_approval_on_the_way_to_approved(): void
+    {
+        // H1: start → approve → (rejected) → review → approved end.
+        $type = app(CreditLimitChangeType::class);
+        $flow = FlowGraph::fromArray([
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'approve', 'type' => 'approval', 'name' => 'Approve'],
+                ['id' => 'review', 'type' => 'stage', 'name' => 'Review'],
+                ['id' => 'done', 'type' => 'end', 'outcome' => 'approved', 'name' => 'Done'],
+            ],
+            'edges' => [
+                ['from' => 'start', 'to' => 'approve'],
+                ['from' => 'approve', 'to' => 'done', 'branch' => 'approved'],
+                ['from' => 'approve', 'to' => 'review', 'branch' => 'rejected'],
+                ['from' => 'review', 'to' => 'done'],
+            ],
+        ]);
+
+        $this->assertSame(['approval_required'], array_column($type->validateFlow($flow), 'code'));
+        $this->assertSame([], $type->validateFlow(FlowGraph::fromArray($type->defaultFlow('KE'))));
     }
 
     public function test_the_flow_is_acted_on_with_the_approve_permission_and_company_colleagues_cancel(): void

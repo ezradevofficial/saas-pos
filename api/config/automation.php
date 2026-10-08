@@ -2,8 +2,9 @@
 
 // AUTO-01..AUTO-07: automation rules (App\Core\Automation).
 return [
-    // The queue rule runs and trigger scans go on.
-    'queue' => env('AUTOMATION_QUEUE', 'default'),
+    // The queue rule runs, trigger scans and webhook deliveries go on
+    // (its own Horizon supervisor, config/horizon.php).
+    'queue' => env('AUTOMATION_QUEUE', 'automation'),
 
     // AUTO-05: attempts per run, and the wait (seconds) before the second
     // and third attempt.
@@ -36,6 +37,10 @@ return [
     // in this many seconds (a cool-down against ping-pong edits).
     'document_runs' => 5,
     'document_window' => 600,
+
+    // AUTO-06: a rule throttled more than this many times in an hour alerts
+    // the automation administrators (once an hour).
+    'throttle_alert_after' => 20,
 
     // AUTO-05: a run or webhook delivery left `running` / `sending` this
     // many minutes is reaped as failed (a worker died).

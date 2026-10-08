@@ -8,20 +8,41 @@ use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
 use App\Core\Workflow\Runtime\WorkflowEngine;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
 /**
  * WF-10, WF-11: a credit limit change's flow ended (approved: applied to
- * the party; any other outcome: rejected) or was cancelled. Runs right
- * after the deciding transaction commits, in the flow's tenant, so the
- * approver sees the party updated at once.
+ * the party; any other outcome: rejected) or was cancelled. M4: queued
+ * after the deciding transaction commits and run in the flow's tenant (the
+ * event's tenant id), so a failure here never fails the approver's
+ * request; ReconcileCreditLimitChanges settles any request it missed.
  */
-class SettleCreditLimitChange
+class SettleCreditLimitChange implements ShouldQueue
 {
+    public bool $afterCommit = true;
+
+    public int $tries = 3;
+
+    /** @var list<int> */
+    public array $backoff = [10, 60];
+
     public function __construct(
         private readonly CreditLimitChanges $changes,
         private readonly TenantContext $tenants,
         private readonly WorkflowEngine $engine,
     ) {}
+
+    /** Settling is ordinary work: the default queue (ApplyCreditLimitChange follows on its own). */
+    public function viaQueue(): string
+    {
+        return 'default';
+    }
+
+    /** Only credit limit changes' flows are queued at all. */
+    public function shouldQueue(WorkflowCompleted|WorkflowCancelled $event): bool
+    {
+        return $event->documentType === CreditLimitChangeType::KEY;
+    }
 
     public function handle(WorkflowCompleted|WorkflowCancelled $event): void
     {

@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Active rows wait at a stage or approval; waiting rows sit at a join until
  * their parallel branches arrive; done and cancelled rows are history.
  * `groups` lists the parallel branches ("{split group}#{branch}") the position is inside, innermost
- * last. `due_at` comes from the stage's time limit (WF-09).
+ * last. `due_at` comes from the stage's time limit (WF-09); `next_timer_at`,
+ * `reminders_sent`, `overdue_notified_at` and `escalated_at` are a plain
+ * stage's reminder and escalation state (StageTimers).
  *
  * @property string $id
  * @property string $workflow_id
@@ -34,7 +36,7 @@ class DocumentWorkflowToken extends Model
 
     public const CANCELLED = 'cancelled';
 
-    protected $fillable = ['workflow_id', 'node_id', 'status', 'groups', 'entered_at', 'due_at', 'left_at', 'entered_by', 'left_by'];
+    protected $fillable = ['workflow_id', 'node_id', 'status', 'groups', 'entered_at', 'due_at', 'left_at', 'entered_by', 'left_by', 'next_timer_at'];
 
     protected function casts(): array
     {
@@ -43,6 +45,10 @@ class DocumentWorkflowToken extends Model
             'entered_at' => 'datetime',
             'due_at' => 'datetime',
             'left_at' => 'datetime',
+            'next_timer_at' => 'datetime',
+            'overdue_notified_at' => 'datetime',
+            'escalated_at' => 'datetime',
+            'reminders_sent' => 'integer',
         ];
     }
 

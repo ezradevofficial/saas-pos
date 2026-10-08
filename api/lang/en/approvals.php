@@ -121,6 +121,7 @@ return [
     'delegations' => [
         'all_types' => 'all document types',
         'too_long' => 'A delegation can last at most a year.',
+        'not_candidate' => 'Choose someone who works at one of your places.',
     ],
 
     'email' => [

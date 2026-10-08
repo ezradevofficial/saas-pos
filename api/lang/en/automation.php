@@ -236,6 +236,7 @@ return [
         'no_workflow' => 'The document isn’t in a running workflow, so its stage can’t change.',
         'loop_blocked' => 'Stopped: the rule would start itself again, or more than :max rules triggered one another.',
         'throttled' => 'Held back: too many rules ran in the last minute.',
+        'throttled_often' => 'This rule was over the rate limit more than :count times in the last hour, so some of its runs did not happen. Check what triggers it.',
         'unexpected' => 'Something went wrong while running the rule. If it keeps failing, check its actions or contact support.',
     ],
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Automation;
 
 use App\Core\Approvals\EngineApprovals;
+use App\Core\Audit\AuditEntry;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Runtime\Rules;
 use App\Core\Automation\Webhooks\HostResolver;
@@ -79,6 +80,18 @@ class AutomationActionsTest extends TestCase
         $this->assertSame(['check'], $this->at($workflow), 'entering close sent it back to check');
         $this->assertSame('Needs a second look', $this->inTenant(fn () => $workflow->events()->where('type', 'returned')->value('reason')));
         $this->assertSame(2, $this->inTenant(fn () => AutomationRun::query()->where('outcome', 'succeeded')->count()));
+
+        // M6 (AUD-02): the engine's audit entry names the rule's user, the rule and the run.
+        $this->inTenant(function () use ($workflow) {
+            $run = AutomationRun::query()->whereHas('rule', fn ($q) => $q->where('name', 'Send back'))->sole();
+            $entry = AuditEntry::query()->where('action', 'core.workflow.return')->where('auditable_id', $workflow->id)->sole();
+            $this->assertSame($this->owner->id, $entry->user_id);
+            $this->assertEquals(['automation_rule_id' => $run->rule_id, 'automation_run_id' => $run->id], $entry->after['metadata']);
+
+            // The person's own move right before carries no automation metadata.
+            $own = AuditEntry::query()->where('action', 'core.workflow.move')->orderByDesc('seq')->first();
+            $this->assertArrayNotHasKey('metadata', $own->after ?? []);
+        });
     }
 
     public function test_change_stage_cannot_complete_an_approval(): void
@@ -91,8 +104,9 @@ class AutomationActionsTest extends TestCase
                 ['id' => 'start', 'type' => 'start'],
                 ['id' => 'approve', 'type' => 'approval', 'name' => 'Manager approves', 'approval' => ['approver' => ['type' => 'user', 'user_id' => $manager->id]]],
                 ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+                ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'],
             ],
-            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved']],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end', 'branch' => 'approved'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']],
         ]);
         $rule = $this->inTenant(fn () => app(Rules::class)->create([
             'name' => 'Approve for them', 'document_type' => TestRequestType::KEY, 'enabled' => true,

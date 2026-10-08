@@ -13,6 +13,7 @@ use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -73,6 +74,22 @@ class Delegations
      */
     public function candidates(User $user, string $search = ''): array
     {
+        $search = trim($search);
+
+        return $this->candidateQuery($user)?->when($search !== '', fn ($q) => $q->where('name', 'ilike', '%'.addcslashes($search, '\\%_').'%'))
+            ->orderBy('name')->orderBy('id')->limit(50)->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->all() ?? [];
+    }
+
+    /** L1: whether $id is one of $user's delegation candidates (not only the first 50). */
+    public function isCandidate(User $user, string $id): bool
+    {
+        return $this->candidateQuery($user)?->whereKey($id)->exists() ?? false;
+    }
+
+    /** @return Builder<User>|null null: nobody */
+    private function candidateQuery(User $user): ?Builder
+    {
         $own = RoleAssignment::query()->where('user_id', $user->id)->get(['scope_type', 'scope_id']);
         $places = [];
         $everyone = false;
@@ -98,7 +115,7 @@ class Delegations
         $places = array_values(array_unique($places));
 
         if (! $everyone && $places === []) {
-            return [];
+            return null;
         }
 
         $holders = RoleAssignment::query()->select('user_id')->when(! $everyone, fn ($q) => $q->where(function ($w) use ($places) {
@@ -107,12 +124,8 @@ class Delegations
                 $w->orWhere(fn ($x) => $x->where('scope_type', $type)->where('scope_id', $id));
             }
         }));
-        $search = trim($search);
 
-        return User::query()->where('status', User::STATUS_ACTIVE)->whereKeyNot($user->id)->whereIn('id', $holders)
-            ->when($search !== '', fn ($q) => $q->where('name', 'ilike', '%'.addcslashes($search, '\\%_').'%'))
-            ->orderBy('name')->orderBy('id')->limit(50)->get(['id', 'name'])
-            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->all();
+        return User::query()->where('status', User::STATUS_ACTIVE)->whereKeyNot($user->id)->whereIn('id', $holders);
     }
 
     /** @param array{to_user_id: string, starts_on: string, ends_on: string, document_types?: ?list<string>, note?: ?string} $data */

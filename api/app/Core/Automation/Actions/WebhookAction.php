@@ -4,6 +4,7 @@ namespace App\Core\Automation\Actions;
 
 use App\Core\Automation\Jobs\SendWebhookDelivery;
 use App\Core\Automation\Models\WebhookDelivery;
+use App\Core\Automation\Runtime\WebhookPayload;
 use App\Core\Automation\Webhooks\WebhookSender;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use Illuminate\Support\Str;
@@ -21,9 +22,10 @@ use Illuminate\Support\Str;
  *
  * Running the action only writes a WebhookDelivery (an outbox row) in the
  * run's transaction: the run never waits on HTTP, and nothing is sent for
- * a run that rolled back. WebhookDeliveries sends it after commit, with
- * its own retries, building `fields` from the committed document and
- * leaving out fields the rule's user may not see (RBAC-05).
+ * a run that rolled back. The row holds the whole payload, `fields`
+ * snapshotted now (after the rule's earlier actions) without the fields
+ * the rule's user may not see (WebhookPayload, RBAC-05). WebhookDeliveries
+ * sends it after commit, with its own retries, always that same snapshot.
  */
 class WebhookAction implements AutomationAction
 {
@@ -84,13 +86,13 @@ class WebhookAction implements AutomationAction
             'rule_id' => $context->rule->id,
             'action_index' => $context->actionIndex,
             'url' => $url,
-            'payload' => [
+            'payload' => app(WebhookPayload::class)->snapshot([
                 'event' => 'automation.rule_run',
                 'id' => $context->run->id.':'.$context->actionIndex,
                 'rule' => ['id' => $context->rule->id, 'name' => $context->rule->name, 'version' => $context->rule->version],
                 'trigger' => ['type' => $context->run->trigger_type, ...($context->run->trigger ?? [])],
                 'document' => $context->documentId === null ? null : ['type' => $context->type->key(), 'id' => $context->documentId],
-            ],
+            ], $context->rule),
             'status' => WebhookDelivery::PENDING,
         ]);
 

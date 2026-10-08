@@ -93,6 +93,24 @@ Each function is `language sql stable security definer`:
 - `revoke all ... from public` is followed by `grant execute` to the runtime role only.
 - The caller then sets the context to that tenant and does the real work under RLS.
 
+### Scheduled fan-out: tenant ids through security-definer functions
+
+Amended in Phase 3. The scheduled commands must find the tenants that have work due before any tenant is set. They used to read those ids through the owner connection, which meant the scheduler host held the owner's `BYPASSRLS` credentials. They now call functions owned by `app_owner` (migrations `2026_10_18_000100_create_scheduler_tenant_functions` and `2026_10_18_000400_create_workflow_scheduler_tenant_functions`), on the runtime connection, through `App\Core\Tenancy\DueTenants`:
+
+| Function | Used by | Returns the tenants with |
+| --- | --- | --- |
+| `app_tenants_with_due_approval_timers(p_at timestamptz)` | `approvals:process-timers` (APR-05) | a pending approval whose reminder or escalation is due |
+| `app_tenants_with_due_automation(p_kind text, p_at timestamptz)` | `automation:scan schedules` / `dates` (AUTO-01) | live `schedule` rules due at `p_at`, or live `date` rules |
+| `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `automation:scan reap` (AUTO-05) | runs or webhook deliveries untouched since `p_stale_before` |
+| `app_tenants_with_pending_digests()` | `notifications:send-digests` (NOT-05) | emails held for a digest |
+| `app_active_tenant_ids()` | `exchange-rates:fetch` (CUR-03) | status `active` |
+| `app_tenants_with_due_stage_timers(p_at timestamptz)` | `workflow:process-stage-timers` (WF-09) | an active stage position whose reminder, overdue notice or escalation is due |
+| `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
+
+They follow the same rules as the lookups above: `security definer`, `search_path` pinned, schema-qualified names, revoked from `PUBLIC`, granted to the runtime role, and they return `setof uuid`, never a row. `DueTenantsTest` checks each of these properties. Each command then dispatches one job per tenant, and the job does the work in that tenant's context under row-level security.
+
+**Only migrations and deploy commands need the owner's credentials.** Those are `migrate --database=pgsql_owner`, `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, `uoms:seed-defaults`, `payment-methods:seed-defaults` and `app:preflight`, all run by the deploy on the API host. Web requests, queue workers (Horizon) and the scheduler never open the owner connection. Their `.env` can, and in production should, leave `DB_OWNER_*` out. The command tests prove it by making the owner connection unusable before running each command.
+
 ### Nobody but the owner creates objects in `public`
 
 Migration `2026_10_08_000050_harden_public_schema` revokes `CREATE` on schema `public` from `PUBLIC` and from the runtime role. `app` therefore cannot plant a table or function that a security-definer function or a `search_path` lookup might pick up. `HealthTest` asserts it.
@@ -118,4 +136,4 @@ Migration `2026_10_08_000050_harden_public_schema` revokes `CREATE` on schema `p
 - No transaction-mode pooling. Connection counts must be sized for direct or session-pooled connections.
 - `ResetTenantContext` adds one database round trip per request, including `/up`. This is accepted.
 - `database.default` and the `pgsql` connection name are load-bearing. Renaming them breaks tenant sync.
-- The owner credentials (`DB_OWNER_*`) are needed only by migrations. In production, keep them out of the web and worker processes where possible.
+- The owner credentials (`DB_OWNER_*`) are needed only by migrations and the deploy commands listed above. Workers and the scheduler never use them, so a queue host's `.env` leaves them out. A new scheduled command that needs tenant ids adds a security-definer function, never an owner query.

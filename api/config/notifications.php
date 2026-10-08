@@ -18,8 +18,9 @@ return [
     'attempts' => 3,
     'backoff' => [60, 300],
 
-    // The queue SendDelivery and SendDigests run on.
-    'queue' => env('NOTIFICATIONS_QUEUE', 'default'),
+    // The queue SendDelivery, SendDigests and the approval timers run on
+    // (its own Horizon supervisor, config/horizon.php).
+    'queue' => env('NOTIFICATIONS_QUEUE', 'notifications'),
 
     // NOT-05: digests go out at this local hour (the recipient's time
     // zone, see RecipientTimezone): daily every day, weekly on Mondays.

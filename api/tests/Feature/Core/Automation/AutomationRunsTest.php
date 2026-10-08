@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Automation\Chain\AutomationChain;
 use App\Core\Automation\Chain\Cause;
 use App\Core\Automation\Events\RecordChanged;
+use App\Core\Automation\Jobs\RetryThrottledRun;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Jobs\SendWebhookDelivery;
 use App\Core\Automation\Models\AutomationRun;
@@ -21,6 +22,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\Concerns\BuildsAutomation;
@@ -373,6 +375,59 @@ class AutomationRunsTest extends TestCase
         $this->assertSame(0, $this->runs($rule)->last()->attempts);
         $this->assertArrayNotHasKey('urgent', $this->taskValues($last));
         $this->assertSame(['succeeded', 'succeeded', 'throttled'], $this->runs($other)->pluck('outcome')->all(), 'each rule has its own limit');
+    }
+
+    public function test_a_throttled_live_run_is_retried_once_after_the_window(): void
+    {
+        // L3 (AUTO-06): queued with the throttle window as its delay.
+        config(['automation.rule_runs_per_minute' => 1]);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]]);
+        Bus::fake([RetryThrottledRun::class]);
+
+        $this->createTask(['title' => 'First']);
+        $second = $this->createTask(['title' => 'Second']);
+        $third = $this->createTask(['title' => 'Third']);
+
+        [, $throttled, $again] = $this->runs($rule)->all();
+        $this->assertSame([AutomationRun::THROTTLED, AutomationRun::THROTTLED], [$throttled->outcome, $again->outcome]);
+        $this->assertNotNull($throttled->next_attempt_at);
+        Bus::assertDispatchedTimes(RetryThrottledRun::class, 2);
+        Bus::assertDispatched(RetryThrottledRun::class, fn (RetryThrottledRun $job) => $job->runId === $throttled->id
+            && $job->delay instanceof \DateTimeInterface && $job->delay->getTimestamp() > now()->getTimestamp());
+
+        // After the window: the second run goes through.
+        RateLimiter::clear('automation:rule:'.$rule->id);
+        $this->inTenant(fn () => (new RetryThrottledRun($this->owner->tenant_id, $throttled->id))->handle(app(RuleRunner::class)));
+        $this->assertSame(AutomationRun::SUCCEEDED, $this->inTenant(fn () => $throttled->fresh())->outcome);
+        $this->assertTrue($this->taskValues($second)['urgent']);
+
+        // The third is over the limit again (the second just used it): it stays throttled, for good.
+        $this->inTenant(fn () => (new RetryThrottledRun($this->owner->tenant_id, $again->id))->handle(app(RuleRunner::class)));
+        $again = $this->inTenant(fn () => $again->fresh());
+        $this->assertSame(AutomationRun::THROTTLED, $again->outcome);
+        $this->assertNull($again->next_attempt_at);
+        $this->assertArrayNotHasKey('urgent', $this->taskValues($third));
+
+        // A second retry of the same run does nothing.
+        RateLimiter::clear('automation:rule:'.$rule->id);
+        $this->inTenant(fn () => (new RetryThrottledRun($this->owner->tenant_id, $again->id))->handle(app(RuleRunner::class)));
+        $this->assertSame(AutomationRun::THROTTLED, $this->inTenant(fn () => $again->fresh())->outcome);
+    }
+
+    public function test_a_rule_throttled_too_often_in_an_hour_alerts_the_administrators_once(): void
+    {
+        config(['automation.rule_runs_per_minute' => 1, 'automation.throttle_alert_after' => 2]);
+        $rule = $this->saveRule(['type' => 'record_created'], [['type' => 'update_field', 'field' => 'urgent', 'value' => true]], ['name' => 'Flag']);
+        Bus::fake([RetryThrottledRun::class]);
+
+        foreach (range(1, 6) as $i) {
+            $this->createTask(['title' => "Task {$i}"]);
+        }
+
+        $this->assertSame(5, $this->runs($rule)->where('outcome', AutomationRun::THROTTLED)->count());
+        $alerts = $this->inTenant(fn () => InAppNotification::query()->where('event_type', 'core.automation.failed')->get());
+        $this->assertSame([$this->owner->id], $alerts->pluck('user_id')->all(), 'one alert in the hour, to the administrators');
+        $this->assertStringContainsString('more than 2 times in the last hour', $alerts->first()->body);
     }
 
     public function test_runs_over_the_tenants_limit_per_minute_are_throttled(): void

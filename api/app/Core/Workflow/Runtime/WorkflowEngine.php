@@ -3,11 +3,13 @@
 namespace App\Core\Workflow\Runtime;
 
 use App\Core\Audit\Auditor;
+use App\Core\Automation\Runtime\FieldVisibility;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Calendar\BusinessCalendar;
+use App\Core\Workflow\Conditions\ConditionCheck;
 use App\Core\Workflow\Conditions\ConditionDescriber;
 use App\Core\Workflow\Conditions\ConditionEvaluator;
 use App\Core\Workflow\Conditions\ConditionResult;
@@ -29,6 +31,7 @@ use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Models\DocumentWorkflowLink;
 use App\Core\Workflow\Models\DocumentWorkflowToken;
 use App\Core\Workflow\Models\WorkflowVersion;
+use App\Core\Workflow\WorkflowAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -74,6 +77,9 @@ class WorkflowEngine
         private readonly StagePermissions $permissions,
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
+        private readonly StageTimers $timers,
+        private readonly WorkflowAccess $access,
+        private readonly FieldVisibility $visibility,
     ) {}
 
     /**
@@ -216,44 +222,7 @@ class WorkflowEngine
     {
         return $this->transaction(function () use ($workflow, $by, $nodeId, $reason, $authorised) {
             $run = $this->open($workflow, $by, checkEnter: false);
-            $target = $run->flow->node($nodeId);
-
-            $passed = $target !== null && in_array($target['type'], FlowGraph::HOLDING, true)
-                ? DocumentWorkflowToken::query()->where('workflow_id', $workflow->id)->where('node_id', $nodeId)
-                    ->where('status', DocumentWorkflowToken::DONE)->latest('entered_at')->first()
-                : null;
-
-            if ($passed === null) {
-                throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
-            }
-
-            $branch = $passed->groups ?? [];
-            $affected = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING])
-                ->filter(fn (DocumentWorkflowToken $t) => array_slice($t->groups ?? [], 0, count($branch)) === $branch)
-                ->values();
-            $active = $affected->where('status', DocumentWorkflowToken::ACTIVE)->values();
-            $later = $run->flow->reachableFrom($nodeId);
-
-            if ($affected->isEmpty()) {
-                // The branch already joined: nothing of it is open any more.
-                $code = $branch === [] ? 'return_target' : 'return_inside_parallel';
-
-                throw new ApiException(422, $code, __('workflow.errors.'.$code));
-            }
-
-            if (! $affected->every(fn (DocumentWorkflowToken $t) => in_array($t->node_id, $later, true))) {
-                throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
-            }
-
-            $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
-            $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
-                fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
-            ));
-
-            if ($refused !== null) {
-                throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($refused->node_id)]), [], $refused->node_id, 403);
-            }
-
+            [$branch, $affected] = $this->returnPlan($run, $nodeId, $by, $authorised, $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]));
             $from = [];
 
             foreach ($affected as $token) {
@@ -281,14 +250,8 @@ class WorkflowEngine
             $run = $this->open($workflow, $by, checkEnter: false);
             $open = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]);
 
-            if ($by !== null) {
-                $allowed = $by->can($run->type->actPermission(), $run->scope->scope())
-                    || $open->contains(fn (DocumentWorkflowToken $t) => $t->status === DocumentWorkflowToken::ACTIVE
-                        && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type));
-
-                if (! $allowed) {
-                    throw new ApiException(403, 'forbidden', __('workflow.errors.cancel_forbidden'));
-                }
+            if ($by !== null && ! $this->mayCancel($run, $by, $open)) {
+                throw new ApiException(403, 'forbidden', __('workflow.errors.cancel_forbidden'));
             }
 
             foreach ($open as $token) {
@@ -404,6 +367,8 @@ class WorkflowEngine
             'cancelled_by' => $user($workflow->cancelled_by),
             'cancel_reason' => $workflow->cancel_reason,
             'current' => $current,
+            // Additive (the status page's Cancel and Return actions).
+            ...$this->actionsFor($run, $viewer),
             'history' => $events->map(fn (DocumentWorkflowEvent $e) => [
                 'type' => $e->type,
                 'node_id' => $e->node_id,
@@ -422,10 +387,106 @@ class WorkflowEngine
         ];
     }
 
-    /** WF-09: active positions past their due time (APR-05 reminders and escalation read this). */
+    /** WF-09: active positions past their due time (StageTimers and the approvals service act on their own timers). */
     public function overdue(?\DateTimeInterface $at = null)
     {
         return DocumentWorkflowToken::query()->overdue($at)->with('workflow');
+    }
+
+    /**
+     * WF-11: whether $by may cancel: the type's act permission, or the exit
+     * rights of a stage the document is at.
+     *
+     * @param  Collection<int, DocumentWorkflowToken>  $open
+     */
+    private function mayCancel(Run $run, User $by, Collection $open): bool
+    {
+        return $by->can($run->type->actPermission(), $run->scope->scope())
+            || $open->contains(fn (DocumentWorkflowToken $t) => $t->status === DocumentWorkflowToken::ACTIVE
+                && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type));
+    }
+
+    /**
+     * WF-11: what a return to $nodeId would close ([branch groups, affected
+     * positions]), or the refusal returnTo() answers with (ApiException).
+     *
+     * @param  Collection<int, DocumentWorkflowToken>  $open  active and waiting positions
+     * @return array{0: list<string>, 1: Collection<int, DocumentWorkflowToken>}
+     */
+    private function returnPlan(Run $run, string $nodeId, User $by, bool $authorised, Collection $open): array
+    {
+        $target = $run->flow->node($nodeId);
+
+        $passed = $target !== null && in_array($target['type'], FlowGraph::HOLDING, true)
+            ? DocumentWorkflowToken::query()->where('workflow_id', $run->workflow->id)->where('node_id', $nodeId)
+                ->where('status', DocumentWorkflowToken::DONE)->latest('entered_at')->first()
+            : null;
+
+        if ($passed === null) {
+            throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
+        }
+
+        $branch = $passed->groups ?? [];
+        $affected = $open
+            ->filter(fn (DocumentWorkflowToken $t) => array_slice($t->groups ?? [], 0, count($branch)) === $branch)
+            ->values();
+        $active = $affected->where('status', DocumentWorkflowToken::ACTIVE)->values();
+        $later = $run->flow->reachableFrom($nodeId);
+
+        if ($affected->isEmpty()) {
+            // The branch already joined: nothing of it is open any more.
+            $code = $branch === [] ? 'return_target' : 'return_inside_parallel';
+
+            throw new ApiException(422, $code, __('workflow.errors.'.$code));
+        }
+
+        if (! $affected->every(fn (DocumentWorkflowToken $t) => in_array($t->node_id, $later, true))) {
+            throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
+        }
+
+        $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
+        $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
+            fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
+        ));
+
+        if ($refused !== null) {
+            throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($refused->node_id)]), [], $refused->node_id, 403);
+        }
+
+        return [$branch, $affected];
+    }
+
+    /**
+     * For the status page: what $viewer may do now, with the same checks
+     * the cancel and return endpoints make.
+     *
+     * @return array{can_cancel: bool, can_return: bool, return_targets: list<array{node_id: string, name: string}>}
+     */
+    private function actionsFor(Run $run, ?User $viewer): array
+    {
+        if ($viewer === null || ! $run->workflow->isRunning()) {
+            return ['can_cancel' => false, 'can_return' => false, 'return_targets' => []];
+        }
+
+        $open = $this->tokens($run, [DocumentWorkflowToken::ACTIVE, DocumentWorkflowToken::WAITING]);
+        $passed = DocumentWorkflowToken::query()->where('workflow_id', $run->workflow->id)->where('status', DocumentWorkflowToken::DONE)
+            ->orderBy('entered_at')->orderBy('id')->pluck('node_id')->unique()->values();
+        $targets = [];
+
+        foreach ($passed as $nodeId) {
+            if (! in_array($run->flow->type($nodeId), FlowGraph::HOLDING, true)) {
+                continue;
+            }
+
+            try {
+                $this->returnPlan($run, $nodeId, $viewer, false, $open);
+                $targets[] = ['node_id' => $nodeId, 'name' => $run->flow->name($nodeId)];
+            } catch (ApiException) {
+                // Not a target this viewer may return to now.
+            }
+        }
+
+        return ['can_cancel' => $this->mayCancel($run, $viewer, $open), 'can_return' => $targets !== [], 'return_targets' => $targets];
     }
 
     // ---- traversal --------------------------------------------------------
@@ -513,6 +574,9 @@ class WorkflowEngine
         $node = $run->flow->node($nodeId);
         $now = CarbonImmutable::now();
         $due = $node['due'] ?? null;
+        $dueAt = is_array($due)
+            ? $this->calendar->due($now, (int) $due['amount'], (string) $due['unit'], $this->calendar->forCompany($run->scope->companyId))
+            : null;
 
         $token = DocumentWorkflowToken::create([
             'workflow_id' => $run->workflow->id,
@@ -520,9 +584,9 @@ class WorkflowEngine
             'status' => DocumentWorkflowToken::ACTIVE,
             'groups' => $groups,
             'entered_at' => $now,
-            'due_at' => is_array($due)
-                ? $this->calendar->due($now, (int) $due['amount'], (string) $due['unit'], $this->calendar->forCompany($run->scope->companyId))
-                : null,
+            'due_at' => $dueAt,
+            // WF-09: a plain stage's reminders, overdue notice and escalation (StageTimers).
+            'next_timer_at' => $this->timers->first($node, $now, $dueAt, $run->scope->companyId),
             'entered_by' => $run->user?->id,
         ]);
 
@@ -748,10 +812,36 @@ class WorkflowEngine
         );
     }
 
-    /** @return list<string> */
+    /**
+     * H3 (RBAC-05): why a move is blocked, for the person moving. Rules on
+     * fields their field rules hide, or every rule when they cannot see the
+     * document, read only "A rule you can't see was not met." (no values).
+     * The system (no person) gets every reason.
+     *
+     * @return list<string>
+     */
     private function reasons(Run $run, ConditionResult $result): array
     {
-        return $this->describer->reasons($result, $run->type->fieldsByName(), $this->timezone($run));
+        $fields = $run->type->fieldsByName();
+        $user = $run->user;
+
+        if ($user === null) {
+            return $this->describer->reasons($result, $fields, $this->timezone($run));
+        }
+
+        if (! $this->access->seesDocument($user, $run->type, $run->scope)) {
+            return $result->failures === [] ? [] : [__('workflow.errors.hidden_rule')];
+        }
+
+        $hidden = $this->visibility->hidden($user, $run->type);
+        $visible = array_values(array_filter($result->failures, fn (ConditionCheck $c) => ! in_array($c->field, $hidden, true) && ! in_array($c->other, $hidden, true)));
+        $reasons = $this->describer->reasons(new ConditionResult($result->passed, $result->checks, $visible), $fields, $this->timezone($run));
+
+        if (count($visible) < count($result->failures)) {
+            $reasons[] = __('workflow.errors.hidden_rule');
+        }
+
+        return $reasons;
     }
 
     private function timezone(Run $run): string

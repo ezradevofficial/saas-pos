@@ -5,6 +5,8 @@ namespace App\Core\MasterData\CreditLimits;
 use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Notifications\NotificationEvent;
+use App\Core\Notifications\Notifier;
 use App\Core\Rbac\FieldRules;
 use App\Core\Workflow\Definitions\FlowGraph;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
@@ -123,7 +125,8 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
 
     /**
      * M4: an `approved` end must not be reachable from the start without
-     * passing an approval node, or a flow could raise limits unapproved.
+     * passing an approval node's `approved` edge, or a flow could raise
+     * limits unapproved (H1: a path after a rejection counts as unapproved).
      */
     public function validateFlow(FlowGraph $flow): array
     {
@@ -133,27 +136,15 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
             return [];
         }
 
-        $seen = [$start => true];
-        $queue = [$start];
         $problems = [];
 
-        while ($queue !== []) {
-            $id = array_shift($queue);
+        // H1: approval nodes pass only along `rejected` (an approved end
+        // after a rejection is as unapproved as one with no approval at all).
+        foreach ($flow->reachableWithoutApproval([$start]) as $id) {
             $node = $flow->node($id) ?? [];
-
-            if (($node['type'] ?? null) === 'approval') {
-                continue;
-            }
 
             if (($node['type'] ?? null) === 'end' && ($node['outcome'] ?? null) === 'approved') {
                 $problems[] = ['code' => 'approval_required', 'message' => __('core.credit_limit_change.validation.approval_required', ['node' => $flow->name($id)]), 'node' => $id];
-            }
-
-            foreach ($flow->outgoing($id) as $edge) {
-                if (! isset($seen[$edge['to']])) {
-                    $seen[$edge['to']] = true;
-                    $queue[] = $edge['to'];
-                }
             }
         }
 
@@ -200,6 +191,27 @@ class CreditLimitChangeType extends DocumentType implements LinksDocuments
             array_intersect(CreditLimitChangeAccess::LIMIT_FIELDS, $hidden) !== [] ? 'amount' : null,
             in_array('name', $hidden, true) ? 'title' : null,
         ]));
+    }
+
+    /**
+     * L2 (RBAC-05): send a credit limit change notice, the party's name
+     * left out for recipients who may not see it (hiddenSummaryFields:
+     * `title`), grouped so each group gets one send.
+     *
+     * @param  list<string>  $userIds
+     * @param  array<string, string>  $data  with `party_name`
+     */
+    public function notify(string $event, array $userIds, array $data, ?string $link): void
+    {
+        $groups = [];
+
+        foreach (User::query()->whereKey(array_values(array_unique(array_filter($userIds))))->orderBy('id')->get() as $user) {
+            $groups[in_array('title', $this->hiddenSummaryFields($user), true) ? 'hidden' : 'shown'][] = (string) $user->id;
+        }
+
+        foreach ($groups as $group => $ids) {
+            app(Notifier::class)->send(new NotificationEvent($event, $ids, $group === 'hidden' ? [...$data, 'party_name' => ''] : $data, $link));
+        }
     }
 
     public function defaultFlow(?string $country): ?array

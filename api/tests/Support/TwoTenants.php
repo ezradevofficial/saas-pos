@@ -8,7 +8,6 @@ use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
-use App\Core\Identity\Notifications\InvitationNotification;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
@@ -23,6 +22,7 @@ use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -69,6 +69,7 @@ final class TwoTenants
     public static function build(TestCase $test): self
     {
         Notification::fake();
+        Mail::fake();
         Storage::fake('media');
         // AUTO-03: webhooks go nowhere; the receiver's name resolves to a public address.
         Http::fake(['https://hooks.example.com/*' => Http::response('received', 200)]);
@@ -240,7 +241,7 @@ final class TwoTenants
             'email' => $managerEmail,
             'assignments' => [['role_id' => $roles['branch_manager'], 'scope_type' => 'branch', 'scope_id' => $branch]],
         ], $owner), 201);
-        $accepted = self::ok($test->postJson('/api/v1/auth/invitations/'.self::last(InvitationNotification::class)->token.'/accept', [
+        $accepted = self::ok($test->postJson('/api/v1/auth/invitations/'.SentInvitations::lastToken($managerEmail).'/accept', [
             'name' => "Manager {$upper}",
             'password' => self::PASSWORD,
         ]), 201);
@@ -323,8 +324,9 @@ final class TwoTenants
                 ['id' => 'start', 'type' => 'start'],
                 ['id' => 'approve', 'type' => 'approval', 'name' => "Approve {$upper}", 'approval' => ['approver' => ['type' => 'user', 'user_id' => $managerId]]],
                 ['id' => 'end', 'type' => 'end', 'outcome' => 'approved'],
+                ['id' => 'refused', 'type' => 'end', 'outcome' => 'rejected'],
             ],
-            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end']],
+            'edges' => [['from' => 'start', 'to' => 'approve'], ['from' => 'approve', 'to' => 'end'], ['from' => 'approve', 'to' => 'refused', 'branch' => 'rejected']],
         ]], $owner));
         self::ok($test->postJson("/api/v1/workflows/{$everyCompany}/publish", [], $owner));
         $approval = app(TenantContext::class)->run($tenantId, function () use ($signUpCompany, $upper) {

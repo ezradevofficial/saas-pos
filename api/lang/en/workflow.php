@@ -26,6 +26,7 @@ return [
     ],
 
     'errors' => [
+        'hidden_rule' => 'A rule you can’t see was not met.',
         'action_unavailable' => 'The step “:stage” runs an action that isn’t available any more. Ask an administrator to update the workflow.',
         'next_document_unavailable' => 'The step “:stage” creates a document whose module isn’t active. Ask an administrator to activate it or update the workflow.',
         'workflow_busy' => 'Someone else changed this workflow at the same time. Try again.',
@@ -144,6 +145,11 @@ return [
         'dead_end' => 'No end can be reached after “:node”.',
         'branch_escapes' => 'Every branch of “:node” must reach “:join” before the workflow ends.',
         'join_split_mismatch' => '“:node” receives steps that are not part of its parallel step.',
+        'approval_without_rejected' => '“:node” needs a path for “rejected”, so a rejection or a timeout has somewhere to go.',
+        'rejected_reaches_approved' => 'After “:node” rejects, the workflow can still reach “:end”, which ends approved. Lead the rejection to an end that isn’t approved, or through another approval.',
+        'approval_in_parallel' => 'Approvals can’t run in parallel branches yet. Use the approval’s “all” or “majority” mode for a group decision.',
+        'stage_reminders' => 'The reminders of “:node” must be at most :max time offsets (a whole number of business hours, business days, hours or days).',
+        'stage_escalation' => 'The escalation of “:node” must name a role or a user to tell, after a time offset or the step’s time limit.',
     ],
 
     'actions' => [
@@ -153,6 +159,18 @@ return [
 
     // NOT-02: what a flow's `notify` step sends ({placeholders} are filled per recipient).
     'notifications' => [
+        'stage_reminder' => [
+            'label' => 'Workflow step reminder',
+            'subject' => 'Reminder: {document_type} {document_number} is waiting at “{step}”',
+            'body' => "Hello {recipient_name},\n\n{document_type} {document_number} is still waiting at the step “{step}”. Due: {due}.\n\nOpen it to move it on or send it back.",
+            'sms' => '{app_name}: {document_type} {document_number} still waits at “{step}”.',
+        ],
+        'stage_overdue' => [
+            'label' => 'Workflow step overdue',
+            'subject' => 'Overdue: {document_type} {document_number} at “{step}”',
+            'body' => "Hello {recipient_name},\n\n{document_type} {document_number} has passed its time limit at the step “{step}” (due {due}).\n\nOpen it to see who holds it and move it on.",
+            'sms' => '{app_name}: {document_type} {document_number} is overdue at “{step}”.',
+        ],
         'notify' => [
             'label' => 'Workflow step notification',
             'subject' => '{document_type}: {step}',
