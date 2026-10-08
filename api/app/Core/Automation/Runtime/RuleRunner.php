@@ -78,7 +78,8 @@ class RuleRunner
                 'chain_id' => $cause->chainId,
                 'depth' => $cause->depth + 1,
                 'chain' => $cause->rules,
-                'dedupe_key' => $hit->dedupeKey,
+                // A throttled occurrence keeps no key: the next scan may still run it.
+                'dedupe_key' => $throttled ? null : $hit->dedupeKey,
                 'error' => $throttled ? __('automation.errors.throttled') : null,
                 'finished_at' => $throttled ? CarbonImmutable::now() : null,
             ]));
