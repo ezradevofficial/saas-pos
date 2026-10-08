@@ -57,6 +57,9 @@ describe('notification bell (NOT-01)', () => {
     renderApp('/')
     const button = await bell('Notifications, 3 unread')
     expect(within(button).getByTestId('unread-count')).toHaveTextContent('3')
+    // A quiet chip: the accent is kept for each screen's one decisive action.
+    expect(within(button).getByTestId('unread-count')).toHaveClass('bg-surface-300', 'text-ink')
+    expect(within(button).getByTestId('unread-count')).not.toHaveClass('bg-accent')
   })
 
   it('has no count when everything is read', async () => {

@@ -77,7 +77,7 @@ function WaitingBadge() {
   const count = waiting.data ?? 0
   if (count === 0) return null
   return (
-    <span data-testid="approvals-waiting" className="shrink-0 rounded-pill bg-accent px-1 text-caption font-medium text-on-accent tabular-nums">
+    <span data-testid="approvals-waiting" className="shrink-0 rounded-pill bg-surface-300 px-2 text-caption text-ink tabular-nums">
       <span aria-hidden="true">{count > 99 ? '99+' : formatInteger(count, locale)}</span>
       <span className="sr-only">{t('approvals.nav.waiting', { count, formatted: formatInteger(count, locale) })}</span>
     </span>
