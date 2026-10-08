@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
-import { Alert, Button, Icon, ListView, Select, StatusBadge } from '@/components/ds'
+import { Alert, Button, Icon, ListView, StatusBadge } from '@/components/ds'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatWhen } from '@/lib/format'
@@ -157,26 +157,22 @@ export function RunsList({ ruleId, rules = [] }) {
         list={list}
         title={t('automation.runs.title')}
         searchable={false}
-        filters={
-          <>
-            <Select
-              label={t('automation.runs.filters.outcome')}
-              options={[{ value: '', label: t('automation.runs.filters.allOutcomes') }, ...RUN_OUTCOMES.map((outcome) => ({ value: outcome, label: t(`automation.outcomes.${outcome}`) }))]}
-              value={list.filters.outcome}
-              onChange={(event) => list.setFilter('outcome', event.target.value)}
-              className="w-full sm:w-palette"
-            />
-            {ruleId ? null : (
-              <Select
-                label={t('automation.runs.filters.rule')}
-                options={[{ value: '', label: t('automation.runs.filters.allRules') }, ...rules.map((rule) => ({ value: rule.id, label: rule.name }))]}
-                value={list.filters.rule}
-                onChange={(event) => list.setFilter('rule', event.target.value)}
-                className="w-full sm:w-palette"
-              />
-            )}
-          </>
-        }
+        filterFields={[
+          {
+            name: 'outcome',
+            label: t('automation.runs.filters.outcome'),
+            options: [{ value: '', label: t('automation.runs.filters.allOutcomes') }, ...RUN_OUTCOMES.map((outcome) => ({ value: outcome, label: t(`automation.outcomes.${outcome}`) }))],
+          },
+          ...(ruleId
+            ? []
+            : [
+                {
+                  name: 'rule',
+                  label: t('automation.runs.filters.rule'),
+                  options: [{ value: '', label: t('automation.runs.filters.allRules') }, ...rules.map((rule) => ({ value: rule.id, label: rule.name }))],
+                },
+              ]),
+        ]}
         emptyText={t('automation.runs.empty')}
         onRowClick={(row) => setOpen(row.id)}
         selectedId={open}
