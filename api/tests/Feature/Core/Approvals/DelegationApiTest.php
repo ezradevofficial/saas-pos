@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Approvals;
 
+use App\Core\Approvals\Delegations;
 use App\Core\Approvals\Models\ApprovalAssignment;
 use App\Core\Audit\AuditEntry;
 use App\Core\Notifications\Models\InAppNotification;
@@ -106,6 +107,12 @@ class DelegationApiTest extends TestCase
         $other = $this->otherTenant();
         $this->postJson('/api/v1/me/delegations', ['to_user_id' => $other['user']->id, 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-08'], $headers)
             ->assertUnprocessable()->assertJsonValidationErrors('to_user_id');
+
+        // L1: only someone the delegate picker offers: Ben works at branch B only, not at Mary's places.
+        $this->assertNotContains($this->managerB->id, array_column($this->inTenant(fn () => app(Delegations::class)->candidates($this->managerA)), 'id'));
+        $this->postJson('/api/v1/me/delegations', ['to_user_id' => $this->managerB->id, 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-08'], $headers)
+            ->assertUnprocessable()->assertJsonValidationErrors(['to_user_id' => 'Choose someone who works at one of your places.']);
+        $this->postJson('/api/v1/me/delegations', ['to_user_id' => $this->accountant->id, 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-08'], $headers)->assertCreated();
     }
 
     public function test_an_approver_delegating_is_not_a_reason_to_reach_items_of_other_approvers(): void
