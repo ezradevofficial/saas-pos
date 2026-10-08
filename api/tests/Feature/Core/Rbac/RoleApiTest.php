@@ -299,6 +299,32 @@ class RoleApiTest extends TestCase
         $this->deleteJson("/api/v1/assignments/{$ownerAssignment}", [], $this->headersFor($manager))->assertNotFound();
     }
 
+    public function test_a_branch_manager_cannot_add_or_remove_an_assignment_above_their_branch(): void
+    {
+        // RBAC-04: seeing the user (through their branch A role) is not
+        // enough; the actor must manage the assignment's own scope.
+        $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $companyAdmin = $this->userWith('admin', Scope::company($this->acme->id));
+        [$companyAssignment, $branchAssignment] = $this->inTenant(fn () => [
+            RoleAssignment::where('user_id', $companyAdmin->id)->value('id'),
+            $this->assign($companyAdmin, $this->roles->get('cashier'), Scope::location($this->locationA->id))->id,
+        ]);
+
+        $this->getJson("/api/v1/users/{$companyAdmin->id}/assignments", $this->headersFor($manager))->assertOk();
+
+        $this->deleteJson("/api/v1/assignments/{$companyAssignment}", [], $this->headersFor($manager))
+            ->assertForbidden()
+            ->assertJsonPath('code', 'cannot_grant');
+        $this->postJson("/api/v1/users/{$companyAdmin->id}/assignments", [
+            'role_id' => $this->roles->get('cashier')->id, 'scope_type' => 'company', 'scope_id' => $this->acme->id,
+        ], $this->headersFor($manager))->assertForbidden()->assertJsonPath('code', 'cannot_grant');
+
+        $this->inTenant(fn () => $this->assertTrue(RoleAssignment::whereKey($companyAssignment)->exists()));
+
+        // Within the branch, the same manager may remove it.
+        $this->deleteJson("/api/v1/assignments/{$branchAssignment}", [], $this->headersFor($manager))->assertNoContent();
+    }
+
     public function test_another_tenants_roles_and_assignments_are_not_found(): void
     {
         $other = $this->otherTenant();

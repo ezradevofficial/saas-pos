@@ -89,6 +89,7 @@ Any other argument, for example a `User`, returns `null`, so that model's policy
 - Creating or editing a role can only add permissions the actor holds at tenant scope.
 - **Permissions of inactive modules get no exemption.** They count when checking what the actor holds, so they cannot be handed out now and take effect on activation.
 - `PATCH roles` merges the role's existing inactive-module permissions into the submitted set, because clients never see them. Consequence: such permissions cannot be removed through `PATCH` until the module is active. This is deliberate.
+- **Adding or removing an assignment** takes, besides seeing the user, `core.role.assign` covering **that assignment's own scope** (`Grants::assertManagesScope`, 403 `cannot_grant`). A branch manager who sees a company admin through their branch role cannot remove or add a company-scoped assignment. Removal also runs `OwnerGuard` in the same transaction (RBAC-10).
 - Scopes and roles must exist in the tenant (404 otherwise, so ids out of scope are never confirmed). They must not be archived for a new grant (422 `parent_archived`).
 
 **Owner safety (RBAC-10, `OwnerGuard`).**
