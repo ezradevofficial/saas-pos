@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { catalogue, ITEM, ITEM_EDITOR } from '@/test/catalogue'
+import { chooseOption } from '@/test/combobox'
 import { apiError, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -22,7 +23,7 @@ describe('Item detail', () => {
 
     const base = await screen.findByLabelText(/^Base unit/)
     await waitFor(() => expect(base).toHaveValue('u-ea'))
-    fireEvent.change(base, { target: { value: 'u-kg' } })
+    chooseOption(base, 'KG · Kilogram')
     expect(screen.getByText(/The base unit changed/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Soda 500 ml can' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
