@@ -34,6 +34,9 @@ class PermissionRegistry
         'uom' => ['view', 'edit'],
         'payment_method' => ['view', 'create', 'edit', 'archive', 'configure'],
         'dimension' => ['view', 'create', 'edit', 'archive'],
+        'notification_template' => ['view', 'edit'],
+        'notification_settings' => ['edit'],
+        'notification_delivery' => ['view'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

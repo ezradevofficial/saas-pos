@@ -4,6 +4,7 @@ use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
+use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
@@ -16,4 +17,5 @@ return [
     RbacServiceProvider::class,
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,
+    NotificationsServiceProvider::class,
 ];

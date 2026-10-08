@@ -83,13 +83,15 @@ class RoleTemplatesTest extends TestCase
             'core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive',
             'core.payment_method.configure',
             'core.dimension.view', 'core.dimension.create', 'core.dimension.edit', 'core.dimension.archive',
+            'core.notification_template.view', 'core.notification_template.edit', 'core.notification_settings.edit',
+            'core.notification_delivery.view',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(63, count($names));
+        $this->assertSame(67, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -116,6 +118,11 @@ class RoleTemplatesTest extends TestCase
         $this->assertContains('core.audit.export', $auditorPermissions);
         $this->assertContains('core.access_review.export', $auditorPermissions);
         $this->assertNotContains('core.company.edit', $auditorPermissions);
+        // NOT-03, NOT-06: the auditor reads templates and the delivery log; only Owner and Admin change them.
+        $this->assertContains('core.notification_delivery.view', $auditorPermissions);
+        $this->assertNotContains('core.notification_template.edit', $auditorPermissions);
+        $this->assertNotContains('core.notification_settings.edit', $auditorPermissions);
+        $this->assertContains('core.notification_settings.edit', $admin->permissions()->pluck('name')->all());
 
         $user = User::sole();
         $assignment = RoleAssignment::sole();
@@ -248,7 +255,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(63, $permissions);
+        $this->assertCount(67, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 
