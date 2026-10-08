@@ -2324,8 +2324,6 @@
     "noLimit": "No limit",
     "to": "changes to",
     "current": "Current limit",
-    "locked": "Changes to the credit limit go through approval. Use Request a change above.",
-    "lockedNew": "Set the credit limit after saving, with Request a change on the customer's page.",
     "columns": {
       "number": "Number",
       "party": "Customer",
@@ -2386,6 +2384,7 @@
       "returned": "Returned to {{step}}",
       "completed": "Decided",
       "cancelled": "Cancelled"
-    }
+    },
+    "lowerOnly": "To raise or remove the limit, request a change."
   }
 }

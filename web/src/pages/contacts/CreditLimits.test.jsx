@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -108,24 +108,45 @@ describe('Credit limit changes', () => {
     expect(await screen.findByText('CLC-000001 was sent for approval.')).toBeInTheDocument()
   })
 
-  it('shows the credit limit read-only with a hint to users who cannot set it directly, and sends no limit on save', async () => {
+  it('lets users without set_directly lower the limit, with a hint (WF-01)', async () => {
     routes({ permissions: EDITOR })
     api.patch.mockResolvedValue({ data: PARTY, meta: { possible_duplicates: [] } })
     renderApp('/contacts/customers/p-1')
 
-    expect(await screen.findByText('Changes to the credit limit go through approval. Use Request a change above.')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Credit limit')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Request a change' })).not.toBeInTheDocument()
-
+    const field = await screen.findByLabelText('Credit limit')
+    expect(screen.getByText('To raise or remove the limit, request a change.')).toBeInTheDocument()
+    fireEvent.change(field, { target: { value: '100,000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(api.patch).toHaveBeenCalled())
-    expect(api.patch.mock.calls[0][1]).not.toHaveProperty('credit_limit')
+    expect(api.patch.mock.calls[0][1]).toMatchObject({ credit_limit: '100000.00', credit_limit_currency: 'KES' })
   })
 
-  it('lets users who may set the limit directly edit the field', async () => {
+  it('shows a refused raise under the field with Request a change, which opens the request dialog', async () => {
+    const message = 'Raising or removing this credit limit, or changing its currency, needs approval. Lower it, or use “Request a change” on the customer’s page.'
+    routes({ permissions: tenantWide(['core.company.view', 'core.currency.view', 'core.party.view', 'core.party.edit', 'core.credit_limit.request']) })
+    api.patch.mockRejectedValue(apiError(422, 'credit_limit_needs_request', message, { credit_limit: [message] }))
+    renderApp('/contacts/customers/p-1')
+
+    fireEvent.change(await screen.findByLabelText('Credit limit'), { target: { value: '900,000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+
+    const buttons = screen.getAllByRole('button', { name: 'Request a change' })
+    fireEvent.click(buttons.at(-1))
+    expect(await screen.findByRole('dialog', { name: 'Request a credit limit change for Duka Moja Ltd' })).toBeInTheDocument()
+  })
+
+  it('lets users who may set the limit directly raise it without a hint', async () => {
     routes({ permissions: tenantWide(['core.company.view', 'core.currency.view', 'core.party.view', 'core.party.edit', 'core.credit_limit.set_directly']) })
     renderApp('/contacts/customers/p-1')
     expect(await screen.findByLabelText('Credit limit')).toBeInTheDocument()
+    expect(screen.queryByText('To raise or remove the limit, request a change.')).not.toBeInTheDocument()
+  })
+
+  it('needs set_directly tenant-wide for a shared customer (M2)', async () => {
+    routes({ permissions: [...tenantWide(['core.company.view', 'core.currency.view', 'core.party.view', 'core.party.edit']), { name: 'core.credit_limit.set_directly', scopes: [{ type: 'company', id: 'c-1' }] }] })
+    renderApp('/contacts/customers/p-1')
+    expect(await screen.findByText('To raise or remove the limit, request a change.')).toBeInTheDocument()
   })
 
   it("lists the customer's requests and opens one with its step, holder, time waiting and approval (WF-10)", async () => {

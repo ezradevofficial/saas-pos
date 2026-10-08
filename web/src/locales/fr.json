@@ -2324,8 +2324,6 @@
     "noLimit": "Aucun plafond",
     "to": "devient",
     "current": "Plafond actuel",
-    "locked": "Les modifications du plafond de crédit passent par une approbation. Utilisez Demander une modification ci-dessus.",
-    "lockedNew": "Fixez le plafond de crédit après l’enregistrement, avec Demander une modification sur la fiche du client.",
     "columns": {
       "number": "Numéro",
       "party": "Client",
@@ -2386,6 +2384,7 @@
       "returned": "Renvoyée à {{step}}",
       "completed": "Décidée",
       "cancelled": "Annulée"
-    }
+    },
+    "lowerOnly": "Pour augmenter ou supprimer le plafond, demandez une modification."
   }
 }

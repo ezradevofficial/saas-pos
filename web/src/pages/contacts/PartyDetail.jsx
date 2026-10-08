@@ -159,6 +159,7 @@ export default function PartyDetail({ role }) {
           party={party}
           role={role}
           readOnly={!canEdit}
+          onRequestChange={canRequest ? () => setRequesting(true) : null}
           onSaved={(response) => {
             setSaved(true)
             setDuplicates(response.meta?.possible_duplicates ?? [])

@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Checkbox, Icon, Money, MoneyInput, Select, TextField } from '@/components/ds'
+import { Alert, Button, Card, Checkbox, Icon, MoneyInput, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { rolesPerCompany, useSharingModes } from '@/lib/masterData'
@@ -61,12 +61,12 @@ const blankToNull = (value) => (value.trim() === '' ? null : value.trim())
  * (company_change_needs_confirmation). Fields hidden by field rules
  * (RBAC-05) are not in `party`: neither shown nor sent.
  */
-export function PartyForm({ party, role, readOnly = false, onSaved }) {
+export function PartyForm({ party, role, readOnly = false, onRequestChange = null, onSaved }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const formRef = useRef(null)
   const alertRef = useRef(null)
-  const { can, canWithin } = usePermissions()
+  const { can, canWithin, tenantWide } = usePermissions()
   const { modes } = useSharingModes()
   const { companies } = useCompanies()
   const { company: selected } = useCompanySelection()
@@ -76,9 +76,11 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
   const [submitted, setSubmitted] = useState(false)
   const creating = !party
   const shows = (field) => creating || field in party
-  // WF-01: without core.credit_limit.set_directly the limit is read-only here;
-  // it changes through a credit limit change request (the API refuses raises).
-  const creditLocked = !(party?.company_id ? canWithin(CREDIT_SET_DIRECTLY, [{ type: 'company', id: party.company_id }]) : can(CREDIT_SET_DIRECTLY))
+  // WF-01: without core.credit_limit.set_directly (tenant-wide for a shared
+  // party) the limit may only be lowered, or set where there is none (no
+  // limit means unlimited); a raise is refused by the API and asked for
+  // through a credit limit change request instead.
+  const canSetCredit = party?.company_id ? canWithin(CREDIT_SET_DIRECTLY, [{ type: 'company', id: party.company_id }]) : tenantWide(CREDIT_SET_DIRECTLY)
 
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const setRow = (list, key, patch) => setValues((current) => ({ ...current, [list]: current[list].map((row) => (row.key === key ? { ...row, ...patch } : row)) }))
@@ -136,7 +138,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
       const days = values.payment_terms_days.trim()
       data.payment_terms_days = days === '' ? null : /^\d+$/.test(days) ? Number(days) : days
     }
-    if (shows('credit_limit') && !creditLocked) {
+    if (shows('credit_limit')) {
       // Minor units from the field, sent as a major-unit decimal string with its currency (MoneyAmount).
       data.credit_limit = values.credit_limit === '' ? null : minorToDecimal(toMinor(values.credit_limit), creditDecimals)
       if (values.credit_limit !== '') data.credit_limit_currency = creditCurrency
@@ -190,6 +192,8 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
     ...rowFields,
   ])
   useErrorFocus(formRef, alertRef, mutation.error)
+  // WF-01: the API refused a raise; the error shows under the field with a way to ask for it.
+  const needsRequest = mutation.error?.code === 'credit_limit_needs_request'
   const tagError = errors.fields.tags ?? Object.entries(mutation.error?.errors ?? {}).find(([key]) => key.startsWith('tags.'))?.[1]?.[0]
   // Rows are sent without blanks: an error for the nth sent row belongs to the nth non-blank row.
   const sentIndex = (list, row, filled) => values[list].filter(filled).indexOf(row)
@@ -436,18 +440,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                 error={errors.fields.payment_terms_days}
               />
             ) : null}
-            {shows('credit_limit') && creditLocked ? (
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <span className="text-label text-ink">{t('parties.form.creditLimit')}</span>
-                {party?.credit_limit ? (
-                  <Money amount={party.credit_limit.amount_minor} currency={party.credit_limit.currency} />
-                ) : (
-                  <span className="text-ink">{t('creditLimits.noLimit')}</span>
-                )}
-                <span className="text-caption text-ink-muted">{creating ? t('creditLimits.lockedNew') : t('creditLimits.locked')}</span>
-              </div>
-            ) : null}
-            {shows('credit_limit') && !creditLocked ? (
+            {shows('credit_limit') ? (
               <>
                 <Select
                   label={t('parties.form.creditCurrency')}
@@ -462,7 +455,7 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                 <MoneyInput
                   key={creditCurrency}
                   label={t('parties.form.creditLimit')}
-                  help={t('parties.form.creditLimitHelp')}
+                  help={canSetCredit ? t('parties.form.creditLimitHelp') : t('creditLimits.lowerOnly')}
                   currency={creditCurrency}
                   decimals={creditDecimals}
                   value={values.credit_limit}
@@ -470,6 +463,13 @@ export function PartyForm({ party, role, readOnly = false, onSaved }) {
                   error={errors.fields.credit_limit}
                   showErrors={submitted}
                 />
+                {needsRequest && onRequestChange ? (
+                  <div className="sm:col-span-2">
+                    <button type="button" className="text-label text-primary hover:text-primary-hover" onClick={onRequestChange}>
+                      {t('creditLimits.request.open')}
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : null}
             {shows('price_list_id') && canPriceLists ? (
