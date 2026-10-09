@@ -69,6 +69,11 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
           },
         };
       }
+      // Tests answer other endpoints (payment intents, fiscal state) themselves.
+      if (state.handler) {
+        const answer = state.handler(method, path, body, query);
+        if (answer) return answer;
+      }
       if (state.authStatus) return { status: state.authStatus, body: { code: state.authStatus === 401 ? 'unauthenticated' : 'device_suspended', message: 'No' } };
       const time = new Date(state.serverTime ?? now()).toISOString();
 

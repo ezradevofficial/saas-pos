@@ -115,23 +115,78 @@ describe('PosScreen', () => {
     const receipt = screen.getByTestId('receipt');
     expect(within(receipt).getByText('R-WL2-000001')).toBeOnTheScreen();
     expect(within(receipt).getByText('Baraka Mwangi')).toBeOnTheScreen();
-    expect(within(screen.getByTestId('fiscal')).getByText('Pending')).toBeOnTheScreen();
+    // Not uploaded yet: the fiscal section says so.
+    expect(within(screen.getByTestId('fiscal')).getByText('Waiting to upload')).toBeOnTheScreen();
 
     // NFR-04: the shift and the sale wait offline, then go up in order.
     expect(services.engine.getStatus().pending).toBe(2);
     server.goOnline();
     services.engine.setNetwork('online');
+    // POS-10: the server answers the upload with the fiscal state, then the authority accepts it.
+    server.state.handler = (method, path, body) => {
+      if (method === 'POST' && path === 'pos/sales') return { status: 200, body: { results: body.sales.map((record) => ({ id: record.id, status: 'stored', fiscal: 'pending' })) } };
+      if (method === 'GET' && /^pos\/sales\/.+\/fiscal$/.test(path)) return { status: 200, body: { data: { sale: { status: 'accepted', invoice_number: '42', accepted_at: null, authority: {} }, refunds: [], void: null } } };
+      return null;
+    };
     await act(() => services.engine.push());
     const uploads = server.state.requests.filter((request) => request.method === 'POST' && request.path.startsWith('pos/') && request.path !== 'pos/number-ranges' && request.path !== 'pos/pin/attempts');
     expect(uploads.map((request) => request.path)).toEqual(['pos/shifts', 'pos/sales']);
     const sale = uploads[1].body.sales[0];
     expect(sale).toMatchObject({ cashier_id: SECOND, offline: true, receipt_number: 'R-WL2-000001', totals: { total_minor: '56500' }, actor_proof: { user_id: SECOND, kid: 'k1' } });
     expect(uploads[0].body.shifts[0]).toMatchObject({ opened_by_id: CASHIER, opening_float: [{ currency: 'KES', amount_minor: '100000' }], actor_proof: { user_id: CASHIER } });
+    expect(await within(screen.getByTestId('fiscal')).findByText('Accepted · Fiscal invoice 42')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'New sale' }));
     expect(await screen.findByText('0 items')).toBeOnTheScreen();
     await view.unmount();
   });
+
+  it('takes M-Pesa by STK push: requests, keeps checking while unknown, adds the payment once paid', async () => {
+    const { services, server } = setup();
+    server.define('payment_methods', { mode: 'snapshot', rows: [{ id: id(6), type: 'mobile_money', name: 'M-Pesa', currency: 'KES', provider: 'mpesa_ke', position: 1, capabilities: { stk: true, manual_code: true } }] });
+    let polls = 0;
+    const pushes = [];
+    server.state.handler = (method, path, body) => {
+      if (method === 'POST' && path === 'payments/intents') {
+        pushes.push(body);
+        return { status: 201, body: { data: { id: body.id, status: 'pending', mode: body.mode, amount: { amount_minor: body.amount_minor, currency: body.currency } } } };
+      }
+      if (method === 'GET' && path.startsWith('payments/intents/')) {
+        polls += 1;
+        const status = polls === 1 ? 'unknown' : 'succeeded';
+        return { status: 200, body: { data: { id: path.split('/').pop(), status, receipt: status === 'succeeded' ? 'QJK9PUSH01' : null, amount: { amount_minor: pushes[0].amount_minor, currency: 'KES' } } } };
+      }
+      return null;
+    };
+    const view = await render(<App services={services} />);
+    await fireEvent.changeText(await screen.findByLabelText('Pairing code'), 'abcd-efgh');
+    await fireEvent.changeText(screen.getByLabelText('Till name'), 'Till 2');
+    await fireEvent.press(screen.getByRole('button', { name: 'Pair till' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue' }));
+    await signInAs('Amina Otieno', '274915');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Open shift' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tusker Lager 500ml, KES 250.00' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
+
+    await fireEvent.changeText(await screen.findByLabelText('Customer’s phone number'), '0722000418');
+    // The request waits for the customer, so the press resolves only once the push is final.
+    const sending = fireEvent.press(screen.getByRole('button', { name: 'Send payment request for KES 250.00' }));
+    // The provider has not answered yet (unknown): still checking.
+    expect(await screen.findByText('Request sent to the customer’s phone')).toBeOnTheScreen();
+    expect(pushes[0]).toMatchObject({ mode: 'stk', amount_minor: '25000', currency: 'KES', phone: '0722000418', reference_type: 'pos.sale', user_id: CASHIER, payment_method_id: id(6) });
+    // The till polls every 3 seconds.
+    await act(() => sending);
+    expect(await screen.findByText('M-Pesa confirmed the payment (QJK9PUSH01).')).toBeOnTheScreen();
+    expect(polls).toBe(2);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Complete sale' }));
+    expect(await screen.findByText('Sale complete')).toBeOnTheScreen();
+    const stored = await services.posStore.recentSales(1);
+    // The intent id is the sale payment's id: the server confirms that payment when M-Pesa pays.
+    expect(stored[0].payments[0]).toMatchObject({ id: pushes[0].id, provider_reference: 'QJK9PUSH01', status: 'confirmed', amount_minor: '25000' });
+    expect(pushes[0].reference).toBe(stored[0].id);
+    await view.unmount();
+  }, 20000);
 
   it('asks a manager to approve a discount above the cashier’s limit (AUTH-08)', async () => {
     const { services } = setup();

@@ -277,8 +277,14 @@
       "addRemaining": "Add what is due",
       "mobileManual": "The customer pays to the till number. Type the code from the confirmation message; it is checked when the till syncs.",
       "stk": {
-        "title": "Request sent to the customer’s phone",
-        "body": "The customer confirms with their PIN. The payment adds itself once confirmed."
+        "phone": "Customer’s phone number",
+        "send": "Send payment request for {{amount}}",
+        "checkingTitle": "Request sent to the customer’s phone",
+        "checking": "The customer confirms with their PIN. The payment adds itself once confirmed.",
+        "paidTitle": "Payment received",
+        "paid": "M-Pesa confirmed the payment ({{receipt}}).",
+        "failedTitle": "No payment",
+        "failed": "The customer did not confirm, or M-Pesa refused the payment. Send the request again, or type the code from their message."
       },
       "noMethods": "No payment methods for this company yet. Add them in the back office, then sync.",
       "hold": "Hold sale",
@@ -293,7 +299,13 @@
         "lines_blocked": "Some items cannot be sold until their tax rate is set. Remove them, then charge.",
         "no_shift": "Open a shift before selling.",
         "empty_sale": "Add a product before charging.",
-        "failed": "The sale was not saved. Try again."
+        "failed": "The sale was not saved. Try again.",
+        "push": "Enter the customer’s phone number and an amount above 0.",
+        "pushFailed": "The payment request was not sent. Try again, or type the code from the customer’s message.",
+        "codeRefused": "This M-Pesa code cannot be used. Check the code in the customer’s message.",
+        "receipt_used": "This M-Pesa code already paid another sale. Check the code in the customer’s message.",
+        "too_many_requests": "Too many payment requests. Wait a minute, then send it again.",
+        "not_staff_here": "You cannot take payments at this till. Ask an admin to give you a role at this location."
       }
     },
     "receipt": {
@@ -316,10 +328,20 @@
       "fiscal": "Fiscal receipt",
       "fiscalKe": "KRA eTIMS",
       "fiscalCd": "DGI fiscal receipt",
-      "fiscalPending": "Pending",
       "fiscalPendingHelp": "The authority’s code and QR code are added once the sale reaches the server and the authority accepts it.",
       "print": "Print",
-      "newSale": "New sale"
+      "newSale": "New sale",
+      "fiscalState": {
+        "waiting": "Waiting to upload",
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Refused by the authority",
+        "off": "Not sent to the authority",
+        "invoice": "Fiscal invoice {{number}}",
+        "waitingHelp": "The sale is on this till. It is sent to the server, then to the authority, when the till is online.",
+        "rejectedHelp": "The back office has the authority’s answer and follows up. The sale stands.",
+        "offHelp": "This business does not send sales to the tax authority from the platform yet."
+      }
     },
     "shift": {
       "openTitle": "Open a shift",

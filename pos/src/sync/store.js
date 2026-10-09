@@ -249,6 +249,12 @@ export function createSyncStore(database) {
       }));
     },
 
+    /** The latest outbox entry of a record (its upload state and the server's answer), or null. */
+    async entryFor(kind, recordId) {
+      const rows = await table('outbox').query(Q.where('kind', kind), Q.where('record_id', String(recordId)), Q.sortBy('seq', Q.desc), Q.take(1)).fetch();
+      return rows[0] ? toEntry(rows[0]) : null;
+    },
+
     async entriesByIds(ids) {
       const byId = new Map((await findByIds('outbox', ids)).map((record) => [record.id, toEntry(record)]));
       return ids.map((id) => byId.get(id)).filter(Boolean);

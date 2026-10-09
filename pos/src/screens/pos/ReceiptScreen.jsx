@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +8,10 @@ import { useLocale } from '../../lib/useLocale';
 import { usePosData } from '../../pos/PosProvider';
 import { vars } from 'nativewind';
 import { themeVariables } from '../../theme/themes';
+import { fetchFiscal, fiscalState } from '../../pos/fiscal';
 import { receiptHtml } from '../../pos/receiptHtml';
+import { useServices } from '../../services/services';
+import { useSyncStatus } from '../../sync/useSyncStatus';
 import { formatDateTime, useMoneyText } from './format';
 
 // Printed documents are black on white in every theme: the receipt always takes the
@@ -30,8 +34,36 @@ function Row({ label, value, strong }) {
  * fiscal section (KRA eTIMS, DRC DGI) locked, "pending" until the server
  * reports the authority's answer (POS-10).
  */
+/**
+ * POS-10: the sale's fiscal state, from its upload answer and, online,
+ * from GET pos/sales/{id}/fiscal; refreshed after each upload.
+ */
+export function useFiscalState(sale, kind = 'sale') {
+  const { engine, api } = useServices();
+  const sync = useSyncStatus();
+  const [state, setState] = useState({ state: 'waiting', invoiceNumber: null });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const entry = await engine.store.entryFor(kind === 'refund' ? 'pos.refunds' : 'pos.sales', sale.id);
+      let next = fiscalState(entry);
+      if (active) setState(next);
+      if (kind === 'sale' && next.state === 'pending' && sync.network !== 'offline') {
+        const remote = await fetchFiscal(api, sale.id);
+        if (remote) next = fiscalState(entry, remote);
+        if (active) setState(next);
+      }
+    })().catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [api, engine, kind, sale.id, sync.lastPushedAt, sync.network]);
+  return state;
+}
+
 export function useReceiptModel(sale, kind = 'sale') {
   const { t } = useTranslation();
+  const fiscal = useFiscalState(sale, kind);
   const locale = useLocale();
   const money = useMoneyText();
   const { catalogue } = usePosData();
@@ -72,8 +104,18 @@ export function useReceiptModel(sale, kind = 'sale') {
     ].filter(Boolean),
     fiscal: {
       authority: company?.country === 'KE' ? t('pos.receipt.fiscalKe') : company?.country === 'CD' ? t('pos.receipt.fiscalCd') : t('pos.receipt.fiscal'),
-      status: t('pos.receipt.fiscalPending'),
-      help: t('pos.receipt.fiscalPendingHelp'),
+      state: fiscal.state,
+      status: [t(`pos.receipt.fiscalState.${fiscal.state}`), fiscal.invoiceNumber ? t('pos.receipt.fiscalState.invoice', { number: fiscal.invoiceNumber }) : null].filter(Boolean).join(' · '),
+      help:
+        fiscal.state === 'waiting'
+          ? t('pos.receipt.fiscalState.waitingHelp')
+          : fiscal.state === 'pending'
+            ? t('pos.receipt.fiscalPendingHelp')
+            : fiscal.state === 'rejected'
+              ? t('pos.receipt.fiscalState.rejectedHelp')
+              : fiscal.state === 'off'
+                ? t('pos.receipt.fiscalState.offHelp')
+                : '',
     },
   };
 }
@@ -118,8 +160,8 @@ export function Receipt({ sale, kind = 'sale' }) {
       </View>
       <View testID="fiscal" className="items-center gap-2 border-t border-border pt-3">
         <Text className="font-sans text-caption font-medium text-ink">{model.fiscal.authority}</Text>
-        <StatusBadge tone="warning">{model.fiscal.status}</StatusBadge>
-        <Text className="text-center font-sans text-caption text-ink">{model.fiscal.help}</Text>
+        <StatusBadge tone={model.fiscal.state === 'accepted' ? 'success' : model.fiscal.state === 'rejected' ? 'danger' : model.fiscal.state === 'off' ? 'neutral' : 'warning'}>{model.fiscal.status}</StatusBadge>
+        {model.fiscal.help ? <Text className="text-center font-sans text-caption text-ink">{model.fiscal.help}</Text> : null}
       </View>
     </View>
   );

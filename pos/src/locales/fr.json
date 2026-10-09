@@ -277,8 +277,14 @@
       "addRemaining": "Ajouter le reste dû",
       "mobileManual": "Le client paie au numéro de la caisse. Saisissez le code du message de confirmation ; il est vérifié à la synchronisation.",
       "stk": {
-        "title": "Demande envoyée au téléphone du client",
-        "body": "Le client confirme avec son code PIN. Le paiement s’ajoute tout seul dès sa confirmation."
+        "phone": "Numéro de téléphone du client",
+        "send": "Envoyer une demande de paiement de {{amount}}",
+        "checkingTitle": "Demande envoyée au téléphone du client",
+        "checking": "Le client confirme avec son code PIN. Le paiement s’ajoute tout seul dès sa confirmation.",
+        "paidTitle": "Paiement reçu",
+        "paid": "M-Pesa a confirmé le paiement ({{receipt}}).",
+        "failedTitle": "Aucun paiement",
+        "failed": "Le client n’a pas confirmé, ou M-Pesa a refusé le paiement. Renvoyez la demande, ou saisissez le code de son message."
       },
       "noMethods": "Aucun moyen de paiement pour cette société. Ajoutez-les dans le back-office, puis synchronisez.",
       "hold": "Mettre en attente",
@@ -293,7 +299,13 @@
         "lines_blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini. Retirez-les, puis encaissez.",
         "no_shift": "Ouvrez un service avant de vendre.",
         "empty_sale": "Ajoutez un produit avant d’encaisser.",
-        "failed": "La vente n’a pas été enregistrée. Réessayez."
+        "failed": "La vente n’a pas été enregistrée. Réessayez.",
+        "push": "Saisissez le numéro du client et un montant supérieur à 0.",
+        "pushFailed": "La demande de paiement n’a pas été envoyée. Réessayez, ou saisissez le code du message du client.",
+        "codeRefused": "Ce code M-Pesa ne peut pas être utilisé. Vérifiez le code dans le message du client.",
+        "receipt_used": "Ce code M-Pesa a déjà payé une autre vente. Vérifiez le code dans le message du client.",
+        "too_many_requests": "Trop de demandes de paiement. Attendez une minute, puis renvoyez-la.",
+        "not_staff_here": "Vous ne pouvez pas encaisser sur cette caisse. Demandez à un administrateur de vous donner un rôle ici."
       }
     },
     "receipt": {
@@ -316,10 +328,20 @@
       "fiscal": "Reçu fiscal",
       "fiscalKe": "KRA eTIMS (Kenya)",
       "fiscalCd": "Reçu fiscal DGI",
-      "fiscalPending": "En attente",
       "fiscalPendingHelp": "Le code et le QR code de l’administration sont ajoutés dès que la vente atteint le serveur et que l’administration l’accepte.",
       "print": "Imprimer",
-      "newSale": "Nouvelle vente"
+      "newSale": "Nouvelle vente",
+      "fiscalState": {
+        "waiting": "En attente d’envoi",
+        "pending": "En attente",
+        "accepted": "Accepté",
+        "rejected": "Refusé par l’administration",
+        "off": "Non transmis à l’administration",
+        "invoice": "Facture fiscale {{number}}",
+        "waitingHelp": "La vente est sur cette caisse. Elle est envoyée au serveur, puis à l’administration, dès que la caisse est en ligne.",
+        "rejectedHelp": "Le back-office a la réponse de l’administration et assure le suivi. La vente reste valable.",
+        "offHelp": "Cette entreprise ne transmet pas encore ses ventes à l’administration fiscale depuis la plateforme."
+      }
     },
     "shift": {
       "openTitle": "Ouvrir un service",

@@ -80,6 +80,17 @@ access_log /var/log/nginx/api.access.log redacted;
 
 - STK push from the till (`POST /api/v1/payments/intents`), whole
   shillings, KES only. The till polls `GET /api/v1/payments/intents/{id}`.
+  On the till (`pos/src/pos/payments/stkPush.js`): offered when the synced
+  method has `capabilities.stk` and the till is online; the intent id is
+  the sale payment's id and `user_id` the signed-in cashier; the till polls
+  every 3 seconds, treats `pending` and `unknown` as still checking, adds
+  the payment (confirmed, the M-Pesa receipt as its reference) once
+  `succeeded`, and says so on `failed`, `cancelled` or `timeout`. A typed
+  code is registered as a `manual` intent when online (a used code is
+  refused at once) and uploaded `pending` with the sale either way. The
+  receipt shows the sale's fiscal state from its upload answer and, online,
+  `GET /api/v1/pos/sales/{id}/fiscal` (waiting to upload, pending,
+  accepted with the invoice number, refused, not transmitted).
 - No answer after `PAYMENTS_STK_TIMEOUT` seconds (90): the server asks
   Daraja (STK query); still nothing after `PAYMENTS_STK_GIVE_UP` (300): the
   intent times out. A late C2B confirmation with the push's account

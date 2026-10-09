@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,10 @@ import { uuidv7 } from '../../lib/random';
 import { useLocale } from '../../lib/useLocale';
 import { parseAmount } from '../../pos/input';
 import { inSaleCurrency, paymentOptions, quickAmounts } from '../../pos/payments/options';
-import { isMpesaCode, STK_PUSH_ENABLED } from '../../pos/payments/stkPush';
+import { canPush, intentState, isMpesaCode, pollIntent, registerTypedCode, startStkPush } from '../../pos/payments/stkPush';
+import { useSession } from '../../auth/session';
+import { useServices } from '../../services/services';
+import { useSyncStatus } from '../../sync/useSyncStatus';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { amountDueIn, calculateTender } from '../../pos/tender';
 import { rateText, useMoneyText } from './format';
@@ -32,6 +35,10 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const locale = useLocale();
   const money = useMoneyText();
   const { catalogue, nextReceipt } = usePosData();
+  const { api } = useServices();
+  const { user } = useSession();
+  const sync = useSyncStatus();
+  const online = sync.network !== 'offline';
   const actions = usePosActions();
   const { computed, cart } = usePosCart();
   const currency = catalogue.saleCurrency;
@@ -72,7 +79,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const remainingActive = active ? askedIn(active.currency, active.method.type === 'cash') : null;
   const settled = Boolean(result?.settled) && BigInt(total) > 0n;
 
-  function add(amountMinor) {
+  async function add(amountMinor) {
     setError(null);
     if (!active || !amountMinor || BigInt(amountMinor) <= 0n) {
       setError(t('pos.pay.errors.amount'));
@@ -82,19 +89,70 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       setError(t('pos.pay.errors.mobileCode'));
       return;
     }
+    const id = uuidv7();
+    const code = reference.trim().toUpperCase() || undefined;
+    if (isMobile(active.method)) {
+      // Online, the typed code is registered so the server verifies it (a code already used is refused now).
+      try {
+        await registerTypedCode({ api, id, methodId: active.method.id, amountMinor, currency: active.currency, receipt: code, saleId: cart.id, userId: user.id });
+      } catch (refusal) {
+        setError(t(`pos.pay.errors.${refusal.code}`, { defaultValue: t('pos.pay.errors.codeRefused') }));
+        return;
+      }
+    }
     setTenders((list) => [
       ...list,
       {
-        id: uuidv7(),
+        id,
         method: active.method,
         currency: active.currency,
         amountMinor: String(amountMinor),
-        reference: reference.trim().toUpperCase() || undefined,
-        status: isMobile(active.method) || active.method.type === 'card' ? 'confirmed' : undefined,
+        reference: code,
+        // A typed mobile-money code waits for the server's check; a card approval is final.
+        status: isMobile(active.method) ? 'pending' : active.method.type === 'card' ? 'confirmed' : undefined,
       },
     ]);
     setAmountText('');
     setReference('');
+  }
+
+  // M-Pesa STK push (capabilities.stk, online): request, then poll until the customer has paid.
+  const [push, setPush] = useState(null);
+  const polling = useRef(null);
+  useEffect(() => () => polling.current?.stop(), []);
+  const [phone, setPhone] = useState(cart.customer?.phone ?? '');
+
+  async function requestPush() {
+    const amountMinor = amountText ? parseAmount(amountText, decimalsOf(active.currency)) : remainingActive;
+    if (!amountMinor || BigInt(amountMinor) <= 0n || !phone.trim()) {
+      setError(t('pos.pay.errors.push'));
+      return;
+    }
+    setError(null);
+    const id = uuidv7();
+    const method = active.method;
+    const currencyOfPush = active.currency;
+    try {
+      const intent = await startStkPush({ api, id, methodId: method.id, amountMinor, currency: currencyOfPush, phone: phone.trim(), saleId: cart.id, userId: user.id });
+      setPush({ id, state: intentState(intent), intent });
+      polling.current?.stop();
+      polling.current = pollIntent({
+        api,
+        id,
+        onUpdate: (update) => setPush({ id, state: intentState(update), intent: update }),
+      });
+      const final = await polling.current.done;
+      if (final && intentState(final) === 'paid') {
+        setTenders((list) => [
+          ...list,
+          { id, method, currency: currencyOfPush, amountMinor: String(final.amount?.amount_minor ?? amountMinor), reference: final.receipt ?? undefined, status: 'confirmed' },
+        ]);
+        setAmountText('');
+      }
+    } catch (refusal) {
+      setPush(null);
+      setError(t(`pos.pay.errors.${refusal?.code ?? 'push'}`, { defaultValue: t('pos.pay.errors.pushFailed') }));
+    }
   }
 
   async function complete() {
@@ -265,11 +323,20 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
             </Button>
           </View>
           {isMobile(active.method) ? <Text className="font-sans text-caption text-ink-muted">{t('pos.pay.mobileManual')}</Text> : null}
-          {isMobile(active.method) && STK_PUSH_ENABLED ? (
-            // Payment intents (STK push) are switched off until the API ships (src/pos/payments/stkPush.js).
-            <Alert tone="info" title={t('pos.pay.stk.title')}>
-              {t('pos.pay.stk.body')}
-            </Alert>
+          {isMobile(active.method) && canPush(active.method, online) ? (
+            <View className="gap-3 border-t border-border pt-4">
+              <View className="flex-row flex-wrap items-end gap-3">
+                <TextField className="min-w-0 grow basis-1/3" label={t('pos.pay.stk.phone')} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+                <Button variant="secondary" loading={push?.state === 'checking'} disabled={push?.state === 'checking'} onPress={requestPush}>
+                  {t('pos.pay.stk.send', { amount: money(amountText ? parseAmount(amountText, decimalsOf(active.currency)) ?? '0' : (remainingActive ?? '0'), active.currency) })}
+                </Button>
+              </View>
+              {push ? (
+                <Alert tone={push.state === 'paid' ? 'success' : push.state === 'failed' ? 'warning' : 'info'} title={t(`pos.pay.stk.${push.state}Title`)}>
+                  {t(`pos.pay.stk.${push.state}`, { receipt: push.intent?.receipt ?? '' })}
+                </Alert>
+              ) : null}
+            </View>
           ) : null}
         </View>
       ) : (
