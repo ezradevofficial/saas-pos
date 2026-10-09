@@ -8,8 +8,10 @@ use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\DocumentTemplates\TemplateResolver;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
+use App\Core\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * TPL-01: a designer request (document types, previews): the user holds
@@ -39,6 +41,11 @@ abstract class TemplateRequest extends FormRequest
     /** A config document standing for the scope (not saved), for the fiscal rules (TPL-03). */
     public function scopeDocument(?string $type, ?string $id): ?ConfigDocument
     {
+        // The tenant scope takes no id, or the tenant's own (as config saves do).
+        if ($type === ConfigDocument::TENANT && $id !== null && $id !== app(TenantContext::class)->id()) {
+            throw ValidationException::withMessages(['scope_id' => __('validation.exists', ['attribute' => __('config.attributes.scope_id')])]);
+        }
+
         if ($type === null || $type === ConfigDocument::TENANT || $id === null) {
             return null;
         }
