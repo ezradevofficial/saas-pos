@@ -118,6 +118,56 @@
       "showResults": "Afficher les résultats",
       "showCount_one": "Afficher {{formatted}} résultat",
       "showCount_other": "Afficher {{formatted}} résultats"
+    },
+    "versionBar": {
+      "label": "Versions",
+      "state": {
+        "draft": "Brouillon v{{version}}",
+        "published": "En vigueur v{{version}}",
+        "none": "Pas encore enregistré"
+      },
+      "liveIs": "La v{{version}} est en vigueur",
+      "notPublished": "Pas encore publié",
+      "publishedAt": "Publié le {{when}}",
+      "problems_one": "{{count}} problème empêche la publication",
+      "problems_other": "{{count}} problèmes empêchent la publication",
+      "save": {
+        "saving": "Enregistrement…",
+        "saved": "Brouillon enregistré",
+        "error": "Brouillon non enregistré"
+      },
+      "history": "Historique",
+      "historyTitle": "Historique des versions",
+      "number": "Version n° {{version}}",
+      "status": {
+        "draft": "Brouillon",
+        "published": "En vigueur",
+        "archived": "Antérieure",
+        "discarded": "Brouillon abandonné"
+      },
+      "source": {
+        "draft": "Modifié ici",
+        "copy": "Copié",
+        "rollback": "Restauré"
+      },
+      "rollBack": "Restaurer la v{{version}}",
+      "rollBackConfirm": "Remettre la v{{version}} en vigueur comme nouvelle version ?",
+      "publish": "Publier la v{{version}}",
+      "copy": "Copier vers…",
+      "copyTitle": "Copier vers un autre endroit",
+      "copyBody": "La copie devient le brouillon à cet endroit. Rien n’y change tant qu’elle n’est pas publiée.",
+      "copyTarget": "Copier vers",
+      "copyChoose": "Choisissez une société, une succursale ou un emplacement",
+      "copyFrom": "Copier",
+      "copyFromLive": "Version en vigueur v{{version}}",
+      "copyFromDraft": "Brouillon v{{version}}",
+      "copyConfirm": "Copier",
+      "discard": "Abandonner le brouillon",
+      "discardTitle": "Abandonner le brouillon v{{version}} ?",
+      "discardBody": "Vos modifications restent dans l’historique mais ne seront jamais en vigueur. La v{{version}} reste en vigueur.",
+      "discardBodyNothingLive": "Vos modifications restent dans l’historique mais ne seront jamais en vigueur. Rien n’est encore en vigueur : la mise en page de la plateforme s’applique.",
+      "discardConfirm": "Abandonner le brouillon",
+      "keepDraft": "Continuer à modifier"
     }
   },
   "dev": {
