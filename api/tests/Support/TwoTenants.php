@@ -265,6 +265,8 @@ final class TwoTenants
         // Concept note 7.1: the till pushes an M-Pesa payment and confirms one
         // by its code; money arrives on the Paybill that matches nothing yet
         // (C2B, through the method's callback URL).
+        // The cashier must be staff of the till's location (the POS module's sign-in permission).
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pos'));
         $till = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
         self::ok($test->postJson('/api/v1/payments/intents', [
             'payment_method_id' => $paymentMethod, 'mode' => 'stk', 'amount_minor' => '150000', 'currency' => 'KES',
