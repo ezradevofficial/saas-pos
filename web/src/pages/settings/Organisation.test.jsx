@@ -262,7 +262,7 @@ describe('Organisation', () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000 - 60_000).toISOString()
     organisation({
       devices: [
-        { ...DEVICES[0], code: 'T01', last_pull_at: '2026-10-07T14:00:00Z', last_push_at: null, secret: { kid: 'k-7f3a', active_since: tenDaysAgo } },
+        { ...DEVICES[0], code: 'T01', last_pull_at: '2026-10-07T14:00:00Z', last_push_at: null, signing_key: { kid: 'k-7f3a', active_since: tenDaysAgo } },
         DEVICES[1],
       ],
     })
