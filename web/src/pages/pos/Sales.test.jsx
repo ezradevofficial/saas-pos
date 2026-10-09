@@ -82,6 +82,18 @@ function setup({ permissions = VIEWER, modules = ['core', 'pos'], detail = DETAI
     [
       [/^pos\/sales\?/, (path) => page(path.includes('flag=tax_differs') ? [] : [SALE])],
       ['pos/sales/s-1', () => ({ data: detail })],
+      [
+        'pos/sales/s-1/fiscal-status',
+        {
+          data: {
+            sale_id: 's-1',
+            transmits: true,
+            sale: { status: 'accepted', invoice_number: 41, accepted_at: '2026-10-08T09:01:00Z', authority: { receipt_signature: 'SIG-ABC123', internal_data: 'INTDATA42', qr: 'https://qr.invalid/SIG-ABC123' } },
+            refunds: [],
+            void: null,
+          },
+        },
+      ],
       [/^branches\?/, { data: [{ id: 'b-1', company_id: 'c-1', name: 'Westlands' }] }],
       [/^locations\?/, { data: [{ id: 'l-1', branch_id: 'b-1', name: 'Front till' }] }],
     ],
@@ -154,7 +166,12 @@ describe('POS sales (POS-12)', () => {
     expect(within(payments).getByText('650.00')).toBeInTheDocument()
 
     expect(screen.getByText('Change')).toBeInTheDocument()
-    expect(screen.getByText('Tax authority').nextSibling).toHaveTextContent('Pending')
+    // POS-10: what the tax authority answered, with its references.
+    expect(await screen.findByText('Invoice 41')).toBeInTheDocument()
+    expect(screen.getAllByText('Accepted').length).toBeGreaterThan(0)
+    expect(screen.getByText('SIG-ABC123')).toBeInTheDocument()
+    expect(screen.getByText('https://qr.invalid/SIG-ABC123')).toBeInTheDocument()
+    expect(api.get).toHaveBeenCalledWith('pos/sales/s-1/fiscal-status')
     expect(screen.getByText('Refund RF-L01-000001')).toBeInTheDocument()
     expect(screen.getByText('Price differs')).toBeInTheDocument()
     expect(screen.getByText('The server expected KES 600.00.')).toBeInTheDocument()

@@ -33,6 +33,7 @@ import {
   Info,
   KeyRound,
   Languages,
+  Landmark,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
@@ -63,6 +64,7 @@ import {
   Truck,
   Undo2,
   Users,
+  Wallet,
   WifiOff,
   Workflow,
   X,
@@ -139,6 +141,8 @@ const ICONS = {
   held: ShieldAlert,
   numbering: Hash,
   chart: ChartColumn,
+  payments: Wallet,
+  fiscal: Landmark,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

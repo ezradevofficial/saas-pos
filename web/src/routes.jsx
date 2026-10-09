@@ -8,6 +8,7 @@ import {
   CATEGORY_VIEW,
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
+  FISCAL_VIEW,
   ITEM_VIEW,
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
@@ -15,6 +16,7 @@ import {
   ORGANISATION_VIEW,
   PARTY_VIEW,
   PAYMENT_METHOD_VIEW,
+  PAYMENT_VIEW,
   POS_HELD_VIEW,
   POS_SALE_VIEW,
   POS_SHIFT_VIEW,
@@ -57,6 +59,7 @@ import Appearance from './pages/settings/Appearance'
 import Currencies from './pages/settings/Currencies'
 import Dimensions from './pages/settings/Dimensions'
 import ExchangeRates from './pages/settings/ExchangeRates'
+import Fiscal from './pages/settings/Fiscal'
 import InviteUser from './pages/settings/InviteUser'
 import MasterDataSharing from './pages/settings/MasterDataSharing'
 import MyPosPin from './pages/settings/MyPosPin'
@@ -66,6 +69,7 @@ import NotificationTemplates from './pages/settings/NotificationTemplates'
 import Numbering from './pages/settings/Numbering'
 import Organisation from './pages/settings/Organisation'
 import PaymentMethods from './pages/settings/PaymentMethods'
+import Payments from './pages/settings/Payments'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
@@ -239,6 +243,9 @@ export const routes = [
         // MD-03 follow-up: one price list's prices.
         ['/settings/taxes/price-lists/:priceListId', ['core.price_list.view', 'core.price_list.edit'], <PriceListDetail key="price-list" />],
         ['/settings/payment-methods', PAYMENT_METHOD_VIEW, <PaymentMethods key="payment-methods" />],
+        // Concept note 7.1, 7.2: payment requests and receipts; the tax authority and its queue.
+        ['/settings/payments', PAYMENT_VIEW, <Payments key="payments" />],
+        ['/settings/fiscal', FISCAL_VIEW, <Fiscal key="fiscal" />],
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       {

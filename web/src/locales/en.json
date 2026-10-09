@@ -282,7 +282,9 @@
     "posShifts": "Shifts",
     "posHeld": "Held for review",
     "numbering": "Numbering",
-    "posPin": "My POS PIN"
+    "posPin": "My POS PIN",
+    "payments": "Payments received",
+    "fiscal": "Tax authority"
   },
   "shell": {
     "account": "Account menu",
@@ -1216,7 +1218,12 @@
       "passkey": "Passkey",
       "merchant_id": "Merchant ID",
       "api_key": "API key",
-      "other": "Provider setting"
+      "other": "Provider setting",
+      "transaction_type": "Paybill or Till",
+      "till_number": "Till number",
+      "b2c_shortcode": "Refund (B2C) shortcode",
+      "initiator_name": "Initiator name",
+      "security_credential": "Security credential"
     },
     "status": {
       "on": "On",
@@ -1247,9 +1254,40 @@
       "replaceKey": "Replace {{key}}",
       "remove": "Remove",
       "removeKey": "Remove {{key}}",
-      "keep": "Keep"
+      "keep": "Keep",
+      "notSet": "Not set"
     },
-    "movedTo": "{{name}} moved to position {{position}} of {{total}}."
+    "movedTo": "{{name}} moved to position {{position}} of {{total}}.",
+    "values": {
+      "paybill": "Paybill",
+      "till": "Till (Buy Goods)"
+    },
+    "callbacks": {
+      "action": "Callback URLs",
+      "actionFor": "Callback URLs of {{name}}",
+      "title": "Callback URLs of {{name}}",
+      "intro": "Safaricom sends payment results to these addresses. Each holds a secret token: share them only through the Daraja portal.",
+      "needsSettings": "Enter the shortcode and credentials first, then register the C2B URLs.",
+      "list": "Callback URLs",
+      "copyFor": "Copy the {{kind}} URL",
+      "register": "Register C2B URLs",
+      "registered": "Safaricom accepted the confirmation and validation URLs.",
+      "rotate": "Get new URLs",
+      "rotateHelp": "If these addresses may have leaked, get new ones. The old ones stop working at once, so register the new ones with Safaricom straight away.",
+      "rotateConfirm": "Replace the URLs",
+      "keepUrls": "Keep the URLs",
+      "rotated": "New URLs are ready. Register them with Safaricom.",
+      "close": "Close",
+      "kinds": {
+        "stk": "Phone prompt result",
+        "c2b-confirm": "C2B confirmation",
+        "c2b-validate": "C2B validation",
+        "b2c-result": "Refund result",
+        "b2c-timeout": "Refund time-out",
+        "status-result": "Status check result",
+        "status-timeout": "Status check time-out"
+      }
+    }
   },
   "dimensions": {
     "tabs": {
@@ -3578,6 +3616,25 @@
         "total": "Sold for"
       },
       "defaultCurrencyIs": "Default ({{currency}})"
+    },
+    "fiscal": {
+      "title": "Tax authority",
+      "acceptedAt": "Accepted {{time}}",
+      "notTransmitted": "Not sent",
+      "invoice": "Invoice {{number}}",
+      "statuses": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected"
+      },
+      "authority": {
+        "receipt_number": "Authority receipt number",
+        "receipt_signature": "Receipt signature",
+        "internal_data": "Internal data",
+        "control_unit_id": "Control unit",
+        "mrc_no": "MRC number",
+        "qr": "QR code content"
+      }
     }
   },
   "numbering": {
@@ -3670,6 +3727,184 @@
       "sixDigits": "Enter a PIN of 6 digits.",
       "password": "Enter your account password.",
       "mismatch": "The two PINs differ. Type the same PIN twice."
+    }
+  },
+  "payments": {
+    "title": "Payments received",
+    "description": "Mobile money requests from the tills, and money received that matched no request.",
+    "tabs": {
+      "intents": "Payment requests",
+      "receipts": "Unmatched receipts"
+    },
+    "purposes": {
+      "sale": "Sale",
+      "refund": "Refund"
+    },
+    "modes": {
+      "direct": "Direct",
+      "stk": "Phone prompt",
+      "manual": "Code entered",
+      "payout": "Payout"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "unknown": "No answer yet",
+      "succeeded": "Paid",
+      "failed": "Failed",
+      "cancelled": "Declined",
+      "timeout": "Timed out"
+    },
+    "verifications": {
+      "unverified": "Not verified",
+      "verified": "Verified",
+      "mismatch": "Mismatch"
+    },
+    "intents": {
+      "search": "Search reference or M-Pesa code",
+      "empty": "No payment requests yet.",
+      "emptyFiltered": "No payment requests match. Try other filters.",
+      "filters": {
+        "status": "Status",
+        "all": "All requests"
+      },
+      "columns": {
+        "time": "Requested",
+        "purpose": "For",
+        "mode": "How",
+        "amount": "Amount",
+        "phone": "Phone",
+        "reference": "Reference",
+        "receipt": "M-Pesa code",
+        "status": "Status",
+        "verification": "Check",
+        "message": "Provider message"
+      }
+    },
+    "receipts": {
+      "search": "Search M-Pesa code or account",
+      "empty": "No receipts here.",
+      "filters": {
+        "status": "Show",
+        "unmatched": "Not matched",
+        "matched": "Matched",
+        "all": "All receipts"
+      },
+      "status": {
+        "matched": "Matched",
+        "unmatched": "Not matched"
+      },
+      "columns": {
+        "time": "Received",
+        "receipt": "M-Pesa code",
+        "amount": "Amount",
+        "accountReference": "Account",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "match": {
+      "action": "Match to payment",
+      "actionFor": "Match {{receipt}} to a payment",
+      "title": "Match {{receipt}} to a payment",
+      "text": "{{amount}} was received with account {{reference}}. Choose the payment request it settles.",
+      "intent": "Payment request",
+      "choose": "Choose a request",
+      "none": "No request is waiting for a match. Codes typed at the till and phone prompts without an answer appear here.",
+      "confirm": "Match payment"
+    }
+  },
+  "fiscal": {
+    "title": "Tax authority",
+    "description": "Send every sale, refund and void to KRA eTIMS or the DRC DGI, and follow what the authority answered.",
+    "drivers": {
+      "kra_etims_oscu": "KRA eTIMS (OSCU)",
+      "dgi_emcf": "DRC DGI (e-MCF)",
+      "fake": "Test authority (local only)"
+    },
+    "fields": {
+      "driver": "Authority",
+      "tin": "Taxpayer PIN",
+      "branch_code": "Branch ID at the authority",
+      "device_serial": "Device serial",
+      "credential_api_token": "Access token",
+      "credential_cmc_key": "Communication key (initialise the device)",
+      "default_item_class_code": "Item classification code",
+      "default_packaging_unit_code": "Packaging unit code",
+      "default_quantity_unit_code": "Quantity unit code"
+    },
+    "settings": {
+      "title": "Settings",
+      "none": "This company has no tax authority settings yet. Nothing is sent until they are saved and switched on.",
+      "noDriver": "No tax authority connection is available for this company’s country yet.",
+      "initialisedAt": "Device initialised {{time}}",
+      "notInitialised": "Device not initialised",
+      "initialise": "Initialise device",
+      "initialised": "The authority initialised the device.",
+      "enabled": "Send documents to the authority",
+      "missing": "Still needed: {{fields}}.",
+      "identity": "Registration",
+      "identityHelp": "As the authority registered the business. Changing any of these needs the device to be initialised again.",
+      "identityLocked": "Only an owner or administrator can change these.",
+      "credentialSaved": "Saved. Type a new value to replace it.",
+      "credentialHelp": "Stored encrypted and never shown again.",
+      "codes": "Default codes",
+      "codesHelp": "Used for items that have no codes of their own yet.",
+      "save": "Save settings",
+      "saved": "The settings are saved."
+    },
+    "statuses": {
+      "queued": "Queued",
+      "sending": "Sending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "retrying": "Retrying",
+      "needs_attention": "Needs attention"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Not sent yet",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "needs_attention": "Needs attention",
+      "retrying": "Retrying",
+      "queued": "Queued",
+      "sending": "Sending"
+    },
+    "documentTypes": {
+      "sale": "Sale",
+      "refund": "Refund",
+      "void": "Void"
+    },
+    "submissions": {
+      "title": "Documents sent",
+      "search": "Search document number",
+      "empty": "No documents sent yet.",
+      "next": "Next try {{time}}",
+      "retry": "Retry",
+      "retryFor": "Retry {{number}}",
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "queued": "Queued",
+        "document": "Document",
+        "number": "Number",
+        "invoice": "Invoice no.",
+        "status": "Status",
+        "attempts": "Attempts",
+        "error": "Last error",
+        "actions": "Actions"
+      }
+    },
+    "earlier": {
+      "action": "Send earlier sales",
+      "title": "Send earlier sales",
+      "text": "Sales, refunds and voids made before sending was switched on are not sent on their own. Choose the first day to send; documents already sent stay as they are.",
+      "from": "Send documents from",
+      "confirm": "I understand these documents go to the tax authority",
+      "send": "Send to the authority",
+      "queued": "Documents from {{from}} are being queued. Follow them in the list below.",
+      "done": "Done"
     }
   }
 }

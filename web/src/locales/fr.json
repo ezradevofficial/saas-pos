@@ -282,7 +282,9 @@
     "posShifts": "Sessions de caisse",
     "posHeld": "En attente de contrôle",
     "numbering": "Numérotation",
-    "posPin": "Mon code PIN caisse"
+    "posPin": "Mon code PIN caisse",
+    "payments": "Paiements reçus",
+    "fiscal": "Administration fiscale"
   },
   "shell": {
     "account": "Menu du compte",
@@ -1216,7 +1218,12 @@
       "passkey": "Clé d’accès",
       "merchant_id": "Identifiant marchand",
       "api_key": "Clé d’API",
-      "other": "Paramètre du prestataire"
+      "other": "Paramètre du prestataire",
+      "transaction_type": "Paybill ou Till",
+      "till_number": "Numéro de Till",
+      "b2c_shortcode": "Shortcode de remboursement (B2C)",
+      "initiator_name": "Nom de l’initiateur",
+      "security_credential": "Identifiant de sécurité"
     },
     "status": {
       "on": "Activé",
@@ -1247,9 +1254,40 @@
       "replaceKey": "Remplacer {{key}}",
       "remove": "Retirer",
       "removeKey": "Retirer {{key}}",
-      "keep": "Conserver"
+      "keep": "Conserver",
+      "notSet": "Non défini"
     },
-    "movedTo": "{{name}} déplacé en position {{position}} sur {{total}}."
+    "movedTo": "{{name}} déplacé en position {{position}} sur {{total}}.",
+    "values": {
+      "paybill": "Paybill (compte)",
+      "till": "Till (achat de biens)"
+    },
+    "callbacks": {
+      "action": "Adresses de rappel",
+      "actionFor": "Adresses de rappel de {{name}}",
+      "title": "Adresses de rappel de {{name}}",
+      "intro": "Safaricom envoie les résultats de paiement à ces adresses. Chacune contient un jeton secret : ne les partagez que via le portail Daraja.",
+      "needsSettings": "Saisissez d’abord le shortcode et les identifiants, puis enregistrez les adresses C2B.",
+      "list": "Adresses de rappel",
+      "copyFor": "Copier l’adresse {{kind}}",
+      "register": "Enregistrer les adresses C2B",
+      "registered": "Safaricom a accepté les adresses de confirmation et de validation.",
+      "rotate": "Obtenir de nouvelles adresses",
+      "rotateHelp": "Si ces adresses ont pu fuiter, obtenez-en de nouvelles. Les anciennes cessent de fonctionner immédiatement : enregistrez aussitôt les nouvelles chez Safaricom.",
+      "rotateConfirm": "Remplacer les adresses",
+      "keepUrls": "Garder les adresses",
+      "rotated": "Les nouvelles adresses sont prêtes. Enregistrez-les chez Safaricom.",
+      "close": "Fermer",
+      "kinds": {
+        "stk": "Résultat de la demande sur téléphone",
+        "c2b-confirm": "Confirmation C2B",
+        "c2b-validate": "Validation C2B",
+        "b2c-result": "Résultat du remboursement",
+        "b2c-timeout": "Délai du remboursement dépassé",
+        "status-result": "Résultat de la vérification",
+        "status-timeout": "Délai de la vérification dépassé"
+      }
+    }
   },
   "dimensions": {
     "tabs": {
@@ -3578,6 +3616,25 @@
         "total": "Vendu pour"
       },
       "defaultCurrencyIs": "Par défaut ({{currency}})"
+    },
+    "fiscal": {
+      "title": "Administration fiscale",
+      "acceptedAt": "Accepté {{time}}",
+      "notTransmitted": "Non transmis",
+      "invoice": "Facture {{number}}",
+      "statuses": {
+        "pending": "En attente",
+        "accepted": "Accepté",
+        "rejected": "Rejeté"
+      },
+      "authority": {
+        "receipt_number": "Numéro de reçu de l’administration",
+        "receipt_signature": "Signature du reçu",
+        "internal_data": "Données internes",
+        "control_unit_id": "Unité de contrôle",
+        "mrc_no": "Numéro MRC",
+        "qr": "Contenu du code QR"
+      }
     }
   },
   "numbering": {
@@ -3670,6 +3727,184 @@
       "sixDigits": "Saisissez un code PIN de 6 chiffres.",
       "password": "Saisissez le mot de passe de votre compte.",
       "mismatch": "Les deux codes PIN diffèrent. Saisissez deux fois le même code PIN."
+    }
+  },
+  "payments": {
+    "title": "Paiements reçus",
+    "description": "Les demandes de paiement mobile des caisses, et l’argent reçu qui ne correspond à aucune demande.",
+    "tabs": {
+      "intents": "Demandes de paiement",
+      "receipts": "Reçus non rapprochés"
+    },
+    "purposes": {
+      "sale": "Vente",
+      "refund": "Remboursement"
+    },
+    "modes": {
+      "direct": "Immédiat",
+      "stk": "Demande sur téléphone",
+      "manual": "Code saisi",
+      "payout": "Versement"
+    },
+    "statuses": {
+      "pending": "En attente",
+      "unknown": "Pas encore de réponse",
+      "succeeded": "Payé",
+      "failed": "Échoué",
+      "cancelled": "Refusé",
+      "timeout": "Délai dépassé"
+    },
+    "verifications": {
+      "unverified": "Non vérifié",
+      "verified": "Vérifié",
+      "mismatch": "Écart"
+    },
+    "intents": {
+      "search": "Rechercher une référence ou un code M-Pesa",
+      "empty": "Aucune demande de paiement pour l’instant.",
+      "emptyFiltered": "Aucune demande ne correspond. Essayez d’autres filtres.",
+      "filters": {
+        "status": "Statut",
+        "all": "Toutes les demandes"
+      },
+      "columns": {
+        "time": "Demandé",
+        "purpose": "Pour",
+        "mode": "Comment",
+        "amount": "Montant",
+        "phone": "Téléphone",
+        "reference": "Référence",
+        "receipt": "Code M-Pesa",
+        "status": "Statut",
+        "verification": "Vérification",
+        "message": "Message du prestataire"
+      }
+    },
+    "receipts": {
+      "search": "Rechercher un code M-Pesa ou un compte",
+      "empty": "Aucun reçu ici.",
+      "filters": {
+        "status": "Afficher",
+        "unmatched": "Non rapprochés",
+        "matched": "Rapprochés",
+        "all": "Tous les reçus"
+      },
+      "status": {
+        "matched": "Rapproché",
+        "unmatched": "Non rapproché"
+      },
+      "columns": {
+        "time": "Reçu le",
+        "receipt": "Code M-Pesa",
+        "amount": "Montant",
+        "accountReference": "Compte",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "match": {
+      "action": "Rapprocher d’un paiement",
+      "actionFor": "Rapprocher {{receipt}} d’un paiement",
+      "title": "Rapprocher {{receipt}} d’un paiement",
+      "text": "{{amount}} a été reçu avec le compte {{reference}}. Choisissez la demande de paiement qu’il règle.",
+      "intent": "Demande de paiement",
+      "choose": "Choisir une demande",
+      "none": "Aucune demande n’attend de rapprochement. Les codes saisis en caisse et les demandes sur téléphone sans réponse apparaissent ici.",
+      "confirm": "Rapprocher le paiement"
+    }
+  },
+  "fiscal": {
+    "title": "Administration fiscale",
+    "description": "Transmettez chaque vente, remboursement et annulation à KRA eTIMS ou à la DGI de RDC, et suivez la réponse de l’administration.",
+    "drivers": {
+      "kra_etims_oscu": "KRA eTIMS (OSCU)",
+      "dgi_emcf": "DGI RDC (e-MCF)",
+      "fake": "Administration de test (local uniquement)"
+    },
+    "fields": {
+      "driver": "Administration",
+      "tin": "Numéro d’identification fiscale",
+      "branch_code": "Identifiant de succursale auprès de l’administration",
+      "device_serial": "Numéro de série de l’appareil",
+      "credential_api_token": "Jeton d’accès",
+      "credential_cmc_key": "Clé de communication (initialiser l’appareil)",
+      "default_item_class_code": "Code de classification des articles",
+      "default_packaging_unit_code": "Code d’unité d’emballage",
+      "default_quantity_unit_code": "Code d’unité de quantité"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "none": "Cette société n’a pas encore de paramètres fiscaux. Rien n’est transmis tant qu’ils ne sont pas enregistrés et activés.",
+      "noDriver": "Aucune connexion à l’administration fiscale n’est encore disponible pour le pays de cette société.",
+      "initialisedAt": "Appareil initialisé {{time}}",
+      "notInitialised": "Appareil non initialisé",
+      "initialise": "Initialiser l’appareil",
+      "initialised": "L’administration a initialisé l’appareil.",
+      "enabled": "Transmettre les documents à l’administration",
+      "missing": "Il manque encore : {{fields}}.",
+      "identity": "Enregistrement",
+      "identityHelp": "Tels qu’enregistrés par l’administration. Modifier l’un d’eux oblige à initialiser l’appareil à nouveau.",
+      "identityLocked": "Seul un propriétaire ou un administrateur peut les modifier.",
+      "credentialSaved": "Enregistré. Saisissez une nouvelle valeur pour le remplacer.",
+      "credentialHelp": "Stocké chiffré et jamais réaffiché.",
+      "codes": "Codes par défaut",
+      "codesHelp": "Utilisés pour les articles qui n’ont pas encore leurs propres codes.",
+      "save": "Enregistrer les paramètres",
+      "saved": "Les paramètres sont enregistrés."
+    },
+    "statuses": {
+      "queued": "En file",
+      "sending": "Envoi en cours",
+      "accepted": "Accepté",
+      "rejected": "Rejeté",
+      "retrying": "Nouvel essai prévu",
+      "needs_attention": "À traiter"
+    },
+    "filters": {
+      "all": "Tous",
+      "pending": "Pas encore envoyés",
+      "accepted": "Acceptés",
+      "rejected": "Rejetés",
+      "needs_attention": "À traiter",
+      "retrying": "Nouvel essai prévu",
+      "queued": "En file",
+      "sending": "Envoi en cours"
+    },
+    "documentTypes": {
+      "sale": "Vente",
+      "refund": "Remboursement",
+      "void": "Annulation"
+    },
+    "submissions": {
+      "title": "Documents transmis",
+      "search": "Rechercher un numéro de document",
+      "empty": "Aucun document transmis pour l’instant.",
+      "next": "Prochain essai {{time}}",
+      "retry": "Réessayer",
+      "retryFor": "Réessayer {{number}}",
+      "filters": {
+        "status": "Statut"
+      },
+      "columns": {
+        "queued": "En file depuis",
+        "document": "Type de document",
+        "number": "Numéro",
+        "invoice": "N° de facture",
+        "status": "Statut",
+        "attempts": "Essais",
+        "error": "Dernière erreur",
+        "actions": "Actions"
+      }
+    },
+    "earlier": {
+      "action": "Transmettre les ventes antérieures",
+      "title": "Transmettre les ventes antérieures",
+      "text": "Les ventes, remboursements et annulations faits avant l’activation de la transmission ne sont pas envoyés d’eux-mêmes. Choisissez le premier jour à transmettre ; les documents déjà transmis restent tels quels.",
+      "from": "Transmettre les documents à partir du",
+      "confirm": "Je comprends que ces documents seront transmis à l’administration fiscale",
+      "send": "Transmettre à l’administration",
+      "queued": "Les documents depuis le {{from}} sont mis en file. Suivez-les dans la liste ci-dessous.",
+      "done": "Terminé"
     }
   }
 }

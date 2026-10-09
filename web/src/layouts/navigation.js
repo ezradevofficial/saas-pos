@@ -38,6 +38,9 @@ export const AUTOMATION_VIEW = ['core.automation.view', 'core.automation.edit']
 export const POS_SALE_VIEW = 'pos.sale.view'
 export const POS_SHIFT_VIEW = 'pos.shift.view'
 export const POS_HELD_VIEW = ['pos.sale.void', 'pos.sale.refund', 'pos.cash.move']
+// Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
+export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
+export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
 // NUM-01: number formats.
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
 
@@ -123,6 +126,8 @@ export const NAV_GROUPS = [
       { to: '/settings/exchange-rates', needsCompany: true, icon: 'exchangeRates', label: (t) => t('nav.exchangeRates'), permission: EXCHANGE_RATE_VIEW, module: 'core' },
       { to: '/settings/taxes', needsCompany: true, icon: 'taxes', label: (t) => t('nav.taxes'), permission: TAX_VIEW, module: 'core' },
       { to: '/settings/payment-methods', needsCompany: true, icon: 'paymentMethods', label: (t) => t('nav.paymentMethods'), permission: PAYMENT_METHOD_VIEW, module: 'core' },
+      { to: '/settings/payments', needsCompany: true, icon: 'payments', label: (t) => t('nav.payments'), permission: PAYMENT_VIEW, module: 'core' },
+      { to: '/settings/fiscal', needsCompany: true, icon: 'fiscal', label: (t) => t('nav.fiscal'), permission: FISCAL_VIEW, module: 'core' },
     ],
   },
   {

@@ -10,6 +10,7 @@ import { formatCompanyTime } from '@/lib/companyTime'
 import { formatDecimal } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
+import { FiscalReferences, FiscalState } from './FiscalState'
 import { Amount, Detail } from './PosParts'
 import { useAmountText } from './useAmountText'
 import { flagLabel, methodLabel, RECORD_TONES, SALE_REVIEW, SALE_TONES } from './posData'
@@ -64,6 +65,10 @@ export default function SaleDetail() {
   const companyOf = useCompanyOfRecord()
   const query = useQuery({ queryKey: ['pos-sales', 'detail', saleId], queryFn: () => api.get(`pos/sales/${saleId}`) })
   const sale = query.data?.data
+  // POS-10: the tax authority's answer for the sale, its refunds and void.
+  const fiscalQuery = useQuery({ queryKey: ['pos-sales', 'fiscal', saleId], queryFn: () => api.get(`pos/sales/${saleId}/fiscal-status`) })
+  const fiscal = fiscalQuery.data?.data
+  const refundFiscal = (id) => fiscal?.refunds?.find((entry) => entry.id === id)?.fiscal
 
   const review = useMutation({
     mutationFn: () => api.post(`pos/sales/${saleId}/review`, {}),
@@ -232,12 +237,23 @@ export default function SaleDetail() {
                 {t('pos.sale.openShift')}
               </Link>
             </Detail>
-            {/* POS-10: the fiscal queue (KRA eTIMS, DRC DGI) is not in the API yet. */}
             <Detail label={t('pos.sale.fiscal')}>
-              <StatusBadge tone="warning">{t('pos.sale.fiscalPending')}</StatusBadge>
+              {fiscalQuery.isPending ? (
+                <span className="text-ink-muted">{t('common.loading')}</span>
+              ) : fiscalQuery.isError ? (
+                <span className="text-caption text-danger">{errorMessage(fiscalQuery.error)}</span>
+              ) : (
+                <FiscalState fiscal={fiscal?.sale} transmits={fiscal?.transmits} />
+              )}
             </Detail>
           </dl>
         </Card>
+
+        {fiscal?.sale?.status === 'accepted' ? (
+          <Card title={t('pos.fiscal.title')} subtitle={fiscal.sale.accepted_at ? t('pos.fiscal.acceptedAt', { time: when(fiscal.sale.accepted_at) }) : null}>
+            <FiscalReferences fiscal={fiscal.sale} />
+          </Card>
+        ) : null}
 
         <Card title={t('pos.sale.lines.title')}>
           <DataTable caption={t('pos.sale.lines.title')} columns={lineColumns} rows={sale.lines ?? []} />
@@ -287,7 +303,10 @@ export default function SaleDetail() {
                     <span className="text-caption text-ink-muted">{sale.void.reason}</span>
                     <span className="text-caption text-ink-muted tabular-nums">{when(sale.void.voided_at)}</span>
                   </span>
-                  <StatusBadge tone={RECORD_TONES[sale.void.status]}>{t(`pos.records.${sale.void.status}`)}</StatusBadge>
+                  <span className="flex flex-col items-end gap-1">
+                    <StatusBadge tone={RECORD_TONES[sale.void.status]}>{t(`pos.records.${sale.void.status}`)}</StatusBadge>
+                    {sale.void.status === 'applied' ? <FiscalState fiscal={fiscal?.void?.fiscal} transmits={fiscal?.transmits} /> : null}
+                  </span>
                 </li>
               ) : null}
               {(sale.refunds ?? []).map((refund) => (
@@ -300,6 +319,7 @@ export default function SaleDetail() {
                   <span className="flex flex-col items-end gap-1">
                     <Amount value={refund.total} />
                     <StatusBadge tone={RECORD_TONES[refund.status]}>{t(`pos.records.${refund.status}`)}</StatusBadge>
+                    {refund.status === 'applied' ? <FiscalState fiscal={refundFiscal(refund.id)} transmits={fiscal?.transmits} /> : null}
                   </span>
                 </li>
               ))}
