@@ -30,7 +30,7 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       onClick={onSelect}
       aria-label={label}
       className={cn(
-        'flex min-h-12 flex-col justify-between rounded-md border border-border text-left text-ink transition-colors',
+        'flex min-h-12 min-w-0 flex-col justify-between overflow-hidden rounded-md border border-border text-left text-ink transition-colors',
         sizing.tile,
         tint ?? 'bg-surface-200',
         'hover:border-border-strong active:bg-surface-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border',
@@ -39,7 +39,7 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       )}
     >
       {image ? <img src={image} alt="" className="aspect-video w-full rounded-sm object-cover" /> : null}
-      <span className={cn('font-medium', sizing.name)}>{name}</span>
+      <span className={cn('min-w-0 font-medium break-words', sizing.name)}>{name}</span>
       <span className="flex items-center justify-between gap-2">
         <span className={cn('text-label font-normal tabular-nums', tint ? 'text-ink' : 'text-ink-muted')}>{priceText}</span>
         {unavailable ? (
