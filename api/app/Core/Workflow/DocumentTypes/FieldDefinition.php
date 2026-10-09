@@ -25,6 +25,7 @@ final class FieldDefinition
      * @param  string  $label  translation key of the label
      * @param  list<string>  $values  enum values (labels: "{$label}_values.{value}" is not required; the builder shows them as given)
      * @param  ?string  $reference  for a reference, what it points at (e.g. `core.party`)
+     * @param  bool  $literal  the label is tenant text shown as typed (a custom field's, CF-03), not a translation key
      */
     public function __construct(
         public readonly string $name,
@@ -32,6 +33,7 @@ final class FieldDefinition
         public readonly string $label,
         public readonly array $values = [],
         public readonly ?string $reference = null,
+        public readonly bool $literal = false,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,63}$/', $name) !== 1) {
             throw new InvalidArgumentException("Invalid field name [{$name}].");
@@ -82,13 +84,19 @@ final class FieldDefinition
         return new self($name, 'reference', $label, [], $to);
     }
 
+    /** The label as a person reads it: translated, or the tenant's own text as typed. */
+    public function displayLabel(): string
+    {
+        return $this->literal ? $this->label : __($this->label);
+    }
+
     /** @return array{name: string, type: string, label: string, values: list<string>, reference: ?string} */
     public function toArray(): array
     {
         return [
             'name' => $this->name,
             'type' => $this->type,
-            'label' => __($this->label),
+            'label' => $this->displayLabel(),
             'values' => $this->values,
             'reference' => $this->reference,
         ];

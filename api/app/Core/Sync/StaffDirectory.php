@@ -2,6 +2,7 @@
 
 namespace App\Core\Sync;
 
+use App\Core\CustomFields\CustomFieldAccess;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -189,6 +190,12 @@ class StaffDirectory
             ->get(['role_id', 'resource', 'field', 'mode']);
 
         $result = [];
+        $roleIdsByUser = array_combine($userIds, array_map(fn (string $id) => $roles->get($id, []), $userIds));
+        $customHidden = [];
+
+        foreach (self::FIELD_RESOURCES as $resource) {
+            $customHidden[$resource] = app(CustomFieldAccess::class)->hiddenByRoles($resource, $roleIdsByUser);
+        }
 
         foreach ($userIds as $userId) {
             $roleIds = $roles->get($userId, []);
@@ -210,6 +217,8 @@ class StaffDirectory
                     }
                 }
 
+                // CF-03, RBAC-05: POS custom fields the user's roles may not see, as `custom.<key>`.
+                $hidden = array_values(array_unique([...$hidden, ...($customHidden[$resource][$userId] ?? [])]));
                 sort($hidden);
                 sort($readonly);
                 $result[$userId][$resource] = ['hidden' => $hidden, 'readonly' => $readonly];

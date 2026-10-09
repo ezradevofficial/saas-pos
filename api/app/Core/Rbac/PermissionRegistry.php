@@ -70,6 +70,8 @@ class PermissionRegistry
         // BR-04..BR-06: the tenant's subdomain, custom domains and the
         // email sender and SMS sender ID (tenant scope; Owner, Admin).
         'domain' => ['manage'],
+        // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
+        'custom_field' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

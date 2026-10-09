@@ -48,6 +48,7 @@ return [
                 'config' => 'Layouts, themes and templates',
                 'theme' => 'Theme and branding',
                 'domain' => 'Custom domains and email sender',
+                'custom_field' => 'Custom fields',
             ],
             'pos' => [
                 'sale' => 'Sales',

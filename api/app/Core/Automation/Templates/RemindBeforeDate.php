@@ -47,7 +47,7 @@ class RemindBeforeDate implements RuleTemplate
     {
         $field = $params['field'] ?? Capabilities::dateFields($type)[0] ?? null;
         $days = $params['days'] ?? 7;
-        $label = is_string($field) && $type->field($field) !== null ? __($type->field($field)->label) : '';
+        $label = is_string($field) && $type->field($field) !== null ? $type->field($field)->displayLabel() : '';
 
         return [
             'name' => __('automation.templates.remind_before_date.name', ['field' => $label, 'days' => is_int($days) ? $days : 7]),

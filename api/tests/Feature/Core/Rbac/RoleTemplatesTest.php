@@ -105,7 +105,7 @@ class RoleTemplatesTest extends TestCase
             $this->assertContains($name, $names);
         }
         // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage.
-        $this->assertSame(93 + 14, count($names));
+        $this->assertSame(95 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -328,7 +328,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(93, $permissions);
+        $this->assertCount(95, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

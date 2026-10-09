@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Items\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\Lists\Http\ListsRecords;
 use App\Core\Lists\ListDefinition;
 use App\Core\MasterData\Items\Barcode;
@@ -58,6 +60,8 @@ class ListItemsRequest extends FormRequest
             'type' => ['sometimes', 'string', $this->visibleFilter('type'), Rule::in(Item::TYPES)],
             // MD-03 follow-up: items a company can sell (shared or its own), e.g. to price them in its lists.
             'company' => ['sometimes', 'uuid', $this->visibleFilter('company_id'), Rule::exists('companies', 'id')],
+            // CF-03: `?custom[key]=value` or `?custom[key][min|max]=` (CustomFieldLists).
+            'custom' => ['sometimes', 'array', app(CustomFieldLists::class)->filterRule(ItemEntity::KEY, $this->list(), $this)],
         ];
     }
 

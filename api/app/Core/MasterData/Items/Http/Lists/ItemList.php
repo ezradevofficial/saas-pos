@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Items\Http\Lists;
 
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\Exports\ExportValues;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
@@ -39,6 +41,11 @@ class ItemList extends ListDefinition
         return ItemResource::FIELD_RULES;
     }
 
+    public function customFieldEntity(): string
+    {
+        return ItemEntity::KEY;
+    }
+
     public function resource(Model $model): JsonResource
     {
         return ItemResource::make($model);
@@ -56,6 +63,8 @@ class ItemList extends ListDefinition
             )),
             'created_at' => ListSort::column('created_at'),
             'updated_at' => ListSort::column('updated_at'),
+            // CF-03: a sort per scalar custom field, `cf_<key>`.
+            ...app(CustomFieldLists::class)->sorts(ItemEntity::KEY),
         ];
     }
 
@@ -85,6 +94,8 @@ class ItemList extends ListDefinition
                 fn (array $row, Item $item, ExportValues $values) => $values->dateTime($row['created_at'], $item->company_id)),
             ListColumn::make('updated_at', 'core.item.columns.updated_at', ['updated_at'],
                 fn (array $row, Item $item, ExportValues $values) => $values->dateTime($row['updated_at'], $item->company_id)),
+            // CF-03: a column per custom field, `cf_<key>`, after the built-in ones.
+            ...app(CustomFieldLists::class)->columns(ItemEntity::KEY),
         ];
     }
 
@@ -114,6 +125,7 @@ class ItemList extends ListDefinition
             $summary[__('core.item.columns.barcode')] = $filters['barcode'];
         }
 
+        $summary = [...$summary, ...app(CustomFieldLists::class)->summary(ItemEntity::KEY, $filters['custom'] ?? null)];
         $summary[__('core.list.status')] = __('core.list.statuses.'.($filters['status'] ?? 'active'));
 
         return $summary;

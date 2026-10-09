@@ -209,6 +209,19 @@ final class TwoTenants
         $itemImage = self::ok($test->post("/api/v1/items/{$item}/images", ['image' => UploadedFile::fake()->image('item.jpg', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)
             ->json('data.images.0.id');
 
+        // CF-01..CF-03: a custom field shown on the POS (changed once: history), a
+        // file field with an uploaded file, both set on the item.
+        $customField = self::ok($test->postJson('/api/v1/custom-fields', [
+            'entity' => 'item', 'key' => 'colour', 'label' => "Colour {$upper}", 'type' => 'select', 'show_on_pos' => true,
+            'options' => [['value' => 'red', 'label' => 'Red'], ['value' => "only_{$key}", 'label' => "Only {$upper}"]],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/custom-fields/{$customField}", ['help' => "Shade {$upper}"], $owner));
+        self::ok($test->postJson('/api/v1/custom-fields', ['entity' => 'item', 'key' => 'manual', 'label' => "Manual {$upper}", 'type' => 'file'], $owner), 201);
+        $customFile = self::ok($test->post('/api/v1/custom-field-files', [
+            'entity' => 'item', 'field' => 'manual', 'file' => UploadedFile::fake()->create("manual-{$key}.pdf", 4, 'application/pdf'),
+        ], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/items/{$item}", ['custom' => ['colour' => 'red', 'manual' => $customFile]], $owner));
+
         // MD-04: the company's seeded payment methods; M-Pesa configured
         // (secrets stored encrypted) and switched on, then moved to the top.
         $methods = collect(self::ok($test->getJson("/api/v1/companies/{$company}/payment-methods", $owner))->json('data'));
@@ -485,6 +498,8 @@ final class TwoTenants
                 'item' => $item,
                 'item_image' => $itemImage,
                 'item_price' => $itemPrice,
+                'custom_field' => $customField,
+                'custom_field_file' => $customFile,
                 'payment_method' => $paymentMethod,
                 'workflow' => $workflow,
                 'workflow_version' => $workflowVersion,

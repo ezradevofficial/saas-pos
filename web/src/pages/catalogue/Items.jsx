@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { usePermissions } from '@/auth/usePermissions'
+import { customFiltersActive, useCustomListFields } from '@/components/customFieldList'
 import { Button, ListView, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList } from '@/lib/useServerList'
@@ -23,6 +24,8 @@ export default function Items() {
 
   const categoryName = (id) => categories.all.find((entry) => entry.id === id)?.name ?? ''
   const uomCode = (id) => uoms.all.find((uom) => uom.id === id)?.code ?? ''
+  // CF-02, CF-03: custom columns (hidden until chosen) and filters.
+  const custom = useCustomListFields('item')
 
   const columns = [
     {
@@ -55,17 +58,18 @@ export default function Items() {
           ''
         ),
     },
+    ...custom.columns,
   ]
 
   const list = useServerList({
     id: 'items',
     endpoint: 'items',
     queryKey: ['items'],
-    filters: { status: 'active', category: '', type: '' },
+    filters: { status: 'active', category: '', type: '', ...custom.filterDefaults },
     columns,
   })
   const { status, category, type } = list.filters
-  const filtered = Boolean(list.term || category || type)
+  const filtered = Boolean(list.term || category || type || customFiltersActive(list, custom))
 
   return (
     <>
@@ -109,6 +113,7 @@ export default function Items() {
             label: t('items.filters.type'),
             options: [{ value: '', label: t('items.filters.allTypes') }, ...ITEM_TYPES.map((value) => ({ value, label: t(`items.types.${value}`) }))],
           },
+          ...custom.filterFields,
         ]}
         onRowClick={(item) => navigate(`/catalogue/items/${item.id}`)}
         emptyText={filtered ? t('items.emptyFiltered') : t(`items.empty.${status}`)}

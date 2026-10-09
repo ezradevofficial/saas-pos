@@ -45,7 +45,7 @@ class AlertBelowLevel implements RuleTemplate
     public function build(DocumentType $type, array $params): array
     {
         $field = $params['field'] ?? self::fields($type)[0] ?? null;
-        $label = is_string($field) && $type->field($field) !== null ? __($type->field($field)->label) : '';
+        $label = is_string($field) && $type->field($field) !== null ? $type->field($field)->displayLabel() : '';
 
         return [
             'name' => __('automation.templates.alert_below_level.name', ['field' => $label]),

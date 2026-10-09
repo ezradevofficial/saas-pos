@@ -17,16 +17,24 @@ final class ListColumn
 {
     /**
      * @param  string  $key  the `?columns[]=` key
-     * @param  string  $label  translation key of the header
+     * @param  string  $label  translation key of the header (the header itself when $literal)
      * @param  list<string>  $fields  resource keys the value is built from
      * @param  Closure(array<string, mixed>, Model, ExportValues): ?string  $value
+     * @param  bool  $literal  the label is tenant text printed as typed (a custom field's, CF-03)
      */
     public function __construct(
         public readonly string $key,
         public readonly string $label,
         public readonly array $fields,
         public readonly Closure $value,
+        public readonly bool $literal = false,
     ) {}
+
+    /** The header as printed: translated, or the tenant's own text as typed. */
+    public function header(): string
+    {
+        return $this->literal ? $this->label : __($this->label);
+    }
 
     /** A column showing one resource key as text. */
     public static function text(string $key, string $label, ?string $field = null): self
