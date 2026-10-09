@@ -226,7 +226,8 @@ Decided (phase 4 Task 3 review):
   update the POS: a paid push or verified code confirms the sale payment,
   a mismatch flags the sale `mpesa_mismatch`; a paid refund confirms the
   refund payment, a failed or timed-out payout flags the refund
-  `payout_failed`.
+  `payout_failed`, and a payout paid after that also flags it
+  `payout_recovered` (the money may have gone out twice).
 - **Sync**: payment method rows carry `capabilities: {stk, manual_code}`;
   `stk` only for an M-Pesa method on the Daraja adapter with every
   required key (sync entity version 2).

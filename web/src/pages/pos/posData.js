@@ -22,7 +22,9 @@ export const RECORD_TONES = { applied: 'success', held: 'warning', rejected: 'ne
 /**
  * POS-09: what the server noticed about an uploaded record but kept (the
  * device wins). Codes from SaleUploads, RefundUploads, VoidUploads,
- * CashMovementUploads and Approval; an unknown code shows as itself.
+ * CashMovementUploads, Approval and payment settlements (payout_failed,
+ * payout_recovered: a refund paid out after it was flagged failed, so the
+ * money may have gone out twice); an unknown code shows as itself.
  */
 export const FLAG_CODES = [
   'price_differs',
@@ -42,6 +44,8 @@ export const FLAG_CODES = [
   'received_after_close',
   'shift_missing',
   'clock_ahead',
+  'payout_failed',
+  'payout_recovered',
 ]
 
 /** Flags meaning a manager's approval came from the till, not the server (AUTH-08). */

@@ -26,7 +26,11 @@ use Modules\POS\PosServiceProvider;
  *   not know) flags the sale `mpesa_mismatch`. Only sale intents (STK or
  *   manual) count for `pos.sale`, only payouts for `pos.refund`.
  * - `pos.refund`: the refund payment paid back by B2C becomes `confirmed`;
- *   a payout that failed or timed out flags the refund `payout_failed`.
+ *   a payout that failed or timed out flags the refund `payout_failed`. A
+ *   payout paid after all (a late result for an `unknown` or `timeout`
+ *   intent) on a refund already flagged `payout_failed` is also flagged
+ *   `payout_recovered`: the cashier may have refunded another way, so the
+ *   money may have gone out twice.
  *
  * A sale not uploaded yet is updated when it is (LinkMobileMoneyPayments).
  */
@@ -100,6 +104,12 @@ class ApplyPaymentSettlement implements ShouldQueue
 
         if ($intent->status === 'succeeded') {
             $payment->forceFill(['status' => SalePayment::CONFIRMED, 'provider_reference' => $intent->provider_receipt ?? $payment->provider_reference])->save();
+            $refund = Refund::query()->findOrFail($payment->refund_id);
+            $failed = collect((array) $refund->flags)->contains(fn ($flag) => ($flag['code'] ?? null) === 'payout_failed' && ($flag['detail']['payment_id'] ?? null) === $payment->id);
+
+            if ($failed) {
+                RecordFlags::add($refund, 'payout_recovered', ['payment_id' => $payment->id, 'receipt' => $intent->provider_receipt]);
+            }
 
             return;
         }
