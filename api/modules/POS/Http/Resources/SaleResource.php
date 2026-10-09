@@ -13,7 +13,7 @@ use Modules\POS\Models\SalePayment;
 /**
  * POS-12: a sale for the back office. Amounts are `{amount_minor,
  * currency}` (ADR 003); the detail (`detail()`) adds lines, payments, the
- * void and refunds.
+ * void and refunds, each with its own flags (POS-09).
  *
  * @mixin Sale
  */
@@ -115,6 +115,7 @@ class SaleResource extends JsonResource
                 'approved_by' => $this->voidRecord->approved_by,
                 'override_verified' => $this->voidRecord->override_verified,
                 'reason' => $this->voidRecord->reason,
+                'flags' => $this->voidRecord->flags ?? [],
                 'voided_at' => $this->voidRecord->voided_at->toIso8601String(),
             ],
             'refunds' => $this->refunds->map(fn ($refund) => [
@@ -127,6 +128,7 @@ class SaleResource extends JsonResource
                 'approved_by' => $refund->approved_by,
                 'override_verified' => $refund->override_verified,
                 'reason' => $refund->reason,
+                'flags' => $refund->flags ?? [],
                 'refunded_at' => $refund->refunded_at->toIso8601String(),
             ])->all(),
         ];

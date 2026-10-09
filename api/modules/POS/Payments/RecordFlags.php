@@ -7,6 +7,8 @@ use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Modules\POS\Models\Refund;
+use Modules\POS\Models\Sale;
+use Modules\POS\Models\SaleVoid;
 
 /**
  * POS-09: adds a flag (what the server noticed, for review) to a stored
@@ -20,6 +22,11 @@ use Modules\POS\Models\Refund;
  * A record already reviewed (M3) is re-opened by a new flag: reviewed_at
  * and reviewed_by are cleared and `pos.sale.review_reopened` (or the
  * refund equivalent) is audited (AUD-01), so the new problem is seen.
+ *
+ * Refunds and voids have no review queue of their own: a flag on one is
+ * routed to its sale's review as `refund_flagged` ({refund, flag}) or
+ * `void_flagged` ({void, flag}), once per record and code, through the
+ * same path (so a reviewed sale re-opens, audited).
  */
 final class RecordFlags
 {
@@ -47,6 +54,32 @@ final class RecordFlags
             }
 
             $record->setRawAttributes($locked->getAttributes(), true);
+            self::toSale($locked, [$code]);
         });
+    }
+
+    /**
+     * POS-09: routes a refund's or void's flags to its sale's review
+     * (stored with flags at upload, or flagged later through add()).
+     *
+     * @param  list<string>  $codes
+     */
+    public static function toSale(Model $record, array $codes): void
+    {
+        [$code, $key] = match (true) {
+            $record instanceof Refund => ['refund_flagged', 'refund'],
+            $record instanceof SaleVoid => ['void_flagged', 'void'],
+            default => [null, null],
+        };
+
+        if ($code === null) {
+            return;
+        }
+
+        $sale = Sale::query()->findOrFail($record->getAttribute('sale_id'));
+
+        foreach (array_unique($codes) as $flag) {
+            self::add($sale, $code, [$key => $record->getKey(), 'flag' => $flag]);
+        }
     }
 }

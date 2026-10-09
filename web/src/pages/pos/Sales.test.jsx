@@ -191,6 +191,30 @@ describe('POS sales (POS-12)', () => {
     expect(await screen.findByText('The sale is marked reviewed.')).toBeInTheDocument()
   })
 
+  it("shows a refund's and a void's own flags and routes them to the sale's flags (POS-09)", async () => {
+    setup({
+      detail: {
+        ...DETAIL,
+        flags: [{ code: 'refund_flagged', detail: { refund: 'r-1', flag: 'payout_recovered' } }],
+        void: { id: 'v-1', status: 'held', reason: 'Wrong item', voided_at: '2026-10-08T11:00:00Z', flags: [{ code: 'override_unverified' }] },
+        refunds: [{ ...DETAIL.refunds[0], flags: [{ code: 'override_offline' }, { code: 'payout_recovered', detail: { payment_id: 'p-9' } }] }],
+      },
+    })
+    renderApp('/pos/sales/s-1')
+    await screen.findByRole('heading', { name: 'R-L01-000001' })
+
+    const refundRow = screen.getByText('Refund RF-L01-000001').closest('li')
+    const refundChips = within(refundRow).getByRole('list', { name: 'Flags' })
+    expect(within(refundChips).getByText('Approved offline')).toBeInTheDocument()
+    expect(within(refundChips).getByText('Payout paid after failing')).toBeInTheDocument()
+
+    const voidRow = screen.getByText('Sale voided').closest('li')
+    expect(within(within(voidRow).getByRole('list', { name: 'Flags' })).getByText('Approval unverified')).toBeInTheDocument()
+
+    expect(screen.getByText('Refund flagged')).toBeInTheDocument()
+    expect(screen.getByText('Refund RF-L01-000001: Payout paid after failing')).toBeInTheDocument()
+  })
+
   it('shows the Point of sale group only with the POS module and a POS view permission (RBAC-08, RBAC-09)', async () => {
     setup()
     const { unmount } = renderApp('/')

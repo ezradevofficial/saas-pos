@@ -284,9 +284,19 @@ class PaymentsAndFiscalTest extends TestCase
         $codes = fn () => array_column($this->inTenant(fn () => Refund::query()->findOrFail($refund['id'])->flags), 'code');
         $this->assertSame(['payout_failed'], $codes());
 
+        // POS-09: the refund's flag reaches its sale's review; the sale is reviewed.
+        $saleFlags = fn () => $this->inTenant(fn () => Sale::query()->findOrFail($sale['id'])->flags);
+        $this->assertContains(['code' => 'refund_flagged', 'detail' => ['flag' => 'payout_failed', 'refund' => $refund['id']]], $saleFlags());
+        $this->postJson("/api/v1/pos/sales/{$sale['id']}/review", ['note' => 'Paid in cash instead'], $this->headersFor())->assertOk();
+
         // The provider paid after all: the money may have gone out twice.
         $this->inTenant(fn () => app(PaymentIntents::class)->apply($payout, ProviderResult::succeeded('QJK3REFLTE')));
         $this->assertSame(['payout_failed', 'payout_recovered'], $codes());
+
+        // ...and the reviewed sale re-opens for it (AUD-01).
+        $this->assertContains(['code' => 'refund_flagged', 'detail' => ['flag' => 'payout_recovered', 'refund' => $refund['id']]], $saleFlags());
+        $this->assertNull($this->inTenant(fn () => Sale::query()->findOrFail($sale['id'])->reviewed_at));
+        $this->getJson('/api/v1/pos/sales?flag=refund_flagged&reviewed=0', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $sale['id']);
         $this->inTenant(function () use ($refund) {
             $this->assertSame('confirmed', RefundPayment::query()->findOrFail($refund['payments'][0]['id'])->status);
             $this->assertEquals(['payment_id' => $refund['payments'][0]['id'], 'receipt' => 'QJK3REFLTE'], Refund::query()->findOrFail($refund['id'])->flags[1]['detail']);

@@ -52,6 +52,8 @@ export const FLAG_CODES = [
   'actor_offline',
   'before_sign_in',
   'session_stale',
+  'refund_flagged',
+  'void_flagged',
 ]
 
 /** Flags meaning a manager's approval came from the till, not the server (AUTH-08). */

@@ -11,7 +11,7 @@ import { formatDecimal } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { FiscalReferences, FiscalState } from './FiscalState'
-import { Amount, Detail } from './PosParts'
+import { Amount, Detail, FlagChips } from './PosParts'
 import { useAmountText } from './useAmountText'
 import { flagLabel, methodLabel, RECORD_TONES, SALE_REVIEW, SALE_TONES } from './posData'
 
@@ -33,7 +33,7 @@ function Back() {
 }
 
 /** One flag's words: its code, the line it is about, and what the server expected. */
-function FlagRow({ flag, currency }) {
+function FlagRow({ flag, currency, refunds }) {
   const { t } = useTranslation()
   const amount = useAmountText()
   const detail = flag.detail ?? {}
@@ -46,6 +46,14 @@ function FlagRow({ flag, currency }) {
       </span>
       {expected != null ? <span className="text-caption text-ink-muted">{t('pos.sale.flagExpected', { amount: amount({ amount_minor: String(expected), currency }) })}</span> : null}
       {detail.pair ? <span className="text-caption text-ink-muted">{t('pos.sale.flagPair', { pair: detail.pair })}</span> : null}
+      {/* POS-09: a refund's or void's own flag, routed to this sale's review. */}
+      {detail.flag ? (
+        <span className="text-caption text-ink-muted">
+          {detail.refund
+            ? t('pos.sale.flagRefund', { number: refunds?.find((refund) => refund.id === detail.refund)?.receipt_number ?? '', flag: flagLabel(t, detail.flag) })
+            : t('pos.sale.flagVoid', { flag: flagLabel(t, detail.flag) })}
+        </span>
+      ) : null}
     </li>
   )
 }
@@ -209,7 +217,7 @@ export default function SaleDetail() {
           <Card title={t('pos.sale.flagsTitle')} subtitle={sale.reviewed_at ? t('pos.sale.reviewedAt', { time: when(sale.reviewed_at) }) : t('pos.sale.flagsHelp')}>
             <ul className="divide-y divide-border">
               {sale.flags.map((flag, index) => (
-                <FlagRow key={`${flag.code}-${index}`} flag={flag} currency={sale.currency} />
+                <FlagRow key={`${flag.code}-${index}`} flag={flag} currency={sale.currency} refunds={sale.refunds} />
               ))}
             </ul>
           </Card>
@@ -302,6 +310,7 @@ export default function SaleDetail() {
                     <span className="text-ink">{t('pos.sale.voided')}</span>
                     <span className="text-caption text-ink-muted">{sale.void.reason}</span>
                     <span className="text-caption text-ink-muted tabular-nums">{when(sale.void.voided_at)}</span>
+                    <FlagChips flags={sale.void.flags} />
                   </span>
                   <span className="flex flex-col items-end gap-1">
                     <StatusBadge tone={RECORD_TONES[sale.void.status]}>{t(`pos.records.${sale.void.status}`)}</StatusBadge>
@@ -315,6 +324,7 @@ export default function SaleDetail() {
                     <span className="text-ink tabular-nums">{t('pos.sale.refund', { number: refund.receipt_number })}</span>
                     <span className="text-caption text-ink-muted">{refund.reason}</span>
                     <span className="text-caption text-ink-muted tabular-nums">{when(refund.refunded_at)}</span>
+                    <FlagChips flags={refund.flags} />
                   </span>
                   <span className="flex flex-col items-end gap-1">
                     <Amount value={refund.total} />
