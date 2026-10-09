@@ -136,7 +136,8 @@ export default function DashboardDesigner({ personal = false }) {
   const scope = parseScope(chosen)
   const config = useConfigDocument('dashboard', 'default', scope)
   const current = useDashboard()
-  const rights = scopes.can(scope)
+  // Nothing is editable until the stored layout is loaded, so no edit is lost to it.
+  const rights = config.isLoading ? { edit: false, publish: false } : scopes.can(scope)
   const sources = useQuery({ queryKey: ['dashboard', 'sources'], queryFn: () => api.get('dashboard/sources'), staleTime: 60_000 })
   const sourceList = sources.data?.data ?? []
 

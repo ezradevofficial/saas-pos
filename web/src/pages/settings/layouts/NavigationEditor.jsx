@@ -156,7 +156,8 @@ export default function NavigationEditor() {
   const [scopeValue, setScopeValue] = useState('tenant:')
   const scope = parseScope(scopeValue)
   const config = useConfigDocument('navigation', 'default', scope)
-  const rights = scopes.can(scope)
+  // Nothing is editable until the stored layout is loaded, so no edit is lost to it.
+  const rights = config.isLoading ? { edit: false, publish: false } : scopes.can(scope)
   const role = useQuery({
     queryKey: ['roles', scope.id],
     queryFn: () => api.get(`roles/${scope.id}`),
