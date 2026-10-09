@@ -134,7 +134,7 @@ function SettingsCard({ company, settings, drivers, canEdit, canConfigure }) {
             />
             <div className="grid gap-4 sm:grid-cols-3">
               {IDENTITY.map((field) => (
-                <TextField key={field} label={t(`fiscal.fields.${field}`)} value={values[field]} onChange={set(field)} disabled={!canConfigure} error={errors.fields[field]} className="font-mono" />
+                <TextField key={field} label={t(`fiscal.fields.${field}`)} value={values[field]} onChange={set(field)} disabled={!canConfigure} error={errors.fields[field]} />
               ))}
             </div>
             {canConfigure
@@ -157,7 +157,7 @@ function SettingsCard({ company, settings, drivers, canEdit, canConfigure }) {
             <p className="text-caption text-ink-muted">{t('fiscal.settings.codesHelp')}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               {DEFAULT_CODES.map((field) => (
-                <TextField key={field} label={t(`fiscal.fields.${field}`)} value={values[field]} onChange={set(field)} disabled={!canEdit} className="font-mono" />
+                <TextField key={field} label={t(`fiscal.fields.${field}`)} value={values[field]} onChange={set(field)} disabled={!canEdit} />
               ))}
             </div>
             {errors.fields.settings ? <p className="text-caption text-danger">{errors.fields.settings}</p> : null}
