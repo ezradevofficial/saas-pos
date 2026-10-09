@@ -118,7 +118,12 @@
       "clearAll": "Clear all",
       "showResults": "Show results",
       "showCount_one": "Show {{formatted}} result",
-      "showCount_other": "Show {{formatted}} results"
+      "showCount_other": "Show {{formatted}} results",
+      "arrange": "Arrange columns",
+      "arrangeTitle": "Arrange columns",
+      "arrangeBody": "Drag a column by its handle to move it, or focus the handle, press Space and use the arrow keys. Tick the columns to show.",
+      "arrangeDone": "Done",
+      "moveColumn": "Move {{name}}"
     },
     "versionBar": {
       "label": "Versions",
@@ -135,7 +140,8 @@
       "save": {
         "saving": "Saving…",
         "saved": "Draft saved",
-        "error": "Draft not saved"
+        "error": "Draft not saved",
+        "unsaved": "Changes not saved"
       },
       "history": "History",
       "historyTitle": "Version history",
@@ -174,6 +180,33 @@
       "discardBodyNothingLive": "Your changes are kept in the history but never go live. Nothing is live yet, so the platform layout applies.",
       "discardConfirm": "Discard draft",
       "keepDraft": "Keep editing"
+    },
+    "listViews": {
+      "button": "Views",
+      "buttonActive": "View: {{name}}",
+      "changedMark": "(changed)",
+      "standard": "Standard view",
+      "mine": "My views",
+      "shared": "Shared views",
+      "saveChanges": "Save changes to {{name}}",
+      "saveAs": "Save as a new view",
+      "delete": "Delete {{name}}",
+      "saveTitle": "Save this view",
+      "saveBody": "The view keeps the columns, filters, sort and rows per page you see now.",
+      "saveConfirm": "Save view",
+      "name": "View name",
+      "visibleTo": "Who sees it",
+      "onlyMe": "Only me",
+      "everyone": "Everyone in the organisation",
+      "role": "Everyone with the role {{name}}",
+      "defaultMine": "Open this list with this view",
+      "defaultShared": "Open this list with this view for them",
+      "deleteTitle": "Delete the view {{name}}?",
+      "deleteBodyMine": "The list goes back to its standard view. You can save a new view at any time.",
+      "deleteBodyShared": "Nobody it is shared with will see it any more. The earlier version stays in the history.",
+      "deleteConfirm": "Delete view",
+      "saved": "View {{name}} saved",
+      "deleted": "View {{name}} deleted"
     }
   },
   "dev": {
@@ -343,7 +376,9 @@
     "fiscal": "Tax authority",
     "customFields": "Custom fields",
     "brand": "Brand",
-    "domains": "Domains"
+    "domains": "Domains",
+    "dashboards": "Dashboards",
+    "navigationEditor": "Menus"
   },
   "shell": {
     "account": "Account menu",
@@ -4349,6 +4384,107 @@
       "hidden": "Hidden",
       "shown": "Shown",
       "text": "\"Powered by {{name}}\" in the sidebar and on the sign-in page. This depends on your plan."
+    }
+  },
+  "layouts": {
+    "saved": "Draft saved",
+    "published": "Published",
+    "saveDraft": "Save draft",
+    "problems": "Fix these before publishing",
+    "scopes": {
+      "label": "Applies to",
+      "me": "My own dashboard",
+      "everyone": "Everyone (default)",
+      "role": "Role: {{name}}"
+    },
+    "chart": {
+      "noValue": "No figure",
+      "showTable": "Show as a table",
+      "hideTable": "Hide the table",
+      "day": "Day",
+      "amountIn": "Amount ({{currency}})"
+    },
+    "grid": {
+      "position": "Column {{column}}, row {{row}}, {{width}} columns wide, {{height}} rows high",
+      "move": "Drag to move",
+      "resize": "Drag to resize",
+      "help": "Use the arrow keys to move the widget by one cell, and Shift with the arrow keys to resize it."
+    },
+    "sources": {
+      "approvals_waiting": "Approvals waiting for me",
+      "approvals_mine": "My approvals",
+      "workflows_overdue": "Overdue documents in workflows",
+      "shortcuts": "Shortcuts",
+      "pos_sales_today": "Sales today",
+      "pos_sales_by_day": "Sales by day"
+    },
+    "widgets": {
+      "untitled": "Widget",
+      "noFigure": "No figure yet",
+      "sales_one": "{{formatted}} sale",
+      "sales_other": "{{formatted}} sales",
+      "incomplete": "Some companies have no exchange rate, so they are left out.",
+      "open": "Open",
+      "listEmpty": "Nothing is waiting for you.",
+      "overdue": "Overdue",
+      "seeAll_one": "See {{formatted}} item",
+      "seeAll_other": "See all {{formatted}}",
+      "noShortcuts": "None of these pages is in your menu.",
+      "unavailable": "This information isn’t available right now.",
+      "types": {
+        "kpi": "Figure",
+        "chart": "Chart",
+        "list": "List",
+        "shortcut": "Shortcuts",
+        "approval_count": "Approval count"
+      }
+    },
+    "dashboard": {
+      "customise": "Customise my dashboard",
+      "label": "Dashboard",
+      "title": "Dashboards",
+      "description": "Arrange the dashboard of the organisation or of a role. A user’s own copy wins over these.",
+      "customiseTitle": "Customise my dashboard",
+      "customiseDescription": "Your own copy of the dashboard. Nobody else sees it.",
+      "dashboardTitle": "Dashboard title",
+      "titlePlaceholder": "The greeting",
+      "addWidget": "Add widget",
+      "empty": "This dashboard has no widgets. Add one to start.",
+      "inspector": "Widget",
+      "pickWidget": "Pick a widget to change it.",
+      "widgetTitle": "Title",
+      "widgetType": "Type",
+      "source": "Data",
+      "noSource": "No data for this type",
+      "chartType": "Chart",
+      "bar": "Bars",
+      "line": "Line",
+      "days": "Period",
+      "lastDays_one": "Last {{count}} day",
+      "lastDays_other": "Last {{count}} days",
+      "rows": "Rows shown",
+      "links": "Pages",
+      "removeWidget": "Remove widget"
+    },
+    "navigation": {
+      "title": "Menus",
+      "description": "Rename, reorder, group and hide menu items for the organisation or a role, and set the page the role starts on. Permissions still decide what each person can open.",
+      "home": "Home page",
+      "homeDashboard": "The dashboard",
+      "homeMark": "Home",
+      "tree": "Menu",
+      "treeHelp": "Drag groups and items by their handles, or focus a handle, press Space and use the arrow keys.",
+      "addGroup": "Add group",
+      "newGroup": "New group",
+      "emptyGroup": "No items. Drag items here or pick this group on an item.",
+      "preview": "Preview",
+      "moveItem": "Move {{name}}",
+      "moveGroup": "Move the group {{name}}",
+      "itemName": "Name of {{name}}",
+      "groupName": "Name of the group {{name}}",
+      "itemGroup": "Group of {{name}}",
+      "showItem": "Show {{name}}",
+      "hideItem": "Hide {{name}}"
     }
   }
 }

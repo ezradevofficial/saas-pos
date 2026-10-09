@@ -176,9 +176,21 @@
   max-height: calc(var(--space-12) * 8);
 }
 /* 160px: a template's text box before it grows with its content. */
+/* A dialog never grows past the window: its body scrolls, the title and actions stay visible. */
+@utility max-h-dialog {
+  max-height: calc(100dvh - var(--space-10));
+}
+
 @utility min-h-textbox {
   min-height: calc(var(--space-10) * 4);
 }
+/* 96px: one row of the dashboard grid (LAY-01). */
+@utility auto-rows-widget {
+  grid-auto-rows: calc(var(--space-12) * 2);
+}
+/* The dashboard grid places widgets with these classes, built from layout data (LAY-01). */
+@source inline("md:col-start-{1..12} md:col-span-{1..12} md:row-start-{1..48} md:row-span-{1..8} row-span-{1..8}");
+
 /* 192px: the QR code shown while setting up an authenticator app. */
 @utility size-qr {
   width: calc(var(--space-12) * 4);

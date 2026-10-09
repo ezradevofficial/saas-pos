@@ -104,8 +104,8 @@ class RoleTemplatesTest extends TestCase
             'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
             $this->assertContains($name, $names);
         }
-        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage.
-        $this->assertSame(95 + 14, count($names));
+        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.view|edit|publish.
+        $this->assertSame(98 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -328,7 +328,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(95, $permissions);
+        $this->assertCount(98, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

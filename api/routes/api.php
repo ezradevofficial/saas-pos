@@ -50,6 +50,7 @@ use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Identity\Pin\Http\Controllers\DevicePinController;
 use App\Core\Identity\Pin\Http\Controllers\MyPinController;
 use App\Core\Identity\Pin\Http\Controllers\UserPinController;
+use App\Core\Layouts\Http\Controllers\DashboardSourceController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
@@ -563,6 +564,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::prefix('config/{kind}')->where(['kind' => '[a-z][a-z0-9_]{0,59}'])->group(function () {
         Route::get('', [ConfigController::class, 'index']);
         Route::get('resolved', [ConfigController::class, 'resolved']);
+        // LAY-04: every published layer that applies (personal, role, tenant), for saved views.
+        Route::get('layers', [ConfigController::class, 'layers']);
         Route::get('{config_document}', [ConfigController::class, 'show']);
 
         // Writes carry payloads up to 256 KB: 60 a minute per user.
@@ -575,6 +578,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
             Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
         });
     });
+
+    // LAY-01: dashboard data sources the user may read, and one widget's data.
+    Route::get('dashboard/sources', [DashboardSourceController::class, 'index']);
+    Route::get('dashboard/sources/{dashboard_source}', [DashboardSourceController::class, 'show'])->where('dashboard_source', '[a-z][a-z0-9_.]{0,59}');
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.
     Route::get('custom-fields', [CustomFieldController::class, 'index']);

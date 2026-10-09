@@ -1,3 +1,5 @@
+import { mergeGrouped } from '@/lib/catalogueMerge'
+
 /**
  * Navigation (RBAC-09): an item with `permission` (a name, or a list of
  * which any one is enough) shows only when the user has it somewhere (with
@@ -41,6 +43,8 @@ export const POS_HELD_VIEW = ['pos.sale.void', 'pos.sale.refund', 'pos.cash.move
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
+// LAY-01, LAY-02, LAY-04: the organisation's and roles' dashboards, menus and shared list views.
+export const LAYOUT_VIEW = ['core.layout.view', 'core.layout.edit', 'core.layout.publish']
 // NUM-01: number formats.
 export const THEME_VIEW = ['core.theme.view', 'core.theme.edit']
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
@@ -102,6 +106,9 @@ export const NAV_GROUPS = [
       // BR-02, BR-08: the business's theme; BR-04..BR-06: its hosts and senders (Owner, Admin).
       { to: '/settings/brand', icon: 'brand', label: (t) => t('nav.brand'), permission: THEME_VIEW, module: 'core' },
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
+      // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
+      { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
+      { to: '/settings/layouts/navigation', icon: 'menu', label: (t) => t('nav.navigationEditor'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
       // AUTH-06: one's own POS PIN, while the POS module is active.
       { to: '/settings/pos-pin', icon: 'key', label: (t) => t('nav.posPin'), module: 'pos' },
@@ -169,4 +176,52 @@ export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCom
       items: group.items.filter((item) => allowed(item) && (!item.module || hasModule(item.module))),
     }))
     .filter((group) => group.items.length > 0)
+}
+
+/**
+ * LAY-02: the editable navigation tree of a layout, merged with the catalogue
+ * (LAY-07): `[{ id, label, items: [{ id, label, hidden }] }]`, where labels
+ * are the layout's own names (typed once) or null for the catalogue's, and
+ * item ids are routes. Groups the layout does not name come at the end; new
+ * items go to their default group; items that no longer exist are skipped.
+ */
+export function navigationTree(groups, layout) {
+  const named = (layout?.groups ?? []).map((group) => ({
+    id: group.id,
+    label: group.label ?? null,
+    items: (group.items ?? []).map((item) => ({ id: item.id, label: item.label ?? null, hidden: Boolean(item.hidden) })),
+  }))
+  for (const group of groups) if (!named.some((entry) => entry.id === group.id)) named.push({ id: group.id, label: null, items: [] })
+  const catalogue = groups.flatMap((group) => group.items.map((item) => ({ id: item.to, label: null, hidden: false, group: group.id })))
+  return mergeGrouped(named, catalogue, { newGroup: { id: groups[0]?.id ?? 'main', label: null } })
+}
+
+/**
+ * LAY-02: the catalogue's groups laid out by `layout` (null: unchanged):
+ * renamed, reordered, items moved or hidden. Permissions and modules still
+ * filter afterwards (visibleGroups), so hiding never grants (RBAC-09).
+ */
+export function applyNavigationLayout(groups, layout) {
+  if (!layout?.groups) return groups
+  const catalogueGroups = new Map(groups.map((group) => [group.id, group]))
+  const items = new Map(groups.flatMap((group) => group.items.map((item) => [item.to, item])))
+  return navigationTree(groups, layout)
+    .map((group) => {
+      const base = catalogueGroups.get(group.id)
+      return {
+        id: group.id,
+        label: group.label ? () => group.label : (base?.label ?? (() => group.id)),
+        items: group.items
+          .filter((entry) => !entry.hidden && items.has(entry.id))
+          .map((entry) => (entry.label ? { ...items.get(entry.id), label: () => entry.label } : items.get(entry.id))),
+      }
+    })
+    .filter((group) => group.items.length > 0)
+}
+
+/** The layout's home page when the user may open it (one of their visible items), else null. */
+export function homeOf(layout, visible) {
+  const home = layout?.home
+  if (!home || home === '/') return null
+  return visible.some((group) => group.items.some((item) => item.to === home)) ? home : null
 }

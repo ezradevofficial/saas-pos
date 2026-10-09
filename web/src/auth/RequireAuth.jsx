@@ -48,6 +48,11 @@ export function RequireAuth({ children, allowEnrolment = false }) {
 export function GuestOnly({ children }) {
   const { token, enrolmentRequired } = useAuth()
   const [params] = useSearchParams()
-  if (token) return <Navigate to={enrolmentRequired ? ENROL_PATH : safeNext(params.get('next'))} replace />
+  if (token) {
+    if (enrolmentRequired) return <Navigate to={ENROL_PATH} replace />
+    // LAY-02: with nowhere asked for, the dashboard sends the user on to their role's home page.
+    const next = params.get('next')
+    return <Navigate to={safeNext(next)} replace state={next ? undefined : { landing: true }} />
+  }
   return children
 }

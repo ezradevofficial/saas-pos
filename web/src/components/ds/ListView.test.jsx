@@ -408,4 +408,76 @@ describe('ListView and useServerList', () => {
     await waitFor(() => expect(router.state.location.search).toBe('?status=archived'))
     expect(screen.queryByRole('list', { name: 'Active filters', hidden: true })).not.toBeInTheDocument()
   })
+
+  describe('saved views (LAY-04)', () => {
+    const LAYERS = {
+      data: [
+        { payload: { views: [{ id: 'mine', name: 'Mine', columns: [{ id: 'name', visible: true }] }], default_view: null, hidden_columns: [] }, source: { scope: { type: 'user', id: OWNER.id } } },
+        {
+          payload: {
+            views: [{ id: 'stock', name: 'Stock only', columns: [{ id: 'phone', visible: true }, { id: 'name', visible: true }, { id: 'code', visible: false }], filters: { type: 'stock' }, sort: '-name', per_page: 50 }],
+            default_view: 'stock',
+            hidden_columns: ['phones'],
+          },
+          source: { scope: { type: 'role', id: 'r-1' } },
+        },
+      ],
+    }
+
+    function mockViews() {
+      api.get.mockImplementation(async (path) => {
+        if (path === 'me') return { data: OWNER }
+        if (path === 'me/permissions') return { permissions: [], modules: ['core'] }
+        if (path === 'config/list_view/layers?key=things') return LAYERS
+        if (path.startsWith('things?')) return answer(path, 3)
+        throw apiError(404, 'not_found', 'Not found.')
+      })
+    }
+
+    it('opens the default view: its filters, sort, rows per page and columns, never a column field rules hide', async () => {
+      mockViews()
+      renderList()
+      await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=active&type=stock&sort=-name&per_page=50&page=1'))
+      await screen.findByText('Thing 1')
+      const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
+      // Phone is hidden by the reader's field rules (export key phones); Code is switched off by the view.
+      expect(headers[0]).toMatch(/^Name/)
+      expect(headers.join(' ')).not.toMatch(/Phone|Code/)
+      expect(screen.getByRole('button', { name: 'View: Stock only' })).toBeInTheDocument()
+    })
+
+    it('switches to another view and back to the standard one', async () => {
+      mockViews()
+      const { router } = renderList()
+      await screen.findByRole('button', { name: 'View: Stock only' })
+      openMenu('View: Stock only')
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mine' }))
+      await waitFor(() => expect(router.state.location.search).toBe('?view=user.mine'))
+      await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=active&per_page=25&page=1'))
+
+      openMenu('View: Mine')
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Standard view' }))
+      await waitFor(() => expect(router.state.location.search).toBe('?view=none'))
+      expect(await screen.findByRole('button', { name: 'Views' })).toBeInTheDocument()
+    })
+
+    it('saves the list as a personal view through the configuration API', async () => {
+      mockViews()
+      api.post.mockImplementation(async (path, body) => {
+        if (path === 'config/list_view') return { data: { id: 'd-1', scope: { type: 'user', id: OWNER.id }, draft: { version: 1, payload: body.payload } }, meta: { problems: [] } }
+        return { data: { id: 'd-1', scope: { type: 'user', id: OWNER.id }, published: { version: 1 } }, meta: { problems: [] } }
+      })
+      renderList('/things?view=none')
+      await screen.findByText('Thing 1')
+      openMenu('Views')
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as a new view' }))
+      fireEvent.change(await screen.findByLabelText(/View name/), { target: { value: 'Quick look' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save view' }))
+      await waitFor(() => expect(api.post.mock.calls.some(([path]) => path === 'config/list_view/d-1/publish')).toBe(true))
+      const saved = api.post.mock.calls.find(([path]) => path === 'config/list_view')[1]
+      expect(saved).toMatchObject({ key: 'things', scope_type: 'user', scope_id: OWNER.id })
+      expect(saved.payload.views.at(-1)).toMatchObject({ id: 'quick-look', name: 'Quick look', filters: {}, sort: null })
+      expect(saved.payload.views.at(-1).columns.map((column) => column.id)).toEqual(['name', 'code', 'notes'])
+    })
+  })
 })

@@ -70,6 +70,9 @@ class PermissionRegistry
         // BR-04..BR-06: the tenant's subdomain, custom domains and the
         // email sender and SMS sender ID (tenant scope; Owner, Admin).
         'domain' => ['manage'],
+        // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
+        // the tenant and its roles (personal ones need no permission).
+        'layout' => ['view', 'edit', 'publish'],
         // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
         'custom_field' => ['view', 'manage'],
     ];
