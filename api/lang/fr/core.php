@@ -799,6 +799,8 @@ return [
             'yearly_needs_year' => 'Un numéro qui recommence chaque année doit contenir {YYYY} ou {YY}, sinon les numéros de deux années se répéteraient.',
             'gapless_range' => 'Les caisses tirent ces numéros de plages attribuées à l’avance, qui laissent des trous. Désactivez « sans trou » pour ce type de document.',
             'reset_locked' => 'Des numéros ont déjà été émis avec ce format : sa remise à zéro ne peut plus changer.',
+            'prefix_used' => 'Un autre format a déjà imprimé des numéros que ce modèle pourrait imprimer à nouveau. Choisissez un modèle avec un préfixe propre.',
+            'code_prefix_used' => 'Des numéros portant ce code ont déjà été imprimés par une autre séquence de numérotation : les nouveaux numéros pourraient les répéter. Choisissez un autre code.',
             'pattern_collision' => 'Un autre format de ce type de document imprime les mêmes numéros. Changez le modèle, par exemple ajoutez {BRANCH} ou un préfixe propre.',
             'pattern_too_long' => 'Les numéros de ce modèle pourraient dépasser :max caractères. Raccourcissez le modèle ou les codes qu’il imprime.',
             'branch_company' => 'Choisissez une agence de la société sélectionnée.',

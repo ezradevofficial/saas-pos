@@ -23,13 +23,19 @@ use InvalidArgumentException;
  * - a pattern identical to another format of the same type is refused,
  *   unless both are branch formats of one company using {BRANCH} (branch
  *   codes are unique in a company);
+ * - a pattern whose sequences would print in a prefix space another
+ *   sequence has already printed in (a pattern given up and taken back
+ *   elsewhere) is refused (NumberPrefixes);
  * - the longest number a pattern can print (the longest branch code in
  *   reach, 10-character location and device codes, a 12-digit counter)
  *   must fit the 80 characters stored (M5).
  */
 class NumberFormats
 {
-    public function __construct(private readonly Numbering $numbering) {}
+    public function __construct(
+        private readonly Numbering $numbering,
+        private readonly NumberPrefixes $prefixes,
+    ) {}
 
     /**
      * @param  array{document_type: string, company_id: ?string, branch_id: ?string, pattern: string, reset: string, gapless: bool}  $data
@@ -59,6 +65,7 @@ class NumberFormats
 
             $this->assertNoTwin($format, $data);
             $inherited = $format->exists ? null : $this->numbering->formatAt($data['document_type'], $data['company_id'], $data['branch_id']);
+            $this->prefixes->assertFormat($format, $data['pattern'], $data['reset'], $inherited);
 
             $format->fill(['pattern' => $data['pattern'], 'reset' => $data['reset'], 'gapless' => (bool) $data['gapless']])->save();
 

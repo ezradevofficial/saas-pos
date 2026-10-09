@@ -77,9 +77,12 @@ class Numbering
         }
 
         $period = $this->period($format, $context);
-        [, $value] = $this->advance($format, $period, 1);
+        [$sequenceId, $value] = $this->advance($format, $period, 1);
+        $number = $this->render($format->parsed(), $context->values(), $value);
+        // M2: the prefix this counter now prints under (NumberPrefixes).
+        NumberPrefixes::record($sequenceId, NumberPrefixes::concrete($format->parsed(), $context->placeValues(), $format->reset === NumberFormat::RESET_YEARLY ? $period : null));
 
-        return new IssuedNumber($value, $period, $this->render($format->parsed(), $context->values(), $value), $format->id);
+        return new IssuedNumber($value, $period, $number, $format->id);
     }
 
     /**
@@ -123,6 +126,7 @@ class Numbering
         }
 
         [$sequenceId, $from] = $this->advance($format, $period, $size);
+        NumberPrefixes::record($sequenceId, $frozenPattern->pattern);
 
         return new ReservedBlock($format->id, $sequenceId, $period, $from, $from + $size - 1, $frozenPattern->pattern);
     }
