@@ -306,6 +306,9 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
               keyboardType="decimal-pad"
               value={amountText}
               onChangeText={setAmountText}
+              // A keyboard's Enter does what the button beside it does.
+              returnKeyType="done"
+              onSubmitEditing={() => add(amountText ? parseAmount(amountText, decimalsOf(active.currency)) : remainingActive)}
               placeholder={remainingActive ? money(remainingActive, active.currency).replace(`${active.currency} `, '') : undefined}
             />
             {isMobile(active.method) || active.method.type === 'card' ? (
