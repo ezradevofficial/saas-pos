@@ -1,4 +1,6 @@
 import {
+  Brush,
+  Globe,
   Archive,
   ArchiveRestore,
   ArrowDown,
@@ -143,6 +145,8 @@ const ICONS = {
   chart: ChartColumn,
   payments: Wallet,
   fiscal: Landmark,
+  brand: Brush,
+  domains: Globe,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

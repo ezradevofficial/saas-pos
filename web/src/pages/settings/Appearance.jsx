@@ -5,7 +5,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/theme/ThemeProvider'
 import { sampleBrand } from '@/theme/sampleBrand'
-import { DEFAULT_THEME, THEMES } from '@/theme/themes'
+import { THEMES } from '@/theme/themes'
 
 function ThemeOption({ id, label, description, checked, onChange }) {
   return (
@@ -35,7 +35,7 @@ function ThemeOption({ id, label, description, checked, onChange }) {
 /** BR-01, BR-02: the four themes, applied at once, and a tenant brand preview. */
 export default function Appearance() {
   const { t } = useTranslation()
-  const { theme, setTheme, overrides, setOverrides } = useTheme()
+  const { theme, setTheme, clearTheme, overrides, setOverrides } = useTheme()
   // Still on after leaving and coming back: the overrides stay until reset or reload.
   const [brandPreview, setBrandPreview] = useState(() => Object.keys(overrides ?? {}).length > 0)
 
@@ -66,7 +66,8 @@ export default function Appearance() {
   const reset = () => {
     setBrandPreview(false)
     setOverrides({})
-    setTheme(DEFAULT_THEME)
+    // Back to the business's own look (BR-02), or Light when it has none.
+    clearTheme()
   }
 
   return (

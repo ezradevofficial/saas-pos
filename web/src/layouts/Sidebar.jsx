@@ -21,6 +21,8 @@ import { useWaitingCount } from '@/lib/approvals'
 import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
+import { brandLogo, sidebarIsDark } from '@/theme/brandLogo'
+import { useTheme } from '@/theme/ThemeProvider'
 import { CompanySwitcher } from './CompanySwitcher'
 import { useCompanies } from './companySelection'
 import { NAV_GROUPS, visibleGroups } from './navigation'
@@ -53,17 +55,36 @@ export function LogoMark({ tone = 'sidebar' }) {
 function LogoBlock({ showBell }) {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { theme, brand } = useTheme()
   const tenantName = user?.tenant?.name
+  // BR-02: the tenant's logo replaces the mark and the platform name.
+  const logo = brandLogo(brand, sidebarIsDark(theme, brand?.theme))
   return (
     <div className="flex items-center gap-3 border-b border-sidebar-border px-2 pb-4">
-      <LogoMark />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-h3 text-sidebar-ink-active">{t('app.name')}</div>
-        {tenantName ? <div className="truncate text-caption text-sidebar-ink">{tenantName}</div> : null}
-      </div>
+      {logo ? (
+        <div className="min-w-0 flex-1">
+          <img src={logo} alt={tenantName ?? t('app.name')} className="max-h-10 max-w-full object-contain object-left" />
+        </div>
+      ) : (
+        <>
+          <LogoMark />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-h3 text-sidebar-ink-active">{t('app.name')}</div>
+            {tenantName ? <div className="truncate text-caption text-sidebar-ink">{tenantName}</div> : null}
+          </div>
+        </>
+      )}
       {showBell ? <NotificationBell /> : null}
     </div>
   )
+}
+
+/** BR-07: "Powered by" the platform, unless the platform hid it for this tenant. */
+export function PoweredBy({ className }) {
+  const { t } = useTranslation()
+  const { brand } = useTheme()
+  if (brand?.hidePlatform) return null
+  return <p className={cn('text-caption', className)}>{t('app.poweredBy', { name: t('app.name') })}</p>
 }
 
 /**
@@ -172,8 +193,9 @@ export function Sidebar({ onNavigate, showBell = true, className }) {
           </section>
         ))}
       </nav>
-      <div className="border-t border-sidebar-border pt-3">
+      <div className="flex flex-col gap-2 border-t border-sidebar-border pt-3">
         <AccountMenu />
+        <PoweredBy className="px-2 text-sidebar-ink" />
       </div>
     </div>
   )

@@ -42,4 +42,5 @@ module.exports = {
   CORNERS: brand.CORNERS,
   FONTS: brand.FONTS,
   SIDEBARS: brand.SIDEBARS,
+  baseFor: brand.baseFor,
 };
