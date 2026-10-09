@@ -75,7 +75,11 @@ class LinkMobileMoneyPayments implements ShouldQueue
                 // Paid through an intent already (an STK push): for this sale, the payment is confirmed;
                 // for another sale, the code is being used twice.
                 if ($paid->reference === $sale->id) {
-                    if ($paid->mode === 'stk' || $paid->verification === 'verified') {
+                    $sameMoney = $paid->amount_minor === (int) $payment->amount_minor && $paid->currency === $payment->currency;
+
+                    if (! $sameMoney) {
+                        RecordFlags::add($sale, 'mpesa_mismatch', ['payment_id' => $payment->id, 'result_code' => 'amount_mismatch']);
+                    } elseif ($paid->mode === 'stk' || $paid->verification === 'verified') {
                         $payment->forceFill(['status' => SalePayment::CONFIRMED])->save();
                     }
                 } elseif ($paid->id !== $payment->id) {
@@ -135,8 +139,10 @@ class LinkMobileMoneyPayments implements ShouldQueue
                     'created_by' => $refund->cashier_id,
                 ]);
             } catch (ApiException $e) {
-                // Not payable by the provider (another currency, cents): refunded another way.
+                // Not payable by the provider (more than was paid, another currency, cents): flagged
+                // for the back office, refunded another way.
                 Log::warning('POS mobile money refund not paid out', ['refund' => $refund->id, 'code' => $e->errorCode]);
+                RecordFlags::add($refund, 'payout_refused', ['payment_id' => $payment->id, 'result_code' => $e->errorCode]);
             }
         }
     }

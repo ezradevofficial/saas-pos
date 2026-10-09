@@ -21,8 +21,10 @@ use Modules\POS\PosServiceProvider;
  *
  * - `pos.sale`: the sale's mobile money payment (the intent's own id, or
  *   the payment carrying its receipt) becomes `confirmed` once the push
- *   was paid or the typed code verified; a mismatch (another amount, a
- *   code M-Pesa does not know) flags the sale `mpesa_mismatch`.
+ *   was paid or the typed code verified, for the payment's own amount and
+ *   currency; a mismatch (another amount or currency, a code M-Pesa does
+ *   not know) flags the sale `mpesa_mismatch`. Only sale intents (STK or
+ *   manual) count for `pos.sale`, only payouts for `pos.refund`.
  * - `pos.refund`: the refund payment paid back by B2C becomes `confirmed`;
  *   a payout that failed or timed out flags the refund `payout_failed`.
  *
@@ -48,7 +50,13 @@ class ApplyPaymentSettlement implements ShouldQueue
                 return;
             }
 
-            DB::transaction(fn () => $event->referenceType === 'pos.sale' ? $this->sale($intent) : $this->refund($intent));
+            // Each reference type has one kind of intent: a sale payment, or a payout for a refund.
+            $sale = $event->referenceType === 'pos.sale' && $intent->purpose === 'sale' && in_array($intent->mode, ['stk', 'manual'], true);
+            $refund = $event->referenceType === 'pos.refund' && $intent->purpose === 'refund' && $intent->mode === 'payout';
+
+            if ($sale || $refund) {
+                DB::transaction(fn () => $sale ? $this->sale($intent) : $this->refund($intent));
+            }
         });
     }
 
@@ -68,8 +76,10 @@ class ApplyPaymentSettlement implements ShouldQueue
             return;
         }
 
-        $paid = $intent->verification === 'verified' || ($intent->mode === 'stk' && $intent->status === 'succeeded');
-        $mismatch = $intent->verification === 'mismatch' || ($intent->mode === 'stk' && in_array($intent->status, ['failed', 'cancelled', 'timeout'], true));
+        // The provider's money must be this payment's: same amount and currency (review 6).
+        $sameMoney = $intent->amount_minor === (int) $payment->amount_minor && $intent->currency === $payment->currency;
+        $paid = $sameMoney && ($intent->verification === 'verified' || ($intent->mode === 'stk' && $intent->status === 'succeeded'));
+        $mismatch = ! $sameMoney || $intent->verification === 'mismatch' || ($intent->mode === 'stk' && in_array($intent->status, ['failed', 'cancelled', 'timeout'], true));
 
         if ($paid && $payment->status !== SalePayment::CONFIRMED) {
             $payment->forceFill(['status' => SalePayment::CONFIRMED])->save();

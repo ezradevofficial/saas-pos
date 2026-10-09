@@ -253,6 +253,49 @@ class PaymentsAndFiscalTest extends TestCase
         $this->assertCount(1, $this->sale($reused['id'])->flags);
     }
 
+    public function test_a_push_paid_for_another_amount_does_not_confirm_the_sale_payment(): void
+    {
+        // A push for KES 1,000.00 was paid (as the STK callback would settle it), the till recorded KES 1,125.00.
+        $sale = $this->saleBody($this->shift, 1, ['cashier_id' => $this->cashier->id]);
+        $this->inTenant(fn () => PaymentIntent::create([
+            'id' => $this->id(), 'company_id' => $this->acme->id, 'location_id' => $this->locationA->id, 'device_id' => $this->till->id,
+            'payment_method_id' => $this->methods['mpesa']->id, 'provider' => 'mpesa_ke', 'driver' => 'mpesa_daraja', 'purpose' => 'sale', 'mode' => 'stk',
+            'currency' => 'KES', 'amount_minor' => 100000, 'reference_type' => 'pos.sale', 'reference' => $sale['id'],
+            'status' => 'succeeded', 'provider_receipt' => 'QJK3PUSH01',
+        ]));
+        $sale['payments'][0] = [...$sale['payments'][0], 'payment_method_id' => $this->methods['mpesa']->id, 'provider_reference' => 'QJK3PUSH01', 'status' => 'pending'];
+
+        $this->upload([$sale])->assertOk();
+
+        $this->inTenant(fn () => $this->assertSame('pending', SalePayment::query()->findOrFail($sale['payments'][0]['id'])->status));
+        $this->assertSame(['mpesa_mismatch'], array_column($this->sale($sale['id'])->flags, 'code'));
+    }
+
+    public function test_a_refund_above_what_the_customer_paid_is_not_paid_out(): void
+    {
+        $this->inTenant(fn () => $this->methods['mpesa']->fill([
+            'settings' => ['shortcode' => '174379', 'initiator_name' => 'apiop'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk', 'security_credential' => 'sc'],
+        ])->save());
+        $sale = $this->mpesaSale(1, 'QJK3SMALL1');
+        // The provider only took KES 500.00 of it (another tender paid the rest).
+        $this->inTenant(fn () => PaymentIntent::query()->sole()->fill(['phone' => '254712345678', 'amount_minor' => 50000])->save());
+
+        $refund = [
+            'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->cashier->id,
+            'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(),
+            'reason' => 'Damaged', 'total_minor' => '112500',
+            'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '2']],
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['mpesa']->id, 'currency' => 'KES', 'amount_minor' => '112500', 'amount_in_sale_minor' => '112500', 'status' => 'pending']],
+            'override' => $this->override($this->manager->id),
+        ];
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$refund]], $this->tillHeaders())->assertOk();
+
+        $this->inTenant(function () use ($refund) {
+            $this->assertSame(0, PaymentIntent::query()->where('purpose', 'refund')->count());
+            $this->assertSame([['code' => 'payout_refused', 'detail' => ['payment_id' => $refund['payments'][0]['id'], 'result_code' => 'refund_exceeds_payment']]], Refund::query()->findOrFail($refund['id'])->flags);
+        });
+    }
+
     public function test_a_failed_payout_flags_the_refund(): void
     {
         $this->inTenant(fn () => $this->methods['mpesa']->fill([
