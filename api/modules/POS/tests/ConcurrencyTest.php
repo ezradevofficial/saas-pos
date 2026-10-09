@@ -159,6 +159,36 @@ class ConcurrencyTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(1, Sale::query()->count()));
     }
 
+    public function test_the_same_sale_posted_at_once_to_the_endpoint_is_stored_once_and_a_changed_copy_is_refused(): void
+    {
+        // NFR-04 (Task 7): the till's retry races its first upload through HTTP, and a copy with another body races too.
+        $this->ranges()->assertOk();
+        $shift = $this->openShift();
+        $sale = $this->saleBody($shift, 1);
+        $changed = [...$sale, 'sold_at' => now()->subMinutes(30)->toIso8601String()];
+        $post = fn (array $body) => fn () => ['status' => ($r = $this->upload([$body]))->status(), 'result' => $r->json('results.0')];
+
+        $results = $this->race([$post($sale), $post($sale), $post($sale), $post($sale), $post($changed), $post($changed)]);
+
+        $this->inTenant(fn () => $this->assertSame(1, Sale::query()->count()));
+        $storedSoldAt = $this->inTenant(fn () => Sale::query()->sole()->sold_at->toIso8601String());
+        $winner = $storedSoldAt === $changed['sold_at'] ? 'changed' : 'sale';
+        $answers = [];
+
+        foreach ($results as $index => $outcome) {
+            $mine = $index < 4 ? 'sale' : 'changed';
+
+            if ($mine === $winner) {
+                $this->assertSame([200, 'stored'], [$outcome['status'], $outcome['result']['status']], json_encode($outcome));
+                $answers[] = json_encode($outcome['result']);
+            } else {
+                $this->assertSame([422, 'payload_mismatch'], [$outcome['status'], $outcome['result']['error']['code']], json_encode($outcome));
+            }
+        }
+
+        $this->assertCount(1, array_unique($answers), 'every request with the stored body got the same answer');
+    }
+
     /**
      * Run each closure in its own forked process with its own database
      * session, all released at the same instant, in the owner's tenant;
