@@ -20,8 +20,11 @@ use Modules\POS\Models\ShiftBalance;
  * shift is sent when opened (with its float per currency) and again when
  * closed (with the cash counted per currency); one upload may carry both.
  * Opening needs `pos.shift.open`; closing one's own shift
- * `pos.shift.close`, another cashier's `pos.shift.manage`. One shift is
- * open per device at a time.
+ * `pos.shift.close`, another cashier's `pos.shift.manage`. A shift is
+ * never refused for that (the till already used it: its sales must land):
+ * it is stored and flagged `opener_not_permitted` or
+ * `closer_not_permitted` for review, as sales are. One shift is open per
+ * device at a time.
  *
  * Expected cash per currency at close = opening float + cash tendered on
  * the shift's completed sales − change given + pay-ins − pay-outs − cash
@@ -73,8 +76,12 @@ class ShiftUploads
         }
 
         if ($closing !== null && $shift->isOpen()) {
-            $closer = $this->closer($place, $shift->opened_by, $closing);
-            $shift->forceFill(['status' => Shift::CLOSED, 'closed_by' => $closer->id, 'closed_at' => CarbonImmutable::parse($closing['closed_at'])->utc()])->save();
+            $flags = new Flags;
+            $closer = $this->closer($place, $shift->opened_by, $closing, $flags);
+            $shift->forceFill([
+                'status' => Shift::CLOSED, 'closed_by' => $closer->id, 'closed_at' => CarbonImmutable::parse($closing['closed_at'])->utc(),
+                'flags' => self::flags([...($shift->flags ?? []), ...$flags->all()]),
+            ])->save();
             $this->settle($shift, $closer, $closing);
         }
 
@@ -85,12 +92,13 @@ class ShiftUploads
     private function open(DevicePlace $place, array $data, ?array $closing): Shift
     {
         $opener = $this->authority->user($data['opened_by_id'], 'opened_by_id');
+        $flags = new Flags;
 
         if (! $this->authority->can($opener, 'pos.shift.open', $place->scope())) {
-            throw new Rejection('not_permitted', 'opened_by_id');
+            $flags->add('opener_not_permitted', null, ['permission' => 'pos.shift.open']);
         }
 
-        $closer = $closing === null ? null : $this->closer($place, $opener->id, $closing);
+        $closer = $closing === null ? null : $this->closer($place, $opener->id, $closing, $flags);
 
         if ($closer === null && Shift::query()->where('device_id', $place->device->id)->where('status', Shift::OPEN)->exists()) {
             throw new Rejection('shift_already_open', 'id', retryable: true);
@@ -106,6 +114,7 @@ class ShiftUploads
             'closed_by' => $closer?->id,
             'closed_at' => $closer === null ? null : CarbonImmutable::parse($closing['closed_at'])->utc(),
             'received_at' => now(),
+            'flags' => self::flags($flags->all()),
         ]);
 
         foreach ($data['opening_float'] ?? [] as $index => $float) {
@@ -125,17 +134,23 @@ class ShiftUploads
         return $shift;
     }
 
-    /** Who closes: the opener with `pos.shift.close`, anyone else with `pos.shift.manage`. */
-    private function closer(DevicePlace $place, string $openedBy, array $closing): User
+    /** Who closes: the opener with `pos.shift.close`, anyone else with `pos.shift.manage`; flagged without it. */
+    private function closer(DevicePlace $place, string $openedBy, array $closing, Flags $flags): User
     {
         $closer = $this->authority->user($closing['closed_by_id'], 'closing.closed_by_id');
         $permission = $closer->id === $openedBy ? 'pos.shift.close' : 'pos.shift.manage';
 
         if (! $this->authority->can($closer, $permission, $place->scope())) {
-            throw new Rejection('not_permitted', 'closing.closed_by_id');
+            $flags->add('closer_not_permitted', null, ['permission' => $permission]);
         }
 
         return $closer;
+    }
+
+    /** A shift's flags column: null when nothing was noticed. */
+    private static function flags(array $flags): ?array
+    {
+        return $flags === [] ? null : $flags;
     }
 
     /** The cash-up: expected, counted and variance per currency; the shift closed, audited and announced. */

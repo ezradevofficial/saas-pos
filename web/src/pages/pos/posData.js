@@ -40,6 +40,7 @@ export const FLAG_CODES = [
   'override_unverified',
   'override_offline',
   'received_after_close',
+  'shift_missing',
   'clock_ahead',
 ]
 

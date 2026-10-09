@@ -2,6 +2,7 @@
 
 namespace Modules\POS\Tests;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Prices\ItemPrice;
 use Modules\POS\Models\NumberRange;
 use Modules\POS\Models\Sale;
@@ -18,7 +19,8 @@ use Tests\TestCase;
 // meets when it comes back online, through the device endpoints:
 // duplicate uploads, conflicts (server wins on master data, device wins on
 // completed sales), number range exhaustion and the next range, and a
-// backlog in another order than the engine's. Racing duplicates are in
+// backlog in another order than the engine's, shifts flagged rather than
+// refused, and sales whose shift never arrives. Racing duplicates are in
 // ConcurrencyTest (real concurrent sessions).
 class OfflineEdgeCasesTest extends TestCase
 {
@@ -246,29 +248,86 @@ class OfflineEdgeCasesTest extends TestCase
     }
 
     /**
-     * GAP (reported, not fixed): a shift the server refuses for good (here
-     * its opener may not open shifts) leaves every sale of that shift
-     * answered `shift_unknown` with `retryable: true`. The engine retries
-     * them with backoff for ever; they never reach the server or the back
-     * office. Money taken on the till is invisible until someone fixes the
-     * shift by hand. The sales should be refused for review (non-retryable,
-     * naming the refused shift) or kept against a placeholder shift.
+     * Was the gap "sales of a refused shift retry for ever". A shift is no
+     * longer refused for its opener's permission: it is stored and flagged
+     * `opener_not_permitted`, so its sales land on it (POS-04, NFR-04).
      */
-    public function test_gap_sales_of_a_refused_shift_retry_for_ever(): void
+    public function test_a_shift_opened_by_someone_without_the_permission_is_kept_flagged_and_its_sales_land(): void
     {
         $this->ranges()->assertOk();
         $stranger = $this->inTenant(fn () => $this->colleague($this->owner));
         $shift = $this->shiftBody(['opened_by_id' => $stranger->id]);
 
-        $this->shifts([$shift])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'not_permitted')->assertJsonPath('results.0.error.retryable', false);
+        $this->shifts([$shift])->assertOk()
+            ->assertJsonPath('results.0.status', 'stored')
+            ->assertJsonPath('results.0.flags.0.code', 'opener_not_permitted');
+        $this->upload([$this->saleBody($shift['id'], 1)])->assertOk()->assertJsonPath('results.0.status', 'stored');
 
-        foreach (range(1, 3) as $attempt) {
-            $this->upload([$this->saleBody($shift['id'], 1)])->assertUnprocessable()
-                ->assertJsonPath('results.0.error.code', 'shift_unknown')
-                ->assertJsonPath('results.0.error.retryable', true);
-        }
-        $this->inTenant(fn () => $this->assertSame(0, Sale::count()));
+        $this->inTenant(function () use ($shift) {
+            $this->assertSame(1, Sale::where('shift_id', $shift['id'])->count());
+            $this->assertSame('opener_not_permitted', Shift::findOrFail($shift['id'])->flags[0]['code']);
+        });
+        // The back office sees the shift's flags.
+        $this->getJson("/api/v1/pos/shifts/{$shift['id']}", $this->headersFor())->assertOk()->assertJsonPath('data.flags.0.code', 'opener_not_permitted');
+    }
 
-        $this->markTestIncomplete('GAP: sales of a shift the server refused stay retryable (shift_unknown) for ever; see the docblock.');
+    /**
+     * NFR-04: a sale naming a shift the server never received waits
+     * (`shift_unknown`, retryable) for `pos.unknown_shift_grace_hours`
+     * after it was sold; after that it is stored on a closed placeholder
+     * shift with the device's shift id (flagged `placeholder`), flagged
+     * `shift_missing`, and waits in the flagged-sale review (M3).
+     */
+    public function test_a_sale_whose_shift_never_arrives_is_stored_on_a_placeholder_after_the_grace(): void
+    {
+        $this->ranges()->assertOk();
+        $missing = $this->id();
+        $recent = $this->saleBody($missing, 1, ['sold_at' => now()->subHours(71)->toIso8601String()]);
+        $old = $this->saleBody($missing, 2, ['sold_at' => now()->subHours(73)->toIso8601String()]);
+
+        // Inside the grace: still waiting, nothing stored.
+        $this->upload([$recent])->assertUnprocessable()
+            ->assertJsonPath('results.0.error.code', 'shift_unknown')
+            ->assertJsonPath('results.0.error.retryable', true);
+
+        // Past it: stored, flagged, on a placeholder; a resend answers the same.
+        $first = $this->upload([$old])->assertOk()
+            ->assertJsonPath('results.0.status', 'stored')
+            ->assertJsonPath('results.0.flags', [['code' => 'shift_missing']])
+            ->json('results.0');
+        $this->assertSame($first, $this->upload([$old])->assertOk()->json('results.0'));
+
+        // The placeholder now exists, so the sale still inside the grace lands on it too, flagged.
+        $this->upload([$recent])->assertOk()->assertJsonPath('results.0.flags', [['code' => 'shift_missing']]);
+
+        $this->inTenant(function () use ($missing, $old) {
+            $placeholder = Shift::findOrFail($missing);
+            $this->assertSame([Shift::CLOSED, $this->till->id, [['code' => 'placeholder']]], [$placeholder->status, $placeholder->device_id, $placeholder->flags]);
+            $this->assertSame($this->owner->id, $placeholder->opened_by);
+            $this->assertSame(2, Sale::where('shift_id', $missing)->count());
+            $this->assertSame(1, AuditEntry::where('action', 'pos.shift.placeholder')->count());
+            // H4: the placeholder's expected cash follows its sales (nothing counted).
+            $this->assertSame('225000', (string) ShiftBalance::where('shift_id', $missing)->where('currency', 'KES')->sole()->expected_minor);
+            $this->assertNull(Sale::findOrFail($old['id'])->reviewed_at);
+        });
+
+        // Back-office review: the sale waits among flagged, unreviewed sales and is acknowledged there.
+        $this->getJson('/api/v1/pos/sales?flag=shift_missing&reviewed=0', $this->headersFor())->assertOk()->assertJsonCount(2, 'data');
+        $this->postJson("/api/v1/pos/sales/{$old['id']}/review", ['note' => 'Shift lost on the till'], $this->headersFor())->assertOk();
+        $this->getJson('/api/v1/pos/sales?flag=shift_missing&reviewed=0', $this->headersFor())->assertOk()->assertJsonCount(1, 'data');
+
+        // The real shift arriving later is answered as stored (the placeholder stands; its float is left to review).
+        $this->shifts([$this->shiftBody(['id' => $missing])])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'closed')
+            ->assertJsonPath('results.0.flags.0.code', 'placeholder');
+    }
+
+    public function test_the_grace_is_configurable(): void
+    {
+        config(['pos.unknown_shift_grace_hours' => 1]);
+        $this->ranges()->assertOk();
+
+        $this->upload([$this->saleBody($this->id(), 1, ['sold_at' => now()->subHours(2)->toIso8601String()])])->assertOk()
+            ->assertJsonPath('results.0.flags.0.code', 'shift_missing');
     }
 }

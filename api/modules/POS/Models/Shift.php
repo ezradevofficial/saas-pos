@@ -37,6 +37,8 @@ class Shift extends Model implements HasScope
             'closed_at' => 'immutable_datetime',
             'received_at' => 'immutable_datetime',
             'closed_received_at' => 'immutable_datetime',
+            // POS-04: what the server noticed without refusing (opener_not_permitted, closer_not_permitted, placeholder); null when nothing.
+            'flags' => 'array',
         ];
     }
 
