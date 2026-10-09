@@ -194,12 +194,19 @@ class OfflineWeekTest extends TestCase
 
         // The acknowledgements were lost: the whole outbox goes again. Same answers, nothing new
         // (equal as JSON: a stored flag's detail comes back from jsonb with its keys reordered).
+        // A resend answers with the record as it is now, so a sale also carries the flags its own
+        // refund or void routed to it after the first answer (refund_flagged, void_flagged; POS-09).
         $again = $this->pushOutbox($this->device);
         $this->assertSame([], array_values(array_filter($again['results'], fn ($r) => $r['status'] !== 'stored')));
-        $this->assertEquals(
-            collect($first['results'])->where('kind', '!=', 'pos.shifts')->values()->all(),
-            collect($again['results'])->where('kind', '!=', 'pos.shifts')->values()->all(),
-        );
+        $withoutRouted = fn (array $results) => collect($results)->where('kind', '!=', 'pos.shifts')->map(function ($r) {
+            if (isset($r['flags'])) {
+                $r['flags'] = array_values(array_filter($r['flags'], fn ($f) => ! in_array($f['code'], ['refund_flagged', 'void_flagged'], true)));
+            }
+
+            return $r;
+        })->values()->all();
+        $this->assertEquals($withoutRouted($first['results']), $withoutRouted($again['results']));
+        $this->assertTrue(collect($again['results'])->contains(fn ($r) => collect($r['flags'] ?? [])->contains('code', 'refund_flagged')));
         $this->assertStoredOnce($sales, $receipts, $voided, $refunded, $cash);
 
         // Pull from the frozen cursors, in small pages: every change, in cursor order, no gaps.
