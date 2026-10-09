@@ -3,6 +3,7 @@
 namespace Modules\POS\Documents;
 
 use App\Core\Currency\CurrencyDecimals;
+use App\Core\DocumentTemplates\DataSources;
 use App\Core\DocumentTemplates\DocumentData;
 use App\Core\DocumentTemplates\FiscalRules;
 use App\Core\Fiscal\FiscalQueue;
@@ -46,7 +47,7 @@ class ReceiptData
         [$company, $branch, $location] = $this->place($sale->company_id, $sale->branch_id, $sale->location_id);
         $currency = $sale->currency;
         $lines = $sale->lines;
-        $items = Item::query()->whereIn('id', $lines->pluck('item_id')->unique())->get(['id', 'code'])->keyBy('id');
+        $items = Item::query()->whereIn('id', $lines->pluck('item_id')->unique())->get(['id', 'code', 'custom'])->keyBy('id');
         $uoms = Uom::query()->whereIn('id', $lines->pluck('uom_id')->unique())->get(['id', 'code'])->keyBy('id');
         $customer = $sale->customer_id === null ? null : Party::query()->find($sale->customer_id);
         $methods = PaymentMethod::query()->whereIn('id', $sale->payments->pluck('payment_method_id')->unique())->pluck('name', 'id');
@@ -71,7 +72,8 @@ class ReceiptData
                 'tax_rate' => $line->tax_rate === null ? null : self::decimal((string) $line->tax_rate),
                 'tax' => $this->money($line->tax_minor, $currency),
                 'total' => $this->money($line->total_minor, $currency),
-                'custom' => [],
+                // CF-03: the item's custom fields, as display text.
+                'custom' => DataSources::customValues('item', $items->get($line->item_id)?->custom),
             ])->values()->all(),
             'totals' => [
                 'subtotal' => $this->money($sale->subtotal_minor, $currency),
@@ -187,8 +189,8 @@ class ReceiptData
                 'email' => $this->email($customer),
                 'address' => self::address($customer->addresses[0] ?? null),
                 'tags' => array_values((array) $customer->tags),
-                // CF-01: custom field values join through DataSources::customFields().
-                'custom' => (array) ($customer->getAttribute('custom') ?? []),
+                // CF-03: the party's custom fields, as display text.
+                'custom' => DataSources::customValues('party', $customer->custom),
             ],
         ];
     }

@@ -6,6 +6,7 @@ use App\Core\Approvals\Http\NoReferrer;
 use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\ConfigKinds;
 use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\CustomFields\CustomFieldMergeFields;
 use App\Core\DocumentTemplates\Http\Controllers\SharedDocumentController;
 use App\Core\Localisation\Http\SetLocale;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -43,6 +44,16 @@ class DocumentTemplatesServiceProvider extends ServiceProvider
             if ($sources->find($type) === null) {
                 $sources->register(new SampleSource($type));
             }
+        }
+
+        // CF-03: custom fields of parties and items as merge fields
+        // (`customer.custom.<key>`, the `custom.<key>` line column). Printed
+        // documents are system renders: every active field, as display text.
+        foreach (['customer' => 'party', 'lines' => 'item'] as $group => $entity) {
+            $sources->customFields($group, fn () => array_map(
+                fn (array $field) => ['key' => substr($field['name'], strlen(CustomFieldMergeFields::PREFIX)), 'label' => $field['label'], 'type' => 'text'],
+                app(CustomFieldMergeFields::class)->fields($entity, null),
+            ));
         }
 
         $this->app->make(ConfigKinds::class)->register(new ConfigKind(

@@ -2,6 +2,7 @@
 
 namespace App\Core\DocumentTemplates;
 
+use App\Core\CustomFields\CustomFieldMergeFields;
 use Closure;
 
 /**
@@ -12,16 +13,16 @@ use Closure;
  * totals, payments and fiscal; the source adds its document fields and
  * line columns.
  *
- * Custom fields (CF-01, built separately) join with one line per entity,
- * in the custom fields provider's boot():
+ * Custom fields (CF-03) join with one line per entity group; parties and
+ * items are wired in DocumentTemplatesServiceProvider:
  *
- *   app(DataSources::class)->customFields('customer', fn () => CustomFieldDefinitions::for('parties'));
+ *   app(DataSources::class)->customFields('customer', fn () => [...]);
  *
  * The closure returns `[{key, label, type}]` (label as typed by the
  * tenant, type text|money|date|qty|rate); the fields appear as
  * `customer.custom.{key}` (for `lines`: the `custom.{key}` line column).
- * Data builders already copy the record's `custom` jsonb into the data
- * (`customer.custom`, each line's `custom`), so nothing else changes.
+ * Data builders put the record's custom values as display text into the
+ * data (`customer.custom`, each line's `custom`; see DataSources::customValues).
  */
 class DataSources
 {
@@ -156,5 +157,24 @@ class DataSources
         }
 
         return $definitions;
+    }
+
+    /**
+     * CF-03: a record's custom values as display text, keyed by field key,
+     * for a data builder (`'custom' => DataSources::customValues('party', $party->custom)`).
+     *
+     * @return array<string, string>
+     */
+    public static function customValues(string $entity, ?array $custom): array
+    {
+        $values = [];
+
+        foreach (app(CustomFieldMergeFields::class)->values($entity, null, $custom) as $name => $text) {
+            if ($text !== '') {
+                $values[substr($name, strlen(CustomFieldMergeFields::PREFIX))] = $text;
+            }
+        }
+
+        return $values;
     }
 }

@@ -6,6 +6,7 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\Fiscal\FiscalQueue;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Identity\Models\PersonalAccessToken;
@@ -280,6 +281,11 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", [], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
+        // TPL-01: a template preview the owner made (its PDF is kept for a few minutes).
+        $templatePreview = basename(dirname((string) parse_url(self::ok($test->postJson('/api/v1/templates/preview', [
+            'type' => 'sales.quote', 'payload' => DefaultTemplates::for('sales.quote'),
+        ], $owner))->json('data.pdf_url'), PHP_URL_PATH)));
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -510,6 +516,7 @@ final class TwoTenants
                 'payment_receipt' => $paymentReceipt,
                 'fiscal_submission' => $fiscalSubmission,
                 'config_document' => $configDocument,
+                'template_preview' => $templatePreview,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,
