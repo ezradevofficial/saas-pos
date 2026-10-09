@@ -64,7 +64,13 @@ class CustomFieldDefinition extends Model
     {
         $value = $this->{$which === 'min' ? 'min_value' : 'max_value'};
 
-        return $value === null ? null : rtrim(rtrim((string) $value, '0'), '.');
+        if ($value === null) {
+            return null;
+        }
+        $value = (string) $value;
+
+        // Only a decimal part loses trailing zeros ("100.000000" -> "100"); "100" stays "100".
+        return str_contains($value, '.') ? rtrim(rtrim($value, '0'), '.') : $value;
     }
 
     /** @return list<string> the option values */

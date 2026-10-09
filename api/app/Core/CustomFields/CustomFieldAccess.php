@@ -57,7 +57,8 @@ class CustomFieldAccess
         $hidden = [];
         $readonly = [];
 
-        foreach ($this->definitions->active($entity) as $definition) {
+        // Archived fields count too: their old values stay in records and history (RBAC-05).
+        foreach ($this->definitions->all($entity) as $definition) {
             $name = self::PREFIX.$definition->key;
             $sees = $owner || ($definition->visible_roles ?? []) === [] || array_intersect($definition->visible_roles, $roleIds) !== [];
 
@@ -67,10 +68,28 @@ class CustomFieldAccess
                 continue;
             }
 
+            if ($definition->archived_at !== null) {
+                continue;
+            }
+
             $edits = $owner || ($definition->editable_roles ?? []) === [] || array_intersect($definition->editable_roles, $roleIds) !== [];
 
             if (! $edits || $definition->type === 'formula' || in_array($name, $rules['readonly'], true) || in_array('custom', $rules['readonly'], true)) {
                 $readonly[] = $definition->key;
+            }
+        }
+
+        // RBAC-05: a formula reading a hidden field would reveal it, so it is hidden too
+        // (as built-in derived fields are). Formulas read only non-formula fields.
+        foreach ($this->definitions->active($entity) as $definition) {
+            if ($definition->type !== 'formula' || in_array($definition->key, $hidden, true)) {
+                continue;
+            }
+            $reads = $definition->parsedFormula()?->references() ?? [];
+
+            if (array_intersect($reads, $hidden) !== []) {
+                $hidden[] = $definition->key;
+                $readonly = array_values(array_diff($readonly, [$definition->key]));
             }
         }
 

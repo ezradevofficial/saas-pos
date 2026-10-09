@@ -58,3 +58,12 @@ An Owner always sees and edits every field. Formula fields are always read-only.
 - Built-in notification event types have fixed placeholders. Custom values reach notification texts through automation, whose placeholders are document type fields.
 - The POS app does not show custom values yet. The server sends them; the till's WatermelonDB schema and UI come with the POS layout work (task 6).
 - History may show an entry whose only change was to a hidden custom field, with that value removed.
+
+## Review fixes (phase 5)
+
+- Visibility is computed over every definition, archived ones included, so an archived role-limited field stays hidden in history.
+- A formula that reads a hidden field is hidden too, as built-in derived fields are.
+- A field shown on the till must be visible to everyone: tills keep what they receive, so role-limited values are never synced.
+- The formula result type is fixed once created, like the field type.
+- Money fields in different currencies combine to nothing in a formula.
+- File uploads are limited to 20 a minute per user. Pruning files never attached to a record is a follow-up.
