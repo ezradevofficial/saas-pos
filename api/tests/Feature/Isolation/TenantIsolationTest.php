@@ -247,6 +247,8 @@ class TenantIsolationTest extends TestCase
         ['entities' => ['items', 'customers', 'staff', 'exchange_rates'], 'cursors' => ['items' => '', 'customers' => ''], 'limit' => 1],
         // M3, H2: review filters (sales and the held list).
         ['flagged' => '1', 'flag' => 'actor_unverified', 'reviewed' => '0', 'kind' => 'refund'],
+        // TEN-07: the consolidated sales of a year in a reporting currency (both tenants sold in KES).
+        ['from' => '2026-01-01', 'to' => '2026-12-31', 'currency' => 'USD'],
     ];
 
     /**
@@ -257,7 +259,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency'];
 
     private TwoTenants $tenants;
 
@@ -461,6 +463,25 @@ class TenantIsolationTest extends TestCase
         // Control: tax categories of A's own company are listed, B's company is refused (MD-03).
         $this->assertNotEmpty($this->get('/api/v1/tax-categories?status=all&company='.$a->id('company'), $a->bearer('owner'))->assertOk()->json('data'));
         $this->get('/api/v1/tax-categories?company='.$b->id('company'), $a->bearer('owner'))->assertUnprocessable();
+    }
+
+    /** TEN-07: the consolidated sales of today hold A's sale, in KES and USD, and nothing of B. */
+    public function test_pos_insights_of_tenant_a_show_nothing_of_tenant_b(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $today = now('Africa/Nairobi')->toDateString();
+
+        foreach (['owner', 'manager'] as $who) {
+            $response = $this->getJson("/api/v1/pos/insights?from={$today}&to={$today}&currency=USD", $a->bearer($who))->assertOk();
+            $this->assertBodyHasNothingOf($b, $response, "GET pos/insights as A's {$who}");
+        }
+
+        // Control: A's owner sees A's own sales.
+        $own = $this->getJson("/api/v1/pos/insights?from={$today}&to={$today}", $a->bearer())->assertOk();
+        $this->assertGreaterThan(0, $own->json('data.sales_count'));
+        $this->assertSame([$a->id('company')], array_column(array_column($own->json('data.companies'), 'company'), 'id'));
+        $this->get("/api/v1/pos/insights?from={$today}&to={$today}&company={$b->id('company')}", ['Accept' => 'application/json', ...$a->bearer()])->assertUnprocessable();
     }
 
     /**

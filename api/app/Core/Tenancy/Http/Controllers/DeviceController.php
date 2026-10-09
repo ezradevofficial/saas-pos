@@ -36,7 +36,7 @@ class DeviceController
         abort_unless($this->visibility->reaches($request->user(), 'core.device.view', $location), 404);
 
         $query = $this->resolver->visibleIds($request->user(), 'core.device.view')
-            ->applyTo($location->devices()->getQuery(), Scope::LOCATION);
+            ->applyTo($location->devices()->getQuery()->with('currentSecret'), Scope::LOCATION);
 
         if ($request->has('status')) {
             $query->where('status', $request->validated('status'));
@@ -59,7 +59,7 @@ class DeviceController
     {
         $this->visibleOr404($request, $device);
 
-        return DeviceResource::make($device);
+        return DeviceResource::make($device->load('currentSecret'));
     }
 
     public function update(UpdateDeviceRequest $request, Device $device): DeviceResource

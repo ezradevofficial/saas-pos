@@ -59,9 +59,15 @@ class ShiftResource extends JsonResource
 
         return [
             ...$data,
+            // POS-09, H4: sales and cash movements that reached the server after the close (the expected cash was recounted).
+            'received_after_close' => $this->received_after_close ?? 0,
             'cash_movements' => $this->cashMovements->map(fn (CashMovement $movement) => [
                 'id' => $movement->id,
                 'kind' => $movement->kind,
+                'status' => $movement->status,
+                'flags' => $movement->flags,
+                'user' => $named($movement->user),
+                'approver' => $named($movement->approver),
                 'amount' => $money($movement->amount_minor, $movement->currency),
                 'reason' => $movement->reason,
                 'user_id' => $movement->user_id,

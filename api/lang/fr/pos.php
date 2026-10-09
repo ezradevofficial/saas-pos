@@ -92,6 +92,11 @@ return [
         ],
     ],
 
+    // TEN-07: the consolidated sales dashboard.
+    'insights' => [
+        'period_too_long' => 'Choisissez une période de :days jours au plus.',
+    ],
+
     'shift' => [
         'list_title' => 'Sessions de caisse',
         'statuses' => [
