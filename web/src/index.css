@@ -176,6 +176,11 @@
   max-height: calc(var(--space-12) * 8);
 }
 /* 160px: a template's text box before it grows with its content. */
+/* A dialog never grows past the window: its body scrolls, the title and actions stay visible. */
+@utility max-h-dialog {
+  max-height: calc(100dvh - var(--space-10));
+}
+
 @utility min-h-textbox {
   min-height: calc(var(--space-10) * 4);
 }
