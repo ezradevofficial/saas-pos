@@ -7,6 +7,7 @@ use App\Core\Fiscal\Models\FiscalSettings;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -67,7 +68,29 @@ class FiscalQueue
             $original = $this->enqueue($source, 'sale', (string) $document->data['original']['id'], $companyId);
         }
 
-        $submission = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($settings, $source, $documentType, $documentId, $document, $original) {
+        try {
+            $submission = $this->store($settings, $source, $documentType, $documentId, $document, $original);
+        } catch (UniqueConstraintViolationException) {
+            // Another worker queued the same document meanwhile.
+            return $this->find($source, $documentType, $documentId);
+        }
+
+        if ($submission->wasRecentlyCreated) {
+            ProcessFiscalQueue::dispatch($this->tenants->require(), CarbonImmutable::now()->toIso8601String())->afterCommit();
+        }
+
+        return $submission;
+    }
+
+    /** Whether $companyId transmits its documents (its fiscal settings are switched on). */
+    public function transmits(string $companyId): bool
+    {
+        return FiscalSettings::query()->where('company_id', $companyId)->where('enabled', true)->exists();
+    }
+
+    private function store(FiscalSettings $settings, string $source, string $documentType, string $documentId, FiscalDocument $document, ?FiscalSubmission $original): FiscalSubmission
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($settings, $source, $documentType, $documentId, $document, $original) {
             $locked = FiscalSettings::query()->whereKey($settings->id)->lockForUpdate()->firstOrFail();
             $existing = $this->find($source, $documentType, $documentId);
 
@@ -95,12 +118,6 @@ class FiscalQueue
                 'deadline_at' => is_numeric($deadline) ? CarbonImmutable::parse($document->data['issued_at'])->addHours((int) $deadline) : null,
             ]);
         });
-
-        if ($submission->wasRecentlyCreated) {
-            ProcessFiscalQueue::dispatch($this->tenants->require(), CarbonImmutable::now()->toIso8601String())->afterCommit();
-        }
-
-        return $submission;
     }
 
     /** Send what is due in the current tenant at $at; returns how many submissions were tried. */

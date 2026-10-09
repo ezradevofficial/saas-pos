@@ -66,6 +66,10 @@ class FiscalQueueTest extends TestCase
 
         $this->assertNull($this->enqueue('sale', $sale));
         $this->assertSame(0, $this->inTenant(fn () => FiscalSubmission::query()->count()));
+        $this->assertFalse($this->inTenant(fn () => $this->queue()->transmits($this->acme->id)));
+
+        $this->enableFakeFiscal();
+        $this->assertTrue($this->inTenant(fn () => $this->queue()->transmits($this->acme->id)));
     }
 
     public function test_a_sale_is_queued_once_and_accepted_with_the_authoritys_references(): void
