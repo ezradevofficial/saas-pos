@@ -153,7 +153,7 @@ class SaleUploadTest extends TestCase
         // Tax as sold differs from the server's 12.5 % (11111 for an inclusive 100000).
         $taxed = $this->line(['unit_price_minor' => '50000', 'list_price_minor' => '50000', 'tax_minor' => '10000', 'total_minor' => '100000']);
         $response = $this->upload([$this->saleBody($this->shift, 1, ['lines' => [$taxed]])])->assertOk();
-        $this->assertSame([['code' => 'tax_differs', 'line' => 1, 'detail' => ['expected_tax_minor' => '11111', 'tax_code' => 'VAT_T']]], $this->flagsBut($response, 'price_differs'));
+        $this->assertSame([['code' => 'tax_differs', 'line' => 1, 'detail' => ['expected_tax_minor' => '11111', 'tax_code' => 'VAT_T', 'sold_tax_code_id' => $this->vat->id, 'sold_tax_rate' => '12.5000']]], $this->flagsBut($response, 'price_differs'));
         $this->inTenant(fn () => $this->assertSame('10000', (string) SaleLine::where('line_no', 1)->sole()->tax_minor));
 
         // A cashier without the discount permission and without a price override permission.

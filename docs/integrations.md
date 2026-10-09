@@ -155,7 +155,11 @@ accepted. The queue retries with backoff (1, 5, 15, 30, then every 60
 minutes) for ever, alerts after the alert delay, and alerts at once on a
 rejection. Accepted documents keep the receipt number, internal data,
 receipt signature, control unit id and QR content for the receipt. Only KES
-documents are sent; others are held as `needs_attention`.
+documents are sent; others are held as `needs_attention`. A line without its tax
+code or rate (`tax_code_missing`, `tax_rate_missing`) is also held as
+`needs_attention` (data to fix, not a refusal); the POS stores the server's
+code and rate on lines the till sent without them. Retrying a rejected or
+held document rebuilds it from the sale, so fixed data is what is sent.
 
 **Invoice numbers (`invcNo`).** Each company's fiscal invoice numbers are
 handed out in queue order when a document is queued. A document that is

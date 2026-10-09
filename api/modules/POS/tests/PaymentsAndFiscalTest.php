@@ -11,11 +11,13 @@ use App\Core\Payments\ProviderResult;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\POS\Fiscal\PosFiscalSource;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundPayment;
 use Modules\POS\Models\Sale;
+use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -161,6 +163,42 @@ class PaymentsAndFiscalTest extends TestCase
         $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
         $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal", $this->tillHeaders())->assertOk()->assertJsonPath('data.sale.status', 'rejected');
         $this->assertSame('fiscal_code_missing', $this->inTenant(fn () => FiscalSubmission::query()->sole()->error_code));
+    }
+
+    public function test_a_line_sent_without_tax_code_or_rate_stores_the_servers_and_is_sent(): void
+    {
+        $this->transmit();
+        $line = $this->line();
+        unset($line['tax_code_id'], $line['tax_rate']);
+        $sale = $this->saleBody($this->shift, 1, ['lines' => [$line]]);
+
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->inTenant(function () use ($sale) {
+            $stored = SaleLine::query()->where('sale_id', $sale['id'])->sole();
+            $this->assertSame([$this->vat->id, '12.5000'], [$stored->tax_code_id, (string) $stored->tax_rate]);
+            $flag = collect(Sale::query()->findOrFail($sale['id'])->flags)->firstWhere('code', 'tax_differs');
+            $this->assertSame([null, null], [$flag['detail']['sold_tax_code_id'], $flag['detail']['sold_tax_rate']]);
+            $this->assertSame('accepted', FiscalSubmission::query()->sole()->status);
+        });
+    }
+
+    public function test_a_line_without_a_tax_code_needs_attention_and_a_retry_sends_the_fixed_document(): void
+    {
+        // Stored before transmission was switched on; the line lost its tax code (older data).
+        $sale = $this->saleBody($this->shift, 1);
+        $this->upload([$sale])->assertOk();
+        $this->inTenant(fn () => DB::table('pos_sale_lines')->where('sale_id', $sale['id'])->update(['tax_code_id' => null]));
+        $this->transmit();
+        $this->postJson("/api/v1/companies/{$this->acme->id}/fiscal-submissions/send-earlier", ['from' => now()->subDay()->toDateString(), 'confirm' => true], $this->headersFor())->assertStatus(202);
+
+        $held = $this->inTenant(fn () => FiscalSubmission::query()->sole());
+        $this->assertSame(['needs_attention', 'tax_code_missing'], [$held->status, $held->error_code]);
+
+        // The data is fixed: the retry sends the document as it is now, not the frozen payload.
+        $this->inTenant(fn () => DB::table('pos_sale_lines')->where('sale_id', $sale['id'])->update(['tax_code_id' => $this->vat->id]));
+        $this->postJson("/api/v1/fiscal-submissions/{$held->id}/retry", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'accepted');
+        $this->assertSame($this->vat->id, $this->inTenant(fn () => FiscalSubmission::query()->sole()->payload['lines'][0]['tax_code_id']));
     }
 
     public function test_mobile_money_codes_become_intents_and_refunds_are_paid_back(): void

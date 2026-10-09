@@ -27,7 +27,9 @@ use Throwable;
  *   administrators are alerted once (FiscalAlert).
  * - Refused (by the authority or a local check such as a missing fiscal
  *   code): never retried by itself; alerted at once; a person fixes the
- *   data and retries (`retry`).
+ *   data and retries (`retry`). A line without its tax code or rate is
+ *   held as `needs_attention` instead. A retry of a rejected or held
+ *   submission rebuilds its payload from the source document.
  * - A submission left `sending` by a dead worker is retried after
  *   `fiscal.stuck_minutes`.
  *
@@ -36,6 +38,9 @@ use Throwable;
  */
 class FiscalQueue
 {
+    /** Local results held as `needs_attention` (fixed in the source data, then retried), not rejected. */
+    private const DATA_TO_FIX = ['tax_code_missing', 'tax_rate_missing'];
+
     public function __construct(
         private readonly FiscalSources $sources,
         private readonly FiscalDrivers $drivers,
@@ -158,6 +163,13 @@ class FiscalQueue
             $locked = FiscalSubmission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
 
             if (in_array($locked->status, ['rejected', 'retrying', 'queued', 'needs_attention'], true)) {
+                // Never sent as it stood: rebuilt from the source document, so fixed data is sent.
+                // A document already sent without an answer keeps the payload the authority may hold.
+                if (in_array($locked->status, ['rejected', 'needs_attention'], true)) {
+                    $document = $this->sources->get($locked->source)->document($locked->document_type, $locked->document_id);
+                    $locked->forceFill(['payload' => $document->toArray()]);
+                }
+
                 $locked->fill(['status' => 'queued', 'next_attempt_at' => CarbonImmutable::now(), 'alerted_at' => null])->save();
                 ProcessFiscalQueue::dispatch($this->tenants->require(), CarbonImmutable::now()->toIso8601String())->afterCommit();
             }
@@ -246,6 +258,13 @@ class FiscalQueue
 
             return;
         } catch (LocalRejection $e) {
+            // A line without its tax code or rate is data to fix, not a refusal: held for a person.
+            if (in_array($e->reason, self::DATA_TO_FIX, true)) {
+                $this->hold($submission, new NeedsAttention($e->reason, $e->getMessage()));
+
+                return;
+            }
+
             $result = FiscalResult::rejected($e->reason, $e->getMessage());
         } catch (Throwable $e) {
             report($e);

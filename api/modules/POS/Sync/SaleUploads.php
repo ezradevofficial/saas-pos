@@ -392,8 +392,17 @@ class SaleUploads
         }
 
         if ($soldCode !== $code->id || ! $tax->isEqualTo($expected->minor())) {
-            $flags->add('tax_differs', $index + 1, ['expected_tax_minor' => $expected->minor(), 'tax_code' => $code->code]);
+            // The device's own code and rate are kept here when the line stores the server's.
+            $flags->add('tax_differs', $index + 1, [
+                'expected_tax_minor' => $expected->minor(), 'tax_code' => $code->code,
+                'sold_tax_code_id' => $soldCode, 'sold_tax_rate' => $line['tax_rate'] ?? null,
+            ]);
         }
+
+        // POS-10: a line the device sent without its tax code or rate stores the server's (the
+        // code it resolved, its rate in force when sold), so the fiscal document can be sent.
+        $lineCode = $soldCode ?? $code->id;
+        $lineRate = $line['tax_rate'] ?? $this->rateOn($lineCode === $code->id ? $code : TaxCode::query()->findOrFail($lineCode), $at);
 
         // POS-07, RBAC-06, AUTH-08: a discount within the limit (`override`), a price other
         // than the list price (`price_override`). Users they name must exist even when unused.
@@ -446,8 +455,8 @@ class SaleUploads
                 'price_list_id' => $list?->id,
                 'tax_inclusive' => $inclusive,
                 'discount_minor' => (string) $discount,
-                'tax_code_id' => $soldCode,
-                'tax_rate' => $line['tax_rate'] ?? null,
+                'tax_code_id' => $lineCode,
+                'tax_rate' => $lineRate,
                 'net_minor' => (string) $total->minus($tax),
                 'tax_minor' => (string) $tax,
                 'total_minor' => (string) $total,
@@ -463,6 +472,14 @@ class SaleUploads
             'price_override' => $priceApproval,
             'percent' => $percent,
         ];
+    }
+
+    /** A tax code's rate in force at $at (null when exempt or not set: rates are never invented). */
+    private function rateOn(TaxCode $code, CarbonImmutable $at): ?string
+    {
+        $rate = $code->isExempt() ? null : $code->rateOn($at);
+
+        return $rate === null || $rate->isNeeded() ? null : (string) $rate->rate;
     }
 
     /**
