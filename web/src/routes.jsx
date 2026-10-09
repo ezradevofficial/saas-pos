@@ -6,6 +6,7 @@ import { AuthLayout } from './layouts/AuthLayout'
 import {
   AUTOMATION_VIEW,
   CATEGORY_VIEW,
+  CUSTOM_FIELD_VIEW,
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
   FISCAL_VIEW,
@@ -57,6 +58,7 @@ import ShiftDetail from './pages/pos/ShiftDetail'
 import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
 import Currencies from './pages/settings/Currencies'
+import CustomFields from './pages/settings/CustomFields'
 import Dimensions from './pages/settings/Dimensions'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import Fiscal from './pages/settings/Fiscal'
@@ -247,6 +249,8 @@ export const routes = [
         ['/settings/payments', PAYMENT_VIEW, <Payments key="payments" />],
         ['/settings/fiscal', FISCAL_VIEW, <Fiscal key="fiscal" />],
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
+        // CF-01, CF-03: custom fields of items and contacts.
+        ['/settings/custom-fields', CUSTOM_FIELD_VIEW, <CustomFields key="custom-fields" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       {
         path: '/settings/sharing',

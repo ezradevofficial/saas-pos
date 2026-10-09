@@ -43,6 +43,8 @@ export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
 // NUM-01: number formats.
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
+// CF-01: custom fields of items and contacts.
+export const CUSTOM_FIELD_VIEW = ['core.custom_field.view', 'core.custom_field.manage']
 
 export const NAV_GROUPS = [
   {
@@ -94,6 +96,7 @@ export const NAV_GROUPS = [
       { to: '/settings/roles', icon: 'roles', label: (t) => t('nav.roles'), permission: 'core.role.view', module: 'core' },
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
+      { to: '/settings/custom-fields', icon: 'columns', label: (t) => t('nav.customFields'), permission: CUSTOM_FIELD_VIEW, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
       // AUTH-06: one's own POS PIN, while the POS module is active.

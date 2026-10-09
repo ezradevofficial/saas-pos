@@ -66,7 +66,7 @@ class AssignUserAction implements AutomationAction
 
         return __('automation.actions.assign_user.describe', [
             'user' => $this->user($action)?->name ?? (string) ($action['user'] ?? ''),
-            'field' => $field === null ? (string) ($action['field'] ?? '') : __($field->label),
+            'field' => $field === null ? (string) ($action['field'] ?? '') : $field->displayLabel(),
         ]);
     }
 

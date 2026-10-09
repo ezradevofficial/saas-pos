@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Parties\Http\Resources;
 
+use App\Core\CustomFields\CustomFieldPresenter;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\FieldRules;
 use Illuminate\Http\Request;
@@ -26,7 +28,7 @@ class PartyResource extends JsonResource
     {
         $hidden = $this->hiddenFields($request);
 
-        return array_filter($this->fields(), fn (string $key) => ! in_array($key, $hidden, true)
+        return array_filter($this->fields($request), fn (string $key) => ! in_array($key, $hidden, true)
             && array_intersect(self::SOURCES[$key] ?? [], $hidden) === [], ARRAY_FILTER_USE_KEY);
     }
 
@@ -54,7 +56,7 @@ class PartyResource extends JsonResource
     }
 
     /** @return array<string, mixed> */
-    private function fields(): array
+    private function fields(Request $request): array
     {
         return [
             'id' => $this->id,
@@ -74,6 +76,8 @@ class PartyResource extends JsonResource
             'payment_terms_days' => $this->payment_terms_days,
             'credit_limit' => $this->creditLimit(),
             'price_list_id' => $this->price_list_id,
+            // CF-03, RBAC-05: the custom values the user may see (CustomFieldPresenter).
+            'custom' => (object) app(CustomFieldPresenter::class)->present($request->user(), PartyEntity::KEY, $this->custom),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

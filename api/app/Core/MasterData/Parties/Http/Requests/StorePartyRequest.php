@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Parties\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldValidator;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Parties\PartyPolicy;
 use App\Core\Rbac\Http\Requests\GuardsFieldRules;
@@ -58,9 +60,12 @@ class StorePartyRequest extends FormRequest
 
     public function after(): array
     {
-        return [fn (Validator $validator) => PartyRules::validateParty(
-            $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], null, $this->user(), 'core.party.create',
-        )];
+        return [
+            fn (Validator $validator) => PartyRules::validateParty(
+                $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], null, $this->user(), 'core.party.create',
+            ),
+            fn (Validator $validator) => app(CustomFieldValidator::class)->validate($validator, PartyEntity::KEY, $this->input('custom'), null, $this->user()),
+        ];
     }
 
     public function attributes(): array

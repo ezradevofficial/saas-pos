@@ -3,6 +3,8 @@
 namespace App\Core\MasterData\History\Http;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\CustomFields\CustomFieldAccess;
+use App\Core\CustomFields\CustomFieldEntities;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\MasterData\Support\TextArray;
 use App\Core\Rbac\FieldRules;
@@ -58,7 +60,13 @@ class HistoryController
         }
 
         $page = $query->paginate($request->perPage())->withQueryString();
-        $page->getCollection()->each(fn (AuditEntry $entry) => $entry->hiddenFields = $hidden);
+        // CF-03, RBAC-05: custom fields hidden from the user are removed from `custom` before and after.
+        $hiddenCustom = app(CustomFieldEntities::class)->find((string) $request->route('type')) === null
+            ? [] : app(CustomFieldAccess::class)->for($request->user(), (string) $request->route('type'))['hidden'];
+        $page->getCollection()->each(function (AuditEntry $entry) use ($hidden, $hiddenCustom) {
+            $entry->hiddenFields = $hidden;
+            $entry->hiddenCustomFields = $hiddenCustom;
+        });
 
         return HistoryEntryResource::collection($page);
     }

@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Parties\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldValidator;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 use Illuminate\Validation\Validator;
 
@@ -30,9 +32,12 @@ class UpdatePartyRequest extends PartyRequest
 
     public function after(): array
     {
-        return [fn (Validator $validator) => PartyRules::validateParty(
-            $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], $this->party(), $this->user(), 'core.party.edit',
-        )];
+        return [
+            fn (Validator $validator) => PartyRules::validateParty(
+                $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], $this->party(), $this->user(), 'core.party.edit',
+            ),
+            fn (Validator $validator) => app(CustomFieldValidator::class)->validate($validator, PartyEntity::KEY, $this->input('custom'), $this->party(), $this->user()),
+        ];
     }
 
     public function attributes(): array

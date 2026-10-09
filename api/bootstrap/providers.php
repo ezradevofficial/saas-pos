@@ -4,6 +4,7 @@ use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
+use App\Core\CustomFields\CustomFieldsServiceProvider;
 use App\Core\DocumentTemplates\DocumentTemplatesServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
@@ -30,6 +31,7 @@ return [
     RbacServiceProvider::class,
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,
+    CustomFieldsServiceProvider::class,
     WorkflowServiceProvider::class,
     ConfigurationServiceProvider::class,
     DocumentTemplatesServiceProvider::class,

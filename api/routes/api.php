@@ -21,6 +21,9 @@ use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
 use App\Core\Currency\Http\Controllers\ExchangeRateController;
 use App\Core\Currency\Http\Controllers\TenantCurrencyController;
+use App\Core\CustomFields\CustomFieldDefinition;
+use App\Core\CustomFields\Http\Controllers\CustomFieldController;
+use App\Core\CustomFields\Http\Controllers\CustomFieldFileController;
 use App\Core\DocumentTemplates\Http\Controllers\DocumentTemplateController;
 use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
 use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
@@ -100,7 +103,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'custom_field', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -116,6 +119,7 @@ Route::model('payment_intent', PaymentIntent::class);
 Route::model('payment_receipt', PaymentReceipt::class);
 Route::model('fiscal_submission', FiscalSubmission::class);
 Route::model('config_document', ConfigDocument::class);
+Route::model('custom_field', CustomFieldDefinition::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -154,6 +158,9 @@ Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')-
 // APR-03: an approval attachment behind a temporary signed URL
 // (ApprovalPresenter::url). The controller enters the tenant the path
 // names and checks the signed-for user may still see the request.
+// CF-01: a file field's file, behind a temporary signed URL bound to one user (CustomFieldFiles::url).
+Route::get('custom-field-files/{path}', [CustomFieldFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_fields.file');
+
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
 // APR-08: an emailed approve/reject link; the single-use token is the credential.
@@ -539,4 +546,16 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('templates/types', [DocumentTemplateController::class, 'types']);
     Route::post('templates/preview', [DocumentTemplateController::class, 'preview']);
     Route::get('templates/previews/{preview}/pdf', [DocumentTemplateController::class, 'previewPdf'])->where('preview', '[A-Za-z0-9]{40}');
+    // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
+    // the form schema and lookup candidates (scoped to what the user sees), and file uploads.
+    Route::get('custom-fields', [CustomFieldController::class, 'index']);
+    Route::post('custom-fields', [CustomFieldController::class, 'store']);
+    Route::get('custom-fields/meta', [CustomFieldController::class, 'meta']);
+    Route::get('custom-fields/schema', [CustomFieldController::class, 'schema']);
+    Route::get('custom-fields/lookup', [CustomFieldController::class, 'lookup']);
+    Route::get('custom-fields/{custom_field}', [CustomFieldController::class, 'show']);
+    Route::patch('custom-fields/{custom_field}', [CustomFieldController::class, 'update']);
+    Route::post('custom-fields/{custom_field}/archive', [CustomFieldController::class, 'archive']);
+    Route::post('custom-fields/{custom_field}/restore', [CustomFieldController::class, 'restore']);
+    Route::post('custom-field-files', [CustomFieldFileController::class, 'store']);
 });

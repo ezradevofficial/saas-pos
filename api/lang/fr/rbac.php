@@ -46,6 +46,7 @@ return [
                 'fiscal' => 'Transmission fiscale',
                 'numbering' => 'Numérotation des documents',
                 'config' => 'Mises en page, thèmes et modèles',
+                'custom_field' => 'Champs personnalisés',
             ],
             'pos' => [
                 'sale' => 'Ventes',
