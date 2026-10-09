@@ -88,6 +88,7 @@ use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
+use App\Core\Sync\Http\Controllers\SyncBrandAssetController;
 use App\Core\Sync\Http\Controllers\SyncController;
 use App\Core\Sync\Http\Controllers\SyncMediaController;
 use App\Core\Tenancy\Http\Controllers\BranchController;
@@ -207,6 +208,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap']);
         Route::get('sync/pull', [SyncController::class, 'pull']);
         Route::get('sync/media/{item_image}', SyncMediaController::class);
+        // BR-02, LAY-05: logos and category images for the till.
+        Route::get('sync/brand-assets/{brand_asset}', SyncBrandAssetController::class);
         Route::post('pos/pin/verify', [DevicePinController::class, 'verify']);
         Route::post('pos/pin/attempts', [DevicePinController::class, 'attempts']);
         Route::post('pos/override', [DevicePinController::class, 'override']);

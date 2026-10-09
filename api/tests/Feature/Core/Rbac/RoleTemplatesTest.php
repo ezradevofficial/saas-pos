@@ -104,8 +104,9 @@ class RoleTemplatesTest extends TestCase
             'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
             $this->assertContains($name, $names);
         }
-        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.view|edit|publish.
-        $this->assertSame(98 + 14, count($names));
+        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.view|edit|publish;
+        // LAY-05: pos.layout.view|edit|publish.
+        $this->assertSame(98 + 17, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -123,7 +124,9 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(Permission::count(), $owner->permissions()->count());
 
         $admin = Role::where('template_key', 'admin')->sole();
-        $this->assertSame(Permission::where('module', 'core')->count(), $admin->permissions()->count());
+        // Core, plus the POS layout designer (LAY-05), which applies once the module is active (RBAC-08).
+        $this->assertSame(Permission::where('module', 'core')->count() + 3, $admin->permissions()->count());
+        $this->assertSame(['pos.layout.edit', 'pos.layout.publish', 'pos.layout.view'], $admin->permissions()->where('module', 'pos')->orderBy('name')->pluck('name')->all());
         $this->assertFalse($admin->is_owner);
 
         $auditor = Role::where('template_key', 'read_only_auditor')->sole();

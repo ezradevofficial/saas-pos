@@ -2,6 +2,7 @@
 
 namespace Modules\POS;
 
+use App\Core\Configuration\ConfigKinds;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Layouts\Dashboards\DashboardSources;
@@ -23,6 +24,7 @@ use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
 use Modules\POS\Fiscal\PosFiscalSource;
+use Modules\POS\Layout\PosLayout;
 use Modules\POS\Listeners\ApplyPaymentSettlement;
 use Modules\POS\Listeners\LinkMobileMoneyPayments;
 use Modules\POS\Listeners\QueueFiscalDocument;
@@ -32,6 +34,7 @@ use Modules\POS\Sync\OverrideVerifier;
 use Modules\POS\Sync\Sellability;
 use Modules\POS\Sync\Sources\NumberRangeSource;
 use Modules\POS\Sync\Sources\OpenShiftSource;
+use Modules\POS\Sync\Sources\PosLayoutSource;
 
 /**
  * The POS module (docs/modules/pos.md). Registered for every tenant, as
@@ -54,6 +57,8 @@ class PosServiceProvider extends ServiceProvider
         'discount' => ['give'],
         // AUTH-06: signs in at the tills where the role is held (core's sync.sign_in_permission).
         'till' => ['sign_in'],
+        // LAY-05: the sell screen's layout (the `pos_layout` configuration kind).
+        'layout' => ['view', 'edit', 'publish'],
     ];
 
     public function register(): void
@@ -84,6 +89,11 @@ class PosServiceProvider extends ServiceProvider
         $sources = $this->app->make(SyncSources::class);
         $sources->register(new NumberRangeSource);
         $sources->register(new OpenShiftSource);
+        $sources->register(new PosLayoutSource);
+
+        // LAY-05: the sell screen's layout, versioned configuration found only
+        // while the module is active (RBAC-08).
+        $this->app->make(ConfigKinds::class)->register(PosLayout::kind());
 
         // LAY-01: dashboard widgets of today's sales and sales per day
         // (found only while the module is active, RBAC-08).

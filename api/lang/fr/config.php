@@ -49,6 +49,11 @@ return [
         // BR-02, BR-03 : thèmes.
         'not_overridable' => ':path ne peut pas être modifié par un thème. Un thème ne règle que les logos, les couleurs principale et d’accent, la barre latérale, les coins et la police.',
         'asset_missing' => ':path désigne une image qui ne fait pas partie de vos images de ce type. Importez-la de nouveau.',
+        // LAY-05 : dispositions de caisse.
+        'pos_layout_button' => ':path est un bouton d’article ou de catégorie avec une action, ou une action avec un article ou une catégorie. Donnez-lui l’un ou l’autre.',
+        'pos_layout_unknown_item' => ':path désigne un article qui n’existe pas ou qui est archivé. Retirez-le ou choisissez un autre article.',
+        'pos_layout_unknown_category' => ':path désigne une catégorie qui n’existe pas ou qui est archivée. Retirez-la ou choisissez une autre catégorie.',
+        'pos_layout_unknown_image' => ':path désigne une image qui ne fait partie ni de vos images d’articles ni de vos images de marque. Choisissez une autre image.',
         'contrast' => 'En mode :mode, :pair a un contraste de :ratio:1 et doit atteindre au moins :required:1. Choisissez une couleur plus foncée ou plus claire.',
     ],
 

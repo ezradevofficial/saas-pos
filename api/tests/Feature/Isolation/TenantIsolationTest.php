@@ -117,6 +117,7 @@ class TenantIsolationTest extends TestCase
         'pos_refund' => 'pos_refund', // H2: pos/refunds/{pos_refund}/approve|reject, a held refund
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
+        'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}

@@ -282,7 +282,7 @@ final class TwoTenants
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
         // BR-02, BR-05: a brand asset (a logo) and a custom domain, still pending.
-        self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201);
+        $brandAsset = self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
         $tenantDomain = self::ok($test->postJson('/api/v1/branding/domains', ['host' => "erp-{$key}.example.org"], $owner), 201)->json('data.id');
 
         // TEN-05: a device, paired with its one-time code.
@@ -516,6 +516,7 @@ final class TwoTenants
                 'fiscal_submission' => $fiscalSubmission,
                 'config_document' => $configDocument,
                 'tenant_domain' => $tenantDomain,
+                'brand_asset' => $brandAsset,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

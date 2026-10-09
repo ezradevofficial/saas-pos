@@ -23,7 +23,8 @@ return [
     ],
     [
         'key' => 'admin',
-        'permissions' => ['core.*'],
+        // LAY-05: designs the tills' sell screen once the POS module is active.
+        'permissions' => ['core.*', 'pos.layout.*'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

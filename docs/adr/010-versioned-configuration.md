@@ -113,6 +113,8 @@ For example, "Cashier at this outlet" beats "Accountant for the company". Two ro
 
 When nothing is published along the chain, the kind's default payload is returned with `source: null`.
 
+A till has no user. `ConfigResolver::publishedAt($kind, $key, $place)` gives the published version for a place alone (location → branch → company → tenant, limited to the kind's scopes), unmerged, so the sync source merges it with what the till holds. The POS layout (`pos_layout`, LAY-05) is read this way.
+
 ### Upgrade safety (LAY-07)
 
 `CatalogueMerge::entries()` and `CatalogueMerge::grouped()` (for sections and groups) merge a stored layout with the platform's current catalogue:
