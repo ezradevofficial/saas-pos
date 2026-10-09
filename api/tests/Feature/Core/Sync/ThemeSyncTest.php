@@ -25,7 +25,7 @@ class ThemeSyncTest extends TestCase
     private function publish(array $scope, array $payload): void
     {
         $id = $this->postJson('/api/v1/config/theme', [...$scope, 'payload' => $payload], $this->headersFor())->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/config/theme/{$id}/publish", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/config/theme/{$id}/publish", ['revision' => $this->getJson("/api/v1/config/theme/{$id}", $this->headersFor())->json('data.draft.revision')], $this->headersFor())->assertOk();
     }
 
     private function theme(array $till): array

@@ -62,7 +62,7 @@ class PublicBrandingTest extends TestCase
             'favicon' => $upload('favicon', 64, 64),
             'login' => ['background' => $upload('background', 1600, 900), 'welcome' => 'Karibu. Sign in to run the shop.'],
         ]], $this->headersFor())->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/config/theme/{$id}/publish", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/config/theme/{$id}/publish", ['revision' => $this->getJson("/api/v1/config/theme/{$id}", $this->headersFor())->json('data.draft.revision')], $this->headersFor())->assertOk();
     }
 
     public function test_a_subdomain_shows_the_tenants_published_branding(): void

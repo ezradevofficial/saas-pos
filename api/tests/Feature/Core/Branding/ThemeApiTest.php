@@ -31,14 +31,20 @@ class ThemeApiTest extends TestCase
         $this->setUpOrganisation();
     }
 
-    private function save(array $payload, array $scope = ['scope_type' => 'tenant'], ?array $headers = null, int $status = 201): array
+    private function save(array $payload, array $scope = ['scope_type' => 'tenant'], ?array $headers = null, int $status = 201, ?int $revision = null): array
     {
-        return $this->postJson(self::URL, [...$scope, 'payload' => $payload], $headers ?? $this->headersFor())->assertStatus($status)->json();
+        return $this->postJson(self::URL, [...$scope, 'payload' => $payload, 'revision' => $revision], $headers ?? $this->headersFor())->assertStatus($status)->json();
     }
 
     private function publish(string $id, ?array $headers = null): TestResponse
     {
-        return $this->postJson(self::URL."/{$id}/publish", [], $headers ?? $this->headersFor());
+        return $this->postJson(self::URL."/{$id}/publish", ['revision' => $this->draftRevision($id)], $headers ?? $this->headersFor());
+    }
+
+    /** LAY-06: the draft's current revision, which publishing must name. */
+    private function draftRevision(string $id, ?array $headers = null): ?int
+    {
+        return $this->getJson("/api/v1/config/theme/{$id}", $headers ?? $this->headersFor())->json('data.draft.revision');
     }
 
     public function test_publishing_is_refused_while_a_pair_is_under_wcag_aa(): void
@@ -56,7 +62,7 @@ class ThemeApiTest extends TestCase
         $this->publish($id)->assertUnprocessable()->assertJsonPath('code', 'config_invalid')->assertJsonPath('problems.0.code', 'contrast');
 
         // A readable colour publishes; dark mode is derived and checked too.
-        $this->putJson(self::URL."/{$id}/draft", ['payload' => ['preset' => 'light', 'colors' => ['primary' => '#0b5d6e', 'accent' => '#7c2d12']]], $this->headersFor())
+        $this->putJson(self::URL."/{$id}/draft", ['revision' => $this->draftRevision($id), 'payload' => ['preset' => 'light', 'colors' => ['primary' => '#0b5d6e', 'accent' => '#7c2d12']]], $this->headersFor())
             ->assertOk()->assertJsonPath('meta.problems', []);
         $this->publish($id)->assertOk()->assertJsonPath('data.published.version', 1);
 
@@ -79,7 +85,7 @@ class ThemeApiTest extends TestCase
         $this->publish($draft['data']['id'])->assertUnprocessable()->assertJsonPath('code', 'config_invalid');
 
         // Unknown choices are refused too.
-        $bad = $this->save(['preset' => 'neon', 'corners' => 'round', 'font' => 'comic', 'sidebar' => 'blue', 'colors' => ['primary' => 'teal']], status: 200);
+        $bad = $this->save(['preset' => 'neon', 'corners' => 'round', 'font' => 'comic', 'sidebar' => 'blue', 'colors' => ['primary' => 'teal']], status: 200, revision: $draft['data']['draft']['revision']);
         $this->assertEqualsCanonicalizing(['preset', 'corners', 'font', 'sidebar', 'colors.primary'], collect($bad['meta']['problems'])->pluck('path')->all());
     }
 
@@ -168,7 +174,7 @@ class ThemeApiTest extends TestCase
         $headers = $this->bearer($this->tokenFor($other['user']));
 
         $this->getJson(self::URL."/{$id}", $headers)->assertNotFound();
-        $this->postJson(self::URL."/{$id}/publish", [], $headers)->assertNotFound();
+        $this->postJson(self::URL."/{$id}/publish", ['revision' => 1], $headers)->assertNotFound();
         $this->getJson(self::URL, $headers)->assertOk()->assertJsonPath('data', []);
         $this->getJson(self::URL.'/resolved', $headers)->assertOk()->assertJsonPath('data.source', null)->assertJsonPath('data.payload.preset', 'light');
         $this->getJson('/api/v1/branding/assets', $headers)->assertOk()->assertJsonPath('data', []);
