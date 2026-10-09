@@ -15,7 +15,7 @@ const WIDE = ['long_text', 'multi_select', 'file']
  * fields show under the lines as they are typed (the API computes them
  * again on save). `errors` are the API's messages by `lines.<n>.custom.<key>`.
  */
-export function LineTable({ entity, fields, lines, onChange, readOnly = false, errors = {}, showErrors = false, label, help }) {
+export function LineTable({ entity, fields, lines, onChange, readOnly = false, loading = false, errors = {}, showErrors = false, label, help }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const totals = lineTotals(fields, lines)
@@ -24,12 +24,14 @@ export function LineTable({ entity, fields, lines, onChange, readOnly = false, e
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <span className="text-label text-ink">{label ?? t('customForms.lines.title')}</span>
-        {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
-      </div>
+      {label || help ? (
+        <div className="flex flex-col gap-1">
+          {label ? <span className="text-label text-ink">{label}</span> : null}
+          {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
+        </div>
+      ) : null}
       {errors.lines ? <p className="text-caption text-danger">{errors.lines}</p> : null}
-      {fields.length === 0 ? <p className="text-ink-muted">{t('customForms.lines.noFields')}</p> : null}
+      {fields.length === 0 && !loading ? <p className="text-ink-muted">{t('customForms.lines.noFields')}</p> : null}
       {lines.length === 0 && fields.length > 0 ? <p className="text-ink-muted">{t('customForms.lines.empty')}</p> : null}
       {lines.length ? (
         <ol aria-label={label ?? t('customForms.lines.title')} className="flex flex-col divide-y divide-border border-y border-border">

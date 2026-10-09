@@ -890,6 +890,7 @@ return [
     ],
     // CF-04, CF-05: custom forms and their records.
     'custom_form' => [
+        'lines_of' => ':name: lines',
         'fields' => [
             'number' => 'Number', 'amount' => 'Amount', 'company' => 'Company', 'branch' => 'Branch', 'location' => 'Location',
             'requested_by' => 'Requested by', 'place' => 'Where', 'total' => 'Total :field',

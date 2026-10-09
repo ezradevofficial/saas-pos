@@ -890,6 +890,7 @@ return [
     ],
     // CF-04, CF-05 : formulaires personnalisés et leurs fiches.
     'custom_form' => [
+        'lines_of' => ':name : lignes',
         'fields' => [
             'number' => 'Numéro', 'amount' => 'Montant', 'company' => 'Société', 'branch' => 'Agence', 'location' => 'Emplacement',
             'requested_by' => 'Demandé par', 'place' => 'Lieu', 'total' => 'Total :field',

@@ -34,10 +34,12 @@ function Attachments({ type, files, onChange, readOnly, label, help, error }) {
   })
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <span className="text-label text-ink">{label ?? t('customForms.attachments.title')}</span>
-        {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
-      </div>
+      {label || help ? (
+        <div className="flex flex-col gap-1">
+          {label ? <span className="text-label text-ink">{label}</span> : null}
+          {help ? <span className="text-caption text-ink-muted">{help}</span> : null}
+        </div>
+      ) : null}
       {upload.isError ? <Alert tone="danger" title={errorMessage(upload.error)} /> : null}
       {error ? <p className="text-caption text-danger">{error}</p> : null}
       {files.length === 0 ? <p className="text-ink-muted">{t('customForms.attachments.none')}</p> : null}
@@ -220,6 +222,7 @@ function RecordForm({ type, record, workflow }) {
             setLinesTouched(true)
           }}
           readOnly={!editable}
+          loading={!lineSchema.isSuccess}
           errors={{ ...lineErrors, lines: errors.fields.lines }}
           showErrors={submitted}
           label={label}

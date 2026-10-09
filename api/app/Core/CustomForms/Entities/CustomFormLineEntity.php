@@ -21,6 +21,12 @@ class CustomFormLineEntity extends CustomFormEntity
         return $this->type->lineEntity();
     }
 
+    /** "Petty cash request: lines", already in the reader's language (__() returns it unchanged). */
+    public function label(): string
+    {
+        return __('core.custom_form.lines_of', ['name' => $this->type->name]);
+    }
+
     public function model(): string
     {
         return CustomFormLine::class;

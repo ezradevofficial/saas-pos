@@ -230,6 +230,14 @@ export default function FormLayoutDesigner() {
   const hidden = draft.sections.flatMap((section) => section.fields.filter((entry) => entry.hidden).map((entry) => ({ entry, section })))
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
+  // A field is dropped on another field or on another section (never on its own section, which
+  // surrounds it and would always be the closest); a section only among sections.
+  const collisions = (args) => {
+    const activeId = String(args.active.id)
+    const own = activeId.startsWith('i:') ? `g:${draft.sections.find((section) => section.fields.some((entry) => `i:${entry.id}` === activeId))?.id}` : null
+    const droppableContainers = args.droppableContainers.filter((container) => (activeId.startsWith('g:') ? String(container.id).startsWith('g:') : container.id !== own))
+    return closestCenter({ ...args, droppableContainers })
+  }
   const onDragEnd = ({ active, over }) => {
     const tree = moveInTree(
       draft.sections.map((section) => ({ ...section, items: section.fields })),
@@ -350,7 +358,7 @@ export default function FormLayoutDesigner() {
               ) : null
             }
           >
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={collisions} onDragEnd={onDragEnd}>
               <SortableContext items={draft.sections.map((section) => `g:${section.id}`)} strategy={verticalListSortingStrategy}>
                 <ul className="flex flex-col gap-3" aria-label={t('formLayouts.canvas')}>
                   {draft.sections.map((section) => (
