@@ -31,6 +31,26 @@ describe('PosTile', () => {
     expect(screen.getByTestId('status-dot')).toHaveProp('className', expect.stringContaining('bg-warning'));
   });
 
+  it('takes a category colour as a token class, never a typed colour (LAY-05, BR-01)', async () => {
+    await render(<PosTile name="Fanta" price={9000} currency="KES" color="warning-tint" size="large" />);
+
+    const tile = screen.getByRole('button');
+    expect(tile.props.className).toContain('bg-warning-tint');
+    expect(tile.props.className).not.toContain('bg-surface-200');
+    expect(tile.props.className).toContain('p-6');
+    expect(tile.props.style).toBeUndefined();
+    expect(screen.getByText('Fanta').props.className).toContain('text-h3');
+  });
+
+  it('ignores a colour outside the token set', async () => {
+    await render(<PosTile name="Fanta" price={9000} currency="KES" color="#ff0000" size="huge" />);
+
+    const className = screen.getByRole('button').props.className;
+    expect(className).toContain('bg-surface-200');
+    expect(className).not.toContain('#ff0000');
+    expect(className).toContain('p-4');
+  });
+
   it('is at least 48px tall for touch', async () => {
     await render(<PosTile name="Mandazi" price={12000} currency="KES" />);
 

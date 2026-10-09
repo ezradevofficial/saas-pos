@@ -77,7 +77,7 @@ const money = (minor, currency) => (minor === null || minor === undefined ? null
  *
  * @param {{sale: object, kind?: 'sale'|'refund', catalogue: object, customer?: object|null, fiscal: {state: string, invoiceNumber?: string|null, remote?: object|null}, authority: string|null}} input
  */
-export function receiptData({ sale, kind = 'sale', catalogue, customer = null, fiscal, authority }) {
+export function receiptData({ sale, kind = 'sale', catalogue, customer = null, fiscal, authority, logo = null }) {
   const settings = catalogue?.settings ?? {};
   const company = settings.company ?? {};
   const currency = sale.currency;
@@ -100,7 +100,8 @@ export function receiptData({ sale, kind = 'sale', catalogue, customer = null, f
       phone: null,
       email: null,
       country: company.country ?? null,
-      logo: null,
+      // BR-02: the tenant's light logo as the till fetched it (a data URI), for a template's logo block.
+      logo: typeof logo === 'string' ? logo : null,
       custom: {},
     },
     branch: { name: settings.branch?.name ?? '', code: settings.branch?.code ?? null, address: null },
@@ -168,12 +169,12 @@ export function receiptData({ sale, kind = 'sale', catalogue, customer = null, f
  *
  * @param {{sale: object, kind?: 'sale'|'refund', catalogue: object, templateRow?: object|null, customer?: object|null, fiscal: object, language?: string}} input
  */
-export function receiptDocumentHtml({ sale, kind = 'sale', catalogue, templateRow = null, customer = null, fiscal, language = 'en' }) {
+export function receiptDocumentHtml({ sale, kind = 'sale', catalogue, templateRow = null, customer = null, fiscal, language = 'en', logo = null }) {
   const type = kind === 'refund' ? 'pos.refund_receipt' : 'pos.receipt';
   const country = catalogue?.settings?.company?.country ?? null;
   const authority = templateRow ? (templateRow.fiscal?.authority ?? null) : (FALLBACK_AUTHORITY[country] ?? null);
   const required = templateRow ? Boolean(templateRow.fiscal?.required) : authority !== null;
-  const data = receiptData({ sale, kind, catalogue, customer, fiscal, authority });
+  const data = receiptData({ sale, kind, catalogue, customer, fiscal, authority, logo });
   const { template } = applyVariant(templateRow?.payload ?? defaultReceiptTemplate(kind, language), data);
   const labels = templateRow?.labels?.en && templateRow?.labels?.fr ? templateRow.labels : BUNDLED_LABELS;
   return renderTemplate(type, template, data, { fiscalRequired: required, labels });

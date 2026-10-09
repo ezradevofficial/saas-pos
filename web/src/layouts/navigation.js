@@ -47,6 +47,8 @@ export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal
 export const LAYOUT_VIEW = ['core.layout.view', 'core.layout.edit', 'core.layout.publish']
 // NUM-01: number formats.
 export const THEME_VIEW = ['core.theme.view', 'core.theme.edit']
+// LAY-05: the tills' sell screen layout (POS module).
+export const POS_LAYOUT_VIEW = ['pos.layout.view', 'pos.layout.edit', 'pos.layout.publish']
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
 // CF-01: custom fields of items and contacts.
 export const CUSTOM_FIELD_VIEW = ['core.custom_field.view', 'core.custom_field.manage']
@@ -110,6 +112,8 @@ export const NAV_GROUPS = [
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       // BR-02, BR-08: the business's theme; BR-04..BR-06: its hosts and senders (Owner, Admin).
       { to: '/settings/brand', icon: 'brand', label: (t) => t('nav.brand'), permission: THEME_VIEW, module: 'core' },
+      // LAY-05: the tills' sell screen, while the POS module is active.
+      { to: '/settings/pos-layout', icon: 'device', label: (t) => t('nav.posLayout'), permission: POS_LAYOUT_VIEW, module: 'pos' },
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
       { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },

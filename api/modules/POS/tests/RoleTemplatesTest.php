@@ -17,7 +17,7 @@ class RoleTemplatesTest extends TestCase
     use BuildsPos, RefreshTenantDatabase;
 
     private const ALL = [
-        'pos.cash.move', 'pos.discount.give', 'pos.price.override',
+        'pos.cash.move', 'pos.discount.give', 'pos.layout.edit', 'pos.layout.publish', 'pos.layout.view', 'pos.price.override',
         'pos.sale.create', 'pos.sale.print', 'pos.sale.refund', 'pos.sale.review', 'pos.sale.share', 'pos.sale.view', 'pos.sale.void',
         'pos.shift.close', 'pos.shift.manage', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in',
     ];
@@ -45,8 +45,10 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['pos.sale.create', 'pos.sale.print', 'pos.sale.view', 'pos.shift.close', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in'], $this->posPermissions('cashier'));
         $this->assertSame(self::ALL, $this->posPermissions('branch_manager'));
-        $this->assertSame(['pos.sale.view', 'pos.shift.view'], $this->posPermissions('accountant'));
-        $this->assertSame(['pos.sale.view', 'pos.shift.view'], $this->posPermissions('read_only_auditor'));
+        // LAY-05: the Admin designs the till's layout; readers of every POS page see it too.
+        $this->assertSame(['pos.layout.edit', 'pos.layout.publish', 'pos.layout.view', 'pos.sale.share'], $this->posPermissions('admin'));
+        $this->assertSame(['pos.layout.view', 'pos.sale.view', 'pos.shift.view'], $this->posPermissions('accountant'));
+        $this->assertSame(['pos.layout.view', 'pos.sale.view', 'pos.shift.view'], $this->posPermissions('read_only_auditor'));
         $this->assertSame(['pos.sale.print', 'pos.sale.view'], $this->posPermissions('waiter'));
         $this->assertSame([], $this->posPermissions('hr_officer'));
 

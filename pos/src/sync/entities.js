@@ -100,5 +100,7 @@ registerEntity('staff', {
 // The POS module's entities (served only while the tenant has POS, RBAC-08).
 registerEntity('pos_number_ranges', { table: 'pos_number_ranges', columns: (row) => ({ document_type: row.document_type ?? '' }) });
 registerEntity('pos_open_shift', { table: 'pos_open_shift' });
+// LAY-05: the sell screen's layout at this till's location (one row, `layout`).
+registerEntity('pos_layout', { table: 'pos_layout' });
 // TPL-01, TPL-05: the receipt templates of the till's branch (snapshot).
 registerEntity('templates', { table: 'templates' });

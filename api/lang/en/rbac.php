@@ -59,6 +59,7 @@ return [
                 'cash' => 'Cash drawer',
                 'price' => 'Prices',
                 'discount' => 'Discounts',
+                'layout' => 'Till screen layout',
             ],
         ],
         'actions' => [

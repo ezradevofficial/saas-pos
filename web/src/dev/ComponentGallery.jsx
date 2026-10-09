@@ -287,9 +287,9 @@ export default function ComponentGallery() {
       <Section title={t('dev.gallery.section.pos')}>
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="grid grid-cols-2 content-start gap-3 lg:col-span-2 lg:grid-cols-3">
-            <PosTile name={t('dev.gallery.sample.maize')} price={18500} currency="KES" stock={40} color="var(--success)" />
-            <PosTile name={t('dev.gallery.sample.milk')} price={6000} currency="KES" stock={3} color="var(--primary)" />
-            <PosTile name={t('dev.gallery.sample.bread')} price={6500} currency="KES" stock={0} color="var(--warning)" />
+            <PosTile name={t('dev.gallery.sample.maize')} price={18500} currency="KES" stock={40} color="success-tint" />
+            <PosTile name={t('dev.gallery.sample.milk')} price={6000} currency="KES" stock={3} color="primary-tint" />
+            <PosTile name={t('dev.gallery.sample.bread')} price={6500} currency="KES" stock={0} color="warning-tint" />
             <PosTile name={t('dev.gallery.sample.sugar')} price={17000} currency="KES" />
           </div>
           <div className="flex flex-col gap-3">

@@ -37,6 +37,12 @@ export function toBase64Url(bytes) {
   return out;
 }
 
+/** Bytes → standard base64 with padding (data URIs). */
+export function toBase64(bytes) {
+  const url = toBase64Url(bytes).replace(/-/g, '+').replace(/_/g, '/');
+  return url + '='.repeat((4 - (url.length % 4)) % 4);
+}
+
 /** base64url (or base64, padded or not) → bytes; null when it is not valid. */
 export function fromBase64Url(text) {
   const clean = String(text ?? '').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');

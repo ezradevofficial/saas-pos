@@ -435,6 +435,33 @@
       "permission": "La caisse a besoin de la caméra pour scanner les codes-barres. Rien n’est enregistré ni envoyé.",
       "allow": "Autoriser la caméra",
       "added": "{{code}} ajouté. Scannez l’article suivant, ou fermez."
+    },
+    "quick": {
+      "title": "Boutons rapides",
+      "hold": "Mettre la vente en attente",
+      "customer": "Client",
+      "cash_in": "Entrée de caisse",
+      "cash_out": "Sortie de caisse",
+      "sales": "Ventes et retours"
+    },
+    "display": {
+      "open": "Écran client",
+      "title": "Écran client",
+      "close": "Fermer l’écran client",
+      "welcome": "Bienvenue",
+      "waiting": "En attente de la caisse. Gardez la caisse ouverte dans un autre onglet.",
+      "customer": "Client : {{name}}",
+      "items_one": "{{count}} article",
+      "items_other": "{{count}} articles",
+      "discount": "Remise",
+      "total": "Total"
+    },
+    "appearance": {
+      "title": "Apparence",
+      "help": "Choisissez l’apparence de cette caisse. Le choix reste sur cet appareil.",
+      "system": "Comme l’appareil",
+      "light": "Clair",
+      "dark": "Sombre"
     }
   },
   "templates": {

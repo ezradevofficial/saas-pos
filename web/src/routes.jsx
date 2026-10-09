@@ -16,6 +16,7 @@ import {
   NOTIFICATION_TEMPLATE_VIEW,
   NUMBERING_VIEW,
   THEME_VIEW,
+  POS_LAYOUT_VIEW,
   ORGANISATION_VIEW,
   PARTY_VIEW,
   PAYMENT_METHOD_VIEW,
@@ -64,6 +65,7 @@ import ShiftDetail from './pages/pos/ShiftDetail'
 import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
 import Brand from './pages/settings/Brand'
+import PosLayout from './pages/settings/PosLayout'
 import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
 import FormLayoutDesigner from './pages/settings/layouts/FormLayoutDesigner'
 import NavigationEditor from './pages/settings/layouts/NavigationEditor'
@@ -307,6 +309,8 @@ export const routes = [
       // NUM-01: number formats per document type.
       // BR-02, BR-08: the theme editor; BR-04..BR-06: subdomain, custom domains, email and SMS senders.
       { path: '/settings/brand', element: <RequirePermission permission={THEME_VIEW}><Brand /></RequirePermission> },
+      // LAY-05: the API answers 404 for the kind without the POS module (RBAC-08).
+      { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.

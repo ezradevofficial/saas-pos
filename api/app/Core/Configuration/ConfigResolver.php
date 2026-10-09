@@ -88,6 +88,49 @@ class ConfigResolver
     }
 
     /**
+     * The published version that applies at $place without a user (a till,
+     * NFR-04): the most specific of location → branch → company → tenant
+     * the kind allows. Not merged: the caller merges it with what the place
+     * holds (LAY-07). Null when nothing is published along the chain.
+     */
+    public function publishedAt(ConfigKind $kind, string $key, Place $place): ?ConfigVersion
+    {
+        $candidates = array_values(array_filter([
+            [ConfigDocument::LOCATION, $place->locationId],
+            [ConfigDocument::BRANCH, $place->branchId],
+            [ConfigDocument::COMPANY, $place->companyId],
+            [ConfigDocument::TENANT, null],
+        ], fn (array $pair) => ($pair[0] === ConfigDocument::TENANT || $pair[1] !== null) && $kind->allows($pair[0])));
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        $documents = ConfigDocument::query()
+            ->with('published')
+            ->where('kind', $kind->key)
+            ->where('key', $key)
+            ->whereHas('published')
+            ->where(function ($q) use ($candidates) {
+                foreach ($candidates as [$type, $id]) {
+                    $q->orWhere(fn ($c) => $c->where('scope_type', $type)->where('scope_id', $id));
+                }
+            })
+            ->get()
+            ->keyBy(fn (ConfigDocument $d) => $d->scope_type.':'.($d->scope_id ?? ''));
+
+        foreach ($candidates as [$type, $id]) {
+            $document = $documents->get($type.':'.($id ?? ''));
+
+            if ($document !== null) {
+                return $document->published->setRelation('document', $document);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Every published document along the chain that applies to the user,
      * most specific first, each merged with the catalogue (LAY-07). A list
      * view offers the views of all of them: the user's own, their roles',

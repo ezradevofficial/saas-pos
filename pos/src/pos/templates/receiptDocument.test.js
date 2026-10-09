@@ -32,6 +32,14 @@ const sale = {
 };
 
 describe('receiptDocumentHtml', () => {
+  it('prints the tenant logo the till fetched in a logo block, black and white (BR-02)', () => {
+    const logo = 'data:image/png;base64,iVBORw0KGgo=';
+    const templateRow = { id: 'pos.receipt', payload: { paper: '80mm', blocks: [{ id: 'logo', type: 'logo' }] }, fiscal: { required: false, authority: null } };
+    const html = receiptDocumentHtml({ sale, catalogue, templateRow, fiscal: { state: 'pending' }, logo });
+    expect(html).toContain(`<img class="logo" src="${logo}"`);
+    expect(receiptDocumentHtml({ sale, catalogue, templateRow, fiscal: { state: 'pending' } })).not.toContain('class="logo"');
+  });
+
   it('prints the default receipt before any template is synced, nothing regressing', () => {
     const html = receiptDocumentHtml({ sale, catalogue, fiscal: { state: 'pending' } });
     expect(templateText(html)).toBe(

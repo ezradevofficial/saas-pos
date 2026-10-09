@@ -66,6 +66,11 @@ return [
         // BR-02, BR-03: themes.
         'not_overridable' => ':path can’t be changed by a theme. A theme sets only the logos, the primary and accent colours, the sidebar, the corners and the font.',
         'asset_missing' => ':path names an image that isn’t one of your uploaded images of that kind. Upload it again.',
+        // LAY-05: POS layouts.
+        'pos_layout_button' => ':path is an item or category button with an action, or an action with an item or category. Give it one or the other.',
+        'pos_layout_unknown_item' => ':path names an item that doesn’t exist or is archived. Remove it or choose another item.',
+        'pos_layout_unknown_category' => ':path names a category that doesn’t exist or is archived. Remove it or choose another category.',
+        'pos_layout_unknown_image' => ':path names an image that isn’t one of your item images or brand images. Choose another image.',
         'contrast' => 'In :mode mode, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
     ],
 

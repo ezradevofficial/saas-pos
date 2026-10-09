@@ -204,13 +204,13 @@ export function HeldDialog({ onClose }) {
 }
 
 /** POS-04: pay cash in or out of the drawer, with a reason (a pay-out needs pos.cash.move or an override). */
-export function CashDialog({ onClose }) {
+export function CashDialog({ onClose, initialKind = 'pay_out' }) {
   const { t } = useTranslation();
   const money = useMoneyText();
   const { catalogue } = usePosData();
   const actions = usePosActions();
   const currencies = catalogue?.cashCurrencies ?? [];
-  const [kind, setKind] = useState('pay_out');
+  const [kind, setKind] = useState(initialKind === 'pay_in' ? 'pay_in' : 'pay_out');
   const [currency, setCurrency] = useState(currencies[0] ?? null);
   const [amountText, setAmountText] = useState('');
   const [reason, setReason] = useState('');
@@ -303,6 +303,13 @@ export function MenuDialog({ onClose, onNavigate, compact }) {
             <Text className="font-sans text-body-lg text-ink">{label}</Text>
           </ListRow>
         ))}
+        {/* LAY-05: the customer display, on a second screen or browser tab where there is one. */}
+        <ListRow onPress={() => go('display')}>
+          <Text className="font-sans text-body-lg text-ink">{t('pos.display.open')}</Text>
+        </ListRow>
+        <ListRow onPress={() => go('appearance')}>
+          <Text className="font-sans text-body-lg text-ink">{t('pos.appearance.title')}</Text>
+        </ListRow>
         <ListRow onPress={() => { onClose(); scheduler.syncNow(); }}>
           <Text className="font-sans text-body-lg text-ink">{t('common.syncNow')}</Text>
         </ListRow>

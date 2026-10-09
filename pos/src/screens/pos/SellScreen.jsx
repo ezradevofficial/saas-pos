@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSession } from '../../auth/session';
 import { Alert } from '../../components/ds/Alert';
@@ -18,6 +18,7 @@ import { filterTiles } from '../../pos/catalogue';
 import { initials, maskPhone } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { amountDueIn } from '../../pos/tender';
+import { useMedia } from '../../theme/media';
 import { useSyncStatus } from '../../sync/useSyncStatus';
 import { CAMERA_SCANNING, CameraScanner } from './CameraScanner';
 import { formatTime, useMoneyText } from './format';
@@ -120,7 +121,9 @@ export function PosHeader({ compact, onHeld, onCloseShift, onMenu }) {
   );
 }
 
-const Chip = memo(function Chip({ label, selected, onPress }) {
+/** A category chip; the layout may give it a token colour (a dot) and an image (LAY-05). */
+const Chip = memo(function Chip({ label, selected, onPress, colours, image }) {
+  const uri = useMedia(image);
   return (
     <Pressable
       accessibilityRole="button"
@@ -128,27 +131,43 @@ const Chip = memo(function Chip({ label, selected, onPress }) {
       aria-pressed={selected}
       onPress={onPress}
       className={cn(
-        'h-12 justify-center rounded-pill border px-5',
-        selected ? 'border-primary bg-primary' : 'border-border-strong bg-surface-200 hover:bg-surface-300 active:bg-surface-300',
+        'h-12 flex-row items-center gap-2 rounded-pill border px-5',
+        selected ? 'border-primary bg-primary' : cn('border-border-strong hover:bg-surface-300 active:bg-surface-300', colours?.tile ?? 'bg-surface-200'),
         FOCUS_RING,
       )}
     >
+      {uri ? <Image source={{ uri }} accessibilityIgnoresInvertColors className="h-6 w-6 rounded-sm" /> : colours ? <View className={cn('h-2 w-2 rounded-pill', colours.dot)} /> : null}
       <Text className={cn('font-sans text-body font-medium', selected ? 'text-on-primary' : 'text-ink')}>{label}</Text>
     </Pressable>
   );
 });
 
-const TileCell = memo(function TileCell({ tile, reasonText, onAdd }) {
+const TileCell = memo(function TileCell({ tile, size, reasonText, onAdd }) {
   const select = useCallback(() => onAdd(tile.id), [onAdd, tile.id]);
   return (
     <View className="flex-1 p-1">
-      <PosTile name={tile.name} price={tile.price} currency={tile.currency} unavailable={tile.sellable ? undefined : reasonText(tile.reason)} onSelect={select} className="flex-1" />
+      <PosTile name={tile.name} price={tile.price} currency={tile.currency} color={tile.color} size={size} unavailable={tile.sellable ? undefined : reasonText(tile.reason)} onSelect={select} className="flex-1" />
     </View>
   );
 });
 
+/** LAY-05: the layout's quick buttons (an item, a category or an action), up to 8, in one scrolling row. */
+const QuickButtons = memo(function QuickButtons({ buttons, labelOf, onPress }) {
+  const { t } = useTranslation();
+  if (!buttons.length) return null;
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-grow-0" contentContainerClassName="gap-2" accessibilityLabel={t('pos.quick.title')}>
+      {buttons.map((button) => (
+        <Button key={`${button.type}:${button.id ?? button.action}`} variant="secondary" onPress={() => onPress(button)}>
+          {labelOf(button)}
+        </Button>
+      ))}
+    </ScrollView>
+  );
+});
+
 /** Search or scan, category chips and the product grid (POS-01). */
-export function CatalogueArea({ columns, onNotice }) {
+export function CatalogueArea({ columns, onNotice, onAction }) {
   const { t } = useTranslation();
   const { catalogue } = usePosData();
   const actions = usePosActions();
@@ -182,7 +201,19 @@ export function CatalogueArea({ columns, onNotice }) {
     }
   }, [actions, onNotice, query, reasonText, t, tiles.length]);
 
-  const renderItem = useCallback(({ item }) => <TileCell tile={item} reasonText={reasonText} onAdd={add} />, [add, reasonText]);
+  const size = catalogue?.layout?.grid.tile_size ?? 'standard';
+  const renderItem = useCallback(({ item }) => <TileCell tile={item} size={size} reasonText={reasonText} onAdd={add} />, [add, reasonText, size]);
+
+  const names = useMemo(() => new Map([...(catalogue?.tiles ?? []).map((tile) => [tile.id, tile.name]), ...(catalogue?.layout?.categories ?? []).map((c) => [c.id, c.name])]), [catalogue]);
+  const labelOf = useCallback((button) => (button.type === 'action' ? t(`pos.quick.${button.action}`) : (names.get(button.id) ?? '')), [names, t]);
+  const quick = useCallback(
+    (button) => {
+      if (button.type === 'item') add(button.id);
+      else if (button.type === 'category') setCategoryId(button.id);
+      else onAction?.(button.action);
+    },
+    [add, onAction],
+  );
 
   return (
     <View className="min-h-0 flex-1 gap-4">
@@ -206,11 +237,12 @@ export function CatalogueArea({ columns, onNotice }) {
         ) : null}
       </View>
       {scanning ? <CameraScanner onScanned={(code) => actions.addByCode(code)} onClose={() => setScanning(false)} /> : null}
+      <QuickButtons buttons={catalogue?.layout?.quick_buttons ?? []} labelOf={labelOf} onPress={quick} />
       {catalogue?.categories.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-grow-0" contentContainerClassName="gap-2">
           <Chip label={t('pos.search.all')} selected={!categoryId} onPress={() => setCategoryId(null)} />
           {catalogue.categories.map((category) => (
-            <Chip key={category.id} label={category.name} selected={categoryId === category.id} onPress={() => setCategoryId(category.id)} />
+            <Chip key={category.id} label={category.name} colours={category.colours} image={category.image} selected={categoryId === category.id} onPress={() => setCategoryId(category.id)} />
           ))}
         </ScrollView>
       ) : null}
@@ -387,19 +419,27 @@ export function PhoneSaleBar({ onOpen, onPay }) {
   );
 }
 
-/** POS-01: the selling screen, tablet (Main) or phone (PosPhone) by width. */
-export function SellScreen({ tablet, onPay, onOpenCart, onCustomer, onLine, onHeld, onCloseShift, onMenu }) {
+/**
+ * POS-01, LAY-05: the selling screen, tablet (Main) or phone (PosPhone) by
+ * width, laid out by the location's POS layout: grid columns and tile size,
+ * order, category chips, quick buttons, and the sale panel (the keypad
+ * side) right or left on a tablet; a phone keeps it at the bottom.
+ */
+export function SellScreen({ tablet, onPay, onOpenCart, onCustomer, onLine, onHeld, onCloseShift, onMenu, onAction }) {
   const [notice, setNotice] = useState(null);
+  const { catalogue } = usePosData();
+  const grid = catalogue?.layout?.grid;
+  const left = catalogue?.layout?.keypad === 'left';
   return (
     <SafeAreaView className="flex-1">
       <PosHeader compact={!tablet} onHeld={onHeld} onCloseShift={onCloseShift} onMenu={onMenu} />
       {tablet ? (
-        <View className="min-h-0 flex-1 flex-row gap-6 px-6 py-5">
+        <View testID="sell-tablet" className={cn('min-h-0 flex-1 gap-6 px-6 py-5', left ? 'flex-row-reverse' : 'flex-row')}>
           <View className="min-w-0 flex-1 gap-3">
             {notice ? <Alert tone="warning">{notice}</Alert> : null}
-            <CatalogueArea columns={4} onNotice={setNotice} />
+            <CatalogueArea columns={grid?.tablet_columns ?? 4} onNotice={setNotice} onAction={onAction} />
           </View>
-          <View className="w-1/3">
+          <View testID="sale-panel" className="w-1/3">
             <SalePanel onPay={onPay} onCustomer={onCustomer} onLine={onLine} />
           </View>
         </View>
@@ -407,7 +447,7 @@ export function SellScreen({ tablet, onPay, onOpenCart, onCustomer, onLine, onHe
         <>
           <View className="min-h-0 flex-1 gap-3 px-4 pt-3">
             {notice ? <Alert tone="warning">{notice}</Alert> : null}
-            <CatalogueArea columns={2} onNotice={setNotice} />
+            <CatalogueArea columns={grid?.phone_columns ?? 2} onNotice={setNotice} onAction={onAction} />
           </View>
           <PhoneSaleBar onOpen={onOpenCart} onPay={onPay} />
         </>

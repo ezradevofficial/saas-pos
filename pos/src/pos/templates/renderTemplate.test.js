@@ -59,7 +59,9 @@ describe('images the till prints', () => {
 
   it('prints PNG and JPEG logos only (no SVG)', () => {
     const logo = (uri) => renderTemplate('letter', { paper: 'A4', blocks: [{ id: 'l', type: 'logo' }] }, { company: { logo: uri } }, { labels });
-    expect(logo('data:image/png;base64,iVBORw0KGgo=')).toContain('<img src="data:image/png;base64,iVBORw0KGgo="');
+    expect(logo('data:image/png;base64,iVBORw0KGgo=')).toContain('<img class="logo" src="data:image/png;base64,iVBORw0KGgo="');
+    // BR-02: black and white on paper.
+    expect(logo('data:image/png;base64,iVBORw0KGgo=')).toContain('.logo { filter: grayscale(1)');
     expect(logo('data:image/svg+xml;base64,PHN2Zy8+')).not.toContain('<img');
   });
 });

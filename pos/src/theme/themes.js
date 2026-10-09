@@ -6,7 +6,8 @@ const FONT_TOKENS = ['--font-sans', '--font-mono', '--font-display'];
 
 /** "\"Geist\", \"Segoe UI\", system-ui" → "Geist": native fontFamily takes one loaded family. */
 function firstFamily(stack) {
-  return String(stack).split(',')[0].trim().replace(/^["']|["']$/g, '');
+  // A tenant theme's web variable font ("Geist Variable") names the family the app loads.
+  return String(stack).split(',')[0].trim().replace(/^["']|["']$/g, '').replace(/ Variable$/, '');
 }
 
 /**

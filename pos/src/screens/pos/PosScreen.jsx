@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
 import { useSession } from '../../auth/session';
 import { Alert } from '../../components/ds/Alert';
 import { Button } from '../../components/ds/Button';
-import { usePosData } from '../../pos/PosProvider';
+import { Dialog } from '../../components/ds/Dialog';
+import { DISPLAY_QUERY } from '../../pos/customerDisplay';
+import { usePosActions, usePosData } from '../../pos/PosProvider';
+import { APPEARANCES, useTillTheme } from '../../theme/TillTheme';
+import { CustomerDisplayScreen } from '../CustomerDisplayScreen';
+import { useCustomerDisplayFeed } from './useCustomerDisplayFeed';
 import { useServices } from '../../services/services';
 import { AUTH } from '../../sync/engine';
 import { useSyncStatus } from '../../sync/useSyncStatus';
@@ -40,6 +45,34 @@ function SyncProblems() {
   return <View className="gap-2 px-4 pt-3 md:px-6">{alerts}</View>;
 }
 
+/** The device's appearance: as the device, light or dark (kept on this till only). */
+function AppearanceDialog({ onClose }) {
+  const { t } = useTranslation();
+  const { appearance, setAppearance } = useTillTheme();
+  return (
+    <Dialog open title={t('pos.appearance.title')} onClose={onClose}>
+      <View className="gap-2">
+        <Text className="font-sans text-body text-ink-muted">{t('pos.appearance.help')}</Text>
+        {APPEARANCES.map((value) => (
+          <Button key={value} variant={appearance === value ? 'primary' : 'secondary'} accessibilityState={{ selected: appearance === value }} onPress={() => setAppearance(value).then(onClose)}>
+            {t(`pos.appearance.${value}`)}
+          </Button>
+        ))}
+      </View>
+    </Dialog>
+  );
+}
+
+/** LAY-05: a second browser tab for the customer (web preview), else the in-app display. */
+function openCustomerDisplay(setRoute) {
+  const location = globalThis.window?.location;
+  if (Platform.OS === 'web' && location && typeof globalThis.window.open === 'function') {
+    globalThis.window.open(`${location.origin}${location.pathname}?${DISPLAY_QUERY}`, '_blank', 'noopener');
+  } else {
+    setRoute('display');
+  }
+}
+
 /**
  * POS-01..POS-06: the till's screens after sign-in. A small state router:
  * no shift → open one; then sell, pay, receipt; sales and returns; close
@@ -50,7 +83,10 @@ export function PosScreen() {
   const { width } = useWindowDimensions();
   const tablet = width >= TABLET_MIN_WIDTH;
   const { catalogue, shift } = usePosData();
+  const actions = usePosActions();
   const [route, setRoute] = useState('sell');
+  // LAY-05: the customer display follows the current sale.
+  useCustomerDisplayFeed();
   const [dialog, setDialog] = useState(null);
   const [receipt, setReceipt] = useState(null);
 
@@ -60,9 +96,21 @@ export function PosScreen() {
   const close = useCallback(() => setDialog(null), []);
   const openMenu = useCallback(() => setDialog({ kind: 'menu' }), []);
   const navigate = useCallback((next) => {
-    if (next === 'cash' || next === 'held') setDialog({ kind: next });
+    if (next === 'cash' || next === 'held' || next === 'appearance') setDialog({ kind: next });
+    else if (next === 'display') openCustomerDisplay(setRoute);
     else setRoute(next);
   }, []);
+  // LAY-05: what the layout's quick action buttons do.
+  const onAction = useCallback(
+    (action) => {
+      if (action === 'hold') actions.hold();
+      else if (action === 'customer') setDialog({ kind: 'customer' });
+      else if (action === 'cash_in') setDialog({ kind: 'cash', initialKind: 'pay_in' });
+      else if (action === 'cash_out') setDialog({ kind: 'cash', initialKind: 'pay_out' });
+      else if (action === 'sales') setRoute('sales');
+    },
+    [actions],
+  );
   const openLine = useCallback((lineId) => setDialog({ kind: 'line', lineId }), []);
   const openCustomer = useCallback(() => setDialog({ kind: 'customer' }), []);
   const openHeld = useCallback(() => setDialog({ kind: 'held' }), []);
@@ -83,6 +131,7 @@ export function PosScreen() {
   else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={toSell} />;
   else if (route === 'sales') screen = <SalesScreen onBack={toSell} />;
   else if (route === 'close') screen = <CloseShiftScreen onBack={toSell} />;
+  else if (route === 'display') screen = <CustomerDisplayScreen onClose={toSell} />;
   else if (route === 'cart' && !tablet) screen = <PhoneCartScreen onBack={toSell} onPay={toPay} onCustomer={openCustomer} onLine={openLine} />;
   else
     screen = (
@@ -95,6 +144,7 @@ export function PosScreen() {
         onHeld={openHeld}
         onCloseShift={() => setRoute('close')}
         onMenu={openMenu}
+        onAction={onAction}
       />
     );
 
@@ -106,7 +156,8 @@ export function PosScreen() {
       {dialog?.kind === 'line' ? <LineDialog lineId={dialog.lineId} onClose={close} /> : null}
       {dialog?.kind === 'customer' ? <CustomerDialog onClose={close} /> : null}
       {dialog?.kind === 'held' ? <HeldDialog onClose={close} /> : null}
-      {dialog?.kind === 'cash' ? <CashDialog onClose={close} /> : null}
+      {dialog?.kind === 'cash' ? <CashDialog onClose={close} initialKind={dialog.initialKind} /> : null}
+      {dialog?.kind === 'appearance' ? <AppearanceDialog onClose={close} /> : null}
       <OverrideDialog />
     </View>
   );

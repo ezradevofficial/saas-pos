@@ -107,6 +107,11 @@ class CustomFormApiTest extends TestCase
         $this->assertSame(['petty_cash'], array_column($this->getJson('/api/v1/custom-form-types', $this->headersFor($this->managerA))->json('data'), 'key'));
         $this->assertTrue(AuditEntry::query()->where('action', 'core.custom_form_type.create')->exists());
 
+        // LAY-03: the form has a layout of its own: the place and header fields, the lines, the attachments.
+        $layout = $this->getJson('/api/v1/config/form_layout/resolved?key=custom_form.petty_cash', $this->headersFor($this->managerA))->assertOk()->json('data.payload.sections');
+        $this->assertSame(['main', 'lines', 'attachments'], array_column($layout, 'id'));
+        $this->assertSame(['place', 'custom.needed_on', 'custom.reason'], array_column($layout[0]['fields'], 'id'));
+
         // NUM-01 and WF-01: the type is a numbered and a workflow document type.
         $this->assertContains('core.custom_form_petty_cash', array_column($this->getJson('/api/v1/workflow/document-types', $this->headersFor())->assertOk()->json('data'), 'key'));
     }

@@ -381,6 +381,7 @@
     "dashboards": "Dashboards",
     "navigationEditor": "Menus",
     "documentTemplates": "Document templates",
+    "posLayout": "POS layout",
     "formLayouts": "Form layouts",
     "formTypes": "Forms"
   },
@@ -4750,6 +4751,124 @@
       "frame": "Printed document preview",
       "stale": "Updating the preview",
       "downloadPdf": "Download PDF"
+    }
+  },
+  "posLayout": {
+    "title": "POS layout",
+    "description": "How the tills’ sell screen looks: the product grid, categories, quick buttons, where the sale panel sits and what the customer display shows.",
+    "documentName": "POS layout",
+    "readOnly": "You can see this layout but not change it.",
+    "unknown": "No longer available",
+    "pickItem": "Search items",
+    "scope": {
+      "label": "Layout for",
+      "tenant": "The whole business",
+      "company": "Company: {{name}}",
+      "branch": "Branch: {{name}} ({{company}})",
+      "location": "Location: {{name}} ({{branch}})",
+      "tenantHelp": "Every till uses this layout unless its company, branch or location has its own.",
+      "overrideHelp": "Tills here use this layout instead of the one above. A location’s layout wins over its branch’s."
+    },
+    "grid": {
+      "title": "Product grid",
+      "text": "Columns and tile size. Tiles stay at least 48 px tall for touch.",
+      "tablet": "Columns on a tablet",
+      "phone": "Columns on a phone",
+      "size": "Tile size"
+    },
+    "sizes": {
+      "compact": "Compact",
+      "standard": "Standard",
+      "large": "Large"
+    },
+    "products": {
+      "title": "Products",
+      "text": "Pinned items come first, then the rest in the order you choose.",
+      "order": "Order after pinned items",
+      "pinned": "Pinned items",
+      "noPinned": "No pinned items.",
+      "pin": "Pin an item",
+      "unpin": "Unpin {{name}}",
+      "move": "Move {{name}}",
+      "bestSellersHelp": "The items sold most at each location in the last 30 days, then by name. The preview shows them by name."
+    },
+    "orders": {
+      "category": "By category",
+      "name": "By name",
+      "best_sellers": "Best-sellers"
+    },
+    "categories": {
+      "title": "Category tiles",
+      "text": "Drag to order. Categories added later appear at the end.",
+      "none": "No categories yet.",
+      "move": "Move {{name}}",
+      "colour": "Colour of {{name}}",
+      "image": "Image of {{name}}",
+      "noImage": "No image",
+      "hide": "Hide {{name}}",
+      "show": "Show {{name}}"
+    },
+    "colours": {
+      "none": "No colour",
+      "primary-tint": "Brand tint",
+      "surface-300": "Grey",
+      "success-tint": "Green tint",
+      "warning-tint": "Amber tint",
+      "danger-tint": "Red tint"
+    },
+    "assets": {
+      "logo": "Logo {{number}}",
+      "background": "Brand image {{number}}"
+    },
+    "quick": {
+      "title": "Quick buttons",
+      "text": "Up to {{max}} buttons above the grid: an item, a category or an action.",
+      "none": "No quick buttons.",
+      "move": "Move {{name}}",
+      "remove": "Remove {{name}}",
+      "type": "Button type",
+      "add": "Add a button",
+      "pickAction": "Choose an action",
+      "pickCategory": "Choose a category",
+      "types": {
+        "action": "Action",
+        "item": "Item",
+        "category": "Category"
+      }
+    },
+    "actions": {
+      "hold": "Hold sale",
+      "customer": "Customer",
+      "cash_in": "Cash in",
+      "cash_out": "Cash out",
+      "sales": "Sales and returns"
+    },
+    "keypad": {
+      "title": "Sale panel",
+      "text": "Where the sale and its keypad sit on a tablet. On a phone they stay at the bottom.",
+      "label": "Side on a tablet",
+      "right": "Right",
+      "left": "Left"
+    },
+    "display": {
+      "title": "Customer display",
+      "text": "What customers see on a second screen while you sell.",
+      "welcome": "Welcome text",
+      "welcomeHelp": "Shown between sales. Up to {{max}} characters.",
+      "show_lines": "Show the sale’s lines",
+      "show_second_currency": "Show the total in the second currency",
+      "show_logo": "Show the logo"
+    },
+    "preview": {
+      "title": "Preview",
+      "tablet": "Tablet",
+      "phone": "Phone",
+      "all": "All",
+      "sale": "Current sale",
+      "lines": "Sale lines",
+      "charge": "Charge",
+      "noItems": "No items to show yet.",
+      "text": "The first items of your catalogue, without prices. Colours follow the published theme."
     }
   },
   "formLayouts": {

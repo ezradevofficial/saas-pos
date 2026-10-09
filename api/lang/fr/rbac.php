@@ -59,6 +59,7 @@ return [
                 'cash' => 'Tiroir-caisse',
                 'price' => 'Prix',
                 'discount' => 'Remises',
+                'layout' => 'Disposition de l’écran de caisse',
             ],
         ],
         'actions' => [
