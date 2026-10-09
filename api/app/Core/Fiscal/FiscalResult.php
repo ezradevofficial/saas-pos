@@ -9,6 +9,9 @@ namespace App\Core\Fiscal;
  */
 final class FiscalResult
 {
+    /** sha256 of the request body sent, when one was sent. */
+    public ?string $requestHash = null;
+
     /** @param array<string, scalar|null> $authority */
     private function __construct(
         public readonly string $status,
@@ -16,6 +19,13 @@ final class FiscalResult
         public readonly ?string $code = null,
         public readonly ?string $message = null,
     ) {}
+
+    public function sent(string $requestHash): self
+    {
+        $this->requestHash = $requestHash;
+
+        return $this;
+    }
 
     /** @param array<string, scalar|null> $authority */
     public static function accepted(array $authority): self

@@ -64,6 +64,8 @@ return new class extends Migration
             $table->timestampTz('accepted_at')->nullable();
             $table->timestampTz('deadline_at')->nullable();
             $table->jsonb('authority')->default('{}');
+            // sha256 of the last request body sent (a duplicate answer is ours only when it matches).
+            $table->char('request_hash', 64)->nullable();
             $table->string('error_code', 60)->nullable();
             $table->text('last_error')->nullable();
             $table->timestampTz('alerted_at')->nullable();

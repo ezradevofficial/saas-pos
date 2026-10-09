@@ -6,6 +6,7 @@ use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Jobs\ProcessPaymentTimers;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Models\PaymentReceipt;
+use App\Core\Payments\PaymentIntents;
 use App\Core\Tenancy\DueTenants;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Request;
@@ -66,6 +67,17 @@ class PaymentTimersTest extends TestCase
         // The late callback still brings the receipt.
         $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0, 'QJK3LATE01'))->assertOk();
         $this->assertSame('QJK3LATE01', $this->intent($intent->id)->provider_receipt);
+    }
+
+    public function test_a_run_starts_no_provider_call_that_would_outlast_it(): void
+    {
+        $this->fakeDaraja();
+        $this->push()->assertCreated();
+
+        config(['payments.run_seconds' => 20]); // less than one call (timeout 15 + 5)
+        $this->assertSame(0, $this->inTenant(fn () => app(PaymentIntents::class)->processTimers(CarbonImmutable::now()->addSeconds(100))));
+        config(['payments.run_seconds' => 55]);
+        $this->assertSame(1, $this->inTenant(fn () => app(PaymentIntents::class)->processTimers(CarbonImmutable::now()->addSeconds(100))));
     }
 
     public function test_a_push_still_processing_waits_then_times_out(): void

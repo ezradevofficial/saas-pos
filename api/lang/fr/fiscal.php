@@ -3,6 +3,9 @@
 // Transmission fiscale (note de concept 7.2) : messages de l’API, libellés des listes et alertes.
 return [
     'errors' => [
+        'duplicate_invoice' => 'L’administration fiscale détient déjà la facture fiscale :number avec un autre contenu. Vérifiez la numérotation avec l’administration avant de réessayer.',
+        'original_not_accepted' => 'La vente que ce document annule n’a pas été acceptée par l’administration fiscale. Réglez d’abord la vente, puis relancez ce document.',
+        'tax_rate_missing' => 'L’article « :item » porte une taxe sans taux. Vérifiez les données de taxe de la vente, puis réessayez.',
         'confirm_required' => 'Confirmez que les documents depuis cette date doivent être envoyés à l’administration fiscale.',
         'not_enabled' => 'Activez la transmission avant d’envoyer les ventes antérieures.',
         'currency_unconfirmed' => 'Le traitement des devises dans eTIMS pour les ventes en USD doit être confirmé. Ce document en :currency est retenu jusqu’à la décision, puis renvoyé.',

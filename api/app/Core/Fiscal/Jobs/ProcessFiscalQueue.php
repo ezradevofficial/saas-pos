@@ -21,7 +21,7 @@ class ProcessFiscalQueue implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, Queueable;
 
-    public int $uniqueFor = 300;
+    public int $uniqueFor = 60;
 
     public int $timeout = 60;
 

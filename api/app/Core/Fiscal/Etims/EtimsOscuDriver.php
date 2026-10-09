@@ -7,6 +7,7 @@ use App\Core\Fiscal\FiscalResult;
 use App\Core\Fiscal\LocalRejection;
 use App\Core\Fiscal\Models\FiscalSettings;
 use App\Core\Fiscal\Models\FiscalSubmission;
+use App\Core\Fiscal\NeedsAttention;
 
 /**
  * KRA eTIMS through the online sales control unit (OSCU) API.
@@ -104,13 +105,24 @@ class EtimsOscuDriver implements FiscalDriver
         }
 
         $body = EtimsPayload::build($submission, $settings, $originalInvoiceNo);
+        $hash = hash('sha256', (string) json_encode($body));
         $answer = $this->client->post('save_sale', $body, (string) $settings->tin, (string) $settings->branch_code, $key);
 
         if ($answer === null) {
-            return FiscalResult::retry('authority_unavailable', __('fiscal.errors.authority_unavailable'));
+            return FiscalResult::retry('authority_unavailable', __('fiscal.errors.authority_unavailable'))->sent($hash);
         }
 
         $code = (string) ($answer['resultCd'] ?? '');
+
+        // KRA already holds this invoice number: ours when the same body was sent before
+        // (its answer was lost), else someone else's (never overwritten or guessed).
+        if (in_array($code, (array) config('fiscal.etims.duplicate_codes', []), true)) {
+            if ($submission->request_hash === $hash) {
+                return FiscalResult::accepted(['invoice_number' => (string) $submission->invoice_no, 'recovered' => 'duplicate'])->sent($hash);
+            }
+
+            throw new NeedsAttention('duplicate_invoice', __('fiscal.errors.duplicate_invoice', ['number' => $submission->invoice_no]));
+        }
 
         if ($code === '000') {
             $data = (array) ($answer['data'] ?? []);
@@ -127,14 +139,14 @@ class EtimsOscuDriver implements FiscalDriver
                 'authority_time' => self::text($data['vsdcRcptPbctDate'] ?? null),
                 'invoice_number' => (string) $submission->invoice_no,
                 'qr' => $prefix !== '' && $signature !== null ? $prefix.$settings->tin.$settings->branch_code.$signature : null,
-            ], fn ($value) => $value !== null));
+            ], fn ($value) => $value !== null))->sent($hash);
         }
 
         $message = __('fiscal.errors.authority_refused', ['code' => $code, 'message' => mb_substr((string) ($answer['resultMsg'] ?? ''), 0, 200)]);
 
-        return in_array($code, (array) config('fiscal.etims.retryable_codes', []), true)
+        return (in_array($code, (array) config('fiscal.etims.retryable_codes', []), true)
             ? FiscalResult::retry('etims_'.$code, $message)
-            : FiscalResult::rejected('etims_'.$code, $message);
+            : FiscalResult::rejected('etims_'.$code, $message))->sent($hash);
     }
 
     private static function text(mixed $value): ?string

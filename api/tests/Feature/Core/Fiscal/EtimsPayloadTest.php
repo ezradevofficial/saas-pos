@@ -79,6 +79,7 @@ class EtimsPayloadTest extends TestCase
             'band_rate_conflict' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500], ['Salt', $this->vat->id, '8', 10800, 800]], []],
             'item_class_missing' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500]], ['classification_code' => null]],
             'currency_unconfirmed' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500]], ['currency' => 'USD']],
+            'tax_rate_missing' => [[['Sugar 1kg', $this->vat->id, null, 22500, 2500]], []],
         ];
 
         foreach ($cases as $reason => [$lines, $change]) {

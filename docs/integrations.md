@@ -102,6 +102,7 @@ access_log /var/log/nginx/api.access.log redacted;
 | `ETIMS_PATH_*` | Endpoint paths (`selectInitOsdcInfo`, `saveTrnsSalesOsdc`, ...) | as in the OSCU specification |
 | `ETIMS_QR_PREFIX` | Receipt verification URL the QR code starts with (followed by PIN, branch id and receipt signature). Confirm with KRA; empty stores no QR content. | sandbox receipt link |
 | `ETIMS_RETRYABLE_CODES` | KRA result codes that mean "try later" (others are rejections a person handles) | none |
+| `ETIMS_DUPLICATE_CODES` | KRA result code(s) meaning "invoice number already stored". When the stored request is the one sent before (same body hash, answer lost), the submission is accepted; otherwise it is held as needs attention. **Confirm the code with KRA**; none is assumed. | none |
 | `ETIMS_REFUND_REASON_CODE` | `rfdRsnCd` used for refunds and voids | `06` |
 | `FISCAL_KE_ALERT_AFTER_HOURS` | Alert fiscal administrators when a document is still not accepted after this many hours | `6` |
 | `FISCAL_KE_DEADLINE_HOURS` | KRA's transmission deadline for documents made offline | not set: **confirm with KRA** |
@@ -145,6 +146,14 @@ rejection. Accepted documents keep the receipt number, internal data,
 receipt signature, control unit id and QR content for the receipt. Only KES
 documents are sent; others are held as `needs_attention`.
 
+**Invoice numbers (`invcNo`).** Each company's fiscal invoice numbers are
+handed out in queue order when a document is queued. A document that is
+retried keeps its number, so after an outage a lower number can reach KRA
+after a higher one. **To verify on the KRA sandbox:** whether OSCU
+requires `invcNo` to arrive strictly in order. If it does, numbers must be
+allocated at send time, in order, with a blocked document holding back
+the ones after it.
+
 ## DRC DGI normalised invoicing (e-MCF)
 
 Not built: the `dgi_emcf` driver reports itself unavailable, so transmission
@@ -184,10 +193,19 @@ Decided (phase 4 Task 3 review):
 - **Callback IPs**: Safaricom's current list is owner input
   (`MPESA_CALLBACK_IPS`).
 - **Permissions**: `core.fiscal.configure` (Owner, Admin) is needed for
-  the authority's credentials, initialisation, the driver and switching
+  the authority's credentials, initialisation, the driver, the identity
+  KRA registered (PIN, branch id, device serial) and switching
   transmission on or off; the Accountant holds `core.fiscal.edit`
   (non-secret settings, retries, sending earlier sales).
 - **A reused M-Pesa code** flags the uploaded sale `mpesa_code_reused`.
+- **Lost STK answers**: a push the provider did not answer is `unknown`,
+  still checked, and completed by a late paid result or a C2B
+  confirmation; paid results no open intent takes are kept as unmatched
+  receipts flagged `late_or_unmatched` for matching or refund.
+- **Till limits**: 10 payment requests a minute per device, 3 pushes per
+  phone and method in 5 minutes; the cashier (`user_id`) must be staff of
+  the till's location. Refund payouts never exceed the original payment
+  and use its currency.
 - **Settlements** (core `PaymentIntentSettled`, after commit, ids only)
   update the POS: a paid push or verified code confirms the sale payment,
   a mismatch flags the sale `mpesa_mismatch`; a paid refund confirms the

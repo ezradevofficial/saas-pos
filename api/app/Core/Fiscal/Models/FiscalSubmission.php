@@ -35,10 +35,10 @@ class FiscalSubmission extends Model implements HasScope
     protected $fillable = [
         'company_id', 'country', 'driver', 'source', 'document_type', 'document_id', 'document_number', 'invoice_no',
         'original_submission_id', 'payload', 'status', 'attempts', 'next_attempt_at', 'last_attempt_at', 'accepted_at',
-        'deadline_at', 'authority', 'error_code', 'last_error', 'alerted_at',
+        'deadline_at', 'authority', 'request_hash', 'error_code', 'last_error', 'alerted_at',
     ];
 
-    protected array $auditHidden = ['payload', 'authority', 'attempts', 'next_attempt_at', 'last_attempt_at'];
+    protected array $auditHidden = ['payload', 'authority', 'request_hash', 'attempts', 'next_attempt_at', 'last_attempt_at'];
 
     protected $attributes = ['authority' => '{}', 'attempts' => 0];
 

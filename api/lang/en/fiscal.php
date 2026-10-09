@@ -3,6 +3,9 @@
 // Fiscal transmission (concept note 7.2): API messages, list labels and alerts.
 return [
     'errors' => [
+        'duplicate_invoice' => 'The tax authority already holds fiscal invoice :number with other content. Check the numbering with the authority before retrying.',
+        'original_not_accepted' => 'The sale this document reverses was not accepted by the tax authority. Resolve the sale first, then retry this document.',
+        'tax_rate_missing' => 'The item “:item” carries tax but no tax rate. Check the sale’s tax data, then retry.',
         'confirm_required' => 'Confirm that the documents since this date should be sent to the tax authority.',
         'not_enabled' => 'Switch transmission on before sending earlier sales.',
         'currency_unconfirmed' => 'eTIMS currency handling for USD sales needs confirming. This :currency document is held until it is decided, then retried.',

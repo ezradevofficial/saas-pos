@@ -33,11 +33,13 @@ return [
     // retried.
     'stuck_minutes' => 10,
 
-    // Submissions per tenant per queue run, and the seconds a run may take
-    // before it stops (the rest go at the next minute's run). Below the
-    // worker timeout (60 s) and Redis' retry_after (90 s).
+    // Submissions per tenant per queue run, and the seconds a run may take,
+    // authority calls included: a new call starts only when a whole call
+    // (`etims.timeout` + 5 s) still fits. Below the worker timeout (60 s)
+    // and Redis' retry_after (90 s); the rest go at the next minute's run.
     'batch' => 50,
-    'run_seconds' => 40,
+    'send_earlier_batch' => 200,
+    'run_seconds' => 55,
 
     // Per country: drivers that may be chosen, and when the company's
     // fiscal administrators are alerted that a submission is still not
@@ -78,6 +80,12 @@ return [
         // before go-live (left empty, no QR content is stored and the
         // receipt prints the signature only).
         'qr_prefix' => env('ETIMS_QR_PREFIX', 'https://etims-sbx.kra.go.ke/common/link/etims/receipt/indexEtimsReceiptData?Data='),
+
+        // KRA's answer that the invoice number is already stored. Set once
+        // confirmed from KRA (none assumed): when the stored request is the
+        // one sent before (same body hash; its answer was lost), the
+        // submission is accepted; otherwise it needs attention.
+        'duplicate_codes' => array_values(array_filter(explode(',', (string) env('ETIMS_DUPLICATE_CODES', '')))),
 
         // Result codes that mean "try again later" rather than "refused".
         // `000` is success; any code not listed here is a rejection that

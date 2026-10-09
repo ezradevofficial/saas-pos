@@ -129,7 +129,8 @@ class FiscalQueue
             ->each(fn (FiscalSubmission $submission) => $submission->forceFill(['status' => 'retrying', 'next_attempt_at' => $at])->saveQuietly());
 
         $count = 0;
-        $stop = microtime(true) + (int) config('fiscal.run_seconds', 40);
+        // A new authority call starts only when a whole call still fits in the run.
+        $stop = microtime(true) + (int) config('fiscal.run_seconds', 55) - ((int) config('fiscal.etims.timeout', 20) + 5);
         $due = FiscalSubmission::query()->whereIn('status', ['queued', 'retrying'])->where('next_attempt_at', '<=', $at)
             ->orderBy('company_id')->orderBy('invoice_no')->limit((int) config('fiscal.batch', 50))->pluck('id');
 
@@ -222,6 +223,12 @@ class FiscalQueue
             return;
         }
 
+        if ($submission->isCreditNote() && in_array($submission->original?->status, ['rejected', 'needs_attention'], true)) {
+            $this->hold($submission, new NeedsAttention('original_not_accepted', __('fiscal.errors.original_not_accepted')));
+
+            return;
+        }
+
         if ($submission->isCreditNote() && $submission->original?->status !== 'accepted') {
             $this->wait($submission, $at->addSeconds((int) config('fiscal.wait_for_original_seconds', 120)));
 
@@ -243,6 +250,10 @@ class FiscalQueue
         } catch (Throwable $e) {
             report($e);
             $result = FiscalResult::retry('error', __('fiscal.errors.unexpected'));
+        }
+
+        if ($result->requestHash !== null) {
+            $submission->forceFill(['request_hash' => $result->requestHash]);
         }
 
         match ($result->status) {

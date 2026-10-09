@@ -64,6 +64,10 @@ final class EtimsPayload
             $band = $bands[(int) $line['line_no']]['code'];
             $rate = self::rate($line['tax_rate'] ?? null);
 
+            if ($rate === null && (int) $line['tax_minor'] !== 0) {
+                throw new LocalRejection('tax_rate_missing', __('fiscal.errors.tax_rate_missing', ['item' => (string) $line['item_name']]));
+            }
+
             if ($rate !== null) {
                 if (isset($rates[$band]) && ! $rates[$band]->isEqualTo($rate)) {
                     throw new LocalRejection('band_rate_conflict', __('fiscal.errors.band_rate_conflict', ['band' => $band]));

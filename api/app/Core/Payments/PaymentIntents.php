@@ -436,7 +436,8 @@ class PaymentIntents
     public function processTimers(CarbonImmutable $at): int
     {
         $count = 0;
-        $stop = microtime(true) + (int) config('payments.run_seconds', 40);
+        // A new provider call starts only when a whole call still fits in the run.
+        $stop = microtime(true) + (int) config('payments.run_seconds', 55) - ((int) config('payments.mpesa.timeout', 15) + 5);
 
         $due = PaymentIntent::query()->whereIn('status', ['pending', 'unknown'])->where('expires_at', '<=', $at)->orderBy('expires_at')->limit(100)->get();
 

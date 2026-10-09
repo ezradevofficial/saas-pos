@@ -13,8 +13,10 @@ use Illuminate\Validation\Validator;
  * `device_serial` the authority registered, plain `settings` (default
  * item classification and unit codes) and `credentials` the driver takes
  * (stored encrypted, never returned; a null value clears a key).
- * The driver, `enabled` and credentials also need `core.fiscal.configure`
- * at the company (Owner, Admin): an Accountant edits the rest.
+ * The driver, `enabled`, credentials and the identity the authority
+ * registered (`tin`, `branch_code`, `device_serial`) also need
+ * `core.fiscal.configure` at the company (Owner, Admin): an Accountant
+ * edits the default codes only.
  */
 class SaveFiscalSettingsRequest extends CompanyFiscalRequest
 {
@@ -30,7 +32,7 @@ class SaveFiscalSettingsRequest extends CompanyFiscalRequest
             return false;
         }
 
-        $configures = $this->has('driver') || $this->has('enabled') || $this->has('credentials');
+        $configures = collect(['driver', 'enabled', 'credentials', 'tin', 'branch_code', 'device_serial'])->contains(fn (string $field) => $this->has($field));
 
         return ! $configures || $this->user()->can('core.fiscal.configure', $this->company());
     }
