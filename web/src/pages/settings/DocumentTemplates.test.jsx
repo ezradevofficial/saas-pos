@@ -13,6 +13,7 @@ const RECEIPT_DEFAULT = {
   language: 'en',
   blocks: [
     { id: 'header', type: 'text', text: '{{company.legal_name}}', align: 'center', size: 'large', weight: 'medium' },
+    { id: 'totals', type: 'totals', show: ['total'], tax_lines: true },
     { id: 'fiscal', type: 'fiscal' },
   ],
   variants: [],
@@ -26,7 +27,7 @@ const TYPES = {
       paper: '80mm',
       live: true,
       fiscal: { allowed: true, required: true, authority: 'kra_etims' },
-      locked: ['fiscal'],
+      locked: ['fiscal', 'totals'],
       fields: [{ path: 'company.legal_name', group: 'company', type: 'text', label: 'Legal name' }],
       columns: [{ key: 'item_name', type: 'text', label: 'Item', numeric: false }],
       default: RECEIPT_DEFAULT,
@@ -92,6 +93,9 @@ describe('Document templates (TPL-01..TPL-05)', () => {
     expect(within(canvas).getByRole('img', { name: 'Tax authority is locked' })).toBeInTheDocument()
     expect(within(canvas).queryByRole('button', { name: 'Remove Tax authority' })).not.toBeInTheDocument()
     expect(within(canvas).getByRole('button', { name: 'Remove Text' })).toBeInTheDocument()
+    // The totals print the tax lines: locked too.
+    expect(within(canvas).getByRole('img', { name: 'Totals is locked' })).toBeInTheDocument()
+    expect(within(canvas).queryByRole('button', { name: 'Remove Totals' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Text' }))
     expect(within(canvas).getAllByRole('button', { name: 'Remove Text' })).toHaveLength(2)
@@ -103,7 +107,7 @@ describe('Document templates (TPL-01..TPL-05)', () => {
         expect.objectContaining({
           key: 'pos.receipt',
           scope_type: 'tenant',
-          payload: expect.objectContaining({ blocks: expect.arrayContaining([expect.objectContaining({ id: 'text-1', type: 'text' }), { id: 'fiscal', type: 'fiscal' }]) }),
+          payload: expect.objectContaining({ blocks: expect.arrayContaining([expect.objectContaining({ id: 'text-1', type: 'text' }), expect.objectContaining({ type: 'totals' }), { id: 'fiscal', type: 'fiscal' }]) }),
         }),
       ),
     )

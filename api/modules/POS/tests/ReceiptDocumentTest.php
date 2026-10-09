@@ -12,6 +12,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -176,6 +177,25 @@ class ReceiptDocumentTest extends TestCase
         app(TenantContext::class)->set(null);
         $this->get('/d/'.basename(parse_url($second['url'], PHP_URL_PATH)))->assertStatus(410);
         $this->assertSame(0, $this->inTenant(fn () => DocumentShare::query()->findOrFail($second['id'])->access_count));
+    }
+
+    public function test_a_link_stops_when_the_module_is_off_or_the_tenant_is_not_active(): void
+    {
+        $url = $this->postJson($this->url('share'), [], $this->headersFor())->assertCreated()->json('data.url');
+        $path = parse_url($url, PHP_URL_PATH);
+
+        // RBAC-08: POS switched off for the tenant.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('pos'));
+        app(TenantContext::class)->set(null);
+        $this->get($path)->assertStatus(410)->assertSee('This link has expired or was withdrawn');
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('pos'));
+        app(TenantContext::class)->set(null);
+        $this->get($path)->assertOk();
+
+        // TEN-01: a suspended tenant shares nothing.
+        $this->inTenant(fn () => Tenant::query()->whereKey($this->owner->tenant_id)->update(['status' => 'suspended']));
+        app(TenantContext::class)->set(null);
+        $this->get($path)->assertStatus(410);
     }
 
     public function test_another_tenant_reaches_nothing_of_the_sale_or_its_shares(): void

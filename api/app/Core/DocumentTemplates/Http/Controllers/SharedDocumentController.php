@@ -5,9 +5,12 @@ namespace App\Core\DocumentTemplates\Http\Controllers;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\DocumentTemplates\DocumentOutput;
 use App\Core\DocumentTemplates\DocumentShares;
+use App\Core\DocumentTemplates\DocumentTypes;
 use App\Core\DocumentTemplates\Http\Requests\OpenSharedDocumentRequest;
 use App\Core\DocumentTemplates\RecordSource;
 use App\Core\DocumentTemplates\TemplateRenderer;
+use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\Models\Tenant;
 use Illuminate\Http\Response;
 
 /**
@@ -16,16 +19,23 @@ use Illuminate\Http\Response;
  * tenant is found by a security-definer function and everything else is
  * read under that tenant's row-level security (ADR 002). Unknown,
  * expired and revoked links answer the same page (410 once known as
- * expired or revoked, 404 otherwise); every open is counted and audited.
+ * expired or revoked, or when the tenant is not active or the document's
+ * module is switched off, 404 otherwise); every open is counted and audited.
  */
 class SharedDocumentController
 {
-    public function __invoke(OpenSharedDocumentRequest $request, string $token, DocumentShares $shares, DataSources $sources, DocumentOutput $output): Response
+    public function __invoke(OpenSharedDocumentRequest $request, string $token, DocumentShares $shares, DataSources $sources, DocumentOutput $output, ModuleRegistry $modules): Response
     {
         $share = $shares->resolve($token);
 
         if ($share === null || ! $share->isActive()) {
             return $this->gone($share === null ? 404 : 410);
+        }
+
+        // RBAC-08, TEN-01: a suspended tenant, or a module switched off, shares nothing.
+        if (Tenant::query()->whereKey($share->tenant_id)->value('status') !== 'active'
+            || ! $modules->isActive(DocumentTypes::module($share->document_type))) {
+            return $this->gone(410);
         }
 
         $source = $sources->find($share->document_type);

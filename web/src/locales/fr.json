@@ -4558,8 +4558,9 @@
     },
     "fiscal": {
       "missingTitle": "Le bloc {{authority}} manque",
-      "missing": "Ce document doit imprimer les données de l’administration fiscale dans votre pays. Rajoutez le bloc avant d’enregistrer.",
-      "restore": "Rajouter le bloc"
+      "missing": "Ce document doit imprimer les données de l’administration fiscale et les lignes de taxe dans votre pays. Rajoutez les blocs avant d’enregistrer.",
+      "restore": "Rajouter les blocs",
+      "totalsMissingTitle": "Le bloc des totaux manque"
     },
     "problems": "{{count}} problème empêche la publication",
     "problems_other": "{{count}} problèmes empêchent la publication",

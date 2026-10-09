@@ -264,6 +264,24 @@ describe('POS sales (POS-12)', () => {
       expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).not.toBeInTheDocument()
     })
 
+    it('prints the receipt in a strictly sandboxed frame that prints itself', async () => {
+      withShares(VIEWER)
+      api.download.mockResolvedValue({ blob: new Blob(['<html><body><p>Receipt</p><script>parent.steal()</script></body></html>']), filename: null })
+      renderApp('/pos/sales/s-1')
+      fireEvent.click(await screen.findByRole('button', { name: 'Print' }))
+      await waitFor(() => expect(api.download).toHaveBeenCalledWith('pos/sales/s-1/receipt?format=html'))
+      const frame = await waitFor(() => {
+        const found = document.querySelector('iframe[title="Receipt for printing"]')
+        expect(found).not.toBeNull()
+        return found
+      })
+      expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-modals')
+      expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin')
+      const html = frame.getAttribute('srcdoc')
+      expect(html).not.toContain('parent.steal')
+      expect(html).toContain('window.print()')
+    })
+
     it('emails the receipt to a typed address in the chosen language', async () => {
       withShares(SHARER)
       renderApp('/pos/sales/s-1')

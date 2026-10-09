@@ -41,6 +41,20 @@ class TemplateFixturesTest extends TestCase
         $this->assertStringContainsString('@page { size: 80mm auto;', $html);
     }
 
+    public function test_locked_totals_are_added_and_svg_logos_never_reach_dompdf(): void
+    {
+        $fixture = json_decode((string) file_get_contents(base_path('tests/Fixtures/templates/receipt-locked-blocks.json')), true);
+        $html = app(TemplateRenderer::class)->html($fixture['type'], $fixture['template'], $fixture['data'], true);
+
+        // TPL-03: the totals with the tax lines, before the fiscal block, though the template has none.
+        $this->assertMatchesRegularExpression('/VAT 16%.*Total.*KRA eTIMS/s', TemplateText::of($html));
+        $this->assertStringNotContainsString('svg+xml', $html);
+        // Not required: nothing is added.
+        $plain = app(TemplateRenderer::class)->html($fixture['type'], $fixture['template'], $fixture['data'], false);
+        $this->assertSame(1, substr_count(TemplateText::of($plain), 'KRA eTIMS'));
+        $this->assertStringNotContainsString('VAT 16%', TemplateText::of($plain));
+    }
+
     public function test_the_tills_bundled_wording_matches_the_api(): void
     {
         foreach (['en', 'fr'] as $language) {

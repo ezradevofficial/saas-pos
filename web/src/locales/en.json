@@ -4558,8 +4558,9 @@
     },
     "fiscal": {
       "missingTitle": "The {{authority}} block is missing",
-      "missing": "This document must print the tax authority's details in your country. Add the block back before you save.",
-      "restore": "Add the block back"
+      "missing": "This document must print the tax authority's details and the tax lines in your country. Add the blocks back before you save.",
+      "restore": "Add the blocks back",
+      "totalsMissingTitle": "The totals block is missing"
     },
     "problems": "{{count}} problem blocks publishing",
     "problems_other": "{{count}} problems block publishing",

@@ -218,7 +218,7 @@ final class TemplateSchema
                 'field' => is_string($block['field'] ?? null) && ! self::knownPath($block['field'], $fields)
                     ? $problems[] = PayloadSchema::problem($at.'.field', 'unknown_field', ['field' => $block['field']]) : null,
                 'lines' => self::columnProblems($block, $at, $columns, $problems),
-                'text', 'terms', 'qr', 'barcode' => self::mergeProblems((string) ($block['text'] ?? $block['content'] ?? ''), $at, $fields, $problems),
+                'text', 'terms', 'qr', 'barcode' => is_string($source = $block['text'] ?? $block['content'] ?? '') ? self::mergeProblems($source, $at, $fields, $problems) : null,
                 'row' => self::row($block, $at, $paper, $fields, $columns, $fiscalAllowed, $nested, $problems, $fiscalCount, $ids),
                 default => null,
             };

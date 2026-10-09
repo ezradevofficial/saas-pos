@@ -42,6 +42,28 @@ describe('renderTemplate', () => {
   });
 });
 
+describe('images the till prints', () => {
+  const fiscal = { authority: 'kra_etims', status: 'accepted', qr: 'https://etims.example/v' };
+  const render = (data, qrSvg) => renderTemplate('pos.receipt', { paper: '80mm', language: 'en', blocks: [{ id: 'q', type: 'qr', content: 'x' }, { id: 'f', type: 'fiscal' }] }, data, { labels, qrSvg });
+
+  it('prints only base64 SVG data URIs as QR codes, escaped', () => {
+    const ok = 'data:image/svg+xml;base64,QUJD';
+    const html = render({ fiscal: { ...fiscal, qr_svg: ok } }, () => ok);
+    expect(html.match(/<img src="data:image\/svg\+xml;base64,QUJD"/g)).toHaveLength(2);
+
+    const hostile = 'data:image/svg+xml;base64,AA" onerror="alert(1)';
+    const refused = render({ fiscal: { ...fiscal, qr_svg: 'javascript:alert(1)' } }, () => hostile);
+    expect(refused).not.toContain('<img');
+    expect(refused).not.toContain('onerror');
+  });
+
+  it('prints PNG and JPEG logos only (no SVG)', () => {
+    const logo = (uri) => renderTemplate('letter', { paper: 'A4', blocks: [{ id: 'l', type: 'logo' }] }, { company: { logo: uri } }, { labels });
+    expect(logo('data:image/png;base64,iVBORw0KGgo=')).toContain('<img src="data:image/png;base64,iVBORw0KGgo="');
+    expect(logo('data:image/svg+xml;base64,PHN2Zy8+')).not.toContain('<img');
+  });
+});
+
 describe('Code 128', () => {
   it('encodes printable ASCII with its checksum and stop pattern', () => {
     // "PJJ123C": start B, 7 symbols and the checksum (11 modules each), then the stop (13).

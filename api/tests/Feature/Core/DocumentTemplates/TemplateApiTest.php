@@ -78,10 +78,15 @@ class TemplateApiTest extends TestCase
         // A tenant-wide template prints for every company, so it needs it too.
         $this->assertSame('fiscal_required', $this->save('pos.refund_receipt', $this->withoutFiscal(DefaultTemplates::for('pos.refund_receipt')), 'tenant')['meta']['problems'][0]['code']);
 
-        // In every variant as well.
+        // In every variant as well, with the totals (their tax lines are locked on too).
         $variant = ['id' => 'vip', 'name' => 'VIP', 'applies_when' => ['customer_tags' => ['vip']], 'blocks' => [['id' => 't', 'type' => 'text', 'text' => 'VIP']]];
         $problems = $this->save('pos.receipt', $this->receipt(['variants' => [$variant]]), status: 200)['meta']['problems'];
-        $this->assertSame([['variants.0.blocks', 'fiscal_required']], array_map(fn ($p) => [$p['path'], $p['code']], $problems));
+        $this->assertSame([['variants.0.blocks', 'fiscal_required'], ['variants.0.blocks', 'totals_required']], array_map(fn ($p) => [$p['path'], $p['code']], $problems));
+
+        // TPL-03: without the totals block the tax lines would not print: refused.
+        $noTotals = $this->receipt();
+        $noTotals['blocks'] = array_values(array_filter($noTotals['blocks'], fn (array $b) => $b['type'] !== 'totals'));
+        $this->assertSame(['blocks:totals_required'], array_map(fn ($p) => $p['path'].':'.$p['code'], $this->save('pos.receipt', $noTotals, status: 200)['meta']['problems']));
 
         // With the block, it publishes; a quote never carries one.
         $ok = $this->save('pos.receipt', $this->receipt(), status: 200);
@@ -141,12 +146,12 @@ class TemplateApiTest extends TestCase
             $this->publish($this->save('pos.receipt', $payload, $scope, $id)['data']['id'])->assertOk();
         };
 
-        $publish('tenant', null, $this->receipt(['blocks' => [$text('t', 'Tenant'), ['id' => 'fiscal', 'type' => 'fiscal']]]));
+        $publish('tenant', null, $this->receipt(['blocks' => [$text('t', 'Tenant'), ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']]]));
         $publish('branch', $this->branchA->id, $this->receipt([
-            'blocks' => [$text('t', 'Branch A'), ['id' => 'fiscal', 'type' => 'fiscal']],
+            'blocks' => [$text('t', 'Branch A'), ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']],
             'variants' => [
-                ['id' => 'vip', 'name' => 'VIP', 'applies_when' => ['customer_tags' => ['VIP']], 'blocks' => [$text('t', 'VIP'), ['id' => 'fiscal', 'type' => 'fiscal']]],
-                ['id' => 'big', 'name' => 'Big sale', 'applies_when' => ['conditions' => [['field' => 'totals.total', 'op' => 'gte', 'value' => '10000.00']]], 'language' => 'fr', 'blocks' => [$text('t', 'Big'), ['id' => 'fiscal', 'type' => 'fiscal']]],
+                ['id' => 'vip', 'name' => 'VIP', 'applies_when' => ['customer_tags' => ['VIP']], 'blocks' => [$text('t', 'VIP'), ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']]],
+                ['id' => 'big', 'name' => 'Big sale', 'applies_when' => ['conditions' => [['field' => 'totals.total', 'op' => 'gte', 'value' => '10000.00']]], 'language' => 'fr', 'blocks' => [$text('t', 'Big'), ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']]],
             ],
         ]));
 
@@ -169,7 +174,7 @@ class TemplateApiTest extends TestCase
         $this->assertSame('vip', $both['source']['variant']);
 
         // Drafts never apply; with nothing published, the default receipt.
-        $this->save('pos.receipt', $this->receipt(['blocks' => [$text('t', 'Draft'), ['id' => 'fiscal', 'type' => 'fiscal']]]), 'branch', $this->branchB->id);
+        $this->save('pos.receipt', $this->receipt(['blocks' => [$text('t', 'Draft'), ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']]]), 'branch', $this->branchB->id);
         $this->assertSame('Tenant', $resolve($this->branchB->id)['template']['blocks'][0]['text']);
         $default = $this->inTenant(fn () => app(TemplateResolver::class)->resolve('pos.refund_receipt', $this->acme->id, null, []));
         $this->assertSame([DefaultTemplates::for('pos.refund_receipt')['blocks'], null], [$default['template']['blocks'], $default['source']]);
@@ -185,7 +190,7 @@ class TemplateApiTest extends TestCase
         $quote = collect($types['data'])->firstWhere('key', 'sales.quote');
 
         $this->assertSame(['pos.receipt', 'pos.refund_receipt', 'sales.invoice', 'sales.quote', 'procurement.po', 'stores.delivery_note', 'payroll.payslip', 'party.statement', 'letter'], array_column($types['data'], 'key'));
-        $this->assertSame([true, true, 'kra_etims', ['fiscal']], [$receipt['live'], $receipt['fiscal']['required'], $receipt['fiscal']['authority'], $receipt['locked']]);
+        $this->assertSame([true, true, 'kra_etims', ['fiscal', 'totals']], [$receipt['live'], $receipt['fiscal']['required'], $receipt['fiscal']['authority'], $receipt['locked']]);
         $this->assertSame([false, false, []], [$quote['live'], $quote['fiscal']['required'], $quote['locked']]);
         $this->assertSame('80mm', $receipt['default']['paper']);
         $this->assertContains(['path' => 'customer.custom.loyalty_no', 'group' => 'custom', 'type' => 'text', 'label' => 'Loyalty no.'], $receipt['fields']);
@@ -193,7 +198,7 @@ class TemplateApiTest extends TestCase
         $this->assertSame('KE', $types['meta']['country']);
 
         // A preview prints the custom field's label as typed and the value from the data.
-        $payload = $this->receipt(['blocks' => [['id' => 'l', 'type' => 'field', 'field' => 'customer.custom.loyalty_no', 'label' => true], ['id' => 'fiscal', 'type' => 'fiscal']]]);
+        $payload = $this->receipt(['blocks' => [['id' => 'l', 'type' => 'field', 'field' => 'customer.custom.loyalty_no', 'label' => true], ['id' => 'totals', 'type' => 'totals', 'show' => ['total']], ['id' => 'fiscal', 'type' => 'fiscal']]]);
         $preview = $this->postJson('/api/v1/templates/preview', ['type' => 'pos.receipt', 'payload' => $payload], $this->headersFor())->assertOk()->json('data');
         $this->assertSame([], $preview['problems']);
         $this->assertStringContainsString('KRA eTIMS', $preview['html']);
@@ -223,6 +228,25 @@ class TemplateApiTest extends TestCase
         $invoice = $this->postJson('/api/v1/templates/preview', ['type' => 'payroll.payslip', 'payload' => DefaultTemplates::for('payroll.payslip')], $this->headersFor())->assertOk()->json('data');
         $this->assertSame([], $invoice['problems']);
         $this->assertStringStartsWith('%PDF', $this->get(parse_url($invoice['pdf_url'], PHP_URL_PATH), $this->headersFor())->assertOk()->getContent());
+    }
+
+    public function test_a_malformed_draft_previews_with_problems_instead_of_failing(): void
+    {
+        $payload = $this->receipt();
+        $payload['blocks'][] = ['id' => 'qr', 'type' => 'qr', 'content' => str_repeat('A', 5000)];
+        $payload['blocks'][] = ['id' => 'bad-text', 'type' => 'text', 'text' => ['not', 'text']];
+        $payload['blocks'][] = ['id' => 'bad-lines', 'type' => 'lines', 'columns' => 'item_name'];
+        $payload['blocks'][] = 'not a block';
+
+        $preview = $this->postJson('/api/v1/templates/preview', ['type' => 'pos.receipt', 'payload' => $payload], $this->headersFor())->assertOk()->json('data');
+
+        $codes = array_map(fn ($p) => $p['path'].':'.$p['code'], $preview['problems']);
+        $this->assertContains('blocks.15.content:max_length', $codes);
+        $this->assertContains('blocks.16.text:type', $codes);
+        $this->assertContains('blocks.17.columns:type', $codes);
+        $this->assertContains('blocks.18.type:unknown_block', $codes);
+        // The rest of the receipt still renders.
+        $this->assertStringContainsString('KRA eTIMS', $preview['html']);
     }
 
     public function test_permissions_are_checked(): void

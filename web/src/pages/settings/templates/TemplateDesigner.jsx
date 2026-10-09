@@ -28,6 +28,7 @@ import {
   PAPERS,
   RANGES,
   removeBlock,
+  withLockedBlocks,
   updateBlock,
 } from './blocks'
 import { allowedAt, parseScope, scopeQuery, scopeValue } from './scope'
@@ -140,7 +141,9 @@ function Designer({ type, meta, scope, canEdit, canPublish, copyTargets }) {
   const locked = type.locked ?? []
   const block = selected ? findBlock(layout.blocks, selected) : null
   const fiscalAllowed = Boolean(type.fiscal?.allowed)
-  const missingFiscal = locked.includes('fiscal') && layouts(payload).some((blocks) => !hasBlock(blocks, 'fiscal'))
+  // TPL-03: the locked blocks (the tax authority's, and the totals that print the tax lines) in every layout.
+  const missingLocked = locked.filter((lockedType) => layouts(payload).some((blocks) => !hasBlock(blocks, lockedType)))
+  const missingFiscal = missingLocked.length > 0
   const problems = previewProblems ?? config.problems ?? []
 
   const edit = (change) => {
@@ -174,7 +177,7 @@ function Designer({ type, meta, scope, canEdit, canPublish, copyTargets }) {
   }
   const restoreFiscal = () =>
     edit((current) => {
-      const withFiscal = (blocks) => (hasBlock(blocks, 'fiscal') ? blocks : [...blocks, { id: 'fiscal', type: 'fiscal' }])
+      const withFiscal = (blocks) => withLockedBlocks(blocks, locked)
       return { ...current, blocks: withFiscal(current.blocks ?? []), variants: (current.variants ?? []).map((variant) => ({ ...variant, blocks: withFiscal(variant.blocks ?? []) })) }
     })
 
@@ -244,7 +247,11 @@ function Designer({ type, meta, scope, canEdit, canPublish, copyTargets }) {
       {missingFiscal ? (
         <Alert
           tone="danger"
-          title={t('documentTemplates.fiscal.missingTitle', { authority: t(`documentTemplates.authorities.${type.fiscal?.authority ?? 'other'}`) })}
+          title={
+            missingLocked.includes('fiscal')
+              ? t('documentTemplates.fiscal.missingTitle', { authority: t(`documentTemplates.authorities.${type.fiscal?.authority ?? 'other'}`) })
+              : t('documentTemplates.fiscal.totalsMissingTitle')
+          }
           action={canEdit ? <Button onClick={restoreFiscal}>{t('documentTemplates.fiscal.restore')}</Button> : null}
         >
           {t('documentTemplates.fiscal.missing')}

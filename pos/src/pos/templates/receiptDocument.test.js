@@ -75,11 +75,11 @@ describe('receiptDocumentHtml', () => {
     const accepted = { state: 'accepted', invoiceNumber: '1001', remote: { authority: { qr: 'https://etims.example/v' }, qr_svg: 'data:image/svg+xml;base64,QQ==' } };
 
     const plain = templateText(receiptDocumentHtml({ sale, catalogue, templateRow, customer: { id: 'c1', name: 'Amina', tags: [] }, fiscal: accepted }));
-    // TPL-03: the fiscal block is added although the template lacks it.
-    expect(plain.split('\n').slice(0, 4)).toEqual(['Hello Amina', 'KRA eTIMS', 'Accepted', 'Fiscal invoice 1001']);
+    // TPL-03: the totals (with the tax lines) and the fiscal block are added although the template lacks them.
+    expect(plain.split('\n').slice(0, 6)).toEqual(['Hello Amina', 'VAT test 12.5% KES 55.56', 'Total KES 500.00', 'KRA eTIMS', 'Accepted', 'Fiscal invoice 1001']);
 
     const vipHtml = receiptDocumentHtml({ sale, catalogue, templateRow, customer: { id: 'c1', name: 'Amina', tags: ['VIP'] }, fiscal: accepted });
-    expect(templateText(vipHtml)).toBe(['Karibu Amina', 'Ticket R-WL2-000001', 'KRA eTIMS', 'Accepté', 'Facture fiscale 1001'].join('\n'));
+    expect(templateText(vipHtml)).toBe(['Karibu Amina', 'Ticket R-WL2-000001', 'VAT test 12.5 % KES 55,56', 'Total KES 500,00', 'KRA eTIMS', 'Accepté', 'Facture fiscale 1001'].join('\n'));
     expect(vipHtml).toContain('<img src="data:image/svg+xml;base64,QQ=="');
     expect(vipHtml).toContain('size: 58mm auto');
   });

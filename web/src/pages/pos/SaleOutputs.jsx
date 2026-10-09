@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
@@ -8,6 +8,16 @@ import { Alert, Button, Card, Dialog, Select, StatusBadge, TextField } from '@/c
 import { downloadFile } from '@/lib/files'
 
 const SHARE_TONES = { active: 'success', revoked: 'neutral', expired: 'neutral' }
+
+/** The print frame's sandbox (TPL-04): never allow-same-origin. */
+const PRINT_SANDBOX = 'allow-scripts allow-modals'
+
+/** The receipt's HTML with its scripts removed and one call to print once it has loaded. */
+function printable(html) {
+  const clean = String(html ?? '').replace(/<script\b[\s\S]*?<\/script\s*>/gi, '')
+  const call = '<script>window.addEventListener("load", function () { window.print() })</script>'
+  return clean.includes('</body>') ? clean.replace('</body>', `${call}</body>`) : clean + call
+}
 
 const fieldError = (error, field) => {
   const messages = error?.status === 422 ? error.errors?.[field] : null
@@ -151,13 +161,12 @@ function ShareLinks({ saleId, when, latest }) {
 
 /**
  * TPL-04: the sale's receipt as its template prints it. Print (the HTML in
- * a frame that runs no scripts, then the browser's print), Download PDF,
+ * a sandboxed frame with an opaque origin that prints itself), Download PDF,
  * and, with `pos.sale.share` at the sale, Email and a WhatsApp link.
  */
 export function SaleOutputs({ sale, canShare, when }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const frame = useRef(null)
   const [printing, setPrinting] = useState(null) // { html, n }
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
@@ -217,24 +226,18 @@ export function SaleOutputs({ sale, canShare, when }) {
         {canShare ? <ShareLinks saleId={sale.id} when={when} latest={latest} /> : null}
       </div>
       {printing ? (
-        // No scripts run in the receipt (no allow-scripts; the API also sends a strict CSP).
-        // allow-same-origin lets this page call print() on the frame; allow-modals lets the print dialog open.
+        // The receipt prints itself in a frame with an opaque origin: allow-scripts runs only
+        // the print call added here (every value in the receipt is escaped by the server), and
+        // without allow-same-origin the frame can reach nothing of this page; allow-modals opens
+        // the print dialog.
         <iframe
           key={printing.n}
-          ref={frame}
           title={t('pos.sale.outputs.printFrame')}
-          sandbox="allow-same-origin allow-modals"
-          srcDoc={printing.html}
+          sandbox={PRINT_SANDBOX}
+          srcDoc={printable(printing.html)}
           aria-hidden="true"
           tabIndex={-1}
           className="sr-only"
-          onLoad={() => {
-            try {
-              frame.current?.contentWindow?.print()
-            } catch {
-              setError(t('pos.sale.outputs.printFailed'))
-            }
-          }}
         />
       ) : null}
       {canShare ? <EmailDialog open={emailOpen} saleId={sale.id} customerEmail={sale.customer?.email ?? null} onClose={() => setEmailOpen(false)} /> : null}

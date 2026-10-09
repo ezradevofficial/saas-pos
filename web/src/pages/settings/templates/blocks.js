@@ -168,3 +168,20 @@ export function insertMerge(text, path, start, end) {
 export function inRange(value, [min, max]) {
   return Number.isInteger(value) && value >= min && value <= max
 }
+
+/**
+ * TPL-03: the locked blocks put back where missing: the totals (with their
+ * tax lines) before the tax authority's block, which goes last (the
+ * renderers add them the same way).
+ */
+export function withLockedBlocks(blocks = [], locked = []) {
+  const next = [...blocks]
+  if (locked.includes('totals') && !hasBlock(next, 'totals')) {
+    const at = next.findIndex((block) => block.type === 'fiscal')
+    const totals = { id: nextId(next, 'totals'), type: 'totals', show: ['subtotal', 'discount', 'total'], tax_lines: true }
+    if (at === -1) next.push(totals)
+    else next.splice(at, 0, totals)
+  }
+  if (locked.includes('fiscal') && !hasBlock(next, 'fiscal')) next.push({ id: 'fiscal', type: 'fiscal' })
+  return next
+}
