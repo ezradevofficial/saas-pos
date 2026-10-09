@@ -2,6 +2,7 @@
 
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
+use App\Core\Branding\BrandingServiceProvider;
 use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\CustomFields\CustomFieldsServiceProvider;
@@ -36,6 +37,7 @@ return [
     WorkflowServiceProvider::class,
     ConfigurationServiceProvider::class,
     DocumentTemplatesServiceProvider::class,
+    BrandingServiceProvider::class,
     LayoutsServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,

@@ -6,12 +6,14 @@ import { api, deviceName } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert, Button, TextField } from '@/components/ds'
+import { useTheme } from '@/theme/ThemeProvider'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 
 /** AUTH-01, AUTH-10: sign in with an email or phone number and a password. */
 export default function SignIn() {
   const { t } = useTranslation()
   const { signIn } = useAuth()
+  const { brand } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
   const [values, setValues] = useState({ login: location.state?.login ?? '', password: '' })
@@ -39,7 +41,8 @@ export default function SignIn() {
   return (
     <AuthPage
       title={t('auth.signIn.title')}
-      intro={t('auth.signIn.intro')}
+      // BR-04: the tenant's own welcome text on its host (typed once, shown as entered).
+      intro={brand?.welcome || t('auth.signIn.intro')}
       footer={
         <p>
           {t('auth.signIn.noAccount')} <TextLink to="/sign-up">{t('auth.signIn.createAccount')}</TextLink>

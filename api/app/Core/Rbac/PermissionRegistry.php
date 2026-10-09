@@ -66,6 +66,12 @@ class PermissionRegistry
         'config' => ['view', 'edit', 'publish'],
         // TPL-01..TPL-05: document templates (the `template` configuration kind).
         'template' => ['view', 'edit', 'publish'],
+        // BR-02, BR-03, BR-08: the tenant theme (preset, colours, logos,
+        // sign-in page), per tenant, company or branch.
+        'theme' => ['view', 'edit', 'publish'],
+        // BR-04..BR-06: the tenant's subdomain, custom domains and the
+        // email sender and SMS sender ID (tenant scope; Owner, Admin).
+        'domain' => ['manage'],
         // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
         // the tenant and its roles (personal ones need no permission).
         'layout' => ['view', 'edit', 'publish'],

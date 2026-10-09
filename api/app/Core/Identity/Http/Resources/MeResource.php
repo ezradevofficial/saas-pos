@@ -24,6 +24,8 @@ class MeResource extends UserResource
                 'id' => $tenant->id,
                 'name' => $tenant->name,
                 'default_locale' => $tenant->default_locale,
+                // BR-07: "Powered by" is hidden for this tenant (set by the platform).
+                'hide_platform' => (bool) ((($tenant->settings ?? [])['branding'] ?? [])['hide_platform'] ?? false),
             ],
         ];
     }

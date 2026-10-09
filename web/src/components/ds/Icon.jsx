@@ -1,4 +1,6 @@
 import {
+  Brush,
+  Globe,
   Archive,
   ArchiveRestore,
   ArrowDown,
@@ -160,6 +162,8 @@ const ICONS = {
   mail: Mail,
   whatsapp: MessageCircle,
   link: Link2,
+  brand: Brush,
+  domains: Globe,
   // LAY-01, LAY-02, LAY-04: designers.
   drag: GripVertical,
   show: Eye,

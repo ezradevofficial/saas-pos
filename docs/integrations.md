@@ -235,3 +235,134 @@ Decided (phase 4 Task 3 review):
 - **Sync**: payment method rows carry `capabilities: {stk, manual_code}`;
   `stk` only for an M-Pesa method on the Daraja adapter with every
   required key (sync entity version 2).
+
+## Branding: tenant hosts, custom domains and email (BR-04 to BR-07)
+
+Code in `api/app/Core/Branding`. A tenant reaches the web app on its
+subdomain `{slug}.{APP_BASE_DOMAIN}` (chosen on Settings → Domains) or on a
+custom domain it has verified. The sign-in page asks
+`GET /api/v1/public/branding?host=` for that host's logo, background,
+welcome text and colours; the lookup runs through the security-definer
+function `app_public_branding` (ADR 002), which returns only those public
+fields.
+
+### Platform (owner, once per environment)
+
+1. **Environment** (`api/.env`):
+   - `APP_BASE_DOMAIN`: the domain tenants get subdomains of
+     (for example `example.app`; `acme.example.app` is tenant `acme`).
+   - `BRANDING_CNAME_TARGET`: the host tenants point their custom domain
+     at (a CNAME), shown on the Domains page, for example `edge.example.app`.
+   - `BRANDING_TXT_PREFIX` (default `_platform-verify`) and
+     `BRANDING_TXT_VALUE_PREFIX` (default `platform-verify=`): the TXT
+     record a tenant creates, `_platform-verify.erp.company.co.ke` with the
+     value `platform-verify=<token>`.
+   - `BRANDING_DOMAIN_PENDING_DAYS` (default 3): a domain still unproven
+     after this is marked failed; "Check now" tries again.
+   - `BRANDING_SPF_INCLUDE`, `BRANDING_DKIM_SELECTOR`,
+     `BRANDING_DKIM_TARGET`: the SPF include and DKIM record of the mail
+     provider, shown to tenants as guidance (see below).
+2. **DNS for the platform domain**: a wildcard record
+   `*.example.app` pointing at the NodeBalancer (or the web host), and a
+   wildcard certificate for it (Caddy with a DNS challenge provider, or
+   the certificate the NodeBalancer terminates). Subdomains are never sent
+   to the on-demand TLS check below.
+3. **Caddy on-demand TLS for custom domains**: Caddy asks the API before it
+   gets a certificate for a host it has never seen. The API answers 200
+   only for a verified custom domain of an active tenant
+   (`GET /api/v1/tls/ask?domain=`). It is not rate-limited, since Caddy
+   asks once per new host; a "no" is cached for 60 seconds, so a scan of
+   unknown hosts stays cheap, and a domain verified meanwhile gets its
+   certificate within a minute. **The endpoint must be reachable only from
+   Caddy on the private interface.**
+
+   ```caddyfile
+   {
+       on_demand_tls {
+           ask http://127.0.0.1:8008/api/v1/tls/ask
+       }
+   }
+
+   # Tenant subdomains: the wildcard certificate.
+   *.example.app {
+       tls /etc/caddy/certs/wildcard.pem /etc/caddy/certs/wildcard.key
+       root * /srv/web/dist
+       try_files {path} /index.html
+       file_server
+   }
+
+   # Every other host: a custom domain, certificate issued on demand.
+   https:// {
+       tls {
+           on_demand
+       }
+       root * /srv/web/dist
+       try_files {path} /index.html
+       file_server
+   }
+   ```
+
+   Point `ask` at the API on `127.0.0.1` (or the private network), never
+   through the public NodeBalancer, and block the path from the public
+   side, in the site that proxies `/api` to the API:
+
+   ```caddyfile
+   @tlsask path /api/v1/tls/ask
+   respond @tlsask 404
+   ```
+
+   or, with nginx in front:
+
+   ```nginx
+   location = /api/v1/tls/ask { return 404; }
+   ```
+4. **Scheduler**: `domains:verify` runs every ten minutes
+   (`routes/console.php`). It finds the active tenants with work through
+   `app_tenants_with_domain_checks_due(at)` on the runtime connection and
+   works in each tenant's context; it never needs the owner credentials.
+   The work: check pending claims; check verified domains again once a
+   day (a record missing on three checks in a row drops the domain to
+   failed, which stops TLS, sign-in branding and the email sender, is
+   audited as `core.domain.lost` and notifies the tenant's domain
+   managers; a failed DNS lookup does not count); archive claims that
+   have been failed for seven days.
+5. **CORS**: the web app is served on every tenant host, and calls the
+   API on its own host name. Allow the tenant hosts in
+   `CORS_ALLOWED_ORIGINS` (a pattern for `*.example.app`, and custom
+   domains as they are verified), or serve the API under the same host
+   (`/api` proxied by Caddy), which needs no CORS.
+
+### Per business (back office: Settings → Domains)
+
+- **Subdomain**: lower-case letters, digits and hyphens; unique. Reserved:
+  `www`, `www2`, `api`, `admin`, `app`, `staging`, `dev`, `test`, `edge`,
+  `mail`, `mx`, `ns1`, `ns2`, `ftp`, `smtp`, `status`, `docs`, `help`,
+  `support`, `billing`, `cdn`, `static`, `assets`, and the first label of
+  the hosts in `BRANDING_CNAME_TARGET`, `APP_URL` and `FRONTEND_URL`.
+  Follow-up: a cool-off period before a released subdomain can be taken
+  by another business (not built yet).
+- **Custom domain**: add it, create the TXT record shown, and point the
+  domain at `BRANDING_CNAME_TARGET`. It is verified at the next check (or
+  "Check now"). Several businesses may claim the same host; the first to
+  prove the TXT record wins, and the other claims fail with "claimed
+  elsewhere", so a claim nobody can prove never blocks the real owner.
+  Removing a domain archives it: TLS, sign-in branding and the email
+  sender stop at once.
+- **Email sender** (BR-06): a name and an address on one of the business's
+  verified domains. While that domain stays verified, notification emails
+  go out from it; otherwise from the platform's `MAIL_FROM_ADDRESS`. The
+  business must add to its domain's DNS:
+  - SPF: `v=spf1 include:<BRANDING_SPF_INCLUDE> ~all` (merged into an
+    existing SPF record, never a second one);
+  - DKIM: `<BRANDING_DKIM_SELECTOR>._domainkey.<domain>` as a CNAME to
+    `<BRANDING_DKIM_TARGET>` (the provider's key; some providers give one
+    per domain, set up in the provider's console by the owner).
+  Without them, mail from the tenant's domain may land in spam.
+- **SMS sender ID**: 3 to 11 letters or digits. Stored for the SMS
+  provider; networks in Kenya and the DRC register sender IDs with the
+  provider first, so the owner registers it before it is used.
+- **Powered by** (BR-07) is shown in the sidebar and on the sign-in page
+  unless the platform hides it:
+  `php artisan tenant:branding <tenant-id> --hide-platform`
+  (`--show-platform` to undo). Tenants cannot change it; plans take this
+  over in phase 6.

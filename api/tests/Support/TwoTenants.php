@@ -286,6 +286,9 @@ final class TwoTenants
         $templatePreview = basename(dirname((string) parse_url(self::ok($test->postJson('/api/v1/templates/preview', [
             'type' => 'sales.quote', 'payload' => DefaultTemplates::for('sales.quote'),
         ], $owner))->json('data.pdf_url'), PHP_URL_PATH)));
+        // BR-02, BR-05: a brand asset (a logo) and a custom domain, still pending.
+        self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201);
+        $tenantDomain = self::ok($test->postJson('/api/v1/branding/domains', ['host' => "erp-{$key}.example.org"], $owner), 201)->json('data.id');
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -518,6 +521,7 @@ final class TwoTenants
                 'fiscal_submission' => $fiscalSubmission,
                 'config_document' => $configDocument,
                 'template_preview' => $templatePreview,
+                'tenant_domain' => $tenantDomain,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

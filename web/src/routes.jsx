@@ -15,6 +15,7 @@ import {
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
   NUMBERING_VIEW,
+  THEME_VIEW,
   ORGANISATION_VIEW,
   PARTY_VIEW,
   PAYMENT_METHOD_VIEW,
@@ -59,6 +60,7 @@ import SalesDashboard from './pages/pos/SalesDashboard'
 import ShiftDetail from './pages/pos/ShiftDetail'
 import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
+import Brand from './pages/settings/Brand'
 import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
 import NavigationEditor from './pages/settings/layouts/NavigationEditor'
 import Currencies from './pages/settings/Currencies'
@@ -66,6 +68,7 @@ import CustomFields from './pages/settings/CustomFields'
 import DocumentTemplates from './pages/settings/DocumentTemplates'
 import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
+import Domains from './pages/settings/Domains'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import Fiscal from './pages/settings/Fiscal'
 import InviteUser from './pages/settings/InviteUser'
@@ -298,6 +301,9 @@ export const routes = [
         ['/settings/automation-runs', <AutomationRuns key="automation-runs" />],
       ].map(([path, page]) => ({ path, element: <RequirePermission permission={AUTOMATION_VIEW}>{page}</RequirePermission> })),
       // NUM-01: number formats per document type.
+      // BR-02, BR-08: the theme editor; BR-04..BR-06: subdomain, custom domains, email and SMS senders.
+      { path: '/settings/brand', element: <RequirePermission permission={THEME_VIEW}><Brand /></RequirePermission> },
+      { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.
       { path: '/settings/pos-pin', element: <MyPosPin /> },

@@ -56,6 +56,25 @@ return [
         'unknown_column' => ':path utilise « :field », qui n’est pas une colonne de ce document. Choisissez une colonne dans la liste.',
         'row_nested' => ':path place une ligne dans une ligne. Sortez-en les blocs.',
         'row_on_thermal' => 'Les lignes à deux colonnes ne conviennent qu’aux formats A4 et A5. Sortez les blocs de la ligne, ou choisissez A4 ou A5.',
+        // BR-02, BR-03 : thèmes.
+        'not_overridable' => ':path ne peut pas être modifié par un thème. Un thème ne règle que les logos, les couleurs principale et d’accent, la barre latérale, les coins et la police.',
+        'asset_missing' => ':path désigne une image qui ne fait pas partie de vos images de ce type. Importez-la de nouveau.',
+        'contrast' => 'En mode :mode, :pair a un contraste de :ratio:1 et doit atteindre au moins :required:1. Choisissez une couleur plus foncée ou plus claire.',
+    ],
+
+    // BR-03 : les mots d’un problème de contraste.
+    'theme' => [
+        'modes' => ['light' => 'clair', 'dark' => 'sombre'],
+        'pairs' => [
+            'primary_text_page' => 'le texte principal sur la page',
+            'primary_text_card' => 'le texte principal sur les cartes',
+            'on_primary' => 'le texte des boutons principaux',
+            'primary_tint' => 'le texte sur la teinte principale',
+            'on_accent' => 'le texte du bouton décisif',
+            'accent_fill' => 'le bouton décisif sur les cartes',
+            'sidebar_text' => 'le texte de la barre latérale',
+            'sidebar_active' => 'l’élément sélectionné de la barre latérale',
+        ],
         // LAY-01, LAY-04 : éditeurs de mise en page.
         'off_grid' => ':path dépasse les :columns colonnes de la grille. Réduisez sa largeur ou déplacez-le vers la gauche.',
         'overlap' => ':path chevauche le widget « :value ». Déplacez l’un des deux.',

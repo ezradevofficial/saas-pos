@@ -56,6 +56,25 @@ return [
         'unknown_column' => ':path uses “:field”, which isn’t a column of this document. Pick a column from the list.',
         'row_nested' => ':path puts a row inside a row. Move its blocks out.',
         'row_on_thermal' => 'Two-column rows fit A4 and A5 paper only. Move the blocks out of the row, or pick A4 or A5.',
+        // BR-02, BR-03: themes.
+        'not_overridable' => ':path can’t be changed by a theme. A theme sets only the logos, the primary and accent colours, the sidebar, the corners and the font.',
+        'asset_missing' => ':path names an image that isn’t one of your uploaded images of that kind. Upload it again.',
+        'contrast' => 'In :mode mode, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
+    ],
+
+    // BR-03: the words a contrast problem is made of.
+    'theme' => [
+        'modes' => ['light' => 'light', 'dark' => 'dark'],
+        'pairs' => [
+            'primary_text_page' => 'primary text on the page',
+            'primary_text_card' => 'primary text on cards',
+            'on_primary' => 'text on primary buttons',
+            'primary_tint' => 'text on the primary tint',
+            'on_accent' => 'text on the decisive button',
+            'accent_fill' => 'the decisive button on cards',
+            'sidebar_text' => 'sidebar text',
+            'sidebar_active' => 'the selected sidebar item',
+        ],
         // LAY-01, LAY-04: layout designers.
         'off_grid' => ':path goes past the :columns columns of the grid. Make it narrower or move it left.',
         'overlap' => ':path overlaps the widget “:value”. Move one of them.',
