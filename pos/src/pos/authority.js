@@ -36,6 +36,8 @@ export function limitOf(staff, key) {
 export function within(staff, key, value) {
   // RBAC-06: an Owner role has no limits (staff row `owner`, as Authority::within).
   if (staff?.owner) return true;
+  // A value the till cannot compute (no rate to the base currency) is never within a limit.
+  if (value == null) return false;
   const max = limitOf(staff, key);
   return max !== null && notAbove(value, max);
 }

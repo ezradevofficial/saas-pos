@@ -175,7 +175,8 @@
       "more": "Ajouter un",
       "lineDiscount": "Remise {{amount}}",
       "blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini dans le back-office. Retirez-les pour encaisser.",
-      "tax": "Taxe"
+      "tax": "Taxe",
+      "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau."
     },
     "phone": {
       "items_one": "{{count}} article",
@@ -398,7 +399,8 @@
         "no_receipt_numbers": "Cette caisse n’a plus de numéros de remboursement. Connectez-vous à Internet pour que le serveur lui en donne.",
         "no_shift": "Ouvrez d’abord un service.",
         "failed": "Rien n’a été enregistré. Réessayez."
-      }
+      },
+      "returnQty": "Quantité à retourner"
     }
   }
 }

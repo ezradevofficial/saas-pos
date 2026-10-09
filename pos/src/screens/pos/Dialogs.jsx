@@ -68,13 +68,10 @@ export function LineDialog({ lineId, onClose }) {
     }
     setBusy(true);
     try {
-      if (qty !== line.qty) actions.setQty(line.id, qty);
-      if (price !== line.unitPriceMinor && !(await actions.price(line.id, price))) {
-        setError(t('pos.override.cancelled'));
-        return;
-      }
-      if (discount !== line.discountMinor && !(await actions.discount(line.id, discount))) {
-        setError(t('pos.override.cancelled'));
+      // One edit from the new values: the discount limit is checked on the new quantity and price.
+      const result = await actions.editLine(line.id, { qty, unitPriceMinor: price, discountMinor: discount });
+      if (!result.ok) {
+        setError(result.reason === 'discount_above_price' ? t('pos.line.errors.discount') : t('pos.override.cancelled'));
         return;
       }
       onClose();

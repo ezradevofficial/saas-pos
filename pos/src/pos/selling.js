@@ -2,8 +2,8 @@ import { uuidv7 } from '../lib/random';
 import { NetworkError } from '../sync/api';
 import { computeCart } from './cart';
 import { DOCUMENT_TYPES, drawNumber, nextToReport } from './numbering';
-import { cashMovementPayload, refundAmounts, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
-import { calculateTender } from './tender';
+import { cashMovementPayload, refundAmounts, refundBaseMajor, refundedQuantities, toBaseMinor, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
+import { amountDueIn, calculateTender } from './tender';
 
 /**
  * POS-01..POS-06, POS-09, NFR-03, NFR-04: what the till records, offline
@@ -154,7 +154,9 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           reference: line.tender.reference,
           status: line.tender.status,
         }));
-        const lines = computed.lines.map((line) => ({ ...line, actorProof: line.override || line.priceOverride || line.discountMinor !== '0' || line.unitPriceMinor !== line.listPriceMinor ? (line.actorProof ?? actorProof) : undefined }));
+        // AUTH-07: a line changed on someone's own right carries that person's proof (users switch
+        // mid-sale; the server checks the giver's right); other lines use the sale's proof.
+        const lines = computed.lines.map((line) => ({ ...line, actorProof: line.actorProof && line.actorProof.user_id !== user.id ? line.actorProof : undefined }));
         const payload = salePayload({
           id: cart.id,
           shiftId: shift.id,
@@ -181,13 +183,19 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
             methods: Object.fromEntries(tenders.map((tender) => [tender.id, { name: tender.method.name, type: tender.method.type }])),
             rate_ids: [...new Set([...result.lines.map((line) => line.rate?.id), result.changeRate?.id].filter(Boolean))],
             rounding_minor: result.roundingMinor,
+            // CUR-04, RBAC-06: the base currency, the rate the till used and each line in base minor units,
+            // so a refund's limit is checked the server's way, offline.
+            base: baseOf(catalogue, currency, at),
+            base_lines: Object.fromEntries(computed.lines.map((line) => [line.id, String(toBaseMinor(line.amounts.totalMinor, currency, baseOf(catalogue, currency, at), catalogue.money.decimals) ?? '')])),
+            // CUR-05: the total in the second currency as shown at the sale (printed, never recomputed).
+            dual: dualOf(catalogue, computed.totals.total_minor, at),
             fiscal: 'pending',
             uoms: Object.fromEntries(computed.lines.map((line) => [line.id, line.uomCode])),
           },
         };
         await engine.enqueue('pos.sales', sale.id, payload, {
           group: shift.id,
-          prepare: async () => [await posStore.prepareSale(sale), await posStore.prepareCounters(DOCUMENT_TYPES.receipt, number.used)],
+          prepare: async () => [await posStore.prepareSale(sale), await posStore.prepareCounters(DOCUMENT_TYPES.receipt, number.used), await posStore.prepareClearOpenCart()].filter(Boolean),
         });
         afterDraw(number, DOCUMENT_TYPES.receipt, catalogue.timeZone);
         return sale;
@@ -213,8 +221,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
     /** What a refund of `requested` lines comes to, after earlier refunds of the sale. */
     refundQuote: async ({ sale, requested }) => {
       const earlier = (await posStore.recordsOfSale(sale.id)).filter((record) => record.recordKind === 'refund');
-      const already = {};
-      for (const refund of earlier) for (const line of refund.lines) already[line.sale_line_id] = String(Number(already[line.sale_line_id] ?? 0) + Number(line.qty));
+      const already = refundedQuantities(earlier);
       return { ...refundAmounts(sale, requested, already), already };
     },
 
@@ -228,8 +235,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         if (!shift) throw new SellingError('no_shift');
         if (sale.local?.status === 'voided') throw new SellingError('sale_already_voided');
         const earlier = (await posStore.recordsOfSale(sale.id)).filter((record) => record.recordKind === 'refund');
-        const already = {};
-        for (const refund of earlier) for (const line of refund.lines) already[line.sale_line_id] = String(Number(already[line.sale_line_id] ?? 0) + Number(line.qty));
+        const already = refundedQuantities(earlier);
         const amounts = refundAmounts(sale, requested, already);
         if (BigInt(amounts.totalMinor) <= 0n) throw new SellingError('refund_empty');
         const tender = refundTender(sale, amounts.totalMinor, currency, catalogue.money.decimals);
@@ -261,6 +267,23 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         return record;
       }),
   };
+}
+
+/** The sale's base currency and the rate the till used to it (null rate: the sale is in the base currency). */
+function baseOf(catalogue, currency, at) {
+  const base = catalogue.baseCurrency ?? currency;
+  if (base === currency) return { currency: base, rate: null };
+  const rate = catalogue.money.rateFor(currency, base, at);
+  return { currency: base, rate: rate ? { id: rate.id ?? null, base: rate.base, quote: rate.quote, mid: String(rate.mid), kind: rate.kind ?? null, effective_at: rate.effective_at ?? null } : null };
+}
+
+function dualOf(catalogue, totalMinor, at) {
+  if (!catalogue.dualCurrency || BigInt(totalMinor) === 0n) return null;
+  try {
+    return { currency: catalogue.dualCurrency, minor: amountDueIn({ remaining: totalMinor, from: catalogue.saleCurrency, currency: catalogue.dualCurrency, money: catalogue.money, at }) };
+  } catch {
+    return null;
+  }
 }
 
 /**

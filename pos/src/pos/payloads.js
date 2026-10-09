@@ -181,12 +181,66 @@ export function refundAmounts(sale, requested, already = {}) {
   return { lines, totalMinor: String(total), taxMinor: String(tax) };
 }
 
-function decimalString(value) {
+export function decimalString(value) {
   // Quantities have at most 6 decimals (numeric(18,6)).
   const scaled = round(mul(value, 1000000n), ROUND.HALF_UP);
   const whole = scaled / 1000000n;
   const fraction = String(scaled % 1000000n).padStart(6, '0').replace(/0+$/, '');
   return fraction ? `${whole}.${fraction}` : String(whole);
+}
+
+/**
+ * CUR-04, RBAC-06: an amount of the sale in the company's base currency,
+ * as FxSnapshot::convert does it: converted at the sale's base rate and
+ * rounded half up to the base currency's minor unit. `base` is the
+ * sale's stored { currency, rate } (rate null when the sale is in the base
+ * currency). Null when the till had no rate.
+ */
+export function toBaseMinor(minor, saleCurrency, base, decimals) {
+  if (!base) return null;
+  if (base.currency === saleCurrency) return BigInt(String(minor));
+  if (!base.rate) return null;
+  return round(convertExact(BigInt(String(minor)), saleCurrency, base.currency, base.rate, decimals), ROUND.HALF_UP);
+}
+
+/**
+ * RBAC-06: a refund's value for the approver's max_refund_amount, the
+ * server's way (RefundUploads): each refund line converted to the base
+ * currency and rounded, the rounded lines summed, in major units with 4
+ * decimals. Null when the sale stored no base rate.
+ */
+export function refundBaseMajor(sale, refundLines, decimals) {
+  const base = sale.local?.base;
+  if (!base) return null;
+  let total = 0n;
+  for (const line of refundLines) {
+    const converted = toBaseMinor(line.totalMinor, sale.currency, base, decimals);
+    if (converted === null) return null;
+    total += converted;
+  }
+  const scale = decimals(base.currency);
+  return toFixedMajor(total, scale);
+}
+
+function toFixedMajor(minor, scale) {
+  const negative = minor < 0n;
+  const digits = String(negative ? -minor : minor).padStart(scale + 1, '0');
+  const whole = scale ? digits.slice(0, -scale) : digits;
+  const fraction = (scale ? digits.slice(-scale) : '').padEnd(4, '0');
+  return `${negative ? '-' : ''}${whole}.${fraction}`;
+}
+
+/** Quantities already given back per sale line, from the sale's refund records (exact decimals). */
+export function refundedQuantities(refunds) {
+  const out = {};
+  for (const refund of refunds) for (const line of refund.lines) out[line.sale_line_id] = decimalString(add(exact(String(out[line.sale_line_id] ?? '0')), exact(String(line.qty))));
+  return out;
+}
+
+/** What is left to give back of a sold quantity (exact decimals, never below 0). */
+export function quantityLeft(sold, refunded = '0') {
+  const left = sub(exact(String(sold)), exact(String(refunded)));
+  return compare(left, exact(0n)) > 0 ? decimalString(left) : '0';
 }
 
 /**

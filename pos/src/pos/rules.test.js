@@ -75,6 +75,8 @@ describe('discount and override limits (POS-07, RBAC-06, AUTH-08)', () => {
     expect(check(manager, 'refund', '100.01')).toMatchObject({ allowed: false, reason: 'limit' });
     expect(check(cashier, 'void').allowed).toBe(false);
     expect(check(manager, 'pay_out').allowed).toBe(true);
+    // Pay-ins need pos.cash.move too (the server checks both kinds).
+    expect(check(cashier, 'pay_in')).toMatchObject({ allowed: false, permission: 'pos.cash.move' });
   });
 
   it('applies no limit to an Owner (staff row owner, as the server)', () => {

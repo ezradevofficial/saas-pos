@@ -19,7 +19,8 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * and `pos_open_shift`, and local `pos_sales` (completed sales, kept for
  * receipts, voids and returns), `pos_records` (voids, refunds, cash
  * movements), `pos_shifts`, `pos_held` (parked carts, never uploaded) and
- * `pos_counters` (receipt numbers used per range).
+ * `pos_counters` (receipt numbers used per range) and `pos_state` (the open
+ * cart, kept across restarts).
  *
  * Raise the version and add a step to migrations.js for every change.
  */
@@ -151,6 +152,8 @@ export const schema = appSchema({
     }),
     tableSchema({ name: 'pos_held', columns: [{ name: 'created_at', type: 'number' }, data] }),
     tableSchema({ name: 'pos_counters', columns: [data] }),
+    // The sale being rung up (and its payments in progress), so it survives an app restart.
+    tableSchema({ name: 'pos_state', columns: [data] }),
 
     // Local.
     tableSchema({

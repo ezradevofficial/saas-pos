@@ -259,7 +259,9 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
     [reasonText, t],
   );
   const lines = useMemo(() => (computed?.lines ?? []).map((line) => ({ ...line, currency })), [computed, currency]);
-  const onStep = useCallback((id, delta) => actions.step(id, delta), [actions]);
+  const [stepNotice, setStepNotice] = useState(null);
+  // POS-07: a quantity change re-checks the discount; one the person may no longer give is cleared, and said so.
+  const onStep = useCallback(async (id, delta) => setStepNotice(await actions.step(id, delta)), [actions]);
   const renderLine = useCallback(({ item }) => <SaleLineRow line={item} money={money} labels={labels} onStep={onStep} onOpen={onLine} />, [labels, money, onLine, onStep]);
 
   const count = computed?.itemCount ?? 0;
@@ -315,6 +317,7 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
         />
       </View>
       {blocked ? <Alert tone="danger">{t('pos.sale.blocked')}</Alert> : null}
+      {stepNotice ? <Alert tone="warning">{t('pos.sale.discountCleared')}</Alert> : null}
       {currency ? (
         <SaleTotal
           currency={currency}

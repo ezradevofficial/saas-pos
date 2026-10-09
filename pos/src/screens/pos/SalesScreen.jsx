@@ -9,25 +9,13 @@ import { TextField } from '../../components/ds/TextField';
 import { cn } from '../../lib/cn';
 import { FOCUS_RING } from '../../lib/focus';
 import { useLocale } from '../../lib/useLocale';
-import { convertExact } from '../../pos/currency';
-import { exact, movePoint, toFixed } from '../../pos/exact';
-import { refundTender } from '../../pos/payloads';
+import { isWholeQty } from '../../pos/cart';
+import { parseQuantity } from '../../pos/input';
+import { quantityLeft, refundedQuantities, refundTender } from '../../pos/payloads';
+import { notAbove } from '../../pos/tax';
 import { usePosActions, usePosData } from '../../pos/PosProvider';
 import { useServices } from '../../services/services';
 import { formatTime, useMoneyText } from './format';
-
-/** RBAC-06: a refund's value in the company's base currency, major units (4 decimals), for the limit check. */
-function baseMajor(catalogue, sale, totalMinor) {
-  const { money } = catalogue;
-  const base = catalogue.baseCurrency ?? sale.currency;
-  let minor = exact(BigInt(totalMinor));
-  if (sale.currency !== base) {
-    const rate = money.rateFor(sale.currency, base, Date.parse(sale.sold_at));
-    if (!rate) return null;
-    minor = convertExact(minor, sale.currency, base, rate, money.decimals);
-  }
-  return toFixed(movePoint(minor, -money.decimals(base)), 4);
-}
 
 function SaleDetail({ sale: initial, onBack }) {
   const { t } = useTranslation();
@@ -52,16 +40,14 @@ function SaleDetail({ sale: initial, onBack }) {
     reload();
   }, [reload]);
 
-  const refunded = useMemo(() => {
-    const out = {};
-    for (const record of records) if (record.recordKind === 'refund') for (const line of record.lines) out[line.sale_line_id] = (out[line.sale_line_id] ?? 0) + Number(line.qty);
-    return out;
-  }, [records]);
+  // Quantities are exact decimals (weighed items): never Number().
+  const refunded = useMemo(() => refundedQuantities(records.filter((record) => record.recordKind === 'refund')), [records]);
   const voided = sale.local?.status === 'voided' || records.some((record) => record.recordKind === 'void');
   const hasRefunds = records.some((record) => record.recordKind === 'refund');
+  const lineLeft = (id) => quantityLeft(sale.lines.find((line) => line.id === id)?.qty ?? '0', refunded[id]);
   const requested = Object.entries(qty)
-    .filter(([, value]) => value > 0)
-    .map(([saleLineId, value]) => ({ saleLineId, qty: String(value) }));
+    .map(([saleLineId, value]) => ({ saleLineId, qty: parseQuantity(value) }))
+    .filter((entry) => entry.qty !== null && notAbove(entry.qty, lineLeft(entry.saleLineId)));
 
   useEffect(() => {
     let active = true;
@@ -98,7 +84,7 @@ function SaleDetail({ sale: initial, onBack }) {
     }
     setBusy(true);
     try {
-      const record = await actions.refund({ sale, requested, method: chosen.method, currency: chosen.currency, reason: reason.trim(), baseMajor: baseMajor(catalogue, sale, quote.totalMinor) ?? '999999999' });
+      const record = await actions.refund({ sale, requested, method: chosen.method, currency: chosen.currency, reason: reason.trim() });
       if (!record) {
         setMessage({ tone: 'warning', text: t('pos.override.cancelled') });
         return;
@@ -155,10 +141,11 @@ function SaleDetail({ sale: initial, onBack }) {
       {message ? <Alert tone={message.tone}>{message.text}</Alert> : null}
       <View className="rounded-lg border border-border bg-surface-200">
         {sale.lines.map((line) => {
-          const sold = Number(line.qty);
-          const left = Math.max(0, sold - (refunded[line.id] ?? 0));
-          const chosenQty = qty[line.id] ?? 0;
-          const whole = Number.isInteger(sold);
+          const left = quantityLeft(line.qty, refunded[line.id]);
+          const chosen = qty[line.id] ?? '0';
+          const whole = isWholeQty(line.qty) && isWholeQty(left) && isWholeQty(chosen);
+          const parsed = parseQuantity(chosen);
+          const tooMany = parsed !== null && !notAbove(parsed, left);
           return (
             <View key={line.id} className="flex-row items-center gap-3 border-b border-border px-4 py-2">
               <View className="min-w-0 flex-1">
@@ -167,16 +154,27 @@ function SaleDetail({ sale: initial, onBack }) {
                 </Text>
                 <Text className="font-sans text-caption tabular-nums text-ink-muted">{t('pos.sales.lineSold', { qty: line.qty, total: money(line.total_minor, sale.currency), left })}</Text>
               </View>
-              {!voided && whole && left > 0 ? (
+              {!voided && left !== '0' && whole ? (
                 <View className="flex-row items-center gap-1">
-                  <Button variant="secondary" className="w-12 px-0" accessibilityLabel={t('pos.sales.returnLess', { name: line.item_name })} disabled={chosenQty <= 0} onPress={() => setQty((current) => ({ ...current, [line.id]: chosenQty - 1 }))}>
+                  <Button variant="secondary" className="w-12 px-0" accessibilityLabel={t('pos.sales.returnLess', { name: line.item_name })} disabled={chosen === '0'} onPress={() => setQty((current) => ({ ...current, [line.id]: String(BigInt(chosen) - 1n) }))}>
                     −
                   </Button>
-                  <Text className="w-10 text-center font-sans text-body-lg tabular-nums text-ink">{chosenQty}</Text>
-                  <Button variant="secondary" className="w-12 px-0" accessibilityLabel={t('pos.sales.returnMore', { name: line.item_name })} disabled={chosenQty >= left} onPress={() => setQty((current) => ({ ...current, [line.id]: chosenQty + 1 }))}>
+                  <Text className="w-10 text-center font-sans text-body-lg tabular-nums text-ink">{chosen}</Text>
+                  <Button variant="secondary" className="w-12 px-0" accessibilityLabel={t('pos.sales.returnMore', { name: line.item_name })} disabled={BigInt(chosen) >= BigInt(left)} onPress={() => setQty((current) => ({ ...current, [line.id]: String(BigInt(chosen) + 1n) }))}>
                     +
                   </Button>
                 </View>
+              ) : null}
+              {!voided && left !== '0' && !whole ? (
+                // A weighed or measured line: the quantity to give back is typed (up to 6 decimals).
+                <TextField
+                  className="w-1/4"
+                  label={t('pos.sales.returnQty')}
+                  keyboardType="decimal-pad"
+                  value={chosen === '0' ? '' : chosen}
+                  onChangeText={(text) => setQty((current) => ({ ...current, [line.id]: text || '0' }))}
+                  error={tooMany ? t('pos.sales.errors.refund_qty_exceeded') : undefined}
+                />
               ) : null}
             </View>
           );

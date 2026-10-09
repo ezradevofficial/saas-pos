@@ -5,7 +5,6 @@ import { Button } from '../../components/ds/Button';
 import { StatusBadge } from '../../components/ds/StatusBadge';
 import { useLocale } from '../../lib/useLocale';
 import { usePosData } from '../../pos/PosProvider';
-import { amountDueIn } from '../../pos/tender';
 import { vars } from 'nativewind';
 import { themeVariables } from '../../theme/themes';
 import { formatDateTime, useMoneyText } from './format';
@@ -39,14 +38,8 @@ export function Receipt({ sale, kind = 'sale' }) {
   const settings = catalogue?.settings;
   const company = settings?.company;
   const currency = sale.currency;
-  const dual = (() => {
-    if (kind !== 'sale' || !catalogue?.dualCurrency || catalogue.saleCurrency !== currency) return null;
-    try {
-      return money(amountDueIn({ remaining: sale.totals.total_minor, from: currency, currency: catalogue.dualCurrency, money: catalogue.money, at: Date.parse(sale.sold_at) }), catalogue.dualCurrency);
-    } catch {
-      return null;
-    }
-  })();
+  // CUR-05: the second-currency total stored with the sale (never recomputed at a later rate).
+  const dual = kind === 'sale' && sale.local?.dual ? { text: money(sale.local.dual.minor, sale.local.dual.currency), currency: sale.local.dual.currency } : null;
   const taxRates = [...new Set(sale.lines.map((line) => line.tax_rate).filter(Boolean))];
   const fiscalAuthority = company?.country === 'KE' ? t('pos.receipt.fiscalKe') : company?.country === 'CD' ? t('pos.receipt.fiscalCd') : t('pos.receipt.fiscal');
 
@@ -77,7 +70,7 @@ export function Receipt({ sale, kind = 'sale' }) {
           {sale.totals.discount_minor !== '0' ? <Row label={t('pos.receipt.discount')} value={money(`-${sale.totals.discount_minor}`, currency)} /> : null}
           <Row label={taxRates.length === 1 ? t('pos.receipt.taxAt', { rate: Number(taxRates[0]) }) : t('pos.receipt.tax')} value={money(sale.totals.tax_minor, currency)} />
           <Row label={t('pos.receipt.total')} value={money(sale.totals.total_minor, currency)} strong />
-          {dual ? <Row label={t('pos.receipt.totalIn', { currency: catalogue.dualCurrency })} value={dual} /> : null}
+          {dual ? <Row label={t('pos.receipt.totalIn', { currency: dual.currency })} value={dual.text} /> : null}
         </View>
         <View className="gap-1 border-t border-border pt-3">
           {sale.payments.map((payment) => (

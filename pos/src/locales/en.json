@@ -175,7 +175,8 @@
       "more": "Add one",
       "lineDiscount": "Discount {{amount}}",
       "blocked": "Some items cannot be sold until their tax rate is set in the back office. Remove them to charge.",
-      "tax": "Tax"
+      "tax": "Tax",
+      "discountCleared": "The discount was removed: it is above what you may give at this quantity. Ask a manager to give it again."
     },
     "phone": {
       "items_one": "{{count}} item",
@@ -398,7 +399,8 @@
         "no_receipt_numbers": "This till has no refund numbers left. Connect to the internet so the server can give it more.",
         "no_shift": "Open a shift first.",
         "failed": "Nothing was saved. Try again."
-      }
+      },
+      "returnQty": "Quantity to return"
     }
   }
 }

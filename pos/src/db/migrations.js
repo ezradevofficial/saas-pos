@@ -85,6 +85,7 @@ export const migrations = schemaMigrations({
         createTable({ name: 'pos_shifts', columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data] }),
         createTable({ name: 'pos_held', columns: [{ name: 'created_at', type: 'number' }, data] }),
         createTable({ name: 'pos_counters', columns: [data] }),
+        createTable({ name: 'pos_state', columns: [data] }),
       ],
     },
   ],

@@ -150,6 +150,27 @@ export function createPosStore(database) {
       return rows(await table('pos_number_ranges').query().fetch());
     },
 
+    // -- The open cart (survives a restart) ----------------------------------
+
+    async openCart() {
+      return (await findOne('pos_state', 'cart'))?.data ?? null;
+    },
+
+    async saveOpenCart(cart) {
+      const record = await findOne('pos_state', 'cart');
+      if (!cart?.lines?.length) {
+        if (record) await database.write(() => database.batch(record.prepareDestroyPermanently()));
+        return;
+      }
+      await write([prepareUpsert('pos_state', 'cart', { data: JSON.stringify(cart) })]);
+    },
+
+    /** Removes the open cart in the transaction that completes it (enqueue prepare), so it never comes back. */
+    async prepareClearOpenCart() {
+      const record = await findOne('pos_state', 'cart');
+      return record ? record.prepareDestroyPermanently() : null;
+    },
+
     // -- Synced master data for selling ------------------------------------
 
     async all(name) {

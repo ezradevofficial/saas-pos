@@ -32,13 +32,15 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const locale = useLocale();
   const money = useMoneyText();
   const { catalogue, nextReceipt } = usePosData();
-  const { computed } = usePosCart();
   const actions = usePosActions();
+  const { computed, cart } = usePosCart();
   const currency = catalogue.saleCurrency;
   const total = computed?.totals.total_minor ?? '0';
   const dual = useDualTotal(total);
   const options = useMemo(() => paymentOptions(catalogue), [catalogue]);
-  const [tenders, setTenders] = useState([]);
+  // Payments in progress live with the cart (saved locally; a change to the sale drops them).
+  const tenders = cart.tenders ?? [];
+  const setTenders = (update) => actions.setTenders(typeof update === 'function' ? update(tenders) : update);
   const [activeKey, setActiveKey] = useState(options[0]?.key ?? null);
   const [amountText, setAmountText] = useState('');
   const [reference, setReference] = useState('');

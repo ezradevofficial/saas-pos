@@ -66,7 +66,7 @@ function cartWith(catalogue, entries) {
     const price = catalogue.priceFor(found, IDS.uom, IDS.list, '1');
     cart = cartReducer(cart, { type: 'add', item: found, uomId: IDS.uom, price: price.amountMinor, listPriceMinor: price.amountMinor, priceListId: IDS.list, taxInclusive: true, now: NOW });
     const line = cart.lines[cart.lines.length - 1];
-    if (qty !== 1) cart = cartReducer(cart, { type: 'setQty', id: line.id, qty: String(qty) });
+    if (qty !== 1) cart = cartReducer(cart, { type: 'edit', id: line.id, patch: { qty: String(qty) } });
   }
   return cart;
 }
@@ -192,11 +192,29 @@ describe('sale payload (POS-01, POS-03, CUR-04, CUR-06, CUR-09)', () => {
     const overrideId = uuidv7(NOW);
     const { signature, authorisedAt } = signOverride({ deviceSecret: SECRET, serverNow: () => NOW, deviceId: 'device-1', id: overrideId, managerUserId: IDS.manager, cashierUserId: IDS.cashier, permission: 'pos.discount.give', reference: line.id });
     const override = { id: overrideId, kid: 'k1', manager_user_id: IDS.manager, cashier_user_id: IDS.cashier, permission: 'pos.discount.give', reference: line.id, authorised_at: authorisedAt, signature };
-    cart = cartReducer(cart, { type: 'discount', id: line.id, discountMinor: '5000', override });
+    cart = cartReducer(cart, { type: 'edit', id: line.id, patch: { discountMinor: '5000', override, discountBy: IDS.manager } });
     const sale = await selling.completeSale({ shift, user: cashier, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, 'KES', 45000)] });
     expect(sale.lines[0]).toMatchObject({ discount_minor: '5000', total_minor: '45000', tax_minor: '6207', override: { manager_user_id: IDS.manager, reference: line.id, permission: 'pos.discount.give' } });
-    expect(sale.lines[0].actor_proof).toEqual(proof);
+    // Approved by override: the line needs no proof of its own (the sale's applies).
+    expect(sale.lines[0].actor_proof).toBeUndefined();
     expect(shapeProblems('sale', stripLocal(sale))).toEqual([]);
+  });
+});
+
+describe('open cart and stored sale values', () => {
+  it('drops the saved open cart in the sale’s transaction and keeps base and second-currency values', async () => {
+    const { selling, catalogue, proofFor, posStore } = await setup();
+    const proof = proofFor(cashier);
+    const shift = await selling.openShift({ user: cashier, actorProof: proof, openingFloat: [] });
+    const cart = cartWith(catalogue, [[IDS.bread, 2]]);
+    await posStore.saveOpenCart(cart);
+    expect((await posStore.openCart()).id).toBe(cart.id);
+    const sale = await selling.completeSale({ shift, user: cashier, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, 'KES', 13000)] });
+    expect(await posStore.openCart()).toBeNull();
+    // KES is the base: no rate; the second currency (USD) total asked at the shop rate, rounded up.
+    expect(sale.local.base).toEqual({ currency: 'KES', rate: null });
+    expect(sale.local.base_lines[sale.lines[0].id]).toBe('13000');
+    expect(sale.local.dual).toEqual({ currency: 'USD', minor: '101' });
   });
 });
 
