@@ -15,8 +15,6 @@ return [
         'pending_days' => (int) env('BRANDING_DOMAIN_PENDING_DAYS', 3),
         // Where the tenant points the domain (a CNAME target), shown in the UI.
         'cname_target' => env('BRANDING_CNAME_TARGET'),
-        // GET tls/ask (Caddy on-demand TLS): requests a minute per address.
-        'tls_ask_per_minute' => (int) env('BRANDING_TLS_ASK_PER_MINUTE', 120),
     ],
 
     // BR-04: GET public/branding, before sign-in: requests a minute per address.

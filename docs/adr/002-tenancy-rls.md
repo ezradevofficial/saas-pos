@@ -106,8 +106,19 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_active_tenant_ids()` | `exchange-rates:fetch` (CUR-03) | status `active` |
 | `app_tenants_with_due_stage_timers(p_at timestamptz)` | `workflow:process-stage-timers` (WF-09) | an active stage position whose reminder, overdue notice or escalation is due |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
+| `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
+| `app_tenants_with_domain_checks_due(p_at timestamptz)` | `domains:verify` (BR-05) | active tenants with a pending claim, a verified domain due for its daily re-check, or a claim failed for 7 days |
 
 They follow the same rules as the lookups above: `security definer`, `search_path` pinned, schema-qualified names, revoked from `PUBLIC`, granted to the runtime role, and they return `setof uuid`, never a row. `DueTenantsTest` checks each of these properties. Each command then dispatches one job per tenant, and the job does the work in that tenant's context under row-level security.
+
+### Public branding before sign-in (Phase 5, BR-04, BR-05)
+
+Two more functions answer for hosts, before any tenant is known:
+
+- `app_tenant_for_verified_domain(p_host text)` returns the tenant id of a verified, not archived custom domain of an active tenant. The TLS ask endpoint only checks that one exists.
+- `app_public_branding(p_slug text, p_host text)` returns a table of public fields, not ids: the tenant's name, its published tenant-wide theme's look (`scope_id is null`, live, not archived version), the welcome text, the storage paths of its logos, favicon and background, and the "hide platform" flag. It never returns the tenant id, document or asset ids.
+
+**Tenant names behind a slug are public by design.** Anyone who knows or guesses `{slug}.{APP_BASE_DOMAIN}` (or a verified domain) sees that business's name and look on its sign-in page, as on any branded login page. Nothing else about the tenant is reachable this way. Subdomains are chosen by the business; it should not pick one it wants kept secret.
 
 **Only migrations and deploy commands need the owner's credentials.** Those are `migrate --database=pgsql_owner`, `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, `uoms:seed-defaults`, `payment-methods:seed-defaults` and `app:preflight`, all run by the deploy on the API host. Web requests, queue workers (Horizon) and the scheduler never open the owner connection. Their `.env` can, and in production should, leave `DB_OWNER_*` out. The command tests prove it by making the owner connection unusable before running each command.
 

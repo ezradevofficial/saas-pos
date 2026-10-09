@@ -4297,7 +4297,9 @@
     "cname": "Pointez ensuite {{host}} vers {{target}} avec un enregistrement CNAME.",
     "failure": {
       "record_missing": "L'enregistrement est introuvable.",
-      "lookup_failed": "La recherche DNS a échoué."
+      "lookup_failed": "La recherche DNS a échoué.",
+      "claimed_elsewhere": "Un autre compte a prouvé ce domaine en premier.",
+      "record_removed": "L'enregistrement était absent trois vérifications de suite."
     },
     "checkedAt": "Dernière vérification {{when}}.",
     "removeTitle": "Retirer {{host}} ?",

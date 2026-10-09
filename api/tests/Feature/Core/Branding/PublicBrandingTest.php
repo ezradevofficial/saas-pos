@@ -142,18 +142,48 @@ class PublicBrandingTest extends TestCase
         $this->artisan('tenant:branding', ['tenant' => $this->owner->tenant_id])->assertExitCode(2);
     }
 
-    public function test_the_public_lookups_are_rate_limited(): void
+    public function test_the_sign_in_lookup_is_rate_limited_and_the_tls_ask_is_not_but_caches_no(): void
     {
         RateLimiter::for(BrandingServiceProvider::PUBLIC_LIMITER, fn () => Limit::perMinute(2)->by('test'));
-        RateLimiter::for(BrandingServiceProvider::TLS_LIMITER, fn () => Limit::perMinute(2)->by('test'));
 
         $this->getJson('/api/v1/public/branding?host=a.example.app')->assertOk();
         $this->getJson('/api/v1/public/branding?host=a.example.app')->assertOk();
         $this->getJson('/api/v1/public/branding?host=a.example.app')->assertStatus(429);
 
+        // Caddy asks once per new host; a burst is never refused (no per-address throttle).
+        for ($i = 0; $i < 70; $i++) {
+            $this->get('/api/v1/tls/ask?domain=a.example.org')->assertNotFound();
+        }
+
+        // A "no" is remembered for 60 s, so a domain verified meanwhile waits that long.
+        $domain = $this->postJson('/api/v1/branding/domains', ['host' => 'a.example.org'], $this->headersFor())->assertCreated()->json('data');
+        $this->dns->publish($domain['record']['name'], $domain['record']['value']);
+        $this->postJson("/api/v1/branding/domains/{$domain['id']}/check", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'verified');
         $this->get('/api/v1/tls/ask?domain=a.example.org')->assertNotFound();
-        $this->get('/api/v1/tls/ask?domain=a.example.org')->assertNotFound();
-        $this->get('/api/v1/tls/ask?domain=a.example.org')->assertStatus(429);
+        $this->travel(PublicBranding::NEGATIVE_SECONDS + 1)->seconds();
+        $this->get('/api/v1/tls/ask?domain=a.example.org')->assertOk();
+    }
+
+    public function test_a_company_theme_never_reaches_the_sign_in_page(): void
+    {
+        $this->putJson('/api/v1/branding/settings', ['slug' => 'acme'], $this->headersFor())->assertOk();
+        $id = $this->postJson('/api/v1/config/theme', ['scope_type' => 'company', 'scope_id' => $this->acme->id, 'payload' => [
+            'preset' => 'executive', 'login' => ['welcome' => 'Company only'],
+        ]], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/config/theme/{$id}/publish", ['revision' => $this->getJson("/api/v1/config/theme/{$id}", $this->headersFor())->json('data.draft.revision')], $this->headersFor())->assertOk();
+
+        $this->branding('acme.example.app')->assertJsonPath('data.theme.preset', 'light')->assertJsonPath('data.welcome', null);
+    }
+
+    public function test_reserved_subdomains_and_the_platforms_own_host_labels_are_refused(): void
+    {
+        config(['app.url' => 'https://portal.example.app', 'app.frontend_url' => 'https://office.example.app', 'branding.domains.cname_target' => 'gateway.example.app']);
+
+        foreach (['www', 'www2', 'staging', 'dev', 'test', 'edge', 'mx', 'ns1', 'ns2', 'ftp', 'portal', 'office', 'gateway'] as $slug) {
+            $this->putJson('/api/v1/branding/settings', ['slug' => $slug], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('slug');
+        }
+
+        $this->putJson('/api/v1/branding/settings', ['slug' => 'amani'], $this->headersFor())->assertOk();
     }
 
     public function test_hosts_are_parsed_strictly(): void

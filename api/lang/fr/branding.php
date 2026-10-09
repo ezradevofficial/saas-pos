@@ -20,12 +20,21 @@ return [
         'favicon_size' => 'Une icône de site doit être une image carrée de 16 à 512 pixels de côté.',
         'host_format' => 'Saisissez un domaine complet, comme erp.entreprise.cd, sans http:// ni chemin.',
         'platform_domain' => 'C’est le domaine de la plateforme. Choisissez plutôt votre sous-domaine sur la page Marque.',
-        'domain_taken' => 'Ce domaine est déjà utilisé. Retirez-le d’abord de l’autre compte, ou utilisez un autre domaine.',
+        'domain_added' => 'Ce domaine est déjà dans votre liste. Vérifiez-le là, ou retirez-le d’abord.',
         'slug_taken' => 'Ce sous-domaine est déjà pris. Choisissez-en un autre.',
         'slug_format' => 'Utilisez des lettres minuscules, des chiffres et des tirets, en commençant et en finissant par une lettre ou un chiffre.',
         'slug_reserved' => 'Ce sous-domaine est réservé. Choisissez-en un autre.',
         'sender_domain' => 'Envoyez depuis une adresse d’un de vos domaines vérifiés. Ajoutez et vérifiez d’abord le domaine.',
         'from_name_format' => 'Le nom de l’expéditeur doit tenir sur une ligne, sans < > ni guillemets.',
         'sms_sender_format' => 'Utilisez 3 à 11 lettres, chiffres ou espaces, dont au moins une lettre.',
+    ],
+
+    'notifications' => [
+        'domain_lost' => [
+            'label' => 'Domaine personnalisé hors service',
+            'subject' => '{host} n’est plus vérifié',
+            'body' => "Bonjour {recipient_name},\n\nL’enregistrement DNS qui prouve que {host} vous appartient était absent trois vérifications de suite : {host} n’ouvre plus votre espace de travail, n’obtient plus de certificat et n’envoie plus vos e-mails.\n\nCréez de nouveau l’enregistrement TXT, puis choisissez Vérifier maintenant sur la page Domaines.",
+            'sms' => '{app_name} : {host} n’est plus vérifié. Recréez son enregistrement TXT et vérifiez-le sur la page Domaines.',
+        ],
     ],
 ];

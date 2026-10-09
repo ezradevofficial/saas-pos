@@ -3,6 +3,7 @@
 namespace App\Core\Branding;
 
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -16,6 +17,9 @@ use Illuminate\Support\Str;
  */
 class PublicBranding
 {
+    /** BR-05: how long a TLS ask answered "no" is remembered. */
+    public const NEGATIVE_SECONDS = 60;
+
     public function __construct(private readonly BrandAssets $assets) {}
 
     /** @return array{slug: ?string, host: ?string}|null what to look up for $host, or null for a host that cannot be a tenant's */
@@ -88,9 +92,24 @@ class PublicBranding
             return false;
         }
 
-        return DB::connection(TenantContext::CONNECTION)->selectOne(
+        // A "no" is cached for a minute: Caddy may ask for many unknown hosts (scans),
+        // and the endpoint is not rate-limited, so it must stay cheap. A "yes" is never cached:
+        // an archived or lost domain stops getting certificates at once.
+        $key = 'tls-ask:'.$lookup['host'];
+
+        if (Cache::get($key) === 'no') {
+            return false;
+        }
+
+        $ok = DB::connection(TenantContext::CONNECTION)->selectOne(
             'select exists(select 1 from public.app_tenant_for_verified_domain(?) as t(id)) as ok',
             [$lookup['host']],
         )->ok === true;
+
+        if (! $ok) {
+            Cache::put($key, 'no', self::NEGATIVE_SECONDS);
+        }
+
+        return $ok;
     }
 }

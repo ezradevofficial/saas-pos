@@ -5,9 +5,13 @@ namespace Tests\Feature\Core\Branding;
 use App\Core\Audit\AuditEntry;
 use App\Core\Branding\BrandedSender;
 use App\Core\Branding\Domains\DnsResolver;
+use App\Core\Branding\Domains\TenantDomains;
 use App\Core\Branding\Models\TenantDomain;
+use App\Core\Branding\PublicBranding;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\DueTenants;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +65,8 @@ class DomainApiTest extends TestCase
 
         $this->getJson('/api/v1/branding/domains', $this->headersFor())->assertOk()
             ->assertJsonPath('data.0.status', 'verified')->assertJsonPath('data.0.failure', null);
+        // The earlier "no" is cached for a minute.
+        $this->travel(PublicBranding::NEGATIVE_SECONDS + 1)->seconds();
         $this->get('/api/v1/tls/ask?domain=erp.company.co.ke')->assertOk();
         $this->get('/api/v1/tls/ask?domain=ERP.company.co.ke')->assertOk();
         $this->get('/api/v1/tls/ask?domain=other.company.co.ke')->assertNotFound();
@@ -89,7 +95,7 @@ class DomainApiTest extends TestCase
         $this->postJson("/api/v1/branding/domains/{$domain['id']}/check", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'verified');
     }
 
-    public function test_hosts_are_validated_and_belong_to_one_tenant(): void
+    public function test_hosts_are_validated_and_added_once_per_tenant(): void
     {
         config(['branding.base_domain' => 'example.app']);
 
@@ -98,9 +104,75 @@ class DomainApiTest extends TestCase
         }
 
         $this->add('erp.company.co.ke');
-        $other = $this->otherTenant();
-        $this->postJson('/api/v1/branding/domains', ['host' => 'erp.company.co.ke'], $this->bearer($this->tokenFor($other['user'])))
-            ->assertUnprocessable()->assertJsonPath('code', 'domain_taken');
+        $this->postJson('/api/v1/branding/domains', ['host' => 'erp.company.co.ke'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'domain_added');
+    }
+
+    public function test_a_pending_claim_never_blocks_the_real_owner_and_the_first_proof_wins(): void
+    {
+        // A squatter claims the host first but cannot create the TXT record.
+        $squatter = $this->otherTenant();
+        $squatterHeaders = $this->bearer($this->tokenFor($squatter['user']));
+        $claim = $this->add('erp.company.co.ke', $squatterHeaders);
+
+        // The real owner can still add it and, proving it, wins.
+        $mine = $this->add('erp.company.co.ke');
+        $this->dns->publish($mine['record']['name'], $mine['record']['value']);
+        $this->postJson("/api/v1/branding/domains/{$mine['id']}/check", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'verified');
+
+        // Should the other claim find its own record later, it fails: the host is taken.
+        $this->dns->publish($claim['record']['name'], $claim['record']['value']);
+        $this->postJson("/api/v1/branding/domains/{$claim['id']}/check", [], $squatterHeaders)->assertOk()
+            ->assertJsonPath('data.status', 'failed')->assertJsonPath('data.failure', 'claimed_elsewhere');
+        $this->get('/api/v1/tls/ask?domain=erp.company.co.ke')->assertOk();
+    }
+
+    public function test_a_verified_domain_whose_record_is_gone_three_checks_running_stops_working(): void
+    {
+        $domain = $this->add('company.co.ke');
+        $this->dns->publish($domain['record']['name'], $domain['record']['value']);
+        $this->postJson("/api/v1/branding/domains/{$domain['id']}/check", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'verified');
+        $this->putJson('/api/v1/branding/settings', ['email_from_address' => 'billing@company.co.ke'], $this->headersFor())->assertOk();
+
+        // The record disappears. A failed lookup does not count; missing ones do.
+        $this->dns->records = [];
+        $this->dns->failing = [$domain['record']['name']];
+        $this->artisan('domains:verify', ['--at' => CarbonImmutable::now()->addDay()->toIso8601String()])->assertSuccessful();
+        $this->dns->failing = [];
+
+        foreach ([2, 3] as $day) {
+            $this->artisan('domains:verify', ['--at' => CarbonImmutable::now()->addDays($day)->toIso8601String()])->assertSuccessful();
+        }
+        $this->getJson('/api/v1/branding/domains', $this->headersFor())->assertJsonPath('data.0.status', 'verified');
+        $this->get('/api/v1/tls/ask?domain=company.co.ke')->assertOk();
+
+        $this->artisan('domains:verify', ['--at' => CarbonImmutable::now()->addDays(4)->toIso8601String()])->assertSuccessful();
+        $this->getJson('/api/v1/branding/domains', $this->headersFor())
+            ->assertJsonPath('data.0.status', 'failed')->assertJsonPath('data.0.failure', 'record_removed');
+        $this->get('/api/v1/tls/ask?domain=company.co.ke')->assertNotFound();
+        $this->inTenant(fn () => $this->assertNull(BrandedSender::address()));
+
+        // Audited, and the tenant's domain managers are told.
+        $this->assertContains('core.domain.lost', $this->inTenant(fn () => AuditEntry::query()->where('auditable_id', $domain['id'])->pluck('action')->all()));
+        $this->assertSame(1, $this->inTenant(fn () => DB::table('notifications')->where('event_type', TenantDomains::LOST)->where('user_id', $this->owner->id)->count()));
+
+        // A failed claim is archived after seven days.
+        $this->artisan('domains:verify', ['--at' => CarbonImmutable::now()->addDays(12)->toIso8601String()])->assertSuccessful();
+        $this->getJson('/api/v1/branding/domains', $this->headersFor())->assertJsonPath('data', []);
+    }
+
+    public function test_suspended_tenants_are_not_checked(): void
+    {
+        $this->add('erp.company.co.ke');
+        app(TenantContext::class)->set(null);
+        $due = app(DueTenants::class);
+        $this->assertSame([$this->owner->tenant_id], $due->withPendingDomains());
+        $this->assertSame([$this->owner->tenant_id], $due->withDomainChecksDue(CarbonImmutable::now()));
+
+        $this->inTenant(fn () => Tenant::query()->whereKey($this->owner->tenant_id)->update(['status' => 'suspended']));
+        app(TenantContext::class)->set(null);
+        $this->assertSame([], $due->withPendingDomains());
+        $this->assertSame([], $due->withDomainChecksDue(CarbonImmutable::now()));
     }
 
     public function test_only_owner_and_admin_manage_domains_and_other_tenants_get_not_found(): void
@@ -161,7 +233,7 @@ class DomainApiTest extends TestCase
 
     public function test_the_scheduler_functions_are_locked_down(): void
     {
-        foreach (['app_tenants_with_pending_domains', 'app_tenant_for_verified_domain', 'app_public_branding'] as $name) {
+        foreach (['app_tenants_with_pending_domains', 'app_tenants_with_domain_checks_due', 'app_tenant_for_verified_domain', 'app_public_branding'] as $name) {
             $fn = DB::selectOne(<<<'SQL'
                 select p.oid, p.prosecdef, p.proconfig::text as config, pg_get_userbyid(p.proowner) as owner,
                        has_function_privilege('public', p.oid, 'execute') as public_execute,

@@ -4297,7 +4297,9 @@
     "cname": "Then point {{host}} at {{target}} with a CNAME record.",
     "failure": {
       "record_missing": "The record was not found.",
-      "lookup_failed": "The DNS lookup failed."
+      "lookup_failed": "The DNS lookup failed.",
+      "claimed_elsewhere": "Another account proved this domain first.",
+      "record_removed": "The record was missing on three checks in a row."
     },
     "checkedAt": "Last checked {{when}}.",
     "removeTitle": "Remove {{host}}?",

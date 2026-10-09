@@ -4,6 +4,7 @@ namespace App\Core\Branding\Http\Requests;
 
 use App\Core\Branding\Domains\TenantDomains;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
@@ -17,7 +18,29 @@ use Illuminate\Validation\Validator;
  */
 class UpdateBrandingSettingsRequest extends DomainRequest
 {
-    public const RESERVED_SLUGS = ['www', 'api', 'app', 'admin', 'mail', 'smtp', 'status', 'help', 'support', 'docs', 'static', 'assets', 'cdn', 'auth', 'login', 'billing'];
+    public const RESERVED_SLUGS = [
+        'www', 'www2', 'api', 'admin', 'app', 'staging', 'dev', 'test', 'edge', 'mail', 'mx', 'ns1', 'ns2',
+        'ftp', 'smtp', 'status', 'docs', 'help', 'support', 'billing', 'cdn', 'static', 'assets',
+    ];
+
+    /**
+     * The reserved names, plus the first label of the platform's own hosts
+     * (BRANDING_CNAME_TARGET, APP_URL, FRONTEND_URL), so no tenant can take
+     * the subdomain the platform itself answers on.
+     *
+     * @return list<string>
+     */
+    public static function reserved(): array
+    {
+        $hosts = [
+            config('branding.domains.cname_target'),
+            parse_url((string) config('app.url'), PHP_URL_HOST),
+            parse_url((string) config('app.frontend_url'), PHP_URL_HOST),
+        ];
+        $labels = array_map(fn ($host) => is_string($host) && $host !== '' ? Str::lower(explode('.', $host)[0]) : null, $hosts);
+
+        return array_values(array_unique([...self::RESERVED_SLUGS, ...array_filter($labels)]));
+    }
 
     protected function prepareForValidation(): void
     {
@@ -29,7 +52,7 @@ class UpdateBrandingSettingsRequest extends DomainRequest
     public function rules(): array
     {
         return [
-            'slug' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', 'not_in:'.implode(',', self::RESERVED_SLUGS)],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', Rule::notIn(self::reserved())],
             'email_from_name' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[^\r\n<>"]*$/'],
             'email_from_address' => ['sometimes', 'nullable', 'string', 'max:254', 'email:rfc'],
             'sms_sender_id' => ['sometimes', 'nullable', 'string', 'regex:/^(?=.*[A-Za-z])[A-Za-z0-9 ]{3,11}$/'],

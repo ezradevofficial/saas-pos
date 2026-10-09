@@ -12,7 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 
 /**
- * BR-05: check the pending custom domains of one tenant, in that tenant's
+ * BR-05: check, re-check and expire the custom domains of one tenant, in that tenant's
  * context (TenantAware), on the runtime connection. Dispatched by
  * `domains:verify`; unique per tenant while queued or running.
  */
@@ -43,6 +43,6 @@ class VerifyTenantDomains implements ShouldBeUnique, ShouldQueue
         // The system acts: no user or device is recorded (AUD-02).
         $audit->reset();
 
-        $domains->checkPending(CarbonImmutable::parse($this->at));
+        $domains->runDue(CarbonImmutable::parse($this->at));
     }
 }

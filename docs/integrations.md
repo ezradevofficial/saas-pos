@@ -270,8 +270,11 @@ fields.
 3. **Caddy on-demand TLS for custom domains**: Caddy asks the API before it
    gets a certificate for a host it has never seen. The API answers 200
    only for a verified custom domain of an active tenant
-   (`GET /api/v1/tls/ask?domain=`, rate-limited per address, 120 a minute
-   by default, `BRANDING_TLS_ASK_PER_MINUTE`).
+   (`GET /api/v1/tls/ask?domain=`). It is not rate-limited, since Caddy
+   asks once per new host; a "no" is cached for 60 seconds, so a scan of
+   unknown hosts stays cheap, and a domain verified meanwhile gets its
+   certificate within a minute. **The endpoint must be reachable only from
+   Caddy on the private interface.**
 
    ```caddyfile
    {
@@ -299,13 +302,30 @@ fields.
    }
    ```
 
-   Point `ask` at the API over the private network (not through the
-   public NodeBalancer), so the rate limit sees Caddy's address.
+   Point `ask` at the API on `127.0.0.1` (or the private network), never
+   through the public NodeBalancer, and block the path from the public
+   side, in the site that proxies `/api` to the API:
+
+   ```caddyfile
+   @tlsask path /api/v1/tls/ask
+   respond @tlsask 404
+   ```
+
+   or, with nginx in front:
+
+   ```nginx
+   location = /api/v1/tls/ask { return 404; }
+   ```
 4. **Scheduler**: `domains:verify` runs every ten minutes
-   (`routes/console.php`). It finds the tenants with pending domains
-   through `app_tenants_with_pending_domains()` on the runtime connection
-   and checks each tenant's records in its own context; it never needs the
-   owner credentials.
+   (`routes/console.php`). It finds the active tenants with work through
+   `app_tenants_with_domain_checks_due(at)` on the runtime connection and
+   works in each tenant's context; it never needs the owner credentials.
+   The work: check pending claims; check verified domains again once a
+   day (a record missing on three checks in a row drops the domain to
+   failed, which stops TLS, sign-in branding and the email sender, is
+   audited as `core.domain.lost` and notifies the tenant's domain
+   managers; a failed DNS lookup does not count); archive claims that
+   have been failed for seven days.
 5. **CORS**: the web app is served on every tenant host, and calls the
    API on its own host name. Allow the tenant hosts in
    `CORS_ALLOWED_ORIGINS` (a pattern for `*.example.app`, and custom
@@ -314,12 +334,20 @@ fields.
 
 ### Per business (back office: Settings → Domains)
 
-- **Subdomain**: lower-case letters, digits and hyphens; unique; some
-  names are reserved (`www`, `api`, `app`, `admin`, `mail` and others).
+- **Subdomain**: lower-case letters, digits and hyphens; unique. Reserved:
+  `www`, `www2`, `api`, `admin`, `app`, `staging`, `dev`, `test`, `edge`,
+  `mail`, `mx`, `ns1`, `ns2`, `ftp`, `smtp`, `status`, `docs`, `help`,
+  `support`, `billing`, `cdn`, `static`, `assets`, and the first label of
+  the hosts in `BRANDING_CNAME_TARGET`, `APP_URL` and `FRONTEND_URL`.
+  Follow-up: a cool-off period before a released subdomain can be taken
+  by another business (not built yet).
 - **Custom domain**: add it, create the TXT record shown, and point the
   domain at `BRANDING_CNAME_TARGET`. It is verified at the next check (or
-  "Check now"). Removing a domain archives it: TLS, sign-in branding and
-  the email sender stop at once.
+  "Check now"). Several businesses may claim the same host; the first to
+  prove the TXT record wins, and the other claims fail with "claimed
+  elsewhere", so a claim nobody can prove never blocks the real owner.
+  Removing a domain archives it: TLS, sign-in branding and the email
+  sender stop at once.
 - **Email sender** (BR-06): a name and an address on one of the business's
   verified domains. While that domain stays verified, notification emails
   go out from it; otherwise from the platform's `MAIL_FROM_ADDRESS`. The

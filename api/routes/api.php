@@ -168,7 +168,9 @@ Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')-
 // BR-05: Caddy's on-demand TLS asks whether a host is a verified domain.
 // BR-02: a brand asset behind a signed URL (the signature is the credential).
 Route::get('public/branding', [PublicBrandingController::class, 'show'])->middleware('throttle:'.BrandingServiceProvider::PUBLIC_LIMITER);
-Route::get('tls/ask', [PublicBrandingController::class, 'tlsAsk'])->middleware('throttle:'.BrandingServiceProvider::TLS_LIMITER);
+// Not rate-limited (Caddy asks per new host): "no" is cached 60 s, and the
+// endpoint must be reachable only from Caddy on the private interface.
+Route::get('tls/ask', [PublicBrandingController::class, 'tlsAsk']);
 Route::get('branding/assets/{path}', BrandAssetFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('branding.asset');
 
 // APR-03: an approval attachment behind a temporary signed URL
