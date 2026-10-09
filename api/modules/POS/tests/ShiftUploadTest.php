@@ -122,6 +122,23 @@ class ShiftUploadTest extends TestCase
         });
     }
 
+    public function test_one_batch_closes_a_shift_and_opens_the_next_in_the_same_currency(): void
+    {
+        // NFR-04: after a day offline the till sends yesterday's close and today's open together.
+        $yesterday = $this->shiftBody();
+        $this->shifts([$yesterday])->assertOk();
+        $today = $this->shiftBody();
+
+        $this->shifts([[...$yesterday, 'closing' => $this->closing()], $today])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'closed')
+            ->assertJsonPath('results.1.shift_status', 'open');
+
+        // Within one shift a currency is counted once.
+        $twice = [['currency' => 'KES', 'amount_minor' => '100'], ['currency' => 'KES', 'amount_minor' => '200']];
+        $this->shifts([$this->shiftBody(['opening_float' => $twice])])->assertUnprocessable()->assertJsonValidationErrors('shifts.0.opening_float');
+        $this->shifts([[...$today, 'closing' => $this->closing(counted: $twice)]])->assertUnprocessable()->assertJsonValidationErrors('shifts.0.closing.counted');
+    }
+
     public function test_one_upload_may_open_and_close_a_shift_and_permissions_apply(): void
     {
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
