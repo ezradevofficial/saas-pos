@@ -4,7 +4,7 @@ import { uuidv7 } from '../lib/random';
 import { useServices } from '../services/services';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { check } from './authority';
-import { cartReducer, computeCart, emptyCart, isWholeQty } from './cart';
+import { cartReducer, computeCart, emptyCart, hasConfirmedMobilePayment, hasMobilePayment, isWholeQty } from './cart';
 import { planLineEdit } from './lineEdit';
 import { findByCode, loadCatalogue } from './catalogue';
 import { DOCUMENT_TYPES, drawNumber } from './numbering';
@@ -153,6 +153,12 @@ export function PosProvider({ children }) {
   const actions = useMemo(() => {
     const current = () => refs.current;
     const lineOf = (id) => current().cart.lines.find((line) => line.id === id);
+    // POS-03, POS-06: mobile money sent for this sale locks its lines and customer (cart.js; the reducer refuses too).
+    const locked = () => hasMobilePayment(current().cart);
+    const PAYMENT_LOCKED = 'payment_locked';
+    // POS-05, POS-06: the customer already paid by mobile money; the sale can only be completed (cart.js).
+    const paid = () => hasConfirmedMobilePayment(current().cart);
+    const MOBILE_PAID = 'mobile_paid';
     const listPriceFor = (line) => (qty) => {
       const { catalogue: loaded } = current();
       const item = loaded?.itemById.get(line.itemId);
@@ -163,6 +169,7 @@ export function PosProvider({ children }) {
     async function editLine(lineId, changes, { quiet = false } = {}) {
       const line = lineOf(lineId);
       if (!line) return { ok: false, reason: 'line_unknown' };
+      if (locked()) return { ok: false, reason: PAYMENT_LOCKED };
       const plan = await planLineEdit({ line, changes, listPriceFor: listPriceFor(line), authorize: (action, value, reference) => authorize(action, value, reference, { quiet }), quiet });
       if (plan.ok) dispatch({ type: 'edit', id: lineId, patch: plan.patch });
       return plan;
@@ -176,6 +183,7 @@ export function PosProvider({ children }) {
         const tile = loaded?.tiles.find((candidate) => candidate.id === itemId);
         if (!item || !tile) return 'item_unknown';
         if (!tile.sellable) return tile.reason;
+        if (locked()) return PAYMENT_LOCKED;
         const uomId = uomOverride ?? loaded.salesUom(item);
         const list = activeList(sale.customer);
         // Only a plain line with a whole quantity takes one more; a weighed or hand-priced line stays as it is.
@@ -216,6 +224,7 @@ export function PosProvider({ children }) {
       async step(lineId, delta) {
         const line = lineOf(lineId);
         if (!line || !isWholeQty(line.qty)) return null;
+        if (locked()) return PAYMENT_LOCKED;
         const next = BigInt(line.qty) + BigInt(delta);
         if (next <= 0n) {
           dispatch({ type: 'remove', id: lineId });
@@ -224,10 +233,16 @@ export function PosProvider({ children }) {
         return (await editLine(lineId, { qty: String(next) }, { quiet: true })).notice ?? null;
       },
 
-      remove: (lineId) => dispatch({ type: 'remove', id: lineId }),
+      /** Resolves null, or 'payment_locked' when mobile money was sent for the sale. */
+      remove(lineId) {
+        if (locked()) return PAYMENT_LOCKED;
+        dispatch({ type: 'remove', id: lineId });
+        return null;
+      },
 
       /** POS-08: name a customer (or none); lines not priced by hand are re-priced on the customer's list. */
       setCustomer(customer) {
+        if (locked()) return PAYMENT_LOCKED;
         const { catalogue: loaded, cart: sale } = current();
         const list = activeList(customer);
         const lines = sale.lines.map((line) => {
@@ -240,31 +255,52 @@ export function PosProvider({ children }) {
           return BigInt(line.discountMinor) > extend(repriced.unitPriceMinor, repriced.qty) ? { ...repriced, discountMinor: '0', override: null, discountBy: null } : repriced;
         });
         dispatch({ type: 'customer', customer: customer ? { id: customer.id, name: customer.name, phone: customer.phones?.[0]?.number ?? null, price_list_id: customer.price_list_id ?? null } : null, priceListId: list?.id ?? null, lines });
+        return null;
       },
 
-      /** Payments in progress, kept with the cart. */
-      setTenders: (tenders) => dispatch({ type: 'tenders', tenders }),
+      /**
+       * Payments in progress, kept with the cart: added to or removed from the tenders as they are
+       * now, and only while `saleId` (the sale the payment was started for) is still the cart.
+       */
+      addTender: (saleId, tender) => dispatch({ type: 'addTender', saleId, tender }),
+      /** Resolves null, or 'mobile_paid' for a confirmed mobile-money tender (it is never removed). */
+      removeTender(saleId, tenderId) {
+        const tender = current().cart.tenders?.find((entry) => entry.id === tenderId);
+        if (tender && hasConfirmedMobilePayment({ tenders: [tender] })) return MOBILE_PAID;
+        dispatch({ type: 'removeTender', saleId, id: tenderId });
+        return null;
+      },
 
-      clear: () => dispatch({ type: 'clear' }),
+      /** Resolves null, or 'mobile_paid' when the customer already paid by mobile money. */
+      clear() {
+        if (paid()) return MOBILE_PAID;
+        dispatch({ type: 'clear' });
+        return null;
+      },
 
-      /** POS-02: park the current sale on this till. */
+      /** POS-02: park the current sale on this till. Resolves null, or 'mobile_paid' (never parked). */
       async hold() {
         const { cart: sale } = current();
-        if (!sale.lines.length) return;
+        if (paid()) return MOBILE_PAID;
+        if (!sale.lines.length) return null;
         await posStore.hold(sale);
         dispatch({ type: 'clear' });
         await refreshHeld();
+        return null;
       },
 
+      /** Resolves null, or 'mobile_paid' when the current sale cannot be parked for it. */
       async resume(id) {
         const { cart: sale } = current();
+        if (paid()) return MOBILE_PAID;
         const parked = (await posStore.held()).find((entry) => entry.id === id);
-        if (!parked) return;
+        if (!parked) return null;
         if (sale.lines.length) await posStore.hold(sale);
         await posStore.unhold(id);
         const { heldAt: _heldAt, ...restored } = parked;
         dispatch({ type: 'load', cart: restored });
         await refreshHeld();
+        return null;
       },
 
       async discard(id) {
@@ -295,7 +331,7 @@ export function PosProvider({ children }) {
         // POS-04: pay-ins and pay-outs both need pos.cash.move (the server checks both) or a manager.
         const approval = await authorize(kind, null, reference);
         if (!approval) return null;
-        return selling.cashMovement({ shift: open, user: who.user, actorProof: who.actorProof, kind, currency, amountMinor, reason, override: approval.override ? approval.override : undefined });
+        return selling.cashMovement({ shift: open, user: who.user, actorProof: who.actorProof, kind, currency, amountMinor, reason, override: approval.override ? approval.override : undefined, id: reference });
       },
 
       /** POS-01, POS-03: complete with the tenders; clears the cart and resolves the sale. */
@@ -303,7 +339,7 @@ export function PosProvider({ children }) {
         const { session: who, shift: open, cart: sale, catalogue: loaded } = current();
         const list = activeList(sale.customer);
         const completed = await selling.completeSale({ shift: open, user: who.user, actorProof: who.actorProof, cart: sale, catalogue: loaded, tenders, changeCurrency, priceListId: list?.id });
-        dispatch({ type: 'clear' });
+        dispatch({ type: 'clear', completed: true });
         setLastSale(completed);
         return completed;
       },

@@ -369,3 +369,45 @@ describe('voids, refunds, cash movements and shifts (POS-04, POS-05)', () => {
     expect((await engine.store.entries(OUTBOX.PENDING))).toHaveLength(0);
   });
 });
+
+describe('a record is stored once (NFR-04, POS-04, POS-05)', () => {
+  const queued = async (engine, kind) => (await engine.store.entries(OUTBOX.PENDING)).filter((entry) => entry.kind === kind);
+
+  it('refuses to complete the same cart twice, even when both presses run together', async () => {
+    const { selling, catalogue, proofFor, posStore, engine } = await setup();
+    const proof = proofFor(cashier);
+    const shift = await selling.openShift({ user: cashier, actorProof: proof, openingFloat: [{ currency: 'KES', amountMinor: '0' }] });
+    const cart = cartWith(catalogue, [[IDS.bread, 1]]);
+    const args = { shift, user: cashier, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, 'KES', 10000)] };
+    const results = await Promise.allSettled([selling.completeSale(args), selling.completeSale(args)]);
+    expect(results.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
+    expect(results[1].reason).toMatchObject({ code: 'sale_exists' });
+    expect(await posStore.salesOfShift(shift.id)).toHaveLength(1);
+    expect(await queued(engine, 'pos.sales')).toHaveLength(1);
+    // Only one receipt number was used: the next sale gets the second.
+    const next = await selling.completeSale({ ...args, cart: cartWith(catalogue, [[IDS.tusker, 1]]), tenders: [tender(IDS.cash, 'KES', 25000)] });
+    expect(next.receipt_number).toBe('R-WL2-000002');
+  });
+
+  it('refuses a refund or a cash movement whose id is already recorded', async () => {
+    const { selling, catalogue, proofFor, posStore, engine } = await setup();
+    const managerProof = proofFor(manager);
+    const shift = await selling.openShift({ user: manager, actorProof: managerProof, openingFloat: [{ currency: 'KES', amountMinor: '100000' }] });
+    const sale = await selling.completeSale({ shift, user: manager, actorProof: managerProof, cart: cartWith(catalogue, [[IDS.tusker, 3]]), catalogue, tenders: [tender(IDS.cash, 'KES', 75000)] });
+
+    const refundArgs = { sale, shift, user: manager, actorProof: managerProof, requested: [{ saleLineId: sale.lines[0].id, qty: '1' }], method: paymentMethods[0], currency: 'KES', reason: 'Damaged', catalogue, id: uuidv7(NOW + 1) };
+    const refunds = await Promise.allSettled([selling.refund(refundArgs), selling.refund(refundArgs)]);
+    expect(refunds.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
+    expect(refunds[1].reason).toMatchObject({ code: 'record_exists' });
+
+    const movementArgs = { shift, user: manager, actorProof: managerProof, kind: 'pay_out', currency: 'KES', amountMinor: '20000', reason: 'Cleaning supplies', id: uuidv7(NOW + 2) };
+    const movements = await Promise.allSettled([selling.cashMovement(movementArgs), selling.cashMovement(movementArgs)]);
+    expect(movements.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
+    expect(movements[1].reason).toMatchObject({ code: 'record_exists' });
+
+    const records = await posStore.recordsOfShift(shift.id);
+    expect(records.map((record) => record.recordKind).sort()).toEqual(['cash_movement', 'refund']);
+    expect(await queued(engine, 'pos.refunds')).toHaveLength(1);
+    expect(await queued(engine, 'pos.cash_movements')).toHaveLength(1);
+  });
+});

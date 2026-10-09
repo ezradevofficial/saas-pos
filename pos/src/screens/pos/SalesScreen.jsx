@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -73,7 +73,10 @@ function SaleDetail({ sale: initial, onBack }) {
   const chosen = methods.find((option) => option.key === methodKey) ?? methods[0] ?? null;
   const tender = quote && chosen ? refundTender(sale, quote.totalMinor, chosen.currency, catalogue.money.decimals) : null;
 
+  // POS-05, NFR-04: one refund at a time; a second press before the first resolves records nothing.
+  const refunding = useRef(false);
   async function refund() {
+    if (refunding.current) return;
     if (!quote || !chosen || !reason.trim()) {
       setMessage({ tone: 'warning', text: t('pos.sales.errors.refundIncomplete') });
       return;
@@ -82,6 +85,7 @@ function SaleDetail({ sale: initial, onBack }) {
       setMessage({ tone: 'warning', text: t('pos.sales.errors.refund_currency') });
       return;
     }
+    refunding.current = true;
     setBusy(true);
     try {
       const record = await actions.refund({ sale, requested, method: chosen.method, currency: chosen.currency, reason: reason.trim() });
@@ -96,6 +100,7 @@ function SaleDetail({ sale: initial, onBack }) {
     } catch (problem) {
       setMessage({ tone: 'danger', text: t(`pos.sales.errors.${problem?.code ?? 'failed'}`, { defaultValue: t('pos.sales.errors.failed') }) });
     } finally {
+      refunding.current = false;
       setBusy(false);
     }
   }

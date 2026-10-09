@@ -45,9 +45,9 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const total = computed?.totals.total_minor ?? '0';
   const dual = useDualTotal(total);
   const options = useMemo(() => paymentOptions(catalogue), [catalogue]);
-  // Payments in progress live with the cart (saved locally; a change to the sale drops them).
+  // Payments in progress live with the cart (saved locally; a change to the sale drops them). They are
+  // added and removed on the cart as it is when the payment finishes, for the sale it was started for.
   const tenders = cart.tenders ?? [];
-  const setTenders = (update) => actions.setTenders(typeof update === 'function' ? update(tenders) : update);
   const [activeKey, setActiveKey] = useState(options[0]?.key ?? null);
   const [amountText, setAmountText] = useState('');
   const [reference, setReference] = useState('');
@@ -90,28 +90,26 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       return;
     }
     const id = uuidv7();
+    const saleId = cart.id;
     const code = reference.trim().toUpperCase() || undefined;
     if (isMobile(active.method)) {
       // Online, the typed code is registered so the server verifies it (a code already used is refused now).
       try {
-        await registerTypedCode({ api, id, methodId: active.method.id, amountMinor, currency: active.currency, receipt: code, saleId: cart.id, userId: user.id });
+        await registerTypedCode({ api, id, methodId: active.method.id, amountMinor, currency: active.currency, receipt: code, saleId, userId: user.id });
       } catch (refusal) {
         setError(t(`pos.pay.errors.${refusal.code}`, { defaultValue: t('pos.pay.errors.codeRefused') }));
         return;
       }
     }
-    setTenders((list) => [
-      ...list,
-      {
-        id,
-        method: active.method,
-        currency: active.currency,
-        amountMinor: String(amountMinor),
-        reference: code,
-        // A typed mobile-money code waits for the server's check; a card approval is final.
-        status: isMobile(active.method) ? 'pending' : active.method.type === 'card' ? 'confirmed' : undefined,
-      },
-    ]);
+    actions.addTender(saleId, {
+      id,
+      method: active.method,
+      currency: active.currency,
+      amountMinor: String(amountMinor),
+      reference: code,
+      // A typed mobile-money code waits for the server's check; a card approval is final.
+      status: isMobile(active.method) ? 'pending' : active.method.type === 'card' ? 'confirmed' : undefined,
+    });
     setAmountText('');
     setReference('');
   }
@@ -130,10 +128,11 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     }
     setError(null);
     const id = uuidv7();
+    const saleId = cart.id;
     const method = active.method;
     const currencyOfPush = active.currency;
     try {
-      const intent = await startStkPush({ api, id, methodId: method.id, amountMinor, currency: currencyOfPush, phone: phone.trim(), saleId: cart.id, userId: user.id });
+      const intent = await startStkPush({ api, id, methodId: method.id, amountMinor, currency: currencyOfPush, phone: phone.trim(), saleId, userId: user.id });
       setPush({ id, state: intentState(intent), intent });
       polling.current?.stop();
       polling.current = pollIntent({
@@ -143,10 +142,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       });
       const final = await polling.current.done;
       if (final && intentState(final) === 'paid') {
-        setTenders((list) => [
-          ...list,
-          { id, method, currency: currencyOfPush, amountMinor: String(final.amount?.amount_minor ?? amountMinor), reference: final.receipt ?? undefined, status: 'confirmed' },
-        ]);
+        actions.addTender(saleId, { id, method, currency: currencyOfPush, amountMinor: String(final.amount?.amount_minor ?? amountMinor), reference: final.receipt ?? undefined, status: 'confirmed' });
         setAmountText('');
       }
     } catch (refusal) {
@@ -155,8 +151,11 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     }
   }
 
+  // POS-01, NFR-04: one completion at a time; a second press before the first resolves does nothing.
+  const completing = useRef(false);
   async function complete() {
-    if (!settled || busy) return;
+    if (!settled || completing.current) return;
+    completing.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -165,6 +164,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     } catch (problem) {
       setError(t(`pos.pay.errors.${problem?.code ?? 'failed'}`, { defaultValue: t('pos.pay.errors.failed') }));
     } finally {
+      completing.current = false;
       setBusy(false);
     }
   }
@@ -212,7 +212,9 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
                   <Text className="font-sans text-caption tabular-nums text-ink-muted">{`≈ ${money(result.lines[index].inDue.minor, currency)}`}</Text>
                 ) : null}
               </View>
-              <Button variant="ghost" className="px-3" accessibilityLabel={t('pos.pay.remove', { method: tender.method.name })} onPress={() => setTenders((list) => list.filter((entry) => entry.id !== tender.id))}>
+              <Button variant="ghost" className="px-3" accessibilityLabel={t('pos.pay.remove', { method: tender.method.name })} onPress={() => {
+                  if (actions.removeTender(cart.id, tender.id)) setError(t('pos.sale.mobilePaid'));
+                }}>
                 {t('pos.pay.removeShort')}
               </Button>
             </View>
@@ -348,7 +350,10 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {!result && tenders.length ? <Alert tone="danger">{t('pos.pay.errors.rate_unavailable')}</Alert> : null}
       <View className="flex-row gap-3">
-        <Button variant="secondary" className="shrink basis-1/3" onPress={async () => { await actions.hold(); onBack(); }}>
+        <Button variant="secondary" className="shrink basis-1/3" onPress={async () => {
+            if (await actions.hold()) setError(t('pos.sale.mobilePaid'));
+            else onBack();
+          }}>
           {t('pos.pay.hold')}
         </Button>
         <Button variant="pay" className="shrink basis-2/3" loading={busy} disabled={!settled} onPress={complete}>

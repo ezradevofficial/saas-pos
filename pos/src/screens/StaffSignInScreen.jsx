@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,8 +67,11 @@ export function StaffSignInScreen({ location }) {
     setError(null);
   }
 
+  // AUTH-06: one check at a time; a second press before the first resolves does nothing.
+  const checking = useRef(false);
   async function submit() {
-    if (pin.length < PIN_MIN || busy) return;
+    if (pin.length < PIN_MIN || checking.current) return;
+    checking.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -86,6 +89,7 @@ export function StaffSignInScreen({ location }) {
     } catch {
       setError({ reason: 'failed' });
     } finally {
+      checking.current = false;
       setBusy(false);
     }
   }

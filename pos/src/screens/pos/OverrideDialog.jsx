@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { signOverride } from '../../auth/pinCrypto';
@@ -34,6 +34,8 @@ export function OverrideDialog() {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // AUTH-06, AUTH-08: one check at a time; a second press before the first resolves does nothing.
+  const checking = useRef(false);
 
   useEffect(() => {
     setManager(null);
@@ -46,7 +48,8 @@ export function OverrideDialog() {
   const permission = check({ permissions: [] }, request.action, request.value).permission;
 
   async function approve() {
-    if (pin.length < PIN_MIN || busy) return;
+    if (pin.length < PIN_MIN || checking.current) return;
+    checking.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -72,6 +75,7 @@ export function OverrideDialog() {
     } catch {
       setError(t('signIn.errors.failed'));
     } finally {
+      checking.current = false;
       setBusy(false);
     }
   }

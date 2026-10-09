@@ -86,6 +86,12 @@ export function createPosStore(database) {
       });
     },
 
+    /** A void, refund or cash movement by its id, or null. */
+    async record(id) {
+      const found = await findOne('pos_records', id);
+      return found ? { ...found.data, recordKind: found._raw.kind } : null;
+    },
+
     async recordsOfSale(saleId) {
       const found = await table('pos_records').query(Q.where('sale_id', saleId), Q.sortBy('created_at', Q.asc)).fetch();
       return found.map((record) => ({ ...record.data, recordKind: record._raw.kind }));

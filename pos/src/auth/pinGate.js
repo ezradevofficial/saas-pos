@@ -67,6 +67,21 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
     }
   }
 
+  // AUTH-06: one check per user at a time. A check reads the count, derives the key (slow) and
+  // writes the count back; two checks of the same user running together would lose or
+  // double-count a wrong attempt. Checks of different users still run side by side.
+  const queues = new Map();
+  function serial(userId, task) {
+    const previous = queues.get(userId) ?? Promise.resolve();
+    const run = previous.then(task, task);
+    const settled = run.catch(() => {});
+    queues.set(userId, settled);
+    settled.then(() => {
+      if (queues.get(userId) === settled) queues.delete(userId);
+    });
+    return run;
+  }
+
   async function verifyOnline(staff, kind, input, session) {
     if (!api) return { reason: 'online_required' };
     // AUTH-07: a session checked online is recorded by the server (till_sign_ins), so its proofs count as online.
@@ -87,48 +102,8 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
      * or { ok: false, reason: 'incorrect' (with attemptsLeft) | 'locked' |
      * 'not_set' | 'not_staff' | 'online_required' | 'access_lost' }.
      */
-    async signIn({ userId, kind = 'pin', input, session = null }) {
-      const staff = await store.staffMember(userId);
-      if (!staff) return { ok: false, reason: 'not_staff' };
-      const state = await localState(staff);
-      if (staff.locked || state.locked) return { ok: false, reason: 'locked' };
-
-      const success = async (checked, mustChange = staff.must_change) => {
-        await recordSuccess(staff, state);
-        return { ok: true, user: staff, mustChange: Boolean(mustChange), checked };
-      };
-
-      const material = staff[kind];
-      if (material) {
-        const deviceSecret = await credentials.secret();
-        const result = await verifyOffline({ material, kind, userId: staff.id, input, deviceSecret });
-        if (result.ok) {
-          // The server still counts earlier wrong attempts: a correct online check clears them.
-          if (Number(staff.failed_attempts ?? 0) > 0) verifyOnline(staff, kind, input, session).catch(() => {});
-          return success('offline');
-        }
-        if (result.reason === 'incorrect') return recordFailure(staff, state);
-        // not usable offline (secret rotated, unknown scheme): try online
-      }
-
-      const response = await verifyOnline(staff, kind, input, session);
-      if (response.reason) return { ok: false, reason: response.reason };
-      // The server's answer is fresher than the synced staff row.
-      if (response.status === 200) return success('online', response.body?.data?.must_change ?? staff.must_change);
-      const code = response.body?.code;
-      if (response.status === 401 || response.status === 403) return { ok: false, reason: 'access_lost' };
-      if (response.status === 423 || code === 'pin_locked') {
-        await store.savePinAttempt({ userId: staff.id, failedAttempts: await maxAttempts(), locked: true, occurredAt: new Date(now()).toISOString(), pinVersion: state.pinVersion, reported: true });
-        return { ok: false, reason: 'locked' };
-      }
-      if (code === 'pin_incorrect') {
-        const left = Number(response.body?.attempts_left);
-        const floor = Number.isFinite(left) ? (await maxAttempts()) - left : 0;
-        return recordFailure(staff, state, floor);
-      }
-      if (code === 'pin_not_set') return { ok: false, reason: 'not_set' };
-      if (code === 'not_staff_here') return { ok: false, reason: 'not_staff' };
-      return { ok: false, reason: 'online_required' };
+    signIn(request) {
+      return serial(request.userId, () => check(request));
     },
 
     /** Whether the user is locked on this device (for the staff list). */
@@ -137,4 +112,48 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
       return Boolean(staff.locked || state.locked);
     },
   };
+
+  async function check({ userId, kind = 'pin', input, session = null }) {
+    const staff = await store.staffMember(userId);
+    if (!staff) return { ok: false, reason: 'not_staff' };
+    const state = await localState(staff);
+    if (staff.locked || state.locked) return { ok: false, reason: 'locked' };
+
+    const success = async (checked, mustChange = staff.must_change) => {
+      await recordSuccess(staff, state);
+      return { ok: true, user: staff, mustChange: Boolean(mustChange), checked };
+    };
+
+    const material = staff[kind];
+    if (material) {
+      const deviceSecret = await credentials.secret();
+      const result = await verifyOffline({ material, kind, userId: staff.id, input, deviceSecret });
+      if (result.ok) {
+        // The server still counts earlier wrong attempts: a correct online check clears them.
+        if (Number(staff.failed_attempts ?? 0) > 0) verifyOnline(staff, kind, input, session).catch(() => {});
+        return success('offline');
+      }
+      if (result.reason === 'incorrect') return recordFailure(staff, state);
+      // not usable offline (secret rotated, unknown scheme): try online
+    }
+
+    const response = await verifyOnline(staff, kind, input, session);
+    if (response.reason) return { ok: false, reason: response.reason };
+    // The server's answer is fresher than the synced staff row.
+    if (response.status === 200) return success('online', response.body?.data?.must_change ?? staff.must_change);
+    const code = response.body?.code;
+    if (response.status === 401 || response.status === 403) return { ok: false, reason: 'access_lost' };
+    if (response.status === 423 || code === 'pin_locked') {
+      await store.savePinAttempt({ userId: staff.id, failedAttempts: await maxAttempts(), locked: true, occurredAt: new Date(now()).toISOString(), pinVersion: state.pinVersion, reported: true });
+      return { ok: false, reason: 'locked' };
+    }
+    if (code === 'pin_incorrect') {
+      const left = Number(response.body?.attempts_left);
+      const floor = Number.isFinite(left) ? (await maxAttempts()) - left : 0;
+      return recordFailure(staff, state, floor);
+    }
+    if (code === 'pin_not_set') return { ok: false, reason: 'not_set' };
+    if (code === 'not_staff_here') return { ok: false, reason: 'not_staff' };
+    return { ok: false, reason: 'online_required' };
+  }
 }
