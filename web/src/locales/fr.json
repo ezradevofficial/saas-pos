@@ -3309,7 +3309,7 @@
     },
     "sales": {
       "title": "Ventes",
-      "description": "Les ventes des caisses dont vous avez la charge, telles qu’elles ont été faites.",
+      "description": "Les ventes des caisses dont vous avez la charge, telles qu’elles ont été faites. Les dates suivent le fuseau horaire de chaque société.",
       "search": "Rechercher un numéro de reçu",
       "back": "Ventes",
       "reviewed": "Contrôlée",
@@ -3343,8 +3343,8 @@
         "reviewedAll": "Contrôlée ou non",
         "reviewedYes": "Contrôlée",
         "reviewedNo": "Non contrôlée",
-        "from": "Du (UTC)",
-        "to": "Au (UTC)"
+        "from": "Vendue du",
+        "to": "Vendue au"
       }
     },
     "sale": {
@@ -3441,8 +3441,8 @@
       "filters": {
         "status": "Statut",
         "allStatuses": "Tous les statuts",
-        "from": "Ouverte du (UTC)",
-        "to": "Ouverte au (UTC)"
+        "from": "Ouverte du",
+        "to": "Ouverte au"
       }
     },
     "shift": {

@@ -86,6 +86,24 @@ class BackOfficeTest extends TestCase
             ->assertJsonPath('data.balances.0.opening', ['amount_minor' => '500000', 'currency' => 'KES']);
     }
 
+    public function test_date_filters_are_days_in_the_companys_time_zone(): void
+    {
+        // 22:30 UTC yesterday is already today in Nairobi (UTC+3).
+        $soldAt = now()->utc()->subDay()->setTime(22, 30);
+        $local = $soldAt->copy()->tz($this->acme->timezone)->toDateString();
+        $utc = $soldAt->toDateString();
+        $this->assertNotSame($local, $utc);
+        $this->upload([$this->saleBody($this->shiftA, 2, ['sold_at' => $soldAt->toIso8601String()])])->assertOk();
+
+        $find = fn (string $day) => $this->getJson("/api/v1/pos/sales?search=000002&from={$day}&to={$day}", $this->headersFor())->assertOk()->json('data');
+        $this->assertSame(['R-L01-000002'], array_column($find($local), 'receipt_number'));
+        $this->assertSame([], $find($utc));
+
+        // Shifts likewise: the open shift's local opening day (it opened an hour ago).
+        $today = now()->subHour()->tz($this->acme->timezone)->toDateString();
+        $this->getJson("/api/v1/pos/shifts?location={$this->locationA->id}&from={$today}&to={$today}", $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $this->shiftA);
+    }
+
     public function test_exports_list_the_visible_sales_and_are_audited(): void
     {
         $csv = $this->get('/api/v1/pos/sales?format=csv', $this->headersFor())->assertOk()->streamedContent();

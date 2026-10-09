@@ -3309,7 +3309,7 @@
     },
     "sales": {
       "title": "Sales",
-      "description": "Sales from the tills you look after, as they were sold.",
+      "description": "Sales from the tills you look after, as they were sold. Dates are each company’s local days.",
       "search": "Search receipt numbers",
       "back": "Sales",
       "reviewed": "Reviewed",
@@ -3343,8 +3343,8 @@
         "reviewedAll": "Reviewed or not",
         "reviewedYes": "Reviewed",
         "reviewedNo": "Not reviewed",
-        "from": "From (UTC)",
-        "to": "To (UTC)"
+        "from": "Sold from",
+        "to": "Sold to"
       }
     },
     "sale": {
@@ -3441,8 +3441,8 @@
       "filters": {
         "status": "Status",
         "allStatuses": "All statuses",
-        "from": "Opened from (UTC)",
-        "to": "Opened to (UTC)"
+        "from": "Opened from",
+        "to": "Opened to"
       }
     },
     "shift": {

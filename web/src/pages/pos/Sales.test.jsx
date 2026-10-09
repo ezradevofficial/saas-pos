@@ -127,6 +127,17 @@ describe('POS sales (POS-12)', () => {
     expect(screen.getByRole('list', { name: 'Active filters' })).toHaveTextContent('Flag: Tax differs')
   })
 
+  it('filters by company-local days sent as calendar dates', async () => {
+    setup()
+    const { router } = renderApp('/pos/sales')
+    await screen.findByText('R-L01-000001')
+    const drawer = openFilters()
+    fireEvent.change(within(drawer).getByLabelText('Sold from'), { target: { value: '2026-10-08' } })
+    fireEvent.change(within(drawer).getByLabelText('Sold to'), { target: { value: '2026-10-09' } })
+    await waitFor(() => expect(router.state.location.search).toBe('?from=2026-10-08&to=2026-10-09'))
+    expect(api.get).toHaveBeenCalledWith('pos/sales?from=2026-10-08&to=2026-10-09&sort=-sold_at&per_page=25&page=1')
+  })
+
   it('opens a sale with lines, tax, payments with the rate used, change, fiscal state and refunds', async () => {
     setup()
     renderApp('/pos/sales/s-1')
