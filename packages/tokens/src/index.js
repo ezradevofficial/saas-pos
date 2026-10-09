@@ -2,6 +2,7 @@
 
 const { contrastRatio, meetsAA } = require('./contrast');
 const { deriveBrandPair } = require('./derive');
+const brand = require('./brand');
 const themes = require('../dist/native-themes.js');
 
 const OVERRIDABLE_TOKENS = [
@@ -23,4 +24,22 @@ const OVERRIDABLE_TOKENS = [
   'font-display',
 ];
 
-module.exports = { contrastRatio, meetsAA, deriveBrandPair, themes, OVERRIDABLE_TOKENS };
+/** BR-02: a stored tenant theme as token overrides per mode ({ light, dark }). */
+const compileTheme = (theme) => brand.compileTheme(theme, themes);
+
+/** BR-03: the contrast checks a tenant theme must pass to be published. */
+const themeChecks = (theme) => brand.themeChecks(theme, themes);
+
+module.exports = {
+  contrastRatio,
+  meetsAA,
+  deriveBrandPair,
+  themes,
+  OVERRIDABLE_TOKENS,
+  compileTheme,
+  themeChecks,
+  PRESETS: brand.PRESETS,
+  CORNERS: brand.CORNERS,
+  FONTS: brand.FONTS,
+  SIDEBARS: brand.SIDEBARS,
+};

@@ -157,3 +157,26 @@ writeFileSync(
   path.join(outDir, 'tokens.json'),
   JSON.stringify({ themes: Object.fromEntries(THEMES.map((t) => [t, nativeThemes[t]])) }, null, 2) + '\n',
 );
+
+// BR-02, BR-03: the preset values the API needs to compile and check tenant
+// themes (App\\Core\\Branding\\ThemePresets). Committed with the API; a
+// test there fails when it no longer matches design/tokens.json.
+const apiPresets = path.resolve(here, '../../api/resources/design/theme-presets.json');
+mkdirSync(path.dirname(apiPresets), { recursive: true });
+writeFileSync(
+  apiPresets,
+  JSON.stringify(
+    Object.fromEntries(
+      THEMES.map((t) => [
+        t,
+        Object.fromEntries(
+          Object.entries(nativeThemes[t])
+            .filter(([n]) => !n.startsWith('--space-') && !n.startsWith('--text-'))
+            .map(([n, v]) => [n.replace(/^--/, ''), v]),
+        ),
+      ]),
+    ),
+    null,
+    2,
+  ) + '\n',
+);
