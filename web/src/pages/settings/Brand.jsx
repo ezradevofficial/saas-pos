@@ -99,6 +99,11 @@ function ThemeEditor({ initial, scope, config, canEdit, canPublish, copyTargets,
           onReset()
         }}
         onCopy={(target, from) => config.copyTo(target, from)}
+        conflict={config.conflict}
+        onReload={async () => {
+          await config.reload?.()
+          onReset()
+        }}
       />
 
       {failing.length > 0 ? (
