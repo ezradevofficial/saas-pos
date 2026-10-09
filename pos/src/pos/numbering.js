@@ -79,6 +79,21 @@ export function needsTopUp({ ranges, used = {}, documentType, at, timeZone, thre
 }
 
 /**
+ * NUM-02: within `days` of the end of the local year, a till numbering
+ * from a yearly format (its ranges name a year) should hold next year's
+ * range already, so it keeps numbering offline over New Year. True when
+ * it does not yet.
+ */
+export function needsNextPeriod({ ranges, documentType, at, timeZone, days = 14 }) {
+  const today = localDate(at, timeZone);
+  const year = Number(today.slice(0, 4));
+  const own = ranges.filter((range) => range.document_type === documentType);
+  if (!own.some((range) => String(range.period) === String(year))) return false;
+  const left = (Date.UTC(year + 1, 0, 1) - Date.parse(`${today}T00:00:00Z`)) / 86400000;
+  return left <= days && !own.some((range) => String(range.period) === String(year + 1));
+}
+
+/**
  * The value to report as `next` when asking for a top-up: the next number
  * of the range in use (the first with numbers left), else the highest.
  * The server marks every number below it used in each range holding it,

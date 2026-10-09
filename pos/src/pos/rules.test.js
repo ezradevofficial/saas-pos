@@ -1,5 +1,5 @@
 import { approvers, check } from './authority';
-import { drawNumber, nextToReport, renderPattern } from './numbering';
+import { drawNumber, needsNextPeriod, nextToReport, renderPattern } from './numbering';
 import { discountPercent, extend, lineAmounts, rateOn, saleTotals, taxOn, taxRateFor, TaxRateNeeded } from './tax';
 
 const vat = {
@@ -119,6 +119,21 @@ describe('receipt numbers from device ranges (NUM-01, NUM-02)', () => {
     expect(next).toMatchObject({ rangeId: 'rg-2', seq: 501, number: 'R-WL2-10-000501' });
     expect(nextToReport(ranges, next.used, 'pos.receipt', '2026')).toBe(502);
     expect(drawNumber({ ranges, documentType: 'pos.refund', at, timeZone: 'UTC' }).number).toBe('F26-0001');
+  });
+
+  it('draws from next year’s range once the local year changes, and asks for it before New Year', () => {
+    const yearly = [
+      { id: 'y26', document_type: 'pos.receipt', period: '2026', pattern: 'R-26-{0001}', from: 1, to: 500, next: 400 },
+      { id: 'y27', document_type: 'pos.receipt', period: '2027', pattern: 'R-27-{0001}', from: 1, to: 500, next: 1 },
+    ];
+    const dec20 = Date.parse('2026-12-20T09:00:00Z');
+    expect(needsNextPeriod({ ranges: [yearly[0]], documentType: 'pos.receipt', at: dec20, timeZone: 'Africa/Nairobi' })).toBe(true);
+    expect(needsNextPeriod({ ranges: yearly, documentType: 'pos.receipt', at: dec20, timeZone: 'Africa/Nairobi' })).toBe(false);
+    expect(needsNextPeriod({ ranges: [yearly[0]], documentType: 'pos.receipt', at: Date.parse('2026-12-01T09:00:00Z'), timeZone: 'Africa/Nairobi' })).toBe(false);
+    // 31 Dec 22:30 UTC is already 1 January in Nairobi.
+    const newYear = drawNumber({ ranges: yearly, documentType: 'pos.receipt', at: Date.parse('2026-12-31T22:30:00Z'), timeZone: 'Africa/Nairobi' });
+    expect(newYear).toMatchObject({ rangeId: 'y27', number: 'R-27-0001' });
+    expect(drawNumber({ ranges: yearly, documentType: 'pos.receipt', at: Date.parse('2026-12-31T20:00:00Z'), timeZone: 'Africa/Nairobi' })).toMatchObject({ rangeId: 'y26', seq: 400 });
   });
 
   it('asks for a top-up below the threshold and has no number once every range is spent', () => {

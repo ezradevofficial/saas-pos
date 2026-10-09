@@ -1,7 +1,7 @@
 import { uuidv7 } from '../lib/random';
 import { NetworkError } from '../sync/api';
 import { computeCart } from './cart';
-import { DOCUMENT_TYPES, drawNumber, nextToReport } from './numbering';
+import { DOCUMENT_TYPES, drawNumber, needsNextPeriod, nextToReport } from './numbering';
 import { cashMovementPayload, refundAmounts, refundBaseMajor, refundedQuantities, toBaseMinor, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
 import { amountDueIn, calculateTender } from './tender';
 
@@ -62,8 +62,10 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
     }
   }
 
-  function afterDraw(number, documentType, timeZone) {
-    if (number.topUp) topUp(documentType, timeZone);
+  async function afterDraw(number, documentType, timeZone) {
+    // NUM-02: low on numbers, or near the year's end without next year's range (offline New Year).
+    const ranges = number.topUp ? null : await posStore.numberRanges();
+    if (number.topUp || needsNextPeriod({ ranges, documentType, at: serverNow(), timeZone })) topUp(documentType, timeZone);
   }
 
   return {
