@@ -60,7 +60,7 @@ class SyncPullTest extends TestCase
         $response = $this->getJson('/api/v1/sync/bootstrap', $this->deviceHeaders($this->till))->assertOk();
 
         $keys = array_column($response->json('entities'), 'key');
-        $this->assertSame(['settings', 'currencies', 'exchange_rates', 'tax_codes', 'tax_categories', 'price_lists', 'payment_methods', 'uoms', 'item_categories', 'items', 'item_prices', 'customers', 'staff'], $keys);
+        $this->assertSame(['settings', 'currencies', 'exchange_rates', 'tax_codes', 'tax_categories', 'price_lists', 'payment_methods', 'uoms', 'item_categories', 'items', 'item_prices', 'customers', 'staff', 'custom_fields'], $keys);
         $this->assertSame('incremental', collect($response->json('entities'))->firstWhere('key', 'items')['mode']);
         $this->assertSame('snapshot', collect($response->json('entities'))->firstWhere('key', 'staff')['mode']);
         $response->assertJsonPath('device.id', $this->till['id'])
@@ -102,7 +102,8 @@ class SyncPullTest extends TestCase
         $this->assertSame($taxes['code']->id, $row['tax_code_id']);
         $this->assertFalse($row['shared']);
         $this->assertTrue($pulled['upserts'][$shared->id]['shared']);
-        $this->assertArrayNotHasKey('custom', $row);
+        // CF-03: only custom fields shown on the POS travel (none here).
+        $this->assertSame([], $row['custom']);
         $this->assertArrayNotHasKey('company_id', $row);
 
         // Nothing changed: nothing comes back.
@@ -229,6 +230,7 @@ class SyncPullTest extends TestCase
             'credit_limit' => ['amount_minor' => '500000', 'currency' => 'KES'],
             'price_list_id' => null,
             'shared' => true,
+            'custom' => [],
         ], array_diff_key($pulled['upserts'][$customer->id], ['updated_at' => true]));
 
         $this->inTenant(fn () => $customer->fill(['roles' => ['contact']])->save());

@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Parties\Http\Lists;
 
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Exports\ExportValues;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
@@ -38,6 +40,11 @@ class PartyList extends ListDefinition
         return PartyResource::FIELD_RULES;
     }
 
+    public function customFieldEntity(): string
+    {
+        return PartyEntity::KEY;
+    }
+
     public function fieldSources(): array
     {
         return PartyResource::SOURCES;
@@ -58,6 +65,8 @@ class PartyList extends ListDefinition
             'payment_terms' => ListSort::column('payment_terms_days'),
             'created_at' => ListSort::column('created_at'),
             'updated_at' => ListSort::column('updated_at'),
+            // CF-03: a sort per scalar custom field, `cf_<key>`.
+            ...app(CustomFieldLists::class)->sorts(PartyEntity::KEY),
         ];
     }
 
@@ -94,6 +103,8 @@ class PartyList extends ListDefinition
                 fn (array $row, Party $party, ExportValues $values) => $values->dateTime($row['created_at'], $party->company_id)),
             ListColumn::make('updated_at', 'core.party.columns.updated_at', ['updated_at'],
                 fn (array $row, Party $party, ExportValues $values) => $values->dateTime($row['updated_at'], $party->company_id)),
+            // CF-03: a column per custom field, `cf_<key>`, after the built-in ones.
+            ...app(CustomFieldLists::class)->columns(PartyEntity::KEY),
         ];
     }
 
@@ -113,6 +124,7 @@ class PartyList extends ListDefinition
             $summary[__('core.party.columns.tag')] = $filters['tag'];
         }
 
+        $summary = [...$summary, ...app(CustomFieldLists::class)->summary(PartyEntity::KEY, $filters['custom'] ?? null)];
         $summary[__('core.list.status')] = __('core.list.statuses.'.($filters['status'] ?? 'active'));
 
         return $summary;

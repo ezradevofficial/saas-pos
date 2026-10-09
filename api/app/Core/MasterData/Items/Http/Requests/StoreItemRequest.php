@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Items\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldValidator;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Items\ItemPolicy;
 use App\Core\Rbac\Http\Requests\GuardsFieldRules;
@@ -55,9 +57,12 @@ class StoreItemRequest extends FormRequest
 
     public function after(): array
     {
-        return [fn (Validator $validator) => ItemRules::validateItem(
-            $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], null, $this->user(),
-        )];
+        return [
+            fn (Validator $validator) => ItemRules::validateItem(
+                $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], null, $this->user(),
+            ),
+            fn (Validator $validator) => app(CustomFieldValidator::class)->validate($validator, ItemEntity::KEY, $this->input('custom'), null, $this->user()),
+        ];
     }
 
     public function attributes(): array

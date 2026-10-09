@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Items\Http\Resources;
 
+use App\Core\CustomFields\CustomFieldPresenter;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
 use App\Core\MasterData\Items\ItemImage;
@@ -78,7 +80,8 @@ class ItemResource extends JsonResource
                 'size' => $image->size,
             ])->values()->all()),
             'prices' => $this->when($this->prices !== null, fn () => $this->prices),
-            'custom' => (object) ($this->custom ?? []),
+            // CF-03, RBAC-05: the custom values the user may see (CustomFieldPresenter).
+            'custom' => (object) app(CustomFieldPresenter::class)->present($request->user(), ItemEntity::KEY, $this->custom),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

@@ -47,6 +47,7 @@ return [
                 'numbering' => 'Document numbering',
                 'config' => 'Layouts, themes and templates',
                 'layout' => 'Dashboards, menus and list views',
+                'custom_field' => 'Custom fields',
             ],
             'pos' => [
                 'sale' => 'Sales',

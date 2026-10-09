@@ -252,4 +252,31 @@ describe('Customers and suppliers', () => {
     expect(within(list).getByText('Customer, Supplier')).toBeInTheDocument()
     expect(within(list).getByText('Roles')).toBeInTheDocument()
   })
+
+  it('filters on a custom text field and a number range, and saves a changed custom value on a party (CF-02, CF-03)', async () => {
+    const schema = [
+      { key: 'region', type: 'text', label: 'Sales region', options: [], readonly: false },
+      { key: 'visits', type: 'number', label: 'Visits per month', options: [], readonly: false },
+    ]
+    parties({ party: { ...PARTY, custom: { region: 'Gombe', visits: '4' } }, extra: [['custom-fields/schema?entity=party', { data: schema }]] })
+    api.patch.mockResolvedValue({ data: { ...PARTY, custom: { region: 'Limete', visits: '4' } }, meta: { possible_duplicates: [] } })
+    renderApp('/contacts/customers')
+    await screen.findByText('Kin Traders')
+    const drawer = openFilters()
+    fireEvent.change(await within(drawer).findByLabelText('Sales region'), { target: { value: 'Gombe' } })
+    fireEvent.change(within(drawer).getByLabelText('Visits per month from'), { target: { value: '2' } })
+    await waitFor(() => {
+      const params = new URLSearchParams(listCalls().at(-1).split('?')[1])
+      expect(params.get('custom[region]')).toBe('Gombe')
+      expect(params.get('custom[visits][min]')).toBe('2')
+    })
+    await closeFilters()
+
+    fireEvent.click(screen.getByText('Kin Traders'))
+    fireEvent.change(await screen.findByLabelText('Sales region'), { target: { value: 'Limete' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalled())
+    expect(api.patch.mock.calls[0][1].custom).toEqual({ region: 'Limete' })
+  })
 })
+

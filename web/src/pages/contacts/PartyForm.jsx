@@ -6,12 +6,15 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
+import { CustomFieldsSection } from '@/components/CustomFieldsSection'
 import { Alert, Button, Card, Checkbox, Icon, MoneyInput, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { rolesPerCompany, useSharingModes } from '@/lib/masterData'
 import { decimalsOf, minorToDecimal, toMinor } from '@/lib/money'
+import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useTimeZone } from '@/lib/useTimeZone'
 import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany'
 import { CREDIT_SET_DIRECTLY } from './creditLimitData'
 import { PARTY_KINDS, PARTY_ROLES, ROLE_PATHS } from './partyData'
@@ -103,6 +106,9 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
   const creditDecimals = decimalsOf(creditCurrency, currencies.all)
 
   const priceListCompany = companyId ?? selected?.id ?? null
+  // CF-02: the custom fields the user sees; only changed, editable ones are sent.
+  const customSchema = useCustomFieldSchema('party')
+  const custom = useCustomValues(customSchema.fields, party, useTimeZone(companyId ?? undefined))
   const canPriceLists = can(['core.price_list.view', 'core.price_list.edit'])
   const priceLists = useQuery({
     queryKey: ['price-lists', priceListCompany],
@@ -154,6 +160,8 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
         ),
       ]
     }
+    const customChanges = custom.body()
+    if (customChanges) data.custom = customChanges
     return data
   }
 
@@ -190,6 +198,7 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
     'price_list_id',
     'tags',
     ...rowFields,
+    ...custom.errorFields,
   ])
   useErrorFocus(formRef, alertRef, mutation.error)
   // WF-01: the API refused a raise; the error shows under the field with a way to ask for it.
@@ -210,7 +219,7 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
       onSubmit={(event) => {
         event.preventDefault()
         setSubmitted(true)
-        if (values.roles.length === 0 || values.credit_limit === null) return
+        if (values.roles.length === 0 || values.credit_limit === null || custom.invalid) return
         if (flips && !nowPerCompany && !values.confirmShared) return
         mutation.mutate()
       }}
@@ -497,6 +506,8 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
             ) : null}
           </div>
         </Card>
+
+        <CustomFieldsSection entity="party" fields={customSchema.fields} custom={custom} errors={customErrors(errors.fields)} readOnly={readOnly} showErrors={submitted} />
       </fieldset>
       {readOnly ? null : (
         <div className="flex flex-wrap gap-2">

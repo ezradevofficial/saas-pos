@@ -334,7 +334,8 @@
     "numbering": "Numérotation",
     "posPin": "Mon code PIN caisse",
     "payments": "Paiements reçus",
-    "fiscal": "Administration fiscale"
+    "fiscal": "Administration fiscale",
+    "customFields": "Champs personnalisés"
   },
   "shell": {
     "account": "Menu du compte",
@@ -505,6 +506,10 @@
     "sharing": {
       "title": "Partage",
       "description": "Si chaque type de fiche est partagé entre vos sociétés ou propre à chaque société."
+    },
+    "customFields": {
+      "title": "Champs personnalisés",
+      "description": "Champs supplémentaires sur les articles, les clients et les fournisseurs, qui les voit et qui peut les modifier."
     }
   },
   "appearance": {
@@ -3971,6 +3976,160 @@
       "send": "Transmettre à l’administration",
       "queued": "Les documents depuis le {{from}} sont mis en file. Suivez-les dans la liste ci-dessous.",
       "done": "Terminé"
+    }
+  },
+  "customFields": {
+    "add": "Ajouter un champ",
+    "edit": "Modifier",
+    "editName": "Modifier {{label}}",
+    "archive": "Archiver",
+    "archiveName": "Archiver {{label}}",
+    "restore": "Restaurer",
+    "restoreName": "Restaurer {{label}}",
+    "addTitle": "Ajouter un champ personnalisé",
+    "editTitle": "Modifier {{label}}",
+    "listTitle": "Champs personnalisés · {{entity}}",
+    "searchPlaceholder": "Libellé ou clé",
+    "emptyFiltered": "Aucun champ ne correspond à ces filtres. Essayez d’autres mots ou effacez les filtres.",
+    "empty": {
+      "active": "Aucun champ personnalisé pour l’instant. Ajoutez-en un pour en noter davantage sur chaque fiche.",
+      "archived": "Aucun champ archivé.",
+      "all": "Aucun champ personnalisé pour l’instant."
+    },
+    "archiveTitle": "Archiver {{label}} ?",
+    "archiveText": "Le champ disparaît des formulaires et des listes. Les valeurs déjà enregistrées sont conservées et réapparaissent si le champ est restauré.",
+    "archiveConfirm": "Archiver le champ",
+    "keep": "Garder le champ",
+    "yes": "Oui",
+    "no": "Non",
+    "none": "Aucun",
+    "choose": "Choisir",
+    "noValue": "Pas encore de valeur",
+    "lookupPlaceholder": "Rechercher pour choisir",
+    "currency": "Devise de {{label}}",
+    "formulaHelp": "Calculé à partir d’autres champs ; il ne peut pas être saisi.",
+    "section": {
+      "title": "Plus de détails",
+      "subtitle": "Champs ajoutés par votre entreprise."
+    },
+    "file": {
+      "none": "Aucun fichier",
+      "upload": "Téléverser un fichier",
+      "replace": "Remplacer le fichier",
+      "remove": "Retirer",
+      "removeName": "Retirer {{name}}",
+      "choose": "Choisir un fichier pour {{label}}",
+      "wrongType": "Ce type de fichier n’est pas accepté. Utilisez PDF, JPEG, PNG, WebP, texte, CSV, Word (.docx) ou Excel (.xlsx).",
+      "tooLarge": "Ce fichier est trop volumineux. Choisissez-en un de {{max}} au plus."
+    },
+    "filters": {
+      "any": "Tous",
+      "min": "{{label}} à partir de",
+      "max": "{{label}} jusqu’à",
+      "from": "{{label}} à partir du",
+      "to": "{{label}} jusqu’au",
+      "type": "Type",
+      "allTypes": "Tous les types",
+      "status": "Statut"
+    },
+    "entities": {
+      "item": "Articles",
+      "party": "Clients et fournisseurs"
+    },
+    "types": {
+      "text": "Texte",
+      "long_text": "Texte long",
+      "number": "Nombre",
+      "money": "Montant",
+      "date": "Date",
+      "datetime": "Date et heure",
+      "boolean": "Oui ou non",
+      "select": "Un choix",
+      "multi_select": "Plusieurs choix",
+      "file": "Fichier",
+      "lookup": "Lien vers une fiche",
+      "formula": "Formule"
+    },
+    "formulaTypes": {
+      "number": "Nombre",
+      "text": "Texte",
+      "boolean": "Oui ou non"
+    },
+    "columns": {
+      "position": "Ordre",
+      "label": "Libellé",
+      "key": "Clé",
+      "type": "Type",
+      "required": "Obligatoire",
+      "showOnPos": "Sur la caisse",
+      "status": "Statut",
+      "createdAt": "Ajouté le",
+      "updatedAt": "Modifié le",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Actifs",
+      "archived": "Archivés",
+      "all": "Tous",
+      "activeOne": "Actif",
+      "archivedOne": "Archivé"
+    },
+    "fields": {
+      "label": "Libellé",
+      "labelHelp": "Ce que l’on voit sur les formulaires, tel que vous le saisissez.",
+      "key": "Clé",
+      "keyHelp": "Utilisée dans les formules, les filtres et les exports. Lettres minuscules, chiffres et _, en commençant par une lettre.",
+      "keyInvalid": "Utilisez des lettres minuscules, des chiffres et _, en commençant par une lettre, 40 caractères au plus.",
+      "keyFixed": "La clé ne peut plus changer une fois le champ créé.",
+      "help": "Texte d’aide",
+      "helpHelp": "Affiché sous le champ. Facultatif.",
+      "type": "Type",
+      "typeFixed": "Le type ne peut plus changer une fois le champ créé.",
+      "position": "Ordre",
+      "positionHelp": "Les plus petits nombres viennent en premier sur les formulaires.",
+      "required": "Obligatoire",
+      "requiredHelp": "Une fiche ne peut pas être enregistrée sans lui.",
+      "unique": "Valeur unique",
+      "uniqueHelp": "Deux fiches ne peuvent pas avoir la même valeur.",
+      "min": "Valeur la plus basse",
+      "max": "Valeur la plus haute",
+      "minLength": "Longueur minimale (caractères)",
+      "maxLength": "Longueur maximale (caractères)",
+      "pattern": "Modèle",
+      "patternHelp": "Une expression régulière que la valeur doit respecter, par exemple ^[A-Z]{3}-\\d{4}$. Facultatif.",
+      "options": "Choix",
+      "optionsHelp": "Chaque choix a un libellé visible et une valeur conservée dans les exports et les filtres.",
+      "optionLabel": "Libellé du choix",
+      "optionValue": "Valeur",
+      "addOption": "Ajouter un choix",
+      "noOptions": "Aucun choix pour l’instant.",
+      "moveOptionUp": "Monter {{name}}",
+      "moveOptionDown": "Descendre {{name}}",
+      "removeOption": "Retirer {{name}}",
+      "lookupTarget": "Lien vers",
+      "lookupTargetHelp": "Le genre de fiche que l’on choisit.",
+      "chooseTarget": "Choisir un genre de fiche",
+      "formula": "Formule",
+      "formulaHelp": "Utilisez les clés d’autres champs, par exemple prix * quantite.",
+      "formulaType": "Résultat",
+      "default": "Valeur par défaut",
+      "defaultHelp": "Remplie sur les nouvelles fiches. Facultatif.",
+      "visibleRoles": "Qui peut le voir",
+      "visibleRolesHelp": "Aucun choisi : tous ceux qui peuvent voir la fiche.",
+      "everyone": "Tout le monde",
+      "editableRoles": "Qui peut le modifier",
+      "editableRolesHelp": "Aucun choisi : tous ceux qui peuvent modifier la fiche.",
+      "everyoneWhoEdits": "Tous ceux qui modifient la fiche",
+      "showOnPos": "Afficher sur la caisse",
+      "unknownRole": "Rôle qui n’existe plus"
+    },
+    "formula": {
+      "helpTitle": "Aide aux formules",
+      "fields": "Champs",
+      "noFields": "Aucun autre champ à utiliser pour l’instant.",
+      "functions": "Fonctions",
+      "operators": "Opérateurs",
+      "insert": "Insérer {{text}}"
     }
   }
 }

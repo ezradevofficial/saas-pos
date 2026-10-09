@@ -67,6 +67,8 @@ class PermissionRegistry
         // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
         // the tenant and its roles (personal ones need no permission).
         'layout' => ['view', 'edit', 'publish'],
+        // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
+        'custom_field' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

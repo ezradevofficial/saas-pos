@@ -47,6 +47,7 @@ return [
                 'numbering' => 'Numérotation des documents',
                 'config' => 'Mises en page, thèmes et modèles',
                 'layout' => 'Tableaux de bord, menus et vues de liste',
+                'custom_field' => 'Champs personnalisés',
             ],
             'pos' => [
                 'sale' => 'Ventes',

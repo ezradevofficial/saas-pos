@@ -47,6 +47,8 @@ export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal
 export const LAYOUT_VIEW = ['core.layout.view', 'core.layout.edit', 'core.layout.publish']
 // NUM-01: number formats.
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
+// CF-01: custom fields of items and contacts.
+export const CUSTOM_FIELD_VIEW = ['core.custom_field.view', 'core.custom_field.manage']
 
 export const NAV_GROUPS = [
   {
@@ -98,6 +100,7 @@ export const NAV_GROUPS = [
       { to: '/settings/roles', icon: 'roles', label: (t) => t('nav.roles'), permission: 'core.role.view', module: 'core' },
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
+      { to: '/settings/custom-fields', icon: 'columns', label: (t) => t('nav.customFields'), permission: CUSTOM_FIELD_VIEW, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
       { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },

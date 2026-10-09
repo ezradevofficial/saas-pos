@@ -71,6 +71,9 @@ async function signInAs(name, pin) {
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
 }
 
+// Whole-flow screen tests (PIN derivation, sync, several screens) outrun Jest's 5 s default on CI runners.
+jest.setTimeout(30000);
+
 describe('PosScreen', () => {
   it('opens a shift, sells offline, keeps the cart across a user switch, and uploads in order', async () => {
     const { services, server } = setup();

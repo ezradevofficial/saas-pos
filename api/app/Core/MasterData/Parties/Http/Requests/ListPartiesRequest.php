@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Parties\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Lists\Http\ListsRecords;
 use App\Core\Lists\ListDefinition;
 use App\Core\MasterData\Parties\Http\Lists\PartyList;
@@ -37,6 +39,8 @@ class ListPartiesRequest extends FormRequest
             'role' => ['sometimes', 'string', Rule::in(PartyRoles::ALL)],
             'tag' => ['sometimes', 'string', 'max:40'],
             'search' => ['sometimes', 'string', 'max:100'],
+            // CF-03: `?custom[key]=value` or `?custom[key][min|max]=` (CustomFieldLists).
+            'custom' => ['sometimes', 'array', app(CustomFieldLists::class)->filterRule(PartyEntity::KEY, $this->list(), $this)],
         ];
     }
 }
