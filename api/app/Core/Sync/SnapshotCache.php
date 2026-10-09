@@ -15,7 +15,8 @@ use Illuminate\Support\Str;
  * set each time. Keys carry the tenant, the device, the source and its
  * version, and a per-tenant epoch: changes that must reach tills at once
  * (a PIN set, reset, cleared or locked; a device secret issued, activated
- * or retired) bump the epoch after commit. Anything else may be up to the
+ * or retired; a POS number range allocated or retired; a shift opened or
+ * closed) bump the epoch after commit. Anything else may be up to the
  * TTL old on a till, which is acceptable for prices lists, payment
  * methods, rates and settings (the server re-checks at upload).
  */

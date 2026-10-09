@@ -5,6 +5,7 @@ namespace Modules\POS\Sync;
 use App\Core\Audit\Auditor;
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Identity\Models\User;
+use App\Core\Sync\SnapshotCache;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
@@ -132,6 +133,8 @@ class ShiftUploads
             ...$this->attested($place, $opener, $data['actor_proof'] ?? null, $openedAt),
         ], ['user_id' => $opener->id, 'device_time' => $openedAt]);
         ShiftOpened::dispatch($this->tenants->require(), $shift->id);
+        // NFR-04: the till's `pos_open_shift` snapshot changes now, not a snapshot TTL later.
+        SnapshotCache::bump($this->tenants->require());
 
         if ($closer !== null) {
             $this->settle($place, $shift, $closer, $closing);
@@ -186,6 +189,7 @@ class ShiftUploads
             ...$this->attested($place, $closer, $closing['actor_proof'] ?? null, $closedAt),
         ], ['user_id' => $closer->id, 'device_time' => $closedAt]);
         ShiftClosed::dispatch($this->tenants->require(), $shift->id);
+        SnapshotCache::bump($this->tenants->require());
     }
 
     /**
