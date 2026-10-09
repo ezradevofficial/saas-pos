@@ -52,7 +52,9 @@ return [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
             'core.party.view', 'core.party.create',
             'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
-            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.*', 'pos.customer.view', 'pos.customer.create',
+            // POS-01, POS-04: sells, opens and closes their own shift. Discounts need a manager
+            // (pos.discount.give approves overrides, so its holders need 6-digit PINs, AUTH-08).
+            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
             // AUTH-06: signs in at the tills where the role is held.
             'pos.till.sign_in',
         ],

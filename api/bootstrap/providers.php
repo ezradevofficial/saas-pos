@@ -8,18 +8,21 @@ use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
+use App\Core\Numbering\NumberingServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
+use Modules\POS\PosServiceProvider;
 
 return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
     IdentityServiceProvider::class,
     CurrencyServiceProvider::class,
+    NumberingServiceProvider::class,
     RbacServiceProvider::class,
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,
@@ -29,5 +32,6 @@ return [
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
     SyncServiceProvider::class,
+    PosServiceProvider::class,
     HorizonServiceProvider::class,
 ];

@@ -16,6 +16,7 @@ return [
     'catalogue' => [
         'modules' => [
             'core' => 'Socle',
+            'pos' => 'Point de vente',
         ],
         'resources' => [
             'core' => [
@@ -41,6 +42,14 @@ return [
                 'notification_delivery' => 'Envois de notifications',
                 'approval' => 'Approbations',
                 'credit_limit' => 'Plafonds de crédit',
+                'numbering' => 'Numérotation des documents',
+            ],
+            'pos' => [
+                'sale' => 'Ventes',
+                'shift' => 'Sessions de caisse',
+                'cash' => 'Tiroir-caisse',
+                'price' => 'Prix',
+                'discount' => 'Remises',
             ],
         ],
         'actions' => [
@@ -61,6 +70,14 @@ return [
             'request' => 'Demander',
             'approve' => 'Approuver',
             'set_directly' => 'Fixer directement',
+            'print' => 'Imprimer',
+            'void' => 'Annuler',
+            'refund' => 'Rembourser',
+            'open' => 'Ouvrir',
+            'close' => 'Clôturer',
+            'manage' => 'Gérer',
+            'move' => 'Entrée ou sortie d’espèces',
+            'give' => 'Accorder',
         ],
     ],
 

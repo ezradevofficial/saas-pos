@@ -37,7 +37,7 @@ class Device extends Model implements HasScope
     /** The only ability a device token carries. */
     public const TOKEN_ABILITY = 'device';
 
-    protected $fillable = ['tenant_id', 'location_id', 'name', 'status'];
+    protected $fillable = ['tenant_id', 'location_id', 'name', 'code', 'status'];
 
     protected $attributes = ['status' => self::STATUS_PENDING];
 

@@ -27,6 +27,8 @@ class StoreLocationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:'.implode(',', self::TYPES)],
+            // NUM-01: printed in document numbers ({LOCATION}, {DEVICE}).
+            'code' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Z0-9]{1,10}$/'],
         ];
     }
 }

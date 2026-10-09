@@ -89,13 +89,19 @@ class RoleTemplatesTest extends TestCase
             'core.automation.view', 'core.automation.edit',
             'core.approval.view_all', 'core.approval.reassign',
             'core.credit_limit.request', 'core.credit_limit.approve', 'core.credit_limit.set_directly',
+            'core.numbering.view', 'core.numbering.edit',
         ] as $name) {
             $this->assertContains($name, $names);
         }
 
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
-        $this->assertSame(79, count($names));
+        // The POS module's catalogue is registered whether or not a tenant has it (RBAC-08 gates it per tenant).
+        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.sale.review', 'pos.shift.view', 'pos.till.sign_in', 'pos.shift.open',
+            'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
+            $this->assertContains($name, $names);
+        }
+        $this->assertSame(81 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -318,7 +324,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(79, $permissions);
+        $this->assertCount(81, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

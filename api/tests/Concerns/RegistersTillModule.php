@@ -6,6 +6,7 @@ use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use Illuminate\Support\Facades\DB;
+use Modules\POS\PosServiceProvider;
 
 /**
  * The `pos` module and till permissions as the POS module names them (the
@@ -15,14 +16,7 @@ use Illuminate\Support\Facades\DB;
  */
 trait RegistersTillModule
 {
-    public const TILL_PERMISSIONS = [
-        'sale' => ['view', 'create', 'print', 'void', 'refund', 'discount', 'override_price'],
-        'shift' => ['open', 'close'],
-        'customer' => ['view', 'create'],
-        'till' => ['sign_in'],
-        'price' => ['override'],
-        'discount' => ['give'],
-    ];
+    public const TILL_PERMISSIONS = PosServiceProvider::PERMISSIONS;
 
     /** Register the module and its permissions, synced to the catalogue when missing. */
     protected function registerTillModule(): void

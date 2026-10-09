@@ -16,6 +16,7 @@ return [
     'catalogue' => [
         'modules' => [
             'core' => 'Core',
+            'pos' => 'Point of sale',
         ],
         'resources' => [
             'core' => [
@@ -41,6 +42,14 @@ return [
                 'notification_delivery' => 'Notification deliveries',
                 'approval' => 'Approvals',
                 'credit_limit' => 'Credit limits',
+                'numbering' => 'Document numbering',
+            ],
+            'pos' => [
+                'sale' => 'Sales',
+                'shift' => 'Shifts',
+                'cash' => 'Cash drawer',
+                'price' => 'Prices',
+                'discount' => 'Discounts',
             ],
         ],
         'actions' => [
@@ -61,6 +70,14 @@ return [
             'request' => 'Request',
             'approve' => 'Approve',
             'set_directly' => 'Set directly',
+            'print' => 'Print',
+            'void' => 'Void',
+            'refund' => 'Refund',
+            'open' => 'Open',
+            'close' => 'Close',
+            'manage' => 'Manage',
+            'move' => 'Pay in or out',
+            'give' => 'Give',
         ],
     ],
 

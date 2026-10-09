@@ -788,4 +788,19 @@ return [
             'all' => 'Tous',
         ],
     ],
+    'numbering' => [
+        'errors' => [
+            'pattern_length' => 'Saisissez un modèle de 1 à 60 caractères.',
+            'pattern_characters' => 'Un modèle peut contenir des lettres, des chiffres, - / _ . et des jetons comme {BRANCH} ou {00001}.',
+            'pattern_token' => 'Utilisez seulement les jetons {BRANCH}, {LOCATION}, {DEVICE}, {YYYY}, {YY}, {MM} et un compteur comme {00001}.',
+            'pattern_counter' => 'Ajoutez exactement un compteur, comme {00001}.',
+            'token_unavailable' => 'Les documents de ce type n’ont pas de :token. Retirez {:token} du modèle.',
+            'yearly_needs_year' => 'Un numéro qui recommence chaque année doit contenir {YYYY} ou {YY}, sinon les numéros de deux années se répéteraient.',
+            'gapless_range' => 'Les caisses tirent ces numéros de plages attribuées à l’avance, qui laissent des trous. Désactivez « sans trou » pour ce type de document.',
+            'reset_locked' => 'Des numéros ont déjà été émis avec ce format : sa remise à zéro ne peut plus changer.',
+            'pattern_collision' => 'Un autre format de ce type de document imprime les mêmes numéros. Changez le modèle, par exemple ajoutez {BRANCH} ou un préfixe propre.',
+            'pattern_too_long' => 'Les numéros de ce modèle pourraient dépasser :max caractères. Raccourcissez le modèle ou les codes qu’il imprime.',
+            'branch_company' => 'Choisissez une agence de la société sélectionnée.',
+        ],
+    ],
 ];
