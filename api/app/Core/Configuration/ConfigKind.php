@@ -13,19 +13,21 @@ use InvalidArgumentException;
  * pos_layout, template, ...
  *
  * - `schema` checks a payload before it is published: a PayloadSchema
- *   array, or a closure `fn (array $payload): list<problem>` (problems as
- *   PayloadSchema::problem() makes them);
+ *   array, or a closure `fn (array $payload, string $key): list<problem>`
+ *   (problems as PayloadSchema::problem() makes them; the document's key,
+ *   for kinds whose catalogue differs per key, like form_layout);
  * - `scopes` are the scope types a document of this kind may have;
  * - `permissions` name the view, edit and publish permissions
  *   (`core.config.*` unless the kind brings its own, RBAC-01);
  * - `merger` (LAY-07) brings a stored payload up to date with the
  *   platform's current catalogue when it is read (see CatalogueMerge);
- *   it is called as `fn (array $payload, ConfigKind $kind)`;
+ *   it is called as `fn (array $payload, ConfigKind $kind, string $key)`;
  * - `layoutKeys` are the extra keys a stored entry may set over its
  *   catalogue entry, beyond CatalogueMerge::LAYOUT_KEYS (pass
  *   `$kind->layoutKeys()` to CatalogueMerge in the merger);
  * - `defaults` is the payload used when nothing is published anywhere
- *   along the chain (null: the client keeps its built-in layout);
+ *   along the chain, `fn (string $key): ?array` (null: the client keeps
+ *   its built-in layout);
  * - `keys` limits the keys (a list, or a closure answering one), else
  *   any key matching KEY_PATTERN;
  * - `module` switches the kind off with its module (RBAC-08);
@@ -59,8 +61,8 @@ final class ConfigKind
      * @param  array<string, mixed>|Closure(array): list<array{path: string, code: string, message: string}>|null  $schema
      * @param  list<string>  $scopes
      * @param  array{view?: string, edit?: string, publish?: string}  $permissions
-     * @param  (Closure(array, ConfigKind): array)|null  $merger
-     * @param  (Closure(): ?array)|null  $defaults
+     * @param  (Closure(array, ConfigKind, string): array)|null  $merger
+     * @param  (Closure(string): ?array)|null  $defaults
      * @param  list<string>|(Closure(): list<string>)|null  $keys
      * @param  list<string>  $layoutKeys
      */
@@ -122,19 +124,19 @@ final class ConfigKind
      *
      * @return list<array{path: string, code: string, message: string}>
      */
-    public function problems(array $payload): array
+    public function problems(array $payload, string $key = self::DEFAULT_KEY): array
     {
         return match (true) {
-            $this->schema instanceof Closure => array_values(($this->schema)($payload)),
+            $this->schema instanceof Closure => array_values(($this->schema)($payload, $key)),
             is_array($this->schema) => PayloadSchema::check($payload, $this->schema),
             default => [],
         };
     }
 
     /** LAY-07: the payload brought up to date with the current catalogue. */
-    public function merge(array $payload): array
+    public function merge(array $payload, string $key = self::DEFAULT_KEY): array
     {
-        return $this->merger === null ? $payload : ($this->merger)($payload, $this);
+        return $this->merger === null ? $payload : ($this->merger)($payload, $this, $key);
     }
 
     /**
@@ -154,10 +156,10 @@ final class ConfigKind
         return $this->presenter === null ? $payload : ($this->presenter)($payload, $key, $reader);
     }
 
-    public function defaultPayload(): ?array
+    public function defaultPayload(string $key = self::DEFAULT_KEY): ?array
     {
-        $payload = $this->defaults === null ? null : ($this->defaults)();
+        $payload = $this->defaults === null ? null : ($this->defaults)($key);
 
-        return $payload === null ? null : $this->merge($payload);
+        return $payload === null ? null : $this->merge($payload, $key);
     }
 }

@@ -51,6 +51,7 @@ use App\Core\Identity\Pin\Http\Controllers\DevicePinController;
 use App\Core\Identity\Pin\Http\Controllers\MyPinController;
 use App\Core\Identity\Pin\Http\Controllers\UserPinController;
 use App\Core\Layouts\Http\Controllers\DashboardSourceController;
+use App\Core\Layouts\Http\Controllers\FormLayoutCatalogueController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
@@ -582,6 +583,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // LAY-01: dashboard data sources the user may read, and one widget's data.
     Route::get('dashboard/sources', [DashboardSourceController::class, 'index']);
     Route::get('dashboard/sources/{dashboard_source}', [DashboardSourceController::class, 'show'])->where('dashboard_source', '[a-z][a-z0-9_.]{0,59}');
+    // LAY-03: the forms whose layouts may be designed, and one form's fields and default layout.
+    Route::get('form-layouts', FormLayoutCatalogueController::class);
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.
     Route::get('custom-fields', [CustomFieldController::class, 'index']);
