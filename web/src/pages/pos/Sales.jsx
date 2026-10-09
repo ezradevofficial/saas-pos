@@ -98,7 +98,7 @@ export default function Sales() {
           dateField('from', t('pos.sales.filters.from')),
           dateField('to', t('pos.sales.filters.to')),
         ]}
-        emptyText={list.term ? t('pos.sales.emptyFiltered') : t('pos.sales.empty')}
+        emptyText={list.term || Object.values(list.filters).some(Boolean) ? t('pos.sales.emptyFiltered') : t('pos.sales.empty')}
         onRowClick={(sale) => navigate(`/pos/sales/${sale.id}`)}
       />
     </>

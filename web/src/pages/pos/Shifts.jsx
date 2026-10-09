@@ -107,7 +107,7 @@ export default function Shifts() {
           dateField('from', t('pos.shifts.filters.from')),
           dateField('to', t('pos.shifts.filters.to')),
         ]}
-        emptyText={list.term ? t('pos.shifts.emptyFiltered') : t('pos.shifts.empty')}
+        emptyText={list.term || Object.values(list.filters).some(Boolean) ? t('pos.shifts.emptyFiltered') : t('pos.shifts.empty')}
         onRowClick={(shift) => navigate(`/pos/shifts/${shift.id}`)}
       />
     </>
