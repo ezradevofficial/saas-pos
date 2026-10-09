@@ -15,6 +15,9 @@ Tenants add their own fields to records (CF-01) with settings (CF-02). These fie
 - Permissions: `core.custom_field.view` anywhere, and `core.custom_field.manage` at tenant scope. Owner and Admin have both.
 
 **Entity registry.** `CustomFieldEntities` registers what carries custom fields (`item`, `party`) and what a lookup may point at (those, plus `user`). Custom forms (CF-04) register an entity at run time.
+- Run-time entities come from a source: `registerSource()` takes a closure that answers the current tenant's entities each time. Custom forms use it: each form type is `custom_form:<key>` (its header fields) and, with a line table, `custom_form_line:<key>` (ADR 012). An entity key may carry one `:<key>` suffix; in file paths the colon is written as a dot.
+- An entity answers `newQuery()`, a query over its own records only (one form type's records), used for unique checks, lookups and files.
+- An entity may refuse unique fields (`allowsUnique()`: form lines do) and may opt out of being a lookup target (`isLookupTarget()`: lines do).
 - A `CustomFieldEntity` says who sees its records and which field-rules resource applies.
 - It also gives the record's display label and the records the till syncs.
 
