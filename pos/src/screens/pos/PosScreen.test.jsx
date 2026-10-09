@@ -120,6 +120,9 @@ describe('PosScreen', () => {
 
     // NFR-04: the shift and the sale wait offline, then go up in order.
     expect(services.engine.getStatus().pending).toBe(2);
+    // The shift was opened online, so it was offered at once (NFR-04); the fake server left it unanswered.
+    expect(server.state.requests.some((request) => request.method === 'POST' && request.path === 'pos/shifts')).toBe(true);
+    const before = server.state.requests.length;
     server.goOnline();
     services.engine.setNetwork('online');
     // POS-10: the server answers the upload with the fiscal state, then the authority accepts it.
@@ -129,7 +132,7 @@ describe('PosScreen', () => {
       return null;
     };
     await act(() => services.engine.push());
-    const uploads = server.state.requests.filter((request) => request.method === 'POST' && request.path.startsWith('pos/') && request.path !== 'pos/number-ranges' && request.path !== 'pos/pin/attempts');
+    const uploads = server.state.requests.slice(before).filter((request) => request.method === 'POST' && request.path.startsWith('pos/') && request.path !== 'pos/number-ranges' && request.path !== 'pos/pin/attempts');
     expect(uploads.map((request) => request.path)).toEqual(['pos/shifts', 'pos/sales']);
     const sale = uploads[1].body.sales[0];
     expect(sale).toMatchObject({ cashier_id: SECOND, offline: true, receipt_number: 'R-WL2-000001', totals: { total_minor: '56500' }, actor_proof: { user_id: SECOND, kid: 'k1' } });
