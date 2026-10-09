@@ -5,6 +5,7 @@ use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Support\Http\EnforceEnvironment;
+use App\Core\Support\TrustedProxies;
 use App\Core\Sync\Http\SyncLagHeader;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Http\RequireTenant;
@@ -36,6 +37,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);
+        // Only the load balancer may report the client's address (TRUSTED_PROXIES,
+        // empty by default): the payment callback allowlist and rate limits
+        // use the real client address, never a spoofed X-Forwarded-For.
+        if (($proxies = TrustedProxies::parse(env('TRUSTED_PROXIES'))) !== []) {
+            $middleware->trustProxies(at: $proxies, headers: TrustedProxies::HEADERS);
+        }
         // RBAC-08: `module:{name}` after `tenant`.
         $middleware->alias(['tenant' => RequireTenant::class, 'module' => EnsureModuleActive::class]);
         // TEN-05: the token kind is checked straight after authentication,

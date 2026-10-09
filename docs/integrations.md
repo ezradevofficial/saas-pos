@@ -25,8 +25,24 @@ and never returned by the API (payment method `secrets`, fiscal settings
 | `MPESA_B2C_COMMAND` | B2C command agreed for refunds (`BusinessPayment`, `SalaryPayment`, `PromotionPayment`) | `BusinessPayment` |
 | `MPESA_PATH_*` | Daraja paths, if Safaricom versions them | v1 paths |
 
-The trusted proxy must pass the client address (TrustProxies), or the IP
-allowlist sees the NodeBalancer's address.
+**Client address.** The callback allowlist and the callback rate limit use
+the real client address. Set `TRUSTED_PROXIES` to the load balancer's
+backend range only (Linode NodeBalancer: `192.168.255.0/24`); its
+`X-Forwarded-For` then names the client, and a caller's own
+`X-Forwarded-For` is ignored. Empty (the default) trusts no proxy. Never
+`*`.
+
+**Callback tokens in logs.** The 48-character token in callback URLs names
+the payment method; keep it out of access logs. nginx:
+
+```nginx
+map $request_uri $redacted_uri {
+    ~^(?<head>/api/v1/payments/callbacks/)[A-Za-z0-9]{48}(?<tail>/.*)$ "${head}[token]${tail}";
+    default $request_uri;
+}
+log_format redacted '$remote_addr - [$time_local] "$request_method $redacted_uri" $status $body_bytes_sent';
+access_log /var/log/nginx/api.access.log redacted;
+```
 
 ### Per business (back office: Payment methods → M-Pesa)
 
