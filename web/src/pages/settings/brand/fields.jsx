@@ -84,8 +84,8 @@ export function ColourField({ field, label, help, value, presetValue, derived, c
 
   return (
     <div className="flex flex-col gap-3" data-testid={`colour-${field}`}>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-tight text-label text-ink">
+      <div className="flex flex-wrap items-start gap-3">
+        <label className="flex flex-col gap-tight pt-6 text-label text-ink">
           <span className="sr-only">{t('brand.colours.pick', { name: label })}</span>
           <input
             type="color"
@@ -103,7 +103,7 @@ export function ColourField({ field, label, help, value, presetValue, derived, c
           value={text}
           disabled={disabled}
           onChange={(event) => type(event.target.value.trim())}
-          className="min-w-0 flex-1 max-w-field font-mono"
+          className="min-w-0 flex-1 max-w-field"
         />
         {value !== null && !disabled ? (
           <Button variant="ghost" onClick={() => type('')}>
