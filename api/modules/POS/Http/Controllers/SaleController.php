@@ -5,7 +5,9 @@ namespace Modules\POS\Http\Controllers;
 use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Modules\POS\Fiscal\SaleFiscalStatus;
 use Modules\POS\Http\Lists\SaleList;
 use Modules\POS\Http\Requests\ListSalesRequest;
 use Modules\POS\Http\Requests\ReviewSaleRequest;
@@ -19,7 +21,7 @@ class SaleController
 {
     public function index(ListSalesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = $request->applyFilters(Sale::query()->with(SaleList::RELATIONS), 'sold_at');
+        $query = $request->applyFilters(Sale::query()->with([...SaleList::RELATIONS, 'payments']), 'sold_at');
         $request->applySearch($query, ['receipt_number' => 'receipt_number']);
 
         // M3: what needs review.
@@ -63,8 +65,14 @@ class SaleController
         return SaleResource::make($posSale->load(SaleList::RELATIONS));
     }
 
+    /** POS-10: the sale's fiscal state in the back office (SaleFiscalStatus), for a viewer of the sale. */
+    public function fiscal(ShowPosRecordRequest $request, Sale $posSale, SaleFiscalStatus $status): JsonResponse
+    {
+        return response()->json(['data' => $status->of($posSale)]);
+    }
+
     public function show(ShowPosRecordRequest $request, Sale $posSale): SaleResource
     {
-        return SaleResource::make($posSale->load([...SaleList::RELATIONS, 'lines', 'payments', 'voidRecord', 'refunds']))->detail();
+        return SaleResource::make($posSale->load([...SaleList::RELATIONS, 'lines', 'payments.method', 'voidRecord', 'refunds']))->detail();
     }
 }

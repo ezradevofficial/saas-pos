@@ -94,6 +94,11 @@ return [
         ],
     ],
 
+    // TEN-07: the consolidated sales dashboard.
+    'insights' => [
+        'period_too_long' => 'Choose a period of at most :days days.',
+    ],
+
     'shift' => [
         'list_title' => 'Shifts',
         'statuses' => [

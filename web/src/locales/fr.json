@@ -249,7 +249,8 @@
       "catalogue": "Catalogue",
       "contacts": "Contacts",
       "automation": "Automatisation",
-      "workspace": "Espace de travail"
+      "workspace": "Espace de travail",
+      "pos": "Point de vente"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -275,7 +276,15 @@
     "workflows": "Workflows",
     "creditLimitChanges": "Modifications de plafond",
     "approvals": "Approbations",
-    "automationRules": "Règles d’automatisation"
+    "automationRules": "Règles d’automatisation",
+    "posDashboard": "Vue des ventes",
+    "posSales": "Ventes",
+    "posShifts": "Sessions de caisse",
+    "posHeld": "En attente de contrôle",
+    "numbering": "Numérotation",
+    "posPin": "Mon code PIN caisse",
+    "payments": "Paiements reçus",
+    "fiscal": "Administration fiscale"
   },
   "shell": {
     "account": "Menu du compte",
@@ -542,7 +551,8 @@
       "archive": "Archiver l’emplacement",
       "archiveText": "L’emplacement et son historique de ventes sont conservés, mais aucun appareil ne peut y être ajouté ni associé tant que vous ne le restaurez pas.",
       "empty": "Aucun emplacement pour l’instant.",
-      "listOf": "Emplacements de {{name}}"
+      "listOf": "Emplacements de {{name}}",
+      "code": "Code : {{code}}"
     },
     "fields": {
       "name": "Nom",
@@ -553,7 +563,9 @@
       "taxId": "Numéro fiscal",
       "code": "Code de succursale",
       "codeHelp": "Jusqu’à 20 lettres, chiffres ou tirets, par exemple WSTL. Utilisé sur les reçus et les rapports.",
-      "type": "Type d’emplacement"
+      "type": "Type d’emplacement",
+      "locationCode": "Code du site",
+      "locationCodeHelp": "Jusqu’à 10 majuscules ou chiffres, par exemple L01. Imprimé dans les numéros de reçu."
     },
     "locationTypes": {
       "outlet": "Point de vente",
@@ -621,7 +633,22 @@
     "unpairTitle": "Dissocier {{name}} ?",
     "unpairText": "L’appareil est déconnecté immédiatement et devra recevoir un nouveau code pour vendre de nouveau. Son historique de ventes est conservé.",
     "unpairConfirm": "Dissocier l’appareil",
-    "keep": "Garder l’appareil"
+    "keep": "Garder l’appareil",
+    "codeLeft": "Temps restant : {{time}}",
+    "codeExpired": "Ce code a expiré. Fermez cette fenêtre et demandez-en un nouveau.",
+    "edit": "Modifier",
+    "editFor": "Modifier {{name}}",
+    "editTitle": "Modifier {{name}}",
+    "codeField": "Code de l’appareil",
+    "codeHelp": "Jusqu’à 10 majuscules ou chiffres, par exemple T01. Imprimé dans les numéros de reçu.",
+    "lastPull": "Données reçues {{date}}",
+    "neverPulled": "Aucune donnée reçue",
+    "lastPush": "ventes envoyées {{date}}",
+    "neverPushed": "aucune vente envoyée",
+    "secretAge_one": "Clé de signature {{kid}}, {{formatted}} jour",
+    "secretAge_other": "Clé de signature {{kid}}, {{formatted}} jours",
+    "unpairKillSwitch": "Dissocier est le seul moyen de couper définitivement une caisse perdue ou volée : son jeton et ses clés de signature cessent de fonctionner immédiatement.",
+    "unpairUnsent": "Les ventes que la caisse n’a pas encore envoyées restent sur l’appareil. Elles n’arrivent au serveur que si le même appareil est associé à nouveau."
   },
   "users": {
     "inviteUser": "Inviter un utilisateur",
@@ -1191,7 +1218,12 @@
       "passkey": "Clé d’accès",
       "merchant_id": "Identifiant marchand",
       "api_key": "Clé d’API",
-      "other": "Paramètre du prestataire"
+      "other": "Paramètre du prestataire",
+      "transaction_type": "Paybill ou Till",
+      "till_number": "Numéro de Till",
+      "b2c_shortcode": "Shortcode de remboursement (B2C)",
+      "initiator_name": "Nom de l’initiateur",
+      "security_credential": "Identifiant de sécurité"
     },
     "status": {
       "on": "Activé",
@@ -1222,9 +1254,40 @@
       "replaceKey": "Remplacer {{key}}",
       "remove": "Retirer",
       "removeKey": "Retirer {{key}}",
-      "keep": "Conserver"
+      "keep": "Conserver",
+      "notSet": "Non défini"
     },
-    "movedTo": "{{name}} déplacé en position {{position}} sur {{total}}."
+    "movedTo": "{{name}} déplacé en position {{position}} sur {{total}}.",
+    "values": {
+      "paybill": "Paybill (compte)",
+      "till": "Till (achat de biens)"
+    },
+    "callbacks": {
+      "action": "Adresses de rappel",
+      "actionFor": "Adresses de rappel de {{name}}",
+      "title": "Adresses de rappel de {{name}}",
+      "intro": "Safaricom envoie les résultats de paiement à ces adresses. Chacune contient un jeton secret : ne les partagez que via le portail Daraja.",
+      "needsSettings": "Saisissez d’abord le shortcode et les identifiants, puis enregistrez les adresses C2B.",
+      "list": "Adresses de rappel",
+      "copyFor": "Copier l’adresse {{kind}}",
+      "register": "Enregistrer les adresses C2B",
+      "registered": "Safaricom a accepté les adresses de confirmation et de validation.",
+      "rotate": "Obtenir de nouvelles adresses",
+      "rotateHelp": "Si ces adresses ont pu fuiter, obtenez-en de nouvelles. Les anciennes cessent de fonctionner immédiatement : enregistrez aussitôt les nouvelles chez Safaricom.",
+      "rotateConfirm": "Remplacer les adresses",
+      "keepUrls": "Garder les adresses",
+      "rotated": "Les nouvelles adresses sont prêtes. Enregistrez-les chez Safaricom.",
+      "close": "Fermer",
+      "kinds": {
+        "stk": "Résultat de la demande sur téléphone",
+        "c2b-confirm": "Confirmation C2B",
+        "c2b-validate": "Validation C2B",
+        "b2c-result": "Résultat du remboursement",
+        "b2c-timeout": "Délai du remboursement dépassé",
+        "status-result": "Résultat de la vérification",
+        "status-timeout": "Délai de la vérification dépassé"
+      }
+    }
   },
   "dimensions": {
     "tabs": {
@@ -3247,6 +3310,601 @@
       "retrying": "Nouvel essai",
       "delivered": "Remise",
       "failed": "Échouée"
+    }
+  },
+  "pos": {
+    "filters": {
+      "company": "Société",
+      "branch": "Succursale",
+      "location": "Site",
+      "allCompanies": "Toutes les sociétés",
+      "allBranches": "Toutes les succursales",
+      "allLocations": "Tous les sites"
+    },
+    "flags": {
+      "label": "Signalements",
+      "price_differs": "Prix différent",
+      "price_unknown": "Aucun prix de liste",
+      "list_price_missing": "Prix de liste non envoyé",
+      "tax_differs": "Taxe différente",
+      "rate_differs": "Taux différent",
+      "change_rate_differs": "Taux de la monnaie différent",
+      "refund_rate_differs": "Taux du remboursement différent",
+      "base_rate_from_till": "Taux de base de la caisse",
+      "discount_unauthorised": "Remise non autorisée",
+      "price_override_unauthorised": "Changement de prix non autorisé",
+      "cashier_not_permitted": "Caissier non autorisé",
+      "actor_unverified": "Auteur non vérifié",
+      "override_unverified": "Accord non vérifié",
+      "override_offline": "Accordé hors ligne",
+      "received_after_close": "Après la clôture",
+      "clock_ahead": "Horloge de caisse en avance"
+    },
+    "records": {
+      "applied": "Appliqué",
+      "held": "En attente",
+      "rejected": "Refusé"
+    },
+    "sales": {
+      "title": "Ventes",
+      "description": "Les ventes des caisses dont vous avez la charge, telles qu’elles ont été faites. Les dates suivent le fuseau horaire de chaque société.",
+      "search": "Rechercher un numéro de reçu",
+      "back": "Ventes",
+      "reviewed": "Contrôlée",
+      "empty": "Aucune vente pour l’instant.",
+      "emptyFiltered": "Aucune vente ne correspond. Essayez d’autres filtres ou un autre numéro de reçu.",
+      "columns": {
+        "receipt": "Reçu",
+        "soldAt": "Vendu",
+        "place": "Site et caisse",
+        "cashier": "Caissier",
+        "customer": "Client",
+        "total": "Montant total",
+        "payments": "Paiements",
+        "status": "Statut",
+        "flags": "Signalements"
+      },
+      "status": {
+        "completed": "Terminée",
+        "voided": "Annulée"
+      },
+      "filters": {
+        "status": "Statut",
+        "allStatuses": "Tous les statuts",
+        "flagged": "Signalements",
+        "flaggedAll": "Avec ou sans signalement",
+        "flaggedYes": "Signalée",
+        "flaggedNo": "Non signalée",
+        "flag": "Signalement",
+        "allFlags": "Tout signalement",
+        "reviewed": "Contrôle",
+        "reviewedAll": "Contrôlée ou non",
+        "reviewedYes": "Contrôlée",
+        "reviewedNo": "Non contrôlée",
+        "from": "Vendue du",
+        "to": "Vendue au"
+      }
+    },
+    "sale": {
+      "eyebrow": "Vente",
+      "notFound": "Cette vente n’existe pas ou n’est pas dans un site dont vous avez la charge.",
+      "markReviewed": "Marquer comme contrôlée",
+      "reviewedNotice": "La vente est marquée comme contrôlée.",
+      "flagsTitle": "Signalements",
+      "flagsHelp": "La vente de la caisse a été gardée telle quelle. Vérifiez ce qui diffère, puis marquez la vente comme contrôlée.",
+      "reviewedAt": "Contrôlée {{time}}",
+      "flagLine": "ligne {{line}}",
+      "flagExpected": "Le serveur attendait {{amount}}.",
+      "flagPair": "Taux {{pair}}",
+      "summary": "Résumé",
+      "place": "Site",
+      "device": "Caisse",
+      "cashier": "Caissier",
+      "customer": "Client",
+      "noCustomer": "Aucun client",
+      "received": "Reçue par le serveur",
+      "soldOffline": "Vendue hors ligne",
+      "shift": "Session",
+      "openShift": "Ouvrir la session",
+      "fiscal": "Administration fiscale",
+      "fiscalPending": "En attente",
+      "changeIn": "Monnaie rendue en {{currency}}.",
+      "returns": "Annulation et remboursements",
+      "voided": "Vente annulée",
+      "refund": "Remboursement {{number}}",
+      "lines": {
+        "title": "Lignes",
+        "no": "N°",
+        "item": "Article",
+        "qty": "Quantité",
+        "unitPrice": "Prix unitaire",
+        "listPrice": "Différent du prix de liste",
+        "discount": "Remise",
+        "tax": "Taxe",
+        "rateIncluded": "{{rate}} % inclus",
+        "rateAdded": "{{rate}} % ajouté",
+        "total": "Total de la ligne",
+        "refunded": "{{qty}} remboursé"
+      },
+      "payments": {
+        "title": "Paiements",
+        "method": "Moyen",
+        "amount": "Montant payé",
+        "inSale": "En {{currency}}",
+        "status": "Statut",
+        "statuses": {
+          "confirmed": "Confirmé",
+          "pending": "En attente"
+        }
+      },
+      "totals": {
+        "title": "Totaux",
+        "subtotal": "Sous-total",
+        "discount": "Remises",
+        "tax": "Taxe",
+        "total": "Montant total",
+        "paid": "Payé",
+        "change": "Monnaie rendue",
+        "rounding": "Arrondi",
+        "base": "Total en {{currency}}"
+      }
+    },
+    "shifts": {
+      "title": "Sessions de caisse",
+      "description": "Les sessions et le comptage de chaque caisse, par devise.",
+      "search": "Rechercher une caisse ou un caissier",
+      "back": "Sessions de caisse",
+      "empty": "Aucune session pour l’instant.",
+      "emptyFiltered": "Aucune session ne correspond. Essayez d’autres filtres.",
+      "stillOpen": "Encore ouverte",
+      "notCounted": "Non compté",
+      "balanced": "{{currency}} juste",
+      "over": "Excédent de {{amount}}",
+      "short": "Manque de {{amount}}",
+      "status": {
+        "open": "Ouverte",
+        "closed": "Clôturée"
+      },
+      "columns": {
+        "opened": "Ouverte",
+        "closed": "Clôturée",
+        "status": "Statut",
+        "place": "Site et caisse",
+        "openedBy": "Ouverte par",
+        "opening": "Fonds de caisse",
+        "expected": "Espèces attendues",
+        "counted": "Espèces comptées",
+        "variance": "Écart"
+      },
+      "filters": {
+        "status": "Statut",
+        "allStatuses": "Tous les statuts",
+        "from": "Ouverte du",
+        "to": "Ouverte au"
+      }
+    },
+    "shift": {
+      "eyebrow": "Session de caisse",
+      "title": "{{device}}, le {{date}}",
+      "notFound": "Cette session n’existe pas ou n’est pas dans un site dont vous avez la charge.",
+      "summary": "Résumé",
+      "place": "Site",
+      "openedBy": "Ouverte par",
+      "closedBy": "Clôturée par",
+      "salesCount": "Ventes",
+      "note": "Note à la clôture",
+      "receivedAfterClose_one": "{{formatted}} enregistrement est arrivé au serveur après la clôture de cette session.",
+      "receivedAfterClose_other": "{{formatted}} enregistrements sont arrivés au serveur après la clôture de cette session.",
+      "receivedAfterCloseHelp": "Les espèces attendues et l’écart ont été recalculés pour les inclure.",
+      "balances": {
+        "title": "Espèces par devise",
+        "help": "Attendu = fonds de caisse + espèces encaissées − monnaie rendue + entrées − sorties − remboursements en espèces.",
+        "currency": "Devise",
+        "opening": "Fonds de caisse",
+        "expected": "Attendu",
+        "counted": "Compté",
+        "variance": "Écart"
+      },
+      "movements": {
+        "title": "Mouvements d’espèces",
+        "empty": "Aucune entrée ni sortie d’espèces pendant cette session.",
+        "time": "Heure",
+        "kind": "Mouvement",
+        "kinds": {
+          "pay_in": "Entrée",
+          "pay_out": "Sortie"
+        },
+        "amount": "Montant",
+        "reason": "Motif",
+        "approvedBy": "accordé par {{name}}",
+        "status": "Statut"
+      }
+    },
+    "held": {
+      "title": "En attente de contrôle",
+      "description": "Les annulations, remboursements et sorties d’espèces des caisses qui attendent un accord, parce que le serveur n’a pas pu prouver qui les a autorisés.",
+      "empty": "Rien n’attend de contrôle.",
+      "emptyFiltered": "Rien en attente ne correspond à ces filtres.",
+      "wholeSale": "Vente entière",
+      "approvedBy": "Responsable indiqué par la caisse",
+      "occurred": "À la caisse",
+      "reason": "Motif",
+      "openSale": "Ouvrir la vente",
+      "approve": "Accepter",
+      "reject": "Refuser",
+      "keepWaiting": "Laisser en attente",
+      "rejectTitle": "Refuser cet enregistrement ?",
+      "rejectText": {
+        "void": "La vente reste terminée. Indiquez pourquoi, pour informer l’équipe de caisse.",
+        "refund": "Rien n’est remboursé et les quantités sont de nouveau libres. Indiquez pourquoi, pour informer l’équipe de caisse.",
+        "cash_movement": "La sortie ne compte pas dans le tiroir. Indiquez pourquoi, pour informer l’équipe de caisse."
+      },
+      "effect": {
+        "void": "Accepter annule la vente et la transmet comme annulée à l’administration fiscale.",
+        "refund": "Accepter rembourse les lignes, compte les espèces dans le tiroir et vérifie votre plafond de remboursement.",
+        "cash_movement": "Accepter compte la sortie dans le tiroir et recalcule une session clôturée."
+      },
+      "deviceClaim": {
+        "override_unverified": "Accord hors ligne — déclaré par l’appareil. La caisse indique qu’un responsable a accepté, mais le serveur n’a pas pu vérifier l’accord.",
+        "override_offline": "Accord hors ligne — le code PIN du responsable a été vérifié sur la caisse pendant qu’elle était hors ligne."
+      },
+      "kinds": {
+        "void": "Annulation",
+        "refund": "Remboursement",
+        "cash_movement": "Sortie d’espèces"
+      },
+      "columns": {
+        "received": "Reçu",
+        "kind": "Enregistrement",
+        "receipt": "Reçu n°",
+        "amount": "Montant",
+        "by": "Par",
+        "place": "Site et caisse",
+        "status": "Statut",
+        "flags": "Signalements"
+      },
+      "filters": {
+        "kind": "Enregistrement",
+        "allKinds": "Tous les enregistrements",
+        "flag": "Signalement",
+        "allFlags": "Tout signalement"
+      }
+    },
+    "dashboard": {
+      "title": "Vue des ventes",
+      "description": "Les ventes terminées de vos sociétés, succursales et sites. Les jours de chaque société suivent son propre fuseau horaire.",
+      "from": "Du",
+      "to": "Au",
+      "reportingCurrency": "Devise de présentation",
+      "defaultCurrency": "Par défaut",
+      "chooseCurrency": "Vos sociétés vendent dans des devises différentes. Choisissez une devise de présentation pour voir un seul total.",
+      "missingRates": "{{companies}} n’a pas de taux de change vers {{currency}} pour cette période et n’est donc pas compté dans le total. Saisissez le taux dans Taux de change.",
+      "noRate": "Aucun taux",
+      "empty": "Aucune vente sur cette période.",
+      "byPlace": "Par société, succursale et site",
+      "byPlaceHelp": "Dans la devise de base de chaque société.",
+      "periods": {
+        "today": "Aujourd’hui",
+        "week": "Cette semaine",
+        "month": "Ce mois-ci",
+        "custom": "Choisir les jours"
+      },
+      "kpi": {
+        "sales": "Ventes",
+        "total": "Total des ventes",
+        "average": "Vente moyenne"
+      },
+      "columns": {
+        "place": "Société, succursale, site",
+        "sales": "Ventes",
+        "total": "Montant total",
+        "average": "Vente moyenne",
+        "reporting": "En {{currency}}"
+      },
+      "payments": {
+        "title": "Paiements par moyen",
+        "method": "Moyen",
+        "count": "Paiements",
+        "amount": "Montant reçu",
+        "change": "Monnaie rendue : {{amounts}}"
+      },
+      "items": {
+        "title": "Meilleurs articles",
+        "item": "Article",
+        "qty": "Quantité",
+        "sales": "Ventes",
+        "total": "Vendu pour"
+      },
+      "defaultCurrencyIs": "Par défaut ({{currency}})"
+    },
+    "fiscal": {
+      "title": "Administration fiscale",
+      "acceptedAt": "Accepté {{time}}",
+      "notTransmitted": "Non transmis",
+      "invoice": "Facture {{number}}",
+      "statuses": {
+        "pending": "En attente",
+        "accepted": "Accepté",
+        "rejected": "Rejeté"
+      },
+      "authority": {
+        "receipt_number": "Numéro de reçu de l’administration",
+        "receipt_signature": "Signature du reçu",
+        "internal_data": "Données internes",
+        "control_unit_id": "Unité de contrôle",
+        "mrc_no": "Numéro MRC",
+        "qr": "Contenu du code QR"
+      }
+    }
+  },
+  "numbering": {
+    "title": "Numérotation",
+    "description": "Comment les reçus et autres documents sont numérotés, pour toute l’organisation, une société ou une succursale.",
+    "empty": "Aucun type de document numéroté n’est actif.",
+    "default": "Par défaut {{pattern}}, {{reset}}",
+    "usesDefault": "Utilise le format par défaut, par exemple {{example}}.",
+    "add": "Ajouter un format",
+    "addFor": "Ajouter un format pour {{name}}",
+    "addTitle": "Ajouter un format pour {{name}}",
+    "edit": "Modifier",
+    "editFor": "Modifier le format pour {{scope}}",
+    "editTitle": "{{name}} : {{scope}}",
+    "save": "Enregistrer le format",
+    "exampleShort": "Par exemple {{example}}",
+    "example": "Exemple",
+    "noGaps": "Sans trous",
+    "tokens": "Insérer",
+    "insertToken": "Insérer {{token}}",
+    "allBranches": "Chaque succursale",
+    "rangedHelp": "Les caisses numérotent ces documents à partir de plages reçues à l’avance, donc les numéros peuvent avoir des trous.",
+    "gaplessHelp": "Chaque numéro suit le précédent sans en sauter. Les documents attendent leur tour pendant la numérotation.",
+    "scope": {
+      "tenant": "Toute l’organisation",
+      "company": "Société {{name}}",
+      "branch": "Succursale {{name}}"
+    },
+    "resets": {
+      "never": "ne repart jamais à zéro",
+      "yearly": "repart à zéro chaque année"
+    },
+    "fields": {
+      "company": "Société",
+      "branch": "Succursale",
+      "pattern": "Modèle",
+      "patternHelp": "Lettres, chiffres, - / _ . et les éléments ci-dessous. Un seul compteur, par exemple {000001} ; ses zéros fixent la largeur minimale.",
+      "reset": "Compteur",
+      "gapless": "Sans trous"
+    },
+    "errors": {
+      "length": "Saisissez un modèle de 1 à 60 caractères.",
+      "characters": "Utilisez seulement des lettres, des chiffres, - / _ . et les éléments.",
+      "token": "Utilisez seulement les éléments proposés ci-dessous.",
+      "unavailable": "Ce type de document ne peut pas utiliser l’un de ces éléments de lieu. Retirez-le.",
+      "counter": "Ajoutez un seul compteur, par exemple {000001}.",
+      "yearly": "Un compteur qui repart à zéro chaque année a besoin de {YYYY} ou {YY}."
+    }
+  },
+  "posPin": {
+    "title": "Mon code PIN caisse",
+    "description": "Le code PIN avec lequel vous vous connectez aux caisses. Personne ne peut le lire, pas même un administrateur.",
+    "cardTitle": "Code PIN caisse",
+    "userCardTitle": "Code PIN caisse",
+    "set": "Définir le code PIN",
+    "change": "Changer le code PIN",
+    "reset": "Réinitialiser le code PIN",
+    "remove": "Supprimer le code PIN",
+    "keep": "Garder le code PIN",
+    "save": "Enregistrer le code PIN",
+    "saved": "Le code PIN caisse est enregistré.",
+    "setTitle": "Définir votre code PIN caisse",
+    "changeTitle": "Changer votre code PIN caisse",
+    "resetTitle": "Nouveau code PIN caisse pour {{name}}",
+    "resetIntro": "Donnez le code PIN à la personne en privé. Elle choisit le sien à la caisse lors de sa première connexion.",
+    "removeTitle": "Supprimer votre code PIN caisse ?",
+    "removeSelfText": "Vous ne pourrez plus vous connecter à une caisse avant d’avoir défini un nouveau code PIN.",
+    "removeUserTitle": "Supprimer le code PIN caisse de {{name}} ?",
+    "removeUserText": "Cette personne ne pourra plus se connecter à une caisse avant d’avoir un nouveau code PIN.",
+    "lengthNote": "Un code PIN compte 4 à 6 chiffres. Évitez les chiffres répétés, les suites comme 1234 et les codes courants.",
+    "sixDigitsNote": "Vous pouvez accepter des annulations, des remboursements ou des changements de prix : votre code PIN doit compter 6 chiffres.",
+    "mustChangeNote": "Un administrateur a défini ce code PIN. Choisissez le vôtre à la caisse lors de votre prochaine connexion.",
+    "userSixDigits": "Cette personne accepte des annulations, des remboursements ou des changements de prix : son code PIN doit compter 6 chiffres.",
+    "status": {
+      "notSet": "Aucun code PIN",
+      "set": "Code PIN défini",
+      "mustChange": "À changer à la caisse",
+      "setAt": "Défini le {{date}}"
+    },
+    "fields": {
+      "password": "Mot de passe de votre compte",
+      "passwordHelp": "Confirme que c’est bien vous.",
+      "pin": "Nouveau code PIN",
+      "pinHelp": "4 à 6 chiffres.",
+      "pinHelpSix": "6 chiffres.",
+      "repeat": "Répétez le code PIN"
+    },
+    "errors": {
+      "format": "Saisissez un code PIN de 4 à 6 chiffres.",
+      "sixDigits": "Saisissez un code PIN de 6 chiffres.",
+      "password": "Saisissez le mot de passe de votre compte.",
+      "mismatch": "Les deux codes PIN diffèrent. Saisissez deux fois le même code PIN."
+    }
+  },
+  "payments": {
+    "title": "Paiements reçus",
+    "description": "Les demandes de paiement mobile des caisses, et l’argent reçu qui ne correspond à aucune demande.",
+    "tabs": {
+      "intents": "Demandes de paiement",
+      "receipts": "Reçus non rapprochés"
+    },
+    "purposes": {
+      "sale": "Vente",
+      "refund": "Remboursement"
+    },
+    "modes": {
+      "direct": "Immédiat",
+      "stk": "Demande sur téléphone",
+      "manual": "Code saisi",
+      "payout": "Versement"
+    },
+    "statuses": {
+      "pending": "En attente",
+      "unknown": "Pas encore de réponse",
+      "succeeded": "Payé",
+      "failed": "Échoué",
+      "cancelled": "Refusé",
+      "timeout": "Délai dépassé"
+    },
+    "verifications": {
+      "unverified": "Non vérifié",
+      "verified": "Vérifié",
+      "mismatch": "Écart"
+    },
+    "intents": {
+      "search": "Rechercher une référence ou un code M-Pesa",
+      "empty": "Aucune demande de paiement pour l’instant.",
+      "emptyFiltered": "Aucune demande ne correspond. Essayez d’autres filtres.",
+      "filters": {
+        "status": "Statut",
+        "all": "Toutes les demandes"
+      },
+      "columns": {
+        "time": "Demandé",
+        "purpose": "Pour",
+        "mode": "Comment",
+        "amount": "Montant",
+        "phone": "Téléphone",
+        "reference": "Référence",
+        "receipt": "Code M-Pesa",
+        "status": "Statut",
+        "verification": "Vérification",
+        "message": "Message du prestataire"
+      }
+    },
+    "receipts": {
+      "search": "Rechercher un code M-Pesa ou un compte",
+      "empty": "Aucun reçu ici.",
+      "filters": {
+        "status": "Afficher",
+        "unmatched": "Non rapprochés",
+        "matched": "Rapprochés",
+        "all": "Tous les reçus"
+      },
+      "status": {
+        "matched": "Rapproché",
+        "unmatched": "Non rapproché"
+      },
+      "columns": {
+        "time": "Reçu le",
+        "receipt": "Code M-Pesa",
+        "amount": "Montant",
+        "accountReference": "Compte",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "match": {
+      "action": "Rapprocher d’un paiement",
+      "actionFor": "Rapprocher {{receipt}} d’un paiement",
+      "title": "Rapprocher {{receipt}} d’un paiement",
+      "text": "{{amount}} a été reçu avec le compte {{reference}}. Choisissez la demande de paiement qu’il règle.",
+      "intent": "Demande de paiement",
+      "choose": "Choisir une demande",
+      "none": "Aucune demande n’attend de rapprochement. Les codes saisis en caisse et les demandes sur téléphone sans réponse apparaissent ici.",
+      "confirm": "Rapprocher le paiement"
+    }
+  },
+  "fiscal": {
+    "title": "Administration fiscale",
+    "description": "Transmettez chaque vente, remboursement et annulation à KRA eTIMS ou à la DGI de RDC, et suivez la réponse de l’administration.",
+    "drivers": {
+      "kra_etims_oscu": "KRA eTIMS (OSCU)",
+      "dgi_emcf": "DGI RDC (e-MCF)",
+      "fake": "Administration de test (local uniquement)"
+    },
+    "fields": {
+      "driver": "Administration",
+      "tin": "Numéro d’identification fiscale",
+      "branch_code": "Identifiant de succursale auprès de l’administration",
+      "device_serial": "Numéro de série de l’appareil",
+      "credential_api_token": "Jeton d’accès",
+      "credential_cmc_key": "Clé de communication (initialiser l’appareil)",
+      "default_item_class_code": "Code de classification des articles",
+      "default_packaging_unit_code": "Code d’unité d’emballage",
+      "default_quantity_unit_code": "Code d’unité de quantité"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "none": "Cette société n’a pas encore de paramètres fiscaux. Rien n’est transmis tant qu’ils ne sont pas enregistrés et activés.",
+      "noDriver": "Aucune connexion à l’administration fiscale n’est encore disponible pour le pays de cette société.",
+      "initialisedAt": "Appareil initialisé {{time}}",
+      "notInitialised": "Appareil non initialisé",
+      "initialise": "Initialiser l’appareil",
+      "initialised": "L’administration a initialisé l’appareil.",
+      "enabled": "Transmettre les documents à l’administration",
+      "missing": "Il manque encore : {{fields}}.",
+      "identity": "Enregistrement",
+      "identityHelp": "Tels qu’enregistrés par l’administration. Modifier l’un d’eux oblige à initialiser l’appareil à nouveau.",
+      "identityLocked": "Seul un propriétaire ou un administrateur peut les modifier.",
+      "credentialSaved": "Enregistré. Saisissez une nouvelle valeur pour le remplacer.",
+      "credentialHelp": "Stocké chiffré et jamais réaffiché.",
+      "codes": "Codes par défaut",
+      "codesHelp": "Utilisés pour les articles qui n’ont pas encore leurs propres codes.",
+      "save": "Enregistrer les paramètres",
+      "saved": "Les paramètres sont enregistrés."
+    },
+    "statuses": {
+      "queued": "En file",
+      "sending": "Envoi en cours",
+      "accepted": "Accepté",
+      "rejected": "Rejeté",
+      "retrying": "Nouvel essai prévu",
+      "needs_attention": "À traiter"
+    },
+    "filters": {
+      "all": "Tous",
+      "pending": "Pas encore envoyés",
+      "accepted": "Acceptés",
+      "rejected": "Rejetés",
+      "needs_attention": "À traiter",
+      "retrying": "Nouvel essai prévu",
+      "queued": "En file",
+      "sending": "Envoi en cours"
+    },
+    "documentTypes": {
+      "sale": "Vente",
+      "refund": "Remboursement",
+      "void": "Annulation"
+    },
+    "submissions": {
+      "title": "Documents transmis",
+      "search": "Rechercher un numéro de document",
+      "empty": "Aucun document transmis pour l’instant.",
+      "next": "Prochain essai {{time}}",
+      "retry": "Réessayer",
+      "retryFor": "Réessayer {{number}}",
+      "filters": {
+        "status": "Statut"
+      },
+      "columns": {
+        "queued": "En file depuis",
+        "document": "Type de document",
+        "number": "Numéro",
+        "invoice": "N° de facture",
+        "status": "Statut",
+        "attempts": "Essais",
+        "error": "Dernière erreur",
+        "actions": "Actions"
+      }
+    },
+    "earlier": {
+      "action": "Transmettre les ventes antérieures",
+      "title": "Transmettre les ventes antérieures",
+      "text": "Les ventes, remboursements et annulations faits avant l’activation de la transmission ne sont pas envoyés d’eux-mêmes. Choisissez le premier jour à transmettre ; les documents déjà transmis restent tels quels.",
+      "from": "Transmettre les documents à partir du",
+      "confirm": "Je comprends que ces documents seront transmis à l’administration fiscale",
+      "send": "Transmettre à l’administration",
+      "queued": "Les documents depuis le {{from}} sont mis en file. Suivez-les dans la liste ci-dessous.",
+      "done": "Terminé"
     }
   }
 }

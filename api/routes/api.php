@@ -397,6 +397,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('users/{user}/reactivate', [UserController::class, 'reactivate']);
     Route::post('users/{user}/sign-out-everywhere', [UserController::class, 'signOutEverywhere']);
     // AUTH-06: an administrator resets or removes a user's POS PIN (never reads it).
+    Route::get('users/{user}/pos-pin', [UserPinController::class, 'show']);
     Route::put('users/{user}/pos-pin', [UserPinController::class, 'update']);
     Route::delete('users/{user}/pos-pin', [UserPinController::class, 'destroy']);
     Route::get('invitations', [InvitationController::class, 'index']);

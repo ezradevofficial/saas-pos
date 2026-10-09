@@ -89,6 +89,13 @@ class HeldReviewTest extends TestCase
 
         $held = $this->getJson('/api/v1/pos/held', $this->headersFor($this->manager))->assertOk()->json('data');
         $this->assertSame([['void', $void]], array_map(fn ($r) => [$r['kind'], $r['id']], $held));
+        // Phase 4 Task 6: the back office's names for the ids.
+        $this->assertSame(['id' => $this->cashier->id, 'name' => $this->cashier->name], $held[0]['by_user']);
+        $this->assertSame($this->manager->id, $held[0]['approver']['id']);
+        $this->assertSame('R-L01-000001', $held[0]['sale_receipt_number']);
+        $this->assertSame('Till 1', $held[0]['device']['name']);
+        $this->assertSame('Outlet A', $held[0]['location']['name']);
+        $this->assertNotNull($held[0]['occurred_at']);
         $this->getJson('/api/v1/pos/held?kind=refund', $this->headersFor($this->manager))->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/pos/held?flag=override_unverified', $this->headersFor($this->manager))->assertOk()->assertJsonCount(1, 'data');
 
@@ -144,6 +151,9 @@ class HeldReviewTest extends TestCase
             'closed_by_id' => $this->owner->id, 'closed_at' => now()->toIso8601String(), 'counted' => [['currency' => 'KES', 'amount_minor' => '668750']],
         ]]]], $this->tillHeaders());
         $close()->assertOk();
+        $detail = $this->getJson("/api/v1/pos/shifts/{$this->shift}", $this->headersFor($this->manager))->assertOk()->json('data');
+        $this->assertSame(['held', 'Taxi', $this->owner->name], [$detail['cash_movements'][0]['status'], $detail['cash_movements'][0]['reason'], $detail['cash_movements'][0]['user']['name']]);
+        $this->assertSame(0, $detail['received_after_close']);
         $expected = fn () => $this->inTenant(fn () => (string) ShiftBalance::where('shift_id', $this->shift)->sole()->expected_minor);
         $this->assertSame('668750', $expected());
 

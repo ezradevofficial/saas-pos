@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Pin\Http\Controllers;
 
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\Http\Requests\ShowUserPinRequest;
 use App\Core\Identity\Pin\Http\Requests\UserPinRequest;
 use App\Core\Identity\Pin\PasswordCheck;
 use App\Core\Identity\Pin\Pins;
@@ -12,9 +13,9 @@ use Illuminate\Http\JsonResponse;
  * AUTH-06: an administrator (`core.user.edit` over every scope of the
  * user) gives a user a new POS PIN, for example when they forgot it or
  * are locked out, or removes it. A PIN set for someone else must be
- * changed at the till first (`must_change`). Administrators acting on
- * themselves confirm their password, as on me/pos-pin. The PIN is never
- * returned or readable.
+ * changed at the till first (`must_change`). The administrator confirms
+ * with their own password every time (owner ruling 2026-10-09). The PIN
+ * is never returned or readable.
  */
 class UserPinController
 {
@@ -23,9 +24,15 @@ class UserPinController
         private readonly PasswordCheck $password,
     ) {}
 
+    /** Whether the user has a PIN, must change it, and needs 6 digits (AUTH-08); never the PIN. */
+    public function show(ShowUserPinRequest $request, User $user): JsonResponse
+    {
+        return response()->json(['data' => [...$this->pins->status($user), 'six_digits' => $this->pins->needsSixDigits($user)]]);
+    }
+
     public function update(UserPinRequest $request, User $user): JsonResponse
     {
-        $this->confirmIfSelf($request, $user);
+        $this->confirm($request);
         $this->pins->set($user, (string) $request->validated('pin'), $request->cardInput(), $request->user());
 
         return response()->json(['message' => __('auth.pin.reset'), 'data' => $this->pins->status($user)]);
@@ -33,16 +40,15 @@ class UserPinController
 
     public function destroy(UserPinRequest $request, User $user): JsonResponse
     {
-        $this->confirmIfSelf($request, $user);
+        $this->confirm($request);
         $this->pins->clear($user, $request->user());
 
         return response()->json(['message' => __('auth.pin.removed'), 'data' => $this->pins->status($user)]);
     }
 
-    private function confirmIfSelf(UserPinRequest $request, User $user): void
+    /** The acting administrator's own password (422 `invalid_password` when wrong). */
+    private function confirm(UserPinRequest $request): void
     {
-        if ($request->user()->is($user)) {
-            $this->password->confirm($user, (string) $request->validated('password'));
-        }
+        $this->password->confirm($request->user(), (string) $request->validated('password'));
     }
 }

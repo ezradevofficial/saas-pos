@@ -5,15 +5,20 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, Dialog, ExportMenu, StatusBadge, Switch, TextField } from '@/components/ds'
+import { Alert, Button, Card, Dialog, ExportMenu, Select, StatusBadge, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useLocale } from '@/lib/useLocale'
 import { useListExport } from '@/lib/useServerList'
 import { companyScope, useSettingsCompany } from './finance/useSettingsCompany'
+import { CallbacksDialog } from './paymentMethods/CallbacksDialog'
 
 const TYPES = ['cash', 'mobile_money', 'card', 'credit', 'voucher', 'points', 'bank_transfer']
 const PROVIDER_TYPES = ['mobile_money', 'card']
+/** Providers on the Daraja adapter: callback URLs and C2B registration (docs/integrations.md). */
+const DARAJA_PROVIDERS = ['mpesa_ke']
+/** Settings limited to a list (config/payment_providers.php `setting_values`). */
+const SETTING_VALUES = { transaction_type: ['paybill', 'till'] }
 
 const methodsKey = (companyId) => ['payment-methods', companyId]
 
@@ -123,14 +128,24 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
           </div>
         ) : null}
         <p>{method.missing?.length ? t('paymentMethods.settings.missing', { keys: keyList(method.missing) }) : t('paymentMethods.settings.complete')}</p>
-        {settingKeys.map((key) => (
-          <TextField
-            key={key}
-            label={label(key)}
-            value={settings[key]}
-            onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
-          />
-        ))}
+        {settingKeys.map((key) =>
+          SETTING_VALUES[key] ? (
+            <Select
+              key={key}
+              label={label(key)}
+              options={[{ value: '', label: t('paymentMethods.settings.notSet') }, ...SETTING_VALUES[key].map((value) => ({ value, label: t(`paymentMethods.values.${value}`) }))]}
+              value={settings[key]}
+              onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
+            />
+          ) : (
+            <TextField
+              key={key}
+              label={label(key)}
+              value={settings[key]}
+              onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
+            />
+          ),
+        )}
         {secretKeys.length ? (
           <fieldset className="flex flex-col gap-4">
             <legend className="pb-1 text-label text-ink">{t('paymentMethods.settings.secrets')}</legend>
@@ -204,7 +219,7 @@ function ProviderSettingsDialog({ method, companyId, onClose }) {
   )
 }
 
-function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggle, onSettings, toggling, error, focus }) {
+function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggle, onSettings, onCallbacks, toggling, error, focus }) {
   const { t } = useTranslation()
   const name = method.name
   const upRef = useRef(null)
@@ -244,6 +259,11 @@ function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggl
               {t('paymentMethods.settings.action')}
             </Button>
           ) : null}
+          {canConfigure && DARAJA_PROVIDERS.includes(method.provider) ? (
+            <Button variant="ghost" icon="sync" onClick={onCallbacks} aria-label={t('paymentMethods.callbacks.actionFor', { name })}>
+              {t('paymentMethods.callbacks.action')}
+            </Button>
+          ) : null}
           {canEdit ? (
             <>
               <Button ref={upRef} variant="ghost" icon="up" className="size-icon-btn px-0" disabled={first} onClick={() => onMove(-1)} aria-label={t('paymentMethods.moveUp', { name })} />
@@ -278,6 +298,7 @@ export default function PaymentMethods() {
   const canEdit = company ? can('core.payment_method.edit', companyScope(company)) : false
   const canConfigure = canEdit && company ? can('core.payment_method.configure', companyScope(company)) : false
   const [settingsFor, setSettingsFor] = useState(null)
+  const [callbacksFor, setCallbacksFor] = useState(null)
   const [rowError, setRowError] = useState(null) // { id, message }
   const [focus, setFocus] = useState(null) // { id, step }: the row just moved
   const [announcement, setAnnouncement] = useState('')
@@ -375,6 +396,7 @@ export default function PaymentMethods() {
                     toggle.mutate({ method, active })
                   }}
                   onSettings={() => setSettingsFor(method)}
+                  onCallbacks={() => setCallbacksFor(method)}
                   toggling={toggle.isPending && toggle.variables?.method.id === method.id}
                   error={rowError?.id === method.id ? rowError.message : null}
                   focus={focus}
@@ -384,6 +406,7 @@ export default function PaymentMethods() {
           </Card>
         ))}
       </div>
+      {callbacksFor ? <CallbacksDialog key={callbacksFor.id} method={callbacksFor} onClose={() => setCallbacksFor(null)} /> : null}
       {settingsFor && company ? <ProviderSettingsDialog key={settingsFor.id} method={settingsFor} companyId={company.id} onClose={() => setSettingsFor(null)} /> : null}
     </>
   )

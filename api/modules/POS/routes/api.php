@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\POS\Http\Controllers\Device\DeviceUploadController;
 use Modules\POS\Http\Controllers\Device\SaleFiscalController;
 use Modules\POS\Http\Controllers\HeldController;
+use Modules\POS\Http\Controllers\InsightsController;
 use Modules\POS\Http\Controllers\SaleController;
 use Modules\POS\Http\Controllers\ShiftController;
 use Modules\POS\Models\CashMovement;
@@ -47,8 +48,13 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:pos'])->group(function () {
     Route::get('pos/sales', [SaleController::class, 'index']);
     Route::get('pos/sales/{pos_sale}', [SaleController::class, 'show']);
+    // POS-10: the tax authority's answer for a sale, its refunds and void (the till's route is pos/sales/{id}/fiscal).
+    Route::get('pos/sales/{pos_sale}/fiscal-status', [SaleController::class, 'fiscal']);
     Route::get('pos/shifts', [ShiftController::class, 'index']);
     Route::get('pos/shifts/{pos_shift}', [ShiftController::class, 'show']);
+
+    // TEN-07: consolidated sales across companies, branches and locations.
+    Route::get('pos/insights', InsightsController::class);
 
     // M3: a flagged sale acknowledged.
     Route::post('pos/sales/{pos_sale}/review', [SaleController::class, 'review']);
