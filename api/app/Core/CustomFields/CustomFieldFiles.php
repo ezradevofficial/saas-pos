@@ -49,7 +49,7 @@ class CustomFieldFiles
     {
         $mime = (string) $file->getMimeType();
         $extension = self::MIMES[$mime] ?? throw new ApiException(422, 'file_type', __('core.custom_field.file_type'), ['file' => [__('core.custom_field.file_type')]]);
-        $path = sprintf('tenants/%s/custom-fields/%s/%s.%s', $this->tenants->require(), $field->entity, Str::uuid7(), $extension);
+        $path = sprintf('tenants/%s/custom-fields/%s/%s.%s', $this->tenants->require(), str_replace(':', '.', $field->entity), Str::uuid7(), $extension);
         $disk = Storage::disk(self::DISK);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {

@@ -19,10 +19,16 @@ final class DocumentNumberType
         public readonly array $placeTokens = ['BRANCH'],
         public readonly bool $ranged = false,
         public readonly string $langKey = '',
+        // CF-04: a custom form type's name, typed once by the tenant (not translated).
+        public readonly ?string $label = null,
     ) {}
 
     public function name(): string
     {
+        if ($this->label !== null) {
+            return $this->label;
+        }
+
         return __($this->langKey !== '' ? $this->langKey : "core.numbering.types.{$this->key}");
     }
 }

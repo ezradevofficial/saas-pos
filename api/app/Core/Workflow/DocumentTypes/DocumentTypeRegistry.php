@@ -4,6 +4,7 @@ namespace App\Core\Workflow\DocumentTypes;
 
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use Closure;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 
@@ -18,6 +19,9 @@ class DocumentTypeRegistry
 
     /** @var array<string, DocumentType|class-string<DocumentType>> */
     private array $types = [];
+
+    /** @var list<Closure(): list<DocumentType>> */
+    private array $sources = [];
 
     public function __construct(
         private readonly Container $container,
@@ -37,10 +41,21 @@ class DocumentTypeRegistry
         $this->types[$key] = $instance;
     }
 
+    /**
+     * CF-04: types that exist per tenant (custom form types), answered by
+     * $source for the current tenant each time it is asked.
+     *
+     * @param  Closure(): list<DocumentType>  $source
+     */
+    public function registerSource(Closure $source): void
+    {
+        $this->sources[] = $source;
+    }
+
     /** The type when registered and its module is active for the tenant, else null. */
     public function find(string $key): ?DocumentType
     {
-        $type = $this->types[$key] ?? null;
+        $type = $this->types[$key] ?? $this->fromSources()[$key] ?? null;
 
         if ($type === null || ! $this->modules->isActive(PermissionRegistry::moduleOf($key))) {
             return null;
@@ -59,7 +74,7 @@ class DocumentTypeRegistry
     {
         $types = [];
 
-        foreach (array_keys($this->types) as $key) {
+        foreach (array_keys([...$this->types, ...$this->fromSources()]) as $key) {
             if (($type = $this->find($key)) !== null) {
                 $types[$key] = $type;
             }
@@ -74,5 +89,21 @@ class DocumentTypeRegistry
     public function keys(): array
     {
         return array_keys($this->all());
+    }
+
+    /** @return array<string, DocumentType> the run-time types of the current tenant */
+    private function fromSources(): array
+    {
+        $found = [];
+
+        foreach ($this->sources as $source) {
+            foreach ($source() as $type) {
+                if (preg_match(self::KEY, $type->key()) === 1 && ! isset($this->types[$type->key()])) {
+                    $found[$type->key()] ??= $type;
+                }
+            }
+        }
+
+        return $found;
     }
 }

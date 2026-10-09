@@ -50,7 +50,7 @@ final class CustomFieldRules
             'options.*' => ['array:value,label'],
             'options.*.value' => ['required', 'string', 'max:'.self::MAX_OPTION, 'distinct'],
             'options.*.label' => ['required', 'string', 'max:'.self::MAX_OPTION],
-            'lookup_target' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'lookup_target' => ['sometimes', 'nullable', 'string', 'max:71'],
             'formula' => ['sometimes', 'nullable', 'string', 'max:'.Formula::MAX_LENGTH],
             'formula_type' => ['sometimes', 'nullable', 'string', Rule::in(CustomFieldTypes::FORMULA_TYPES)],
             'visible_roles' => ['sometimes', 'array', 'max:100'],
@@ -89,7 +89,7 @@ final class CustomFieldRules
             $errors->add('key', __('core.custom_field.key_taken'));
         }
 
-        if ($field->is_unique && ! in_array($type, CustomFieldTypes::UNIQUE, true)) {
+        if ($field->is_unique && (! in_array($type, CustomFieldTypes::UNIQUE, true) || app(CustomFieldEntities::class)->find((string) $field->entity)?->allowsUnique() === false)) {
             $errors->add('unique', __('core.custom_field.setting_not_for_type'));
         }
 

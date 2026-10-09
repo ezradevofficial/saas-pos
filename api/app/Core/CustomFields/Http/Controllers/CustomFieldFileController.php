@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class CustomFieldFileController
 {
-    private const PATH = '#^tenants/([0-9a-f\-]{36})/custom-fields/[a-z][a-z0-9_]{0,39}/[0-9a-f\-]{36}\.(pdf|jpg|png|webp|txt|csv|docx|xlsx)\z#';
+    private const PATH = '#^tenants/([0-9a-f\-]{36})/custom-fields/[a-z][a-z0-9_]{0,39}(\.[a-z][a-z0-9_]{0,29})?/[0-9a-f\-]{36}\.(pdf|jpg|png|webp|txt|csv|docx|xlsx)\z#';
 
     public function store(StoreCustomFieldFileRequest $request, CustomFieldFiles $files): JsonResponse
     {
@@ -64,8 +64,7 @@ class CustomFieldFileController
         }
 
         $entity = app(CustomFieldEntities::class)->find($file->entity);
-        $model = $entity?->model();
-        $record = $model === null ? null : $model::query()->find($file->record_id);
+        $record = $entity?->newQuery()->find($file->record_id);
 
         return $record !== null
             && $entity->view($user, $record)
