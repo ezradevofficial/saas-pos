@@ -5,6 +5,7 @@ namespace App\Core\Notifications\Mail;
 use App\Core\Notifications\Notifier;
 use App\Core\Notifications\Templates\TemplateRenderer;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
@@ -12,6 +13,10 @@ use Illuminate\Mail\Mailables\Envelope;
  * NOT-01, NOT-03: a notification email, plain text and HTML, from a
  * delivery's rendered text. The HTML escapes the text (values included)
  * and keeps its line breaks; black on white, no theme colours.
+ *
+ * BR-06: $from is the tenant's own sender (BrandingSettings::sender, an
+ * address on a verified domain of the tenant); null sends from the
+ * platform's MAIL_FROM_ADDRESS.
  */
 class NotificationMail extends Mailable
 {
@@ -22,13 +27,14 @@ class NotificationMail extends Mailable
         public readonly ?string $link,
         string $locale,
         public readonly array $actions = [],
+        public readonly ?Address $sender = null,
     ) {
         $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->mailSubject);
+        return new Envelope(from: $this->sender, subject: $this->mailSubject);
     }
 
     public function content(): Content

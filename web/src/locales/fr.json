@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "{{appName}}"
+    "name": "{{appName}}",
+    "poweredBy": "Propulsé par {{name}}"
   },
   "common": {
     "loading": "Chargement",
@@ -374,6 +375,8 @@
     "payments": "Paiements reçus",
     "fiscal": "Administration fiscale",
     "customFields": "Champs personnalisés",
+    "brand": "Marque",
+    "domains": "Domaines",
     "dashboards": "Tableaux de bord",
     "navigationEditor": "Menus"
   },
@@ -4170,6 +4173,217 @@
       "functions": "Fonctions",
       "operators": "Opérateurs",
       "insert": "Insérer {{text}}"
+    }
+  },
+  "brand": {
+    "title": "Marque",
+    "description": "Définissez l'apparence de l'espace de travail pour toute l'entreprise : couleurs, logos, coins et police.",
+    "documentName": "Thème",
+    "readOnly": "Vous pouvez consulter ce thème, mais pas le modifier.",
+    "problemsTitle": "À corriger avant de publier",
+    "preset": "Préréglage",
+    "sections": {
+      "preset": "Point de départ",
+      "presetText": "Chacun peut toujours choisir le mode clair ou sombre pour lui-même.",
+      "colours": "Couleurs",
+      "coloursText": "Choisissez les deux couleurs de la marque. Les couleurs de survol, de teinte et de texte sont calculées pour vous.",
+      "shape": "Barre latérale, coins et police",
+      "shapeText": "Laissez un choix sur le préréglage pour le suivre.",
+      "logos": "Logos",
+      "logosText": "JPEG, PNG ou WebP. Logos jusqu'à 2 Mo, icône de site jusqu'à 256 Ko.",
+      "signIn": "Page de connexion",
+      "signInText": "Affichée sur votre sous-domaine ou votre domaine avant toute connexion."
+    },
+    "scope": {
+      "label": "Thème pour",
+      "tenant": "Toute l'entreprise",
+      "company": "Société : {{name}}",
+      "branch": "Succursale : {{name}} ({{company}})",
+      "tenantHelp": "S'applique partout, sauf si une société ou une succursale a son propre thème.",
+      "overrideHelp": "Remplace ici le thème de l'entreprise une fois publié."
+    },
+    "colours": {
+      "primary": "Couleur principale",
+      "primaryHelp": "Boutons, liens et éléments sélectionnés. Laissez vide pour utiliser celle du préréglage.",
+      "accent": "Couleur de l'action décisive",
+      "accentHelp": "L'action principale d'un écran, comme Encaisser. Laissez vide pour utiliser celle du préréglage.",
+      "pick": "Choisir la {{name}}",
+      "invalid": "Saisissez une couleur avec # et six caractères, comme #0b5d6e.",
+      "usePreset": "Utiliser la couleur du préréglage",
+      "derived": {
+        "hover": "Survol",
+        "tint": "Teinte",
+        "on": "Texte dessus",
+        "dark": "En mode sombre"
+      }
+    },
+    "contrast": {
+      "label": "Vérifications de contraste pour la {{name}}",
+      "passes": "Conforme",
+      "fails": "Insuffisant",
+      "pairs": {
+        "primary_text_page": "Texte principal sur la page",
+        "primary_text_card": "Texte principal sur les cartes",
+        "on_primary": "Texte des boutons principaux",
+        "primary_tint": "Texte sur la teinte principale",
+        "on_accent": "Texte du bouton décisif",
+        "accent_fill": "Le bouton décisif sur les cartes",
+        "sidebar_text": "Texte de la barre latérale",
+        "sidebar_active": "L'élément sélectionné de la barre latérale"
+      },
+      "modes": {
+        "light": "Clair",
+        "dark": "Sombre"
+      },
+      "ratio": "{{ratio}}:1, minimum {{required}}:1",
+      "explain": "Certaines personnes ne pourraient pas lire ceci. Choisissez une {{name}} plus foncée ou plus claire jusqu'à ce que chaque vérification soit conforme.",
+      "blockedTitle": "Ce thème ne peut pas encore être publié",
+      "blockedText_one": "{{count}} vérification de contraste est insuffisante. Le texte doit se détacher nettement de son fond.",
+      "blockedText_other": "{{count}} vérifications de contraste sont insuffisantes. Le texte doit se détacher nettement de son fond."
+    },
+    "sidebar": {
+      "label": "Barre latérale",
+      "preset": "Comme le préréglage",
+      "light": "Claire",
+      "dark": "Sombre"
+    },
+    "corners": {
+      "label": "Coins",
+      "sharp": "Vifs",
+      "standard": "Standard",
+      "soft": "Arrondis"
+    },
+    "font": {
+      "label": "Police",
+      "help": "S'applique à tout l'espace de travail.",
+      "preset": "Comme le préréglage (Geist)",
+      "options": {
+        "geist": "Geist",
+        "ibm_plex_sans": "IBM Plex Sans",
+        "newsreader_geist": "Titres en Newsreader avec Geist"
+      }
+    },
+    "assets": {
+      "logoLight": "Logo pour fonds clairs",
+      "logoLightHelp": "Affiché sur les barres latérales claires et la page de connexion.",
+      "logoDark": "Logo pour fonds sombres",
+      "logoDarkHelp": "Affiché sur les barres latérales sombres et en mode sombre.",
+      "favicon": "Icône de site",
+      "faviconHelp": "Une image carrée, de 16 à 512 pixels de côté, pour l'onglet du navigateur.",
+      "current": "{{name}} actuel",
+      "replace": "Remplacer l'image",
+      "upload": "Importer une image",
+      "remove": "Retirer"
+    },
+    "signIn": {
+      "welcome": "Texte d'accueil",
+      "welcomeHelp": "Affiché tel que saisi, dans une seule langue. Jusqu'à {{max}} caractères.",
+      "background": "Image de fond",
+      "backgroundHelp": "Affichée à côté du formulaire de connexion sur les grands écrans."
+    },
+    "preview": {
+      "title": "Aperçu",
+      "text": "Le brouillon sur de vrais composants. Rien ne change pour les autres avant la publication.",
+      "mode": "Mode de l'aperçu",
+      "business": "Votre entreprise",
+      "navHome": "Accueil",
+      "navSales": "Ventes",
+      "navItems": "Articles",
+      "heading": "Ventes du jour",
+      "primary": "Enregistrer",
+      "secondary": "Exporter",
+      "decisive": "Encaisser KES 2 500,00",
+      "link": "Voir le reçu",
+      "cardTitle": "Factures récentes",
+      "cardSubtitle": "Données d'exemple",
+      "selected": "Une ligne sélectionnée utilise la teinte principale.",
+      "number": "Numéro",
+      "customer": "Client",
+      "status": "Statut",
+      "paid": "Payée",
+      "pending": "En attente",
+      "customerA": "Wanjiru Traders",
+      "customerB": "Kivu Supplies",
+      "tileA": "Farine de maïs 2 kg",
+      "tileB": "Eau en bouteille 500 ml"
+    }
+  },
+  "domains": {
+    "title": "Domaines",
+    "description": "L'adresse de votre espace de travail, et l'expéditeur de vos e-mails et SMS.",
+    "saved": "Enregistré.",
+    "status": {
+      "pending": "En attente du DNS",
+      "verified": "Vérifié",
+      "failed": "Non vérifié"
+    },
+    "check": "Vérifier maintenant",
+    "checkFor": "Vérifier {{host}} maintenant",
+    "remove": "Retirer",
+    "removeFor": "Retirer {{host}}",
+    "verifiedText": "Vérifié {{when}}. Un certificat est émis à la première visite.",
+    "pendingText": "Créez cet enregistrement DNS chez votre fournisseur de domaine. Nous vérifions toutes les quelques minutes.",
+    "failedText": "Nous n'avons pas trouvé l'enregistrement à temps. Créez-le, puis vérifiez de nouveau.",
+    "record": {
+      "type": "Type",
+      "name": "Nom",
+      "value": "Valeur"
+    },
+    "cname": "Pointez ensuite {{host}} vers {{target}} avec un enregistrement CNAME.",
+    "failure": {
+      "record_missing": "L'enregistrement est introuvable.",
+      "lookup_failed": "La recherche DNS a échoué.",
+      "claimed_elsewhere": "Un autre compte a prouvé ce domaine en premier.",
+      "record_removed": "L'enregistrement était absent trois vérifications de suite."
+    },
+    "checkedAt": "Dernière vérification {{when}}.",
+    "removeTitle": "Retirer {{host}} ?",
+    "removeConfirm": "Retirer le domaine",
+    "removeBody": "Le domaine cesse de fonctionner immédiatement : la connexion, son certificat et les e-mails envoyés depuis ce domaine. Vous pourrez l'ajouter de nouveau plus tard.",
+    "custom": {
+      "title": "Domaines personnalisés",
+      "text": "Utilisez votre propre domaine, comme erp.entreprise.cd.",
+      "host": "Domaine",
+      "hostHelp": "Le nom complet, sans http:// ni chemin.",
+      "add": "Ajouter le domaine",
+      "empty": "Aucun domaine personnalisé pour l'instant."
+    },
+    "subdomain": {
+      "title": "Sous-domaine",
+      "text": "Votre propre adresse sur la plateforme, avec votre page de connexion.",
+      "label": "Sous-domaine",
+      "help": "Lettres minuscules, chiffres et tirets.",
+      "current": "Votre espace de travail est à l'adresse {{host}}.",
+      "off": "Les sous-domaines ne sont pas encore activés sur cette plateforme. Utilisez un domaine personnalisé.",
+      "save": "Enregistrer le sous-domaine"
+    },
+    "email": {
+      "title": "Expéditeur des e-mails",
+      "text": "Envoyez les e-mails de notification depuis votre propre domaine.",
+      "name": "Nom de l'expéditeur",
+      "address": "Adresse de l'expéditeur",
+      "addressHelp": "Sur l'un de vos domaines vérifiés.",
+      "active": "Les e-mails partent de cette adresse",
+      "inactive": "Les e-mails partent de l'adresse de la plateforme",
+      "guidanceTitle": "Ajoutez ceci au DNS de votre domaine",
+      "guidanceText": "Sans cela, les serveurs de messagerie peuvent classer vos e-mails comme indésirables.",
+      "spf": "SPF, un enregistrement TXT sur le domaine (à fusionner avec celui que vous avez) :",
+      "dkim": "DKIM :",
+      "askProvider": "demandez la valeur à l'assistance",
+      "save": "Enregistrer l'expéditeur"
+    },
+    "sms": {
+      "title": "Identifiant d'expéditeur SMS",
+      "text": "Le nom affiché comme expéditeur de vos SMS, lorsque le réseau le permet.",
+      "label": "Identifiant d'expéditeur",
+      "help": "3 à 11 lettres ou chiffres. Il est enregistré auprès du fournisseur SMS avant d'être utilisé.",
+      "save": "Enregistrer l'identifiant"
+    },
+    "platform": {
+      "title": "Marque de la plateforme",
+      "hidden": "Masquée",
+      "shown": "Affichée",
+      "text": "« Propulsé par {{name}} » dans la barre latérale et sur la page de connexion. Cela dépend de votre forfait."
     }
   },
   "layouts": {

@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "{{appName}}"
+    "name": "{{appName}}",
+    "poweredBy": "Powered by {{name}}"
   },
   "common": {
     "loading": "Loading",
@@ -374,6 +375,8 @@
     "payments": "Payments received",
     "fiscal": "Tax authority",
     "customFields": "Custom fields",
+    "brand": "Brand",
+    "domains": "Domains",
     "dashboards": "Dashboards",
     "navigationEditor": "Menus"
   },
@@ -4170,6 +4173,217 @@
       "functions": "Functions",
       "operators": "Operators",
       "insert": "Insert {{text}}"
+    }
+  },
+  "brand": {
+    "title": "Brand",
+    "description": "Set how the workspace looks for everyone in the business: colours, logos, corners and font.",
+    "documentName": "Theme",
+    "readOnly": "You can view this theme but not change it.",
+    "problemsTitle": "Fix these before publishing",
+    "preset": "Preset",
+    "sections": {
+      "preset": "Starting point",
+      "presetText": "Each person can still choose light or dark for themselves.",
+      "colours": "Colours",
+      "coloursText": "Pick the two brand colours. Hover, tint and text colours are worked out for you.",
+      "shape": "Sidebar, corners and font",
+      "shapeText": "Leave a choice on the preset to follow it.",
+      "logos": "Logos",
+      "logosText": "JPEG, PNG or WebP. Logos up to 2 MB, the favicon up to 256 KB.",
+      "signIn": "Sign-in page",
+      "signInText": "Shown on your own subdomain or domain before anyone signs in."
+    },
+    "scope": {
+      "label": "Theme for",
+      "tenant": "The whole business",
+      "company": "Company: {{name}}",
+      "branch": "Branch: {{name}} ({{company}})",
+      "tenantHelp": "Applies everywhere unless a company or branch has its own theme.",
+      "overrideHelp": "Replaces the business theme here once published."
+    },
+    "colours": {
+      "primary": "Primary colour",
+      "primaryHelp": "Buttons, links and selected items. Leave empty to use the preset's.",
+      "accent": "Decisive action colour",
+      "accentHelp": "The one main action on a screen, such as Charge. Leave empty to use the preset's.",
+      "pick": "Pick the {{name}}",
+      "invalid": "Enter a colour as # and six characters, such as #0b5d6e.",
+      "usePreset": "Use the preset's colour",
+      "derived": {
+        "hover": "Hover",
+        "tint": "Tint",
+        "on": "Text on it",
+        "dark": "In dark mode"
+      }
+    },
+    "contrast": {
+      "label": "Contrast checks for the {{name}}",
+      "passes": "Passes",
+      "fails": "Fails",
+      "pairs": {
+        "primary_text_page": "Primary text on the page",
+        "primary_text_card": "Primary text on cards",
+        "on_primary": "Text on primary buttons",
+        "primary_tint": "Text on the primary tint",
+        "on_accent": "Text on the decisive button",
+        "accent_fill": "The decisive button on cards",
+        "sidebar_text": "Sidebar text",
+        "sidebar_active": "The selected sidebar item"
+      },
+      "modes": {
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "ratio": "{{ratio}}:1, needs {{required}}:1",
+      "explain": "Some people would not be able to read this. Choose a darker or lighter {{name}} until every check passes.",
+      "blockedTitle": "This theme can't be published yet",
+      "blockedText_one": "{{count}} contrast check fails. Text must stand out clearly from its background.",
+      "blockedText_other": "{{count}} contrast checks fail. Text must stand out clearly from its background."
+    },
+    "sidebar": {
+      "label": "Sidebar",
+      "preset": "As the preset",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "corners": {
+      "label": "Corners",
+      "sharp": "Sharp",
+      "standard": "Standard",
+      "soft": "Soft"
+    },
+    "font": {
+      "label": "Font",
+      "help": "Applies to the whole workspace.",
+      "preset": "As the preset (Geist)",
+      "options": {
+        "geist": "Geist",
+        "ibm_plex_sans": "IBM Plex Sans",
+        "newsreader_geist": "Newsreader headings with Geist"
+      }
+    },
+    "assets": {
+      "logoLight": "Logo for light backgrounds",
+      "logoLightHelp": "Shown on light sidebars and the sign-in page.",
+      "logoDark": "Logo for dark backgrounds",
+      "logoDarkHelp": "Shown on dark sidebars and in dark mode.",
+      "favicon": "Favicon",
+      "faviconHelp": "A square image, 16 to 512 pixels a side, for the browser tab.",
+      "current": "Current {{name}}",
+      "replace": "Replace image",
+      "upload": "Upload image",
+      "remove": "Remove"
+    },
+    "signIn": {
+      "welcome": "Welcome text",
+      "welcomeHelp": "Shown as you type it, in one language. Up to {{max}} characters.",
+      "background": "Background picture",
+      "backgroundHelp": "Shown beside the sign-in form on wide screens."
+    },
+    "preview": {
+      "title": "Preview",
+      "text": "The draft on real components. Nothing changes for others until you publish.",
+      "mode": "Preview mode",
+      "business": "Your business",
+      "navHome": "Home",
+      "navSales": "Sales",
+      "navItems": "Items",
+      "heading": "Today's sales",
+      "primary": "Save changes",
+      "secondary": "Export",
+      "decisive": "Charge KES 2,500.00",
+      "link": "View receipt",
+      "cardTitle": "Recent invoices",
+      "cardSubtitle": "Sample data",
+      "selected": "A selected row uses the primary tint.",
+      "number": "Number",
+      "customer": "Customer",
+      "status": "Status",
+      "paid": "Paid",
+      "pending": "Pending",
+      "customerA": "Wanjiru Traders",
+      "customerB": "Kivu Supplies",
+      "tileA": "Maize flour 2 kg",
+      "tileB": "Bottled water 500 ml"
+    }
+  },
+  "domains": {
+    "title": "Domains",
+    "description": "Where people reach your workspace, and who your emails and SMS come from.",
+    "saved": "Saved.",
+    "status": {
+      "pending": "Waiting for DNS",
+      "verified": "Verified",
+      "failed": "Not verified"
+    },
+    "check": "Check now",
+    "checkFor": "Check {{host}} now",
+    "remove": "Remove",
+    "removeFor": "Remove {{host}}",
+    "verifiedText": "Verified {{when}}. A certificate is issued the first time someone opens it.",
+    "pendingText": "Create this DNS record with your domain provider. We check every few minutes.",
+    "failedText": "We could not find the record in time. Create it, then check again.",
+    "record": {
+      "type": "Type",
+      "name": "Name",
+      "value": "Value"
+    },
+    "cname": "Then point {{host}} at {{target}} with a CNAME record.",
+    "failure": {
+      "record_missing": "The record was not found.",
+      "lookup_failed": "The DNS lookup failed.",
+      "claimed_elsewhere": "Another account proved this domain first.",
+      "record_removed": "The record was missing on three checks in a row."
+    },
+    "checkedAt": "Last checked {{when}}.",
+    "removeTitle": "Remove {{host}}?",
+    "removeConfirm": "Remove domain",
+    "removeBody": "The domain stops working at once: sign-in on it, its certificate and emails sent from it. You can add it again later.",
+    "custom": {
+      "title": "Custom domains",
+      "text": "Use your own domain, such as erp.company.co.ke.",
+      "host": "Domain",
+      "hostHelp": "The full name, without http:// or a path.",
+      "add": "Add domain",
+      "empty": "No custom domains yet."
+    },
+    "subdomain": {
+      "title": "Subdomain",
+      "text": "Your own address on the platform, with your sign-in page.",
+      "label": "Subdomain",
+      "help": "Lower-case letters, digits and hyphens.",
+      "current": "Your workspace is at {{host}}.",
+      "off": "Subdomains are not switched on for this platform yet. Use a custom domain.",
+      "save": "Save subdomain"
+    },
+    "email": {
+      "title": "Email sender",
+      "text": "Send notification emails from your own domain.",
+      "name": "Sender name",
+      "address": "Sender address",
+      "addressHelp": "On one of your verified domains.",
+      "active": "Emails go out from this address",
+      "inactive": "Emails go out from the platform's address",
+      "guidanceTitle": "Add these to your domain's DNS",
+      "guidanceText": "Without them, mail servers may mark your emails as spam.",
+      "spf": "SPF, a TXT record on the domain (merge it into the one you have):",
+      "dkim": "DKIM:",
+      "askProvider": "ask support for the value",
+      "save": "Save email sender"
+    },
+    "sms": {
+      "title": "SMS sender ID",
+      "text": "The name shown as the sender of your SMS, where the network allows it.",
+      "label": "Sender ID",
+      "help": "3 to 11 letters or digits. It is registered with the SMS provider before it is used.",
+      "save": "Save sender ID"
+    },
+    "platform": {
+      "title": "Platform branding",
+      "hidden": "Hidden",
+      "shown": "Shown",
+      "text": "\"Powered by {{name}}\" in the sidebar and on the sign-in page. This depends on your plan."
     }
   },
   "layouts": {

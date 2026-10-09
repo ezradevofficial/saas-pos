@@ -186,9 +186,10 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `NOTIFICATIONS_PUSH_DRIVER`, `NOTIFICATIONS_SMS_DRIVER`, `NOTIFICATIONS_WHATSAPP_DRIVER` empty (channel unavailable), `none` or a real provider, never `fake`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `TRUSTED_PROXIES`: only the load balancer's backend range, so the client address (payment callback allowlist, rate limits) comes from its `X-Forwarded-For` and never from a caller's own header. On Linode the NodeBalancer reaches the backends from `192.168.255.0/24`. Leave empty when the API is reached directly. Never `*`.
+- [ ] `TRUSTED_PROXIES`: only the load balancer's backend range, so the client address (payment callback allowlist, rate limits) comes from its `X-Forwarded-For` and never from a caller's own header. On Linode the NodeBalancer reaches the backends from `192.168.255.0/24`. Leave empty when the API is reached directly. Never `*`. Outside `local` and `testing` an empty value logs a warning at every boot.
 - [ ] Payments and fiscal: `PAYMENTS_CALLBACK_URL`, `MPESA_BASE_URL`, `MPESA_CALLBACK_IPS`, `ETIMS_BASE_URL` and the other values in [docs/integrations.md](docs/integrations.md); `PAYMENTS_ALLOW_FAKE`, `PAYMENTS_DRIVER_*` and `FISCAL_ALLOW_FAKE` unset. Keep payment callback tokens out of access logs (snippet in docs/integrations.md).
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
+- [ ] Branding (BR-04, BR-05): `APP_BASE_DOMAIN`, `BRANDING_CNAME_TARGET`, the wildcard DNS and certificate, and Caddy's on-demand TLS `ask` pointed at `http://127.0.0.1:<port>/api/v1/tls/ask`, with `/api/v1/tls/ask` blocked from the public interface (see docs/integrations.md, Branding).
 - [ ] Horizon and the scheduler running, see [Queue workers](#queue-workers)
 - [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
 

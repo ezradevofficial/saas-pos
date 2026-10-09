@@ -1,4 +1,6 @@
 import {
+  Brush,
+  Globe,
   Archive,
   ArchiveRestore,
   ArrowDown,
@@ -149,6 +151,8 @@ const ICONS = {
   chart: ChartColumn,
   payments: Wallet,
   fiscal: Landmark,
+  brand: Brush,
+  domains: Globe,
   // LAY-01, LAY-02, LAY-04: designers.
   drag: GripVertical,
   show: Eye,

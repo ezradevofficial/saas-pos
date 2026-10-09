@@ -14,6 +14,13 @@ use App\Core\Automation\Http\Controllers\AutomationRunController;
 use App\Core\Automation\Http\Controllers\AutomationTemplateController;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Branding\BrandingServiceProvider;
+use App\Core\Branding\Http\Controllers\BrandAssetController;
+use App\Core\Branding\Http\Controllers\BrandAssetFileController;
+use App\Core\Branding\Http\Controllers\BrandingSettingsController;
+use App\Core\Branding\Http\Controllers\DomainController;
+use App\Core\Branding\Http\Controllers\PublicBrandingController;
+use App\Core\Branding\Models\TenantDomain;
 use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Configuration\Http\Controllers\ConfigController;
 use App\Core\Configuration\Models\ConfigDocument;
@@ -104,7 +111,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'custom_field', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -120,6 +127,7 @@ Route::model('payment_intent', PaymentIntent::class);
 Route::model('payment_receipt', PaymentReceipt::class);
 Route::model('fiscal_submission', FiscalSubmission::class);
 Route::model('config_document', ConfigDocument::class);
+Route::model('tenant_domain', TenantDomain::class);
 Route::model('custom_field', CustomFieldDefinition::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
@@ -155,6 +163,16 @@ Route::prefix('auth')->group(function () {
 // signature is the credential; the controller enters the file's tenant and
 // checks the signed-for user may still view the item.
 Route::get('media/{path}', MediaController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('media.show');
+
+// BR-04: the sign-in page's branding for the host it is served on, before
+// anyone signs in (a security-definer lookup returns only public fields).
+// BR-05: Caddy's on-demand TLS asks whether a host is a verified domain.
+// BR-02: a brand asset behind a signed URL (the signature is the credential).
+Route::get('public/branding', [PublicBrandingController::class, 'show'])->middleware('throttle:'.BrandingServiceProvider::PUBLIC_LIMITER);
+// Not rate-limited (Caddy asks per new host): "no" is cached 60 s, and the
+// endpoint must be reachable only from Caddy on the private interface.
+Route::get('tls/ask', [PublicBrandingController::class, 'tlsAsk']);
+Route::get('branding/assets/{path}', BrandAssetFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('branding.asset');
 
 // APR-03: an approval attachment behind a temporary signed URL
 // (ApprovalPresenter::url). The controller enters the tenant the path
@@ -526,6 +544,19 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // NUM-01: number formats per document type, for the tenant, a company or a branch.
     Route::get('numbering/formats', [NumberFormatController::class, 'index']);
     Route::put('numbering/formats', [NumberFormatController::class, 'save']);
+
+    // BR-02, BR-04: brand assets (logos, favicons, sign-in backgrounds).
+    Route::get('branding/assets', [BrandAssetController::class, 'index']);
+    Route::post('branding/assets', [BrandAssetController::class, 'store']);
+
+    // BR-04..BR-06: subdomain, email sender and SMS sender ID; custom
+    // domains with DNS verification (core.domain.manage, tenant scope).
+    Route::get('branding/settings', [BrandingSettingsController::class, 'show']);
+    Route::put('branding/settings', [BrandingSettingsController::class, 'update']);
+    Route::get('branding/domains', [DomainController::class, 'index']);
+    Route::post('branding/domains', [DomainController::class, 'store']);
+    Route::post('branding/domains/{tenant_domain}/check', [DomainController::class, 'check']);
+    Route::post('branding/domains/{tenant_domain}/archive', [DomainController::class, 'archive']);
 
     // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
     // layouts, templates): documents per key and scope, their versions, and

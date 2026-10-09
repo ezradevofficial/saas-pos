@@ -7,6 +7,7 @@ use App\Core\Audit\Console\VerifyAuditChain;
 use App\Core\Exports\ListExport;
 use App\Core\Support\Console\Preflight;
 use App\Core\Support\EnvironmentGuard;
+use App\Core\Support\TrustedProxies;
 use App\Core\Tenancy\Rls;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -38,6 +39,9 @@ class CoreServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Behind the NodeBalancer, an empty TRUSTED_PROXIES makes every client one address.
+        TrustedProxies::warnIfMissing((string) $this->app->environment(), env('TRUSTED_PROXIES'));
+
         // NFR-06: no log mailer, log SMS, or non-Redis cache or queue outside
         // local and testing. Checked at the runtime entry points (requests via
         // EnforceEnvironment, workers, the scheduler), never at boot, so

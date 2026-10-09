@@ -64,6 +64,9 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
+        'GET api/v1/public/branding' => 'BR-04: the sign-in page\'s branding of a host, through a security-definer function that returns only public fields (name, look, welcome text, signed asset URLs), never ids or rows; rate-limited',
+        'GET api/v1/tls/ask' => 'BR-05: answers only 200 or 404 for whether a host is a verified custom domain (Caddy on-demand TLS); "no" cached 60 s; reachable only from Caddy on the private interface',
+        'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
     ];
 
@@ -113,6 +116,7 @@ class TenantIsolationTest extends TestCase
         'pos_void' => 'pos_void', // H2: pos/voids/{pos_void}/approve|reject, a held void
         'pos_refund' => 'pos_refund', // H2: pos/refunds/{pos_refund}/approve|reject, a held refund
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
+        'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
@@ -233,6 +237,7 @@ class TenantIsolationTest extends TestCase
     /** Fields ending in `_id` that are not references to rows, with why. */
     public const NOT_REFERENCES = [
         'tax_id' => "a company's tax registration number, free text",
+        'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
