@@ -54,7 +54,7 @@ export function nudge(widgets, id, mode, dx, dy) {
 }
 
 /** A pixel drag turned into whole cells, given the size of one column and one row (gaps included). */
-export const cellsOf = (pixels, cell) => (cell > 0 ? Math.round(pixels / cell) : 0)
+export const cellsOf = (pixels, cell) => (cell > 0 ? Math.round(pixels / cell) || 0 : 0)
 
 /** Grid placement classes (safelisted in index.css): one column on phones, 12 from md up. */
 export const placement = (widget) =>
