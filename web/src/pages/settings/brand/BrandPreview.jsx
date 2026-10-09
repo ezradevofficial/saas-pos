@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, DataTable, Icon, PosTile, StatusBadge } from '@/components/ds'
 import { cn } from '@/lib/utils'
+import { loadBrandFonts } from '@/theme/brandFonts'
 import { previewVariables } from './theme'
 
 /**
@@ -14,6 +15,10 @@ import { previewVariables } from './theme'
 export function BrandPreview({ theme, mode, logo }) {
   const { t } = useTranslation()
   const style = useMemo(() => previewVariables(theme, mode), [theme, mode])
+  // A font the draft picks is loaded for the preview too (BR-02).
+  useEffect(() => {
+    loadBrandFonts({ 'font-sans': style['--font-sans'], 'font-display': style['--font-display'] })
+  }, [style])
   const rows = [
     { id: '1', number: 'INV-0042', customer: t('brand.preview.customerA'), status: 'paid' },
     { id: '2', number: 'INV-0043', customer: t('brand.preview.customerB'), status: 'pending' },

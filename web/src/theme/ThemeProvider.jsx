@@ -1,6 +1,7 @@
 import tokens from '@app/tokens'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { applyTenantTheme } from './applyTenantTheme'
+import { loadBrandFonts } from './brandFonts'
 import { DEFAULT_THEME, isDarkTheme, isTheme } from './themes'
 
 const ThemeContext = createContext(null)
@@ -91,6 +92,7 @@ export function ThemeProvider({ theme = DEFAULT_THEME, overrides = {}, brand = n
 
   useEffect(() => {
     applyTenantTheme(applied)
+    loadBrandFonts(applied)
   }, [applied])
 
   const value = useMemo(

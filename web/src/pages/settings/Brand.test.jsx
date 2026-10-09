@@ -26,7 +26,7 @@ function setup({ documents = [], document = null, permissions = THEME_PERMISSION
   mockRoutes(
     api,
     [
-      ['config/theme?key=default&per_page=200', { data: documents }],
+      [/^config\/theme\?key=default/, { data: documents }],
       ['config/theme/doc-1', () => document],
       [/^config\/theme\/resolved/, { data: { kind: 'theme', key: 'default', payload: { preset: 'light', asset_urls: {} }, source: null } }],
       ['branding/assets', { data: [] }],

@@ -23,12 +23,12 @@ const CORNERS = {
 const FONTS = {
   geist: { sans: '"Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif', display: '"Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif' },
   ibm_plex_sans: {
-    sans: '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
-    display: '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
+    sans: '"IBM Plex Sans Variable", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
+    display: '"IBM Plex Sans Variable", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
   },
   newsreader_geist: {
     sans: '"Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif',
-    display: '"Newsreader", Georgia, "Times New Roman", serif',
+    display: '"Newsreader Variable", "Newsreader", Georgia, "Times New Roman", serif',
   },
 };
 

@@ -105,3 +105,12 @@ describe('tenant theme at runtime (BR-02, BR-08)', () => {
     await waitFor(() => expect(root.style.getPropertyValue('--primary')).toBe('#7c2d12'))
   })
 })
+
+describe('brand fonts (BR-02)', () => {
+  it('loads a curated font only when a theme selects it', async () => {
+    const { loadBrandFonts } = await import('./brandFonts')
+    await expect(loadBrandFonts({ 'font-sans': '"Geist Variable", sans-serif' })).resolves.toEqual([])
+    const loaded = await loadBrandFonts({ 'font-sans': '"IBM Plex Sans Variable", sans-serif', 'font-display': '"Newsreader Variable", serif' })
+    expect(loaded).toHaveLength(2)
+  })
+})
