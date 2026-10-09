@@ -46,6 +46,8 @@ return [
                 'fiscal' => 'Fiscal transmission',
                 'numbering' => 'Document numbering',
                 'config' => 'Layouts, themes and templates',
+                'theme' => 'Theme and branding',
+                'domain' => 'Custom domains and email sender',
             ],
             'pos' => [
                 'sale' => 'Sales',

@@ -35,3 +35,6 @@ Schedule::command('payments:process-timers')->everyMinute()->withoutOverlapping(
 
 // Fiscal (POS-10): documents due for the tax authority, retried with backoff until accepted.
 Schedule::command('fiscal:process')->everyMinute()->withoutOverlapping()->onOneServer();
+
+// BR-05: custom domains waiting for their DNS TXT record.
+Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->onOneServer();

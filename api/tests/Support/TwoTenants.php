@@ -267,6 +267,10 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", [], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
+        // BR-02, BR-05: a brand asset (a logo) and a custom domain, still pending.
+        self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201);
+        $tenantDomain = self::ok($test->postJson('/api/v1/branding/domains', ['host' => "erp-{$key}.example.org"], $owner), 201)->json('data.id');
+
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
@@ -495,6 +499,7 @@ final class TwoTenants
                 'payment_receipt' => $paymentReceipt,
                 'fiscal_submission' => $fiscalSubmission,
                 'config_document' => $configDocument,
+                'tenant_domain' => $tenantDomain,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

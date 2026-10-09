@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * The tenants a scheduled command has work for, found before any tenant is
  * set (ADR 002). Each question is an owner-owned security-definer function
- * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100
- * and 2026_10_20_000200) called on the runtime connection: it
+ * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100,
+ * 2026_10_20_000200 and 2026_10_24_000100) called on the runtime connection: it
  * returns only tenant ids, so the scheduler and the workers never need the
  * owner's credentials. The work itself then runs in each tenant's context,
  * under row-level security.
@@ -62,6 +62,12 @@ class DueTenants
     public function withPendingDigests(): array
     {
         return $this->ids('app_tenants_with_pending_digests()');
+    }
+
+    /** @return list<string> BR-05: custom domains waiting for their DNS TXT check. */
+    public function withPendingDomains(): array
+    {
+        return $this->ids('app_tenants_with_pending_domains()');
     }
 
     /** @return list<string> Every active tenant. */

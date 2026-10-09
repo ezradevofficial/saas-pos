@@ -44,5 +44,24 @@ return [
         'pattern' => ':path isn’t in the expected format.',
         'min' => ':path must be at least :min.',
         'max' => ':path must be at most :max.',
+        // BR-02, BR-03: themes.
+        'not_overridable' => ':path can’t be changed by a theme. A theme sets only the logos, the primary and accent colours, the sidebar, the corners and the font.',
+        'asset_missing' => ':path names an image that isn’t one of your uploaded images of that kind. Upload it again.',
+        'contrast' => 'In :mode mode, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
+    ],
+
+    // BR-03: the words a contrast problem is made of.
+    'theme' => [
+        'modes' => ['light' => 'light', 'dark' => 'dark'],
+        'pairs' => [
+            'primary_text_page' => 'primary text on the page',
+            'primary_text_card' => 'primary text on cards',
+            'on_primary' => 'text on primary buttons',
+            'primary_tint' => 'text on the primary tint',
+            'on_accent' => 'text on the decisive button',
+            'accent_fill' => 'the decisive button on cards',
+            'sidebar_text' => 'sidebar text',
+            'sidebar_active' => 'the selected sidebar item',
+        ],
     ],
 ];

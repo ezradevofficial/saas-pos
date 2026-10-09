@@ -64,6 +64,12 @@ class PermissionRegistry
         // LAY-06: versioned configuration (themes, layouts, templates), the
         // default for kinds that bring no permissions of their own.
         'config' => ['view', 'edit', 'publish'],
+        // BR-02, BR-03, BR-08: the tenant theme (preset, colours, logos,
+        // sign-in page), per tenant, company or branch.
+        'theme' => ['view', 'edit', 'publish'],
+        // BR-04..BR-06: the tenant's subdomain, custom domains and the
+        // email sender and SMS sender ID (tenant scope; Owner, Admin).
+        'domain' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

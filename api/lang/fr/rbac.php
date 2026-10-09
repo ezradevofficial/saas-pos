@@ -46,6 +46,8 @@ return [
                 'fiscal' => 'Transmission fiscale',
                 'numbering' => 'Numérotation des documents',
                 'config' => 'Mises en page, thèmes et modèles',
+                'theme' => 'Thème et image de marque',
+                'domain' => 'Domaines personnalisés et expéditeur des e-mails',
             ],
             'pos' => [
                 'sale' => 'Ventes',

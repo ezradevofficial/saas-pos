@@ -2,6 +2,7 @@
 
 namespace App\Core\Notifications\Jobs;
 
+use App\Core\Branding\BrandedSender;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\Channels;
 use App\Core\Notifications\Drivers\ChannelDrivers;
@@ -199,6 +200,7 @@ class SendDelivery implements ShouldBeEncrypted, ShouldQueue
             Mail::to($delivery->recipient)->send(new NotificationMail(
                 (string) $this->reveal($delivery->subject), (string) $this->reveal($delivery->body), $this->reveal($delivery->link),
                 $delivery->locale, app(MailActions::class)->for($delivery),
+                BrandedSender::address(),
             ));
 
             return new DriverResult;
