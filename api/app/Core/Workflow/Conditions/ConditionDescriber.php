@@ -32,7 +32,7 @@ class ConditionDescriber
     public function describe(ConditionCheck $check, array $fields, string $timezone = 'UTC'): string
     {
         $field = $fields[$check->field] ?? null;
-        $label = $field === null ? $check->field : __($field->label);
+        $label = $field === null ? $check->field : $field->displayLabel();
         $values = new ExportValues(app()->getLocale(), $timezone, [], $this->decimals);
 
         if ($check->problem === 'currency_mismatch') {

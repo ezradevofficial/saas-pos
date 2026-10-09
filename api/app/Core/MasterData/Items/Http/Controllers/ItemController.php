@@ -3,6 +3,9 @@
 namespace App\Core\MasterData\Items\Http\Controllers;
 
 use App\Core\Audit\Auditor;
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\CustomFieldWriter;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\Exports\ListExport;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Items\Barcode;
@@ -53,6 +56,8 @@ class ItemController
         private readonly DuplicateFinder $duplicates,
         private readonly Auditor $auditor,
         private readonly ItemReferences $references,
+        private readonly CustomFieldWriter $customFields,
+        private readonly CustomFieldLists $customLists,
     ) {}
 
     public function index(ListItemsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -79,6 +84,9 @@ class ItemController
         if ($request->filled('barcode')) {
             $query->whereIn('id', ItemBarcode::query()->select('item_id')->where('barcode', Barcode::normalise($request->validated('barcode'))));
         }
+
+        // CF-03: `?custom[key]=` filters (validated: known, visible fields).
+        $this->customLists->apply($query, ItemEntity::KEY, $request->validated('custom'));
 
         $search = trim((string) $request->validated('search', ''));
 
@@ -113,7 +121,11 @@ class ItemController
                 $companyId, $data['category_id'] ?? null, $data['tax_category_id'] ?? null, $data['base_uom_id'], array_column($data['uoms'] ?? [], 'uom_id'),
             );
 
-            $item = Item::create(['company_id' => $companyId, ...ItemRules::attributes($data)]);
+            $item = new Item(['company_id' => $companyId, ...ItemRules::attributes($data)]);
+            // CF-01, CF-02: defaults, formulas and unique fields, then the item's files.
+            $this->customFields->fill(ItemEntity::KEY, $item, $data['custom'] ?? null, creating: true);
+            $item->save();
+            $this->customFields->saved(ItemEntity::KEY, $item);
             $this->syncUoms($item, $data['uoms'] ?? []);
             $this->syncBarcodes($item, $barcodes);
 
@@ -155,7 +167,10 @@ class ItemController
                 array_key_exists('uoms', $data) ? array_column($data['uoms'], 'uom_id') : ItemUom::query()->where('item_id', $item->id)->pluck('uom_id')->all(),
             );
 
-            $item->fill(['company_id' => $companyId, ...ItemRules::attributes($data)])->save();
+            $item->fill(['company_id' => $companyId, ...ItemRules::attributes($data)]);
+            $this->customFields->fill(ItemEntity::KEY, $item, $data['custom'] ?? null, creating: false);
+            $item->save();
+            $this->customFields->saved(ItemEntity::KEY, $item);
 
             if (array_key_exists('uoms', $data)) {
                 $this->syncUoms($item, $data['uoms']);
@@ -194,6 +209,7 @@ class ItemController
             if ($item->isArchived()) {
                 $this->uniqueness->assert($item->company_id, (string) $item->code, $this->storedBarcodes($item), $item->id);
                 $this->references->assertItem($item);
+                $this->customFields->assertRestorable(ItemEntity::KEY, $item);
                 $item->restore();
             }
 

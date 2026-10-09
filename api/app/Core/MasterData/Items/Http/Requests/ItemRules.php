@@ -2,6 +2,7 @@
 
 namespace App\Core\MasterData\Items\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldValidator;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Barcode;
 use App\Core\MasterData\Items\Item;
@@ -70,6 +71,8 @@ final class ItemRules
             'barcodes.*' => ['array:barcode,uom_id'],
             'barcodes.*.barcode' => ['required', 'string', 'max:64'],
             'barcodes.*.uom_id' => ['sometimes', 'nullable', 'uuid'],
+            // CF-01, CF-02: custom field values, checked by CustomFieldValidator.
+            ...CustomFieldValidator::rules(),
         ];
     }
 

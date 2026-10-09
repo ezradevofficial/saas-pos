@@ -3,6 +3,7 @@
 namespace App\Core\Workflow\DocumentTypes;
 
 use App\Core\Currency\Money;
+use App\Core\CustomFields\CustomFieldDocumentFields;
 use App\Core\Identity\Models\User;
 use App\Core\Workflow\Definitions\FlowGraph;
 use LogicException;
@@ -232,6 +233,36 @@ abstract class DocumentType
     final public function knowsRequester(): bool
     {
         return (new \ReflectionMethod($this, 'requesterId'))->getDeclaringClass()->getName() !== self::class;
+    }
+
+    /**
+     * CF-03: the custom field entity of this type's documents
+     * (CustomFieldEntities), or null. A type that names one adds
+     * customFields() to fields() and customValues() to fieldValues(), so
+     * conditions, automation and placeholders can use them.
+     */
+    public function customFieldEntity(): ?string
+    {
+        return null;
+    }
+
+    /** @return list<FieldDefinition> the entity's custom fields, named `cf_<key>` (CustomFieldDocumentFields) */
+    protected function customFields(): array
+    {
+        $entity = $this->customFieldEntity();
+
+        return $entity === null ? [] : app(CustomFieldDocumentFields::class)->fields($entity);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $custom  the document's stored custom values
+     * @return array<string, mixed> `cf_<key>` => value
+     */
+    protected function customValues(?array $custom): array
+    {
+        $entity = $this->customFieldEntity();
+
+        return $entity === null ? [] : app(CustomFieldDocumentFields::class)->values($entity, $custom);
     }
 
     public function field(string $name): ?FieldDefinition

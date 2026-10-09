@@ -2,6 +2,7 @@
 
 namespace App\Core\Lists;
 
+use App\Core\CustomFields\CustomFieldAccess;
 use App\Core\Exports\ExportValues;
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use Closure;
@@ -121,8 +122,20 @@ abstract class ListDefinition
     public function hiddenFields(Request $request): array
     {
         $resource = $this->fieldRules();
+        $hidden = $resource === null ? [] : HidesFields::hidden($request, $resource);
+        $entity = $this->customFieldEntity();
 
-        return $resource === null ? [] : HidesFields::hidden($request, $resource);
+        // RBAC-05: custom fields hidden from the user, named `custom.<key>` (CustomFieldAccess).
+        return $entity === null ? $hidden : [...$hidden, ...app(CustomFieldAccess::class)->hiddenNames($request->user(), $entity)];
+    }
+
+    /**
+     * CF-03: the custom field entity of the list's records (CustomFieldEntities),
+     * or null. Its columns, sorts and filters come from CustomFieldLists.
+     */
+    public function customFieldEntity(): ?string
+    {
+        return null;
     }
 
     /**

@@ -64,6 +64,8 @@ class PermissionRegistry
         // LAY-06: versioned configuration (themes, layouts, templates), the
         // default for kinds that bring no permissions of their own.
         'config' => ['view', 'edit', 'publish'],
+        // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
+        'custom_field' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';
