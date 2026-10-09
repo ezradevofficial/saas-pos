@@ -20,7 +20,10 @@ const escape = (value) =>
 const row = (label, value, strong = false) =>
   `<tr${strong ? ' class="strong"' : ''}><td>${escape(label)}</td><td class="amount">${escape(value)}</td></tr>`;
 
-export function receiptHtml({ lang = 'en', header, number, rows = [], lines = [], totals = [], payments = [], fiscal }) {
+// BR-02: only an image the till fetched itself (a data URI of a raster image) is printed.
+const LOGO = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+
+export function receiptHtml({ lang = 'en', logo = null, header, number, rows = [], lines = [], totals = [], payments = [], fiscal }) {
   const lineRows = lines.map((line) => `<tr><td colspan="2">${escape(line.name)}</td></tr>${row(line.detail, line.total)}${line.discount ? row(line.discount.label, line.discount.value) : ''}`).join('');
   return `<!doctype html>
 <html lang="${escape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -34,9 +37,11 @@ export function receiptHtml({ lang = 'en', header, number, rows = [], lines = []
   td { padding: 2px 0; vertical-align: top; }
   .amount { text-align: right; white-space: nowrap; }
   .strong td { font-weight: 600; }
+  .logo { display: block; max-width: 60%; max-height: 18mm; margin: 0 auto 4px; filter: grayscale(1) contrast(1000%); }
   .fiscal { margin-top: 8px; padding-top: 6px; border-top: 1px solid #000; text-align: center; }
 </style></head>
 <body><div class="receipt">
+  ${logo && LOGO.test(logo) ? `<img class="logo" alt="" src="${logo}">` : ''}
   <h1>${escape(header.title)}</h1>
   ${header.lines.map((line) => `<div class="centre">${escape(line)}</div>`).join('')}
   <table>${row(number.label, number.value, true)}${rows.map((entry) => row(entry.label, entry.value)).join('')}</table>

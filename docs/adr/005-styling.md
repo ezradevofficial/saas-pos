@@ -99,5 +99,6 @@ The root `package.json` `overrides` pins `react-native-worklets` to the version 
 - A token change is one edit to `design/tokens.json` and one rebuild, and both apps follow. CI catches a forgotten rebuild.
 - There are two Tailwind majors in one repository until NativeWind 5 is stable. Class names stay the same, but some utilities differ between v3 and v4. Shared components must use only utilities that exist in both.
 - Some Tailwind built-ins remain in use and are not tokens: `ring-3`, `mt-px`, `h-px`, `border-b-2`, and lucide's numeric icon sizes. They are tracked for a later token pass.
-- The POS `PosTile` category colour is raw tenant data until the layout designer (LAY-05) constrains it to the token palette.
+- POS category colours are token names from a fixed set (`primary-tint`, `surface-300`, `success-tint`, `warning-tint`, `danger-tint`), chosen in the POS layout (LAY-05) and mapped to token classes in `pos/src/pos/layout.js`; `PosTile` takes no typed colour and no inline style. There is no `accent-tint` token yet.
+- The till applies the published theme at runtime: `TillThemeProvider` reads `settings.theme` after each pull and feeds `vars()` with the preset for the mode plus the compiled overrides; the device's appearance (as the device, light or dark) is kept on the till.
 - On native, only Geist Regular is bundled so far. Medium weights fall back until the font files are added.

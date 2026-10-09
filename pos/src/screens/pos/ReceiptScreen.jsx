@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Image, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/ds/Button';
 import { StatusBadge } from '../../components/ds/StatusBadge';
@@ -12,11 +12,16 @@ import { fetchFiscal, fiscalState } from '../../pos/fiscal';
 import { receiptHtml } from '../../pos/receiptHtml';
 import { useServices } from '../../services/services';
 import { useSyncStatus } from '../../sync/useSyncStatus';
+import { useMedia } from '../../theme/media';
+import { useTillTheme } from '../../theme/TillTheme';
 import { formatDateTime, useMoneyText } from './format';
 
 // Printed documents are black on white in every theme: the receipt always takes the
 // light token values (runtime theme variables, the one allowed inline style).
-const PRINT_THEME = vars(themeVariables('light', null, Platform.OS));
+const PRINT_VARIABLES = themeVariables('light', null, Platform.OS);
+const PRINT_THEME = vars(PRINT_VARIABLES);
+// BR-02: the logo prints in black only (a silhouette in the print ink), never in brand colours.
+const PRINT_INK = PRINT_VARIABLES['--ink'];
 
 function Row({ label, value, strong }) {
   return (
@@ -72,8 +77,11 @@ export function useReceiptModel(sale, kind = 'sale') {
   const currency = sale.currency;
   const taxRates = [...new Set(sale.lines.map((line) => line.tax_rate).filter(Boolean))];
   const dual = kind === 'sale' && sale.local?.dual ? sale.local.dual : null;
+  const { printLogo } = useTillTheme();
+  const logo = useMedia(printLogo);
   return {
     lang: locale,
+    logo,
     header: {
       title: company?.legal_name || company?.name || '',
       lines: [company?.tax_id ? t('pos.receipt.taxId', { id: company.tax_id }) : null, [settings?.branch?.name, settings?.location?.name].filter(Boolean).join(' · ')].filter(Boolean),
@@ -126,6 +134,7 @@ export function Receipt({ sale, kind = 'sale' }) {
   return (
     <View testID="receipt" style={PRINT_THEME} className="gap-3 rounded-md border border-border bg-surface-200 p-5">
       <View className="items-center gap-1">
+        {model.logo ? <Image testID="receipt-logo" source={{ uri: model.logo }} tintColor={PRINT_INK} accessibilityIgnoresInvertColors resizeMode="contain" className="h-12 w-1/2" /> : null}
         <Text className="text-center font-sans text-body-lg font-semibold text-ink">{model.header.title}</Text>
         {model.header.lines.map((line) => (
           <Text key={line} className="font-sans text-caption text-ink">

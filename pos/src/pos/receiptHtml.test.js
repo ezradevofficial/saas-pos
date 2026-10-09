@@ -25,6 +25,16 @@ describe('receiptHtml', () => {
     expect(html).not.toContain('var(--');
   });
 
+  it('prints the logo in black and white, and only an image the till fetched (BR-02)', () => {
+    const logo = 'data:image/png;base64,iVBORw0KGgo=';
+    const html = receiptHtml({ ...model, logo });
+    expect(html).toContain(`<img class="logo" alt="" src="${logo}">`);
+    expect(html).toContain('filter: grayscale(1)');
+    expect(receiptHtml({ ...model, logo: 'https://example.org/x.png' })).not.toContain('<img');
+    expect(receiptHtml({ ...model, logo: 'data:image/svg+xml;base64,PHN2Zz4=' })).not.toContain('<img');
+    expect(receiptHtml(model)).not.toContain('<img');
+  });
+
   it('sends the HTML to the native print service', async () => {
     const { printReceipt } = require('../screens/pos/ReceiptScreen');
     await printReceipt(model);

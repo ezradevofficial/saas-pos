@@ -88,5 +88,13 @@ export const migrations = schemaMigrations({
         createTable({ name: 'pos_state', columns: [data] }),
       ],
     },
+    {
+      // LAY-05, BR-02: the sell screen's layout and the image cache.
+      toVersion: 5,
+      steps: [
+        createTable({ name: 'pos_layout', columns: [data, seenAt] }),
+        createTable({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
+      ],
+    },
   ],
 });

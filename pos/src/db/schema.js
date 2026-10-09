@@ -22,9 +22,13 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `pos_counters` (receipt numbers used per range) and `pos_state` (the open
  * cart, kept across restarts).
  *
+ * v5 (LAY-05, BR-02): the POS module's synced `pos_layout` (the sell
+ * screen's layout) and local `media_cache` (logos and category images
+ * fetched from the server as data URIs, so they show offline).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -123,6 +127,10 @@ export const schema = appSchema({
     // v4: the POS module's synced entities.
     tableSchema({ name: 'pos_number_ranges', columns: [{ name: 'document_type', type: 'string', isIndexed: true }, data, seenAt] }),
     tableSchema({ name: 'pos_open_shift', columns: [data, seenAt] }),
+    // v5: the sell screen's layout (LAY-05).
+    tableSchema({ name: 'pos_layout', columns: [data, seenAt] }),
+    // v5: images by server path (data URIs), local only.
+    tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 
     // v4: selling, local only (uploads go through the outbox).
     tableSchema({

@@ -4,6 +4,8 @@
  * NetworkError when no answer came (offline, DNS, timeout), so the engine
  * can tell "the server said no" from "the server was not reached".
  */
+import { toBase64 } from '../lib/bytes';
+
 export class NetworkError extends Error {
   constructor(cause) {
     super('network_error');
@@ -66,8 +68,30 @@ export function createApiClient({ baseUrl, getToken, getLocale = () => 'en', fet
     return { status: response.status, body: parsed, retryAfter };
   }
 
+  /**
+   * BR-02, LAY-05: an image the device may read (a logo, an item image) as a
+   * data URI, or null when the server says no. Throws NetworkError offline.
+   */
+  async function image(path) {
+    const headers = { Accept: 'image/*' };
+    const token = await getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    let response;
+    try {
+      response = await fetchImpl(`${root}${path.replace(/^\/+/, '').replace(/^api\/v1\//, '')}`, { method: 'GET', headers });
+    } catch (error) {
+      throw new NetworkError(error);
+    }
+    if (response.status !== 200) return null;
+    const type = String(response.headers?.get?.('content-type') ?? '').split(';')[0].trim();
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(type)) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return `data:${type};base64,${toBase64(bytes)}`;
+  }
+
   return {
     request,
+    image,
     get: (path, options) => request('GET', path, options),
     post: (path, body, options) => request('POST', path, { ...options, body }),
   };
