@@ -227,23 +227,26 @@ const SaleLineRow = memo(function SaleLineRow({ line, money, onStep, onOpen, lab
   return (
     <View className="flex-row items-center gap-3 border-b border-border px-4 py-2">
       <Pressable accessibilityRole="button" accessibilityLabel={labels.edit(line.name)} onPress={() => onOpen(line.id)} className={cn('min-h-12 min-w-0 flex-1 justify-center', FOCUS_RING)}>
-        <Text numberOfLines={1} className="font-sans text-body-lg font-medium text-ink">
+        <Text numberOfLines={2} className="font-sans text-body-lg font-medium text-ink">
           {line.name}
         </Text>
         <Text className="font-sans text-caption tabular-nums text-ink-muted">{unit}</Text>
         {line.discountMinor !== '0' ? <Text className="font-sans text-caption tabular-nums text-accent-ink">{labels.discount(money(line.discountMinor, line.currency))}</Text> : null}
         {blocked ? <StatusBadge tone="danger">{labels.blocked(blocked)}</StatusBadge> : null}
       </Pressable>
-      <View className="flex-row items-center gap-1">
-        <Button variant="secondary" className="w-12 px-0" accessibilityLabel={labels.less} onPress={() => onStep(line.id, -1)} disabled={!whole}>
-          −
-        </Button>
-        <Text className="w-10 text-center font-sans text-body-lg font-medium tabular-nums text-ink">{line.qty}</Text>
-        <Button variant="secondary" className="w-12 px-0" accessibilityLabel={labels.more} onPress={() => onStep(line.id, 1)} disabled={!whole}>
-          +
-        </Button>
+      {/* The total sits over the stepper so a narrow sale panel still leaves room for the name. */}
+      <View className="items-end gap-1">
+        <Text className="font-sans text-body font-medium tabular-nums text-ink">{blocked ? '—' : money(line.amounts.totalMinor, line.currency)}</Text>
+        <View className="flex-row items-center gap-1">
+          <Button variant="secondary" className="w-12 px-0" accessibilityLabel={labels.less} onPress={() => onStep(line.id, -1)} disabled={!whole}>
+            −
+          </Button>
+          <Text className="w-10 text-center font-sans text-body-lg font-medium tabular-nums text-ink">{line.qty}</Text>
+          <Button variant="secondary" className="w-12 px-0" accessibilityLabel={labels.more} onPress={() => onStep(line.id, 1)} disabled={!whole}>
+            +
+          </Button>
+        </View>
       </View>
-      <Text className="w-1/4 text-right font-sans text-body font-medium tabular-nums text-ink">{blocked ? '—' : money(line.amounts.totalMinor, line.currency)}</Text>
     </View>
   );
 });
