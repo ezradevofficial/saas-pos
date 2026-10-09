@@ -80,6 +80,8 @@ class StaffSource implements SnapshotSource
                 'name' => $member['name'],
                 'permissions' => $member['permissions'],
                 'limits' => (object) ($limits[$id] ?? []),
+                // RBAC-06: an Owner has no limits; the till treats them as the server does.
+                'owner' => (bool) ($member['owner'] ?? false),
                 'field_rules' => $fieldRules[$id] ?? [],
                 'offline' => $member['offline'],
                 'pin' => $material ? $this->pins->material($pin, $secret, Pins::PIN) : null,

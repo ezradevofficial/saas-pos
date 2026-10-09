@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, Text, View } from 'react-native';
 import { cn } from '../../lib/cn';
@@ -8,14 +9,17 @@ import { StatusBadge } from './StatusBadge';
 
 const DEFAULT_LOW_STOCK = 5;
 
-/** A product button on the POS grid; price in minor units. */
-export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, onSelect, className }) {
+/**
+ * A product button on the POS grid; price in minor units. `unavailable`
+ * (e.g. "Rate needed") disables the tile and says why, as the web tile does.
+ */
+export const PosTile = memo(function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, unavailable, onSelect, className }) {
   const { t } = useTranslation();
   const lang = useLocale();
-  const out = stock === 0;
+  const out = stock === 0 || Boolean(unavailable);
   const low = !out && stock != null && stock <= lowStock;
-  const priceText = `${currency} ${formatAmount(price, currency, lang)}`;
-  const stockText = out ? t('ds.posTile.outOfStock') : low ? t('ds.posTile.left', { count: stock }) : null;
+  const priceText = price == null ? '' : `${currency} ${formatAmount(price, currency, lang)}`;
+  const stockText = unavailable || (out ? t('ds.posTile.outOfStock') : low ? t('ds.posTile.left', { count: stock }) : null);
   // The badge is inside the button, so its words go into the button's label.
   const label = [name, priceText, stockText].filter(Boolean).join(', ');
 
@@ -46,7 +50,9 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       </View>
       <View className="flex-row items-center justify-between gap-2">
         <Text className="font-sans text-label font-normal tabular-nums text-ink-muted">{priceText}</Text>
-        {out ? (
+        {unavailable ? (
+          <StatusBadge tone="warning">{unavailable}</StatusBadge>
+        ) : out ? (
           <StatusBadge tone="danger">{t('ds.posTile.out')}</StatusBadge>
         ) : low ? (
           <StatusBadge tone="warning">{t('ds.posTile.left', { count: stock })}</StatusBadge>
@@ -54,4 +60,4 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       </View>
     </Pressable>
   );
-}
+});

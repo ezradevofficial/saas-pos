@@ -4,7 +4,6 @@ namespace Modules\POS\Tests;
 
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Modules\POS\Tests\Concerns\SimulatesDevice;
-use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\BuildsExchangeRates;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -26,8 +25,7 @@ class DeviceApiShapesTest extends TestCase
 
         $this->setUpPos();
         $this->rate('USD', 'KES', '130', at: '-1 day');
-        $device = $this->pairDevice();
-        $headers = $this->tillHeaders($device['token']);
+        $headers = $this->tillHeaders();
         $out = [];
         $answer = fn ($response) => ['status' => $response->status(), 'body' => $response->json()];
 
@@ -44,7 +42,7 @@ class DeviceApiShapesTest extends TestCase
         $out['shifts_request'] = ['shifts' => [$shift]];
         $out['shifts_stored'] = $answer($this->postJson('/api/v1/pos/shifts', ['shifts' => [$shift]], $headers)->assertOk());
 
-        $sale = $this->saleBody($shift['id'], 1, ['actor_proof' => FakeOverrides::ATTESTED, 'offline' => true]);
+        $sale = $this->saleBody($shift['id'], 1, ['offline' => true]);
         $out['sales_request'] = ['sales' => [$sale]];
         $out['sales_stored'] = $answer($this->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $headers)->assertOk());
         $out['sales_resent'] = $answer($this->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $headers)->assertOk());

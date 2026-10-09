@@ -7,7 +7,8 @@ import { createServices, ServicesContext, useServices } from './src/services/ser
 import { SessionProvider, useSession } from './src/auth/session';
 import './src/i18n';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
-import { HomeScreen } from './src/screens/HomeScreen';
+import { PosProvider } from './src/pos/PosProvider';
+import { PosScreen } from './src/screens/pos/PosScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
 import { StaffSignInScreen } from './src/screens/StaffSignInScreen';
 import { NETWORK } from './src/sync/engine';
@@ -29,7 +30,8 @@ function useLocation(paired) {
 
 /**
  * A small state router: not paired → Pairing; nobody signed in → Staff
- * sign-in; a PIN to change while online → Change PIN; else Home.
+ * sign-in; a PIN to change while online → Change PIN; else the till
+ * (PosScreen: shift, selling, payment, receipts, returns).
  */
 function Root() {
   const { credentials, store, scheduler } = useServices();
@@ -62,9 +64,11 @@ function Root() {
     );
   }
   if (!paired) return <PairingScreen onPaired={() => setPaired(true)} />;
-  if (!user) return <StaffSignInScreen location={location} />;
-  if (pinChange && sync.network !== NETWORK.OFFLINE) return <ChangePinScreen location={location} />;
-  return <HomeScreen location={location} />;
+  // The sale and the shift live in PosProvider, above sign-in: switching user keeps them (AUTH-07).
+  let screen = <PosScreen />;
+  if (!user) screen = <StaffSignInScreen location={location} />;
+  else if (pinChange && sync.network !== NETWORK.OFFLINE) screen = <ChangePinScreen location={location} />;
+  return <PosProvider>{screen}</PosProvider>;
 }
 
 export default function App({ services: injected }) {

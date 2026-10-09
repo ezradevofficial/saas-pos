@@ -9,15 +9,17 @@ import { createApiClient } from '../sync/api';
 import { createSyncEngine } from '../sync/engine';
 import { createSyncScheduler } from '../sync/scheduler';
 import { createSyncStore } from '../sync/store';
+import { createPosStore } from '../pos/posStore';
+import { createSelling } from '../pos/selling';
 
 /**
  * Everything the screens use, built once: the database, the keystore
  * credentials, the API client, the sync engine and scheduler, and the PIN
  * gate. Tests pass their own database, fetch and keystore.
  *
- * For Task 5: services.engine.enqueue('pos.sales', sale.id, payload)
- * persists a sale for upload; services.store / services.database read the
- * synced tables (src/db/schema.js).
+ * Selling (POS-01..POS-06): services.selling records shifts, sales,
+ * voids, refunds and cash movements locally and in the outbox;
+ * services.posStore reads them back.
  */
 export function createServices({ database, fetchImpl, credentialsBackend, netInfo = NetInfo, baseUrl = apiUrl, api: apiOverride } = {}) {
   const db = database ?? createDatabase();
@@ -35,7 +37,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
       if (engine.getStatus().network !== 'offline') engine.reportPinAttempts().catch(() => {});
     },
   });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate };
+  const posStore = createPosStore(db);
+  const selling = createSelling({ engine, posStore, api });
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling };
 }
 
 export const ServicesContext = createContext(null);

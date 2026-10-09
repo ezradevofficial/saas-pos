@@ -181,6 +181,31 @@ class TenderCalculatorTest extends TestCase
         }
     }
 
+    public function test_the_vectors_shared_with_the_till_hold(): void
+    {
+        // tests/Fixtures/pos/tender-vectors.json is replayed by pos/src/pos/payloads.fixture.test.js too.
+        $vectors = json_decode((string) file_get_contents(base_path('tests/Fixtures/pos/tender-vectors.json')), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(['USD', 'CDF', '2850.00000000', 'shop'], [$vectors['rate']['base'], $vectors['rate']['quote'], $vectors['rate']['mid'], $vectors['rate']['kind']]);
+
+        foreach ($vectors['cases'] as $case) {
+            $result = $this->calculate(Money::ofMinor($case['due'][0], $case['due'][1]), $case['tenders'], $case['change_currency']);
+            $this->assertSame(
+                [$case['paid'], $case['remaining'], $case['change'], $case['rounding'], $case['overpaid']],
+                [$result->paidInDue->minor(), $result->remaining->minor(), $result->change->minor(), $result->roundingMinor, $result->overpaid],
+                $case['name'],
+            );
+
+            if (isset($case['in_due'])) {
+                $this->assertSame($case['in_due'], $this->inDue($result), $case['name']);
+            }
+        }
+
+        foreach ($vectors['asked'] as $asked) {
+            $money = $this->inTenant(fn () => app(TenderCalculator::class)->amountDueIn(Money::ofMinor($asked['remaining'][0], $asked['remaining'][1]), $asked['currency'], $this->acme));
+            $this->assertSame($asked['expected'], $money->minor());
+        }
+    }
+
     /** @return list<string> each line's amount in the due currency, in minor units */
     private function inDue(TenderResult $result): array
     {

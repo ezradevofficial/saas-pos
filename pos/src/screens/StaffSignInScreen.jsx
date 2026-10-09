@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { attestSignIn, newSignInSession } from '../auth/attestation';
 import { useServices } from '../services/services';
 import { useSession } from '../auth/session';
 import { Alert } from '../components/ds/Alert';
@@ -52,7 +53,7 @@ const StaffRow = ({ member, onSelect, lockedLabel }) => (
 /** AUTH-06, AUTH-07: pick your name, enter your PIN (checked offline when possible). */
 export function StaffSignInScreen({ location }) {
   const { t } = useTranslation();
-  const { pinGate, scheduler } = useServices();
+  const { pinGate, scheduler, engine, credentials, store } = useServices();
   const { signIn } = useSession();
   const [staff, reload] = useStaff();
   const [selected, setSelected] = useState(null);
@@ -71,9 +72,12 @@ export function StaffSignInScreen({ location }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await pinGate.signIn({ userId: selected.id, kind: 'pin', input: pin });
+      const session = newSignInSession({ engine });
+      const result = await pinGate.signIn({ userId: selected.id, kind: 'pin', input: pin, session });
       if (result.ok) {
-        signIn(result, pin);
+        // AUTH-07: every record this person makes carries this attestation.
+        const proof = await attestSignIn({ credentials, store, session, userId: result.user.id });
+        signIn(result, pin, { ...session, proof });
         return;
       }
       setError(result);

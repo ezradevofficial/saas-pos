@@ -153,9 +153,13 @@ class SaleUploads
             $flags->add('cashier_not_permitted');
         }
 
-        // H3, AUTH-07: money in is kept; a cashier the till can't prove is flagged.
-        if (! $this->authority->proven($place->device, $cashier, $data['actor_proof'] ?? null, $data['id'])) {
+        // H3, AUTH-07: money in is kept; a cashier the till can't prove (no verified sign-in attestation) is flagged.
+        if ($this->authority->proven($place->device, $cashier, $data['actor_proof'] ?? null) === null) {
             $flags->add('actor_unverified');
+        }
+
+        foreach ($this->authority->sessionFlags($place->device, $cashier, $data['actor_proof'] ?? null, $at) as $code) {
+            $flags->add($code);
         }
 
         $this->customer($place, $data['customer_id'] ?? null);
@@ -168,6 +172,8 @@ class SaleUploads
         $lines = [];
 
         foreach ($data['lines'] as $index => $line) {
+            // AUTH-07: a line without its own attestation is covered by the sale's (same cashier, same sign-in).
+            $line['actor_proof'] ??= $data['actor_proof'] ?? null;
             $lines[] = $this->line($place, $line, $index, $currency, $at, $cashier, $flags, $data['id']);
         }
 
@@ -399,7 +405,7 @@ class SaleUploads
 
         if ($discount->isPositive()) {
             $percent = $discount->multipliedBy(100)->dividedBy($gross, 4, RoundingMode::HalfUp);
-            $discountApproval = $this->restricted($place, $cashier, $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
+            $discountApproval = $this->restricted($place, $this->giver($line, $cashier), $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
                 fn (User $user) => $this->authority->within($user, 'max_discount_percent', $place->scope(), $percent),
                 $line['id'], "{$field}.override", 'discount_unauthorised', $index, $flags);
         }
@@ -408,7 +414,7 @@ class SaleUploads
         $listPrice = $line['list_price_minor'] ?? null;
 
         if ($listPrice !== null && (string) $listPrice !== (string) $line['unit_price_minor']) {
-            $priceApproval = $this->restricted($place, $cashier, $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
+            $priceApproval = $this->restricted($place, $this->giver($line, $cashier), $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
                 $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
         }
 
@@ -459,8 +465,26 @@ class SaleUploads
         ];
     }
 
+    /**
+     * AUTH-07, POS-07: who gave a line's discount or price by their own
+     * right. Tills switch users mid-sale, so a line's own proof may name
+     * the person who changed it rather than the cashier completing the
+     * sale; that person's right is checked. A user the tenant doesn't
+     * know falls back to the cashier (the proof then doesn't verify).
+     */
+    private function giver(array $line, User $cashier): User
+    {
+        $named = $line['actor_proof']['user_id'] ?? null;
+
+        if ($named === null || $named === $cashier->id) {
+            return $cashier;
+        }
+
+        return User::query()->find($named) ?? $cashier;
+    }
+
     /** A restricted line action: the approval, or null with a flag when nobody allowed it (device wins). */
-    private function restricted(DevicePlace $place, User $cashier, ?array $override, ?string $actorProof, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
+    private function restricted(DevicePlace $place, User $cashier, ?array $override, ?array $actorProof, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
     {
         try {
             $approval = $this->authority->approve($cashier, $override, $actorProof, $permission, $place->scope(), $limit, $place->device, $subjectId, $field);

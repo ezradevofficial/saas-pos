@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,9 @@ use Illuminate\Support\Facades\DB;
  *  - PIN and card verifiers: "pin:v1:{user_id}:" / "card:v1:{user_id}:"
  *    + the PBKDF2 key (Pins::material), under the current secret only;
  *  - offline manager overrides: "override:v2\n{device_id}\n{kid}\n..."
- *    (OverrideVerifier), under the secret named by kid.
+ *    (OverrideVerifier), under the secret named by kid;
+ *  - till sign-in attestations: "signin:v1\n{device_id}\n{kid}\n..."
+ *    (ActorProofVerifier), under the secret named by kid.
  *
  * Rotation proves possession and survives a lost answer:
  *  1. GET sync/device-secret/challenge: a one-time nonce (5 minutes);
@@ -147,6 +150,23 @@ class DeviceSecrets
     public function byKid(Device $device, string $kid): ?DeviceSecret
     {
         return DeviceSecret::query()->where('device_id', $device->id)->where('kid', $kid)->first();
+    }
+
+    /**
+     * AUTH-07, AUTH-08: $at falls while $secret was current (from its issue
+     * to its retirement, or now; it must have been activated), give or take
+     * `sync.override_clock_skew_seconds`. What a device signed offline is
+     * dated this way.
+     */
+    public static function currentAt(DeviceSecret $secret, CarbonImmutable $at): bool
+    {
+        $skew = (int) config('sync.override_clock_skew_seconds', 600);
+        $until = ($secret->retired_at ?? CarbonImmutable::now())->addSeconds($skew);
+
+        return $secret->activated_at !== null
+            && $at->greaterThanOrEqualTo($secret->issued_at->subSeconds($skew))
+            && $at->lessThanOrEqualTo($until)
+            && $at->lessThanOrEqualTo(CarbonImmutable::now()->addSeconds($skew));
     }
 
     public static function hmac(DeviceSecret $secret, string $message): string

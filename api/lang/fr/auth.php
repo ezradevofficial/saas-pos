@@ -28,6 +28,7 @@ return [
         'incorrect' => 'Code PIN erroné. Il reste :count essai avant le blocage du code sur cette caisse.|Code PIN erroné. Il reste :count essais avant le blocage du code sur cette caisse.',
         'not_staff_here' => 'Cette personne n’a pas de rôle sur le site de cette caisse. Demandez à un responsable de lui en attribuer un.',
         'six_digits' => 'Les personnes qui peuvent valider des annulations, des remboursements et des changements de prix ont besoin d’un code PIN de 6 chiffres. Choisissez 6 chiffres.',
+        'session_conflict' => 'Cette connexion à la caisse est déjà enregistrée pour une autre personne. Connectez-vous de nouveau.',
     ],
     'override' => [
         'invalid' => 'Cette validation du responsable n’est pas valide. Demandez au responsable de saisir de nouveau son code PIN.',

@@ -84,7 +84,7 @@ class VoidUploads
 
         $voider = $this->authority->user($data['voided_by_id'], 'voided_by_id');
         $this->authority->checkNamed($data['override'] ?? null, 'override');
-        $approval = $this->authority->approve($voider, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.void', $place->scope(), null, $place->device, $data['id'], 'override');
+        $approval = $this->authority->approve($voider, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.void', $place->scope(), null, $place->device, $data['id'], 'override', moneyOut: true);
         $at = CarbonImmutable::parse($data['voided_at'])->utc();
         $flags = new Flags;
 
@@ -94,6 +94,13 @@ class VoidUploads
 
         foreach ($approval->reviewFlags() as $code) {
             $flags->add($code);
+        }
+
+        // AUTH-07: the person's own sign-in, reviewed when the record predates it or it is a day old.
+        if (! $approval->byOverride()) {
+            foreach ($this->authority->sessionFlags($place->device, $voider, $data['actor_proof'] ?? null, $at) as $code) {
+                $flags->add($code);
+            }
         }
 
         if (Shift::query()->whereKey($sale->shift_id)->value('status') === Shift::CLOSED) {

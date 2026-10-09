@@ -62,7 +62,7 @@ class ReviewFixesTest extends TestCase
         $this->rate('USD', 'KES', '140', at: '-1 minute');
 
         $refund = fn (string $usdMinor, string $inSale, int $seq) => ['refunds' => [[
-            'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->owner->id, 'actor_proof' => 'attested',
+            'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->owner->id, 'actor_proof' => $this->actorProof($this->owner->id),
             'receipt_seq' => $seq, 'receipt_number' => sprintf('RF-L01-%06d', $seq), 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged',
             'total_minor' => '56250', 'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
             // Whatever rate the till claims is ignored: the sale's 129.5 is used.

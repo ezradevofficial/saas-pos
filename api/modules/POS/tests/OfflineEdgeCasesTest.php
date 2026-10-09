@@ -11,7 +11,6 @@ use Modules\POS\Models\Shift;
 use Modules\POS\Models\ShiftBalance;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Modules\POS\Tests\Concerns\SimulatesDevice;
-use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -177,8 +176,8 @@ class OfflineEdgeCasesTest extends TestCase
         $this->ranges('pos.refund')->assertOk();
         $shift = $this->shiftBody();
         $sale = $this->saleBody($shift['id'], 1);
-        $void = ['id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'sale_id' => $sale['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item'];
-        $movement = ['id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'shift_id' => $shift['id'], 'user_id' => $this->owner->id, 'kind' => 'pay_in', 'currency' => 'KES', 'amount_minor' => '10000', 'reason' => 'Float', 'occurred_at' => now()->toIso8601String()];
+        $void = ['id' => $this->id(), 'actor_proof' => $this->actorProof($this->owner->id), 'sale_id' => $sale['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item'];
+        $movement = ['id' => $this->id(), 'actor_proof' => $this->actorProof($this->owner->id), 'shift_id' => $shift['id'], 'user_id' => $this->owner->id, 'kind' => 'pay_in', 'currency' => 'KES', 'amount_minor' => '10000', 'reason' => 'Float', 'occurred_at' => now()->toIso8601String()];
 
         // Effects before causes: each waits, retryable, and nothing is stored.
         $this->upload([$sale])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'shift_unknown')->assertJsonPath('results.0.error.retryable', true);
@@ -200,7 +199,7 @@ class OfflineEdgeCasesTest extends TestCase
     {
         $this->ranges()->assertOk();
         $shift = $this->openShift();
-        $sales = array_map(fn (int $seq) => $this->saleBody($shift, $seq, ['sold_at' => now()->subMinutes(60 - $seq)->toIso8601String()]), range(1, 6));
+        $sales = array_map(fn (int $seq) => $this->saleBody($shift, $seq, ['sold_at' => now()->subMinutes(7 - $seq)->toIso8601String()]), range(1, 6));
 
         $this->upload([$sales[4], $sales[0], $sales[5]])->assertOk();
         $this->upload([$sales[2], $sales[1], $sales[3]])->assertOk();
@@ -291,14 +290,13 @@ class OfflineEdgeCasesTest extends TestCase
             ->assertJsonPath('results.0.error.retryable', true);
 
         // Past it: stored, flagged, on a placeholder; a resend answers the same.
-        $first = $this->upload([$old])->assertOk()
-            ->assertJsonPath('results.0.status', 'stored')
-            ->assertJsonPath('results.0.flags', [['code' => 'shift_missing']])
-            ->json('results.0');
+        // (Sold before the test's sign-in attestation, so AUTH-07 flags may join shift_missing.)
+        $first = $this->upload([$old])->assertOk()->assertJsonPath('results.0.status', 'stored')->json('results.0');
+        $this->assertSame('shift_missing', $first['flags'][0]['code']);
         $this->assertSame($first, $this->upload([$old])->assertOk()->json('results.0'));
 
         // The placeholder now exists, so the sale still inside the grace lands on it too, flagged.
-        $this->upload([$recent])->assertOk()->assertJsonPath('results.0.flags', [['code' => 'shift_missing']]);
+        $this->upload([$recent])->assertOk()->assertJsonPath('results.0.flags.0.code', 'shift_missing');
 
         $this->inTenant(function () use ($missing, $old) {
             $placeholder = Shift::findOrFail($missing);

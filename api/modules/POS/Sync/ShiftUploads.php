@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\POS\Events\ShiftClosed;
@@ -29,6 +30,10 @@ use Modules\POS\Models\ShiftBalance;
  * Expected cash per currency at close = opening float + cash tendered on
  * the shift's completed sales − change given + pay-ins − pay-outs − cash
  * refunded on the shift; variance = counted − expected.
+ *
+ * AUTH-07: opening (`actor_proof`) and closing (`closing.actor_proof`) may
+ * carry the till's sign-in attestation of who did it; the audit entry
+ * records whether it verified (`actor_verified`, `actor_online`).
  */
 class ShiftUploads
 {
@@ -82,7 +87,7 @@ class ShiftUploads
                 'status' => Shift::CLOSED, 'closed_by' => $closer->id, 'closed_at' => CarbonImmutable::parse($closing['closed_at'])->utc(),
                 'flags' => self::flags([...($shift->flags ?? []), ...$flags->all()]),
             ])->save();
-            $this->settle($shift, $closer, $closing);
+            $this->settle($place, $shift, $closer, $closing);
         }
 
         return $shift;
@@ -124,11 +129,12 @@ class ShiftUploads
 
         $this->auditor->record('pos.shift.open', $shift, null, [
             'opening_float' => $this->balances($shift, 'opening_minor'),
+            ...$this->attested($place, $opener, $data['actor_proof'] ?? null, $openedAt),
         ], ['user_id' => $opener->id, 'device_time' => $openedAt]);
         ShiftOpened::dispatch($this->tenants->require(), $shift->id);
 
         if ($closer !== null) {
-            $this->settle($shift, $closer, $closing);
+            $this->settle($place, $shift, $closer, $closing);
         }
 
         return $shift;
@@ -154,7 +160,7 @@ class ShiftUploads
     }
 
     /** The cash-up: expected, counted and variance per currency; the shift closed, audited and announced. */
-    private function settle(Shift $shift, User $closer, array $closing): void
+    private function settle(DevicePlace $place, Shift $shift, User $closer, array $closing): void
     {
         $closedAt = CarbonImmutable::parse($closing['closed_at'])->utc();
         $counted = [];
@@ -177,8 +183,26 @@ class ShiftUploads
         $this->auditor->record('pos.shift.close', $shift, ['status' => Shift::OPEN], [
             'status' => Shift::CLOSED,
             'balances' => $shift->balances()->get(['currency', 'opening_minor', 'counted_minor', 'expected_minor', 'variance_minor'])->toArray(),
+            ...$this->attested($place, $closer, $closing['actor_proof'] ?? null, $closedAt),
         ], ['user_id' => $closer->id, 'device_time' => $closedAt]);
         ShiftClosed::dispatch($this->tenants->require(), $shift->id);
+    }
+
+    /**
+     * AUTH-07: whether the till proved who opened or closed the shift (a
+     * verified sign-in attestation), and whether the server checked that
+     * sign-in online. Recorded in the audit entry; never a reason to refuse.
+     *
+     * @param  array<string, mixed>|null  $proof
+     *                                            Shifts have no flags column: the session flags (before_sign_in,
+     *                                            session_stale) go into the audit entry too.
+     * @return array{actor_verified: bool, actor_online: bool|null, actor_flags: list<string>}
+     */
+    private function attested(DevicePlace $place, User $user, ?array $proof, CarbonInterface $at): array
+    {
+        $actor = $this->authority->proven($place->device, $user, $proof);
+
+        return ['actor_verified' => $actor !== null, 'actor_online' => $actor?->online, 'actor_flags' => $this->authority->sessionFlags($place->device, $user, $proof, $at)];
     }
 
     private function currency(string $code, string $field): void
