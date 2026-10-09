@@ -550,5 +550,5 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('custom-fields/{custom_field}', [CustomFieldController::class, 'update']);
     Route::post('custom-fields/{custom_field}/archive', [CustomFieldController::class, 'archive']);
     Route::post('custom-fields/{custom_field}/restore', [CustomFieldController::class, 'restore']);
-    Route::post('custom-field-files', [CustomFieldFileController::class, 'store']);
+    Route::post('custom-field-files', [CustomFieldFileController::class, 'store'])->middleware('throttle:custom-field-files');
 });

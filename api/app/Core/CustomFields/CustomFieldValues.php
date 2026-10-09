@@ -74,6 +74,21 @@ class CustomFieldValues
             };
         }
 
+        // Money fields in different currencies can't be combined: they compute nothing.
+        $currencies = [];
+        foreach ($fields as $field) {
+            if ($field->type === 'money' && isset($custom[$field->key]['currency'])) {
+                $currencies[(string) $custom[$field->key]['currency']] = true;
+            }
+        }
+        if (count($currencies) > 1) {
+            foreach ($fields as $field) {
+                if ($field->type === 'money') {
+                    $inputs[$field->key] = null;
+                }
+            }
+        }
+
         return $inputs;
     }
 
@@ -112,7 +127,11 @@ class CustomFieldValues
      */
     public static function matches(string $pattern, string $value): ?bool
     {
-        $regex = '/^(?:'.str_replace('/', '\/', $pattern).')$/u';
+        // A delimiter no admin pattern can contain, so "\/" and "/" mean what they say.
+        if (str_contains($pattern, "\x01")) {
+            return null;
+        }
+        $regex = "\x01^(?:".$pattern.")$\x01u";
         $limit = ini_get('pcre.backtrack_limit');
         ini_set('pcre.backtrack_limit', '100000');
 
