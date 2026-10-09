@@ -302,10 +302,24 @@ describe('PosScreen', () => {
     expect(screen.getByRole('button', { name: 'Remove the M-Pesa payment' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Complete sale' })).toBeEnabled();
 
+    // POS-05, POS-06: the confirmed M-Pesa payment is never removed, and the sale never held.
+    const paidNotice = 'The customer has already paid by mobile money. Complete the sale; any money owed goes back through a refund afterwards.';
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove the M-Pesa payment' }));
+    expect(await screen.findByText(paidNotice)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Remove the M-Pesa payment' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Hold sale' }));
+    expect(screen.getByRole('button', { name: 'Complete sale' })).toBeOnTheScreen();
+
     // The customer paid by M-Pesa: the items cannot change (the payment would be dropped).
     await fireEvent.press(screen.getByRole('button', { name: 'Back to the sale' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Supaloaf White 400g, KES 65.00' }));
     expect(await screen.findByText('Mobile money was sent for this sale, so its items and customer cannot change. Complete the sale, or refund the payment first.')).toBeOnTheScreen();
+    // Nor cleared, nor held.
+    await fireEvent.press(await screen.findByText('Tap to see the sale'));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Clear' }));
+    expect(await screen.findByText(paidNotice)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Hold' }));
+    expect(await services.posStore.held()).toEqual([]);
     await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Complete sale' }));
     expect(await screen.findByText('Sale complete')).toBeOnTheScreen();

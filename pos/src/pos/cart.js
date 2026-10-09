@@ -40,10 +40,25 @@ export const isWholeQty = (qty) => /^\d+$/.test(String(qty));
 export const hasMobilePayment = (cart) =>
   (cart?.tenders ?? []).some((tender) => tender.method?.type === 'mobile_money' && (tender.status === 'confirmed' || tender.status === 'pending'));
 
+const isConfirmedMobile = (tender) => tender?.method?.type === 'mobile_money' && tender.status === 'confirmed';
+
+/**
+ * POS-05, POS-06: the customer has already paid by mobile money (a
+ * confirmed tender). The sale can then only be completed: it cannot be
+ * cleared, held, swapped for a held sale, nor that tender removed. Money
+ * owed back goes through a refund after the sale. A pending tender (not
+ * yet confirmed) may still be removed; the server keeps a late payment as
+ * an unmatched receipt for review.
+ */
+export const hasConfirmedMobilePayment = (cart) => (cart?.tenders ?? []).some(isConfirmedMobile);
+
 const SALE_CHANGES = new Set(['add', 'edit', 'remove', 'customer']);
+// `clear` with `completed: true` follows a completed sale and always applies.
+const SALE_ENDS = new Set(['clear', 'load']);
 
 export function cartReducer(state, action) {
   if (SALE_CHANGES.has(action.type) && hasMobilePayment(state)) return state;
+  if (SALE_ENDS.has(action.type) && !action.completed && hasConfirmedMobilePayment(state)) return state;
   switch (action.type) {
     case 'add': {
       const { item, uomId, uomCode, price, listPriceMinor, priceListId, taxInclusive, now } = action;
@@ -82,7 +97,7 @@ export function cartReducer(state, action) {
       if (action.saleId !== state.id || (state.tenders ?? []).some((tender) => tender.id === action.tender.id)) return state;
       return { ...state, tenders: [...(state.tenders ?? []), action.tender] };
     case 'removeTender':
-      if (action.saleId !== state.id) return state;
+      if (action.saleId !== state.id || (state.tenders ?? []).some((tender) => tender.id === action.id && isConfirmedMobile(tender))) return state;
       return { ...state, tenders: (state.tenders ?? []).filter((tender) => tender.id !== action.id) };
     case 'load':
       return { tenders: [], ...action.cart };

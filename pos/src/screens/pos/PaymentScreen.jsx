@@ -212,7 +212,9 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
                   <Text className="font-sans text-caption tabular-nums text-ink-muted">{`≈ ${money(result.lines[index].inDue.minor, currency)}`}</Text>
                 ) : null}
               </View>
-              <Button variant="ghost" className="px-3" accessibilityLabel={t('pos.pay.remove', { method: tender.method.name })} onPress={() => actions.removeTender(cart.id, tender.id)}>
+              <Button variant="ghost" className="px-3" accessibilityLabel={t('pos.pay.remove', { method: tender.method.name })} onPress={() => {
+                  if (actions.removeTender(cart.id, tender.id)) setError(t('pos.sale.mobilePaid'));
+                }}>
                 {t('pos.pay.removeShort')}
               </Button>
             </View>
@@ -348,7 +350,10 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {!result && tenders.length ? <Alert tone="danger">{t('pos.pay.errors.rate_unavailable')}</Alert> : null}
       <View className="flex-row gap-3">
-        <Button variant="secondary" className="shrink basis-1/3" onPress={async () => { await actions.hold(); onBack(); }}>
+        <Button variant="secondary" className="shrink basis-1/3" onPress={async () => {
+            if (await actions.hold()) setError(t('pos.sale.mobilePaid'));
+            else onBack();
+          }}>
           {t('pos.pay.hold')}
         </Button>
         <Button variant="pay" className="shrink basis-2/3" loading={busy} disabled={!settled} onPress={complete}>

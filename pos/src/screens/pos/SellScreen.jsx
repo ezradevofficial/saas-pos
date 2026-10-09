@@ -46,6 +46,9 @@ export function OfflineNote({ className }) {
   return <Text className={cn('text-center font-sans text-caption text-ink-muted', className)}>{t(key)}</Text>;
 }
 
+// What the sale panel says after a step, a hold or a clear that did not (fully) apply.
+const NOTICES = { payment_locked: 'pos.sale.paymentLocked', mobile_paid: 'pos.sale.mobilePaid', discount_cleared: 'pos.sale.discountCleared' };
+
 function useReasonText() {
   const { t } = useTranslation();
   return useCallback(
@@ -301,10 +304,10 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
               {nextReceipt ? t('pos.sale.summary', { count, receipt: nextReceipt }) : t('pos.sale.summaryNoNumber', { count })}
             </Text>
           </View>
-          <Button variant="ghost" onPress={() => actions.hold()} disabled={!cart.lines.length}>
+          <Button variant="ghost" onPress={async () => setStepNotice(await actions.hold())} disabled={!cart.lines.length}>
             {t('pos.sale.hold')}
           </Button>
-          <Button variant="danger" onPress={actions.clear} disabled={!cart.lines.length} className="border-transparent">
+          <Button variant="danger" onPress={() => setStepNotice(actions.clear())} disabled={!cart.lines.length} className="border-transparent">
             {t('pos.sale.clear')}
           </Button>
         </View>
@@ -339,7 +342,7 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
         />
       </View>
       {blocked ? <Alert tone="danger">{t('pos.sale.blocked')}</Alert> : null}
-      {stepNotice ? <Alert tone="warning">{stepNotice === 'payment_locked' ? t('pos.sale.paymentLocked') : t('pos.sale.discountCleared')}</Alert> : null}
+      {stepNotice ? <Alert tone="warning">{t(NOTICES[stepNotice] ?? 'pos.sale.discountCleared')}</Alert> : null}
       {currency ? (
         <SaleTotal
           currency={currency}

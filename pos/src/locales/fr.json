@@ -177,7 +177,8 @@
       "blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini dans le back-office. Retirez-les pour encaisser.",
       "tax": "Taxe",
       "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau.",
-      "paymentLocked": "Un paiement mobile money a été envoyé pour cette vente : ses articles et son client ne peuvent plus changer. Terminez la vente, ou remboursez d’abord le paiement."
+      "paymentLocked": "Un paiement mobile money a été envoyé pour cette vente : ses articles et son client ne peuvent plus changer. Terminez la vente, ou remboursez d’abord le paiement.",
+      "mobilePaid": "Le client a déjà payé par mobile money. Terminez la vente ; tout montant à rendre passe ensuite par un remboursement."
     },
     "phone": {
       "items_one": "{{count}} article",

@@ -1,4 +1,4 @@
-import { cartReducer, emptyCart, hasMobilePayment } from './cart';
+import { cartReducer, emptyCart, hasConfirmedMobilePayment, hasMobilePayment } from './cart';
 
 // POS-03, POS-06, NFR-04: tenders of the current sale, changed on the cart as it is now.
 
@@ -82,6 +82,29 @@ describe('a sale with mobile money sent cannot change (POS-03, POS-06)', () => {
       expect(after).not.toBe(paid);
       expect(after.tenders).toEqual([]);
     }
+  });
+
+  it('cannot clear, swap or drop a sale the customer already paid by mobile money (POS-05, POS-06)', () => {
+    const base = withLine();
+    const paid = run(base, [
+      { type: 'addTender', saleId: base.id, tender: tender('t-cash', cash) },
+      { type: 'addTender', saleId: base.id, tender: tender('t-mm', mpesa, { status: 'confirmed' }) },
+    ]);
+    expect(hasConfirmedMobilePayment(paid)).toBe(true);
+    expect(cartReducer(paid, { type: 'clear', now: NOW + 1 })).toBe(paid);
+    expect(cartReducer(paid, { type: 'load', cart: emptyCart(NOW + 1) })).toBe(paid);
+    expect(cartReducer(paid, { type: 'removeTender', saleId: base.id, id: 't-mm' })).toBe(paid);
+    // Other tenders may still go; the sale clears once it is completed.
+    expect(cartReducer(paid, { type: 'removeTender', saleId: base.id, id: 't-cash' }).tenders.map((entry) => entry.id)).toEqual(['t-mm']);
+    expect(cartReducer(paid, { type: 'clear', completed: true, now: NOW + 1 }).lines).toEqual([]);
+  });
+
+  it('lets a pending mobile-money tender be removed, and the sale be cleared once it is', () => {
+    const base = withLine();
+    const pending = cartReducer(base, { type: 'addTender', saleId: base.id, tender: tender('t-mm', mpesa, { status: 'pending' }) });
+    expect(hasConfirmedMobilePayment(pending)).toBe(false);
+    expect(cartReducer(pending, { type: 'clear', now: NOW + 1 }).lines).toEqual([]);
+    expect(cartReducer(pending, { type: 'removeTender', saleId: base.id, id: 't-mm' }).tenders).toEqual([]);
   });
 
   it('frees the sale once the mobile-money tender is removed', () => {

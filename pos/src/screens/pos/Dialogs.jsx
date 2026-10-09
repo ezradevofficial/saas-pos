@@ -172,8 +172,10 @@ export function HeldDialog({ onClose }) {
   const locale = useLocale();
   const { held, catalogue } = usePosData();
   const actions = usePosActions();
+  const [error, setError] = useState(null);
   return (
     <Dialog open title={t('pos.held.title')} onClose={onClose}>
+      {error ? <Alert tone="warning">{error}</Alert> : null}
       {held.length ? (
         <View className="rounded-md border border-border">
           {held.map((entry) => (
@@ -185,7 +187,10 @@ export function HeldDialog({ onClose }) {
               <Button variant="ghost" onPress={() => actions.discard(entry.id)}>
                 {t('pos.held.discard')}
               </Button>
-              <Button variant="secondary" onPress={async () => { await actions.resume(entry.id); onClose(); }}>
+              <Button variant="secondary" onPress={async () => {
+                  if (await actions.resume(entry.id)) setError(t('pos.sale.mobilePaid'));
+                  else onClose();
+                }}>
                 {t('pos.held.resume')}
               </Button>
             </View>
