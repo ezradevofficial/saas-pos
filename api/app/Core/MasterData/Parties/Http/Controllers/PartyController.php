@@ -2,6 +2,9 @@
 
 namespace App\Core\MasterData\Parties\Http\Controllers;
 
+use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomFields\CustomFieldWriter;
+use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Exports\ListExport;
 use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
@@ -39,6 +42,8 @@ class PartyController
         private readonly PartyPolicy $policy,
         private readonly MasterDataSharing $sharing,
         private readonly DuplicateFinder $duplicates,
+        private readonly CustomFieldWriter $customFields,
+        private readonly CustomFieldLists $customLists,
     ) {}
 
     public function index(ListPartiesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -57,6 +62,9 @@ class PartyController
         if ($request->filled('tag')) {
             $query->whereRaw('tags @> ?::text[]', [TextArray::format([Str::lower(trim($request->validated('tag')))])]);
         }
+
+        // CF-03: `?custom[key]=` filters (validated: known, visible fields).
+        $this->customLists->apply($query, PartyEntity::KEY, $request->validated('custom'));
 
         $search = trim((string) $request->validated('search', ''));
 
@@ -82,11 +90,17 @@ class PartyController
 
         $attributes = PartyRules::attributes($data, $companyId);
 
-        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($attributes, $companyId) {
+        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($attributes, $companyId, $data) {
             $this->sharing->lockForWrite(PartyRoles::dataTypes($attributes['roles']));
             $this->assertModeUnchanged($attributes['roles'], $companyId);
 
-            return Party::create(['company_id' => $companyId, ...$attributes]);
+            $party = new Party(['company_id' => $companyId, ...$attributes]);
+            // CF-01, CF-02: defaults, formulas and unique fields, then the party's files.
+            $this->customFields->fill(PartyEntity::KEY, $party, $data['custom'] ?? null, creating: true);
+            $party->save();
+            $this->customFields->saved(PartyEntity::KEY, $party);
+
+            return $party;
         });
 
         return $this->respond($request, $party, 201, duplicates: true);
@@ -117,7 +131,10 @@ class PartyController
                 app(CreditLimitChanges::class)->assertDirectChange($user, $party->creditLimit(), CreditLimitChanges::limitFrom($data), [$party->company_id, $companyId]);
             }
 
-            $party->fill(['company_id' => $companyId, ...$attributes])->save();
+            $party->fill(['company_id' => $companyId, ...$attributes]);
+            $this->customFields->fill(PartyEntity::KEY, $party, $data['custom'] ?? null, creating: false);
+            $party->save();
+            $this->customFields->saved(PartyEntity::KEY, $party);
 
             return $party;
         });
@@ -137,7 +154,11 @@ class PartyController
     public function restore(PartyActionRequest $request, Party $party): JsonResponse
     {
         if ($party->isArchived()) {
-            $party->restore();
+            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party) {
+                // CF-02: a restored party takes its unique custom values back.
+                $this->customFields->assertRestorable(PartyEntity::KEY, $party);
+                $party->restore();
+            });
         }
 
         return $this->respond($request, $party);

@@ -10,6 +10,7 @@ use App\Core\Sync\Console\SyncLagCommand;
 use App\Core\Sync\Jobs\RestampItemsForTax;
 use App\Core\Sync\Sources\CurrencySource;
 use App\Core\Sync\Sources\CustomerSource;
+use App\Core\Sync\Sources\CustomFieldSource;
 use App\Core\Sync\Sources\ExchangeRateSource;
 use App\Core\Sync\Sources\ItemCategorySource;
 use App\Core\Sync\Sources\ItemPriceSource;
@@ -50,6 +51,7 @@ class SyncServiceProvider extends ServiceProvider
         ItemPriceSource::class,
         CustomerSource::class,
         StaffSource::class,
+        CustomFieldSource::class,
     ];
 
     public function register(): void

@@ -2,6 +2,7 @@
 
 namespace App\Core\Sync\Sources;
 
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\MasterData\Taxes\ItemTaxStatus;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\Contracts\IncrementalSource;
@@ -21,7 +22,9 @@ use Illuminate\Support\Facades\DB;
  * device check again when a dated rate starts while it is offline.
  *
  * Images are fetched with the device token from `GET sync/media/{id}`.
- * Custom fields and module fields (costing) are not sent.
+ * `custom` holds the values of the custom fields shown on the POS
+ * (CF-03; their labels in `custom_fields`, CustomFieldSource); other custom
+ * fields and module fields (costing) are not sent. Version 2 added `custom`.
  */
 class ItemSource implements IncrementalSource
 {
@@ -39,7 +42,7 @@ class ItemSource implements IncrementalSource
 
     public function version(): int
     {
-        return 1;
+        return 2;
     }
 
     public function table(): string
@@ -59,7 +62,7 @@ class ItemSource implements IncrementalSource
         $items = $this->visible($db->table('items'), $scope)
             ->whereIn('items.id', $ids)
             ->whereNull('items.archived_at')
-            ->get(['id', 'company_id', 'code', 'name', 'category_id', 'type', 'base_uom_id', 'tax_category_id', 'updated_at']);
+            ->get(['id', 'company_id', 'code', 'name', 'category_id', 'type', 'base_uom_id', 'tax_category_id', 'custom', 'updated_at']);
 
         if ($items->isEmpty()) {
             return [];
@@ -73,6 +76,7 @@ class ItemSource implements IncrementalSource
         $images = $db->table('item_images')->whereIn('item_id', $itemIds)->orderBy('position')
             ->get(['id', 'item_id', 'position', 'mime', 'width', 'height'])->groupBy('item_id');
         $taxes = $this->taxStatus->forCompany($scope->company, $scope->at);
+        $customFields = CustomFieldSource::posFields(ItemEntity::KEY);
 
         $rows = [];
 
@@ -108,6 +112,7 @@ class ItemSource implements IncrementalSource
                     'height' => (int) $i->height,
                     'url' => '/api/v1/sync/media/'.$i->id,
                 ])->values()->all(),
+                'custom' => (object) CustomFieldSource::values($customFields, $item->custom),
                 'updated_at' => Iso::of($item->updated_at),
             ];
         }

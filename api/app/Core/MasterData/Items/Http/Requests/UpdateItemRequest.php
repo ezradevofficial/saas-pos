@@ -2,6 +2,8 @@
 
 namespace App\Core\MasterData\Items\Http\Requests;
 
+use App\Core\CustomFields\CustomFieldValidator;
+use App\Core\CustomFields\Entities\ItemEntity;
 use App\Core\Rbac\Http\Requests\GuardsFieldRules;
 use Illuminate\Validation\Validator;
 
@@ -26,9 +28,12 @@ class UpdateItemRequest extends ItemRequest
 
     public function after(): array
     {
-        return [fn (Validator $validator) => ItemRules::validateItem(
-            $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], $this->item(), $this->user(),
-        )];
+        return [
+            fn (Validator $validator) => ItemRules::validateItem(
+                $validator, $validator->errors()->isEmpty() ? $validator->validated() : [], $this->item(), $this->user(),
+            ),
+            fn (Validator $validator) => app(CustomFieldValidator::class)->validate($validator, ItemEntity::KEY, $this->input('custom'), $this->item(), $this->user()),
+        ];
     }
 
     public function attributes(): array

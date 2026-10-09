@@ -48,7 +48,7 @@ class UpdateFieldAction implements AutomationAction
 
         if (! array_key_exists('value', $action)
             || ($action['value'] !== null && $this->conditions->validate(['field' => $field->name, 'op' => 'eq', 'value' => $action['value']], [$field->name => $field]) !== [])) {
-            return [__('automation.validation.field_value', ['field' => __($field->label)])];
+            return [__('automation.validation.field_value', ['field' => $field->displayLabel()])];
         }
 
         return array_diff(array_keys($action), ['type', 'field', 'value']) === [] ? [] : [__('automation.validation.action_extra')];
@@ -65,7 +65,7 @@ class UpdateFieldAction implements AutomationAction
         $value = $field === null ? '' : $this->text->format($field, $action['value'] ?? null, app()->getLocale(), $context->timezone);
 
         return __('automation.actions.update_field.describe', [
-            'field' => $field === null ? (string) ($action['field'] ?? '') : __($field->label),
+            'field' => $field === null ? (string) ($action['field'] ?? '') : $field->displayLabel(),
             'value' => $value === '' ? __('automation.values.empty') : $value,
         ]);
     }

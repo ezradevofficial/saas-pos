@@ -60,6 +60,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
+        'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
@@ -106,6 +107,7 @@ class TenantIsolationTest extends TestCase
         'payment_intent' => 'payment_intent', // payments/intents/{payment_intent} (device), a manual payment at the till's location
         'payment_receipt' => 'payment_receipt', // payment-receipts/{payment_receipt}/match, money received that matched nothing
         'fiscal_submission' => 'fiscal_submission', // fiscal-submissions/{fiscal_submission}[/retry], an accepted sale
+        'custom_field' => 'custom_field', // CF-01: custom-fields/{custom_field}[/archive|restore], the item's colour field
         'pos_sale' => 'pos_sale', // POS-12: pos/sales/{pos_sale}, a partly refunded sale
         'pos_shift' => 'pos_shift', // POS-12: pos/shifts/{pos_shift}, the till's open shift
         'pos_void' => 'pos_void', // H2: pos/voids/{pos_void}/approve|reject, a held void
@@ -221,6 +223,7 @@ class TenantIsolationTest extends TestCase
         'location' => 'location',
         'user' => 'user',
         'role' => 'role',
+        'custom_field' => 'custom_field',
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
@@ -261,6 +264,10 @@ class TenantIsolationTest extends TestCase
         ['entities' => ['items', 'customers', 'staff', 'exchange_rates'], 'cursors' => ['items' => '', 'customers' => ''], 'limit' => 1],
         // M3, H2: review filters (sales and the held list).
         ['flagged' => '1', 'flag' => 'actor_unverified', 'reviewed' => '0', 'kind' => 'refund'],
+        // CF-01..CF-03: definitions and the form schema of items, lookup candidates
+        // (both tenants have a supplier), and items filtered by a custom field (both set red).
+        ['entity' => 'item', 'target' => 'party', 'search' => 'Supplier'],
+        ['custom' => ['colour' => 'red']],
         // TEN-07: the consolidated sales of a year in a reporting currency (both tenants sold in KES).
         ['from' => '2026-01-01', 'to' => '2026-12-31', 'currency' => 'USD'],
         // LAY-06: a configuration key (both tenants have a layout under the default key).
@@ -272,10 +279,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom'];
 
     private TwoTenants $tenants;
 

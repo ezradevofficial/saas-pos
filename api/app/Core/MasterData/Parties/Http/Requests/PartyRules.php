@@ -5,6 +5,7 @@ namespace App\Core\MasterData\Parties\Http\Requests;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\Money;
 use App\Core\Currency\Rules\MoneyAmount;
+use App\Core\CustomFields\CustomFieldValidator;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Support\PhoneNumber;
@@ -83,6 +84,8 @@ final class PartyRules
             'tags.*' => ['string', 'regex:'.self::TAG_PATTERN],
             'roles' => [...$required, 'array', 'min:1'],
             'roles.*' => ['string', 'distinct', Rule::in(PartyRoles::ALL)],
+            // CF-01, CF-02: custom field values, checked by CustomFieldValidator.
+            ...CustomFieldValidator::rules(),
         ];
     }
 
