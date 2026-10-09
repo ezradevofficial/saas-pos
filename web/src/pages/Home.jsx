@@ -1,68 +1,73 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
+import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
-import { usePermissions } from '@/auth/usePermissions'
-import { Card, Icon } from '@/components/ds'
+import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
+import { DEFAULT_DASHBOARD, Widget, WIDGET_TYPES } from '@/components/dashboard/widgets'
+import { Button } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { useNavigation } from '@/layouts/useNavigation'
 import { formatLongDate, partOfDay } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 
-function Step({ to, icon, title, text }) {
-  return (
-    <li>
-      <Link
-        to={to}
-        className="flex items-start gap-3 rounded-md border border-border px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-100"
-      >
-        <Icon name={icon} size={18} className="mt-px text-ink-muted" />
-        <span className="flex min-w-0 flex-col">
-          <span className="font-medium text-primary">{title}</span>
-          <span className="text-ink-muted">{text}</span>
-        </span>
-      </Link>
-    </li>
-  )
+export const DASHBOARD_KEY = ['config', 'dashboard', 'resolved']
+
+/**
+ * LAY-01: the dashboard that applies to the signed-in user (their own copy,
+ * else their role's, else the organisation's, else the default one), with
+ * widgets they may not open already removed by the API. An unreadable
+ * dashboard falls back to the default (LAY-07).
+ */
+export function useDashboard() {
+  const query = useQuery({ queryKey: DASHBOARD_KEY, queryFn: () => api.get('config/dashboard/resolved'), retry: false, staleTime: 30_000 })
+  const payload = query.data?.data?.payload
+  return {
+    dashboard: payload?.widgets ? payload : query.isPending ? null : DEFAULT_DASHBOARD,
+    source: query.data?.data?.source ?? null,
+    isLoading: query.isPending,
+  }
 }
 
-/** The dashboard. Sprint 1 has no figures yet, so it shows how to get started. */
+/** The dashboard, under a greeting; "Customise my dashboard" opens the user's own copy in the designer. */
 export default function Home() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { can } = usePermissions()
+  const location = useLocation()
+  const navigate = useNavigate()
   const locale = useLocale()
   const [now] = useState(() => new Date())
+  const { home } = useNavigation()
+  const { dashboard, isLoading } = useDashboard()
+
+  // LAY-02: straight after signing in, the role's home page when it has one.
+  if (location.state?.landing && home) return <Navigate to={home} replace />
+
   const firstName = (user?.name ?? '').split(' ')[0]
   const greetings = {
     morning: t('home.greeting.morning', { name: firstName }),
     afternoon: t('home.greeting.afternoon', { name: firstName }),
     evening: t('home.greeting.evening', { name: firstName }),
   }
-  const today = formatLongDate(now, locale)
-  const steps = [
-    can('core.company.view') && (
-      <Step key="org" to="/settings/organisation" icon="organisation" title={t('home.start.organisation')} text={t('home.start.organisationText')} />
-    ),
-    can('core.user.view') && (
-      <Step key="users" to="/settings/users" icon="users" title={t('home.start.users')} text={t('home.start.usersText')} />
-    ),
-    <Step key="look" to="/settings/appearance" icon="appearance" title={t('home.start.appearance')} text={t('home.start.appearanceText')} />,
-  ].filter(Boolean)
+  const widgets = (dashboard?.widgets ?? []).filter((widget) => WIDGET_TYPES.includes(widget.type))
 
   return (
     <>
-      <PageHeader eyebrow={today} title={greetings[partOfDay(now.getHours())]} />
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card title={t('home.start.title')} subtitle={t('home.start.subtitle')}>
-          <ul className="flex flex-col gap-2">{steps}</ul>
-        </Card>
-        <Card title={t('home.empty.title')}>
-          <div className="flex flex-col items-start gap-2 py-6">
-            <p className="text-body text-ink">{t('home.empty.heading')}</p>
-            <p className="text-body text-ink-muted">{t('home.empty.text')}</p>
-          </div>
-        </Card>
-      </div>
+      <PageHeader
+        eyebrow={formatLongDate(now, locale)}
+        title={dashboard?.title || greetings[partOfDay(now.getHours())]}
+        actions={
+          <Button icon="layouts" onClick={() => navigate('/dashboard/customise')}>
+            {t('layouts.dashboard.customise')}
+          </Button>
+        }
+      />
+      {isLoading ? (
+        <p className="text-body text-ink-muted">{t('common.loading')}</p>
+      ) : (
+        <DashboardGrid label={t('layouts.dashboard.label')} widgets={widgets} renderWidget={(widget) => <Widget widget={widget} />} />
+      )}
     </>
   )
 }

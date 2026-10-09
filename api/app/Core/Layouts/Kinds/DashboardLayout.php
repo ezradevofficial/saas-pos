@@ -33,6 +33,9 @@ final class DashboardLayout
 
     public const MAX_HEIGHT = 8;
 
+    /** Rows a widget may start on (the web's grid has the same, LAY-01). */
+    public const ROWS = 48;
+
     public const SCHEMA = [
         'type' => 'object',
         'required' => ['widgets'],
@@ -51,7 +54,7 @@ final class DashboardLayout
                     'title' => ['type' => 'string', 'nullable' => true, 'max' => 80],
                     'chart' => ['type' => 'string', 'nullable' => true, 'enum' => ['bar', 'line']],
                     'x' => ['type' => 'integer', 'min' => 0, 'max' => self::COLUMNS - 1],
-                    'y' => ['type' => 'integer', 'min' => 0, 'max' => 199],
+                    'y' => ['type' => 'integer', 'min' => 0, 'max' => self::ROWS - 1],
                     'w' => ['type' => 'integer', 'min' => 1, 'max' => self::COLUMNS],
                     'h' => ['type' => 'integer', 'min' => 1, 'max' => self::MAX_HEIGHT],
                 ],
