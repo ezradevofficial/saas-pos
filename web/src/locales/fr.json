@@ -3350,7 +3350,9 @@
       "mpesa_code_reused": "Code M-Pesa déjà utilisé",
       "actor_offline": "Connexion hors ligne",
       "before_sign_in": "Avant la connexion",
-      "session_stale": "Session de caisse ancienne"
+      "session_stale": "Session de caisse ancienne",
+      "refund_flagged": "Remboursement signalé",
+      "void_flagged": "Annulation signalée"
     },
     "records": {
       "applied": "Appliqué",
@@ -3408,6 +3410,8 @@
       "flagLine": "ligne {{line}}",
       "flagExpected": "Le serveur attendait {{amount}}.",
       "flagPair": "Taux {{pair}}",
+      "flagRefund": "Remboursement {{number}} : {{flag}}",
+      "flagVoid": "Annulation : {{flag}}",
       "summary": "Résumé",
       "place": "Site",
       "device": "Caisse",

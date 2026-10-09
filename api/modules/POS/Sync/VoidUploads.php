@@ -11,6 +11,7 @@ use Modules\POS\Models\Refund;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleVoid;
 use Modules\POS\Models\Shift;
+use Modules\POS\Payments\RecordFlags;
 
 /**
  * POS-05: a whole sale voided at the till (idempotent by the void's id;
@@ -129,6 +130,9 @@ class VoidUploads
         } else {
             $this->records->applyVoid($void);
         }
+
+        // POS-09: a refund or void has no review of its own; its flags reach the sale's.
+        RecordFlags::toSale($void, array_column($void->flags ?? [], 'code'));
 
         return $void;
     }

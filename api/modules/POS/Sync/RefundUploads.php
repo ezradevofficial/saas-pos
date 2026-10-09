@@ -23,6 +23,7 @@ use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
 use Modules\POS\Models\Shift;
+use Modules\POS\Payments\RecordFlags;
 
 /**
  * POS-05: lines or quantities of a sale given back at the till
@@ -192,6 +193,9 @@ class RefundUploads
         } else {
             $this->records->applyRefund($refund);
         }
+
+        // POS-09: a refund or void has no review of its own; its flags reach the sale's.
+        RecordFlags::toSale($refund, array_column($refund->flags ?? [], 'code'));
 
         return $refund;
     }

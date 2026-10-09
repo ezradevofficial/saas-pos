@@ -3350,7 +3350,9 @@
       "mpesa_code_reused": "M-Pesa code used before",
       "actor_offline": "Signed in offline",
       "before_sign_in": "Before sign-in",
-      "session_stale": "Old till session"
+      "session_stale": "Old till session",
+      "refund_flagged": "Refund flagged",
+      "void_flagged": "Void flagged"
     },
     "records": {
       "applied": "Applied",
@@ -3408,6 +3410,8 @@
       "flagLine": "line {{line}}",
       "flagExpected": "The server expected {{amount}}.",
       "flagPair": "Rate {{pair}}",
+      "flagRefund": "Refund {{number}}: {{flag}}",
+      "flagVoid": "Void: {{flag}}",
       "summary": "Summary",
       "place": "Location",
       "device": "Till",

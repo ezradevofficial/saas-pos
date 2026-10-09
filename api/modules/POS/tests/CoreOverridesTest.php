@@ -2,9 +2,11 @@
 
 namespace Modules\POS\Tests;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Pin\OverrideVerifier as CoreVerifier;
+use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Scope;
 use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Models\Device;
@@ -22,6 +24,9 @@ use Tests\TestCase;
 // record; the token can't serve another record; an offline override (the
 // device signed it with its secret, message v2 with `kid`) applies and is
 // flagged `override_offline` for review. The upload records the push.
+// POS-09, AUD-01: a refund's or void's flags reach its sale's review
+// (`refund_flagged` / `void_flagged`), re-opening a reviewed sale, and the
+// sale detail shows them.
 class CoreOverridesTest extends TestCase
 {
     use BuildsPos, RefreshTenantDatabase;
@@ -172,5 +177,65 @@ class CoreOverridesTest extends TestCase
                 $this->assertSame('override_invalid', $e->errorCode);
             }
         }
+    }
+
+    private function refund(string $saleId, int $seq): array
+    {
+        $id = $this->id();
+        $sale = $this->inTenant(fn () => Sale::query()->with('lines')->findOrFail($saleId));
+
+        return [
+            'id' => $id, 'sale_id' => $saleId, 'shift_id' => $this->shift, 'cashier_id' => $this->cashier->id,
+            'receipt_seq' => $seq, 'receipt_number' => sprintf('RF-L01-%06d', $seq), 'refunded_at' => now()->toIso8601String(),
+            'reason' => 'Damaged', 'total_minor' => '56250',
+            'lines' => [['id' => $this->id(), 'sale_line_id' => $sale->lines[0]->id, 'qty' => '1']],
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250']],
+            'override' => $this->signed($id, now()->toIso8601String(), 'pos.sale.refund'),
+        ];
+    }
+
+    public function test_a_refund_with_an_offline_override_flags_its_sale_and_reopens_a_reviewed_one(): void
+    {
+        $this->ranges('pos.refund', token: $this->paired['token'])->assertOk();
+        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount', 'value' => '100000']));
+        $sale = $this->sale(1);
+
+        $first = $this->refund($sale['id'], 1);
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$first]], $this->tillHeaders($this->paired['token']))->assertOk()
+            ->assertJsonPath('results.0.refund_status', 'applied')
+            ->assertJsonPath('results.0.flags.0.code', 'override_offline');
+
+        $this->getJson('/api/v1/pos/sales?flag=refund_flagged&reviewed=0', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $sale['id']);
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.flags.1.code', 'refund_flagged')
+            ->assertJsonPath('data.flags.1.detail', ['flag' => 'override_offline', 'refund' => $first['id']])
+            ->assertJsonPath('data.refunds.0.flags.0.code', 'override_offline');
+
+        // Reviewed, then a second flagged refund re-opens the sale (audited).
+        $this->postJson("/api/v1/pos/sales/{$sale['id']}/review", ['note' => 'Manager confirmed'], $this->headersFor())->assertOk();
+        $second = $this->refund($sale['id'], 2);
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$second]], $this->tillHeaders($this->paired['token']))->assertOk();
+        // A resend changes nothing.
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$second]], $this->tillHeaders($this->paired['token']))->assertOk();
+
+        $this->inTenant(function () use ($sale, $first, $second) {
+            $stored = Sale::query()->findOrFail($sale['id']);
+            $this->assertNull($stored->reviewed_at);
+            $this->assertSame([$first['id'], $second['id']], array_column(array_column($stored->flags, 'detail'), 'refund'));
+            $entry = AuditEntry::query()->where('action', 'pos.sale.review_reopened')->sole();
+            $this->assertSame(['refund_flagged', $sale['id']], [$entry->after['flag'], $entry->auditable_id]);
+        });
+    }
+
+    public function test_a_void_with_an_offline_override_flags_its_sale_and_the_detail_shows_it(): void
+    {
+        $sale = $this->sale(1);
+        $voidId = $this->id();
+        $this->postJson('/api/v1/pos/voids', $this->void($sale['id'], $this->signed($voidId, now()->toIso8601String()), $voidId), $this->tillHeaders($this->paired['token']))->assertOk();
+
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.void.flags.0.code', 'override_offline')
+            ->assertJsonPath('data.flags.1.code', 'void_flagged')
+            ->assertJsonPath('data.flags.1.detail', ['flag' => 'override_offline', 'void' => $voidId]);
     }
 }
