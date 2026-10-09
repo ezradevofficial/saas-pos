@@ -10,6 +10,8 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <!-- Each business module keeps its own tests (CLAUDE.md layout). -->
+            <directory>modules/*/tests</directory>
             <!-- Runs only in its own suite (CI job `api (isolation)`). -->
             <exclude>tests/Feature/Isolation</exclude>
         </testsuite>

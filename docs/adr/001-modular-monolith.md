@@ -20,7 +20,11 @@ Three clients use the platform: a React web app (back office), an Expo / React N
   - `Localisation`: request locale
   - `Notifications`: the SMS channel
   - `Http`: the API error envelope
-- Business modules will live in `api/modules/<Module>` (from Sprint 2 onwards). Each one owns its tables, routes, migrations, policies, events and tests.
+- Business modules live in `api/modules/<Module>` (the first is `POS`, phase 4). Each one owns its tables, routes, migrations, policies, events and tests:
+  - namespace `Modules\<Module>\` (Composer maps `Modules\` to `api/modules/`); tests in `modules/<Module>/tests` (namespace `Modules\<Module>\Tests\`, in the phpunit `Feature` suite through `modules/*/tests`)
+  - one service provider, listed in `bootstrap/providers.php`, that registers the module with `ModuleRegistry`, its permission catalogue with `PermissionRegistry`, its migrations (`database/migrations`), its routes (`routes/api.php`, prefix `/api/v1`, every route behind `module:<name>`), its config and its listeners
+  - Laravel boots once for every tenant, so the provider always registers; what a tenant reaches follows its subscription (RBAC-08): routes answer 403 `module_inactive`, permissions grant nothing and listeners check `ModuleRegistry::isActive` where they act for a tenant
+  - API messages live in `lang/{en,fr}/<module>.php`, so the translation parity test covers them
 - Modules never read or write another module's tables. They talk through domain events (`SaleCompleted`, `GoodsReceived`, ...) and a small set of core services. The core already raises its own events this way; for example, `TenantProvisioned` is consumed by `Rbac\Listeners\ProvisionTenantRoles`.
 - Feature flags are per tenant (RBAC-08):
   - `ModuleRegistry` knows the registered modules and which are active for the current tenant (`tenant_modules`). `core` is always active.

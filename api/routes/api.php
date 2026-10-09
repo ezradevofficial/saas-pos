@@ -60,6 +60,7 @@ use App\Core\Notifications\Http\Controllers\InboxController;
 use App\Core\Notifications\Http\Controllers\NotificationSettingsController;
 use App\Core\Notifications\Http\Controllers\PreferenceController;
 use App\Core\Notifications\Http\Controllers\TemplateController;
+use App\Core\Numbering\Http\Controllers\NumberFormatController;
 use App\Core\Payments\CallbackTokens;
 use App\Core\Payments\Http\Controllers\CallbackController;
 use App\Core\Payments\Http\Controllers\DeviceIntentController;
@@ -507,4 +508,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // NOT-06: the delivery log (core.notification_delivery.view).
     Route::get('notification-deliveries', [DeliveryController::class, 'index']);
+
+    // NUM-01: number formats per document type, for the tenant, a company or a branch.
+    Route::get('numbering/formats', [NumberFormatController::class, 'index']);
+    Route::put('numbering/formats', [NumberFormatController::class, 'save']);
 });

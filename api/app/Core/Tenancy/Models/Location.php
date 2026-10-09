@@ -20,7 +20,7 @@ class Location extends Model implements HasScope
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;
 
-    protected $fillable = ['tenant_id', 'branch_id', 'name', 'type'];
+    protected $fillable = ['tenant_id', 'branch_id', 'name', 'type', 'code'];
 
     public function branch(): BelongsTo
     {
