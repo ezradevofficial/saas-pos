@@ -3344,7 +3344,13 @@
       "shift_missing": "Session jamais reçue",
       "placeholder": "Session de remplacement",
       "opener_not_permitted": "Ouverture non autorisée",
-      "closer_not_permitted": "Clôture non autorisée"
+      "closer_not_permitted": "Clôture non autorisée",
+      "payout_refused": "Versement refusé",
+      "mpesa_mismatch": "Montant M-Pesa différent",
+      "mpesa_code_reused": "Code M-Pesa déjà utilisé",
+      "actor_offline": "Connexion hors ligne",
+      "before_sign_in": "Avant la connexion",
+      "session_stale": "Session de caisse ancienne"
     },
     "records": {
       "applied": "Appliqué",

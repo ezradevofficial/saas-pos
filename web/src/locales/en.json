@@ -3344,7 +3344,13 @@
       "shift_missing": "Shift never arrived",
       "placeholder": "Placeholder shift",
       "opener_not_permitted": "Opener not allowed",
-      "closer_not_permitted": "Closer not allowed"
+      "closer_not_permitted": "Closer not allowed",
+      "payout_refused": "Payout refused",
+      "mpesa_mismatch": "M-Pesa amount differs",
+      "mpesa_code_reused": "M-Pesa code used before",
+      "actor_offline": "Signed in offline",
+      "before_sign_in": "Before sign-in",
+      "session_stale": "Old till session"
     },
     "records": {
       "applied": "Applied",
