@@ -11,8 +11,7 @@ const DEFAULT_LOW_STOCK = 5;
 
 /**
  * A product button on the POS grid; price in minor units. `unavailable`
- * (POS only, e.g. "Rate needed") disables the tile and says why; the web
- * tile has no such state yet.
+ * (e.g. "Rate needed") disables the tile and says why, as the web tile does.
  */
 export const PosTile = memo(function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, unavailable, onSelect, className }) {
   const { t } = useTranslation();

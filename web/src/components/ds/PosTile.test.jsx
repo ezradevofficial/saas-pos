@@ -22,4 +22,14 @@ describe('PosTile', () => {
     expect(tile).toBeDisabled()
     expect(screen.getByText('Out')).toBeInTheDocument()
   })
+
+  it('is disabled with its reason when unavailable (e.g. a tax rate is needed)', () => {
+    const onSelect = vi.fn()
+    render(<PosTile name="Gin 750ml" price={250000} currency="KES" unavailable="Rate needed" onSelect={onSelect} />)
+    const tile = screen.getByRole('button', { name: 'Gin 750ml, KES 2,500.00, Rate needed' })
+    expect(tile).toBeDisabled()
+    expect(screen.getByText('Rate needed')).toBeInTheDocument()
+    fireEvent.click(tile)
+    expect(onSelect).not.toHaveBeenCalled()
+  })
 })
