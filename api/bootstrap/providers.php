@@ -2,6 +2,7 @@
 
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
+use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
@@ -29,6 +30,7 @@ return [
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,
     WorkflowServiceProvider::class,
+    ConfigurationServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,

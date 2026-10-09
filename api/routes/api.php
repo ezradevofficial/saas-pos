@@ -14,6 +14,8 @@ use App\Core\Automation\Http\Controllers\AutomationRunController;
 use App\Core\Automation\Http\Controllers\AutomationTemplateController;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Configuration\Http\Controllers\ConfigController;
+use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
 use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
@@ -97,7 +99,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -112,6 +114,7 @@ Route::model('credit_limit_change', CreditLimitChange::class);
 Route::model('payment_intent', PaymentIntent::class);
 Route::model('payment_receipt', PaymentReceipt::class);
 Route::model('fiscal_submission', FiscalSubmission::class);
+Route::model('config_document', ConfigDocument::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -514,4 +517,19 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // NUM-01: number formats per document type, for the tenant, a company or a branch.
     Route::get('numbering/formats', [NumberFormatController::class, 'index']);
     Route::put('numbering/formats', [NumberFormatController::class, 'save']);
+
+    // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
+    // layouts, templates): documents per key and scope, their versions, and
+    // what applies to the signed-in user.
+    Route::prefix('config/{kind}')->where(['kind' => '[a-z][a-z0-9_]{0,59}'])->group(function () {
+        Route::get('', [ConfigController::class, 'index']);
+        Route::post('', [ConfigController::class, 'store']);
+        Route::get('resolved', [ConfigController::class, 'resolved']);
+        Route::get('{config_document}', [ConfigController::class, 'show']);
+        Route::put('{config_document}/draft', [ConfigController::class, 'updateDraft']);
+        Route::post('{config_document}/publish', [ConfigController::class, 'publish']);
+        Route::post('{config_document}/rollback', [ConfigController::class, 'rollback']);
+        Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
+        Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
+    });
 });

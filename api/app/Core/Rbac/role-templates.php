@@ -41,6 +41,8 @@ return [
             'core.role.view', 'core.role.assign', 'core.audit.view',
             // APR-06: reassigns pending approvals at their branch (and is a manager there).
             'core.approval.reassign',
+            // LAY-06: sees the layouts and themes that apply at their branch.
+            'core.config.view',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
         ],
         'is_owner' => false,
@@ -89,6 +91,8 @@ return [
             'core.tax.view', 'core.price_list.view', 'core.price.view', 'core.party.view', 'core.party.create', 'core.party.edit',
             'core.credit_limit.request', 'core.credit_limit.approve',
             'core.payment_method.view', 'core.dimension.*', 'core.payment.*', 'core.fiscal.view', 'core.fiscal.edit',
+            // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
+            'core.config.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,
@@ -98,6 +102,8 @@ return [
         'key' => 'hr_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
+            // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
+            'core.config.view',
             'hr.*',
         ],
         'is_owner' => false,
@@ -107,6 +113,8 @@ return [
         'key' => 'payroll_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.user.view',
+            // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
+            'core.config.view',
             'payroll.*', 'hr.employee.view',
         ],
         'is_owner' => false,
@@ -119,6 +127,8 @@ return [
             'core.party.view', 'core.party.create', 'core.party.edit',
             'core.item.view', 'core.item.create', 'core.item.edit', 'core.item_category.view', 'core.uom.view',
             'core.dimension.view',
+            // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
+            'core.config.view',
             'purchasing.*', 'inventory.*.view',
         ],
         'is_owner' => false,
