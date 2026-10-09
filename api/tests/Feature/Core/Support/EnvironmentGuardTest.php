@@ -32,6 +32,10 @@ class EnvironmentGuardTest extends TestCase
             'services.sms.driver' => null,
             'cache.default' => 'redis',
             'queue.default' => 'redis',
+            // Real environments never allow the fake payment or fiscal drivers.
+            'payments.allow_fake' => false,
+            'payments.drivers' => [],
+            'fiscal.allow_fake' => false,
         ], $config));
     }
 
@@ -70,6 +74,10 @@ class EnvironmentGuardTest extends TestCase
             ['cache.default' => 'array'],
             ['queue.default' => 'sync'],
             ['queue.default' => 'database'],
+            // Payments and fiscal: fake drivers confirm what never happened.
+            ['payments.allow_fake' => true],
+            ['payments.drivers' => ['mpesa_ke' => 'fake']],
+            ['fiscal.allow_fake' => true],
         ] as $config) {
             $this->production($config);
             $refused = null;

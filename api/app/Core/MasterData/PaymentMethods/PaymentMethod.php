@@ -37,9 +37,9 @@ class PaymentMethod extends Model implements HasScope
 
     protected $fillable = ['company_id', 'type', 'name', 'currency', 'provider', 'settings', 'secrets', 'active', 'position'];
 
-    protected $hidden = ['secrets'];
+    protected $hidden = ['secrets', 'callback_token', 'callback_token_hash'];
 
-    protected array $auditHidden = ['secrets'];
+    protected array $auditHidden = ['secrets', 'callback_token', 'callback_token_hash'];
 
     protected $attributes = [
         'settings' => '{}',
@@ -51,6 +51,8 @@ class PaymentMethod extends Model implements HasScope
         return [
             'settings' => 'array',
             'secrets' => 'encrypted:array',
+            // Payments: the provider callback token (App\Core\Payments\CallbackTokens).
+            'callback_token' => 'encrypted',
             'active' => 'boolean',
             'position' => 'integer',
         ];

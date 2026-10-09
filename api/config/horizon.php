@@ -250,6 +250,40 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // Payment provider follow-ups (timeouts, checks of manual codes):
+        // calls to Daraja, kept apart so a slow provider never delays
+        // notifications or automation.
+        'supervisor-payments' => [
+            'connection' => 'redis',
+            'queue' => [env('PAYMENTS_QUEUE', 'payments')],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 3,
+            'maxTime' => 3600,
+            'maxJobs' => 1000,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+        // POS-10: transmission to the tax authorities (KRA eTIMS, DGI); a
+        // run sends up to `fiscal.batch` documents of one tenant within
+        // `fiscal.run_seconds`, well inside this timeout.
+        'supervisor-fiscal' => [
+            'connection' => 'redis',
+            'queue' => [env('FISCAL_QUEUE', 'fiscal')],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 3,
+            'maxTime' => 3600,
+            'maxJobs' => 1000,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
     ],
 
     // The first matching name wins: `local` first, then every other
@@ -259,12 +293,16 @@ return [
             'supervisor-default' => ['maxProcesses' => 1],
             'supervisor-notifications' => ['maxProcesses' => 1],
             'supervisor-automation' => ['maxProcesses' => 1],
+            'supervisor-payments' => ['maxProcesses' => 1],
+            'supervisor-fiscal' => ['maxProcesses' => 1],
         ],
 
         '*' => [
             'supervisor-default' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-notifications' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-automation' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-payments' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-fiscal' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
     ],
 

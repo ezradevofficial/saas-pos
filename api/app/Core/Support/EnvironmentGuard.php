@@ -13,8 +13,9 @@ use RuntimeException;
  * NFR-06: development drivers never serve a real environment. Outside
  * `local` and `testing`, the runtime entry points refuse to run when mail
  * goes to the log or an array, SMS goes to the log, a notification
- * channel uses the fake driver, or the cache or queue
- * is not Redis (README, pre-deploy checklist).
+ * channel uses the fake driver, the fake payment or fiscal driver is
+ * allowed, or the cache or queue is not Redis (README, pre-deploy
+ * checklist).
  *
  * Enforced only where the app does real work: every HTTP request
  * (EnforceEnvironment middleware), a queue worker's first loop, and the
@@ -120,6 +121,14 @@ final class EnvironmentGuard
             'Queue connection' => $queue === 'redis'
                 ? null
                 : 'queue connection is '.var_export($queue, true).', not redis (set QUEUE_CONNECTION=redis)',
+            // Payments and fiscal: the fake drivers confirm money and tax
+            // submissions that never happened.
+            'Payment drivers' => $config->get('payments.allow_fake') || in_array('fake', (array) $config->get('payments.drivers', []), true)
+                ? 'the fake payment driver is allowed (unset PAYMENTS_ALLOW_FAKE and PAYMENTS_DRIVER_*)'
+                : null,
+            'Fiscal drivers' => $config->get('fiscal.allow_fake')
+                ? 'the fake fiscal driver is allowed (unset FISCAL_ALLOW_FAKE)'
+                : null,
         ];
     }
 
