@@ -26,6 +26,9 @@ class LayoutDesignersTest extends TestCase
 
     private User $cashier;
 
+    /** @var array<string, ?int> the draft revision left per kind, key and scope */
+    private array $revisions = [];
+
     /** A greeter at outlet A: a role with no permissions at all. */
     private User $greeter;
 
@@ -46,10 +49,15 @@ class LayoutDesignersTest extends TestCase
     /** Saves a draft (creating the document) and publishes it; returns the publish response. */
     private function publish(string $kind, array $payload, string $scopeType = 'tenant', ?string $scopeId = null, string $key = 'default', ?User $as = null)
     {
-        $saved = $this->postJson("/api/v1/config/{$kind}", ['key' => $key, 'scope_type' => $scopeType, 'scope_id' => $scopeId, 'payload' => $payload], $this->headersFor($as));
+        // A draft left by a refused publish is edited from its revision.
+        $at = "{$kind}|{$key}|{$scopeType}|{$scopeId}";
+        $saved = $this->postJson("/api/v1/config/{$kind}", ['key' => $key, 'scope_type' => $scopeType, 'scope_id' => $scopeId, 'revision' => $this->revisions[$at] ?? null, 'payload' => $payload], $this->headersFor($as));
         $this->assertContains($saved->status(), [200, 201], (string) $saved->getContent());
 
-        return $this->postJson("/api/v1/config/{$kind}/{$saved->json('data.id')}/publish", [], $this->headersFor($as));
+        $published = $this->postJson("/api/v1/config/{$kind}/{$saved->json('data.id')}/publish", ['revision' => $saved->json('data.draft.revision')], $this->headersFor($as));
+        $this->revisions[$at] = $published->isOk() ? null : $saved->json('data.draft.revision');
+
+        return $published;
     }
 
     private function resolved(string $kind, ?User $as = null, string $key = 'default'): array

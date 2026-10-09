@@ -66,7 +66,7 @@ class DashboardSourcesTest extends TestCase
             ['chart' => 'bar', ...$widget('days', 'chart', 'pos.sales_by_day', 4)],
             $widget('waiting', 'approval_count', 'approvals.waiting', 8),
         ]]], $this->headersFor())->assertCreated();
-        $this->postJson("/api/v1/config/dashboard/{$saved->json('data.id')}/publish", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/config/dashboard/{$saved->json('data.id')}/publish", ['revision' => $saved->json('data.draft.revision')], $this->headersFor())->assertOk();
 
         $ids = fn ($user = null) => array_column($this->getJson('/api/v1/config/dashboard/resolved', $this->headersFor($user))->assertOk()->json('data.payload.widgets'), 'id');
         $this->assertSame(['sales', 'days', 'waiting'], $ids());
