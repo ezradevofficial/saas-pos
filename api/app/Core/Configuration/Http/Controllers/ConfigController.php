@@ -2,8 +2,8 @@
 
 namespace App\Core\Configuration\Http\Controllers;
 
-use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\ConfigConflict;
+use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\ConfigKinds;
 use App\Core\Configuration\ConfigPolicy;
 use App\Core\Configuration\ConfigResolver;
@@ -19,8 +19,8 @@ use App\Core\Configuration\Http\Requests\ShowConfigRequest;
 use App\Core\Configuration\Http\Requests\UpdateConfigDraftRequest;
 use App\Core\Configuration\Http\Resources\ConfigDocumentResource;
 use App\Core\Configuration\Models\ConfigDocument;
-use App\Core\Identity\Models\User;
 use App\Core\Configuration\Models\ConfigVersion;
+use App\Core\Identity\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
