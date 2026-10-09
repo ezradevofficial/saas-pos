@@ -2,6 +2,7 @@
 
 namespace App\Core\Configuration\Http\Controllers;
 
+use App\Core\Configuration\ConfigConflict;
 use App\Core\Configuration\ConfigKinds;
 use App\Core\Configuration\ConfigPolicy;
 use App\Core\Configuration\ConfigResolver;
@@ -17,6 +18,7 @@ use App\Core\Configuration\Http\Requests\ShowConfigRequest;
 use App\Core\Configuration\Http\Requests\UpdateConfigDraftRequest;
 use App\Core\Configuration\Http\Resources\ConfigDocumentResource;
 use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\Configuration\Models\ConfigVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,7 +28,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  * documents, one document with its versions, saving the draft, publishing,
  * rolling back, copying to another place, discarding the draft, and what
  * applies to the signed-in user (resolved). Every change is audited by
- * ConfigVersions (`core.config.*`, AUD-01).
+ * ConfigVersions (`core.config.*`, AUD-01). A 409 (config_changed,
+ * config_draft_exists) carries the document as it is now, like a success.
  */
 class ConfigController
 {
@@ -35,11 +38,17 @@ class ConfigController
     public function index(ListConfigRequest $request, ConfigPolicy $policy): AnonymousResourceCollection
     {
         $kind = $request->kind();
-        $query = ConfigDocument::query()->with(['published', 'draft'])->where('kind', $kind->key);
+        // Lists never read payloads (up to 256 KB each).
+        $summary = fn ($q) => $q->select(ConfigVersion::SUMMARY);
+        $query = ConfigDocument::query()->with(['published' => $summary, 'draft' => $summary])->where('kind', $kind->key);
         $policy->visible($query, $request->user(), $kind);
 
         if (($key = $request->validated('key')) !== null) {
             $query->where('key', $key);
+        }
+
+        if (($scopeType = $request->validated('scope_type')) !== null) {
+            $query->where('scope_type', $scopeType)->where('scope_id', $request->validated('scope_id'));
         }
 
         $query->orderBy('key')->orderBy('scope_type')->orderBy('id');
@@ -51,17 +60,21 @@ class ConfigController
     public function store(SaveConfigRequest $request): JsonResponse
     {
         $request->authorizeTarget();
-        [$document, $created] = $this->versions->open(
-            $request->kind(),
-            $request->key(),
-            $request->validated('scope_type'),
-            $request->scopeId(),
-            $request->validated('name'),
-            $request->payload(),
-            $request->user(),
-        );
 
-        return $this->present($document, $request)->setStatusCode($created ? 201 : 200);
+        return $this->answer($request, function () use ($request) {
+            [$document, $created] = $this->versions->open(
+                $request->kind(),
+                $request->key(),
+                $request->validated('scope_type'),
+                $request->scopeId(),
+                $request->validated('name'),
+                $request->payload(),
+                $request->user(),
+                $request->revision(),
+            );
+
+            return $this->present($document, $request)->setStatusCode($created ? 201 : 200);
+        });
     }
 
     public function show(ShowConfigRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
@@ -71,16 +84,20 @@ class ConfigController
 
     public function updateDraft(UpdateConfigDraftRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
     {
-        $this->versions->saveDraft($configDocument, $request->payload(), $request->validated('name'), $request->user());
+        return $this->answer($request, function () use ($request, $configDocument) {
+            $this->versions->saveDraft($configDocument, $request->payload(), $request->validated('name'), $request->user(), $request->revision());
 
-        return $this->present($configDocument, $request);
+            return $this->present($configDocument, $request);
+        });
     }
 
     public function publish(PublishConfigRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
     {
-        $this->versions->publish($configDocument, $request->kind(), $request->user());
+        return $this->answer($request, function () use ($request, $configDocument) {
+            $this->versions->publish($configDocument, $request->kind(), $request->user(), $request->revision());
 
-        return $this->present($configDocument, $request);
+            return $this->present($configDocument, $request);
+        });
     }
 
     public function rollback(RollbackConfigRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
@@ -93,23 +110,29 @@ class ConfigController
     public function copy(CopyConfigRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
     {
         $request->authorizeTarget();
-        $target = $this->versions->copyTo(
-            $configDocument,
-            $request->kind(),
-            $request->validated('scope_type'),
-            $request->scopeId(),
-            $request->validated('from', 'published'),
-            $request->user(),
-        );
 
-        return $this->present($target, $request)->setStatusCode(201);
+        return $this->answer($request, function () use ($request, $configDocument) {
+            $target = $this->versions->copyTo(
+                $configDocument,
+                $request->kind(),
+                $request->validated('scope_type'),
+                $request->scopeId(),
+                $request->validated('from', 'published'),
+                $request->user(),
+                $request->boolean('replace'),
+            );
+
+            return $this->present($target, $request)->setStatusCode(201);
+        });
     }
 
     public function discardDraft(DiscardConfigDraftRequest $request, string $kind, ConfigDocument $configDocument): JsonResponse
     {
-        $this->versions->discardDraft($configDocument, $request->user());
+        return $this->answer($request, function () use ($request, $configDocument) {
+            $this->versions->discardDraft($configDocument, $request->user(), $request->revision());
 
-        return $this->present($configDocument, $request);
+            return $this->present($configDocument, $request);
+        });
     }
 
     /**
@@ -136,16 +159,40 @@ class ConfigController
         ]]);
     }
 
-    /** The document with both payloads, its history and the problems that block publishing the draft. */
+    /**
+     * Run a change; a ConfigConflict answers 409 with its code and the
+     * document as it is now, so a designer can offer to reload it.
+     *
+     * @param  callable(): JsonResponse  $change
+     */
+    private function answer(Request $request, callable $change): JsonResponse
+    {
+        try {
+            return $change();
+        } catch (ConfigConflict $conflict) {
+            return new JsonResponse(['message' => $conflict->getMessage(), 'code' => $conflict->errorCode, ...$this->body($conflict->document, $request)], 409);
+        }
+    }
+
+    /**
+     * The document with the draft and published payloads, its history
+     * (without payloads) and the problems that block publishing the draft.
+     */
     private function present(ConfigDocument $document, Request $request): JsonResponse
     {
-        $document = $document->fresh(['published', 'draft', 'versions']);
+        return new JsonResponse($this->body($document, $request));
+    }
+
+    /** @return array{data: array, meta: array} */
+    private function body(ConfigDocument $document, Request $request): array
+    {
+        $document = $document->fresh(['published', 'draft', 'versions' => fn ($q) => $q->select(ConfigVersion::SUMMARY)]);
         $draft = $document->draft;
         $kind = app(ConfigKinds::class)->get($document->kind);
 
-        return new JsonResponse([
+        return [
             'data' => ConfigDocumentResource::make($document)->withPayloads()->resolve($request),
             'meta' => ['problems' => $draft === null ? [] : $this->versions->problems($kind, $draft->payload)],
-        ]);
+        ];
     }
 }

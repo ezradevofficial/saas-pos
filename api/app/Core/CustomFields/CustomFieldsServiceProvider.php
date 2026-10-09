@@ -9,6 +9,9 @@ use App\Core\CustomFields\Http\Requests\CustomFieldAccessRules;
 use App\Core\CustomFields\Jobs\RestampCustomFieldRecords;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\History\HistoryTypes;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -26,6 +29,8 @@ class CustomFieldsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // CF-01: file uploads for custom fields, per user (10 MB each).
+        RateLimiter::for('custom-field-files', fn (Request $request) => Limit::perMinute(20)->by('user|'.($request->user()?->id ?? $request->ip())));
         $entities = $this->app->make(CustomFieldEntities::class);
         $entities->register(new ItemEntity);
         $entities->register(new PartyEntity);

@@ -70,7 +70,7 @@ final class CustomFieldRules
         }
 
         if ($existing !== null) {
-            foreach (['entity', 'key', 'type'] as $fixed) {
+            foreach (['entity', 'key', 'type', 'formula_type'] as $fixed) {
                 if (array_key_exists($fixed, $input) && $input[$fixed] !== $existing->{$fixed}) {
                     $validator->errors()->add($fixed, __('core.custom_field.immutable'));
                 }
@@ -95,6 +95,11 @@ final class CustomFieldRules
 
         if ($type === 'formula' && $field->required) {
             $errors->add('required', __('core.custom_field.setting_not_for_type'));
+        }
+
+        // RBAC-05: tills store what they receive, so a field limited to some roles is never synced.
+        if ($field->show_on_pos && ($field->visible_roles ?? []) !== []) {
+            $errors->add('show_on_pos', __('core.custom_field.pos_needs_everyone'));
         }
 
         foreach (['min' => 'min_value', 'max' => 'max_value'] as $name => $column) {

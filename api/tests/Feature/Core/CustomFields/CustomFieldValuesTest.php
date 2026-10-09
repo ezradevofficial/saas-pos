@@ -353,4 +353,56 @@ class CustomFieldValuesTest extends TestCase
         $this->getJson('/api/v1/custom-fields/schema?entity=party', $this->headersFor($user))->assertOk();
         $this->getJson('/api/v1/custom-fields/schema?entity=planet', $this->headersFor($user))->assertUnprocessable();
     }
+
+    public function test_an_archived_restricted_field_stays_hidden_in_history(): void
+    {
+        [$clerk] = $this->clerk();
+        $manager = $this->inTenant(fn () => $this->roles->get('admin'));
+        $margin = $this->field(['key' => 'margin', 'type' => 'number', 'visible_roles' => [$manager->id]]);
+        $id = $this->item(['margin' => '42'])->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/items/{$id}", ['custom' => ['margin' => '43']], $this->headersFor())->assertOk();
+
+        $this->postJson("/api/v1/custom-fields/{$margin->id}/archive", [], $this->headersFor())->assertOk();
+
+        $history = json_encode($this->getJson("/api/v1/history/item/{$id}", $this->headersFor($clerk))->assertOk()->json('data'));
+        $this->assertStringNotContainsString('"margin"', $history);
+    }
+
+    public function test_a_formula_reading_a_hidden_field_is_hidden_too(): void
+    {
+        [$clerk] = $this->clerk();
+        $manager = $this->inTenant(fn () => $this->roles->get('admin'));
+        $this->field(['key' => 'price', 'type' => 'number']);
+        $this->field(['key' => 'cost', 'type' => 'number', 'visible_roles' => [$manager->id]]);
+        $this->field(['key' => 'gross', 'type' => 'formula', 'formula' => 'price - cost', 'formula_type' => 'number']);
+        $this->field(['key' => 'doubled', 'type' => 'formula', 'formula' => 'price * 2', 'formula_type' => 'number']);
+
+        $id = $this->item(['price' => '100', 'cost' => '60'])->assertCreated()->assertJsonPath('data.custom.gross', '40')->json('data.id');
+
+        $this->getJson("/api/v1/items/{$id}", $this->headersFor($clerk))->assertOk()
+            ->assertJsonMissingPath('data.custom.cost')
+            ->assertJsonMissingPath('data.custom.gross')
+            ->assertJsonPath('data.custom.doubled', '200');
+        $this->getJson('/api/v1/items?sort=cf_gross', $this->headersFor($clerk))->assertUnprocessable();
+    }
+
+    public function test_money_in_two_currencies_computes_nothing(): void
+    {
+        $this->field(['key' => 'cost_kes', 'type' => 'money']);
+        $this->field(['key' => 'cost_usd', 'type' => 'money']);
+        $this->field(['key' => 'total', 'type' => 'formula', 'formula' => 'cost_kes + cost_usd', 'formula_type' => 'number']);
+
+        $this->item([
+            'cost_kes' => ['amount_minor' => '10000', 'currency' => 'KES'],
+            'cost_usd' => ['amount_minor' => '100', 'currency' => 'USD'],
+        ])->assertCreated()->assertJsonMissingPath('data.custom.total');
+    }
+
+    public function test_a_pattern_may_contain_an_escaped_slash(): void
+    {
+        $this->field(['key' => 'period', 'type' => 'text', 'pattern' => '\d{2}\/\d{4}']);
+
+        $this->item(['period' => '10/2026'])->assertCreated()->assertJsonPath('data.custom.period', '10/2026');
+        $this->item(['period' => '10-2026'], 'COLA')->assertUnprocessable()->assertJsonValidationErrors('custom.period');
+    }
 }

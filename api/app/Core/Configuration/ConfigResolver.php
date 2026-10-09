@@ -8,6 +8,9 @@ use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+use UnexpectedValueException;
 
 /**
  * LAY-06: which published configuration applies to a user at a place.
@@ -28,7 +31,9 @@ use App\Core\Rbac\ScopeResolver;
  *
  * The payload returned has gone through the kind's merger (LAY-07). When
  * nothing is published along the chain, the kind's defaults (if any)
- * are returned with no source.
+ * are returned with no source. A published payload the merger cannot
+ * read (malformed, or a merger that throws) is logged and the kind's
+ * defaults are returned instead: resolving never fails a screen.
  */
 class ConfigResolver
 {
@@ -59,16 +64,39 @@ class ConfigResolver
                 $document = $documents->get($type.':'.($id ?? ''));
 
                 if ($document !== null) {
-                    return [
-                        'payload' => $kind->merge($document->published->payload),
-                        'version' => $document->published,
-                        'document' => $document,
-                    ];
+                    try {
+                        $payload = $document->published->payload;
+
+                        return [
+                            'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                            'version' => $document->published,
+                            'document' => $document,
+                        ];
+                    } catch (Throwable $e) {
+                        Log::warning('Published configuration could not be resolved; using the kind\'s defaults.', [
+                            'kind' => $kind->key, 'key' => $key, 'document_id' => $document->id,
+                            'version_id' => $document->published->id, 'error' => $e->getMessage(),
+                        ]);
+
+                        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
+                    }
                 }
             }
         }
 
-        return ['payload' => $kind->defaultPayload(), 'version' => null, 'document' => null];
+        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
+    }
+
+    /** The kind's defaults; null (the client's built-in layout) when even they fail. */
+    private function defaults(ConfigKind $kind): ?array
+    {
+        try {
+            return $kind->defaultPayload();
+        } catch (Throwable $e) {
+            Log::warning('Configuration defaults could not be built.', ['kind' => $kind->key, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     /**

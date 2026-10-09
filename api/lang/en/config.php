@@ -17,6 +17,8 @@ return [
 
     'errors' => [
         'config_invalid' => 'This configuration has problems. Fix the items listed, then publish again.',
+        'config_changed' => 'Someone changed this draft since you opened it. Reload to see their changes, then edit or publish again.',
+        'config_draft_exists' => 'That place already has a draft. Replace it to copy, or open that draft first.',
         'config_busy' => 'Someone else changed this configuration at the same time. Try again.',
         'no_draft' => 'There is no draft to use. Make a change to start one.',
         'nothing_published' => 'Nothing is published yet, so there is nothing to copy. Publish it first, or copy its draft.',
