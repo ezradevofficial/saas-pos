@@ -9,6 +9,17 @@
         "fiscal_code: the KRA eTIMS tax band for each code (needed for the eTIMS integration, phase 4).",
         "VAT_ZERO and VAT_EXEMPT: confirm the official names and that they map to the eTIMS bands."
     ],
+    "documents": {
+        "fiscal": {
+            "authority": "kra_etims",
+            "required_on": [
+                "pos.receipt",
+                "pos.refund_receipt",
+                "sales.invoice"
+            ],
+            "qr": true
+        }
+    },
     "tax_codes": [
         {
             "code": "VAT_STD",

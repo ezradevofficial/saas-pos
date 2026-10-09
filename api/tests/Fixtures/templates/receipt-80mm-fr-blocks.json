@@ -1,0 +1,47 @@
+{
+    "description": "A French 80 mm receipt using the other blocks: merge fields in tenant text (with a quote and an ampersand), a field without its label, a barcode, a QR code, terms, a signature, a dashed divider and a spacer; an unknown block (LAY-07) is skipped, and the fiscal block the template lacks is added because the country pack requires it (TPL-03). Status waiting: the till has not uploaded it yet.",
+    "type": "pos.receipt",
+    "fiscal_required": true,
+    "template": {
+        "paper": "80mm",
+        "margins": {"top": 3, "right": 3, "bottom": 3, "left": 3},
+        "language": "fr",
+        "blocks": [
+            {"id": "hello", "type": "text", "text": "Merci {{customer.name}} & à bientôt chez \"{{company.name}}\"\nDeuxième ligne", "align": "center"},
+            {"id": "number", "type": "field", "field": "document.number", "label": false, "align": "right"},
+            {"id": "missing", "type": "field", "field": "customer.email", "label": true},
+            {"id": "future", "type": "carousel", "speed": 3},
+            {"id": "lines", "type": "lines", "columns": ["item_code", "item_name", "qty", "unit", "unit_price", "tax_rate", "total"]},
+            {"id": "dashed", "type": "divider", "style": "dashed"},
+            {"id": "totals", "type": "totals", "show": ["total"]},
+            {"id": "space", "type": "spacer", "size": 5},
+            {"id": "code", "type": "barcode", "content": "{{document.number}}", "height": 10},
+            {"id": "qr", "type": "qr", "content": "https://shop.example/r/{{document.number}}", "size": 20},
+            {"id": "terms", "type": "terms", "text": "Échange sous 7 jours avec ce reçu.\nPas de remboursement en espèces."},
+            {"id": "sign", "type": "signature", "label": ""},
+            {"id": "sign-2", "type": "signature", "label": "Visa du gérant"}
+        ]
+    },
+    "data": {
+        "currencies": {"KES": 2},
+        "company": {"name": "Duka Ltd", "legal_name": "Duka Ltd", "tax_id": null, "address": null, "phone": null, "email": null, "country": "KE", "logo": null, "custom": []},
+        "branch": {"name": "CBD", "code": "CBD", "address": null},
+        "location": {"name": "Till 1", "code": "L01"},
+        "document": {"number": "R-L01-000007", "date": "2026-10-09 18:01", "cashier": "Wanjiru", "currency": "KES"},
+        "customer": {"name": "Zoë O'Neil", "tax_id": null, "phone": null, "email": null, "address": null, "tags": [], "custom": []},
+        "lines": [
+            {"item_name": "Café moulu 250 g", "item_code": "CAF250", "qty": "3", "unit": "PKT", "unit_price": {"minor": "1234567", "currency": "KES"}, "discount": {"minor": "0", "currency": "KES"}, "tax_rate": "16", "tax": {"minor": "510855", "currency": "KES"}, "total": {"minor": "3703701", "currency": "KES"}, "custom": []}
+        ],
+        "totals": {
+            "subtotal": {"minor": "3703701", "currency": "KES"},
+            "discount": {"minor": "0", "currency": "KES"},
+            "tax": {"minor": "510855", "currency": "KES"},
+            "total": {"minor": "3703701", "currency": "KES"},
+            "dual": null,
+            "tax_lines": [{"name": "VAT", "rate": "16", "tax": {"minor": "510855", "currency": "KES"}}]
+        },
+        "payments": [],
+        "change": null,
+        "fiscal": {"authority": "kra_etims", "status": "waiting", "invoice_number": null, "receipt_number": null, "receipt_signature": null, "internal_data": null, "control_unit_id": null, "authority_time": null, "qr": null}
+    }
+}

@@ -32,3 +32,28 @@ export async function fetchFiscal(api, saleId) {
     throw error;
   }
 }
+
+/**
+ * POS-10, TPL-03: the fiscal state a printed receipt shows. The upload
+ * answer first; then, online and once uploaded (not off or waiting), the
+ * server's current answer: for a sale, `sale`; for a refund, its entry in
+ * the sale's `refunds` (found through the refund's `sale_id`). The answer
+ * carries the authority's references and the QR drawn by the server
+ * (`qr_svg`), even when the till already knows it was accepted.
+ *
+ * @returns {Promise<{state: string, invoiceNumber: string|null, remote: object|null}>}
+ */
+export async function receiptFiscal({ api, entry, kind = 'sale', record, online }) {
+  const local = { ...fiscalState(entry), remote: null };
+  if (!online || local.state === 'off' || local.state === 'waiting') return local;
+  const saleId = kind === 'refund' ? record.sale_id : record.id;
+  if (!saleId) return local;
+  const remote = await fetchFiscal(api, saleId);
+  if (!remote) return local;
+  if (kind === 'refund') {
+    const found = (remote.refunds ?? []).find((refund) => refund.id === record.id);
+    if (!found) return local;
+    return { ...fiscalState(entry, { sale: found.fiscal ?? null }), remote: found.fiscal ?? null };
+  }
+  return { ...fiscalState(entry, remote), remote: remote.sale ?? null };
+}

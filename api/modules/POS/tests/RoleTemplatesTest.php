@@ -18,7 +18,7 @@ class RoleTemplatesTest extends TestCase
 
     private const ALL = [
         'pos.cash.move', 'pos.discount.give', 'pos.price.override',
-        'pos.sale.create', 'pos.sale.print', 'pos.sale.refund', 'pos.sale.review', 'pos.sale.view', 'pos.sale.void',
+        'pos.sale.create', 'pos.sale.print', 'pos.sale.refund', 'pos.sale.review', 'pos.sale.share', 'pos.sale.view', 'pos.sale.void',
         'pos.shift.close', 'pos.shift.manage', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in',
     ];
 

@@ -1,0 +1,192 @@
+<?php
+
+// TPL-01..TPL-05: document templates. `print` holds the app's own wording
+// printed on documents; it is also sent to tills with the receipt
+// templates (and bundled in pos/src/locales as `templates.print`), so the
+// till prints the same words. Placeholders use the `:name` form in both.
+return [
+    'types' => [
+        'pos_receipt' => 'POS receipt',
+        'pos_refund_receipt' => 'POS refund receipt',
+        'sales_invoice' => 'Sales invoice',
+        'sales_quote' => 'Quote',
+        'procurement_po' => 'Purchase order',
+        'stores_delivery_note' => 'Delivery note',
+        'payroll_payslip' => 'Payslip',
+        'party_statement' => 'Customer statement',
+        'letter' => 'Letter',
+    ],
+
+    'groups' => [
+        'company' => 'Company',
+        'branch' => 'Branch',
+        'location' => 'Location',
+        'document' => 'Document',
+        'customer' => 'Customer',
+        'lines' => 'Lines',
+        'totals' => 'Totals',
+        'payments' => 'Payments',
+        'fiscal' => 'Tax authority',
+        'custom' => 'Custom fields',
+    ],
+
+    'print' => [
+        'fields' => [
+            'company' => [
+                'name' => 'Business',
+                'legal_name' => 'Legal name',
+                'tax_id' => 'Tax ID',
+                'address' => 'Address',
+                'phone' => 'Phone',
+                'email' => 'Email',
+            ],
+            'branch' => [
+                'name' => 'Branch',
+                'code' => 'Branch code',
+                'address' => 'Branch address',
+            ],
+            'location' => [
+                'name' => 'Outlet',
+                'code' => 'Outlet code',
+            ],
+            'document' => [
+                'number' => 'Number',
+                'date' => 'Date',
+                'cashier' => 'Served by',
+                'currency' => 'Currency',
+                'reference' => 'Original receipt',
+                'reason' => 'Reason',
+                'due_date' => 'Due date',
+                'valid_until' => 'Valid until',
+                'period' => 'Period',
+                'subject' => 'Subject',
+                'employee' => 'Employee',
+                'supplier' => 'Supplier',
+            ],
+            'customer' => [
+                'name' => 'Customer',
+                'tax_id' => 'Customer tax ID',
+                'phone' => 'Phone',
+                'email' => 'Email',
+                'address' => 'Address',
+            ],
+            'totals' => [
+                'subtotal' => 'Subtotal',
+                'discount' => 'Discount',
+                'tax' => 'Tax',
+                'total' => 'Total',
+            ],
+            'fiscal' => [
+                'invoice_number' => 'Fiscal invoice',
+                'receipt_number' => 'Authority receipt',
+                'receipt_signature' => 'Receipt signature',
+                'internal_data' => 'Internal data',
+                'control_unit_id' => 'Control unit',
+                'authority_time' => 'Authority time',
+            ],
+        ],
+        'numbers' => [
+            'pos_receipt' => 'Receipt',
+            'pos_refund_receipt' => 'Refund',
+            'sales_invoice' => 'Invoice',
+            'sales_quote' => 'Quote',
+            'procurement_po' => 'Purchase order',
+            'stores_delivery_note' => 'Delivery note',
+            'payroll_payslip' => 'Payslip',
+            'party_statement' => 'Statement',
+            'letter' => 'Reference',
+        ],
+        'columns' => [
+            'item_name' => 'Item',
+            'item_code' => 'Code',
+            'qty' => 'Qty',
+            'unit' => 'Unit',
+            'unit_price' => 'Price',
+            'discount' => 'Discount',
+            'tax_rate' => 'Tax rate',
+            'tax' => 'Tax',
+            'total' => 'Amount',
+            'description' => 'Description',
+            'amount' => 'Amount',
+            'date' => 'Date',
+            'debit' => 'Debit',
+            'credit' => 'Credit',
+            'balance' => 'Balance',
+        ],
+        'totals' => [
+            'subtotal' => 'Subtotal',
+            'discount' => 'Discount',
+            'tax' => 'Tax',
+            'total' => 'Total',
+            'total_in' => 'Total in :currency',
+            'tax_line' => ':name :rate%',
+        ],
+        'payments' => [
+            'payment' => 'Payment',
+            'change' => 'Change',
+        ],
+        'signature' => 'Signature',
+        'fiscal' => [
+            'authority' => [
+                'kra_etims' => 'KRA eTIMS',
+                'dgi' => 'DGI fiscal receipt',
+                'other' => 'Fiscal receipt',
+            ],
+            'status' => [
+                'waiting' => 'Waiting to upload',
+                'pending' => 'Pending',
+                'accepted' => 'Accepted',
+                'rejected' => 'Refused by the authority',
+                'off' => 'Not sent to the authority',
+            ],
+            'help' => [
+                'waiting' => 'The sale is on this till. It is sent to the server, then to the authority, when the till is online.',
+                'pending' => 'The authority’s code and QR code are added once the sale reaches the server and the authority accepts it.',
+                'rejected' => 'The back office has the authority’s answer and follows up. The sale stands.',
+                'off' => 'This business does not send sales to the tax authority from the platform yet.',
+            ],
+        ],
+    ],
+
+    'sample' => [
+        'company' => 'Sample Traders Ltd',
+        'branch' => 'Main branch',
+        'location' => 'Front counter',
+        'cashier' => 'Sample cashier',
+        'customer' => 'Sample customer',
+        'item_1' => 'Sample item',
+        'item_2' => 'Second sample item',
+        'payment' => 'Cash',
+        'reason' => 'Returned unopened',
+        'subject' => 'Sample letter',
+        'employee' => 'Sample employee',
+        'supplier' => 'Sample supplier',
+        'tax' => 'VAT',
+        'basic_pay' => 'Basic pay',
+        'deduction' => 'Sample deduction',
+        'opening' => 'Opening balance',
+        'invoice' => 'Invoice',
+        'payment_received' => 'Payment received',
+    ],
+
+    'errors' => [
+        'unknown_type' => 'There is no such document type. Pick one from the list.',
+        'preview_expired' => 'This preview has expired. Refresh the preview, then download it again.',
+        'no_email' => 'Type an email address, or add one to the customer.',
+        'share_expired' => 'This link has expired or was withdrawn. Ask the business to send the document again.',
+        'too_many_emails' => 'Too many emails sent. Wait a few minutes, then send it again.',
+    ],
+
+    'mail' => [
+        'subject' => ':document :number from :company',
+        'body' => 'Your :document :number from :company is attached.',
+    ],
+
+    'attributes' => [
+        'type' => 'document type',
+        'payload' => 'template',
+        'email' => 'email address',
+        'language' => 'language',
+        'format' => 'format',
+    ],
+];

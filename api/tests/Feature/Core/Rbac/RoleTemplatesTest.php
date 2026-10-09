@@ -100,12 +100,12 @@ class RoleTemplatesTest extends TestCase
         $permission = Permission::where('name', 'core.access_review.export')->sole();
         $this->assertSame(['core', 'access_review', 'export'], [$permission->module, $permission->resource, $permission->action]);
         // The POS module's catalogue is registered whether or not a tenant has it (RBAC-08 gates it per tenant).
-        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.sale.review', 'pos.shift.view', 'pos.till.sign_in', 'pos.shift.open',
+        foreach (['pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.sale.void', 'pos.sale.refund', 'pos.sale.review', 'pos.sale.share', 'pos.shift.view', 'pos.till.sign_in', 'pos.shift.open',
             'pos.shift.close', 'pos.shift.manage', 'pos.cash.move', 'pos.price.override', 'pos.discount.give'] as $name) {
             $this->assertContains($name, $names);
         }
-        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.view|edit|publish.
-        $this->assertSame(98 + 14, count($names));
+        // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.*; TPL: core.template.*.
+        $this->assertSame(101 + 15, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -123,7 +123,8 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(Permission::count(), $owner->permissions()->count());
 
         $admin = Role::where('template_key', 'admin')->sole();
-        $this->assertSame(Permission::where('module', 'core')->count(), $admin->permissions()->count());
+        // core.* and, for the POS module, sharing receipts (pos.sale.share, TPL-04).
+        $this->assertSame(Permission::where('module', 'core')->count() + 1, $admin->permissions()->count());
         $this->assertFalse($admin->is_owner);
 
         $auditor = Role::where('template_key', 'read_only_auditor')->sole();
@@ -328,7 +329,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(98, $permissions);
+        $this->assertCount(101, $permissions);
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

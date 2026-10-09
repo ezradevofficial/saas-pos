@@ -234,4 +234,78 @@ describe('POS sales (POS-12)', () => {
     expect(within(without).queryByRole('link', { name: 'Sales' })).not.toBeInTheDocument()
     expect(within(without).queryByRole('link', { name: 'My POS PIN' })).not.toBeInTheDocument()
   })
+
+  // TPL-04: the receipt printed, downloaded, emailed and shared from the sale.
+  describe('receipt outputs', () => {
+    const SHARE = { id: 'sh-1', status: 'active', created_at: '2026-10-08T10:00:00Z', expires_at: '2026-10-15T10:00:00Z', revoked_at: null, access_count: 2, last_accessed_at: '2026-10-08T11:00:00Z' }
+    const SHARER = tenantWide(['core.company.view', 'pos.sale.view', 'pos.sale.share'])
+
+    function withShares(permissions) {
+      setup({ permissions })
+      const get = api.get.getMockImplementation()
+      api.get.mockImplementation(async (path) => (path === 'pos/sales/s-1/shares' ? { data: [SHARE] } : get(path)))
+      api.post.mockImplementation(async (path) => {
+        if (path === 'pos/sales/s-1/email') return { data: { queued: true, to: 'books@example.com' } }
+        if (path === 'pos/sales/s-1/share') return { data: { ...SHARE, id: 'sh-2', url: 'http://localhost:8019/d/abc', whatsapp_url: 'https://wa.me/?text=http%3A%2F%2Flocalhost%3A8019%2Fd%2Fabc' } }
+        if (path === 'pos/sales/s-1/shares/sh-1/revoke') return { data: { ...SHARE, status: 'revoked' } }
+        throw new Error(`unexpected POST ${path}`)
+      })
+    }
+
+    it('downloads the PDF for a viewer, without email or sharing', async () => {
+      withShares(VIEWER)
+      api.download.mockResolvedValue({ blob: new Blob(['%PDF']), filename: 'pos-receipt-R-L01-000001.pdf' })
+      URL.createObjectURL = vi.fn(() => 'blob:x')
+      URL.revokeObjectURL = vi.fn()
+      renderApp('/pos/sales/s-1')
+      fireEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      await waitFor(() => expect(api.download).toHaveBeenCalledWith('pos/sales/s-1/receipt?format=pdf'))
+      expect(screen.queryByRole('button', { name: 'Email' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).not.toBeInTheDocument()
+    })
+
+    it('prints the receipt in a strictly sandboxed frame that prints itself', async () => {
+      withShares(VIEWER)
+      api.download.mockResolvedValue({ blob: new Blob(['<html><body><p>Receipt</p><script>parent.steal()</script></body></html>']), filename: null })
+      renderApp('/pos/sales/s-1')
+      fireEvent.click(await screen.findByRole('button', { name: 'Print' }))
+      await waitFor(() => expect(api.download).toHaveBeenCalledWith('pos/sales/s-1/receipt?format=html'))
+      const frame = await waitFor(() => {
+        const found = document.querySelector('iframe[title="Receipt for printing"]')
+        expect(found).not.toBeNull()
+        return found
+      })
+      expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-modals')
+      expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin')
+      const html = frame.getAttribute('srcdoc')
+      expect(html).not.toContain('parent.steal')
+      expect(html).toContain('window.print()')
+    })
+
+    it('emails the receipt to a typed address in the chosen language', async () => {
+      withShares(SHARER)
+      renderApp('/pos/sales/s-1')
+      fireEvent.click(await screen.findByRole('button', { name: 'Email' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Email the receipt' })
+      fireEvent.change(within(dialog).getByLabelText('Email address'), { target: { value: 'books@example.com' } })
+      chooseOption('Language of the email', 'French')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Send email' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('pos/sales/s-1/email', { email: 'books@example.com', language: 'fr' }))
+    })
+
+    it('shares a link on WhatsApp, lists links and withdraws one', async () => {
+      withShares(SHARER)
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+      renderApp('/pos/sales/s-1')
+      fireEvent.click(await screen.findByRole('button', { name: 'Share on WhatsApp' }))
+      await waitFor(() => expect(open).toHaveBeenCalledWith('https://wa.me/?text=http%3A%2F%2Flocalhost%3A8019%2Fd%2Fabc', '_blank', 'noopener,noreferrer'))
+      expect(await screen.findByDisplayValue('http://localhost:8019/d/abc')).toBeInTheDocument()
+
+      const links = await screen.findByRole('list', { name: 'Shared links' })
+      expect(within(links).getByText(/Opened 2 times/)).toBeInTheDocument()
+      fireEvent.click(within(links).getByRole('button', { name: 'Withdraw link' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('pos/sales/s-1/shares/sh-1/revoke'))
+      open.mockRestore()
+    })
+  })
 })

@@ -46,6 +46,17 @@ return [
         'pattern' => ':path n’est pas au format attendu.',
         'min' => ':path doit être au moins :min.',
         'max' => ':path doit être au plus :max.',
+        // TPL-01..TPL-03 : modèles de documents.
+        'unknown_block' => ':path n’est pas un bloc connu. Supprimez-le.',
+        'fiscal_required' => 'Le bloc de l’administration fiscale est obligatoire sur ce document dans votre pays. Rajoutez-le depuis la palette.',
+        'totals_required' => 'Le bloc des totaux, avec ses lignes de taxe, est obligatoire sur ce document dans votre pays. Rajoutez-le depuis la palette.',
+        'fiscal_twice' => 'Le bloc de l’administration fiscale ne peut figurer qu’une fois. Supprimez le doublon.',
+        'fiscal_not_allowed' => 'Ce document ne porte pas de données fiscales. Supprimez le bloc de l’administration fiscale.',
+        'tax_lines_locked' => 'Les lignes de taxe sont toujours imprimées avec les totaux. Réactivez-les.',
+        'unknown_field' => ':path utilise « :field », que ce document n’a pas. Choisissez un champ dans la liste.',
+        'unknown_column' => ':path utilise « :field », qui n’est pas une colonne de ce document. Choisissez une colonne dans la liste.',
+        'row_nested' => ':path place une ligne dans une ligne. Sortez-en les blocs.',
+        'row_on_thermal' => 'Les lignes à deux colonnes ne conviennent qu’aux formats A4 et A5. Sortez les blocs de la ligne, ou choisissez A4 ou A5.',
         // BR-02, BR-03 : thèmes.
         'not_overridable' => ':path ne peut pas être modifié par un thème. Un thème ne règle que les logos, les couleurs principale et d’accent, la barre latérale, les coins et la police.',
         'asset_missing' => ':path désigne une image qui ne fait pas partie de vos images de ce type. Importez-la de nouveau.',

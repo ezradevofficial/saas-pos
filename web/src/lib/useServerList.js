@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { useAuth } from '@/auth/AuthProvider'
+import { saveFile } from '@/lib/files'
 import { applyView, collectViews, defaultViewKey, exportKeyOf, hiddenColumnKeys, withoutHiddenColumns } from './listViews'
 
 export const PER_PAGE_OPTIONS = [10, 25, 50, 100]
@@ -53,18 +54,6 @@ export const listViewsKey = (listId) => ['config', 'list_view', 'layers', listId
 const today = () => {
   const now = new Date()
   return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
-}
-
-function saveFile(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.append(link)
-  link.click()
-  link.remove()
-  // Revoked after the click has handed the file to the browser.
-  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 /**

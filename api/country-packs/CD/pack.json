@@ -10,6 +10,17 @@
         "fiscal_code: the DGI tax group for each code on normalised invoices (needed for the e-MCF integration, phase 4).",
         "VAT_ZERO and VAT_EXEMPT: confirm the official names and that they map to the DGI groups."
     ],
+    "documents": {
+        "fiscal": {
+            "authority": "dgi",
+            "required_on": [
+                "pos.receipt",
+                "pos.refund_receipt",
+                "sales.invoice"
+            ],
+            "qr": true
+        }
+    },
     "tax_codes": [
         {
             "code": "VAT_STD",
