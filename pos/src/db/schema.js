@@ -22,9 +22,12 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `pos_counters` (receipt numbers used per range) and `pos_state` (the open
  * cart, kept across restarts).
  *
+ * v5 (document templates, TPL-01, TPL-05): the POS module's synced
+ * `templates` (the receipt templates that apply at the till's branch).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -123,6 +126,8 @@ export const schema = appSchema({
     // v4: the POS module's synced entities.
     tableSchema({ name: 'pos_number_ranges', columns: [{ name: 'document_type', type: 'string', isIndexed: true }, data, seenAt] }),
     tableSchema({ name: 'pos_open_shift', columns: [data, seenAt] }),
+    // v5: receipt templates (TPL-01).
+    tableSchema({ name: 'templates', columns: [data, seenAt] }),
 
     // v4: selling, local only (uploads go through the outbox).
     tableSchema({
