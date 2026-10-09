@@ -128,7 +128,8 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
       serial(async () => {
         if (!shift) throw new SellingError('no_shift');
         const at = serverNow();
-        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.day });
+        // POS-11: tax by the day the sale completes, in the company's zone (the server's tax day).
+        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day });
         if (!computed.lines.length) throw new SellingError('empty_sale');
         if (computed.blocked.length) throw new SellingError('lines_blocked', { blocked: computed.blocked });
         const currency = catalogue.saleCurrency;

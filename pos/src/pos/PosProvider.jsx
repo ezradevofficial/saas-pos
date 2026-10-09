@@ -43,13 +43,24 @@ export function PosProvider({ children }) {
   const refs = useRef({});
   refs.current = { cart, catalogue, shift, session };
 
+  const [dayTick, setDayTick] = useState(0);
+
   useEffect(() => {
     let active = true;
     loadCatalogue({ database }).then((loaded) => active && setCatalogue(loaded));
     return () => {
       active = false;
     };
-  }, [database, lastPulledAt]);
+  }, [database, lastPulledAt, dayTick]);
+
+  // POS-11: at the company's midnight, sellability and prices of the new day apply (dated tax rates and prices).
+  useEffect(() => {
+    if (!catalogue) return undefined;
+    const timer = setInterval(() => {
+      if (catalogue.dayAt(Date.now()) !== catalogue.day) setDayTick((tick) => tick + 1);
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [catalogue]);
 
   const refreshShift = useCallback(async () => {
     let open = await posStore.openShift();

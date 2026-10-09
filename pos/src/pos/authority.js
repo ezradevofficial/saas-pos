@@ -34,6 +34,8 @@ export function limitOf(staff, key) {
 
 /** `value` within the staff member's `key` limit (a missing limit is not allowed). */
 export function within(staff, key, value) {
+  // RBAC-06: an Owner role has no limits (staff row `owner`, as Authority::within).
+  if (staff?.owner) return true;
   const max = limitOf(staff, key);
   return max !== null && notAbove(value, max);
 }

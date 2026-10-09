@@ -200,6 +200,22 @@ describe('sale payload (POS-01, POS-03, CUR-04, CUR-06, CUR-09)', () => {
   });
 });
 
+describe('day rollover (POS-11)', () => {
+  it('taxes a sale completed after the company’s midnight at the new day’s rate', async () => {
+    const { selling, proofFor, advance } = await setup();
+    const proof = proofFor(cashier);
+    const rising = [{ ...taxCodes[0], rates: [{ rate: '16.0000', effective_from: '2026-01-01', effective_to: '2026-10-09', needs_confirmation: false }, { rate: '18.0000', effective_from: '2026-10-10', effective_to: null, needs_confirmation: false }] }];
+    // Built at 08:00 in Nairobi on the 9th; the company's zone decides the day.
+    const catalogue = buildCatalogue({ settings: { ...settings, company: { ...settings.company, timezone: 'Africa/Nairobi' } }, currencies, rates, taxCodes: rising, priceLists, paymentMethods, items, prices, now: NOW });
+    expect(catalogue.day).toBe('2026-10-09');
+    const shift = await selling.openShift({ user: cashier, actorProof: proof, openingFloat: [] });
+    const cart = cartWith(catalogue, [[IDS.bread, 1]]);
+    advance(17 * 60 * 60 * 1000); // 01:00 on the 10th in Nairobi
+    const sale = await selling.completeSale({ shift, user: cashier, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, 'KES', 6500)] });
+    expect(sale.lines[0]).toMatchObject({ tax_rate: '18.0000', tax_minor: '992' });
+  });
+});
+
 describe('receipt ranges top-up (NUM-02)', () => {
   it('asks for more numbers when fewer than 100 remain, reporting the next number', async () => {
     const { server, selling, catalogue, proofFor } = await setup({ receiptNext: 7 });

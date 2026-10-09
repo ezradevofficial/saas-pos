@@ -39,7 +39,10 @@ export async function loadCatalogue({ database, now = Date.now() }) {
 /** The catalogue from plain rows (tests build it directly). */
 export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], now = Date.now() }) {
   const timeZone = settings?.timezone ?? 'UTC';
-  const day = localDate(now, timeZone);
+  // POS-11, MD-03: tax rates and prices take effect by the company's day (TaxCode::localDate,
+  // PriceResolver), which may differ from the branch zone used for times on screen and receipts.
+  const taxZone = settings?.company?.timezone ?? timeZone;
+  const day = localDate(now, taxZone);
   const money = createCurrencies({ currencies, rates });
   const taxById = new Map(taxCodes.map((code) => [code.id, code]));
   const uomById = new Map(uoms.map((uom) => [uom.id, uom]));
@@ -114,7 +117,10 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
   return {
     settings,
     timeZone,
+    taxZone,
     day,
+    /** The tax and price day of an instant (completing a sale after midnight uses the new day). */
+    dayAt: (at) => localDate(at, taxZone),
     money,
     taxCodes: taxById,
     uoms: uomById,

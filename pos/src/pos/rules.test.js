@@ -77,6 +77,13 @@ describe('discount and override limits (POS-07, RBAC-06, AUTH-08)', () => {
     expect(check(manager, 'pay_out').allowed).toBe(true);
   });
 
+  it('applies no limit to an Owner (staff row owner, as the server)', () => {
+    const owner = { id: 'u-o', permissions: ['pos.discount.give', 'pos.sale.refund'], limits: {}, owner: true };
+    expect(check(owner, 'discount', '90.0000').allowed).toBe(true);
+    expect(check(owner, 'refund', '1000000').allowed).toBe(true);
+    expect(check({ ...owner, permissions: [] }, 'discount', '1.0000').allowed).toBe(false);
+  });
+
   it('offers only staff who could approve, never the requester or a locked PIN', () => {
     const locked = { ...manager, id: 'u-l', locked: true };
     expect(approvers([cashier, giver, manager, locked], 'discount', '10.0000', 'u-c').map((member) => member.id)).toEqual(['u-m']);
