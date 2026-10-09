@@ -227,8 +227,9 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     queryKey: [...(queryKey ?? [id]), 'list', listQuery],
     queryFn: () => api.get(`${endpoint}?${listQuery}`),
     placeholderData: (previous) => previous,
-    // The views decide the first query (a default view's filters and sort): wait for them once.
-    enabled: !layersQuery.isLoading,
+    // A link to a view waits for the views; otherwise the list loads at once and
+    // follows a default view's filters and sort when they arrive.
+    enabled: !(askedView && askedView !== 'none' && layersQuery.isLoading),
   })
   const meta = query.data?.meta ?? {}
   const rows = query.data?.data ?? []

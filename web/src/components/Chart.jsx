@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ds'
+import { barPath, niceMax } from '@/lib/chartScale'
 import { cn } from '@/lib/utils'
 
 // Drawing units of the SVG; it scales to the width of its card.
@@ -11,21 +12,6 @@ const BOTTOM = 24
 const LEFT = 56
 const RIGHT = 8
 const GRID_LINES = 3
-
-/** A round number at or above `max`, so gridlines fall on readable values. */
-export function niceMax(max) {
-  if (!(max > 0)) return 1
-  const power = 10 ** Math.floor(Math.log10(max))
-  const step = [1, 2, 2.5, 5, 10].find((candidate) => candidate * power >= max) ?? 10
-  return step * power
-}
-
-/** Path of a bar whose top corners are rounded (the data end), anchored to the baseline. */
-function barPath(x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height)
-  if (height <= 0) return ''
-  return `M${x},${y + height}V${y + r}Q${x},${y} ${x + r},${y}H${x + width - r}Q${x + width},${y} ${x + width},${y + r}V${y + height}Z`
-}
 
 /**
  * LAY-01: a small single-series chart, bar or line, drawn in SVG with token

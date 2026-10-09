@@ -3,6 +3,8 @@
 // pushes the widgets it would cover further down, so a layout never has
 // overlaps (the API refuses them when publishing).
 
+import { cn } from './utils'
+
 export const COLUMNS = 12
 export const MAX_ROWS = 48
 export const MAX_HEIGHT = 8
@@ -53,3 +55,7 @@ export function nudge(widgets, id, mode, dx, dy) {
 
 /** A pixel drag turned into whole cells, given the size of one column and one row (gaps included). */
 export const cellsOf = (pixels, cell) => (cell > 0 ? Math.round(pixels / cell) : 0)
+
+/** Grid placement classes (safelisted in index.css): one column on phones, 12 from md up. */
+export const placement = (widget) =>
+  cn(`md:col-start-${widget.x + 1} md:col-span-${widget.w} md:row-start-${widget.y + 1} md:row-span-${widget.h} row-span-${widget.h}`)

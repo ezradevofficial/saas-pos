@@ -1,34 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
-import { DEFAULT_DASHBOARD, Widget, WIDGET_TYPES } from '@/components/dashboard/widgets'
+import { Widget } from '@/components/dashboard/widgets'
 import { Button } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useNavigation } from '@/layouts/useNavigation'
+import { useDashboard, WIDGET_TYPES } from '@/lib/dashboardData'
 import { formatLongDate, partOfDay } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
-
-export const DASHBOARD_KEY = ['config', 'dashboard', 'resolved']
-
-/**
- * LAY-01: the dashboard that applies to the signed-in user (their own copy,
- * else their role's, else the organisation's, else the default one), with
- * widgets they may not open already removed by the API. An unreadable
- * dashboard falls back to the default (LAY-07).
- */
-export function useDashboard() {
-  const query = useQuery({ queryKey: DASHBOARD_KEY, queryFn: () => api.get('config/dashboard/resolved'), retry: false, staleTime: 30_000 })
-  const payload = query.data?.data?.payload
-  return {
-    dashboard: payload?.widgets ? payload : query.isPending ? null : DEFAULT_DASHBOARD,
-    source: query.data?.data?.source ?? null,
-    isLoading: query.isPending,
-  }
-}
 
 /** The dashboard, under a greeting; "Customise my dashboard" opens the user's own copy in the designer. */
 export default function Home() {

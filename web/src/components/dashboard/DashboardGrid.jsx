@@ -2,14 +2,10 @@ import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '@/components/ds'
-import { cellsOf, inReadingOrder, nudge, placeWidget } from '@/lib/dashboardGrid'
+import { cellsOf, inReadingOrder, nudge, placement, placeWidget } from '@/lib/dashboardGrid'
 import { cn } from '@/lib/utils'
 
 const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
-
-/** Grid placement classes (safelisted in index.css): one column on phones, 12 from md up. */
-export const placement = (widget) =>
-  cn(`md:col-start-${widget.x + 1} md:col-span-${widget.w} md:row-start-${widget.y + 1} md:row-span-${widget.h} row-span-${widget.h}`)
 
 function Handle({ id, mode, label, className, children }) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: `${mode}:${id}` })

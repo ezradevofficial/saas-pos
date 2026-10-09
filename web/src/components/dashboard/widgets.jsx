@@ -1,54 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { api } from '@/api/client'
 import { Chart } from '@/components/Chart'
 import { Icon, StatusBadge } from '@/components/ds'
 import { useNavigation } from '@/layouts/useNavigation'
+import { useWidgetData, WIDGET_TYPES, widgetTitle } from '@/lib/dashboardData'
 import { formatCalendarDate, formatDate } from '@/lib/dates'
 import { formatInteger, formatMoney } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
-
-export const WIDGET_TYPES = ['kpi', 'chart', 'list', 'shortcut', 'approval_count']
-
-/** The dashboard when none is published (as the API's default): getting started and the user's approvals. */
-export const DEFAULT_DASHBOARD = {
-  title: null,
-  widgets: [
-    { id: 'start', type: 'shortcut', source: 'shortcuts', params: { links: ['/settings/organisation', '/settings/users', '/settings/appearance'] }, title: null, x: 0, y: 0, w: 6, h: 4 },
-    { id: 'waiting', type: 'approval_count', source: 'approvals.waiting', params: {}, title: null, x: 6, y: 0, w: 6, h: 1 },
-    { id: 'mine', type: 'list', source: 'approvals.mine', params: { limit: 5 }, title: null, x: 6, y: 1, w: 6, h: 3 },
-  ],
-}
-
-/** `source` params as a query string (`links[]=` for lists). */
-export function sourceQuery(params = {}) {
-  const query = new URLSearchParams()
-  for (const [name, value] of Object.entries(params ?? {})) {
-    if (Array.isArray(value)) for (const entry of value) query.append(`${name}[]`, String(entry))
-    else if (value !== null && value !== undefined && value !== '') query.set(name, String(value))
-  }
-  return query.toString()
-}
-
-/** A widget's data from its source (LAY-01); only what the reader reaches (the API decides). */
-export function useWidgetData(widget, { enabled = true } = {}) {
-  const query = sourceQuery(widget.params)
-  return useQuery({
-    queryKey: ['dashboard', 'source', widget.source, query],
-    queryFn: () => api.get(`dashboard/sources/${widget.source}${query ? `?${query}` : ''}`),
-    select: (response) => response?.data ?? null,
-    enabled: enabled && Boolean(widget.source),
-    staleTime: 30_000,
-    retry: false,
-  })
-}
-
-/** The title a widget shows: its own (typed once), else its source's name. */
-export function widgetTitle(widget, t) {
-  return widget.title || t(`layouts.sources.${String(widget.source).replace(/\./g, '_')}`, { defaultValue: t('layouts.widgets.untitled') })
-}
 
 const money = (minor, currency, locale) => formatMoney(String(minor), currency, locale)
 
