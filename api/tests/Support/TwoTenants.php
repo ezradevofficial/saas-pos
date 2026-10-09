@@ -33,6 +33,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
+use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\Fiscal\TestFiscalSource;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
@@ -110,6 +111,8 @@ final class TwoTenants
         $requests->raisesRecords = true;
         app(DocumentTypeRegistry::class)->register($requests);
         app(DocumentTypeRegistry::class)->register(TestOrderType::class);
+        // LAY-06: a configuration kind (as a layout designer registers one).
+        TestLayoutKind::register();
 
         return new self(
             self::tenant($test, 'a', ['email' => 'owner-a@example.com']),
@@ -256,6 +259,13 @@ final class TwoTenants
         });
         self::ok($test->postJson('/api/v1/document-workflows/'.TestRequestType::KEY."/{$document}/move", [], $owner));
         self::ok($test->putJson("/api/v1/companies/{$company}/business-hours", ['hours' => ['mon' => [['08:00', '17:00']], 'sat' => [['09:00', '13:00']]]], $owner));
+
+        // LAY-06: the company's layout, published, with a new draft open.
+        $configDocument = self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY, [
+            'scope_type' => 'company', 'scope_id' => $company, 'name' => "Layout {$upper}", 'payload' => ['columns' => [['id' => 'name']]],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", [], $owner));
+        self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -484,6 +494,7 @@ final class TwoTenants
                 'payment_intent' => $paymentIntent,
                 'payment_receipt' => $paymentReceipt,
                 'fiscal_submission' => $fiscalSubmission,
+                'config_document' => $configDocument,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

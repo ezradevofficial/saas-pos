@@ -61,6 +61,9 @@ class PermissionRegistry
         'fiscal' => ['view', 'edit', 'configure'],
         // NUM-01: how documents are numbered, per type and tenant, company or branch.
         'numbering' => ['view', 'edit'],
+        // LAY-06: versioned configuration (themes, layouts, templates), the
+        // default for kinds that bring no permissions of their own.
+        'config' => ['view', 'edit', 'publish'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

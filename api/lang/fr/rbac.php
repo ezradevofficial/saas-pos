@@ -45,6 +45,7 @@ return [
                 'payment' => 'Paiements',
                 'fiscal' => 'Transmission fiscale',
                 'numbering' => 'Numérotation des documents',
+                'config' => 'Mises en page, thèmes et modèles',
             ],
             'pos' => [
                 'sale' => 'Ventes',

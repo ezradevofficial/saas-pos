@@ -45,6 +45,7 @@ return [
                 'payment' => 'Payments',
                 'fiscal' => 'Fiscal transmission',
                 'numbering' => 'Document numbering',
+                'config' => 'Layouts, themes and templates',
             ],
             'pos' => [
                 'sale' => 'Sales',

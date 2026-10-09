@@ -25,6 +25,7 @@ use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Concerns\RegistersTillModule;
+use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\GlobalTables;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
@@ -110,6 +111,7 @@ class TenantIsolationTest extends TestCase
         'pos_void' => 'pos_void', // H2: pos/voids/{pos_void}/approve|reject, a held void
         'pos_refund' => 'pos_refund', // H2: pos/refunds/{pos_refund}/approve|reject, a held refund
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
+        'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -125,6 +127,17 @@ class TenantIsolationTest extends TestCase
         'type' => 'party', // GET history/{type}/{record}: a record type name from an allow-list (MD-07); the record is B's
         'document_type' => TestRequestType::KEY, // WF-01: a registered document type key; the document is B's
         'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
+        'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
+    ];
+
+    /**
+     * Routes whose parameters are all global but that write rows of the
+     * caller's own tenant (never global data), with why. The body check
+     * (test_ids_of_tenant_b_in_request_bodies_are_refused_and_never_stored)
+     * sends them B's ids.
+     */
+    public const TENANT_WRITES_UNDER_GLOBAL_PARAMETERS = [
+        'POST api/v1/config/{kind}' => 'LAY-06: saves the draft of the caller\'s own configuration document for a key and scope; the kind is a registered key',
     ];
 
     /**
@@ -250,6 +263,8 @@ class TenantIsolationTest extends TestCase
         ['flagged' => '1', 'flag' => 'actor_unverified', 'reviewed' => '0', 'kind' => 'refund'],
         // TEN-07: the consolidated sales of a year in a reporting currency (both tenants sold in KES).
         ['from' => '2026-01-01', 'to' => '2026-12-31', 'currency' => 'USD'],
+        // LAY-06: a configuration key (both tenants have a layout under the default key).
+        ['key' => 'default'],
     ];
 
     /**
@@ -260,7 +275,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key'];
 
     private TwoTenants $tenants;
 
@@ -365,6 +380,10 @@ class TenantIsolationTest extends TestCase
             }
 
             if ($this->hasOnlyGlobalParameters($route)) {
+                if (array_diff(array_map(fn ($m) => "{$m} {$route->uri()}", $this->methods($route)), array_keys(self::TENANT_WRITES_UNDER_GLOBAL_PARAMETERS)) === []) {
+                    continue;
+                }
+
                 $this->assertSame(['GET'], $this->methods($route), "{$route->uri()} changes global data through the tenant API");
 
                 foreach (self::LIST_QUERIES as $query) {
@@ -612,6 +631,8 @@ class TenantIsolationTest extends TestCase
         $this->assertArrayHasKey('POST api/v1/payments/intents', $hijacked);
         $this->assertArrayHasKey('POST api/v1/payment-receipts/{payment_receipt}/match', $hijacked);
         $this->assertArrayHasKey('PUT api/v1/numbering/formats', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/config/{kind}', $hijacked);
+        $this->assertArrayHasKey('POST api/v1/config/{kind}/{config_document}/copy', $hijacked);
         foreach (['sales', 'shifts', 'cash-movements', 'voids', 'refunds'] as $upload) {
             $this->assertArrayHasKey("POST api/v1/pos/{$upload}", $hijacked);
         }
@@ -1203,6 +1224,9 @@ class TenantIsolationTest extends TestCase
                 'payment_method_id' => $tenant->id('payment_method'), 'mode' => 'manual', 'amount_minor' => '10000', 'currency' => 'KES',
                 'receipt' => 'QJK3HIJACK'.strtoupper(Str::random(4)), 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'),
             ],
+            // LAY-06: a layout for the location (saved again on every call: one draft), and a copy of the company's there.
+            'POST api/v1/config/{kind}' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'payload' => ['columns' => [['id' => 'name']]]],
+            'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published'],
             // Payments: the money received matched to the till's manual payment.
             'POST api/v1/payment-receipts/{payment_receipt}/match' => ['payment_intent_id' => $tenant->id('payment_intent')],
             default => null,

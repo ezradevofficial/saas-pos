@@ -118,6 +118,56 @@
       "showResults": "Show results",
       "showCount_one": "Show {{formatted}} result",
       "showCount_other": "Show {{formatted}} results"
+    },
+    "versionBar": {
+      "label": "Versions",
+      "state": {
+        "draft": "Draft v{{version}}",
+        "published": "Live v{{version}}",
+        "none": "Not saved yet"
+      },
+      "liveIs": "v{{version}} is live",
+      "notPublished": "Not published yet",
+      "publishedAt": "Published {{when}}",
+      "problems_one": "{{count}} problem blocks publishing",
+      "problems_other": "{{count}} problems block publishing",
+      "save": {
+        "saving": "Saving…",
+        "saved": "Draft saved",
+        "error": "Draft not saved"
+      },
+      "history": "History",
+      "historyTitle": "Version history",
+      "number": "Version {{version}}",
+      "status": {
+        "draft": "Draft",
+        "published": "Live",
+        "archived": "Earlier",
+        "discarded": "Discarded draft"
+      },
+      "source": {
+        "draft": "Edited here",
+        "copy": "Copied",
+        "rollback": "Rolled back"
+      },
+      "rollBack": "Roll back to v{{version}}",
+      "rollBackConfirm": "Make v{{version}} live again as a new version?",
+      "publish": "Publish v{{version}}",
+      "copy": "Copy to…",
+      "copyTitle": "Copy to another place",
+      "copyBody": "The copy becomes the draft there. Nothing changes there until it is published.",
+      "copyTarget": "Copy to",
+      "copyChoose": "Choose a company, branch or location",
+      "copyFrom": "Copy",
+      "copyFromLive": "Live version v{{version}}",
+      "copyFromDraft": "Draft v{{version}}",
+      "copyConfirm": "Copy",
+      "discard": "Discard draft",
+      "discardTitle": "Discard draft v{{version}}?",
+      "discardBody": "Your changes are kept in the history but never go live. v{{version}} stays live.",
+      "discardBodyNothingLive": "Your changes are kept in the history but never go live. Nothing is live yet, so the platform layout applies.",
+      "discardConfirm": "Discard draft",
+      "keepDraft": "Keep editing"
     }
   },
   "dev": {

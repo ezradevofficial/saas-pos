@@ -23,6 +23,7 @@ import {
   SyncStatus,
   Tabs,
   TextField,
+  VersionBar,
 } from '@/components/ds'
 import { formatAmount } from '@/lib/money'
 import { useTheme } from '@/theme/ThemeProvider'
@@ -35,6 +36,19 @@ const TEST_TENANT_PRIMARY = '#7c2d12'
 const SUPPLIERS = { a: 'Bidco Africa', b: 'Unga Group', c: 'Kapa Oil Refineries' }
 const PEOPLE = { requester: 'Amina Otieno', delegate: 'Peter Mwangi' }
 const BRANCHES = ['Westlands', 'Kilimani', 'Gombe']
+// LAY-06: a layout with v2 live, a discarded v3 and draft v4 (the version strip).
+const CONFIG_LIVE = { id: 'v2', version: 2, status: 'published', source: 'draft', published_at: '2026-10-08T09:00:00Z' }
+const CONFIG_DOCUMENT = {
+  published: CONFIG_LIVE,
+  draft: { id: 'v4', version: 4, status: 'draft', source: 'draft' },
+  history: [
+    { id: 'v4', version: 4, status: 'draft', source: 'draft' },
+    { id: 'v3', version: 3, status: 'archived', source: 'draft', discarded_at: '2026-10-08T10:00:00Z' },
+    CONFIG_LIVE,
+    { id: 'v1', version: 1, status: 'archived', source: 'draft', published_at: '2026-10-07T09:00:00Z' },
+  ],
+}
+const CONFIG_TARGETS = BRANCHES.map((label, index) => ({ type: 'branch', id: `b${index}`, label }))
 // Long enough to show the search; accents prove "societe" finds "Société".
 const SUPPLIER_CHOICES = ['Bidco Africa', 'Brookside Dairy', 'Kapa Oil Refineries', 'Société Congolaise des Brasseries', 'Unga Group', 'Équateur Distribution', { value: 'old', label: 'Mumias Sugar (archived)', disabled: true }]
 
@@ -288,6 +302,7 @@ export default function ComponentGallery() {
       </Section>
 
       <Section title={t('dev.gallery.section.workflow')}>
+        <VersionBar document={CONFIG_DOCUMENT} canEdit canPublish copyTargets={CONFIG_TARGETS} saveState="saved" />
         <StageTracker stages={stages} current={stages[2]} />
         <StageTracker stages={stages} current={stages[1]} blocked />
         <div className="grid gap-5 lg:grid-cols-2">
