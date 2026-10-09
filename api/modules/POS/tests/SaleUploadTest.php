@@ -172,6 +172,13 @@ class SaleUploadTest extends TestCase
         $response = $this->upload([$this->saleBody($this->shift, 3, ['cashier_id' => $cashier->id, 'lines' => [$approved]])])->assertOk();
         $this->assertSame([], $this->flagsBut($response, 'price_differs'));
 
+        // AUTH-07: users switch mid-sale; a discount given by the manager on their own right (the
+        // line's proof names them, 15 % here, above the cashier's 10 %) is the manager's, even though the cashier completes the sale.
+        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_discount_percent', 'value' => '20']));
+        $byManager = [...$discounted, 'id' => $this->id(), 'unit_price_minor' => '60000', 'actor_proof' => $this->actorProof($manager->id), 'discount_minor' => '18000', 'tax_minor' => '10000', 'total_minor' => '102000'];
+        $response = $this->upload([$this->saleBody($this->shift, 5, ['cashier_id' => $cashier->id, 'actor_proof' => $this->actorProof($cashier->id), 'lines' => [$byManager]])])->assertOk();
+        $this->assertSame([], $this->flagsBut($response, 'price_differs', 'tax_differs'));
+
         // H3: money in is never held: an override or a cashier that can't be proven is kept and flagged.
         $unproven = [...$discounted, 'id' => $this->id(), 'price_override' => $this->override($manager->id, proven: false)];
         $response = $this->upload([$this->saleBody($this->shift, 4, ['cashier_id' => $cashier->id, 'actor_proof' => null, 'lines' => [$unproven]])])->assertOk();
@@ -184,14 +191,14 @@ class SaleUploadTest extends TestCase
             $line = SaleLine::findOrFail($approved['id']);
             $this->assertSame([null, $manager->id], [$line->discount_override_by, $line->price_override_by]);
             $this->assertSame(2, AuditEntry::where('action', 'pos.sale.price_override')->where('on_behalf_of_user_id', $manager->id)->count());
-            $this->assertSame(3, AuditEntry::where('action', 'pos.sale.discount')->count());
+            $this->assertSame(4, AuditEntry::where('action', 'pos.sale.discount')->count());
         });
     }
 
     /** The sale's flags without $code (the prices in this test differ from the server's on purpose). */
-    private function flagsBut($response, string $code): array
+    private function flagsBut($response, string ...$codes): array
     {
-        return array_values(array_filter($response->json('results.0.flags'), fn (array $flag) => $flag['code'] !== $code));
+        return array_values(array_filter($response->json('results.0.flags'), fn (array $flag) => ! in_array($flag['code'], $codes, true)));
     }
 
     public function test_line_and_sale_sums_must_add_up(): void

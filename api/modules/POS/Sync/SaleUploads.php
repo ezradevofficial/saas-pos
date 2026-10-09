@@ -354,7 +354,7 @@ class SaleUploads
 
         if ($discount->isPositive()) {
             $percent = $discount->multipliedBy(100)->dividedBy($gross, 4, RoundingMode::HalfUp);
-            $discountApproval = $this->restricted($place, $cashier, $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
+            $discountApproval = $this->restricted($place, $this->giver($line, $cashier), $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
                 fn (User $user) => $this->authority->within($user, 'max_discount_percent', $place->scope(), $percent),
                 $line['id'], "{$field}.override", 'discount_unauthorised', $index, $flags);
         }
@@ -363,7 +363,7 @@ class SaleUploads
         $listPrice = $line['list_price_minor'] ?? null;
 
         if ($listPrice !== null && (string) $listPrice !== (string) $line['unit_price_minor']) {
-            $priceApproval = $this->restricted($place, $cashier, $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
+            $priceApproval = $this->restricted($place, $this->giver($line, $cashier), $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
                 $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
         }
 
@@ -412,6 +412,24 @@ class SaleUploads
             'price_override' => $priceApproval,
             'percent' => $percent,
         ];
+    }
+
+    /**
+     * AUTH-07, POS-07: who gave a line's discount or price by their own
+     * right. Tills switch users mid-sale, so a line's own proof may name
+     * the person who changed it rather than the cashier completing the
+     * sale; that person's right is checked. A user the tenant doesn't
+     * know falls back to the cashier (the proof then doesn't verify).
+     */
+    private function giver(array $line, User $cashier): User
+    {
+        $named = $line['actor_proof']['user_id'] ?? null;
+
+        if ($named === null || $named === $cashier->id) {
+            return $cashier;
+        }
+
+        return User::query()->find($named) ?? $cashier;
     }
 
     /** A restricted line action: the approval, or null with a flag when nobody allowed it (device wins). */

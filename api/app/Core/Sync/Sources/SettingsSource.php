@@ -55,6 +55,8 @@ class SettingsSource implements SnapshotSource
                 'country' => $company->country,
                 'address' => (object) ($company->address ?? []),
                 'base_currency' => $company->base_currency,
+                // POS-11, MD-03: tax rates and prices take effect by the company's day.
+                'timezone' => $company->timezone ?: 'UTC',
                 'reporting_currencies' => CompanyCurrency::query()->where('company_id', $company->id)->orderBy('position')->pluck('code')->all(),
             ],
             'timezone' => $scope->timezone(),
