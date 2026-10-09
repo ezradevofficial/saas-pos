@@ -55,8 +55,10 @@ class PermissionRegistry
         // received money to payments by hand (match).
         'payment' => ['view', 'match'],
         // Concept note 7.2: fiscal settings and the queue to the tax authority
-        // (view), settings, credentials, initialisation and retries (edit).
-        'fiscal' => ['view', 'edit'],
+        // (view); non-secret settings, retries and sending earlier sales
+        // (edit); the authority's credentials, initialisation, the driver
+        // and switching transmission on or off (configure: Owner, Admin).
+        'fiscal' => ['view', 'edit', 'configure'],
         // NUM-01: how documents are numbered, per type and tenant, company or branch.
         'numbering' => ['view', 'edit'],
     ];

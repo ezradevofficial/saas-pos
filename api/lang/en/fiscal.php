@@ -3,11 +3,13 @@
 // Fiscal transmission (concept note 7.2): API messages, list labels and alerts.
 return [
     'errors' => [
+        'confirm_required' => 'Confirm that the documents since this date should be sent to the tax authority.',
+        'not_enabled' => 'Switch transmission on before sending earlier sales.',
+        'currency_unconfirmed' => 'eTIMS currency handling for USD sales needs confirming. This :currency document is held until it is decided, then retried.',
         'tax_code_missing' => 'The item “:item” has no tax code, so it can’t be sent to the tax authority. Give the item a tax category, then retry.',
         'fiscal_code_missing' => 'The item “:item” uses the tax code :code, which has no fiscal code. Set the tax code’s fiscal code, then retry.',
         'fiscal_code_unknown' => 'The tax code :code has the fiscal code :fiscal_code, which the tax authority doesn’t know. Use one of :allowed, then retry.',
         'driver_unavailable' => 'Transmission to this tax authority isn’t available yet. Leave transmission off for now.',
-        'currency_not_supported' => 'The tax authority takes documents in KES only; this one is in :currency.',
         'band_rate_conflict' => 'Lines of tax band :band were sold at different rates. Check the tax codes and rates, then retry.',
         'item_code_missing' => 'The item “:item” has no code. Give it a code, then retry.',
         'item_class_missing' => 'The item “:item” has no tax authority classification, and the company has no default. Set one, then retry.',
@@ -39,6 +41,7 @@ return [
         'accepted' => 'Accepted',
         'rejected' => 'Rejected',
         'retrying' => 'Retrying',
+        'needs_attention' => 'Needs attention',
     ],
 
     'filters' => [
@@ -49,6 +52,7 @@ return [
         'accepted' => 'Accepted',
         'rejected' => 'Rejected',
         'retrying' => 'Retrying',
+        'needs_attention' => 'Needs attention',
     ],
 
     'submissions' => [
@@ -65,6 +69,12 @@ return [
     ],
 
     'notifications' => [
+        'needs_attention' => [
+            'label' => 'Fiscal document needs a decision',
+            'subject' => '{document_type} {document_number} is held before sending to the tax authority',
+            'body' => "Hello {recipient_name},\n\n{document_type} {document_number} of {company_name} is held: {error}\n\nOnce it is decided, retry it from the fiscal queue.",
+            'sms' => '{app_name}: {document_type} {document_number} is held before sending to the tax authority. Open the fiscal queue.',
+        ],
         'rejected' => [
             'label' => 'Fiscal document rejected',
             'subject' => '{document_type} {document_number} was rejected by the tax authority',

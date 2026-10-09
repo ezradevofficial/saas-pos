@@ -13,7 +13,8 @@ use App\Core\Tenancy\Models\Company;
 /**
  * Tells the company's fiscal administrators (active users holding
  * `core.fiscal.edit` at the company) that a document was refused
- * (`core.fiscal.rejected`, at once) or is still not accepted after the
+ * (`core.fiscal.rejected`, at once), is held for a decision
+ * (`core.fiscal.needs_attention`, once) or is still not accepted after the
  * country's alert delay (`core.fiscal.delayed`, once per submission).
  */
 class FiscalAlert
@@ -22,11 +23,18 @@ class FiscalAlert
 
     public const DELAYED = 'core.fiscal.delayed';
 
+    public const NEEDS_ATTENTION = 'core.fiscal.needs_attention';
+
     public function __construct(private readonly Notifier $notifier) {}
 
     public function rejected(FiscalSubmission $submission): void
     {
         $this->send(self::REJECTED, $submission, ['error' => (string) $submission->last_error]);
+    }
+
+    public function needsAttention(FiscalSubmission $submission): void
+    {
+        $this->send(self::NEEDS_ATTENTION, $submission, ['error' => (string) $submission->last_error]);
     }
 
     public function delayed(FiscalSubmission $submission, int $hours): void

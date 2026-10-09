@@ -7,6 +7,7 @@ use App\Core\Fiscal\FiscalSources;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Sync\SyncSources;
@@ -19,6 +20,7 @@ use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
 use Modules\POS\Fiscal\PosFiscalSource;
+use Modules\POS\Listeners\ApplyPaymentSettlement;
 use Modules\POS\Listeners\LinkMobileMoneyPayments;
 use Modules\POS\Listeners\QueueFiscalDocument;
 use Modules\POS\Listeners\RetireDeviceRanges;
@@ -94,6 +96,7 @@ class PosServiceProvider extends ServiceProvider
         // payment intents to verify; mobile money refunds are paid back.
         Event::listen(SaleCompleted::class, [LinkMobileMoneyPayments::class, 'handle']);
         Event::listen(SaleRefunded::class, [LinkMobileMoneyPayments::class, 'handle']);
+        Event::listen(PaymentIntentSettled::class, [ApplyPaymentSettlement::class, 'handle']);
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

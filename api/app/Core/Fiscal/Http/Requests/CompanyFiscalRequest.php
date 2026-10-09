@@ -14,7 +14,7 @@ abstract class CompanyFiscalRequest extends CompanyResourceRequest
 {
     protected string $resource = 'fiscal';
 
-    protected array $readActions = ['view', 'edit'];
+    protected array $readActions = ['view', 'edit', 'configure'];
 
     protected function targetCompany(): Company
     {

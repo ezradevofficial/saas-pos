@@ -6,11 +6,17 @@ use App\Core\Fiscal\FiscalQueue;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Identity\Models\User;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Payments\PaymentIntents;
+use App\Core\Payments\ProviderResult;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\POS\Fiscal\PosFiscalSource;
+use Modules\POS\Models\Refund;
+use Modules\POS\Models\RefundPayment;
+use Modules\POS\Models\Sale;
+use Modules\POS\Models\SalePayment;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -193,5 +199,98 @@ class PaymentsAndFiscalTest extends TestCase
         $b2c = Http::recorded(fn (Request $r) => str_contains($r->url(), '/mpesa/b2c/'))->first()[0]->data();
         $this->assertSame('254712345678', $b2c['PartyB']);
         $this->assertSame(1125, $b2c['Amount']);
+
+        // Settlements come back to the POS records (PaymentIntentSettled).
+        $this->inTenant(fn () => app(PaymentIntents::class)->apply($payout, ProviderResult::succeeded('QJK3REFND1')));
+        $this->inTenant(function () use ($refund) {
+            $payment = RefundPayment::query()->findOrFail($refund['payments'][0]['id']);
+            $this->assertSame(['confirmed', 'QJK3REFND1'], [$payment->status, $payment->provider_reference]);
+        });
+    }
+
+    private function mpesaSale(int $seq, string $code): array
+    {
+        $sale = $this->saleBody($this->shift, $seq, ['cashier_id' => $this->cashier->id, 'offline' => true]);
+        $sale['payments'][0] = [...$sale['payments'][0], 'payment_method_id' => $this->methods['mpesa']->id, 'provider_reference' => $code, 'status' => 'pending'];
+        $this->upload([$sale])->assertOk();
+
+        return $sale;
+    }
+
+    private function receive(string $code, int $amountMinor): void
+    {
+        $this->inTenant(fn () => app(PaymentIntents::class)->receive($this->methods['mpesa']->fresh(), [
+            'receipt' => $code, 'amount_minor' => $amountMinor, 'currency' => 'KES', 'account_reference' => null,
+            'shortcode' => '174379', 'transacted_at' => null, 'data' => [],
+        ]));
+    }
+
+    private function sale(string $id): Sale
+    {
+        return $this->inTenant(fn () => Sale::query()->findOrFail($id));
+    }
+
+    public function test_verified_codes_confirm_the_payment_and_mismatches_and_reuse_flag_the_sale(): void
+    {
+        $good = $this->mpesaSale(1, 'QJK3GOOD01');
+        $short = $this->mpesaSale(2, 'QJK3SHORT1');
+        $reused = $this->mpesaSale(3, 'QJK3GOOD01');
+
+        $this->receive('QJK3GOOD01', 112500);
+        $this->receive('QJK3SHORT1', 100000);
+
+        $this->inTenant(function () use ($good, $short) {
+            $this->assertSame('confirmed', SalePayment::query()->findOrFail($good['payments'][0]['id'])->status);
+            $this->assertSame('pending', SalePayment::query()->findOrFail($short['payments'][0]['id'])->status);
+        });
+        $this->assertSame([], array_column($this->sale($good['id'])->flags, 'code'));
+        $this->assertSame(['mpesa_mismatch'], array_column($this->sale($short['id'])->flags, 'code'));
+        $this->assertSame(['mpesa_code_reused'], array_column($this->sale($reused['id'])->flags, 'code'));
+        $this->assertSame($reused['payments'][0]['id'], $this->sale($reused['id'])->flags[0]['detail']['payment_id']);
+
+        // A resend adds nothing.
+        $this->upload([$reused])->assertOk();
+        $this->assertCount(1, $this->sale($reused['id'])->flags);
+    }
+
+    public function test_a_failed_payout_flags_the_refund(): void
+    {
+        $this->inTenant(fn () => $this->methods['mpesa']->fill([
+            'settings' => ['shortcode' => '174379'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk'],
+        ])->save());
+        $sale = $this->mpesaSale(1, 'QJK3NOINIT');
+        $this->inTenant(fn () => PaymentIntent::query()->sole()->fill(['phone' => '254712345678'])->save());
+
+        $refund = [
+            'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->cashier->id,
+            'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(),
+            'reason' => 'Damaged', 'total_minor' => '112500',
+            'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '2']],
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['mpesa']->id, 'currency' => 'KES', 'amount_minor' => '112500', 'amount_in_sale_minor' => '112500', 'status' => 'pending']],
+            'override' => $this->override($this->manager->id),
+        ];
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$refund]], $this->tillHeaders())->assertOk();
+
+        // No initiator credentials: the payout fails at once and the refund is flagged.
+        $this->inTenant(function () use ($refund) {
+            $this->assertSame('initiator_missing', PaymentIntent::query()->where('purpose', 'refund')->sole()->result_code);
+            $flags = Refund::query()->findOrFail($refund['id'])->flags;
+            $this->assertSame(['payout_failed'], array_column($flags, 'code'));
+            $this->assertSame('pending', RefundPayment::query()->findOrFail($refund['payments'][0]['id'])->status);
+        });
+    }
+
+    public function test_earlier_sales_are_sent_on_request(): void
+    {
+        $first = $this->saleBody($this->shift, 1);
+        $second = $this->saleBody($this->shift, 2);
+        $this->upload([$first, $second])->assertOk();
+        $this->transmit();
+        $this->assertSame([], $this->submissions());
+
+        $this->postJson("/api/v1/companies/{$this->acme->id}/fiscal-submissions/send-earlier", ['from' => now()->subDay()->toDateString(), 'confirm' => true], $this->headersFor())->assertStatus(202);
+
+        $this->assertSame([$first['id'], $second['id']], array_column($this->submissions(), 'document_id'));
+        $this->assertSame(['accepted', 'accepted'], array_column($this->submissions(), 'status'));
     }
 }

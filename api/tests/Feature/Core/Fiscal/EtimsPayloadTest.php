@@ -78,7 +78,7 @@ class EtimsPayloadTest extends TestCase
             'tax_code_missing' => [[['Gift wrap', null, null, 5000, 0]], []],
             'band_rate_conflict' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500], ['Salt', $this->vat->id, '8', 10800, 800]], []],
             'item_class_missing' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500]], ['classification_code' => null]],
-            'currency_not_supported' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500]], ['currency' => 'USD']],
+            'currency_unconfirmed' => [[['Sugar 1kg', $this->vat->id, '12.5', 22500, 2500]], ['currency' => 'USD']],
         ];
 
         foreach ($cases as $reason => [$lines, $change]) {

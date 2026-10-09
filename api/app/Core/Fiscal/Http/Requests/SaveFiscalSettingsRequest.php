@@ -13,6 +13,8 @@ use Illuminate\Validation\Validator;
  * `device_serial` the authority registered, plain `settings` (default
  * item classification and unit codes) and `credentials` the driver takes
  * (stored encrypted, never returned; a null value clears a key).
+ * The driver, `enabled` and credentials also need `core.fiscal.configure`
+ * at the company (Owner, Admin): an Accountant edits the rest.
  */
 class SaveFiscalSettingsRequest extends CompanyFiscalRequest
 {
@@ -21,6 +23,17 @@ class SaveFiscalSettingsRequest extends CompanyFiscalRequest
     public const CREDENTIALS = ['cmc_key', 'api_token'];
 
     protected bool $edits = true;
+
+    public function authorize(): bool
+    {
+        if (! parent::authorize()) {
+            return false;
+        }
+
+        $configures = $this->has('driver') || $this->has('enabled') || $this->has('credentials');
+
+        return ! $configures || $this->user()->can('core.fiscal.configure', $this->company());
+    }
 
     public function rules(): array
     {

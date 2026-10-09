@@ -156,7 +156,7 @@ class FiscalQueue
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($submission) {
             $locked = FiscalSubmission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
 
-            if (in_array($locked->status, ['rejected', 'retrying', 'queued'], true)) {
+            if (in_array($locked->status, ['rejected', 'retrying', 'queued', 'needs_attention'], true)) {
                 $locked->fill(['status' => 'queued', 'next_attempt_at' => CarbonImmutable::now(), 'alerted_at' => null])->save();
                 ProcessFiscalQueue::dispatch($this->tenants->require(), CarbonImmutable::now()->toIso8601String())->afterCommit();
             }
@@ -234,6 +234,10 @@ class FiscalQueue
             $result = $submission->isCreditNote()
                 ? $driver->submitCreditNote($submission, $settings)
                 : $driver->submitInvoice($submission, $settings);
+        } catch (NeedsAttention $e) {
+            $this->hold($submission, $e);
+
+            return;
         } catch (LocalRejection $e) {
             $result = FiscalResult::rejected($e->reason, $e->getMessage());
         } catch (Throwable $e) {
@@ -253,6 +257,24 @@ class FiscalQueue
             'rejected' => $this->reject($submission, $result),
             default => $this->later($submission, $result, $at, $before),
         };
+    }
+
+    /** Held until a person decides (NeedsAttention); alerted once. */
+    private function hold(FiscalSubmission $submission, NeedsAttention $e): void
+    {
+        $alert = $submission->alerted_at === null;
+
+        $submission->fill([
+            'status' => 'needs_attention',
+            'error_code' => $e->reason,
+            'last_error' => $e->getMessage(),
+            'next_attempt_at' => null,
+            'alerted_at' => $submission->alerted_at ?? CarbonImmutable::now(),
+        ])->save();
+
+        if ($alert) {
+            $this->alerts->needsAttention($submission);
+        }
     }
 
     private function reject(FiscalSubmission $submission, FiscalResult $result): void

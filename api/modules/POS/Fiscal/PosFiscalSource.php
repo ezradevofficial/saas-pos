@@ -3,10 +3,12 @@
 namespace Modules\POS\Fiscal;
 
 use App\Core\Fiscal\Contracts\FiscalDocumentSource;
+use App\Core\Fiscal\Contracts\ListsFiscalDocuments;
 use App\Core\Fiscal\FiscalDocument;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Parties\Party;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundLine;
@@ -22,7 +24,7 @@ use Modules\POS\Models\SaleVoid;
  * are credit notes naming the sale. Lines carry the tax code and the rate
  * the till applied, as sold; nothing is recomputed here.
  */
-class PosFiscalSource implements FiscalDocumentSource
+class PosFiscalSource implements FiscalDocumentSource, ListsFiscalDocuments
 {
     public const KEY = 'pos';
 
@@ -38,6 +40,29 @@ class PosFiscalSource implements FiscalDocumentSource
             'refund' => $this->refund(Refund::query()->findOrFail($documentId)),
             'void' => $this->void(SaleVoid::query()->findOrFail($documentId)),
         });
+    }
+
+    /**
+     * "Send earlier sales": the company's sales sold since $from, oldest
+     * first, each followed by its applied refunds and void.
+     */
+    public function documentsSince(string $companyId, CarbonImmutable $from): iterable
+    {
+        $sales = Sale::query()->where('company_id', $companyId)->where('sold_at', '>=', $from)->orderBy('sold_at')->orderBy('id')->lazy(200);
+
+        foreach ($sales as $sale) {
+            yield ['sale', $sale->id];
+
+            foreach (Refund::query()->where('sale_id', $sale->id)->where('status', 'applied')->orderBy('refunded_at')->pluck('id') as $refund) {
+                yield ['refund', $refund];
+            }
+
+            $void = SaleVoid::query()->where('sale_id', $sale->id)->where('status', 'applied')->value('id');
+
+            if ($void !== null) {
+                yield ['void', $void];
+            }
+        }
     }
 
     private function sale(Sale $sale): array

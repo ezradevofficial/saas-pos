@@ -7,7 +7,7 @@ use App\Core\Fiscal\FiscalDocument;
 use App\Core\Fiscal\LocalRejection;
 use App\Core\Fiscal\Models\FiscalSettings;
 use App\Core\Fiscal\Models\FiscalSubmission;
-use App\Core\MasterData\Taxes\TaxCode;
+use App\Core\Fiscal\NeedsAttention;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -20,10 +20,9 @@ use Carbon\CarbonImmutable;
  * - Bands: each line's tax type (`taxTyCd`, A to E) is its tax code's
  *   `fiscal_code` (FiscalBands). The rate per band (`taxRtA`..`taxRtE`) is
  *   the rate the till applied on that band's lines; two lines of one band
- *   at different rates stop the document. A band with no line takes the
- *   rate of the company's tax code with that fiscal code in force on the
- *   document's date, else 0 (no amount is reported on it). No rate is
- *   ever made up.
+ *   at different rates stop the document. A band with no line is sent
+ *   with rate 0 and no amount (owner decision; verify against the KRA
+ *   sandbox). No rate is ever made up.
  * - Amounts are VAT inclusive as eTIMS expects: per line, `taxblAmt` and
  *   `totAmt` are the line total, `taxAmt` the line tax, `dcAmt` the
  *   discount, `splyAmt` total + discount and `prc` = splyAmt / qty.
@@ -31,7 +30,8 @@ use Carbon\CarbonImmutable;
  *   registration exists), `itemClsCd` its KRA classification, else the
  *   company's default; the unit codes likewise. A missing one stops the
  *   document with the item's name.
- * - Only KES documents (eTIMS reports in shillings).
+ * - Only KES documents: another currency is held as needs_attention
+ *   until eTIMS currency handling for USD sales is confirmed.
  * - Dates are Nairobi time: `salesDt` Ymd, `cfmDt` YmdHis.
  *
  * Numbers leave as JSON numbers with two decimals (the API's format);
@@ -46,7 +46,7 @@ final class EtimsPayload
         $data = $document->data;
 
         if ($data['currency'] !== 'KES') {
-            throw new LocalRejection('currency_not_supported', __('fiscal.errors.currency_not_supported', ['currency' => $data['currency']]));
+            throw new NeedsAttention('currency_unconfirmed', __('fiscal.errors.currency_unconfirmed', ['currency' => $data['currency']]));
         }
 
         $config = config('fiscal.etims');
@@ -132,7 +132,7 @@ final class EtimsPayload
         }
 
         foreach ($config['bands'] as $band) {
-            $body["taxRt{$band}"] = self::number($rates[$band] ?? self::companyRate($submission->company_id, $band, $issued));
+            $body["taxRt{$band}"] = self::number($rates[$band] ?? BigDecimal::zero());
         }
 
         foreach ($config['bands'] as $band) {
@@ -171,15 +171,6 @@ final class EtimsPayload
         }
 
         return BigDecimal::of((string) $rate)->toScale(2, RoundingMode::HalfUp);
-    }
-
-    /** The rate of the company's tax code carrying $band on $at, or 0 when none has one. */
-    private static function companyRate(string $companyId, string $band, CarbonImmutable $at): BigDecimal
-    {
-        $code = TaxCode::query()->where('company_id', $companyId)->where('fiscal_code', $band)->whereNull('archived_at')->with('company')->orderBy('code')->first();
-        $rate = $code?->rateOn($at)?->rate;
-
-        return $rate === null ? BigDecimal::zero() : BigDecimal::of((string) $rate)->toScale(2, RoundingMode::HalfUp);
     }
 
     private static function required(mixed $value, string $reason, array $line): string

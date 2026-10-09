@@ -319,6 +319,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::put('companies/{company}/fiscal-settings', [FiscalSettingsController::class, 'save']);
     Route::post('companies/{company}/fiscal-settings/initialize', [FiscalSettingsController::class, 'initialize']);
     Route::get('companies/{company}/fiscal-submissions', [FiscalSubmissionController::class, 'index']);
+    Route::post('companies/{company}/fiscal-submissions/send-earlier', [FiscalSubmissionController::class, 'sendEarlier']);
     Route::get('fiscal-submissions/{fiscal_submission}', [FiscalSubmissionController::class, 'show']);
     Route::post('fiscal-submissions/{fiscal_submission}/retry', [FiscalSubmissionController::class, 'retry']);
 

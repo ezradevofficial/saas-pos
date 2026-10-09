@@ -16,6 +16,7 @@ use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundPayment;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SalePayment;
+use Modules\POS\Payments\RecordFlags;
 use Modules\POS\PosServiceProvider;
 
 /**
@@ -26,8 +27,8 @@ use Modules\POS\PosServiceProvider;
  *   provider's code and no payment intent behind it (sold offline, or the
  *   cashier typed the code) becomes a manual intent, verified later by the
  *   provider (C2B confirmation or status check). A payment already paid
- *   through an intent (an STK push, or the online manual call) is left as
- *   it is.
+ *   through an STK push for this sale is confirmed; a code already paying
+ *   another sale flags the sale `mpesa_code_reused`.
  * - SaleRefunded: a mobile money refund payment the till left `pending`
  *   is paid back through the provider (M-Pesa B2C) to the phone of the
  *   sale's payment; the result shows on the payment intents list.
@@ -64,7 +65,23 @@ class LinkMobileMoneyPayments implements ShouldQueue
             $method = PaymentMethod::query()->find($payment->payment_method_id);
             $code = strtoupper(trim((string) $payment->provider_reference));
 
-            if ($method === null || $this->paidIntent($method, $code) !== null || preg_match('/^[A-Z0-9]{6,20}$/', $code) !== 1) {
+            if ($method === null || preg_match('/^[A-Z0-9]{6,20}$/', $code) !== 1) {
+                continue;
+            }
+
+            $paid = $this->paidIntent($method, $code);
+
+            if ($paid !== null) {
+                // Paid through an intent already (an STK push): for this sale, the payment is confirmed;
+                // for another sale, the code is being used twice.
+                if ($paid->reference === $sale->id) {
+                    if ($paid->mode === 'stk' || $paid->verification === 'verified') {
+                        $payment->forceFill(['status' => SalePayment::CONFIRMED])->save();
+                    }
+                } elseif ($paid->id !== $payment->id) {
+                    RecordFlags::add($sale, 'mpesa_code_reused', ['payment_id' => $payment->id]);
+                }
+
                 continue;
             }
 
@@ -84,8 +101,9 @@ class LinkMobileMoneyPayments implements ShouldQueue
                     'receipt' => $code,
                 ]);
             } catch (ApiException $e) {
-                // The code already pays another sale: left for the back office (the other intent shows it).
+                // The code already pays another sale: the sale is flagged for review.
                 Log::warning('POS mobile money code not recorded', ['sale' => $sale->id, 'code' => $e->errorCode]);
+                RecordFlags::add($sale, 'mpesa_code_reused', ['payment_id' => $payment->id]);
             }
         }
     }

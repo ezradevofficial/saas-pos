@@ -3,7 +3,9 @@
 namespace Tests\Support\Fiscal;
 
 use App\Core\Fiscal\Contracts\FiscalDocumentSource;
+use App\Core\Fiscal\Contracts\ListsFiscalDocuments;
 use App\Core\Fiscal\FiscalDocument;
+use Carbon\CarbonImmutable;
 use RuntimeException;
 
 /**
@@ -11,7 +13,7 @@ use RuntimeException;
  * module's FiscalDocumentSource builds from its own tables (the POS does
  * this for sales, refunds and voids).
  */
-final class TestFiscalSource implements FiscalDocumentSource
+final class TestFiscalSource implements FiscalDocumentSource, ListsFiscalDocuments
 {
     public const KEY = 'test';
 
@@ -39,6 +41,16 @@ final class TestFiscalSource implements FiscalDocumentSource
     public function document(string $documentType, string $documentId): FiscalDocument
     {
         return FiscalDocument::fromArray(self::$documents["{$documentType}:{$documentId}"] ?? throw new RuntimeException('No such test document.'));
+    }
+
+    public function documentsSince(string $companyId, CarbonImmutable $from): iterable
+    {
+        $documents = array_filter(self::$documents, fn (array $d) => $d['company_id'] === $companyId && CarbonImmutable::parse($d['issued_at'])->greaterThanOrEqualTo($from));
+        uasort($documents, fn (array $a, array $b) => [$a['issued_at'], $a['type'] !== 'sale'] <=> [$b['issued_at'], $b['type'] !== 'sale']);
+
+        foreach ($documents as $document) {
+            yield [$document['type'], $document['id']];
+        }
     }
 
     /**

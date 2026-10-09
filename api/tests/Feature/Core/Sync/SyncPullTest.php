@@ -273,9 +273,27 @@ class SyncPullTest extends TestCase
         $response = $this->pull($this->till, ['payment_methods'])->assertOk();
         $rows = $response->json('entities.payment_methods.upserts');
 
-        $this->assertSame(['id', 'type', 'name', 'currency', 'provider', 'position'], array_keys($rows[0]));
+        $this->assertSame(['id', 'type', 'name', 'currency', 'provider', 'position', 'capabilities'], array_keys($rows[0]));
         $this->assertStringNotContainsString('very-secret-value', $response->getContent());
         $this->assertStringNotContainsString('174379', $response->getContent());
+        // Not fully configured for Daraja: no STK push, codes only.
+        $this->assertSame(['stk' => false, 'manual_code' => true], $rows[0]['capabilities']);
+    }
+
+    public function test_payment_methods_say_whether_the_till_may_push_to_a_phone(): void
+    {
+        $this->inTenant(function () {
+            PaymentMethod::create([
+                'company_id' => $this->acme->id, 'type' => 'mobile_money', 'name' => 'M-Pesa', 'provider' => 'mpesa_ke', 'position' => 1, 'active' => true,
+                'settings' => ['shortcode' => '174379'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk'],
+            ]);
+            PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash', 'currency' => 'KES', 'position' => 2, 'active' => true]);
+        });
+
+        $rows = collect($this->pull($this->till, ['payment_methods'])->assertOk()->json('entities.payment_methods.upserts'))->keyBy('name');
+
+        $this->assertSame(['stk' => true, 'manual_code' => true], $rows['M-Pesa']['capabilities']);
+        $this->assertSame(['stk' => false, 'manual_code' => false], $rows['Cash']['capabilities']);
     }
 
     public function test_snapshots_are_sent_whole_once_and_then_only_when_they_change(): void

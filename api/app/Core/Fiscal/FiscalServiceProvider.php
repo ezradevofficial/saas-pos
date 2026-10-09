@@ -33,6 +33,13 @@ class FiscalServiceProvider extends ServiceProvider
             langKey: 'fiscal.notifications.rejected',
         ));
         $events->register(new EventType(
+            key: FiscalAlert::NEEDS_ATTENTION,
+            placeholders: ['document_type' => 'Sale', 'document_number' => 'R-OUT1-000123', 'company_name' => 'Duka Bora Ltd', 'error' => 'eTIMS currency handling for USD sales needs confirming.'],
+            defaultChannels: [Channels::IN_APP, Channels::EMAIL],
+            mandatoryAllowed: true,
+            langKey: 'fiscal.notifications.needs_attention',
+        ));
+        $events->register(new EventType(
             key: FiscalAlert::DELAYED,
             placeholders: ['document_type' => 'Sale', 'document_number' => 'R-OUT1-000123', 'company_name' => 'Duka Bora Ltd', 'hours' => '6', 'error' => 'The tax authority could not be reached.'],
             defaultChannels: [Channels::IN_APP, Channels::EMAIL],

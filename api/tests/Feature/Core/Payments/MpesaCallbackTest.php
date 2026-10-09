@@ -7,6 +7,7 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\CallbackTokens;
+use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Models\PaymentReceipt;
 use App\Core\Payments\PaymentIntents;
@@ -14,6 +15,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\Concerns\BuildsPayments;
@@ -77,6 +79,22 @@ class MpesaCallbackTest extends TestCase
         $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 1032))->assertOk();
         $this->assertSame('succeeded', $this->intent($intent->id)->status);
         $this->assertSame($audits, $this->inTenant(fn () => AuditEntry::query()->count()));
+    }
+
+    public function test_settlements_are_announced_once_to_the_owning_module(): void
+    {
+        Event::fake([PaymentIntentSettled::class]);
+        $intent = $this->pushed();
+        $manual = $this->manual('QJK3EVENT1');
+        Event::assertNotDispatched(PaymentIntentSettled::class);
+
+        $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0))->assertOk();
+        $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0))->assertOk();
+        $this->providerCallback('c2b-confirm', $this->c2bConfirmation('QJK3EVENT1', '1500.00'))->assertOk();
+
+        Event::assertDispatchedTimes(PaymentIntentSettled::class, 2);
+        Event::assertDispatched(PaymentIntentSettled::class, fn (PaymentIntentSettled $e) => $e->intentId === $intent->id && $e->referenceType === 'pos.sale' && $e->tenantId === $this->owner->tenant_id);
+        Event::assertDispatched(PaymentIntentSettled::class, fn (PaymentIntentSettled $e) => $e->intentId === $manual->id);
     }
 
     public function test_declined_unreachable_and_wrong_amount_callbacks(): void

@@ -3,11 +3,13 @@
 // Transmission fiscale (note de concept 7.2) : messages de l’API, libellés des listes et alertes.
 return [
     'errors' => [
+        'confirm_required' => 'Confirmez que les documents depuis cette date doivent être envoyés à l’administration fiscale.',
+        'not_enabled' => 'Activez la transmission avant d’envoyer les ventes antérieures.',
+        'currency_unconfirmed' => 'Le traitement des devises dans eTIMS pour les ventes en USD doit être confirmé. Ce document en :currency est retenu jusqu’à la décision, puis renvoyé.',
         'tax_code_missing' => 'L’article « :item » n’a pas de code de taxe, il ne peut pas être envoyé à l’administration fiscale. Donnez-lui une catégorie de taxe, puis réessayez.',
         'fiscal_code_missing' => 'L’article « :item » utilise le code de taxe :code, qui n’a pas de code fiscal. Renseignez le code fiscal du code de taxe, puis réessayez.',
         'fiscal_code_unknown' => 'Le code de taxe :code a le code fiscal :fiscal_code, inconnu de l’administration fiscale. Utilisez l’un de :allowed, puis réessayez.',
         'driver_unavailable' => 'La transmission vers cette administration fiscale n’est pas encore disponible. Laissez la transmission désactivée pour l’instant.',
-        'currency_not_supported' => 'L’administration fiscale n’accepte que des documents en KES ; celui-ci est en :currency.',
         'band_rate_conflict' => 'Des lignes de la tranche :band ont été vendues à des taux différents. Vérifiez les codes et taux de taxe, puis réessayez.',
         'item_code_missing' => 'L’article « :item » n’a pas de code. Donnez-lui un code, puis réessayez.',
         'item_class_missing' => 'L’article « :item » n’a pas de classification de l’administration fiscale, et la société n’a pas de valeur par défaut. Renseignez-en une, puis réessayez.',
@@ -39,6 +41,7 @@ return [
         'accepted' => 'Accepté',
         'rejected' => 'Rejeté',
         'retrying' => 'Nouvel essai',
+        'needs_attention' => 'À décider',
     ],
 
     'filters' => [
@@ -49,6 +52,7 @@ return [
         'accepted' => 'Accepté',
         'rejected' => 'Rejeté',
         'retrying' => 'Nouvel essai',
+        'needs_attention' => 'À décider',
     ],
 
     'submissions' => [
@@ -65,6 +69,12 @@ return [
     ],
 
     'notifications' => [
+        'needs_attention' => [
+            'label' => 'Document fiscal en attente de décision',
+            'subject' => '{document_type} {document_number} est retenu avant l’envoi à l’administration fiscale',
+            'body' => "Bonjour {recipient_name},\n\n{document_type} {document_number} de {company_name} est retenu : {error}\n\nUne fois la décision prise, relancez-le depuis la file fiscale.",
+            'sms' => '{app_name} : {document_type} {document_number} est retenu avant l’envoi à l’administration fiscale. Ouvrez la file fiscale.',
+        ],
         'rejected' => [
             'label' => 'Document fiscal rejeté',
             'subject' => '{document_type} {document_number} a été rejeté par l’administration fiscale',

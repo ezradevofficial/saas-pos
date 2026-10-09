@@ -57,7 +57,7 @@ return new class extends Migration
             $table->bigInteger('invoice_no');
             $table->uuid('original_submission_id')->nullable();
             $table->jsonb('payload');
-            $table->string('status', 10);
+            $table->string('status', 20);
             $table->integer('attempts')->default(0);
             $table->timestampTz('next_attempt_at')->nullable();
             $table->timestampTz('last_attempt_at')->nullable();
@@ -79,7 +79,7 @@ return new class extends Migration
         });
 
         DB::statement("alter table fiscal_submissions add constraint fiscal_submissions_type_check check (document_type in ('sale', 'refund', 'void'))");
-        DB::statement("alter table fiscal_submissions add constraint fiscal_submissions_status_check check (status in ('queued', 'sending', 'accepted', 'rejected', 'retrying'))");
+        DB::statement("alter table fiscal_submissions add constraint fiscal_submissions_status_check check (status in ('queued', 'sending', 'accepted', 'rejected', 'retrying', 'needs_attention'))");
         DB::statement("alter table fiscal_submissions add constraint fiscal_submissions_original_check check ((document_type = 'sale') = (original_submission_id is null))");
         DB::statement('alter table fiscal_submissions add constraint fiscal_submissions_attempts_check check (attempts >= 0 and invoice_no >= 1)');
         DB::statement("create index fiscal_submissions_due on fiscal_submissions (next_attempt_at) where status in ('queued', 'retrying')");

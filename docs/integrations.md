@@ -101,7 +101,8 @@ certification) before production credentials are issued.
 2. **Device serial** (`device_serial`): the OSCU device serial KRA issues
    when the business registers for eTIMS OSCU with this integrator on the
    eTIMS portal.
-3. **Initialise** (`POST /api/v1/companies/{id}/fiscal-settings/initialize`):
+3. **Initialise** (`POST /api/v1/companies/{id}/fiscal-settings/initialize`,
+   `core.fiscal.configure`):
    calls `selectInitOsdcInfo` once; KRA returns the communication key
    (`cmcKey`, stored encrypted, never returned), the control unit id and the
    MRC number. Changing the PIN, branch id or serial drops the key: initialise
@@ -109,7 +110,8 @@ certification) before production credentials are issued.
 4. **Tax bands.** Each tax code's `fiscal_code` is its eTIMS band (A to E)
    from KRA's code list. The KE country pack has none yet (pack `todo`);
    a sale line whose tax code has no band is rejected locally with the item
-   named, never guessed. Rates are the ones the till applied.
+   named, never guessed. Rates are the ones the till applied; bands with
+   no lines are sent at 0.
 5. **Item codes.** eTIMS lines need the item classification (`itemClsCd`)
    and unit codes; until items carry them, set company defaults
    (`default_item_class_code`, `default_packaging_unit_code`,
@@ -125,7 +127,7 @@ accepted. The queue retries with backoff (1, 5, 15, 30, then every 60
 minutes) for ever, alerts after the alert delay, and alerts at once on a
 rejection. Accepted documents keep the receipt number, internal data,
 receipt signature, control unit id and QR content for the receipt. Only KES
-documents are sent.
+documents are sent; others are held as `needs_attention`.
 
 ## DRC DGI normalised invoicing (e-MCF)
 
@@ -142,15 +144,39 @@ and local work). Needed before it can be built:
   (`FISCAL_CD_DEADLINE_HOURS`).
 - Whether USD documents are accepted, and the rate to declare.
 
-## Open questions for the owner
+## Decisions and owner input
 
-1. eTIMS item registration (`saveItem`) and KRA item codes: build it now, or
-   keep company default classification and unit codes for the pilot?
-2. eTIMS sales in USD: convert to KES at the sale's rate, or keep refusing
-   non-KES documents (current behaviour)?
-3. eTIMS empty bands: we send `taxRtX` from the company's tax code for that
-   band, else 0. Confirm against KRA's sandbox validation.
-4. KRA's offline transmission deadline (hours) and DGI's.
-5. Sales made before a company switched transmission on are not queued.
-   Should switching it on back-fill them?
-6. Safaricom's current callback IP list for the allowlist.
+Decided (phase 4 Task 3 review):
+
+- **Item registration with KRA** (`saveItem`, KRA item codes): not built
+  for the pilot. Items are sent with their own code and the company's
+  default classification and unit codes. Follow-up: register items with
+  KRA and keep their KRA codes on the item.
+- **Non-KES sales in Kenya** are queued but held as `needs_attention`
+  ("eTIMS currency handling for USD sales needs confirming"), alerted
+  once, never sent until decided; then retried from the fiscal queue.
+  Owner question: convert to KES at the sale's rate, or another rule?
+- **Empty eTIMS bands** are sent with rate 0 and no amount. Verify the
+  inclusive amounts, the empty bands and `pkg` against the KRA sandbox.
+- **Deadlines** are per country (`FISCAL_KE_DEADLINE_HOURS`,
+  `FISCAL_CD_DEADLINE_HOURS`), unset by default: owner input.
+- **Earlier sales** are never sent automatically when transmission is
+  switched on. The back office action "Send earlier sales"
+  (`POST /api/v1/companies/{id}/fiscal-submissions/send-earlier` with
+  `{from, confirm: true}`, `core.fiscal.edit`) queues them from a date;
+  documents already queued are left as they are.
+- **Callback IPs**: Safaricom's current list is owner input
+  (`MPESA_CALLBACK_IPS`).
+- **Permissions**: `core.fiscal.configure` (Owner, Admin) is needed for
+  the authority's credentials, initialisation, the driver and switching
+  transmission on or off; the Accountant holds `core.fiscal.edit`
+  (non-secret settings, retries, sending earlier sales).
+- **A reused M-Pesa code** flags the uploaded sale `mpesa_code_reused`.
+- **Settlements** (core `PaymentIntentSettled`, after commit, ids only)
+  update the POS: a paid push or verified code confirms the sale payment,
+  a mismatch flags the sale `mpesa_mismatch`; a paid refund confirms the
+  refund payment, a failed or timed-out payout flags the refund
+  `payout_failed`.
+- **Sync**: payment method rows carry `capabilities: {stk, manual_code}`;
+  `stk` only for an M-Pesa method on the Daraja adapter with every
+  required key (sync entity version 2).

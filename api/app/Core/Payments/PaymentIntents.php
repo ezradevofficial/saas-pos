@@ -6,6 +6,7 @@ use App\Core\Currency\CurrencyDecimals;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Models\PaymentReceipt;
 use App\Core\Tenancy\Models\Device;
@@ -17,7 +18,8 @@ use Illuminate\Support\Str;
 
 /**
  * Payment intents (concept note 7.1): starting them, applying what the
- * provider answers (once: a final status never changes again), matching
+ * provider answers (once: a final status never changes again; each
+ * settlement raises PaymentIntentSettled for the owning module), matching
  * money the provider reports as received, refunds paid back through the
  * provider, and the timeout and verification work the scheduler runs.
  *
@@ -237,6 +239,7 @@ class PaymentIntents
                 'provider_receipt' => $result->receipt ?? $locked->provider_receipt,
                 'completed_at' => CarbonImmutable::now(),
             ])->save();
+            $this->settled($locked);
 
             return $locked;
         });
@@ -405,6 +408,7 @@ class PaymentIntents
                     'result_message' => $matches ? $locked->result_message : __('payments.errors.amount_mismatch'),
                     'provider_data' => [...(array) $locked->provider_data, ...$result->data],
                 ])->save();
+                $this->settled($locked);
 
                 return $locked;
             }
@@ -417,6 +421,10 @@ class PaymentIntents
                 'result_message' => $result->message !== null ? mb_substr($result->message, 0, 255) : null,
                 'provider_data' => [...(array) $locked->provider_data, ...$result->data],
             ])->save();
+
+            if ($locked->verification === 'mismatch') {
+                $this->settled($locked);
+            }
 
             return $locked;
         });
@@ -516,12 +524,20 @@ class PaymentIntents
             ])->save();
         }
 
+        $this->settled($intent);
+
         $receipt->fill([
             'status' => 'matched',
             'payment_intent_id' => $intent->id,
             'matched_by' => $user?->id,
             'matched_at' => CarbonImmutable::now(),
         ])->save();
+    }
+
+    /** Tell the module that owns the reference (after commit, ids only). */
+    private function settled(PaymentIntent $intent): void
+    {
+        PaymentIntentSettled::dispatch((string) $intent->tenant_id, (string) $intent->id, (string) $intent->reference_type, (string) $intent->reference);
     }
 
     /** @param array<string, bool> $currencies */

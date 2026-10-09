@@ -20,14 +20,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Statuses: queued, sending, accepted, rejected (refused by the authority
  * or by a local check: a person must act, then retry), retrying (a
  * failure the authority may recover from: tried again with backoff, never
- * given up). Status changes are audited (AUD-01); the payload is not
+ * given up), needs_attention (held: the platform must not guess how to
+ * send it; a person decides and retries). Status changes are audited (AUD-01); the payload is not
  * copied into the audit log.
  */
 class FiscalSubmission extends Model implements HasScope
 {
     use Audited, BelongsToTenant, HasUuids;
 
-    public const STATUSES = ['queued', 'sending', 'accepted', 'rejected', 'retrying'];
+    public const STATUSES = ['queued', 'sending', 'accepted', 'rejected', 'retrying', 'needs_attention'];
 
     public const TYPES = ['sale', 'refund', 'void'];
 
