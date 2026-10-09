@@ -19,6 +19,7 @@ import { initials, maskPhone } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { amountDueIn } from '../../pos/tender';
 import { useSyncStatus } from '../../sync/useSyncStatus';
+import { CAMERA_SCANNING, CameraScanner } from './CameraScanner';
 import { formatTime, useMoneyText } from './format';
 
 /** CUR-05: the sale total in the second currency at the current shop rate (asked rounded up), or undefined. */
@@ -143,6 +144,7 @@ export function CatalogueArea({ columns, onNotice }) {
   const reasonText = useReasonText();
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState(null);
+  const [scanning, setScanning] = useState(false);
 
   const tiles = useMemo(() => (catalogue ? filterTiles(catalogue.tiles, { categoryId, query }) : []), [catalogue, categoryId, query]);
 
@@ -173,17 +175,26 @@ export function CatalogueArea({ columns, onNotice }) {
 
   return (
     <View className="min-h-0 flex-1 gap-4">
-      <TextField
-        accessibilityLabel={t('pos.search.label')}
-        placeholder={t('pos.search.placeholder')}
-        value={query}
-        onChangeText={setQuery}
-        onSubmitEditing={submit}
-        returnKeyType="search"
-        autoCorrect={false}
-        autoCapitalize="none"
-        blurOnSubmit={false}
-      />
+      <View className="flex-row items-center gap-2">
+        <TextField
+          className="flex-1"
+          accessibilityLabel={t('pos.search.label')}
+          placeholder={t('pos.search.placeholder')}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={submit}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+          blurOnSubmit={false}
+        />
+        {CAMERA_SCANNING ? (
+          <Button variant="secondary" accessibilityLabel={t('pos.scan.open')} onPress={() => setScanning(true)}>
+            {t('pos.scan.button')}
+          </Button>
+        ) : null}
+      </View>
+      {scanning ? <CameraScanner onScanned={(code) => actions.addByCode(code)} onClose={() => setScanning(false)} /> : null}
       {catalogue?.categories.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-grow-0" contentContainerClassName="gap-2">
           <Chip label={t('pos.search.all')} selected={!categoryId} onPress={() => setCategoryId(null)} />

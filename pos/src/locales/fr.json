@@ -401,6 +401,14 @@
         "failed": "Rien n’a été enregistré. Réessayez."
       },
       "returnQty": "Quantité à retourner"
+    },
+    "scan": {
+      "title": "Scanner des codes-barres",
+      "button": "Scanner",
+      "open": "Scanner un code-barres avec la caméra",
+      "permission": "La caisse a besoin de la caméra pour scanner les codes-barres. Rien n’est enregistré ni envoyé.",
+      "allow": "Autoriser la caméra",
+      "added": "{{code}} ajouté. Scannez l’article suivant, ou fermez."
     }
   }
 }

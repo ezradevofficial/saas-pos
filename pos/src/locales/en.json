@@ -401,6 +401,14 @@
         "failed": "Nothing was saved. Try again."
       },
       "returnQty": "Quantity to return"
+    },
+    "scan": {
+      "title": "Scan barcodes",
+      "button": "Scan",
+      "open": "Scan a barcode with the camera",
+      "permission": "The till needs the camera to scan barcodes. Nothing is recorded or sent.",
+      "allow": "Allow the camera",
+      "added": "Added {{code}}. Scan the next item, or close."
     }
   }
 }
