@@ -213,6 +213,11 @@ Decided (phase 4 Task 3 review):
   still checked, and completed by a late paid result or a C2B
   confirmation; paid results no open intent takes are kept as unmatched
   receipts flagged `late_or_unmatched` for matching or refund.
+- **Lost B2C answers**: a refund payout whose request timed out (or got a
+  5xx without Daraja's error body) is `unknown`, not failed: the money may
+  have gone out. Its id is stored as the request id before the call, so
+  the result callback finds it; it times out after
+  `payout_give_up_hours`.
 - **Till limits**: 10 payment requests a minute per device, 3 pushes per
   phone and method in 5 minutes; the cashier (`user_id`) must be staff of
   the till's location. Refund payouts never exceed the original payment

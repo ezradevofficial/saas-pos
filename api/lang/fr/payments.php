@@ -7,6 +7,7 @@ return [
         'refund_original_unpaid' => 'Le paiement d’origine n’a pas été payé via le fournisseur, il ne peut pas être remboursé ainsi. Remboursez le client autrement.',
         'refund_currency_mismatch' => 'Un remboursement est versé dans la devise du paiement d’origine.',
         'refund_exceeds_payment' => 'Ce remboursement, avec ceux déjà versés, dépasse le paiement d’origine. Remboursez le reste autrement.',
+        'payout_no_answer' => 'Le fournisseur de paiement n’a pas répondu : le remboursement peut encore être versé. Attendez son résultat avant de rembourser le client autrement.',
         'provider_no_answer' => 'Le fournisseur de paiement n’a pas répondu. Le paiement est encore vérifié ; demandez au client si la demande est arrivée.',
         'too_many_requests' => 'Trop de demandes de paiement. Patientez un instant, puis réessayez.',
         'cashier_not_staff' => 'Connectez-vous à cette caisse avec un membre du personnel de cet emplacement, puis réessayez.',

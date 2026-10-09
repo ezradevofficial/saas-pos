@@ -11,6 +11,7 @@ use App\Core\Payments\PaymentIntents;
 use App\Core\Payments\ProviderResult;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Throwable;
 
@@ -161,10 +162,9 @@ class DarajaCallbacks
         $result = $payload['Result'] ?? null;
         $this->require(is_array($result) && isset($result['ResultCode']) && (is_string($result['ConversationID'] ?? null) || is_string($result['OriginatorConversationID'] ?? null)));
 
-        $intent = $this->intentWhere($method, 'provider_checkout_id', $result['ConversationID'] ?? null)
-            ?? $this->intentWhere($method, 'provider_request_id', $result['OriginatorConversationID'] ?? null);
+        $intent = $this->payoutIntent($method, $result['ConversationID'] ?? null, $result['OriginatorConversationID'] ?? null);
 
-        if ($intent === null || $intent->mode !== 'payout') {
+        if ($intent === null) {
             return self::ACCEPTED;
         }
 
@@ -185,10 +185,13 @@ class DarajaCallbacks
 
     private function payoutTimeout(PaymentMethod $method, array $payload): array
     {
-        $intent = $this->intentWhere($method, 'provider_checkout_id', $payload['ConversationID'] ?? ($payload['Result']['ConversationID'] ?? null))
-            ?? $this->intentWhere($method, 'provider_request_id', $payload['OriginatorConversationID'] ?? ($payload['Result']['OriginatorConversationID'] ?? null));
+        $intent = $this->payoutIntent(
+            $method,
+            $payload['ConversationID'] ?? ($payload['Result']['ConversationID'] ?? null),
+            $payload['OriginatorConversationID'] ?? ($payload['Result']['OriginatorConversationID'] ?? null),
+        );
 
-        if ($intent !== null && $intent->mode === 'payout') {
+        if ($intent !== null) {
             $this->intents->apply($intent, new ProviderResult('timeout', resultCode: 'queue_timeout', message: __('payments.errors.no_result')));
         }
 
@@ -250,6 +253,21 @@ class DarajaCallbacks
         }
 
         return self::ACCEPTED;
+    }
+
+    /**
+     * The payout a B2C result names: by Daraja's ConversationID, else by
+     * the OriginatorConversationID we sent, which is the intent's own id
+     * (also stored as provider_request_id before the call, so a payout
+     * whose request timed out is still found).
+     */
+    private function payoutIntent(PaymentMethod $method, mixed $conversationId, mixed $originatorId): ?PaymentIntent
+    {
+        $intent = $this->intentWhere($method, 'provider_checkout_id', $conversationId)
+            ?? $this->intentWhere($method, 'provider_request_id', $originatorId)
+            ?? (is_string($originatorId) && Str::isUuid($originatorId) ? $this->intentWhere($method, 'id', $originatorId) : null);
+
+        return $intent !== null && $intent->mode === 'payout' ? $intent : null;
     }
 
     private function intentWhere(PaymentMethod $method, string $column, mixed $value): ?PaymentIntent
