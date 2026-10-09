@@ -6,6 +6,7 @@ use App\Core\Branding\BrandingServiceProvider;
 use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\CustomFields\CustomFieldsServiceProvider;
+use App\Core\CustomForms\CustomFormsServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
@@ -41,6 +42,7 @@ return [
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
+    CustomFormsServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,
     FiscalServiceProvider::class,
