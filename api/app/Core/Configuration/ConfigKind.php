@@ -13,9 +13,10 @@ use InvalidArgumentException;
  * pos_layout, template, ...
  *
  * - `schema` checks a payload before it is published: a PayloadSchema
- *   array, or a closure `fn (array $payload, string $key): list<problem>`
- *   (problems as PayloadSchema::problem() makes them; the document's key,
- *   for kinds whose catalogue differs per key, like form_layout);
+ *   array, or a closure `fn (array $payload, ?ConfigDocument $document):
+ *   list<problem>` (problems as PayloadSchema::problem() makes them; the
+ *   document, when known, gives the scope: a template's fiscal rules
+ *   depend on its company's country, TPL-03);
  * - `scopes` are the scope types a document of this kind may have;
  * - `permissions` name the view, edit and publish permissions
  *   (`core.config.*` unless the kind brings its own, RBAC-01);
@@ -124,10 +125,10 @@ final class ConfigKind
      *
      * @return list<array{path: string, code: string, message: string}>
      */
-    public function problems(array $payload, string $key = self::DEFAULT_KEY): array
+    public function problems(array $payload, ?ConfigDocument $document = null): array
     {
         return match (true) {
-            $this->schema instanceof Closure => array_values(($this->schema)($payload, $key)),
+            $this->schema instanceof Closure => array_values(($this->schema)($payload, $document)),
             is_array($this->schema) => PayloadSchema::check($payload, $this->schema),
             default => [],
         };

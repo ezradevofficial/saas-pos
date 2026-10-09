@@ -88,5 +88,10 @@ export const migrations = schemaMigrations({
         createTable({ name: 'pos_state', columns: [data] }),
       ],
     },
+    {
+      // Document templates (TPL-01, TPL-05): the receipt templates synced from the server.
+      toVersion: 5,
+      steps: [createTable({ name: 'templates', columns: [data, seenAt] })],
+    },
   ],
 });

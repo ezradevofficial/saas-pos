@@ -379,6 +379,7 @@
     "domains": "Domaines",
     "dashboards": "Tableaux de bord",
     "navigationEditor": "Menus",
+    "documentTemplates": "Modèles de documents",
     "formLayouts": "Mises en page des formulaires"
   },
   "shell": {
@@ -3562,6 +3563,45 @@
         "change": "Monnaie rendue",
         "rounding": "Arrondi",
         "base": "Total en {{currency}}"
+      },
+      "outputs": {
+        "title": "Reçu",
+        "subtitle": "Imprimez-le, téléchargez-le ou envoyez-le au client.",
+        "print": "Imprimer",
+        "printFailed": "Le reçu n’a pas pu être préparé pour l’impression. Réessayez.",
+        "printFrame": "Reçu à imprimer",
+        "downloadPdf": "Télécharger le PDF",
+        "email": "Envoyer par e-mail",
+        "emailTitle": "Envoyer le reçu par e-mail",
+        "emailTo": "Adresse e-mail",
+        "emailBlank": "Saisissez l’adresse à laquelle envoyer le reçu.",
+        "emailBlankCustomer": "Laissez vide pour l’envoyer au client à {{email}}.",
+        "language": "Langue de l’e-mail",
+        "languages": {
+          "en": "Anglais",
+          "fr": "Français"
+        },
+        "sendEmail": "Envoyer l’e-mail",
+        "emailQueued": "Le reçu est en route vers {{to}}.",
+        "whatsapp": "Partager sur WhatsApp",
+        "link": "Lien vers le reçu",
+        "copyLink": "Copier le lien",
+        "copied": "Lien copié.",
+        "copyFailed": "Le lien n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
+        "expires": "Expire {{time}}",
+        "links": "Liens partagés",
+        "noLinks": "Aucun lien partagé pour l’instant.",
+        "created": "Partagé {{time}}",
+        "opens": "Ouvert une fois",
+        "opens_other": "Ouvert {{count}} fois",
+        "lastOpened": "Dernière ouverture {{time}}",
+        "revoke": "Retirer le lien",
+        "revoked": "Lien retiré. Il ne s’ouvre plus.",
+        "status": {
+          "active": "Actif",
+          "revoked": "Retiré",
+          "expired": "Expiré"
+        }
       }
     },
     "shifts": {
@@ -4486,6 +4526,228 @@
       "itemGroup": "Groupe de {{name}}",
       "showItem": "Afficher {{name}}",
       "hideItem": "Masquer {{name}}"
+    }
+  },
+  "documentTemplates": {
+    "title": "Modèles de documents",
+    "description": "Concevez l’impression des reçus, factures et autres documents. Les données de l’administration fiscale sont toujours imprimées là où la loi l’exige.",
+    "types": "Types de documents",
+    "empty": "Aucun type de document n’est encore disponible.",
+    "sampleData": "Aperçu avec des données d’exemple jusqu’à la mise en place de son module",
+    "fiscalLocked": "Bloc {{authority}} verrouillé",
+    "places": "{{count}} modèle de société ou de succursale",
+    "places_other": "{{count}} modèles de société ou de succursale",
+    "state": {
+      "published": "Publié, version {{version}}",
+      "draft": "Brouillon",
+      "default": "Par défaut"
+    },
+    "back": "Modèles de documents",
+    "designerDescription": "Disposez les blocs, vérifiez l’aperçu, puis publiez. Papier par défaut : {{paper}}.",
+    "unknownType": "Ce type de document n’existe pas. Revenez en arrière et choisissez-en un dans la liste.",
+    "scope": {
+      "label": "S’applique à",
+      "help": "Le modèle d’une succursale l’emporte sur celui de sa société, et celui d’une société sur celui de l’organisation.",
+      "tenant": "Toute l’organisation",
+      "company": "{{name}} (société)",
+      "branch": "{{name}}, succursale de {{company}}"
+    },
+    "authorities": {
+      "kra_etims": "KRA eTIMS",
+      "dgi": "Facture normalisée DGI",
+      "other": "Administration fiscale"
+    },
+    "fiscal": {
+      "missingTitle": "Le bloc {{authority}} manque",
+      "missing": "Ce document doit imprimer les données de l’administration fiscale et les lignes de taxe dans votre pays. Rajoutez les blocs avant d’enregistrer.",
+      "restore": "Rajouter les blocs",
+      "totalsMissingTitle": "Le bloc des totaux manque"
+    },
+    "problems": "{{count}} problème empêche la publication",
+    "problems_other": "{{count}} problèmes empêchent la publication",
+    "problemsLabel": "Problèmes",
+    "unsaved": "Modifications non enregistrées",
+    "saveDraft": "Enregistrer le brouillon",
+    "saved": "Brouillon enregistré.",
+    "blocksTitle": "Blocs",
+    "blocksOf": "Blocs de {{name}}",
+    "palette": {
+      "title": "Ajouter un bloc",
+      "label": "Blocs disponibles",
+      "add": "Ajouter {{block}}"
+    },
+    "blocks": {
+      "text": "Texte",
+      "field": "Champ",
+      "logo": "Logo",
+      "lines": "Tableau des lignes",
+      "totals": "Totaux",
+      "payments": "Paiements",
+      "qr": "QR code",
+      "barcode": "Code-barres",
+      "signature": "Signature",
+      "terms": "Conditions",
+      "spacer": "Espace",
+      "divider": "Séparateur",
+      "fiscal": "Administration fiscale",
+      "row": "Deux colonnes"
+    },
+    "canvas": {
+      "label": "Blocs du modèle",
+      "empty": "Vide",
+      "fiscal": "Administration fiscale",
+      "row": "Deux colonnes",
+      "mm": "{{value}} mm",
+      "noChange": "Sans monnaie rendue",
+      "withChange": "Avec monnaie rendue",
+      "move": "Déplacer {{block}}",
+      "locked": "{{block}} est verrouillé",
+      "remove": "Supprimer {{block}}",
+      "left": "Colonne de gauche",
+      "right": "Colonne de droite",
+      "none": "Aucun bloc pour l’instant. Ajoutez-en un depuis la palette.",
+      "emptyColumn": "Aucun bloc dans cette colonne.",
+      "instructions": "Pour déplacer un bloc, appuyez sur espace ou entrée, utilisez les flèches, puis appuyez de nouveau sur espace ou entrée. Appuyez sur échap pour annuler.",
+      "picked": "{{block}} saisi, position {{position}} sur {{count}}.",
+      "over": "{{block}} est en position {{position}} sur {{count}}.",
+      "dropped": "{{block}} déposé en position {{position}} sur {{count}}.",
+      "cancelled": "Le déplacement de {{block}} a été annulé."
+    },
+    "inspector": {
+      "title": "Réglages du bloc",
+      "none": "Sélectionnez un bloc pour modifier ses réglages.",
+      "text": "Texte",
+      "insertField": "Insérer un champ",
+      "field": "Champ",
+      "chooseField": "Choisir un champ",
+      "showLabel": "Imprimer le libellé",
+      "align": "Alignement",
+      "size": "Taille",
+      "weight": "Graisse",
+      "columns": "Colonnes",
+      "columnsHelp": "Les colonnes s’impriment dans cet ordre.",
+      "columnsRequired": "Choisissez au moins une colonne.",
+      "totals": "Totaux à imprimer",
+      "taxLines": "Lignes de taxe",
+      "taxLinesLocked": "Les lignes de taxe s’impriment toujours avec les totaux.",
+      "showChange": "Imprimer la monnaie rendue",
+      "content": "Contenu",
+      "sizeMm": "Taille (mm)",
+      "heightMm": "Hauteur (mm)",
+      "spaceMm": "Espace (mm)",
+      "signatureLabel": "Libellé sous la ligne",
+      "label": "Libellé",
+      "terms": "Conditions",
+      "style": "Style",
+      "range": "Saisissez un nombre entier de {{min}} à {{max}}.",
+      "fiscalRequired": "Les données {{authority}} sont obligatoires sur ce document et s’impriment ici. Ce bloc ne peut pas être supprimé.",
+      "fiscalOptional": "Imprime les données de l’administration fiscale quand la société lui envoie ses documents.",
+      "childType": "Bloc à ajouter",
+      "addLeft": "Ajouter à la colonne de gauche",
+      "addRight": "Ajouter à la colonne de droite"
+    },
+    "aligns": {
+      "left": "Gauche",
+      "center": "Centre",
+      "right": "Droite"
+    },
+    "sizes": {
+      "small": "Petite",
+      "normal": "Normale",
+      "large": "Grande"
+    },
+    "weights": {
+      "regular": "Normale",
+      "medium": "Moyenne"
+    },
+    "dividers": {
+      "solid": "Plein",
+      "dashed": "Tirets"
+    },
+    "totals": {
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tax": "Taxe",
+      "total": "Total",
+      "dual": "Total dans la deuxième devise"
+    },
+    "languages": {
+      "en": "Anglais",
+      "fr": "Français",
+      "both": "Anglais et français côte à côte"
+    },
+    "papers": {
+      "58mm": "Rouleau 58 mm",
+      "80mm": "Rouleau 80 mm",
+      "A4": "Format A4",
+      "A5": "Format A5"
+    },
+    "groups": {
+      "company": "Société",
+      "branch": "Succursale",
+      "location": "Point de vente",
+      "document": "Document",
+      "customer": "Client",
+      "totals": "Totaux",
+      "fiscal": "Administration fiscale",
+      "custom": "Champs personnalisés",
+      "lines": "Lignes",
+      "payments": "Paiements"
+    },
+    "operators": {
+      "eq": "est",
+      "ne": "n’est pas",
+      "gt": "est supérieur à",
+      "gte": "est au moins",
+      "lt": "est inférieur à",
+      "lte": "est au plus",
+      "contains": "contient",
+      "empty": "est vide",
+      "not_empty": "n’est pas vide"
+    },
+    "page": {
+      "title": "Page",
+      "paper": "Papier",
+      "language": "Langue",
+      "languageHelp": "Les mots de l’application s’impriment dans cette langue. Les noms des articles et des clients s’impriment tels que saisis.",
+      "margins": "Marges",
+      "mm": "mm",
+      "ownMargins": "Utiliser ses propres marges",
+      "sameAsMain": "Comme le modèle principal",
+      "sides": {
+        "top": "Haut",
+        "right": "Droite",
+        "bottom": "Bas",
+        "left": "Gauche"
+      }
+    },
+    "variants": {
+      "title": "Variantes",
+      "help": "Une variante remplace le modèle quand le document y correspond. La première qui correspond l’emporte.",
+      "label": "Variantes",
+      "main": "Modèle principal",
+      "add": "Ajouter une variante",
+      "newName": "Variante {{n}}",
+      "name": "Nom",
+      "nameRequired": "Saisissez un nom.",
+      "unnamed": "Variante sans nom",
+      "tags": "Étiquettes client",
+      "tagsHelp": "Séparez les étiquettes par des virgules. Le client doit en avoir une.",
+      "conditions": "Conditions",
+      "noConditions": "Aucune condition.",
+      "addCondition": "Ajouter une condition",
+      "removeCondition": "Supprimer la condition {{n}}",
+      "field": "Champ",
+      "operator": "Opérateur",
+      "value": "Valeur",
+      "remove": "Supprimer la variante"
+    },
+    "preview": {
+      "title": "Aperçu",
+      "label": "Aperçu avec des données d’exemple",
+      "frame": "Aperçu du document imprimé",
+      "stale": "Mise à jour de l’aperçu",
+      "downloadPdf": "Télécharger le PDF"
     }
   },
   "formLayouts": {

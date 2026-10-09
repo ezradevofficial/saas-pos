@@ -12,6 +12,7 @@ import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { FiscalReferences, FiscalState } from './FiscalState'
 import { Amount, Detail, FlagChips } from './PosParts'
+import { SaleOutputs } from './SaleOutputs'
 import { useAmountText } from './useAmountText'
 import { flagLabel, methodLabel, RECORD_TONES, SALE_REVIEW, SALE_TONES } from './posData'
 
@@ -101,6 +102,8 @@ export default function SaleDetail() {
     { type: 'location', id: sale.location?.id },
   ]
   const canReview = sale.flags?.length > 0 && !sale.reviewed_at && canWithin(SALE_REVIEW, chain)
+  // TPL-04: emailing and sharing the receipt need pos.sale.share at the sale (the API checks again).
+  const canShare = canWithin('pos.sale.share', chain)
   const foreign = (payment) => payment.amount.currency !== sale.currency
 
   const lineColumns = [
@@ -256,6 +259,8 @@ export default function SaleDetail() {
             </Detail>
           </dl>
         </Card>
+
+        <SaleOutputs sale={sale} canShare={canShare} when={when} />
 
         {fiscal?.sale?.status === 'accepted' ? (
           <Card title={t('pos.fiscal.title')} subtitle={fiscal.sale.accepted_at ? t('pos.fiscal.acceptedAt', { time: when(fiscal.sale.accepted_at) }) : null}>

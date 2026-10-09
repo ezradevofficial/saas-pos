@@ -1,0 +1,19 @@
+Acme Kenya Ltd
+1 Kenyatta Ave, Nairobi
+Invoice INV-2026-0001
+Date 2026-10-09
+Due date 2026-11-08
+Customer Jambo Traders
+Item Qty Price Discount Tax Amount
+Consulting day 2 KES 50,000.00 KES 0.00 KES 16,000.00 KES 116,000.00
+Travel 1 KES 7,500.50 KES 0.50 KES 0.00 KES 7,500.00
+Subtotal KES 107,500.50
+Discount KES -0.50
+VAT 16% KES 16,000.00
+Exempt KES 0.00
+Tax KES 16,000.00
+Total KES 123,500.00
+Payment within 30 days to Acme.
+KRA eTIMS
+Not sent to the authority
+This business does not send sales to the tax authority from the platform yet.

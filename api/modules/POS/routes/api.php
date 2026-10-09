@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\DocumentTemplates\Models\DocumentShare;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
@@ -10,6 +11,7 @@ use Modules\POS\Http\Controllers\Device\SaleFiscalController;
 use Modules\POS\Http\Controllers\HeldController;
 use Modules\POS\Http\Controllers\InsightsController;
 use Modules\POS\Http\Controllers\SaleController;
+use Modules\POS\Http\Controllers\SaleDocumentController;
 use Modules\POS\Http\Controllers\ShiftController;
 use Modules\POS\Models\CashMovement;
 use Modules\POS\Models\Refund;
@@ -21,7 +23,7 @@ use Modules\POS\Models\Shift;
 // PosServiceProvider. RBAC-08: every route is closed (403
 // `module_inactive`) unless the tenant has the POS module active.
 
-foreach (['pos_sale', 'pos_shift', 'pos_void', 'pos_refund', 'pos_cash_movement'] as $parameter) {
+foreach (['pos_sale', 'pos_shift', 'pos_void', 'pos_refund', 'pos_cash_movement', 'document_share'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -30,6 +32,7 @@ Route::model('pos_shift', Shift::class);
 Route::model('pos_void', SaleVoid::class);
 Route::model('pos_refund', Refund::class);
 Route::model('pos_cash_movement', CashMovement::class);
+Route::model('document_share', DocumentShare::class);
 
 // TEN-05, POS-09, NUM-02: what a paired till sends (device token only).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:pos'])->group(function () {
@@ -58,6 +61,13 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // M3: a flagged sale acknowledged.
     Route::post('pos/sales/{pos_sale}/review', [SaleController::class, 'review']);
+
+    // TPL-04: the sale's receipt printed, downloaded, emailed or shared by link.
+    Route::get('pos/sales/{pos_sale}/receipt', [SaleDocumentController::class, 'receipt']);
+    Route::post('pos/sales/{pos_sale}/email', [SaleDocumentController::class, 'email']);
+    Route::post('pos/sales/{pos_sale}/share', [SaleDocumentController::class, 'share']);
+    Route::get('pos/sales/{pos_sale}/shares', [SaleDocumentController::class, 'shares']);
+    Route::post('pos/sales/{pos_sale}/shares/{document_share}/revoke', [SaleDocumentController::class, 'revoke']);
 
     // H2: money out from the till waiting for review, approved (applied) or rejected.
     Route::get('pos/held', [HeldController::class, 'index']);

@@ -8,8 +8,8 @@ import { useLocale } from '../../lib/useLocale';
 import { usePosData } from '../../pos/PosProvider';
 import { vars } from 'nativewind';
 import { themeVariables } from '../../theme/themes';
-import { fetchFiscal, fiscalState } from '../../pos/fiscal';
-import { receiptHtml } from '../../pos/receiptHtml';
+import { fiscalState, receiptFiscal } from '../../pos/fiscal';
+import { receiptDocumentHtml } from '../../pos/templates/receiptDocument';
 import { useServices } from '../../services/services';
 import { useSyncStatus } from '../../sync/useSyncStatus';
 import { formatDateTime, useMoneyText } from './format';
@@ -41,18 +41,16 @@ function Row({ label, value, strong }) {
 export function useFiscalState(sale, kind = 'sale') {
   const { engine, api } = useServices();
   const sync = useSyncStatus();
-  const [state, setState] = useState({ state: 'waiting', invoiceNumber: null });
+  const [state, setState] = useState({ state: 'waiting', invoiceNumber: null, remote: null });
   useEffect(() => {
     let active = true;
     (async () => {
       const entry = await engine.store.entryFor(kind === 'refund' ? 'pos.refunds' : 'pos.sales', sale.id);
-      let next = fiscalState(entry);
+      if (active) setState({ ...fiscalState(entry), remote: null });
+      // TPL-03: online, the authority's answer (and its QR, drawn by the server) for the
+      // printed fiscal block, for sales and refunds alike (receiptFiscal).
+      const next = await receiptFiscal({ api, entry, kind, record: sale, online: sync.network !== 'offline' });
       if (active) setState(next);
-      if (kind === 'sale' && next.state === 'pending' && sync.network !== 'offline') {
-        const remote = await fetchFiscal(api, sale.id);
-        if (remote) next = fiscalState(entry, remote);
-        if (active) setState(next);
-      }
     })().catch(() => {});
     return () => {
       active = false;
@@ -167,20 +165,38 @@ export function Receipt({ sale, kind = 'sale' }) {
   );
 }
 
-/** Prints the receipt: the native print service with the HTML receipt (expo-print), the browser's print on the web preview. */
-export async function printReceipt(model) {
+/**
+ * TPL-01, TPL-05: the printed receipt's HTML, from the receipt template
+ * synced for this branch (sync entity `templates`, its variants matched
+ * to the sale's customer and amounts), else the default receipt.
+ */
+export function useReceiptPrint(sale, kind = 'sale') {
+  const { database } = useServices();
+  const { catalogue } = usePosData();
+  const fiscal = useFiscalState(sale, kind);
+  const locale = useLocale();
+  return async () => {
+    const type = kind === 'refund' ? 'pos.refund_receipt' : 'pos.receipt';
+    const rows = database ? (await database.get('templates').query().fetch()).map((record) => record.data) : [];
+    const customer = sale.customer_id && database ? ((await database.get('customers').query().fetch()).map((record) => record.data).find((row) => row?.id === sale.customer_id) ?? null) : null;
+    return receiptDocumentHtml({ sale, kind, catalogue, templateRow: rows.find((row) => row?.id === type) ?? null, customer, fiscal, language: locale });
+  };
+}
+
+/** Prints the receipt HTML: the native print service (expo-print), the browser's print on the web preview. */
+export async function printReceipt(html) {
   if (Platform.OS === 'web') {
     globalThis.print?.();
     return;
   }
   const Print = require('expo-print');
-  await Print.printAsync({ html: receiptHtml(model) });
+  await Print.printAsync({ html });
 }
 
 /** After a sale: the receipt, print and the next sale. */
 export function ReceiptScreen({ sale, onNewSale }) {
   const { t } = useTranslation();
-  const model = useReceiptModel(sale);
+  const receiptHtml = useReceiptPrint(sale);
   const money = useMoneyText();
   return (
     <SafeAreaView className="flex-1">
@@ -197,7 +213,7 @@ export function ReceiptScreen({ sale, onNewSale }) {
           ) : null}
           <Receipt sale={sale} />
           <View className="flex-row gap-3">
-            <Button variant="secondary" className="shrink basis-1/3" onPress={() => printReceipt(model).catch(() => {})}>
+            <Button variant="secondary" className="shrink basis-1/3" onPress={() => receiptHtml().then(printReceipt).catch(() => {})}>
               {t('pos.receipt.print')}
             </Button>
             <Button variant="primary" className="shrink grow" onPress={onNewSale}>

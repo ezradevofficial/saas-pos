@@ -1,0 +1,25 @@
+Duka "Wholesale" Ltd
+Tax ID P051234567X
+Westlands · Till 2
+Receipt R-L01-000042
+Date 2026-10-09 14:32
+Served by Baraka Mwangi
+Tusker Lager 500ml
+2 × KES 250.00 KES 500.00
+Soap & Co bar
+1.5 × KES 1,234.56 KES 1,801.84
+Discount KES -50.00
+Subtotal KES 2,351.84
+Discount KES -50.00
+VAT test 12.5% KES 255.77
+Tax KES 255.77
+Total KES 2,301.84
+Cash KES KES 2,500.00
+Change KES 198.16
+KRA eTIMS
+Accepted
+Fiscal invoice 1001
+Authority receipt 77
+Control unit KRACU0100000001
+Receipt signature ABCD1234EFGH5678
+Authority time 2026-10-09 14:33

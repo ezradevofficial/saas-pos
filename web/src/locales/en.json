@@ -379,6 +379,7 @@
     "domains": "Domains",
     "dashboards": "Dashboards",
     "navigationEditor": "Menus",
+    "documentTemplates": "Document templates",
     "formLayouts": "Form layouts"
   },
   "shell": {
@@ -3562,6 +3563,45 @@
         "change": "Change",
         "rounding": "Rounding",
         "base": "Total in {{currency}}"
+      },
+      "outputs": {
+        "title": "Receipt",
+        "subtitle": "Print it, download it, or send it to the customer.",
+        "print": "Print",
+        "printFailed": "The receipt could not be prepared for printing. Try again.",
+        "printFrame": "Receipt for printing",
+        "downloadPdf": "Download PDF",
+        "email": "Email",
+        "emailTitle": "Email the receipt",
+        "emailTo": "Email address",
+        "emailBlank": "Type the address to send the receipt to.",
+        "emailBlankCustomer": "Leave it empty to send it to the customer at {{email}}.",
+        "language": "Language of the email",
+        "languages": {
+          "en": "English",
+          "fr": "French"
+        },
+        "sendEmail": "Send email",
+        "emailQueued": "The receipt is on its way to {{to}}.",
+        "whatsapp": "Share on WhatsApp",
+        "link": "Link to the receipt",
+        "copyLink": "Copy link",
+        "copied": "Link copied.",
+        "copyFailed": "The link could not be copied. Select it and copy it by hand.",
+        "expires": "Expires {{time}}",
+        "links": "Shared links",
+        "noLinks": "No links shared yet.",
+        "created": "Shared {{time}}",
+        "opens": "Opened once",
+        "opens_other": "Opened {{count}} times",
+        "lastOpened": "Last opened {{time}}",
+        "revoke": "Withdraw link",
+        "revoked": "Link withdrawn. It no longer opens.",
+        "status": {
+          "active": "Active",
+          "revoked": "Withdrawn",
+          "expired": "Expired"
+        }
       }
     },
     "shifts": {
@@ -4486,6 +4526,228 @@
       "itemGroup": "Group of {{name}}",
       "showItem": "Show {{name}}",
       "hideItem": "Hide {{name}}"
+    }
+  },
+  "documentTemplates": {
+    "title": "Document templates",
+    "description": "Design how receipts, invoices and other documents print. Tax authority details are always printed where the law requires them.",
+    "types": "Document types",
+    "empty": "No document types are available yet.",
+    "sampleData": "Previewed with sample data until its module is set up",
+    "fiscalLocked": "{{authority}} block locked",
+    "places": "{{count}} company or branch template",
+    "places_other": "{{count}} company or branch templates",
+    "state": {
+      "published": "Published, version {{version}}",
+      "draft": "Draft",
+      "default": "Default"
+    },
+    "back": "Document templates",
+    "designerDescription": "Arrange the blocks, check the preview, then publish. Default paper: {{paper}}.",
+    "unknownType": "This document type does not exist. Go back and pick one from the list.",
+    "scope": {
+      "label": "Applies to",
+      "help": "A branch template wins over its company's, and a company's over the organisation's.",
+      "tenant": "The whole organisation",
+      "company": "{{name}} (company)",
+      "branch": "{{name}}, branch of {{company}}"
+    },
+    "authorities": {
+      "kra_etims": "KRA eTIMS",
+      "dgi": "DGI fiscal receipt",
+      "other": "Tax authority"
+    },
+    "fiscal": {
+      "missingTitle": "The {{authority}} block is missing",
+      "missing": "This document must print the tax authority's details and the tax lines in your country. Add the blocks back before you save.",
+      "restore": "Add the blocks back",
+      "totalsMissingTitle": "The totals block is missing"
+    },
+    "problems": "{{count}} problem blocks publishing",
+    "problems_other": "{{count}} problems block publishing",
+    "problemsLabel": "Problems",
+    "unsaved": "Unsaved changes",
+    "saveDraft": "Save draft",
+    "saved": "Draft saved.",
+    "blocksTitle": "Blocks",
+    "blocksOf": "Blocks of {{name}}",
+    "palette": {
+      "title": "Add a block",
+      "label": "Blocks you can add",
+      "add": "Add {{block}}"
+    },
+    "blocks": {
+      "text": "Text",
+      "field": "Field",
+      "logo": "Logo",
+      "lines": "Lines table",
+      "totals": "Totals",
+      "payments": "Payments",
+      "qr": "QR code",
+      "barcode": "Barcode",
+      "signature": "Signature",
+      "terms": "Terms",
+      "spacer": "Space",
+      "divider": "Divider",
+      "fiscal": "Tax authority",
+      "row": "Two columns"
+    },
+    "canvas": {
+      "label": "Template blocks",
+      "empty": "Empty",
+      "fiscal": "Tax authority",
+      "row": "Two columns",
+      "mm": "{{value}} mm",
+      "noChange": "Without change",
+      "withChange": "With change",
+      "move": "Move {{block}}",
+      "locked": "{{block}} is locked",
+      "remove": "Remove {{block}}",
+      "left": "Left column",
+      "right": "Right column",
+      "none": "No blocks yet. Add one from the palette.",
+      "emptyColumn": "No blocks in this column.",
+      "instructions": "To move a block, press space or enter, use the arrow keys, then press space or enter again. Press escape to cancel.",
+      "picked": "Picked up {{block}}, position {{position}} of {{count}}.",
+      "over": "{{block}} is at position {{position}} of {{count}}.",
+      "dropped": "{{block}} dropped at position {{position}} of {{count}}.",
+      "cancelled": "Moving {{block}} was cancelled."
+    },
+    "inspector": {
+      "title": "Block settings",
+      "none": "Select a block to change its settings.",
+      "text": "Text",
+      "insertField": "Insert a field",
+      "field": "Field",
+      "chooseField": "Choose a field",
+      "showLabel": "Print the label",
+      "align": "Alignment",
+      "size": "Size",
+      "weight": "Weight",
+      "columns": "Columns",
+      "columnsHelp": "The columns print in this order.",
+      "columnsRequired": "Choose at least one column.",
+      "totals": "Totals to print",
+      "taxLines": "Tax lines",
+      "taxLinesLocked": "Tax lines always print with the totals.",
+      "showChange": "Print the change",
+      "content": "Content",
+      "sizeMm": "Size (mm)",
+      "heightMm": "Height (mm)",
+      "spaceMm": "Space (mm)",
+      "signatureLabel": "Label under the line",
+      "label": "Label",
+      "terms": "Terms",
+      "style": "Style",
+      "range": "Enter a whole number from {{min}} to {{max}}.",
+      "fiscalRequired": "{{authority}} details are required on this document and print here. This block can't be removed.",
+      "fiscalOptional": "Prints the tax authority's details when the company sends documents to it.",
+      "childType": "Block to add",
+      "addLeft": "Add to the left column",
+      "addRight": "Add to the right column"
+    },
+    "aligns": {
+      "left": "Left",
+      "center": "Centre",
+      "right": "Right"
+    },
+    "sizes": {
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large"
+    },
+    "weights": {
+      "regular": "Regular",
+      "medium": "Medium"
+    },
+    "dividers": {
+      "solid": "Solid",
+      "dashed": "Dashed"
+    },
+    "totals": {
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "total": "Total",
+      "dual": "Total in the second currency"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "French",
+      "both": "English and French side by side"
+    },
+    "papers": {
+      "58mm": "58 mm roll",
+      "80mm": "80 mm roll",
+      "A4": "A4",
+      "A5": "A5"
+    },
+    "groups": {
+      "company": "Company",
+      "branch": "Branch",
+      "location": "Location",
+      "document": "Document",
+      "customer": "Customer",
+      "totals": "Totals",
+      "fiscal": "Tax authority",
+      "custom": "Custom fields",
+      "lines": "Lines",
+      "payments": "Payments"
+    },
+    "operators": {
+      "eq": "is",
+      "ne": "is not",
+      "gt": "is more than",
+      "gte": "is at least",
+      "lt": "is less than",
+      "lte": "is at most",
+      "contains": "contains",
+      "empty": "is empty",
+      "not_empty": "is not empty"
+    },
+    "page": {
+      "title": "Page",
+      "paper": "Paper",
+      "language": "Language",
+      "languageHelp": "The app's own words print in this language. Names of items and customers print as entered.",
+      "margins": "Margins",
+      "mm": "mm",
+      "ownMargins": "Use its own margins",
+      "sameAsMain": "Same as the main template",
+      "sides": {
+        "top": "Top",
+        "right": "Right",
+        "bottom": "Bottom",
+        "left": "Left"
+      }
+    },
+    "variants": {
+      "title": "Variants",
+      "help": "A variant replaces the template when the document matches it. The first match wins.",
+      "label": "Variants",
+      "main": "Main template",
+      "add": "Add variant",
+      "newName": "Variant {{n}}",
+      "name": "Name",
+      "nameRequired": "Enter a name.",
+      "unnamed": "Unnamed variant",
+      "tags": "Customer tags",
+      "tagsHelp": "Separate tags with commas. The customer needs one of them.",
+      "conditions": "Conditions",
+      "noConditions": "No conditions.",
+      "addCondition": "Add condition",
+      "removeCondition": "Remove condition {{n}}",
+      "field": "Field",
+      "operator": "Operator",
+      "value": "Value",
+      "remove": "Remove variant"
+    },
+    "preview": {
+      "title": "Preview",
+      "label": "Preview with sample data",
+      "frame": "Printed document preview",
+      "stale": "Updating the preview",
+      "downloadPdf": "Download PDF"
     }
   },
   "formLayouts": {

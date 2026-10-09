@@ -93,7 +93,7 @@ final class FormLayout
     {
         return new ConfigKind(
             key: self::KEY,
-            schema: fn (array $payload, string $key) => self::problems($payload, $key),
+            schema: fn (array $payload, ?ConfigDocument $document = null) => self::problems($payload, $document?->key ?? ConfigKind::DEFAULT_KEY),
             scopes: [ConfigDocument::TENANT, ConfigDocument::ROLE],
             permissions: LayoutsServiceProvider::PERMISSIONS,
             merger: fn (array $payload, ConfigKind $kind, string $key) => self::merge($payload, $key, $kind->layoutKeys()),

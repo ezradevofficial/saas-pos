@@ -1,0 +1,43 @@
+{
+    "description": "A 58 mm refund receipt printed in English and French side by side, in CDF (no decimals), with a customer, a USD total, and the DGI answer pending. Item names print as entered.",
+    "type": "pos.refund_receipt",
+    "fiscal_required": true,
+    "template": {
+        "paper": "58mm",
+        "margins": {"top": 2, "right": 2, "bottom": 2, "left": 2},
+        "language": "both",
+        "blocks": [
+            {"id": "header", "type": "text", "text": "{{company.name}}", "align": "center", "size": "normal", "weight": "medium"},
+            {"id": "number", "type": "field", "field": "document.number", "label": true},
+            {"id": "reference", "type": "field", "field": "document.reference", "label": true},
+            {"id": "reason", "type": "field", "field": "document.reason", "label": true},
+            {"id": "customer", "type": "field", "field": "customer.name", "label": true},
+            {"id": "lines", "type": "lines", "columns": ["item_name", "qty", "unit_price", "total"]},
+            {"id": "totals", "type": "totals", "show": ["subtotal", "discount", "tax", "total", "dual"]},
+            {"id": "payments", "type": "payments"},
+            {"id": "fiscal", "type": "fiscal"}
+        ]
+    },
+    "data": {
+        "currencies": {"CDF": 0, "USD": 2},
+        "company": {"name": "Boutique Étoile", "legal_name": "Boutique Étoile SARL", "tax_id": "A1234567B", "address": null, "phone": null, "email": null, "country": "CD", "logo": null, "custom": []},
+        "branch": {"name": "Gombe", "code": "GB", "address": null},
+        "location": {"name": "Caisse 1", "code": "L01"},
+        "document": {"number": "RF-L01-000003", "date": "2026-10-09 09:05", "cashier": "Jean-Pierre Ilunga", "currency": "CDF", "reference": "R-L01-000120", "reason": "Article abîmé"},
+        "customer": {"name": "Amina Kabila", "tax_id": null, "phone": "+243810000000", "email": null, "address": null, "tags": ["vip"], "custom": []},
+        "lines": [
+            {"item_name": "Pagne wax 6 yards", "item_code": null, "qty": "1", "unit": null, "unit_price": {"minor": "1350000", "currency": "CDF"}, "discount": null, "tax_rate": "16", "tax": {"minor": "186207", "currency": "CDF"}, "total": {"minor": "1350000", "currency": "CDF"}, "custom": []}
+        ],
+        "totals": {
+            "subtotal": null,
+            "discount": null,
+            "tax": {"minor": "186207", "currency": "CDF"},
+            "total": {"minor": "1350000", "currency": "CDF"},
+            "dual": {"minor": "48250", "currency": "USD"},
+            "tax_lines": [{"name": "TVA", "rate": "16", "tax": {"minor": "186207", "currency": "CDF"}}]
+        },
+        "payments": [{"method": "M-Pesa", "amount": {"minor": "1350000", "currency": "CDF"}, "reference": "QWE123RTY"}],
+        "change": null,
+        "fiscal": {"authority": "dgi", "status": "pending", "invoice_number": null, "receipt_number": null, "receipt_signature": null, "internal_data": null, "control_unit_id": null, "authority_time": null, "qr": null}
+    }
+}

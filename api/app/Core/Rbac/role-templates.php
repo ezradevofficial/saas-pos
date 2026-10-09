@@ -23,7 +23,8 @@ return [
     ],
     [
         'key' => 'admin',
-        'permissions' => ['core.*'],
+        // TPL-04: shares POS documents by email and link (pos.sale.share).
+        'permissions' => ['core.*', 'pos.sale.share'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -45,6 +46,8 @@ return [
             'core.config.view',
             // CF-04: fills in, changes and approves the organisation's custom forms at their branch.
             'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.edit', 'core.custom_form.approve',
+            // TPL-01: sees the document templates that apply at their branch.
+            'core.template.view',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
         ],
         'is_owner' => false,
@@ -97,6 +100,7 @@ return [
             'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.approve',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
+            'core.template.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,

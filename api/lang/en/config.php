@@ -52,6 +52,17 @@ return [
         'pattern' => ':path isn’t in the expected format.',
         'min' => ':path must be at least :min.',
         'max' => ':path must be at most :max.',
+        // TPL-01..TPL-03: document templates.
+        'unknown_block' => ':path isn’t a known block. Remove it.',
+        'fiscal_required' => 'The tax authority block is required on this document in your country. Add it back from the palette.',
+        'totals_required' => 'The totals block, with its tax lines, is required on this document in your country. Add it back from the palette.',
+        'fiscal_twice' => 'The tax authority block can appear once. Remove the extra one.',
+        'fiscal_not_allowed' => 'This document doesn’t carry tax authority data. Remove the tax authority block.',
+        'tax_lines_locked' => 'Tax lines are always printed with the totals. Turn them back on.',
+        'unknown_field' => ':path uses “:field”, which this document doesn’t have. Pick a field from the list.',
+        'unknown_column' => ':path uses “:field”, which isn’t a column of this document. Pick a column from the list.',
+        'row_nested' => ':path puts a row inside a row. Move its blocks out.',
+        'row_on_thermal' => 'Two-column rows fit A4 and A5 paper only. Move the blocks out of the row, or pick A4 or A5.',
         // BR-02, BR-03: themes.
         'not_overridable' => ':path can’t be changed by a theme. A theme sets only the logos, the primary and accent colours, the sidebar, the corners and the font.',
         'asset_missing' => ':path names an image that isn’t one of your uploaded images of that kind. Upload it again.',

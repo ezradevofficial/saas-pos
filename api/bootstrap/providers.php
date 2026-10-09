@@ -7,6 +7,7 @@ use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\CustomFields\CustomFieldsServiceProvider;
 use App\Core\CustomForms\CustomFormsServiceProvider;
+use App\Core\DocumentTemplates\DocumentTemplatesServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
@@ -36,6 +37,7 @@ return [
     CustomFieldsServiceProvider::class,
     WorkflowServiceProvider::class,
     ConfigurationServiceProvider::class,
+    DocumentTemplatesServiceProvider::class,
     BrandingServiceProvider::class,
     LayoutsServiceProvider::class,
     NotificationsServiceProvider::class,

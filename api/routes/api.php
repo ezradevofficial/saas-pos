@@ -37,6 +37,7 @@ use App\Core\CustomForms\CustomFormType;
 use App\Core\CustomForms\Http\Controllers\CustomFormFileController;
 use App\Core\CustomForms\Http\Controllers\CustomFormRecordController;
 use App\Core\CustomForms\Http\Controllers\CustomFormTypeController;
+use App\Core\DocumentTemplates\Http\Controllers\DocumentTemplateController;
 use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
 use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
 use App\Core\Fiscal\Models\FiscalSubmission;
@@ -588,6 +589,11 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
         });
     });
 
+    // TPL-01..TPL-03: the template designer's document types (merge fields,
+    // columns, locked blocks, defaults) and live previews with sample data.
+    Route::get('templates/types', [DocumentTemplateController::class, 'types']);
+    Route::post('templates/preview', [DocumentTemplateController::class, 'preview']);
+    Route::get('templates/previews/{preview}/pdf', [DocumentTemplateController::class, 'previewPdf'])->where('preview', '[A-Za-z0-9]{40}');
     // LAY-01: dashboard data sources the user may read, and one widget's data.
     Route::get('dashboard/sources', [DashboardSourceController::class, 'index']);
     Route::get('dashboard/sources/{dashboard_source}', [DashboardSourceController::class, 'show'])->where('dashboard_source', '[a-z][a-z0-9_.]{0,59}');
