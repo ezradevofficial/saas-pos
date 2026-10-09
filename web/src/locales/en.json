@@ -249,7 +249,8 @@
       "catalogue": "Catalogue",
       "contacts": "Contacts",
       "automation": "Automation",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "pos": "Point of sale"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -275,7 +276,13 @@
     "workflows": "Workflows",
     "creditLimitChanges": "Credit limit changes",
     "approvals": "Approvals",
-    "automationRules": "Automation rules"
+    "automationRules": "Automation rules",
+    "posDashboard": "Sales overview",
+    "posSales": "Sales",
+    "posShifts": "Shifts",
+    "posHeld": "Held for review",
+    "numbering": "Numbering",
+    "posPin": "My POS PIN"
   },
   "shell": {
     "account": "Account menu",
@@ -542,7 +549,8 @@
       "archive": "Archive location",
       "archiveText": "The location and its sales history stay, but no device can be added or paired here until you restore it.",
       "empty": "No locations yet.",
-      "listOf": "Locations of {{name}}"
+      "listOf": "Locations of {{name}}",
+      "code": "Code {{code}}"
     },
     "fields": {
       "name": "Name",
@@ -553,7 +561,9 @@
       "taxId": "Tax ID",
       "code": "Branch code",
       "codeHelp": "Up to 20 letters, numbers or dashes, such as WSTL. Used on receipts and reports.",
-      "type": "Type"
+      "type": "Type",
+      "locationCode": "Location code",
+      "locationCodeHelp": "Up to 10 capital letters or digits, such as L01. Printed in receipt numbers."
     },
     "locationTypes": {
       "outlet": "Outlet",
@@ -621,7 +631,22 @@
     "unpairTitle": "Unpair {{name}}?",
     "unpairText": "The device is signed out at once and needs a new pairing code to sell again. Its sales history stays.",
     "unpairConfirm": "Unpair device",
-    "keep": "Keep device"
+    "keep": "Keep device",
+    "codeLeft": "Time left: {{time}}",
+    "codeExpired": "This code has expired. Close this and get a new one.",
+    "edit": "Edit",
+    "editFor": "Edit {{name}}",
+    "editTitle": "Edit {{name}}",
+    "codeField": "Device code",
+    "codeHelp": "Up to 10 capital letters or digits, such as T01. Printed in receipt numbers.",
+    "lastPull": "Data received {{date}}",
+    "neverPulled": "No data received yet",
+    "lastPush": "sales sent {{date}}",
+    "neverPushed": "no sales sent yet",
+    "secretAge_one": "Signing key {{kid}}, {{formatted}} day old",
+    "secretAge_other": "Signing key {{kid}}, {{formatted}} days old",
+    "unpairKillSwitch": "Unpairing is the only way to cut a lost or stolen till off for good: its token and signing keys stop working at once.",
+    "unpairUnsent": "Sales the till has not sent yet stay on the device. They reach the server only if the same device is paired again."
   },
   "users": {
     "inviteUser": "Invite user",
@@ -3247,6 +3272,403 @@
       "retrying": "Retrying",
       "delivered": "Delivered",
       "failed": "Failed"
+    }
+  },
+  "pos": {
+    "filters": {
+      "company": "Company",
+      "branch": "Branch",
+      "location": "Location",
+      "allCompanies": "All companies",
+      "allBranches": "All branches",
+      "allLocations": "All locations"
+    },
+    "flags": {
+      "label": "Flags",
+      "price_differs": "Price differs",
+      "price_unknown": "No list price",
+      "list_price_missing": "List price not sent",
+      "tax_differs": "Tax differs",
+      "rate_differs": "Rate differs",
+      "change_rate_differs": "Change rate differs",
+      "refund_rate_differs": "Refund rate differs",
+      "base_rate_from_till": "Base rate from till",
+      "discount_unauthorised": "Discount not allowed",
+      "price_override_unauthorised": "Price change not allowed",
+      "cashier_not_permitted": "Cashier not allowed",
+      "actor_unverified": "Actor unverified",
+      "override_unverified": "Approval unverified",
+      "override_offline": "Approved offline",
+      "received_after_close": "After shift close",
+      "clock_ahead": "Till clock ahead"
+    },
+    "records": {
+      "applied": "Applied",
+      "held": "Held",
+      "rejected": "Rejected"
+    },
+    "sales": {
+      "title": "Sales",
+      "description": "Sales from the tills you look after, as they were sold.",
+      "search": "Search receipt numbers",
+      "back": "Sales",
+      "reviewed": "Reviewed",
+      "empty": "No sales yet.",
+      "emptyFiltered": "No sales match. Try other filters or another receipt number.",
+      "columns": {
+        "receipt": "Receipt",
+        "soldAt": "Sold",
+        "place": "Location and till",
+        "cashier": "Cashier",
+        "customer": "Customer",
+        "total": "Total",
+        "payments": "Payments",
+        "status": "Status",
+        "flags": "Flags"
+      },
+      "status": {
+        "completed": "Completed",
+        "voided": "Voided"
+      },
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "flagged": "Flags",
+        "flaggedAll": "With or without flags",
+        "flaggedYes": "Flagged",
+        "flaggedNo": "Not flagged",
+        "flag": "Flag",
+        "allFlags": "Any flag",
+        "reviewed": "Review",
+        "reviewedAll": "Reviewed or not",
+        "reviewedYes": "Reviewed",
+        "reviewedNo": "Not reviewed",
+        "from": "From (UTC)",
+        "to": "To (UTC)"
+      }
+    },
+    "sale": {
+      "eyebrow": "Sale",
+      "notFound": "This sale doesn’t exist or isn’t at a location you look after.",
+      "markReviewed": "Mark reviewed",
+      "reviewedNotice": "The sale is marked reviewed.",
+      "flagsTitle": "Flags",
+      "flagsHelp": "The till’s sale was kept as sold. Check what differs, then mark the sale reviewed.",
+      "reviewedAt": "Reviewed {{time}}",
+      "flagLine": "line {{line}}",
+      "flagExpected": "The server expected {{amount}}.",
+      "flagPair": "Rate {{pair}}",
+      "summary": "Summary",
+      "place": "Location",
+      "device": "Till",
+      "cashier": "Cashier",
+      "customer": "Customer",
+      "noCustomer": "No customer",
+      "received": "Received by the server",
+      "soldOffline": "Sold while offline",
+      "shift": "Shift",
+      "openShift": "Open the shift",
+      "fiscal": "Tax authority",
+      "fiscalPending": "Pending",
+      "changeIn": "Change given in {{currency}}.",
+      "returns": "Void and refunds",
+      "voided": "Sale voided",
+      "refund": "Refund {{number}}",
+      "lines": {
+        "title": "Lines",
+        "no": "No.",
+        "item": "Item",
+        "qty": "Quantity",
+        "unitPrice": "Unit price",
+        "listPrice": "Differs from the list price",
+        "discount": "Discount",
+        "tax": "Tax",
+        "rateIncluded": "{{rate}} % included",
+        "rateAdded": "{{rate}} % added",
+        "total": "Line total",
+        "refunded": "{{qty}} refunded"
+      },
+      "payments": {
+        "title": "Payments",
+        "method": "Method",
+        "amount": "Amount paid",
+        "inSale": "In {{currency}}",
+        "status": "Status",
+        "statuses": {
+          "confirmed": "Confirmed",
+          "pending": "Pending"
+        }
+      },
+      "totals": {
+        "title": "Totals",
+        "subtotal": "Subtotal",
+        "discount": "Discounts",
+        "tax": "Tax",
+        "total": "Total",
+        "paid": "Paid",
+        "change": "Change",
+        "rounding": "Rounding",
+        "base": "Total in {{currency}}"
+      }
+    },
+    "shifts": {
+      "title": "Shifts",
+      "description": "Each till’s shifts and cash-up, per currency.",
+      "search": "Search tills or cashiers",
+      "back": "Shifts",
+      "empty": "No shifts yet.",
+      "emptyFiltered": "No shifts match. Try other filters.",
+      "stillOpen": "Still open",
+      "notCounted": "Not counted",
+      "balanced": "{{currency}} balanced",
+      "over": "Over by {{amount}}",
+      "short": "Short by {{amount}}",
+      "status": {
+        "open": "Open",
+        "closed": "Closed"
+      },
+      "columns": {
+        "opened": "Opened",
+        "closed": "Closed",
+        "status": "Status",
+        "place": "Location and till",
+        "openedBy": "Opened by",
+        "opening": "Opening float",
+        "expected": "Expected cash",
+        "counted": "Counted cash",
+        "variance": "Variance"
+      },
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "from": "Opened from (UTC)",
+        "to": "Opened to (UTC)"
+      }
+    },
+    "shift": {
+      "eyebrow": "Shift",
+      "title": "{{device}}, {{date}}",
+      "notFound": "This shift doesn’t exist or isn’t at a location you look after.",
+      "summary": "Summary",
+      "place": "Location",
+      "openedBy": "Opened by",
+      "closedBy": "Closed by",
+      "salesCount": "Sales",
+      "note": "Note at close",
+      "receivedAfterClose_one": "{{formatted}} record reached the server after this shift closed.",
+      "receivedAfterClose_other": "{{formatted}} records reached the server after this shift closed.",
+      "receivedAfterCloseHelp": "The expected cash and the variance were recounted to include them.",
+      "balances": {
+        "title": "Cash per currency",
+        "help": "Expected = opening float + cash taken − change given + pay-ins − pay-outs − cash refunds.",
+        "currency": "Currency",
+        "opening": "Opening float",
+        "expected": "Expected",
+        "counted": "Counted",
+        "variance": "Variance"
+      },
+      "movements": {
+        "title": "Cash movements",
+        "empty": "No cash was paid in or out during this shift.",
+        "time": "Time",
+        "kind": "Movement",
+        "kinds": {
+          "pay_in": "Pay-in",
+          "pay_out": "Pay-out"
+        },
+        "amount": "Amount",
+        "reason": "Reason",
+        "approvedBy": "approved by {{name}}",
+        "status": "Status"
+      }
+    },
+    "held": {
+      "title": "Held for review",
+      "description": "Voids, refunds and cash pay-outs from the tills that wait for someone to approve them, because the server could not prove who allowed them.",
+      "empty": "Nothing is waiting for review.",
+      "emptyFiltered": "Nothing waiting matches these filters.",
+      "wholeSale": "Whole sale",
+      "approvedBy": "Manager named by the till",
+      "occurred": "At the till",
+      "reason": "Reason",
+      "openSale": "Open the sale",
+      "approve": "Approve",
+      "reject": "Reject",
+      "keepWaiting": "Keep waiting",
+      "rejectTitle": "Reject this record?",
+      "rejectText": {
+        "void": "The sale stays completed. Say why, so the till team knows.",
+        "refund": "Nothing is refunded and the quantities are free again. Say why, so the till team knows.",
+        "cash_movement": "The pay-out doesn’t count in the drawer. Say why, so the till team knows."
+      },
+      "effect": {
+        "void": "Approving voids the sale and sends it to the tax authority as voided.",
+        "refund": "Approving refunds the lines, counts the cash in the drawer and checks your refund limit.",
+        "cash_movement": "Approving counts the pay-out in the drawer, recounting a closed shift."
+      },
+      "deviceClaim": {
+        "override_unverified": "Offline override — device claim. The till says a manager approved this, but the server could not check the approval.",
+        "override_offline": "Offline override — the manager’s PIN approval was checked on the till while it was offline."
+      },
+      "kinds": {
+        "void": "Void",
+        "refund": "Refund",
+        "cash_movement": "Cash pay-out"
+      },
+      "columns": {
+        "received": "Received",
+        "kind": "Record",
+        "receipt": "Receipt",
+        "amount": "Amount",
+        "by": "By",
+        "place": "Location and till",
+        "status": "Status",
+        "flags": "Flags"
+      },
+      "filters": {
+        "kind": "Record",
+        "allKinds": "All records",
+        "flag": "Flag",
+        "allFlags": "Any flag"
+      }
+    },
+    "dashboard": {
+      "title": "Sales overview",
+      "description": "Completed sales across your companies, branches and locations. Each company’s days are in its own time zone.",
+      "from": "From",
+      "to": "To",
+      "reportingCurrency": "Reporting currency",
+      "defaultCurrency": "Each company’s own",
+      "chooseCurrency": "Your companies sell in different currencies. Choose a reporting currency to see one total.",
+      "missingRates": "{{companies}} has no exchange rate to {{currency}} for this period, so it is left out of the total. Enter the rate in Exchange rates.",
+      "noRate": "No rate",
+      "empty": "No sales in this period.",
+      "byPlace": "By company, branch and location",
+      "byPlaceHelp": "In each company’s base currency.",
+      "periods": {
+        "today": "Today",
+        "week": "This week",
+        "month": "This month",
+        "custom": "Choose days"
+      },
+      "kpi": {
+        "sales": "Sales",
+        "total": "Total sales",
+        "average": "Average sale"
+      },
+      "columns": {
+        "place": "Company, branch, location",
+        "sales": "Sales",
+        "total": "Total",
+        "average": "Average sale",
+        "reporting": "In {{currency}}"
+      },
+      "payments": {
+        "title": "Payments by method",
+        "method": "Method",
+        "count": "Payments",
+        "amount": "Amount received",
+        "change": "Change given: {{amounts}}"
+      },
+      "items": {
+        "title": "Top items",
+        "item": "Item",
+        "qty": "Quantity",
+        "sales": "Sales",
+        "total": "Sold for"
+      }
+    }
+  },
+  "numbering": {
+    "title": "Numbering",
+    "description": "How receipts and other documents are numbered, for the whole organisation, a company or a branch.",
+    "empty": "No numbered document types are active.",
+    "default": "Default {{pattern}}, {{reset}}",
+    "usesDefault": "Uses the default, for example {{example}}.",
+    "add": "Add format",
+    "addFor": "Add a format for {{name}}",
+    "addTitle": "Add a format for {{name}}",
+    "edit": "Edit",
+    "editFor": "Edit the format for {{scope}}",
+    "editTitle": "{{name}}: {{scope}}",
+    "save": "Save format",
+    "exampleShort": "For example {{example}}",
+    "example": "Example",
+    "noGaps": "No gaps",
+    "tokens": "Insert",
+    "insertToken": "Insert {{token}}",
+    "allBranches": "Every branch",
+    "rangedHelp": "Tills number these from ranges they receive in advance, so numbers can have gaps.",
+    "gaplessHelp": "Each number follows the last with none skipped. Documents wait for each other while numbered.",
+    "scope": {
+      "tenant": "Whole organisation",
+      "company": "Company {{name}}",
+      "branch": "Branch {{name}}"
+    },
+    "resets": {
+      "never": "never restarts",
+      "yearly": "restarts every year"
+    },
+    "fields": {
+      "company": "Company",
+      "branch": "Branch",
+      "pattern": "Pattern",
+      "patternHelp": "Letters, digits, - / _ . and the tokens below. One counter, such as {000001}; its zeros set the minimum width.",
+      "reset": "Counter",
+      "gapless": "No gaps"
+    },
+    "errors": {
+      "length": "Enter a pattern of 1 to 60 characters.",
+      "characters": "Use only letters, digits, - / _ . and the tokens.",
+      "token": "Use only the tokens shown below.",
+      "unavailable": "This document type can’t use one of these place tokens. Remove it.",
+      "counter": "Add exactly one counter, such as {000001}.",
+      "yearly": "A counter that restarts every year needs {YYYY} or {YY}."
+    }
+  },
+  "posPin": {
+    "title": "My POS PIN",
+    "description": "The PIN you sign in with at the tills. Nobody can read it, not even an administrator.",
+    "cardTitle": "POS PIN",
+    "userCardTitle": "POS PIN",
+    "set": "Set PIN",
+    "change": "Change PIN",
+    "reset": "Reset PIN",
+    "remove": "Remove PIN",
+    "keep": "Keep PIN",
+    "save": "Save PIN",
+    "saved": "The POS PIN is saved.",
+    "setTitle": "Set your POS PIN",
+    "changeTitle": "Change your POS PIN",
+    "resetTitle": "New POS PIN for {{name}}",
+    "resetIntro": "Give the PIN to the person in private. They choose their own at the till the first time they sign in.",
+    "removeTitle": "Remove your POS PIN?",
+    "removeSelfText": "You won’t be able to sign in at a till until you set a new PIN.",
+    "removeUserTitle": "Remove {{name}}’s POS PIN?",
+    "removeUserText": "They won’t be able to sign in at a till until they have a new PIN.",
+    "lengthNote": "A PIN is 4 to 6 digits. Avoid repeated digits, runs such as 1234 and common PINs.",
+    "sixDigitsNote": "You can approve voids, refunds or price changes, so your PIN needs 6 digits.",
+    "mustChangeNote": "An administrator set this PIN. Choose your own at the till the next time you sign in.",
+    "userSixDigits": "This person approves voids, refunds or price changes, so their PIN needs 6 digits.",
+    "status": {
+      "notSet": "No PIN",
+      "set": "PIN set",
+      "mustChange": "Must change at the till",
+      "setAt": "Set {{date}}"
+    },
+    "fields": {
+      "password": "Your account password",
+      "passwordHelp": "Confirms it’s you.",
+      "pin": "New PIN",
+      "pinHelp": "4 to 6 digits.",
+      "pinHelpSix": "6 digits.",
+      "repeat": "Repeat the PIN"
+    },
+    "errors": {
+      "format": "Enter a PIN of 4 to 6 digits.",
+      "sixDigits": "Enter a PIN of 6 digits.",
+      "password": "Enter your account password.",
+      "mismatch": "The two PINs differ. Type the same PIN twice."
     }
   }
 }

@@ -158,7 +158,7 @@ export default function Organisation() {
     }
     return (
       <li key={location.id}>
-        <NodeRow icon="organisation" name={location.name} meta={t(`organisation.locationTypes.${location.type}`)} archived={archived} actions={actions} />
+        <NodeRow icon="organisation" name={location.name} meta={[t(`organisation.locationTypes.${location.type}`), location.code ? t('organisation.location.code', { code: location.code }) : null].filter(Boolean).join(' · ')} archived={archived} actions={actions} />
         {open ? (
           <div className="pb-3">
             <Devices location={location} chain={chain} archived={archived} />
