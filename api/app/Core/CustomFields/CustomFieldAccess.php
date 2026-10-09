@@ -4,6 +4,7 @@ namespace App\Core\CustomFields;
 
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\FieldRules;
+use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Rbac\ScopeResolver;
 
@@ -94,9 +95,11 @@ class CustomFieldAccess
     {
         $fields = $this->definitions->active($entity)->filter(fn (CustomFieldDefinition $d) => $d->show_on_pos && ($d->visible_roles ?? []) !== []);
         $result = [];
+        $ownerRoles = $fields->isEmpty() ? [] : Role::query()->where('is_owner', true)->pluck('id')->all();
 
         foreach ($roleIdsByUser as $userId => $roleIds) {
-            $result[$userId] = $fields
+            // RBAC-10: an Owner sees every field.
+            $result[$userId] = array_intersect($roleIds, $ownerRoles) !== [] ? [] : $fields
                 ->filter(fn (CustomFieldDefinition $d) => array_intersect($d->visible_roles, $roleIds) === [])
                 ->map(fn (CustomFieldDefinition $d) => self::PREFIX.$d->key)->values()->all();
         }

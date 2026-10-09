@@ -108,7 +108,7 @@ class CreateDocumentAction implements AutomationAction
 
             if ($field !== null) {
                 $text = $this->text->format($field, $value, app()->getLocale(), $context->timezone);
-                $parts[] = __($field->label).' = '.($text === '' ? __('automation.values.empty') : $text);
+                $parts[] = $field->displayLabel().' = '.($text === '' ? __('automation.values.empty') : $text);
             }
         }
 

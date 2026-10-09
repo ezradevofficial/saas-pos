@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\CustomFields;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\CustomFields\CustomFieldFile;
+use App\Core\CustomFields\CustomFieldMergeFields;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\DefaultUoms;
 use App\Core\MasterData\Items\Item;
@@ -318,6 +319,24 @@ class CustomFieldValuesTest extends TestCase
             ->assertUnprocessable();
         $this->post('/api/v1/custom-field-files', ['entity' => 'item', 'field' => 'ghost', 'file' => UploadedFile::fake()->create('a.pdf', 1, 'application/pdf')], [...$this->headersFor(), 'Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('field');
+    }
+
+    public function test_merge_fields_offer_the_fields_the_reader_may_see(): void
+    {
+        [$clerk] = $this->clerk();
+        $admin = $this->inTenant(fn () => $this->roles->get('admin'));
+        $this->field(['key' => 'colour', 'type' => 'select', 'options' => [['value' => 'red', 'label' => 'Red']]]);
+        $this->field(['key' => 'cost', 'type' => 'money', 'visible_roles' => [$admin->id]]);
+        $id = $this->item(['colour' => 'red', 'cost' => ['amount_minor' => '125050', 'currency' => 'KES']])->assertCreated()->json('data.id');
+
+        $this->inTenant(function () use ($id, $clerk) {
+            $merge = app(CustomFieldMergeFields::class);
+            $custom = Item::findOrFail($id)->custom;
+
+            $this->assertSame(['custom.colour', 'custom.cost'], array_column($merge->fields('item', $this->owner), 'name'));
+            $this->assertSame(['custom.colour' => 'Red', 'custom.cost' => 'KES 1250.50'], $merge->values('item', $this->owner, $custom));
+            $this->assertSame(['custom.colour' => 'Red'], $merge->values('item', $clerk, $custom));
+        });
     }
 
     public function test_a_user_who_cannot_view_the_entity_gets_no_schema(): void

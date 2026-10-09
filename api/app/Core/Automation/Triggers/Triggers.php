@@ -139,7 +139,7 @@ class Triggers
 
                 foreach (['from', 'to'] as $key) {
                     if (array_key_exists($key, $trigger) && $trigger[$key] !== null && ! $this->validValue($field, $trigger[$key], 'eq')) {
-                        $problems[] = __('automation.validation.trigger_value', ['field' => __($field->label)]);
+                        $problems[] = __('automation.validation.trigger_value', ['field' => $field->displayLabel()]);
                     }
                 }
 
@@ -190,7 +190,7 @@ class Triggers
                 $problems = [];
 
                 if (! array_key_exists('value', $trigger) || ! $this->validValue($field, $trigger['value'], 'lt')) {
-                    $problems[] = __('automation.validation.trigger_value', ['field' => __($field->label)]);
+                    $problems[] = __('automation.validation.trigger_value', ['field' => $field->displayLabel()]);
                 }
 
                 if (! in_array($trigger['direction'] ?? null, ['up', 'down'], true)) {
@@ -313,7 +313,7 @@ class Triggers
     public function describe(array $trigger, DocumentType $type): string
     {
         $fields = $type->fieldsByName();
-        $label = fn (?string $name) => isset($fields[$name ?? '']) ? __($fields[$name]->label) : (string) $name;
+        $label = fn (?string $name) => isset($fields[$name ?? '']) ? $fields[$name]->displayLabel() : (string) $name;
         $document = __($type->label());
 
         return match ($trigger['type'] ?? null) {
