@@ -14,6 +14,7 @@ use App\Core\Automation\Http\Controllers\AutomationRunController;
 use App\Core\Automation\Http\Controllers\AutomationTemplateController;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Configuration\Http\Controllers\ConfigController;
 use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
@@ -530,14 +531,18 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // what applies to the signed-in user.
     Route::prefix('config/{kind}')->where(['kind' => '[a-z][a-z0-9_]{0,59}'])->group(function () {
         Route::get('', [ConfigController::class, 'index']);
-        Route::post('', [ConfigController::class, 'store']);
         Route::get('resolved', [ConfigController::class, 'resolved']);
         Route::get('{config_document}', [ConfigController::class, 'show']);
-        Route::put('{config_document}/draft', [ConfigController::class, 'updateDraft']);
-        Route::post('{config_document}/publish', [ConfigController::class, 'publish']);
-        Route::post('{config_document}/rollback', [ConfigController::class, 'rollback']);
-        Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
-        Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
+
+        // Writes carry payloads up to 256 KB: 60 a minute per user.
+        Route::middleware('throttle:'.ConfigurationServiceProvider::WRITE_LIMITER)->group(function () {
+            Route::post('', [ConfigController::class, 'store']);
+            Route::put('{config_document}/draft', [ConfigController::class, 'updateDraft']);
+            Route::post('{config_document}/publish', [ConfigController::class, 'publish']);
+            Route::post('{config_document}/rollback', [ConfigController::class, 'rollback']);
+            Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
+            Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
+        });
     });
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.

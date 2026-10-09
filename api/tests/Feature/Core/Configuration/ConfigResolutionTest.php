@@ -2,11 +2,19 @@
 
 namespace Tests\Feature\Core\Configuration;
 
+use App\Core\Configuration\CatalogueMerge;
+use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\ConfigKinds;
 use App\Core\Configuration\ConfigVersions;
+use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -42,7 +50,7 @@ class ConfigResolutionTest extends TestCase
             $versions = app(ConfigVersions::class);
             $kind = app(ConfigKinds::class)->get(TestLayoutKind::KEY);
             [$document] = $versions->open($kind, $key, $scopeType, $scopeId, null, ['columns' => array_map(fn ($id) => ['id' => $id], $columns)], $this->owner);
-            $versions->publish($document, $kind, $this->owner);
+            $versions->publish($document, $kind, $this->owner, $document->draft()->value('revision'));
         });
     }
 
@@ -160,5 +168,68 @@ class ConfigResolutionTest extends TestCase
         // A role held at an outlet does not reach up to the company.
         $this->getJson(self::URL.'?company='.$this->acme->id, $this->headersFor($this->mara))->assertUnprocessable();
         $this->getJson(self::URL.'?company='.$this->acme->id.'&branch='.$this->branchA->id.'&location='.$this->locationA->id, $this->headersFor($this->mara))->assertOk();
+    }
+
+    /**
+     * A published payload stored as $json, straight into the tables: the
+     * validator never saw it (as after a bad import or a manual fix).
+     * Written through the tenant connection inside the test transaction;
+     * the owner connection could not see this test's uncommitted tenant.
+     */
+    private function publishRaw(string $kind, string $json, string $key = 'default'): void
+    {
+        $this->inTenant(function () use ($kind, $json, $key) {
+            $db = DB::connection(TenantContext::CONNECTION);
+            $document = (string) Str::uuid7();
+            $db->table('config_documents')->insert(['id' => $document, 'kind' => $kind, 'key' => $key, 'scope_type' => 'tenant', 'scope_id' => null, 'name' => $key, 'created_at' => now(), 'updated_at' => now()]);
+            $db->table('config_versions')->insert([
+                'id' => (string) Str::uuid7(), 'document_id' => $document, 'version' => 1, 'revision' => 1, 'status' => 'published',
+                'payload' => $json, 'source' => 'draft', 'published_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+    }
+
+    public function test_a_malformed_published_payload_falls_back_to_the_defaults(): void
+    {
+        Log::spy();
+
+        foreach (['"just text"' => 'scalar', '[1, 2]' => 'list', '{"columns": [1, "x", {"id": {"no": 1}}]}' => 'entries'] as $json => $key) {
+            $this->publishRaw(TestLayoutKind::KEY, $json, $key);
+        }
+        app(ConfigKinds::class)->register(new ConfigKind(TestLayoutKind::KEY.'_broken', scopes: ConfigDocument::SCOPES, merger: fn () => throw new RuntimeException('merger bug'), defaults: fn () => null));
+        $this->publishRaw(TestLayoutKind::KEY.'_broken', '{"columns": []}');
+
+        // Not an object: the kind's defaults, no source, and a warning; never a 500.
+        $scalar = $this->resolved('?key=scalar');
+        $this->assertNull($scalar['source']);
+        $this->assertSame(['name', 'code', 'price'], array_column($scalar['payload']['columns'], 'id'));
+        // A list decodes to an array: the merger reads what it can.
+        $this->assertSame(['name', 'code', 'price'], array_column($this->resolved('?key=list')['payload']['columns'], 'id'));
+        // Entries that are not objects (or whose id is not text) are skipped.
+        $this->assertSame(['name', 'code', 'price'], array_column($this->resolved('?key=entries')['payload']['columns'], 'id'));
+        // A merger that throws: the defaults (none here).
+        $this->getJson('/api/v1/config/'.TestLayoutKind::KEY.'_broken/resolved', $this->headersFor($this->mara))->assertOk()->assertJsonPath('data.source', null)->assertJsonPath('data.payload', null);
+
+        Log::shouldHaveReceived('warning')->twice();
+    }
+
+    public function test_grouped_layouts_with_malformed_groups_still_resolve(): void
+    {
+        $catalogue = [['id' => 'name', 'locked' => true, 'permission' => 'core.item.view'], ['id' => 'code'], ['id' => 'price']];
+        app(ConfigKinds::class)->register(new ConfigKind(
+            'test_form',
+            scopes: ConfigDocument::SCOPES,
+            merger: fn (array $payload, ConfigKind $kind) => ['sections' => CatalogueMerge::grouped((array) ($payload['sections'] ?? []), $catalogue, layoutKeys: $kind->layoutKeys())],
+            layoutKeys: ['span'],
+        ));
+        $this->publishRaw('test_form', '{"sections": ["junk", 7, {"id": "main", "fields": "x"}, {"id": "more", "fields": [1, {"id": "name", "span": 2, "locked": false, "permission": null}]}]}');
+
+        $data = $this->getJson('/api/v1/config/test_form/resolved', $this->headersFor($this->mara))->assertOk()->json('data');
+
+        $this->assertNotNull($data['source']);
+        $this->assertSame(['main', 'more'], array_column($data['payload']['sections'], 'id'));
+        $this->assertSame(['code', 'price'], array_column($data['payload']['sections'][0]['fields'], 'id'));
+        // The kind's own layout key is the layout's; locked and permission stay the catalogue's.
+        $this->assertSame(['id' => 'name', 'locked' => true, 'permission' => 'core.item.view', 'span' => 2], $data['payload']['sections'][1]['fields'][0]);
     }
 }

@@ -12,13 +12,20 @@ const TONES = { draft: 'info', published: 'success', archived: 'neutral', discar
 
 const statusOf = (version) => (version.discarded_at ? 'discarded' : version.status)
 
-/** Runs an action and closes its dialog once it succeeded; a failure stays on screen. */
-async function attempt(action, close, setError) {
+/**
+ * Runs an action and closes its dialog once it succeeded; a failure stays
+ * on screen. A draft changed by someone else (config_changed) is left to
+ * the conflict banner when the bar has one (onReload: the hook sets
+ * `conflict` on that answer).
+ */
+async function attempt(action, close, setError, { onFailure, conflictShown = false } = {}) {
   setError(null)
   try {
     await action?.()
     close()
   } catch (error) {
+    if (onFailure?.(error)) return
+    if (conflictShown && error?.code === 'config_changed') return
     setError(errorMessage(error))
   }
 }
@@ -31,11 +38,16 @@ async function attempt(action, close, setError) {
  *
  *   const config = useConfigDocument('list_view', 'items', scope)
  *   <VersionBar document={config.document} problems={config.problems} pending={config.pending}
+ *     conflict={config.conflict} onReload={config.reload}
  *     onPublish={config.publish} onDiscard={config.discardDraft} onRollback={config.rollback}
- *     onCopy={(target, from) => config.copyTo(target, from)} copyTargets={places} canEdit canPublish />
+ *     onCopy={(target, from, options) => config.copyTo(target, from, options)} copyTargets={places} canEdit canPublish />
  *
  * copyTargets: [{ type, id, label }] the user may copy to (the API checks
  * again). Actions may return promises; dialogs close when they resolve.
+ * When the place already has a draft (config_draft_exists) the copy dialog
+ * asks to replace it and calls onCopy(target, from, { replace: true }).
+ * conflict (from useConfigDocument): someone else changed the draft; the
+ * bar says so, offers Reload (onReload) and holds Publish back.
  * Publish is the screen's one decisive action (near-black).
  */
 export function VersionBar({
@@ -45,12 +57,14 @@ export function VersionBar({
   canPublish = false,
   copyTargets = [],
   pending = {},
+  conflict = null,
   saveState,
   timeZone,
   onPublish,
   onDiscard,
   onRollback,
   onCopy,
+  onReload,
 }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en'
@@ -59,11 +73,14 @@ export function VersionBar({
   const [confirming, setConfirming] = useState(null)
   const [target, setTarget] = useState('')
   const [from, setFrom] = useState('published')
+  // The chosen place already has a draft: the next Copy replaces it.
+  const [replacing, setReplacing] = useState(false)
 
   const live = document?.published ?? null
   const draft = document?.draft ?? null
   const history = document?.history ?? []
   const blocked = problems.length > 0
+  const conflictShown = Boolean(conflict && onReload)
   const close = () => {
     setDialog(null)
     setConfirming(null)
@@ -74,6 +91,7 @@ export function VersionBar({
     if (name === 'copy') {
       setTarget('')
       setFrom(live ? 'published' : 'draft')
+      setReplacing(false)
     }
     setDialog(name)
   }
@@ -121,11 +139,31 @@ export function VersionBar({
           </Button>
         ) : null}
         {canPublish ? (
-          <Button variant="pay" disabled={!draft || blocked} loading={pending.publish} onClick={() => attempt(onPublish, () => {}, setError)}>
+          <Button
+            variant="pay"
+            disabled={!draft || blocked || Boolean(conflict)}
+            loading={pending.publish}
+            onClick={() => attempt(onPublish, () => {}, setError, { conflictShown: Boolean(onReload) })}
+          >
             {t('ds.versionBar.publish', { version: draft?.version ?? (live ? live.version + 1 : 1) })}
           </Button>
         ) : null}
       </div>
+      {conflictShown ? (
+        <div className="basis-full">
+          <Alert
+            tone="warning"
+            title={t('ds.versionBar.conflict')}
+            action={
+              <Button variant="secondary" icon="restore" onClick={() => onReload()}>
+                {t('ds.versionBar.reload')}
+              </Button>
+            }
+          >
+            {t('ds.versionBar.conflictBody')}
+          </Alert>
+        </div>
+      ) : null}
       {error && dialog === null ? (
         <div className="basis-full">
           <Alert tone="danger" title={error} />
@@ -190,23 +228,39 @@ export function VersionBar({
               {t('common.cancel')}
             </Button>
             <Button
-              variant="primary"
+              variant={replacing ? 'danger' : 'primary'}
               disabled={!target}
               loading={pending.copy}
               onClick={() => {
                 const [type, id] = target.split(':')
-                attempt(() => onCopy?.({ type, id }, from), close, setError)
+                attempt(() => (replacing ? onCopy?.({ type, id }, from, { replace: true }) : onCopy?.({ type, id }, from)), close, setError, {
+                  onFailure: (failure) => {
+                    if (replacing || failure?.code !== 'config_draft_exists') return false
+                    setReplacing(true)
+                    return true
+                  },
+                })
               }}
             >
-              {t('ds.versionBar.copyConfirm')}
+              {replacing ? t('ds.versionBar.copyReplace') : t('ds.versionBar.copyConfirm')}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4 pt-1">
           {error ? <Alert tone="danger" title={error} /> : null}
+          {replacing ? <Alert tone="warning" title={t('ds.versionBar.copyDraftExists')} /> : null}
           <p>{t('ds.versionBar.copyBody')}</p>
-          <Select label={t('ds.versionBar.copyTarget')} options={targets} placeholder={t('ds.versionBar.copyChoose')} value={target} onChange={(event) => setTarget(event.target.value)} />
+          <Select
+            label={t('ds.versionBar.copyTarget')}
+            options={targets}
+            placeholder={t('ds.versionBar.copyChoose')}
+            value={target}
+            onChange={(event) => {
+              setTarget(event.target.value)
+              setReplacing(false)
+            }}
+          />
           <Select
             label={t('ds.versionBar.copyFrom')}
             options={[

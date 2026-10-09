@@ -104,6 +104,49 @@ describe('VersionBar (LAY-06)', () => {
     expect(await within(dialog).findByText('There is no draft to use. Make a change to start one.')).toBeInTheDocument()
   })
 
+  it('says when someone else changed the draft, holds Publish back and reloads', async () => {
+    const onReload = vi.fn().mockResolvedValue(null)
+    renderBar({ conflict: { code: 'config_changed', document: DOCUMENT }, onReload })
+
+    expect(screen.getByText('Someone changed this draft')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publish v4' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    expect(onReload).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves a publish conflict to the banner instead of a second error', async () => {
+    const onPublish = vi.fn().mockRejectedValue(new ApiError({ status: 409, code: 'config_changed', message: 'Someone changed this draft since you opened it.' }))
+    const { rerender } = render(<VersionBar document={DOCUMENT} canPublish onPublish={onPublish} onReload={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }))
+    await waitFor(() => expect(onPublish).toHaveBeenCalled())
+    rerender(<VersionBar document={DOCUMENT} canPublish onPublish={onPublish} onReload={vi.fn()} conflict={{ code: 'config_changed', document: DOCUMENT }} />)
+    expect(await screen.findByText('Someone changed this draft')).toBeInTheDocument()
+    expect(screen.queryByText('Someone changed this draft since you opened it.')).not.toBeInTheDocument()
+  })
+
+  it('asks before replacing a draft at the copy target', async () => {
+    const onCopy = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiError({ status: 409, code: 'config_draft_exists', message: 'That place already has a draft.' }))
+      .mockResolvedValueOnce({})
+    renderBar({ onCopy })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy to…' }))
+    const dialog = screen.getByRole('dialog', { name: 'Copy to another place' })
+    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Copy to' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Beta Ltd' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy' }))
+
+    const replace = await within(dialog).findByRole('button', { name: 'Replace draft there' })
+    expect(within(dialog).getByText(/already has a draft/)).toBeInTheDocument()
+    expect(onCopy).toHaveBeenCalledWith({ type: 'company', id: 'c2' }, 'published')
+    fireEvent.click(replace)
+
+    await waitFor(() => expect(onCopy).toHaveBeenLastCalledWith({ type: 'company', id: 'c2' }, 'published', { replace: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('speaks French', async () => {
     await i18n.changeLanguage('fr')
     renderBar()
