@@ -379,7 +379,8 @@
     "domains": "Domaines",
     "dashboards": "Tableaux de bord",
     "navigationEditor": "Menus",
-    "documentTemplates": "Modèles de documents"
+    "documentTemplates": "Modèles de documents",
+    "posLayout": "Disposition de caisse"
   },
   "shell": {
     "account": "Menu du compte",
@@ -4747,6 +4748,124 @@
       "frame": "Aperçu du document imprimé",
       "stale": "Mise à jour de l’aperçu",
       "downloadPdf": "Télécharger le PDF"
+    }
+  },
+  "posLayout": {
+    "title": "Disposition de caisse",
+    "description": "L’apparence de l’écran de vente des caisses : la grille de produits, les catégories, les boutons rapides, la place du panneau de vente et ce que montre l’écran client.",
+    "documentName": "Disposition de caisse",
+    "readOnly": "Vous pouvez voir cette disposition mais pas la modifier.",
+    "unknown": "Plus disponible",
+    "pickItem": "Rechercher des articles",
+    "scope": {
+      "label": "Disposition pour",
+      "tenant": "Toute l’entreprise",
+      "company": "Société : {{name}}",
+      "branch": "Succursale : {{name}} ({{company}})",
+      "location": "Emplacement : {{name}} ({{branch}})",
+      "tenantHelp": "Chaque caisse utilise cette disposition, sauf si sa société, sa succursale ou son emplacement a la sienne.",
+      "overrideHelp": "Les caisses d’ici utilisent cette disposition au lieu de celle du dessus. Celle d’un emplacement l’emporte sur celle de sa succursale."
+    },
+    "grid": {
+      "title": "Grille de produits",
+      "text": "Colonnes et taille des tuiles. Les tuiles gardent au moins 48 px de haut pour le toucher.",
+      "tablet": "Colonnes sur tablette",
+      "phone": "Colonnes sur téléphone",
+      "size": "Taille des tuiles"
+    },
+    "sizes": {
+      "compact": "Compacte",
+      "standard": "Standard",
+      "large": "Grande"
+    },
+    "products": {
+      "title": "Produits",
+      "text": "Les articles épinglés viennent d’abord, puis les autres dans l’ordre choisi.",
+      "order": "Ordre après les articles épinglés",
+      "pinned": "Articles épinglés",
+      "noPinned": "Aucun article épinglé.",
+      "pin": "Épingler un article",
+      "unpin": "Désépingler {{name}}",
+      "move": "Déplacer {{name}}",
+      "bestSellersHelp": "Les articles les plus vendus à chaque emplacement ces 30 derniers jours, puis par nom. L’aperçu les montre par nom."
+    },
+    "orders": {
+      "category": "Par catégorie",
+      "name": "Par nom",
+      "best_sellers": "Meilleures ventes"
+    },
+    "categories": {
+      "title": "Tuiles de catégorie",
+      "text": "Faites glisser pour ordonner. Les catégories ajoutées plus tard apparaissent à la fin.",
+      "none": "Aucune catégorie pour l’instant.",
+      "move": "Déplacer {{name}}",
+      "colour": "Couleur de {{name}}",
+      "image": "Image de {{name}}",
+      "noImage": "Aucune image",
+      "hide": "Masquer {{name}}",
+      "show": "Afficher {{name}}"
+    },
+    "colours": {
+      "none": "Aucune couleur",
+      "primary-tint": "Teinte de la marque",
+      "surface-300": "Gris",
+      "success-tint": "Teinte verte",
+      "warning-tint": "Teinte ambre",
+      "danger-tint": "Teinte rouge"
+    },
+    "assets": {
+      "logo": "Logo n° {{number}}",
+      "background": "Image de marque {{number}}"
+    },
+    "quick": {
+      "title": "Boutons rapides",
+      "text": "Jusqu’à {{max}} boutons au-dessus de la grille : un article, une catégorie ou une action.",
+      "none": "Aucun bouton rapide.",
+      "move": "Déplacer {{name}}",
+      "remove": "Retirer {{name}}",
+      "type": "Type de bouton",
+      "add": "Ajouter un bouton",
+      "pickAction": "Choisir une action",
+      "pickCategory": "Choisir une catégorie",
+      "types": {
+        "action": "Action",
+        "item": "Article",
+        "category": "Catégorie"
+      }
+    },
+    "actions": {
+      "hold": "Mettre la vente en attente",
+      "customer": "Client",
+      "cash_in": "Entrée de caisse",
+      "cash_out": "Sortie de caisse",
+      "sales": "Ventes et retours"
+    },
+    "keypad": {
+      "title": "Panneau de vente",
+      "text": "Où se trouvent la vente et son pavé sur une tablette. Sur un téléphone, ils restent en bas.",
+      "label": "Côté sur tablette",
+      "right": "Droite",
+      "left": "Gauche"
+    },
+    "display": {
+      "title": "Écran client",
+      "text": "Ce que voient les clients sur un second écran pendant la vente.",
+      "welcome": "Texte d’accueil",
+      "welcomeHelp": "Affiché entre deux ventes. Jusqu’à {{max}} caractères.",
+      "show_lines": "Afficher les lignes de la vente",
+      "show_second_currency": "Afficher le total dans la deuxième devise",
+      "show_logo": "Afficher le logo"
+    },
+    "preview": {
+      "title": "Aperçu",
+      "tablet": "Tablette",
+      "phone": "Téléphone",
+      "all": "Tout",
+      "sale": "Vente en cours",
+      "lines": "Lignes de la vente",
+      "charge": "Encaisser",
+      "noItems": "Aucun article à montrer pour l’instant.",
+      "text": "Les premiers articles de votre catalogue, sans les prix. Les couleurs suivent le thème publié."
     }
   }
 }
