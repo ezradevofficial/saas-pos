@@ -7,6 +7,7 @@ use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
 use Modules\POS\Http\Controllers\Device\DeviceUploadController;
 use Modules\POS\Http\Controllers\HeldController;
+use Modules\POS\Http\Controllers\InsightsController;
 use Modules\POS\Http\Controllers\SaleController;
 use Modules\POS\Http\Controllers\ShiftController;
 use Modules\POS\Models\CashMovement;
@@ -45,6 +46,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('pos/sales/{pos_sale}', [SaleController::class, 'show']);
     Route::get('pos/shifts', [ShiftController::class, 'index']);
     Route::get('pos/shifts/{pos_shift}', [ShiftController::class, 'show']);
+
+    // TEN-07: consolidated sales across companies, branches and locations.
+    Route::get('pos/insights', InsightsController::class);
 
     // M3: a flagged sale acknowledged.
     Route::post('pos/sales/{pos_sale}/review', [SaleController::class, 'review']);

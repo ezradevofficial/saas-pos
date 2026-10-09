@@ -2,9 +2,11 @@
 
 namespace Modules\POS\Models;
 
+use App\Core\Identity\Models\User;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** POS-04: cash paid into or out of the drawer during a shift. */
 class CashMovement extends Model
@@ -24,5 +26,15 @@ class CashMovement extends Model
     protected function casts(): array
     {
         return ['occurred_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'decided_at' => 'immutable_datetime', 'override_verified' => 'boolean', 'flags' => 'array'];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

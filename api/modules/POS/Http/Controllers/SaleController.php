@@ -19,7 +19,7 @@ class SaleController
 {
     public function index(ListSalesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = $request->applyFilters(Sale::query()->with(SaleList::RELATIONS), 'sold_at');
+        $query = $request->applyFilters(Sale::query()->with([...SaleList::RELATIONS, 'payments']), 'sold_at');
         $request->applySearch($query, ['receipt_number' => 'receipt_number']);
 
         // M3: what needs review.
@@ -65,6 +65,6 @@ class SaleController
 
     public function show(ShowPosRecordRequest $request, Sale $posSale): SaleResource
     {
-        return SaleResource::make($posSale->load([...SaleList::RELATIONS, 'lines', 'payments', 'voidRecord', 'refunds']))->detail();
+        return SaleResource::make($posSale->load([...SaleList::RELATIONS, 'lines', 'payments.method', 'voidRecord', 'refunds']))->detail();
     }
 }

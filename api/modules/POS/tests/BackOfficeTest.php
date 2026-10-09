@@ -62,6 +62,9 @@ class BackOfficeTest extends TestCase
 
         $this->getJson("/api/v1/pos/sales?location={$this->locationA->id}", $owner)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $this->saleA['id']);
         $this->getJson("/api/v1/pos/sales?branch={$this->branchB->id}", $owner)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $this->saleB['id']);
+        // The list's tenders: what was paid, per method type and currency.
+        $this->getJson("/api/v1/pos/sales?location={$this->locationA->id}", $owner)->assertOk()
+            ->assertJsonPath('data.0.tenders', [['method_type' => 'cash', 'amount' => ['amount_minor' => '112500', 'currency' => 'KES']]]);
         $this->getJson('/api/v1/pos/sales?search=L02', $owner)->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/v1/pos/sales?status=voided', $owner)->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/pos/sales?from='.now()->addDay()->toDateString(), $owner)->assertOk()->assertJsonCount(0, 'data');
@@ -74,6 +77,7 @@ class BackOfficeTest extends TestCase
             ->assertJsonPath('data.lines.0.item.name', 'Soap')
             ->assertJsonPath('data.lines.0.tax', ['amount_minor' => '12500', 'currency' => 'KES'])
             ->assertJsonPath('data.payments.0.method_type', 'cash')
+            ->assertJsonPath('data.payments.0.method_name', 'Cash KES')
             ->assertJsonPath('data.void', null);
 
         $this->getJson("/api/v1/pos/shifts/{$this->shiftA}", $owner)->assertOk()

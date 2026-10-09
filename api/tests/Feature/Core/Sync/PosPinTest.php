@@ -262,6 +262,22 @@ class PosPinTest extends TestCase
         $this->assertNotNull($this->staffRow($this->owner)['pin']);
     }
 
+    public function test_the_pin_status_says_whether_set_must_change_and_six_digits_never_the_pin(): void
+    {
+        $this->getJson("/api/v1/users/{$this->cashier->id}/pos-pin", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.pin_set', false)->assertJsonPath('data.six_digits', false);
+        $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937'], $this->headersFor())->assertOk();
+        $this->getJson("/api/v1/users/{$this->cashier->id}/pos-pin", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.pin_set', true)->assertJsonPath('data.must_change', true)->assertJsonMissingPath('data.pin');
+
+        // The owner approves overrides: 6 digits, on their own status too.
+        $this->getJson('/api/v1/me/pos-pin', $this->headersFor())->assertOk()->assertJsonPath('data.six_digits', true);
+        $this->getJson('/api/v1/me/pos-pin', $this->headersFor($this->cashier))->assertOk()->assertJsonPath('data.six_digits', false);
+
+        // RBAC-04: a cashier cannot read the owner's status.
+        $this->getJson("/api/v1/users/{$this->owner->id}/pos-pin", $this->headersFor($this->cashier))->assertNotFound();
+    }
+
     public function test_people_who_approve_overrides_need_six_digit_pins(): void
     {
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));

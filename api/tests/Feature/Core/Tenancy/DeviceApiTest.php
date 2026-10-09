@@ -61,6 +61,26 @@ class DeviceApiTest extends TestCase
             ->assertJsonPath('data.name', 'Till 2');
     }
 
+    public function test_the_list_shows_the_current_secrets_kid_and_age_and_codes_are_editable(): void
+    {
+        $id = $this->createDevice();
+        $this->getJson("/api/v1/locations/{$this->locationA->id}/devices", $this->headersFor())
+            ->assertOk()->assertJsonPath('data.0.secret', null);
+
+        $paired = $this->pair($this->pairingCode($id))->assertOk();
+        $kid = $paired->json('device_secret_kid');
+
+        $row = $this->getJson("/api/v1/locations/{$this->locationA->id}/devices", $this->headersFor())->assertOk()->json('data.0');
+        $this->assertSame($kid, $row['secret']['kid']);
+        $this->assertNotNull($row['secret']['active_since']);
+        $this->assertSame(['kid', 'active_since'], array_keys($row['secret']));
+        $this->getJson("/api/v1/devices/{$id}", $this->headersFor())->assertOk()->assertJsonPath('data.secret.kid', $row['secret']['kid']);
+
+        // NUM-01: the code printed in receipt numbers ({DEVICE}).
+        $this->patchJson("/api/v1/devices/{$id}", ['code' => 'T01'], $this->headersFor())->assertOk()->assertJsonPath('data.code', 'T01');
+        $this->patchJson("/api/v1/devices/{$id}", ['code' => 't-01'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('code');
+    }
+
     public function test_a_pairing_code_is_eight_unambiguous_characters_valid_fifteen_minutes(): void
     {
         $id = $this->createDevice();

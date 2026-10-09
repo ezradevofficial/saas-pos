@@ -7,6 +7,8 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,7 +69,7 @@ class HeldController
 
         usort($rows, fn (array $a, array $b) => strcmp($b['received_at'], $a['received_at']));
 
-        return response()->json(['data' => $rows]);
+        return response()->json(['data' => $this->named($rows)]);
     }
 
     public function approveVoid(DecideHeldRequest $request, SaleVoid $posVoid): JsonResponse
@@ -146,7 +148,42 @@ class HeldController
             return $fresh->refresh();
         });
 
-        return response()->json(['data' => $this->row($kind, $record)]);
+        return response()->json(['data' => $this->named([$this->row($kind, $record)])[0]]);
+    }
+
+    /**
+     * The back office's words for ids: who did it, who approved and decided
+     * it, the sale's receipt number, the till. One query per kind of name.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function named(array $rows): array
+    {
+        $userIds = [];
+
+        foreach ($rows as $row) {
+            array_push($userIds, $row['by'], $row['approved_by'], $row['decided_by']);
+        }
+
+        $ids = fn (array $values) => array_values(array_unique(array_filter($values)));
+        $users = User::query()->whereKey($ids($userIds))->pluck('name', 'id');
+        $sales = Sale::query()->whereKey($ids(array_column($rows, 'sale_id')))->get(['id', 'receipt_number', 'location_id'])->keyBy('id');
+        // A void's place is its sale's.
+        $rows = array_map(fn (array $row) => [...$row, 'location_id' => $row['location_id'] ?? ($row['sale_id'] === null ? null : $sales[$row['sale_id']]->location_id ?? null)], $rows);
+        $devices = Device::query()->whereKey($ids(array_column($rows, 'device_id')))->pluck('name', 'id');
+        $locations = Location::query()->whereKey($ids(array_column($rows, 'location_id')))->pluck('name', 'id');
+        $person = fn (?string $id) => $id === null ? null : ['id' => $id, 'name' => $users[$id] ?? null];
+
+        return array_map(fn (array $row) => [
+            ...$row,
+            'by_user' => $person($row['by']),
+            'approver' => $person($row['approved_by']),
+            'decider' => $person($row['decided_by']),
+            'sale_receipt_number' => $row['sale_id'] === null ? null : ($sales[$row['sale_id']]->receipt_number ?? null),
+            'device' => $row['device_id'] === null ? null : ['id' => $row['device_id'], 'name' => $devices[$row['device_id']] ?? null],
+            'location' => $row['location_id'] === null ? null : ['id' => $row['location_id'], 'name' => $locations[$row['location_id']] ?? null],
+        ], $rows);
     }
 
     /** @return array<string, mixed> */
@@ -164,6 +201,9 @@ class HeldController
                 default => null,
             },
             'reason' => $record->reason,
+            'device_id' => $record->device_id,
+            'location_id' => $record instanceof SaleVoid ? null : $record->location_id,
+            'occurred_at' => ($record->voided_at ?? $record->refunded_at ?? $record->occurred_at)?->toIso8601String(),
             'by' => $record->voided_by ?? $record->cashier_id ?? $record->user_id,
             'approved_by' => $record->approved_by,
             'override_verified' => $record->override_verified,

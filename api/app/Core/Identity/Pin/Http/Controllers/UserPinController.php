@@ -3,6 +3,7 @@
 namespace App\Core\Identity\Pin\Http\Controllers;
 
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\Http\Requests\ShowUserPinRequest;
 use App\Core\Identity\Pin\Http\Requests\UserPinRequest;
 use App\Core\Identity\Pin\PasswordCheck;
 use App\Core\Identity\Pin\Pins;
@@ -22,6 +23,12 @@ class UserPinController
         private readonly Pins $pins,
         private readonly PasswordCheck $password,
     ) {}
+
+    /** Whether the user has a PIN, must change it, and needs 6 digits (AUTH-08); never the PIN. */
+    public function show(ShowUserPinRequest $request, User $user): JsonResponse
+    {
+        return response()->json(['data' => [...$this->pins->status($user), 'six_digits' => $this->pins->needsSixDigits($user)]]);
+    }
 
     public function update(UserPinRequest $request, User $user): JsonResponse
     {
