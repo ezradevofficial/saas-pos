@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string $document_id
  * @property int $version
+ * @property int $revision
  * @property string $status
  * @property array $payload
  */
@@ -30,8 +31,18 @@ class ConfigVersion extends Model
 
     public const ARCHIVED = 'archived';
 
+    /**
+     * Every column but the payload: lists and history load these, so a
+     * page of documents never reads their (up to 256 KB) payloads.
+     */
+    public const SUMMARY = [
+        'id', 'tenant_id', 'document_id', 'version', 'revision', 'status', 'source', 'source_version_id',
+        'created_by', 'updated_by', 'published_by', 'published_at', 'archived_at',
+        'discarded_at', 'discarded_by', 'created_at', 'updated_at',
+    ];
+
     protected $fillable = [
-        'document_id', 'version', 'status', 'payload', 'source', 'source_version_id',
+        'document_id', 'version', 'revision', 'status', 'payload', 'source', 'source_version_id',
         'created_by', 'updated_by', 'published_by', 'published_at', 'archived_at',
         'discarded_at', 'discarded_by',
     ];
@@ -41,6 +52,7 @@ class ConfigVersion extends Model
         return [
             'payload' => 'array',
             'version' => 'integer',
+            'revision' => 'integer',
             'published_at' => 'datetime',
             'archived_at' => 'datetime',
             'discarded_at' => 'datetime',

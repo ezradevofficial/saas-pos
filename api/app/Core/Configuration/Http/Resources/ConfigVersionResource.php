@@ -28,6 +28,8 @@ class ConfigVersionResource extends JsonResource
         return [
             'id' => $this->id,
             'version' => $this->version,
+            // LAY-06: name it when saving or publishing the draft (409 config_changed else).
+            'revision' => $this->revision,
             'status' => $this->status,
             'source' => $this->source,
             'source_version_id' => $this->source_version_id,

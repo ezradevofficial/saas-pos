@@ -13,6 +13,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -48,6 +49,24 @@ class ConfigApiTest extends TestCase
         return self::URL."/{$documentId}{$suffix}";
     }
 
+    /** The draft revision of the document now (null: no draft). */
+    private function revision(string $documentId): ?int
+    {
+        return $this->getJson($this->url($documentId), $this->headersFor())->assertOk()->json('data.draft.revision');
+    }
+
+    /** Publish the document's current draft, naming its revision (LAY-06). */
+    private function publish(string $documentId, ?array $headers = null): TestResponse
+    {
+        return $this->postJson($this->url($documentId, '/publish'), ['revision' => $this->revision($documentId)], $headers ?? $this->headersFor());
+    }
+
+    /** Save the document's draft over its current revision. */
+    private function putDraft(string $documentId, array $body, ?array $headers = null): TestResponse
+    {
+        return $this->putJson($this->url($documentId, '/draft'), ['revision' => $this->revision($documentId), ...$body], $headers ?? $this->headersFor());
+    }
+
     /** @return list<string> */
     private function auditActions(string $documentId): array
     {
@@ -64,16 +83,17 @@ class ConfigApiTest extends TestCase
         $this->assertSame([1, 'draft', 'draft'], [$created['data']['draft']['version'], $created['data']['draft']['status'], $created['data']['draft']['source']]);
         // A draft may have problems; they block publishing.
         $this->assertSame([['columns.0.width', 'max']], array_map(fn ($p) => [$p['path'], $p['code']], $created['meta']['problems']));
-        $this->postJson($this->url($id, '/publish'), [], $this->headersFor())
-            ->assertUnprocessable()->assertJsonPath('code', 'config_invalid')->assertJsonPath('problems.0.path', 'columns.0.width');
+        $this->assertSame(1, $created['data']['draft']['revision']);
+        $this->postJson($this->url($id, '/publish'), [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('revision');
+        $this->publish($id)->assertUnprocessable()->assertJsonPath('code', 'config_invalid')->assertJsonPath('problems.0.path', 'columns.0.width');
 
-        // Saving again for the same key and scope edits the same draft (200).
-        $again = $this->save(['key' => 'items', 'payload' => ['columns' => [['id' => 'name', 'width' => 6]]]], status: 200);
-        $this->assertSame([$id, 1, []], [$again['data']['id'], $again['data']['draft']['version'], $again['meta']['problems']]);
-        $this->putJson($this->url($id, '/draft'), ['payload' => ['columns' => [['id' => 'code']]], 'name' => 'Items'], $this->headersFor())
+        // Saving again for the same key and scope edits the same draft (200), one revision up.
+        $again = $this->save(['key' => 'items', 'revision' => 1, 'payload' => ['columns' => [['id' => 'name', 'width' => 6]]]], status: 200);
+        $this->assertSame([$id, 1, 2, []], [$again['data']['id'], $again['data']['draft']['version'], $again['data']['draft']['revision'], $again['meta']['problems']]);
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'code']]], 'name' => 'Items'])
             ->assertOk()->assertJsonPath('data.draft.payload.columns.0.id', 'code')->assertJsonPath('data.name', 'Items');
 
-        $published = $this->postJson($this->url($id, '/publish'), [], $this->headersFor())->assertOk();
+        $published = $this->publish($id)->assertOk();
         $published->assertJsonPath('data.published.version', 1)->assertJsonPath('data.draft', null)
             ->assertJsonPath('data.published.payload.columns.0.id', 'code');
         $this->assertSame(['core.config.create', 'core.config.draft_create', 'core.config.draft_update', 'core.config.rename', 'core.config.draft_update', 'core.config.publish'], $this->auditActions($id));
@@ -107,12 +127,12 @@ class ConfigApiTest extends TestCase
     public function test_a_new_draft_becomes_the_next_version_and_rollback_publishes_a_copy(): void
     {
         $id = $this->save(['payload' => ['columns' => [['id' => 'name']]]])['data']['id'];
-        $this->postJson($this->url($id, '/publish'), [], $this->headersFor())->assertOk();
-        $this->putJson($this->url($id, '/draft'), ['payload' => ['columns' => [['id' => 'code']]]], $this->headersFor())->assertOk()->assertJsonPath('data.draft.version', 2);
-        $this->postJson($this->url($id, '/publish'), [], $this->headersFor())->assertOk()->assertJsonPath('data.published.version', 2);
+        $this->publish($id)->assertOk();
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'code']]]])->assertOk()->assertJsonPath('data.draft.version', 2);
+        $this->publish($id)->assertOk()->assertJsonPath('data.published.version', 2);
 
         // A draft that is discarded is never offered for roll back.
-        $this->putJson($this->url($id, '/draft'), ['payload' => ['columns' => [['id' => 'price']]]], $this->headersFor())->assertOk();
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'price']]]])->assertOk();
         $this->postJson($this->url($id, '/discard-draft'), [], $this->headersFor())->assertOk()->assertJsonPath('data.draft', null);
         $this->postJson($this->url($id, '/rollback'), ['version' => 3], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'version_not_found');
         $this->postJson($this->url($id, '/rollback'), ['version' => 2], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'version_is_live');
@@ -143,7 +163,7 @@ class ConfigApiTest extends TestCase
         $this->postJson($this->url($id, '/copy'), ['scope_type' => 'company', 'scope_id' => $other->id], $this->headersFor())
             ->assertUnprocessable()->assertJsonPath('code', 'nothing_published');
 
-        $this->postJson($this->url($id, '/publish'), [], $this->headersFor())->assertOk();
+        $this->publish($id)->assertOk();
         $copy = $this->postJson($this->url($id, '/copy'), ['scope_type' => 'company', 'scope_id' => $other->id], $this->headersFor())->assertCreated();
         $copy->assertJsonPath('data.scope', ['type' => 'company', 'id' => $other->id])
             ->assertJsonPath('data.name', 'Acme items')
@@ -153,10 +173,22 @@ class ConfigApiTest extends TestCase
         $this->assertNotSame($id, $copy->json('data.id'));
         $this->assertSame(['core.config.copy'], $this->auditActions($copy->json('data.id')));
 
-        // Again, from the draft: the target's draft is replaced, not duplicated.
-        $this->putJson($this->url($id, '/draft'), ['payload' => ['columns' => [['id' => 'price']]]], $this->headersFor())->assertOk();
+        // Again, from the draft: the target's draft is someone's work, so
+        // the copy is refused (with the target as it is) unless it says replace.
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'price']]]])->assertOk();
         $this->postJson($this->url($id, '/copy'), ['scope_type' => 'company', 'scope_id' => $other->id, 'from' => 'draft'], $this->headersFor())
-            ->assertCreated()->assertJsonPath('data.id', $copy->json('data.id'))->assertJsonPath('data.draft.payload.columns.0.id', 'price')->assertJsonPath('data.draft.version', 1);
+            ->assertConflict()->assertJsonPath('code', 'config_draft_exists')->assertJsonPath('data.id', $copy->json('data.id'))->assertJsonPath('data.draft.payload.columns.0.id', 'name');
+        $replaced = $this->postJson($this->url($id, '/copy'), ['scope_type' => 'company', 'scope_id' => $other->id, 'from' => 'draft', 'replace' => true], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.id', $copy->json('data.id'))->assertJsonPath('data.draft.payload.columns.0.id', 'price')->assertJsonPath('data.draft.version', 2);
+
+        // The replaced draft is archived as discarded, its payload kept, and the audit names it.
+        $old = $this->inTenant(fn () => ConfigVersion::query()->where('document_id', $copy->json('data.id'))->where('version', 1)->sole());
+        $this->assertSame(['archived', 'name'], [$old->status, $old->payload['columns'][0]['id']]);
+        $this->assertNotNull($old->discarded_at);
+        $this->assertSame(['core.config.copy', 'core.config.copy'], $this->auditActions($copy->json('data.id')));
+        $audit = $this->inTenant(fn () => AuditEntry::query()->where('auditable_id', $copy->json('data.id'))->orderByDesc('seq')->first());
+        $this->assertSame($old->id, $audit->before['version_id']);
+        $this->assertSame($replaced->json('data.draft.id'), $audit->after['version_id']);
 
         // To a branch of the tenant too; never to itself, a role, the tenant, or another tenant's company.
         $this->postJson($this->url($id, '/copy'), ['scope_type' => 'branch', 'scope_id' => $this->branchA->id], $this->headersFor())->assertCreated();
@@ -190,8 +222,8 @@ class ConfigApiTest extends TestCase
         $this->getJson($this->url($branchA), $this->headersFor($manager))->assertOk();
         $this->getJson($this->url($branchB), $this->headersFor($manager))->assertNotFound();
         $this->getJson($this->url($personal), $this->headersFor($manager))->assertNotFound();
-        $this->putJson($this->url($branchA, '/draft'), ['payload' => ['columns' => []]], $this->headersFor($manager))->assertForbidden();
-        $this->postJson($this->url($branchA, '/publish'), [], $this->headersFor($manager))->assertForbidden();
+        $this->putDraft($branchA, ['payload' => ['columns' => []]], $this->headersFor($manager))->assertForbidden();
+        $this->publish($branchA, $this->headersFor($manager))->assertForbidden();
 
         // An editor at branch A edits there, but neither publishes nor reaches branch B or the tenant.
         $editor = $this->inTenant(function () {
@@ -200,15 +232,15 @@ class ConfigApiTest extends TestCase
 
             return $user;
         });
-        $this->putJson($this->url($branchA, '/draft'), ['payload' => ['columns' => [['id' => 'code']]]], $this->headersFor($editor))->assertOk();
+        $this->putDraft($branchA, ['payload' => ['columns' => [['id' => 'code']]]], $this->headersFor($editor))->assertOk();
         $this->save(['scope_type' => 'location', 'scope_id' => $this->locationA->id], $this->headersFor($editor));
         $this->save(['scope_type' => 'location', 'scope_id' => $this->locationB->id], $this->headersFor($editor), 403);
         $this->save(['scope_type' => 'tenant'], $this->headersFor($editor), 403);
-        $this->postJson($this->url($branchA, '/publish'), [], $this->headersFor($editor))->assertForbidden();
+        $this->publish($branchA, $this->headersFor($editor))->assertForbidden();
         $this->postJson($this->url($branchA, '/rollback'), ['version' => 1], $this->headersFor($editor))->assertForbidden();
         $this->putJson($this->url($branchB, '/draft'), ['payload' => ['columns' => []]], $this->headersFor($editor))->assertNotFound();
         $this->postJson($this->url($branchA, '/copy'), ['scope_type' => 'branch', 'scope_id' => $this->branchB->id, 'from' => 'draft'], $this->headersFor($editor))->assertForbidden();
-        $this->postJson($this->url($branchA, '/copy'), ['scope_type' => 'location', 'scope_id' => $this->locationA->id, 'from' => 'draft'], $this->headersFor($editor))->assertCreated();
+        $this->postJson($this->url($branchA, '/copy'), ['scope_type' => 'location', 'scope_id' => $this->locationA->id, 'from' => 'draft', 'replace' => true], $this->headersFor($editor))->assertCreated();
 
         // Role documents are tenant-wide.
         $this->save(['scope_type' => 'role', 'scope_id' => $this->roles->get('cashier')->id], $this->headersFor($editor), 403);
@@ -220,7 +252,7 @@ class ConfigApiTest extends TestCase
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
 
         $mine = $this->save(['scope_type' => 'user', 'scope_id' => $manager->id], $this->headersFor($manager))['data']['id'];
-        $this->postJson($this->url($mine, '/publish'), [], $this->headersFor($manager))->assertOk();
+        $this->publish($mine, $this->headersFor($manager))->assertOk();
         $this->assertContains($mine, array_column($this->getJson(self::URL, $this->headersFor($manager))->json('data'), 'id'));
 
         $this->save(['scope_type' => 'user', 'scope_id' => $this->owner->id], $this->headersFor($manager), 403);
@@ -247,6 +279,7 @@ class ConfigApiTest extends TestCase
         }
         $this->getJson(self::URL.'/resolved?company='.$foreign['company']->id, $this->headersFor())->assertUnprocessable();
         $this->assertSame([], $this->getJson(self::URL, $this->headersFor())->json('data'));
+        $this->assertSame([], $this->getJson(self::URL.'?scope_type=company&scope_id='.$foreign['company']->id, $this->headersFor())->assertOk()->json('data'));
     }
 
     public function test_a_kind_of_an_inactive_module_or_unknown_is_not_found(): void
@@ -276,5 +309,113 @@ class ConfigApiTest extends TestCase
         $this->save(['scope_type' => 'planet'], status: 422);
         $this->save(['scope_type' => 'company'], status: 422);
         $this->save(['payload' => ['columns' => [['id' => str_repeat('x', 300000)]]]], status: 422);
+    }
+
+    public function test_lists_and_history_never_load_payloads(): void
+    {
+        $id = $this->save([])['data']['id'];
+        $this->publish($id)->assertOk();
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'code']]]])->assertOk();
+        $this->publish($id)->assertOk();
+        $this->putDraft($id, ['payload' => ['columns' => [['id' => 'price']]]])->assertOk();
+
+        $versionReads = function (callable $request): array {
+            $queries = [];
+            DB::listen(function ($query) use (&$queries) {
+                if (str_contains($query->sql, 'from "config_versions"')) {
+                    $queries[] = $query->sql;
+                }
+            });
+            $request();
+
+            return $queries;
+        };
+
+        // The list: published and draft without their payloads.
+        $listed = $versionReads(fn () => $this->getJson(self::URL, $this->headersFor())->assertOk()->assertJsonPath('data.0.draft.version', 3));
+        $this->assertNotEmpty($listed);
+        foreach ($listed as $sql) {
+            $this->assertStringNotContainsString('*', $sql);
+            $this->assertStringNotContainsString('"payload"', $sql);
+        }
+
+        // One document: only its draft and published payloads are read, not the history's.
+        $shown = $versionReads(fn () => $this->getJson($this->url($id), $this->headersFor())->assertOk()->assertJsonCount(3, 'data.history'));
+        $withPayload = array_values(array_filter($shown, fn ($sql) => str_contains($sql, '*') || str_contains($sql, '"payload"')));
+        $this->assertCount(2, $withPayload);
+        foreach ($withPayload as $sql) {
+            $this->assertStringContainsString('"status" =', $sql);
+        }
+    }
+
+    public function test_the_list_filters_by_scope(): void
+    {
+        $tenant = $this->save(['key' => 'items'])['data']['id'];
+        $branchA = $this->save(['key' => 'items', 'scope_type' => 'branch', 'scope_id' => $this->branchA->id])['data']['id'];
+        $this->save(['key' => 'items', 'scope_type' => 'branch', 'scope_id' => $this->branchB->id]);
+
+        $ids = fn (string $query) => array_column($this->getJson(self::URL.'?key=items&'.$query, $this->headersFor())->assertOk()->json('data'), 'id');
+
+        $this->assertSame([$branchA], $ids('scope_type=branch&scope_id='.$this->branchA->id));
+        $this->assertSame([$tenant], $ids('scope_type=tenant'));
+        $this->assertSame([], $ids('scope_type=location&scope_id='.$this->locationA->id));
+        $this->getJson(self::URL.'?scope_type=branch', $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('scope_id');
+        $this->getJson(self::URL.'?scope_type=tenant&scope_id='.$this->branchA->id, $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('scope_id');
+        $this->getJson(self::URL.'?scope_id='.$this->branchA->id, $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('scope_type');
+    }
+
+    public function test_writes_are_throttled_per_user(): void
+    {
+        for ($i = 0; $i < 60; $i++) {
+            $this->save(['payload' => 'not an object'], status: 422);
+        }
+
+        $this->save(['payload' => 'not an object'], status: 429);
+        // Reading is not a write.
+        $this->getJson(self::URL, $this->headersFor())->assertOk();
+    }
+
+    public function test_published_rows_keep_their_provenance_and_documents_their_identity(): void
+    {
+        // TRUNCATE is refused (as the schema owner, who could otherwise).
+        $owner = DB::connection('pgsql_owner');
+        $owner->beginTransaction();
+        try {
+            $owner->statement("set local lock_timeout = '5s'");
+            $owner->statement('truncate config_versions');
+            $this->fail('config_versions was truncated');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('never truncated', $e->getMessage());
+        } finally {
+            $owner->rollBack();
+        }
+
+        $id = $this->save([])['data']['id'];
+        $this->publish($id)->assertOk();
+
+        $this->inTenant(function () use ($id) {
+            $refused = function (callable $change, string $message) {
+                try {
+                    DB::connection(TenantContext::CONNECTION)->transaction($change);
+                    $this->fail('the change was saved');
+                } catch (QueryException $e) {
+                    $this->assertStringContainsString($message, $e->getMessage());
+                }
+            };
+            $version = fn () => ConfigVersion::query()->where('document_id', $id)->sole();
+            $other = $this->colleague($this->owner)->id;
+
+            foreach (['published_at' => now()->subYear(), 'published_by' => $other, 'created_by' => $other, 'source_version_id' => $version()->id] as $column => $value) {
+                $refused(fn () => $version()->forceFill([$column => $value])->save(), 'immutable');
+            }
+
+            $document = fn () => ConfigDocument::query()->findOrFail($id);
+            foreach (['kind' => 'other_layout', 'key' => 'other', 'scope_type' => 'company', 'scope_id' => $this->acme->id] as $column => $value) {
+                $refused(fn () => $document()->forceFill([$column => $value])->save(), 'keeps its kind, key and scope');
+            }
+
+            // The name may change.
+            $document()->forceFill(['name' => 'Renamed'])->save();
+        });
     }
 }
