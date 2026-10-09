@@ -64,6 +64,8 @@ class PermissionRegistry
         // LAY-06: versioned configuration (themes, layouts, templates), the
         // default for kinds that bring no permissions of their own.
         'config' => ['view', 'edit', 'publish'],
+        // TPL-01..TPL-05: document templates (the `template` configuration kind).
+        'template' => ['view', 'edit', 'publish'],
         // BR-02, BR-03, BR-08: the tenant theme (preset, colours, logos,
         // sign-in page), per tenant, company or branch.
         'theme' => ['view', 'edit', 'publish'],

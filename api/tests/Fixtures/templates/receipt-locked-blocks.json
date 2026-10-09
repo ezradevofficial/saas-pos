@@ -1,0 +1,35 @@
+{
+    "description": "TPL-03: a receipt template that lacks the totals block keeps its tax lines: where the country pack requires fiscal data, both renderers add a totals block (total and tax lines) before the fiscal block. An SVG logo is not printed (PNG and JPEG only).",
+    "type": "pos.receipt",
+    "fiscal_required": true,
+    "template": {
+        "paper": "80mm",
+        "margins": {"top": 3, "right": 3, "bottom": 3, "left": 3},
+        "language": "en",
+        "blocks": [
+            {"id": "logo", "type": "logo", "align": "center", "height": 15},
+            {"id": "hello", "type": "text", "text": "Thanks for visiting {{company.name}}"},
+            {"id": "fiscal", "type": "fiscal"}
+        ]
+    },
+    "data": {
+        "currencies": {"KES": 2},
+        "company": {"name": "Duka Ltd", "legal_name": "Duka Ltd", "tax_id": null, "address": null, "phone": null, "email": null, "country": "KE", "logo": "data:image/svg+xml;base64,PHN2Zy8+", "custom": []},
+        "branch": {"name": "CBD", "code": "CBD", "address": null},
+        "location": {"name": "Till 1", "code": "L01"},
+        "document": {"number": "R-L01-000009", "date": "2026-10-09 18:30", "cashier": "Wanjiru", "currency": "KES"},
+        "customer": null,
+        "lines": [],
+        "totals": {
+            "subtotal": {"minor": "116000", "currency": "KES"},
+            "discount": {"minor": "0", "currency": "KES"},
+            "tax": {"minor": "16000", "currency": "KES"},
+            "total": {"minor": "116000", "currency": "KES"},
+            "dual": null,
+            "tax_lines": [{"name": "VAT", "rate": "16", "tax": {"minor": "16000", "currency": "KES"}}]
+        },
+        "payments": [],
+        "change": null,
+        "fiscal": {"authority": "kra_etims", "status": "pending", "invoice_number": null, "receipt_number": null, "receipt_signature": null, "internal_data": null, "control_unit_id": null, "authority_time": null, "qr": null}
+    }
+}

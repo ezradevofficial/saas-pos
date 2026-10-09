@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Isolation;
 
+use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
@@ -119,6 +120,8 @@ class TenantIsolationTest extends TestCase
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
+        'preview' => 'template_preview', // TPL-01: templates/previews/{preview}/pdf, the owner's preview (a cache key bound to its tenant and user)
+        'document_share' => 'document_share', // TPL-04: pos/sales/{pos_sale}/shares/{document_share}/revoke, a link to the sale's receipt
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
@@ -1243,6 +1246,8 @@ class TenantIsolationTest extends TestCase
             // LAY-06: a layout for the location (saved again on every call: one draft), and a copy of the company's there.
             'POST api/v1/config/{kind}' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'payload' => ['columns' => [['id' => 'name']]]],
             'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published', 'replace' => true],
+            // TPL-01: a template preview for the company (TPL-03 reads the company's country).
+            'POST api/v1/templates/preview' => ['type' => 'pos.receipt', 'payload' => DefaultTemplates::for('pos.receipt'), 'scope_type' => 'company', 'scope_id' => $tenant->id('company')],
             // Payments: the money received matched to the till's manual payment.
             'POST api/v1/payment-receipts/{payment_receipt}/match' => ['payment_intent_id' => $tenant->id('payment_intent')],
             default => null,

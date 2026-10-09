@@ -232,7 +232,7 @@ class ConfigController
 
         return [
             'data' => ConfigDocumentResource::make($document)->withPayloads()->resolve($request),
-            'meta' => ['problems' => $draft === null ? [] : $this->versions->problems($kind, $draft->payload)],
+            'meta' => ['problems' => $draft === null ? [] : $this->versions->problems($kind, $draft->payload, $document)],
         ];
     }
 }

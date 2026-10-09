@@ -89,8 +89,13 @@ export const migrations = schemaMigrations({
       ],
     },
     {
-      // LAY-05, BR-02: the sell screen's layout and the image cache.
+      // Document templates (TPL-01, TPL-05): the receipt templates synced from the server.
       toVersion: 5,
+      steps: [createTable({ name: 'templates', columns: [data, seenAt] })],
+    },
+    {
+      // LAY-05, BR-02: the sell screen's layout and the image cache.
+      toVersion: 6,
       steps: [
         createTable({ name: 'pos_layout', columns: [data, seenAt] }),
         createTable({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),

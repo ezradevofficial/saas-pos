@@ -1,0 +1,192 @@
+<?php
+
+// TPL-01..TPL-05 : modèles de documents. `print` contient les mots de
+// l’application imprimés sur les documents ; ils sont aussi envoyés aux
+// caisses avec les modèles de reçu (et inclus dans pos/src/locales sous
+// `templates.print`). Les paramètres ont la forme `:nom` des deux côtés.
+return [
+    'types' => [
+        'pos_receipt' => 'Reçu de caisse',
+        'pos_refund_receipt' => 'Reçu de remboursement',
+        'sales_invoice' => 'Facture de vente',
+        'sales_quote' => 'Devis',
+        'procurement_po' => 'Bon de commande',
+        'stores_delivery_note' => 'Bon de livraison',
+        'payroll_payslip' => 'Bulletin de paie',
+        'party_statement' => 'Relevé client',
+        'letter' => 'Lettre',
+    ],
+
+    'groups' => [
+        'company' => 'Société',
+        'branch' => 'Succursale',
+        'location' => 'Point de vente',
+        'document' => 'Document',
+        'customer' => 'Client',
+        'lines' => 'Lignes',
+        'totals' => 'Totaux',
+        'payments' => 'Paiements',
+        'fiscal' => 'Administration fiscale',
+        'custom' => 'Champs personnalisés',
+    ],
+
+    'print' => [
+        'fields' => [
+            'company' => [
+                'name' => 'Entreprise',
+                'legal_name' => 'Raison sociale',
+                'tax_id' => 'N° fiscal',
+                'address' => 'Adresse',
+                'phone' => 'Téléphone',
+                'email' => 'E-mail',
+            ],
+            'branch' => [
+                'name' => 'Succursale',
+                'code' => 'Code succursale',
+                'address' => 'Adresse de la succursale',
+            ],
+            'location' => [
+                'name' => 'Point de vente',
+                'code' => 'Code point de vente',
+            ],
+            'document' => [
+                'number' => 'Numéro',
+                'date' => 'Date',
+                'cashier' => 'Servi par',
+                'currency' => 'Devise',
+                'reference' => 'Reçu d’origine',
+                'reason' => 'Motif',
+                'due_date' => 'Échéance',
+                'valid_until' => 'Valable jusqu’au',
+                'period' => 'Période',
+                'subject' => 'Objet',
+                'employee' => 'Salarié',
+                'supplier' => 'Fournisseur',
+            ],
+            'customer' => [
+                'name' => 'Client',
+                'tax_id' => 'N° fiscal du client',
+                'phone' => 'Téléphone',
+                'email' => 'E-mail',
+                'address' => 'Adresse',
+            ],
+            'totals' => [
+                'subtotal' => 'Sous-total',
+                'discount' => 'Remise',
+                'tax' => 'Taxe',
+                'total' => 'Total',
+            ],
+            'fiscal' => [
+                'invoice_number' => 'Facture fiscale',
+                'receipt_number' => 'Reçu de l’administration',
+                'receipt_signature' => 'Signature du reçu',
+                'internal_data' => 'Données internes',
+                'control_unit_id' => 'Unité de contrôle',
+                'authority_time' => 'Heure de l’administration',
+            ],
+        ],
+        'numbers' => [
+            'pos_receipt' => 'Reçu',
+            'pos_refund_receipt' => 'Remboursement',
+            'sales_invoice' => 'Facture',
+            'sales_quote' => 'Devis',
+            'procurement_po' => 'Bon de commande',
+            'stores_delivery_note' => 'Bon de livraison',
+            'payroll_payslip' => 'Bulletin de paie',
+            'party_statement' => 'Relevé',
+            'letter' => 'Référence',
+        ],
+        'columns' => [
+            'item_name' => 'Article',
+            'item_code' => 'Code',
+            'qty' => 'Qté',
+            'unit' => 'Unité',
+            'unit_price' => 'Prix',
+            'discount' => 'Remise',
+            'tax_rate' => 'Taux de taxe',
+            'tax' => 'Taxe',
+            'total' => 'Montant',
+            'description' => 'Libellé',
+            'amount' => 'Montant',
+            'date' => 'Date',
+            'debit' => 'Débit',
+            'credit' => 'Crédit',
+            'balance' => 'Solde',
+        ],
+        'totals' => [
+            'subtotal' => 'Sous-total',
+            'discount' => 'Remise',
+            'tax' => 'Taxe',
+            'total' => 'Total',
+            'total_in' => 'Total en :currency',
+            'tax_line' => ':name :rate %',
+        ],
+        'payments' => [
+            'payment' => 'Paiement',
+            'change' => 'Monnaie rendue',
+        ],
+        'signature' => 'Signature',
+        'fiscal' => [
+            'authority' => [
+                'kra_etims' => 'KRA eTIMS',
+                'dgi' => 'Facture normalisée DGI',
+                'other' => 'Reçu fiscal',
+            ],
+            'status' => [
+                'waiting' => 'En attente d’envoi',
+                'pending' => 'En attente',
+                'accepted' => 'Accepté',
+                'rejected' => 'Refusé par l’administration',
+                'off' => 'Non transmis à l’administration',
+            ],
+            'help' => [
+                'waiting' => 'La vente est sur cette caisse. Elle est envoyée au serveur, puis à l’administration, quand la caisse est en ligne.',
+                'pending' => 'Le code et le QR code de l’administration sont ajoutés une fois la vente reçue par le serveur et acceptée par l’administration.',
+                'rejected' => 'Le back-office a la réponse de l’administration et assure le suivi. La vente reste valable.',
+                'off' => 'Cette entreprise n’envoie pas encore ses ventes à l’administration fiscale depuis la plateforme.',
+            ],
+        ],
+    ],
+
+    'sample' => [
+        'company' => 'Exemple Commerce SARL',
+        'branch' => 'Succursale principale',
+        'location' => 'Comptoir',
+        'cashier' => 'Caissier exemple',
+        'customer' => 'Client exemple',
+        'item_1' => 'Article exemple',
+        'item_2' => 'Deuxième article exemple',
+        'payment' => 'Espèces',
+        'reason' => 'Retourné non ouvert',
+        'subject' => 'Lettre exemple',
+        'employee' => 'Salarié exemple',
+        'supplier' => 'Fournisseur exemple',
+        'tax' => 'TVA',
+        'basic_pay' => 'Salaire de base',
+        'deduction' => 'Retenue exemple',
+        'opening' => 'Solde d’ouverture',
+        'invoice' => 'Facture',
+        'payment_received' => 'Paiement reçu',
+    ],
+
+    'errors' => [
+        'unknown_type' => 'Ce type de document n’existe pas. Choisissez-en un dans la liste.',
+        'preview_expired' => 'Cet aperçu a expiré. Actualisez l’aperçu, puis téléchargez-le à nouveau.',
+        'no_email' => 'Saisissez une adresse e-mail, ou ajoutez-en une au client.',
+        'share_expired' => 'Ce lien a expiré ou a été retiré. Demandez à l’entreprise de renvoyer le document.',
+        'too_many_emails' => 'Trop d’e-mails envoyés. Attendez quelques minutes, puis renvoyez-le.',
+    ],
+
+    'mail' => [
+        'subject' => ':document :number de :company',
+        'body' => 'Votre :document :number de :company est en pièce jointe.',
+    ],
+
+    'attributes' => [
+        'type' => 'type de document',
+        'payload' => 'modèle',
+        'email' => 'adresse e-mail',
+        'language' => 'langue',
+        'format' => 'format',
+    ],
+];

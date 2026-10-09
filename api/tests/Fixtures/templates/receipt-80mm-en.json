@@ -1,0 +1,51 @@
+{
+    "description": "The default POS receipt (80 mm, English) of a KES sale in Kenya: a discounted line, one tax line, cash with change, accepted by KRA eTIMS.",
+    "type": "pos.receipt",
+    "fiscal_required": true,
+    "template": {
+        "paper": "80mm",
+        "margins": {"top": 3, "right": 3, "bottom": 3, "left": 3},
+        "language": "en",
+        "blocks": [
+            {"id": "header", "type": "text", "text": "{{company.legal_name}}", "align": "center", "size": "large", "weight": "medium"},
+            {"id": "tax-id", "type": "field", "field": "company.tax_id", "label": true},
+            {"id": "place", "type": "text", "text": "{{branch.name}} · {{location.name}}", "align": "center", "size": "small", "weight": "regular"},
+            {"id": "divider-1", "type": "divider", "style": "solid"},
+            {"id": "number", "type": "field", "field": "document.number", "label": true},
+            {"id": "date", "type": "field", "field": "document.date", "label": true},
+            {"id": "cashier", "type": "field", "field": "document.cashier", "label": true},
+            {"id": "customer", "type": "field", "field": "customer.name", "label": true},
+            {"id": "divider-2", "type": "divider", "style": "solid"},
+            {"id": "lines", "type": "lines", "columns": ["item_name", "qty", "unit_price", "discount", "total"]},
+            {"id": "divider-3", "type": "divider", "style": "solid"},
+            {"id": "totals", "type": "totals", "show": ["subtotal", "discount", "tax", "total", "dual"], "tax_lines": true},
+            {"id": "divider-4", "type": "divider", "style": "solid"},
+            {"id": "payments", "type": "payments", "show_change": true},
+            {"id": "fiscal", "type": "fiscal"}
+        ],
+        "variants": []
+    },
+    "data": {
+        "currencies": {"KES": 2},
+        "company": {"name": "Duka <Ltd>", "legal_name": "Duka \"Wholesale\" Ltd", "tax_id": "P051234567X", "address": "Moi Avenue, Nairobi", "phone": null, "email": null, "country": "KE", "logo": null, "custom": []},
+        "branch": {"name": "Westlands", "code": "WL", "address": null},
+        "location": {"name": "Till 2", "code": "L01"},
+        "document": {"number": "R-L01-000042", "date": "2026-10-09 14:32", "cashier": "Baraka Mwangi", "currency": "KES"},
+        "customer": null,
+        "lines": [
+            {"item_name": "Tusker Lager 500ml", "item_code": "TL500", "qty": "2", "unit": "EA", "unit_price": {"minor": "25000", "currency": "KES"}, "discount": {"minor": "0", "currency": "KES"}, "tax_rate": "12.5", "tax": {"minor": "5556", "currency": "KES"}, "total": {"minor": "50000", "currency": "KES"}, "custom": []},
+            {"item_name": "Soap & Co bar", "item_code": "SOAP", "qty": "1.5", "unit": "EA", "unit_price": {"minor": "123456", "currency": "KES"}, "discount": {"minor": "5000", "currency": "KES"}, "tax_rate": "12.5", "tax": {"minor": "20021", "currency": "KES"}, "total": {"minor": "180184", "currency": "KES"}, "custom": []}
+        ],
+        "totals": {
+            "subtotal": {"minor": "235184", "currency": "KES"},
+            "discount": {"minor": "5000", "currency": "KES"},
+            "tax": {"minor": "25577", "currency": "KES"},
+            "total": {"minor": "230184", "currency": "KES"},
+            "dual": null,
+            "tax_lines": [{"name": "VAT test", "rate": "12.5", "tax": {"minor": "25577", "currency": "KES"}}]
+        },
+        "payments": [{"method": "Cash KES", "amount": {"minor": "250000", "currency": "KES"}, "reference": null}],
+        "change": {"minor": "19816", "currency": "KES"},
+        "fiscal": {"authority": "kra_etims", "status": "accepted", "invoice_number": "1001", "receipt_number": "77", "receipt_signature": "ABCD1234EFGH5678", "internal_data": null, "control_unit_id": "KRACU0100000001", "authority_time": "2026-10-09 14:33", "qr": "https://etims.example/verify?ABCD1234EFGH5678"}
+    }
+}
