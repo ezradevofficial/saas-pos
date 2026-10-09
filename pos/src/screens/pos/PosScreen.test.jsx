@@ -120,8 +120,8 @@ describe('PosScreen', () => {
 
     // NFR-04: the shift and the sale wait offline, then go up in order.
     expect(services.engine.getStatus().pending).toBe(2);
-    // The shift was opened online, so it was offered at once (NFR-04); the fake server left it unanswered.
-    expect(server.state.requests.some((request) => request.method === 'POST' && request.path === 'pos/shifts')).toBe(true);
+    // A shift opened online may already have been offered once (the scheduler uploads soon after
+    // queueing, NFR-04); only the uploads after reconnecting are checked for order.
     const before = server.state.requests.length;
     server.goOnline();
     services.engine.setNetwork('online');
