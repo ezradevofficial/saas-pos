@@ -46,6 +46,7 @@ class PreferencesApiTest extends TestCase
             'core.approval.attention', 'core.approval.decided', 'core.approval.delegated', 'core.approval.escalated', 'core.approval.info_requested',
             'core.approval.reminder', 'core.approval.requested', 'core.approval.returned',
             'core.automation.failed', 'core.automation.notify', 'core.credit_limit_change.apply_failed', 'core.credit_limit_change.conflicted',
+            'core.fiscal.delayed', 'core.fiscal.needs_attention', 'core.fiscal.rejected',
             'core.identity.new_device', 'core.notification.test', 'core.report.ready', 'core.workflow.notify', 'core.workflow.stage_overdue', 'core.workflow.stage_reminder',
         ], array_column($data, 'event_type'));
 

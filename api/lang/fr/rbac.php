@@ -42,6 +42,8 @@ return [
                 'notification_delivery' => 'Envois de notifications',
                 'approval' => 'Approbations',
                 'credit_limit' => 'Plafonds de crédit',
+                'payment' => 'Paiements',
+                'fiscal' => 'Transmission fiscale',
                 'numbering' => 'Numérotation des documents',
             ],
             'pos' => [
@@ -70,6 +72,7 @@ return [
             'request' => 'Demander',
             'approve' => 'Approuver',
             'set_directly' => 'Fixer directement',
+            'match' => 'Rapprocher',
             'print' => 'Imprimer',
             'void' => 'Annuler',
             'refund' => 'Rembourser',

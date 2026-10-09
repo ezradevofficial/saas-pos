@@ -19,6 +19,9 @@ use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
 use App\Core\Currency\Http\Controllers\ExchangeRateController;
 use App\Core\Currency\Http\Controllers\TenantCurrencyController;
+use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
+use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
+use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Identity\Http\Controllers\AcceptInvitationController;
 use App\Core\Identity\Http\Controllers\InvitationController;
 use App\Core\Identity\Http\Controllers\MeController;
@@ -58,6 +61,14 @@ use App\Core\Notifications\Http\Controllers\NotificationSettingsController;
 use App\Core\Notifications\Http\Controllers\PreferenceController;
 use App\Core\Notifications\Http\Controllers\TemplateController;
 use App\Core\Numbering\Http\Controllers\NumberFormatController;
+use App\Core\Payments\CallbackTokens;
+use App\Core\Payments\Http\Controllers\CallbackController;
+use App\Core\Payments\Http\Controllers\DeviceIntentController;
+use App\Core\Payments\Http\Controllers\PaymentController;
+use App\Core\Payments\Http\Controllers\PaymentMethodCallbackController;
+use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Payments\Models\PaymentReceipt;
+use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Rbac\Http\Controllers\AccessReviewController;
 use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
@@ -86,7 +97,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -98,6 +109,9 @@ Route::model('automation_run', AutomationRun::class);
 Route::model('approval', ApprovalRequest::class);
 Route::model('delegation', ApprovalDelegation::class);
 Route::model('credit_limit_change', CreditLimitChange::class);
+Route::model('payment_intent', PaymentIntent::class);
+Route::model('payment_receipt', PaymentReceipt::class);
+Route::model('fiscal_submission', FiscalSubmission::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -145,6 +159,14 @@ Route::post('approvals/email/{token}', [EmailApprovalController::class, 'confirm
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');
 
+// Payments: a provider's callback (Daraja). The 48-character token names
+// the tenant and the payment method; the caller's address must be the
+// provider's; the body is checked per kind (CallbackController).
+Route::post('payments/callbacks/{token}/{kind}', CallbackController::class)
+    ->where('token', '[A-Za-z0-9]{'.CallbackTokens::LENGTH.'}')
+    ->where('kind', implode('|', CallbackTokens::KINDS))
+    ->middleware('throttle:'.PaymentsServiceProvider::CALLBACK_LIMITER);
+
 // TEN-05: routes for a paired device's token only (ability `device`).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class])->group(function () {
     Route::get('devices/me', [DevicePairingController::class, 'me']);
@@ -167,6 +189,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
         Route::post('sync/device-secret/rotate', [SyncController::class, 'rotateSecret']);
         Route::post('sync/device-secret/activate', [SyncController::class, 'activateSecret']);
     });
+
+    // Payments at the till: an STK push or a manual confirmation, then polling.
+    Route::post('payments/intents', [DeviceIntentController::class, 'store']);
+    Route::get('payments/intents/{payment_intent}', [DeviceIntentController::class, 'show']);
 });
 
 // The token sets the tenant; the language is chosen again so the tenant's
@@ -278,6 +304,24 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('payment-methods/{payment_method}', [PaymentMethodController::class, 'update']);
     Route::post('payment-methods/{payment_method}/archive', [PaymentMethodController::class, 'archive']);
     Route::post('payment-methods/{payment_method}/restore', [PaymentMethodController::class, 'restore']);
+
+    // Payments: a method's provider callback URLs (core.payment_method.configure),
+    // the company's payment intents and money received, matched by hand.
+    Route::get('payment-methods/{payment_method}/callbacks', [PaymentMethodCallbackController::class, 'show']);
+    Route::post('payment-methods/{payment_method}/callbacks/rotate', [PaymentMethodCallbackController::class, 'rotate']);
+    Route::post('payment-methods/{payment_method}/c2b/register', [PaymentMethodCallbackController::class, 'registerC2b']);
+    Route::get('companies/{company}/payment-intents', [PaymentController::class, 'intents']);
+    Route::get('companies/{company}/payment-receipts', [PaymentController::class, 'receipts']);
+    Route::post('payment-receipts/{payment_receipt}/match', [PaymentController::class, 'match']);
+
+    // Fiscal (POS-10): the company's authority settings and its queue.
+    Route::get('companies/{company}/fiscal-settings', [FiscalSettingsController::class, 'show']);
+    Route::put('companies/{company}/fiscal-settings', [FiscalSettingsController::class, 'save']);
+    Route::post('companies/{company}/fiscal-settings/initialize', [FiscalSettingsController::class, 'initialize']);
+    Route::get('companies/{company}/fiscal-submissions', [FiscalSubmissionController::class, 'index']);
+    Route::post('companies/{company}/fiscal-submissions/send-earlier', [FiscalSubmissionController::class, 'sendEarlier']);
+    Route::get('fiscal-submissions/{fiscal_submission}', [FiscalSubmissionController::class, 'show']);
+    Route::post('fiscal-submissions/{fiscal_submission}/retry', [FiscalSubmissionController::class, 'retry']);
 
     // MD-05: departments, cost centres and projects per company (`dimension_type` names the kind).
     foreach (Dimensions::TYPES as $type => $model) {

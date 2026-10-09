@@ -6,6 +6,8 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\Fiscal\FiscalQueue;
+use App\Core\Fiscal\FiscalSources;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\VerificationCode;
@@ -31,6 +33,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
+use Tests\Support\Fiscal\TestFiscalSource;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -50,8 +53,10 @@ use Tests\TestCase;
  * projects, a published workflow with a document in it that created an
  * order, working hours, notification texts, settings and preferences, and
  * a notification sent to the owner and the manager, an automation rule
- * and its run, and the POS module with a till's ranges, shift, sales, a void,
- * a refund and a cash movement). Field rules, limit
+ * and its run, payment intents made at the till and money received that
+ * matched nothing, fiscal settings and a submission to the authority, and
+ * the POS module with a till's ranges, shift, sales, a void, a refund and a
+ * cash movement). Field rules, limit
  * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
@@ -80,7 +85,22 @@ final class TwoTenants
         Mail::fake();
         Storage::fake('media');
         // AUTO-03: webhooks go nowhere; the receiver's name resolves to a public address.
-        Http::fake(['https://hooks.example.com/*' => Http::response('received', 200)]);
+        Http::fake([
+            'https://hooks.example.com/*' => Http::response('received', 200),
+            // Payments: Daraja's sandbox answers an OAuth token and accepts STK pushes.
+            'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok-isolation', 'expires_in' => '3599']),
+            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => fn () => Http::response(['MerchantRequestID' => 'm-'.Str::random(8), 'CheckoutRequestID' => 'ws_CO_'.Str::random(16), 'ResponseCode' => '0']),
+        ]);
+        // Payments: callbacks come from the test client's address; fiscal: the
+        // test document source (as the POS registers its sales).
+        config([
+            'payments.mpesa.base_url' => 'https://sandbox.safaricom.co.ke',
+            'payments.callback_base_url' => 'https://api.example.com',
+            'payments.mpesa.callback_ips' => ['127.0.0.1'],
+            'payments.drivers' => [],
+        ]);
+        TestFiscalSource::reset();
+        app(FiscalSources::class)->register(TestFiscalSource::KEY, TestFiscalSource::class);
         app()->instance(HostResolver::class, new FakeHostResolver(['hooks.example.com' => [['93.184.216.34']]]));
         app(ModuleRegistry::class)->register(self::MODULE);
         // WF-01: the test document types (a request that creates orders).
@@ -241,6 +261,36 @@ final class TwoTenants
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
         $deviceToken = self::ok($test->postJson('/api/v1/devices/pair', ['code' => $code, 'device_name' => "Tablet {$upper}"]))->json('token');
+
+        // Concept note 7.1: the till pushes an M-Pesa payment and confirms one
+        // by its code; money arrives on the Paybill that matches nothing yet
+        // (C2B, through the method's callback URL).
+        // The cashier must be staff of the till's location (the POS module's sign-in permission).
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pos'));
+        $till = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        self::ok($test->postJson('/api/v1/payments/intents', [
+            'payment_method_id' => $paymentMethod, 'mode' => 'stk', 'amount_minor' => '150000', 'currency' => 'KES',
+            'phone' => $key === 'a' ? '0712000101' : '0712000201', 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $ownerId,
+        ], $till), 201);
+        $paymentIntent = self::ok($test->postJson('/api/v1/payments/intents', [
+            'payment_method_id' => $paymentMethod, 'mode' => 'manual', 'amount_minor' => '50000', 'currency' => 'KES',
+            'receipt' => "QJK3{$upper}MANUAL", 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $ownerId,
+        ], $till), 201)->json('data.id');
+        $callbackUrls = self::ok($test->getJson("/api/v1/payment-methods/{$paymentMethod}/callbacks", $owner))->json('data.urls');
+        $callbackToken = basename(dirname($callbackUrls['c2b-confirm']));
+        self::ok($test->postJson("/api/v1/payments/callbacks/{$callbackToken}/c2b-confirm", [
+            'TransactionType' => 'Pay Bill', 'TransID' => "QJK3{$upper}LOOSE1", 'TransTime' => '20261009101500', 'TransAmount' => '700.00',
+            'BusinessShortCode' => "17437{$key}", 'BillRefNumber' => "Counter {$upper}", 'MSISDN' => '2547 ***** 126', 'FirstName' => 'Jane',
+        ]));
+        $paymentReceipt = self::ok($test->getJson("/api/v1/companies/{$company}/payment-receipts", $owner))->json('data.0.id');
+
+        // Concept note 7.2: the company's VAT code carries its eTIMS band,
+        // transmission is on (fake driver) and a sale went to the authority.
+        self::ok($test->patchJson("/api/v1/tax-codes/{$taxCode}", ['fiscal_code' => 'B'], $owner));
+        self::ok($test->putJson("/api/v1/companies/{$company}/fiscal-settings", ['driver' => 'fake', 'tin' => "P05100000{$upper}", 'enabled' => true], $owner), 201);
+        $fiscalSale = (string) Str::uuid7();
+        TestFiscalSource::sale($fiscalSale, $company, [["Article {$upper}", $taxCode, '12.5', 22500, 2500]]);
+        $fiscalSubmission = app(TenantContext::class)->run($tenantId, fn () => app(FiscalQueue::class)->enqueue(TestFiscalSource::KEY, 'sale', $fiscalSale, $company)->id);
 
         // RBAC-02: a custom role; the system roles come from sign-up.
         $role = self::ok($test->postJson('/api/v1/roles', [
@@ -431,12 +481,15 @@ final class TwoTenants
                 'approval' => $approval,
                 'delegation' => $delegation,
                 'credit_limit_change' => $creditLimitChange,
+                'payment_intent' => $paymentIntent,
+                'payment_receipt' => $paymentReceipt,
+                'fiscal_submission' => $fiscalSubmission,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}"])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}", $callbackToken])),
         );
     }
 

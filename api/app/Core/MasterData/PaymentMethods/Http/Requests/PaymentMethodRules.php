@@ -84,6 +84,14 @@ final class PaymentMethodRules
                     : __("core.payment_method.{$field}_unknown", ['keys' => implode(', ', $allowed)]));
             }
         }
+
+        foreach ($providers->settingValues($provider) as $key => $values) {
+            $value = $input['settings'][$key] ?? null;
+
+            if ($value !== null && ! in_array($value, $values, true)) {
+                $validator->errors()->add("settings.{$key}", __('core.payment_method.setting_value_invalid', ['key' => $key, 'values' => implode(', ', $values)]));
+            }
+        }
     }
 
     /** @return array<string, string> */

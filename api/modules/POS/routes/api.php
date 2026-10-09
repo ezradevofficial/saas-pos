@@ -6,6 +6,7 @@ use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
 use Modules\POS\Http\Controllers\Device\DeviceUploadController;
+use Modules\POS\Http\Controllers\Device\SaleFiscalController;
 use Modules\POS\Http\Controllers\HeldController;
 use Modules\POS\Http\Controllers\SaleController;
 use Modules\POS\Http\Controllers\ShiftController;
@@ -37,6 +38,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
     Route::post('pos/cash-movements', [DeviceUploadController::class, 'cashMovements']);
     Route::post('pos/voids', [DeviceUploadController::class, 'voids']);
     Route::post('pos/refunds', [DeviceUploadController::class, 'refunds']);
+
+    // POS-10: the fiscal state of a sale of this till's location, for its receipt.
+    Route::get('pos/sales/{pos_sale}/fiscal', SaleFiscalController::class);
 });
 
 // POS-12: the back office (people's tokens only).

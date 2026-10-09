@@ -29,3 +29,9 @@ Schedule::command('credit-limits:reconcile')->everyFiveMinutes()->withoutOverlap
 
 // WF-09: reminders, overdue notices and escalation of plain workflow stages, in business time.
 Schedule::command('workflow:process-stage-timers')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+
+// Payments: STK pushes past their timeout, payouts without a result, manual M-Pesa codes due for a check.
+Schedule::command('payments:process-timers')->everyMinute()->withoutOverlapping()->onOneServer();
+
+// Fiscal (POS-10): documents due for the tax authority, retried with backoff until accepted.
+Schedule::command('fiscal:process')->everyMinute()->withoutOverlapping()->onOneServer();

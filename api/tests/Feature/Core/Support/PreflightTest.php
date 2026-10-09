@@ -18,6 +18,10 @@ class PreflightTest extends TestCase
             'services.sms.driver' => null,
             'cache.default' => 'redis',
             'queue.default' => 'redis',
+            // Real environments never allow the fake payment or fiscal drivers.
+            'payments.allow_fake' => false,
+            'payments.drivers' => [],
+            'fiscal.allow_fake' => false,
         ], $config));
     }
 

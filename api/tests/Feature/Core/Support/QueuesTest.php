@@ -61,7 +61,7 @@ class QueuesTest extends TestCase
     {
         $supervisors = config('horizon.defaults');
         $queues = collect($supervisors)->flatMap(fn ($s) => $s['queue'])->all();
-        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation'], $queues);
+        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal'], $queues);
 
         $webhook = config('automation.webhook_timeout') + config('automation.dns_timeout');
         $retryAfter = config('queue.connections.redis.retry_after');

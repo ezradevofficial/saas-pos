@@ -2,6 +2,8 @@
 
 namespace Modules\POS\Sync;
 
+use App\Core\Fiscal\FiscalQueue;
+use Modules\POS\Fiscal\PosFiscalSource;
 use Modules\POS\Models\CashMovement;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\Sale;
@@ -28,7 +30,22 @@ final class UploadResults
             'receipt_number' => $sale->receipt_number,
             'flags' => $sale->flags,
             'received_at' => $sale->received_at->toIso8601String(),
+            // POS-10: null when the company does not transmit; else the
+            // authority's answer so far (`pending` until accepted; the
+            // till asks GET pos/sales/{id}/fiscal later).
+            'fiscal' => self::fiscal($sale),
         ];
+    }
+
+    private static function fiscal(Sale $sale): ?string
+    {
+        $queue = app(FiscalQueue::class);
+
+        if (! $queue->transmits($sale->company_id)) {
+            return null;
+        }
+
+        return $queue->statusFor(PosFiscalSource::KEY, 'sale', $sale->id)['status'] ?? 'pending';
     }
 
     /** @return array<string, mixed> */
