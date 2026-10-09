@@ -288,9 +288,9 @@ export function Devices({ location, chain, archived }) {
       ].join(' · '),
       t('devices.pairedAt', { date: when(device.paired_at) }),
     ].filter(Boolean)
-    if (device.secret) {
-      const days = daysSince(device.secret.active_since)
-      lines.push(t('devices.secretAge', { kid: device.secret.kid, count: days, formatted: formatInteger(days, locale) }))
+    if (device.signing_key) {
+      const days = daysSince(device.signing_key.active_since)
+      lines.push(t('devices.secretAge', { kid: device.signing_key.kid, count: days, formatted: formatInteger(days, locale) }))
     }
     return lines
   }

@@ -24,7 +24,7 @@ class DeviceResource extends JsonResource
             'last_push_at' => $this->last_push_at?->toIso8601String(),
             'last_bootstrap_at' => $this->last_bootstrap_at?->toIso8601String(),
             // AUTH-06, AUTH-08: which secret the device signs with and since when (never the secret).
-            'secret' => $this->whenLoaded('currentSecret', fn () => $this->currentSecret === null ? null : [
+            'signing_key' => $this->whenLoaded('currentSecret', fn () => $this->currentSecret === null ? null : [
                 'kid' => $this->currentSecret->kid,
                 'active_since' => ($this->currentSecret->activated_at ?? $this->currentSecret->issued_at)?->toIso8601String(),
             ]),

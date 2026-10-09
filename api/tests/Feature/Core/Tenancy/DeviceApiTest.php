@@ -65,16 +65,16 @@ class DeviceApiTest extends TestCase
     {
         $id = $this->createDevice();
         $this->getJson("/api/v1/locations/{$this->locationA->id}/devices", $this->headersFor())
-            ->assertOk()->assertJsonPath('data.0.secret', null);
+            ->assertOk()->assertJsonPath('data.0.signing_key', null);
 
         $paired = $this->pair($this->pairingCode($id))->assertOk();
         $kid = $paired->json('device_secret_kid');
 
         $row = $this->getJson("/api/v1/locations/{$this->locationA->id}/devices", $this->headersFor())->assertOk()->json('data.0');
-        $this->assertSame($kid, $row['secret']['kid']);
-        $this->assertNotNull($row['secret']['active_since']);
-        $this->assertSame(['kid', 'active_since'], array_keys($row['secret']));
-        $this->getJson("/api/v1/devices/{$id}", $this->headersFor())->assertOk()->assertJsonPath('data.secret.kid', $row['secret']['kid']);
+        $this->assertSame($kid, $row['signing_key']['kid']);
+        $this->assertNotNull($row['signing_key']['active_since']);
+        $this->assertSame(['kid', 'active_since'], array_keys($row['signing_key']));
+        $this->getJson("/api/v1/devices/{$id}", $this->headersFor())->assertOk()->assertJsonPath('data.signing_key.kid', $row['signing_key']['kid']);
 
         // NUM-01: the code printed in receipt numbers ({DEVICE}).
         $this->patchJson("/api/v1/devices/{$id}", ['code' => 'T01'], $this->headersFor())->assertOk()->assertJsonPath('data.code', 'T01');
