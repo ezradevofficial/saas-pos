@@ -54,6 +54,11 @@ use Modules\POS\Models\Shift;
  * - **Same id, other content** (`payload_mismatch`): refused, the stored
  *   sale stays as it was.
  * - **A closed shift** gets its expected cash recounted (H4).
+ * - **A shift the server never received** (NFR-04): the sale waits
+ *   (`shift_unknown`, retryable) for `pos.unknown_shift_grace_hours`
+ *   after it was sold, then is stored on a placeholder shift with the
+ *   device's shift id (closed, flagged `placeholder`) and flagged
+ *   `shift_missing` for review, so money taken never retries for ever.
  * - **Refused** (the sale is not a sale the server can keep): unknown or
  *   foreign references, sums that do not add up, a tender conversion the
  *   stated rate does not give, change above the overpayment, and an item
@@ -141,7 +146,7 @@ class SaleUploads
             $flags->add('clock_ahead');
         }
 
-        $shift = $this->shift($place, $data['shift_id'], $at, $flags);
+        $shift = $this->shift($place, $data['shift_id'], $data['cashier_id'], $at, $flags);
         $cashier = $this->authority->user($data['cashier_id'], 'cashier_id');
 
         if (! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
@@ -236,17 +241,63 @@ class SaleUploads
         return $sale;
     }
 
-    private function shift(DevicePlace $place, string $id, CarbonImmutable $at, Flags $flags): Shift
+    private function shift(DevicePlace $place, string $id, string $cashierId, CarbonImmutable $at, Flags $flags): Shift
     {
-        // Not uploaded yet (the device sends shifts first) or another tenant's: retry later.
-        $shift = Shift::query()->find($id) ?? throw new Rejection('shift_unknown', 'shift_id', retryable: true);
+        $shift = Shift::query()->find($id);
+
+        if ($shift === null) {
+            // Not uploaded yet (the device sends shifts first): retry later, within the grace.
+            if ($at->greaterThan(now()->subHours((int) config('pos.unknown_shift_grace_hours')))) {
+                throw new Rejection('shift_unknown', 'shift_id', retryable: true);
+            }
+
+            $shift = $this->placeholder($place, $id, $cashierId, $at);
+        }
 
         if ($shift->device_id !== $place->device->id) {
             throw new Rejection('shift_other_device', 'shift_id');
         }
 
-        if (! $shift->isOpen()) {
+        if (in_array('placeholder', array_column($shift->flags ?? [], 'code'), true)) {
+            $flags->add('shift_missing');
+        } elseif (! $shift->isOpen()) {
             $flags->add('received_after_close');
+        }
+
+        return $shift;
+    }
+
+    /**
+     * NFR-04: a closed shift standing in for one the device never got onto
+     * the server, with the device's id (a later upload of the real shift is
+     * answered as stored; its float and count are left to the review).
+     * Made once: a sale racing for it, or an id another tenant holds, finds
+     * what is there.
+     */
+    private function placeholder(DevicePlace $place, string $id, string $cashierId, CarbonImmutable $at): Shift
+    {
+        $cashier = $this->authority->user($cashierId, 'cashier_id');
+
+        $created = Shift::query()->insertOrIgnore([
+            'id' => $id,
+            'tenant_id' => $this->tenants->require(),
+            ...$place->columns(),
+            'status' => Shift::CLOSED,
+            'opened_by' => $cashier->id,
+            'opened_at' => $at,
+            'closed_by' => $cashier->id,
+            'closed_at' => $at,
+            'received_at' => now(),
+            'closed_received_at' => now(),
+            'flags' => json_encode([['code' => 'placeholder']]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $shift = Shift::query()->whereKey($id)->lockForUpdate()->first() ?? throw new Rejection('shift_other_device', 'shift_id');
+
+        if ($created === 1) {
+            $this->auditor->record('pos.shift.placeholder', $shift, null, ['status' => Shift::CLOSED, 'flags' => $shift->flags], ['user_id' => $cashier->id, 'device_time' => $at]);
         }
 
         return $shift;

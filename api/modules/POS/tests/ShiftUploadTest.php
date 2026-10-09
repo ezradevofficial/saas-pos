@@ -123,7 +123,24 @@ class ShiftUploadTest extends TestCase
         $this->getJson("/api/v1/pos/shifts/{$shift}", $this->headersFor())->assertOk()->assertJsonPath('data.received_after_close', 1);
     }
 
-    public function test_one_upload_may_open_and_close_a_shift_and_permissions_apply(): void
+    public function test_one_batch_closes_a_shift_and_opens_the_next_in_the_same_currency(): void
+    {
+        // NFR-04: after a day offline the till sends yesterday's close and today's open together.
+        $yesterday = $this->shiftBody();
+        $this->shifts([$yesterday])->assertOk();
+        $today = $this->shiftBody();
+
+        $this->shifts([[...$yesterday, 'closing' => $this->closing()], $today])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'closed')
+            ->assertJsonPath('results.1.shift_status', 'open');
+
+        // Within one shift a currency is counted once.
+        $twice = [['currency' => 'KES', 'amount_minor' => '100'], ['currency' => 'KES', 'amount_minor' => '200']];
+        $this->shifts([$this->shiftBody(['opening_float' => $twice])])->assertUnprocessable()->assertJsonValidationErrors('shifts.0.opening_float');
+        $this->shifts([[...$today, 'closing' => $this->closing(counted: $twice)]])->assertUnprocessable()->assertJsonValidationErrors('shifts.0.closing.counted');
+    }
+
+    public function test_one_upload_may_open_and_close_a_shift_and_missing_permissions_are_flagged_not_refused(): void
     {
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $other = $this->userWith('cashier', Scope::location($this->locationA->id));
@@ -133,15 +150,29 @@ class ShiftUploadTest extends TestCase
         $this->shifts([[...$this->shiftBody(['opened_by_id' => $cashier->id]), 'closing' => $this->closing($cashier->id)]])->assertOk()
             ->assertJsonPath('results.0.shift_status', 'closed');
 
-        // Someone without pos.shift.open.
-        $this->shifts([$this->shiftBody(['opened_by_id' => $stranger->id])])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'not_permitted');
+        // Someone without pos.shift.open: the shift is kept (the till used it) and flagged for review.
+        $strangers = $this->shiftBody(['opened_by_id' => $stranger->id]);
+        $this->shifts([$strangers])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'open')
+            ->assertJsonPath('results.0.flags', [['code' => 'opener_not_permitted', 'detail' => ['permission' => 'pos.shift.open']]]);
+        $this->shifts([[...$strangers, 'closing' => $this->closing($stranger->id)]])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'closed')
+            ->assertJsonPath('results.0.flags.1', ['code' => 'closer_not_permitted', 'detail' => ['permission' => 'pos.shift.close']]);
 
-        // Another cashier may not close it; a branch manager (pos.shift.manage) may.
+        // Another cashier (no pos.shift.manage) closes it: closed, flagged; a branch manager's close is not.
         $open = $this->shiftBody(['opened_by_id' => $cashier->id]);
-        $this->shifts([$open])->assertOk();
-        $this->shifts([[...$open, 'closing' => $this->closing($other->id)]])->assertUnprocessable()->assertJsonPath('results.0.error.code', 'not_permitted');
+        $this->shifts([$open])->assertOk()->assertJsonPath('results.0.flags', []);
+        $this->shifts([[...$open, 'closing' => $this->closing($other->id)]])->assertOk()
+            ->assertJsonPath('results.0.shift_status', 'closed')
+            ->assertJsonPath('results.0.flags', [['code' => 'closer_not_permitted', 'detail' => ['permission' => 'pos.shift.manage']]]);
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
-        $this->shifts([[...$open, 'closing' => $this->closing($manager->id)]])->assertOk()->assertJsonPath('results.0.shift_status', 'closed');
+        $managed = $this->shiftBody(['opened_by_id' => $cashier->id]);
+        $this->shifts([[...$managed, 'closing' => $this->closing($manager->id)]])->assertOk()->assertJsonPath('results.0.flags', []);
+
+        $this->inTenant(function () use ($open, $managed) {
+            $this->assertSame([['code' => 'closer_not_permitted', 'detail' => ['permission' => 'pos.shift.manage']]], Shift::findOrFail($open['id'])->flags);
+            $this->assertNull(Shift::findOrFail($managed['id'])->flags);
+        });
     }
 
     public function test_cash_movements_need_permission_or_an_override_and_an_open_shift(): void

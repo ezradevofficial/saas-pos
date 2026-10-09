@@ -55,6 +55,7 @@ final class UploadResults
             'id' => $shift->id,
             'status' => self::STORED,
             'shift_status' => $shift->status,
+            'flags' => $shift->flags ?? [],
             'received_at' => $shift->received_at->toIso8601String(),
             'closed_received_at' => $shift->closed_received_at?->toIso8601String(),
         ];

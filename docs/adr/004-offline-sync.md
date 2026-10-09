@@ -1,6 +1,6 @@
 # ADR 004: Offline POS and sync
 
-Status: **Proposed** for the sync design. It will be built and proven in phase 4 ("offline sync prototype, then POS core"). **Accepted** for device pairing and device tokens, which shipped in Sprint 1 (TEN-05).
+Status: **Accepted**. Device pairing and device tokens shipped in Sprint 1 (TEN-05). The sync design was built in phase 4 and accepted on 2026-10-09, once the 7-day offline tests passed (phase 4 Task 7, see Evidence).
 
 ## Context
 
@@ -10,7 +10,7 @@ Each device belongs to one location of one tenant (TEN-05). It may stay unattend
 
 ## Decision
 
-### Sync design (Proposed, phase 4)
+### Sync design (Accepted, phase 4)
 
 - **Local store.** SQLite on the device, through WatermelonDB. It holds items, prices, customers, promotions, rates, taxes and unsent sales.
 - **Identity.** Every record created on the device gets its UUID (v7) on the device. The server never renumbers it.
@@ -24,7 +24,7 @@ Each device belongs to one location of one tenant (TEN-05). It may stay unattend
   - Built in phase 4 Task 1: a range is a block reserved from the document type's NUM-01 counter (`App\Core\Numbering\Numbering::reserve`, one `UPDATE ... RETURNING` under the counter's row lock; a GiST exclusion constraint on `pos_number_ranges` backs it). Its pattern is frozen at allocation: place codes ({BRANCH}, {LOCATION}, {DEVICE}) and, for a yearly format, the year are filled in; {MM} (and the year of a format that never resets) come from the sale's local date. The device formats numbers itself; the server checks an uploaded number belongs to one of the device's ranges and matches the pattern.
   - `POST pos/number-ranges` (device token) with the next number the device will use: when fewer than `pos.ranges.threshold` (100) remain, a block of `pos.ranges.size` (500) is added. Receipts (`pos.receipt`) and refund receipts (`pos.refund`) have their own counters. Unpairing a device retires its ranges; a yearly format's past-year ranges retire when the device asks in the new year.
   - A ranged document type is never gapless: an unused tail of a range is a gap. Fiscal numbering (KRA eTIMS, DGI) is the authority's and comes with the fiscal adapters.
-- **Upload contract (phase 4 Task 1).** `POST pos/shifts`, `pos/sales`, `pos/cash-movements`, `pos/voids`, `pos/refunds` take batches of device-made records; each record gets its own transaction and result (`stored`, also for a resend, with the same answer; or `rejected` with `code`, `message`, `field`, `retryable`). The answer is 200 when anything was stored, 422 `upload_rejected` when nothing was. Upload order: shifts, sales, cash movements, voids, refunds, then shifts again to close them; a record whose shift or sale is not on the server yet is refused as retryable. Completed sales keep the till's prices, discounts, tax and rates; differences are recorded in the sale's `flags`. See `docs/modules/pos.md`.
+- **Upload contract (phase 4 Task 1).** `POST pos/shifts`, `pos/sales`, `pos/cash-movements`, `pos/voids`, `pos/refunds` take batches of device-made records; each record gets its own transaction and result (`stored`, also for a resend, with the same answer; or `rejected` with `code`, `message`, `field`, `retryable`). The answer is 200 when anything was stored, 422 `upload_rejected` when nothing was. Upload order: shifts, sales, cash movements, voids, refunds, then shifts again to close them; a record whose shift or sale is not on the server yet is refused as retryable. A shift is never refused for its opener's or closer's permission (stored and flagged). A sale whose shift still has not arrived `pos.unknown_shift_grace_hours` (72) after it was sold is stored on a placeholder shift with the device's shift id, flagged `shift_missing` for review, so no sale retries for ever. Completed sales keep the till's prices, discounts, tax and rates; differences are recorded in the sale's `flags`. See `docs/modules/pos.md`.
 - **Fiscal queue.** Fiscal submissions queue on the server and retry with back-off until the authority accepts them. The device records the fiscal state it received, or "pending" when offline.
 - **Tests (NFR-04).** Jest sync tests simulate going offline, duplicate uploads, conflicting master-data edits and a 7-day backlog.
 
@@ -45,7 +45,7 @@ Each device belongs to one location of one tenant (TEN-05). It may stay unattend
 
 ### Master data pull (phase 4, Task 2)
 
-Built in `App\Core\Sync`. Still Proposed until the 7-day offline test passes (Task 7).
+Built in `App\Core\Sync`. Accepted with the rest of the sync design (Task 7, see Evidence).
 
 **Endpoints** (device token, ability `device`, 120 requests a minute per device):
 
@@ -195,7 +195,32 @@ To check the timing on a device (not possible in CI):
 - A long-running write transaction delays every device's changes until it commits (never loses them). Timeouts and the lag metric guard against it.
 - Number ranges add a per-device allocation table and a top-up flow. Lost devices waste the unused part of their range, which is acceptable.
 - Because device tokens don't expire, unpairing is the only kill switch. The UI must say so.
-- The design stays Proposed until the phase 4 prototype proves the 7-day offline scenario. Change this ADR then, rather than writing a new one.
+- The 7-day offline scenario is proven by tests (Evidence). Change this ADR when the design changes, rather than writing a new one.
+
+## Evidence (phase 4 Task 7, 2026-10-09)
+
+The design is accepted on these tests. The API tests drive one paired till through the real device endpoints only (device token, offline overrides signed with the device secret); the app tests run the sync engine over the HTTP client with `fetch` mocked by answers the PHP endpoints recorded.
+
+- `api/modules/POS/tests/OfflineWeekTest.php` (NFR-04, NUM-02, POS-04, POS-05, POS-09): bootstrap and pull, then 7 days offline while the server changes a price, a tax rate and an exchange rate, renames, adds and archives items. The backlog (7 shifts, 301 sales, a pay-in, a pay-out, a void and a refund) goes up in the engine's order. Every record is stored once, also when the whole outbox is sent again. Sales keep the till's prices and tax, with `price_differs`, `tax_differs`, `rate_differs` and `price_unknown` flags. Receipt numbers are 1 to 301 from the device's range. Each shift closes with zero variance. Pulls from the week-old cursors, in pages of 2, deliver every change, the tombstones included, in cursor order with no gaps, and end equal to a fresh device's copy.
+- `api/modules/POS/tests/OfflineEdgeCasesTest.php`:
+  - duplicates: a resend, and a resend inside one batch, answer the same; another body gets `payload_mismatch`
+  - conflicts: the server wins on master data, the device wins on the sale
+  - NUM-02: range exhaustion and the next range
+  - backlog order: records sent before their shift or sale are retryable; sales may arrive out of order; two open shifts in one batch; a shift sent closed before its sales
+  - shifts flagged, not refused: a shift opened by someone without `pos.shift.open` is kept, flagged `opener_not_permitted`, and its sales land on it
+  - a sale whose shift never arrives waits 72 hours (configurable), then lands on a placeholder shift, flagged `shift_missing`, in the flagged-sale review (this closed the one gap the proof found: such sales used to retry for ever)
+- `api/modules/POS/tests/ConcurrencyTest.php`: the same sale posted by six concurrent sessions through the endpoint is stored once; a copy with another body gets `payload_mismatch`.
+- `api/modules/POS/tests/OfflineTimingTest.php` (NFR-03): the upload and catalogue pull timings, printed, with bounds generous enough for CI. A local run: one sale uploads in 48 ms (median), a batch of 50 in 2.2 s, and 5,000 items pull in 11 pages in 0.2 s.
+- `api/modules/POS/tests/ShiftUploadTest.php`: a batch that closes one shift and opens the next in the same currency (the proof found this bug: the batch was refused as a whole); openers and closers without the permission are flagged, not refused.
+- `pos/src/sync/offline.test.js`:
+  - 7 days offline with 332 queued records, each uploaded once and in order on reconnect, then the pull resumes from the old cursors
+  - Retry-After and exponential backoff
+  - a duplicate answer after a lost acknowledgement counts as success; `payload_mismatch` is kept for review
+  - a pull interrupted mid-way resumes from the last applied page
+  - the server wins on master data
+- `pos/src/test/fixtures/device-api.json`: the recorded shapes. Refresh them with `POS_RECORD_FIXTURES=1 php artisan test modules/POS/tests/DeviceApiShapesTest.php`.
+
+Still to prove on hardware, as noted below: the WatermelonDB JSI adapter and the PBKDF2 timing in an Android development build.
 
 ### expo-doctor exceptions (2026-10-09)
 

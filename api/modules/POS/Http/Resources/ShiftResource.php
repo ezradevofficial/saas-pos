@@ -43,6 +43,7 @@ class ShiftResource extends JsonResource
             'opened_by' => $named($this->opener),
             'closed_by' => $named($this->closer),
             'note' => $this->note,
+            'flags' => $this->flags ?? [],
             'sales_count' => $this->sales_count ?? null,
             'balances' => $this->balances->map(fn (ShiftBalance $balance) => [
                 'currency' => $balance->currency,

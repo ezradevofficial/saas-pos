@@ -3338,7 +3338,11 @@
       "override_unverified": "Accord non vérifié",
       "override_offline": "Accordé hors ligne",
       "received_after_close": "Après la clôture",
-      "clock_ahead": "Horloge de caisse en avance"
+      "clock_ahead": "Horloge de caisse en avance",
+      "shift_missing": "Session jamais reçue",
+      "placeholder": "Session de remplacement",
+      "opener_not_permitted": "Ouverture non autorisée",
+      "closer_not_permitted": "Clôture non autorisée"
     },
     "records": {
       "applied": "Appliqué",
