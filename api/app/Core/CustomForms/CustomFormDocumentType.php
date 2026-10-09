@@ -3,6 +3,7 @@
 namespace App\Core\CustomForms;
 
 use App\Core\Automation\Capabilities\LinksDocuments;
+use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\CustomFields\CustomFieldDefinitions;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
@@ -149,7 +150,7 @@ class CustomFormDocumentType extends DocumentType implements LinksDocuments
         ];
     }
 
-    /** @return list<\App\Core\CustomFields\CustomFieldDefinition> the line fields with a total (CF-05) */
+    /** @return list<CustomFieldDefinition> the line fields with a total (CF-05) */
     private function totalFields(): array
     {
         if (! $this->type->has_lines) {
