@@ -148,8 +148,8 @@ class SaleUploads
             $flags->add('cashier_not_permitted');
         }
 
-        // H3, AUTH-07: money in is kept; a cashier the till can't prove is flagged.
-        if (! $this->authority->proven($place->device, $cashier, $data['actor_proof'] ?? null, $data['id'])) {
+        // H3, AUTH-07: money in is kept; a cashier the till can't prove (no verified sign-in attestation) is flagged.
+        if ($this->authority->proven($place->device, $cashier, $data['actor_proof'] ?? null) === null) {
             $flags->add('actor_unverified');
         }
 
@@ -163,6 +163,8 @@ class SaleUploads
         $lines = [];
 
         foreach ($data['lines'] as $index => $line) {
+            // AUTH-07: a line without its own attestation is covered by the sale's (same cashier, same sign-in).
+            $line['actor_proof'] ??= $data['actor_proof'] ?? null;
             $lines[] = $this->line($place, $line, $index, $currency, $at, $cashier, $flags, $data['id']);
         }
 
@@ -409,7 +411,7 @@ class SaleUploads
     }
 
     /** A restricted line action: the approval, or null with a flag when nobody allowed it (device wins). */
-    private function restricted(DevicePlace $place, User $cashier, ?array $override, ?string $actorProof, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
+    private function restricted(DevicePlace $place, User $cashier, ?array $override, ?array $actorProof, string $permission, ?\Closure $limit, string $subjectId, string $field, string $flag, int $index, Flags $flags): ?Approval
     {
         try {
             $approval = $this->authority->approve($cashier, $override, $actorProof, $permission, $place->scope(), $limit, $place->device, $subjectId, $field);

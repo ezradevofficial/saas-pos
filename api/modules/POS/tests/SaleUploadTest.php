@@ -16,7 +16,6 @@ use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
 use Modules\POS\Tests\Concerns\BuildsPos;
-use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -169,7 +168,7 @@ class SaleUploadTest extends TestCase
             LimitRule::create(['role_id' => $this->roles->get('cashier')->id, 'key' => 'max_discount_percent', 'value' => '10']);
         });
         $manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
-        $approved = [...$discounted, 'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'price_override' => $this->override($manager->id)];
+        $approved = [...$discounted, 'id' => $this->id(), 'actor_proof' => $this->actorProof($cashier->id), 'price_override' => $this->override($manager->id)];
         $response = $this->upload([$this->saleBody($this->shift, 3, ['cashier_id' => $cashier->id, 'lines' => [$approved]])])->assertOk();
         $this->assertSame([], $this->flagsBut($response, 'price_differs'));
 

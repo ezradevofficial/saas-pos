@@ -10,6 +10,7 @@ use App\Core\Identity\Pin\Http\Requests\ReportPinAttemptsRequest;
 use App\Core\Identity\Pin\Http\Requests\VerifyPinRequest;
 use App\Core\Identity\Pin\OverrideTokens;
 use App\Core\Identity\Pin\Pins;
+use App\Core\Identity\Pin\TillSignIns;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Sync\DeviceScope;
@@ -23,7 +24,9 @@ use Illuminate\Http\JsonResponse;
  *
  * POST pos/pin/verify: a staff sign-in checked online (lockout after 5
  * wrong attempts per user and device). Only staff of the device's
- * location (StaffDirectory) can sign in there.
+ * location (StaffDirectory) can sign in there. With a `session_id`, the
+ * sign-in is recorded so the device's sign-in attestation for that
+ * session verifies as online (AUTH-07, ActorProofVerifier).
  * POST pos/pin/attempts: wrong attempts the device counted offline, for
  * staff of its location only.
  * POST pos/pin/change: a new PIN chosen at the till (clears `must_change`).
@@ -38,17 +41,22 @@ class DevicePinController
         private readonly StaffDirectory $staff,
     ) {}
 
-    public function verify(VerifyPinRequest $request): JsonResponse
+    /** AUTH-07: with a `session_id`, the sign-in is recorded (TillSignIns) once the PIN is right. */
+    public function verify(VerifyPinRequest $request, TillSignIns $signIns): JsonResponse
     {
         $device = $request->device();
         $user = $this->staffMember($device, (string) $request->validated('user_id'));
         $this->pins->verify($device, $user, $request->secret(), $request->kind());
+
+        $sessionId = $request->validated('session_id');
+        $recorded = $sessionId === null ? null : $signIns->record($device, $user, (string) $sessionId, $request->validated('signed_in_at'));
 
         return response()->json(['data' => [
             'user_id' => $user->id,
             'name' => $user->name,
             'verified_at' => CarbonImmutable::now()->toIso8601String(),
             'must_change' => $this->pins->status($user)['must_change'],
+            'session_id' => $recorded?->session_id,
         ]]);
     }
 

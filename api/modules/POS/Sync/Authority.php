@@ -3,6 +3,8 @@
 namespace Modules\POS\Sync;
 
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\ActorProofVerifier;
+use App\Core\Identity\Pin\VerifiedActor;
 use App\Core\Rbac\LimitRules;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Scope;
@@ -17,7 +19,8 @@ use Closure;
  * user does not exist). A restricted action is allowed when the person who
  * did it holds the permission at the device's location within their
  * limit, or when a manager's override holds both; the override proof goes
- * through the OverrideVerifier.
+ * through the OverrideVerifier, the person's sign-in attestation
+ * (`actor_proof`) through core's ActorProofVerifier.
  *
  * Limits (RBAC-06): the highest value across the roles at scopes covering
  * the location; no rule means not allowed; an Owner role has no limits.
@@ -28,7 +31,11 @@ class Authority
         private readonly ScopeResolver $resolver,
         private readonly LimitRules $limits,
         private readonly OverrideVerifier $verifier,
+        private readonly ActorProofVerifier $actors,
     ) {}
+
+    /** @var array<string, VerifiedActor|null> proofs checked in this upload, by device, user and proof */
+    private array $proven = [];
 
     public function user(?string $id, string $field): User
     {
@@ -63,14 +70,18 @@ class Authority
      *   hold the permission within the limit; else the person's own right
      *   is tried.
      * - The person's own right counts as proven only with a verified
-     *   sign-in attestation (`actor_proof`, AUTH-07).
+     *   sign-in attestation (`actor_proof`, AUTH-07) naming that person.
+     *   One the device signed offline (the server never checked that
+     *   sign-in) is still applied, but on money out ($moneyOut: voids,
+     *   refunds, pay-outs) it is flagged `actor_offline` for review.
      * - An approval that can't be proven is returned unverified: callers
      *   hold money out for review and flag money in.
      *
      * @param  array<string, mixed>|null  $override
+     * @param  array<string, mixed>|null  $actorProof
      * @param  (Closure(User): bool)|null  $withinLimit
      */
-    public function approve(User $actor, ?array $override, ?string $actorProof, string $permission, Scope $scope, ?Closure $withinLimit, Device $device, string $reference, string $field): Approval
+    public function approve(User $actor, ?array $override, ?array $actorProof, string $permission, Scope $scope, ?Closure $withinLimit, Device $device, string $reference, string $field, bool $moneyOut = false): Approval
     {
         $allowed = fn (User $user) => $this->can($user, $permission, $scope) && ($withinLimit === null || $withinLimit($user));
 
@@ -100,13 +111,30 @@ class Authority
             throw new Rejection($this->can($actor, $permission, $scope) ? 'limit_exceeded' : 'override_required', $field);
         }
 
-        return new Approval(null, $this->verifier->actor($device, $actor, $actorProof, $reference));
+        $proven = $this->proven($device, $actor, $actorProof);
+
+        return new Approval(null, $proven !== null, actorOffline: $moneyOut && $proven !== null && ! $proven->online);
     }
 
-    /** AUTH-07: the till proved $user was signed in for $reference. */
-    public function proven(Device $device, User $user, ?string $proof, string $reference): bool
+    /**
+     * AUTH-07: the till's signed attestation that $user was signed in, or
+     * null when it is missing, doesn't verify or names someone else.
+     *
+     * @param  array<string, mixed>|null  $proof
+     */
+    public function proven(Device $device, User $user, ?array $proof): ?VerifiedActor
     {
-        return $this->verifier->actor($device, $user, $proof, $reference);
+        if ($proof === null) {
+            return null;
+        }
+
+        $key = $device->id.'|'.$user->id.'|'.hash('sha256', (string) json_encode($proof));
+
+        if (! array_key_exists($key, $this->proven)) {
+            $this->proven[$key] = $this->actors->verify($device, $proof, $user->id)->actor;
+        }
+
+        return $this->proven[$key];
     }
 
     /**

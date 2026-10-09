@@ -11,7 +11,6 @@ use Modules\POS\Models\CashMovement;
 use Modules\POS\Models\Shift;
 use Modules\POS\Models\ShiftBalance;
 use Modules\POS\Tests\Concerns\BuildsPos;
-use Modules\POS\Tests\Support\FakeOverrides;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -79,16 +78,16 @@ class ShiftUploadTest extends TestCase
         $voided = $this->saleBody($shift, 3);
         $this->upload([$voided])->assertOk();
         $this->postJson('/api/v1/pos/voids', ['voids' => [[
-            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'sale_id' => $voided['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
+            'id' => $this->id(), 'actor_proof' => $this->actorProof($this->owner->id), 'sale_id' => $voided['id'], 'voided_by_id' => $this->owner->id, 'voided_at' => now()->toIso8601String(), 'reason' => 'Wrong item',
         ]]], $this->tillHeaders())->assertOk();
         $this->postJson('/api/v1/pos/cash-movements', ['movements' => [[
-            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'shift_id' => $shift, 'user_id' => $this->owner->id, 'kind' => 'pay_out', 'currency' => 'KES',
+            'id' => $this->id(), 'actor_proof' => $this->actorProof($this->owner->id), 'shift_id' => $shift, 'user_id' => $this->owner->id, 'kind' => 'pay_out', 'currency' => 'KES',
             'amount_minor' => '20000', 'reason' => 'Cleaning supplies', 'occurred_at' => now()->toIso8601String(),
         ]]], $this->tillHeaders())->assertOk();
         $sold = $this->saleBody($shift, 4);
         $this->upload([$sold])->assertOk();
         $this->postJson('/api/v1/pos/refunds', ['refunds' => [[
-            'id' => $this->id(), 'actor_proof' => FakeOverrides::ATTESTED, 'sale_id' => $sold['id'], 'shift_id' => $shift, 'cashier_id' => $this->owner->id,
+            'id' => $this->id(), 'actor_proof' => $this->actorProof($this->owner->id), 'sale_id' => $sold['id'], 'shift_id' => $shift, 'cashier_id' => $this->owner->id,
             'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged',
             'total_minor' => '56250', 'lines' => [['id' => $this->id(), 'sale_line_id' => $sold['lines'][0]['id'], 'qty' => '1']],
             'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250']],
@@ -172,9 +171,9 @@ class ShiftUploadTest extends TestCase
         $this->inTenant(fn () => $this->assertSame('600000', (string) ShiftBalance::where('shift_id', $shift)->sole()->expected_minor));
 
         // H4: made after the close: refused; made before it but received late: kept, flagged, recounted.
-        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => 'attested', 'occurred_at' => now()->addMinute()->toIso8601String()]))
+        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => $this->actorProof($manager->id), 'occurred_at' => now()->addMinute()->toIso8601String()]))
             ->assertUnprocessable()->assertJsonPath('results.0.error.code', 'shift_closed');
-        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => 'attested', 'kind' => 'pay_out', 'amount_minor' => '50000', 'occurred_at' => now()->subMinutes(10)->toIso8601String()]))
+        $post($movement(['user_id' => $manager->id, 'override' => null, 'actor_proof' => $this->actorProof($manager->id), 'kind' => 'pay_out', 'amount_minor' => '50000', 'occurred_at' => now()->subMinutes(10)->toIso8601String()]))
             ->assertOk()->assertJsonPath('results.0.flags.0.code', 'received_after_close');
         $this->inTenant(function () use ($shift) {
             $kes = ShiftBalance::where('shift_id', $shift)->sole();

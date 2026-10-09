@@ -131,7 +131,7 @@ class RefundUploads
         $payments = $this->payments($place, $data['payments'], $sale, $total, $at, $flags);
         $approval = $this->authority->approve($cashier, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.refund', $place->scope(),
             fn ($user) => $this->authority->within($user, 'max_refund_amount', $place->scope(), $baseMajor),
-            $place->device, $data['id'], 'override');
+            $place->device, $data['id'], 'override', moneyOut: true);
 
         if ($approval->held()) {
             $flags->add($approval->flag());

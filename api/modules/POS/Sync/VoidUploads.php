@@ -84,7 +84,7 @@ class VoidUploads
 
         $voider = $this->authority->user($data['voided_by_id'], 'voided_by_id');
         $this->authority->checkNamed($data['override'] ?? null, 'override');
-        $approval = $this->authority->approve($voider, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.void', $place->scope(), null, $place->device, $data['id'], 'override');
+        $approval = $this->authority->approve($voider, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.void', $place->scope(), null, $place->device, $data['id'], 'override', moneyOut: true);
         $at = CarbonImmutable::parse($data['voided_at'])->utc();
         $flags = new Flags;
 

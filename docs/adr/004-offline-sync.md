@@ -155,6 +155,18 @@ It never stores the PIN.
 - *Recording.* Both users are recorded and audited (`core.user.override_issue`, `core.user.override_redeem`). The result says whether the manager is still active (`managerActive`), still works at the location (`managerStaffAtLocation`) and still holds the permission there (`managerHoldsPermission`).
 - *Review.* Offline overrides are the device's claim: anyone holding the device secret could have signed one. The POS module records every offline override, and every override whose flags are not all true, for review (`needsReview()`). Tasks 1 and 6 show them in the back office. They are never dropped: the device wins for completed sales.
 
+**Sign-in attestation (AUTH-07).** When someone signs in at the till, by an offline PIN check or `POST pos/pin/verify`, the device makes a session id (a UUID) and signs, with `HMAC-SHA256(device secret kid)`:
+
+```
+signin:v1\n{device_id}\n{kid}\n{session_id}\n{user_id}\n{signed_in_at}
+```
+
+- *Shape.* Every record the device uploads for that person carries it as `actor_proof: {session_id, user_id, signed_in_at, kid, signature}`, with the signature in base64url without padding. `signed_in_at` is ISO 8601 with `Z` or an offset (the server's clock as the device knows it), signed exactly as sent. No field may contain CR or LF.
+- *Checks* (`ActorProofVerifier`, core). `kid` names a secret of this device. The signature matches (constant time). `signed_in_at` falls while that secret was current, with the same 10 minutes of skew as offline overrides. `user_id` is the record's actor (voided_by_id, cashier_id, user_id, opened_by_id, closed_by_id). That user exists in the tenant, is active, and is staff of the device's location with `pos.till.sign_in`. Anything else leaves the record unproven. It is never a rejection, but a proof of the wrong shape is a 422.
+- *Online or offline.* `POST pos/pin/verify` takes optional `session_id` and `signed_in_at`. When the PIN is right, it records the session in `till_sign_ins` (once per device and session, audited `core.user.till_sign_in`). A proof naming a session recorded for the same device and user is `online`. Any other proof is the device's claim, like an offline override: anyone with the device secret could sign it.
+- *Effect in the POS module.* A verified actor removes `actor_unverified`. Voids, refunds and pay-outs by a verified actor who holds the permission within their limit are applied instead of held. When the proof is not online, they are also flagged `actor_offline` for review. Sales and pay-ins are never flagged `actor_offline`. A sale line without its own proof uses the sale's. Shift opening and closing record `actor_verified` and `actor_online` in their audit entries.
+- *Not bound to a record.* The proof covers the sign-in, not one action. A device that keeps its secret can reuse a session's proof until the secret is retired. That is why offline proofs on money out are reviewed.
+
 **PIN check speed on the till (POS app).** Hermes has no JIT, so PBKDF2 at 150,000 iterations in pure JavaScript (@noble/hashes) takes about 14 s on an M-series Mac without JIT, and longer on a low-end Android phone. The app therefore derives the key natively, through its own local Expo module `pos/modules/app-crypto` (no third-party dependency): Android `SecretKeyFactory("PBKDF2WithHmacSHA256")`, iOS CommonCrypto `CCKeyDerivationPBKDF`. `src/auth/pinCrypto.js` tries the native module, then WebCrypto (web preview, Jest), then @noble/hashes, falling back on any error. The server's iteration count is not lowered.
 
 To check the timing on a device (not possible in CI):

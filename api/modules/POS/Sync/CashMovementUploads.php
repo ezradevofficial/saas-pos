@@ -89,7 +89,7 @@ class CashMovementUploads
 
         $user = $this->authority->user($data['user_id'], 'user_id');
         $this->authority->checkNamed($data['override'] ?? null, 'override');
-        $approval = $this->authority->approve($user, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.cash.move', $place->scope(), null, $place->device, $data['id'], 'override');
+        $approval = $this->authority->approve($user, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.cash.move', $place->scope(), null, $place->device, $data['id'], 'override', moneyOut: $data['kind'] === CashMovement::PAY_OUT);
         $held = $approval->held() && $data['kind'] === CashMovement::PAY_OUT;
 
         if ($approval->held()) {

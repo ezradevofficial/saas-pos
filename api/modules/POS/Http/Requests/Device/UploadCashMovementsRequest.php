@@ -22,7 +22,7 @@ class UploadCashMovementsRequest extends FormRequest
             'movements.*.amount_minor' => $this->minor(positive: true),
             'movements.*.reason' => ['required', 'string', 'max:500'],
             'movements.*.occurred_at' => ['required', 'date'],
-            'movements.*.actor_proof' => $this->actorProof(),
+            ...$this->actorProof('movements.*.actor_proof'),
             ...$this->overrideRules('movements.*.override'),
         ];
     }
