@@ -40,6 +40,7 @@ class Party extends Model
         'emails' => '[]',
         'addresses' => '[]',
         'tags' => '{}',
+        'custom' => '{}',
     ];
 
     protected function casts(): array
@@ -51,6 +52,8 @@ class Party extends Model
             'tags' => TextArray::class,
             'roles' => TextArray::class,
             'payment_terms_days' => 'integer',
+            // CF-06: custom field values (CustomFieldWriter writes them).
+            'custom' => 'array',
         ];
     }
 

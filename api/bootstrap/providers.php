@@ -3,6 +3,7 @@
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
+use App\Core\CustomFields\CustomFieldsServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
@@ -28,6 +29,7 @@ return [
     RbacServiceProvider::class,
     TaxServiceProvider::class,
     MasterDataServiceProvider::class,
+    CustomFieldsServiceProvider::class,
     WorkflowServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,

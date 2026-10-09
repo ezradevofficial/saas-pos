@@ -100,7 +100,7 @@ class ListExport
         }
 
         $values = $this->values();
-        $headers = array_map(fn (ListColumn $column) => __($column->label), $columns);
+        $headers = array_map(fn (ListColumn $column) => $column->header(), $columns);
         $title = $list->title($filters);
         $summary = $list->filterSummary($filters, $values);
 
@@ -203,7 +203,8 @@ class ListExport
             $row = $list->resolve($model, $request);
 
             yield array_map(
-                fn (ListColumn $column) => array_diff($column->fields, array_keys($row)) === [] ? $column->valueFor($row, $model, $values) : '',
+                // A nested field (`custom.<key>`, CF-03) is present when its parent key is.
+                fn (ListColumn $column) => array_diff(array_map(fn (string $field) => explode('.', $field, 2)[0], $column->fields), array_keys($row)) === [] ? $column->valueFor($row, $model, $values) : '',
                 $columns,
             );
         }

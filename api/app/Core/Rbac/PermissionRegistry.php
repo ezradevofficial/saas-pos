@@ -61,6 +61,8 @@ class PermissionRegistry
         'fiscal' => ['view', 'edit', 'configure'],
         // NUM-01: how documents are numbered, per type and tenant, company or branch.
         'numbering' => ['view', 'edit'],
+        // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
+        'custom_field' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

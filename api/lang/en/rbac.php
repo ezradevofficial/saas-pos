@@ -45,6 +45,7 @@ return [
                 'payment' => 'Payments',
                 'fiscal' => 'Fiscal transmission',
                 'numbering' => 'Document numbering',
+                'custom_field' => 'Custom fields',
             ],
             'pos' => [
                 'sale' => 'Sales',

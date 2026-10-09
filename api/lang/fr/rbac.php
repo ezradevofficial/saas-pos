@@ -45,6 +45,7 @@ return [
                 'payment' => 'Paiements',
                 'fiscal' => 'Transmission fiscale',
                 'numbering' => 'Numérotation des documents',
+                'custom_field' => 'Champs personnalisés',
             ],
             'pos' => [
                 'sale' => 'Ventes',
