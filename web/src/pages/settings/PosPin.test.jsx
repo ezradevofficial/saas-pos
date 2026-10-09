@@ -80,7 +80,7 @@ describe('A user’s POS PIN for administrators (AUTH-06)', () => {
     )
   }
 
-  it('shows whether a PIN is set and must be changed, and resets it without the admin’s own password', async () => {
+  it('shows whether a PIN is set and must be changed, and resets it with the admin’s own password', async () => {
     detail()
     api.put.mockResolvedValue({ message: 'The POS PIN is reset. Give the new PIN to the person in private.', data: {} })
     renderApp('/settings/users/u-2')
@@ -89,15 +89,19 @@ describe('A user’s POS PIN for administrators (AUTH-06)', () => {
     expect(await within(card).findByText('Must change at the till')).toBeInTheDocument()
     fireEvent.click(within(card).getByRole('button', { name: 'Reset PIN' }))
     const dialog = await screen.findByRole('dialog', { name: 'New POS PIN for Joseph Mwangi' })
-    expect(within(dialog).queryByLabelText(/Your account password/)).not.toBeInTheDocument()
     fireEvent.change(within(dialog).getByLabelText(/New PIN/), { target: { value: '5937' } })
     fireEvent.change(within(dialog).getByLabelText(/Repeat the PIN/), { target: { value: '5937' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reset PIN' }))
-    await waitFor(() => expect(api.put).toHaveBeenCalledWith('users/u-2/pos-pin', { pin: '5937' }))
+    // Owner ruling: the administrator's own password, every time.
+    expect(await within(dialog).findByText('Enter your account password.')).toBeInTheDocument()
+    expect(api.put).not.toHaveBeenCalled()
+    fireEvent.change(within(dialog).getByLabelText(/Your account password/), { target: { value: 'admin pw' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reset PIN' }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('users/u-2/pos-pin', { password: 'admin pw', pin: '5937' }))
     expect(await screen.findByText('The POS PIN is reset. Give the new PIN to the person in private.')).toBeInTheDocument()
   })
 
-  it('asks for the password when administrators act on themselves, and clears a PIN', async () => {
+  it('clears a PIN with the administrator’s password, for themselves too', async () => {
     const me = { ...OWNER, roles: [] }
     detail(me, status({ pin_set: true, six_digits: true }))
     api.delete.mockResolvedValue({ data: {} })

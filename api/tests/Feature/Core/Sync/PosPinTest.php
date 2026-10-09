@@ -96,7 +96,12 @@ class PosPinTest extends TestCase
 
     public function test_an_administrator_resets_or_removes_a_pin_but_never_reads_it(): void
     {
+        // The administrator's own password is needed, and must be right.
         $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937', 'password' => 'wrong-password-9'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'invalid_password');
+        $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937', 'password' => $this->password], $this->headersFor())
             ->assertOk()
             ->assertJsonPath('data.pin_set', true)
             ->assertJsonPath('data.must_change', true)
@@ -121,9 +126,11 @@ class PosPinTest extends TestCase
         $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '593704', 'password' => $this->password], $this->headersFor())->assertOk()->assertJsonPath('data.must_change', false);
 
         // A cashier cannot reach the owner, nor reset anyone.
-        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '5937'], $this->headersFor($this->cashier))->assertNotFound();
+        $this->putJson("/api/v1/users/{$this->owner->id}/pos-pin", ['pin' => '5937', 'password' => $this->password], $this->headersFor($this->cashier))->assertNotFound();
 
-        $this->deleteJson("/api/v1/users/{$this->cashier->id}/pos-pin", [], $this->headersFor())->assertOk()->assertJsonPath('data.pin_set', false);
+        $this->deleteJson("/api/v1/users/{$this->cashier->id}/pos-pin", [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->deleteJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['password' => 'wrong-password-9'], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'invalid_password');
+        $this->deleteJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['password' => $this->password], $this->headersFor())->assertOk()->assertJsonPath('data.pin_set', false);
         $this->verify($this->cashier, '8051')->assertUnprocessable()->assertJsonPath('code', 'pin_not_set');
 
         $this->inTenant(fn () => $this->assertSame(
@@ -266,7 +273,7 @@ class PosPinTest extends TestCase
     {
         $this->getJson("/api/v1/users/{$this->cashier->id}/pos-pin", $this->headersFor())->assertOk()
             ->assertJsonPath('data.pin_set', false)->assertJsonPath('data.six_digits', false);
-        $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937'], $this->headersFor())->assertOk();
+        $this->putJson("/api/v1/users/{$this->cashier->id}/pos-pin", ['pin' => '5937', 'password' => $this->password], $this->headersFor())->assertOk();
         $this->getJson("/api/v1/users/{$this->cashier->id}/pos-pin", $this->headersFor())->assertOk()
             ->assertJsonPath('data.pin_set', true)->assertJsonPath('data.must_change', true)->assertJsonMissingPath('data.pin');
 

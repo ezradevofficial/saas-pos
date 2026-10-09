@@ -10,7 +10,7 @@ import { PinDialog, PinStatus, RemovePinDialog } from './PinParts'
  * AUTH-06: a user's POS PIN as an administrator sees it: set or not, must
  * be changed at the till, since when (never the PIN). With
  * `core.user.edit` over the user, set a new one (the person changes it at
- * the till first) or remove it; acting on oneself takes the password.
+ * the till first) or remove it, always confirming with their own password.
  */
 export function UserPinCard({ user, self, canEdit }) {
   const { t } = useTranslation()
@@ -45,7 +45,7 @@ export function UserPinCard({ user, self, canEdit }) {
           title={t('posPin.resetTitle', { name: user.name })}
           intro={self ? null : t('posPin.resetIntro')}
           endpoint={endpoint}
-          withPassword={self}
+          withPassword
           sixDigits={Boolean(status?.six_digits)}
           confirmLabel={status?.pin_set ? t('posPin.reset') : t('posPin.set')}
           onClose={() => setDialog(null)}
@@ -57,7 +57,7 @@ export function UserPinCard({ user, self, canEdit }) {
           title={t('posPin.removeUserTitle', { name: user.name })}
           text={t('posPin.removeUserText')}
           endpoint={endpoint}
-          withPassword={self}
+          withPassword
           onClose={() => setDialog(null)}
         />
       ) : null}
