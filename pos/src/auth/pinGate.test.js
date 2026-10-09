@@ -58,6 +58,24 @@ describe('PIN gate', () => {
     await expect(store.unreportedPinAttempts()).resolves.toEqual([expect.objectContaining({ userId: 'u1', failedAttempts: 5, locked: true })]);
   });
 
+  it('counts every wrong PIN when checks of the same user run at the same time', async () => {
+    const { gate, store } = await setup({ staff: [amina()] });
+
+    const answers = await Promise.all(Array.from({ length: 5 }, () => gate.signIn({ userId: 'u1', input: '000000' })));
+
+    expect(answers.map((answer) => answer.attemptsLeft ?? answer.reason)).toEqual([4, 3, 2, 1, 'locked']);
+    await expect(store.unreportedPinAttempts()).resolves.toEqual([expect.objectContaining({ userId: 'u1', failedAttempts: 5, locked: true })]);
+  });
+
+  it('never loses a wrong PIN to a right one checked at the same time', async () => {
+    const { gate } = await setup({ staff: [amina()] });
+
+    await Promise.all([gate.signIn({ userId: 'u1', input: '274915' }), gate.signIn({ userId: 'u1', input: '000000' })]);
+
+    // The right PIN was checked first and reset the count; the wrong one after it counts.
+    await expect(gate.signIn({ userId: 'u1', input: '000000' })).resolves.toMatchObject({ attemptsLeft: 3 });
+  });
+
   it('resets the count after a right PIN', async () => {
     const { gate } = await setup({ staff: [amina()] });
     await gate.signIn({ userId: 'u1', input: '000000' });
