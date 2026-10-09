@@ -253,7 +253,7 @@ export default function DashboardDesigner({ personal = false }) {
             />
           </div>
           <Card title={t('layouts.dashboard.inspector')} className="w-full lg:w-inspector lg:shrink-0">
-            <div className="p-5">
+            <div>
               <Inspector
                 widget={selected}
                 sources={sourceList}

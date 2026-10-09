@@ -6,8 +6,12 @@ import { useNavigation } from '@/layouts/useNavigation'
 import { useWidgetData, WIDGET_TYPES, widgetTitle } from '@/lib/dashboardData'
 import { formatCalendarDate, formatDate } from '@/lib/dates'
 import { formatInteger, formatMoney } from '@/lib/format'
+import { decimalsOf } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
+
+/** A short axis figure: 66.7K, 1.2M (the currency is in the table header). */
+const compact = (value, locale) => new Intl.NumberFormat(locale === 'fr' ? 'fr-CD' : 'en-KE', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
 const money = (minor, currency, locale) => formatMoney(String(minor), currency, locale)
 
@@ -91,6 +95,7 @@ function SalesChart({ widget, data, t, locale, title }) {
       title={title}
       valueLabel={currency ? t('layouts.chart.amountIn', { currency }) : title}
       formatValue={(value) => (currency ? money(Math.round(value), currency, locale) : formatInteger(Math.round(value), locale))}
+      formatAxis={(value) => compact(currency ? value / 10 ** decimalsOf(currency) : value, locale)}
       formatLabel={(label) => formatCalendarDate(label, locale)}
     />
   )
@@ -123,9 +128,9 @@ export function Widget({ widget, framed = true }) {
     <section
       aria-label={title}
       data-widget-type={widget.type}
-      className={cn('flex h-full min-h-0 flex-col gap-3', framed && 'rounded-lg border border-border bg-surface-200 px-5 py-4')}
+      className={cn('flex h-full min-h-0 flex-col gap-2 overflow-hidden', framed && 'rounded-lg border border-border bg-surface-200 px-5 py-4')}
     >
-      <h2 className="text-body text-ink-muted">{title}</h2>
+      {framed ? <h2 className="text-body text-ink-muted">{title}</h2> : null}
       <div className="min-h-0 flex-1">{body}</div>
     </section>
   )

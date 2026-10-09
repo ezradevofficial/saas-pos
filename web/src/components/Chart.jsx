@@ -5,11 +5,11 @@ import { barPath, niceMax } from '@/lib/chartScale'
 import { cn } from '@/lib/utils'
 
 // Drawing units of the SVG; it scales to the width of its card.
-const WIDTH = 600
-const HEIGHT = 200
+const WIDTH = 400
+const HEIGHT = 180
 const TOP = 12
 const BOTTOM = 24
-const LEFT = 56
+const LEFT = 44
 const RIGHT = 8
 const GRID_LINES = 3
 
@@ -21,9 +21,10 @@ const GRID_LINES = 3
  * is always there for screen readers and one click away for everyone.
  *
  * points: [{ label, value }] (value null: no figure, drawn as a gap);
- * formatValue(value) and formatLabel(label) give the words shown.
+ * formatValue(value) and formatLabel(label) give the words shown;
+ * formatAxis(value) the gridline labels (short, the unit is in valueLabel).
  */
-export function Chart({ type = 'bar', points = [], title, valueLabel, formatValue = String, formatLabel = String, className }) {
+export function Chart({ type = 'bar', points = [], title, valueLabel, formatValue = String, formatAxis, formatLabel = String, className }) {
   const { t } = useTranslation()
   const id = useId()
   const [active, setActive] = useState(null)
@@ -59,7 +60,7 @@ export function Chart({ type = 'bar', points = [], title, valueLabel, formatValu
 
   const tip = active === null ? null : points[active]
   const tipText = tip ? `${formatLabel(tip.label)}: ${tip.value == null ? t('layouts.chart.noValue') : formatValue(tip.value)}` : ''
-  const tipX = active === null ? 0 : Math.min(Math.max(xOf(active), LEFT + 80), WIDTH - RIGHT - 80)
+  const tipX = active === null ? 0 : Math.min(Math.max(xOf(active), LEFT + 90), WIDTH - RIGHT - 90)
 
   return (
     <figure className={cn('flex min-w-0 flex-col gap-2', className)}>
@@ -82,7 +83,7 @@ export function Chart({ type = 'bar', points = [], title, valueLabel, formatValu
             <g key={step}>
               <line x1={LEFT} x2={WIDTH - RIGHT} y1={y} y2={y} className={step === 0 ? 'stroke-border-strong' : 'stroke-border'} strokeWidth={1} />
               <text x={LEFT - 8} y={y} dy="0.32em" textAnchor="end" className="fill-ink-muted text-caption tabular-nums">
-                {formatValue(value)}
+                {(formatAxis ?? formatValue)(value)}
               </text>
             </g>
           )
@@ -128,7 +129,7 @@ export function Chart({ type = 'bar', points = [], title, valueLabel, formatValu
 
         {tip ? (
           <g aria-hidden="true" data-testid="chart-tooltip">
-            <rect x={tipX - 80} y={0} width={160} height={22} rx={6} className="fill-surface-200 stroke-border-strong" strokeWidth={1} />
+            <rect x={tipX - 90} y={0} width={180} height={22} rx={6} className="fill-surface-200 stroke-border-strong" strokeWidth={1} />
             <text x={tipX} y={11} dy="0.32em" textAnchor="middle" className="fill-ink text-caption tabular-nums">
               {tipText}
             </text>

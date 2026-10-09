@@ -62,7 +62,7 @@ function ItemRow({ item, groups, groupId, onChange, onMove, disabled }) {
         value={groupId}
         disabled={disabled}
         onChange={(event) => onMove(event.target.value)}
-        className="w-palette"
+        className="w-full sm:w-palette"
       />
       <Button
         variant="ghost"
@@ -275,7 +275,7 @@ export default function NavigationEditor() {
               ) : null
             }
           >
-            <div className="p-5">
+            <div>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={({ active, over }) => change({ tree: moveInTree(tree, active.id, over?.id) })}>
                 <SortableContext items={tree.map((group) => `g:${group.id}`)} strategy={verticalListSortingStrategy}>
                   <ul className="flex flex-col gap-3" aria-label={t('layouts.navigation.tree')}>
@@ -295,7 +295,7 @@ export default function NavigationEditor() {
             </div>
           </Card>
           <Card title={t('layouts.navigation.preview')} subtitle={scopes.options.find((option) => option.value === scopeValue)?.label}>
-            <div className="p-5">
+            <div>
               <Preview payload={payload} permissionNames={permissionNames} hasModule={hasModule} />
             </div>
           </Card>
