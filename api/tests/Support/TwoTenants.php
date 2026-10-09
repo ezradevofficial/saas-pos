@@ -268,7 +268,7 @@ final class TwoTenants
         $till = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
         self::ok($test->postJson('/api/v1/payments/intents', [
             'payment_method_id' => $paymentMethod, 'mode' => 'stk', 'amount_minor' => '150000', 'currency' => 'KES',
-            'phone' => $key === 'a' ? '0712000101' : '0712000201', 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(),
+            'phone' => $key === 'a' ? '0712000101' : '0712000201', 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $ownerId,
         ], $till), 201);
         $paymentIntent = self::ok($test->postJson('/api/v1/payments/intents', [
             'payment_method_id' => $paymentMethod, 'mode' => 'manual', 'amount_minor' => '50000', 'currency' => 'KES',

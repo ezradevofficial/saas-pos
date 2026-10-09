@@ -55,23 +55,27 @@ class DarajaCallbacks
         $this->require(is_array($callback) && is_string($callback['CheckoutRequestID'] ?? null) && isset($callback['ResultCode']));
 
         $intent = $this->intentWhere($method, 'provider_checkout_id', $callback['CheckoutRequestID']);
-
-        if ($intent === null) {
-            Log::info('Daraja STK callback for an unknown checkout', ['method' => $method->id]);
-
-            return self::ACCEPTED;
-        }
-
         $items = collect($callback['CallbackMetadata']['Item'] ?? [])
             ->filter(fn ($item) => is_array($item) && isset($item['Name']))
             ->mapWithKeys(fn (array $item) => [$item['Name'] => $item['Value'] ?? null]);
 
         $code = (string) $callback['ResultCode'];
         $receipt = is_scalar($items->get('MpesaReceiptNumber')) ? strtoupper((string) $items->get('MpesaReceiptNumber')) : null;
-        $amount = $items->has('Amount') ? $this->minor((string) $items->get('Amount'), $intent->currency) : null;
+        $amount = $items->has('Amount') ? $this->minor((string) $items->get('Amount'), $intent?->currency ?? 'KES') : null;
 
-        if ($code === '0' && ($receipt === null || $amount === null)) {
+        if ($code === '0' && ($receipt === null || $amount === null || preg_match('/^[A-Z0-9]{6,20}$/', $receipt) !== 1)) {
             $this->require(false);
+        }
+
+        if ($intent === null) {
+            Log::info('Daraja STK callback for an unknown checkout', ['method' => $method->id]);
+
+            if ($code === '0') {
+                // Money was taken for a push we cannot place: keep it for matching or refund.
+                $this->keepUnmatched($method, $receipt, $amount, $items->get('TransactionDate'));
+            }
+
+            return self::ACCEPTED;
         }
 
         $result = MpesaDarajaProvider::fromResultCode($code, (string) ($callback['ResultDesc'] ?? ''), $receipt, $amount);
@@ -81,7 +85,7 @@ class DarajaCallbacks
             'transaction_date' => is_scalar($items->get('TransactionDate')) ? (string) $items->get('TransactionDate') : null,
         ]);
 
-        $this->intents->apply($intent, new ProviderResult(
+        $applied = $this->intents->apply($intent, new ProviderResult(
             $result->status,
             receipt: $result->receipt,
             resultCode: $result->resultCode,
@@ -90,7 +94,27 @@ class DarajaCallbacks
             data: $data,
         ));
 
+        // Paid, but the intent was already final (failed, cancelled, another
+        // receipt) or the amount differs: the money is kept for the back office.
+        if ($code === '0' && ($applied->status !== 'succeeded' || $applied->provider_receipt !== $receipt)) {
+            $this->keepUnmatched($method, $receipt, $amount, $items->get('TransactionDate'));
+        }
+
         return self::ACCEPTED;
+    }
+
+    /** A paid STK result no open intent took, as an unmatched receipt flagged `late_or_unmatched`. */
+    private function keepUnmatched(PaymentMethod $method, string $receipt, int $amount, mixed $time): void
+    {
+        $this->intents->receive($method, [
+            'receipt' => $receipt,
+            'amount_minor' => $amount,
+            'currency' => 'KES',
+            'account_reference' => null,
+            'shortcode' => null,
+            'transacted_at' => $this->time($time),
+            'data' => ['source' => 'stk'],
+        ], match: false, flag: 'late_or_unmatched');
     }
 
     /**
@@ -196,6 +220,14 @@ class DarajaCallbacks
         if ($code === '0') {
             $completed = strcasecmp((string) ($parameters['TransactionStatus'] ?? 'Completed'), 'Completed') === 0;
             $amount = isset($parameters['Amount']) ? $this->minor((string) $parameters['Amount'], $intent->currency) : null;
+            // The code must have paid this method's shortcode, around the time of the sale.
+            $party = (string) ($parameters['CreditPartyName'] ?? '');
+            $payTo = DarajaCredentials::of($method)->payTo();
+            $when = $this->time($parameters['FinalisedTime'] ?? ($parameters['InitiatedTime'] ?? null));
+            $window = (int) config('payments.manual_match_window_hours', 48);
+            $completed = $completed
+                && ($party === '' || str_starts_with($party, $payTo))
+                && ($when === null || abs($when->diffInHours($intent->created_at, true)) <= $window);
 
             $verdict = $completed
                 ? ProviderResult::succeeded($intent->provider_receipt, $data, $amount)

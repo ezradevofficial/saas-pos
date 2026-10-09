@@ -57,6 +57,15 @@ return [
     // account reference created within this many minutes before.
     'c2b_match_window_minutes' => 30,
 
+    // A manual M-Pesa code is verified only by money received on the same
+    // method's shortcode within this many hours of the payment.
+    'manual_match_window_hours' => 48,
+
+    // POST payments/intents: per device a minute, and per phone and method
+    // in five minutes (STK pushes).
+    'device_intents_per_minute' => 10,
+    'phone_pushes_per_5_minutes' => 3,
+
     'mpesa' => [
         // Sandbox by default. Production: https://api.safaricom.co.ke (set
         // MPESA_BASE_URL once Safaricom has taken the app live).

@@ -7,6 +7,7 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -41,6 +42,41 @@ class DeviceIntentApiTest extends TestCase
         $this->assertSame($first->json('data.account_reference'), $again->json('data.account_reference'));
         Http::assertSentCount(2); // one token, one push
         $this->assertSame(1, $this->inTenant(fn () => PaymentIntent::query()->count()));
+    }
+
+    public function test_the_same_id_with_other_content_is_a_conflict(): void
+    {
+        $id = (string) Str::uuid7();
+        $this->push(extra: ['id' => $id])->assertCreated();
+
+        $this->push('200000', extra: ['id' => $id])->assertStatus(409)->assertJsonPath('code', 'id_conflict');
+        $this->push(phone: '0712999999', extra: ['id' => $id])->assertStatus(409);
+    }
+
+    public function test_pushes_are_rate_limited_per_device_and_per_phone(): void
+    {
+        foreach (range(1, 3) as $n) {
+            $this->push(extra: ['reference' => (string) Str::uuid7()])->assertCreated();
+        }
+        $this->push(extra: ['reference' => (string) Str::uuid7()])->assertStatus(429)->assertJsonPath('code', 'too_many_requests');
+
+        // Other phones go on until the device's own limit.
+        foreach (range(4, 10) as $n) {
+            $this->push(phone: sprintf('07120000%02d', $n), extra: ['reference' => (string) Str::uuid7()])->assertCreated();
+        }
+        $this->push(phone: '0712000099', extra: ['reference' => (string) Str::uuid7()])->assertStatus(429);
+    }
+
+    public function test_only_sales_and_a_staff_cashier_of_the_location(): void
+    {
+        $this->push(extra: ['reference_type' => 'pos.refund'])->assertUnprocessable()->assertJsonValidationErrors('reference_type');
+        $this->push(extra: ['user_id' => null])->assertUnprocessable()->assertJsonValidationErrors('user_id');
+
+        // A cashier of Outlet B is not staff at Outlet A's till.
+        $elsewhere = $this->userWith('cashier', Scope::location($this->locationB->id));
+        $this->push(extra: ['user_id' => $elsewhere->id])->assertUnprocessable()->assertJsonValidationErrors('user_id');
+        $here = $this->userWith('cashier', Scope::location($this->locationA->id));
+        $this->push(extra: ['user_id' => $here->id])->assertCreated();
     }
 
     public function test_a_poll_finds_only_intents_of_the_devices_location(): void

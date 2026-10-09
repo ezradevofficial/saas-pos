@@ -45,9 +45,7 @@ class PaymentIntents
     public function startFromDevice(Device $device, PaymentMethod $method, array $data): PaymentIntent
     {
         if (isset($data['id']) && ($existing = PaymentIntent::query()->find($data['id'])) !== null) {
-            abort_unless($existing->device_id === $device->id, 404);
-
-            return $existing;
+            return $this->sameRequest($existing, $device, $data);
         }
 
         $location = $device->location()->with('branch')->firstOrFail();
@@ -93,10 +91,51 @@ class PaymentIntents
                 throw new ApiException(422, 'phone_invalid', __('payments.errors.phone_invalid'), ['phone' => [__('payments.errors.phone_invalid')]]);
             }
 
-            return $this->push($method, $attributes);
+            try {
+                return $this->push($method, $attributes);
+            } catch (UniqueConstraintViolationException $e) {
+                // The same id sent twice at once: answer the row the other request made.
+                return $this->sameRequest(self::existingAfter($e, (string) $attributes['id']), $device, $data);
+            }
         }
 
-        return $this->recordManual($method, $attributes + ['receipt' => $data['receipt']]);
+        $intent = $this->recordManual($method, $attributes + ['receipt' => $data['receipt']]);
+
+        return $this->sameRequest($intent, $device, $data);
+    }
+
+    /**
+     * The intent a repeated device id names, when it is the same request
+     * (device, mode, amount, currency, reference, phone or code); 404 for
+     * another device's id, 409 for the same id with other content.
+     */
+    private function sameRequest(PaymentIntent $existing, Device $device, array $data): PaymentIntent
+    {
+        abort_unless($existing->device_id === $device->id, 404);
+
+        $phone = filled($data['phone'] ?? null) ? (Phones::kenyanMobile((string) $data['phone']) ?? $data['phone']) : null;
+        $same = $existing->mode === $data['mode']
+            && $existing->amount_minor === (int) $data['amount_minor']
+            && $existing->currency === $data['currency']
+            && $existing->reference === $data['reference']
+            && ($data['mode'] !== 'stk' || $existing->phone === $phone)
+            && ($data['mode'] !== 'manual' || $existing->provider_receipt === strtoupper(trim((string) ($data['receipt'] ?? ''))));
+
+        if (! $same) {
+            throw new ApiException(409, 'id_conflict', __('payments.errors.id_conflict'));
+        }
+
+        return $existing;
+    }
+
+    /** The row whose primary key a unique violation reports, else rethrow. */
+    private static function existingAfter(UniqueConstraintViolationException $e, string $id): PaymentIntent
+    {
+        if (! str_contains($e->getMessage(), 'payment_intents_pkey')) {
+            throw $e;
+        }
+
+        return PaymentIntent::query()->findOrFail($id);
     }
 
     /**
@@ -115,7 +154,7 @@ class PaymentIntents
         unset($attributes['receipt']);
 
         if (($existing = PaymentIntent::query()->find($attributes['id'])) !== null) {
-            return $existing;
+            return $this->sameManual($existing, $attributes, $receipt);
         }
 
         $provider = $this->registry->for($method);
@@ -142,9 +181,28 @@ class PaymentIntents
 
                 return $intent->refresh();
             });
-        } catch (UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException $e) {
+            if (str_contains($e->getMessage(), 'payment_intents_pkey')) {
+                return $this->sameManual(PaymentIntent::query()->findOrFail($attributes['id']), $attributes, $receipt);
+            }
+
             throw new ApiException(422, 'receipt_used', __('payments.errors.receipt_used'), ['receipt' => [__('payments.errors.receipt_used')]]);
         }
+    }
+
+    /** A repeated manual payment id must name the same sale payment (409 otherwise). */
+    private function sameManual(PaymentIntent $existing, array $attributes, string $receipt): PaymentIntent
+    {
+        $same = $existing->purpose === 'sale' && $existing->mode === 'manual'
+            && $existing->provider_receipt === $receipt
+            && $existing->amount_minor === (int) $attributes['amount_minor']
+            && $existing->reference === (string) $attributes['reference'];
+
+        if (! $same) {
+            throw new ApiException(409, 'id_conflict', __('payments.errors.id_conflict'));
+        }
+
+        return $existing;
     }
 
     /**
@@ -158,32 +216,55 @@ class PaymentIntents
     public function payout(PaymentMethod $method, PaymentIntent $original, array $data): PaymentIntent
     {
         if (($existing = PaymentIntent::query()->find($data['id'])) !== null) {
+            if ($existing->purpose !== 'refund' || $existing->original_intent_id !== $original->id || $existing->amount_minor !== (int) $data['amount_minor']) {
+                throw new ApiException(409, 'id_conflict', __('payments.errors.id_conflict'));
+            }
+
             return $existing;
+        }
+
+        if ($original->purpose !== 'sale' || $original->status !== 'succeeded') {
+            throw new ApiException(422, 'refund_original_unpaid', __('payments.errors.refund_original_unpaid'));
+        }
+
+        if ($data['currency'] !== $original->currency) {
+            throw new ApiException(422, 'refund_currency_mismatch', __('payments.errors.refund_currency_mismatch'));
         }
 
         $provider = $this->registry->for($method);
         $this->assertAmount($provider->currencies(), $data['currency'], (int) $data['amount_minor']);
 
-        $intent = PaymentIntent::create([
-            'id' => $data['id'],
-            'company_id' => $original->company_id,
-            'location_id' => $data['location_id'] ?? $original->location_id,
-            'device_id' => $data['device_id'] ?? null,
-            'payment_method_id' => $method->id,
-            'provider' => (string) ($method->provider ?? $method->type),
-            'driver' => $provider->name(),
-            'purpose' => 'refund',
-            'mode' => 'payout',
-            'currency' => $data['currency'],
-            'amount_minor' => (int) $data['amount_minor'],
-            'phone' => $original->phone,
-            'reference_type' => $data['reference_type'],
-            'reference' => $data['reference'],
-            'original_intent_id' => $original->id,
-            'status' => 'pending',
-            'expires_at' => CarbonImmutable::now()->addHours((int) config('payments.payout_give_up_hours', 24)),
-            'created_by' => $data['created_by'] ?? null,
-        ]);
+        $intent = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($method, $original, $data, $provider) {
+            // One payout at a time per original payment: the cap counts every payout not known to have failed.
+            PaymentIntent::query()->whereKey($original->id)->lockForUpdate()->firstOrFail();
+            $paidOut = (int) PaymentIntent::query()->where('original_intent_id', $original->id)->where('purpose', 'refund')
+                ->whereNotIn('status', ['failed', 'cancelled'])->sum('amount_minor');
+
+            if ($paidOut + (int) $data['amount_minor'] > $original->amount_minor) {
+                throw new ApiException(422, 'refund_exceeds_payment', __('payments.errors.refund_exceeds_payment'));
+            }
+
+            return PaymentIntent::create([
+                'id' => $data['id'],
+                'company_id' => $original->company_id,
+                'location_id' => $data['location_id'] ?? $original->location_id,
+                'device_id' => $data['device_id'] ?? null,
+                'payment_method_id' => $method->id,
+                'provider' => (string) ($method->provider ?? $method->type),
+                'driver' => $provider->name(),
+                'purpose' => 'refund',
+                'mode' => 'payout',
+                'currency' => $data['currency'],
+                'amount_minor' => (int) $data['amount_minor'],
+                'phone' => $original->phone,
+                'reference_type' => $data['reference_type'],
+                'reference' => $data['reference'],
+                'original_intent_id' => $original->id,
+                'status' => 'pending',
+                'expires_at' => CarbonImmutable::now()->addHours((int) config('payments.payout_give_up_hours', 24)),
+                'created_by' => $data['created_by'] ?? null,
+            ]);
+        });
 
         try {
             $result = $provider->refund($intent, $original, $method);
@@ -204,7 +285,10 @@ class PaymentIntents
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($intent, $result) {
             $locked = PaymentIntent::query()->whereKey($intent->id)->lockForUpdate()->firstOrFail();
 
-            if (! $locked->isPending()) {
+            $recovers = in_array($locked->status, PaymentIntent::RECOVERABLE, true) && $result->status === 'succeeded'
+                && ($result->amountMinor === null || $result->amountMinor === $locked->amount_minor);
+
+            if (! $locked->isPending() && ! $recovers) {
                 if ($locked->status === 'succeeded' && $locked->provider_receipt === null && $result->receipt !== null) {
                     $locked->fill(['provider_receipt' => $result->receipt])->save();
                 }
@@ -222,6 +306,13 @@ class PaymentIntents
 
             if ($result->isPending()) {
                 $locked->fill($changes)->save();
+
+                return $locked;
+            }
+
+            // The provider may have the request but did not answer: keep checking.
+            if ($result->status === 'unknown') {
+                $locked->fill([...$changes, 'status' => 'unknown', 'expires_at' => CarbonImmutable::now()->addSeconds(30)])->save();
 
                 return $locked;
             }
@@ -255,9 +346,9 @@ class PaymentIntents
      *
      * @param  array{receipt: string, amount_minor: int, currency: string, account_reference: ?string, shortcode: ?string, transacted_at: ?CarbonImmutable, data: array<string, scalar|null>}  $received
      */
-    public function receive(PaymentMethod $method, array $received): PaymentReceipt
+    public function receive(PaymentMethod $method, array $received, bool $match = true, ?string $flag = null): PaymentReceipt
     {
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($method, $received) {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($method, $received, $match, $flag) {
             $provider = (string) ($method->provider ?? $method->type);
             $receipt = strtoupper($received['receipt']);
             $existing = PaymentReceipt::query()->where('provider', $provider)->where('receipt', $receipt)->first();
@@ -277,10 +368,22 @@ class PaymentIntents
                 'shortcode' => $received['shortcode'],
                 'transacted_at' => $received['transacted_at'],
                 'status' => 'unmatched',
+                'flag' => $flag,
                 'provider_data' => $received['data'],
             ]);
 
-            $intent = $this->candidateFor($row);
+            // Already paid through an intent with this receipt (an STK push on a Paybill that
+            // also confirms by C2B): linked, nothing else changes.
+            $paid = PaymentIntent::query()->where('payment_method_id', $method->id)->where('provider_receipt', $receipt)
+                ->where('purpose', 'sale')->where('status', 'succeeded')->where('mode', 'stk')->first();
+
+            if ($paid !== null) {
+                $row->fill(['status' => 'matched', 'flag' => null, 'payment_intent_id' => $paid->id, 'matched_at' => CarbonImmutable::now()])->save();
+
+                return $row->refresh();
+            }
+
+            $intent = $match ? $this->candidateFor($row) : null;
 
             if ($intent !== null) {
                 $this->settleReceipt($row, $intent, null);
@@ -306,7 +409,7 @@ class PaymentIntents
                 && $intent->purpose === 'sale'
                 && $intent->payment_method_id === $receipt->payment_method_id
                 && $intent->currency === $receipt->currency
-                && ($intent->verification === 'unverified' || ($intent->mode === 'stk' && in_array($intent->status, ['pending', 'timeout'], true)));
+                && ($intent->verification === 'unverified' || ($intent->mode === 'stk' && in_array($intent->status, ['pending', 'unknown', 'timeout'], true)));
 
             if (! $matchable) {
                 throw new ApiException(422, 'not_matchable', __('payments.errors.not_matchable'));
@@ -335,7 +438,7 @@ class PaymentIntents
         $count = 0;
         $stop = microtime(true) + (int) config('payments.run_seconds', 40);
 
-        $due = PaymentIntent::query()->where('status', 'pending')->where('expires_at', '<=', $at)->orderBy('expires_at')->limit(100)->get();
+        $due = PaymentIntent::query()->whereIn('status', ['pending', 'unknown'])->where('expires_at', '<=', $at)->orderBy('expires_at')->limit(100)->get();
 
         foreach ($due as $intent) {
             // Stay inside the worker's time limit; the scheduler does the rest next minute.
@@ -473,7 +576,9 @@ class PaymentIntents
         try {
             $result = $this->registry->for($method)->initiate($intent, $method);
         } catch (ProviderUnavailable) {
-            $result = ProviderResult::failed('unreachable', __('payments.errors.unreachable'));
+            // Nothing is known: the push may have reached the phone. Keep checking (and match
+            // a late result or a C2B confirmation) instead of failing it.
+            $result = new ProviderResult('unknown', resultCode: 'no_answer_from_provider', message: __('payments.errors.provider_no_answer'));
         }
 
         return $this->apply($intent, $result);
@@ -481,8 +586,13 @@ class PaymentIntents
 
     private function candidateFor(PaymentReceipt $receipt): ?PaymentIntent
     {
-        $manual = PaymentIntent::query()->where('provider', $receipt->provider)->where('provider_receipt', $receipt->receipt)
-            ->where('purpose', 'sale')->where('verification', 'unverified')->lockForUpdate()->first();
+        $window = (int) config('payments.manual_match_window_hours', 48);
+        $manual = PaymentIntent::query()->where('payment_method_id', $receipt->payment_method_id)->where('provider_receipt', $receipt->receipt)
+            ->where('purpose', 'sale')->where('verification', 'unverified')
+            ->when($receipt->transacted_at !== null, fn ($q) => $q
+                ->where('created_at', '>=', $receipt->transacted_at->subHours($window))
+                ->where('created_at', '<=', $receipt->transacted_at->addHours($window)))
+            ->lockForUpdate()->first();
 
         if ($manual !== null) {
             return $manual;
@@ -495,7 +605,7 @@ class PaymentIntents
         return PaymentIntent::query()
             ->where('payment_method_id', $receipt->payment_method_id)
             ->where('purpose', 'sale')->where('mode', 'stk')
-            ->whereIn('status', ['pending', 'timeout'])
+            ->whereIn('status', ['pending', 'unknown', 'timeout'])
             ->where('amount_minor', $receipt->amount_minor)
             ->where('currency', $receipt->currency)
             ->where('account_reference', strtoupper((string) $receipt->account_reference))

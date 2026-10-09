@@ -6,6 +6,7 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\CallbackTokens;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
@@ -48,6 +49,8 @@ trait BuildsPayments
 
         $this->inTenant(function () use ($settings, $secrets) {
             app(TenantCurrencies::class)->provisionFor($this->acme);
+            // AUTH-07: the cashier at the till is staff of the location (pos.till.sign_in).
+            app(ModuleRegistry::class)->activate('pos');
             DB::connection(TenantContext::CONNECTION)->transaction(fn () => app(DefaultPaymentMethods::class)->seed($this->acme));
 
             $this->mpesa = PaymentMethod::query()->where('company_id', $this->acme->id)->where('provider', 'mpesa_ke')->sole();
@@ -94,7 +97,7 @@ trait BuildsPayments
                 'CustomerMessage' => 'Success. Request accepted for processing',
             ]),
             'sandbox.safaricom.co.ke/mpesa/stkpushquery/*' => Http::response(['errorCode' => '500.001.1001', 'errorMessage' => 'The transaction is being processed'], 500),
-            'sandbox.safaricom.co.ke/mpesa/b2c/*' => Http::response(['ConversationID' => 'AG_B2C_1', 'OriginatorConversationID' => 'orig-1', 'ResponseCode' => '0', 'ResponseDescription' => 'Accept the service request successfully.']),
+            'sandbox.safaricom.co.ke/mpesa/b2c/*' => fn ($request) => Http::response(['ConversationID' => 'AG_B2C_'.Str::random(8), 'OriginatorConversationID' => $request['OriginatorConversationID'], 'ResponseCode' => '0', 'ResponseDescription' => 'Accept the service request successfully.']),
             'sandbox.safaricom.co.ke/mpesa/transactionstatus/*' => Http::response(['ConversationID' => 'AG_TS_1', 'OriginatorConversationID' => 'orig-ts-1', 'ResponseCode' => '0', 'ResponseDescription' => 'Accept the service request successfully.']),
             'sandbox.safaricom.co.ke/mpesa/c2b/*' => Http::response(['OriginatorCoversationID' => '', 'ResponseCode' => '0', 'ResponseDescription' => 'Success']),
         ], $overrides));
@@ -122,6 +125,7 @@ trait BuildsPayments
             'currency' => 'KES',
             'phone' => $phone,
             'reference_type' => 'pos.sale',
+            'user_id' => $this->owner->id,
             'reference' => '019a0000-0000-7000-8000-000000000001',
             ...$extra,
         ], $this->tillHeaders());

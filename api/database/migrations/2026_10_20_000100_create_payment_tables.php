@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Schema;
 // payment_tenant_for_callback_token (security definer, ADR 002), then
 // everything runs under that tenant's row-level security.
 //
-// payment_intents: one request for money through a provider (an STK push
+// payment_intents: one request for money (statuses pending, unknown: the
+// provider may have received the push but did not answer, succeeded,
+// failed, cancelled, timeout) through a provider (an STK push
 // for a sale, a manual M-Pesa code typed by the cashier, a B2C refund),
 // with its status, the provider's references and the minimum of what the
 // provider answered (result code and text, amount, receipt; never names).
@@ -87,7 +89,7 @@ return new class extends Migration
 
         DB::statement("alter table payment_intents add constraint payment_intents_purpose_check check (purpose in ('sale', 'refund'))");
         DB::statement("alter table payment_intents add constraint payment_intents_mode_check check (mode in ('direct', 'stk', 'manual', 'payout'))");
-        DB::statement("alter table payment_intents add constraint payment_intents_status_check check (status in ('pending', 'succeeded', 'failed', 'cancelled', 'timeout'))");
+        DB::statement("alter table payment_intents add constraint payment_intents_status_check check (status in ('pending', 'unknown', 'succeeded', 'failed', 'cancelled', 'timeout'))");
         DB::statement("alter table payment_intents add constraint payment_intents_verification_check check (verification is null or verification in ('unverified', 'verified', 'mismatch'))");
         DB::statement('alter table payment_intents add constraint payment_intents_amount_check check (amount_minor > 0)');
         DB::statement("alter table payment_intents add constraint payment_intents_refund_check check (mode <> 'payout' or (purpose = 'refund' and original_intent_id is not null))");
@@ -96,7 +98,7 @@ return new class extends Migration
         DB::statement('create unique index payment_intents_checkout_unique on payment_intents (tenant_id, provider, provider_checkout_id) where provider_checkout_id is not null');
         DB::statement("create unique index payment_intents_receipt_unique on payment_intents (tenant_id, provider, provider_receipt) where provider_receipt is not null and purpose = 'sale' and status = 'succeeded'");
         DB::statement('create unique index payment_intents_verification_ref_unique on payment_intents (tenant_id, provider, verification_ref) where verification_ref is not null');
-        DB::statement("create index payment_intents_due on payment_intents (expires_at) where status = 'pending'");
+        DB::statement("create index payment_intents_due on payment_intents (expires_at) where status in ('pending', 'unknown')");
         DB::statement("create index payment_intents_verify_due on payment_intents (verify_after) where verification = 'unverified' and verification_ref is null");
         Rls::enable('payment_intents');
 
@@ -113,6 +115,8 @@ return new class extends Migration
             $table->string('shortcode', 20)->nullable();
             $table->timestampTz('transacted_at')->nullable();
             $table->string('status', 10);
+            // `late_or_unmatched`: a paid result whose intent was unknown or already final.
+            $table->string('flag', 30)->nullable();
             $table->foreignUuid('payment_intent_id')->nullable()->constrained()->restrictOnDelete();
             $userRef($table, 'matched_by');
             $table->timestampTz('matched_at')->nullable();
@@ -154,7 +158,7 @@ return new class extends Migration
             as $$
                 select t.tenant_id from (
                     select i.tenant_id from public.payment_intents i
-                    where i.status = 'pending' and i.expires_at <= p_at
+                    where i.status in ('pending', 'unknown') and i.expires_at <= p_at
                     union
                     select i.tenant_id from public.payment_intents i
                     where i.verification = 'unverified' and i.verification_ref is null and i.verify_after <= p_at

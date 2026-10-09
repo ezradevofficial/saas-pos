@@ -23,8 +23,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * - `payout`: a refund paid back to the customer (M-Pesa B2C);
  * - `direct`: cash and other methods with nothing to ask the provider.
  *
- * Statuses: pending, succeeded, failed, cancelled (the customer declined),
- * timeout. The phone number is encrypted and only ever shown masked; the
+ * Statuses: pending, unknown (the push was sent but the provider's
+ * answer was lost: still checked), succeeded, failed, cancelled (the
+ * customer declined), timeout. A paid result arriving late moves an
+ * `unknown` or `timeout` intent to `succeeded`. The phone number is encrypted and only ever shown masked; the
  * provider's answer is kept to its result code and text, amount, receipt
  * and dates (`provider_data`), never names. Created, finished and every
  * status change are audited (AUD-01), without the phone.
@@ -33,7 +35,10 @@ class PaymentIntent extends Model implements HasScope
 {
     use Audited, BelongsToTenant, HasUuids;
 
-    public const STATUSES = ['pending', 'succeeded', 'failed', 'cancelled', 'timeout'];
+    public const STATUSES = ['pending', 'unknown', 'succeeded', 'failed', 'cancelled', 'timeout'];
+
+    /** Final statuses a paid result may still turn into `succeeded` (the push may have gone through). */
+    public const RECOVERABLE = ['unknown', 'timeout'];
 
     public const FINAL = ['succeeded', 'failed', 'cancelled', 'timeout'];
 
@@ -78,7 +83,7 @@ class PaymentIntent extends Model implements HasScope
 
     public function isPending(): bool
     {
-        return $this->status === 'pending';
+        return in_array($this->status, ['pending', 'unknown'], true);
     }
 
     /** The phone with all but the country code and last three digits hidden ("2547******123"). */

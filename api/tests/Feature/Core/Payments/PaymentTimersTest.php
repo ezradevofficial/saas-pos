@@ -2,13 +2,16 @@
 
 namespace Tests\Feature\Core\Payments;
 
+use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Jobs\ProcessPaymentTimers;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Payments\Models\PaymentReceipt;
 use App\Core\Tenancy\DueTenants;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\Concerns\BuildsPayments;
@@ -78,9 +81,13 @@ class PaymentTimersTest extends TestCase
         $this->assertSame('timeout', $timedOut->status);
         $this->assertSame('no_answer', $timedOut->result_code);
 
-        // A final status never changes again.
-        $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0))->assertOk();
-        $this->assertSame('timeout', $this->intent($intent->id)->status);
+        // A paid result arriving late still completes it (the POS hears of it).
+        Event::fake([PaymentIntentSettled::class]);
+        $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0, 'QJK3LATE02'))->assertOk();
+        $paid = $this->intent($intent->id);
+        $this->assertSame(['succeeded', 'QJK3LATE02'], [$paid->status, $paid->provider_receipt]);
+        Event::assertDispatched(PaymentIntentSettled::class, fn (PaymentIntentSettled $e) => $e->intentId === $intent->id);
+        $this->inTenant(fn () => $this->assertSame(0, PaymentReceipt::query()->count()));
     }
 
     public function test_a_manual_code_is_checked_and_verified_by_the_status_result(): void
@@ -88,7 +95,7 @@ class PaymentTimersTest extends TestCase
         $this->fakeDaraja();
         $id = $this->postJson('/api/v1/payments/intents', [
             'payment_method_id' => $this->mpesa->id, 'mode' => 'manual', 'amount_minor' => '150000', 'currency' => 'KES',
-            'receipt' => 'QJK3OFFLN1', 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(),
+            'receipt' => 'QJK3OFFLN1', 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $this->owner->id,
         ], $this->tillHeaders())->assertCreated()->json('data.id');
 
         $this->runTimers(CarbonImmutable::now()->addMinutes(31));

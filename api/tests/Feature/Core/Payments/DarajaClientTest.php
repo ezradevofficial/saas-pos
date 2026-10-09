@@ -6,6 +6,7 @@ use App\Core\Payments\Models\PaymentIntent;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\BuildsPayments;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -115,14 +116,34 @@ class DarajaClientTest extends TestCase
         $this->assertStringNotContainsString('254712345678', $response->getContent());
     }
 
-    public function test_an_unreachable_provider_fails_the_push_without_holding_it_open(): void
+    public function test_an_unanswered_push_stays_unknown_and_a_later_c2b_confirmation_completes_it(): void
     {
         Http::fake([
             'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
-            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => fn () => throw new ConnectionException('timed out'),
+            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => fn () => throw new ConnectionException('read timed out'),
         ]);
 
-        $this->push()->assertCreated()->assertJsonPath('data.status', 'failed')->assertJsonPath('data.result_code', 'unreachable');
+        // The push may have reached the phone: never failed, kept open.
+        $intent = $this->push()->assertCreated()->assertJsonPath('data.status', 'unknown')->assertJsonPath('data.result_code', 'no_answer_from_provider')->json('data');
+
+        // The customer paid: the Paybill's confirmation carries the push's account reference.
+        $this->providerCallback('c2b-confirm', $this->c2bConfirmation('QJK3LOST01', '1500.00', $intent['account_reference']))->assertOk();
+        $this->getJson("/api/v1/payments/intents/{$intent['id']}", $this->tillHeaders())->assertOk()
+            ->assertJsonPath('data.status', 'succeeded')->assertJsonPath('data.receipt', 'QJK3LOST01');
+    }
+
+    public function test_an_unknown_push_that_never_answers_times_out(): void
+    {
+        Http::fake([
+            'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
+            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => fn () => throw new ConnectionException('read timed out'),
+        ]);
+        $id = $this->push()->assertCreated()->json('data.id');
+
+        Artisan::call('payments:process-timers', ['--at' => CarbonImmutable::now()->addSeconds(60)->toIso8601String()]);
+        $this->assertSame('unknown', $this->inTenant(fn () => PaymentIntent::query()->findOrFail($id)->status));
+        Artisan::call('payments:process-timers', ['--at' => CarbonImmutable::now()->addSeconds(400)->toIso8601String()]);
+        $this->assertSame('timeout', $this->inTenant(fn () => PaymentIntent::query()->findOrFail($id)->status));
     }
 
     public function test_whole_shillings_kes_only_and_a_valid_phone_are_required(): void

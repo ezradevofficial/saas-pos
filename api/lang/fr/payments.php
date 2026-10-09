@@ -3,6 +3,13 @@
 // Paiements en caisse (note de concept 7.1) : messages de l’API et libellés des listes.
 return [
     'errors' => [
+        'id_conflict' => 'Cet identifiant a déjà servi pour un autre paiement. Créez un nouveau paiement avec un nouvel identifiant.',
+        'refund_original_unpaid' => 'Le paiement d’origine n’a pas été payé via le fournisseur, il ne peut pas être remboursé ainsi. Remboursez le client autrement.',
+        'refund_currency_mismatch' => 'Un remboursement est versé dans la devise du paiement d’origine.',
+        'refund_exceeds_payment' => 'Ce remboursement, avec ceux déjà versés, dépasse le paiement d’origine. Remboursez le reste autrement.',
+        'provider_no_answer' => 'Le fournisseur de paiement n’a pas répondu. Le paiement est encore vérifié ; demandez au client si la demande est arrivée.',
+        'too_many_requests' => 'Trop de demandes de paiement. Patientez un instant, puis réessayez.',
+        'cashier_not_staff' => 'Connectez-vous à cette caisse avec un membre du personnel de cet emplacement, puis réessayez.',
         'push_unsupported' => 'Ce moyen de paiement ne peut pas envoyer de demande de paiement sur un téléphone. Confirmez le paiement avec sa référence.',
         'payout_unsupported' => 'Ce moyen de paiement ne peut pas rembourser seul. Remboursez le client autrement.',
         'check_unsupported' => 'Ce moyen de paiement ne peut pas vérifier les codes de paiement. Rapprochez le paiement dans le back-office.',
@@ -51,6 +58,7 @@ return [
 
     'statuses' => [
         'pending' => 'En attente',
+        'unknown' => 'Sans réponse',
         'succeeded' => 'Payé',
         'failed' => 'Échoué',
         'cancelled' => 'Refusé',
@@ -66,6 +74,7 @@ return [
     'filters' => [
         'all' => 'Tous',
         'pending' => 'En attente',
+        'unknown' => 'Sans réponse',
         'succeeded' => 'Payé',
         'failed' => 'Échoué',
         'cancelled' => 'Refusé',

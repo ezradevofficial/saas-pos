@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Payments;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
+use App\Core\Http\ApiException;
 use App\Core\MasterData\PaymentMethods\DefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\CallbackTokens;
@@ -53,7 +54,7 @@ class MpesaCallbackTest extends TestCase
     {
         $id = $this->postJson('/api/v1/payments/intents', [
             'payment_method_id' => $this->mpesa->id, 'mode' => 'manual', 'amount_minor' => $amount, 'currency' => 'KES',
-            'receipt' => $code, 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(),
+            'receipt' => $code, 'reference_type' => 'pos.sale', 'reference' => (string) Str::uuid7(), 'user_id' => $this->owner->id,
         ], $this->tillHeaders())->assertCreated()->json('data.id');
 
         return $this->intent($id);
@@ -95,6 +96,46 @@ class MpesaCallbackTest extends TestCase
         Event::assertDispatchedTimes(PaymentIntentSettled::class, 2);
         Event::assertDispatched(PaymentIntentSettled::class, fn (PaymentIntentSettled $e) => $e->intentId === $intent->id && $e->referenceType === 'pos.sale' && $e->tenantId === $this->owner->tenant_id);
         Event::assertDispatched(PaymentIntentSettled::class, fn (PaymentIntentSettled $e) => $e->intentId === $manual->id);
+    }
+
+    public function test_paid_results_no_open_intent_takes_are_kept_for_the_back_office(): void
+    {
+        // A checkout we never placed (the push answer was lost before we knew its id).
+        $this->providerCallback('stk', $this->stkCallback('ws_CO_NEVERSEEN', 0, 'QJK3ORPHN1'))->assertOk();
+        // Declined first, then a paid result for the same checkout.
+        $declined = $this->pushed();
+        $this->providerCallback('stk', $this->stkCallback($declined->provider_checkout_id, 1032))->assertOk();
+        $this->providerCallback('stk', $this->stkCallback($declined->provider_checkout_id, 0, 'QJK3AFTER1'))->assertOk();
+        // Paid a different amount.
+        $short = $this->pushed();
+        $this->providerCallback('stk', $this->stkCallback($short->provider_checkout_id, 0, 'QJK3SHRT01', '10.00'))->assertOk();
+        $this->providerCallback('stk', $this->stkCallback($short->provider_checkout_id, 0, 'QJK3SHRT01', '10.00'))->assertOk();
+
+        $this->assertSame('cancelled', $this->intent($declined->id)->status);
+        $this->assertSame('failed', $this->intent($short->id)->status);
+        $kept = collect($this->getJson("/api/v1/companies/{$this->acme->id}/payment-receipts", $this->headersFor())->assertOk()->json('data'))->keyBy('receipt');
+        $this->assertEqualsCanonicalizing(['QJK3ORPHN1', 'QJK3AFTER1', 'QJK3SHRT01'], $kept->keys()->all());
+        $this->assertSame('1000', $kept['QJK3SHRT01']['amount']['amount_minor']);
+        $this->inTenant(fn () => $this->assertSame(3, PaymentReceipt::query()->where('flag', 'late_or_unmatched')->where('status', 'unmatched')->count()));
+
+        // A C2B confirmation for money a push already took is linked, not left unmatched.
+        $paid = $this->pushed();
+        $this->providerCallback('stk', $this->stkCallback($paid->provider_checkout_id, 0, 'QJK3BOTH01'))->assertOk();
+        $this->providerCallback('c2b-confirm', $this->c2bConfirmation('QJK3BOTH01', '1500.00'))->assertOk();
+        $this->inTenant(fn () => $this->assertSame($paid->id, PaymentReceipt::query()->where('receipt', 'QJK3BOTH01')->sole()->payment_intent_id));
+    }
+
+    public function test_a_manual_code_is_verified_only_by_money_on_its_own_method(): void
+    {
+        $intent = $this->manual('QJK3OTHER1');
+        $other = $this->inTenant(fn () => PaymentMethod::create([
+            'company_id' => $this->acme->id, 'type' => 'mobile_money', 'name' => 'Second till', 'provider' => 'mpesa_ke', 'position' => 99, 'active' => false,
+        ]));
+        $this->inTenant(fn () => app(PaymentIntents::class)->receive($other, [
+            'receipt' => 'QJK3OTHER1', 'amount_minor' => 150000, 'currency' => 'KES', 'account_reference' => null, 'shortcode' => '999999', 'transacted_at' => null, 'data' => [],
+        ]));
+
+        $this->assertSame('unverified', $this->intent($intent->id)->verification);
     }
 
     public function test_declined_unreachable_and_wrong_amount_callbacks(): void
@@ -261,6 +302,35 @@ class MpesaCallbackTest extends TestCase
         $refund = $payout();
         $this->providerCallback('b2c-result', ['Result' => ['ResultCode' => 2001, 'ResultDesc' => 'The initiator information is invalid.', 'ConversationID' => 'AG_B2C_1', 'OriginatorConversationID' => $refund->id]])->assertOk();
         $this->assertSame('failed', $this->intent($refund->id)->status);
+
+        // Refunds never exceed the original payment, in its currency; a failed payout does not count.
+        $payoutOf = fn (int $amount, string $currency = 'KES') => $this->inTenant(fn () => app(PaymentIntents::class)->payout($this->mpesa->fresh(), $this->intent($sale->id), [
+            'id' => (string) Str::uuid7(), 'amount_minor' => $amount, 'currency' => $currency, 'reference_type' => 'pos.refund', 'reference' => (string) Str::uuid7(),
+        ]));
+        $payoutOf(100000);
+        foreach ([[60000, 'KES', 'refund_exceeds_payment'], [10000, 'USD', 'refund_currency_mismatch']] as [$amount, $currency, $code]) {
+            try {
+                $payoutOf($amount, $currency);
+                $this->fail("No refusal for {$code}");
+            } catch (ApiException $e) {
+                $this->assertSame($code, $e->errorCode);
+            }
+        }
+        $this->assertSame('pending', $payoutOf(50000)->status);
+
+        // The same payout id must name the same refund.
+        $id = (string) Str::uuid7();
+        $this->inTenant(fn () => DB::table('payment_intents')->where('purpose', 'refund')->where('status', 'pending')->update(['status' => 'failed']));
+        $same = fn (int $amount) => $this->inTenant(fn () => app(PaymentIntents::class)->payout($this->mpesa->fresh(), $this->intent($sale->id), [
+            'id' => $id, 'amount_minor' => $amount, 'currency' => 'KES', 'reference_type' => 'pos.refund', 'reference' => 'r',
+        ]));
+        $this->assertSame($same(10000)->id, $same(10000)->id);
+        try {
+            $same(20000);
+            $this->fail('No conflict for a reused payout id');
+        } catch (ApiException $e) {
+            $this->assertSame('id_conflict', $e->errorCode);
+        }
 
         $this->inTenant(fn () => $this->mpesa->fill(['settings' => ['shortcode' => '174379'], 'secrets' => [...$this->mpesa->secrets, 'security_credential' => null]])->save());
         $this->assertSame('initiator_missing', $payout()->result_code);

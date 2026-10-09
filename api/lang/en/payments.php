@@ -3,6 +3,13 @@
 // Payments at the till (concept note 7.1): API messages and list labels.
 return [
     'errors' => [
+        'id_conflict' => 'This id was already used for another payment. Make a new payment with a new id.',
+        'refund_original_unpaid' => 'The original payment was not paid through the provider, so it can’t be refunded this way. Refund the customer another way.',
+        'refund_currency_mismatch' => 'A refund is paid back in the currency of the original payment.',
+        'refund_exceeds_payment' => 'This refund, with the refunds already paid back, is more than the original payment. Refund the rest another way.',
+        'provider_no_answer' => 'The payment provider did not answer. The payment is still being checked; ask the customer whether the prompt arrived.',
+        'too_many_requests' => 'Too many payment requests. Wait a moment, then try again.',
+        'cashier_not_staff' => 'Sign in at this till as a staff member who works here, then try again.',
         'push_unsupported' => 'This payment method can’t send a payment request to a phone. Confirm the payment with its reference instead.',
         'payout_unsupported' => 'This payment method can’t pay a refund back by itself. Refund the customer another way.',
         'check_unsupported' => 'This payment method can’t check payment codes. Match the payment in the back office.',
@@ -52,6 +59,7 @@ return [
 
     'statuses' => [
         'pending' => 'Pending',
+        'unknown' => 'No answer yet',
         'succeeded' => 'Paid',
         'failed' => 'Failed',
         'cancelled' => 'Declined',
@@ -67,6 +75,7 @@ return [
     'filters' => [
         'all' => 'All',
         'pending' => 'Pending',
+        'unknown' => 'No answer yet',
         'succeeded' => 'Paid',
         'failed' => 'Failed',
         'cancelled' => 'Declined',

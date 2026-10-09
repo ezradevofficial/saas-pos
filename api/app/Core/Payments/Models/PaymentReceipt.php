@@ -26,7 +26,7 @@ class PaymentReceipt extends Model implements HasScope
 
     protected $fillable = [
         'company_id', 'payment_method_id', 'provider', 'receipt', 'currency', 'amount_minor', 'account_reference',
-        'shortcode', 'transacted_at', 'status', 'payment_intent_id', 'matched_by', 'matched_at', 'provider_data',
+        'shortcode', 'transacted_at', 'status', 'flag', 'payment_intent_id', 'matched_by', 'matched_at', 'provider_data',
     ];
 
     protected array $auditHidden = ['provider_data'];
