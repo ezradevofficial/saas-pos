@@ -3,8 +3,8 @@
 namespace Modules\POS\Insights;
 
 use App\Core\Currency\Converter;
-use App\Core\Currency\Models\CompanyCurrency;
 use App\Core\Currency\ExchangeRates;
+use App\Core\Currency\Models\CompanyCurrency;
 use App\Core\Currency\Money;
 use App\Core\Currency\RateUnavailable;
 use App\Core\Identity\Models\User;
