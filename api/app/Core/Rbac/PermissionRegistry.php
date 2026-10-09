@@ -64,6 +64,8 @@ class PermissionRegistry
         // LAY-06: versioned configuration (themes, layouts, templates), the
         // default for kinds that bring no permissions of their own.
         'config' => ['view', 'edit', 'publish'],
+        // TPL-01..TPL-05: document templates (the `template` configuration kind).
+        'template' => ['view', 'edit', 'publish'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

@@ -108,9 +108,9 @@ class ConfigVersions
     }
 
     /** @return list<array{path: string, code: string, message: string}> */
-    public function problems(ConfigKind $kind, array $payload): array
+    public function problems(ConfigKind $kind, array $payload, ?ConfigDocument $document = null): array
     {
-        return $kind->problems($payload);
+        return $kind->problems($payload, $document);
     }
 
     public function publish(ConfigDocument $document, ConfigKind $kind, ?User $by): ConfigVersion
@@ -118,7 +118,7 @@ class ConfigVersions
         return $this->transaction(function () use ($document, $kind, $by) {
             $this->lock($document);
             $draft = $document->draft()->first() ?? throw new ApiException(422, 'no_draft', __('config.errors.no_draft'));
-            $this->assertValid($kind, $draft->payload);
+            $this->assertValid($kind, $draft->payload, $document);
 
             $previous = $this->archivePublished($document);
             $number = $this->nextNumber($document, $draft->version);
@@ -153,7 +153,7 @@ class ConfigVersions
             }
 
             // The kind's rules may have tightened since: the copy must still be valid.
-            $this->assertValid($kind, $source->payload);
+            $this->assertValid($kind, $source->payload, $document);
             $previous = $this->archivePublished($document);
             $copy = $this->newVersion($document, $source->payload, ConfigVersion::PUBLISHED, 'rollback', $by, $source);
 
@@ -248,9 +248,9 @@ class ConfigVersions
         return $document->versions()->orderByDesc('version')->get();
     }
 
-    private function assertValid(ConfigKind $kind, array $payload): void
+    private function assertValid(ConfigKind $kind, array $payload, ?ConfigDocument $document = null): void
     {
-        $problems = $this->problems($kind, $payload);
+        $problems = $this->problems($kind, $payload, $document);
 
         if ($problems !== []) {
             throw new InvalidPayload($problems);

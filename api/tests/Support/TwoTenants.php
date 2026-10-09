@@ -446,7 +446,7 @@ final class TwoTenants
         // tenant's number formats seeded on first use), a shift with a float,
         // three M-Pesa sales by the owner (one voided, one partly refunded,
         // one left for the isolation suite to void) and a cash pay-in.
-        $pos = self::pos($test, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
+        $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
 
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
@@ -509,7 +509,7 @@ final class TwoTenants
      *
      * @return array<string, string> pos_shift, pos_sale (partly refunded), pos_sale_line, pos_sale_spare (completed, untouched), and the range patterns
      */
-    private static function pos(TestCase $test, string $tenantId, string $ownerId, string $deviceToken, string $item, string $uom, string $priceList, string $paymentMethod, string $taxCode): array
+    private static function pos(TestCase $test, array $owner, string $tenantId, string $ownerId, string $deviceToken, string $item, string $uom, string $priceList, string $paymentMethod, string $taxCode): array
     {
         app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pos'));
         $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
@@ -546,7 +546,11 @@ final class TwoTenants
             'amount_minor' => '100000', 'reason' => 'Float top-up', 'occurred_at' => now()->toIso8601String(),
         ]]], $device))->assertJsonPath('results.0.status', 'stored');
 
+        // TPL-04: a public link to the first sale's receipt.
+        $documentShare = self::ok($test->postJson("/api/v1/pos/sales/{$sales[0]['id']}/share", [], $owner), 201)->json('data.id');
+
         return [
+            'document_share' => $documentShare,
             'pos_shift' => $shift,
             'pos_sale' => $sales[0]['id'],
             'pos_sale_line' => $sales[0]['lines'][0]['id'],

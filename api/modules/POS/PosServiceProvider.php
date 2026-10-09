@@ -3,6 +3,7 @@
 namespace Modules\POS;
 
 use App\Core\Currency\CurrencyUsage;
+use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\POS\Documents\ReceiptSource;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -29,6 +31,7 @@ use Modules\POS\Sync\OverrideVerifier;
 use Modules\POS\Sync\Sellability;
 use Modules\POS\Sync\Sources\NumberRangeSource;
 use Modules\POS\Sync\Sources\OpenShiftSource;
+use Modules\POS\Sync\Sources\TemplateSource;
 
 /**
  * The POS module (docs/modules/pos.md). Registered for every tenant, as
@@ -44,7 +47,8 @@ class PosServiceProvider extends ServiceProvider
 
     /** RBAC-01: the module's permission catalogue (`pos.resource.action`). */
     public const PERMISSIONS = [
-        'sale' => ['view', 'create', 'print', 'void', 'refund', 'review'],
+        // TPL-04: `share` emails a receipt and makes a public link to it.
+        'sale' => ['view', 'create', 'print', 'void', 'refund', 'review', 'share'],
         'shift' => ['view', 'open', 'close', 'manage'],
         'cash' => ['move'],
         'price' => ['override'],
@@ -81,6 +85,13 @@ class PosServiceProvider extends ServiceProvider
         $sources = $this->app->make(SyncSources::class);
         $sources->register(new NumberRangeSource);
         $sources->register(new OpenShiftSource);
+        // TPL-01, TPL-05: the receipt templates that apply at the till's branch.
+        $sources->register(new TemplateSource);
+
+        // TPL-01: receipts are printed from document templates (core), with this module's data.
+        $documents = $this->app->make(DataSources::class);
+        $documents->register(new ReceiptSource('pos.receipt'));
+        $documents->register(new ReceiptSource('pos.refund_receipt'));
 
         // NUM-02: a lost device's ranges stop when it is unpaired.
         Event::listen(DeviceUnpaired::class, RetireDeviceRanges::class);

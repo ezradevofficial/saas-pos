@@ -19,6 +19,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "openspout/openspout": "^5.3",
+        "picqer/php-barcode-generator": "^3.3",
         "pragmarx/google2fa": "^9.1",
         "predis/predis": "^3.6",
         "spatie/laravel-permission": "^8.3"

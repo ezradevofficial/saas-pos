@@ -56,6 +56,14 @@ final class PackFile
             'sources.*' => ['string'],
             'todo' => ['present', 'array'],
             'todo.*' => ['string'],
+            // TPL-03: which document types must carry the tax authority's
+            // block (eTIMS, DGI) for companies of this country.
+            'documents' => ['sometimes', 'array'],
+            'documents.fiscal' => ['sometimes', 'nullable', 'array'],
+            'documents.fiscal.authority' => ['required_with:documents.fiscal', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
+            'documents.fiscal.required_on' => ['required_with:documents.fiscal', 'array'],
+            'documents.fiscal.required_on.*' => ['string', 'regex:/^[a-z][a-z0-9_.]{0,59}\z/'],
+            'documents.fiscal.qr' => ['required_with:documents.fiscal', 'boolean'],
             'tax_codes' => ['required', 'array', 'min:1'],
             'tax_codes.*.code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_]+\z/'],
             'tax_codes.*.kind' => ['required', 'string', 'in:'.implode(',', TaxCode::KINDS)],
@@ -163,6 +171,19 @@ final class PackFile
     public function hash(): string
     {
         return hash('sha256', Auditor::canonicalJson($this->data));
+    }
+
+    /**
+     * TPL-03: the fiscal document rules (`{authority, required_on, qr}`),
+     * or null when the country has none.
+     *
+     * @return array{authority: string, required_on: list<string>, qr: bool}|null
+     */
+    public function fiscalDocuments(): ?array
+    {
+        $fiscal = $this->data['documents']['fiscal'] ?? null;
+
+        return is_array($fiscal) ? $fiscal : null;
     }
 
     /** @return list<array<string, mixed>> */

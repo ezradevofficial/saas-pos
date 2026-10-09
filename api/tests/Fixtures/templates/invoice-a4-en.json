@@ -1,0 +1,52 @@
+{
+    "description": "An A4 invoice with a two-column header row, a full lines table with headings, totals with tax lines, terms and a fiscal block for a company that does not transmit yet (off).",
+    "type": "sales.invoice",
+    "fiscal_required": true,
+    "template": {
+        "paper": "A4",
+        "margins": {"top": 15, "right": 15, "bottom": 15, "left": 15},
+        "language": "en",
+        "blocks": [
+            {"id": "head", "type": "row", "columns": [
+                [
+                    {"id": "logo", "type": "logo", "align": "left", "height": 15},
+                    {"id": "company", "type": "text", "text": "{{company.legal_name}}", "size": "large", "weight": "medium"},
+                    {"id": "company-address", "type": "field", "field": "company.address", "label": false}
+                ],
+                [
+                    {"id": "number", "type": "field", "field": "document.number", "label": true},
+                    {"id": "date", "type": "field", "field": "document.date", "label": true},
+                    {"id": "due", "type": "field", "field": "document.due_date", "label": true}
+                ]
+            ]},
+            {"id": "customer", "type": "field", "field": "customer.name", "label": true},
+            {"id": "lines", "type": "lines", "columns": ["item_name", "qty", "unit_price", "discount", "tax", "total"]},
+            {"id": "totals", "type": "totals", "show": ["subtotal", "discount", "tax", "total"]},
+            {"id": "terms", "type": "terms", "text": "Payment within 30 days to {{company.name}}."},
+            {"id": "fiscal", "type": "fiscal"}
+        ]
+    },
+    "data": {
+        "currencies": {"KES": 2},
+        "company": {"name": "Acme", "legal_name": "Acme Kenya Ltd", "tax_id": "P000111222Z", "address": "1 Kenyatta Ave, Nairobi", "phone": null, "email": null, "country": "KE", "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "custom": []},
+        "branch": {"name": "HQ", "code": "HQ", "address": null},
+        "location": {"name": "Office", "code": "L01"},
+        "document": {"number": "INV-2026-0001", "date": "2026-10-09", "due_date": "2026-11-08", "currency": "KES"},
+        "customer": {"name": "Jambo Traders", "tax_id": "P999", "phone": null, "email": "accounts@jambo.example", "address": null, "tags": [], "custom": []},
+        "lines": [
+            {"item_name": "Consulting day", "qty": "2", "unit_price": {"minor": "5000000", "currency": "KES"}, "discount": {"minor": "0", "currency": "KES"}, "tax": {"minor": "1600000", "currency": "KES"}, "total": {"minor": "11600000", "currency": "KES"}},
+            {"item_name": "Travel", "qty": "1", "unit_price": {"minor": "750050", "currency": "KES"}, "discount": {"minor": "50", "currency": "KES"}, "tax": {"minor": "0", "currency": "KES"}, "total": {"minor": "750000", "currency": "KES"}}
+        ],
+        "totals": {
+            "subtotal": {"minor": "10750050", "currency": "KES"},
+            "discount": {"minor": "50", "currency": "KES"},
+            "tax": {"minor": "1600000", "currency": "KES"},
+            "total": {"minor": "12350000", "currency": "KES"},
+            "dual": null,
+            "tax_lines": [{"name": "VAT", "rate": "16", "tax": {"minor": "1600000", "currency": "KES"}}, {"name": "Exempt", "rate": null, "tax": {"minor": "0", "currency": "KES"}}]
+        },
+        "payments": [],
+        "change": null,
+        "fiscal": {"authority": "kra_etims", "status": "off", "invoice_number": null, "receipt_number": null, "receipt_signature": null, "internal_data": null, "control_unit_id": null, "authority_time": null, "qr": null}
+    }
+}

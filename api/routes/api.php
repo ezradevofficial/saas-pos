@@ -21,6 +21,7 @@ use App\Core\Currency\Http\Controllers\CompanyCurrencyController;
 use App\Core\Currency\Http\Controllers\CurrencyController;
 use App\Core\Currency\Http\Controllers\ExchangeRateController;
 use App\Core\Currency\Http\Controllers\TenantCurrencyController;
+use App\Core\DocumentTemplates\Http\Controllers\DocumentTemplateController;
 use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
 use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
 use App\Core\Fiscal\Models\FiscalSubmission;
@@ -532,4 +533,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
         Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
         Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
     });
+
+    // TPL-01..TPL-03: the template designer's document types (merge fields,
+    // columns, locked blocks, defaults) and live previews with sample data.
+    Route::get('templates/types', [DocumentTemplateController::class, 'types']);
+    Route::post('templates/preview', [DocumentTemplateController::class, 'preview']);
+    Route::get('templates/previews/{preview}/pdf', [DocumentTemplateController::class, 'previewPdf'])->where('preview', '[A-Za-z0-9]{40}');
 });

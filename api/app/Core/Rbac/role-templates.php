@@ -23,7 +23,8 @@ return [
     ],
     [
         'key' => 'admin',
-        'permissions' => ['core.*'],
+        // TPL-04: shares POS documents by email and link (pos.sale.share).
+        'permissions' => ['core.*', 'pos.sale.share'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -43,6 +44,8 @@ return [
             'core.approval.reassign',
             // LAY-06: sees the layouts and themes that apply at their branch.
             'core.config.view',
+            // TPL-01: sees the document templates that apply at their branch.
+            'core.template.view',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
         ],
         'is_owner' => false,
@@ -93,6 +96,7 @@ return [
             'core.payment_method.view', 'core.dimension.*', 'core.payment.*', 'core.fiscal.view', 'core.fiscal.edit',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
+            'core.template.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
         ],
         'is_owner' => false,

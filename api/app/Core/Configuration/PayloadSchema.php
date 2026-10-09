@@ -24,11 +24,15 @@ namespace App\Core\Configuration;
  */
 final class PayloadSchema
 {
-    /** @return list<array{path: string, code: string, message: string}> */
-    public static function check(mixed $value, array $schema): array
+    /**
+     * $path names where $value sits in a larger payload (problems are named from there).
+     *
+     * @return list<array{path: string, code: string, message: string}>
+     */
+    public static function check(mixed $value, array $schema, string $path = ''): array
     {
         $problems = [];
-        self::walk($value, $schema, '', $problems);
+        self::walk($value, $schema, $path, $problems);
 
         return $problems;
     }
