@@ -22,7 +22,8 @@ use App\Core\Configuration\PayloadSchema;
  *
  * Locked (TPL-03): where the company's country pack requires fiscal data
  * for the type, the fiscal block must be present (once) in the template
- * and in every variant; the totals block always prints its tax lines.
+ * and in every variant, and so must a totals block, which always prints
+ * its tax lines.
  */
 final class TemplateSchema
 {
@@ -165,6 +166,11 @@ final class TemplateSchema
 
             if ($fiscalRequired && $fiscalCount === 0) {
                 $problems[] = PayloadSchema::problem($prefix.'blocks', 'fiscal_required');
+            }
+
+            // TPL-03: the tax lines print with the totals, so the totals are locked on too.
+            if ($fiscalRequired && ! TemplateRenderer::hasBlock(array_values(array_filter($layout['blocks'], 'is_array')), 'totals')) {
+                $problems[] = PayloadSchema::problem($prefix.'blocks', 'totals_required');
             }
         }
 

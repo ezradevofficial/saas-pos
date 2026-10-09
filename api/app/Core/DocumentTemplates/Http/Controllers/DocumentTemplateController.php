@@ -69,7 +69,8 @@ class DocumentTemplateController
                     'required' => $required,
                     'authority' => count(array_unique(array_map(fn (string $c) => (string) $this->fiscal->authorityFor($type, $c), $countries))) === 1 ? $this->fiscal->authorityFor($type, $country) : null,
                 ],
-                'locked' => $required ? ['fiscal'] : [],
+                // TPL-03: the fiscal block and the totals (with the tax lines) stay.
+                'locked' => $required ? ['fiscal', 'totals'] : [],
                 'fields' => $fields,
                 'columns' => array_map(fn (string $column, string $kind) => [
                     'key' => $column,

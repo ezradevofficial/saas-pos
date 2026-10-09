@@ -49,6 +49,7 @@ return [
         // TPL-01..TPL-03 : modèles de documents.
         'unknown_block' => ':path n’est pas un bloc connu. Supprimez-le.',
         'fiscal_required' => 'Le bloc de l’administration fiscale est obligatoire sur ce document dans votre pays. Rajoutez-le depuis la palette.',
+        'totals_required' => 'Le bloc des totaux, avec ses lignes de taxe, est obligatoire sur ce document dans votre pays. Rajoutez-le depuis la palette.',
         'fiscal_twice' => 'Le bloc de l’administration fiscale ne peut figurer qu’une fois. Supprimez le doublon.',
         'fiscal_not_allowed' => 'Ce document ne porte pas de données fiscales. Supprimez le bloc de l’administration fiscale.',
         'tax_lines_locked' => 'Les lignes de taxe sont toujours imprimées avec les totaux. Réactivez-les.',

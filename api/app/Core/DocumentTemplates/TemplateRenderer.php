@@ -2,6 +2,8 @@
 
 namespace App\Core\DocumentTemplates;
 
+use Throwable;
+
 /**
  * TPL-01..TPL-03: renders a template (TemplateSchema) with data (the
  * DataSource shape) to a printable HTML document.
@@ -64,9 +66,7 @@ final class TemplateRenderer
 
         $blocks = array_values(array_filter((array) ($template['blocks'] ?? []), 'is_array'));
 
-        if ($fiscalRequired && ! self::hasFiscal($blocks)) {
-            $blocks[] = ['id' => 'fiscal', 'type' => 'fiscal'];
-        }
+        $blocks = self::withLockedBlocks($blocks, $fiscalRequired);
 
         $margins = self::margins($template['margins'] ?? null);
         $title = self::escape(trim($this->label('numbers.'.self::typeKey($type)).' '.($data['document']['number'] ?? '')));
@@ -151,26 +151,37 @@ final class TemplateRenderer
                 continue;
             }
 
-            $html .= match ($block['type'] ?? null) {
-                'text' => $this->text($block),
-                'field' => $this->field($block),
-                'logo' => $this->logo($block),
-                'lines' => $this->lines($block),
-                'totals' => $this->totals($block),
-                'payments' => $this->payments($block),
-                'qr' => $this->qr($block),
-                'barcode' => $this->barcode($block),
-                'signature' => $this->signature($block),
-                'terms' => $this->terms($block),
-                'spacer' => '<div class="spacer" style="height: '.self::int($block['size'] ?? 4, 1, 40).'mm"></div>',
-                'divider' => '<div class="b divider'.(($block['style'] ?? 'solid') === 'dashed' ? ' dashed' : '').'"></div>',
-                'fiscal' => $this->fiscal(),
-                'row' => $nested ? '' : $this->row($block),
-                default => '',
-            };
+            // A malformed block (a draft being edited, a QR too long to encode) prints nothing;
+            // the schema reports it as a problem (preview, publish).
+            try {
+                $html .= $this->block($block, $nested);
+            } catch (Throwable) {
+                continue;
+            }
         }
 
         return $html;
+    }
+
+    private function block(array $block, bool $nested): string
+    {
+        return match ($block['type'] ?? null) {
+            'text' => $this->text($block),
+            'field' => $this->field($block),
+            'logo' => $this->logo($block),
+            'lines' => $this->lines($block),
+            'totals' => $this->totals($block),
+            'payments' => $this->payments($block),
+            'qr' => $this->qr($block),
+            'barcode' => $this->barcode($block),
+            'signature' => $this->signature($block),
+            'terms' => $this->terms($block),
+            'spacer' => '<div class="spacer" style="height: '.self::int($block['size'] ?? 4, 1, 40).'mm"></div>',
+            'divider' => '<div class="b divider'.(($block['style'] ?? 'solid') === 'dashed' ? ' dashed' : '').'"></div>',
+            'fiscal' => $this->fiscal(),
+            'row' => $nested ? '' : $this->row($block),
+            default => '',
+        };
     }
 
     private function text(array $block): string
@@ -205,7 +216,7 @@ final class TemplateRenderer
     {
         $logo = $this->data['company']['logo'] ?? null;
 
-        if (! is_string($logo) || preg_match('#^data:image/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$#', $logo) !== 1) {
+        if (! is_string($logo) || preg_match('#^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$#', $logo) !== 1) {
             return '';
         }
 
@@ -361,7 +372,7 @@ final class TemplateRenderer
 
         $size = self::int($block['size'] ?? 25, 15, 60);
 
-        return '<div class="b code '.$this->align($block, 'center').'"><img src="'.$this->codes->qrDataUri($content).'" alt="" style="width: '.$size.'mm; height: '.$size.'mm"></div>';
+        return '<div class="b code '.$this->align($block, 'center').'"><img src="'.self::escape($this->codes->qrDataUri($content)).'" alt="" style="width: '.$size.'mm; height: '.$size.'mm"></div>';
     }
 
     private function barcode(array $block): string
@@ -415,7 +426,7 @@ final class TemplateRenderer
         $qr = trim((string) ($fiscal['qr'] ?? ''));
 
         if ($status === 'accepted' && $qr !== '') {
-            $html .= '<div class="code"><img src="'.$this->codes->qrDataUri($qr).'" alt="" style="width: 25mm; height: 25mm"></div>';
+            $html .= '<div class="code"><img src="'.self::escape($this->codes->qrDataUri($qr)).'" alt="" style="width: 25mm; height: 25mm"></div>';
         }
 
         if ($status !== 'accepted') {
@@ -557,20 +568,58 @@ final class TemplateRenderer
 
     // ---- Helpers ----------------------------------------------------------
 
+    /**
+     * TPL-03: where the country pack requires fiscal data, a missing totals
+     * block (with its tax lines) goes before the fiscal block, and a missing
+     * fiscal block at the end (renderTemplate.js does the same).
+     */
+    public static function withLockedBlocks(array $blocks, bool $fiscalRequired): array
+    {
+        if (! $fiscalRequired) {
+            return $blocks;
+        }
+
+        if (! self::hasBlock($blocks, 'totals')) {
+            $totals = ['id' => 'totals', 'type' => 'totals', 'show' => ['total'], 'tax_lines' => true];
+            $at = null;
+
+            foreach ($blocks as $index => $block) {
+                if (($block['type'] ?? null) === 'fiscal') {
+                    $at = $index;
+
+                    break;
+                }
+            }
+
+            $at === null ? $blocks[] = $totals : array_splice($blocks, $at, 0, [$totals]);
+        }
+
+        if (! self::hasFiscal($blocks)) {
+            $blocks[] = ['id' => 'fiscal', 'type' => 'fiscal'];
+        }
+
+        return array_values($blocks);
+    }
+
     public static function hasFiscal(array $blocks): bool
+    {
+        return self::hasBlock($blocks, 'fiscal');
+    }
+
+    public static function hasBlock(array $blocks, string $type): bool
     {
         foreach ($blocks as $block) {
             if (! is_array($block)) {
                 continue;
             }
 
-            if (($block['type'] ?? null) === 'fiscal') {
+            if (($block['type'] ?? null) === $type) {
                 return true;
             }
 
             if (($block['type'] ?? null) === 'row') {
                 foreach ((array) ($block['columns'] ?? []) as $column) {
-                    if (is_array($column) && self::hasFiscal($column)) {
+                    if (is_array($column) && self::hasBlock($column, $type)) {
                         return true;
                     }
                 }

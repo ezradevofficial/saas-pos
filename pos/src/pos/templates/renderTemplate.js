@@ -14,8 +14,9 @@ import { code128Svg } from './code128';
  *   Tenant texts print as typed; the app's wording comes from `labels`
  *   ({en, fr}: `templates.print`, synced with the template or bundled),
  *   in English, French or both side by side (TPL-02).
- * - Locked (TPL-03): with `fiscalRequired` and no fiscal block, one is
- *   added at the end; the totals always print their tax lines.
+ * - Locked (TPL-03): with `fiscalRequired`, a missing totals block (with
+ *   its tax lines) and a missing fiscal block are added (withLockedBlocks);
+ *   the totals always print their tax lines.
  * - Upgrade-safe (LAY-07): unknown blocks and fields are skipped.
  * - QR codes: the till has no QR encoder; `qrSvg(content)` may return a
  *   data URI drawn by the server (the fiscal QR comes with the fiscal
@@ -98,12 +99,37 @@ export function css(paper, m) {
   );
 }
 
-export function hasFiscal(blocks) {
+/** Whether the blocks (row columns included) hold a block of `type`. */
+export function hasBlock(blocks, type) {
   return (blocks ?? []).some(
     (block) =>
       isObject(block) &&
-      (block.type === 'fiscal' || (block.type === 'row' && (block.columns ?? []).some((column) => Array.isArray(column) && hasFiscal(column)))),
+      (block.type === type || (block.type === 'row' && (block.columns ?? []).some((column) => Array.isArray(column) && hasBlock(column, type)))),
   );
+}
+
+export const hasFiscal = (blocks) => hasBlock(blocks, 'fiscal');
+
+/** An image the till may print: a PNG, JPEG or (QR, drawn by the server) SVG data URI. */
+const SVG_URI = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/;
+const safeSvg = (uri) => (typeof uri === 'string' && SVG_URI.test(uri) ? uri : null);
+
+/**
+ * TPL-03: the locked blocks a template must print where the country pack
+ * requires fiscal data: the totals (with their tax lines) before the
+ * fiscal block, then the fiscal block. Same rule as the server.
+ */
+export function withLockedBlocks(blocks, fiscalRequired) {
+  const list = [...blocks];
+  if (!fiscalRequired) return list;
+  if (!hasBlock(list, 'totals')) {
+    const at = list.findIndex((block) => block.type === 'fiscal');
+    const totals = { id: 'totals', type: 'totals', show: ['total'], tax_lines: true };
+    if (at === -1) list.push(totals);
+    else list.splice(at, 0, totals);
+  }
+  if (!hasFiscal(list)) list.push({ id: 'fiscal', type: 'fiscal' });
+  return list;
 }
 
 /**
@@ -180,7 +206,7 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
     },
     logo(block) {
       const logo = data?.company?.logo;
-      if (typeof logo !== 'string' || !/^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(logo)) return '';
+      if (typeof logo !== 'string' || !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo)) return '';
       return `<div class="b code ${align(block, 'left')}"><img src="${escape(logo)}" alt="" style="height: ${int(block.height ?? 15, 5, 60)}mm"></div>`;
     },
     lines(block) {
@@ -228,10 +254,10 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
     },
     qr(block) {
       const content = merge(block.content ?? '').trim();
-      const uri = content === '' ? null : qrSvg(content);
+      const uri = content === '' ? null : safeSvg(qrSvg(content));
       if (!uri) return '';
       const size = int(block.size ?? 25, 15, 60);
-      return `<div class="b code ${align(block, 'center')}"><img src="${uri}" alt="" style="width: ${size}mm; height: ${size}mm"></div>`;
+      return `<div class="b code ${align(block, 'center')}"><img src="${escape(uri)}" alt="" style="width: ${size}mm; height: ${size}mm"></div>`;
     },
     barcode(block) {
       const content = merge(block.content ?? '').trim();
@@ -260,8 +286,8 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
         if (text !== '') html += `<div>${escape(`${label(`fields.fiscal.${key}`)} ${text}`)}</div>`;
       }
       const qr = String(fiscal.qr ?? '').trim();
-      const uri = status === 'accepted' && qr !== '' ? (fiscal.qr_svg ?? qrSvg(qr)) : null;
-      if (uri) html += `<div class="code"><img src="${uri}" alt="" style="width: 25mm; height: 25mm"></div>`;
+      const uri = status === 'accepted' && qr !== '' ? safeSvg(fiscal.qr_svg ?? qrSvg(qr)) : null;
+      if (uri) html += `<div class="code"><img src="${escape(uri)}" alt=""" style="width: 25mm; height: 25mm"></div>`;
       if (status !== 'accepted') html += `<div class="s-small">${escape(label(`fiscal.help.${status}`))}</div>`;
       return `<div class="b fiscal">${html}</div>`;
     },
@@ -301,13 +327,17 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
         continue;
       }
       const renderer = Object.prototype.hasOwnProperty.call(blocks, block.type) ? blocks[block.type] : null;
-      if (renderer) html += renderer(block);
+      // A malformed block prints nothing (as on the server).
+      try {
+        if (renderer) html += renderer(block);
+      } catch {
+        // skipped
+      }
     }
     return html;
   }
 
-  const list = (Array.isArray(template?.blocks) ? template.blocks : []).filter(isObject);
-  if (fiscalRequired && !hasFiscal(list)) list.push({ id: 'fiscal', type: 'fiscal' });
+  const list = withLockedBlocks((Array.isArray(template?.blocks) ? template.blocks : []).filter(isObject), fiscalRequired);
   const m = margins(template?.margins);
   const title = escape(`${label(`numbers.${typeKey(type)}`)} ${data?.document?.number ?? ''}`.trim());
 

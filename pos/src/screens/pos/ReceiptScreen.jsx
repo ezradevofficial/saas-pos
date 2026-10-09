@@ -8,7 +8,7 @@ import { useLocale } from '../../lib/useLocale';
 import { usePosData } from '../../pos/PosProvider';
 import { vars } from 'nativewind';
 import { themeVariables } from '../../theme/themes';
-import { fetchFiscal, fiscalState } from '../../pos/fiscal';
+import { fiscalState, receiptFiscal } from '../../pos/fiscal';
 import { receiptDocumentHtml } from '../../pos/templates/receiptDocument';
 import { useServices } from '../../services/services';
 import { useSyncStatus } from '../../sync/useSyncStatus';
@@ -46,14 +46,11 @@ export function useFiscalState(sale, kind = 'sale') {
     let active = true;
     (async () => {
       const entry = await engine.store.entryFor(kind === 'refund' ? 'pos.refunds' : 'pos.sales', sale.id);
-      let next = fiscalState(entry);
+      if (active) setState({ ...fiscalState(entry), remote: null });
+      // TPL-03: online, the authority's answer (and its QR, drawn by the server) for the
+      // printed fiscal block, for sales and refunds alike (receiptFiscal).
+      const next = await receiptFiscal({ api, entry, kind, record: sale, online: sync.network !== 'offline' });
       if (active) setState(next);
-      if (kind === 'sale' && next.state === 'pending' && sync.network !== 'offline') {
-        const remote = await fetchFiscal(api, sale.id);
-        // TPL-03: the authority's answer (and its QR, drawn by the server) for the printed fiscal block.
-        if (remote) next = { ...fiscalState(entry, remote), remote: remote.sale ?? null };
-        if (active) setState(next);
-      }
     })().catch(() => {});
     return () => {
       active = false;

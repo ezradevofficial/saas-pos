@@ -49,6 +49,7 @@ return [
         // TPL-01..TPL-03: document templates.
         'unknown_block' => ':path isn’t a known block. Remove it.',
         'fiscal_required' => 'The tax authority block is required on this document in your country. Add it back from the palette.',
+        'totals_required' => 'The totals block, with its tax lines, is required on this document in your country. Add it back from the palette.',
         'fiscal_twice' => 'The tax authority block can appear once. Remove the extra one.',
         'fiscal_not_allowed' => 'This document doesn’t carry tax authority data. Remove the tax authority block.',
         'tax_lines_locked' => 'Tax lines are always printed with the totals. Turn them back on.',
