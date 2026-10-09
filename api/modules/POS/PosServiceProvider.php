@@ -4,6 +4,7 @@ namespace Modules\POS;
 
 use App\Core\Currency\CurrencyUsage;
 use App\Core\Fiscal\FiscalSources;
+use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\POS\Dashboards\SalesByDay;
+use Modules\POS\Dashboards\SalesToday;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -81,6 +84,12 @@ class PosServiceProvider extends ServiceProvider
         $sources = $this->app->make(SyncSources::class);
         $sources->register(new NumberRangeSource);
         $sources->register(new OpenShiftSource);
+
+        // LAY-01: dashboard widgets of today's sales and sales per day
+        // (found only while the module is active, RBAC-08).
+        $dashboards = $this->app->make(DashboardSources::class);
+        $dashboards->register(new SalesToday);
+        $dashboards->register(new SalesByDay);
 
         // NUM-02: a lost device's ranges stop when it is unpaired.
         Event::listen(DeviceUnpaired::class, RetireDeviceRanges::class);
