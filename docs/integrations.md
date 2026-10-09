@@ -155,7 +155,11 @@ accepted. The queue retries with backoff (1, 5, 15, 30, then every 60
 minutes) for ever, alerts after the alert delay, and alerts at once on a
 rejection. Accepted documents keep the receipt number, internal data,
 receipt signature, control unit id and QR content for the receipt. Only KES
-documents are sent; others are held as `needs_attention`.
+documents are sent; others are held as `needs_attention`. A line without its tax
+code or rate (`tax_code_missing`, `tax_rate_missing`) is also held as
+`needs_attention` (data to fix, not a refusal); the POS stores the server's
+code and rate on lines the till sent without them. Retrying a rejected or
+held document rebuilds it from the sale, so fixed data is what is sent.
 
 **Invoice numbers (`invcNo`).** Each company's fiscal invoice numbers are
 handed out in queue order when a document is queued. A document that is
@@ -213,6 +217,11 @@ Decided (phase 4 Task 3 review):
   still checked, and completed by a late paid result or a C2B
   confirmation; paid results no open intent takes are kept as unmatched
   receipts flagged `late_or_unmatched` for matching or refund.
+- **Lost B2C answers**: a refund payout whose request timed out (or got a
+  5xx without Daraja's error body) is `unknown`, not failed: the money may
+  have gone out. Its id is stored as the request id before the call, so
+  the result callback finds it; it times out after
+  `payout_give_up_hours`.
 - **Till limits**: 10 payment requests a minute per device, 3 pushes per
   phone and method in 5 minutes; the cashier (`user_id`) must be staff of
   the till's location. Refund payouts never exceed the original payment
@@ -221,7 +230,8 @@ Decided (phase 4 Task 3 review):
   update the POS: a paid push or verified code confirms the sale payment,
   a mismatch flags the sale `mpesa_mismatch`; a paid refund confirms the
   refund payment, a failed or timed-out payout flags the refund
-  `payout_failed`.
+  `payout_failed`, and a payout paid after that also flags it
+  `payout_recovered` (the money may have gone out twice).
 - **Sync**: payment method rows carry `capabilities: {stk, manual_code}`;
   `stk` only for an M-Pesa method on the Daraja adapter with every
   required key (sync entity version 2).

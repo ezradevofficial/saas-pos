@@ -3338,6 +3338,8 @@
       "override_unverified": "Accord non vérifié",
       "override_offline": "Accordé hors ligne",
       "received_after_close": "Après la clôture",
+      "payout_failed": "Versement échoué",
+      "payout_recovered": "Versement payé après échec",
       "clock_ahead": "Horloge de caisse en avance",
       "shift_missing": "Session jamais reçue",
       "placeholder": "Session de remplacement",

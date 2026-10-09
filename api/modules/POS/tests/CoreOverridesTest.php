@@ -2,6 +2,7 @@
 
 namespace Modules\POS\Tests;
 
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Pin\OverrideVerifier as CoreVerifier;
 use App\Core\Rbac\Scope;
@@ -121,5 +122,55 @@ class CoreOverridesTest extends TestCase
         $other = $this->sale(2);
         $this->postJson('/api/v1/pos/voids', $this->void($other['id'], [...$override, 'id' => (string) Str::uuid7(), 'signature' => 'AAAA']), $this->tillHeaders($this->paired['token']))
             ->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_invalid');
+    }
+
+    /** An offline override the paired device signs, for $reference, at $at. */
+    private function signed(string $reference, string $at, string $permission = 'pos.sale.void'): array
+    {
+        $id = (string) Str::uuid7();
+        $message = CoreVerifier::offlineMessage($this->paired['id'], $this->paired['kid'], $id, $this->manager->id, $this->cashier->id, $permission, $reference, $at);
+
+        return [
+            'id' => $id, 'kid' => $this->paired['kid'], 'manager_user_id' => $this->manager->id, 'cashier_user_id' => $this->cashier->id,
+            'permission' => $permission, 'reference' => $reference, 'authorised_at' => $at,
+            'signature' => DeviceSecrets::encode(hash_hmac('sha256', $message, DeviceSecrets::decode($this->paired['secret']), true)),
+        ];
+    }
+
+    public function test_an_offline_override_needs_a_strict_iso_time_and_single_line_fields(): void
+    {
+        $sale = $this->sale(1);
+        $device = $this->inTenant(fn () => Device::query()->findOrFail($this->paired['id']));
+
+        // Signed correctly, but not an ISO 8601 time with a zone (PHP would read these loosely).
+        foreach (['2026-10-09 10:00:00', 'now', '@1791540000', '2026-10-09T10:00:00'] as $at) {
+            $voidId = $this->id();
+            $this->postJson('/api/v1/pos/voids', $this->void($sale['id'], $this->signed($voidId, $at), $voidId), $this->tillHeaders($this->paired['token']))
+                ->assertUnprocessable()->assertJsonValidationErrors(['voids.0.override.authorised_at']);
+
+            try {
+                $this->inTenant(fn () => app(CoreVerifier::class)->redeem($device, $this->signed($voidId, $at), 'pos.sale.void', $voidId));
+                $this->fail("Accepted authorised_at {$at}");
+            } catch (ApiException $e) {
+                $this->assertSame('override_invalid', $e->errorCode);
+            }
+        }
+
+        // A line break would let a signed field spill into the next one of the signed message.
+        foreach (['permission', 'reference'] as $field) {
+            $voidId = $this->id();
+            $override = $field === 'permission'
+                ? $this->signed($voidId, now()->toIso8601String(), "pos.sale.void\r\n{$voidId}")
+                : $this->signed("{$voidId}\r\npos.sale.void", now()->toIso8601String());
+            $this->postJson('/api/v1/pos/voids', $this->void($sale['id'], $override, $voidId), $this->tillHeaders($this->paired['token']))
+                ->assertUnprocessable()->assertJsonValidationErrors(["voids.0.override.{$field}"]);
+
+            try {
+                $this->inTenant(fn () => app(CoreVerifier::class)->redeem($device, $override, 'pos.sale.void', $voidId));
+                $this->fail("Accepted a line break in {$field}");
+            } catch (ApiException $e) {
+                $this->assertSame('override_invalid', $e->errorCode);
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ namespace Modules\POS\Tests;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Rbac\ModuleRegistry;
 use Modules\POS\Models\NumberRange;
+use Modules\POS\Sync\NumberRanges;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -45,6 +46,33 @@ class NumberRangeTest extends TestCase
         // The first block is spent: it is exhausted and no longer listed.
         $this->ranges(next: 11)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.from', 11);
         $this->inTenant(fn () => $this->assertSame(NumberRange::EXHAUSTED, NumberRange::where('range_from', 1)->sole()->status));
+    }
+
+    public function test_a_pull_right_after_a_top_up_or_a_shift_change_sees_it_despite_the_snapshot_cache(): void
+    {
+        // NFR-05: snapshots are cached, but numbers and the open shift must reach the till at once.
+        config(['sync.snapshot_ttl_seconds' => 30]);
+        $pull = fn (string $entity) => $this->getJson('/api/v1/sync/pull?'.http_build_query(['entities' => [$entity]]), $this->tillHeaders())
+            ->assertOk()->json("entities.{$entity}.upserts");
+
+        $this->ranges()->assertOk();
+        $this->assertSame([1], array_column($pull('pos_number_ranges'), 'from'));
+        $this->assertSame([], $pull('pos_open_shift'));
+
+        // A top-up allocates the next block: the next pull has it.
+        $this->ranges(next: 9)->assertOk()->assertJsonCount(2, 'data');
+        $this->assertSame([1, 11], array_column($pull('pos_number_ranges'), 'from'));
+
+        // An unpaired-device style retirement is seen at once too.
+        $this->inTenant(fn () => app(NumberRanges::class)->retire($this->till->id));
+        $this->assertSame([], $pull('pos_number_ranges'));
+
+        // A shift opened, then closed.
+        $shift = $this->openShift();
+        $this->assertSame([$shift], array_column($pull('pos_open_shift'), 'id'));
+        $closing = ['closed_by_id' => $this->owner->id, 'closed_at' => now()->toIso8601String(), 'counted' => [['currency' => 'KES', 'amount_minor' => '500000']]];
+        $this->postJson('/api/v1/pos/shifts', ['shifts' => [$this->shiftBody(['id' => $shift, 'closing' => $closing])]], $this->tillHeaders())->assertOk();
+        $this->assertSame([], $pull('pos_open_shift'));
     }
 
     public function test_refund_receipts_have_their_own_counter(): void

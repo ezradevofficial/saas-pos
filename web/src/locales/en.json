@@ -3338,6 +3338,8 @@
       "override_unverified": "Approval unverified",
       "override_offline": "Approved offline",
       "received_after_close": "After shift close",
+      "payout_failed": "Payout failed",
+      "payout_recovered": "Payout paid after failing",
       "clock_ahead": "Till clock ahead",
       "shift_missing": "Shift never arrived",
       "placeholder": "Placeholder shift",

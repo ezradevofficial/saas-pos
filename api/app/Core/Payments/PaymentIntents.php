@@ -208,8 +208,14 @@ class PaymentIntents
     /**
      * A refund paid back through the provider (M-Pesa B2C) for the sale
      * payment $original (found by its receipt). Pending until the
-     * provider's result arrives; `failed` at once when the provider cannot
-     * pay out (then the cashier refunds another way). Idempotent by id.
+     * provider's result arrives; `failed` at once when the provider refuses
+     * the request (then the cashier refunds another way). When nothing
+     * usable came back (a time-out, a 5xx without Daraja's error body) the
+     * money may be on its way: `unknown`, waiting for the result callback
+     * until `payments.payout_give_up_hours`, never failed at once. The
+     * request id (B2C OriginatorConversationID, the intent id) is stored
+     * before the provider is called, so a late result always finds it.
+     * Idempotent by id.
      *
      * @param  array{id: string, amount_minor: int, currency: string, reference_type: string, reference: string, location_id?: ?string, device_id?: ?string, created_by?: ?string}  $data
      */
@@ -260,6 +266,8 @@ class PaymentIntents
                 'reference_type' => $data['reference_type'],
                 'reference' => $data['reference'],
                 'original_intent_id' => $original->id,
+                // Known before the call: the result callback can name it even if the call times out.
+                'provider_request_id' => $data['id'],
                 'status' => 'pending',
                 'expires_at' => CarbonImmutable::now()->addHours((int) config('payments.payout_give_up_hours', 24)),
                 'created_by' => $data['created_by'] ?? null,
@@ -269,7 +277,9 @@ class PaymentIntents
         try {
             $result = $provider->refund($intent, $original, $method);
         } catch (ProviderUnavailable) {
-            $result = ProviderResult::failed('unreachable', __('payments.errors.unreachable'));
+            // The request may have reached the provider: the money may go out. Keep the payout
+            // open (and counted against the original) until its result or the give-up time.
+            $result = new ProviderResult('unknown', resultCode: 'no_answer_from_provider', message: __('payments.errors.payout_no_answer'));
         }
 
         return $this->apply($intent, $result);
@@ -310,9 +320,11 @@ class PaymentIntents
                 return $locked;
             }
 
-            // The provider may have the request but did not answer: keep checking.
+            // The provider may have the request but did not answer: keep checking. A payout has no
+            // status query: it waits for its result callback until its give-up time.
             if ($result->status === 'unknown') {
-                $locked->fill([...$changes, 'status' => 'unknown', 'expires_at' => CarbonImmutable::now()->addSeconds(30)])->save();
+                $expires = $locked->mode === 'payout' ? $locked->expires_at : CarbonImmutable::now()->addSeconds(30);
+                $locked->fill([...$changes, 'status' => 'unknown', 'expires_at' => $expires])->save();
 
                 return $locked;
             }

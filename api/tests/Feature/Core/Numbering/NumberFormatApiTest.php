@@ -10,6 +10,7 @@ use App\Core\Numbering\NumberContext;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Numbering\Numbering;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Models\Branch;
 use Carbon\CarbonImmutable;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -107,6 +108,85 @@ class NumberFormatApiTest extends TestCase
                 $this->assertSame('numbering_pattern_too_long', $e->errorCode);
             }
         });
+    }
+
+    /** One number of the test type at $branch now (as a document would draw it). */
+    private function issue(Branch $branch): string
+    {
+        return $this->inTenant(fn () => app(Numbering::class)->next(NumberingTest::TYPE, new NumberContext($this->acme->fresh(), $branch->fresh(), at: CarbonImmutable::now()))->number);
+    }
+
+    public function test_scenario_a_a_pattern_given_up_by_one_format_is_not_taken_back_by_another(): void
+    {
+        // Acme numbers with its own company format; another company uses the tenant's R.
+        $this->saveFormat(['pattern' => 'R-{001}', 'reset' => 'never'])->assertOk();
+        $this->saveFormat(['company_id' => $this->acme->id, 'pattern' => 'C-{001}', 'reset' => 'never'])->assertOk();
+        $other = $this->inTenant(fn () => $this->company('Other'));
+        $otherBranch = $this->inTenant(fn () => $this->branch($other, 'O'));
+        $this->assertSame('R-001', $this->inTenant(fn () => app(Numbering::class)->next(NumberingTest::TYPE, new NumberContext($other, $otherBranch, at: CarbonImmutable::now()))->number));
+        $this->assertSame('C-001', $this->issue($this->branchA));
+
+        // The tenant format goes R -> X: its own counter, nothing printed twice.
+        $this->saveFormat(['pattern' => 'X-{001}', 'reset' => 'never'])->assertOk();
+
+        // Acme's format going to R would print R-002... while R-002 may be the tenant counter's
+        // (and R-001 was printed under it): refused, as is a width that only looks different.
+        foreach (['R-{001}', 'R-{0001}', 'R-{1}'] as $pattern) {
+            $this->saveFormat(['company_id' => $this->acme->id, 'pattern' => $pattern, 'reset' => 'never'])
+                ->assertUnprocessable()->assertJsonPath('code', 'numbering_prefix_used')->assertJsonValidationErrors('pattern');
+        }
+
+        // A prefix of its own is fine; the tenant format may take R back (its own history).
+        $this->saveFormat(['company_id' => $this->acme->id, 'pattern' => 'RC-{001}', 'reset' => 'never'])->assertOk();
+        $this->saveFormat(['pattern' => 'R-{001}', 'reset' => 'never'])->assertOk();
+        $this->assertSame('RC-002', $this->issue($this->branchA));
+    }
+
+    public function test_scenario_b_swapped_or_reused_branch_codes_never_repeat_numbers(): void
+    {
+        // Each branch counts on its own (twin branch formats printing {BRANCH}).
+        foreach ([$this->branchA, $this->branchB] as $branch) {
+            $this->saveFormat(['company_id' => $this->acme->id, 'branch_id' => $branch->id, 'pattern' => 'S-{BRANCH}-{001}', 'reset' => 'never'])->assertOk();
+        }
+        foreach ([1, 2, 3] as $n) {
+            $this->assertSame("S-A-00{$n}", $this->issue($this->branchA));
+        }
+        $this->assertSame('S-B-001', $this->issue($this->branchB));
+
+        // Swapping A and B: B's counter (at 2) would print S-A-002, already A's.
+        $this->patchJson("/api/v1/branches/{$this->branchA->id}", ['code' => 'T'], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/branches/{$this->branchB->id}", ['code' => 'A'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'numbering_prefix_used')->assertJsonValidationErrors('code');
+        $this->assertSame('B', $this->inTenant(fn () => $this->branchB->fresh()->code));
+
+        // A code edit within a branch's own history is fine: A goes back to A.
+        $this->patchJson("/api/v1/branches/{$this->branchA->id}", ['code' => 'A'], $this->headersFor())->assertOk();
+        $this->assertSame('S-A-004', $this->issue($this->branchA));
+
+        // An archived branch's code taken by a new branch on another counter (the company's).
+        $this->saveFormat(['company_id' => $this->acme->id, 'pattern' => 'S-{BRANCH}-{0001}', 'reset' => 'never'])->assertOk();
+        $this->inTenant(fn () => $this->branchA->fresh()->archive());
+        $this->postJson("/api/v1/companies/{$this->acme->id}/branches", ['name' => 'New A', 'code' => 'A'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'numbering_prefix_used');
+        $this->postJson("/api/v1/companies/{$this->acme->id}/branches", ['name' => 'New C', 'code' => 'C'], $this->headersFor())->assertCreated();
+
+        // A location code is checked the same way: branch B ranges on its own counter, the other company on the tenant's.
+        $this->saveFormat(['document_type' => NumberingTest::RANGED, 'company_id' => $this->acme->id, 'branch_id' => $this->branchB->id, 'pattern' => 'R-{LOCATION}-{00001}', 'reset' => 'never'])->assertOk();
+        $far = $this->inTenant(function () {
+            $near = $this->location($this->branchB, 'Till row');
+            $near->forceFill(['code' => 'L1'])->save();
+            app(Numbering::class)->reserve(NumberingTest::RANGED, new NumberContext($this->acme, $this->branchB, $near, at: CarbonImmutable::now()), 10);
+            $company = $this->company('Other');
+            $branch = $this->branch($company, 'O');
+            $far = $this->location($branch, 'Other row');
+            $far->forceFill(['code' => 'L2'])->save();
+            app(Numbering::class)->reserve(NumberingTest::RANGED, new NumberContext($company, $branch, $far, at: CarbonImmutable::now()), 10);
+
+            return $far;
+        });
+        $this->patchJson("/api/v1/locations/{$far->id}", ['code' => 'L1'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'numbering_prefix_used')->assertJsonValidationErrors('code');
+        $this->patchJson("/api/v1/locations/{$far->id}", ['code' => 'L3'], $this->headersFor())->assertOk();
     }
 
     public function test_locations_and_devices_take_a_code_for_numbers(): void

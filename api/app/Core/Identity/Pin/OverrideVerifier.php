@@ -146,8 +146,11 @@ class OverrideVerifier
             $field('reference'), $field('authorised_at'), $field('signature'),
         ];
 
+        // The signed message is one field per line: a line break in a field, or a time PHP would
+        // read loosely ("now", no zone), is never a valid override.
         if ($id === null || ! Str::isUuid($id) || $kid === null || $manager === null || ! Str::isUuid($manager) || ($cashier !== null && ! Str::isUuid($cashier))
-            || $signed === null || $signedReference === null || $at === null || $signature === null) {
+            || $signed === null || $signedReference === null || $at === null || $signature === null
+            || preg_match(ActorProofVerifier::TIME, $at) !== 1 || preg_match('/[\r\n]/', $signed.$signedReference.$kid) === 1) {
             throw $this->invalid();
         }
 

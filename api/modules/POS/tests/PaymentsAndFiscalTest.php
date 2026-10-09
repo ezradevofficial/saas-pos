@@ -11,11 +11,13 @@ use App\Core\Payments\ProviderResult;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\POS\Fiscal\PosFiscalSource;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundPayment;
 use Modules\POS\Models\Sale;
+use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -163,6 +165,42 @@ class PaymentsAndFiscalTest extends TestCase
         $this->assertSame('fiscal_code_missing', $this->inTenant(fn () => FiscalSubmission::query()->sole()->error_code));
     }
 
+    public function test_a_line_sent_without_tax_code_or_rate_stores_the_servers_and_is_sent(): void
+    {
+        $this->transmit();
+        $line = $this->line();
+        unset($line['tax_code_id'], $line['tax_rate']);
+        $sale = $this->saleBody($this->shift, 1, ['lines' => [$line]]);
+
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->inTenant(function () use ($sale) {
+            $stored = SaleLine::query()->where('sale_id', $sale['id'])->sole();
+            $this->assertSame([$this->vat->id, '12.5000'], [$stored->tax_code_id, (string) $stored->tax_rate]);
+            $flag = collect(Sale::query()->findOrFail($sale['id'])->flags)->firstWhere('code', 'tax_differs');
+            $this->assertSame([null, null], [$flag['detail']['sold_tax_code_id'], $flag['detail']['sold_tax_rate']]);
+            $this->assertSame('accepted', FiscalSubmission::query()->sole()->status);
+        });
+    }
+
+    public function test_a_line_without_a_tax_code_needs_attention_and_a_retry_sends_the_fixed_document(): void
+    {
+        // Stored before transmission was switched on; the line lost its tax code (older data).
+        $sale = $this->saleBody($this->shift, 1);
+        $this->upload([$sale])->assertOk();
+        $this->inTenant(fn () => DB::table('pos_sale_lines')->where('sale_id', $sale['id'])->update(['tax_code_id' => null]));
+        $this->transmit();
+        $this->postJson("/api/v1/companies/{$this->acme->id}/fiscal-submissions/send-earlier", ['from' => now()->subDay()->toDateString(), 'confirm' => true], $this->headersFor())->assertStatus(202);
+
+        $held = $this->inTenant(fn () => FiscalSubmission::query()->sole());
+        $this->assertSame(['needs_attention', 'tax_code_missing'], [$held->status, $held->error_code]);
+
+        // The data is fixed: the retry sends the document as it is now, not the frozen payload.
+        $this->inTenant(fn () => DB::table('pos_sale_lines')->where('sale_id', $sale['id'])->update(['tax_code_id' => $this->vat->id]));
+        $this->postJson("/api/v1/fiscal-submissions/{$held->id}/retry", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'accepted');
+        $this->assertSame($this->vat->id, $this->inTenant(fn () => FiscalSubmission::query()->sole()->payload['lines'][0]['tax_code_id']));
+    }
+
     public function test_mobile_money_codes_become_intents_and_refunds_are_paid_back(): void
     {
         config([
@@ -215,6 +253,43 @@ class PaymentsAndFiscalTest extends TestCase
         $this->inTenant(function () use ($refund) {
             $payment = RefundPayment::query()->findOrFail($refund['payments'][0]['id']);
             $this->assertSame(['confirmed', 'QJK3REFND1'], [$payment->status, $payment->provider_reference]);
+        });
+    }
+
+    public function test_a_payout_paid_after_it_timed_out_flags_the_refund_recovered(): void
+    {
+        config(['payments.mpesa.base_url' => 'https://sandbox.safaricom.co.ke', 'payments.callback_base_url' => 'https://api.example.com']);
+        Http::fake([
+            'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
+            'sandbox.safaricom.co.ke/mpesa/b2c/*' => Http::response(['ConversationID' => 'AG_1', 'OriginatorConversationID' => 'o-1', 'ResponseCode' => '0']),
+        ]);
+        $this->inTenant(fn () => $this->methods['mpesa']->fill([
+            'settings' => ['shortcode' => '174379', 'initiator_name' => 'apiop'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk', 'security_credential' => 'sc'],
+        ])->save());
+        $sale = $this->mpesaSale(1, 'QJK3LATEPY');
+        $this->inTenant(fn () => PaymentIntent::query()->sole()->fill(['phone' => '254712345678'])->save());
+        $refund = [
+            'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->cashier->id,
+            'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(),
+            'reason' => 'Damaged', 'total_minor' => '112500',
+            'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '2']],
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['mpesa']->id, 'currency' => 'KES', 'amount_minor' => '112500', 'amount_in_sale_minor' => '112500', 'status' => 'pending']],
+            'override' => $this->override($this->manager->id),
+        ];
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [$refund]], $this->tillHeaders())->assertOk();
+        $payout = $this->inTenant(fn () => PaymentIntent::query()->where('purpose', 'refund')->sole());
+
+        // No result in time: flagged payout_failed, and the cashier may refund another way.
+        $this->inTenant(fn () => app(PaymentIntents::class)->apply($payout, new ProviderResult('timeout', resultCode: 'no_result')));
+        $codes = fn () => array_column($this->inTenant(fn () => Refund::query()->findOrFail($refund['id'])->flags), 'code');
+        $this->assertSame(['payout_failed'], $codes());
+
+        // The provider paid after all: the money may have gone out twice.
+        $this->inTenant(fn () => app(PaymentIntents::class)->apply($payout, ProviderResult::succeeded('QJK3REFLTE')));
+        $this->assertSame(['payout_failed', 'payout_recovered'], $codes());
+        $this->inTenant(function () use ($refund) {
+            $this->assertSame('confirmed', RefundPayment::query()->findOrFail($refund['payments'][0]['id'])->status);
+            $this->assertEquals(['payment_id' => $refund['payments'][0]['id'], 'receipt' => 'QJK3REFLTE'], Refund::query()->findOrFail($refund['id'])->flags[1]['detail']);
         });
     }
 

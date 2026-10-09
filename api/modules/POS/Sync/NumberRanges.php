@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Numbering\NumberContext;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Numbering\Numbering;
+use App\Core\Sync\SnapshotCache;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
@@ -28,6 +29,10 @@ use Modules\POS\Models\NumberRange;
  *   ran out or was retired) and match the range's pattern for that number
  *   and the document's date; the database refuses a number used twice.
  * - retire(): a lost device's ranges stop (on unpair).
+ *
+ * A range allocated or retired invalidates the tenant's cached sync
+ * snapshots (SnapshotCache::bump, after commit), so the till's next pull
+ * sees its `pos_number_ranges` at once, not up to the snapshot TTL later.
  */
 class NumberRanges
 {
@@ -142,6 +147,7 @@ class NumberRanges
     {
         $range->forceFill(['status' => NumberRange::RETIRED, 'retired_at' => now()])->save();
         $this->auditor->record('pos.number_range.retire', $range, ['status' => NumberRange::ACTIVE], ['status' => NumberRange::RETIRED, 'reason' => $reason, 'next_value' => $range->next_value]);
+        SnapshotCache::bump((string) $range->tenant_id);
     }
 
     /** True when the exception is a second use of one range number (unique range and number). */
@@ -169,6 +175,7 @@ class NumberRanges
             'allocated_at' => now(),
         ]);
         $this->auditor->record('pos.number_range.allocate', $range, null, $range->only(['device_id', 'document_type', 'period', 'pattern', 'range_from', 'range_to']));
+        SnapshotCache::bump((string) $range->tenant_id);
 
         return $range;
     }

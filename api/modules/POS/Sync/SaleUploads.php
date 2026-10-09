@@ -174,7 +174,7 @@ class SaleUploads
         foreach ($data['lines'] as $index => $line) {
             // AUTH-07: a line without its own attestation is covered by the sale's (same cashier, same sign-in).
             $line['actor_proof'] ??= $data['actor_proof'] ?? null;
-            $lines[] = $this->line($place, $line, $index, $currency, $at, $cashier, $flags, $data['id']);
+            $lines[] = $this->line($place, $line, $index, $currency, $at, $cashier, $flags, $saleList);
         }
 
         $totals = $this->totals($lines, $data['totals']);
@@ -337,8 +337,8 @@ class SaleUploads
         return $list;
     }
 
-    /** @return array{row: array<string, mixed>, gross: BigDecimal, discount: BigDecimal, tax: BigDecimal, total: BigDecimal, item: Item, override: ?Approval, price_override: ?Approval, percent: ?BigDecimal} */
-    private function line(DevicePlace $place, array $line, int $index, string $currency, CarbonImmutable $at, User $cashier, Flags $flags, string $saleId): array
+    /** @return array{row: array<string, mixed>, gross: BigDecimal, discount: BigDecimal, tax: BigDecimal, total: BigDecimal, item: Item, override: ?Approval, price_override: ?Approval, reference_price: ?string, percent: ?BigDecimal} */
+    private function line(DevicePlace $place, array $line, int $index, string $currency, CarbonImmutable $at, User $cashier, Flags $flags, ?PriceList $saleList): array
     {
         $field = "lines.{$index}";
         $company = $place->company;
@@ -392,8 +392,17 @@ class SaleUploads
         }
 
         if ($soldCode !== $code->id || ! $tax->isEqualTo($expected->minor())) {
-            $flags->add('tax_differs', $index + 1, ['expected_tax_minor' => $expected->minor(), 'tax_code' => $code->code]);
+            // The device's own code and rate are kept here when the line stores the server's.
+            $flags->add('tax_differs', $index + 1, [
+                'expected_tax_minor' => $expected->minor(), 'tax_code' => $code->code,
+                'sold_tax_code_id' => $soldCode, 'sold_tax_rate' => $line['tax_rate'] ?? null,
+            ]);
         }
+
+        // POS-10: a line the device sent without its tax code or rate stores the server's (the
+        // code it resolved, its rate in force when sold), so the fiscal document can be sent.
+        $lineCode = $soldCode ?? $code->id;
+        $lineRate = $line['tax_rate'] ?? $this->rateOn($lineCode === $code->id ? $code : TaxCode::query()->findOrFail($lineCode), $at);
 
         // POS-07, RBAC-06, AUTH-08: a discount within the limit (`override`), a price other
         // than the list price (`price_override`). Users they name must exist even when unused.
@@ -410,27 +419,34 @@ class SaleUploads
                 $line['id'], "{$field}.override", 'discount_unauthorised', $index, $flags);
         }
 
-        $priceApproval = null;
         $listPrice = $line['list_price_minor'] ?? null;
+        $unitPrice = (string) $line['unit_price_minor'];
 
-        if ($listPrice !== null && (string) $listPrice !== (string) $line['unit_price_minor']) {
-            $priceApproval = $this->restricted($place, $this->giver($line, $cashier), $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
-                $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
+        if ($list !== null && $listPrice === null) {
+            $flags->add('list_price_missing', $index + 1);
         }
 
-        // M4: the server's price for the line (core item prices), compared, never imposed.
-        if ($list !== null) {
-            if ($listPrice === null) {
-                $flags->add('list_price_missing', $index + 1);
-            }
+        // M4: the server's price for the line (core item prices), compared, never imposed: from the
+        // line's list, else the sale's, else the company's default list in the sale currency (a
+        // fallback list is compared only when it states prices the way the line does).
+        $priceList = $list ?? $saleList ?? $this->prices->defaultList($company, $currency);
+        $priceList = $priceList !== null && ($list !== null || $priceList->tax_inclusive === $inclusive) ? $priceList : null;
+        $resolved = $priceList === null ? null : $this->prices->priceFor($item, $line['uom_id'], $priceList, $at, (string) $line['qty'])?->money->minor();
 
-            $resolved = $this->prices->priceFor($item, $line['uom_id'], $list, $at, (string) $line['qty']);
+        if ($priceList !== null && $resolved === null) {
+            $flags->add('price_unknown', $index + 1);
+        } elseif ($resolved !== null && ($resolved !== $unitPrice || ($listPrice !== null && $resolved !== (string) $listPrice))) {
+            $flags->add('price_differs', $index + 1, ['expected_unit_price_minor' => $resolved]);
+        }
 
-            if ($resolved === null) {
-                $flags->add('price_unknown', $index + 1);
-            } elseif ($resolved->money->minor() !== (string) ($listPrice ?? $line['unit_price_minor'])) {
-                $flags->add('price_differs', $index + 1, ['expected_unit_price_minor' => $resolved->money->minor()]);
-            }
+        // POS-07, AUTH-08: a price other than the list price the till showed, or, when it sent
+        // none, the server's list price, needs `pos.price.override` (flagged, never refused).
+        $reference = $listPrice !== null ? (string) $listPrice : $resolved;
+        $priceApproval = null;
+
+        if ($reference !== null && $reference !== $unitPrice) {
+            $priceApproval = $this->restricted($place, $this->giver($line, $cashier), $line['price_override'] ?? null, $line['actor_proof'] ?? null, 'pos.price.override', null,
+                $line['id'], "{$field}.price_override", 'price_override_unauthorised', $index, $flags);
         }
 
         return [
@@ -446,8 +462,8 @@ class SaleUploads
                 'price_list_id' => $list?->id,
                 'tax_inclusive' => $inclusive,
                 'discount_minor' => (string) $discount,
-                'tax_code_id' => $soldCode,
-                'tax_rate' => $line['tax_rate'] ?? null,
+                'tax_code_id' => $lineCode,
+                'tax_rate' => $lineRate,
                 'net_minor' => (string) $total->minus($tax),
                 'tax_minor' => (string) $tax,
                 'total_minor' => (string) $total,
@@ -461,8 +477,17 @@ class SaleUploads
             'item' => $item,
             'override' => $discountApproval,
             'price_override' => $priceApproval,
+            'reference_price' => $reference,
             'percent' => $percent,
         ];
+    }
+
+    /** A tax code's rate in force at $at (null when exempt or not set: rates are never invented). */
+    private function rateOn(TaxCode $code, CarbonImmutable $at): ?string
+    {
+        $rate = $code->isExempt() ? null : $code->rateOn($at);
+
+        return $rate === null || $rate->isNeeded() ? null : (string) $rate->rate;
     }
 
     /**
@@ -705,8 +730,9 @@ class SaleUploads
                 ], [...$extra, 'on_behalf_of_user_id' => $line['override']?->approverId()]);
             }
 
-            if ($line['row']['list_price_minor'] !== null && $line['row']['list_price_minor'] !== $line['row']['unit_price_minor']) {
-                $this->auditor->record('pos.sale.price_override', $sale, ['unit_price_minor' => $line['row']['list_price_minor']], [
+            // AUD-01: against the list price the till showed, else the server's.
+            if ($line['reference_price'] !== null && $line['reference_price'] !== $line['row']['unit_price_minor']) {
+                $this->auditor->record('pos.sale.price_override', $sale, ['unit_price_minor' => $line['reference_price']], [
                     'line' => $line['row']['line_no'],
                     'unit_price_minor' => $line['row']['unit_price_minor'],
                     'approved_by' => $line['price_override']?->approverId(),
