@@ -38,17 +38,24 @@ class TemplateApiTest extends TestCase
         return [...DefaultTemplates::for('pos.receipt'), ...$overrides];
     }
 
-    /** Saves a draft for $type at the scope and returns the document's response. */
+    /** Saves a draft for $type at the scope (over the current draft revision, LAY-06) and returns the document's response. */
     private function save(string $type, array $payload, string $scopeType = 'company', ?string $scopeId = null, ?array $headers = null, int $status = 201): array
     {
+        $scopeId = $scopeType === 'tenant' ? null : ($scopeId ?? $this->acme->id);
+        $existing = collect($this->getJson(self::URL.'?key='.$type.'&per_page=200', $this->headersFor())->json('data'))
+            ->first(fn (array $d) => $d['scope']['type'] === $scopeType && $d['scope']['id'] === $scopeId);
+        $revision = $existing === null ? null : $this->getJson(self::URL.'/'.$existing['id'], $this->headersFor())->json('data.draft.revision');
+
         return $this->postJson(self::URL, [
-            'key' => $type, 'scope_type' => $scopeType, 'scope_id' => $scopeType === 'tenant' ? null : ($scopeId ?? $this->acme->id), 'payload' => $payload,
+            'key' => $type, 'scope_type' => $scopeType, 'scope_id' => $scopeId, 'payload' => $payload, 'revision' => $revision,
         ], $headers ?? $this->headersFor())->assertStatus($status)->json();
     }
 
     private function publish(string $id): TestResponse
     {
-        return $this->postJson(self::URL."/{$id}/publish", [], $this->headersFor());
+        $revision = $this->getJson(self::URL.'/'.$id, $this->headersFor())->json('data.draft.revision');
+
+        return $this->postJson(self::URL."/{$id}/publish", ['revision' => $revision], $this->headersFor());
     }
 
     private function withoutFiscal(array $payload): array

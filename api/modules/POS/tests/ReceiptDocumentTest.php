@@ -74,8 +74,9 @@ class ReceiptDocumentTest extends TestCase
         $payload = DefaultTemplates::for('pos.receipt');
         $payload['variants'] = [['id' => 'vip', 'name' => 'VIP', 'applies_when' => ['customer_tags' => ['vip']], 'language' => 'fr',
             'blocks' => [['id' => 'thanks', 'type' => 'text', 'text' => 'Asante {{customer.name}}'], ...$payload['blocks']]]];
-        $id = $this->postJson('/api/v1/config/template', ['key' => 'pos.receipt', 'scope_type' => 'branch', 'scope_id' => $this->branchA->id, 'payload' => $payload], $this->headersFor())->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/config/template/{$id}/publish", [], $this->headersFor())->assertOk();
+        $created = $this->postJson('/api/v1/config/template', ['key' => 'pos.receipt', 'scope_type' => 'branch', 'scope_id' => $this->branchA->id, 'payload' => $payload], $this->headersFor())->assertCreated();
+        $id = $created->json('data.id');
+        $this->postJson("/api/v1/config/template/{$id}/publish", ['revision' => $created->json('data.draft.revision')], $this->headersFor())->assertOk();
 
         $text = TemplateText::of($this->get($this->url('receipt'), $this->headersFor())->assertOk()->getContent());
         $this->assertStringContainsString('Asante Amina <VIP>', $text);
@@ -241,8 +242,9 @@ class ReceiptDocumentTest extends TestCase
 
         // A template published for the company reaches the till, with its variants.
         $payload = [...DefaultTemplates::for('pos.receipt'), 'paper' => '58mm', 'variants' => [['id' => 'vip', 'name' => 'VIP', 'applies_when' => ['customer_tags' => ['vip']], 'blocks' => DefaultTemplates::for('pos.receipt')['blocks']]]];
-        $id = $this->postJson('/api/v1/config/template', ['key' => 'pos.receipt', 'scope_type' => 'company', 'scope_id' => $this->acme->id, 'payload' => $payload], $this->headersFor())->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/config/template/{$id}/publish", [], $this->headersFor())->assertOk();
+        $created = $this->postJson('/api/v1/config/template', ['key' => 'pos.receipt', 'scope_type' => 'company', 'scope_id' => $this->acme->id, 'payload' => $payload], $this->headersFor())->assertCreated();
+        $id = $created->json('data.id');
+        $this->postJson("/api/v1/config/template/{$id}/publish", ['revision' => $created->json('data.draft.revision')], $this->headersFor())->assertOk();
         $this->travel(2)->minutes();
 
         $row = $pull()['pos.receipt'];
