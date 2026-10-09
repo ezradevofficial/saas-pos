@@ -1,7 +1,7 @@
 import { uuidv7 } from '../lib/random';
 import { NetworkError } from '../sync/api';
 import { computeCart } from './cart';
-import { DOCUMENT_TYPES, drawNumber, needsNextPeriod, nextToReport } from './numbering';
+import { DOCUMENT_TYPES, drawNumber, needsNextPeriod, needsTopUp, nextToReport } from './numbering';
 import { cashMovementPayload, refundAmounts, refundBaseMajor, refundedQuantities, toBaseMinor, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
 import { amountDueIn, calculateTender } from './tender';
 
@@ -39,22 +39,42 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
   const iso = () => new Date(serverNow()).toISOString();
   const offline = () => engine.getStatus().network === 'offline';
 
-  async function draw(documentType, at, timeZone) {
+  async function tryDraw(documentType, at, timeZone) {
     const [ranges, used] = await Promise.all([posStore.numberRanges(), posStore.counters(documentType)]);
-    const number = drawNumber({ ranges, used, documentType, at, timeZone });
+    return drawNumber({ ranges, used, documentType, at, timeZone });
+  }
+
+  /**
+   * NUM-02: the next number of a document. With none left while online, the
+   * till asks for a range, pulls it and tries once more before refusing.
+   */
+  async function draw(documentType, at, timeZone) {
+    let number = await tryDraw(documentType, at, timeZone);
+    if (!number && !offline() && (await topUp(documentType, timeZone))) number = await tryDraw(documentType, at, timeZone);
     if (!number) throw new SellingError('no_receipt_numbers', { documentType });
     return number;
   }
 
-  /** NUM-02: ask for more numbers (online only); resolves whether a request was made. */
-  async function topUp(documentType, timeZone) {
-    if (offline()) return false;
+  // One request per document type at a time (screens, pulls and sales may all ask).
+  const asking = new Map();
+
+  /** NUM-02: ask for more numbers (online only) and pull them; resolves whether the server answered. */
+  function topUp(documentType, timeZone) {
+    if (offline()) return Promise.resolve(false);
+    if (!asking.has(documentType)) {
+      asking.set(documentType, requestRanges(documentType, timeZone).finally(() => asking.delete(documentType)));
+    }
+    return asking.get(documentType);
+  }
+
+  async function requestRanges(documentType, timeZone) {
     try {
       const [ranges, used] = await Promise.all([posStore.numberRanges(), posStore.counters(documentType)]);
       const year = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric' }).format(new Date(serverNow()));
       const next = nextToReport(ranges, used, documentType, year);
       const response = await api.post('pos/number-ranges', next ? { document_type: documentType, next } : { document_type: documentType });
-      if (response.status === 200) await engine.pull({ keys: ['pos_number_ranges'] });
+      if (response.status !== 200) return false;
+      await engine.pull({ keys: ['pos_number_ranges'] });
       return true;
     } catch (error) {
       if (!(error instanceof NetworkError)) log('number range top-up failed', error);
@@ -68,8 +88,37 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
     if (number.topUp || needsNextPeriod({ ranges, documentType, at: serverNow(), timeZone })) topUp(documentType, timeZone);
   }
 
+  /**
+   * NUM-02: make sure the till holds numbers for every document it makes
+   * (receipts and refund receipts): a type with no range, fewer than the
+   * threshold left, or (near the year's end) no range for next year is
+   * topped up. Online only; called when the selling screen mounts, when a
+   * shift opens and after every pull. Resolves the types asked for.
+   */
+  const lastEnsured = new Map();
+  const ENSURE_COOLDOWN_MS = 60 * 1000;
+
+  async function ensureRanges(timeZone) {
+    if (offline()) return [];
+    const ranges = await posStore.numberRanges();
+    const at = serverNow();
+    const asked = [];
+    for (const documentType of Object.values(DOCUMENT_TYPES)) {
+      const used = await posStore.counters(documentType);
+      if (needsTopUp({ ranges, used, documentType, at, timeZone }) || needsNextPeriod({ ranges, documentType, at, timeZone })) {
+        // A pull follows each answer and calls this again: never ask for the same type twice within a minute.
+        if (now() - (lastEnsured.get(documentType) ?? -Infinity) < ENSURE_COOLDOWN_MS) continue;
+        lastEnsured.set(documentType, now());
+        asked.push(documentType);
+        await topUp(documentType, timeZone);
+      }
+    }
+    return asked;
+  }
+
   return {
     topUp,
+    ensureRanges,
 
     /** POS-04: open a shift with an opening float per currency. */
     openShift: ({ user, actorProof, openingFloat }) =>

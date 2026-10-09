@@ -188,6 +188,36 @@ describe('PosScreen', () => {
     await view.unmount();
   }, 20000);
 
+  it('gets receipt ranges on a newly paired till before the first sale (NUM-02)', async () => {
+    const { services, server } = setup();
+    server.state.entities.pos_number_ranges.rows.clear();
+    server.state.handler = (method, path, body) => {
+      if (method !== 'POST' || path !== 'pos/number-ranges') return null;
+      const receipt = body.document_type === 'pos.receipt';
+      server.upsert('pos_number_ranges', { id: id(receipt ? 20 : 21), document_type: body.document_type, period: 'all', pattern: receipt ? 'R-WL2-{000001}' : 'F-WL2-{0001}', from: 1, to: 500, next: 1 });
+      return { status: 200, body: { data: [] } };
+    };
+    const view = await render(<App services={services} />);
+    await fireEvent.changeText(await screen.findByLabelText('Pairing code'), 'abcd-efgh');
+    await fireEvent.changeText(screen.getByLabelText('Till name'), 'Till 2');
+    await fireEvent.press(screen.getByRole('button', { name: 'Pair till' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue' }));
+    await signInAs('Amina Otieno', '274915');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Open shift' }));
+
+    // The till asked for both document types it numbers, once each, without anyone selling yet.
+    await waitFor(() => expect(server.requestsTo('pos/number-ranges').map((request) => request.body.document_type).sort()).toEqual(['pos.receipt', 'pos.refund']));
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tusker Lager 500ml, KES 250.00' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
+    expect(await screen.findByText(/Receipt R-WL2-000001/)).toBeOnTheScreen();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Exact KES 250.00' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Complete sale' }));
+    expect(within(await screen.findByTestId('receipt')).getByText('R-WL2-000001')).toBeOnTheScreen();
+    expect(server.requestsTo('pos/number-ranges')).toHaveLength(2);
+    await view.unmount();
+  });
+
   it('asks a manager to approve a discount above the cashier’s limit (AUTH-08)', async () => {
     const { services } = setup();
     const view = await render(<App services={services} />);

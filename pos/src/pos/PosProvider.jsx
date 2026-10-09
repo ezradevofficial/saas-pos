@@ -33,7 +33,7 @@ const ActionsContext = createContext(null);
 export function PosProvider({ children }) {
   const { database, posStore, selling } = useServices();
   const session = useSession();
-  const { lastPulledAt } = useSyncStatus();
+  const { lastPulledAt, network } = useSyncStatus();
   const [catalogue, setCatalogue] = useState(null);
   const [cart, dispatch] = useReducer(cartReducer, undefined, () => emptyCart());
   const [shift, setShift] = useState(undefined);
@@ -113,6 +113,15 @@ export function PosProvider({ children }) {
   useEffect(() => {
     refreshNumber();
   }, [refreshNumber, catalogue, lastSale]);
+
+  // NUM-02: a till needs number ranges before it can sell (a new pairing has none): ask when
+  // the selling screens mount, when a shift opens, when the till comes online and after each pull.
+  const timeZone = catalogue?.timeZone;
+  const online = network !== 'offline';
+  useEffect(() => {
+    if (!timeZone || !online) return;
+    selling.ensureRanges(timeZone).then((asked) => asked.length && refreshNumber(), () => {});
+  }, [selling, timeZone, online, shift?.id, lastPulledAt, refreshNumber]);
 
   const activeList = useCallback((customer) => {
     const loaded = refs.current.catalogue;

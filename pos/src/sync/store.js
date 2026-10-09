@@ -64,17 +64,27 @@ export function createSyncStore(database) {
   }
 
   /** Rebuild the child rows (an item's barcodes) of rows written, and remove those of rows leaving. */
-  async function prepareChildren(definition, upserts, leavingIds) {
-    const operations = [];
+  /** The current child rows (an item's barcodes) of the parents written or leaving, per child table. */
+  async function readChildren(definition, upserts, leavingIds) {
     const parents = [...upserts.map((row) => String(row.id)), ...leavingIds];
+    const out = [];
     for (const child of definition.children) {
-      const wanted = new Map();
-      for (const row of upserts) {
-        for (const { id, ...columns } of child.rows(row)) wanted.set(id, { ...columns, [child.parentColumn]: String(row.id) });
-      }
       const current = [];
       for (const part of chunks(parents)) {
         current.push(...(await table(child.table).query(Q.where(child.parentColumn, Q.oneOf(part))).fetch()));
+      }
+      out.push({ child, current });
+    }
+    return out;
+  }
+
+  /** Rebuild them (synchronous: prepared records must reach batch() without an await in between). */
+  function prepareChildren(currentChildren, upserts) {
+    const operations = [];
+    for (const { child, current } of currentChildren) {
+      const wanted = new Map();
+      for (const row of upserts) {
+        for (const { id, ...columns } of child.rows(row)) wanted.set(id, { ...columns, [child.parentColumn]: String(row.id) });
       }
       const currentById = new Map(current.map((record) => [record.id, record]));
       for (const record of current) {
@@ -145,23 +155,28 @@ export function createSyncStore(database) {
       const upsertIds = upserts.map((row) => String(row.id));
       const keep = new Set(upsertIds);
 
-      const state = await findOne('sync_state', key);
-      const previous = parse(state?._raw.data) ?? {};
-      const pageSeq = (previous.pageSeq ?? 0) + 1;
-      const resetSince = page.reset || page.replace ? pageSeq : (previous.resetSince ?? null);
+      // Reads and prepares happen inside the write (two pulls may run at once: a sync and a
+      // receipt-range top-up), and every record is prepared right before batch(), with no await between.
+      let resetSince = null;
+      await database.write(async () => {
+        const state = await findOne('sync_state', key);
+        const previous = parse(state?._raw.data) ?? {};
+        const pageSeq = (previous.pageSeq ?? 0) + 1;
+        resetSince = page.reset || page.replace ? pageSeq : (previous.resetSince ?? null);
 
-      const leaving = (await findByIds(definition.table, tombstones)).filter((record) => !keep.has(record.id));
-      const existing = new Map((await findByIds(definition.table, upsertIds)).map((record) => [record.id, record]));
+        const leaving = (await findByIds(definition.table, tombstones)).filter((record) => !keep.has(record.id));
+        const existing = new Map((await findByIds(definition.table, upsertIds)).map((record) => [record.id, record]));
+        const currentChildren = await readChildren(definition, upserts, leaving.map((record) => record.id));
 
-      const operations = leaving.map((record) => record.prepareDestroyPermanently());
-      for (const row of upserts) {
-        const id = String(row.id);
-        operations.push(prepareUpsert(definition.table, existing.get(id), id, { ...definition.columns(row), data: JSON.stringify(row), seen_at: pageSeq }));
-      }
-      operations.push(...(await prepareChildren(definition, upserts, leaving.map((record) => record.id))));
-      operations.push(prepareUpsert('sync_state', state, key, { cursor: page.cursor ?? null, pulled_at: pulledAt, data: json({ pageSeq, resetSince }) }));
-
-      await database.write(() => database.batch(...operations));
+        const operations = leaving.map((record) => record.prepareDestroyPermanently());
+        for (const row of upserts) {
+          const id = String(row.id);
+          operations.push(prepareUpsert(definition.table, existing.get(id), id, { ...definition.columns(row), data: JSON.stringify(row), seen_at: pageSeq }));
+        }
+        operations.push(...prepareChildren(currentChildren, upserts));
+        operations.push(prepareUpsert('sync_state', state, key, { cursor: page.cursor ?? null, pulled_at: pulledAt, data: json({ pageSeq, resetSince }) }));
+        await database.batch(...operations);
+      });
 
       const swept = !page.has_more && resetSince !== null ? await sweep(key, definition, resetSince) : 0;
       return { upserts: upserts.length, tombstones: tombstones.length, swept };

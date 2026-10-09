@@ -234,6 +234,70 @@ describe('day rollover (POS-11)', () => {
   });
 });
 
+describe('a newly paired till gets its ranges (NUM-02)', () => {
+  /** A server that gives a 500-number range for each document type asked. */
+  function allocating(server) {
+    const given = [];
+    server.state.handler = (method, path, body) => {
+      if (method !== 'POST' || path !== 'pos/number-ranges') return null;
+      const rangeId = body.document_type === 'pos.receipt' ? IDS.range : IDS.refundRange;
+      const pattern = body.document_type === 'pos.receipt' ? 'R-WL2-{000001}' : 'F-WL2-{0001}';
+      given.push(body);
+      server.upsert('pos_number_ranges', { id: rangeId, document_type: body.document_type, period: 'all', pattern, from: 1, to: 500, next: 1 });
+      return { status: 200, body: { data: [] } };
+    };
+    return given;
+  }
+
+  async function freshTill() {
+    const context = await setup();
+    // A new pairing: the server holds no range for this till yet.
+    context.server.state.entities.pos_number_ranges.rows.clear();
+    context.server.bumpVersion('pos_number_ranges');
+    await context.engine.pull();
+    expect(await context.posStore.numberRanges()).toEqual([]);
+    return context;
+  }
+
+  it('asks for every document type it lacks, once, then has numbers', async () => {
+    const { server, selling, posStore } = await freshTill();
+    const given = allocating(server);
+
+    expect(await selling.ensureRanges('Africa/Nairobi')).toEqual(['pos.receipt', 'pos.refund']);
+    expect(given).toEqual([{ document_type: 'pos.receipt' }, { document_type: 'pos.refund' }]);
+    expect((await posStore.numberRanges()).map((range) => range.document_type).sort()).toEqual(['pos.receipt', 'pos.refund']);
+
+    // Enough numbers now: nothing more is asked.
+    expect(await selling.ensureRanges('Africa/Nairobi')).toEqual([]);
+    expect(given).toHaveLength(2);
+  });
+
+  it('asks nothing offline', async () => {
+    const { server, engine, selling } = await freshTill();
+    const given = allocating(server);
+    engine.setNetwork('offline');
+    expect(await selling.ensureRanges('Africa/Nairobi')).toEqual([]);
+    expect(given).toEqual([]);
+  });
+
+  it('tops up and retries once when a sale finds no number while online', async () => {
+    const { server, engine, selling, catalogue, proofFor } = await freshTill();
+    const given = allocating(server);
+    const proof = proofFor(cashier);
+    const shift = await selling.openShift({ user: cashier, actorProof: proof, openingFloat: [] });
+    const sale = await selling.completeSale({ shift, user: cashier, actorProof: proof, cart: cartWith(catalogue, [[IDS.bread, 1]]), catalogue, tenders: [tender(IDS.cash, 'KES', 6500)] });
+    expect(sale.receipt_number).toBe('R-WL2-000001');
+    expect(given[0]).toEqual({ document_type: 'pos.receipt' });
+
+    // Offline with no numbers left, the sale is refused (and the cart kept by the caller).
+    server.state.entities.pos_number_ranges.rows.clear();
+    server.bumpVersion('pos_number_ranges');
+    await engine.pull();
+    engine.setNetwork('offline');
+    await expect(selling.completeSale({ shift, user: cashier, actorProof: proof, cart: cartWith(catalogue, [[IDS.bread, 1]]), catalogue, tenders: [tender(IDS.cash, 'KES', 6500)] })).rejects.toMatchObject({ code: 'no_receipt_numbers' });
+  });
+});
+
 describe('receipt ranges top-up (NUM-02)', () => {
   it('asks for more numbers when fewer than 100 remain, reporting the next number', async () => {
     const { server, selling, catalogue, proofFor } = await setup({ receiptNext: 7 });
