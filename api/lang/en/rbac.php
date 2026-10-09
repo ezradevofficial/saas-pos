@@ -42,6 +42,8 @@ return [
                 'notification_delivery' => 'Notification deliveries',
                 'approval' => 'Approvals',
                 'credit_limit' => 'Credit limits',
+                'payment' => 'Payments',
+                'fiscal' => 'Fiscal transmission',
                 'numbering' => 'Document numbering',
             ],
             'pos' => [
@@ -70,6 +72,7 @@ return [
             'request' => 'Request',
             'approve' => 'Approve',
             'set_directly' => 'Set directly',
+            'match' => 'Match',
             'print' => 'Print',
             'void' => 'Void',
             'refund' => 'Refund',

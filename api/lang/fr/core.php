@@ -613,6 +613,7 @@ return [
         'cash_currency_required' => 'Les moyens de paiement en espèces ont besoin d’une devise. Choisissez l’une de vos devises actives.',
         'settings_none' => 'Ce moyen de paiement n’a pas de paramètres. Retirez-les.',
         'settings_unknown' => 'Utilisez uniquement ces paramètres : :keys.',
+        'setting_value_invalid' => 'Le paramètre :key accepte une de ces valeurs : :values.',
         'secrets_none' => 'Ce moyen de paiement n’a pas d’identifiants. Retirez-les.',
         'secrets_unknown' => 'Utilisez uniquement ces identifiants : :keys.',
         'provider_not_configured' => 'Le fournisseur n’est pas encore configuré. Saisissez :keys, puis activez le moyen de paiement.',

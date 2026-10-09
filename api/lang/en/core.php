@@ -613,6 +613,7 @@ return [
         'cash_currency_required' => 'Cash payment methods need a currency. Choose one of your active currencies.',
         'settings_none' => 'This payment method has no settings. Remove them.',
         'settings_unknown' => 'Use only these settings: :keys.',
+        'setting_value_invalid' => 'The setting :key takes one of: :values.',
         'secrets_none' => 'This payment method has no credentials. Remove them.',
         'secrets_unknown' => 'Use only these credentials: :keys.',
         'provider_not_configured' => 'The provider isn’t set up yet. Enter :keys, then switch the payment method on.',
