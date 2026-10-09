@@ -196,6 +196,33 @@ class SaleUploadTest extends TestCase
     }
 
     /** The sale's flags without $code (the prices in this test differ from the server's on purpose). */
+    public function test_a_price_change_without_a_list_price_is_checked_against_the_sale_or_default_list(): void
+    {
+        $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
+        // KES 500.00 instead of the list's 562.50; the till sent neither the line's list nor its list price.
+        $cheap = fn () => $this->line(['price_list_id' => null, 'list_price_minor' => null, 'unit_price_minor' => '50000', 'tax_minor' => '11111', 'total_minor' => '100000']);
+
+        foreach ([[1, $this->retail->id], [2, null]] as [$seq, $saleList]) {
+            // The sale's list, else the company's default list (Retail is both here).
+            $sale = $this->saleBody($this->shift, $seq, ['cashier_id' => $cashier->id, 'actor_proof' => $this->actorProof($cashier->id), 'price_list_id' => $saleList, 'lines' => [$cheap()]]);
+            $response = $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+            $flags = collect($response->json('results.0.flags'))->keyBy('code');
+            $this->assertSame(['expected_unit_price_minor' => '56250'], $flags['price_differs']['detail']);
+            // The cashier may not change prices (pos.price.override): flagged, never refused.
+            $this->assertTrue($flags->has('price_override_unauthorised'));
+
+            $audit = $this->inTenant(fn () => AuditEntry::query()->where('action', 'pos.sale.price_override')->where('auditable_id', $sale['id'])->sole());
+            $this->assertSame(['unit_price_minor' => '56250'], $audit->before);
+            $this->assertSame(['50000', false], [$audit->after['unit_price_minor'], $audit->after['allowed']]);
+        }
+
+        // The list's own price, sent without it: nothing to approve, nothing flagged about the price.
+        $fair = $this->line(['price_list_id' => null, 'list_price_minor' => null]);
+        $response = $this->upload([$this->saleBody($this->shift, 3, ['price_list_id' => null, 'lines' => [$fair]])])->assertOk();
+        $this->assertSame([], array_values(array_intersect(['price_differs', 'price_override_unauthorised', 'price_unknown'], array_column($response->json('results.0.flags'), 'code'))));
+    }
+
     private function flagsBut($response, string ...$codes): array
     {
         return array_values(array_filter($response->json('results.0.flags'), fn (array $flag) => ! in_array($flag['code'], $codes, true)));
