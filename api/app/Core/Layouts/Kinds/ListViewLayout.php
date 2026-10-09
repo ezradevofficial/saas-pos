@@ -88,7 +88,8 @@ final class ListViewLayout
             }
 
             foreach ($filters as $name => $value) {
-                if (preg_match('/^[a-z][a-z0-9_]{0,39}$/', (string) $name) !== 1 || ! is_string($value) || mb_strlen($value) > 200) {
+                // A filter's URL name; custom field filters are `custom[key]` or `custom[key][min]` (CF-02).
+                if (preg_match('/^[a-z][a-z0-9_\[\]]{0,99}$/', (string) $name) !== 1 || ! is_string($value) || mb_strlen($value) > 200) {
                     $problems[] = PayloadSchema::problem("views.{$index}.filters.{$name}", 'filter_value');
                 }
             }

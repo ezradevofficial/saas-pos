@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 import { api } from '@/api/client'
 
 const TENANT = { type: 'tenant', id: null }
@@ -41,16 +42,23 @@ export function useConfigDocument(kind, key = 'default', scope = TENANT, { enabl
   })
 
   // Every write answers the whole document: keep it, and refresh the lists of the kind.
+  // A document just created is known at once, so "save, then publish" works in one go.
+  const created = useRef({})
+  const scopeKey = `${kind}|${key}|${where.type}|${where.id ?? ''}`
   const settle = async (response) => {
     const id = response?.data?.id
-    if (id) queryClient.setQueryData(['config', kind, 'document', id], response)
+    if (id) {
+      created.current[`${kind}|${key}|${response.data.scope?.type}|${response.data.scope?.id ?? ''}`] = id
+      queryClient.setQueryData(['config', kind, 'document', id], response)
+    }
     await queryClient.invalidateQueries({ queryKey: ['config', kind, 'list'] })
     return response
   }
 
   const documentId = () => {
-    if (!found?.id) throw new Error('No configuration document yet: save a draft first.')
-    return found.id
+    const id = found?.id ?? created.current[scopeKey]
+    if (!id) throw new Error('No configuration document yet: save a draft first.')
+    return id
   }
 
   const save = useMutation({

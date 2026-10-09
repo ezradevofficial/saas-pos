@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/errorMessage'
 import {
@@ -17,7 +17,9 @@ import { Alert } from './Alert'
 import { Button } from './Button'
 import { DataTable } from './DataTable'
 import { Icon } from './Icon'
+import { ListColumns } from './ListColumns'
 import { FilterChips, FilterDrawer } from './ListFilters'
+import { ListViews } from './ListViews'
 import { Select } from './Select'
 import { TextField } from './TextField'
 
@@ -63,6 +65,7 @@ export function ExportMenu({ onExport, exporting }) {
 export function ListView({ list, title, searchable = true, searchLabel, searchPlaceholder, filterFields, filters, emptyText, onRowClick, selectedId, className }) {
   const { t } = useTranslation()
   const filterButton = useRef(null)
+  const [arranging, setArranging] = useState(false)
   const hasFilters = Boolean(filterFields?.length || filters)
   const locale = useLocale()
   const { query, rows, meta, page, lastPage } = list
@@ -96,6 +99,7 @@ export function ListView({ list, title, searchable = true, searchLabel, searchPl
               {filters}
             </FilterDrawer>
           ) : null}
+          {list.views ? <ListViews list={list} /> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button icon="columns">{t('ds.listView.columns')}</Button>
@@ -115,8 +119,14 @@ export function ListView({ list, title, searchable = true, searchLabel, searchPl
                   {column.label}
                 </DropdownMenuCheckboxItem>
               ))}
+              {list.setColumnOrder ? (
+                <DropdownMenuItem className={menuItemClasses} onSelect={() => setArranging(true)}>
+                  {t('ds.listView.arrange')}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
+          {list.setColumnOrder ? <ListColumns list={list} open={arranging} onClose={() => setArranging(false)} /> : null}
           <ExportMenu onExport={list.exportTo} exporting={list.exporting} />
         </div>
       </div>

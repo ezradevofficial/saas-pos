@@ -143,7 +143,12 @@ class ConfigController
 
         return new JsonResponse([
             'data' => array_map(fn (array $layer) => $this->layer($kind, $request->key(), $request->user(), $layer), $layers),
-            'meta' => ['kind' => $kind->key, 'key' => $request->key()],
+            'meta' => [
+                'kind' => $kind->key,
+                'key' => $request->key(),
+                // What applies under every layer: the kind's defaults, as this reader may see them.
+                'defaults' => $this->layer($kind, $request->key(), $request->user(), ['payload' => $kind->defaultPayload(), 'version' => null, 'document' => null])['payload'],
+            ],
         ]);
     }
 

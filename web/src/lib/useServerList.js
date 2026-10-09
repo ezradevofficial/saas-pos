@@ -2,7 +2,7 @@
 // page and rows per page live in the URL so a list can be shared or
 // bookmarked; the user's column choice lives in localStorage per user and
 // list; exports download the same query as a file with the bearer token.
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { useAuth } from '@/auth/AuthProvider'
+import { applyView, collectViews, defaultViewKey, exportKeyOf, hiddenColumnKeys, withoutHiddenColumns } from './listViews'
 
 export const PER_PAGE_OPTIONS = [10, 25, 50, 100]
 export const EXPORT_FORMATS = ['xlsx', 'csv', 'pdf']
@@ -37,8 +38,17 @@ function writeHidden(key, hidden) {
   }
 }
 
-/** A column's key in the export: `exportKey`, else its own key; null or false leaves it out. */
-export const exportKeyOf = (column) => (column.exportKey === undefined ? column.key : column.exportKey || null)
+export { exportKeyOf }
+
+/** `columns` in the order of `keys` (null: as they are); row actions stay last, unnamed columns after the named. */
+function inOrder(columns, keys) {
+  if (!keys) return columns
+  const rank = (column) => (column.inMenu === false ? keys.length + 1 : keys.includes(column.key) ? keys.indexOf(column.key) : keys.length)
+  return [...columns].sort((a, b) => rank(a) - rank(b))
+}
+
+/** Query key of a list's saved views (LAY-04). */
+export const listViewsKey = (listId) => ['config', 'list_view', 'layers', listId]
 
 const today = () => {
   const now = new Date()
@@ -144,18 +154,39 @@ export function useListExport({ id, endpoint }) {
  * @param {Array} [options.columns] DataTable columns plus `sortKey`, `exportKey`, `hideable`, `defaultHidden`, `inMenu` (false keeps an actions column out of the Columns menu)
  * @param {Array} [options.queryKey] query key prefix (default [id]); "list" and the query follow
  */
-export function useServerList({ id, endpoint, params: fixed = {}, filters: filterDefaults = {}, defaultSort = '', defaultPerPage = 25, columns = [], queryKey }) {
+export function useServerList({ id, endpoint, params: fixed = {}, filters: filterDefaults = {}, defaultSort = '', defaultPerPage = 25, columns: allColumns = [], queryKey }) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const defaults = { search: '', sort: defaultSort, page: '1', per_page: String(defaultPerPage), ...filterDefaults }
+  const filterNames = Object.keys(filterDefaults)
+
+  // LAY-04: the list's saved views (the user's own, their roles', the
+  // organisation's). The one in `?view=`, else the default one, gives the
+  // columns and the starting filters, sort and rows per page; the URL still
+  // wins, so a link keeps what it shows. A list whose views can't be read
+  // works as before.
+  const layersQuery = useQuery({
+    queryKey: listViewsKey(id),
+    queryFn: () => api.get(`config/list_view/layers?key=${encodeURIComponent(id)}`),
+    staleTime: 60_000,
+    retry: false,
+  })
+  const layers = layersQuery.data?.data
+  const savedViews = collectViews(layers)
+  const askedView = searchParams.get('view')
+  const activeKey = askedView === 'none' ? null : savedViews.some((view) => view.key === askedView) ? askedView : defaultViewKey(layers)
+  const activeView = savedViews.find((view) => view.key === activeKey) ?? null
+  const viewSort = activeView?.sort ?? defaultSort
+  const viewPerPage = PER_PAGE_OPTIONS.includes(activeView?.per_page) ? activeView.per_page : defaultPerPage
+  const viewFilters = Object.fromEntries(filterNames.map((name) => [name, typeof activeView?.filters?.[name] === 'string' ? activeView.filters[name] : filterDefaults[name]]))
+  const defaults = { search: '', sort: viewSort, page: '1', per_page: String(viewPerPage), ...viewFilters }
 
   const urlSearch = searchParams.get('search') ?? ''
-  const sort = searchParams.get('sort') ?? defaultSort
+  const sort = searchParams.get('sort') ?? viewSort
   const page = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1)
   const askedPerPage = Number.parseInt(searchParams.get('per_page') ?? '', 10)
-  const perPage = PER_PAGE_OPTIONS.includes(askedPerPage) ? askedPerPage : defaultPerPage
-  const filterNames = Object.keys(filterDefaults)
-  const filters = Object.fromEntries(filterNames.map((name) => [name, searchParams.get(name) ?? filterDefaults[name]]))
+  const perPage = PER_PAGE_OPTIONS.includes(askedPerPage) ? askedPerPage : viewPerPage
+  const filters = Object.fromEntries(filterNames.map((name) => [name, searchParams.get(name) ?? viewFilters[name]]))
 
   // Two writes in one tick (the search and a typed filter settling together)
   // must both land: each builds on the previous write, not on the last render.
@@ -196,6 +227,8 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     queryKey: [...(queryKey ?? [id]), 'list', listQuery],
     queryFn: () => api.get(`${endpoint}?${listQuery}`),
     placeholderData: (previous) => previous,
+    // The views decide the first query (a default view's filters and sort): wait for them once.
+    enabled: !layersQuery.isLoading,
   })
   const meta = query.data?.meta ?? {}
   const rows = query.data?.data ?? []
@@ -218,7 +251,13 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     update({ sort: defaultSort }, { replace: true })
   })
 
-  // Columns: hidden keys per user and list (LAY-04, a personal choice).
+  // RBAC-05: a column built from a field the user's rules hide never shows, in any view.
+  const fieldHidden = [...hiddenColumnKeys(layers), ...hiddenColumnKeys([{ payload: layersQuery.data?.meta?.defaults }])]
+  const allowed = withoutHiddenColumns(allColumns, fieldHidden)
+
+  // Columns without a view: hidden keys per user and list in this browser
+  // (the choice made before saved views existed; still read as a fallback
+  // and carried into the first view the user saves).
   const storageKey = columnsStorageKey(user?.id, id)
   const [hiddenState, setHiddenState] = useState(() => ({ key: storageKey, hidden: readHidden(storageKey) }))
   let saved = hiddenState.hidden
@@ -226,7 +265,15 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     saved = readHidden(storageKey)
     setHiddenState({ key: storageKey, hidden: saved })
   }
-  const hidden = saved ?? columns.filter((column) => column.defaultHidden).map((column) => column.key)
+
+  // Columns with a view: its order and choice (LAY-07 merge), plus what the
+  // user switched since, kept until they save the view or pick another.
+  const viewed = activeView ? applyView(allowed, activeView) : null
+  const [override, setOverride] = useState({ key: '', hidden: null, order: null })
+  const current = override.key === (activeKey ?? '') ? override : { hidden: null, order: null }
+  const unsaved = activeView ? current.hidden : null
+  const columns = inOrder(viewed ? viewed.columns : allowed, current.order)
+  const hidden = viewed ? (unsaved ?? viewed.hidden) : (saved ?? allowed.filter((column) => column.defaultHidden).map((column) => column.key))
 
   const hideable = (column) => column.hideable !== false
   const shown = columns.filter((column) => !hideable(column) || !hidden.includes(column.key))
@@ -245,9 +292,28 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     if (!canToggleColumn(key)) return
     const next = isColumnVisible(key) ? [...hidden, key] : hidden.filter((entry) => entry !== key)
     const known = next.filter((entry, index) => next.indexOf(entry) === index && columns.some((column) => column.key === entry))
+    if (activeView) {
+      setOverride({ key: activeKey, hidden: known, order: current.order })
+      return
+    }
     writeHidden(storageKey, known)
     setHiddenState({ key: storageKey, hidden: known })
   }
+
+  /** Opens a saved view (null: the list's own layout): its filters, sort and columns replace what the URL held. */
+  const selectView = (key) => {
+    const next = new URLSearchParams(latest.current)
+    for (const name of ['search', 'sort', 'page', 'per_page', 'view', ...filterNames]) next.delete(name)
+    const fallback = defaultViewKey(layers)
+    if (key === null && fallback !== null) next.set('view', 'none')
+    else if (key !== null && key !== fallback) next.set('view', key)
+    latest.current = next
+    setOverride({ key: '', hidden: null, order: null })
+    setSearchParams(next)
+  }
+  /** The columns in a new order (their keys); kept until the view is saved or another is opened. */
+  const setColumnOrder = (keys) => setOverride({ key: activeKey ?? '', hidden: current.hidden, order: keys })
+  const viewChanged = Boolean(activeView) && (unsaved !== null || current.order !== null ||['sort', 'per_page', ...filterNames].some((name) => searchParams.has(name)))
 
   // Export (EXP-01): the same query, every matching row, the visible columns in order.
   const exporter = useListExport({ id, endpoint })
@@ -266,7 +332,7 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     sort,
     setSort: (next) => update({ sort: next ?? '' }),
     /** Header clicks: ascending, then descending, then the list's default order. */
-    toggleSort: (sortKey) => update({ sort: sort === sortKey ? `-${sortKey}` : sort === `-${sortKey}` ? defaultSort : sortKey }),
+    toggleSort: (sortKey) => update({ sort: sort === sortKey ? `-${sortKey}` : sort === `-${sortKey}` ? viewSort : sortKey }),
     page,
     lastPage,
     setPage: (next) => update({ page: Math.min(Math.max(1, next), lastPage) }),
@@ -280,8 +346,25 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     isColumnVisible,
     canToggleColumn,
     toggleColumn,
+    setColumnOrder,
     exportTo,
     exporting: exporter.exporting,
+    /** LAY-04: the list's id (its views' key), the keys not shown, and its saved views. */
+    id,
+    hiddenColumns: hidden,
+    defaultSort,
+    views: {
+      all: savedViews,
+      active: activeView,
+      /** True once the user changed columns, filters, sort or rows per page since opening the view. */
+      changed: viewChanged,
+      select: selectView,
+      /** After saving or deleting: read the views again, then open `key` (null: the list's own layout). */
+      refresh: async (key) => {
+        await queryClient.invalidateQueries({ queryKey: listViewsKey(id) })
+        if (key !== undefined) selectView(key)
+      },
+    },
   }
 }
 
