@@ -176,7 +176,8 @@
       "lineDiscount": "Discount {{amount}}",
       "blocked": "Some items cannot be sold until their tax rate is set in the back office. Remove them to charge.",
       "tax": "Tax",
-      "discountCleared": "The discount was removed: it is above what you may give at this quantity. Ask a manager to give it again."
+      "discountCleared": "The discount was removed: it is above what you may give at this quantity. Ask a manager to give it again.",
+      "paymentLocked": "Mobile money was sent for this sale, so its items and customer cannot change. Complete the sale, or refund the payment first."
     },
     "phone": {
       "items_one": "{{count}} item",
@@ -305,7 +306,8 @@
         "codeRefused": "This M-Pesa code cannot be used. Check the code in the customer’s message.",
         "receipt_used": "This M-Pesa code already paid another sale. Check the code in the customer’s message.",
         "too_many_requests": "Too many payment requests. Wait a minute, then send it again.",
-        "not_staff_here": "You cannot take payments at this till. Ask an admin to give you a role at this location."
+        "not_staff_here": "You cannot take payments at this till. Ask an admin to give you a role at this location.",
+        "sale_exists": "This sale is already recorded. Start a new sale."
       }
     },
     "receipt": {
@@ -420,7 +422,8 @@
         "void_other_shift": "Only sales of the open shift can be voided. Return the items instead.",
         "no_receipt_numbers": "This till has no refund numbers left. Connect to the internet so the server can give it more.",
         "no_shift": "Open a shift first.",
-        "failed": "Nothing was saved. Try again."
+        "failed": "Nothing was saved. Try again.",
+        "record_exists": "This refund is already recorded. Find the sale again to see it."
       },
       "returnQty": "Quantity to return"
     },

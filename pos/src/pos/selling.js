@@ -162,9 +162,11 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
       }),
 
     /** POS-04: cash paid in or out, with a reason (a pay-out needs pos.cash.move or an override). */
-    cashMovement: ({ shift, user, actorProof, kind, currency, amountMinor, reason, override }) =>
+    cashMovement: ({ shift, user, actorProof, kind, currency, amountMinor, reason, override, id: givenId }) =>
       serial(async () => {
-        const id = override?.reference ?? uuidv7(now());
+        const id = givenId ?? override?.reference ?? uuidv7(now());
+        // NFR-04: a movement is recorded once; the same id again (a double submit) is refused.
+        if (await posStore.record(id)) throw new SellingError('record_exists', { id });
         const payload = cashMovementPayload({ id, shiftId: shift.id, userId: user.id, kind, currency, amountMinor, reason, occurredAt: iso(), override, actorProof });
         await engine.enqueue('pos.cash_movements', id, payload, { group: shift.id, prepare: async () => [await posStore.prepareRecord('cash_movement', payload, { shiftId: shift.id, at: now() })] });
         return payload;
@@ -178,6 +180,8 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
     completeSale: ({ shift, user, actorProof, cart, catalogue, tenders, changeCurrency, priceListId }) =>
       serial(async () => {
         if (!shift) throw new SellingError('no_shift');
+        // NFR-04: a sale is recorded once; completing the same cart again (a double submit) is refused.
+        if (await posStore.sale(cart.id)) throw new SellingError('sale_exists', { id: cart.id });
         const at = serverNow();
         // POS-11: tax by the day the sale completes, in the company's zone (the server's tax day).
         const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day });
@@ -285,6 +289,9 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
       serial(async () => {
         if (!shift) throw new SellingError('no_shift');
         if (sale.local?.status === 'voided') throw new SellingError('sale_already_voided');
+        const id = givenId ?? override?.reference ?? uuidv7(now());
+        // NFR-04: a refund is recorded once; the same id again (a double submit) is refused.
+        if (await posStore.record(id)) throw new SellingError('record_exists', { id });
         const earlier = (await posStore.recordsOfSale(sale.id)).filter((record) => record.recordKind === 'refund');
         const already = refundedQuantities(earlier);
         const amounts = refundAmounts(sale, requested, already);
@@ -293,7 +300,6 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         if (!tender) throw new SellingError('refund_currency');
         const at = serverNow();
         const number = await draw(DOCUMENT_TYPES.refund, at, catalogue.timeZone);
-        const id = givenId ?? override?.reference ?? uuidv7(now());
         const payload = refundPayload({
           id,
           saleId: sale.id,

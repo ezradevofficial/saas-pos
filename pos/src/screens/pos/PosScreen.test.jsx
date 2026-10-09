@@ -247,4 +247,87 @@ describe('PosScreen', () => {
     expect(screen.getByRole('button', { name: 'Charge KES 225.00' })).toBeOnTheScreen();
     await view.unmount();
   });
+
+  async function openTill(services) {
+    const view = await render(<App services={services} />);
+    await fireEvent.changeText(await screen.findByLabelText('Pairing code'), 'abcd-efgh');
+    await fireEvent.changeText(screen.getByLabelText('Till name'), 'Till 2');
+    await fireEvent.press(screen.getByRole('button', { name: 'Pair till' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue' }));
+    await signInAs('Amina Otieno', '274915');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Open shift' }));
+    return view;
+  }
+
+  it('keeps a cash payment added while an STK push waits, then locks the sale until it completes (POS-03, NFR-04)', async () => {
+    const { services, server } = setup();
+    server.define('payment_methods', {
+      mode: 'snapshot',
+      rows: [
+        { id: id(4), type: 'cash', name: 'Cash', currency: 'KES', position: 1 },
+        { id: id(6), type: 'mobile_money', name: 'M-Pesa', currency: 'KES', provider: 'mpesa_ke', position: 2, capabilities: { stk: true, manual_code: true } },
+      ],
+    });
+    const pushes = [];
+    let polls = 0;
+    server.state.handler = (method, path, body) => {
+      if (method === 'POST' && path === 'payments/intents') {
+        pushes.push(body);
+        return { status: 201, body: { data: { id: body.id, status: 'pending', mode: body.mode, amount: { amount_minor: body.amount_minor, currency: body.currency } } } };
+      }
+      if (method === 'GET' && path.startsWith('payments/intents/')) {
+        polls += 1;
+        const status = polls === 1 ? 'pending' : 'succeeded';
+        return { status: 200, body: { data: { id: path.split('/').pop(), status, receipt: status === 'succeeded' ? 'QJK9PUSH02' : null, amount: { amount_minor: pushes[0].amount_minor, currency: 'KES' } } } };
+      }
+      return null;
+    };
+    const view = await openTill(services);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tusker Lager 500ml, KES 250.00' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
+
+    // KES 150 by STK push; while the customer confirms, KES 100 in cash.
+    await fireEvent.press(await screen.findByText('M-Pesa'));
+    await fireEvent.changeText(screen.getByLabelText('Amount received'), '150');
+    await fireEvent.changeText(screen.getByLabelText('Customer’s phone number'), '0722000418');
+    const sending = fireEvent.press(screen.getByRole('button', { name: 'Send payment request for KES 150.00' }));
+    expect(await screen.findByText('Request sent to the customer’s phone')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText('Cash'));
+    await fireEvent.changeText(screen.getByLabelText('Amount received'), '100');
+    await fireEvent.press(screen.getByRole('button', { name: 'Add payment' }));
+    await act(() => sending);
+
+    // Both payments stand: the push did not overwrite the cash added meanwhile.
+    expect(await screen.findByRole('button', { name: 'Remove the Cash payment' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Remove the M-Pesa payment' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Complete sale' })).toBeEnabled();
+
+    // The customer paid by M-Pesa: the items cannot change (the payment would be dropped).
+    await fireEvent.press(screen.getByRole('button', { name: 'Back to the sale' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Supaloaf White 400g, KES 65.00' }));
+    expect(await screen.findByText('Mobile money was sent for this sale, so its items and customer cannot change. Complete the sale, or refund the payment first.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Complete sale' }));
+    expect(await screen.findByText('Sale complete')).toBeOnTheScreen();
+    const [sale] = await services.posStore.recentSales(1);
+    expect(sale.payments.map((payment) => payment.amount_minor).sort()).toEqual(['10000', '15000']);
+    await view.unmount();
+  }, 20000);
+
+  it('records one sale when Complete sale is pressed twice (POS-01, NFR-04)', async () => {
+    const { services } = setup();
+    const view = await openTill(services);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tusker Lager 500ml, KES 250.00' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Charge KES 250.00' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Exact KES 250.00' }));
+    const complete = await screen.findByRole('button', { name: 'Complete sale' });
+    await act(async () => {
+      fireEvent.press(complete);
+      fireEvent.press(complete);
+    });
+    expect(within(await screen.findByTestId('receipt')).getByText('R-WL2-000001')).toBeOnTheScreen();
+    expect(await services.posStore.recentSales(5)).toHaveLength(1);
+    expect(screen.queryByText('This sale is already recorded. Start a new sale.')).toBeNull();
+    await view.unmount();
+  });
 });

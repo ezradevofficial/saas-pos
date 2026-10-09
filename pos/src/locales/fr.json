@@ -176,7 +176,8 @@
       "lineDiscount": "Remise {{amount}}",
       "blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini dans le back-office. Retirez-les pour encaisser.",
       "tax": "Taxe",
-      "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau."
+      "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau.",
+      "paymentLocked": "Un paiement mobile money a été envoyé pour cette vente : ses articles et son client ne peuvent plus changer. Terminez la vente, ou remboursez d’abord le paiement."
     },
     "phone": {
       "items_one": "{{count}} article",
@@ -305,7 +306,8 @@
         "codeRefused": "Ce code M-Pesa ne peut pas être utilisé. Vérifiez le code dans le message du client.",
         "receipt_used": "Ce code M-Pesa a déjà payé une autre vente. Vérifiez le code dans le message du client.",
         "too_many_requests": "Trop de demandes de paiement. Attendez une minute, puis renvoyez-la.",
-        "not_staff_here": "Vous ne pouvez pas encaisser sur cette caisse. Demandez à un administrateur de vous donner un rôle ici."
+        "not_staff_here": "Vous ne pouvez pas encaisser sur cette caisse. Demandez à un administrateur de vous donner un rôle ici.",
+        "sale_exists": "Cette vente est déjà enregistrée. Commencez une nouvelle vente."
       }
     },
     "receipt": {
@@ -420,7 +422,8 @@
         "void_other_shift": "Seules les ventes du service ouvert peuvent être annulées. Retournez les articles.",
         "no_receipt_numbers": "Cette caisse n’a plus de numéros de remboursement. Connectez-vous à Internet pour que le serveur lui en donne.",
         "no_shift": "Ouvrez d’abord un service.",
-        "failed": "Rien n’a été enregistré. Réessayez."
+        "failed": "Rien n’a été enregistré. Réessayez.",
+        "record_exists": "Ce remboursement est déjà enregistré. Recherchez à nouveau la vente pour le voir."
       },
       "returnQty": "Quantité à retourner"
     },

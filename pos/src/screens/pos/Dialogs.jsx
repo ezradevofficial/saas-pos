@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { useSession } from '../../auth/session';
@@ -71,7 +71,7 @@ export function LineDialog({ lineId, onClose }) {
       // One edit from the new values: the discount limit is checked on the new quantity and price.
       const result = await actions.editLine(line.id, { qty, unitPriceMinor: price, discountMinor: discount });
       if (!result.ok) {
-        setError(result.reason === 'discount_above_price' ? t('pos.line.errors.discount') : t('pos.override.cancelled'));
+        setError(result.reason === 'discount_above_price' ? t('pos.line.errors.discount') : result.reason === 'payment_locked' ? t('pos.sale.paymentLocked') : t('pos.override.cancelled'));
         return;
       }
       onClose();
@@ -87,7 +87,13 @@ export function LineDialog({ lineId, onClose }) {
       onClose={onClose}
       footer={
         <>
-          <Button variant="danger" onPress={() => { actions.remove(line.id); onClose(); }}>
+          <Button
+            variant="danger"
+            onPress={() => {
+              if (actions.remove(line.id)) setError(t('pos.sale.paymentLocked'));
+              else onClose();
+            }}
+          >
             {t('pos.line.remove')}
           </Button>
           <Button variant="primary" loading={busy} onPress={save}>
@@ -112,6 +118,12 @@ export function CustomerDialog({ onClose }) {
   const actions = usePosActions();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [error, setError] = useState(null);
+  // POS-03: a sale with mobile money sent keeps its customer (setCustomer resolves 'payment_locked').
+  const choose = (customer) => {
+    if (actions.setCustomer(customer)) setError(t('pos.sale.paymentLocked'));
+    else onClose();
+  };
 
   useEffect(() => {
     let active = true;
@@ -128,7 +140,7 @@ export function CustomerDialog({ onClose }) {
       onClose={onClose}
       footer={
         cart.customer ? (
-          <Button variant="secondary" onPress={() => { actions.setCustomer(null); onClose(); }}>
+          <Button variant="secondary" onPress={() => choose(null)}>
             {t('pos.customer.remove')}
           </Button>
         ) : null
@@ -138,7 +150,7 @@ export function CustomerDialog({ onClose }) {
       <View className="rounded-md border border-border">
         {results.length ? (
           results.map((customer) => (
-            <ListRow key={customer.id} onPress={() => { actions.setCustomer(customer); onClose(); }}>
+            <ListRow key={customer.id} onPress={() => choose(customer)}>
               <View className="min-w-0 flex-1">
                 <Text className="font-sans text-body-lg text-ink">{customer.name}</Text>
                 {customer.phones?.[0]?.number ? <Text className="font-sans text-caption text-ink-muted">{maskPhone(customer.phones[0].number)}</Text> : null}
@@ -149,6 +161,7 @@ export function CustomerDialog({ onClose }) {
           <Text className="p-4 text-center font-sans text-body text-ink-muted">{t('pos.customer.none')}</Text>
         )}
       </View>
+      {error ? <Alert tone="warning">{error}</Alert> : null}
     </Dialog>
   );
 }
@@ -198,13 +211,17 @@ export function CashDialog({ onClose }) {
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  // POS-04, NFR-04: one movement at a time; a second press before the first resolves records nothing.
+  const recording = useRef(false);
 
   async function record() {
+    if (recording.current) return;
     const amount = currency ? parseAmount(amountText, catalogue.money.decimals(currency)) : null;
     if (!amount || amount === '0' || !reason.trim()) {
       setMessage({ tone: 'warning', text: t('pos.cash.errors.incomplete') });
       return;
     }
+    recording.current = true;
     setBusy(true);
     try {
       const movement = await actions.cashMovement({ kind, currency, amountMinor: amount, reason: reason.trim() });
@@ -218,6 +235,7 @@ export function CashDialog({ onClose }) {
     } catch {
       setMessage({ tone: 'danger', text: t('pos.cash.errors.failed') });
     } finally {
+      recording.current = false;
       setBusy(false);
     }
   }

@@ -30,7 +30,20 @@ export function emptyCart(now = Date.now()) {
 
 export const isWholeQty = (qty) => /^\d+$/.test(String(qty));
 
+/**
+ * POS-03, POS-06: a mobile-money tender that is confirmed (an STK push the
+ * customer paid) or pending (a typed code the server is checking) is money
+ * the customer has sent. While the sale holds one, its lines and customer
+ * cannot change: dropping the tenders would ask the customer to pay again.
+ * The payment must be completed with the sale (or refunded) first.
+ */
+export const hasMobilePayment = (cart) =>
+  (cart?.tenders ?? []).some((tender) => tender.method?.type === 'mobile_money' && (tender.status === 'confirmed' || tender.status === 'pending'));
+
+const SALE_CHANGES = new Set(['add', 'edit', 'remove', 'customer']);
+
 export function cartReducer(state, action) {
+  if (SALE_CHANGES.has(action.type) && hasMobilePayment(state)) return state;
   switch (action.type) {
     case 'add': {
       const { item, uomId, uomCode, price, listPriceMinor, priceListId, taxInclusive, now } = action;
@@ -62,9 +75,15 @@ export function cartReducer(state, action) {
       return { ...state, lines: state.lines.filter((line) => line.id !== action.id), tenders: [] };
     case 'customer':
       return { ...state, customer: action.customer ?? null, priceListId: action.priceListId ?? null, lines: action.lines ?? state.lines, tenders: [] };
-    case 'tenders':
-      // Payments in progress are kept with the cart (they survive a restart); any change to the sale drops them.
-      return { ...state, tenders: action.tenders };
+    // Payments in progress are kept with the cart (they survive a restart); any change to the sale drops them.
+    // A payment started for one sale (an STK push, a typed code checked online) lands only on that sale,
+    // on the tenders as they are now: one finishing after the sale was completed, held or cleared is dropped.
+    case 'addTender':
+      if (action.saleId !== state.id || (state.tenders ?? []).some((tender) => tender.id === action.tender.id)) return state;
+      return { ...state, tenders: [...(state.tenders ?? []), action.tender] };
+    case 'removeTender':
+      if (action.saleId !== state.id) return state;
+      return { ...state, tenders: (state.tenders ?? []).filter((tender) => tender.id !== action.id) };
     case 'load':
       return { tenders: [], ...action.cart };
     case 'clear':

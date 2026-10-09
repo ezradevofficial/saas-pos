@@ -48,7 +48,15 @@ export function OfflineNote({ className }) {
 
 function useReasonText() {
   const { t } = useTranslation();
-  return useCallback((reason) => (reason ? t(`pos.unsellable.${reason}`, { defaultValue: t('pos.unsellable.not_sellable') }) : null), [t]);
+  return useCallback(
+    (reason) => {
+      if (!reason) return null;
+      // POS-03: mobile money was sent for the sale; its lines cannot change until it completes.
+      if (reason === 'payment_locked') return t('pos.sale.paymentLocked');
+      return t(`pos.unsellable.${reason}`, { defaultValue: t('pos.unsellable.not_sellable') });
+    },
+    [t],
+  );
 }
 
 /** The till's top bar (Main): app name, where and who, sync state, held sales, close shift, menu. */
@@ -331,7 +339,7 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
         />
       </View>
       {blocked ? <Alert tone="danger">{t('pos.sale.blocked')}</Alert> : null}
-      {stepNotice ? <Alert tone="warning">{t('pos.sale.discountCleared')}</Alert> : null}
+      {stepNotice ? <Alert tone="warning">{stepNotice === 'payment_locked' ? t('pos.sale.paymentLocked') : t('pos.sale.discountCleared')}</Alert> : null}
       {currency ? (
         <SaleTotal
           currency={currency}
