@@ -50,8 +50,12 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
   const taxById = new Map(taxCodes.map((code) => [code.id, code]));
   const uomById = new Map(uoms.map((uom) => [uom.id, uom]));
   const listById = new Map(priceLists.map((list) => [list.id, list]));
-  const defaultList = priceLists.find((list) => list.is_default) ?? priceLists[0] ?? null;
-  const baseCurrency = settings?.company?.base_currency ?? defaultList?.currency ?? null;
+  // MD-03: each currency has its own default list; the till sells from the default in its
+  // company's base currency, never another company's default in another currency.
+  const companyCurrency = settings?.company?.base_currency ?? null;
+  const inCurrency = companyCurrency ? priceLists.filter((list) => list.currency === companyCurrency) : priceLists;
+  const defaultList = inCurrency.find((list) => list.is_default) ?? inCurrency[0] ?? null;
+  const baseCurrency = companyCurrency ?? defaultList?.currency ?? null;
   const saleCurrency = defaultList?.currency ?? baseCurrency;
 
   // prices: list → item → rows

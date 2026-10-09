@@ -183,6 +183,16 @@ describe('sale payload (POS-01, POS-03, CUR-04, CUR-06, CUR-09)', () => {
     await expect(selling.completeSale({ shift, user: cashier, actorProof: proof, cart: cartWith(catalogue, [[IDS.bread, 1]]), catalogue: needed, tenders: [tender(IDS.cash, 'KES', 6500)] })).rejects.toBeInstanceOf(SellingError);
   });
 
+  it('sells from the default price list in the company currency when other currencies have defaults too (MD-03)', () => {
+    const usdList = { id: 'list-usd', name: 'Retail Kinshasa', currency: 'USD', tax_inclusive: true, is_default: true };
+    const both = buildCatalogue({ settings, currencies, rates, taxCodes, priceLists: [usdList, ...priceLists], paymentMethods, items, prices, now: NOW });
+    expect(both.defaultList.id).toBe(IDS.list);
+    expect(both.saleCurrency).toBe('KES');
+    const usdTill = buildCatalogue({ settings: { ...settings, company: { ...settings.company, base_currency: 'USD' } }, currencies, rates, taxCodes, priceLists: [...priceLists, usdList], paymentMethods, items, prices, now: NOW });
+    expect(usdTill.defaultList.id).toBe('list-usd');
+    expect(usdTill.saleCurrency).toBe('USD');
+  });
+
   it('carries a manager override (AUTH-08) on a discounted line, signed for that line', async () => {
     const { selling, catalogue, proofFor } = await setup();
     const proof = proofFor(cashier);
