@@ -1,0 +1,443 @@
+{
+    "_source": "Recorded by api/modules/POS/tests/DeviceApiShapesTest.php (POS_RECORD_FIXTURES=1). Do not edit by hand.",
+    "bootstrap": {
+        "status": 200,
+        "body": {
+            "server_time": "2026-10-09T04:18:59.900297Z",
+            "device": {
+                "id": "01a11ee2-c2a6-709d-8ab9-d8c4d0ad80ca",
+                "location_id": "01a11ee2-c1f8-7155-b724-44fa7d2c13f4",
+                "name": "Till P",
+                "code": null,
+                "status": "active",
+                "paired_at": "2026-10-09T04:18:59+00:00",
+                "last_seen_at": null,
+                "last_pull_at": null,
+                "last_push_at": null,
+                "last_bootstrap_at": null
+            },
+            "device_secret_kid": "ecd8d55a297feddc",
+            "settings": {
+                "id": "device",
+                "device": {
+                    "id": "01a11ee2-c2a6-709d-8ab9-d8c4d0ad80ca",
+                    "name": "Till P"
+                },
+                "location": {
+                    "id": "01a11ee2-c1f8-7155-b724-44fa7d2c13f4",
+                    "name": "Outlet A",
+                    "type": "outlet"
+                },
+                "branch": {
+                    "id": "01a11ee2-c1f5-704c-823e-1bd26c951263",
+                    "name": "Branch A",
+                    "code": "A",
+                    "address": []
+                },
+                "company": {
+                    "id": "01a11ee2-c1f2-7017-9f6d-473cee9c3ef0",
+                    "name": "Acme",
+                    "legal_name": "Acme",
+                    "tax_id": null,
+                    "country": "KE",
+                    "address": [],
+                    "base_currency": "KES",
+                    "reporting_currencies": []
+                },
+                "timezone": "Africa/Nairobi"
+            },
+            "entities": [
+                {
+                    "key": "settings",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "currencies",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "exchange_rates",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "tax_codes",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "tax_categories",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "price_lists",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "payment_methods",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 2
+                },
+                {
+                    "key": "uoms",
+                    "mode": "incremental",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "item_categories",
+                    "mode": "incremental",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "items",
+                    "mode": "incremental",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "item_prices",
+                    "mode": "incremental",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "customers",
+                    "mode": "incremental",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "staff",
+                    "mode": "snapshot",
+                    "module": "core",
+                    "version": 1
+                },
+                {
+                    "key": "pos_number_ranges",
+                    "mode": "snapshot",
+                    "module": "pos",
+                    "version": 1
+                },
+                {
+                    "key": "pos_open_shift",
+                    "mode": "snapshot",
+                    "module": "pos",
+                    "version": 1
+                }
+            ],
+            "page_size": 500,
+            "max_page_size": 1000,
+            "pin": {
+                "scheme": "pbkdf2-sha256+hmac-sha256/v1",
+                "max_attempts": 5
+            }
+        }
+    },
+    "pull_first": {
+        "status": 200,
+        "body": {
+            "server_time": "2026-10-09T04:18:59.914207Z",
+            "entities": {
+                "items": {
+                    "mode": "incremental",
+                    "reset": false,
+                    "replace": false,
+                    "upserts": [
+                        {
+                            "id": "01a11ee2-c25c-71a7-a567-a04f52362bae",
+                            "code": "SOAP",
+                            "name": "Soap",
+                            "type": "stock",
+                            "category_id": null,
+                            "base_uom_id": "01a11ee2-c24c-7184-b6c5-df53acb509c6",
+                            "tax_category_id": "01a11ee2-c258-72f6-91ce-d63e6a05577a",
+                            "tax_code_id": "01a11ee2-c24e-739a-865a-b19260af6910",
+                            "sellable": true,
+                            "reason": null,
+                            "shared": true,
+                            "uoms": [],
+                            "barcodes": [],
+                            "images": [],
+                            "updated_at": "2026-10-09T04:18:59.000000Z"
+                        }
+                    ],
+                    "tombstones": [],
+                    "cursor": "aTEuMS41MDMwNjg5LjEwMzE4",
+                    "has_more": false
+                },
+                "item_prices": {
+                    "mode": "incremental",
+                    "reset": false,
+                    "replace": false,
+                    "upserts": [
+                        {
+                            "id": "01a11ee2-c262-722e-928c-6b4e2aa321ce",
+                            "price_list_id": "01a11ee2-c25f-71b1-9b72-380f533febea",
+                            "item_id": "01a11ee2-c25c-71a7-a567-a04f52362bae",
+                            "uom_id": "01a11ee2-c24c-7184-b6c5-df53acb509c6",
+                            "amount_minor": "56250",
+                            "currency": "KES",
+                            "effective_from": "2026-01-01",
+                            "min_quantity": "1",
+                            "updated_at": "2026-10-09T04:18:59.000000Z"
+                        }
+                    ],
+                    "tombstones": [],
+                    "cursor": "aTEuMS41MDMwNjg5LjEwMzE5",
+                    "has_more": false
+                },
+                "exchange_rates": {
+                    "mode": "snapshot",
+                    "reset": false,
+                    "replace": true,
+                    "upserts": [
+                        {
+                            "id": "01a11ee2-c269-71e8-ab34-420ed189ef43",
+                            "base": "USD",
+                            "quote": "KES",
+                            "kind": "shop",
+                            "mid": "130.00000000",
+                            "buy": null,
+                            "sell": null,
+                            "effective_at": "2026-10-08T04:18:59.817077Z",
+                            "current": true
+                        }
+                    ],
+                    "tombstones": [],
+                    "cursor": "czEuMS45YjJjMDY2YjgyNGRjNzNjYWI3ZmY4Mzk4MWU4ZTM0YTVkMWYxY2JjYTMyOGFlMzI3ZWNkODk0ZTJlZWViM2I5",
+                    "has_more": false
+                }
+            }
+        }
+    },
+    "pull_tombstone": {
+        "status": 200,
+        "body": {
+            "server_time": "2026-10-09T04:18:59.920570Z",
+            "entities": {
+                "items": {
+                    "mode": "incremental",
+                    "reset": false,
+                    "replace": false,
+                    "upserts": [],
+                    "tombstones": [
+                        "01a11ee2-c25c-71a7-a567-a04f52362bae"
+                    ],
+                    "cursor": "aTEuMS41MDMwNjg5LjEwMzIw",
+                    "has_more": false
+                }
+            }
+        }
+    },
+    "pull_invalid_cursor": {
+        "status": 422,
+        "body": {
+            "message": "The sync position for items isn’t valid. Sync items again from the start.",
+            "code": "invalid_cursor",
+            "errors": {
+                "cursors.items": [
+                    "The sync position for items isn’t valid. Sync items again from the start."
+                ]
+            },
+            "entity": "items"
+        }
+    },
+    "number_ranges": {
+        "status": 200,
+        "body": {
+            "data": [
+                {
+                    "id": "01a11ee2-c2e1-701d-ab89-07b36dbad68d",
+                    "document_type": "pos.receipt",
+                    "period": "all",
+                    "pattern": "R-L01-{000001}",
+                    "from": 1,
+                    "to": 500,
+                    "next": 1,
+                    "status": "active",
+                    "allocated_at": "2026-10-09T04:18:59+00:00"
+                }
+            ]
+        }
+    },
+    "shifts_request": {
+        "shifts": [
+            {
+                "id": "01a11ee2-c2e4-7176-ad2b-a26c718a34ae",
+                "opened_by_id": "01a11ee2-c195-719e-b5f9-f90e50843ea4",
+                "opened_at": "2026-10-09T03:18:59+00:00",
+                "opening_float": [
+                    {
+                        "currency": "KES",
+                        "amount_minor": "500000"
+                    }
+                ],
+                "closing": null
+            }
+        ]
+    },
+    "shifts_stored": {
+        "status": 200,
+        "body": {
+            "results": [
+                {
+                    "id": "01a11ee2-c2e4-7176-ad2b-a26c718a34ae",
+                    "status": "stored",
+                    "shift_status": "open",
+                    "received_at": "2026-10-09T04:18:59+00:00",
+                    "closed_received_at": null
+                }
+            ]
+        }
+    },
+    "sales_request": {
+        "sales": [
+            {
+                "id": "01a11ee2-c2f1-73f4-98c9-2530be4d610e",
+                "shift_id": "01a11ee2-c2e4-7176-ad2b-a26c718a34ae",
+                "cashier_id": "01a11ee2-c195-719e-b5f9-f90e50843ea4",
+                "actor_proof": "attested",
+                "customer_id": null,
+                "receipt_seq": 1,
+                "receipt_number": "R-L01-000001",
+                "sold_at": "2026-10-09T04:13:59+00:00",
+                "offline": true,
+                "currency": "KES",
+                "price_list_id": "01a11ee2-c25f-71b1-9b72-380f533febea",
+                "lines": [
+                    {
+                        "id": "01a11ee2-c2f1-73f4-98c9-2530bde5bc33",
+                        "item_id": "01a11ee2-c25c-71a7-a567-a04f52362bae",
+                        "uom_id": "01a11ee2-c24c-7184-b6c5-df53acb509c6",
+                        "qty": "2",
+                        "unit_price_minor": "56250",
+                        "list_price_minor": "56250",
+                        "price_list_id": "01a11ee2-c25f-71b1-9b72-380f533febea",
+                        "tax_inclusive": true,
+                        "discount_minor": "0",
+                        "tax_code_id": "01a11ee2-c24e-739a-865a-b19260af6910",
+                        "tax_rate": "12.5000",
+                        "tax_minor": "12500",
+                        "total_minor": "112500",
+                        "override": null
+                    }
+                ],
+                "totals": {
+                    "subtotal_minor": "112500",
+                    "discount_minor": "0",
+                    "tax_minor": "12500",
+                    "total_minor": "112500"
+                },
+                "payments": [
+                    {
+                        "id": "01a11ee2-c2f1-73f4-98c9-2530befcbef6",
+                        "payment_method_id": "01a11ee2-c264-7223-9a77-e91651a2aa40",
+                        "currency": "KES",
+                        "amount_minor": "112500",
+                        "amount_in_sale_minor": "112500",
+                        "rate": null,
+                        "status": "confirmed"
+                    }
+                ],
+                "change": {
+                    "currency": "KES",
+                    "amount_minor": "0",
+                    "rate": null
+                }
+            }
+        ]
+    },
+    "sales_stored": {
+        "status": 200,
+        "body": {
+            "results": [
+                {
+                    "id": "01a11ee2-c2f1-73f4-98c9-2530be4d610e",
+                    "status": "stored",
+                    "receipt_number": "R-L01-000001",
+                    "flags": [],
+                    "received_at": "2026-10-09T04:18:59+00:00",
+                    "fiscal": null
+                }
+            ]
+        }
+    },
+    "sales_resent": {
+        "status": 200,
+        "body": {
+            "results": [
+                {
+                    "id": "01a11ee2-c2f1-73f4-98c9-2530be4d610e",
+                    "status": "stored",
+                    "receipt_number": "R-L01-000001",
+                    "flags": [],
+                    "received_at": "2026-10-09T04:18:59+00:00",
+                    "fiscal": null
+                }
+            ]
+        }
+    },
+    "sales_retryable": {
+        "status": 422,
+        "body": {
+            "message": "Nothing in this upload was stored. Check each record's error, correct it and send it again.",
+            "code": "upload_rejected",
+            "results": [
+                {
+                    "id": "01a11ee2-c317-713a-bae4-3348a1afffb7",
+                    "status": "rejected",
+                    "error": {
+                        "code": "shift_unknown",
+                        "message": "The shift is not on the server yet. Send the shift first, then this record again.",
+                        "field": "shift_id",
+                        "retryable": true
+                    }
+                }
+            ]
+        }
+    },
+    "sales_payload_mismatch": {
+        "status": 422,
+        "body": {
+            "message": "Nothing in this upload was stored. Check each record's error, correct it and send it again.",
+            "code": "upload_rejected",
+            "results": [
+                {
+                    "id": "01a11ee2-c2f1-73f4-98c9-2530be4d610e",
+                    "status": "rejected",
+                    "error": {
+                        "code": "payload_mismatch",
+                        "message": "A record with this id was already sent with other content. Give the new record a new id on the till.",
+                        "field": "id",
+                        "retryable": false
+                    }
+                }
+            ]
+        }
+    },
+    "sales_validation_failed": {
+        "status": 422,
+        "body": {
+            "message": "Some fields need attention. Check them and try again.",
+            "code": "validation_failed",
+            "errors": {
+                "sales.0.id": [
+                    "The sales.0.id field format is invalid."
+                ]
+            }
+        }
+    }
+}
