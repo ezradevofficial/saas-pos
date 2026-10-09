@@ -87,8 +87,65 @@ class ConfigResolver
         return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
     }
 
+    /**
+     * Every published document along the chain that applies to the user,
+     * most specific first, each merged with the catalogue (LAY-07). A list
+     * view offers the views of all of them: the user's own, their roles',
+     * the place's and the tenant's (LAY-04). A layer the merger can't read
+     * is logged and left out.
+     *
+     * @return list<array{payload: array, version: ConfigVersion, document: ConfigDocument}>
+     */
+    public function layers(ConfigKind $kind, string $key, User $user, ?Place $place = null): array
+    {
+        $candidates = $this->chain($kind, $user, $place);
+
+        if ($candidates === []) {
+            return [];
+        }
+
+        $documents = ConfigDocument::query()
+            ->with('published')
+            ->where('kind', $kind->key)
+            ->where('key', $key)
+            ->whereHas('published')
+            ->where(function ($q) use ($candidates) {
+                foreach ($candidates as [$type, $id]) {
+                    $q->orWhere(fn ($c) => $c->where('scope_type', $type)->where('scope_id', $id));
+                }
+            })
+            ->get()
+            ->keyBy(fn (ConfigDocument $d) => $d->scope_type.':'.($d->scope_id ?? ''));
+
+        $layers = [];
+
+        foreach ($candidates as [$type, $id]) {
+            $document = $documents->get($type.':'.($id ?? ''));
+
+            if ($document === null) {
+                continue;
+            }
+
+            try {
+                $payload = $document->published->payload;
+                $layers[] = [
+                    'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                    'version' => $document->published,
+                    'document' => $document,
+                ];
+            } catch (Throwable $e) {
+                Log::warning('Published configuration layer could not be resolved; leaving it out.', [
+                    'kind' => $kind->key, 'key' => $key, 'document_id' => $document->id,
+                    'version_id' => $document->published->id, 'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $layers;
+    }
+
     /** The kind's defaults; null (the client's built-in layout) when even they fail. */
-    private function defaults(ConfigKind $kind): ?array
+    public function defaults(ConfigKind $kind): ?array
     {
         try {
             return $kind->defaultPayload();

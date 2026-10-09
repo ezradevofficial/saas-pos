@@ -56,5 +56,12 @@ return [
         'unknown_column' => ':path uses “:field”, which isn’t a column of this document. Pick a column from the list.',
         'row_nested' => ':path puts a row inside a row. Move its blocks out.',
         'row_on_thermal' => 'Two-column rows fit A4 and A5 paper only. Move the blocks out of the row, or pick A4 or A5.',
+        // LAY-01, LAY-04: layout designers.
+        'off_grid' => ':path goes past the :columns columns of the grid. Make it narrower or move it left.',
+        'overlap' => ':path overlaps the widget “:value”. Move one of them.',
+        'unknown_source' => ':path names the data source “:value”, which isn’t available. Pick another source.',
+        'source_widget' => ':path: this data source can’t feed a “:value” widget. Pick another widget type or source.',
+        'filter_value' => ':path isn’t a valid filter. Remove it, then save the view again.',
+        'unknown_view' => ':path names the view “:value”, which isn’t in this list. Pick one of the saved views.',
     ],
 ];

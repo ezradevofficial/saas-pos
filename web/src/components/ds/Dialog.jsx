@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { Button } from './Button'
 import { Icon } from './Icon'
 
-const PANEL = 'flex flex-col gap-0 rounded-lg border border-border bg-surface-200 p-0 text-body text-ink shadow-lg ring-0'
+const PANEL = 'flex max-h-dialog flex-col gap-0 rounded-lg border border-border bg-surface-200 p-0 text-body text-ink shadow-lg ring-0'
 const WIDTH = { md: 'sm:max-w-md', lg: 'sm:max-w-2xl' }
 
 // Forwards props so DialogClose asChild can attach its close handler.
@@ -21,7 +21,7 @@ function CloseButton(props) {
 function Body({ children, footer }) {
   return (
     <>
-      <div className="overflow-auto px-5 pb-5 text-ink-muted">{children}</div>
+      <div className="min-h-0 flex-1 overflow-auto px-5 pb-5 text-ink-muted">{children}</div>
       {footer ? <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer> : null}
     </>
   )

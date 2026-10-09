@@ -66,6 +66,9 @@ class PermissionRegistry
         'config' => ['view', 'edit', 'publish'],
         // TPL-01..TPL-05: document templates (the `template` configuration kind).
         'template' => ['view', 'edit', 'publish'],
+        // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
+        // the tenant and its roles (personal ones need no permission).
+        'layout' => ['view', 'edit', 'publish'],
         // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
         'custom_field' => ['view', 'manage'],
     ];

@@ -56,5 +56,12 @@ return [
         'unknown_column' => ':path utilise « :field », qui n’est pas une colonne de ce document. Choisissez une colonne dans la liste.',
         'row_nested' => ':path place une ligne dans une ligne. Sortez-en les blocs.',
         'row_on_thermal' => 'Les lignes à deux colonnes ne conviennent qu’aux formats A4 et A5. Sortez les blocs de la ligne, ou choisissez A4 ou A5.',
+        // LAY-01, LAY-04 : éditeurs de mise en page.
+        'off_grid' => ':path dépasse les :columns colonnes de la grille. Réduisez sa largeur ou déplacez-le vers la gauche.',
+        'overlap' => ':path chevauche le widget « :value ». Déplacez l’un des deux.',
+        'unknown_source' => ':path utilise la source de données « :value », qui n’est pas disponible. Choisissez une autre source.',
+        'source_widget' => ':path : cette source de données ne peut pas alimenter un widget « :value ». Choisissez un autre type de widget ou une autre source.',
+        'filter_value' => ':path n’est pas un filtre valide. Retirez-le, puis enregistrez à nouveau la vue.',
+        'unknown_view' => ':path désigne la vue « :value », qui n’est pas dans cette liste. Choisissez l’une des vues enregistrées.',
     ],
 ];

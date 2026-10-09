@@ -2,6 +2,7 @@
 
 namespace App\Core\Configuration\Http\Controllers;
 
+use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\ConfigConflict;
 use App\Core\Configuration\ConfigKinds;
 use App\Core\Configuration\ConfigPolicy;
@@ -18,6 +19,7 @@ use App\Core\Configuration\Http\Requests\ShowConfigRequest;
 use App\Core\Configuration\Http\Requests\UpdateConfigDraftRequest;
 use App\Core\Configuration\Http\Resources\ConfigDocumentResource;
 use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\Identity\Models\User;
 use App\Core\Configuration\Models\ConfigVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -144,19 +146,57 @@ class ConfigController
     {
         $kind = $request->kind();
         $result = $resolver->resolve($kind, $request->key(), $request->user(), $request->place());
-        $document = $result['document'];
 
         return new JsonResponse(['data' => [
             'kind' => $kind->key,
             'key' => $request->key(),
-            'payload' => $result['payload'] === [] ? (object) [] : $result['payload'],
+            ...$this->layer($kind, $request->key(), $request->user(), $result),
+        ]]);
+    }
+
+    /**
+     * LAY-04: every published layer that applies to the signed-in user,
+     * most specific first (their own, their roles', the place's, the
+     * tenant's), each as `resolved` presents it; empty when none is.
+     */
+    public function layers(ResolveConfigRequest $request, ConfigResolver $resolver): JsonResponse
+    {
+        $kind = $request->kind();
+        $layers = $resolver->layers($kind, $request->key(), $request->user(), $request->place());
+
+        return new JsonResponse([
+            'data' => array_map(fn (array $layer) => $this->layer($kind, $request->key(), $request->user(), $layer), $layers),
+            'meta' => [
+                'kind' => $kind->key,
+                'key' => $request->key(),
+                // What applies under every layer: the kind's defaults, as this reader may see them.
+                'defaults' => $this->layer($kind, $request->key(), $request->user(), ['payload' => $resolver->defaults($kind), 'version' => null, 'document' => null])['payload'],
+            ],
+        ]);
+    }
+
+    /**
+     * A resolved payload as its reader may see it (RBAC-05, the kind's
+     * presenter), with where it came from (null: the kind's defaults).
+     *
+     * @param  array{payload: ?array, version: mixed, document: ?ConfigDocument}  $result
+     * @return array{payload: mixed, source: ?array<string, mixed>}
+     */
+    private function layer(ConfigKind $kind, string $key, User $user, array $result): array
+    {
+        $document = $result['document'];
+        $payload = $result['payload'] === null ? null : $kind->present($result['payload'], $key, $user);
+
+        return [
+            'payload' => $payload === [] ? (object) [] : $payload,
             'source' => $document === null ? null : [
                 'document_id' => $document->id,
+                'name' => $document->name,
                 'scope' => ['type' => $document->scope_type, 'id' => $document->scope_id],
                 'version' => $result['version']->version,
                 'published_at' => $result['version']->published_at?->toIso8601String(),
             ],
-        ]]);
+        ];
     }
 
     /**

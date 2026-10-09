@@ -24,6 +24,7 @@ import {
   POS_SHIFT_VIEW,
   TAX_VIEW,
   UOM_VIEW,
+  LAYOUT_VIEW,
   WORKFLOW_VIEW,
 } from './layouts/navigation'
 import AutomationRules from './pages/automation/AutomationRules'
@@ -58,6 +59,8 @@ import SalesDashboard from './pages/pos/SalesDashboard'
 import ShiftDetail from './pages/pos/ShiftDetail'
 import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
+import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
+import NavigationEditor from './pages/settings/layouts/NavigationEditor'
 import Currencies from './pages/settings/Currencies'
 import CustomFields from './pages/settings/CustomFields'
 import DocumentTemplates from './pages/settings/DocumentTemplates'
@@ -299,6 +302,10 @@ export const routes = [
       // AUTH-06: one's own POS PIN.
       { path: '/settings/pos-pin', element: <MyPosPin /> },
       { path: '/settings/appearance', element: <Appearance /> },
+      // LAY-01, LAY-02: the organisation's and roles' dashboards and menus; anyone customises their own dashboard.
+      { path: '/settings/layouts/dashboards', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><DashboardDesigner key="dashboards" /></RequirePermission> },
+      { path: '/settings/layouts/navigation', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><NavigationEditor /></RequirePermission> },
+      { path: '/dashboard/customise', handle: { wide: true }, element: <DashboardDesigner key="mine" personal /> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.
       { path: '/notifications', element: <Inbox /> },

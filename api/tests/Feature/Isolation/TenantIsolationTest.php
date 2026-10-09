@@ -133,6 +133,7 @@ class TenantIsolationTest extends TestCase
         'document_type' => TestRequestType::KEY, // WF-01: a registered document type key; the document is B's
         'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
         'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
+        'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
     ];
 
     /**

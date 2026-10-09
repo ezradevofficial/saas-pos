@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 
 const TENANT = { type: 'tenant', id: null }
@@ -75,9 +75,13 @@ export function useConfigDocument(kind, key = 'default', scope = TENANT, { enabl
 
   // Every write answers the whole document: keep it, and refresh the lists of the kind.
   // A save, publish or discard leaves the draft as this editor made it, so its revision becomes the base.
+  // A document just created is known at once, so "save, then publish" works in one go.
+  const created = useRef({})
+  const scopeKey = `${kind}|${key}|${where.type}|${where.id ?? ''}`
   const settle = async (response, { adoptDraft = true } = {}) => {
     const id = response?.data?.id
     if (id) {
+      created.current[`${kind}|${key}|${response.data.scope?.type}|${response.data.scope?.id ?? ''}`] = id
       if (adoptDraft) adopt(response.data)
       queryClient.setQueryData(['config', kind, 'document', id], response)
     }
@@ -90,8 +94,9 @@ export function useConfigDocument(kind, key = 'default', scope = TENANT, { enabl
   }
 
   const documentId = () => {
-    if (!found?.id) throw new Error('No configuration document yet: save a draft first.')
-    return found.id
+    const id = found?.id ?? created.current[scopeKey]
+    if (!id) throw new Error('No configuration document yet: save a draft first.')
+    return id
   }
 
   const save = useMutation({
