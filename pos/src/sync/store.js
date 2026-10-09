@@ -440,6 +440,25 @@ export function createSyncStore(database) {
       return (await findOne('settings', 'device'))?.data ?? null;
     },
 
+    /** LAY-05: the synced sell screen layout row, or null (the defaults apply). */
+    async posLayout() {
+      return (await findOne('pos_layout', 'layout'))?.data ?? null;
+    },
+
+    // -- Image cache (BR-02, LAY-05) ---------------------------------------
+
+    /** A cached image (a data URI) by its key, or null. */
+    async cachedMedia(key) {
+      return (await findOne('media_cache', key))?._raw.data ?? null;
+    },
+
+    async saveMedia(key, dataUri, now = Date.now()) {
+      await database.write(async () => {
+        const record = await findOne('media_cache', key);
+        await database.batch(prepareUpsert('media_cache', record, key, { data: dataUri, fetched_at: now }));
+      });
+    },
+
     /** Remove everything (pairing as another device, once nothing waits to upload). */
     async reset() {
       await database.write(() => database.unsafeResetDatabase());

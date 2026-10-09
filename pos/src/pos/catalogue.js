@@ -2,6 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 import { setCurrencyDecimals } from '../lib/money';
 import { localDate, resolvePrice } from '../sync/prices';
 import { createCurrencies } from './currency';
+import { CATEGORY_COLOURS, mergeLayout, orderTiles } from './layout';
 import { taxRateFor, TaxRateNeeded } from './tax';
 
 /**
@@ -20,7 +21,7 @@ import { taxRateFor, TaxRateNeeded } from './tax';
  */
 export async function loadCatalogue({ database, now = Date.now() }) {
   const all = async (name) => (await database.get(name).query().fetch()).map((record) => record.data).filter(Boolean);
-  const [settingsRows, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff] = await Promise.all([
+  const [settingsRows, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layouts] = await Promise.all([
     all('settings'),
     all('currencies'),
     all('exchange_rates'),
@@ -32,15 +33,17 @@ export async function loadCatalogue({ database, now = Date.now() }) {
     all('item_prices'),
     all('uoms'),
     all('staff'),
+    all('pos_layout'),
   ]);
   const settings = settingsRows.find((row) => row.id === 'device') ?? settingsRows[0] ?? null;
   // CUR-01: amounts on screen use the tenant's decimals.
   setCurrencyDecimals(currencies);
-  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, now });
+  const layout = layouts.find((row) => row.id === 'layout') ?? null;
+  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layout, now });
 }
 
 /** The catalogue from plain rows (tests build it directly). */
-export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], now = Date.now() }) {
+export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], layout: layoutRow = null, now = Date.now() }) {
   const timeZone = settings?.timezone ?? 'UTC';
   // POS-11, MD-03: tax rates and prices take effect by the company's day (TaxCode::localDate,
   // PriceResolver), which may differ from the branch zone used for times on screen and receipts.
@@ -105,10 +108,17 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
       search: `${String(item.name ?? '').toLowerCase()} ${String(item.code ?? '').toLowerCase()}`,
     });
   }
-  tiles.sort((a, b) => a.name.localeCompare(b.name));
+  // LAY-05, LAY-07: the layout merged with what this till holds; tiles in its order, with their category's colour.
+  const layout = mergeLayout(layoutRow, { categories, itemIds: itemById });
+  const colourOf = new Map(layout.categories.filter((category) => category.color).map((category) => [category.id, category.color]));
+  for (const tile of tiles) tile.color = colourOf.get(tile.categoryId) ?? null;
+  const ordered = orderTiles(tiles, layout);
 
-  const usedCategories = new Set(tiles.map((tile) => tile.categoryId).filter(Boolean));
-  const chips = categories.filter((category) => usedCategories.has(category.id)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  // Chips: the layout's categories in its order, without hidden ones or ones with nothing to sell.
+  const usedCategories = new Set(ordered.map((tile) => tile.categoryId).filter(Boolean));
+  const chips = layout.categories
+    .filter((category) => !category.hidden && usedCategories.has(category.id))
+    .map((category) => ({ ...category, colours: CATEGORY_COLOURS[category.color] ?? null }));
 
   /** Second currency for dual display (CUR-05): the first of base and reporting currencies other than the sale's, with a rate. */
   const dualCurrency = (() => {
@@ -140,7 +150,8 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
     cashCurrencies,
     paymentMethods: [...paymentMethods].sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0)),
     categories: chips,
-    tiles,
+    tiles: ordered,
+    layout,
     itemById,
     barcodes,
     staff,

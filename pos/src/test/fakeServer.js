@@ -23,6 +23,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     uploadOverride: null,
     requests: [],
     pinReports: [],
+    // BR-02, LAY-05: images by path (data URIs), for GET sync/brand-assets and sync/media.
+    images: new Map(),
     settings: { id: 'device', location: { id: 'loc-1', name: 'Westlands shop' } },
     pairing: { code: 'ABCDEFGH', token: '1|device-token', secret: Buffer.alloc(32, 9).toString('base64url'), kid: 'k1' },
     seq: 0,
@@ -53,6 +55,11 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     goOffline: () => void (state.online = false),
     goOnline: () => void (state.online = true),
     requestsTo: (path) => state.requests.filter((request) => request.path === path),
+    async image(path) {
+      state.requests.push({ method: 'GET', path });
+      if (!state.online) throw new NetworkError(new Error('offline'));
+      return state.images.get(path) ?? null;
+    },
 
     async request(method, path, { query, body } = {}) {
       state.requests.push({ method, path, query, body });

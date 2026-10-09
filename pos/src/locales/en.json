@@ -435,6 +435,33 @@
       "permission": "The till needs the camera to scan barcodes. Nothing is recorded or sent.",
       "allow": "Allow the camera",
       "added": "Added {{code}}. Scan the next item, or close."
+    },
+    "quick": {
+      "title": "Quick buttons",
+      "hold": "Hold sale",
+      "customer": "Customer",
+      "cash_in": "Cash in",
+      "cash_out": "Cash out",
+      "sales": "Sales and returns"
+    },
+    "display": {
+      "open": "Customer display",
+      "title": "Customer display",
+      "close": "Close customer display",
+      "welcome": "Welcome",
+      "waiting": "Waiting for the till. Keep the till open in another tab.",
+      "customer": "Customer: {{name}}",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "discount": "Discount",
+      "total": "Total"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "help": "Choose how this till looks. The choice stays on this device.",
+      "system": "As the device",
+      "light": "Light",
+      "dark": "Dark"
     }
   },
   "templates": {

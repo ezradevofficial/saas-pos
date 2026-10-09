@@ -95,7 +95,9 @@ export function css(paper, m) {
     '.sig { padding-top: 10mm; } .sig-line { border-top: 0.2mm solid #000; width: 60mm; max-width: 100%; }' +
     '.terms { white-space: pre-line; }' +
     '.row2 td { width: 50%; padding-right: 4mm; } .row2 td:last-child { padding-right: 0; }' +
-    '.code img { display: inline-block; }'
+    '.code img { display: inline-block; }' +
+    // BR-02: printed documents are black on white, so the logo prints in black and white too.
+    '.logo { filter: grayscale(1) contrast(1000%); }'
   );
 }
 
@@ -207,7 +209,7 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
     logo(block) {
       const logo = data?.company?.logo;
       if (typeof logo !== 'string' || !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo)) return '';
-      return `<div class="b code ${align(block, 'left')}"><img src="${escape(logo)}" alt="" style="height: ${int(block.height ?? 15, 5, 60)}mm"></div>`;
+      return `<div class="b code ${align(block, 'left')}"><img class="logo" src="${escape(logo)}" alt="" style="height: ${int(block.height ?? 15, 5, 60)}mm"></div>`;
     },
     lines(block) {
       const rows = (Array.isArray(data?.lines) ? data.lines : []).filter(isObject);

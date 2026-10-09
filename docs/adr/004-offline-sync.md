@@ -54,7 +54,11 @@ Built in `App\Core\Sync`. Accepted with the rest of the sync design (Task 7, see
 - `GET sync/media/{item_image}`: an item image, for items the device may hold.
 - `GET sync/device-secret/challenge`, `POST sync/device-secret/rotate`, `POST sync/device-secret/activate`: rotating the device secret (below).
 
-**Registry.** `SyncSources` lists the entities. Core registers settings, currencies, exchange rates, tax codes, tax categories, price lists, payment methods, units, item categories, items, customers and staff. Modules register their own sources. For example, the POS module adds its settings and number ranges. An entity of a module the tenant has not activated is not served (RBAC-08).
+**Registry.** `SyncSources` lists the entities. Core registers settings, currencies, exchange rates, tax codes, tax categories, price lists, payment methods, units, item categories, items, customers and staff. Modules register their own sources: the POS module adds its number ranges (`pos_number_ranges`), the till's open shift (`pos_open_shift`) and the sell screen's layout (`pos_layout`, phase 5 Task 6). An entity of a module the tenant has not activated is not served (RBAC-08).
+
+- *`settings`* carries the theme that applies at the till's branch (else its company's, else the tenant's): `theme: {payload, tokens: {light, dark}, scope, version}`. `tokens` are the overridable token values per mode (BR-02); the till lays them over the preset with NativeWind `vars()` and picks the mode from the device's own appearance choice (light, dark or the system's).
+- *`pos_layout`* (snapshot, one row `layout`, LAY-05): `{layout, scope, version, best_sellers}`. `layout` is the published `pos_layout` of the device's location, else its branch's, company's or tenant's, else the defaults (`ConfigResolver::publishedAt`), merged with what the till holds (LAY-07: categories the layout does not name come last, deleted or archived categories, items and images are skipped). `best_sellers` (only when products are ordered by best-sellers) lists the items sold most often at the location over 30 days. The till merges again with its own copy of the catalogue, so categories that arrive while it is offline still show.
+- *Logos and layout images.* `GET sync/brand-assets/{brand_asset}` (device token) serves the tenant's brand assets but favicons; item images come from `GET sync/media/{item_image}`. The till keeps a copy of each in its local `media_cache` table, so logos and category images show offline.
 
 **Two kinds of entity.**
 

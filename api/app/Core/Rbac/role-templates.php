@@ -24,7 +24,8 @@ return [
     [
         'key' => 'admin',
         // TPL-04: shares POS documents by email and link (pos.sale.share).
-        'permissions' => ['core.*', 'pos.sale.share'],
+        // LAY-05: designs the tills' sell screen once the POS module is active.
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

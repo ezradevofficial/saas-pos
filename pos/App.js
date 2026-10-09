@@ -14,7 +14,9 @@ import { StaffSignInScreen } from './src/screens/StaffSignInScreen';
 import { NETWORK } from './src/sync/engine';
 import { useSyncStatus } from './src/sync/useSyncStatus';
 import { useAppFonts } from './src/theme/fonts';
-import { ThemeProvider } from './src/theme/ThemeProvider';
+import { DISPLAY_QUERY } from './src/pos/customerDisplay';
+import { CustomerDisplayScreen } from './src/screens/CustomerDisplayScreen';
+import { TillThemeProvider, useTillTheme } from './src/theme/TillTheme';
 
 /** Where the till sits, from the synced settings row (header text). */
 function useLocation(paired) {
@@ -71,22 +73,33 @@ function Root() {
   return <PosProvider>{screen}</PosProvider>;
 }
 
-export default function App({ services: injected }) {
-  const fontsReady = useAppFonts();
+function ThemedStatusBar() {
+  const { mode } = useTillTheme();
+  return <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />;
+}
+
+/** LAY-05: the web preview opened as the customer display (?display=customer): a second tab that only listens. */
+const IS_CUSTOMER_DISPLAY = typeof globalThis.window?.location?.search === 'string' && globalThis.window.location.search.includes(DISPLAY_QUERY);
+
+function TillApp({ services: injected }) {
   const services = useMemo(() => injected ?? createServices(), [injected]);
+  return (
+    <ServicesContext.Provider value={services}>
+      {/* BR-01, BR-08: the published theme, applied at runtime from the synced settings. */}
+      <TillThemeProvider>
+        <SessionProvider>
+          <Root />
+        </SessionProvider>
+        <ThemedStatusBar />
+      </TillThemeProvider>
+    </ServicesContext.Provider>
+  );
+}
+
+export default function App({ services, display = IS_CUSTOMER_DISPLAY }) {
+  const fontsReady = useAppFonts();
 
   if (!fontsReady) return null;
 
-  return (
-    <SafeAreaProvider>
-      <ThemeProvider theme="light">
-        <ServicesContext.Provider value={services}>
-          <SessionProvider>
-            <Root />
-          </SessionProvider>
-        </ServicesContext.Provider>
-        <StatusBar style="dark" />
-      </ThemeProvider>
-    </SafeAreaProvider>
-  );
+  return <SafeAreaProvider>{display ? <CustomerDisplayScreen /> : <TillApp services={services} />}</SafeAreaProvider>;
 }

@@ -101,7 +101,7 @@ export function StaffSignInScreen({ location }) {
 
   return (
     <SafeAreaView className="flex-1">
-      <AppHeader location={location} />
+      <AppHeader location={location} brand />
       <View className="flex-1 items-center p-4 md:p-6">
         <View className="w-full flex-1 gap-5 md:w-1/2 xl:w-1/3">
           {!selected ? (
