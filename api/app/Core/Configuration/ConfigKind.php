@@ -3,6 +3,7 @@
 namespace App\Core\Configuration;
 
 use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\Identity\Models\User;
 use Closure;
 use InvalidArgumentException;
 
@@ -23,7 +24,14 @@ use InvalidArgumentException;
  *   along the chain (null: the client keeps its built-in layout);
  * - `keys` limits the keys (a list, or a closure answering one), else
  *   any key matching KEY_PATTERN;
- * - `module` switches the kind off with its module (RBAC-08).
+ * - `module` switches the kind off with its module (RBAC-08);
+ * - `personal`: any signed-in user may keep, edit and publish documents of
+ *   their own user scope (a personal list view or dashboard, LAY-01,
+ *   LAY-04) without holding the kind's permissions; everything else still
+ *   needs them (ConfigPolicy);
+ * - `presenter` adapts a resolved payload to its reader, after the merger:
+ *   `fn (array $payload, string $key, User $reader): array` (RBAC-05: drop
+ *   columns their field rules hide, widgets whose data they can't read).
  */
 final class ConfigKind
 {
@@ -61,6 +69,8 @@ final class ConfigKind
         public readonly array|Closure|null $keys = null,
         public readonly string $module = 'core',
         public readonly int $maxBytes = self::MAX_BYTES,
+        public readonly bool $personal = false,
+        public readonly ?Closure $presenter = null,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key) !== 1) {
             throw new InvalidArgumentException("Invalid configuration kind [{$key}].");
@@ -119,6 +129,12 @@ final class ConfigKind
     public function merge(array $payload): array
     {
         return $this->merger === null ? $payload : ($this->merger)($payload);
+    }
+
+    /** RBAC-05: the resolved payload as $reader may see it. */
+    public function present(array $payload, string $key, User $reader): array
+    {
+        return $this->presenter === null ? $payload : ($this->presenter)($payload, $key, $reader);
     }
 
     public function defaultPayload(): ?array

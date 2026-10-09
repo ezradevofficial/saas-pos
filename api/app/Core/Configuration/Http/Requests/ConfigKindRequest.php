@@ -11,7 +11,9 @@ use Illuminate\Foundation\Http\FormRequest;
  * A request under config/{kind} (LAY-06). A kind that is not registered,
  * or whose module is not active for the tenant, is not found (RBAC-08).
  * Subclasses that set $needsPermission refuse users holding none of the
- * kind's permissions anywhere (403).
+ * kind's permissions anywhere (403), unless the kind is `personal`: then
+ * anyone gets through to their own user scope, which the policy checks
+ * next (LAY-01, LAY-04).
  */
 class ConfigKindRequest extends FormRequest
 {
@@ -23,7 +25,7 @@ class ConfigKindRequest extends FormRequest
     {
         $kind = $this->kind();
 
-        return ! $this->needsPermission || app(ConfigPolicy::class)->anywhere($this->user(), $kind);
+        return ! $this->needsPermission || $kind->personal || app(ConfigPolicy::class)->anywhere($this->user(), $kind);
     }
 
     public function rules(): array

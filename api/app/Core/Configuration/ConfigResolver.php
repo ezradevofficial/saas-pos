@@ -39,36 +39,60 @@ class ConfigResolver
      */
     public function resolve(ConfigKind $kind, string $key, User $user, ?Place $place = null): array
     {
+        return $this->layers($kind, $key, $user, $place, 1)[0]
+            ?? ['payload' => $kind->defaultPayload(), 'version' => null, 'document' => null];
+    }
+
+    /**
+     * Every published document along the chain that applies to the user,
+     * most specific first, each merged with the catalogue (LAY-07). A list
+     * view offers the views of all of them: the user's own, their roles',
+     * the place's and the tenant's (LAY-04).
+     *
+     * @return list<array{payload: array, version: ConfigVersion, document: ConfigDocument}>
+     */
+    public function layers(ConfigKind $kind, string $key, User $user, ?Place $place = null, ?int $limit = null): array
+    {
         $candidates = $this->chain($kind, $user, $place);
 
-        if ($candidates !== []) {
-            $documents = ConfigDocument::query()
-                ->with('published')
-                ->where('kind', $kind->key)
-                ->where('key', $key)
-                ->whereHas('published')
-                ->where(function ($q) use ($candidates) {
-                    foreach ($candidates as [$type, $id]) {
-                        $q->orWhere(fn ($c) => $c->where('scope_type', $type)->where('scope_id', $id));
-                    }
-                })
-                ->get()
-                ->keyBy(fn (ConfigDocument $d) => $d->scope_type.':'.($d->scope_id ?? ''));
+        if ($candidates === []) {
+            return [];
+        }
 
-            foreach ($candidates as [$type, $id]) {
-                $document = $documents->get($type.':'.($id ?? ''));
-
-                if ($document !== null) {
-                    return [
-                        'payload' => $kind->merge($document->published->payload),
-                        'version' => $document->published,
-                        'document' => $document,
-                    ];
+        $documents = ConfigDocument::query()
+            ->with('published')
+            ->where('kind', $kind->key)
+            ->where('key', $key)
+            ->whereHas('published')
+            ->where(function ($q) use ($candidates) {
+                foreach ($candidates as [$type, $id]) {
+                    $q->orWhere(fn ($c) => $c->where('scope_type', $type)->where('scope_id', $id));
                 }
+            })
+            ->get()
+            ->keyBy(fn (ConfigDocument $d) => $d->scope_type.':'.($d->scope_id ?? ''));
+
+        $layers = [];
+
+        foreach ($candidates as [$type, $id]) {
+            $document = $documents->get($type.':'.($id ?? ''));
+
+            if ($document === null) {
+                continue;
+            }
+
+            $layers[] = [
+                'payload' => $kind->merge($document->published->payload),
+                'version' => $document->published,
+                'document' => $document,
+            ];
+
+            if ($limit !== null && count($layers) >= $limit) {
+                break;
             }
         }
 
-        return ['payload' => $kind->defaultPayload(), 'version' => null, 'document' => null];
+        return $layers;
     }
 
     /**
