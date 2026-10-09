@@ -41,6 +41,10 @@
       "executive": "Executive",
       "warm": "Warm",
       "tenant": "Test tenant"
+    },
+    "dialog": {
+      "close": "Close the window",
+      "closeShort": "Close"
     }
   },
   "preview": {
@@ -111,13 +115,11 @@
     "failed": "The PIN was not changed. Try again."
   },
   "home": {
-    "ready": "Ready to sell",
     "signedInAs": "Signed in as {{name}}",
     "location": "Location: {{location}}",
     "lastSynced": "Last synced {{time}}",
     "neverSynced": "Not synced yet",
     "switchUser": "Switch user",
-    "sellingSoon": "The selling screen arrives in the next release.",
     "failed_one": "{{count}} record was refused by the server and needs review.",
     "failed_other": "{{count}} records were refused by the server and need review.",
     "accessLostTitle": "This till has lost access",
@@ -126,5 +128,277 @@
     "pinChangeTitle": "New PIN needed",
     "pinChangeOffline": "Choose a new PIN when the till is back online.",
     "moduleInactive": "The POS module is not active for your business. Sales stay on this till and upload once it is active again."
+  },
+  "pos": {
+    "header": {
+      "shiftOpened": "Shift opened {{time}} · {{name}}",
+      "held": "Held sales ({{count}})",
+      "closeShift": "Close shift"
+    },
+    "menu": {
+      "title": "Menu",
+      "open": "Open the till menu",
+      "sales": "Sales and returns",
+      "cash": "Pay cash in or out"
+    },
+    "search": {
+      "label": "Search products",
+      "placeholder": "Search or scan a barcode",
+      "all": "All",
+      "none": "No products match. Try another name or code.",
+      "emptyCatalogue": "No products on this till yet. Sync, or add items in the back office.",
+      "unknown": "No product has the code {{code}}. Check the code, or search by name."
+    },
+    "unsellable": {
+      "not_sellable": "Not for sale",
+      "tax_rate_needed": "Rate needed",
+      "tax_code_missing": "No tax code",
+      "tax_category_missing": "No tax category",
+      "tax_code_archived": "Tax code archived",
+      "price_missing": "No price",
+      "item_unknown": "Unknown item",
+      "discount_above_price": "Discount above price"
+    },
+    "sale": {
+      "title": "Current sale",
+      "summary_one": "{{count}} item · Receipt {{receipt}}",
+      "summary_other": "{{count}} items · Receipt {{receipt}}",
+      "summaryNoNumber_one": "{{count}} item · no receipt number left",
+      "summaryNoNumber_other": "{{count}} items · no receipt number left",
+      "hold": "Hold",
+      "clear": "Clear",
+      "addCustomer": "Add a customer",
+      "changeCustomer": "Change",
+      "empty": "Tap a product or scan a barcode to start a sale.",
+      "editLine": "Change {{name}}",
+      "less": "Remove one",
+      "more": "Add one",
+      "lineDiscount": "Discount {{amount}}",
+      "blocked": "Some items cannot be sold until their tax rate is set in the back office. Remove them to charge.",
+      "tax": "Tax"
+    },
+    "phone": {
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "tapToSee": "Tap to see the sale",
+      "backToProducts": "Back to products"
+    },
+    "offline": {
+      "note": "Offline: sales are recorded on this till and uploaded when you reconnect.",
+      "noteKe": "Offline: cash and M-Pesa till payments are recorded and sent to KRA eTIMS when you reconnect.",
+      "noteCd": "Offline: sales are recorded and sent to the DGI when you reconnect."
+    },
+    "line": {
+      "qty": "Quantity",
+      "price": "Unit price",
+      "listPrice": "List price {{amount}}",
+      "discount": "Line discount",
+      "discountHelp": "A discount above your limit needs a manager.",
+      "save": "Save line",
+      "remove": "Remove from sale",
+      "errors": {
+        "qty": "Enter a quantity above 0, with at most 6 decimals.",
+        "price": "Enter the unit price as an amount.",
+        "discount": "The discount must be an amount no higher than the line price."
+      }
+    },
+    "customer": {
+      "title": "Customer",
+      "search": "Name or phone number",
+      "none": "No customer matches. Check the spelling or the number.",
+      "remove": "Remove the customer"
+    },
+    "held": {
+      "title": "Held sales",
+      "none": "No held sales on this till.",
+      "noCustomer": "No customer",
+      "summary_one": "{{count}} line · held at {{time}}",
+      "summary_other": "{{count}} lines · held at {{time}}",
+      "resume": "Resume",
+      "discard": "Delete"
+    },
+    "override": {
+      "title": "Manager approval",
+      "why": {
+        "discount": "This discount is above your limit. A manager approves it with their PIN.",
+        "price": "Changing the price needs a manager. A manager approves it with their PIN.",
+        "void": "Voiding a sale needs a manager. A manager approves it with their PIN.",
+        "refund": "This refund needs a manager. A manager approves it with their PIN.",
+        "pay_out": "Paying cash out needs a manager. A manager approves it with their PIN.",
+        "pay_in": "Paying cash in needs a manager. A manager approves it with their PIN."
+      },
+      "nobody": "No one at this till can approve this. Ask an admin to give a manager a role here, then sync.",
+      "pinFor": "PIN for {{name}}",
+      "approve": "Approve",
+      "noSecret": "This till cannot sign approvals without its offline key. Pair the till again.",
+      "cancelled": "Not approved. Nothing was changed."
+    },
+    "pay": {
+      "back": "Back to the sale",
+      "title": "Payment",
+      "receipt": "Receipt {{number}}",
+      "shopRate": "Shop rate",
+      "totalDue": "Total due",
+      "received": "Payments received",
+      "none": "No payments yet. Choose a payment method.",
+      "reference": "Ref. {{reference}}",
+      "detail": {
+        "cash": "Cash received",
+        "mobile_money": "Mobile money",
+        "card": "Card",
+        "credit": "On account",
+        "voucher": "Voucher",
+        "points": "Points",
+        "bank_transfer": "Bank transfer"
+      },
+      "hint": {
+        "cash": "Notes in {{currency}}",
+        "mobile_money": "Code typed by the cashier",
+        "card": "Card terminal, typed",
+        "credit": "On account",
+        "voucher": "Voucher",
+        "points": "Points",
+        "bank_transfer": "Bank transfer"
+      },
+      "remove": "Remove the {{method}} payment",
+      "removeShort": "Remove",
+      "remaining": "Still due",
+      "change": "Change to give",
+      "changeIn": "Give change in",
+      "method": "Payment method",
+      "amountIn": "Amount in {{currency}}",
+      "left": "Still due: {{amount}}",
+      "exact": "Exact {{amount}}",
+      "amount": "Amount received",
+      "mobileCode": "M-Pesa code",
+      "cardReference": "Approval code",
+      "add": "Add payment",
+      "addRemaining": "Add what is due",
+      "mobileManual": "The customer pays to the till number. Type the code from the confirmation message; it is checked when the till syncs.",
+      "stk": {
+        "title": "Request sent to the customer’s phone",
+        "body": "The customer confirms with their PIN. The payment adds itself once confirmed."
+      },
+      "noMethods": "No payment methods for this company yet. Add them in the back office, then sync.",
+      "hold": "Hold sale",
+      "complete": "Complete sale",
+      "remainingButton": "Still due {{amount}}",
+      "errors": {
+        "amount": "Enter an amount above 0.",
+        "mobileCode": "Type the M-Pesa code from the customer’s message: 8 to 12 letters and digits.",
+        "rate_unavailable": "There is no exchange rate for this currency. Take payment in the sale currency, or sync for today’s rates.",
+        "sale_underpaid": "The payments do not cover the total yet.",
+        "no_receipt_numbers": "This till has no receipt numbers left. Connect to the internet so the server can give it more, then complete the sale.",
+        "lines_blocked": "Some items cannot be sold until their tax rate is set. Remove them, then charge.",
+        "no_shift": "Open a shift before selling.",
+        "empty_sale": "Add a product before charging.",
+        "failed": "The sale was not saved. Try again."
+      }
+    },
+    "receipt": {
+      "done": "Sale complete",
+      "giveChange": "Give the customer",
+      "number": "Receipt",
+      "refundNumber": "Refund",
+      "date": "Date",
+      "cashier": "Served by",
+      "customer": "Customer",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "taxAt": "Tax at {{rate}}%",
+      "total": "Total",
+      "totalIn": "Total in {{currency}}",
+      "payment": "Payment",
+      "change": "Change",
+      "taxId": "Tax ID {{id}}",
+      "fiscal": "Fiscal receipt",
+      "fiscalKe": "KRA eTIMS",
+      "fiscalCd": "DGI fiscal receipt",
+      "fiscalPending": "Pending",
+      "fiscalPendingHelp": "The authority’s code and QR code are added once the sale reaches the server and the authority accepts it.",
+      "print": "Print",
+      "newSale": "New sale"
+    },
+    "shift": {
+      "openTitle": "Open a shift",
+      "openIntro": "{{name}}, count the cash in the drawer before you start.",
+      "float": "Opening cash in {{currency}}",
+      "open": "Open shift",
+      "closeTitle": "Close the shift",
+      "closeIntro": "Count the cash in the drawer per currency. Expected cash is shown after you close.",
+      "countedIn": "Cash counted in {{currency}}",
+      "note": "Note (optional)",
+      "close": "Close shift",
+      "keepSelling": "Keep selling",
+      "heldWarning_one": "{{count}} held sale stays on this till and is not part of this shift.",
+      "heldWarning_other": "{{count}} held sales stay on this till and are not part of this shift.",
+      "closedTitle": "Shift closed",
+      "expected": "Expected",
+      "counted": "Counted",
+      "variance": "Difference",
+      "serverRecounts": "The server recounts expected cash from the records it accepts; the back office shows the final figures.",
+      "done": "Done",
+      "errors": {
+        "amount": "Enter the {{currency}} amount as a number.",
+        "failed": "The shift was not saved. Try again."
+      }
+    },
+    "cash": {
+      "title": "Pay cash in or out",
+      "kind": {
+        "pay_in": "Pay in",
+        "pay_out": "Pay out"
+      },
+      "amount": "Amount",
+      "reason": "Reason",
+      "record": {
+        "pay_in": "Record pay-in",
+        "pay_out": "Record pay-out"
+      },
+      "recorded": {
+        "pay_in": "Pay-in of {{amount}} recorded.",
+        "pay_out": "Pay-out of {{amount}} recorded."
+      },
+      "errors": {
+        "incomplete": "Enter an amount above 0 and a reason.",
+        "failed": "The cash movement was not saved. Try again."
+      }
+    },
+    "sales": {
+      "title": "Sales and returns",
+      "findLabel": "Receipt number",
+      "find": "Find sale",
+      "notFound": "No sale on this till has that receipt number. Check the number on the receipt.",
+      "none": "No sales on this till yet.",
+      "backToList": "All sales",
+      "voidedBadge": "Voided",
+      "refundedBadge": "Partly returned",
+      "lineSold": "Sold {{qty}} · {{total}} · {{left}} can be returned",
+      "returnLess": "Return one fewer {{name}}",
+      "returnMore": "Return one more {{name}}",
+      "reason": "Reason",
+      "pickLines": "Choose the items the customer brings back, or void the whole sale.",
+      "refundTotal": "Refund {{amount}}",
+      "giveBack": "Give back {{amount}}",
+      "refund": "Refund {{amount}}",
+      "refundShort": "Refund",
+      "refunded": "Refund {{number}} recorded. Give back {{amount}}.",
+      "void": "Void the whole sale",
+      "voided": "Sale {{number}} voided.",
+      "errors": {
+        "reason": "Enter a reason.",
+        "refundIncomplete": "Choose the items, a way to pay back and a reason.",
+        "refund_currency": "This refund cannot be paid in that currency at the sale’s rate. Choose the sale currency.",
+        "refund_qty_exceeded": "More than was sold would be returned. Lower the quantity.",
+        "refund_empty": "Choose at least one item to return.",
+        "sale_already_voided": "This sale is already voided.",
+        "sale_has_refunds": "Items of this sale were returned, so it cannot be voided. Return the rest instead.",
+        "void_other_shift": "Only sales of the open shift can be voided. Return the items instead.",
+        "no_receipt_numbers": "This till has no refund numbers left. Connect to the internet so the server can give it more.",
+        "no_shift": "Open a shift first.",
+        "failed": "Nothing was saved. Try again."
+      }
+    }
   }
 }
