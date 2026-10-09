@@ -159,7 +159,7 @@ export default function SalesDashboard() {
           ) : null}
           <Select
             label={t('pos.dashboard.reportingCurrency')}
-            options={[{ value: '', label: t('pos.dashboard.defaultCurrency') }, ...currencies.map((code) => ({ value: code, label: code }))]}
+            options={[{ value: '', label: !currency && reporting ? t('pos.dashboard.defaultCurrencyIs', { currency: reporting }) : t('pos.dashboard.defaultCurrency') }, ...currencies.map((code) => ({ value: code, label: code }))]}
             value={currency}
             onChange={(event) => set({ currency: event.target.value })}
             className="w-full sm:w-auto"

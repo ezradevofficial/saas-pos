@@ -3538,7 +3538,7 @@
       "from": "Du",
       "to": "Au",
       "reportingCurrency": "Devise de présentation",
-      "defaultCurrency": "Celle de chaque société",
+      "defaultCurrency": "Par défaut",
       "chooseCurrency": "Vos sociétés vendent dans des devises différentes. Choisissez une devise de présentation pour voir un seul total.",
       "missingRates": "{{companies}} n’a pas de taux de change vers {{currency}} pour cette période et n’est donc pas compté dans le total. Saisissez le taux dans Taux de change.",
       "noRate": "Aucun taux",
@@ -3576,7 +3576,8 @@
         "qty": "Quantité",
         "sales": "Ventes",
         "total": "Vendu pour"
-      }
+      },
+      "defaultCurrencyIs": "Par défaut ({{currency}})"
     }
   },
   "numbering": {

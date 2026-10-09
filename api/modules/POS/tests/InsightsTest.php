@@ -2,6 +2,7 @@
 
 namespace Modules\POS\Tests;
 
+use App\Core\Currency\Models\CompanyCurrency;
 use App\Core\Currency\Models\ExchangeRate;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -96,6 +97,17 @@ class InsightsTest extends TestCase
         $this->assertSame(['amount_minor' => '865', 'currency' => 'USD'], $data['consolidated']['average_ticket']);
         $this->assertSame('130.00000000', $data['companies'][0]['reporting']['rate']['rate']);
         $this->assertSame([], $data['missing_rates']);
+    }
+
+    public function test_the_default_reporting_currency_is_the_first_configured_one(): void
+    {
+        $this->inTenant(fn () => CompanyCurrency::create(['company_id' => $this->acme->id, 'code' => 'USD', 'position' => 1]));
+
+        $this->insights()->assertOk()
+            ->assertJsonPath('data.reporting_currency', 'USD')
+            ->assertJsonPath('data.missing_rates', [$this->acme->id]);
+        // An explicit choice wins.
+        $this->insights(['currency' => 'KES'])->assertOk()->assertJsonPath('data.reporting_currency', 'KES');
     }
 
     public function test_period_and_place_filters(): void

@@ -89,6 +89,16 @@ describe('POS sales overview (TEN-07)', () => {
     expect(within(items).getByText('KES 3,375.00')).toBeInTheDocument()
   })
 
+  it('names the reporting currency the API chose by default', async () => {
+    setup()
+    const fallback = api.get.getMockImplementation()
+    api.get.mockImplementation(async (path) => (path.startsWith('pos/insights?') ? insights('USD') : fallback(path)))
+    renderApp('/pos/dashboard')
+    expect(await screen.findByText('USD 25.96')).toBeInTheDocument()
+    expect(screen.getByLabelText('Reporting currency')).toHaveTextContent('Default (USD)')
+    expect(screen.queryByText(/Choose a reporting currency/)).not.toBeInTheDocument()
+  })
+
   it('asks for this week from Monday and converts to a reporting currency, naming companies without a rate', async () => {
     setup()
     const { router } = renderApp('/pos/dashboard')

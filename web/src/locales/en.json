@@ -3538,7 +3538,7 @@
       "from": "From",
       "to": "To",
       "reportingCurrency": "Reporting currency",
-      "defaultCurrency": "Each company’s own",
+      "defaultCurrency": "Default",
       "chooseCurrency": "Your companies sell in different currencies. Choose a reporting currency to see one total.",
       "missingRates": "{{companies}} has no exchange rate to {{currency}} for this period, so it is left out of the total. Enter the rate in Exchange rates.",
       "noRate": "No rate",
@@ -3576,7 +3576,8 @@
         "qty": "Quantity",
         "sales": "Sales",
         "total": "Sold for"
-      }
+      },
+      "defaultCurrencyIs": "Default ({{currency}})"
     }
   },
   "numbering": {

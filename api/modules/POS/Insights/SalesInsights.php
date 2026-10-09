@@ -3,6 +3,7 @@
 namespace Modules\POS\Insights;
 
 use App\Core\Currency\Converter;
+use App\Core\Currency\Models\CompanyCurrency;
 use App\Core\Currency\ExchangeRates;
 use App\Core\Currency\Money;
 use App\Core\Currency\RateUnavailable;
@@ -27,6 +28,7 @@ use Modules\POS\Models\Sale;
  * - The period is calendar days in each company's own time zone.
  * - Totals per company are in its base currency, from the base amounts
  *   each sale stored (CUR-04); branches and locations likewise.
+ * - The reporting currency is `currency`, else the default (defaultReporting).
  * - The consolidated figure is in the reporting currency: each company's
  *   base total converted once at its rate in force at the end of the
  *   period (or now, if sooner). A company without such a rate is listed
@@ -186,9 +188,24 @@ class SalesInsights
         return array_sum(array_map(fn (array $row) => in_array($row['company']['id'], $missing, true) ? $row['sales_count'] : 0, $companies));
     }
 
-    /** The common base currency when every company shares one, else none (the reader picks). */
+    /**
+     * Owner ruling 2026-10-09: the first reporting currency configured
+     * (CUR-02, position 1) of the companies shown, in name order; else the
+     * common base currency when every company shares one; else none (the
+     * reader picks).
+     */
     private function defaultReporting(array $companies): ?string
     {
+        $firsts = CompanyCurrency::query()->whereIn('company_id', array_keys($companies))->where('position', 1)->pluck('code', 'company_id');
+        $named = $companies;
+        uasort($named, fn (Company $a, Company $b) => strcmp((string) $a->name, (string) $b->name));
+
+        foreach ($named as $id => $company) {
+            if (isset($firsts[$id])) {
+                return $firsts[$id];
+            }
+        }
+
         $bases = array_values(array_unique(array_map(fn (Company $company) => $company->base_currency, $companies)));
 
         return count($bases) === 1 ? $bases[0] : null;
