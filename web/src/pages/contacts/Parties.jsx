@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { usePermissions } from '@/auth/usePermissions'
+import { customFiltersActive, useCustomListFields } from '@/components/customFieldList'
 import { Button, ListView, Money, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList, useTypedText } from '@/lib/useServerList'
@@ -28,6 +29,8 @@ export default function Parties({ role }) {
   const navigate = useNavigate()
   const { can } = usePermissions()
   const path = ROLE_PATHS[role]
+  // CF-02, CF-03: custom columns (hidden until chosen) and filters.
+  const custom = useCustomListFields('party')
 
   const columns = [
     {
@@ -54,6 +57,7 @@ export default function Parties({ role }) {
       numeric: true,
       render: (party) => (party.credit_limit ? <Money amount={party.credit_limit.amount_minor} currency={party.credit_limit.currency} /> : ''),
     },
+    ...custom.columns,
   ]
 
   const list = useServerList({
@@ -61,11 +65,11 @@ export default function Parties({ role }) {
     endpoint: 'parties',
     queryKey: ['parties'],
     params: { role },
-    filters: { status: 'active', tag: '' },
+    filters: { status: 'active', tag: '', ...custom.filterDefaults },
     columns,
   })
   const { status } = list.filters
-  const filtered = Boolean(list.term || list.filters.tag)
+  const filtered = Boolean(list.term || list.filters.tag || customFiltersActive(list, custom))
 
   return (
     <>
@@ -96,6 +100,7 @@ export default function Parties({ role }) {
             label: t('parties.filters.tag'),
             render: ({ label, value, onChange }) => <TagField label={label} value={value} onChange={onChange} />,
           },
+          ...custom.filterFields,
         ]}
         onRowClick={(party) => navigate(`/contacts/${path}/${party.id}`)}
         emptyText={filtered ? t('parties.emptyFiltered') : t(`parties.empty.${role}.${status}`)}

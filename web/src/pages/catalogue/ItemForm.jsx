@@ -6,11 +6,14 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
+import { CustomFieldsSection } from '@/components/CustomFieldsSection'
 import { Alert, Button, Card, Checkbox, DecimalInput, Icon, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { perCompany, useSharingModes } from '@/lib/masterData'
+import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useTimeZone } from '@/lib/useTimeZone'
 import { categoryOptions, ITEM_TYPES, uomLabel, useItemCategories, useTaxCategories, useUoms } from './catalogueData'
 
 let rowKey = 0
@@ -65,6 +68,9 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
   const companyId = creating ? (keptPerCompany ? chosenCompany || null : null) : (item.company_id ?? null)
   // Units load after the form: the first active "EA" (or first unit) is the default base.
   const baseUomId = values.base_uom_id || (creating ? (defaultUom?.id ?? '') : '')
+  // CF-02: the custom fields the user sees; only changed, editable ones are sent.
+  const customSchema = useCustomFieldSchema('item')
+  const custom = useCustomValues(customSchema.fields, item, useTimeZone(companyId ?? undefined))
 
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const setRow = (list, key, patch) => setValues((current) => ({ ...current, [list]: current[list].map((row) => (row.key === key ? { ...row, ...patch } : row)) }))
@@ -94,6 +100,8 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
         .filter((row) => row.barcode.trim() !== '')
         .map((row) => ({ barcode: row.barcode.trim(), uom_id: row.uom_id && row.uom_id !== baseUomId ? row.uom_id : null }))
     }
+    const customChanges = custom.body()
+    if (customChanges) data.custom = customChanges
     return data
   }
 
@@ -112,7 +120,7 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
     ...values.uoms.flatMap((_, index) => [`uoms.${index}.uom_id`, `uoms.${index}.factor`]),
     ...values.barcodes.flatMap((_, index) => [`barcodes.${index}.barcode`, `barcodes.${index}.uom_id`]),
   ]
-  const errors = formErrors(mutation.error, ['company_id', 'code', 'name', 'type', 'category_id', 'base_uom_id', 'tax_category_id', 'uoms', 'barcodes', ...rowFields])
+  const errors = formErrors(mutation.error, ['company_id', 'code', 'name', 'type', 'category_id', 'base_uom_id', 'tax_category_id', 'uoms', 'barcodes', ...rowFields, ...custom.errorFields])
   useErrorFocus(formRef, alertRef, mutation.error)
 
   const baseUom = uoms.all.find((uom) => uom.id === baseUomId)
@@ -139,7 +147,7 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
       onSubmit={(event) => {
         event.preventDefault()
         setSubmitted(true)
-        if (values.uoms.some((row) => !row.uom_id || !row.factor)) return
+        if (values.uoms.some((row) => !row.uom_id || !row.factor) || custom.invalid) return
         mutation.mutate()
       }}
     >
@@ -385,6 +393,8 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
             </div>
           </Card>
         ) : null}
+
+        <CustomFieldsSection entity="item" fields={customSchema.fields} custom={custom} errors={customErrors(errors.fields)} readOnly={readOnly} showErrors={submitted} />
       </fieldset>
       {readOnly ? null : (
         <div className="flex flex-wrap gap-2">

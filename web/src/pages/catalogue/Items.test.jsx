@@ -164,4 +164,50 @@ describe('Items', () => {
     expect(await screen.findByText('Enter a number above zero.')).toBeInTheDocument()
     expect(api.post).not.toHaveBeenCalled()
   })
+
+  it('offers custom fields as hidden columns, filters and sorts on them (CF-02, CF-03)', async () => {
+    const schema = [
+      {
+        key: 'colour',
+        type: 'select',
+        label: 'Colour',
+        options: [
+          { value: 'red', label: 'Red' },
+          { value: 'blue', label: 'Blue' },
+        ],
+        readonly: false,
+      },
+      { key: 'organic', type: 'boolean', label: 'Organic', options: [], readonly: false },
+    ]
+    catalogue(api, { list: [{ ...ITEM, custom: { colour: 'red', organic: true } }], extra: [['custom-fields/schema?entity=item', { data: schema }]] })
+    api.download.mockResolvedValue({ blob: new Blob(['x']), filename: 'items.csv' })
+    URL.createObjectURL = vi.fn(() => 'blob:items')
+    URL.revokeObjectURL = vi.fn()
+    renderApp('/catalogue/items')
+    const table = await screen.findByRole('table', { name: 'Items' })
+    await within(table).findByText('Soda 500 ml')
+    // Hidden until chosen in the Columns menu.
+    expect(within(table).queryByRole('columnheader', { name: /Colour/ })).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Columns' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Colour' }))
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(await within(table).findByText('Red')).toBeInTheDocument()
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Colour' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('sort=cf_colour'))
+
+    openFilters()
+    await waitForOption('Organic', 'Yes')
+    chooseOption('Organic', 'No')
+    await waitFor(() => expect(new URLSearchParams(listCalls().at(-1).split('?')[1]).get('custom[organic]')).toBe('false'))
+    chooseOption('Colour', 'Blue')
+    await waitFor(() => expect(new URLSearchParams(listCalls().at(-1).split('?')[1]).get('custom[colour]')).toBe('blue'))
+    await closeFilters()
+    expect(screen.getByText('Colour: Blue')).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'CSV' }))
+    await waitFor(() => expect(api.download).toHaveBeenCalled())
+    expect(new URLSearchParams(api.download.mock.calls[0][0].split('?')[1]).getAll('columns[]')).toContain('cf_colour')
+  })
 })

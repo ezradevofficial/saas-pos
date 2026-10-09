@@ -284,7 +284,8 @@
     "numbering": "Numbering",
     "posPin": "My POS PIN",
     "payments": "Payments received",
-    "fiscal": "Tax authority"
+    "fiscal": "Tax authority",
+    "customFields": "Custom fields"
   },
   "shell": {
     "account": "Account menu",
@@ -455,6 +456,10 @@
     "sharing": {
       "title": "Sharing",
       "description": "Whether each kind of record is shared across your companies or kept per company."
+    },
+    "customFields": {
+      "title": "Custom fields",
+      "description": "Extra fields on items, customers and suppliers, who sees them and who can change them."
     }
   },
   "appearance": {
@@ -3921,6 +3926,160 @@
       "send": "Send to the authority",
       "queued": "Documents from {{from}} are being queued. Follow them in the list below.",
       "done": "Done"
+    }
+  },
+  "customFields": {
+    "add": "Add field",
+    "edit": "Edit",
+    "editName": "Edit {{label}}",
+    "archive": "Archive",
+    "archiveName": "Archive {{label}}",
+    "restore": "Restore",
+    "restoreName": "Restore {{label}}",
+    "addTitle": "Add a custom field",
+    "editTitle": "Edit {{label}}",
+    "listTitle": "Custom fields · {{entity}}",
+    "searchPlaceholder": "Label or key",
+    "emptyFiltered": "No field matches these filters. Try other words or clear the filters.",
+    "empty": {
+      "active": "No custom fields yet. Add one to record more about each record.",
+      "archived": "No archived fields.",
+      "all": "No custom fields yet."
+    },
+    "archiveTitle": "Archive {{label}}?",
+    "archiveText": "The field leaves forms and lists. Values already saved are kept, and restoring the field shows them again.",
+    "archiveConfirm": "Archive field",
+    "keep": "Keep field",
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "choose": "Choose",
+    "noValue": "No value yet",
+    "lookupPlaceholder": "Search to choose",
+    "currency": "{{label}} currency",
+    "formulaHelp": "Worked out from other fields; it cannot be typed.",
+    "section": {
+      "title": "More details",
+      "subtitle": "Fields your business added."
+    },
+    "file": {
+      "none": "No file",
+      "upload": "Upload file",
+      "replace": "Replace file",
+      "remove": "Remove",
+      "removeName": "Remove {{name}}",
+      "choose": "Choose a file for {{label}}",
+      "wrongType": "This file type is not accepted. Use PDF, JPEG, PNG, WebP, text, CSV, Word (.docx) or Excel (.xlsx).",
+      "tooLarge": "This file is too large. Choose one up to {{max}}."
+    },
+    "filters": {
+      "any": "Any",
+      "min": "{{label}} from",
+      "max": "{{label}} up to",
+      "from": "{{label}} from",
+      "to": "{{label}} until",
+      "type": "Type",
+      "allTypes": "All types",
+      "status": "Status"
+    },
+    "entities": {
+      "item": "Items",
+      "party": "Customers and suppliers"
+    },
+    "types": {
+      "text": "Text",
+      "long_text": "Long text",
+      "number": "Number",
+      "money": "Money",
+      "date": "Date",
+      "datetime": "Date and time",
+      "boolean": "Yes or no",
+      "select": "One choice",
+      "multi_select": "Several choices",
+      "file": "File",
+      "lookup": "Link to a record",
+      "formula": "Formula"
+    },
+    "formulaTypes": {
+      "number": "Number",
+      "text": "Text",
+      "boolean": "Yes or no"
+    },
+    "columns": {
+      "position": "Order",
+      "label": "Label",
+      "key": "Key",
+      "type": "Type",
+      "required": "Required",
+      "showOnPos": "On the POS",
+      "status": "Status",
+      "createdAt": "Added",
+      "updatedAt": "Last changed",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All",
+      "activeOne": "Active",
+      "archivedOne": "Archived"
+    },
+    "fields": {
+      "label": "Label",
+      "labelHelp": "What people see on forms, as you type it.",
+      "key": "Key",
+      "keyHelp": "Used in formulas, filters and exports. Lower-case letters, digits and _, starting with a letter.",
+      "keyInvalid": "Use lower-case letters, digits and _, starting with a letter, up to 40 characters.",
+      "keyFixed": "The key cannot change once the field exists.",
+      "help": "Help text",
+      "helpHelp": "Shown under the field. Optional.",
+      "type": "Type",
+      "typeFixed": "The type cannot change once the field exists.",
+      "position": "Order",
+      "positionHelp": "Lower numbers come first on forms.",
+      "required": "Required",
+      "requiredHelp": "A record cannot be saved without it.",
+      "unique": "Unique",
+      "uniqueHelp": "No two records may have the same value.",
+      "min": "Lowest value",
+      "max": "Highest value",
+      "minLength": "Shortest length (characters)",
+      "maxLength": "Longest length (characters)",
+      "pattern": "Pattern",
+      "patternHelp": "A regular expression the value must match, such as ^[A-Z]{3}-\\d{4}$. Optional.",
+      "options": "Choices",
+      "optionsHelp": "Each choice has a label people see and a value kept in exports and filters.",
+      "optionLabel": "Choice label",
+      "optionValue": "Value",
+      "addOption": "Add choice",
+      "noOptions": "No choices yet.",
+      "moveOptionUp": "Move {{name}} up",
+      "moveOptionDown": "Move {{name}} down",
+      "removeOption": "Remove {{name}}",
+      "lookupTarget": "Links to",
+      "lookupTargetHelp": "The kind of record people pick.",
+      "chooseTarget": "Choose a kind of record",
+      "formula": "Formula",
+      "formulaHelp": "Use the keys of other fields, such as price * quantity.",
+      "formulaType": "Result",
+      "default": "Default value",
+      "defaultHelp": "Filled in on new records. Optional.",
+      "visibleRoles": "Who can see it",
+      "visibleRolesHelp": "None chosen: everyone who can see the record.",
+      "everyone": "Everyone",
+      "editableRoles": "Who can change it",
+      "editableRolesHelp": "None chosen: everyone who can edit the record.",
+      "everyoneWhoEdits": "Everyone who edits the record",
+      "showOnPos": "Show on the point of sale",
+      "unknownRole": "Role no longer available"
+    },
+    "formula": {
+      "helpTitle": "Formula help",
+      "fields": "Fields",
+      "noFields": "No other fields to use yet.",
+      "functions": "Functions",
+      "operators": "Operators",
+      "insert": "Insert {{text}}"
     }
   }
 }
