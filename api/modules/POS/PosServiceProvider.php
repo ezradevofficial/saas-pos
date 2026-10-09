@@ -3,6 +3,7 @@
 namespace Modules\POS;
 
 use App\Core\Currency\CurrencyUsage;
+use App\Core\Fiscal\FiscalSources;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
@@ -14,6 +15,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Events\SaleRefunded;
+use Modules\POS\Events\SaleVoided;
+use Modules\POS\Fiscal\PosFiscalSource;
+use Modules\POS\Listeners\LinkMobileMoneyPayments;
+use Modules\POS\Listeners\QueueFiscalDocument;
 use Modules\POS\Listeners\RetireDeviceRanges;
 use Modules\POS\Sync\CoreOverrides;
 use Modules\POS\Sync\OverrideVerifier;
@@ -75,6 +82,18 @@ class PosServiceProvider extends ServiceProvider
 
         // NUM-02: a lost device's ranges stop when it is unpaired.
         Event::listen(DeviceUnpaired::class, RetireDeviceRanges::class);
+
+        // POS-10: sales, refunds and voids go to the core fiscal queue,
+        // built from this module's tables (PosFiscalSource).
+        $this->app->make(FiscalSources::class)->register(PosFiscalSource::KEY, PosFiscalSource::class);
+        foreach ([SaleCompleted::class, SaleRefunded::class, SaleVoided::class] as $event) {
+            Event::listen($event, [QueueFiscalDocument::class, 'handle']);
+        }
+
+        // Concept note 7.1: mobile money codes recorded at the till become
+        // payment intents to verify; mobile money refunds are paid back.
+        Event::listen(SaleCompleted::class, [LinkMobileMoneyPayments::class, 'handle']);
+        Event::listen(SaleRefunded::class, [LinkMobileMoneyPayments::class, 'handle']);
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 
