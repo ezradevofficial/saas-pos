@@ -14,6 +14,7 @@ use App\Core\Automation\Http\Controllers\AutomationRunController;
 use App\Core\Automation\Http\Controllers\AutomationTemplateController;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Configuration\Http\Controllers\ConfigController;
 use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\CountryPacks\Http\Controllers\CountryPackController;
@@ -531,16 +532,20 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // what applies to the signed-in user.
     Route::prefix('config/{kind}')->where(['kind' => '[a-z][a-z0-9_]{0,59}'])->group(function () {
         Route::get('', [ConfigController::class, 'index']);
-        Route::post('', [ConfigController::class, 'store']);
         Route::get('resolved', [ConfigController::class, 'resolved']);
         // LAY-04: every published layer that applies (personal, role, tenant), for saved views.
         Route::get('layers', [ConfigController::class, 'layers']);
         Route::get('{config_document}', [ConfigController::class, 'show']);
-        Route::put('{config_document}/draft', [ConfigController::class, 'updateDraft']);
-        Route::post('{config_document}/publish', [ConfigController::class, 'publish']);
-        Route::post('{config_document}/rollback', [ConfigController::class, 'rollback']);
-        Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
-        Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
+
+        // Writes carry payloads up to 256 KB: 60 a minute per user.
+        Route::middleware('throttle:'.ConfigurationServiceProvider::WRITE_LIMITER)->group(function () {
+            Route::post('', [ConfigController::class, 'store']);
+            Route::put('{config_document}/draft', [ConfigController::class, 'updateDraft']);
+            Route::post('{config_document}/publish', [ConfigController::class, 'publish']);
+            Route::post('{config_document}/rollback', [ConfigController::class, 'rollback']);
+            Route::post('{config_document}/copy', [ConfigController::class, 'copy']);
+            Route::post('{config_document}/discard-draft', [ConfigController::class, 'discardDraft']);
+        });
     });
 
     // LAY-01: dashboard data sources the user may read, and one widget's data.
@@ -557,5 +562,5 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('custom-fields/{custom_field}', [CustomFieldController::class, 'update']);
     Route::post('custom-fields/{custom_field}/archive', [CustomFieldController::class, 'archive']);
     Route::post('custom-fields/{custom_field}/restore', [CustomFieldController::class, 'restore']);
-    Route::post('custom-field-files', [CustomFieldFileController::class, 'store']);
+    Route::post('custom-field-files', [CustomFieldFileController::class, 'store'])->middleware('throttle:custom-field-files');
 });

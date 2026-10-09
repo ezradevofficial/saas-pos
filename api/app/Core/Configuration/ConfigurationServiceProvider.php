@@ -2,6 +2,9 @@
 
 namespace App\Core\Configuration;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -11,8 +14,20 @@ use Illuminate\Support\ServiceProvider;
  */
 class ConfigurationServiceProvider extends ServiceProvider
 {
+    /** The limiter on writes under config/{kind}. */
+    public const WRITE_LIMITER = 'config-writes';
+
+    /** Writes a minute per user: autosave every second still fits. */
+    public const WRITES_PER_MINUTE = 60;
+
     public function register(): void
     {
         $this->app->singleton(ConfigKinds::class);
+    }
+
+    public function boot(): void
+    {
+        RateLimiter::for(self::WRITE_LIMITER, fn (Request $request) => Limit::perMinute(self::WRITES_PER_MINUTE)
+            ->by('user|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 }

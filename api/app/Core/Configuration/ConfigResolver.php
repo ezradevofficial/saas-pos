@@ -8,6 +8,9 @@ use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+use UnexpectedValueException;
 
 /**
  * LAY-06: which published configuration applies to a user at a place.
@@ -28,7 +31,9 @@ use App\Core\Rbac\ScopeResolver;
  *
  * The payload returned has gone through the kind's merger (LAY-07). When
  * nothing is published along the chain, the kind's defaults (if any)
- * are returned with no source.
+ * are returned with no source. A published payload the merger cannot
+ * read (malformed, or a merger that throws) is logged and the kind's
+ * defaults are returned instead: resolving never fails a screen.
  */
 class ConfigResolver
 {
@@ -39,19 +44,59 @@ class ConfigResolver
      */
     public function resolve(ConfigKind $kind, string $key, User $user, ?Place $place = null): array
     {
-        return $this->layers($kind, $key, $user, $place, 1)[0]
-            ?? ['payload' => $kind->defaultPayload(), 'version' => null, 'document' => null];
+        $candidates = $this->chain($kind, $user, $place);
+
+        if ($candidates !== []) {
+            $documents = ConfigDocument::query()
+                ->with('published')
+                ->where('kind', $kind->key)
+                ->where('key', $key)
+                ->whereHas('published')
+                ->where(function ($q) use ($candidates) {
+                    foreach ($candidates as [$type, $id]) {
+                        $q->orWhere(fn ($c) => $c->where('scope_type', $type)->where('scope_id', $id));
+                    }
+                })
+                ->get()
+                ->keyBy(fn (ConfigDocument $d) => $d->scope_type.':'.($d->scope_id ?? ''));
+
+            foreach ($candidates as [$type, $id]) {
+                $document = $documents->get($type.':'.($id ?? ''));
+
+                if ($document !== null) {
+                    try {
+                        $payload = $document->published->payload;
+
+                        return [
+                            'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                            'version' => $document->published,
+                            'document' => $document,
+                        ];
+                    } catch (Throwable $e) {
+                        Log::warning('Published configuration could not be resolved; using the kind\'s defaults.', [
+                            'kind' => $kind->key, 'key' => $key, 'document_id' => $document->id,
+                            'version_id' => $document->published->id, 'error' => $e->getMessage(),
+                        ]);
+
+                        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
+                    }
+                }
+            }
+        }
+
+        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
     }
 
     /**
      * Every published document along the chain that applies to the user,
      * most specific first, each merged with the catalogue (LAY-07). A list
      * view offers the views of all of them: the user's own, their roles',
-     * the place's and the tenant's (LAY-04).
+     * the place's and the tenant's (LAY-04). A layer the merger can't read
+     * is logged and left out.
      *
      * @return list<array{payload: array, version: ConfigVersion, document: ConfigDocument}>
      */
-    public function layers(ConfigKind $kind, string $key, User $user, ?Place $place = null, ?int $limit = null): array
+    public function layers(ConfigKind $kind, string $key, User $user, ?Place $place = null): array
     {
         $candidates = $this->chain($kind, $user, $place);
 
@@ -81,18 +126,34 @@ class ConfigResolver
                 continue;
             }
 
-            $layers[] = [
-                'payload' => $kind->merge($document->published->payload),
-                'version' => $document->published,
-                'document' => $document,
-            ];
-
-            if ($limit !== null && count($layers) >= $limit) {
-                break;
+            try {
+                $payload = $document->published->payload;
+                $layers[] = [
+                    'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                    'version' => $document->published,
+                    'document' => $document,
+                ];
+            } catch (Throwable $e) {
+                Log::warning('Published configuration layer could not be resolved; leaving it out.', [
+                    'kind' => $kind->key, 'key' => $key, 'document_id' => $document->id,
+                    'version_id' => $document->published->id, 'error' => $e->getMessage(),
+                ]);
             }
         }
 
         return $layers;
+    }
+
+    /** The kind's defaults; null (the client's built-in layout) when even they fail. */
+    public function defaults(ConfigKind $kind): ?array
+    {
+        try {
+            return $kind->defaultPayload();
+        } catch (Throwable $e) {
+            Log::warning('Configuration defaults could not be built.', ['kind' => $kind->key, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     /**

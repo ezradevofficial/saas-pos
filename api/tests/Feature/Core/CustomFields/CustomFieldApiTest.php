@@ -37,7 +37,7 @@ class CustomFieldApiTest extends TestCase
         $id = $this->create([
             'key' => 'colour', 'label' => 'Colour', 'type' => 'select', 'help' => 'As printed on the box',
             'options' => [['value' => 'red', 'label' => 'Red'], ['value' => 'blue', 'label' => 'Blue']],
-            'default' => 'red', 'required' => true, 'unique' => false, 'show_on_pos' => true, 'position' => 3,
+            'default' => 'red', 'required' => true, 'unique' => false, 'show_on_pos' => false, 'position' => 3,
             'visible_roles' => [$role],
         ])->assertCreated()
             ->assertJsonPath('data.key', 'colour')
@@ -160,5 +160,36 @@ class CustomFieldApiTest extends TestCase
         $this->create(['key' => 'cost', 'label' => 'Cost', 'type' => 'number'])->assertCreated();
         $this->create(['key' => 'double', 'label' => 'Double', 'type' => 'formula', 'formula' => 'cost * 2'])->assertCreated()->assertJsonPath('data.formula_type', 'number');
         $this->create(['key' => 'quad', 'label' => 'Quad', 'type' => 'formula', 'formula' => 'double * 2'])->assertUnprocessable()->assertJsonValidationErrors('formula');
+    }
+
+    public function test_whole_number_bounds_keep_their_digits(): void
+    {
+        // Review: "100" was read as "1" before saving, so a default of 50 failed against max 100.
+        $this->create(['key' => 'weight', 'label' => 'Weight', 'type' => 'number', 'min' => '0', 'max' => '100', 'default' => '50'])
+            ->assertCreated()->assertJsonPath('data.max', '100')->assertJsonPath('data.default', '50');
+        $this->create(['key' => 'code', 'label' => 'Code', 'type' => 'text', 'max' => '100', 'default' => 'hello'])->assertCreated();
+        $this->create(['key' => 'floor', 'label' => 'Floor', 'type' => 'number', 'min' => '100', 'default' => '5'])
+            ->assertUnprocessable()->assertJsonValidationErrors('default');
+    }
+
+    public function test_the_formula_result_type_is_fixed_once_created(): void
+    {
+        $id = $this->create(['key' => 'band', 'label' => 'Band', 'type' => 'formula', 'formula' => '"Low"', 'formula_type' => 'text'])
+            ->assertCreated()->json('data.id');
+
+        $this->patchJson("/api/v1/custom-fields/{$id}", ['formula_type' => 'number'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('formula_type');
+    }
+
+    public function test_a_field_on_the_till_is_visible_to_everyone(): void
+    {
+        $role = $this->inTenant(fn () => $this->roles->first()->id);
+
+        // RBAC-05: tills keep what they receive, so a role-limited field never goes there.
+        $this->create(['key' => 'cost', 'label' => 'Cost', 'show_on_pos' => true, 'visible_roles' => [$role]])
+            ->assertUnprocessable()->assertJsonValidationErrors('show_on_pos');
+        $id = $this->create(['key' => 'size', 'label' => 'Size', 'show_on_pos' => true])->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/custom-fields/{$id}", ['visible_roles' => [$role]], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors('show_on_pos');
     }
 }

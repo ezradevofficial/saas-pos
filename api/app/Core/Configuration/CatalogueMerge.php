@@ -9,8 +9,11 @@ namespace App\Core\Configuration;
  *
  * - an entry the layout names that is no longer in the catalogue is
  *   skipped (and so is a second mention of the same id);
- * - an entry the layout names keeps its place and its settings, over the
- *   catalogue's defaults for it;
+ * - an entry the layout names keeps its place and its layout settings
+ *   (LAYOUT_KEYS plus the kind's own, ConfigKind::layoutKeys()) over the
+ *   catalogue's entry; everything else (locked, permission, required,
+ *   module, ...) always comes from the catalogue, so a stored layout can
+ *   never unlock a field or drop its permission;
  * - a catalogue entry the layout does not mention (added by a platform
  *   update) appears in its default position: right after the entry its
  *   `after` names when the layout has it, else at the end; with the
@@ -19,6 +22,8 @@ namespace App\Core\Configuration;
  *   shows it until someone places it.
  *
  * `after` and `when_new` are catalogue hints and never reach the result.
+ * Malformed parts of a stored layout (a group or entry that is not an
+ * object) are skipped, never fatal.
  */
 final class CatalogueMerge
 {
@@ -28,16 +33,20 @@ final class CatalogueMerge
 
     private const HINTS = ['after', 'when_new', 'group'];
 
+    /** What a stored entry may set over its catalogue entry (with the id and hidden keys). */
+    public const LAYOUT_KEYS = ['order', 'width', 'height', 'x', 'y', 'hidden', 'label', 'help', 'group', 'position'];
+
     /**
      * @param  list<array<string, mixed>>  $stored  entries the layout names, in its order
      * @param  list<array<string, mixed>>  $catalogue  entries that exist now, with their defaults
      * @param  self::APPEND|self::HIDDEN  $newEntries  the kind's rule for entries the layout does not mention
+     * @param  list<string>  $layoutKeys  what a stored entry may set (the kind's ConfigKind::layoutKeys())
      * @return list<array<string, mixed>>
      */
-    public static function entries(array $stored, array $catalogue, string $newEntries = self::APPEND, string $id = 'id', string $hidden = 'hidden'): array
+    public static function entries(array $stored, array $catalogue, string $newEntries = self::APPEND, string $id = 'id', string $hidden = 'hidden', array $layoutKeys = self::LAYOUT_KEYS): array
     {
         $known = self::index($catalogue, $id);
-        $result = self::keep($stored, $known, $id);
+        $result = self::keep($stored, $known, $id, [...$layoutKeys, $id, $hidden]);
         $placed = array_flip(array_map('strval', array_column($result, $id)));
         $anchors = [];
 
@@ -64,15 +73,20 @@ final class CatalogueMerge
      * @param  list<array<string, mixed>>  $groups
      * @param  list<array<string, mixed>>  $catalogue
      * @param  array<string, mixed>  $newGroup  the group to create when the layout has none (must carry its id)
+     * @param  list<string>  $layoutKeys  what a stored entry may set (the kind's ConfigKind::layoutKeys())
      * @return list<array<string, mixed>>
      */
-    public static function grouped(array $groups, array $catalogue, string $items = 'fields', string $newEntries = self::APPEND, array $newGroup = ['id' => 'main'], string $id = 'id', string $hidden = 'hidden'): array
+    public static function grouped(array $groups, array $catalogue, string $items = 'fields', string $newEntries = self::APPEND, array $newGroup = ['id' => 'main'], string $id = 'id', string $hidden = 'hidden', array $layoutKeys = self::LAYOUT_KEYS): array
     {
         $known = self::index($catalogue, $id);
+        $allowed = [...$layoutKeys, $id, $hidden];
         $placed = [];
+        // A group that is not an object cannot hold entries: skipped.
+        $groups = array_values(array_filter($groups, 'is_array'));
 
         foreach ($groups as $g => $group) {
-            $kept = self::keep(array_values(array_filter((array) ($group[$items] ?? []), fn ($e) => is_array($e) && ! isset($placed[(string) ($e[$id] ?? '')]))), $known, $id);
+            $entries = is_array($group[$items] ?? null) ? $group[$items] : [];
+            $kept = self::keep(array_values(array_filter($entries, fn ($e) => is_array($e) && ! isset($placed[is_scalar($e[$id] ?? null) ? (string) $e[$id] : '']))), $known, $id, $allowed);
 
             foreach ($kept as $entry) {
                 $placed[(string) $entry[$id]] = true;
@@ -81,7 +95,6 @@ final class CatalogueMerge
             $groups[$g][$items] = $kept;
         }
 
-        $groups = array_values($groups);
         $anchors = [];
 
         foreach ($catalogue as $entry) {
@@ -142,9 +155,14 @@ final class CatalogueMerge
         return $known;
     }
 
-    /** Stored entries that still exist, once each, over their catalogue defaults. */
-    private static function keep(array $stored, array $known, string $id): array
+    /**
+     * Stored entries that still exist, once each: the catalogue entry with
+     * only the stored $allowed (layout) keys laid over it.
+     */
+    private static function keep(array $stored, array $known, string $id, array $allowed): array
     {
+        $allowed = array_flip($allowed);
+
         $result = [];
         $seen = [];
 
@@ -156,7 +174,7 @@ final class CatalogueMerge
             }
 
             $seen[$key] = true;
-            $result[] = [...self::withoutHints($known[$key]), ...$entry];
+            $result[] = [...self::withoutHints($known[$key]), ...array_intersect_key($entry, $allowed)];
         }
 
         return $result;

@@ -122,4 +122,37 @@ class CatalogueMergeTest extends TestCase
             ['id' => 'price', 'label' => 'Price', 'width' => 2],
         ]]], $created);
     }
+
+    public function test_catalogue_owned_attributes_always_come_from_the_catalogue(): void
+    {
+        $catalogue = [
+            ['id' => 'total', 'label' => 'Total', 'width' => 2, 'locked' => true, 'permission' => 'pos.sale.view_total', 'required' => true, 'module' => 'pos'],
+        ];
+        $stored = [['id' => 'total', 'width' => 4, 'label' => 'Grand total', 'hidden' => true, 'locked' => false, 'permission' => null, 'required' => false, 'module' => 'core', 'onclick' => 'x']];
+
+        $merged = CatalogueMerge::entries($stored, $catalogue);
+
+        // Layout keys are the layout's; locked, permission, required and module the catalogue's; unknown keys dropped.
+        $this->assertSame(
+            ['id' => 'total', 'label' => 'Grand total', 'width' => 4, 'locked' => true, 'permission' => 'pos.sale.view_total', 'required' => true, 'module' => 'pos', 'hidden' => true],
+            $merged[0],
+        );
+
+        // A kind declares its own layout keys; the same rule holds in groups.
+        $grouped = CatalogueMerge::grouped([['id' => 'main', 'fields' => [['id' => 'total', 'span' => 2, 'locked' => false]]]], $catalogue, layoutKeys: [...CatalogueMerge::LAYOUT_KEYS, 'span']);
+        $this->assertSame(2, $grouped[0]['fields'][0]['span']);
+        $this->assertTrue($grouped[0]['fields'][0]['locked']);
+    }
+
+    public function test_malformed_groups_and_items_are_skipped(): void
+    {
+        $merged = CatalogueMerge::grouped(
+            ['junk', 5, null, ['id' => 'main', 'fields' => 'not a list'], ['id' => 'more', 'fields' => [1, 'x', ['id' => ['nested']], ['id' => 'code']]]],
+            self::CATALOGUE,
+        );
+
+        $this->assertSame(['main', 'more'], array_column($merged, 'id'));
+        $this->assertSame(['name', 'price'], array_column($merged[0]['fields'], 'id'));
+        $this->assertSame(['code'], array_column($merged[1]['fields'], 'id'));
+    }
 }
