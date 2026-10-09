@@ -146,6 +146,32 @@ export function signOverride({ deviceSecret, serverNow, authorisedAt, ...fields 
   return { signature: toBase64Url(hmacSha256(secret, utf8(overrideMessage({ ...fields, authorisedAt: at, kid: deviceSecret.kid })))), authorisedAt: at };
 }
 
+/**
+ * AUTH-07: the sign-in attestation (`actor_proof`) the till makes when a
+ * staff member signs in (PIN checked offline, or online through
+ * pos/pin/verify), and attaches to every record that person makes:
+ *
+ *   signin:v1\n{device_id}\n{kid}\n{session_id}\n{user_id}\n{signed_in_at}
+ *
+ * signed with HMAC-SHA256 under the device's current secret (base64url,
+ * no padding), as overrides are. The server (ActorProofVerifier) checks
+ * the secret's validity window, that the person is active staff here,
+ * and that the proof names the record's actor.
+ */
+export function signInMessage({ deviceId, kid, sessionId, userId, signedInAt }) {
+  const lines = [deviceId, kid, sessionId, userId, signedInAt];
+  if (lines.some((line) => typeof line !== 'string' || line === '' || /[\r\n]/.test(line))) throw new Error('Sign-in fields must be single-line strings');
+  return ['signin:v1', ...lines].join('\n');
+}
+
+/** { session_id, user_id, signed_in_at, kid, signature } for the API, or null without a device secret. */
+export function signActorProof({ deviceSecret, deviceId, sessionId, userId, signedInAt }) {
+  if (!deviceSecret?.secret || !deviceSecret.kid) return null;
+  const secret = fromBase64Url(deviceSecret.secret);
+  const message = signInMessage({ deviceId, kid: deviceSecret.kid, sessionId, userId, signedInAt });
+  return { session_id: sessionId, user_id: userId, signed_in_at: signedInAt, kid: deviceSecret.kid, signature: toBase64Url(hmacSha256(secret, utf8(message))) };
+}
+
 /** Proofs for the two-step secret rotation (DeviceSecrets::rotate / activate). */
 export function rotationProof(secret, deviceId, nonce) {
   return toBase64Url(hmacSha256(fromBase64Url(secret), utf8(`rotate:v1\n${deviceId}\n${nonce}`)));

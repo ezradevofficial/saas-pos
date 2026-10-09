@@ -6,6 +6,9 @@ import { addColumns, createTable, schemaMigrations } from '@nozbe/watermelondb/S
  * `item_prices`) is a createTable step here, a table in schema.js and a
  * registration in src/sync/entities.js.
  */
+const data = { name: 'data', type: 'string' };
+const seenAt = { name: 'seen_at', type: 'number', isIndexed: true };
+
 export const SYNCED_TABLES = [
   'items',
   'item_categories',
@@ -51,6 +54,37 @@ export const migrations = schemaMigrations({
             { name: 'seen_at', type: 'number', isIndexed: true },
           ],
         }),
+      ],
+    },
+    {
+      // Selling (POS-01..POS-06): POS module entities and local sale records.
+      toVersion: 4,
+      steps: [
+        createTable({ name: 'pos_number_ranges', columns: [{ name: 'document_type', type: 'string', isIndexed: true }, data, seenAt] }),
+        createTable({ name: 'pos_open_shift', columns: [data, seenAt] }),
+        createTable({
+          name: 'pos_sales',
+          columns: [
+            { name: 'receipt_number', type: 'string', isIndexed: true },
+            { name: 'shift_id', type: 'string', isIndexed: true },
+            { name: 'status', type: 'string' },
+            { name: 'sold_at', type: 'number', isIndexed: true },
+            data,
+          ],
+        }),
+        createTable({
+          name: 'pos_records',
+          columns: [
+            { name: 'kind', type: 'string', isIndexed: true },
+            { name: 'sale_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'shift_id', type: 'string', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            data,
+          ],
+        }),
+        createTable({ name: 'pos_shifts', columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data] }),
+        createTable({ name: 'pos_held', columns: [{ name: 'created_at', type: 'number' }, data] }),
+        createTable({ name: 'pos_counters', columns: [data] }),
       ],
     },
   ],

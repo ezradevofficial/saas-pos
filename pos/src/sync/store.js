@@ -206,10 +206,16 @@ export function createSyncStore(database) {
      * `group` (a shift id) keeps a group's rows in order: a later row is not
      * sent while an earlier one of the group waits. The sequence number is
      * taken inside the write, so concurrent calls keep their order.
+     * `prepare` (async, inside the write) returns prepared operations that
+     * commit atomically with the outbox row (the local sale and its receipt
+     * counter): a crash never leaves a sale without its upload or the
+     * reverse.
      */
-    async enqueue(kind, recordId, payload, now = Date.now(), { group = null } = {}) {
+    async enqueue(kind, recordId, payload, now = Date.now(), { group = null, prepare = null } = {}) {
       let created;
       await database.write(async () => {
+        // The record's own local rows (a sale, its receipt counter) commit with its outbox row, or not at all.
+        const extra = prepare ? await prepare() : [];
         const last = await table('outbox').query(Q.sortBy('seq', Q.desc), Q.take(1)).fetch();
         const seq = (last[0]?._raw.seq ?? 0) + 1;
         created = await table('outbox').create((row) => {
@@ -224,6 +230,7 @@ export function createSyncStore(database) {
           row._setRaw('created_at', now);
           row._setRaw('updated_at', now);
         });
+        if (extra.length) await database.batch(...extra);
       });
       return toEntry(created);
     },

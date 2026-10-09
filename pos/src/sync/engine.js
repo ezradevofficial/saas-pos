@@ -449,12 +449,13 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
   /**
    * Persist a record for upload; never sends (the next push does).
    * `payload.id` must be the record id (the server answers by it).
-   * `group` (a shift id) keeps the group's rows in order.
+   * `group` (a shift id) keeps the group's rows in order. `prepare`
+   * returns local rows written in the same transaction (store.enqueue).
    */
-  async function enqueue(kind, recordId, payload, { group = null } = {}) {
+  async function enqueue(kind, recordId, payload, { group = null, prepare = null } = {}) {
     if (!pushKind(kind)) throw new Error(`Unknown push kind [${kind}]`);
     if (!payload || String(payload.id) !== String(recordId)) throw new Error('The payload id must be the record id');
-    const entry = await store.enqueue(kind, recordId, payload, now(), { group });
+    const entry = await store.enqueue(kind, recordId, payload, now(), { group, prepare });
     await refreshCounts();
     return entry;
   }

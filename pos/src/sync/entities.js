@@ -96,3 +96,7 @@ registerEntity('staff', {
   table: 'staff',
   columns: (row) => ({ name: row.name ?? '', locked: Boolean(row.locked) }),
 });
+
+// The POS module's entities (served only while the tenant has POS, RBAC-08).
+registerEntity('pos_number_ranges', { table: 'pos_number_ranges', columns: (row) => ({ document_type: row.document_type ?? '' }) });
+registerEntity('pos_open_shift', { table: 'pos_open_shift' });
