@@ -53,7 +53,8 @@ class SyncPerformanceTest extends TestCase
 
         $this->assertSame($small['queries'], $large['queries'], 'queries grow with rows');
         $this->assertSame(100, $large['items']);
-        $this->assertLessThanOrEqual(60, $large['queries']);
+        // A fixed cost per entity: phase 5 added custom_fields and templates (CF-03, TPL-01).
+        $this->assertLessThanOrEqual(70, $large['queries']);
 
         $counts = [];
         foreach ($tills as $till) {
@@ -62,7 +63,7 @@ class SyncPerformanceTest extends TestCase
 
         // Every device costs the same, give or take a token's first-use write.
         $this->assertLessThanOrEqual(1, max($counts) - min($counts), json_encode($counts));
-        $this->assertLessThanOrEqual(60, max($counts));
+        $this->assertLessThanOrEqual(70, max($counts));
     }
 
     /** N items with a unit and a barcode each, and N customers. */
