@@ -6,10 +6,13 @@ import { NETWORK } from './engine';
  * - on reconnect (NetInfo): a full run;
  * - while online, on a tick: uploads when anything waits or a retry is
  *   due, the catalogue (incremental entities) every `incrementalMs`, the
- *   small snapshots (staff, taxes, rates, settings) every `snapshotMs`.
+ *   small snapshots (staff, taxes, rates, settings) every `snapshotMs`;
+ * - as soon as a record is queued while online (after `pushDelayMs`), so a
+ *   sale reaches the server, and the fiscal authority, without waiting for
+ *   the tick.
  * Errors never escape: the engine's status says what happened.
  */
-export const DEFAULT_INTERVALS = { tickMs: 30 * 1000, incrementalMs: 5 * 60 * 1000, snapshotMs: 15 * 60 * 1000 };
+export const DEFAULT_INTERVALS = { tickMs: 30 * 1000, incrementalMs: 5 * 60 * 1000, snapshotMs: 15 * 60 * 1000, pushDelayMs: 300 };
 
 export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () => Date.now(), timers = globalThis, log = () => {} }) {
   const settings = { ...DEFAULT_INTERVALS, ...intervals };
@@ -18,6 +21,21 @@ export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () 
   let timer = null;
   let unsubscribe = null;
   let online = null;
+  let unwatch = null;
+  let pushTimer = null;
+  let lastPending = 0;
+
+  // A newly queued record: one upload pass shortly after, batched with anything queued meanwhile.
+  function onStatus(status) {
+    const pending = status?.pending ?? 0;
+    const grew = pending > lastPending;
+    lastPending = pending;
+    if (!grew || online === false || pushTimer) return;
+    pushTimer = timers.setTimeout(() => {
+      pushTimer = null;
+      if (online !== false) run({ pull: false });
+    }, settings.pushDelayMs);
+  }
 
   async function run(options) {
     try {
@@ -64,6 +82,8 @@ export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () 
         log('sync status could not be loaded', error);
       }
       if (netInfo) unsubscribe = netInfo.addEventListener(onNetwork);
+      lastPending = engine.getStatus()?.pending ?? 0;
+      unwatch = engine.subscribe?.(onStatus) ?? null;
       const first = run({ pull: 'all', force: true });
       timer = timers.setInterval(() => {
         tick();
@@ -75,6 +95,10 @@ export function createSyncScheduler({ engine, netInfo, intervals = {}, now = () 
       timer = null;
       unsubscribe?.();
       unsubscribe = null;
+      unwatch?.();
+      unwatch = null;
+      if (pushTimer) timers.clearTimeout(pushTimer);
+      pushTimer = null;
     },
     /** "Sync now" and "Try again": a full run, even after access was lost. */
     syncNow: () => run({ pull: 'all', force: true }),

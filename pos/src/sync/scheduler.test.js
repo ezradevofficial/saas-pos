@@ -15,6 +15,15 @@ function fakeEngine() {
       return {};
     },
     getStatus: () => status,
+    listeners: new Set(),
+    subscribe(listener) {
+      this.listeners.add(listener);
+      return () => this.listeners.delete(listener);
+    },
+    queue(pending) {
+      status = { ...status, pending };
+      this.listeners.forEach((listener) => listener(status));
+    },
     setNetwork(network) {
       this.network = network;
     },
@@ -99,5 +108,30 @@ describe('sync scheduler', () => {
     await expect(scheduler.start()).resolves.toMatchObject({ error: expect.any(Error) });
     engine.setPending(1);
     await expect(scheduler.tick()).resolves.toMatchObject({ error: expect.any(Error) });
+  });
+
+  it('uploads soon after a record is queued while online, not at the next tick (NFR-04, POS-10)', async () => {
+    const engine = fakeEngine();
+    const netInfo = fakeNetInfo();
+    const pending = [];
+    const timers = { setInterval: () => 1, clearInterval: () => {}, setTimeout: (fn) => (pending.push(fn), pending.length), clearTimeout: () => {} };
+    const scheduler = createSyncScheduler({ engine, netInfo, timers });
+    await scheduler.start();
+    netInfo.emit({ isConnected: true, isInternetReachable: true });
+    engine.calls.length = 0;
+
+    engine.queue(1);
+    engine.queue(2);
+    expect(pending).toHaveLength(1);
+    await pending.shift()();
+    expect(engine.calls).toEqual([{ pull: false }]);
+
+    engine.queue(1);
+    expect(pending).toHaveLength(0);
+
+    netInfo.emit({ isConnected: false });
+    engine.queue(2);
+    expect(pending).toHaveLength(0);
+    scheduler.stop();
   });
 });
