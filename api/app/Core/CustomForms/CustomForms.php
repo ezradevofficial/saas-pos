@@ -213,7 +213,7 @@ class CustomForms
                     $sum = $sum->plus(BigDecimal::of((string) $value));
                 }
 
-                $totals[$field->key] = (string) $sum->stripTrailingZeros();
+                $totals[$field->key] = (string) $sum->strippedOfTrailingZeros();
 
                 continue;
             }

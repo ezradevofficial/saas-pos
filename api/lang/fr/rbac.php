@@ -50,6 +50,8 @@ return [
                 'domain' => 'Domaines personnalisés et expéditeur des e-mails',
                 'layout' => 'Tableaux de bord, menus et vues de liste',
                 'custom_field' => 'Champs personnalisés',
+                'custom_form' => 'Formulaires personnalisés',
+                'custom_form_type' => 'Types de formulaires personnalisés',
             ],
             'pos' => [
                 'sale' => 'Ventes',

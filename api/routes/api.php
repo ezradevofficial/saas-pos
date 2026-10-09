@@ -32,6 +32,11 @@ use App\Core\Currency\Http\Controllers\TenantCurrencyController;
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\CustomFields\Http\Controllers\CustomFieldController;
 use App\Core\CustomFields\Http\Controllers\CustomFieldFileController;
+use App\Core\CustomForms\CustomFormRecord;
+use App\Core\CustomForms\CustomFormType;
+use App\Core\CustomForms\Http\Controllers\CustomFormFileController;
+use App\Core\CustomForms\Http\Controllers\CustomFormRecordController;
+use App\Core\CustomForms\Http\Controllers\CustomFormTypeController;
 use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
 use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
 use App\Core\Fiscal\Models\FiscalSubmission;
@@ -130,6 +135,8 @@ Route::model('fiscal_submission', FiscalSubmission::class);
 Route::model('config_document', ConfigDocument::class);
 Route::model('tenant_domain', TenantDomain::class);
 Route::model('custom_field', CustomFieldDefinition::class);
+Route::model('custom_form_type', CustomFormType::class);
+Route::model('custom_form_record', CustomFormRecord::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -181,6 +188,7 @@ Route::get('branding/assets/{path}', BrandAssetFileController::class)->where('pa
 // CF-01: a file field's file, behind a temporary signed URL bound to one user (CustomFieldFiles::url).
 Route::get('custom-field-files/{path}', [CustomFieldFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_fields.file');
 
+Route::get('custom-form-files/{path}', [CustomFormFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_forms.file');
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
 // APR-08: an emailed approve/reject link; the single-use token is the credential.
@@ -597,4 +605,22 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('custom-fields/{custom_field}/archive', [CustomFieldController::class, 'archive']);
     Route::post('custom-fields/{custom_field}/restore', [CustomFieldController::class, 'restore']);
     Route::post('custom-field-files', [CustomFieldFileController::class, 'store'])->middleware('throttle:custom-field-files');
+
+    // CF-04, CF-05: custom form types (core.custom_form_type.manage) and their records
+    // (core.custom_form.*, at the record's company, branch or location; docs/adr/012).
+    Route::get('custom-form-types', [CustomFormTypeController::class, 'index']);
+    Route::post('custom-form-types', [CustomFormTypeController::class, 'store']);
+    Route::get('custom-form-types/{custom_form_type}', [CustomFormTypeController::class, 'show']);
+    Route::patch('custom-form-types/{custom_form_type}', [CustomFormTypeController::class, 'update']);
+    Route::post('custom-form-types/{custom_form_type}/archive', [CustomFormTypeController::class, 'archive']);
+    Route::post('custom-form-types/{custom_form_type}/restore', [CustomFormTypeController::class, 'restore']);
+    Route::get('custom-form-types/{custom_form_type}/records', [CustomFormRecordController::class, 'index']);
+    Route::post('custom-form-types/{custom_form_type}/records', [CustomFormRecordController::class, 'store']);
+    Route::post('custom-form-types/{custom_form_type}/attachments', [CustomFormFileController::class, 'store'])->middleware('throttle:custom-form-files');
+    Route::get('custom-form-records/{custom_form_record}', [CustomFormRecordController::class, 'show']);
+    Route::patch('custom-form-records/{custom_form_record}', [CustomFormRecordController::class, 'update']);
+    Route::post('custom-form-records/{custom_form_record}/submit', [CustomFormRecordController::class, 'submit']);
+    Route::post('custom-form-records/{custom_form_record}/cancel', [CustomFormRecordController::class, 'cancel']);
+    Route::post('custom-form-records/{custom_form_record}/archive', [CustomFormRecordController::class, 'archive']);
+    Route::post('custom-form-records/{custom_form_record}/restore', [CustomFormRecordController::class, 'restore']);
 });

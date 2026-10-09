@@ -5,10 +5,10 @@ namespace App\Core\CustomForms\Http\Resources;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\CustomFields\CustomFieldPresenter;
 use App\Core\CustomForms\CustomFormAccess;
+use App\Core\CustomForms\CustomFormAttachment;
 use App\Core\CustomForms\CustomFormFiles;
 use App\Core\CustomForms\CustomFormLine;
 use App\Core\CustomForms\CustomFormRecord;
-use App\Core\CustomForms\CustomFormAttachment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -47,7 +47,7 @@ class CustomFormRecordResource extends JsonResource
             'branch' => $this->branch_id === null ? null : ['id' => $this->branch_id, 'name' => $this->branch?->name],
             'location' => $this->location_id === null ? null : ['id' => $this->location_id, 'name' => $this->location?->name],
             'custom' => (object) $presenter->present($user, $type->entity(), $this->custom),
-            'totals' => (object) ($this->totals ?? []),
+            'totals' => (object) array_map(fn ($total) => is_array($total) ? ['amount_minor' => (string) $total['amount_minor'], 'currency' => (string) $total['currency']] : $total, $this->totals ?? []),
             'amount' => $this->amount()?->jsonSerialize(),
             'created_by' => ['id' => $this->created_by, 'name' => $this->creator?->name],
             'created_at' => $this->created_at?->toIso8601ZuluString(),
