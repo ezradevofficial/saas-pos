@@ -3,7 +3,8 @@ import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { useCompanies } from './companySelection'
-import { applyNavigationLayout, homeOf, NAV_GROUPS, visibleGroups } from './navigation'
+import { useCustomFormTypes } from '@/lib/customForms'
+import { applyNavigationLayout, homeOf, NAV_GROUPS, visibleGroups, withFormsGroup } from './navigation'
 
 export const NAVIGATION_KEY = ['config', 'navigation', 'resolved']
 
@@ -33,6 +34,8 @@ export function useNavigation() {
   const permissions = usePermissions()
   const { companies, ready } = useCompanies()
   const { layout, isLoading } = useNavigationLayout()
-  const groups = permissions.isLoading ? [] : visibleGroups(applyNavigationLayout(NAV_GROUPS, layout), { ...permissions, hasCompany: ready && companies.length > 0 })
+  // CF-04: the user's custom forms, as a group of their own.
+  const { types } = useCustomFormTypes()
+  const groups = permissions.isLoading ? [] : withFormsGroup(visibleGroups(applyNavigationLayout(NAV_GROUPS, layout), { ...permissions, hasCompany: ready && companies.length > 0 }), types)
   return { groups, home: homeOf(layout, groups), isLoading: isLoading || permissions.isLoading }
 }

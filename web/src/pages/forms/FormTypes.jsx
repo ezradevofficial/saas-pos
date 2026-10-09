@@ -83,7 +83,7 @@ function TypeDialog({ type, onClose }) {
             set({ key: event.target.value })
           }}
         />
-        <TextField label={t('customForms.types.description')} value={values.description} maxLength={255} error={errors.fields.description} onChange={(event) => set({ description: event.target.value })} />
+        <TextField label={t('customForms.types.descriptionLabel')} value={values.description} maxLength={255} error={errors.fields.description} onChange={(event) => set({ description: event.target.value })} />
         <Switch label={t('customForms.types.workflow')} checked={values.workflow} onChange={(checked) => set({ workflow: checked })} />
         {errors.fields.workflow ? <p className="text-caption text-danger">{errors.fields.workflow}</p> : null}
         <Switch label={t('customForms.types.hasLines')} checked={values.has_lines} onChange={(checked) => set({ has_lines: checked })} />

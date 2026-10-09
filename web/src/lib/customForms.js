@@ -2,6 +2,7 @@
 // menu and Settings → Forms), records, and line totals. Names, labels and
 // option texts are the tenant's own words, typed once and shown as typed.
 import { useQuery } from '@tanstack/react-query'
+import { useParams } from 'react-router'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { toApiValue, toFormValue } from './customFields'
@@ -21,6 +22,13 @@ export function useCustomFormTypes({ status = 'active', enabled = true } = {}) {
     retry: false,
   })
   return { ...query, types: Array.isArray(query.data?.data) ? query.data.data : [] }
+}
+
+/** The type of `/forms/:formKey`, from the types the user may use. */
+export function useFormType() {
+  const { formKey } = useParams()
+  const { types, isPending, error } = useCustomFormTypes()
+  return { formKey, type: types.find((entry) => entry.key === formKey) ?? null, isPending, error }
 }
 
 /** The line fields in the order the type names them (`line_fields`), then the rest. */

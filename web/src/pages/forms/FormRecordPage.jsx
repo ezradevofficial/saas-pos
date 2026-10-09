@@ -11,13 +11,13 @@ import { Alert, Button, Card, Icon, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanySelection } from '@/layouts/companySelection'
 import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
-import { linesBody, newLine, orderedLineFields } from '@/lib/customForms'
+import { linesBody, newLine, orderedLineFields, useFormType } from '@/lib/customForms'
 import { formatBytes } from '@/lib/format'
 import { fallbackLayout, useFormLayout } from '@/lib/formLayout'
 import { useLocale } from '@/lib/useLocale'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { useScopes } from '@/pages/settings/users/assignments'
-import { RecordStatus, useFormType } from './FormRecords'
+import { RecordStatus } from './FormRecords'
 
 /** CF-04: files attached to a record: upload (before saving), the list with links, and remove (before saving). */
 function Attachments({ type, files, onChange, readOnly, label, help, error }) {

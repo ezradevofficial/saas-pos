@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { customFiltersActive, useCustomListFields } from '@/components/customFieldList'
 import { Alert, Button, ListView, Money, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
-import { RECORD_STATUSES, STATUS_TONES, useCustomFormTypes } from '@/lib/customForms'
+import { RECORD_STATUSES, STATUS_TONES, useFormType } from '@/lib/customForms'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
@@ -13,13 +13,6 @@ import { useCompanyOfRecord } from '@/lib/useTimeZone'
 export function RecordStatus({ status }) {
   const { t } = useTranslation()
   return <StatusBadge tone={STATUS_TONES[status] ?? 'neutral'}>{t(`customForms.statuses.${status}`, { defaultValue: status })}</StatusBadge>
-}
-
-/** The type of `/forms/:formKey`, from the types the user may use. */
-export function useFormType() {
-  const { formKey } = useParams()
-  const { types, isPending, error } = useCustomFormTypes()
-  return { formKey, type: types.find((entry) => entry.key === formKey) ?? null, isPending, error }
 }
 
 function Records({ type }) {

@@ -1,7 +1,16 @@
+import { QueryClient } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
+import { AppProviders } from '@/App'
+import { api } from '@/api/client'
+import { mockApi, resetSession, signedIn } from '@/test/renderApp'
 import { linesBody, lineTotals, newLine, orderedLineFields } from '@/lib/customForms'
 import { LineTable } from './LineTable'
+
+vi.mock('@/api/client', async (importOriginal) => ({
+  ...(await importOriginal()),
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), download: vi.fn(), upload: vi.fn() },
+}))
 
 const base = { help: null, default: null, required: false, unique: false, min: null, max: null, pattern: null, options: [], lookup_target: null, formula_type: null, readonly: false }
 const FIELDS = [
@@ -37,7 +46,14 @@ describe('Line totals (CF-05)', () => {
 
 describe('LineTable (CF-05)', () => {
   it('adds and removes lines and shows the totals', () => {
-    render(<Harness initial={[line('Fuel', '1.5', '250000')]} />)
+    resetSession()
+    signedIn()
+    mockApi(api)
+    render(
+      <AppProviders queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <Harness initial={[line('Fuel', '1.5', '250000')]} />
+      </AppProviders>,
+    )
     expect(document.querySelector('[data-total="amount"]')).toHaveTextContent('2,500.00')
     fireEvent.click(screen.getByRole('button', { name: 'Add line' }))
     fireEvent.change(screen.getByLabelText('Quantity, line 2'), { target: { value: '2' } })

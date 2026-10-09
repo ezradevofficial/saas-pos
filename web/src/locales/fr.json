@@ -339,7 +339,8 @@
       "contacts": "Contacts",
       "automation": "Automatisation",
       "workspace": "Espace de travail",
-      "pos": "Point de vente"
+      "pos": "Point de vente",
+      "forms": "Formulaires"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -380,7 +381,8 @@
     "dashboards": "Tableaux de bord",
     "navigationEditor": "Menus",
     "documentTemplates": "Modèles de documents",
-    "formLayouts": "Mises en page des formulaires"
+    "formLayouts": "Mises en page des formulaires",
+    "formTypes": "Formulaires"
   },
   "shell": {
     "account": "Menu du compte",
@@ -4800,5 +4802,127 @@
     "hiddenRoles": "Masquer pour ces rôles",
     "hiddenRolesHelp": "Une personne qui n’a que ces rôles ne verra pas le champ sur ce formulaire.",
     "applyField": "Appliquer"
+  },
+  "customForms": {
+    "statuses": {
+      "draft": "Brouillon",
+      "pending": "En attente d’approbation",
+      "submitted": "Envoyé",
+      "approved": "Approuvé",
+      "rejected": "Refusé",
+      "cancelled": "Annulé",
+      "archived": "Archivé",
+      "all": "Tous, archivés compris"
+    },
+    "sections": {
+      "details": "Détails"
+    },
+    "columns": {
+      "number": "Numéro",
+      "status": "Statut",
+      "place": "Lieu",
+      "amount": "Montant",
+      "createdBy": "Créé par",
+      "createdAt": "Créé le"
+    },
+    "place": {
+      "label": "Lieu",
+      "company": "Société",
+      "chooseCompany": "Choisissez une société",
+      "branch": "Agence",
+      "noBranch": "Toute la société",
+      "location": "Emplacement",
+      "noLocation": "Toute l’agence"
+    },
+    "lines": {
+      "title": "Lignes",
+      "noFields": "Ce formulaire n’a pas encore de champs de ligne. Un administrateur les ajoute dans Paramètres, Formulaires.",
+      "empty": "Aucune ligne. Ajoutez la première.",
+      "add": "Ajouter une ligne",
+      "remove": "Retirer la ligne {{n}}",
+      "fieldOfLine": "{{field}}, ligne {{n}}",
+      "totals": "Totaux",
+      "total": "Total : {{field}}",
+      "mixedCurrencies": "Utilisez une seule devise sur toutes les lignes"
+    },
+    "attachments": {
+      "title": "Pièces jointes",
+      "none": "Aucun fichier joint.",
+      "add": "Joindre un fichier",
+      "choose": "Choisissez un fichier à joindre",
+      "remove": "Retirer {{name}}"
+    },
+    "flow": {
+      "title": "Approbation",
+      "done": "L’approbation de ce formulaire est terminée : {{outcome}}.",
+      "holders": "En attente de {{names}}",
+      "nobody": "personne pour l’instant",
+      "openApproval": "Ouvrir l’approbation",
+      "history": "Voir tout l’historique"
+    },
+    "records": {
+      "new": "Nouveau formulaire",
+      "newTitle": "Nouveau : {{name}}",
+      "newText": "Remplissez le formulaire, puis enregistrez-le comme brouillon ou envoyez-le.",
+      "back": "Retour à {{name}}",
+      "search": "Rechercher par numéro",
+      "allOpen": "Tous sauf archivés",
+      "empty": "Aucun formulaire pour l’instant.",
+      "emptyFiltered": "Aucun formulaire ne correspond. Modifiez la recherche ou les filtres.",
+      "notFoundTitle": "Formulaire introuvable",
+      "notFound": "Ce formulaire n’existe pas ou vous n’y avez pas accès. Demandez à un administrateur.",
+      "loadFailed": "Les formulaires n’ont pas pu être chargés. Réessayez.",
+      "home": "Retour au tableau de bord",
+      "sendForApproval": "Envoyer pour approbation",
+      "send": "Envoyer",
+      "saveDraft": "Enregistrer le brouillon",
+      "cancel": "Annuler ce formulaire",
+      "cancelReason": "Pourquoi est-il annulé ?",
+      "keep": "Le garder",
+      "confirmCancel": "Annuler le formulaire",
+      "archive": "Archiver",
+      "restore": "Restaurer"
+    },
+    "types": {
+      "title": "Formulaires",
+      "description": "Créez les formulaires propres à votre organisation, comme une demande de petite caisse : leurs champs, lignes, pièces jointes, numérotation et approbation.",
+      "new": "Nouveau formulaire",
+      "newTitle": "Nouveau formulaire",
+      "editTitle": "Modifier {{name}}",
+      "create": "Créer le formulaire",
+      "empty": "Aucun formulaire ici. Créez le premier.",
+      "statuses": {
+        "active": "Actifs",
+        "archived": "Archivés",
+        "all": "Tous"
+      },
+      "name": "Nom",
+      "nameHelp": "Tel que les gens le verront, par exemple « Demande de petite caisse ».",
+      "key": "Clé",
+      "keyHelp": "Utilisée dans les numéros et les réglages. Minuscules, chiffres et tirets bas. Elle ne peut plus être changée ensuite.",
+      "keyFixed": "La clé ne peut pas être changée.",
+      "descriptionLabel": "Présentation",
+      "workflow": "Envoyer chaque formulaire pour approbation",
+      "hasLines": "Ajouter un tableau de lignes",
+      "attachments": "Autoriser les fichiers joints",
+      "lineColumns": "Colonnes des lignes, dans l’ordre",
+      "lineColumnsHelp": "Laissez vide pour afficher tous les champs de ligne dans leur ordre.",
+      "roles": "Rôles qui utilisent ce formulaire",
+      "rolesHelp": "Laissez vide pour toutes les personnes autorisées à utiliser les formulaires. Les propriétaires le peuvent toujours.",
+      "withWorkflow": "Avec approbation",
+      "withoutWorkflow": "Sans approbation",
+      "withLines": "Lignes du formulaire",
+      "withAttachments": "Pièces jointes",
+      "archived": "Archivé",
+      "edit": "Modifier",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "headerFields": "Champs",
+      "lineFields": "Champs de ligne",
+      "layout": "Mise en page",
+      "numbering": "Numérotation",
+      "flow": "Circuit d’approbation",
+      "open": "Ouvrir les formulaires"
+    }
   }
 }
