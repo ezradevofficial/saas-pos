@@ -5,7 +5,9 @@ namespace Modules\POS\Http\Controllers;
 use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Modules\POS\Fiscal\SaleFiscalStatus;
 use Modules\POS\Http\Lists\SaleList;
 use Modules\POS\Http\Requests\ListSalesRequest;
 use Modules\POS\Http\Requests\ReviewSaleRequest;
@@ -61,6 +63,12 @@ class SaleController
         }
 
         return SaleResource::make($posSale->load(SaleList::RELATIONS));
+    }
+
+    /** POS-10: the sale's fiscal state in the back office (SaleFiscalStatus), for a viewer of the sale. */
+    public function fiscal(ShowPosRecordRequest $request, Sale $posSale, SaleFiscalStatus $status): JsonResponse
+    {
+        return response()->json(['data' => $status->of($posSale)]);
     }
 
     public function show(ShowPosRecordRequest $request, Sale $posSale): SaleResource

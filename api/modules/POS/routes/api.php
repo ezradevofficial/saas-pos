@@ -48,6 +48,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:pos'])->group(function () {
     Route::get('pos/sales', [SaleController::class, 'index']);
     Route::get('pos/sales/{pos_sale}', [SaleController::class, 'show']);
+    // POS-10: the tax authority's answer for a sale, its refunds and void (the till's route is pos/sales/{id}/fiscal).
+    Route::get('pos/sales/{pos_sale}/fiscal-status', [SaleController::class, 'fiscal']);
     Route::get('pos/shifts', [ShiftController::class, 'index']);
     Route::get('pos/shifts/{pos_shift}', [ShiftController::class, 'show']);
 
