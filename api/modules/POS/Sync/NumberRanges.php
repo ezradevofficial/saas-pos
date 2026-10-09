@@ -3,6 +3,8 @@
 namespace Modules\POS\Sync;
 
 use App\Core\Audit\Auditor;
+use App\Core\Numbering\NumberContext;
+use App\Core\Numbering\NumberFormat;
 use App\Core\Numbering\Numbering;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -50,44 +52,46 @@ class NumberRanges
             $period = $this->numbering->period($format, $context);
 
             $ranges = $this->active($place, $type);
+            // The device reports the next number of the period it sells in now; a next period's
+            // range reserved ahead (below) starts again at 1 and must not be marked used by it.
+            $current = $ranges->filter(fn (NumberRange $r) => $r->period === $period);
 
             // Only a number inside (or just past) one of the device's own ranges says anything.
-            $own = $deviceNext !== null && $ranges->contains(fn (NumberRange $r) => $deviceNext >= $r->range_from && $deviceNext <= $r->range_to + 1);
+            $own = $deviceNext !== null && $current->contains(fn (NumberRange $r) => $deviceNext >= $r->range_from && $deviceNext <= $r->range_to + 1);
 
             foreach ($ranges as $range) {
-                if ($range->period !== $period) {
+                if (self::isPast($range->period, $period)) {
                     $this->retireRange($range, 'period_ended');
 
                     continue;
                 }
 
-                if ($own) {
+                if ($own && $range->period === $period) {
                     $this->markUsedBelow($range, $deviceNext);
                 }
             }
 
             $ranges = $this->active($place, $type);
-            $remaining = $ranges->sum(fn (NumberRange $range) => $range->remaining());
+            $remaining = $ranges->filter(fn (NumberRange $r) => $r->period === $period)->sum(fn (NumberRange $range) => $range->remaining());
 
             if ($remaining < (int) config('pos.ranges.threshold')) {
-                $block = $this->numbering->reserve($type, $context, (int) config('pos.ranges.size'));
-
-                $range = NumberRange::create([
-                    'device_id' => $place->device->id,
-                    'document_type' => $type,
-                    'number_sequence_id' => $block->sequenceId,
-                    'period' => $block->period,
-                    'pattern' => $block->pattern,
-                    'range_from' => $block->from,
-                    'range_to' => $block->to,
-                    'next_value' => $block->from,
-                    'status' => NumberRange::ACTIVE,
-                    'allocated_at' => now(),
-                ]);
-                $this->auditor->record('pos.number_range.allocate', $range, null, $range->only(['device_id', 'document_type', 'period', 'pattern', 'range_from', 'range_to']));
-
-                $ranges = $this->active($place, $type);
+                $this->allocate($place, $type, $context);
             }
+
+            // NUM-02: near the end of a yearly format's year, the till also holds next year's range,
+            // so a till offline over New Year keeps numbering (it draws from it once its local year changes).
+            if ($format->reset === NumberFormat::RESET_YEARLY) {
+                $local = $context->local();
+                $nextYear = $local->addYear()->startOfYear();
+                $next = (string) $nextYear->year;
+
+                if ($local->diffInDays($nextYear, false) <= (int) config('pos.ranges.next_period_days', 14)
+                    && ! $ranges->contains(fn (NumberRange $r) => $r->period === $next)) {
+                    $this->allocate($place, $type, $place->numberContext($nextYear->utc()));
+                }
+            }
+
+            $ranges = $this->active($place, $type);
 
             return $ranges;
         });
@@ -147,12 +151,41 @@ class NumberRanges
     }
 
     /** @return Collection<int, NumberRange> */
+    /** Reserves a block of the type's counter for $context's period and gives it to the device (audited). */
+    private function allocate(DevicePlace $place, string $type, NumberContext $context): NumberRange
+    {
+        $block = $this->numbering->reserve($type, $context, (int) config('pos.ranges.size'));
+
+        $range = NumberRange::create([
+            'device_id' => $place->device->id,
+            'document_type' => $type,
+            'number_sequence_id' => $block->sequenceId,
+            'period' => $block->period,
+            'pattern' => $block->pattern,
+            'range_from' => $block->from,
+            'range_to' => $block->to,
+            'next_value' => $block->from,
+            'status' => NumberRange::ACTIVE,
+            'allocated_at' => now(),
+        ]);
+        $this->auditor->record('pos.number_range.allocate', $range, null, $range->only(['device_id', 'document_type', 'period', 'pattern', 'range_from', 'range_to']));
+
+        return $range;
+    }
+
+    /** A yearly period before $current (a period that never resets is never past). */
+    private static function isPast(string $period, string $current): bool
+    {
+        return ctype_digit($period) && ctype_digit($current) ? (int) $period < (int) $current : $period !== $current;
+    }
+
     private function active(DevicePlace $place, string $type): Collection
     {
         return NumberRange::query()
             ->where('device_id', $place->device->id)
             ->where('document_type', $type)
             ->where('status', NumberRange::ACTIVE)
+            ->orderBy('period')
             ->orderBy('range_from')
             ->lockForUpdate()
             ->get();

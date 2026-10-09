@@ -71,8 +71,7 @@ describe('App', () => {
 
     await typePin('274915');
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByText('Ready to sell')).toBeOnTheScreen();
-    expect(screen.getByText('Signed in as Amina Otieno')).toBeOnTheScreen();
+    expect(await screen.findByText('Amina Otieno, count the cash in the drawer before you start.')).toBeOnTheScreen();
     expect(screen.getByText('Westlands shop')).toBeOnTheScreen();
 
     // Fast user switching.
@@ -80,7 +79,7 @@ describe('App', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Baraka Mwangi' }));
     await typePin('508163');
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByText('Signed in as Baraka Mwangi')).toBeOnTheScreen();
+    expect(await screen.findByText('Baraka Mwangi, count the cash in the drawer before you start.')).toBeOnTheScreen();
 
     // The wrong attempt was reported for the server's count (AUTH-06).
     await waitFor(() => expect(server.state.pinReports).toEqual([expect.objectContaining({ user_id: 'u1', failed_attempts: 1, locked: false })]));

@@ -6,12 +6,17 @@ import { StatusBadge } from './StatusBadge'
 
 const DEFAULT_LOW_STOCK = 5
 
-export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, onSelect, className }) {
+/**
+ * A product button on the POS grid; price in minor units. `unavailable`
+ * (a short reason, e.g. "Rate needed") disables the tile and says why,
+ * as on the POS app.
+ */
+export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, unavailable, onSelect, className }) {
   const { t } = useTranslation()
   const lang = useLocale()
-  const out = stock === 0
-  const priceText = `${currency} ${formatAmount(price, currency, lang)}`
-  const label = [name, priceText, out ? t('ds.posTile.outOfStock') : null].filter(Boolean).join(', ')
+  const out = stock === 0 || Boolean(unavailable)
+  const priceText = price == null ? '' : `${currency} ${formatAmount(price, currency, lang)}`
+  const label = [name, priceText, unavailable || (out ? t('ds.posTile.outOfStock') : null)].filter(Boolean).join(', ')
 
   return (
     <button
@@ -36,7 +41,9 @@ export function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_S
       </span>
       <span className="flex items-center justify-between gap-2">
         <span className="text-label font-normal text-ink-muted tabular-nums">{priceText}</span>
-        {out ? (
+        {unavailable ? (
+          <StatusBadge tone="warning">{unavailable}</StatusBadge>
+        ) : out ? (
           <StatusBadge tone="danger">{t('ds.posTile.out')}</StatusBadge>
         ) : stock != null && stock <= lowStock ? (
           <StatusBadge tone="warning">{t('ds.posTile.left', { count: stock })}</StatusBadge>

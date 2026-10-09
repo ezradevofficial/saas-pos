@@ -4,6 +4,8 @@ namespace Modules\POS\Tests\Concerns;
 
 use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\TenantCurrencies;
+use App\Core\Identity\Pin\ActorProofVerifier;
+use App\Core\Identity\Pin\TillSignIn;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Parties\Party;
@@ -15,8 +17,10 @@ use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Modules\POS\Sync\OverrideVerifier;
@@ -28,7 +32,8 @@ use Tests\Concerns\BuildsOrganisation;
  * USD active too), location A coded `L01` with a paired till, an item in a
  * tax category whose code has a test rate of 12.5 % (a synthetic figure,
  * never a real rate), a tax-inclusive KES price list, cash KES and USD and
- * an M-Pesa method.
+ * an M-Pesa method. Each till gets a device secret, so tests sign real
+ * AUTH-07 sign-in attestations (actorProof()).
  */
 trait BuildsPos
 {
@@ -37,6 +42,9 @@ trait BuildsPos
     protected Device $till;
 
     protected string $tillToken;
+
+    /** @var array<string, array{kid: string, secret: string}> each paired till's device secret, by device id */
+    protected array $tillSecrets = [];
 
     protected Uom $each;
 
@@ -54,7 +62,7 @@ trait BuildsPos
     protected function setUpPos(): void
     {
         $this->setUpOrganisation();
-        // AUTH-07, AUTH-08: proofs the tests control (FakeOverrides).
+        // AUTH-08: override proofs the tests control (FakeOverrides); AUTH-07 attestations are real.
         app()->instance(OverrideVerifier::class, new FakeOverrides);
 
         $this->inTenant(function () {
@@ -89,6 +97,7 @@ trait BuildsPos
         return $this->inTenant(function () use ($location, $name) {
             $device = Device::create(['location_id' => $location->id, 'name' => $name]);
             $device->forceFill(['status' => Device::STATUS_ACTIVE, 'paired_at' => now()])->save();
+            $this->tillSecrets[$device->id] = app(DeviceSecrets::class)->issueFirst($device);
 
             return [$device, $device->issueToken($name, null, null)->plainTextToken];
         });
@@ -165,7 +174,7 @@ trait BuildsPos
             'id' => $this->id(),
             'shift_id' => $shiftId,
             'cashier_id' => $this->owner->id,
-            'actor_proof' => FakeOverrides::ATTESTED,
+            'actor_proof' => $this->actorProof($overrides['cashier_id'] ?? $this->owner->id),
             'customer_id' => null,
             'receipt_seq' => $seq,
             'receipt_number' => sprintf('R-L01-%06d', $seq),
@@ -207,6 +216,37 @@ trait BuildsPos
     protected function override(string $managerId, bool $proven = true): array
     {
         return ['manager_user_id' => $managerId, 'signature' => $proven ? FakeOverrides::VALID : 'unverifiable'];
+    }
+
+    /**
+     * AUTH-07: a sign-in attestation for $userId signed with $device's
+     * secret (the main till by default), as the POS app signs it. $online
+     * also records the session as checked by POST pos/pin/verify. $fields
+     * replace signed fields before signing; $tamper after.
+     *
+     * @return array{session_id: string, user_id: string, signed_in_at: string, kid: string, signature: string}
+     */
+    protected function actorProof(string $userId, ?Device $device = null, bool $online = false, array $fields = [], array $tamper = []): array
+    {
+        $device ??= $this->till;
+        $secret = $this->tillSecrets[$device->id];
+        $proof = array_replace([
+            'session_id' => (string) Str::uuid7(),
+            'user_id' => $userId,
+            // Signed in before the records it proves (sales are dated 5 minutes back), inside the key's skew window.
+            'signed_in_at' => CarbonImmutable::now()->subMinutes(8)->format('Y-m-d\TH:i:s.v\Z'),
+            'kid' => $secret['kid'],
+        ], $fields);
+        $message = ActorProofVerifier::message($device->id, $proof['kid'], $proof['session_id'], $proof['user_id'], $proof['signed_in_at']);
+        $proof['signature'] = DeviceSecrets::encode(hash_hmac('sha256', $message, DeviceSecrets::decode($secret['secret']), true));
+
+        if ($online) {
+            $this->inTenant(fn () => TillSignIn::create([
+                'device_id' => $device->id, 'user_id' => $userId, 'session_id' => $proof['session_id'], 'signed_in_at' => $proof['signed_in_at'], 'verified_at' => now(),
+            ]));
+        }
+
+        return array_replace($proof, $tamper);
     }
 
     protected function setCashRounding(string $code, int $step): void

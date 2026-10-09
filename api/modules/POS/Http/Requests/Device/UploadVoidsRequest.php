@@ -18,7 +18,7 @@ class UploadVoidsRequest extends FormRequest
             'voids.*.voided_by_id' => ['required', 'uuid'],
             'voids.*.voided_at' => ['required', 'date'],
             'voids.*.reason' => ['required', 'string', 'max:500'],
-            'voids.*.actor_proof' => $this->actorProof(),
+            ...$this->actorProof('voids.*.actor_proof'),
             ...$this->overrideRules('voids.*.override'),
         ];
     }

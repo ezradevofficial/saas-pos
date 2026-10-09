@@ -1,4 +1,4 @@
-import { CURRENCY_DECIMALS, formatAmount } from './money';
+import { CURRENCY_DECIMALS, formatAmount, setCurrencyDecimals } from './money';
 
 // Same cases as web/src/lib/money.test.js: the POS copy must format identically.
 // Money is stored in minor units (CLAUDE.md, Data conventions); CDF has no decimals.
@@ -37,5 +37,12 @@ describe('formatAmount', () => {
   it('treats invalid input as zero', () => {
     expect(formatAmount(undefined, 'KES')).toBe('0.00');
     expect(formatAmount('abc', 'CDF')).toBe('0');
+  });
+
+  it('formats with the tenant’s decimals once known (CUR-01)', () => {
+    setCurrencyDecimals([{ code: 'XOF', decimals: 0 }, { code: 'KES', decimals: 2 }]);
+    expect(formatAmount(1500, 'XOF')).toBe('1,500');
+    setCurrencyDecimals([]);
+    expect(formatAmount(1500, 'XOF')).toBe('15.00');
   });
 });

@@ -42,7 +42,7 @@ class StaffDirectory
     /**
      * By user id, ordered by name.
      *
-     * @return array<string, array{id: string, name: string, role_ids: list<string>, permissions: list<string>, offline: bool}>
+     * @return array<string, array{id: string, name: string, role_ids: list<string>, permissions: list<string>, offline: bool, owner: bool}>
      */
     public function at(DeviceScope $scope, ?string $onlyUserId = null): array
     {
@@ -87,8 +87,10 @@ class StaffDirectory
 
         foreach ($assignments as $assignment) {
             $granted = $permissions->get($assignment->role_id, []);
-            $staff[$assignment->user_id] ??= ['id' => $assignment->user_id, 'name' => $assignment->name, 'role_ids' => [], 'permissions' => [], 'offline' => false, 'signs_in' => false];
+            $staff[$assignment->user_id] ??= ['id' => $assignment->user_id, 'name' => $assignment->name, 'role_ids' => [], 'permissions' => [], 'offline' => false, 'signs_in' => false, 'owner' => false];
             $staff[$assignment->user_id]['role_ids'][] = $assignment->role_id;
+            // RBAC-06: an Owner role covering the location has no limits (as POS Authority::isOwner).
+            $staff[$assignment->user_id]['owner'] = $staff[$assignment->user_id]['owner'] || (bool) $assignment->is_owner;
             array_push($staff[$assignment->user_id]['permissions'], ...$granted);
 
             if (in_array($signIn, $granted, true)) {

@@ -109,10 +109,26 @@ trait UploadRules
         ];
     }
 
-    /** AUTH-07: reserved for the till's signed attestation of who was signed in. */
-    protected function actorProof(): array
+    /**
+     * AUTH-07: the till's signed attestation of who was signed in
+     * (core's ActorProofVerifier), `{session_id, user_id, signed_in_at,
+     * kid, signature}`, or null. A malformed shape is refused here; one
+     * that doesn't verify leaves the record unproven.
+     *
+     * @return array<string, list<mixed>>
+     */
+    protected function actorProof(string $prefix): array
     {
-        return ['nullable', 'string', 'max:2000'];
+        $field = fn (): array => ["required_with:{$prefix}", 'string', 'not_regex:/[\r\n]/'];
+
+        return [
+            $prefix => ['nullable', 'array:session_id,user_id,signed_in_at,kid,signature'],
+            "{$prefix}.session_id" => [...$field(), 'uuid'],
+            "{$prefix}.user_id" => [...$field(), 'uuid'],
+            "{$prefix}.signed_in_at" => [...$field(), 'max:40', 'regex:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}(:?\d{2})?)$/'],
+            "{$prefix}.kid" => [...$field(), 'max:100'],
+            "{$prefix}.signature" => [...$field(), 'max:100', 'regex:/^[A-Za-z0-9_-]+$/'],
+        ];
     }
 
     /** The device signed in (EnsureDeviceToken has checked the token). */

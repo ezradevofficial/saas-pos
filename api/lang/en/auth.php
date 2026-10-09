@@ -28,6 +28,7 @@ return [
         'incorrect' => 'Wrong PIN. :count attempt left before the PIN locks on this till.|Wrong PIN. :count attempts left before the PIN locks on this till.',
         'not_staff_here' => 'This person has no role at this till’s location. Ask a manager to give them one.',
         'six_digits' => 'People who can approve voids, refunds and price changes need a 6-digit PIN. Choose 6 digits.',
+        'session_conflict' => 'This till sign-in is already recorded for someone else. Sign in again.',
     ],
     'override' => [
         'invalid' => 'This manager approval isn’t valid. Ask the manager to enter their PIN again.',

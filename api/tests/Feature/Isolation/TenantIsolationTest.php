@@ -216,6 +216,7 @@ class TenantIsolationTest extends TestCase
     /** Fields ending in `_id` that are not references to rows, with why. */
     public const NOT_REFERENCES = [
         'tax_id' => "a company's tax registration number, free text",
+        'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
     /**

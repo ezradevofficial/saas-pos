@@ -16,12 +16,20 @@ final class Approval
         public readonly ?User $approver = null,
         public readonly bool $verified = false,
         public readonly bool $offline = false,
+        public readonly bool $actorOffline = false,
     ) {}
 
-    /** Flags for review on an applied action: an offline override (the device checked the PIN). */
+    /**
+     * Flags for review on an applied action: an offline override (the
+     * device checked the manager's PIN), or money out by a person whose
+     * sign-in only the device checked (AUTH-07, `actor_offline`).
+     */
     public function reviewFlags(): array
     {
-        return $this->verified && $this->offline ? ['override_offline'] : [];
+        return array_values(array_filter([
+            $this->verified && $this->offline ? 'override_offline' : null,
+            $this->verified && $this->actorOffline ? 'actor_offline' : null,
+        ]));
     }
 
     public function byOverride(): bool

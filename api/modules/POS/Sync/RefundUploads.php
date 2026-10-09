@@ -131,7 +131,7 @@ class RefundUploads
         $payments = $this->payments($place, $data['payments'], $sale, $total, $at, $flags);
         $approval = $this->authority->approve($cashier, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.refund', $place->scope(),
             fn ($user) => $this->authority->within($user, 'max_refund_amount', $place->scope(), $baseMajor),
-            $place->device, $data['id'], 'override');
+            $place->device, $data['id'], 'override', moneyOut: true);
 
         if ($approval->held()) {
             $flags->add($approval->flag());
@@ -139,6 +139,13 @@ class RefundUploads
 
         foreach ($approval->reviewFlags() as $code) {
             $flags->add($code);
+        }
+
+        // AUTH-07: the person's own sign-in, reviewed when the record predates it or it is a day old.
+        if (! $approval->byOverride()) {
+            foreach ($this->authority->sessionFlags($place->device, $cashier, $data['actor_proof'] ?? null, $at) as $code) {
+                $flags->add($code);
+            }
         }
 
         $held = $approval->held() || in_array('refund_rate_differs', array_column($flags->all(), 'code'), true);

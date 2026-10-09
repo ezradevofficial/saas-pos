@@ -1,0 +1,19 @@
+{
+  "about": "CUR-06: tender maths vectors shared by api/tests/Feature/Core/Currency/TenderCalculatorTest.php and pos/src/pos/tender.test.js. Amounts are minor units. Currencies: USD 2 decimals, cash rounding 1; CDF 0 decimals, cash rounding 50. Rate: 1 USD = 2850 CDF (shop).",
+  "rate": { "base": "USD", "quote": "CDF", "mid": "2850.00000000", "kind": "shop" },
+  "cases": [
+    { "name": "screen case: USD 20 and CDF 57,000 towards USD 48.50", "due": [4850, "USD"], "tenders": [[2000, "USD"], [57000, "CDF"]], "change_currency": "CDF", "paid": "4000", "remaining": "850", "change": "0", "rounding": "0", "overpaid": false, "in_due": ["2000", "2000"] },
+    { "name": "paying the asked CDF settles, the shop keeps 1 cent", "due": [4850, "USD"], "tenders": [[2000, "USD"], [57000, "CDF"], [24250, "CDF"]], "change_currency": "CDF", "paid": "4850", "remaining": "0", "change": "0", "rounding": "1", "overpaid": false },
+    { "name": "change in CDF rounded down to 50", "due": [4850, "USD"], "tenders": [[2000, "USD"], [85000, "CDF"]], "change_currency": "CDF", "paid": "4982", "remaining": "0", "change": "3750", "rounding": "1", "overpaid": true },
+    { "name": "overpay in USD, change in USD", "due": [4850, "USD"], "tenders": [[5000, "USD"]], "change_currency": "USD", "paid": "5000", "remaining": "0", "change": "150", "rounding": "0", "overpaid": true },
+    { "name": "overpay in USD, change in CDF", "due": [4850, "USD"], "tenders": [[5000, "USD"]], "change_currency": "CDF", "paid": "5000", "remaining": "0", "change": "4250", "rounding": "1", "overpaid": true },
+    { "name": "CDF sale, change in USD", "due": [10000, "CDF"], "tenders": [[20000, "CDF"]], "change_currency": "USD", "paid": "20000", "remaining": "0", "change": "350", "rounding": "25", "overpaid": true },
+    { "name": "CDF sale paid with a USD 5 note", "due": [10000, "CDF"], "tenders": [[500, "USD"]], "change_currency": "CDF", "paid": "14250", "remaining": "0", "change": "4250", "rounding": "0", "overpaid": true },
+    { "name": "nothing paid", "due": [4850, "USD"], "tenders": [], "change_currency": "CDF", "paid": "0", "remaining": "4850", "change": "0", "rounding": "0", "overpaid": false },
+    { "name": "line shares by largest remainder", "due": [10000, "USD"], "tenders": [[1000, "CDF"], [1000, "CDF"], [1000, "CDF"], [100, "USD"]], "change_currency": "CDF", "paid": "205", "remaining": "9795", "change": "0", "rounding": "0", "overpaid": false, "in_due": ["35", "35", "35", "100"] }
+  ],
+  "asked": [
+    { "remaining": [850, "USD"], "currency": "CDF", "expected": "24250" },
+    { "remaining": [850, "USD"], "currency": "USD", "expected": "850" }
+  ]
+}

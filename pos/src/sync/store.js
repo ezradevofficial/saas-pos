@@ -64,17 +64,27 @@ export function createSyncStore(database) {
   }
 
   /** Rebuild the child rows (an item's barcodes) of rows written, and remove those of rows leaving. */
-  async function prepareChildren(definition, upserts, leavingIds) {
-    const operations = [];
+  /** The current child rows (an item's barcodes) of the parents written or leaving, per child table. */
+  async function readChildren(definition, upserts, leavingIds) {
     const parents = [...upserts.map((row) => String(row.id)), ...leavingIds];
+    const out = [];
     for (const child of definition.children) {
-      const wanted = new Map();
-      for (const row of upserts) {
-        for (const { id, ...columns } of child.rows(row)) wanted.set(id, { ...columns, [child.parentColumn]: String(row.id) });
-      }
       const current = [];
       for (const part of chunks(parents)) {
         current.push(...(await table(child.table).query(Q.where(child.parentColumn, Q.oneOf(part))).fetch()));
+      }
+      out.push({ child, current });
+    }
+    return out;
+  }
+
+  /** Rebuild them (synchronous: prepared records must reach batch() without an await in between). */
+  function prepareChildren(currentChildren, upserts) {
+    const operations = [];
+    for (const { child, current } of currentChildren) {
+      const wanted = new Map();
+      for (const row of upserts) {
+        for (const { id, ...columns } of child.rows(row)) wanted.set(id, { ...columns, [child.parentColumn]: String(row.id) });
       }
       const currentById = new Map(current.map((record) => [record.id, record]));
       for (const record of current) {
@@ -145,23 +155,28 @@ export function createSyncStore(database) {
       const upsertIds = upserts.map((row) => String(row.id));
       const keep = new Set(upsertIds);
 
-      const state = await findOne('sync_state', key);
-      const previous = parse(state?._raw.data) ?? {};
-      const pageSeq = (previous.pageSeq ?? 0) + 1;
-      const resetSince = page.reset || page.replace ? pageSeq : (previous.resetSince ?? null);
+      // Reads and prepares happen inside the write (two pulls may run at once: a sync and a
+      // receipt-range top-up), and every record is prepared right before batch(), with no await between.
+      let resetSince = null;
+      await database.write(async () => {
+        const state = await findOne('sync_state', key);
+        const previous = parse(state?._raw.data) ?? {};
+        const pageSeq = (previous.pageSeq ?? 0) + 1;
+        resetSince = page.reset || page.replace ? pageSeq : (previous.resetSince ?? null);
 
-      const leaving = (await findByIds(definition.table, tombstones)).filter((record) => !keep.has(record.id));
-      const existing = new Map((await findByIds(definition.table, upsertIds)).map((record) => [record.id, record]));
+        const leaving = (await findByIds(definition.table, tombstones)).filter((record) => !keep.has(record.id));
+        const existing = new Map((await findByIds(definition.table, upsertIds)).map((record) => [record.id, record]));
+        const currentChildren = await readChildren(definition, upserts, leaving.map((record) => record.id));
 
-      const operations = leaving.map((record) => record.prepareDestroyPermanently());
-      for (const row of upserts) {
-        const id = String(row.id);
-        operations.push(prepareUpsert(definition.table, existing.get(id), id, { ...definition.columns(row), data: JSON.stringify(row), seen_at: pageSeq }));
-      }
-      operations.push(...(await prepareChildren(definition, upserts, leaving.map((record) => record.id))));
-      operations.push(prepareUpsert('sync_state', state, key, { cursor: page.cursor ?? null, pulled_at: pulledAt, data: json({ pageSeq, resetSince }) }));
-
-      await database.write(() => database.batch(...operations));
+        const operations = leaving.map((record) => record.prepareDestroyPermanently());
+        for (const row of upserts) {
+          const id = String(row.id);
+          operations.push(prepareUpsert(definition.table, existing.get(id), id, { ...definition.columns(row), data: JSON.stringify(row), seen_at: pageSeq }));
+        }
+        operations.push(...prepareChildren(currentChildren, upserts));
+        operations.push(prepareUpsert('sync_state', state, key, { cursor: page.cursor ?? null, pulled_at: pulledAt, data: json({ pageSeq, resetSince }) }));
+        await database.batch(...operations);
+      });
 
       const swept = !page.has_more && resetSince !== null ? await sweep(key, definition, resetSince) : 0;
       return { upserts: upserts.length, tombstones: tombstones.length, swept };
@@ -206,10 +221,16 @@ export function createSyncStore(database) {
      * `group` (a shift id) keeps a group's rows in order: a later row is not
      * sent while an earlier one of the group waits. The sequence number is
      * taken inside the write, so concurrent calls keep their order.
+     * `prepare` (async, inside the write) returns prepared operations that
+     * commit atomically with the outbox row (the local sale and its receipt
+     * counter): a crash never leaves a sale without its upload or the
+     * reverse.
      */
-    async enqueue(kind, recordId, payload, now = Date.now(), { group = null } = {}) {
+    async enqueue(kind, recordId, payload, now = Date.now(), { group = null, prepare = null } = {}) {
       let created;
       await database.write(async () => {
+        // The record's own local rows (a sale, its receipt counter) commit with its outbox row, or not at all.
+        const extra = prepare ? await prepare() : [];
         const last = await table('outbox').query(Q.sortBy('seq', Q.desc), Q.take(1)).fetch();
         const seq = (last[0]?._raw.seq ?? 0) + 1;
         created = await table('outbox').create((row) => {
@@ -224,6 +245,7 @@ export function createSyncStore(database) {
           row._setRaw('created_at', now);
           row._setRaw('updated_at', now);
         });
+        if (extra.length) await database.batch(...extra);
       });
       return toEntry(created);
     },
@@ -240,6 +262,12 @@ export function createSyncStore(database) {
         attempts: record._raw.attempts,
         nextAttemptAt: record._raw.next_attempt_at,
       }));
+    },
+
+    /** The latest outbox entry of a record (its upload state and the server's answer), or null. */
+    async entryFor(kind, recordId) {
+      const rows = await table('outbox').query(Q.where('kind', kind), Q.where('record_id', String(recordId)), Q.sortBy('seq', Q.desc), Q.take(1)).fetch();
+      return rows[0] ? toEntry(rows[0]) : null;
     },
 
     async entriesByIds(ids) {

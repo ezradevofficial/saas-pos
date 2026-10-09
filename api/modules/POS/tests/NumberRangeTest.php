@@ -70,7 +70,10 @@ class NumberRangeTest extends TestCase
         $this->inTenant(fn () => NumberFormat::create(['document_type' => 'pos.receipt', 'pattern' => 'R-{LOCATION}-{YY}-{0001}', 'reset' => 'yearly']));
         $this->travelTo(now()->setDate(2026, 12, 31)->setTime(12, 0));
 
-        $this->ranges()->assertOk()->assertJsonPath('data.0.period', '2026')->assertJsonPath('data.0.pattern', 'R-L01-26-{0001}');
+        // Within 14 days of the year's end the till also gets next year's range, ahead of time.
+        $this->ranges()->assertOk()->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.period', '2026')->assertJsonPath('data.0.pattern', 'R-L01-26-{0001}')
+            ->assertJsonPath('data.1.period', '2027')->assertJsonPath('data.1.pattern', 'R-L01-27-{0001}');
 
         $this->travelTo(now()->setDate(2027, 1, 2)->setTime(9, 0));
         $this->ranges()->assertOk()->assertJsonCount(1, 'data')
@@ -78,6 +81,30 @@ class NumberRangeTest extends TestCase
             ->assertJsonPath('data.0.from', 1)
             ->assertJsonPath('data.0.pattern', 'R-L01-27-{0001}');
         $this->inTenant(fn () => $this->assertSame(NumberRange::RETIRED, NumberRange::where('period', '2026')->sole()->status));
+    }
+
+    public function test_a_till_offline_over_new_year_numbers_from_next_years_range_given_in_december(): void
+    {
+        $this->inTenant(fn () => NumberFormat::create(['document_type' => 'pos.receipt', 'pattern' => 'R-{LOCATION}-{YY}-{0001}', 'reset' => 'yearly']));
+
+        // Early December: only this year's range.
+        $this->travelTo(now()->setDate(2026, 12, 1)->setTime(12, 0));
+        $this->ranges()->assertOk()->assertJsonCount(1, 'data');
+
+        // Two weeks before the year ends, reporting this year's next number: next year's range is
+        // added and is not marked used by this year's number (its counter starts again at 1).
+        $this->travelTo(now()->setDate(2026, 12, 20)->setTime(12, 0));
+        $this->ranges(next: 5)->assertOk()->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.next', 5)
+            ->assertJsonPath('data.1.period', '2027')->assertJsonPath('data.1.next', 1);
+        // Asking again does not add a second one.
+        $this->ranges(next: 6)->assertOk()->assertJsonCount(2, 'data');
+
+        // Offline over New Year: a sale of 1 January numbered from that range is accepted.
+        $this->travelTo(now()->setDate(2027, 1, 1)->setTime(10, 0));
+        $shift = $this->openShift();
+        $sale = $this->saleBody($shift, 1, ['receipt_number' => 'R-L01-27-0001', 'sold_at' => now()->toIso8601String()]);
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
     }
 
     public function test_only_the_device_of_a_tenant_with_the_module_gets_ranges(): void

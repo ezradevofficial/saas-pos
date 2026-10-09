@@ -41,6 +41,10 @@
       "executive": "Exécutif",
       "warm": "Chaleureux",
       "tenant": "Client test"
+    },
+    "dialog": {
+      "close": "Fermer la fenêtre",
+      "closeShort": "Fermer"
     }
   },
   "preview": {
@@ -111,13 +115,11 @@
     "failed": "Le code PIN n’a pas été changé. Réessayez."
   },
   "home": {
-    "ready": "Prêt à vendre",
     "signedInAs": "Connecté : {{name}}",
     "location": "Emplacement : {{location}}",
     "lastSynced": "Dernière synchronisation à {{time}}",
     "neverSynced": "Pas encore synchronisé",
     "switchUser": "Changer d’utilisateur",
-    "sellingSoon": "L’écran de vente arrive dans la prochaine version.",
     "failed_one": "{{count}} enregistrement a été refusé par le serveur et doit être examiné.",
     "failed_other": "{{count}} enregistrements ont été refusés par le serveur et doivent être examinés.",
     "accessLostTitle": "Cette caisse a perdu son accès",
@@ -126,5 +128,309 @@
     "pinChangeTitle": "Nouveau code PIN requis",
     "pinChangeOffline": "Choisissez un nouveau code PIN quand la caisse sera de nouveau en ligne.",
     "moduleInactive": "Le module Point de vente n’est pas actif pour votre entreprise. Les ventes restent sur cette caisse et seront envoyées quand il sera de nouveau actif."
+  },
+  "pos": {
+    "header": {
+      "shiftOpened": "Service ouvert à {{time}} · {{name}}",
+      "held": "Ventes en attente ({{count}})",
+      "closeShift": "Clôturer le service"
+    },
+    "menu": {
+      "title": "Menu",
+      "open": "Ouvrir le menu de la caisse",
+      "sales": "Ventes et retours",
+      "cash": "Entrée ou sortie d’espèces"
+    },
+    "search": {
+      "label": "Rechercher des produits",
+      "placeholder": "Rechercher ou scanner un code-barres",
+      "all": "Tout",
+      "none": "Aucun produit ne correspond. Essayez un autre nom ou code.",
+      "emptyCatalogue": "Aucun produit sur cette caisse. Synchronisez, ou ajoutez des articles dans le back-office.",
+      "unknown": "Aucun produit n’a le code {{code}}. Vérifiez le code, ou cherchez par nom."
+    },
+    "unsellable": {
+      "not_sellable": "Non vendable",
+      "tax_rate_needed": "Taux requis",
+      "tax_code_missing": "Pas de code de taxe",
+      "tax_category_missing": "Pas de catégorie de taxe",
+      "tax_code_archived": "Code de taxe archivé",
+      "price_missing": "Pas de prix",
+      "item_unknown": "Article inconnu",
+      "discount_above_price": "Remise supérieure au prix"
+    },
+    "sale": {
+      "title": "Vente en cours",
+      "summary_one": "{{count}} article · Ticket {{receipt}}",
+      "summary_other": "{{count}} articles · Ticket {{receipt}}",
+      "summaryNoNumber_one": "{{count}} article · plus de numéro de ticket",
+      "summaryNoNumber_other": "{{count}} articles · plus de numéro de ticket",
+      "hold": "Mettre en attente",
+      "clear": "Vider",
+      "addCustomer": "Ajouter un client",
+      "changeCustomer": "Changer",
+      "empty": "Touchez un produit ou scannez un code-barres pour commencer une vente.",
+      "editLine": "Modifier {{name}}",
+      "less": "Retirer un",
+      "more": "Ajouter un",
+      "lineDiscount": "Remise {{amount}}",
+      "blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini dans le back-office. Retirez-les pour encaisser.",
+      "tax": "Taxe",
+      "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau."
+    },
+    "phone": {
+      "items_one": "{{count}} article",
+      "items_other": "{{count}} articles",
+      "tapToSee": "Touchez pour voir la vente",
+      "backToProducts": "Retour aux produits"
+    },
+    "offline": {
+      "note": "Hors ligne : les ventes sont enregistrées sur cette caisse et envoyées à la reconnexion.",
+      "noteKe": "Hors ligne : les paiements en espèces et M-Pesa sont enregistrés et envoyés à KRA eTIMS à la reconnexion.",
+      "noteCd": "Hors ligne : les ventes sont enregistrées et envoyées à la DGI à la reconnexion."
+    },
+    "line": {
+      "qty": "Quantité",
+      "price": "Prix unitaire",
+      "listPrice": "Prix catalogue {{amount}}",
+      "discount": "Remise sur la ligne",
+      "discountHelp": "Une remise au-delà de votre limite doit être approuvée par un responsable.",
+      "save": "Enregistrer la ligne",
+      "remove": "Retirer de la vente",
+      "errors": {
+        "qty": "Saisissez une quantité supérieure à 0, avec au plus 6 décimales.",
+        "price": "Saisissez le prix unitaire sous forme de montant.",
+        "discount": "La remise doit être un montant au plus égal au prix de la ligne."
+      }
+    },
+    "customer": {
+      "title": "Client",
+      "search": "Nom ou numéro de téléphone",
+      "none": "Aucun client ne correspond. Vérifiez l’orthographe ou le numéro.",
+      "remove": "Retirer le client"
+    },
+    "held": {
+      "title": "Ventes en attente",
+      "none": "Aucune vente en attente sur cette caisse.",
+      "noCustomer": "Sans client",
+      "summary_one": "{{count}} ligne · mise en attente à {{time}}",
+      "summary_other": "{{count}} lignes · mises en attente à {{time}}",
+      "resume": "Reprendre",
+      "discard": "Supprimer"
+    },
+    "override": {
+      "title": "Approbation d’un responsable",
+      "why": {
+        "discount": "Cette remise dépasse votre limite. Un responsable l’approuve avec son code PIN.",
+        "price": "Changer le prix demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "void": "Annuler une vente demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "refund": "Ce remboursement demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "pay_out": "Une sortie d’espèces demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "pay_in": "Une entrée d’espèces demande un responsable. Un responsable l’approuve avec son code PIN."
+      },
+      "nobody": "Personne sur cette caisse ne peut approuver ceci. Demandez à un administrateur de donner un rôle ici à un responsable, puis synchronisez.",
+      "pinFor": "Code PIN de {{name}}",
+      "approve": "Approuver",
+      "noSecret": "Cette caisse ne peut pas signer d’approbation sans sa clé hors ligne. Associez la caisse à nouveau.",
+      "cancelled": "Non approuvé. Rien n’a été modifié."
+    },
+    "pay": {
+      "back": "Retour à la vente",
+      "title": "Encaissement",
+      "receipt": "Ticket {{number}}",
+      "shopRate": "Taux de la boutique",
+      "totalDue": "Total à payer",
+      "received": "Paiements reçus",
+      "none": "Aucun paiement. Choisissez un moyen de paiement.",
+      "reference": "Réf. {{reference}}",
+      "detail": {
+        "cash": "Billets reçus",
+        "mobile_money": "Mobile money",
+        "card": "Carte",
+        "credit": "En compte",
+        "voucher": "Bon d’achat",
+        "points": "Points de fidélité",
+        "bank_transfer": "Virement bancaire"
+      },
+      "hint": {
+        "cash": "Billets en {{currency}}",
+        "mobile_money": "Code saisi par le caissier",
+        "card": "Terminal de carte, saisie",
+        "credit": "En compte",
+        "voucher": "Bon d’achat",
+        "points": "Points de fidélité",
+        "bank_transfer": "Virement bancaire"
+      },
+      "remove": "Retirer le paiement {{method}}",
+      "removeShort": "Retirer",
+      "remaining": "Reste à payer",
+      "change": "Monnaie à rendre",
+      "changeIn": "Rendre la monnaie en",
+      "method": "Moyen de paiement",
+      "amountIn": "Montant en {{currency}}",
+      "left": "Reste : {{amount}}",
+      "exact": "Montant exact {{amount}}",
+      "amount": "Montant reçu",
+      "mobileCode": "Code M-Pesa",
+      "cardReference": "Code d’autorisation",
+      "add": "Ajouter le paiement",
+      "addRemaining": "Ajouter le reste dû",
+      "mobileManual": "Le client paie au numéro de la caisse. Saisissez le code du message de confirmation ; il est vérifié à la synchronisation.",
+      "stk": {
+        "phone": "Numéro de téléphone du client",
+        "send": "Envoyer une demande de paiement de {{amount}}",
+        "checkingTitle": "Demande envoyée au téléphone du client",
+        "checking": "Le client confirme avec son code PIN. Le paiement s’ajoute tout seul dès sa confirmation.",
+        "paidTitle": "Paiement reçu",
+        "paid": "M-Pesa a confirmé le paiement ({{receipt}}).",
+        "failedTitle": "Aucun paiement",
+        "failed": "Le client n’a pas confirmé, ou M-Pesa a refusé le paiement. Renvoyez la demande, ou saisissez le code de son message."
+      },
+      "noMethods": "Aucun moyen de paiement pour cette société. Ajoutez-les dans le back-office, puis synchronisez.",
+      "hold": "Mettre en attente",
+      "complete": "Terminer la vente",
+      "remainingButton": "Reste {{amount}}",
+      "errors": {
+        "amount": "Saisissez un montant supérieur à 0.",
+        "mobileCode": "Saisissez le code M-Pesa du message du client : 8 à 12 lettres et chiffres.",
+        "rate_unavailable": "Il n’y a pas de taux de change pour cette devise. Encaissez dans la devise de la vente, ou synchronisez pour les taux du jour.",
+        "sale_underpaid": "Les paiements ne couvrent pas encore le total.",
+        "no_receipt_numbers": "Cette caisse n’a plus de numéros de ticket. Connectez-vous à Internet pour que le serveur lui en donne, puis terminez la vente.",
+        "lines_blocked": "Certains articles ne peuvent pas être vendus tant que leur taux de taxe n’est pas défini. Retirez-les, puis encaissez.",
+        "no_shift": "Ouvrez un service avant de vendre.",
+        "empty_sale": "Ajoutez un produit avant d’encaisser.",
+        "failed": "La vente n’a pas été enregistrée. Réessayez.",
+        "push": "Saisissez le numéro du client et un montant supérieur à 0.",
+        "pushFailed": "La demande de paiement n’a pas été envoyée. Réessayez, ou saisissez le code du message du client.",
+        "codeRefused": "Ce code M-Pesa ne peut pas être utilisé. Vérifiez le code dans le message du client.",
+        "receipt_used": "Ce code M-Pesa a déjà payé une autre vente. Vérifiez le code dans le message du client.",
+        "too_many_requests": "Trop de demandes de paiement. Attendez une minute, puis renvoyez-la.",
+        "not_staff_here": "Vous ne pouvez pas encaisser sur cette caisse. Demandez à un administrateur de vous donner un rôle ici."
+      }
+    },
+    "receipt": {
+      "done": "Vente terminée",
+      "giveChange": "À rendre au client",
+      "number": "Ticket",
+      "refundNumber": "Remboursement",
+      "date": "Date",
+      "cashier": "Servi par",
+      "customer": "Client",
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tax": "Taxe",
+      "taxAt": "Taxe à {{rate}} %",
+      "total": "Total TTC",
+      "totalIn": "Total en {{currency}}",
+      "payment": "Paiement",
+      "change": "Monnaie rendue",
+      "taxId": "N° d’impôt {{id}}",
+      "fiscal": "Reçu fiscal",
+      "fiscalKe": "KRA eTIMS (Kenya)",
+      "fiscalCd": "Reçu fiscal DGI",
+      "fiscalPendingHelp": "Le code et le QR code de l’administration sont ajoutés dès que la vente atteint le serveur et que l’administration l’accepte.",
+      "print": "Imprimer",
+      "newSale": "Nouvelle vente",
+      "fiscalState": {
+        "waiting": "En attente d’envoi",
+        "pending": "En attente",
+        "accepted": "Accepté",
+        "rejected": "Refusé par l’administration",
+        "off": "Non transmis à l’administration",
+        "invoice": "Facture fiscale {{number}}",
+        "waitingHelp": "La vente est sur cette caisse. Elle est envoyée au serveur, puis à l’administration, dès que la caisse est en ligne.",
+        "rejectedHelp": "Le back-office a la réponse de l’administration et assure le suivi. La vente reste valable.",
+        "offHelp": "Cette entreprise ne transmet pas encore ses ventes à l’administration fiscale depuis la plateforme."
+      }
+    },
+    "shift": {
+      "openTitle": "Ouvrir un service",
+      "openIntro": "{{name}}, comptez les espèces du tiroir avant de commencer.",
+      "float": "Fonds de caisse en {{currency}}",
+      "open": "Ouvrir le service",
+      "closeTitle": "Clôturer le service",
+      "closeIntro": "Comptez les espèces du tiroir par devise. Le montant attendu s’affiche après la clôture.",
+      "countedIn": "Espèces comptées en {{currency}}",
+      "note": "Note (facultative)",
+      "close": "Clôturer le service",
+      "keepSelling": "Continuer à vendre",
+      "heldWarning_one": "{{count}} vente en attente reste sur cette caisse et ne fait pas partie de ce service.",
+      "heldWarning_other": "{{count}} ventes en attente restent sur cette caisse et ne font pas partie de ce service.",
+      "closedTitle": "Service clôturé",
+      "expected": "Attendu",
+      "counted": "Compté",
+      "variance": "Écart",
+      "serverRecounts": "Le serveur recalcule le montant attendu à partir des enregistrements acceptés ; le back-office affiche les chiffres définitifs.",
+      "done": "Terminé",
+      "errors": {
+        "amount": "Saisissez le montant en {{currency}} sous forme de nombre.",
+        "failed": "Le service n’a pas été enregistré. Réessayez."
+      }
+    },
+    "cash": {
+      "title": "Entrée ou sortie d’espèces",
+      "kind": {
+        "pay_in": "Entrée",
+        "pay_out": "Sortie"
+      },
+      "amount": "Montant",
+      "reason": "Motif",
+      "record": {
+        "pay_in": "Enregistrer l’entrée",
+        "pay_out": "Enregistrer la sortie"
+      },
+      "recorded": {
+        "pay_in": "Entrée de {{amount}} enregistrée.",
+        "pay_out": "Sortie de {{amount}} enregistrée."
+      },
+      "errors": {
+        "incomplete": "Saisissez un montant supérieur à 0 et un motif.",
+        "failed": "Le mouvement d’espèces n’a pas été enregistré. Réessayez."
+      }
+    },
+    "sales": {
+      "title": "Ventes et retours",
+      "findLabel": "Numéro de ticket",
+      "find": "Trouver la vente",
+      "notFound": "Aucune vente de cette caisse n’a ce numéro. Vérifiez le numéro sur le ticket.",
+      "none": "Aucune vente sur cette caisse pour l’instant.",
+      "backToList": "Toutes les ventes",
+      "voidedBadge": "Annulée",
+      "refundedBadge": "Retour partiel",
+      "lineSold": "Vendu {{qty}} · {{total}} · {{left}} retournable(s)",
+      "returnLess": "Retourner un {{name}} de moins",
+      "returnMore": "Retourner un {{name}} de plus",
+      "reason": "Motif",
+      "pickLines": "Choisissez les articles que le client rapporte, ou annulez toute la vente.",
+      "refundTotal": "Remboursement de {{amount}}",
+      "giveBack": "À rendre : {{amount}}",
+      "refund": "Rembourser {{amount}}",
+      "refundShort": "Rembourser",
+      "refunded": "Remboursement {{number}} enregistré. Rendez {{amount}}.",
+      "void": "Annuler toute la vente",
+      "voided": "Vente {{number}} annulée.",
+      "errors": {
+        "reason": "Saisissez un motif.",
+        "refundIncomplete": "Choisissez les articles, un moyen de remboursement et un motif.",
+        "refund_currency": "Ce remboursement ne peut pas être payé dans cette devise au taux de la vente. Choisissez la devise de la vente.",
+        "refund_qty_exceeded": "Le retour dépasserait la quantité vendue. Réduisez la quantité.",
+        "refund_empty": "Choisissez au moins un article à retourner.",
+        "sale_already_voided": "Cette vente est déjà annulée.",
+        "sale_has_refunds": "Des articles de cette vente ont été retournés : elle ne peut plus être annulée. Retournez le reste.",
+        "void_other_shift": "Seules les ventes du service ouvert peuvent être annulées. Retournez les articles.",
+        "no_receipt_numbers": "Cette caisse n’a plus de numéros de remboursement. Connectez-vous à Internet pour que le serveur lui en donne.",
+        "no_shift": "Ouvrez d’abord un service.",
+        "failed": "Rien n’a été enregistré. Réessayez."
+      },
+      "returnQty": "Quantité à retourner"
+    },
+    "scan": {
+      "title": "Scanner des codes-barres",
+      "button": "Scanner",
+      "open": "Scanner un code-barres avec la caméra",
+      "permission": "La caisse a besoin de la caméra pour scanner les codes-barres. Rien n’est enregistré ni envoyé.",
+      "allow": "Autoriser la caméra",
+      "added": "{{code}} ajouté. Scannez l’article suivant, ou fermez."
+    }
   }
 }

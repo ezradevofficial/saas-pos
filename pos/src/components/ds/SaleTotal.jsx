@@ -16,7 +16,7 @@ function Row({ label, value, tone = 'text-ink-muted', valueTone = 'text-ink' }) 
 }
 
 /** The POS sale summary with the one decisive Charge button (pay variant); amounts in minor units. */
-export function SaleTotal({ currency, subtotal, tax, total, discount, secondary, onPay, labels, className }) {
+export function SaleTotal({ currency, subtotal, tax, total, discount, secondary, onPay, labels, disabled, className }) {
   const { t } = useTranslation();
   const lang = useLocale();
   const money = (minor) => `${currency} ${formatAmount(minor, currency, lang)}`;
@@ -39,7 +39,7 @@ export function SaleTotal({ currency, subtotal, tax, total, discount, secondary,
         <Text className="font-sans text-body-lg font-medium text-ink">{labels?.total ?? t('ds.saleTotal.total')}</Text>
         <Money amount={total} currency={currency} size="lg" secondary={secondary} locale={lang} className="items-end" />
       </View>
-      <Button variant="pay" block onPress={onPay} disabled={toMinor(total) === 0n}>
+      <Button variant="pay" block onPress={onPay} disabled={Boolean(disabled) || toMinor(total) === 0n}>
         {labels?.pay ? `${labels.pay} ${amount}` : t('ds.saleTotal.pay', { amount })}
       </Button>
     </View>

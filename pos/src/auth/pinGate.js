@@ -67,10 +67,12 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
     }
   }
 
-  async function verifyOnline(staff, kind, input) {
+  async function verifyOnline(staff, kind, input, session) {
     if (!api) return { reason: 'online_required' };
+    // AUTH-07: a session checked online is recorded by the server (till_sign_ins), so its proofs count as online.
+    const attest = session ? { session_id: session.sessionId, signed_in_at: session.signedInAt } : {};
     try {
-      return await api.post('pos/pin/verify', { user_id: staff.id, [kind]: input });
+      return await api.post('pos/pin/verify', { user_id: staff.id, [kind]: input, ...attest });
     } catch (error) {
       if (error instanceof NetworkError) return { reason: 'online_required' };
       throw error;
@@ -79,11 +81,13 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
 
   return {
     /**
+     * `session` ({ sessionId, signedInAt }, AUTH-07) goes with an online
+     * check so the server records the sign-in.
      * Resolves { ok: true, user, mustChange, checked: 'offline' | 'online' }
      * or { ok: false, reason: 'incorrect' (with attemptsLeft) | 'locked' |
      * 'not_set' | 'not_staff' | 'online_required' | 'access_lost' }.
      */
-    async signIn({ userId, kind = 'pin', input }) {
+    async signIn({ userId, kind = 'pin', input, session = null }) {
       const staff = await store.staffMember(userId);
       if (!staff) return { ok: false, reason: 'not_staff' };
       const state = await localState(staff);
@@ -100,14 +104,14 @@ export function createPinGate({ store, api, credentials, now = () => Date.now(),
         const result = await verifyOffline({ material, kind, userId: staff.id, input, deviceSecret });
         if (result.ok) {
           // The server still counts earlier wrong attempts: a correct online check clears them.
-          if (Number(staff.failed_attempts ?? 0) > 0) verifyOnline(staff, kind, input).catch(() => {});
+          if (Number(staff.failed_attempts ?? 0) > 0) verifyOnline(staff, kind, input, session).catch(() => {});
           return success('offline');
         }
         if (result.reason === 'incorrect') return recordFailure(staff, state);
         // not usable offline (secret rotated, unknown scheme): try online
       }
 
-      const response = await verifyOnline(staff, kind, input);
+      const response = await verifyOnline(staff, kind, input, session);
       if (response.reason) return { ok: false, reason: response.reason };
       // The server's answer is fresher than the synced staff row.
       if (response.status === 200) return success('online', response.body?.data?.must_change ?? staff.must_change);

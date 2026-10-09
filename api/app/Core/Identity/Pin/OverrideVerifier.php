@@ -8,7 +8,6 @@ use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Sync\DeviceScope;
-use App\Core\Sync\DeviceSecret;
 use App\Core\Sync\DeviceSecrets;
 use App\Core\Sync\StaffDirectory;
 use App\Core\Tenancy\Models\Device;
@@ -162,7 +161,7 @@ class OverrideVerifier
         $given = base64_decode(strtr($signature, '-_', '+/'), true);
         $expected = $secret === null ? null : DeviceSecrets::hmac($secret, self::offlineMessage($device->id, $kid, $id, $manager, $cashier, $signed, $signedReference, $at));
 
-        if ($expected === null || ! is_string($given) || ! hash_equals($expected, $given) || ! $this->whileCurrent($secret, $authorisedAt)) {
+        if ($expected === null || ! is_string($given) || ! hash_equals($expected, $given) || ! DeviceSecrets::currentAt($secret, $authorisedAt)) {
             throw $this->invalid();
         }
 
@@ -179,18 +178,6 @@ class OverrideVerifier
             'reference' => $reference,
             'authorised_at' => $authorisedAt,
         ];
-    }
-
-    /** $at falls while $secret was current (it was activated), within the allowed clock skew. */
-    private function whileCurrent(DeviceSecret $secret, CarbonImmutable $at): bool
-    {
-        $skew = (int) config('sync.override_clock_skew_seconds', 600);
-        $until = ($secret->retired_at ?? CarbonImmutable::now())->addSeconds($skew);
-
-        return $secret->activated_at !== null
-            && $at->greaterThanOrEqualTo($secret->issued_at->subSeconds($skew))
-            && $at->lessThanOrEqualTo($until)
-            && $at->lessThanOrEqualTo(CarbonImmutable::now()->addSeconds($skew));
     }
 
     /**

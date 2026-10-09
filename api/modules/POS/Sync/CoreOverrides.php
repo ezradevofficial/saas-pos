@@ -3,7 +3,6 @@
 namespace Modules\POS\Sync;
 
 use App\Core\Http\ApiException;
-use App\Core\Identity\Models\User;
 use App\Core\Identity\Pin\OverrideAlreadyApplied;
 use App\Core\Identity\Pin\OverrideRedemption;
 use App\Core\Identity\Pin\OverrideVerifier as CoreVerifier;
@@ -23,9 +22,6 @@ use App\Core\Tenancy\Models\Device;
  * - A manager who no longer qualifies (inactive, not staff at the location,
  *   without the permission) leaves the action unproven; an offline
  *   override is applied and flagged `override_offline` for review.
- *
- * AUTH-07 sign-in attestations are not in core yet: actor() proves nothing
- * until they are (TODO: verify `actor_proof` through core when it ships).
  */
 class CoreOverrides implements OverrideVerifier
 {
@@ -42,11 +38,6 @@ class CoreOverrides implements OverrideVerifier
 
             throw new Rejection(in_array($e->errorCode, $known, true) ? $e->errorCode : 'override_invalid', 'override');
         }
-    }
-
-    public function actor(Device $device, User $user, ?string $proof, string $reference): bool
-    {
-        return false;
     }
 
     private function proof(VerifiedOverride $verified): OverrideProof

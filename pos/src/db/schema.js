@@ -15,9 +15,16 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * token and secret live in the platform keystore, never here) and
  * `local_pin_attempts` (wrong PINs counted offline, AUTH-06).
  *
+ * v4 (selling, POS-01..POS-06): the POS module's synced `pos_number_ranges`
+ * and `pos_open_shift`, and local `pos_sales` (completed sales, kept for
+ * receipts, voids and returns), `pos_records` (voids, refunds, cash
+ * movements), `pos_shifts`, `pos_held` (parked carts, never uploaded) and
+ * `pos_counters` (receipt numbers used per range) and `pos_state` (the open
+ * cart, kept across restarts).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -112,6 +119,41 @@ export const schema = appSchema({
       name: 'staff',
       columns: [{ name: 'name', type: 'string' }, { name: 'locked', type: 'boolean' }, data, seenAt],
     }),
+
+    // v4: the POS module's synced entities.
+    tableSchema({ name: 'pos_number_ranges', columns: [{ name: 'document_type', type: 'string', isIndexed: true }, data, seenAt] }),
+    tableSchema({ name: 'pos_open_shift', columns: [data, seenAt] }),
+
+    // v4: selling, local only (uploads go through the outbox).
+    tableSchema({
+      name: 'pos_sales',
+      columns: [
+        { name: 'receipt_number', type: 'string', isIndexed: true },
+        { name: 'shift_id', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string' },
+        { name: 'sold_at', type: 'number', isIndexed: true },
+        data,
+      ],
+    }),
+    tableSchema({
+      name: 'pos_records',
+      columns: [
+        // void | refund | cash_movement
+        { name: 'kind', type: 'string', isIndexed: true },
+        { name: 'sale_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'shift_id', type: 'string', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        data,
+      ],
+    }),
+    tableSchema({
+      name: 'pos_shifts',
+      columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data],
+    }),
+    tableSchema({ name: 'pos_held', columns: [{ name: 'created_at', type: 'number' }, data] }),
+    tableSchema({ name: 'pos_counters', columns: [data] }),
+    // The sale being rung up (and its payments in progress), so it survives an app restart.
+    tableSchema({ name: 'pos_state', columns: [data] }),
 
     // Local.
     tableSchema({

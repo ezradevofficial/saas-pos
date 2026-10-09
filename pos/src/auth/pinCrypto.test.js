@@ -1,6 +1,32 @@
 import { createHmac, pbkdf2Sync } from 'node:crypto';
 import { fromBase64Url, toBase64Url } from '../lib/bytes';
-import { computeVerifier, overrideMessage, pbkdf2Engines, pbkdf2Sha256, PIN_SCHEME, signOverride, verifyOffline } from './pinCrypto';
+import { computeVerifier, overrideMessage, pbkdf2Engines, pbkdf2Sha256, PIN_SCHEME, signActorProof, signInMessage, signOverride, verifyOffline } from './pinCrypto';
+
+// AUTH-07: the vector of api/tests/Feature/Core/Sync/ActorProofTest.php (ActorProofVerifier).
+describe('sign-in attestation (actor_proof)', () => {
+  const deviceSecret = { secret: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8', kid: '0123456789abcdef' };
+  const fields = {
+    deviceId: '01a11ea7-0000-7000-8000-000000000001',
+    sessionId: '01a11ea7-0000-7000-8000-000000000002',
+    userId: '01a11ea7-0000-7000-8000-000000000003',
+    signedInAt: '2026-10-09T07:58:00.000Z',
+  };
+
+  it('signs the server’s vector', () => {
+    expect(signActorProof({ deviceSecret, ...fields })).toEqual({
+      session_id: fields.sessionId,
+      user_id: fields.userId,
+      signed_in_at: fields.signedInAt,
+      kid: deviceSecret.kid,
+      signature: 'z249kNXKbGhVX6QUmw6N1z21fWwV9Y_T-8FtiNxjt5g',
+    });
+  });
+
+  it('refuses line breaks and signs nothing without a secret', () => {
+    expect(() => signInMessage({ ...fields, kid: 'k', userId: 'a\nb' })).toThrow('single-line');
+    expect(signActorProof({ deviceSecret: null, ...fields })).toBeNull();
+  });
+});
 
 // AUTH-06..AUTH-08: the offline PIN scheme matches the server's.
 // Vectors made with PHP's hash_pbkdf2/hash_hmac, the functions Pins.php uses:

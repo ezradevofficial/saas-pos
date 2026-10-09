@@ -16,6 +16,7 @@ class UploadShiftsRequest extends FormRequest
             'shifts.*.id' => $this->deviceId(),
             'shifts.*.opened_by_id' => ['required', 'uuid'],
             'shifts.*.opened_at' => ['required', 'date'],
+            ...$this->actorProof('shifts.*.actor_proof'),
             'shifts.*.opening_float' => ['present', 'array', 'max:10'],
             'shifts.*.opening_float.*.currency' => [...$this->currencyCode(), 'distinct'],
             'shifts.*.opening_float.*.amount_minor' => $this->minor(),
@@ -26,6 +27,7 @@ class UploadShiftsRequest extends FormRequest
             'shifts.*.closing.counted.*.currency' => [...$this->currencyCode(), 'distinct'],
             'shifts.*.closing.counted.*.amount_minor' => $this->minor(),
             'shifts.*.closing.note' => ['nullable', 'string', 'max:1000'],
+            ...$this->actorProof('shifts.*.closing.actor_proof'),
         ];
     }
 }

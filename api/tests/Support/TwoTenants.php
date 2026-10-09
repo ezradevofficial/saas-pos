@@ -425,6 +425,8 @@ final class TwoTenants
             'manager_user_id' => $ownerId, 'pin' => self::PIN, 'permission' => 'pos.sale.void', 'cashier_user_id' => $managerId, 'reference' => "sale-{$key}",
         ], $till))->json('data.token');
         app(TenantContext::class)->run($tenantId, fn () => app(OverrideVerifier::class)->redeem(Device::findOrFail($device), ['token' => $overrideToken], 'pos.sale.void', "sale-{$key}"));
+        // AUTH-07: the owner's till sign-in checked online, recorded by its session id (till_sign_ins).
+        self::ok($test->postJson('/api/v1/pos/pin/verify', ['user_id' => $ownerId, 'pin' => self::PIN, 'session_id' => (string) Str::uuid7(), 'signed_in_at' => now()->toIso8601String()], $till));
         $formerCustomer = self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "Former customer {$upper}", 'roles' => ['customer']], $owner), 201)->json('data.id');
         self::ok($test->patchJson("/api/v1/parties/{$formerCustomer}", ['roles' => ['contact']], $owner));
         self::ok($test->getJson('/api/v1/sync/pull', $till));
