@@ -7,6 +7,7 @@ import {
   AUTOMATION_VIEW,
   CATEGORY_VIEW,
   CUSTOM_FIELD_VIEW,
+  TEMPLATE_VIEW,
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
   FISCAL_VIEW,
@@ -59,6 +60,8 @@ import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
 import Currencies from './pages/settings/Currencies'
 import CustomFields from './pages/settings/CustomFields'
+import DocumentTemplates from './pages/settings/DocumentTemplates'
+import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import Fiscal from './pages/settings/Fiscal'
@@ -251,6 +254,8 @@ export const routes = [
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
         // CF-01, CF-03: custom fields of items and contacts.
         ['/settings/custom-fields', CUSTOM_FIELD_VIEW, <CustomFields key="custom-fields" />],
+        // TPL-01..TPL-05: document templates and the designer.
+        ['/settings/document-templates', TEMPLATE_VIEW, <DocumentTemplates key="document-templates" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       {
         path: '/settings/sharing',
@@ -270,6 +275,16 @@ export const routes = [
         element: (
           <RequirePermission permission={WORKFLOW_VIEW}>
             <WorkflowBuilder />
+          </RequirePermission>
+        ),
+      },
+      // TPL-01: the template designer (full width for canvas, settings and preview).
+      {
+        path: '/settings/document-templates/:type',
+        handle: { wide: true },
+        element: (
+          <RequirePermission permission={TEMPLATE_VIEW}>
+            <TemplateDesigner />
           </RequirePermission>
         ),
       },

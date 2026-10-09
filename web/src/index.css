@@ -179,6 +179,10 @@
 @utility min-h-textbox {
   min-height: calc(var(--space-10) * 4);
 }
+/* 720px: a document template's live preview sheet (TPL-01). */
+@utility h-sheet {
+  height: calc(var(--space-12) * 15);
+}
 /* 192px: the QR code shown while setting up an authenticator app. */
 @utility size-qr {
   width: calc(var(--space-12) * 4);

@@ -45,6 +45,8 @@ export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal
 export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
 // CF-01: custom fields of items and contacts.
 export const CUSTOM_FIELD_VIEW = ['core.custom_field.view', 'core.custom_field.manage']
+// TPL-01: document templates (the API checks again at the template's place).
+export const TEMPLATE_VIEW = ['core.template.view', 'core.template.edit', 'core.template.publish']
 
 export const NAV_GROUPS = [
   {
@@ -97,6 +99,7 @@ export const NAV_GROUPS = [
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
       { to: '/settings/custom-fields', icon: 'columns', label: (t) => t('nav.customFields'), permission: CUSTOM_FIELD_VIEW, module: 'core' },
+      { to: '/settings/document-templates', icon: 'templates', label: (t) => t('nav.documentTemplates'), permission: TEMPLATE_VIEW, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
       // AUTH-06: one's own POS PIN, while the POS module is active.

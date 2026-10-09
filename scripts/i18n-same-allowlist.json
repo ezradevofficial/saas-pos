@@ -57,5 +57,12 @@
   "{{count}} min",
   "KRA eTIMS (OSCU)",
   "Signature",
-  "KRA eTIMS"
+  "KRA eTIMS",
+  "Logo",
+  "QR code",
+  "{{value}} mm",
+  "Style",
+  "Centre",
+  "Document",
+  "Page"
 ]
