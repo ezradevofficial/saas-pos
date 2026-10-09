@@ -54,5 +54,6 @@
   "Version {{version}}",
   "Version {{number}}",
   "{{type}} {{name}}",
-  "{{count}} min"
+  "{{count}} min",
+  "KRA eTIMS (OSCU)"
 ]

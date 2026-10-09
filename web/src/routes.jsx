@@ -8,12 +8,18 @@ import {
   CATEGORY_VIEW,
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
+  FISCAL_VIEW,
   ITEM_VIEW,
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
+  NUMBERING_VIEW,
   ORGANISATION_VIEW,
   PARTY_VIEW,
   PAYMENT_METHOD_VIEW,
+  PAYMENT_VIEW,
+  POS_HELD_VIEW,
+  POS_SALE_VIEW,
+  POS_SHIFT_VIEW,
   TAX_VIEW,
   UOM_VIEW,
   WORKFLOW_VIEW,
@@ -43,17 +49,27 @@ import NewParty from './pages/contacts/PartyForm'
 import Home from './pages/Home'
 import Inbox from './pages/notifications/Inbox'
 import NotFound from './pages/NotFound'
+import Held from './pages/pos/Held'
+import SaleDetail from './pages/pos/SaleDetail'
+import Sales from './pages/pos/Sales'
+import SalesDashboard from './pages/pos/SalesDashboard'
+import ShiftDetail from './pages/pos/ShiftDetail'
+import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
 import Currencies from './pages/settings/Currencies'
 import Dimensions from './pages/settings/Dimensions'
 import ExchangeRates from './pages/settings/ExchangeRates'
+import Fiscal from './pages/settings/Fiscal'
 import InviteUser from './pages/settings/InviteUser'
 import MasterDataSharing from './pages/settings/MasterDataSharing'
+import MyPosPin from './pages/settings/MyPosPin'
 import NotificationDeliveries from './pages/settings/NotificationDeliveries'
 import NotificationPreferences from './pages/settings/NotificationPreferences'
 import NotificationTemplates from './pages/settings/NotificationTemplates'
+import Numbering from './pages/settings/Numbering'
 import Organisation from './pages/settings/Organisation'
 import PaymentMethods from './pages/settings/PaymentMethods'
+import Payments from './pages/settings/Payments'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
@@ -145,6 +161,15 @@ export const routes = [
           { path: `${base}/:partyId`, element: <RequirePermission permission={PARTY_VIEW}><PartyDetail key={role} role={role} /></RequirePermission> },
         ]
       }),
+      // POS-12, TEN-07, H2: the POS back office (the API answers 403 module_inactive without the module).
+      ...[
+        ['/pos/dashboard', POS_SALE_VIEW, <SalesDashboard key="pos-dashboard" />],
+        ['/pos/sales', POS_SALE_VIEW, <Sales key="pos-sales" />],
+        ['/pos/sales/:saleId', POS_SALE_VIEW, <SaleDetail key="pos-sale" />],
+        ['/pos/shifts', POS_SHIFT_VIEW, <Shifts key="pos-shifts" />],
+        ['/pos/shifts/:shiftId', POS_SHIFT_VIEW, <ShiftDetail key="pos-shift" />],
+        ['/pos/held', POS_HELD_VIEW, <Held key="pos-held" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },
       {
@@ -218,6 +243,9 @@ export const routes = [
         // MD-03 follow-up: one price list's prices.
         ['/settings/taxes/price-lists/:priceListId', ['core.price_list.view', 'core.price_list.edit'], <PriceListDetail key="price-list" />],
         ['/settings/payment-methods', PAYMENT_METHOD_VIEW, <PaymentMethods key="payment-methods" />],
+        // Concept note 7.1, 7.2: payment requests and receipts; the tax authority and its queue.
+        ['/settings/payments', PAYMENT_VIEW, <Payments key="payments" />],
+        ['/settings/fiscal', FISCAL_VIEW, <Fiscal key="fiscal" />],
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       {
@@ -247,6 +275,10 @@ export const routes = [
         ['/settings/automation-rules/:ruleId', <RuleEditor key="automation-rule" />],
         ['/settings/automation-runs', <AutomationRuns key="automation-runs" />],
       ].map(([path, page]) => ({ path, element: <RequirePermission permission={AUTOMATION_VIEW}>{page}</RequirePermission> })),
+      // NUM-01: number formats per document type.
+      { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
+      // AUTH-06: one's own POS PIN.
+      { path: '/settings/pos-pin', element: <MyPosPin /> },
       { path: '/settings/appearance', element: <Appearance /> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.

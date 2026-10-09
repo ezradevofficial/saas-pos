@@ -120,6 +120,8 @@ class ShiftUploadTest extends TestCase
             $kes = ShiftBalance::where('shift_id', $shift)->where('currency', 'KES')->sole();
             $this->assertSame(['761250', '770000', '8750'], [(string) $kes->expected_minor, (string) $kes->counted_minor, (string) $kes->variance_minor]);
         });
+        // The back office says the cash-up was recounted for a late record.
+        $this->getJson("/api/v1/pos/shifts/{$shift}", $this->headersFor())->assertOk()->assertJsonPath('data.received_after_close', 1);
     }
 
     public function test_one_batch_closes_a_shift_and_opens_the_next_in_the_same_currency(): void

@@ -40,6 +40,10 @@ class ShiftController
 
     public function show(ShowPosRecordRequest $request, Shift $posShift): ShiftResource
     {
-        return ShiftResource::make($posShift->load([...ShiftList::RELATIONS, 'cashMovements'])->loadCount('sales'))->detail();
+        $posShift->load([...ShiftList::RELATIONS, 'cashMovements' => fn ($q) => $q->with(['user', 'approver'])->orderBy('occurred_at')])->loadCount('sales');
+        $late = "flags @> '[{\"code\": \"received_after_close\"}]'::jsonb";
+        $posShift->setAttribute('received_after_close', $posShift->sales()->whereRaw($late)->count() + $posShift->cashMovements()->whereRaw($late)->count());
+
+        return ShiftResource::make($posShift)->detail();
     }
 }

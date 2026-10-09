@@ -13,7 +13,7 @@ const COUNTRIES = ['KE', 'CD']
 const FIELDS = {
   company: ['name', 'legal_name', 'country', 'tax_id'],
   branch: ['name', 'code'],
-  location: ['name', 'type'],
+  location: ['name', 'type', 'code'],
 }
 
 function initialValues(level, record) {
@@ -21,7 +21,7 @@ function initialValues(level, record) {
     return { name: record?.name ?? '', legal_name: record?.legal_name ?? '', country: record?.country ?? 'KE', tax_id: record?.tax_id ?? '' }
   }
   if (level === 'branch') return { name: record?.name ?? '', code: record?.code ?? '' }
-  return { name: record?.name ?? '', type: record?.type ?? 'outlet' }
+  return { name: record?.name ?? '', type: record?.type ?? 'outlet', code: record?.code ?? '' }
 }
 
 function payload(level, values, editing) {
@@ -33,7 +33,12 @@ function payload(level, values, editing) {
     return body
   }
   if (level === 'branch') return { name: values.name.trim(), code: values.code.trim() }
-  return { name: values.name.trim(), type: values.type }
+  // NUM-01: printed in receipt numbers as {LOCATION}; emptied, it is cleared.
+  const body = { name: values.name.trim(), type: values.type }
+  const code = values.code.trim()
+  if (code) body.code = code
+  else if (editing) body.code = null
+  return body
 }
 
 function endpoint(level, record, parent) {
@@ -153,6 +158,18 @@ export function RecordDialog({ level, record, parent, onClose }) {
             onChange={set('type')}
             error={errors.fields.type}
             required
+          />
+        ) : null}
+        {level === 'location' ? (
+          <TextField
+            label={t('organisation.fields.locationCode')}
+            help={t('organisation.fields.locationCodeHelp')}
+            value={values.code}
+            onChange={(event) => setValues((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
+            error={errors.fields.code}
+            maxLength={10}
+            autoCapitalize="characters"
+            className="font-mono"
           />
         ) : null}
       </form>

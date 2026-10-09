@@ -85,6 +85,15 @@ class PaymentsAndFiscalTest extends TestCase
             ->assertJsonPath('data.sale.invoice_number', 1)
             ->assertJsonStructure(['data' => ['sale' => ['authority' => ['receipt_signature', 'internal_data', 'qr']]]]);
 
+        // The back office reads the same state for a viewer of the sale; not another branch's manager.
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal-status", $this->headersFor($this->manager))->assertOk()
+            ->assertJsonPath('data.transmits', true)
+            ->assertJsonPath('data.sale.status', 'accepted')
+            ->assertJsonPath('data.sale.invoice_number', 1);
+        $managerB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal-status", $this->headersFor($managerB))->assertNotFound();
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal-status", $this->tillHeaders())->assertUnauthorized();
+
         // Another location's till does not find the sale.
         [, $other] = $this->pairedTill($this->locationB, 'Till 2');
         $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal", $this->tillHeaders($other))->assertNotFound();
@@ -96,6 +105,7 @@ class PaymentsAndFiscalTest extends TestCase
 
         $this->upload([$sale])->assertOk()->assertJsonPath('results.0.fiscal', null);
         $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal", $this->tillHeaders())->assertOk()->assertJsonPath('data.sale', null);
+        $this->getJson("/api/v1/pos/sales/{$sale['id']}/fiscal-status", $this->headersFor())->assertOk()->assertJsonPath('data.transmits', false)->assertJsonPath('data.sale', null);
         $this->assertSame([], $this->submissions());
     }
 

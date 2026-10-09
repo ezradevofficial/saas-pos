@@ -8,7 +8,8 @@ use Illuminate\Foundation\Http\FormRequest;
  * AUTH-06: PUT and DELETE users/{user}/pos-pin, an administrator resets or
  * removes another user's PIN. Needs `core.user.edit` covering every scope
  * of the user (UserPolicy::update); a user out of scope is not found.
- * The PIN is never returned.
+ * The administrator always confirms with their own password (owner ruling
+ * 2026-10-09). The PIN is never returned.
  */
 class UserPinRequest extends FormRequest
 {
@@ -24,9 +25,7 @@ class UserPinRequest extends FormRequest
 
     public function rules(): array
     {
-        // Acting on oneself: the password, as on me/pos-pin.
-        $password = $this->user()->is($this->route('user')) ? ['password' => ['required', 'string', 'max:255']] : [];
-
-        return [...$password, ...($this->isMethod('DELETE') ? [] : $this->newPinRules())];
+        // The administrator's own password, for themselves or anyone else.
+        return ['password' => ['required', 'string', 'max:255'], ...($this->isMethod('DELETE') ? [] : $this->newPinRules())];
     }
 }

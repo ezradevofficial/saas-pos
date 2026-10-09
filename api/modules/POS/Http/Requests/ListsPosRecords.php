@@ -13,8 +13,9 @@ use Illuminate\Validation\Rule;
  * The back-office list contract for POS records (POS-12, EXP-01): rows at
  * the locations where the user holds the view permission (RBAC-04),
  * `?status=` (or `all`), `?company=`, `?branch=`, `?location=`, `?from=`
- * and `?to=` (dates, UTC), `?search=`, `?sort=`, pages of `?per_page`, and
- * an export.
+ * and `?to=` (calendar days in each record's company time zone, owner
+ * ruling 2026-10-09, as on the sales overview), `?search=`, `?sort=`,
+ * pages of `?per_page`, and an export.
  */
 trait ListsPosRecords
 {
@@ -62,12 +63,15 @@ trait ListsPosRecords
             $query->where($query->qualifyColumn('status'), $this->validated('status'));
         }
 
+        // The day starts at midnight in the record's company time zone.
+        $zone = '(select companies.timezone from companies where companies.id = '.$query->qualifyColumn('company_id').')';
+
         if ($this->filled('from')) {
-            $query->where($query->qualifyColumn($dateColumn), '>=', $this->validated('from').' 00:00:00+00');
+            $query->whereRaw($query->qualifyColumn($dateColumn)." >= (?::date)::timestamp at time zone {$zone}", [$this->validated('from')]);
         }
 
         if ($this->filled('to')) {
-            $query->where($query->qualifyColumn($dateColumn), '<', now()->parse($this->validated('to'))->addDay()->toDateString().' 00:00:00+00');
+            $query->whereRaw($query->qualifyColumn($dateColumn)." < ((?::date) + 1)::timestamp at time zone {$zone}", [$this->validated('to')]);
         }
 
         return $query;

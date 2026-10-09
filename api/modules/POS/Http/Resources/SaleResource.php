@@ -3,6 +3,7 @@
 namespace Modules\POS\Http\Resources;
 
 use App\Core\Currency\Money;
+use Brick\Math\BigInteger;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\POS\Models\Sale;
@@ -61,6 +62,13 @@ class SaleResource extends JsonResource
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
             'reviewed_by' => $this->reviewed_by,
             'voided_at' => $this->voided_at?->toIso8601String(),
+            // Phase 4 Task 6: what was tendered, per method type and currency (when payments are loaded).
+            'tenders' => $this->whenLoaded('payments', fn () => $this->payments
+                ->groupBy(fn (SalePayment $payment) => $payment->method_type.'|'.$payment->currency)
+                ->map(fn ($group) => [
+                    'method_type' => $group->first()->method_type,
+                    'amount' => Money::ofMinor((string) $group->reduce(fn ($sum, SalePayment $p) => $sum->plus(BigInteger::of((string) $p->amount_minor)), BigInteger::zero()), $group->first()->currency),
+                ])->values()->all()),
         ];
 
         if (! $this->detail) {
@@ -92,6 +100,7 @@ class SaleResource extends JsonResource
             'payments' => $this->payments->map(fn (SalePayment $payment) => [
                 'id' => $payment->id,
                 'payment_method_id' => $payment->payment_method_id,
+                'method_name' => $payment->method?->name,
                 'method_type' => $payment->method_type,
                 'amount' => $money($payment->amount_minor, $payment->currency),
                 'amount_in_sale' => $money($payment->amount_in_sale_minor),

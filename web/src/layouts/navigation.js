@@ -8,6 +8,7 @@
  * Overview, Catalogue (items, categories, units), Contacts (customers,
  * suppliers, credit limit changes), Settings, Finance (currencies, rates, taxes, payment methods)
  * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
+ * Point of sale (POS module): dashboard, sales, shifts and held records.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -33,6 +34,16 @@ export const NOTIFICATION_DELIVERY_VIEW = 'core.notification_delivery.view'
 // AUTO-01..AUTO-07: who may open the automation rules and their run log (the API checks again).
 export const AUTOMATION_VIEW = ['core.automation.view', 'core.automation.edit']
 
+// POS module (docs/modules/pos.md): who may open each page (any one is enough; the API checks again).
+export const POS_SALE_VIEW = 'pos.sale.view'
+export const POS_SHIFT_VIEW = 'pos.shift.view'
+export const POS_HELD_VIEW = ['pos.sale.void', 'pos.sale.refund', 'pos.cash.move']
+// Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
+export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
+export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
+// NUM-01: number formats.
+export const NUMBERING_VIEW = ['core.numbering.view', 'core.numbering.edit']
+
 export const NAV_GROUPS = [
   {
     id: 'overview',
@@ -44,6 +55,17 @@ export const NAV_GROUPS = [
     id: 'workspace',
     label: (t) => t('nav.groups.workspace'),
     items: [{ to: '/approvals', icon: 'approvals', label: (t) => t('nav.approvals'), badge: 'approvals', module: 'core' }],
+  },
+  {
+    // POS-12, TEN-07, H2: only while the POS module is active (RBAC-08).
+    id: 'pos',
+    label: (t) => t('nav.groups.pos'),
+    items: [
+      { to: '/pos/dashboard', icon: 'chart', label: (t) => t('nav.posDashboard'), permission: POS_SALE_VIEW, module: 'pos' },
+      { to: '/pos/sales', icon: 'sales', label: (t) => t('nav.posSales'), permission: POS_SALE_VIEW, module: 'pos' },
+      { to: '/pos/shifts', icon: 'shifts', label: (t) => t('nav.posShifts'), permission: POS_SHIFT_VIEW, module: 'pos' },
+      { to: '/pos/held', icon: 'held', label: (t) => t('nav.posHeld'), permission: POS_HELD_VIEW, module: 'pos' },
+    ],
   },
   {
     id: 'catalogue',
@@ -71,8 +93,11 @@ export const NAV_GROUPS = [
       { to: '/settings/users', icon: 'users', label: (t) => t('nav.users'), permission: 'core.user.view', module: 'core' },
       { to: '/settings/roles', icon: 'roles', label: (t) => t('nav.roles'), permission: 'core.role.view', module: 'core' },
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
+      { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
+      // AUTH-06: one's own POS PIN, while the POS module is active.
+      { to: '/settings/pos-pin', icon: 'key', label: (t) => t('nav.posPin'), module: 'pos' },
       // NOT-04: everyone chooses their own notification channels.
       { to: '/settings/notifications', icon: 'bell', label: (t) => t('nav.notifications') },
       {
@@ -101,6 +126,8 @@ export const NAV_GROUPS = [
       { to: '/settings/exchange-rates', needsCompany: true, icon: 'exchangeRates', label: (t) => t('nav.exchangeRates'), permission: EXCHANGE_RATE_VIEW, module: 'core' },
       { to: '/settings/taxes', needsCompany: true, icon: 'taxes', label: (t) => t('nav.taxes'), permission: TAX_VIEW, module: 'core' },
       { to: '/settings/payment-methods', needsCompany: true, icon: 'paymentMethods', label: (t) => t('nav.paymentMethods'), permission: PAYMENT_METHOD_VIEW, module: 'core' },
+      { to: '/settings/payments', needsCompany: true, icon: 'payments', label: (t) => t('nav.payments'), permission: PAYMENT_VIEW, module: 'core' },
+      { to: '/settings/fiscal', needsCompany: true, icon: 'fiscal', label: (t) => t('nav.fiscal'), permission: FISCAL_VIEW, module: 'core' },
     ],
   },
   {

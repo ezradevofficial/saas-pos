@@ -188,7 +188,8 @@ export const api = {
   post: (path, body = {}) => request('POST', path, body),
   patch: (path, body = {}) => request('PATCH', path, body),
   put: (path, body = {}) => request('PUT', path, body),
-  delete: (path) => request('DELETE', path),
+  // A body only where the API asks for one (a password confirming a removal, AUTH-06).
+  delete: (path, body) => request('DELETE', path, body),
   download,
   upload,
 }

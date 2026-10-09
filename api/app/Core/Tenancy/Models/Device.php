@@ -5,12 +5,14 @@ namespace App\Core\Tenancy\Models;
 use App\Core\Audit\Audited;
 use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
+use App\Core\Sync\DeviceSecret;
 use App\Core\Tenancy\BelongsToTenant;
 use App\Core\Tenancy\Policies\DevicePolicy;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
@@ -58,6 +60,12 @@ class Device extends Model implements HasScope
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /** AUTH-06, AUTH-08: the secret the device signs with now (its kid and age, never the secret). */
+    public function currentSecret(): HasOne
+    {
+        return $this->hasOne(DeviceSecret::class)->where('status', DeviceSecret::CURRENT);
     }
 
     public function isActive(): bool

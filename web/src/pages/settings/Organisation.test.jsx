@@ -162,11 +162,13 @@ describe('Organisation', () => {
 
   it('adds a device and shows its one-time pairing code with the expiry', async () => {
     organisation()
+    // TEN-05: a code that is still valid (an expired one can no longer be copied).
+    const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString()
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     api.post.mockImplementation(async (path) => {
       if (path === 'locations/l-1/devices') return { data: { id: 'd-3', location_id: 'l-1', name: 'Till 3', status: 'pending' } }
-      if (path === 'devices/d-3/pairing-code') return { code: 'K7MX4PQR', expires_at: '2026-10-07T14:20:00Z', device: {} }
+      if (path === 'devices/d-3/pairing-code') return { code: 'K7MX4PQR', expires_at: expiresAt, device: {} }
       throw new Error(path)
     })
     renderApp('/settings/organisation')
@@ -180,8 +182,9 @@ describe('Organisation', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Pairing code for Till 3' })
     expect(api.post).toHaveBeenCalledWith('locations/l-1/devices', { name: 'Till 3' })
     expect(within(dialog).getByText('K7MX4PQR')).toBeInTheDocument()
-    const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date('2026-10-07T14:20:00Z'))
+    const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(expiresAt))
     expect(within(dialog).getByText(`It works once and is valid until ${time}.`)).toBeInTheDocument()
+    expect(within(dialog).getByText(/^Time left: 1[45]:\d\d$/)).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Copy code' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('K7MX4PQR'))
     expect(await within(dialog).findByRole('button', { name: 'Copied' })).toBeInTheDocument()
@@ -253,5 +256,65 @@ describe('Organisation', () => {
     const dialog = await screen.findByRole('dialog', { name: 'History of Westlands' })
     expect(await within(dialog).findByText('Updated')).toBeInTheDocument()
     expect(within(dialog).getByText('Westlands Mall')).toBeInTheDocument()
+  })
+
+  it('shows when each till last synced, its signing key age and code (TEN-05, NFR-04)', async () => {
+    const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000 - 60_000).toISOString()
+    organisation({
+      devices: [
+        { ...DEVICES[0], code: 'T01', last_pull_at: '2026-10-07T14:00:00Z', last_push_at: null, signing_key: { kid: 'k-7f3a', active_since: tenDaysAgo } },
+        DEVICES[1],
+      ],
+    })
+    renderApp('/settings/organisation')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Devices of Front till' }))
+    const till = (await screen.findByText('Till 1')).closest('li')
+    expect(within(till).getByText('T01')).toBeInTheDocument()
+    expect(within(till).getByText(/^Data received 7 Oct 2026, \d\d:00.* · no sales sent yet$/)).toBeInTheDocument()
+    expect(within(till).getByText(/^Paired 5 Oct 2026/)).toBeInTheDocument()
+    expect(within(till).getByText('Signing key k-7f3a, 10 days old')).toBeInTheDocument()
+    expect(within(screen.getByText('Till 2').closest('li')).getByText('Not paired yet')).toBeInTheDocument()
+  })
+
+  it('renames a device and sets its receipt code (NUM-01)', async () => {
+    organisation()
+    api.patch.mockResolvedValue({ data: {} })
+    renderApp('/settings/organisation')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Devices of Front till' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Till 1' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Till 1' })
+    fireEvent.change(within(dialog).getByLabelText(/Device name/), { target: { value: 'Front till 1' } })
+    fireEvent.change(within(dialog).getByLabelText(/Device code/), { target: { value: 't01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('devices/d-1', { name: 'Front till 1', code: 'T01' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('warns that unpairing is the only kill switch and that unsent sales stay on the till', async () => {
+    organisation()
+    renderApp('/settings/organisation')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Devices of Front till' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Unpair Till 1' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Unpair Till 1?' })
+    expect(within(dialog).getByText(/only way to cut a lost or stolen till off for good/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Sales the till has not sent yet stay on the device/)).toBeInTheDocument()
+  })
+
+  it('edits a location code printed in receipt numbers', async () => {
+    organisation({ locations: [{ ...LOCATIONS[0], code: 'L01' }] })
+    api.patch.mockResolvedValue({ data: {} })
+    renderApp('/settings/organisation')
+
+    expect(await screen.findByText('Outlet · Code L01')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Front till' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Front till' })
+    const code = within(dialog).getByLabelText(/Location code/)
+    expect(code).toHaveValue('L01')
+    fireEvent.change(code, { target: { value: '' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('locations/l-1', { name: 'Front till', type: 'outlet', code: null }))
   })
 })

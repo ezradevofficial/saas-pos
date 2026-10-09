@@ -17,6 +17,7 @@ import { actionsColumn } from '@/lib/listColumns'
 import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
+import { UserPinCard } from './pin/UserPinCard'
 import { AssignmentFields } from './users/AssignmentFields'
 import { assignmentBody, emptyAssignment, offeredRow, USER_TONES, useGrantOptions } from './users/assignments'
 
@@ -227,7 +228,7 @@ export default function UserDetail() {
   const { userId } = useParams()
   const queryClient = useQueryClient()
   const { user: me } = useAuth()
-  const { can } = usePermissions()
+  const { can, hasModule } = usePermissions()
   const [confirm, setConfirm] = useState(null) // 'deactivate' | 'reactivate' | 'signOut'
   const [signedOut, setSignedOut] = useState(false)
   const [params, setParams] = useSearchParams()
@@ -328,6 +329,8 @@ export default function UserDetail() {
         <div className="flex flex-col gap-5">
           <ProfileCard key={user.id} user={user} canEdit={can('core.user.edit')} />
           <RolesCard user={user} canAssign={can('core.role.assign')} />
+          {/* AUTH-06: only while the POS module is on (RBAC-08). */}
+          {hasModule('pos') ? <UserPinCard user={user} self={self} canEdit={can('core.user.edit') && !deactivated} /> : null}
         </div>
       ) : (
         <Card>
