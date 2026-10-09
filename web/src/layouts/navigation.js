@@ -106,6 +106,8 @@ export const NAV_GROUPS = [
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
       { to: '/settings/custom-fields', icon: 'columns', label: (t) => t('nav.customFields'), permission: CUSTOM_FIELD_VIEW, module: 'core' },
+      // CF-04: the organisation's own forms (types); their records are the Forms group, made from data.
+      { to: '/settings/forms', icon: 'templates', label: (t) => t('nav.formTypes'), permission: 'core.custom_form_type.manage', tenantWide: true, module: 'core' },
       { to: '/settings/document-templates', icon: 'templates', label: (t) => t('nav.documentTemplates'), permission: TEMPLATE_VIEW, module: 'core' },
       { to: '/settings/appearance', icon: 'appearance', label: (t) => t('nav.appearance') },
       // BR-02, BR-08: the business's theme; BR-04..BR-06: its hosts and senders (Owner, Admin).
@@ -116,6 +118,8 @@ export const NAV_GROUPS = [
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
       { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/layouts/navigation', icon: 'menu', label: (t) => t('nav.navigationEditor'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
+      // LAY-03: form layouts (item, party, custom forms).
+      { to: '/settings/layouts/forms', icon: 'layouts', label: (t) => t('nav.formLayouts'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
       // AUTH-06: one's own POS PIN, while the POS module is active.
       { to: '/settings/pos-pin', icon: 'key', label: (t) => t('nav.posPin'), module: 'pos' },
@@ -231,4 +235,17 @@ export function homeOf(layout, visible) {
   const home = layout?.home
   if (!home || home === '/') return null
   return visible.some((group) => group.items.some((item) => item.to === home)) ? home : null
+}
+
+/**
+ * CF-04: the Forms group, made from data: one item per active custom form
+ * the user may see (the API lists only those). Placed after the workspace
+ * group; empty when there are none.
+ */
+export function withFormsGroup(groups, types) {
+  const items = (types ?? []).filter((type) => !type.archived_at && type.can?.view).map((type) => ({ to: `/forms/${type.key}`, icon: 'templates', label: () => type.name }))
+  if (items.length === 0) return groups
+  const group = { id: 'forms', label: (t) => t('nav.groups.forms'), items }
+  const at = groups.findIndex((entry) => entry.id === 'workspace')
+  return at < 0 ? [...groups, group] : [...groups.slice(0, at + 1), group, ...groups.slice(at + 1)]
 }

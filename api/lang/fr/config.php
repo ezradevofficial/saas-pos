@@ -32,6 +32,12 @@ return [
 
     // Problèmes qui empêchent de publier un brouillon (PayloadSchema).
     'problems' => [
+        // LAY-03 : mises en page de formulaires.
+        'unknown_tab' => ':path nomme l’onglet « :value », qui n’existe pas dans ce formulaire. Choisissez un de ses onglets.',
+        'tab_required' => ':path : quand un formulaire a des onglets, chaque section doit en avoir un. Choisissez-lui un onglet.',
+        'unknown_field' => ':path nomme le champ « :value », que ce formulaire n’a pas. Retirez-le.',
+        'required_hidden' => ':path : « :value » est obligatoire et n’a pas de valeur par défaut ; il ne peut pas être masqué. Affichez-le ou donnez une valeur par défaut au champ.',
+        'unknown_role' => ':path nomme un rôle qui n’existe pas ou est archivé. Choisissez un autre rôle.',
         'root' => 'la configuration',
         'not_null' => ':path ne peut pas être vide.',
         'type' => ':path doit être de type :type.',

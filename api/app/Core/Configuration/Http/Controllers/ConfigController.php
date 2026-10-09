@@ -170,7 +170,7 @@ class ConfigController
                 'kind' => $kind->key,
                 'key' => $request->key(),
                 // What applies under every layer: the kind's defaults, as this reader may see them.
-                'defaults' => $this->layer($kind, $request->key(), $request->user(), ['payload' => $resolver->defaults($kind), 'version' => null, 'document' => null])['payload'],
+                'defaults' => $this->layer($kind, $request->key(), $request->user(), ['payload' => $resolver->defaults($kind, $request->key()), 'version' => null, 'document' => null])['payload'],
             ],
         ]);
     }

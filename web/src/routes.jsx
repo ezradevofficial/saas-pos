@@ -51,6 +51,9 @@ import CreditLimitChanges from './pages/contacts/CreditLimitChanges'
 import Parties from './pages/contacts/Parties'
 import PartyDetail from './pages/contacts/PartyDetail'
 import NewParty from './pages/contacts/PartyForm'
+import FormRecordPage from './pages/forms/FormRecordPage'
+import FormRecords from './pages/forms/FormRecords'
+import FormTypes from './pages/forms/FormTypes'
 import Home from './pages/Home'
 import Inbox from './pages/notifications/Inbox'
 import NotFound from './pages/NotFound'
@@ -64,6 +67,7 @@ import Appearance from './pages/settings/Appearance'
 import Brand from './pages/settings/Brand'
 import PosLayout from './pages/settings/PosLayout'
 import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
+import FormLayoutDesigner from './pages/settings/layouts/FormLayoutDesigner'
 import NavigationEditor from './pages/settings/layouts/NavigationEditor'
 import Currencies from './pages/settings/Currencies'
 import CustomFields from './pages/settings/CustomFields'
@@ -315,6 +319,13 @@ export const routes = [
       // LAY-01, LAY-02: the organisation's and roles' dashboards and menus; anyone customises their own dashboard.
       { path: '/settings/layouts/dashboards', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><DashboardDesigner key="dashboards" /></RequirePermission> },
       { path: '/settings/layouts/navigation', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><NavigationEditor /></RequirePermission> },
+      // CF-04, CF-05: the organisation's own forms: their records (the API decides who sees which), and the types (admins).
+      { path: '/forms/:formKey', element: <FormRecords /> },
+      { path: '/forms/:formKey/new', element: <FormRecordPage key="new-form-record" /> },
+      { path: '/forms/:formKey/:recordId', element: <FormRecordPage /> },
+      { path: '/settings/forms', element: <RequirePermission permission="core.custom_form_type.manage" tenantWide><FormTypes /></RequirePermission> },
+      // LAY-03: the layouts of the item, party and custom forms, for the organisation and its roles.
+      { path: '/settings/layouts/forms', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><FormLayoutDesigner /></RequirePermission> },
       { path: '/dashboard/customise', handle: { wide: true }, element: <DashboardDesigner key="mine" personal /> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.

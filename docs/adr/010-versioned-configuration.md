@@ -32,10 +32,14 @@ Modules register a `ConfigKind` with `ConfigKinds`. A kind has:
 - a validator: a `PayloadSchema` array or a closure returning problems;
 - the scope types it allows;
 - its view, edit and publish permissions (`core.config.*` unless it brings its own);
-- an optional merger and default payload;
+- an optional merger and default payload. The merger receives the payload, the kind and the document's key; the defaults receive the key. A kind whose catalogue differs per key (`form_layout`: one form per key) reads it there;
+- `personal`: any signed-in user may keep, edit and publish documents of their own user scope (their dashboard, their list views) without the kind's permissions. Everything else still needs them;
+- an optional presenter, `fn (payload, key, reader)`, run after the merger when a payload is resolved. It adapts the payload to its reader: columns their field rules hide are dropped (RBAC-05), widgets whose data they can't read too, and per-role settings become the reader's own answer;
 - an optional list of allowed keys;
 - optional extra layout keys (see Upgrade safety);
 - its module. A kind of an inactive module is not found (RBAC-08).
+
+The validator closure receives the payload and, when known, the document (its key and scope).
 
 Drafts may have problems. Publishing and roll back refuse them with `config_invalid` and a `problems` list.
 
@@ -114,6 +118,23 @@ For example, "Cashier at this outlet" beats "Accountant for the company". Two ro
 When nothing is published along the chain, the kind's default payload is returned with `source: null`.
 
 A till has no user. `ConfigResolver::publishedAt($kind, $key, $place)` gives the published version for a place alone (location → branch → company → tenant, limited to the kind's scopes), unmerged, so the sync source merges it with what the till holds. The POS layout (`pos_layout`, LAY-05) is read this way.
+
+### Layers
+
+`GET config/{kind}/layers?key=` returns every published layer that applies to the signed-in user, most specific first (their own, their roles', the place's, the tenant's), each merged and presented as `resolved` does, plus the kind's defaults in `meta.defaults`. List views use it: a user picks among their own saved views, their roles' and the organisation's (LAY-04). `resolved` stays the answer when one layout wins.
+
+### Form layouts (LAY-03)
+
+The `form_layout` kind holds one document per form (the key: `item`, `party`, `custom_form.<key>`) for the tenant or a role.
+
+- Payload: optional `tabs`; `sections`, each with a title (typed once, not translated), a tab when there are tabs, 1 to 3 columns and its fields in order. A field entry may set `hidden`, `hidden_roles`, `label`, `help` and `width: full`.
+- `FormCatalogue` knows each form's built-in fields and the active custom fields of its entity (`custom.<key>`). Core registers the item and party forms; custom forms register theirs at run time through a source.
+- The merger lays the layout over that catalogue. A new field appears in the section its catalogue `group` names, else at the end of the last section.
+- Hiding is presentation only. Field rules (RBAC-05) still decide what a user sees and changes, and the API refuses what they may not write.
+- A required field without a default can't be hidden, for everyone or for some roles: the validator refuses it (`required_hidden`), or nobody could create a record through the form.
+- The presenter turns `hidden_roles` into `hidden` for a reader when every role they hold is listed (with several roles, the most permissive answer, as field rules), and drops custom fields their field rules hide.
+- `GET form-layouts` lists the forms; `GET form-layouts?form=` returns one form's fields and default layout, for the designer.
+- On the web, `FormLayoutRenderer` draws the item, party and custom forms from the resolved layout. Each form passes a renderer per built-in field and its custom field schema. Until the layout loads, or when it can't be read, the form falls back to its own sections.
 
 ### Upgrade safety (LAY-07)
 

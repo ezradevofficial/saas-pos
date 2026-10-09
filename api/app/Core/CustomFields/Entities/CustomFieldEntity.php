@@ -53,6 +53,26 @@ abstract class CustomFieldEntity implements LookupTarget
         return null;
     }
 
+    /** A query over this entity's records (a custom form type's records only, CF-04). */
+    public function newQuery(): Builder
+    {
+        $model = $this->model();
+
+        return $model::query();
+    }
+
+    /** Whether a field of the entity may be unique among its records (custom form lines: no). */
+    public function allowsUnique(): bool
+    {
+        return true;
+    }
+
+    /** Whether lookup fields may point at the entity's records (custom form lines: no). */
+    public function isLookupTarget(): bool
+    {
+        return true;
+    }
+
     /** The table holding the `custom` column. */
     public function table(): string
     {
@@ -70,9 +90,7 @@ abstract class CustomFieldEntity implements LookupTarget
             return [];
         }
 
-        $model = $this->model();
-
-        return $this->visible($model::query(), $actor)->whereKey($ids)->get()
+        return $this->visible($this->newQuery(), $actor)->whereKey($ids)->get()
             ->mapWithKeys(fn (Model $record) => [(string) $record->getKey() => $this->display($record)])->all();
     }
 
@@ -82,8 +100,7 @@ abstract class CustomFieldEntity implements LookupTarget
             return [];
         }
 
-        $model = $this->model();
-        $query = $this->visible($model::query(), $actor)->whereNull('archived_at');
+        $query = $this->visible($this->newQuery(), $actor)->whereNull('archived_at');
         $this->matching($query, trim($search));
 
         return $query->limit($limit)->get()

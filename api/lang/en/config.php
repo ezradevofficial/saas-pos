@@ -32,6 +32,12 @@ return [
 
     // Problems that keep a draft from being published (PayloadSchema).
     'problems' => [
+        // LAY-03: form layouts.
+        'unknown_tab' => ':path names the tab “:value”, which isn’t in this form. Pick one of its tabs.',
+        'tab_required' => ':path: when a form has tabs, every section goes in one. Pick a tab for it.',
+        'unknown_field' => ':path names the field “:value”, which this form doesn’t have. Remove it.',
+        'required_hidden' => ':path: “:value” is required and has no default, so it can’t be hidden. Show it, or give the field a default.',
+        'unknown_role' => ':path names a role that doesn’t exist or is archived. Pick another role.',
         'root' => 'the configuration',
         'not_null' => ':path can’t be empty.',
         'type' => ':path must be of type :type.',

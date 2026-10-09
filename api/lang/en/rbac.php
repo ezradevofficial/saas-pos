@@ -50,6 +50,8 @@ return [
                 'domain' => 'Custom domains and email sender',
                 'layout' => 'Dashboards, menus and list views',
                 'custom_field' => 'Custom fields',
+                'custom_form' => 'Custom forms',
+                'custom_form_type' => 'Custom form types',
             ],
             'pos' => [
                 'sale' => 'Sales',

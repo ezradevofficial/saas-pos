@@ -62,6 +62,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
+        'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
@@ -111,6 +112,8 @@ class TenantIsolationTest extends TestCase
         'payment_intent' => 'payment_intent', // payments/intents/{payment_intent} (device), a manual payment at the till's location
         'payment_receipt' => 'payment_receipt', // payment-receipts/{payment_receipt}/match, money received that matched nothing
         'fiscal_submission' => 'fiscal_submission', // fiscal-submissions/{fiscal_submission}[/retry], an accepted sale
+        'custom_form_type' => 'custom_form_type', // CF-04: custom-form-types/{custom_form_type}[/archive|restore|records|attachments]
+        'custom_form_record' => 'custom_form_record', // CF-04: custom-form-records/{custom_form_record}[/submit|cancel|archive|restore], a draft
         'custom_field' => 'custom_field', // CF-01: custom-fields/{custom_field}[/archive|restore], the item's colour field
         'pos_sale' => 'pos_sale', // POS-12: pos/sales/{pos_sale}, a partly refunded sale
         'pos_shift' => 'pos_shift', // POS-12: pos/shifts/{pos_shift}, the till's open shift
@@ -233,6 +236,7 @@ class TenantIsolationTest extends TestCase
         'user' => 'user',
         'role' => 'role',
         'custom_field' => 'custom_field',
+        'custom_form_type' => 'custom_form_type',
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
@@ -284,6 +288,8 @@ class TenantIsolationTest extends TestCase
         ['key' => 'default'],
         // LAY-06: one scope of a key (scope_id is sent with B's and A's ids through LIST_ID_QUERIES).
         ['key' => 'default', 'scope_type' => 'tenant'],
+        // LAY-03: one form's fields and default layout.
+        ['form' => 'item'],
     ];
 
     /**
@@ -294,7 +300,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form'];
 
     private TwoTenants $tenants;
 
@@ -1187,6 +1193,8 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/approvals/{approval}/reassign' => ['from_user_id' => $tenant->id('manager'), 'to_user_id' => $tenant->id('user')],
             'POST api/v1/me/delegations' => ['to_user_id' => $tenant->id('manager'), 'starts_on' => now()->toDateString(), 'ends_on' => now()->addDay()->toDateString()],
             // WF-01: a credit limit change for the company's supplier.
+            // CF-04: a record of the company's branch (the type is the caller's; the place ids are swapped).
+            'POST api/v1/custom-form-types/{custom_form_type}/records' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'location_id' => $tenant->id('location')],
             'POST api/v1/credit-limit-changes' => [
                 'party_id' => $tenant->id('party'), 'company_id' => $tenant->id('company'),
                 'requested_limit' => ['amount_minor' => '100000', 'currency' => 'KES'], 'reason' => 'Hijack check',

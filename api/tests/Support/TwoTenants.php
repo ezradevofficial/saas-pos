@@ -223,6 +223,22 @@ final class TwoTenants
         ], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
         self::ok($test->patchJson("/api/v1/items/{$item}", ['custom' => ['colour' => 'red', 'manual' => $customFile]], $owner));
 
+        // CF-04, CF-05: a petty cash form with a header field, a money line field and
+        // attachments; a draft record with a line and an uploaded file, changed once.
+        $formType = self::ok($test->postJson('/api/v1/custom-form-types', [
+            'key' => 'petty_cash', 'name' => "Petty cash {$upper}", 'workflow' => true, 'has_lines' => true, 'attachments' => true,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/custom-fields', ['entity' => 'custom_form:petty_cash', 'key' => 'reason', 'label' => "Reason {$upper}", 'type' => 'text'], $owner), 201);
+        self::ok($test->postJson('/api/v1/custom-fields', ['entity' => 'custom_form_line:petty_cash', 'key' => 'amount', 'label' => "Amount {$upper}", 'type' => 'money'], $owner), 201);
+        $formFile = self::ok($test->post("/api/v1/custom-form-types/{$formType}/attachments", [
+            'file' => UploadedFile::fake()->create("receipt-{$key}.pdf", 4, 'application/pdf'),
+        ], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
+        $formRecord = self::ok($test->postJson("/api/v1/custom-form-types/{$formType}/records", [
+            'company_id' => $company, 'branch_id' => $branch, 'custom' => ['reason' => "Fuel {$upper}"],
+            'lines' => [['custom' => ['amount' => ['amount_minor' => '150000', 'currency' => 'KES']]]], 'attachments' => [$formFile],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/custom-form-records/{$formRecord}", ['custom' => ['reason' => "Fuel and water {$upper}"]], $owner));
+
         // MD-04: the company's seeded payment methods; M-Pesa configured
         // (secrets stored encrypted) and switched on, then moved to the top.
         $methods = collect(self::ok($test->getJson("/api/v1/companies/{$company}/payment-methods", $owner))->json('data'));
@@ -506,6 +522,8 @@ final class TwoTenants
                 'item_price' => $itemPrice,
                 'custom_field' => $customField,
                 'custom_field_file' => $customFile,
+                'custom_form_type' => $formType,
+                'custom_form_record' => $formRecord,
                 'payment_method' => $paymentMethod,
                 'workflow' => $workflow,
                 'workflow_version' => $workflowVersion,

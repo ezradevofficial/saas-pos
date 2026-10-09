@@ -77,6 +77,10 @@ class PermissionRegistry
         'layout' => ['view', 'edit', 'publish'],
         // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
         'custom_field' => ['view', 'manage'],
+        // CF-04: records of the tenant's custom forms, at their company, branch or
+        // location (docs/adr/012), and the form types themselves (tenant scope).
+        'custom_form' => ['view', 'create', 'edit', 'approve'],
+        'custom_form_type' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

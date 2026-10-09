@@ -888,4 +888,40 @@ return [
             'branch_company' => 'Choose a branch of the selected company.',
         ],
     ],
+    // CF-04, CF-05: custom forms and their records.
+    'custom_form' => [
+        'lines_of' => ':name: lines',
+        'fields' => [
+            'number' => 'Number', 'amount' => 'Amount', 'company' => 'Company', 'branch' => 'Branch', 'location' => 'Location',
+            'requested_by' => 'Requested by', 'place' => 'Where', 'total' => 'Total :field',
+        ],
+        'columns' => [
+            'number' => 'Number', 'status' => 'Status', 'company' => 'Company', 'branch' => 'Branch', 'location' => 'Location',
+            'amount' => 'Amount', 'created_by' => 'Created by', 'created_at' => 'Created',
+        ],
+        'statuses' => [
+            'draft' => 'Draft', 'pending' => 'Waiting for approval', 'submitted' => 'Submitted', 'approved' => 'Approved',
+            'rejected' => 'Rejected', 'cancelled' => 'Cancelled', 'archived' => 'Archived', 'all' => 'All',
+        ],
+        'flow' => ['start' => 'Submitted', 'approve' => 'Approval', 'approved' => 'Approved', 'rejected' => 'Rejected'],
+        'errors' => [
+            'not_draft' => 'Only a draft can be changed or submitted. Open a new form instead.',
+            'not_open' => 'Only a draft or a form waiting for approval can be cancelled.',
+            'one_currency' => 'Every line of this field must be in :currency, so its total is one amount. Change the currency.',
+            'attachment_unknown' => 'This file isn’t one you uploaded for this form. Upload it again.',
+            'branch_company' => 'This branch isn’t part of the chosen company. Choose one of its branches.',
+            'location_branch' => 'This location isn’t part of the chosen branch. Choose one of its locations.',
+            'place_forbidden' => 'You can’t create this form there. Choose a place where you work, or ask an administrator.',
+        ],
+    ],
+    'custom_form_type' => [
+        'key_taken' => 'A form with this key exists already, perhaps archived. Choose another key.',
+        'key_invalid' => 'Use lowercase letters, digits and underscores, starting with a letter.',
+        'line_field_unknown' => 'The line field “:field” doesn’t exist on this form. Add it under the form’s line fields first.',
+        'workflow_in_use' => 'Some forms of this kind are waiting for approval. Let them finish before turning the workflow off.',
+        'attributes' => [
+            'key' => 'key', 'name' => 'name', 'description' => 'description', 'workflow' => 'workflow', 'has_lines' => 'line table',
+            'attachments' => 'attachments', 'line_fields' => 'line columns', 'role_ids' => 'roles',
+        ],
+    ],
 ];

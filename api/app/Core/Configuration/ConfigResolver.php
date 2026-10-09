@@ -68,7 +68,7 @@ class ConfigResolver
                         $payload = $document->published->payload;
 
                         return [
-                            'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                            'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.'), $key),
                             'version' => $document->published,
                             'document' => $document,
                         ];
@@ -78,13 +78,13 @@ class ConfigResolver
                             'version_id' => $document->published->id, 'error' => $e->getMessage(),
                         ]);
 
-                        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
+                        return ['payload' => $this->defaults($kind, $key), 'version' => null, 'document' => null];
                     }
                 }
             }
         }
 
-        return ['payload' => $this->defaults($kind), 'version' => null, 'document' => null];
+        return ['payload' => $this->defaults($kind, $key), 'version' => null, 'document' => null];
     }
 
     /**
@@ -172,7 +172,7 @@ class ConfigResolver
             try {
                 $payload = $document->published->payload;
                 $layers[] = [
-                    'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.')),
+                    'payload' => $kind->merge(is_array($payload) ? $payload : throw new UnexpectedValueException('The payload is not an object.'), $key),
                     'version' => $document->published,
                     'document' => $document,
                 ];
@@ -188,10 +188,10 @@ class ConfigResolver
     }
 
     /** The kind's defaults; null (the client's built-in layout) when even they fail. */
-    public function defaults(ConfigKind $kind): ?array
+    public function defaults(ConfigKind $kind, string $key = ConfigKind::DEFAULT_KEY): ?array
     {
         try {
-            return $kind->defaultPayload();
+            return $kind->defaultPayload($key);
         } catch (Throwable $e) {
             Log::warning('Configuration defaults could not be built.', ['kind' => $kind->key, 'error' => $e->getMessage()]);
 

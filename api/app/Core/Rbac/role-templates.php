@@ -45,6 +45,8 @@ return [
             'core.approval.reassign',
             // LAY-06: sees the layouts and themes that apply at their branch.
             'core.config.view',
+            // CF-04: fills in, changes and approves the organisation's custom forms at their branch.
+            'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.edit', 'core.custom_form.approve',
             // TPL-01: sees the document templates that apply at their branch.
             'core.template.view',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
@@ -95,6 +97,8 @@ return [
             'core.tax.view', 'core.price_list.view', 'core.price.view', 'core.party.view', 'core.party.create', 'core.party.edit',
             'core.credit_limit.request', 'core.credit_limit.approve',
             'core.payment_method.view', 'core.dimension.*', 'core.payment.*', 'core.fiscal.view', 'core.fiscal.edit',
+            // CF-04: fills in and approves custom forms (petty cash and the like).
+            'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.approve',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             'core.template.view',

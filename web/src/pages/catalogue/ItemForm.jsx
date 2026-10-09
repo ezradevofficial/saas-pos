@@ -6,12 +6,13 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { CustomFieldsSection } from '@/components/CustomFieldsSection'
-import { Alert, Button, Card, Checkbox, DecimalInput, Icon, Select, TextField } from '@/components/ds'
+import { FormLayoutRenderer } from '@/components/FormLayoutRenderer'
+import { Alert, Button, Checkbox, DecimalInput, Icon, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { perCompany, useSharingModes } from '@/lib/masterData'
 import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
+import { fallbackLayout, useFormLayout } from '@/lib/formLayout'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { categoryOptions, ITEM_TYPES, uomLabel, useItemCategories, useTaxCategories, useUoms } from './catalogueData'
@@ -139,6 +140,256 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
   ]
   const keep = (options, current, label) => (current && !options.some((option) => option.value === current) ? [...options, { value: current, label }] : options)
 
+  // LAY-03: each field of the form, placed by the item form's layout (FormLayoutRenderer).
+  // `label` and `help` are the layout's words for the field, when it has any.
+  const fieldRenderers = {
+    company_id: ({ label, help }) =>
+      creating && keptPerCompany ? (
+        <Select
+          label={label ?? t('items.form.company')}
+          help={help ?? t('items.form.companyHelp')}
+          options={activeCompanies.map((company) => ({ value: company.id, label: company.name }))}
+          placeholder={t('items.form.chooseCompany')}
+          value={chosenCompany}
+          onChange={(event) => setValues((current) => ({ ...current, company_id: event.target.value, category_id: '', tax_category_id: '' }))}
+          error={errors.fields.company_id}
+          required
+        />
+      ) : null,
+    code: ({ label, help }) =>
+      shows('code') ? (
+        <TextField
+          label={label ?? t('items.form.code')}
+          help={help ?? t('items.form.codeHelp')}
+          value={values.code}
+          onChange={set('code')}
+          maxLength={40}
+          autoComplete="off"
+          error={errors.fields.code}
+          required
+        />
+      ) : null,
+    type: ({ label, help }) =>
+      shows('type') ? (
+        <Select
+          label={label ?? t('items.form.type')}
+          help={help}
+          options={ITEM_TYPES.map((type) => ({ value: type, label: t(`items.types.${type}`) }))}
+          value={values.type}
+          onChange={set('type')}
+          error={errors.fields.type}
+          required
+        />
+      ) : null,
+    name: ({ label, help }) =>
+      shows('name') ? (
+        <TextField label={label ?? t('items.form.name')} help={help} value={values.name} onChange={set('name')} maxLength={255} error={errors.fields.name} required />
+      ) : null,
+    category_id: ({ label, help }) =>
+      shows('category_id') ? (
+        <Select
+          label={label ?? t('items.form.category')}
+          help={help}
+          options={keep(
+            [{ value: '', label: t('items.form.noCategory') }, ...categoryOptions(categories.all, companyId)],
+            values.category_id,
+            categories.all.find((category) => category.id === values.category_id)?.name ?? t('items.form.unknownCategory'),
+          )}
+          value={values.category_id}
+          onChange={set('category_id')}
+          error={errors.fields.category_id}
+        />
+      ) : null,
+    tax_category_id: ({ label, help }) =>
+      shows('tax_category_id') && taxCategories.allowed ? (
+        <Select
+          label={label ?? t('items.form.taxCategory')}
+          help={help}
+          options={keep(
+            [
+              { value: '', label: t('items.form.noTaxCategory') },
+              ...taxCategories.all
+                .filter((category) => !category.archived_at && (category.company_id ?? null) === companyId)
+                .map((category) => ({ value: category.id, label: category.name })),
+            ],
+            values.tax_category_id,
+            taxCategories.all.find((category) => category.id === values.tax_category_id)?.name ?? t('items.form.unknownCategory'),
+          )}
+          value={values.tax_category_id}
+          onChange={set('tax_category_id')}
+          error={errors.fields.tax_category_id}
+        />
+      ) : null,
+    units: ({ help }) =>
+      shows('base_uom_id') ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-caption text-ink-muted">{help ?? t('items.form.unitsHelp')}</p>
+          <Select
+            label={t('items.form.baseUnit')}
+            help={!creating && item.base_uom_id !== baseUomId ? t('items.form.baseChanged') : t('items.form.baseUnitHelp')}
+            className="max-w-field"
+            options={keep(
+              uoms.active.map((uom) => ({ value: uom.id, label: uomLabel(uom) })),
+              baseUomId,
+              uomLabel(uoms.all.find((uom) => uom.id === baseUomId)) || t('items.form.unknownUnit'),
+            )}
+            placeholder={uoms.isPending ? t('common.loading') : t('items.form.chooseUnit')}
+            value={baseUomId}
+            onChange={(event) => {
+              const next = event.target.value
+              // The new base cannot also be another unit of the item.
+              setValues((current) => ({ ...current, base_uom_id: next, uoms: current.uoms.filter((row) => row.uom_id !== next) }))
+            }}
+            error={errors.fields.base_uom_id}
+            required
+          />
+          {shows('uoms') ? (
+            <>
+              {errors.fields.uoms ? <p className="text-caption text-danger">{errors.fields.uoms}</p> : null}
+              {values.uoms.length ? (
+                <ul aria-label={t('items.form.otherUnits')} className="flex flex-col divide-y divide-border border-y border-border">
+                  {values.uoms.map((row, index) => {
+                    const unit = uoms.all.find((uom) => uom.id === row.uom_id)
+                    return (
+                      <li key={row.key} className="flex flex-wrap items-end gap-3 py-3">
+                        <Select
+                          label={t('items.form.unit')}
+                          className="min-w-0 grow basis-full sm:basis-0"
+                          options={keep(unitChoices(row), row.uom_id, uomLabel(unit) || t('items.form.unknownUnit'))}
+                          placeholder={t('items.form.chooseUnit')}
+                          value={row.uom_id}
+                          onChange={(event) => setRow('uoms', row.key, { uom_id: event.target.value })}
+                          error={errors.fields[`uoms.${index}.uom_id`] ?? (submitted && !row.uom_id ? t('items.form.unitRequired') : undefined)}
+                          required
+                        />
+                        <DecimalInput
+                          label={t('items.form.factor', { base: baseUom?.code ?? '' })}
+                          className="min-w-0 grow basis-full sm:basis-0"
+                          value={row.factor}
+                          onChange={(factor) => setRow('uoms', row.key, { factor })}
+                          showErrors={submitted}
+                          error={errors.fields[`uoms.${index}.factor`] ?? (submitted && row.factor === '' ? t('items.form.factorRequired') : undefined)}
+                          required
+                        />
+                        <div className="flex flex-col gap-1 pb-2">
+                          <Checkbox
+                            label={t('items.form.salesDefault')}
+                            checked={row.is_sales_default}
+                            onChange={(event) => setDefault(row.key, 'is_sales_default', event.target.checked)}
+                          />
+                          <Checkbox
+                            label={t('items.form.purchaseDefault')}
+                            checked={row.is_purchase_default}
+                            onChange={(event) => setDefault(row.key, 'is_purchase_default', event.target.checked)}
+                          />
+                        </div>
+                        {readOnly ? null : (
+                          <Button
+                            variant="ghost"
+                            icon="remove"
+                            onClick={() => {
+                              removeRow('uoms', row.key)
+                              // Barcodes of a removed unit fall back to the base unit.
+                              setValues((current) => ({ ...current, barcodes: current.barcodes.map((barcode) => (barcode.uom_id === row.uom_id ? { ...barcode, uom_id: '' } : barcode)) }))
+                            }}
+                            aria-label={t('items.form.removeUnit', { unit: unit?.code ?? t('items.form.unitN', { n: index + 1 }) })}
+                          >
+                            {t('items.form.remove')}
+                          </Button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="text-ink-muted">{t('items.form.noOtherUnits')}</p>
+              )}
+              {readOnly ? null : (
+                <div>
+                  <Button
+                    icon="plus"
+                    onClick={() =>
+                      setValues((current) => ({
+                        ...current,
+                        uoms: [...current.uoms, { key: nextKey(), uom_id: '', factor: '', is_sales_default: false, is_purchase_default: false }],
+                      }))
+                    }
+                  >
+                    {t('items.form.addUnit')}
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      ) : null,
+    barcodes: ({ help }) =>
+      shows('barcodes') ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-caption text-ink-muted">{help ?? t('items.form.barcodesHelp')}</p>
+          {errors.fields.barcodes ? <p className="text-caption text-danger">{errors.fields.barcodes}</p> : null}
+          {values.barcodes.length ? (
+            <ul aria-label={t('items.form.barcodes')} className="flex flex-col divide-y divide-border border-y border-border">
+              {values.barcodes.map((row, index) => (
+                <li key={row.key} className="flex flex-wrap items-end gap-3 py-3">
+                  <TextField
+                    label={t('items.form.barcode')}
+                    className="min-w-0 grow basis-full sm:basis-0"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={row.barcode}
+                    onChange={(event) => setRow('barcodes', row.key, { barcode: event.target.value })}
+                    error={barcodeError(row)}
+                  />
+                  <Select
+                    label={t('items.form.barcodeUnit')}
+                    className="min-w-0 grow basis-full sm:basis-0"
+                    options={barcodeUnits}
+                    value={row.uom_id && row.uom_id !== baseUomId ? row.uom_id : ''}
+                    onChange={(event) => setRow('barcodes', row.key, { uom_id: event.target.value })}
+                  />
+                  {readOnly ? null : (
+                    <Button
+                      variant="ghost"
+                      icon="remove"
+                      onClick={() => removeRow('barcodes', row.key)}
+                      aria-label={t('items.form.removeBarcode', { barcode: row.barcode || t('items.form.barcodeN', { n: index + 1 }) })}
+                    >
+                      {t('items.form.remove')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-ink-muted">{t('items.form.noBarcodes')}</p>
+          )}
+          {readOnly ? null : (
+            <div>
+              <Button icon="plus" onClick={() => setValues((current) => ({ ...current, barcodes: [...current.barcodes, { key: nextKey(), barcode: '', uom_id: '' }] }))}>
+                {t('items.form.addBarcode')}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null,
+  }
+  const fallback = fallbackLayout(
+    [
+      {
+        id: 'details',
+        title: t('items.form.details'),
+        columns: 2,
+        fields: ['company_id', 'code', 'type', 'name', 'category_id', 'tax_category_id'].map((id) => ({ id, wide: id === 'company_id' || id === 'name' })),
+      },
+      { id: 'units', title: t('items.form.units'), columns: 1, fields: [{ id: 'units', wide: true }] },
+      { id: 'barcodes', title: t('items.form.barcodes'), columns: 1, fields: [{ id: 'barcodes', wide: true }] },
+      { id: 'custom', title: t('customFields.section.title'), columns: 2, fields: [] },
+    ],
+    customSchema.fields,
+  )
+  const { layout } = useFormLayout('item', fallback)
+
   return (
     <form
       ref={formRef}
@@ -157,244 +408,13 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
         </div>
       ) : null}
       <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
-        <Card title={t('items.form.details')}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {creating && keptPerCompany ? (
-              <Select
-                label={t('items.form.company')}
-                help={t('items.form.companyHelp')}
-                options={activeCompanies.map((company) => ({ value: company.id, label: company.name }))}
-                placeholder={t('items.form.chooseCompany')}
-                value={chosenCompany}
-                onChange={(event) => setValues((current) => ({ ...current, company_id: event.target.value, category_id: '', tax_category_id: '' }))}
-                error={errors.fields.company_id}
-                required
-                className="sm:col-span-2"
-              />
-            ) : null}
-            {shows('code') ? (
-              <TextField
-                label={t('items.form.code')}
-                help={t('items.form.codeHelp')}
-                value={values.code}
-                onChange={set('code')}
-                maxLength={40}
-                autoComplete="off"
-                error={errors.fields.code}
-                required
-              />
-            ) : null}
-            {shows('type') ? (
-              <Select
-                label={t('items.form.type')}
-                options={ITEM_TYPES.map((type) => ({ value: type, label: t(`items.types.${type}`) }))}
-                value={values.type}
-                onChange={set('type')}
-                error={errors.fields.type}
-                required
-              />
-            ) : null}
-            {shows('name') ? (
-              <TextField
-                label={t('items.form.name')}
-                value={values.name}
-                onChange={set('name')}
-                maxLength={255}
-                error={errors.fields.name}
-                required
-                className="sm:col-span-2"
-              />
-            ) : null}
-            {shows('category_id') ? (
-              <Select
-                label={t('items.form.category')}
-                options={keep(
-                  [{ value: '', label: t('items.form.noCategory') }, ...categoryOptions(categories.all, companyId)],
-                  values.category_id,
-                  categories.all.find((category) => category.id === values.category_id)?.name ?? t('items.form.unknownCategory'),
-                )}
-                value={values.category_id}
-                onChange={set('category_id')}
-                error={errors.fields.category_id}
-              />
-            ) : null}
-            {shows('tax_category_id') && taxCategories.allowed ? (
-              <Select
-                label={t('items.form.taxCategory')}
-                options={keep(
-                  [
-                    { value: '', label: t('items.form.noTaxCategory') },
-                    ...taxCategories.all
-                      .filter((category) => !category.archived_at && (category.company_id ?? null) === companyId)
-                      .map((category) => ({ value: category.id, label: category.name })),
-                  ],
-                  values.tax_category_id,
-                  taxCategories.all.find((category) => category.id === values.tax_category_id)?.name ?? t('items.form.unknownCategory'),
-                )}
-                value={values.tax_category_id}
-                onChange={set('tax_category_id')}
-                error={errors.fields.tax_category_id}
-              />
-            ) : null}
-          </div>
-        </Card>
-
-        {shows('base_uom_id') ? (
-          <Card title={t('items.form.units')} subtitle={t('items.form.unitsHelp')}>
-            <div className="flex flex-col gap-4">
-              <Select
-                label={t('items.form.baseUnit')}
-                help={!creating && item.base_uom_id !== baseUomId ? t('items.form.baseChanged') : t('items.form.baseUnitHelp')}
-                className="max-w-field"
-                options={keep(
-                  uoms.active.map((uom) => ({ value: uom.id, label: uomLabel(uom) })),
-                  baseUomId,
-                  uomLabel(uoms.all.find((uom) => uom.id === baseUomId)) || t('items.form.unknownUnit'),
-                )}
-                placeholder={uoms.isPending ? t('common.loading') : t('items.form.chooseUnit')}
-                value={baseUomId}
-                onChange={(event) => {
-                  const next = event.target.value
-                  // The new base cannot also be another unit of the item.
-                  setValues((current) => ({ ...current, base_uom_id: next, uoms: current.uoms.filter((row) => row.uom_id !== next) }))
-                }}
-                error={errors.fields.base_uom_id}
-                required
-              />
-              {shows('uoms') ? (
-                <>
-                  {errors.fields.uoms ? <p className="text-caption text-danger">{errors.fields.uoms}</p> : null}
-                  {values.uoms.length ? (
-                    <ul aria-label={t('items.form.otherUnits')} className="flex flex-col divide-y divide-border border-y border-border">
-                      {values.uoms.map((row, index) => {
-                        const unit = uoms.all.find((uom) => uom.id === row.uom_id)
-                        return (
-                          <li key={row.key} className="flex flex-wrap items-end gap-3 py-3">
-                            <Select
-                              label={t('items.form.unit')}
-                              className="min-w-0 grow basis-full sm:basis-0"
-                              options={keep(unitChoices(row), row.uom_id, uomLabel(unit) || t('items.form.unknownUnit'))}
-                              placeholder={t('items.form.chooseUnit')}
-                              value={row.uom_id}
-                              onChange={(event) => setRow('uoms', row.key, { uom_id: event.target.value })}
-                              error={errors.fields[`uoms.${index}.uom_id`] ?? (submitted && !row.uom_id ? t('items.form.unitRequired') : undefined)}
-                              required
-                            />
-                            <DecimalInput
-                              label={t('items.form.factor', { base: baseUom?.code ?? '' })}
-                              className="min-w-0 grow basis-full sm:basis-0"
-                              value={row.factor}
-                              onChange={(factor) => setRow('uoms', row.key, { factor })}
-                              showErrors={submitted}
-                              error={errors.fields[`uoms.${index}.factor`] ?? (submitted && row.factor === '' ? t('items.form.factorRequired') : undefined)}
-                              required
-                            />
-                            <div className="flex flex-col gap-1 pb-2">
-                              <Checkbox
-                                label={t('items.form.salesDefault')}
-                                checked={row.is_sales_default}
-                                onChange={(event) => setDefault(row.key, 'is_sales_default', event.target.checked)}
-                              />
-                              <Checkbox
-                                label={t('items.form.purchaseDefault')}
-                                checked={row.is_purchase_default}
-                                onChange={(event) => setDefault(row.key, 'is_purchase_default', event.target.checked)}
-                              />
-                            </div>
-                            {readOnly ? null : (
-                              <Button
-                                variant="ghost"
-                                icon="remove"
-                                onClick={() => {
-                                  removeRow('uoms', row.key)
-                                  // Barcodes of a removed unit fall back to the base unit.
-                                  setValues((current) => ({ ...current, barcodes: current.barcodes.map((barcode) => (barcode.uom_id === row.uom_id ? { ...barcode, uom_id: '' } : barcode)) }))
-                                }}
-                                aria-label={t('items.form.removeUnit', { unit: unit?.code ?? t('items.form.unitN', { n: index + 1 }) })}
-                              >
-                                {t('items.form.remove')}
-                              </Button>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-ink-muted">{t('items.form.noOtherUnits')}</p>
-                  )}
-                  {readOnly ? null : (
-                    <div>
-                      <Button
-                        icon="plus"
-                        onClick={() =>
-                          setValues((current) => ({
-                            ...current,
-                            uoms: [...current.uoms, { key: nextKey(), uom_id: '', factor: '', is_sales_default: false, is_purchase_default: false }],
-                          }))
-                        }
-                      >
-                        {t('items.form.addUnit')}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-          </Card>
-        ) : null}
-
-        {shows('barcodes') ? (
-          <Card title={t('items.form.barcodes')} subtitle={t('items.form.barcodesHelp')}>
-            <div className="flex flex-col gap-4">
-              {errors.fields.barcodes ? <p className="text-caption text-danger">{errors.fields.barcodes}</p> : null}
-              {values.barcodes.length ? (
-                <ul aria-label={t('items.form.barcodes')} className="flex flex-col divide-y divide-border border-y border-border">
-                  {values.barcodes.map((row, index) => (
-                    <li key={row.key} className="flex flex-wrap items-end gap-3 py-3">
-                      <TextField
-                        label={t('items.form.barcode')}
-                        className="min-w-0 grow basis-full sm:basis-0"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        value={row.barcode}
-                        onChange={(event) => setRow('barcodes', row.key, { barcode: event.target.value })}
-                        error={barcodeError(row)}
-                      />
-                      <Select
-                        label={t('items.form.barcodeUnit')}
-                        className="min-w-0 grow basis-full sm:basis-0"
-                        options={barcodeUnits}
-                        value={row.uom_id && row.uom_id !== baseUomId ? row.uom_id : ''}
-                        onChange={(event) => setRow('barcodes', row.key, { uom_id: event.target.value })}
-                      />
-                      {readOnly ? null : (
-                        <Button
-                          variant="ghost"
-                          icon="remove"
-                          onClick={() => removeRow('barcodes', row.key)}
-                          aria-label={t('items.form.removeBarcode', { barcode: row.barcode || t('items.form.barcodeN', { n: index + 1 }) })}
-                        >
-                          {t('items.form.remove')}
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-ink-muted">{t('items.form.noBarcodes')}</p>
-              )}
-              {readOnly ? null : (
-                <div>
-                  <Button icon="plus" onClick={() => setValues((current) => ({ ...current, barcodes: [...current.barcodes, { key: nextKey(), barcode: '', uom_id: '' }] }))}>
-                    {t('items.form.addBarcode')}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
-        ) : null}
-
-        <CustomFieldsSection entity="item" fields={customSchema.fields} custom={custom} errors={customErrors(errors.fields)} readOnly={readOnly} showErrors={submitted} />
+        <FormLayoutRenderer
+          layout={layout}
+          fields={fieldRenderers}
+          custom={{ entity: 'item', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
+          readOnly={readOnly}
+          showErrors={submitted}
+        />
       </fieldset>
       {readOnly ? null : (
         <div className="flex flex-wrap gap-2">

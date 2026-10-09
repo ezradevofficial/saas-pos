@@ -103,10 +103,7 @@ class CustomFieldWriter
     /** Whether an active record other than $exceptId holds $value in field $key. */
     public function taken(string $entity, string $key, mixed $value, ?string $exceptId): bool
     {
-        $target = $this->entities->get($entity);
-        $model = $target->model();
-
-        return $model::query()
+        return $this->entities->get($entity)->newQuery()
             ->whereNull('archived_at')
             ->whereRaw('custom @> ?::jsonb', [json_encode([$key => $value])])
             ->when($exceptId !== null, fn ($q) => $q->whereKeyNot($exceptId))

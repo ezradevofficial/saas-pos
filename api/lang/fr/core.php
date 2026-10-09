@@ -888,4 +888,40 @@ return [
             'branch_company' => 'Choisissez une agence de la société sélectionnée.',
         ],
     ],
+    // CF-04, CF-05 : formulaires personnalisés et leurs fiches.
+    'custom_form' => [
+        'lines_of' => ':name : lignes',
+        'fields' => [
+            'number' => 'Numéro', 'amount' => 'Montant', 'company' => 'Société', 'branch' => 'Agence', 'location' => 'Emplacement',
+            'requested_by' => 'Demandé par', 'place' => 'Lieu', 'total' => 'Total :field',
+        ],
+        'columns' => [
+            'number' => 'Numéro', 'status' => 'Statut', 'company' => 'Société', 'branch' => 'Agence', 'location' => 'Emplacement',
+            'amount' => 'Montant', 'created_by' => 'Créé par', 'created_at' => 'Créé le',
+        ],
+        'statuses' => [
+            'draft' => 'Brouillon', 'pending' => 'En attente d’approbation', 'submitted' => 'Envoyé', 'approved' => 'Approuvé',
+            'rejected' => 'Refusé', 'cancelled' => 'Annulé', 'archived' => 'Archivé', 'all' => 'Tous',
+        ],
+        'flow' => ['start' => 'Envoyé', 'approve' => 'Approbation', 'approved' => 'Approuvé', 'rejected' => 'Refusé'],
+        'errors' => [
+            'not_draft' => 'Seul un brouillon peut être modifié ou envoyé. Ouvrez plutôt un nouveau formulaire.',
+            'not_open' => 'Seul un brouillon ou un formulaire en attente d’approbation peut être annulé.',
+            'one_currency' => 'Chaque ligne de ce champ doit être en :currency pour que son total soit un seul montant. Changez la devise.',
+            'attachment_unknown' => 'Ce fichier n’est pas un de ceux que vous avez déposés pour ce formulaire. Déposez-le à nouveau.',
+            'branch_company' => 'Cette agence n’appartient pas à la société choisie. Choisissez une de ses agences.',
+            'location_branch' => 'Cet emplacement n’appartient pas à l’agence choisie. Choisissez un de ses emplacements.',
+            'place_forbidden' => 'Vous ne pouvez pas créer ce formulaire à cet endroit. Choisissez un lieu où vous travaillez ou demandez à un administrateur.',
+        ],
+    ],
+    'custom_form_type' => [
+        'key_taken' => 'Un formulaire avec cette clé existe déjà, peut-être archivé. Choisissez une autre clé.',
+        'key_invalid' => 'Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.',
+        'line_field_unknown' => 'Le champ de ligne « :field » n’existe pas dans ce formulaire. Ajoutez-le d’abord aux champs de ligne du formulaire.',
+        'workflow_in_use' => 'Des formulaires de ce type attendent une approbation. Laissez-les aboutir avant de désactiver le circuit.',
+        'attributes' => [
+            'key' => 'clé', 'name' => 'nom', 'description' => 'description', 'workflow' => 'circuit', 'has_lines' => 'tableau de lignes',
+            'attachments' => 'pièces jointes', 'line_fields' => 'colonnes des lignes', 'role_ids' => 'rôles',
+        ],
+    ],
 ];
