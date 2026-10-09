@@ -68,6 +68,9 @@ class ActorProofVerifier
 
     public const FAIL_NOT_STAFF = 'not_staff_here';
 
+    /** The session was recorded online for another user or another sign-in time. */
+    public const FAIL_SESSION_MISMATCH = 'session_mismatch';
+
     /** ISO 8601 date and time with a `Z` or an offset. */
     private const TIME = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}(:?\d{2})?)$/';
 
@@ -138,8 +141,15 @@ class ActorProofVerifier
             return ActorProofResult::failed(self::FAIL_NOT_STAFF);
         }
 
-        $online = TillSignIn::query()->where('device_id', $device->id)->where('session_id', strtolower($sessionId))
-            ->where('user_id', $user->id)->exists();
+        // A session the server recorded online must be the one the proof describes: same person,
+        // same sign-in time as sent to pos/pin/verify. Anything else is a forged or replayed claim.
+        $session = TillSignIn::query()->where('device_id', $device->id)->where('session_id', strtolower($sessionId))->first();
+
+        if ($session !== null && ($session->user_id !== $user->id || ($session->signed_in_at !== null && $session->signed_in_at !== $at))) {
+            return ActorProofResult::failed(self::FAIL_SESSION_MISMATCH);
+        }
+
+        $online = $session !== null && $session->signed_in_at !== null;
 
         return ActorProofResult::verified(new VerifiedActor($user, strtolower($sessionId), $signedInAt, $online));
     }

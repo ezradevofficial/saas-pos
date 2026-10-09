@@ -58,10 +58,10 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     }
   }, [catalogue, changeCurrency, currency, tenders, total]);
 
-  const askedIn = (target) => {
+  const askedIn = (target, cash = true) => {
     if (!result) return '0';
     try {
-      return amountDueIn({ remaining: result.remaining.minor, from: currency, currency: target, money: catalogue.money });
+      return amountDueIn({ remaining: result.remaining.minor, from: currency, currency: target, money: catalogue.money, cash });
     } catch {
       return null;
     }
@@ -69,7 +69,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
 
   const changeCurrencies = useMemo(() => catalogue.cashCurrencies.filter((code) => code === currency || catalogue.money.rateFor(code, currency, Date.now())), [catalogue, currency]);
   const dualRate = catalogue.dualCurrency ? catalogue.money.rateFor(currency, catalogue.dualCurrency, Date.now()) : null;
-  const remainingActive = active ? askedIn(active.currency) : null;
+  const remainingActive = active ? askedIn(active.currency, active.method.type === 'cash') : null;
   const settled = Boolean(result?.settled) && BigInt(total) > 0n;
 
   function add(amountMinor) {

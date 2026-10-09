@@ -1,0 +1,96 @@
+{
+  "about": "POS-01, POS-03, AUTH-07, AUTH-08: a sale as the till uploads it (pos/src/pos/payloads.js), shared by pos/src/pos/payloads.fixture.test.js (the till builds this exact shape) and api/modules/POS/tests/SalePayloadFixtureTest.php (it passes UploadSalesRequest's rules). Two currencies, a manager's offline override on a line, change in KES.",
+  "sales": [
+    {
+      "id": "01a11ea7-0000-7000-8000-0000000000a1",
+      "shift_id": "01a11ea7-0000-7000-8000-0000000000b1",
+      "cashier_id": "01a11ea7-0000-7000-8000-0000000000c1",
+      "actor_proof": {
+        "session_id": "01a11ea7-0000-7000-8000-0000000000d1",
+        "user_id": "01a11ea7-0000-7000-8000-0000000000c1",
+        "signed_in_at": "2026-10-09T07:58:00.000Z",
+        "kid": "0123456789abcdef",
+        "signature": "z249kNXKbGhVX6QUmw6N1z21fWwV9Y_T-8FtiNxjt5g"
+      },
+      "customer_id": "01a11ea7-0000-7000-8000-0000000000e1",
+      "receipt_seq": 1,
+      "receipt_number": "R-WL2-000001",
+      "number_range_id": "01a11ea7-0000-7000-8000-0000000000f1",
+      "sold_at": "2026-10-09T08:15:00.000Z",
+      "offline": true,
+      "currency": "KES",
+      "price_list_id": "01a11ea7-0000-7000-8000-000000000101",
+      "lines": [
+        {
+          "id": "01a11ea7-0000-7000-8000-000000000201",
+          "item_id": "01a11ea7-0000-7000-8000-000000000301",
+          "item_name": "Tusker Lager 500ml",
+          "uom_id": "01a11ea7-0000-7000-8000-000000000401",
+          "qty": "2",
+          "unit_price_minor": "25000",
+          "list_price_minor": "25000",
+          "price_list_id": "01a11ea7-0000-7000-8000-000000000101",
+          "tax_inclusive": true,
+          "discount_minor": "5000",
+          "tax_code_id": "01a11ea7-0000-7000-8000-000000000501",
+          "tax_rate": "16.0000",
+          "tax_minor": "6207",
+          "total_minor": "45000",
+          "override": {
+            "id": "01a11ea7-0000-7000-8000-000000000601",
+            "kid": "0123456789abcdef",
+            "manager_user_id": "01a11ea7-0000-7000-8000-0000000000c2",
+            "cashier_user_id": "01a11ea7-0000-7000-8000-0000000000c1",
+            "permission": "pos.discount.give",
+            "reference": "01a11ea7-0000-7000-8000-000000000201",
+            "authorised_at": "2026-10-09T08:14:00.000Z",
+            "signature": "c2lnbmF0dXJlLW9mLXRoZS1vdmVycmlkZS1maXh0dXJl"
+          }
+        },
+        {
+          "id": "01a11ea7-0000-7000-8000-000000000202",
+          "item_id": "01a11ea7-0000-7000-8000-000000000302",
+          "item_name": "Tomatoes",
+          "uom_id": "01a11ea7-0000-7000-8000-000000000402",
+          "qty": "1.25",
+          "unit_price_minor": "12000",
+          "list_price_minor": "12000",
+          "price_list_id": "01a11ea7-0000-7000-8000-000000000101",
+          "tax_inclusive": true,
+          "discount_minor": "0",
+          "tax_code_id": "01a11ea7-0000-7000-8000-000000000502",
+          "tax_minor": "0",
+          "total_minor": "15000"
+        }
+      ],
+      "totals": { "subtotal_minor": "65000", "discount_minor": "5000", "tax_minor": "6207", "total_minor": "60000" },
+      "payments": [
+        {
+          "id": "01a11ea7-0000-7000-8000-000000000701",
+          "payment_method_id": "01a11ea7-0000-7000-8000-000000000801",
+          "currency": "USD",
+          "amount_minor": "200",
+          "amount_in_sale_minor": "25900",
+          "rate": { "rate": "129.50000000", "base": "USD", "quote": "KES", "kind": "shop", "effective_at": "2026-10-01T00:00:00Z" }
+        },
+        {
+          "id": "01a11ea7-0000-7000-8000-000000000702",
+          "payment_method_id": "01a11ea7-0000-7000-8000-000000000802",
+          "currency": "KES",
+          "amount_minor": "20000",
+          "amount_in_sale_minor": "20000",
+          "provider_reference": "QJK4XYZ12",
+          "status": "confirmed"
+        },
+        {
+          "id": "01a11ea7-0000-7000-8000-000000000703",
+          "payment_method_id": "01a11ea7-0000-7000-8000-000000000803",
+          "currency": "KES",
+          "amount_minor": "20000",
+          "amount_in_sale_minor": "20000"
+        }
+      ],
+      "change": { "currency": "KES", "amount_minor": "5900" }
+    }
+  ]
+}

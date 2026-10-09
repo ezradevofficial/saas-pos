@@ -102,6 +102,10 @@ class ActorProofTest extends TestCase
         ], $this->deviceHeaders($this->till))->assertOk()->assertJsonPath('data.session_id', $online['session_id']);
         $this->assertTrue($this->check($online)->actor->online);
 
+        // The recorded session pins its sign-in time: the same session with another time does not verify.
+        $moved = $this->attest(['session_id' => $online['session_id'], 'signed_in_at' => CarbonImmutable::parse($online['signed_in_at'])->subMinute()->format('Y-m-d\TH:i:s.v\Z')]);
+        $this->failsWith(ActorProofVerifier::FAIL_SESSION_MISMATCH, $moved);
+
         // Recorded for this device only: the same session id from another till is that till's claim.
         $other = $this->pairTill($this->locationA, 'Other till');
         $this->assertFalse($this->check($this->attest(['session_id' => $online['session_id']], $other), till: $other)->actor->online);

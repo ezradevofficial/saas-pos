@@ -6,6 +6,20 @@
 
 export const CURRENCY_DECIMALS = { CDF: 0, KES: 2, USD: 2 };
 
+// CUR-01: the tenant's decimals per currency (synced `currencies`), which win over the table above.
+const tenantDecimals = new Map();
+
+/** Use the tenant's currency settings for formatting (called when the till loads its catalogue). */
+export function setCurrencyDecimals(rows = []) {
+  tenantDecimals.clear();
+  for (const row of rows) if (row?.code && row.decimals != null) tenantDecimals.set(String(row.code).toUpperCase(), Number(row.decimals));
+}
+
+export function decimalsOf(currency) {
+  const code = String(currency ?? '').toUpperCase();
+  return tenantDecimals.get(code) ?? CURRENCY_DECIMALS[code] ?? 2;
+}
+
 const LOCALE_TAGS = { en: 'en-KE', fr: 'fr-CD' };
 
 /** Minor units as a BigInt; anything that is not a whole number becomes 0n. */
@@ -46,7 +60,7 @@ function separators(tag) {
  * formatAmount(1245000, 'KES') → "12,450.00"; formatAmount(4850, 'USD', 'fr') → "48,50".
  */
 export function formatAmount(minor, currency, locale = 'en') {
-  const decimals = CURRENCY_DECIMALS[String(currency ?? '').toUpperCase()] ?? 2;
+  const decimals = decimalsOf(currency);
   const { group, decimal } = separators(localeTag(locale));
   const value = toMinor(minor);
   const negative = value < 0n;

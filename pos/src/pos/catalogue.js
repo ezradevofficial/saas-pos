@@ -1,4 +1,5 @@
 import { Q } from '@nozbe/watermelondb';
+import { setCurrencyDecimals } from '../lib/money';
 import { localDate, resolvePrice } from '../sync/prices';
 import { createCurrencies } from './currency';
 import { taxRateFor, TaxRateNeeded } from './tax';
@@ -33,6 +34,8 @@ export async function loadCatalogue({ database, now = Date.now() }) {
     all('staff'),
   ]);
   const settings = settingsRows.find((row) => row.id === 'device') ?? settingsRows[0] ?? null;
+  // CUR-01: amounts on screen use the tenant's decimals.
+  setCurrencyDecimals(currencies);
   return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, now });
 }
 

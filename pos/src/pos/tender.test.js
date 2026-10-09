@@ -32,6 +32,8 @@ describe('calculateTender (TenderCalculatorTest vectors)', () => {
     expect(result.lines[1].inDue.minor).toBe('2000');
     expect(amountDueIn({ remaining: 850, from: 'USD', currency: 'CDF', money: money(), at: NOW })).toBe('24250');
     expect(amountDueIn({ remaining: 850, from: 'USD', currency: 'USD', money: money(), at: NOW })).toBe('850');
+    // Mobile money and cards are paid to the franc: no cash rounding (USD 8.50 = CDF 24,225).
+    expect(amountDueIn({ remaining: 850, from: 'USD', currency: 'CDF', money: money(), at: NOW, cash: false })).toBe('24225');
   });
 
   it('paying the asked CDF settles with no change and the rounding reported', () => {

@@ -106,10 +106,12 @@ export function allocate(values, total) {
 }
 
 /** What to ask for when `remaining` (minor units of `from`) is paid in `currency`: rounded UP to its cash rounding. */
-export function amountDueIn({ remaining, from, currency, money, at = Date.now() }) {
+export function amountDueIn({ remaining, from, currency, money, at = Date.now(), cash = true }) {
   const minor = BigInt(String(remaining));
-  if (from === currency) return String(roundCash(exact(minor), money.cashStep(currency), ROUND.UP));
+  // Card and mobile money are paid to the minor unit: cash rounding is for notes and coins only.
+  const step = cash ? money.cashStep(currency) : 1n;
+  if (from === currency) return String(roundCash(exact(minor), step, ROUND.UP));
   const rate = money.rateFor(from, currency, at);
   if (!rate) throw new RateUnavailable(from, currency);
-  return String(roundCash(convertExact(minor, from, currency, rate, money.decimals), money.cashStep(currency), ROUND.UP));
+  return String(roundCash(convertExact(minor, from, currency, rate, money.decimals), step, ROUND.UP));
 }
