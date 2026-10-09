@@ -100,6 +100,13 @@ class CashMovementUploads
             $flags->add($code);
         }
 
+        // AUTH-07: the person's own sign-in, reviewed when the record predates it or it is a day old.
+        if (! $approval->byOverride()) {
+            foreach ($this->authority->sessionFlags($place->device, $user, $data['actor_proof'] ?? null, $at) as $code) {
+                $flags->add($code);
+            }
+        }
+
         $movement = CashMovement::create([
             'id' => $data['id'],
             'shift_id' => $shift->id,

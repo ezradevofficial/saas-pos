@@ -207,7 +207,7 @@ class PosPinTest extends TestCase
         $response = $this->pull($this->till, ['staff'])->assertOk();
         $row = collect($response->json('entities.staff.upserts'))->firstWhere('id', $this->cashier->id);
 
-        $this->assertSame(['id', 'name', 'permissions', 'limits', 'field_rules', 'offline', 'pin', 'card', 'pin_version', 'must_change', 'failed_attempts', 'locked'], array_keys($row));
+        $this->assertSame(['id', 'name', 'permissions', 'limits', 'owner', 'field_rules', 'offline', 'pin', 'card', 'pin_version', 'must_change', 'failed_attempts', 'locked'], array_keys($row));
         $this->assertSame('pbkdf2-sha256+hmac-sha256/v1', $row['pin']['scheme']);
         $this->assertSame($this->till['kid'], $row['pin']['kid']);
         $this->assertGreaterThanOrEqual(100000, $row['pin']['iterations']);
@@ -296,6 +296,10 @@ class PosPinTest extends TestCase
         $this->assertSame(['hidden' => ['credit_limit'], 'readonly' => []], $row['field_rules']['party']);
         $this->assertNull($row['pin']);
         $this->assertContains('pos.sale.void', $this->staffRow($this->owner)['permissions']);
+
+        // RBAC-06: an Owner has no limits; the till reads `owner` to treat them as the server does.
+        $this->assertFalse($row['owner']);
+        $this->assertTrue($this->staffRow($this->owner)['owner']);
     }
 
     public function test_offline_attempt_reports_only_ever_raise_the_count_and_lock(): void

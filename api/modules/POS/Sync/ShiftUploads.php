@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\POS\Events\ShiftClosed;
@@ -119,7 +120,7 @@ class ShiftUploads
 
         $this->auditor->record('pos.shift.open', $shift, null, [
             'opening_float' => $this->balances($shift, 'opening_minor'),
-            ...$this->attested($place, $opener, $data['actor_proof'] ?? null),
+            ...$this->attested($place, $opener, $data['actor_proof'] ?? null, $openedAt),
         ], ['user_id' => $opener->id, 'device_time' => $openedAt]);
         ShiftOpened::dispatch($this->tenants->require(), $shift->id);
 
@@ -167,7 +168,7 @@ class ShiftUploads
         $this->auditor->record('pos.shift.close', $shift, ['status' => Shift::OPEN], [
             'status' => Shift::CLOSED,
             'balances' => $shift->balances()->get(['currency', 'opening_minor', 'counted_minor', 'expected_minor', 'variance_minor'])->toArray(),
-            ...$this->attested($place, $closer, $closing['actor_proof'] ?? null),
+            ...$this->attested($place, $closer, $closing['actor_proof'] ?? null, $closedAt),
         ], ['user_id' => $closer->id, 'device_time' => $closedAt]);
         ShiftClosed::dispatch($this->tenants->require(), $shift->id);
     }
@@ -178,13 +179,15 @@ class ShiftUploads
      * sign-in online. Recorded in the audit entry; never a reason to refuse.
      *
      * @param  array<string, mixed>|null  $proof
-     * @return array{actor_verified: bool, actor_online: bool|null}
+     *                                            Shifts have no flags column: the session flags (before_sign_in,
+     *                                            session_stale) go into the audit entry too.
+     * @return array{actor_verified: bool, actor_online: bool|null, actor_flags: list<string>}
      */
-    private function attested(DevicePlace $place, User $user, ?array $proof): array
+    private function attested(DevicePlace $place, User $user, ?array $proof, CarbonInterface $at): array
     {
         $actor = $this->authority->proven($place->device, $user, $proof);
 
-        return ['actor_verified' => $actor !== null, 'actor_online' => $actor?->online];
+        return ['actor_verified' => $actor !== null, 'actor_online' => $actor?->online, 'actor_flags' => $this->authority->sessionFlags($place->device, $user, $proof, $at)];
     }
 
     private function currency(string $code, string $field): void

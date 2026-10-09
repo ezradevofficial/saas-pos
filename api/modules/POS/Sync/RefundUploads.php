@@ -141,6 +141,13 @@ class RefundUploads
             $flags->add($code);
         }
 
+        // AUTH-07: the person's own sign-in, reviewed when the record predates it or it is a day old.
+        if (! $approval->byOverride()) {
+            foreach ($this->authority->sessionFlags($place->device, $cashier, $data['actor_proof'] ?? null, $at) as $code) {
+                $flags->add($code);
+            }
+        }
+
         $held = $approval->held() || in_array('refund_rate_differs', array_column($flags->all(), 'code'), true);
         $range = $this->ranges->claim($place, 'pos.refund', (int) $data['receipt_seq'], $data['receipt_number'], $at, 'receipt', $data['number_range_id'] ?? null);
 

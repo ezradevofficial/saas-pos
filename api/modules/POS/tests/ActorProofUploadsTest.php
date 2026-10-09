@@ -157,6 +157,23 @@ class ActorProofUploadsTest extends TestCase
         $this->assertSame(['actor_unverified'], $this->codes($this->upload([$someoneElse])->assertOk()));
     }
 
+    public function test_records_dated_before_the_sign_in_or_a_day_after_it_are_flagged_for_review(): void
+    {
+        // Device clocks drift: a sale dated before the sign-in it cites is kept and flagged, never refused.
+        $early = $this->saleBody($this->shift, 1, ['cashier_id' => $this->cashier->id, 'actor_proof' => $this->actorProof($this->cashier->id, fields: ['signed_in_at' => now()->addMinutes(3)->format('Y-m-d\TH:i:s.v\Z')])]);
+        $this->assertSame(['before_sign_in'], $this->codes($this->upload([$early])->assertOk()));
+
+        // A proof is not bound to one record: a sign-in older than 24 hours is reviewed.
+        $proof = $this->actorProof($this->manager->id);
+        $sale = $this->sale(2);
+        $this->travel(25)->hours();
+        $void = $this->void($sale, $proof)->assertOk()->assertJsonPath('results.0.void_status', 'applied');
+        $this->assertSame(['actor_offline', 'session_stale'], $this->codes($void));
+
+        $fresh = $this->saleBody($this->shift, 3, ['cashier_id' => $this->cashier->id, 'sold_at' => now()->toIso8601String(), 'actor_proof' => $this->actorProof($this->cashier->id, fields: ['signed_in_at' => now()->subHours(23)->format('Y-m-d\TH:i:s.v\Z')])]);
+        $this->assertSame([], $this->codes($this->upload([$fresh])->assertOk()));
+    }
+
     public function test_a_malformed_proof_is_a_validation_error(): void
     {
         $sale = $this->sale(1);
@@ -195,6 +212,9 @@ class ActorProofUploadsTest extends TestCase
             $this->assertSame([true, true], [$close->after['actor_verified'], $close->after['actor_online']]);
             $open = AuditEntry::query()->where('action', 'pos.shift.open')->where('auditable_id', $opened['id'])->sole();
             $this->assertSame([true, false], [$open->after['actor_verified'], $open->after['actor_online']]);
+            // shiftBody opens an hour back, before this sign-in: reviewed, not refused (AUTH-07).
+            $this->assertSame(['before_sign_in'], $open->after['actor_flags']);
+            $this->assertSame([], $close->after['actor_flags']);
             // The first shift was opened (openShift) without a proof.
             $first = AuditEntry::query()->where('action', 'pos.shift.open')->where('auditable_id', $this->shift)->sole();
             $this->assertSame([false, null], [$first->after['actor_verified'], $first->after['actor_online']]);

@@ -233,7 +233,8 @@ trait BuildsPos
         $proof = array_replace([
             'session_id' => (string) Str::uuid7(),
             'user_id' => $userId,
-            'signed_in_at' => CarbonImmutable::now()->format('Y-m-d\TH:i:s.v\Z'),
+            // Signed in before the records it proves (sales are dated 5 minutes back), inside the key's skew window.
+            'signed_in_at' => CarbonImmutable::now()->subMinutes(8)->format('Y-m-d\TH:i:s.v\Z'),
             'kid' => $secret['kid'],
         ], $fields);
         $message = ActorProofVerifier::message($device->id, $proof['kid'], $proof['session_id'], $proof['user_id'], $proof['signed_in_at']);

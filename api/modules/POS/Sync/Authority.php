@@ -11,6 +11,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Device;
 use Brick\Math\BigDecimal;
+use Carbon\CarbonInterface;
 use Closure;
 
 /**
@@ -135,6 +136,39 @@ class Authority
         }
 
         return $this->proven[$key];
+    }
+
+    /**
+     * AUTH-07: review flags for a record made at $at by a verified sign-in:
+     * `before_sign_in` when the record is dated before the sign-in (device
+     * clocks drift, so never a refusal), `session_stale` when the sign-in
+     * is older than `pos.actor.session_max_hours` (24) at the record's time
+     * (a proof is not bound to one record, so a long-lived session is
+     * reviewed). Nothing for an unverified proof (it is flagged already).
+     *
+     * @param  array<string, mixed>|null  $proof
+     * @return list<string>
+     */
+    public function sessionFlags(Device $device, User $user, ?array $proof, CarbonInterface $at): array
+    {
+        $actor = $this->proven($device, $user, $proof);
+
+        if ($actor === null) {
+            return [];
+        }
+
+        $flags = [];
+
+        // Record times may carry whole seconds only: compare from the sign-in's second.
+        if ($at->lessThan($actor->signedInAt->startOfSecond())) {
+            $flags[] = 'before_sign_in';
+        }
+
+        if ($at->greaterThan($actor->signedInAt->addHours((int) config('pos.actor.session_max_hours', 24)))) {
+            $flags[] = 'session_stale';
+        }
+
+        return $flags;
     }
 
     /**

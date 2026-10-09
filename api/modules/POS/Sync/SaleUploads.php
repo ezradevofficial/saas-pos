@@ -153,6 +153,10 @@ class SaleUploads
             $flags->add('actor_unverified');
         }
 
+        foreach ($this->authority->sessionFlags($place->device, $cashier, $data['actor_proof'] ?? null, $at) as $code) {
+            $flags->add($code);
+        }
+
         $this->customer($place, $data['customer_id'] ?? null);
 
         if (! TenantCurrency::query()->where('code', $currency)->exists()) {

@@ -96,6 +96,13 @@ class VoidUploads
             $flags->add($code);
         }
 
+        // AUTH-07: the person's own sign-in, reviewed when the record predates it or it is a day old.
+        if (! $approval->byOverride()) {
+            foreach ($this->authority->sessionFlags($place->device, $voider, $data['actor_proof'] ?? null, $at) as $code) {
+                $flags->add($code);
+            }
+        }
+
         if (Shift::query()->whereKey($sale->shift_id)->value('status') === Shift::CLOSED) {
             $flags->add('received_after_close');
         }
