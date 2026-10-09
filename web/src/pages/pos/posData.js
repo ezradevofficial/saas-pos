@@ -46,6 +46,12 @@ export const FLAG_CODES = [
   'clock_ahead',
   'payout_failed',
   'payout_recovered',
+  'payout_refused',
+  'mpesa_mismatch',
+  'mpesa_code_reused',
+  'actor_offline',
+  'before_sign_in',
+  'session_stale',
 ]
 
 /** Flags meaning a manager's approval came from the till, not the server (AUTH-08). */
