@@ -7,6 +7,7 @@ use App\Core\Currency\CurrencyServiceProvider;
 use App\Core\CustomFields\CustomFieldsServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
+use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
@@ -33,6 +34,7 @@ return [
     CustomFieldsServiceProvider::class,
     WorkflowServiceProvider::class,
     ConfigurationServiceProvider::class,
+    LayoutsServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,
     ApprovalsServiceProvider::class,

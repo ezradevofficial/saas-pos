@@ -161,6 +161,79 @@ class SalesInsights
         ];
     }
 
+    /**
+     * LAY-01: completed sales per calendar day (each company's own days)
+     * from $from to $to, for a dashboard chart. Each company's base total
+     * of a day is converted to the reporting currency as for() converts it
+     * (the rate in force at the end of the period); a company without that
+     * rate is listed in `missing_rates` and left out of the totals, never
+     * guessed. Days without sales are listed with zeros.
+     *
+     * @return array{reporting_currency: ?string, days: list<array{date: string, sales_count: int, total: ?Money}>, missing_rates: list<string>, complete: bool}
+     */
+    public function daily(User $user, string $from, string $to, ?string $currency = null): array
+    {
+        $visible = $this->resolver->visibleIds($user, 'pos.sale.view');
+        $localDay = '(pos_sales.sold_at at time zone companies.timezone)::date';
+
+        $rows = $visible->applyTo(Sale::query(), Scope::LOCATION)
+            ->join('companies', 'companies.id', '=', 'pos_sales.company_id')
+            ->where('pos_sales.status', Sale::COMPLETED)
+            ->whereRaw('pos_sales.sold_at >= (?::date)::timestamp at time zone companies.timezone', [$from])
+            ->whereRaw('pos_sales.sold_at < ((?::date) + 1)::timestamp at time zone companies.timezone', [$to])
+            ->groupBy('pos_sales.company_id', DB::raw($localDay))
+            ->get([
+                'pos_sales.company_id',
+                DB::raw("to_char({$localDay}, 'YYYY-MM-DD') as day"),
+                DB::raw('count(*) as sales_count'),
+                DB::raw('sum(pos_sales.base_total_minor)::text as base_total'),
+            ])
+            ->toBase();
+
+        $companies = Company::query()->whereKey($rows->pluck('company_id')->unique()->all())->get()->keyBy('id');
+        $reporting = $currency ?? $this->defaultReporting($companies->all());
+
+        $days = [];
+
+        for ($day = CarbonImmutable::parse($from); $day->lessThanOrEqualTo(CarbonImmutable::parse($to)); $day = $day->addDay()) {
+            $days[$day->toDateString()] = ['count' => 0, 'total' => BigInteger::zero()];
+        }
+
+        $missing = [];
+
+        foreach ($rows as $row) {
+            if (! isset($days[$row->day])) {
+                continue;
+            }
+
+            $company = $companies[$row->company_id];
+            $days[$row->day]['count'] += (int) $row->sales_count;
+
+            if ($reporting === null || in_array($company->id, $missing, true)) {
+                continue;
+            }
+
+            $converted = $this->toReporting(Money::ofMinor((string) $row->base_total, $company->base_currency), $reporting, $company, $to);
+
+            if ($converted === null) {
+                $missing[] = $company->id;
+            } else {
+                $days[$row->day]['total'] = $days[$row->day]['total']->plus(BigInteger::of($converted['total']->minor()));
+            }
+        }
+
+        return [
+            'reporting_currency' => $reporting,
+            'days' => array_map(fn (string $date, array $day) => [
+                'date' => $date,
+                'sales_count' => $day['count'],
+                'total' => $reporting === null ? null : Money::ofMinor((string) $day['total'], $reporting),
+            ], array_keys($days), array_values($days)),
+            'missing_rates' => $missing,
+            'complete' => $reporting !== null && $missing === [],
+        ];
+    }
+
     /** @param iterable<string|null> $values */
     private function sum(iterable $values): BigInteger
     {

@@ -6,7 +6,13 @@ import {
   ArrowLeftRight,
   ArrowUp,
   Bell,
+  Bookmark,
   Building2,
+  Eye,
+  EyeOff,
+  GripVertical,
+  MoveDiagonal2,
+  PanelsTopLeft,
   Contact,
   Check,
   ChartColumn,
@@ -143,6 +149,13 @@ const ICONS = {
   chart: ChartColumn,
   payments: Wallet,
   fiscal: Landmark,
+  // LAY-01, LAY-02, LAY-04: designers.
+  drag: GripVertical,
+  show: Eye,
+  hide: EyeOff,
+  resize: MoveDiagonal2,
+  views: Bookmark,
+  layouts: PanelsTopLeft,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

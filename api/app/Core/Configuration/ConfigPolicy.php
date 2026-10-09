@@ -18,8 +18,9 @@ use Illuminate\Database\Eloquent\Builder;
  *   edited and published with the permission at tenant scope;
  * - a role document: the permission at tenant scope (roles are tenant-wide);
  * - a user document (a personal copy): its user, when they hold any of the
- *   kind's permissions anywhere, may see, edit and publish it; anyone else
- *   needs the permission at tenant scope.
+ *   kind's permissions anywhere (or the kind is `personal`, LAY-01, LAY-04),
+ *   may see, edit and publish it; anyone else needs the permission at
+ *   tenant scope.
  *
  * "View" is met by any of the kind's three permissions.
  */
@@ -61,7 +62,7 @@ class ConfigPolicy
             ConfigDocument::TENANT => $action === 'view' ? $this->anywhere($user, $kind) : $at(Scope::tenant()),
             ConfigDocument::COMPANY, ConfigDocument::BRANCH, ConfigDocument::LOCATION => $id !== null && $at(Scope::of($type, $id)),
             ConfigDocument::ROLE => $at(Scope::tenant()),
-            ConfigDocument::USER => ($id === $user->id && $this->anywhere($user, $kind)) || $at(Scope::tenant()),
+            ConfigDocument::USER => ($id === $user->id && ($kind->personal || $this->anywhere($user, $kind))) || $at(Scope::tenant()),
             default => false,
         };
     }
@@ -85,12 +86,15 @@ class ConfigPolicy
 
         $anywhere = $this->anywhere($user, $kind);
 
-        return $query->where(function (Builder $q) use ($ids, $anywhere, $user) {
+        return $query->where(function (Builder $q) use ($ids, $anywhere, $user, $kind) {
             $q->whereRaw('false');
 
             if ($anywhere) {
-                $q->orWhere('scope_type', ConfigDocument::TENANT)
-                    ->orWhere(fn (Builder $own) => $own->where('scope_type', ConfigDocument::USER)->where('scope_id', $user->id));
+                $q->orWhere('scope_type', ConfigDocument::TENANT);
+            }
+
+            if ($anywhere || $kind->personal) {
+                $q->orWhere(fn (Builder $own) => $own->where('scope_type', ConfigDocument::USER)->where('scope_id', $user->id));
             }
 
             foreach ($ids as $level => $levelIds) {

@@ -117,7 +117,12 @@
       "clearAll": "Tout effacer",
       "showResults": "Afficher les résultats",
       "showCount_one": "Afficher {{formatted}} résultat",
-      "showCount_other": "Afficher {{formatted}} résultats"
+      "showCount_other": "Afficher {{formatted}} résultats",
+      "arrange": "Organiser les colonnes",
+      "arrangeTitle": "Organiser les colonnes",
+      "arrangeBody": "Faites glisser une colonne par sa poignée pour la déplacer, ou placez le focus sur la poignée, appuyez sur Espace et utilisez les flèches. Cochez les colonnes à afficher.",
+      "arrangeDone": "Terminer",
+      "moveColumn": "Déplacer {{name}}"
     },
     "versionBar": {
       "label": "Versions",
@@ -134,7 +139,8 @@
       "save": {
         "saving": "Enregistrement…",
         "saved": "Brouillon enregistré",
-        "error": "Brouillon non enregistré"
+        "error": "Brouillon non enregistré",
+        "unsaved": "Modifications non enregistrées"
       },
       "history": "Historique",
       "historyTitle": "Historique des versions",
@@ -173,6 +179,33 @@
       "discardBodyNothingLive": "Vos modifications restent dans l’historique mais ne seront jamais en vigueur. Rien n’est encore en vigueur : la mise en page de la plateforme s’applique.",
       "discardConfirm": "Abandonner le brouillon",
       "keepDraft": "Continuer à modifier"
+    },
+    "listViews": {
+      "button": "Vues",
+      "buttonActive": "Vue : {{name}}",
+      "changedMark": "(modifiée)",
+      "standard": "Vue standard",
+      "mine": "Mes vues",
+      "shared": "Vues partagées",
+      "saveChanges": "Enregistrer les modifications de {{name}}",
+      "saveAs": "Enregistrer comme nouvelle vue",
+      "delete": "Supprimer {{name}}",
+      "saveTitle": "Enregistrer cette vue",
+      "saveBody": "La vue garde les colonnes, les filtres, le tri et le nombre de lignes par page affichés maintenant.",
+      "saveConfirm": "Enregistrer la vue",
+      "name": "Nom de la vue",
+      "visibleTo": "Qui la voit",
+      "onlyMe": "Moi seulement",
+      "everyone": "Toute l’organisation",
+      "role": "Toutes les personnes ayant le rôle {{name}}",
+      "defaultMine": "Ouvrir cette liste avec cette vue",
+      "defaultShared": "Leur ouvrir cette liste avec cette vue",
+      "deleteTitle": "Supprimer la vue {{name}} ?",
+      "deleteBodyMine": "La liste revient à sa vue standard. Vous pouvez enregistrer une nouvelle vue à tout moment.",
+      "deleteBodyShared": "Les personnes avec qui elle est partagée ne la verront plus. La version précédente reste dans l’historique.",
+      "deleteConfirm": "Supprimer la vue",
+      "saved": "Vue {{name}} enregistrée",
+      "deleted": "Vue {{name}} supprimée"
     }
   },
   "dev": {
@@ -340,7 +373,9 @@
     "posPin": "Mon code PIN caisse",
     "payments": "Paiements reçus",
     "fiscal": "Administration fiscale",
-    "customFields": "Champs personnalisés"
+    "customFields": "Champs personnalisés",
+    "dashboards": "Tableaux de bord",
+    "navigationEditor": "Menus"
   },
   "shell": {
     "account": "Menu du compte",
@@ -4135,6 +4170,107 @@
       "functions": "Fonctions",
       "operators": "Opérateurs",
       "insert": "Insérer {{text}}"
+    }
+  },
+  "layouts": {
+    "saved": "Brouillon enregistré",
+    "published": "Publié",
+    "saveDraft": "Enregistrer le brouillon",
+    "problems": "Corrigez ces points avant de publier",
+    "scopes": {
+      "label": "S’applique à",
+      "me": "Mon propre tableau de bord",
+      "everyone": "Tout le monde (par défaut)",
+      "role": "Rôle : {{name}}"
+    },
+    "chart": {
+      "noValue": "Aucun chiffre",
+      "showTable": "Afficher en tableau",
+      "hideTable": "Masquer le tableau",
+      "day": "Jour",
+      "amountIn": "Montant ({{currency}})"
+    },
+    "grid": {
+      "position": "Colonne {{column}}, ligne {{row}}, {{width}} colonnes de large, {{height}} lignes de haut",
+      "move": "Faire glisser pour déplacer",
+      "resize": "Faire glisser pour redimensionner",
+      "help": "Utilisez les flèches pour déplacer le widget d’une case, et Maj avec les flèches pour le redimensionner."
+    },
+    "sources": {
+      "approvals_waiting": "Approbations qui m’attendent",
+      "approvals_mine": "Mes approbations",
+      "workflows_overdue": "Documents en retard dans les circuits",
+      "shortcuts": "Raccourcis",
+      "pos_sales_today": "Ventes du jour",
+      "pos_sales_by_day": "Ventes par jour"
+    },
+    "widgets": {
+      "untitled": "Widget",
+      "noFigure": "Pas encore de chiffre",
+      "sales_one": "{{formatted}} vente",
+      "sales_other": "{{formatted}} ventes",
+      "incomplete": "Certaines sociétés n’ont pas de taux de change : elles sont laissées de côté.",
+      "open": "Ouvrir",
+      "listEmpty": "Rien ne vous attend.",
+      "overdue": "En retard",
+      "seeAll_one": "Voir {{formatted}} élément",
+      "seeAll_other": "Voir les {{formatted}}",
+      "noShortcuts": "Aucune de ces pages n’est dans votre menu.",
+      "unavailable": "Cette information n’est pas disponible pour le moment.",
+      "types": {
+        "kpi": "Chiffre",
+        "chart": "Graphique",
+        "list": "Liste",
+        "shortcut": "Raccourcis",
+        "approval_count": "Nombre d’approbations"
+      }
+    },
+    "dashboard": {
+      "customise": "Personnaliser mon tableau de bord",
+      "label": "Tableau de bord",
+      "title": "Tableaux de bord",
+      "description": "Organisez le tableau de bord de l’organisation ou d’un rôle. La copie personnelle d’un utilisateur l’emporte sur ceux-ci.",
+      "customiseTitle": "Personnaliser mon tableau de bord",
+      "customiseDescription": "Votre propre copie du tableau de bord. Personne d’autre ne la voit.",
+      "dashboardTitle": "Titre du tableau de bord",
+      "titlePlaceholder": "La salutation",
+      "addWidget": "Ajouter un widget",
+      "empty": "Ce tableau de bord n’a aucun widget. Ajoutez-en un pour commencer.",
+      "inspector": "Widget",
+      "pickWidget": "Choisissez un widget pour le modifier.",
+      "widgetTitle": "Titre",
+      "widgetType": "Type",
+      "source": "Données",
+      "noSource": "Aucune donnée pour ce type",
+      "chartType": "Graphique",
+      "bar": "Barres",
+      "line": "Courbe",
+      "days": "Période",
+      "lastDays_one": "Dernier jour",
+      "lastDays_other": "{{count}} derniers jours",
+      "rows": "Lignes affichées",
+      "links": "Pages",
+      "removeWidget": "Retirer le widget"
+    },
+    "navigation": {
+      "title": "Menus",
+      "description": "Renommez, réordonnez, regroupez et masquez les éléments du menu pour l’organisation ou un rôle, et choisissez la page d’accueil du rôle. Les autorisations décident toujours de ce que chacun peut ouvrir.",
+      "home": "Page d’accueil",
+      "homeDashboard": "Le tableau de bord",
+      "homeMark": "Accueil",
+      "tree": "Menu",
+      "treeHelp": "Faites glisser les groupes et les éléments par leur poignée, ou placez le focus sur une poignée, appuyez sur Espace et utilisez les flèches.",
+      "addGroup": "Ajouter un groupe",
+      "newGroup": "Nouveau groupe",
+      "emptyGroup": "Aucun élément. Faites glisser des éléments ici ou choisissez ce groupe sur un élément.",
+      "preview": "Aperçu",
+      "moveItem": "Déplacer {{name}}",
+      "moveGroup": "Déplacer le groupe {{name}}",
+      "itemName": "Nom de {{name}}",
+      "groupName": "Nom du groupe {{name}}",
+      "itemGroup": "Groupe de {{name}}",
+      "showItem": "Afficher {{name}}",
+      "hideItem": "Masquer {{name}}"
     }
   }
 }

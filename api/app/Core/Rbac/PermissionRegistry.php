@@ -64,6 +64,9 @@ class PermissionRegistry
         // LAY-06: versioned configuration (themes, layouts, templates), the
         // default for kinds that bring no permissions of their own.
         'config' => ['view', 'edit', 'publish'],
+        // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
+        // the tenant and its roles (personal ones need no permission).
+        'layout' => ['view', 'edit', 'publish'],
         // CF-01, CF-02: custom field definitions (tenant-wide; manage at tenant scope).
         'custom_field' => ['view', 'manage'],
     ];

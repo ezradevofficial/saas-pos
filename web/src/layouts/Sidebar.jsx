@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
-import { usePermissions } from '@/auth/usePermissions'
 import { Icon } from '@/components/ds'
 import {
   DropdownMenu,
@@ -22,9 +21,8 @@ import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { CompanySwitcher } from './CompanySwitcher'
-import { useCompanies } from './companySelection'
-import { NAV_GROUPS, visibleGroups } from './navigation'
 import { NotificationBell } from './NotificationBell'
+import { useNavigation } from './useNavigation'
 
 const itemClasses = ({ isActive }) =>
   cn(
@@ -143,9 +141,8 @@ function AccountMenu() {
  */
 export function Sidebar({ onNavigate, showBell = true, className }) {
   const { t } = useTranslation()
-  const permissions = usePermissions()
-  const { companies, ready } = useCompanies()
-  const groups = permissions.isLoading ? [] : visibleGroups(NAV_GROUPS, { ...permissions, hasCompany: ready && companies.length > 0 })
+  // LAY-02: the user's navigation layout over the catalogue, then permissions and modules.
+  const { groups } = useNavigation()
   const baseId = useId()
 
   return (

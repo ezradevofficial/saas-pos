@@ -46,5 +46,12 @@ return [
         'pattern' => ':path n’est pas au format attendu.',
         'min' => ':path doit être au moins :min.',
         'max' => ':path doit être au plus :max.',
+        // LAY-01, LAY-04 : éditeurs de mise en page.
+        'off_grid' => ':path dépasse les :columns colonnes de la grille. Réduisez sa largeur ou déplacez-le vers la gauche.',
+        'overlap' => ':path chevauche le widget « :value ». Déplacez l’un des deux.',
+        'unknown_source' => ':path utilise la source de données « :value », qui n’est pas disponible. Choisissez une autre source.',
+        'source_widget' => ':path : cette source de données ne peut pas alimenter un widget « :value ». Choisissez un autre type de widget ou une autre source.',
+        'filter_value' => ':path n’est pas un filtre valide. Retirez-le, puis enregistrez à nouveau la vue.',
+        'unknown_view' => ':path désigne la vue « :value », qui n’est pas dans cette liste. Choisissez l’une des vues enregistrées.',
     ],
 ];
