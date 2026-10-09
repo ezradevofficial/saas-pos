@@ -109,6 +109,8 @@ export const NAV_GROUPS = [
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
       { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/layouts/navigation', icon: 'menu', label: (t) => t('nav.navigationEditor'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
+      // LAY-03: form layouts (item, party, custom forms).
+      { to: '/settings/layouts/forms', icon: 'layouts', label: (t) => t('nav.formLayouts'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/sessions', icon: 'sessions', label: (t) => t('nav.sessions') },
       // AUTH-06: one's own POS PIN, while the POS module is active.
       { to: '/settings/pos-pin', icon: 'key', label: (t) => t('nav.posPin'), module: 'pos' },

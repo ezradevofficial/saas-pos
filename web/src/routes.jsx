@@ -61,6 +61,7 @@ import Shifts from './pages/pos/Shifts'
 import Appearance from './pages/settings/Appearance'
 import Brand from './pages/settings/Brand'
 import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
+import FormLayoutDesigner from './pages/settings/layouts/FormLayoutDesigner'
 import NavigationEditor from './pages/settings/layouts/NavigationEditor'
 import Currencies from './pages/settings/Currencies'
 import CustomFields from './pages/settings/CustomFields'
@@ -296,6 +297,8 @@ export const routes = [
       // LAY-01, LAY-02: the organisation's and roles' dashboards and menus; anyone customises their own dashboard.
       { path: '/settings/layouts/dashboards', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><DashboardDesigner key="dashboards" /></RequirePermission> },
       { path: '/settings/layouts/navigation', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><NavigationEditor /></RequirePermission> },
+      // LAY-03: the layouts of the item, party and custom forms, for the organisation and its roles.
+      { path: '/settings/layouts/forms', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><FormLayoutDesigner /></RequirePermission> },
       { path: '/dashboard/customise', handle: { wide: true }, element: <DashboardDesigner key="mine" personal /> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.

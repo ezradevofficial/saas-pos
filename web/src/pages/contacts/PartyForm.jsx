@@ -6,13 +6,14 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { CustomFieldsSection } from '@/components/CustomFieldsSection'
-import { Alert, Button, Card, Checkbox, Icon, MoneyInput, Select, TextField } from '@/components/ds'
+import { FormLayoutRenderer } from '@/components/FormLayoutRenderer'
+import { Alert, Button, Checkbox, Icon, MoneyInput, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { rolesPerCompany, useSharingModes } from '@/lib/masterData'
 import { decimalsOf, minorToDecimal, toMinor } from '@/lib/money'
 import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
+import { fallbackLayout, useFormLayout } from '@/lib/formLayout'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { useTenantCurrencies } from '@/pages/settings/finance/useSettingsCompany'
@@ -211,6 +212,315 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
   const toggleRole = (name, checked) =>
     setValues((current) => ({ ...current, roles: checked ? [...current.roles, name] : current.roles.filter((entry) => entry !== name) }))
 
+  // LAY-03: each field of the form, placed by the party form's layout (FormLayoutRenderer).
+  // `label` and `help` are the layout's words for the field, when it has any.
+  const fieldRenderers = {
+    kind: ({ label, help }) =>
+      shows('kind') ? (
+        <Select
+          label={label ?? t('parties.form.kind')} help={help}
+          options={PARTY_KINDS.map((kind) => ({ value: kind, label: t(`parties.kinds.${kind}`) }))}
+          value={values.kind}
+          onChange={set('kind')}
+          error={errors.fields.kind}
+          required
+        />
+      ) : null,
+    name: ({ label, help }) =>
+      shows('name') ? (
+        <TextField label={label ?? t('parties.form.name')} help={help} value={values.name} onChange={set('name')} autoComplete="off" error={errors.fields.name} required />
+      ) : null,
+    legal_name: ({ label, help }) =>
+      shows('legal_name') ? (
+        <TextField label={label ?? t('parties.form.legalName')} help={help ?? t('parties.form.legalNameHelp')} value={values.legal_name} onChange={set('legal_name')} error={errors.fields.legal_name} />
+      ) : null,
+    tax_id: ({ label, help }) =>
+      shows('tax_id') ? (
+        <TextField label={label ?? t('parties.form.taxId')} help={help ?? t('parties.form.taxIdHelp')} value={values.tax_id} onChange={set('tax_id')} autoComplete="off" error={errors.fields.tax_id} />
+      ) : null,
+    roles: ({ label, help }) =>
+      shows('roles') ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="pb-1 text-label text-ink">{label ?? t('parties.form.roles')}</legend>
+          {help ? <p className="text-caption text-ink-muted">{help}</p> : null}
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {PARTY_ROLES.map((name) => (
+              <Checkbox key={name} label={t(`parties.roles.${name}`)} checked={values.roles.includes(name)} onChange={(event) => toggleRole(name, event.target.checked)} />
+            ))}
+          </div>
+          {errors.fields.roles || (submitted && values.roles.length === 0) ? (
+            <p className="text-caption text-danger">{errors.fields.roles ?? t('parties.form.rolesRequired')}</p>
+          ) : null}
+        </fieldset>
+      ) : null,
+    company_id: ({ label, help }) =>
+      showCompany || (flips && !nowPerCompany) ? (
+        <div className="flex flex-col gap-4">
+          {showCompany ? (
+            <Select
+              label={label ?? t('parties.form.company')}
+              help={help ?? (flips ? t('parties.form.companyChangeHelp') : t('parties.form.companyHelp'))}
+              options={activeCompanies.map((company) => ({ value: company.id, label: company.name }))}
+              placeholder={t('items.form.chooseCompany')}
+              value={chosenCompany}
+              onChange={(event) => setValues((current) => ({ ...current, company_id: event.target.value, price_list_id: '' }))}
+              error={errors.fields.company_id}
+              required
+              className="sm:col-span-2"
+            />
+          ) : null}
+          {flips && !nowPerCompany ? (
+            <div className="flex flex-col gap-2">
+              <Alert tone="info" title={t('parties.form.becomesShared')} />
+              <Checkbox
+                label={t('parties.form.confirmShared')}
+                checked={values.confirmShared}
+                onChange={(event) => setValues((current) => ({ ...current, confirmShared: event.target.checked }))}
+              />
+              {submitted && !values.confirmShared ? <p className="text-caption text-danger">{t('parties.form.confirmSharedRequired')}</p> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null,
+    phones: ({ label, help }) =>
+      shows('phones') ? (
+        <fieldset className="flex flex-col gap-3">
+          <legend className="pb-1 text-label text-ink">{label ?? t('parties.form.phones')}</legend>
+          {help ? <p className="text-caption text-ink-muted">{help}</p> : null}
+          {errors.fields.phones ? <p className="text-caption text-danger">{errors.fields.phones}</p> : null}
+          {values.phones.map((row, index) => {
+            const sent = sentIndex('phones', row, (entry) => entry.number.trim())
+            return (
+              <div key={row.key} className="flex flex-wrap items-end gap-3">
+                <TextField
+                  label={t('parties.form.phone', { n: index + 1 })}
+                  className="min-w-0 grow basis-full sm:basis-0"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  value={row.number}
+                  onChange={(event) => setRow('phones', row.key, { number: event.target.value })}
+                  error={sent >= 0 ? errors.fields[`phones.${sent}.number`] : undefined}
+                />
+                <TextField
+                  label={t('parties.form.label')}
+                  placeholder={t('parties.form.phoneLabelExample')}
+                  className="min-w-0 grow basis-full sm:basis-0"
+                  value={row.label}
+                  onChange={(event) => setRow('phones', row.key, { label: event.target.value })}
+                />
+                {readOnly ? null : (
+                  <Button variant="ghost" icon="remove" onClick={() => removeRow('phones', row.key)} aria-label={t('parties.form.removePhone', { n: index + 1 })}>
+                    {t('items.form.remove')}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+          {readOnly ? null : (
+            <div>
+              <Button icon="plus" onClick={() => addRow('phones', { number: '', label: '' })}>
+                {t('parties.form.addPhone')}
+              </Button>
+            </div>
+          )}
+        </fieldset>
+      ) : null,
+    emails: ({ label, help }) =>
+      shows('emails') ? (
+        <fieldset className="flex flex-col gap-3">
+          <legend className="pb-1 text-label text-ink">{label ?? t('parties.form.emails')}</legend>
+          {help ? <p className="text-caption text-ink-muted">{help}</p> : null}
+          {errors.fields.emails ? <p className="text-caption text-danger">{errors.fields.emails}</p> : null}
+          {values.emails.map((row, index) => {
+            const sent = sentIndex('emails', row, (entry) => entry.address.trim())
+            return (
+              <div key={row.key} className="flex flex-wrap items-end gap-3">
+                <TextField
+                  label={t('parties.form.email', { n: index + 1 })}
+                  className="min-w-0 grow basis-full sm:basis-0"
+                  type="email"
+                  autoComplete="off"
+                  value={row.address}
+                  onChange={(event) => setRow('emails', row.key, { address: event.target.value })}
+                  error={sent >= 0 ? errors.fields[`emails.${sent}.address`] : undefined}
+                />
+                <TextField
+                  label={t('parties.form.label')}
+                  placeholder={t('parties.form.emailLabelExample')}
+                  className="min-w-0 grow basis-full sm:basis-0"
+                  value={row.label}
+                  onChange={(event) => setRow('emails', row.key, { label: event.target.value })}
+                />
+                {readOnly ? null : (
+                  <Button variant="ghost" icon="remove" onClick={() => removeRow('emails', row.key)} aria-label={t('parties.form.removeEmail', { n: index + 1 })}>
+                    {t('items.form.remove')}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+          {readOnly ? null : (
+            <div>
+              <Button icon="plus" onClick={() => addRow('emails', { address: '', label: '' })}>
+                {t('parties.form.addEmail')}
+              </Button>
+            </div>
+          )}
+        </fieldset>
+      ) : null,
+    addresses: ({ help }) =>
+      shows('addresses') ? (
+        <div className="flex flex-col gap-4">
+          {help ? <p className="text-caption text-ink-muted">{help}</p> : null}
+          {errors.fields.addresses ? <p className="text-caption text-danger">{errors.fields.addresses}</p> : null}
+          {values.addresses.length === 0 ? <p className="text-ink-muted">{t('parties.form.noAddresses')}</p> : null}
+          {values.addresses.map((row, index) => {
+            const sent = sentIndex('addresses', row, (entry) => ['line1', 'line2', 'city', 'region', 'postal_code'].some((field) => entry[field].trim()))
+            const field = (name) => (sent >= 0 ? errors.fields[`addresses.${sent}.${name}`] : undefined)
+            return (
+              <fieldset key={row.key} className="grid gap-3 border-b border-border pb-4 sm:grid-cols-2">
+                <legend className="sr-only">{t('parties.form.addressN', { n: index + 1 })}</legend>
+                <TextField label={t('parties.form.addressLabel')} placeholder={t('parties.form.addressLabelExample')} value={row.label} onChange={(event) => setRow('addresses', row.key, { label: event.target.value })} />
+                <TextField label={t('parties.form.line1')} value={row.line1} onChange={(event) => setRow('addresses', row.key, { line1: event.target.value })} error={field('line1')} />
+                <TextField label={t('parties.form.line2')} value={row.line2} onChange={(event) => setRow('addresses', row.key, { line2: event.target.value })} />
+                <TextField label={t('parties.form.city')} value={row.city} onChange={(event) => setRow('addresses', row.key, { city: event.target.value })} />
+                <TextField label={t('parties.form.region')} value={row.region} onChange={(event) => setRow('addresses', row.key, { region: event.target.value })} />
+                <TextField label={t('parties.form.postalCode')} value={row.postal_code} onChange={(event) => setRow('addresses', row.key, { postal_code: event.target.value })} error={field('postal_code')} />
+                <Select
+                  label={t('parties.form.country')}
+                  options={[{ value: '', label: t('parties.form.noCountry') }, ...COUNTRIES.map((code) => ({ value: code, label: t(`auth.countries.${code}`) }))]}
+                  value={row.country}
+                  onChange={(event) => setRow('addresses', row.key, { country: event.target.value })}
+                  error={field('country')}
+                />
+                {readOnly ? null : (
+                  <div className="flex items-end">
+                    <Button variant="ghost" icon="remove" onClick={() => removeRow('addresses', row.key)} aria-label={t('parties.form.removeAddress', { n: index + 1 })}>
+                      {t('items.form.remove')}
+                    </Button>
+                  </div>
+                )}
+              </fieldset>
+            )
+          })}
+          {readOnly ? null : (
+            <div>
+              <Button icon="plus" onClick={() => addRow('addresses', { label: '', line1: '', line2: '', city: '', region: '', postal_code: '', country: companyRecord?.country ?? '' })}>
+                {t('parties.form.addAddress')}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null,
+    currency: ({ label, help }) =>
+      shows('currency') ? (
+        <Select
+          label={label ?? t('parties.form.currency')}
+          help={help ?? t('parties.form.currencyHelp')}
+          options={[{ value: '', label: t('parties.form.noCurrency') }, ...currencyCodes.map((code) => ({ value: code, label: code }))]}
+          value={values.currency}
+          onChange={(event) => {
+            const next = event.target.value
+            // A typed credit limit keeps its currency; an empty one follows the party's.
+            setValues((current) => ({ ...current, currency: next, credit_limit_currency: current.credit_limit_currency || (current.credit_limit !== '' ? creditCurrency : '') }))
+          }}
+          error={errors.fields.currency}
+        />
+      ) : null,
+    payment_terms_days: ({ label, help }) =>
+      shows('payment_terms_days') ? (
+        <TextField
+          label={label ?? t('parties.form.paymentTerms')}
+          help={help ?? t('parties.form.paymentTermsHelp')}
+          inputMode="numeric"
+          suffix={t('parties.form.days')}
+          value={values.payment_terms_days}
+          onChange={set('payment_terms_days')}
+          error={errors.fields.payment_terms_days}
+        />
+      ) : null,
+    credit_limit: ({ label, help }) =>
+      shows('credit_limit') ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label={t('parties.form.creditCurrency')}
+            options={currencyCodes.map((code) => ({ value: code, label: code }))}
+            value={creditCurrency}
+            onChange={(event) =>
+              // The amount is in minor units of the old currency: cleared, never reinterpreted.
+              setValues((current) => ({ ...current, credit_limit_currency: event.target.value, credit_limit: '' }))
+            }
+            error={errors.fields.credit_limit_currency}
+          />
+          <MoneyInput
+            key={creditCurrency}
+            label={label ?? t('parties.form.creditLimit')}
+            help={help ?? (canSetCredit ? t('parties.form.creditLimitHelp') : t('creditLimits.lowerOnly'))}
+            currency={creditCurrency}
+            decimals={creditDecimals}
+            value={values.credit_limit}
+            onChange={(credit_limit) => setValues((current) => ({ ...current, credit_limit }))}
+            error={errors.fields.credit_limit}
+            showErrors={submitted}
+          />
+          {needsRequest && onRequestChange ? (
+            <div className="sm:col-span-2">
+              <button type="button" className="text-label text-primary hover:text-primary-hover" onClick={onRequestChange}>
+                {t('creditLimits.request.open')}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null,
+    price_list_id: ({ label, help }) =>
+      shows('price_list_id') && canPriceLists ? (
+        <Select
+          label={label ?? t('parties.form.priceList')} help={help}
+          options={[
+            { value: '', label: t('parties.form.noPriceList') },
+            ...(priceLists.data?.data ?? []).filter((list) => !list.archived_at || list.id === values.price_list_id).map((list) => ({ value: list.id, label: list.name })),
+          ]}
+          value={values.price_list_id}
+          onChange={set('price_list_id')}
+          error={errors.fields.price_list_id}
+        />
+      ) : null,
+    tags: ({ label, help }) =>
+      shows('tags') ? (
+        <TextField
+          label={label ?? t('parties.form.tags')}
+          help={help ?? t('parties.form.tagsHelp')}
+          className="sm:col-span-2"
+          value={values.tags}
+          onChange={set('tags')}
+          autoComplete="off"
+          error={tagError}
+        />
+      ) : null,
+  }
+  const fallback = fallbackLayout(
+    [
+      {
+        id: 'details',
+        title: t('parties.form.details'),
+        columns: 2,
+        fields: ['kind', 'name', 'legal_name', 'tax_id', 'roles', 'company_id'].map((id) => ({ id, wide: id === 'roles' || id === 'company_id' })),
+      },
+      { id: 'contact', title: t('parties.form.contact'), columns: 1, fields: [{ id: 'phones', wide: true }, { id: 'emails', wide: true }] },
+      { id: 'addresses', title: t('parties.form.addresses'), columns: 1, fields: [{ id: 'addresses', wide: true }] },
+      {
+        id: 'terms',
+        title: t('parties.form.terms'),
+        columns: 2,
+        fields: ['currency', 'payment_terms_days', 'credit_limit', 'price_list_id', 'tags'].map((id) => ({ id, wide: id === 'credit_limit' || id === 'tags' })),
+      },
+      { id: 'custom', title: t('customFields.section.title'), columns: 2, fields: [] },
+    ],
+    customSchema.fields,
+  )
+  const { layout } = useFormLayout('party', fallback)
+
   return (
     <form
       ref={formRef}
@@ -230,284 +540,13 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
         </div>
       ) : null}
       <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
-        <Card title={t('parties.form.details')}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {shows('kind') ? (
-              <Select
-                label={t('parties.form.kind')}
-                options={PARTY_KINDS.map((kind) => ({ value: kind, label: t(`parties.kinds.${kind}`) }))}
-                value={values.kind}
-                onChange={set('kind')}
-                error={errors.fields.kind}
-                required
-              />
-            ) : null}
-            {shows('name') ? <TextField label={t('parties.form.name')} value={values.name} onChange={set('name')} autoComplete="off" error={errors.fields.name} required /> : null}
-            {shows('legal_name') ? (
-              <TextField label={t('parties.form.legalName')} help={t('parties.form.legalNameHelp')} value={values.legal_name} onChange={set('legal_name')} error={errors.fields.legal_name} />
-            ) : null}
-            {shows('tax_id') ? <TextField label={t('parties.form.taxId')} help={t('parties.form.taxIdHelp')} value={values.tax_id} onChange={set('tax_id')} autoComplete="off" error={errors.fields.tax_id} /> : null}
-            {shows('roles') ? (
-              <fieldset className="flex flex-col gap-2 sm:col-span-2">
-                <legend className="pb-1 text-label text-ink">{t('parties.form.roles')}</legend>
-                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                  {PARTY_ROLES.map((name) => (
-                    <Checkbox key={name} label={t(`parties.roles.${name}`)} checked={values.roles.includes(name)} onChange={(event) => toggleRole(name, event.target.checked)} />
-                  ))}
-                </div>
-                {errors.fields.roles || (submitted && values.roles.length === 0) ? (
-                  <p className="text-caption text-danger">{errors.fields.roles ?? t('parties.form.rolesRequired')}</p>
-                ) : null}
-              </fieldset>
-            ) : null}
-            {showCompany ? (
-              <Select
-                label={t('parties.form.company')}
-                help={flips ? t('parties.form.companyChangeHelp') : t('parties.form.companyHelp')}
-                options={activeCompanies.map((company) => ({ value: company.id, label: company.name }))}
-                placeholder={t('items.form.chooseCompany')}
-                value={chosenCompany}
-                onChange={(event) => setValues((current) => ({ ...current, company_id: event.target.value, price_list_id: '' }))}
-                error={errors.fields.company_id}
-                required
-                className="sm:col-span-2"
-              />
-            ) : null}
-            {flips && !nowPerCompany ? (
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <Alert tone="info" title={t('parties.form.becomesShared')} />
-                <Checkbox
-                  label={t('parties.form.confirmShared')}
-                  checked={values.confirmShared}
-                  onChange={(event) => setValues((current) => ({ ...current, confirmShared: event.target.checked }))}
-                />
-                {submitted && !values.confirmShared ? <p className="text-caption text-danger">{t('parties.form.confirmSharedRequired')}</p> : null}
-              </div>
-            ) : null}
-          </div>
-        </Card>
-
-        {shows('phones') || shows('emails') ? (
-          <Card title={t('parties.form.contact')}>
-            <div className="flex flex-col gap-5">
-              {shows('phones') ? (
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="pb-1 text-label text-ink">{t('parties.form.phones')}</legend>
-                  {errors.fields.phones ? <p className="text-caption text-danger">{errors.fields.phones}</p> : null}
-                  {values.phones.map((row, index) => {
-                    const sent = sentIndex('phones', row, (entry) => entry.number.trim())
-                    return (
-                      <div key={row.key} className="flex flex-wrap items-end gap-3">
-                        <TextField
-                          label={t('parties.form.phone', { n: index + 1 })}
-                          className="min-w-0 grow basis-full sm:basis-0"
-                          type="tel"
-                          inputMode="tel"
-                          autoComplete="off"
-                          value={row.number}
-                          onChange={(event) => setRow('phones', row.key, { number: event.target.value })}
-                          error={sent >= 0 ? errors.fields[`phones.${sent}.number`] : undefined}
-                        />
-                        <TextField
-                          label={t('parties.form.label')}
-                          placeholder={t('parties.form.phoneLabelExample')}
-                          className="min-w-0 grow basis-full sm:basis-0"
-                          value={row.label}
-                          onChange={(event) => setRow('phones', row.key, { label: event.target.value })}
-                        />
-                        {readOnly ? null : (
-                          <Button variant="ghost" icon="remove" onClick={() => removeRow('phones', row.key)} aria-label={t('parties.form.removePhone', { n: index + 1 })}>
-                            {t('items.form.remove')}
-                          </Button>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {readOnly ? null : (
-                    <div>
-                      <Button icon="plus" onClick={() => addRow('phones', { number: '', label: '' })}>
-                        {t('parties.form.addPhone')}
-                      </Button>
-                    </div>
-                  )}
-                </fieldset>
-              ) : null}
-              {shows('emails') ? (
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="pb-1 text-label text-ink">{t('parties.form.emails')}</legend>
-                  {errors.fields.emails ? <p className="text-caption text-danger">{errors.fields.emails}</p> : null}
-                  {values.emails.map((row, index) => {
-                    const sent = sentIndex('emails', row, (entry) => entry.address.trim())
-                    return (
-                      <div key={row.key} className="flex flex-wrap items-end gap-3">
-                        <TextField
-                          label={t('parties.form.email', { n: index + 1 })}
-                          className="min-w-0 grow basis-full sm:basis-0"
-                          type="email"
-                          autoComplete="off"
-                          value={row.address}
-                          onChange={(event) => setRow('emails', row.key, { address: event.target.value })}
-                          error={sent >= 0 ? errors.fields[`emails.${sent}.address`] : undefined}
-                        />
-                        <TextField
-                          label={t('parties.form.label')}
-                          placeholder={t('parties.form.emailLabelExample')}
-                          className="min-w-0 grow basis-full sm:basis-0"
-                          value={row.label}
-                          onChange={(event) => setRow('emails', row.key, { label: event.target.value })}
-                        />
-                        {readOnly ? null : (
-                          <Button variant="ghost" icon="remove" onClick={() => removeRow('emails', row.key)} aria-label={t('parties.form.removeEmail', { n: index + 1 })}>
-                            {t('items.form.remove')}
-                          </Button>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {readOnly ? null : (
-                    <div>
-                      <Button icon="plus" onClick={() => addRow('emails', { address: '', label: '' })}>
-                        {t('parties.form.addEmail')}
-                      </Button>
-                    </div>
-                  )}
-                </fieldset>
-              ) : null}
-            </div>
-          </Card>
-        ) : null}
-
-        {shows('addresses') ? (
-          <Card title={t('parties.form.addresses')}>
-            <div className="flex flex-col gap-4">
-              {errors.fields.addresses ? <p className="text-caption text-danger">{errors.fields.addresses}</p> : null}
-              {values.addresses.length === 0 ? <p className="text-ink-muted">{t('parties.form.noAddresses')}</p> : null}
-              {values.addresses.map((row, index) => {
-                const sent = sentIndex('addresses', row, (entry) => ['line1', 'line2', 'city', 'region', 'postal_code'].some((field) => entry[field].trim()))
-                const field = (name) => (sent >= 0 ? errors.fields[`addresses.${sent}.${name}`] : undefined)
-                return (
-                  <fieldset key={row.key} className="grid gap-3 border-b border-border pb-4 sm:grid-cols-2">
-                    <legend className="sr-only">{t('parties.form.addressN', { n: index + 1 })}</legend>
-                    <TextField label={t('parties.form.addressLabel')} placeholder={t('parties.form.addressLabelExample')} value={row.label} onChange={(event) => setRow('addresses', row.key, { label: event.target.value })} />
-                    <TextField label={t('parties.form.line1')} value={row.line1} onChange={(event) => setRow('addresses', row.key, { line1: event.target.value })} error={field('line1')} />
-                    <TextField label={t('parties.form.line2')} value={row.line2} onChange={(event) => setRow('addresses', row.key, { line2: event.target.value })} />
-                    <TextField label={t('parties.form.city')} value={row.city} onChange={(event) => setRow('addresses', row.key, { city: event.target.value })} />
-                    <TextField label={t('parties.form.region')} value={row.region} onChange={(event) => setRow('addresses', row.key, { region: event.target.value })} />
-                    <TextField label={t('parties.form.postalCode')} value={row.postal_code} onChange={(event) => setRow('addresses', row.key, { postal_code: event.target.value })} error={field('postal_code')} />
-                    <Select
-                      label={t('parties.form.country')}
-                      options={[{ value: '', label: t('parties.form.noCountry') }, ...COUNTRIES.map((code) => ({ value: code, label: t(`auth.countries.${code}`) }))]}
-                      value={row.country}
-                      onChange={(event) => setRow('addresses', row.key, { country: event.target.value })}
-                      error={field('country')}
-                    />
-                    {readOnly ? null : (
-                      <div className="flex items-end">
-                        <Button variant="ghost" icon="remove" onClick={() => removeRow('addresses', row.key)} aria-label={t('parties.form.removeAddress', { n: index + 1 })}>
-                          {t('items.form.remove')}
-                        </Button>
-                      </div>
-                    )}
-                  </fieldset>
-                )
-              })}
-              {readOnly ? null : (
-                <div>
-                  <Button icon="plus" onClick={() => addRow('addresses', { label: '', line1: '', line2: '', city: '', region: '', postal_code: '', country: companyRecord?.country ?? '' })}>
-                    {t('parties.form.addAddress')}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
-        ) : null}
-
-        <Card title={t('parties.form.terms')}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {shows('currency') ? (
-              <Select
-                label={t('parties.form.currency')}
-                help={t('parties.form.currencyHelp')}
-                options={[{ value: '', label: t('parties.form.noCurrency') }, ...currencyCodes.map((code) => ({ value: code, label: code }))]}
-                value={values.currency}
-                onChange={(event) => {
-                  const next = event.target.value
-                  // A typed credit limit keeps its currency; an empty one follows the party's.
-                  setValues((current) => ({ ...current, currency: next, credit_limit_currency: current.credit_limit_currency || (current.credit_limit !== '' ? creditCurrency : '') }))
-                }}
-                error={errors.fields.currency}
-              />
-            ) : null}
-            {shows('payment_terms_days') ? (
-              <TextField
-                label={t('parties.form.paymentTerms')}
-                help={t('parties.form.paymentTermsHelp')}
-                inputMode="numeric"
-                suffix={t('parties.form.days')}
-                value={values.payment_terms_days}
-                onChange={set('payment_terms_days')}
-                error={errors.fields.payment_terms_days}
-              />
-            ) : null}
-            {shows('credit_limit') ? (
-              <>
-                <Select
-                  label={t('parties.form.creditCurrency')}
-                  options={currencyCodes.map((code) => ({ value: code, label: code }))}
-                  value={creditCurrency}
-                  onChange={(event) =>
-                    // The amount is in minor units of the old currency: cleared, never reinterpreted.
-                    setValues((current) => ({ ...current, credit_limit_currency: event.target.value, credit_limit: '' }))
-                  }
-                  error={errors.fields.credit_limit_currency}
-                />
-                <MoneyInput
-                  key={creditCurrency}
-                  label={t('parties.form.creditLimit')}
-                  help={canSetCredit ? t('parties.form.creditLimitHelp') : t('creditLimits.lowerOnly')}
-                  currency={creditCurrency}
-                  decimals={creditDecimals}
-                  value={values.credit_limit}
-                  onChange={(credit_limit) => setValues((current) => ({ ...current, credit_limit }))}
-                  error={errors.fields.credit_limit}
-                  showErrors={submitted}
-                />
-                {needsRequest && onRequestChange ? (
-                  <div className="sm:col-span-2">
-                    <button type="button" className="text-label text-primary hover:text-primary-hover" onClick={onRequestChange}>
-                      {t('creditLimits.request.open')}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-            {shows('price_list_id') && canPriceLists ? (
-              <Select
-                label={t('parties.form.priceList')}
-                options={[
-                  { value: '', label: t('parties.form.noPriceList') },
-                  ...(priceLists.data?.data ?? []).filter((list) => !list.archived_at || list.id === values.price_list_id).map((list) => ({ value: list.id, label: list.name })),
-                ]}
-                value={values.price_list_id}
-                onChange={set('price_list_id')}
-                error={errors.fields.price_list_id}
-              />
-            ) : null}
-            {shows('tags') ? (
-              <TextField
-                label={t('parties.form.tags')}
-                help={t('parties.form.tagsHelp')}
-                className="sm:col-span-2"
-                value={values.tags}
-                onChange={set('tags')}
-                autoComplete="off"
-                error={tagError}
-              />
-            ) : null}
-          </div>
-        </Card>
-
-        <CustomFieldsSection entity="party" fields={customSchema.fields} custom={custom} errors={customErrors(errors.fields)} readOnly={readOnly} showErrors={submitted} />
+        <FormLayoutRenderer
+          layout={layout}
+          fields={fieldRenderers}
+          custom={{ entity: 'party', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
+          readOnly={readOnly}
+          showErrors={submitted}
+        />
       </fieldset>
       {readOnly ? null : (
         <div className="flex flex-wrap gap-2">
