@@ -40,10 +40,12 @@ class DocumentTemplateController
     {
         $scope = $request->scopeDocument($request->validated('scope_type'), $request->validated('scope_id'));
         $country = $this->country($scope);
+        // A tenant-wide template may print in several countries: name one authority only when they agree.
+        $countries = $this->fiscal->countriesOf($scope);
         $language = in_array(app()->getLocale(), ['en', 'fr'], true) ? app()->getLocale() : 'en';
         $custom = $this->sources->customLabels();
 
-        $types = array_map(function (string $type) use ($scope, $country, $language, $custom) {
+        $types = array_map(function (string $type) use ($scope, $country, $countries, $language, $custom) {
             $required = $this->fiscal->requiredAt($type, $scope);
             $fields = [];
 
@@ -65,7 +67,7 @@ class DocumentTemplateController
                 'fiscal' => [
                     'allowed' => DocumentTypes::TYPES[$type]['fiscal'],
                     'required' => $required,
-                    'authority' => $this->fiscal->authorityFor($type, $country),
+                    'authority' => count(array_unique(array_map(fn (string $c) => (string) $this->fiscal->authorityFor($type, $c), $countries))) === 1 ? $this->fiscal->authorityFor($type, $country) : null,
                 ],
                 'locked' => $required ? ['fiscal'] : [],
                 'fields' => $fields,
