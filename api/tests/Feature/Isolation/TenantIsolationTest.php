@@ -230,7 +230,7 @@ class TenantIsolationTest extends TestCase
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
-    public const SCOPE_IDS = ['tenant' => 'tenant', 'company' => 'company', 'branch' => 'branch', 'location' => 'location'];
+    public const SCOPE_IDS = ['tenant' => 'tenant', 'company' => 'company', 'branch' => 'branch', 'location' => 'location', 'scope_id' => 'company'];
 
     /** Fields ending in `_id` that are not references to rows, with why. */
     public const NOT_REFERENCES = [
@@ -275,8 +275,8 @@ class TenantIsolationTest extends TestCase
         ['from' => '2026-01-01', 'to' => '2026-12-31', 'currency' => 'USD'],
         // LAY-06: a configuration key (both tenants have a layout under the default key).
         ['key' => 'default'],
-        // TPL-01: the template designer's document types for the tenant scope.
-        ['scope_type' => 'tenant'],
+        // LAY-06: one scope of a key (scope_id is sent with B's and A's ids through LIST_ID_QUERIES).
+        ['key' => 'default', 'scope_type' => 'tenant'],
     ];
 
     /**
@@ -1238,7 +1238,7 @@ class TenantIsolationTest extends TestCase
             ],
             // LAY-06: a layout for the location (saved again on every call: one draft), and a copy of the company's there.
             'POST api/v1/config/{kind}' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'payload' => ['columns' => [['id' => 'name']]]],
-            'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published'],
+            'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published', 'replace' => true],
             // TPL-01: a template preview for the company (TPL-03 reads the company's country).
             'POST api/v1/templates/preview' => ['type' => 'pos.receipt', 'payload' => DefaultTemplates::for('pos.receipt'), 'scope_type' => 'company', 'scope_id' => $tenant->id('company')],
             // Payments: the money received matched to the till's manual payment.

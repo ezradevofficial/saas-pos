@@ -275,10 +275,11 @@ final class TwoTenants
         self::ok($test->putJson("/api/v1/companies/{$company}/business-hours", ['hours' => ['mon' => [['08:00', '17:00']], 'sat' => [['09:00', '13:00']]]], $owner));
 
         // LAY-06: the company's layout, published, with a new draft open.
-        $configDocument = self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY, [
+        $configDraft = self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY, [
             'scope_type' => 'company', 'scope_id' => $company, 'name' => "Layout {$upper}", 'payload' => ['columns' => [['id' => 'name']]],
-        ], $owner), 201)->json('data.id');
-        self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", [], $owner));
+        ], $owner), 201)->json('data');
+        $configDocument = $configDraft['id'];
+        self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", ['revision' => $configDraft['draft']['revision']], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
         // TPL-01: a template preview the owner made (its PDF is kept for a few minutes).

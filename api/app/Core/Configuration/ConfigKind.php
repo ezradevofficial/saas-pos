@@ -21,6 +21,10 @@ use InvalidArgumentException;
  *   (`core.config.*` unless the kind brings its own, RBAC-01);
  * - `merger` (LAY-07) brings a stored payload up to date with the
  *   platform's current catalogue when it is read (see CatalogueMerge);
+ *   it is called as `fn (array $payload, ConfigKind $kind)`;
+ * - `layoutKeys` are the extra keys a stored entry may set over its
+ *   catalogue entry, beyond CatalogueMerge::LAYOUT_KEYS (pass
+ *   `$kind->layoutKeys()` to CatalogueMerge in the merger);
  * - `defaults` is the payload used when nothing is published anywhere
  *   along the chain (null: the client keeps its built-in layout);
  * - `keys` limits the keys (a list, or a closure answering one), else
@@ -49,9 +53,10 @@ final class ConfigKind
      * @param  array<string, mixed>|Closure(array): list<array{path: string, code: string, message: string}>|null  $schema
      * @param  list<string>  $scopes
      * @param  array{view?: string, edit?: string, publish?: string}  $permissions
-     * @param  (Closure(array): array)|null  $merger
+     * @param  (Closure(array, ConfigKind): array)|null  $merger
      * @param  (Closure(): ?array)|null  $defaults
      * @param  list<string>|(Closure(): list<string>)|null  $keys
+     * @param  list<string>  $layoutKeys
      */
     public function __construct(
         public readonly string $key,
@@ -63,6 +68,7 @@ final class ConfigKind
         public readonly array|Closure|null $keys = null,
         public readonly string $module = 'core',
         public readonly int $maxBytes = self::MAX_BYTES,
+        public readonly array $layoutKeys = [],
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key) !== 1) {
             throw new InvalidArgumentException("Invalid configuration kind [{$key}].");
@@ -120,7 +126,18 @@ final class ConfigKind
     /** LAY-07: the payload brought up to date with the current catalogue. */
     public function merge(array $payload): array
     {
-        return $this->merger === null ? $payload : ($this->merger)($payload);
+        return $this->merger === null ? $payload : ($this->merger)($payload, $this);
+    }
+
+    /**
+     * LAY-07: the keys a stored layout entry may set over its catalogue
+     * entry: CatalogueMerge::LAYOUT_KEYS and the kind's own.
+     *
+     * @return list<string>
+     */
+    public function layoutKeys(): array
+    {
+        return array_values(array_unique([...CatalogueMerge::LAYOUT_KEYS, ...$this->layoutKeys]));
     }
 
     public function defaultPayload(): ?array

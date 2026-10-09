@@ -7,10 +7,12 @@ use App\Core\Configuration\ConfigPolicy;
 use Closure;
 
 /**
- * LAY-06: POST config/{kind} {key?, scope_type, scope_id, name?, payload}:
- * save the draft of the document for that key and scope, creating the
- * document when it does not exist yet. `key` defaults to `default`.
- * Needs the kind's edit permission at the scope (ConfigPolicy).
+ * LAY-06: POST config/{kind} {key?, scope_type, scope_id, name?, payload,
+ * revision?}: save the draft of the document for that key and scope,
+ * creating the document when it does not exist yet. `key` defaults to
+ * `default`. `revision` is the draft revision the edit started from (null
+ * or absent: the caller saw no draft); 409 config_changed when the draft
+ * has moved on. Needs the kind's edit permission at the scope (ConfigPolicy).
  */
 class SaveConfigRequest extends ConfigKindRequest
 {
@@ -25,7 +27,22 @@ class SaveConfigRequest extends ConfigKindRequest
             ...$this->scopeRules($kind, $kind->scopes),
             'name' => ['sometimes', 'nullable', 'string', 'max:150'],
             ...self::payloadRules($kind),
+            ...self::revisionRules(),
         ];
+    }
+
+    /** The draft revision the edit started from; null when the caller saw no draft. */
+    public function revision(): ?int
+    {
+        $revision = $this->validated('revision');
+
+        return $revision === null ? null : (int) $revision;
+    }
+
+    /** @return array<string, list<string>> */
+    public static function revisionRules(bool $required = false): array
+    {
+        return ['revision' => [$required ? 'required' : 'sometimes', ...($required ? [] : ['nullable']), 'integer', 'min:1']];
     }
 
     public function key(): string

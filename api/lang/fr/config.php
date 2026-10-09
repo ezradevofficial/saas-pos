@@ -17,6 +17,8 @@ return [
 
     'errors' => [
         'config_invalid' => 'Cette configuration comporte des problèmes. Corrigez les éléments listés, puis publiez à nouveau.',
+        'config_changed' => 'Quelqu’un a modifié ce brouillon depuis que vous l’avez ouvert. Rechargez pour voir ses modifications, puis modifiez ou publiez à nouveau.',
+        'config_draft_exists' => 'Ce lieu a déjà un brouillon. Remplacez-le pour copier, ou ouvrez d’abord ce brouillon.',
         'config_busy' => 'Quelqu’un d’autre a modifié cette configuration en même temps. Réessayez.',
         'no_draft' => 'Il n’y a aucun brouillon à utiliser. Faites une modification pour en commencer un.',
         'nothing_published' => 'Rien n’est encore publié, il n’y a donc rien à copier. Publiez d’abord, ou copiez le brouillon.',

@@ -33,18 +33,23 @@ use Illuminate\Support\Facades\DB;
  * - history: every version, newest first.
  *
  * Version changes lock the document row, so two publishes never race.
- * Every change is audited as `core.config.*` (AUD-01).
+ * Saving and publishing name the draft revision they edited or reviewed
+ * (null: "I saw no draft"); when the draft has moved on since, they are
+ * refused with ConfigConflict (409 config_changed). Every change is
+ * audited as `core.config.*` (AUD-01); draft saves record the payload's
+ * hash and size, publishing and roll back the full payloads.
  */
 class ConfigVersions
 {
     public function __construct(private readonly Auditor $auditor) {}
 
     /**
+     * @param  ?int  $revision  the draft revision the caller edited (null: it saw no draft)
      * @return array{0: ConfigDocument, 1: bool} the document, and whether it was created
      */
-    public function open(ConfigKind $kind, string $key, string $scopeType, ?string $scopeId, ?string $name, array $payload, ?User $by): array
+    public function open(ConfigKind $kind, string $key, string $scopeType, ?string $scopeId, ?string $name, array $payload, ?User $by, ?int $revision = null): array
     {
-        return $this->onceMore(fn () => $this->transaction(function () use ($kind, $key, $scopeType, $scopeId, $name, $payload, $by) {
+        return $this->onceMore(fn () => $this->transaction(function () use ($kind, $key, $scopeType, $scopeId, $name, $payload, $by, $revision) {
             $document = $this->find($kind, $key, $scopeType, $scopeId);
             $created = $document === null;
 
@@ -63,7 +68,8 @@ class ConfigVersions
                 ]);
             }
 
-            $this->saveDraft($document, $payload, $created ? null : $name, $by);
+            // A document just created has no draft to have moved on.
+            $this->saveDraft($document, $payload, $created ? null : $name, $by, $created ? null : $revision);
 
             return [$document, $created];
         }));
@@ -79,10 +85,15 @@ class ConfigVersions
             ->first();
     }
 
-    public function saveDraft(ConfigDocument $document, array $payload, ?string $name, ?User $by): ConfigVersion
+    /**
+     * @param  ?int  $revision  the draft revision the caller edited (null: it saw no draft)
+     */
+    public function saveDraft(ConfigDocument $document, array $payload, ?string $name, ?User $by, ?int $revision = null): ConfigVersion
     {
-        return $this->transaction(function () use ($document, $payload, $name, $by) {
+        return $this->transaction(function () use ($document, $payload, $name, $by, $revision) {
             $this->lock($document);
+            $draft = $document->draft()->first();
+            $this->assertRevision($document, $draft, $revision);
 
             if ($name !== null && $name !== $document->name) {
                 $before = $document->name;
@@ -90,18 +101,18 @@ class ConfigVersions
                 $this->auditor->record('core.config.rename', $document, ['name' => $before], ['name' => $name]);
             }
 
-            $draft = $document->draft()->first();
-
+            // AUD-01: autosaves are frequent and payloads large; the trail
+            // keeps each draft state's hash and size (ADR 010).
             if ($draft === null) {
                 $draft = $this->newVersion($document, $payload, ConfigVersion::DRAFT, 'draft', $by);
-                $this->auditor->record('core.config.draft_create', $document, null, ['version' => $draft->version, 'payload' => $payload]);
+                $this->auditor->record('core.config.draft_create', $document, null, ['version' => $draft->version, 'revision' => $draft->revision, ...self::digest($payload)]);
 
                 return $draft;
             }
 
-            $before = $draft->payload;
-            $draft->forceFill(['payload' => $payload, 'updated_by' => $by?->id])->save();
-            $this->auditor->record('core.config.draft_update', $document, ['version' => $draft->version, 'payload' => $before], ['version' => $draft->version, 'payload' => $payload]);
+            $before = ['version' => $draft->version, 'revision' => $draft->revision, ...self::digest($draft->payload)];
+            $draft->forceFill(['payload' => $payload, 'revision' => $draft->revision + 1, 'updated_by' => $by?->id])->save();
+            $this->auditor->record('core.config.draft_update', $document, $before, ['version' => $draft->version, 'revision' => $draft->revision, ...self::digest($payload)]);
 
             return $draft;
         });
@@ -113,11 +124,14 @@ class ConfigVersions
         return $kind->problems($payload, $document);
     }
 
-    public function publish(ConfigDocument $document, ConfigKind $kind, ?User $by): ConfigVersion
+    /** @param int $revision the draft revision the caller reviewed */
+    public function publish(ConfigDocument $document, ConfigKind $kind, ?User $by, int $revision): ConfigVersion
     {
-        return $this->transaction(function () use ($document, $kind, $by) {
+        return $this->transaction(function () use ($document, $kind, $by, $revision) {
             $this->lock($document);
-            $draft = $document->draft()->first() ?? throw new ApiException(422, 'no_draft', __('config.errors.no_draft'));
+            $draft = $document->draft()->first();
+            // No draft any more (published or discarded since) is a change too.
+            $this->assertRevision($document, $draft, $revision);
             $this->assertValid($kind, $draft->payload, $document);
 
             $previous = $this->archivePublished($document);
@@ -131,8 +145,8 @@ class ConfigVersions
             ])->save();
 
             $this->auditor->record('core.config.publish', $document,
-                $previous === null ? null : ['published_version' => $previous->version],
-                ['published_version' => $draft->version, 'version_id' => $draft->id],
+                $previous === null ? null : ['published_version' => $previous->version, 'version_id' => $previous->id, 'payload' => $previous->payload],
+                ['published_version' => $draft->version, 'version_id' => $draft->id, 'revision' => $draft->revision, 'payload' => $draft->payload],
             );
 
             return $draft;
@@ -158,8 +172,8 @@ class ConfigVersions
             $copy = $this->newVersion($document, $source->payload, ConfigVersion::PUBLISHED, 'rollback', $by, $source);
 
             $this->auditor->record('core.config.rollback', $document,
-                $previous === null ? null : ['published_version' => $previous->version],
-                ['published_version' => $copy->version, 'copied_from_version' => $source->version, 'version_id' => $copy->id],
+                $previous === null ? null : ['published_version' => $previous->version, 'version_id' => $previous->id, 'payload' => $previous->payload],
+                ['published_version' => $copy->version, 'copied_from_version' => $source->version, 'version_id' => $copy->id, 'payload' => $copy->payload],
             );
 
             return $copy;
@@ -169,10 +183,12 @@ class ConfigVersions
     /**
      * Put this document's published payload (or its draft, $from = draft)
      * into the document of the same kind and key at $targetType/$targetId
-     * as its draft, creating that document when missing; an existing
-     * draft there is replaced.
+     * as its draft, creating that document when missing. A draft already
+     * there is someone's work: the copy is refused (409
+     * config_draft_exists) unless $replace, which archives that draft as
+     * discarded (its payload kept) before the copy becomes the new draft.
      */
-    public function copyTo(ConfigDocument $source, ConfigKind $kind, string $targetType, string $targetId, string $from, ?User $by): ConfigDocument
+    public function copyTo(ConfigDocument $source, ConfigKind $kind, string $targetType, string $targetId, string $from, ?User $by, bool $replace = false): ConfigDocument
     {
         $version = $from === 'draft' ? $source->draft()->first() : $source->published()->first();
 
@@ -186,7 +202,7 @@ class ConfigVersions
             throw new ApiException(422, 'same_scope', __('config.errors.same_scope'));
         }
 
-        return $this->onceMore(fn () => $this->transaction(function () use ($source, $kind, $targetType, $targetId, $version, $by) {
+        return $this->onceMore(fn () => $this->transaction(function () use ($source, $kind, $targetType, $targetId, $version, $by, $replace) {
             $document = $this->find($kind, $source->key, $targetType, $targetId);
             $created = $document === null;
             $document ??= ConfigDocument::create([
@@ -199,39 +215,49 @@ class ConfigVersions
             ]);
 
             $this->lock($document);
-            $draft = $document->draft()->first();
+            $replaced = $document->draft()->first();
 
-            if ($draft === null) {
-                $draft = $this->newVersion($document, $version->payload, ConfigVersion::DRAFT, 'copy', $by, $version);
-            } else {
-                $draft->forceFill(['payload' => $version->payload, 'source' => 'copy', 'source_version_id' => $version->id, 'updated_by' => $by?->id])->save();
+            if ($replaced !== null) {
+                if (! $replace) {
+                    throw new ConfigConflict($document, ConfigConflict::DRAFT_EXISTS);
+                }
+
+                $this->archiveDraft($replaced, $by);
             }
 
-            $this->auditor->record('core.config.copy', $document, null, [
-                'created' => $created,
-                'from_document_id' => $source->id,
-                'from_version' => $version->version,
-                'draft_version' => $draft->version,
-            ]);
+            $draft = $this->newVersion($document, $version->payload, ConfigVersion::DRAFT, 'copy', $by, $version);
+
+            // The replaced draft's payload stays on its (archived) version row.
+            $this->auditor->record('core.config.copy', $document,
+                $replaced === null ? null : ['draft_version' => $replaced->version, 'version_id' => $replaced->id, 'revision' => $replaced->revision, ...self::digest($replaced->payload)],
+                [
+                    'created' => $created,
+                    'from_document_id' => $source->id,
+                    'from_version' => $version->version,
+                    'draft_version' => $draft->version,
+                    'version_id' => $draft->id,
+                    ...self::digest($draft->payload),
+                ],
+            );
 
             return $document;
         }));
     }
 
     /** Archive the draft (kept for the record, never offered for roll back). */
-    public function discardDraft(ConfigDocument $document, ?User $by): ConfigVersion
+    /** @param ?int $revision when given, the draft revision the caller means to discard */
+    public function discardDraft(ConfigDocument $document, ?User $by, ?int $revision = null): ConfigVersion
     {
-        return $this->transaction(function () use ($document, $by) {
+        return $this->transaction(function () use ($document, $by, $revision) {
             $this->lock($document);
-            $draft = $document->draft()->first() ?? throw new ApiException(422, 'no_draft', __('config.errors.no_draft'));
-            $now = CarbonImmutable::now();
+            $draft = $document->draft()->first();
 
-            $draft->forceFill([
-                'status' => ConfigVersion::ARCHIVED,
-                'archived_at' => $now,
-                'discarded_at' => $now,
-                'discarded_by' => $by?->id,
-            ])->save();
+            if ($revision !== null) {
+                $this->assertRevision($document, $draft, $revision);
+            }
+
+            $draft ?? throw new ApiException(422, 'no_draft', __('config.errors.no_draft'));
+            $this->archiveDraft($draft, $by);
 
             $this->auditor->record('core.config.draft_discard', $document,
                 ['draft_version' => $draft->version, 'payload' => $draft->payload],
@@ -245,7 +271,39 @@ class ConfigVersions
     /** @return Collection<int, ConfigVersion> newest first */
     public function history(ConfigDocument $document): Collection
     {
-        return $document->versions()->orderByDesc('version')->get();
+        return $document->versions()->orderByDesc('version')->get(ConfigVersion::SUMMARY);
+    }
+
+    /**
+     * Refuse (409 config_changed) unless the draft is still the revision
+     * the caller worked from; null means it saw no draft.
+     */
+    private function assertRevision(ConfigDocument $document, ?ConfigVersion $draft, ?int $revision): void
+    {
+        if ($draft?->revision !== $revision) {
+            throw new ConfigConflict($document);
+        }
+    }
+
+    /** The hash and size of a payload, for the audit of draft saves (AUD-01, ADR 010). */
+    private static function digest(array $payload): array
+    {
+        $json = (string) json_encode($payload);
+
+        return ['payload_sha256' => hash('sha256', $json), 'payload_bytes' => strlen($json)];
+    }
+
+    /** Archive a draft as discarded: kept for the record, never offered for roll back. */
+    private function archiveDraft(ConfigVersion $draft, ?User $by): void
+    {
+        $now = CarbonImmutable::now();
+
+        $draft->forceFill([
+            'status' => ConfigVersion::ARCHIVED,
+            'archived_at' => $now,
+            'discarded_at' => $now,
+            'discarded_by' => $by?->id,
+        ])->save();
     }
 
     private function assertValid(ConfigKind $kind, array $payload, ?ConfigDocument $document = null): void
@@ -280,6 +338,9 @@ class ConfigVersions
         return ConfigVersion::create([
             'document_id' => $document->id,
             'version' => $this->nextNumber($document),
+            // Above every revision the document has had, so a client's
+            // revision of an earlier draft never matches this one.
+            'revision' => (int) $document->versions()->max('revision') + 1,
             'status' => $status,
             'payload' => $payload,
             'source' => $source,
