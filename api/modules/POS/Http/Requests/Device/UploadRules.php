@@ -3,6 +3,7 @@
 namespace Modules\POS\Http\Requests\Device;
 
 use App\Core\Currency\Rate;
+use App\Core\Identity\Pin\ActorProofVerifier;
 use Closure;
 use Modules\POS\Models\SalePayment;
 
@@ -102,9 +103,10 @@ trait UploadRules
             "{$prefix}.kid" => ['nullable', 'string', 'max:100'],
             "{$prefix}.manager_user_id" => ['nullable', 'uuid'],
             "{$prefix}.cashier_user_id" => ['nullable', 'uuid'],
-            "{$prefix}.permission" => ['nullable', 'string', 'max:60'],
-            "{$prefix}.reference" => ['nullable', 'string', 'max:100'],
-            "{$prefix}.authorised_at" => ['nullable', 'string', 'max:40'],
+            "{$prefix}.permission" => ['nullable', 'string', 'max:60', 'not_regex:/[\r\n]/'],
+            "{$prefix}.reference" => ['nullable', 'string', 'max:100', 'not_regex:/[\r\n]/'],
+            // The same strict ISO 8601 time as actor proofs (ActorProofVerifier::TIME).
+            "{$prefix}.authorised_at" => ['nullable', 'string', 'max:40', 'regex:'.ActorProofVerifier::TIME],
             "{$prefix}.signature" => ['nullable', 'string', 'max:200'],
         ];
     }

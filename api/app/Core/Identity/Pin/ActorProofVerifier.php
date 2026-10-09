@@ -71,8 +71,8 @@ class ActorProofVerifier
     /** The session was recorded online for another user or another sign-in time. */
     public const FAIL_SESSION_MISMATCH = 'session_mismatch';
 
-    /** ISO 8601 date and time with a `Z` or an offset. */
-    private const TIME = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}(:?\d{2})?)$/';
+    /** ISO 8601 date and time with a `Z` or an offset (also for offline overrides, OverrideVerifier). */
+    public const TIME = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}(:?\d{2})?)$/';
 
     public function __construct(
         private readonly DeviceSecrets $secrets,

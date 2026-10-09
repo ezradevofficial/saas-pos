@@ -14,7 +14,10 @@ const CURRENCY = /^[A-Z]{3}$/;
 const RATE = /^\d{1,10}(\.\d{1,8})?$/;
 const TAX_RATE = /^\d{1,5}(\.\d{1,4})?$/;
 const DATE = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value));
+/** ActorProofVerifier::TIME: ISO 8601 date and time with a `Z` or an offset. */
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}(:?\d{2})?)$/;
 const str = (max) => (value) => typeof value === 'string' && value.length <= max;
+const line = (max) => (value) => str(max)(value) && !/[\r\n]/.test(value);
 const re = (pattern) => (value) => typeof value === 'string' && pattern.test(value);
 const int = (value) => Number.isInteger(value) && value >= 1;
 const bool = (value) => typeof value === 'boolean';
@@ -28,9 +31,9 @@ const override = (prefix) => ({
   [`${prefix}.kid`]: [false, str(100)],
   [`${prefix}.manager_user_id`]: [false, re(UUID)],
   [`${prefix}.cashier_user_id`]: [false, (value) => value === null || UUID.test(value)],
-  [`${prefix}.permission`]: [false, str(60)],
-  [`${prefix}.reference`]: [false, str(100)],
-  [`${prefix}.authorised_at`]: [false, str(40)],
+  [`${prefix}.permission`]: [false, line(60)],
+  [`${prefix}.reference`]: [false, line(100)],
+  [`${prefix}.authorised_at`]: [false, (value) => str(40)(value) && ISO_TIME.test(value)],
   [`${prefix}.signature`]: [false, str(200)],
 });
 
