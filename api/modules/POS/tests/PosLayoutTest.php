@@ -13,7 +13,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use App\Core\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
 use Modules\POS\Layout\PosLayout;
+use Modules\POS\Sync\Sources\PosLayoutSource;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -197,7 +200,56 @@ class PosLayoutTest extends TestCase
         $this->ranges();
         $this->postJson('/api/v1/pos/sales', ['sales' => [$this->saleBody($shift, 1)]], $this->tillHeaders())->assertOk()->assertJsonPath('results.0.status', 'stored');
 
+        // NFR-05: the ranking is kept for 30 minutes per location, then counted again.
+        $this->assertSame([], $this->pulled()['best_sellers']);
+        $this->travel(PosLayoutSource::BEST_SELLERS_TTL_SECONDS + 1)->seconds();
         $this->assertSame([$this->soap->id], $this->pulled()['best_sellers']);
+    }
+
+    public function test_best_sellers_are_counted_once_per_location_not_per_till(): void
+    {
+        $this->publishAt('tenant', null, $this->layout(['products' => ['pinned' => [], 'order' => 'best_sellers']]))->assertOk();
+        [, $second] = $this->pairedTill($this->locationA, 'Till A2');
+        [, $other] = $this->pairedTill($this->locationB, 'Till B');
+
+        $rankings = function (callable $pulls): int {
+            DB::connection(TenantContext::CONNECTION)->flushQueryLog();
+            DB::connection(TenantContext::CONNECTION)->enableQueryLog();
+            $pulls();
+            $count = count(array_filter(DB::connection(TenantContext::CONNECTION)->getQueryLog(), fn ($q) => str_contains($q['query'], 'pos_sale_lines')));
+            DB::connection(TenantContext::CONNECTION)->disableQueryLog();
+
+            return $count;
+        };
+
+        // Two tills at outlet A share one count; outlet B has its own.
+        $this->assertSame(1, $rankings(fn () => [$this->pulled(), $this->pulled($second)]));
+        $this->assertSame(1, $rankings(fn () => $this->pulled($other)));
+        $this->assertSame(0, $rankings(fn () => [$this->pulled(), $this->pulled($other)]));
+    }
+
+    public function test_a_place_layout_names_only_what_its_companys_tills_hold(): void
+    {
+        [$theirs, $theirItem] = $this->inTenant(function () {
+            $beta = $this->company('Beta');
+            $category = ItemCategory::create(['name' => 'Beta only', 'company_id' => $beta->id]);
+
+            return [$category, Item::create(['code' => 'BETA', 'name' => 'Beta only', 'type' => 'stock', 'base_uom_id' => $this->each->id, 'company_id' => $beta->id])];
+        });
+        $payload = $this->layout([
+            'products' => ['pinned' => [$theirItem->id]],
+            'categories' => [['id' => $theirs->id, 'image' => null], ['id' => $this->drinks->id, 'image' => null]],
+            'quick_buttons' => [['type' => 'category', 'id' => $theirs->id]],
+        ]);
+        $codes = fn (string $type, ?string $id) => array_map(fn ($p) => [$p['path'], $p['code']], $this->postJson(self::URL, ['scope_type' => $type, 'scope_id' => $id, 'payload' => $payload], $this->headersFor())
+            ->assertSuccessful()->json('meta.problems'));
+        $refused = [['products.pinned.0', 'pos_layout_unknown_item'], ['categories.0.id', 'pos_layout_unknown_category'], ['quick_buttons.0.id', 'pos_layout_unknown_category']];
+
+        // Acme's company, branch and outlet never hold Beta's rows; the tenant's layout may name them.
+        $this->assertEqualsCanonicalizing($refused, $codes('company', $this->acme->id));
+        $this->assertEqualsCanonicalizing($refused, $codes('branch', $this->branchA->id));
+        $this->assertEqualsCanonicalizing($refused, $codes('location', $this->locationA->id));
+        $this->assertSame([], $codes('tenant', null));
     }
 
     public function test_who_may_design_the_layout(): void
