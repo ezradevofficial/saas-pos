@@ -446,6 +446,23 @@ describe('ListView and useServerList', () => {
       expect(screen.getByRole('button', { name: 'View: Stock only' })).toBeInTheDocument()
     })
 
+    it('opens the standard view and says why when the API refuses a view of someone else (LAY-04, RBAC-05)', async () => {
+      api.get.mockImplementation(async (path) => {
+        if (path === 'me') return { data: OWNER }
+        if (path === 'me/permissions') return { permissions: [], modules: ['core'] }
+        if (path === 'config/list_view/layers?key=things') return LAYERS
+        if (path.includes('type=stock')) throw apiError(422, 'validation_failed', 'You can’t filter by a field you can’t see.', { type: ['You can’t filter by a field you can’t see.'] })
+        if (path.startsWith('things?')) return answer(path, 3)
+        throw apiError(404, 'not_found', 'Not found.')
+      })
+      const { router } = renderList()
+      await waitFor(() => expect(router.state.location.search).toBe('?view=none'))
+      expect(await screen.findByText('The view “Stock only” no longer fits what you can see, so the standard view is shown. Save a new view to replace it.')).toBeInTheDocument()
+      expect(await screen.findByText('Thing 1')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Views' })).toBeInTheDocument()
+      await waitFor(() => expect(listCalls().at(-1)).toBe('things?status=active&per_page=25&page=1'))
+    })
+
     it('switches to another view and back to the standard one', async () => {
       mockViews()
       const { router } = renderList()
