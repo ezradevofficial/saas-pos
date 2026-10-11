@@ -12,7 +12,8 @@ use App\Core\Layouts\Dashboards\DashboardSource;
  */
 class Shortcuts extends DashboardSource
 {
-    public const ROUTE = '/^\/[a-z0-9\/_-]{0,120}$/';
+    // An app path: one leading slash (never `//host`, a protocol-relative URL), no trailing newline.
+    public const ROUTE = '/\A\/(?!\/)[a-z0-9\/_-]{0,120}\z/';
 
     public function key(): string
     {

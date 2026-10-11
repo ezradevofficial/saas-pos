@@ -2,11 +2,16 @@
 
 namespace Tests\Feature\Core\Layouts;
 
+use App\Core\Configuration\ConfigKind;
+use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\Identity\Models\User;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\Dashboards\Sources\ApprovalsMine;
 use App\Core\Layouts\Dashboards\Sources\ApprovalsWaiting;
 use App\Core\Layouts\Dashboards\Sources\Shortcuts;
+use App\Core\Layouts\Kinds\NavigationLayout;
+use App\Core\MasterData\Items\ItemCategory;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -258,5 +263,127 @@ class LayoutDesignersTest extends TestCase
         // Tenant A's user can't be named as the scope of a tenant B document.
         $this->postJson('/api/v1/config/list_view', ['key' => 'items', 'scope_type' => 'user', 'scope_id' => $this->cashier->id, 'payload' => ['views' => []]], $this->headersFor($other))
             ->assertUnprocessable()->assertJsonValidationErrors('scope_id');
+    }
+
+    public function test_a_shared_view_drops_filters_and_sorts_the_reader_cannot_use(): void
+    {
+        [$drinks, $old, $closed] = $this->inTenant(function () {
+            CustomFieldDefinition::create(['entity' => 'item', 'key' => 'colour', 'label' => 'Colour', 'type' => 'text']);
+            CustomFieldDefinition::create(['entity' => 'item', 'key' => 'margin', 'label' => 'Margin', 'type' => 'number', 'visible_roles' => [$this->roles->get('owner')?->id ?? $this->role('Pricing')->id]]);
+            $old = ItemCategory::create(['name' => 'Old']);
+            $old->archive();
+            $closed = $this->company('Closed');
+            $closed->archive();
+
+            return [ItemCategory::create(['name' => 'Drinks']), $old, $closed];
+        });
+
+        $this->publish('list_view', ['views' => [
+            ['id' => 'mine', 'name' => 'Mine', 'sort' => '-gone', 'columns' => [['id' => 'name'], ['id' => 'cf_margin']], 'filters' => [
+                'category' => $drinks->id, 'type' => 'stock', 'custom[colour]' => 'red', 'custom[margin][min]' => '5', 'custom[removed]' => 'x', 'company' => $closed->id,
+            ]],
+            ['id' => 'old', 'name' => 'Old', 'sort' => 'name', 'columns' => [], 'filters' => ['category' => $old->id, 'status' => 'all']],
+        ]], key: 'items')->assertOk();
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('cashier')->id, 'resource' => 'item', 'field' => 'type', 'mode' => FieldRule::HIDDEN]));
+
+        $views = $this->resolved('list_view', $this->cashier, 'items')['payload']['views'];
+        // Hidden fields (built-in and custom), an archived company and category, an unknown field and sort are gone.
+        $this->assertSame(['category' => $drinks->id, 'custom[colour]' => 'red'], $views[0]['filters']);
+        $this->assertNull($views[0]['sort']);
+        $this->assertSame(['name'], array_column($views[0]['columns'], 'id'));
+        $this->assertSame(['status' => 'all'], $views[1]['filters']);
+        $this->assertSame('name', $views[1]['sort']);
+
+        // The list answers the view's query for the cashier.
+        $this->getJson('/api/v1/items?'.http_build_query([...$views[0]['filters'], 'sort' => 'name']), $this->headersFor($this->cashier))->assertOk();
+    }
+
+    public function test_list_view_field_rules_cover_categories_payment_methods_and_custom_fields(): void
+    {
+        $this->inTenant(function () {
+            CustomFieldDefinition::create(['entity' => 'item', 'key' => 'margin', 'label' => 'Margin', 'type' => 'number', 'visible_roles' => [$this->role('Pricing')->id]]);
+            FieldRule::create(['role_id' => $this->roles->get('cashier')->id, 'resource' => 'item_category', 'field' => 'parent_id', 'mode' => FieldRule::HIDDEN]);
+        });
+
+        foreach (['items', 'item-categories', 'payment-methods'] as $key) {
+            $this->publish('list_view', ['views' => [['id' => 'all', 'name' => 'All', 'columns' => []]]], key: $key)->assertOk();
+        }
+
+        $this->assertContains('cf_margin', $this->resolved('list_view', $this->cashier, 'items')['payload']['hidden_columns']);
+        $this->assertContains('parent', $this->resolved('list_view', $this->cashier, 'item-categories')['payload']['hidden_columns']);
+        $this->assertSame([], $this->resolved('list_view', key: 'items')['payload']['hidden_columns']);
+    }
+
+    public function test_list_views_are_kept_for_known_lists_small_and_few_per_user(): void
+    {
+        $save = fn (string $key, array $payload, ?User $as = null, ?int $revision = null) => $this->postJson('/api/v1/config/list_view', ['key' => $key, 'scope_type' => 'user', 'scope_id' => ($as ?? $this->cashier)->id, 'revision' => $revision, 'payload' => $payload], $this->headersFor($as ?? $this->cashier));
+        $empty = ['views' => []];
+
+        $save('not-a-list', $empty)->assertUnprocessable()->assertJsonValidationErrors('key');
+        $save('custom-forms-petty_cash', $empty)->assertCreated();
+        $posSales = $save('pos-sales', $empty)->assertCreated()->json('data.draft.revision');
+
+        // 32 KB at most for a list view.
+        $big = ['views' => [['id' => 'v', 'name' => 'Big', 'columns' => [], 'filters' => array_fill_keys(array_map(fn ($i) => "f{$i}", range(1, 200)), str_repeat('x', 200))]]];
+        $save('items', $big)->assertUnprocessable()->assertJsonValidationErrors('payload');
+
+        // At most 50 personal documents per user and kind.
+        $this->inTenant(function () {
+            foreach (range(3, ConfigKind::PERSONAL_LIMIT) as $i) {
+                ConfigDocument::create(['kind' => 'list_view', 'key' => "list-{$i}", 'scope_type' => 'user', 'scope_id' => $this->cashier->id, 'name' => "list-{$i}"]);
+            }
+        });
+        $save('items', $empty)->assertUnprocessable()->assertJsonPath('code', 'config_personal_limit');
+        // Their existing documents still save, and others keep their own room.
+        $save('pos-sales', $empty, revision: $posSales)->assertOk();
+        $save('items', $empty, $this->greeter)->assertCreated();
+    }
+
+    public function test_another_users_personal_document_is_not_found_by_id(): void
+    {
+        $view = ['views' => [['id' => 'v', 'name' => 'Mine', 'columns' => []]]];
+        $this->publish('list_view', $view, 'user', $this->cashier->id, 'items', $this->cashier)->assertOk();
+        $this->publish('list_view', ['views' => [['id' => 'w', 'name' => 'Mine again', 'columns' => []]]], 'user', $this->cashier->id, 'items', $this->cashier)->assertOk();
+        $saved = $this->postJson('/api/v1/config/list_view', ['key' => 'items', 'scope_type' => 'user', 'scope_id' => $this->cashier->id, 'revision' => null, 'payload' => $view], $this->headersFor($this->cashier))->assertOk();
+        $id = $saved->json('data.id');
+        $revision = $saved->json('data.draft.revision');
+        $other = $this->userWith('cashier', Scope::location($this->locationA->id));
+        $as = $this->headersFor($other);
+
+        $this->getJson("/api/v1/config/list_view/{$id}", $as)->assertNotFound();
+        $this->putJson("/api/v1/config/list_view/{$id}/draft", ['revision' => $revision, 'payload' => ['views' => []]], $as)->assertNotFound();
+        $this->postJson("/api/v1/config/list_view/{$id}/publish", ['revision' => $revision], $as)->assertNotFound();
+        $this->postJson("/api/v1/config/list_view/{$id}/rollback", ['version' => 1], $as)->assertNotFound();
+        $this->postJson("/api/v1/config/list_view/{$id}/discard-draft", ['revision' => $revision], $as)->assertNotFound();
+
+        // Nothing changed: the owner's draft is still there.
+        $this->getJson("/api/v1/config/list_view/{$id}", $this->headersFor($this->cashier))->assertOk()->assertJsonPath('data.draft.revision', $revision);
+    }
+
+    public function test_routes_are_app_paths_only(): void
+    {
+        // Requests are trimmed, so a trailing newline is checked on the patterns themselves.
+        foreach ([NavigationLayout::ROUTE, Shortcuts::ROUTE] as $pattern) {
+            $this->assertSame([0, 0, 1, 1], [preg_match($pattern, "/catalogue/items\n"), preg_match($pattern, '//evil.example'), preg_match($pattern, '/'), preg_match($pattern, '/catalogue/items')]);
+        }
+
+        foreach (['//evil.example/x', '/Catalogue'] as $route) {
+            $this->assertSame(['pattern'], $this->problemCodes($this->publish('navigation', ['groups' => [['id' => 'g', 'items' => [['id' => $route]]]]])));
+            $this->getJson('/api/v1/dashboard/sources/shortcuts?'.http_build_query(['links' => [$route]]), $this->headersFor())->assertUnprocessable();
+        }
+
+        $this->publish('navigation', ['groups' => [['id' => 'g', 'items' => [['id' => '/catalogue/items']]]], 'home' => '/'])->assertOk();
+    }
+
+    public function test_layout_problems_are_translated(): void
+    {
+        $problems = $this->publish('dashboard', ['widgets' => [self::widget('wide', 'kpi', 'approvals.waiting', 10, 0, 4)]])->assertUnprocessable()->json('problems');
+        $this->assertStringContainsString('12 columns', $problems[0]['message']);
+
+        foreach (['en', 'fr'] as $locale) {
+            foreach (['off_grid', 'overlap', 'unknown_source', 'source_widget', 'filter_value', 'unknown_view'] as $code) {
+                $this->assertNotSame("config.problems.{$code}", __("config.problems.{$code}", [], $locale), "{$locale}: {$code}");
+            }
+        }
     }
 }

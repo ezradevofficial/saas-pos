@@ -27,6 +27,7 @@ return [
         'same_scope' => 'This configuration already applies there. Pick another company, branch or location.',
         'unknown_key' => 'This configuration has no such key. Use one the designer offers.',
         'payload_too_large' => 'This configuration is larger than :kb KB. Remove some items, then save again.',
+        'personal_limit' => 'You already keep :max of these. Delete one you no longer use, then save again.',
         'place_out_of_scope' => 'You don’t work at this place. Pick a company, branch or location you are assigned to.',
     ],
 
@@ -72,6 +73,13 @@ return [
         'pos_layout_unknown_category' => ':path names a category that doesn’t exist or is archived. Remove it or choose another category.',
         'pos_layout_unknown_image' => ':path names an image that isn’t one of your item images or brand images. Choose another image.',
         'contrast' => 'In :mode mode, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
+        // LAY-01, LAY-04: layout designers.
+        'off_grid' => ':path goes past the :columns columns of the grid. Make it narrower or move it left.',
+        'overlap' => ':path overlaps the widget “:value”. Move one of them.',
+        'unknown_source' => ':path names the data source “:value”, which isn’t available. Pick another source.',
+        'source_widget' => ':path: this data source can’t feed a “:value” widget. Pick another widget type or source.',
+        'filter_value' => ':path isn’t a valid filter. Remove it, then save the view again.',
+        'unknown_view' => ':path names the view “:value”, which isn’t in this list. Pick one of the saved views.',
     ],
 
     // BR-03: the words a contrast problem is made of.
@@ -87,12 +95,5 @@ return [
             'sidebar_text' => 'sidebar text',
             'sidebar_active' => 'the selected sidebar item',
         ],
-        // LAY-01, LAY-04: layout designers.
-        'off_grid' => ':path goes past the :columns columns of the grid. Make it narrower or move it left.',
-        'overlap' => ':path overlaps the widget “:value”. Move one of them.',
-        'unknown_source' => ':path names the data source “:value”, which isn’t available. Pick another source.',
-        'source_widget' => ':path: this data source can’t feed a “:value” widget. Pick another widget type or source.',
-        'filter_value' => ':path isn’t a valid filter. Remove it, then save the view again.',
-        'unknown_view' => ':path names the view “:value”, which isn’t in this list. Pick one of the saved views.',
     ],
 ];

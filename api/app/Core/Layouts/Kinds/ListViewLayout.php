@@ -5,6 +5,9 @@ namespace App\Core\Layouts\Kinds;
 use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\Configuration\PayloadSchema;
+use App\Core\CustomFields\CustomFieldAccess;
+use App\Core\CustomFields\CustomFieldDefinitions;
+use App\Core\CustomFields\CustomFieldTypes;
 use App\Core\Identity\Models\User;
 use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\Layouts\ListViewCatalogue;
@@ -26,6 +29,9 @@ use App\Core\Layouts\ListViewCatalogue;
 final class ListViewLayout
 {
     public const KEY = 'list_view';
+
+    /** Largest list view document, as JSON (bytes). */
+    public const MAX_BYTES = 32768;
 
     private const ID = '/^[a-z0-9][a-z0-9_-]{0,39}$/';
 
@@ -71,6 +77,9 @@ final class ListViewLayout
             defaults: fn () => ['views' => [], 'default_view' => null],
             personal: true,
             presenter: fn (array $payload, string $key, User $reader) => self::present($payload, $key, $reader),
+            // A web list's id only (ListViewCatalogue), and a small payload: anyone may keep their own.
+            keys: fn (string $key) => app(ListViewCatalogue::class)->has($key),
+            maxBytes: self::MAX_BYTES,
         );
     }
 
@@ -104,29 +113,82 @@ final class ListViewLayout
         return $problems;
     }
 
-    /** RBAC-05: the views without what the reader's field rules hide. */
+    /**
+     * The views as the reader may use them, so a shared view never breaks
+     * the list for someone it was not made by:
+     *
+     * - columns, sorts and filters built from a field the reader's field
+     *   rules hide are dropped (RBAC-05), custom fields included
+     *   (CustomFieldAccess, `custom[<key>]` filters);
+     * - a sort the list no longer has is cleared;
+     * - a filter naming a record that is archived or gone is dropped, as is
+     *   a custom field filter whose field is no longer filterable.
+     *
+     * `hidden_columns` lists the hidden column keys so the web drops them too.
+     */
     public static function present(array $payload, string $key, User $reader): array
     {
-        $hidden = app(ListViewCatalogue::class)->hiddenFor($key, $reader);
+        $catalogue = app(ListViewCatalogue::class);
+        $hidden = $catalogue->hiddenFor($key, $reader);
         $payload['hidden_columns'] = $hidden['columns'];
+        $definition = $catalogue->definition($key);
 
-        if ($hidden['columns'] === [] && $hidden['sorts'] === []) {
+        if ($definition === null || ! is_array($payload['views'] ?? null)) {
             return $payload;
         }
 
-        $payload['views'] = array_map(function ($view) use ($hidden) {
+        $views = array_filter($payload['views'], 'is_array');
+        $used = [];
+
+        foreach ($views as $view) {
+            foreach (is_array($view['filters'] ?? null) ? $view['filters'] : [] as $name => $value) {
+                $used[(string) $name][] = $value;
+            }
+        }
+
+        $gone = $catalogue->goneReferences($definition, $used);
+        $sorts = array_map('strval', array_keys($definition->sorts()));
+        $filterFields = $definition->filterFields();
+        $entity = $definition->customFieldEntity();
+        $filterable = $entity === null ? [] : array_keys(array_filter(
+            app(CustomFieldDefinitions::class)->byKey($entity),
+            fn ($field) => $field->archived_at === null && in_array($field->type, CustomFieldTypes::FILTERABLE, true),
+        ));
+
+        $payload['views'] = array_map(function ($view) use ($hidden, $sorts, $filterFields, $filterable, $entity, $gone, $definition) {
             if (! is_array($view)) {
                 return $view;
             }
 
-            $view['columns'] = array_values(array_filter((array) ($view['columns'] ?? []), fn ($column) => ! in_array($column['id'] ?? null, $hidden['columns'], true)));
+            $view['columns'] = array_values(array_filter((array) ($view['columns'] ?? []), fn ($column) => ! in_array(is_array($column) ? ($column['id'] ?? null) : null, $hidden['columns'], true)));
 
-            if (isset($view['sort']) && in_array(ltrim((string) $view['sort'], '-'), $hidden['sorts'], true)) {
-                $view['sort'] = null;
+            if (isset($view['sort'])) {
+                $sort = ltrim((string) $view['sort'], '-');
+
+                if (! in_array($sort, $sorts, true) || in_array($sort, $hidden['sorts'], true)) {
+                    $view['sort'] = null;
+                }
+            }
+
+            if (is_array($view['filters'] ?? null)) {
+                $view['filters'] = array_filter($view['filters'], function ($value, $name) use ($hidden, $filterFields, $filterable, $entity, $gone, $definition) {
+                    $name = (string) $name;
+
+                    if (preg_match('/^custom\[([^\]]+)\]/', $name, $match) === 1) {
+                        return $entity !== null && in_array($match[1], $filterable, true)
+                            && ! in_array(CustomFieldAccess::PREFIX.$match[1], $hidden['fields'], true);
+                    }
+
+                    if (isset($filterFields[$name]) && $definition->hides($filterFields[$name], $hidden['fields'])) {
+                        return false;
+                    }
+
+                    return ! in_array($value, $gone[$name] ?? [], true);
+                }, ARRAY_FILTER_USE_BOTH);
             }
 
             return $view;
-        }, (array) ($payload['views'] ?? []));
+        }, $payload['views']);
 
         return $payload;
     }

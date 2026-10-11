@@ -46,6 +46,30 @@ abstract class ListDefinition
         return [];
     }
 
+    /**
+     * LAY-04, RBAC-05: the resource fields each URL filter reads, so a
+     * saved view's filter on a field the reader's rules hide is dropped
+     * (custom field filters, `custom[<key>]`, are named by their field).
+     *
+     * @return array<string, list<string>> filter name => fields
+     */
+    public function filterFields(): array
+    {
+        return [];
+    }
+
+    /**
+     * LAY-04: URL filters whose value is a record id, with its table and
+     * whether the table archives (TEN-06): a saved view's filter naming a
+     * record that is gone or archived is dropped.
+     *
+     * @return array<string, array{0: string, 1: bool}> filter name => [table, archivable]
+     */
+    public function filterReferences(): array
+    {
+        return [];
+    }
+
     /** The API resource the JSON list uses, for one record. */
     abstract public function resource(Model $model): JsonResource;
 

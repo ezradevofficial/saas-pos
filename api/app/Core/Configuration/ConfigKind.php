@@ -29,13 +29,15 @@ use InvalidArgumentException;
  * - `defaults` is the payload used when nothing is published anywhere
  *   along the chain, `fn (string $key): ?array` (null: the client keeps
  *   its built-in layout);
- * - `keys` limits the keys (a list, or a closure answering one), else
- *   any key matching KEY_PATTERN;
+ * - `keys` limits the keys (a list; or a closure that receives the key and
+ *   answers true or false, or returns the list), else any key matching
+ *   KEY_PATTERN;
  * - `module` switches the kind off with its module (RBAC-08);
  * - `personal`: any signed-in user may keep, edit and publish documents of
  *   their own user scope (a personal list view or dashboard, LAY-01,
  *   LAY-04) without holding the kind's permissions; everything else still
- *   needs them (ConfigPolicy);
+ *   needs them (ConfigPolicy); a user keeps at most `personalLimit`
+ *   documents of a personal kind (one per key);
  * - `presenter` adapts a resolved payload to its reader, after the merger:
  *   `fn (array $payload, string $key, User $reader): array` (RBAC-05: drop
  *   columns their field rules hide, widgets whose data they can't read).
@@ -52,6 +54,9 @@ final class ConfigKind
         'publish' => 'core.config.publish',
     ];
 
+    /** Most documents a user keeps of a personal kind (one per key). */
+    public const PERSONAL_LIMIT = 50;
+
     /** Largest payload stored, as JSON (bytes). */
     public const MAX_BYTES = 262144;
 
@@ -64,7 +69,7 @@ final class ConfigKind
      * @param  array{view?: string, edit?: string, publish?: string}  $permissions
      * @param  (Closure(array, ConfigKind, string): array)|null  $merger
      * @param  (Closure(string): ?array)|null  $defaults
-     * @param  list<string>|(Closure(): list<string>)|null  $keys
+     * @param  list<string>|(Closure(string): (bool|list<string>))|null  $keys
      * @param  list<string>  $layoutKeys
      */
     public function __construct(
@@ -80,6 +85,7 @@ final class ConfigKind
         public readonly bool $personal = false,
         public readonly ?Closure $presenter = null,
         public readonly array $layoutKeys = [],
+        public readonly int $personalLimit = self::PERSONAL_LIMIT,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key) !== 1) {
             throw new InvalidArgumentException("Invalid configuration kind [{$key}].");
@@ -115,9 +121,9 @@ final class ConfigKind
             return false;
         }
 
-        $keys = $this->keys instanceof Closure ? ($this->keys)() : $this->keys;
+        $keys = $this->keys instanceof Closure ? ($this->keys)($key) : $this->keys;
 
-        return $keys === null || in_array($key, $keys, true);
+        return is_bool($keys) ? $keys : ($keys === null || in_array($key, $keys, true));
     }
 
     /**
