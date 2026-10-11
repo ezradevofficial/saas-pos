@@ -519,7 +519,7 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
     ],
     customSchema.fields,
   )
-  const { layout } = useFormLayout('party', fallback)
+  const { layout, ready: layoutReady } = useFormLayout('party', fallback)
 
   return (
     <form
@@ -539,16 +539,21 @@ export function PartyForm({ party, role, readOnly = false, onRequestChange = nul
           <Alert tone="danger" title={errorMessage(mutation.error)} />
         </div>
       ) : null}
-      <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
-        <FormLayoutRenderer
-          layout={layout}
-          fields={fieldRenderers}
-          custom={{ entity: 'party', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
-          readOnly={readOnly}
-          showErrors={submitted}
-        />
-      </fieldset>
-      {readOnly ? null : (
+      {/* LAY-03: the form waits for its published layout, so it never rearranges under the user. */}
+      {layoutReady ? (
+        <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
+          <FormLayoutRenderer
+            layout={layout}
+            fields={fieldRenderers}
+            custom={{ entity: 'party', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
+            readOnly={readOnly}
+            showErrors={submitted}
+          />
+        </fieldset>
+      ) : (
+        <p className="text-body text-ink-muted">{t('common.loading')}</p>
+      )}
+      {readOnly || !layoutReady ? null : (
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" type="submit" loading={mutation.isPending}>
             {creating ? t(`parties.form.create.${role}`) : t('common.save')}

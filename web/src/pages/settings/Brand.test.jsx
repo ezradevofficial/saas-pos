@@ -62,6 +62,37 @@ describe('Brand page (BR-02, BR-03, BR-08)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('config/theme', expect.objectContaining({ scope_type: 'tenant', payload: { preset: 'light', colors: { primary: '#ffcc00' } } })), { timeout: 3000 })
   })
 
+  it('says a failed autosave was not saved, never "Saving…", and offers Try again', async () => {
+    setup()
+    api.post.mockReset()
+    api.post.mockRejectedValueOnce(new Error('Network down')).mockResolvedValue(documentWith({ preset: 'light', colors: { primary: '#0b5d6e' } }))
+    renderApp('/settings/brand')
+
+    const primary = await screen.findByTestId('colour-primary')
+    fireEvent.change(within(primary).getByRole('textbox'), { target: { value: '#0b5d6e' } })
+
+    await waitFor(() => expect(document.querySelector('[data-save-state]')).toHaveAttribute('data-save-state', 'error'), { timeout: 3000 })
+    expect(screen.getByText('Draft not saved')).toBeInTheDocument()
+    expect(screen.queryByText('Saving…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(document.querySelector('[data-save-state]')).toHaveAttribute('data-save-state', 'saved'))
+  })
+
+  it('fails a primary colour that reads on Light but not on Warm, which a user may pick for themselves', async () => {
+    setup()
+    api.post.mockResolvedValue(documentWith({ preset: 'light', colors: { primary: '#6e57f9' } }))
+    renderApp('/settings/brand')
+
+    const primary = await screen.findByTestId('colour-primary')
+    fireEvent.change(within(primary).getByRole('textbox'), { target: { value: '#6e57f9' } })
+
+    await waitFor(() => expect(within(primary).getAllByText('Fails').length).toBeGreaterThan(0))
+    expect(within(primary).getByText(/Primary text on the page · Warm/)).toBeInTheDocument()
+    expect(screen.getByText(/can't be published yet/i)).toBeInTheDocument()
+  })
+
   it('previews the draft on real components without changing the app', async () => {
     setup()
     api.post.mockResolvedValue(documentWith({ preset: 'light', colors: { primary: '#7c2d12' } }))

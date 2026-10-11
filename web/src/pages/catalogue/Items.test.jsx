@@ -153,6 +153,48 @@ describe('Items', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('items', expect.objectContaining({ company_id: 'c-1', code: 'RICE-5' })))
   })
 
+  it('waits for the published form layout before drawing the form, so it never rearranges (LAY-03)', async () => {
+    let answer
+    const published = {
+      data: {
+        payload: {
+          tabs: [],
+          sections: [{ id: 'details', title: 'Basics', tab: null, columns: 1, fields: [{ id: 'name', wide: true }, { id: 'code' }, { id: 'company_id' }, { id: 'type' }, { id: 'category_id' }, { id: 'tax_category_id' }] }],
+        },
+        source: { scope: { type: 'tenant', id: null } },
+      },
+    }
+    catalogue(api, { extra: [['config/form_layout/resolved?key=item', () => new Promise((resolve) => (answer = () => resolve(published)))]] })
+    renderApp('/catalogue/items/new')
+
+    await waitFor(() => expect(answer).toBeDefined())
+    expect(screen.getByText('Loading')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Code/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create item' })).not.toBeInTheDocument()
+
+    answer()
+    const name = await screen.findByLabelText(/^Name/)
+    // The published order from the first draw: Name before Code.
+    expect(name.compareDocumentPosition(screen.getByLabelText(/^Code/)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('Basics')).toBeInTheDocument()
+  })
+
+  it('falls back to the form\'s own layout when the published one does not come', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      catalogue(api, { extra: [['config/form_layout/resolved?key=item', () => new Promise(() => {})]] })
+      renderApp('/catalogue/items/new')
+      await waitFor(() => expect(api.get).toHaveBeenCalledWith('config/form_layout/resolved?key=item'))
+      await waitFor(() => expect(screen.getByText('Loading')).toBeInTheDocument())
+      expect(screen.queryByLabelText(/^Code/)).not.toBeInTheDocument()
+      await vi.advanceTimersByTimeAsync(4000)
+      expect(await screen.findByLabelText(/^Code/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Create item' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('shows a unit factor that is not a number when the form is submitted, without sending', async () => {
     catalogue(api)
     renderApp('/catalogue/items/new')

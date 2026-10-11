@@ -65,19 +65,33 @@ export function useConfigDocument(kind, key = 'default', scope = TENANT, { enabl
     setRevision(base.current.revision)
   }
   const loaded = detail.data?.data ?? null
+  const [conflict, setConflictState] = useState(null)
+  // Mirrored in a ref, so reload() right after a failed write (same render) sees it.
+  const conflictRef = useRef(null)
+  const setConflict = (next) => {
+    conflictRef.current = next
+    setConflictState(next)
+  }
+  const scopeKey = `${kind}|${key}|${where.type}|${where.id ?? ''}`
+  const seenScope = useRef(scopeKey)
   useEffect(() => {
+    // Another scope (or form) is another document: its conflict and base are not this one's,
+    // also when the new scope has no document yet.
+    if (seenScope.current !== scopeKey) {
+      seenScope.current = scopeKey
+      setConflict(null)
+      adopt(null)
+    }
     // First sight of this document only: a background refetch never moves the base.
     if (loaded?.id && base.current.id !== loaded.id) adopt(loaded)
-  }, [loaded])
+  }, [scopeKey, loaded])
 
-  const [conflict, setConflict] = useState(null)
   const saves = useRef(Promise.resolve())
 
   // Every write answers the whole document: keep it, and refresh the lists of the kind.
   // A save, publish or discard leaves the draft as this editor made it, so its revision becomes the base.
   // A document just created is known at once, so "save, then publish" works in one go.
   const created = useRef({})
-  const scopeKey = `${kind}|${key}|${where.type}|${where.id ?? ''}`
   const settle = async (response, { adoptDraft = true } = {}) => {
     const id = response?.data?.id
     if (id) {
@@ -145,11 +159,12 @@ export function useConfigDocument(kind, key = 'default', scope = TENANT, { enabl
   }
 
   const reload = async () => {
-    const current = conflict?.document
+    const seen = conflictRef.current
+    const current = seen?.document
     setConflict(null)
     if (current?.id) {
       adopt(current)
-      queryClient.setQueryData(['config', kind, 'document', current.id], { data: current, meta: conflict.meta ?? { problems: [] } })
+      queryClient.setQueryData(['config', kind, 'document', current.id], { data: current, meta: seen.meta ?? { problems: [] } })
     } else {
       adopt(null)
     }

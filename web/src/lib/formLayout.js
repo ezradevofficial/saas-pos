@@ -5,6 +5,7 @@
 // catalogue (the API merges it, LAY-07). Built-in fields are named by id,
 // custom fields `custom.<key>`.
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 
 export const CUSTOM_PREFIX = 'custom.'
@@ -30,22 +31,36 @@ export function fallbackLayout(sections, customFields = [], customGroup = 'custo
   }
 }
 
+/** How long a form waits for its published layout before it shows its own (ms). */
+export const LAYOUT_WAIT_MS = 4000
+
 /**
  * The layout of `formKey` for the signed-in user (GET config/form_layout/resolved):
  * the published one for their role or the tenant, else the form's default;
- * `fallback` while it loads or when it can't be read, so a form always renders.
+ * `fallback` when it can't be read, so a form always renders.
+ * `ready` is false until the answer is in (or LAYOUT_WAIT_MS passed): a form
+ * shows its loading state until then rather than drawing the default layout
+ * and rearranging it a moment later.
  */
 export function useFormLayout(formKey, fallback, { enabled = true } = {}) {
+  const active = Boolean(formKey) && enabled
   const query = useQuery({
     queryKey: ['config', 'form_layout', 'resolved', formKey],
     queryFn: () => api.get(`config/form_layout/resolved?key=${encodeURIComponent(formKey)}`),
-    enabled: Boolean(formKey) && enabled,
+    enabled: active,
     retry: false,
     staleTime: 60_000,
   })
+  const waiting = active && query.isPending
+  const [waited, setWaited] = useState(false)
+  useEffect(() => {
+    if (!waiting) return undefined
+    const timer = setTimeout(() => setWaited(true), LAYOUT_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [waiting])
   const payload = query.data?.data?.payload
   const layout = Array.isArray(payload?.sections) && payload.sections.length ? payload : fallback
-  return { ...query, layout }
+  return { ...query, layout, ready: !waiting || waited }
 }
 
 /**

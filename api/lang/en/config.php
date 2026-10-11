@@ -71,12 +71,12 @@ return [
         'pos_layout_unknown_item' => ':path names an item that doesn’t exist or is archived. Remove it or choose another item.',
         'pos_layout_unknown_category' => ':path names a category that doesn’t exist or is archived. Remove it or choose another category.',
         'pos_layout_unknown_image' => ':path names an image that isn’t one of your item images or brand images. Choose another image.',
-        'contrast' => 'In :mode mode, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
+        'contrast' => 'With the :mode theme, :pair has a contrast of :ratio:1 and needs at least :required:1. Choose a darker or lighter colour.',
     ],
 
     // BR-03: the words a contrast problem is made of.
     'theme' => [
-        'modes' => ['light' => 'light', 'dark' => 'dark'],
+        'modes' => ['light' => 'Light', 'dark' => 'Dark', 'executive' => 'Executive', 'warm' => 'Warm'],
         'pairs' => [
             'primary_text_page' => 'primary text on the page',
             'primary_text_card' => 'primary text on cards',

@@ -103,8 +103,9 @@ function SalesChart({ widget, data, t, locale, title }) {
 
 /**
  * One dashboard widget (LAY-01): its title and its source's data, drawn by
- * type. An unknown type is skipped (LAY-07); a source that fails says so
- * quietly instead of breaking the dashboard.
+ * type. An unknown type is skipped (LAY-07), so is a source the API refuses
+ * the reader (403); a source that fails otherwise says so quietly instead of
+ * breaking the dashboard.
  */
 export function Widget({ widget, framed = true }) {
   const { t } = useTranslation()
@@ -112,6 +113,8 @@ export function Widget({ widget, framed = true }) {
   const known = WIDGET_TYPES.includes(widget.type)
   const query = useWidgetData(widget, { enabled: known })
   if (!known) return null
+  // A source the reader may not open (403) is not theirs to see: no frame, no title (RBAC-09).
+  if (framed && query.error?.status === 403) return null
   const title = widgetTitle(widget, t)
   const data = query.data
 

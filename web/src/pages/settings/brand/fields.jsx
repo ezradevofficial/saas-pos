@@ -121,10 +121,10 @@ export function ColourField({ field, label, help, value, presetValue, derived, c
 
       <ul className="flex flex-col gap-1" aria-label={t('brand.contrast.label', { name: label })}>
         {checks.map((check) => (
-          <li key={`${check.mode}-${check.pair}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
+          <li key={`${check.preset ?? check.mode}-${check.pair}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
             <StatusBadge tone={check.passes ? 'success' : 'danger'}>{check.passes ? t('brand.contrast.passes') : t('brand.contrast.fails')}</StatusBadge>
             <span className="text-ink">
-              {t(`brand.contrast.pairs.${check.pair}`)} · {t(`brand.contrast.modes.${check.mode}`)}
+              {t(`brand.contrast.pairs.${check.pair}`)} · {t(`ds.theme.${check.preset ?? check.mode}`)}
             </span>
             <span className="text-ink-muted tabular-nums">{t('brand.contrast.ratio', { ratio: check.ratio.toFixed(2), required: check.required })}</span>
           </li>

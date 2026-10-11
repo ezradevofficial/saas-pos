@@ -46,11 +46,21 @@ class ThemeCompilerTest extends TestCase
             $this->assertSame($v['compiled'], ThemeCompiler::compile($theme), json_encode($theme));
 
             $failing = array_values(array_map(
-                fn (array $c) => "{$c['mode']}:{$c['pair']}:".self::js($c['ratio']),
+                fn (array $c) => "{$c['preset']}:{$c['pair']}:".self::js($c['ratio']),
                 array_filter(ThemeCompiler::checks($theme), fn (array $c) => ! $c['passes']),
             ));
             $this->assertSame($v['failing'], $failing, json_encode($theme));
         }
+    }
+
+    public function test_brand_pairs_are_checked_on_every_preset_a_user_may_pick(): void
+    {
+        // Passes on Light, the tenant's preset, but a user may pick Warm for themselves.
+        $failing = array_values(array_filter(ThemeCompiler::checks(['preset' => 'light', 'colors' => ['primary' => '#6e57f9']]), fn (array $c) => ! $c['passes']));
+
+        $this->assertNotEmpty($failing);
+        $this->assertContains('warm', array_column($failing, 'preset'));
+        $this->assertNotContains('light', array_column($failing, 'preset'));
     }
 
     public function test_only_overridable_tokens_are_ever_set(): void

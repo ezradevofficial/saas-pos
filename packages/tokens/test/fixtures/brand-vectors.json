@@ -737,7 +737,11 @@
       },
       "failing": [
         "light:primary_text_page:1.46",
-        "light:primary_text_card:1.51"
+        "light:primary_text_card:1.51",
+        "executive:primary_text_page:1.37",
+        "executive:primary_text_card:1.51",
+        "warm:primary_text_page:1.37",
+        "warm:primary_text_card:1.48"
       ]
     },
     {
@@ -771,7 +775,13 @@
       "failing": [
         "light:primary_text_page:4.32",
         "light:primary_text_card:4.47",
-        "light:on_primary:4.47"
+        "light:on_primary:4.47",
+        "executive:primary_text_page:4.06",
+        "executive:primary_text_card:4.47",
+        "executive:on_primary:4.47",
+        "warm:primary_text_page:4.07",
+        "warm:primary_text_card:4.4",
+        "warm:on_primary:4.47"
       ]
     },
     {
@@ -813,6 +823,32 @@
         }
       },
       "failing": []
+    },
+    {
+      "theme": {
+        "preset": "light",
+        "colors": {
+          "primary": "#6e57f9"
+        }
+      },
+      "compiled": {
+        "light": {
+          "primary": "#6e57f9",
+          "primary-hover": "#5c3fe1",
+          "on-primary": "#ffffff",
+          "primary-tint": "#eff0ff"
+        },
+        "dark": {
+          "primary": "#7b6dff",
+          "primary-hover": "#928eff",
+          "on-primary": "#18181b",
+          "primary-tint": "#18182d"
+        }
+      },
+      "failing": [
+        "executive:primary_text_page:4.33",
+        "warm:primary_text_page:4.35"
+      ]
     }
   ]
 }

@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/App'
-import { api } from '@/api/client'
+import { ApiError, api } from '@/api/client'
 import { setLocale } from '@/i18n'
 import { actionsColumn } from '@/lib/listColumns'
 import { columnsStorageKey, useServerList } from '@/lib/useServerList'
@@ -478,6 +478,48 @@ describe('ListView and useServerList', () => {
       expect(saved).toMatchObject({ key: 'things', scope_type: 'user', scope_id: OWNER.id })
       expect(saved.payload.views.at(-1)).toMatchObject({ id: 'quick-look', name: 'Quick look', filters: {}, sort: null })
       expect(saved.payload.views.at(-1).columns.map((column) => column.id)).toEqual(['name', 'code', 'notes'])
+    })
+
+    const THEIRS = { id: 'd-1', scope: { type: 'user', id: OWNER.id }, published: null, draft: { version: 1, revision: 3, payload: { views: [{ id: 'other', name: 'Other' }], default_view: null } } }
+    const conflict = () => new ApiError({ status: 409, code: 'config_changed', message: 'Someone changed these views. Reload them.', data: { data: THEIRS, meta: { problems: [] } } })
+
+    const saveQuickLook = async () => {
+      renderList('/things?view=none')
+      await screen.findByText('Thing 1')
+      openMenu('Views')
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as a new view' }))
+      fireEvent.change(await screen.findByLabelText(/View name/), { target: { value: 'Quick look' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save view' }))
+    }
+
+    it('takes the views someone else saved meanwhile and saves once more over them', async () => {
+      mockViews()
+      api.post.mockImplementation(async (path, body) => {
+        if (path === 'config/list_view') return { data: { ...THEIRS, draft: { version: 1, revision: 4, payload: body.payload } }, meta: { problems: [] } }
+        return { data: { ...THEIRS, draft: null, published: { version: 1 } }, meta: { problems: [] } }
+      })
+      api.post.mockImplementationOnce(async () => {
+        throw conflict()
+      })
+      await saveQuickLook()
+
+      await waitFor(() => expect(api.post.mock.calls.some(([path]) => path === 'config/list_view/d-1/publish')).toBe(true))
+      const saves = api.post.mock.calls.filter(([path]) => path === 'config/list_view')
+      expect(saves).toHaveLength(2)
+      expect(saves[1][1].revision).toBe(3)
+      expect(saves[1][1].payload.views.map((view) => view.id)).toEqual(['other', 'quick-look'])
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    })
+
+    it('says so when the views change again during the retry', async () => {
+      mockViews()
+      api.post.mockImplementation(async () => {
+        throw conflict()
+      })
+      await saveQuickLook()
+
+      expect(await screen.findByText('Someone changed these views. Reload them.')).toBeInTheDocument()
+      expect(api.post.mock.calls.filter(([path]) => path === 'config/list_view')).toHaveLength(2)
     })
   })
 })

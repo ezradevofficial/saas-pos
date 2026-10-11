@@ -92,6 +92,35 @@ describe('POS layout designer (LAY-05)', () => {
     )
   })
 
+  it('reads a category\'s item photos only when its image picker opens', async () => {
+    setup()
+    renderApp('/settings/pos-layout')
+    await screen.findByRole('group', { name: 'Tablet' })
+    await screen.findByRole('radiogroup', { name: 'Colour of Drinks' })
+    const imageCalls = () => api.get.mock.calls.filter(([path]) => path.startsWith('items?per_page=50'))
+    expect(imageCalls()).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Image of Drinks' }))
+    await waitFor(() => expect(imageCalls()).toHaveLength(1))
+    expect(imageCalls()[0][0]).toBe(`items?per_page=50&category=${DRINKS.id}`)
+  })
+
+  it('says a failed autosave was not saved and offers Try again', async () => {
+    setup()
+    api.post.mockReset()
+    api.post.mockRejectedValueOnce(new Error('Network down')).mockImplementation(async (_path, body) => documentWith(body.payload))
+    renderApp('/settings/pos-layout')
+
+    await screen.findByRole('group', { name: 'Tablet' })
+    fireEvent.click(screen.getByRole('radio', { name: 'Left' }))
+    await waitFor(() => expect(document.querySelector('[data-save-state]')).toHaveAttribute('data-save-state', 'error'), { timeout: 3000 })
+    expect(screen.queryByText('Saving…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(document.querySelector('[data-save-state]')).toHaveAttribute('data-save-state', 'saved'))
+    expect(api.post).toHaveBeenCalledTimes(2)
+  })
+
   it('is read-only without pos.layout.edit', async () => {
     setup({ permissions: tenantWide(['pos.layout.view']) })
     renderApp('/settings/pos-layout')

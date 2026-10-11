@@ -147,17 +147,31 @@ const PAIR_FIELD = {
 const round2 = (n) => Math.floor(n * 100) / 100;
 
 /**
- * Every BR-03 contrast check of a theme in both modes:
- * [{ mode, pair, field, foreground, background, ratio, required, passes }].
+ * Where a published theme can be seen: its light-mode overrides on each
+ * preset a user may pick for themselves (Light, Executive, Warm), and its
+ * dark-mode overrides on Dark. A user keeps their own preset choice while a
+ * tenant theme is set, so the brand pairs must read on all of them.
+ */
+const CHECKED = [
+  ['light', 'light'],
+  ['executive', 'light'],
+  ['warm', 'light'],
+  ['dark', 'dark'],
+];
+
+/**
+ * Every BR-03 contrast check of a theme on every preset a user may apply:
+ * [{ preset, mode, pair, field, foreground, background, ratio, required, passes }].
  * `ratio` is cut (not rounded) to two decimals, so 4.499 shows 4.49 and fails.
  */
 function themeChecks(theme, presets) {
   const checks = [];
-  for (const mode of ['light', 'dark']) {
-    const tokens = { ...strip(presets[baseFor(theme?.preset, mode)]), ...themeOverrides(theme, mode, presets) };
+  for (const [preset, mode] of CHECKED) {
+    const tokens = { ...strip(presets[preset]), ...themeOverrides(theme, mode, presets) };
     for (const [pair, fg, bg, required] of PAIRS) {
       const ratio = contrastRatio(tokens[fg], tokens[bg]);
       checks.push({
+        preset,
         mode,
         pair,
         field: PAIR_FIELD[pair],
@@ -178,6 +192,7 @@ module.exports = {
   FONTS,
   SIDEBARS,
   PAIRS,
+  CHECKED,
   baseFor,
   towardsContrast,
   themeOverrides,

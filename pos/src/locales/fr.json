@@ -454,7 +454,10 @@
       "items_one": "{{count}} article",
       "items_other": "{{count}} articles",
       "discount": "Remise",
-      "total": "Total"
+      "total": "Total",
+      "closeTitle": "Fermer l’écran client",
+      "closePin": "{{name}}, saisissez votre code PIN pour fermer l’écran client.",
+      "closeNobody": "Connectez-vous d’abord sur la caisse. Seul un membre du personnel connecté peut fermer l’écran client."
     },
     "appearance": {
       "title": "Apparence",

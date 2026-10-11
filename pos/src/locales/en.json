@@ -454,7 +454,10 @@
       "items_one": "{{count}} item",
       "items_other": "{{count}} items",
       "discount": "Discount",
-      "total": "Total"
+      "total": "Total",
+      "closeTitle": "Close the customer display",
+      "closePin": "{{name}}, type your PIN to close the customer display.",
+      "closeNobody": "Sign in on the till first. Only a signed-in staff member can close the customer display."
     },
     "appearance": {
       "title": "Appearance",

@@ -24,7 +24,7 @@ describe('brand vectors', () => {
   it('match compiled themes and failing checks', () => {
     for (const v of vectors.themes) {
       expect(brand.compileTheme(v.theme, presets)).toEqual(v.compiled);
-      const failing = brand.themeChecks(v.theme, presets).filter((c) => !c.passes).map((c) => `${c.mode}:${c.pair}:${c.ratio}`);
+      const failing = brand.themeChecks(v.theme, presets).filter((c) => !c.passes).map((c) => `${c.preset}:${c.pair}:${c.ratio}`);
       expect(failing).toEqual(v.failing);
     }
   });
@@ -47,6 +47,13 @@ describe('compileTheme', () => {
     const { dark } = tokens.compileTheme({ colors: { primary: '#0b5d6e' } });
     expect(contrastRatio(dark.primary, presets.dark['--surface-200'])).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(dark.primary, dark['on-primary'])).toBeGreaterThanOrEqual(4.5);
+  });
+  it('checks the brand pairs on every preset a user may pick, not only the tenant\'s', () => {
+    // Passes on Light, but a user who picks Warm sees it on Warm's surfaces.
+    const checks = tokens.themeChecks({ preset: 'light', colors: { primary: '#6e57f9' } });
+    expect(checks.filter((c) => c.preset === 'light' && c.field === 'colors.primary').every((c) => c.passes)).toBe(true);
+    expect(checks.some((c) => c.preset === 'warm' && c.pair === 'primary_text_page' && !c.passes)).toBe(true);
+    expect([...new Set(checks.map((c) => c.preset))]).toEqual(['light', 'executive', 'warm', 'dark']);
   });
   it('every preset passes its own checks', () => {
     for (const preset of tokens.PRESETS) expect(tokens.themeChecks({ preset }).every((c) => c.passes), preset).toBe(true);

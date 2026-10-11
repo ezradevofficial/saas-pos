@@ -59,7 +59,7 @@ export function Chart({ type = 'bar', points = [], title, valueLabel, formatValu
   }
 
   const tip = active === null ? null : points[active]
-  const tipText = tip ? `${formatLabel(tip.label)}: ${tip.value == null ? t('layouts.chart.noValue') : formatValue(tip.value)}` : ''
+  const tipText = tip ? t('layouts.chart.tooltip', { label: formatLabel(tip.label), value: tip.value == null ? t('layouts.chart.noValue') : formatValue(tip.value) }) : ''
   const tipX = active === null ? 0 : Math.min(Math.max(xOf(active), LEFT + 90), WIDTH - RIGHT - 90)
 
   return (

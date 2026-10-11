@@ -99,6 +99,8 @@ describe('Document templates (TPL-01..TPL-05)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Text' }))
     expect(within(canvas).getAllByRole('button', { name: 'Remove Text' })).toHaveLength(2)
+    // The drag handle keeps touch for dragging on tablets (no page scroll under the finger).
+    expect(within(canvas).getAllByRole('button', { name: 'Move Text' })[0]).toHaveClass('touch-none')
 
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() =>

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/ds/Button';
 import { displayChannel } from '../pos/customerDisplay';
 import { ThemeProvider } from '../theme/ThemeProvider';
+import { DisplayCloseDialog } from './DisplayCloseDialog';
 
 function Line({ line }) {
   return (
@@ -33,11 +34,14 @@ function Row({ label, value, strong }) {
  * is open, then the lines (when the layout shows them), the totals and the
  * total in the second currency (when it shows them), in the till's theme.
  * It reads nothing else: no database, no session, no actions but closing
- * (in the app; a browser tab is closed by the browser).
+ * (in the app, with a signed-in staff member's PIN; a browser tab is closed
+ * by the browser).
  */
 export function CustomerDisplayScreen({ channel = displayChannel(), onClose }) {
   const { t } = useTranslation();
   const [state, setState] = useState(null);
+  // Closing the in-app display takes a signed-in staff member's PIN (DisplayCloseDialog).
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     const stop = channel.listen((message) => {
@@ -62,7 +66,7 @@ export function CustomerDisplayScreen({ channel = displayChannel(), onClose }) {
             </Text>
           )}
           {onClose ? (
-            <Button variant="ghost" onPress={onClose}>
+            <Button variant="ghost" onPress={() => setClosing(true)}>
               {t('pos.display.close')}
             </Button>
           ) : null}
@@ -94,6 +98,7 @@ export function CustomerDisplayScreen({ channel = displayChannel(), onClose }) {
             ) : null}
           </View>
         )}
+        {onClose && closing ? <DisplayCloseDialog onCancel={() => setClosing(false)} onUnlocked={onClose} /> : null}
       </SafeAreaView>
     </ThemeProvider>
   );

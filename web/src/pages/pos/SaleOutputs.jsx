@@ -192,14 +192,26 @@ export function SaleOutputs({ sale, canShare, when }) {
       setPrinting((current) => ({ html, n: (current?.n ?? 0) + 1 }))
     })
   const pdf = () => run('pdf', () => downloadFile(`pos/sales/${sale.id}/receipt?format=pdf`, `${sale.receipt_number}.pdf`))
-  const share = () =>
-    run('share', async () => {
-      const response = await api.post(`pos/sales/${sale.id}/share`)
-      const data = response?.data
-      if (data?.whatsapp_url) window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer')
-      setLatest(data ?? null)
+  const share = () => {
+    // Safari blocks a window opened after an await: open a blank one in the click itself,
+    // cut it off from this page, and send it to WhatsApp once the link is made (closed on failure).
+    const opened = window.open('', '_blank')
+    if (opened) opened.opener = null
+    return run('share', async () => {
+      try {
+        const response = await api.post(`pos/sales/${sale.id}/share`)
+        const data = response?.data
+        if (data?.whatsapp_url && opened) opened.location.href = data.whatsapp_url
+        else if (data?.whatsapp_url) window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer')
+        else opened?.close()
+        setLatest(data ?? null)
+      } catch (failure) {
+        opened?.close()
+        throw failure
+      }
       await queryClient.invalidateQueries({ queryKey: ['pos-sales', 'shares', sale.id] })
     })
+  }
 
   return (
     <Card title={t('pos.sale.outputs.title')} subtitle={t('pos.sale.outputs.subtitle')}>

@@ -1,6 +1,7 @@
 // LAY-01: the SVG chart: bars and lines in token colours, values on hover
 // and keys, and a table of the same figures.
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { setLocale } from '@/i18n'
 import { barPath, niceMax } from '@/lib/chartScale'
 import { Chart } from './Chart'
 
@@ -45,6 +46,17 @@ describe('chart', () => {
     expect(within(screen.getByTestId('chart-tooltip')).getByText('10-08: No figure')).toBeInTheDocument()
     fireEvent.keyDown(svg, { key: 'Escape' })
     expect(screen.queryByTestId('chart-tooltip')).toBeNull()
+  })
+
+  it('words the value through the translations, with the French space before the colon', () => {
+    setLocale('fr')
+    try {
+      render(<Chart type="bar" points={POINTS} title="Ventes" formatValue={format} formatLabel={(label) => label.slice(5)} />)
+      fireEvent.keyDown(screen.getByRole('img', { name: 'Ventes' }), { key: 'ArrowRight' })
+      expect(within(screen.getByTestId('chart-tooltip')).getByText('10-07 : KES 1200.00')).toBeInTheDocument()
+    } finally {
+      setLocale('en')
+    }
   })
 
   it('always has a table of the figures, shown on request', () => {

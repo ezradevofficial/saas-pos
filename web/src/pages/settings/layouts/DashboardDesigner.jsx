@@ -13,9 +13,12 @@ import { DASHBOARD_KEY, DEFAULT_DASHBOARD, newWidgetId, useDashboard, WIDGET_TYP
 import { nextFreeRow, placeWidget } from '@/lib/dashboardGrid'
 import { useConfigDocument } from '@/lib/useConfigDocument'
 import { parseScope, useLayoutScopes } from './scopes'
+import { samePayload, useUnsavedGuard } from './unsavedGuard'
 
 const DAYS = [7, 14, 30]
 const LIMITS = [3, 5, 10]
+
+const payloadOf = (edit) => ({ title: edit.title?.trim() || null, widgets: edit.widgets })
 
 /** The parameters a widget keeps when its type or source changes: only those the new source reads. */
 function paramsFor(source, params = {}) {
@@ -143,7 +146,7 @@ export default function DashboardDesigner({ personal = false }) {
 
   // The draft being edited: the stored one, else (a personal copy) what the user sees now, else the default.
   const start = config.payload ?? (scope.type === 'user' ? current.dashboard : null) ?? DEFAULT_DASHBOARD
-  const loadedKey = `${chosen}|${config.draft?.version ?? ''}|${config.published?.version ?? ''}|${config.isLoading || current.isLoading}`
+  const loadedKey = `${chosen}|${config.draft?.version ?? ''}|${config.draft?.revision ?? ''}|${config.published?.version ?? ''}|${config.isLoading || current.isLoading}`
   const [edit, setEdit] = useState({ key: null, widgets: [], title: null, dirty: false })
   const loading = config.isLoading || current.isLoading
   if (!loading && edit.key !== loadedKey && !(edit.dirty && edit.key?.startsWith(`${chosen}|`))) {
@@ -153,7 +156,8 @@ export default function DashboardDesigner({ personal = false }) {
   const change = (next) => setEdit((state) => ({ ...state, ...next, dirty: true }))
   const widgets = edit.widgets
   const selected = widgets.find((widget) => widget.id === selectedId) ?? null
-  const payload = { title: edit.title?.trim() || null, widgets }
+  const payload = payloadOf(edit)
+  const unsaved = useUnsavedGuard(edit.dirty)
 
   const addWidget = () => {
     const source = sourceList.find((entry) => entry.widgets.includes('kpi')) ?? sourceList[0]
@@ -170,8 +174,10 @@ export default function DashboardDesigner({ personal = false }) {
     setError(null)
     setSaving(true)
     try {
-      await config.saveDraft(payload)
-      setEdit((state) => ({ ...state, dirty: false }))
+      const sent = payload
+      await config.saveDraft(sent)
+      // Edits made while the save ran stay unsaved.
+      setEdit((state) => (samePayload(payloadOf(state), sent) ? { ...state, dirty: false } : state))
       toast.success(t('layouts.saved'))
     } catch (failure) {
       setError(errorMessage(failure))
@@ -190,7 +196,14 @@ export default function DashboardDesigner({ personal = false }) {
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-end gap-3">
           {scopes.options.length > 1 ? (
-            <Select label={t('layouts.scopes.label')} options={scopes.options} value={chosen} onChange={(event) => setScopeValue(event.target.value)} className="w-full max-w-field" />
+            <Select label={t('layouts.scopes.label')} options={scopes.options} value={chosen} onChange={(event) => {
+                const next = event.target.value
+                unsaved.guard(() => {
+                  setEdit({ key: null, widgets: [], title: null, dirty: false })
+                  setScopeValue(next)
+                })
+              }}
+              className="w-full max-w-field" />
           ) : null}
           <TextField
             label={t('layouts.dashboard.dashboardTitle')}
@@ -209,7 +222,12 @@ export default function DashboardDesigner({ personal = false }) {
           canEdit={rights.edit}
           canPublish={rights.publish}
           conflict={config.conflict}
-          onReload={config.reload}
+          onReload={async () => {
+            await config.reload()
+            // Drop this editor's edits: the screen shows the draft as it is now.
+            setEdit({ key: null, widgets: [], title: null, dirty: false })
+            setSelectedId(null)
+          }}
           saveState={edit.dirty ? 'unsaved' : undefined}
           onPublish={async () => {
             if (edit.dirty) await save()
@@ -269,6 +287,7 @@ export default function DashboardDesigner({ personal = false }) {
           </Card>
         </div>
       </div>
+      {unsaved.dialog}
     </>
   )
 }

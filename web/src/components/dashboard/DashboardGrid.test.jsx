@@ -88,4 +88,16 @@ describe('dashboard grid', () => {
     expect([...document.querySelectorAll('[data-widget-id]')].map((node) => node.dataset.widgetId)).toEqual(['a', 'b', 'c'])
     expect(screen.queryByRole('button')).toBeNull()
   })
+
+  it('never nests buttons: each widget is a group with its own select button beside the handles', () => {
+    const selected = vi.fn()
+    render(<DashboardGrid editing label="Dashboard" widgets={WIDGETS} onSelect={selected} onChange={() => {}} renderWidget={(widget) => <span>{widget.label} body</span>} />)
+    const group = screen.getByRole('group', { name: 'Sales' })
+    for (const button of group.querySelectorAll('button, [role="button"]')) {
+      expect(button.parentElement.closest('button, [role="button"]')).toBeNull()
+      expect(button.querySelector('button, [role="button"]')).toBeNull()
+    }
+    fireEvent.click(screen.getByRole('button', { name: /^Sales\. Column 1/ }))
+    expect(selected).toHaveBeenCalledWith('a')
+  })
 })
