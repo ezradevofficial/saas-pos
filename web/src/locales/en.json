@@ -99,6 +99,7 @@
       "exporting": "Preparing the export…",
       "exported": "Export downloaded.",
       "exportTooOften": "Too many exports in a short time. Wait a minute and try again.",
+      "viewRefused": "The view “{{name}}” no longer fits what you can see, so the standard view is shown. Save a new view to replace it.",
       "showing": "Showing {{from}}–{{to}} of {{total}}",
       "noRecords": "No records",
       "perPage": "Rows per page",

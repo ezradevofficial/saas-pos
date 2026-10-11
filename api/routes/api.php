@@ -56,6 +56,7 @@ use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Identity\Pin\Http\Controllers\DevicePinController;
 use App\Core\Identity\Pin\Http\Controllers\MyPinController;
 use App\Core\Identity\Pin\Http\Controllers\UserPinController;
+use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\Http\Controllers\DashboardSourceController;
 use App\Core\Layouts\Http\Controllers\FormLayoutCatalogueController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
@@ -217,13 +218,17 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
     Route::middleware('throttle:device-sync')->group(function () {
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap']);
         Route::get('sync/pull', [SyncController::class, 'pull']);
-        Route::get('sync/media/{item_image}', SyncMediaController::class);
-        // BR-02, LAY-05: logos and category images for the till.
-        Route::get('sync/brand-assets/{brand_asset}', SyncBrandAssetController::class);
         Route::post('pos/pin/verify', [DevicePinController::class, 'verify']);
         Route::post('pos/pin/attempts', [DevicePinController::class, 'attempts']);
         Route::post('pos/override', [DevicePinController::class, 'override']);
         Route::post('pos/pin/change', [DevicePinController::class, 'change']);
+    });
+
+    // BR-02, LAY-05: item images, logos and category images for the till, on
+    // their own limiter (`device-media`) apart from pulls and uploads.
+    Route::middleware('throttle:device-media')->group(function () {
+        Route::get('sync/media/{item_image}', SyncMediaController::class);
+        Route::get('sync/brand-assets/{brand_asset}', SyncBrandAssetController::class);
     });
 
     // AUTH-06, AUTH-08: device secret rotation, proven at each step, a few times an hour.
@@ -599,7 +604,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('templates/previews/{preview}/pdf', [DocumentTemplateController::class, 'previewPdf'])->where('preview', '[A-Za-z0-9]{40}');
     // LAY-01: dashboard data sources the user may read, and one widget's data.
     Route::get('dashboard/sources', [DashboardSourceController::class, 'index']);
-    Route::get('dashboard/sources/{dashboard_source}', [DashboardSourceController::class, 'show'])->where('dashboard_source', '[a-z][a-z0-9_.]{0,59}');
+    Route::get('dashboard/sources/{dashboard_source}', [DashboardSourceController::class, 'show'])->where('dashboard_source', '[a-z][a-z0-9_.]{0,59}')
+        ->middleware('throttle:'.DashboardSources::LIMITER);
     // LAY-03: the forms whose layouts may be designed, and one form's fields and default layout.
     Route::get('form-layouts', FormLayoutCatalogueController::class);
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),

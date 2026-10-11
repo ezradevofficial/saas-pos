@@ -46,6 +46,17 @@ class ItemList extends ListDefinition
         return ItemEntity::KEY;
     }
 
+    public function filterFields(): array
+    {
+        // As ListItemsRequest's visibleFilter rules (RBAC-05).
+        return ['barcode' => ['barcodes'], 'category' => ['category_id'], 'type' => ['type'], 'company' => ['company_id']];
+    }
+
+    public function filterReferences(): array
+    {
+        return ['category' => ['item_categories', true], 'company' => ['companies', true]];
+    }
+
     public function resource(Model $model): JsonResource
     {
         return ItemResource::make($model);

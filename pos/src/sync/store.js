@@ -459,6 +459,17 @@ export function createSyncStore(database) {
       });
     },
 
+    /** The keys of every cached image. */
+    async mediaKeys() {
+      return (await table('media_cache').query().fetch()).map((record) => record.id);
+    },
+
+    /** Drop cached images the theme and layout no longer name (syncMedia). */
+    async deleteMedia(keys) {
+      const rows = await table('media_cache').query(Q.where('id', Q.oneOf(keys))).fetch();
+      if (rows.length) await database.write(() => database.batch(...rows.map((row) => row.prepareDestroyPermanently())));
+    },
+
     /** Remove everything (pairing as another device, once nothing waits to upload). */
     async reset() {
       await database.write(() => database.unsafeResetDatabase());

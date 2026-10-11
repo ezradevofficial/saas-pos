@@ -27,6 +27,7 @@ return [
         'same_scope' => 'Cette configuration s’applique déjà à cet endroit. Choisissez une autre société, succursale ou un autre emplacement.',
         'unknown_key' => 'Cette configuration n’a pas cette clé. Utilisez une clé proposée par l’éditeur.',
         'payload_too_large' => 'Cette configuration dépasse :kb Ko. Retirez des éléments, puis enregistrez à nouveau.',
+        'personal_limit' => 'Vous en conservez déjà :max. Supprimez-en un dont vous ne vous servez plus, puis enregistrez à nouveau.',
         'place_out_of_scope' => 'Vous ne travaillez pas à cet endroit. Choisissez une société, une succursale ou un emplacement auquel vous êtes affecté.',
     ],
 
@@ -35,7 +36,7 @@ return [
         // LAY-03 : mises en page de formulaires.
         'unknown_tab' => ':path nomme l’onglet « :value », qui n’existe pas dans ce formulaire. Choisissez un de ses onglets.',
         'tab_required' => ':path : quand un formulaire a des onglets, chaque section doit en avoir un. Choisissez-lui un onglet.',
-        'unknown_field' => ':path nomme le champ « :value », que ce formulaire n’a pas. Retirez-le.',
+        'unknown_form_field' => ':path nomme le champ « :value », que ce formulaire n’a pas. Retirez-le.',
         'required_hidden' => ':path : « :value » est obligatoire et n’a pas de valeur par défaut ; il ne peut pas être masqué. Affichez-le ou donnez une valeur par défaut au champ.',
         'unknown_role' => ':path nomme un rôle qui n’existe pas ou est archivé. Choisissez un autre rôle.',
         'root' => 'la configuration',
@@ -72,6 +73,13 @@ return [
         'pos_layout_unknown_category' => ':path désigne une catégorie qui n’existe pas ou qui est archivée. Retirez-la ou choisissez une autre catégorie.',
         'pos_layout_unknown_image' => ':path désigne une image qui ne fait partie ni de vos images d’articles ni de vos images de marque. Choisissez une autre image.',
         'contrast' => 'Avec le thème :mode, :pair a un contraste de :ratio:1 et doit atteindre au moins :required:1. Choisissez une couleur plus foncée ou plus claire.',
+        // LAY-01, LAY-04 : éditeurs de mise en page.
+        'off_grid' => ':path dépasse les :columns colonnes de la grille. Réduisez sa largeur ou déplacez-le vers la gauche.',
+        'overlap' => ':path chevauche le widget « :value ». Déplacez l’un des deux.',
+        'unknown_source' => ':path utilise la source de données « :value », qui n’est pas disponible. Choisissez une autre source.',
+        'source_widget' => ':path : cette source de données ne peut pas alimenter un widget « :value ». Choisissez un autre type de widget ou une autre source.',
+        'filter_value' => ':path n’est pas un filtre valide. Retirez-le, puis enregistrez à nouveau la vue.',
+        'unknown_view' => ':path désigne la vue « :value », qui n’est pas dans cette liste. Choisissez l’une des vues enregistrées.',
     ],
 
     // BR-03 : les mots d’un problème de contraste.
@@ -87,12 +95,5 @@ return [
             'sidebar_text' => 'le texte de la barre latérale',
             'sidebar_active' => 'l’élément sélectionné de la barre latérale',
         ],
-        // LAY-01, LAY-04 : éditeurs de mise en page.
-        'off_grid' => ':path dépasse les :columns colonnes de la grille. Réduisez sa largeur ou déplacez-le vers la gauche.',
-        'overlap' => ':path chevauche le widget « :value ». Déplacez l’un des deux.',
-        'unknown_source' => ':path utilise la source de données « :value », qui n’est pas disponible. Choisissez une autre source.',
-        'source_widget' => ':path : cette source de données ne peut pas alimenter un widget « :value ». Choisissez un autre type de widget ou une autre source.',
-        'filter_value' => ':path n’est pas un filtre valide. Retirez-le, puis enregistrez à nouveau la vue.',
-        'unknown_view' => ':path désigne la vue « :value », qui n’est pas dans cette liste. Choisissez l’une des vues enregistrées.',
     ],
 ];

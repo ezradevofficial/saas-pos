@@ -54,6 +54,7 @@ class ConfigVersions
             $created = $document === null;
 
             if ($created) {
+                $this->assertPersonalRoom($kind, $scopeType, $scopeId);
                 $document = ConfigDocument::create([
                     'kind' => $kind->key,
                     'key' => $key,
@@ -73,6 +74,24 @@ class ConfigVersions
 
             return [$document, $created];
         }));
+    }
+
+    /**
+     * LAY-01, LAY-04: a user keeps at most the kind's personalLimit
+     * documents of their own (a personal kind needs no permission, so
+     * nothing else bounds them); one more is refused with 422.
+     */
+    private function assertPersonalRoom(ConfigKind $kind, string $scopeType, ?string $scopeId): void
+    {
+        if ($scopeType !== ConfigDocument::USER || ! $kind->personal) {
+            return;
+        }
+
+        $count = ConfigDocument::query()->where('kind', $kind->key)->where('scope_type', ConfigDocument::USER)->where('scope_id', $scopeId)->count();
+
+        if ($count >= $kind->personalLimit) {
+            throw new ApiException(422, 'config_personal_limit', __('config.errors.personal_limit', ['max' => $kind->personalLimit]));
+        }
     }
 
     public function find(ConfigKind $kind, string $key, string $scopeType, ?string $scopeId): ?ConfigDocument

@@ -8,6 +8,7 @@ use App\Core\Configuration\ConfigKind;
 use App\Core\Configuration\Models\ConfigDocument;
 use App\Core\Configuration\PayloadSchema;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\POS\PosServiceProvider;
@@ -133,7 +134,7 @@ final class PosLayout
     {
         return new ConfigKind(
             key: self::KEY,
-            schema: fn (array $payload) => self::problems($payload),
+            schema: fn (array $payload, ?ConfigDocument $document = null) => self::problems($payload, $document),
             scopes: self::SCOPES,
             permissions: self::PERMISSIONS,
             // LAY-07: read (resolved) against the tenant's catalogue; a till gets
@@ -151,11 +152,13 @@ final class PosLayout
      * What keeps a layout from being published (LAY-06): its shape, then
      * what it names. Quick buttons say what they open; every category, item
      * and image named must be the tenant's and not archived (another
-     * tenant's ids are never found, TEN-01).
+     * tenant's ids are never found, TEN-01). A company, branch or location
+     * layout names only what that company's tills hold: shared rows or the
+     * company's own (as PosLayoutCatalogue::forDevice merges them).
      *
      * @return list<array{path: string, code: string, message: string}>
      */
-    public static function problems(array $payload): array
+    public static function problems(array $payload, ?ConfigDocument $document = null): array
     {
         $problems = PayloadSchema::check($payload, self::SCHEMA);
 
@@ -200,7 +203,7 @@ final class PosLayout
             $keys[$key] = true;
         }
 
-        return [...$problems, ...self::unknownReferences($payload)];
+        return [...$problems, ...self::unknownReferences($payload, self::scopeCompany($document))];
     }
 
     /**
@@ -208,7 +211,7 @@ final class PosLayout
      *
      * @return list<array{path: string, code: string, message: string}>
      */
-    private static function unknownReferences(array $payload): array
+    private static function unknownReferences(array $payload, ?string $company): array
     {
         $items = array_values(array_unique([
             ...array_map('strtolower', $payload['products']['pinned'] ?? []),
@@ -221,9 +224,12 @@ final class PosLayout
         $images = collect($payload['categories'] ?? [])->pluck('image')->filter()->groupBy('source')->map(fn ($group) => $group->pluck('id')->map(fn ($id) => strtolower($id))->unique()->values()->all());
 
         $db = DB::connection(TenantContext::CONNECTION);
-        $knownItems = $items === [] ? [] : array_flip($db->table('items')->whereIn('id', $items)->whereNull('archived_at')->pluck('id')->all());
-        $knownCategories = $categories === [] ? [] : array_flip($db->table('item_categories')->whereIn('id', $categories)->whereNull('archived_at')->pluck('id')->all());
-        $knownItemImages = ($images['item_image'] ?? []) === [] ? [] : array_flip($db->table('item_images')->whereIn('id', $images['item_image'])->pluck('id')->all());
+        // A tenant layout may name anything of the tenant; a place's, what its company's tills hold.
+        $held = fn (Builder $query) => $company === null ? $query : $query->where(fn (Builder $q) => $q->whereNull($query->from.'.company_id')->orWhere($query->from.'.company_id', $company));
+        $knownItems = $items === [] ? [] : array_flip($held($db->table('items'))->whereIn('id', $items)->whereNull('archived_at')->pluck('id')->all());
+        $knownCategories = $categories === [] ? [] : array_flip($held($db->table('item_categories'))->whereIn('id', $categories)->whereNull('archived_at')->pluck('id')->all());
+        $knownItemImages = ($images['item_image'] ?? []) === [] ? [] : array_flip($db->table('item_images')->whereIn('id', $images['item_image'])
+            ->whereIn('item_id', $held($db->table('items'))->select('items.id'))->pluck('id')->all());
         $knownAssets = ($images['brand_asset'] ?? []) === [] ? [] : array_flip(BrandAsset::query()->whereIn('id', $images['brand_asset'])->where('kind', '!=', BrandAsset::FAVICON)->pluck('id')->all());
 
         $problems = [];
@@ -263,6 +269,19 @@ final class PosLayout
         }
 
         return $problems;
+    }
+
+    /** The company whose tills a company, branch or location document serves; null for the tenant's. */
+    private static function scopeCompany(?ConfigDocument $document): ?string
+    {
+        $db = DB::connection(TenantContext::CONNECTION);
+
+        return match ($document?->scope_type) {
+            ConfigDocument::COMPANY => $document->scope_id,
+            ConfigDocument::BRANCH => $db->table('branches')->where('id', $document->scope_id)->value('company_id'),
+            ConfigDocument::LOCATION => $db->table('locations')->join('branches', 'branches.id', '=', 'locations.branch_id')->where('locations.id', $document->scope_id)->value('branches.company_id'),
+            default => null,
+        };
     }
 
     /**

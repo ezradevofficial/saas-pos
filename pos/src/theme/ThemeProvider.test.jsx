@@ -51,6 +51,13 @@ describe('themeVariables', () => {
     expect(themeVariables('light', {}, 'web')['--font-sans']).toBe(themes.light['--font-sans']);
   });
 
+  it('draws families the till has not bundled in Geist (ADR 005)', () => {
+    const native = themeVariables('light', { '--font-sans': '"IBM Plex Sans", system-ui, sans-serif', '--font-display': '"Newsreader", Georgia, serif' }, 'android');
+    expect([native['--font-sans'], native['--font-display'], native['--font-mono']]).toEqual(['Geist', 'Geist', 'Geist']);
+    // The web keeps the stack: the browser loads those fonts.
+    expect(themeVariables('light', { '--font-sans': '"IBM Plex Sans", system-ui, sans-serif' }, 'web')['--font-sans']).toContain('IBM Plex Sans');
+  });
+
   it('builds the test tenant from light with a derived brand pair', () => {
     const tenant = PREVIEW_THEMES.find((option) => option.key === 'tenant');
     const variables = themeVariables(tenant.theme, tenant.overrides);

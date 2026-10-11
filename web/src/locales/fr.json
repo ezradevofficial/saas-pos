@@ -99,6 +99,7 @@
       "exporting": "Préparation de l’export…",
       "exported": "Export téléchargé.",
       "exportTooOften": "Trop d’exports en peu de temps. Patientez une minute puis réessayez.",
+      "viewRefused": "La vue « {{name}} » ne correspond plus à ce que vous pouvez voir : la vue standard est affichée. Enregistrez une nouvelle vue pour la remplacer.",
       "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
       "noRecords": "Aucun enregistrement",
       "perPage": "Lignes par page",

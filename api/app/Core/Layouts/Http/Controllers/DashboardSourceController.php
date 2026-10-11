@@ -26,8 +26,8 @@ class DashboardSourceController
         ], $sources->availableTo($request->user()))]);
     }
 
-    public function show(DashboardSourceRequest $request): JsonResponse
+    public function show(DashboardSourceRequest $request, DashboardSources $sources): JsonResponse
     {
-        return new JsonResponse(['data' => $request->source()->data($request->user(), $request->validated())]);
+        return new JsonResponse(['data' => $sources->cached($request->source(), $request->user(), $request->validated())]);
     }
 }

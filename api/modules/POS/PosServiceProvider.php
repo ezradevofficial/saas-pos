@@ -7,6 +7,7 @@ use App\Core\Currency\CurrencyUsage;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Layouts\Dashboards\DashboardSources;
+use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
@@ -98,6 +99,10 @@ class PosServiceProvider extends ServiceProvider
         // LAY-05: the sell screen's layout, versioned configuration found only
         // while the module is active (RBAC-08).
         $this->app->make(ConfigKinds::class)->register(PosLayout::kind());
+        // LAY-04: the POS lists that may have saved views (the web list ids).
+        $lists = $this->app->make(ListViewCatalogue::class);
+        $lists->register('pos-sales');
+        $lists->register('pos-shifts');
 
         // TPL-01, TPL-05: the receipt templates that apply at the till's branch.
         $sources->register(new TemplateSource);

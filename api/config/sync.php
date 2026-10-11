@@ -9,6 +9,9 @@ return [
     // Pulls, bootstraps and PIN calls per device per minute.
     'requests_per_minute' => 120,
 
+    // Media requests (sync/media, sync/brand-assets) per device and minute, on their own limiter.
+    'media_per_minute' => 600,
+
     // Wrong PINs before the user's PIN is locked on that device (AUTH-06).
     'pin_max_attempts' => 5,
 

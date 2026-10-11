@@ -140,7 +140,7 @@ final class FormLayout
                 $id = $entry['id'];
 
                 if (! isset($fields[$id])) {
-                    $problems[] = PayloadSchema::problem("{$path}.id", 'unknown_field', ['value' => $id]);
+                    $problems[] = PayloadSchema::problem("{$path}.id", 'unknown_form_field', ['value' => $id]);
 
                     continue;
                 }

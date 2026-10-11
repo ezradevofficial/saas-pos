@@ -84,7 +84,7 @@ class FormLayoutTest extends TestCase
         ]]);
         $refused->assertUnprocessable()->assertJsonPath('code', 'config_invalid');
         $this->assertSame(
-            ['unknown_tab', 'required_hidden', 'unknown_field', 'tab_required', 'required_hidden', 'duplicate', 'unknown_role'],
+            ['unknown_tab', 'required_hidden', 'unknown_form_field', 'tab_required', 'required_hidden', 'duplicate', 'unknown_role'],
             array_column($refused->json('problems'), 'code'),
         );
 

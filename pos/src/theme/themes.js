@@ -4,6 +4,18 @@ export const DEFAULT_THEME = 'light';
 
 const FONT_TOKENS = ['--font-sans', '--font-mono', '--font-display'];
 
+/**
+ * The font families bundled in the app (fonts.js loads them). A family the
+ * till doesn't bundle (IBM Plex Sans or Newsreader from a tenant theme,
+ * Geist Mono) is drawn in Geist, never left to the platform's default (ADR 005).
+ */
+export const BUNDLED_FAMILIES = ['Geist'];
+
+/** The family native text uses for $family: itself when bundled, else Geist. */
+export function nativeFamily(family) {
+  return BUNDLED_FAMILIES.includes(family) ? family : BUNDLED_FAMILIES[0];
+}
+
 /** "\"Geist\", \"Segoe UI\", system-ui" → "Geist": native fontFamily takes one loaded family. */
 function firstFamily(stack) {
   // A tenant theme's web variable font ("Geist Variable") names the family the app loads.
@@ -22,7 +34,7 @@ export function themeVariables(theme = DEFAULT_THEME, overrides = {}, platform =
     if (OVERRIDABLE_TOKENS.includes(name) && value != null && value !== '') variables[`--${name}`] = String(value);
   }
   if (platform !== 'web') {
-    for (const token of FONT_TOKENS) variables[token] = firstFamily(variables[token]);
+    for (const token of FONT_TOKENS) variables[token] = nativeFamily(firstFamily(variables[token]));
   }
   return variables;
 }

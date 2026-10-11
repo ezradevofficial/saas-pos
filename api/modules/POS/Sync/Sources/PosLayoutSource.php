@@ -9,6 +9,7 @@ use App\Core\Configuration\Place;
 use App\Core\Sync\Contracts\SnapshotSource;
 use App\Core\Sync\DeviceScope;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\POS\Layout\PosLayout;
@@ -24,10 +25,15 @@ use Throwable;
  *
  * With products ordered by best-sellers, `best_sellers` lists the items
  * sold most often at the location over the last 30 days (sales, not
- * quantities), most first; the till orders the rest by name.
+ * quantities), most first; the till orders the rest by name. The ranking
+ * is cached per tenant and location for 30 minutes, apart from the
+ * per-device snapshot cache: every till of a location shares one query.
  */
 class PosLayoutSource implements SnapshotSource
 {
+    /** How long a location's best-sellers are kept (NFR-05). */
+    public const BEST_SELLERS_TTL_SECONDS = 1800;
+
     public function key(): string
     {
         return 'pos_layout';
@@ -80,6 +86,21 @@ class PosLayoutSource implements SnapshotSource
 
     /** @return list<string> item ids, most sold first */
     private function bestSellers(DeviceScope $scope): array
+    {
+        return Cache::remember(
+            self::bestSellersKey($scope->tenantId, $scope->location->id),
+            self::BEST_SELLERS_TTL_SECONDS,
+            fn () => $this->rankBestSellers($scope),
+        );
+    }
+
+    public static function bestSellersKey(string $tenantId, string $locationId): string
+    {
+        return "pos.best_sellers.{$tenantId}.{$locationId}";
+    }
+
+    /** @return list<string> */
+    private function rankBestSellers(DeviceScope $scope): array
     {
         return DB::connection(TenantContext::CONNECTION)->table('pos_sale_lines')
             ->join('pos_sales', 'pos_sales.id', '=', 'pos_sale_lines.sale_id')

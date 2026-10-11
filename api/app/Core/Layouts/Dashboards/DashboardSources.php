@@ -4,6 +4,7 @@ namespace App\Core\Layouts\Dashboards;
 
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\ModuleRegistry;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -13,6 +14,14 @@ use Illuminate\Support\Facades\Validator;
  */
 class DashboardSources
 {
+    /** LAY-01, NFR-05: one reader's answer of a source is kept this long. */
+    public const CACHE_SECONDS = 45;
+
+    /** Widget data requests per user and minute (`dashboard-sources`). */
+    public const LIMITER = 'dashboard-sources';
+
+    public const PER_MINUTE = 120;
+
     /** @var array<string, DashboardSource> */
     private array $sources = [];
 
@@ -50,5 +59,29 @@ class DashboardSources
         $validator = Validator::make($params, $source->rules());
 
         return $validator->fails() ? array_map(fn (array $messages) => $messages[0], $validator->errors()->toArray()) : [];
+    }
+
+    /**
+     * $source's data for $user, kept CACHE_SECONDS per tenant, user, source,
+     * parameters and the user's scope for the source (DashboardSource::scopeKey),
+     * so a dashboard opened in several tabs, or reloaded, costs one query.
+     *
+     * @param  array<string, mixed>  $params  validated
+     * @return array<string, mixed>
+     */
+    public function cached(DashboardSource $source, User $user, array $params): array
+    {
+        $seconds = $source->cacheSeconds();
+
+        if ($seconds <= 0) {
+            return $source->data($user, $params);
+        }
+
+        ksort($params);
+        $key = 'dashboard.source.'.hash('sha256', implode('|', [
+            $user->tenant_id, $user->getKey(), $source->key(), (string) json_encode($params), $source->scopeKey($user),
+        ]));
+
+        return Cache::remember($key, $seconds, fn () => $source->data($user, $params));
     }
 }

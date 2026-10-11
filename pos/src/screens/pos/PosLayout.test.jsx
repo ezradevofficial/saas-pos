@@ -143,6 +143,24 @@ describe('the till theme (BR-01, BR-02)', () => {
     expect(await services.store.cachedMedia(`brand:${LOGO}`)).toBe(LOGO_URI);
     expect(server.requestsTo(`sync/brand-assets/${LOGO}`)).toHaveLength(1);
   });
+
+  it('fetches the logos and layout images at the pull, so screens never fetch (NFR-04)', async () => {
+    const DARK_LOGO = id(41);
+    const IMAGE = id(42);
+    const { services, server } = setup({
+      theme: { ...THEME, payload: { ...THEME.payload, logo_dark: DARK_LOGO } },
+      layout: { ...LAYOUT, categories: [{ id: BAKERY, hidden: false, color: null, image: { source: 'item_image', id: IMAGE } }] },
+    });
+    server.state.images.set(`sync/brand-assets/${DARK_LOGO}`, 'data:image/png;base64,REFSSw==');
+    server.state.images.set(`sync/media/${IMAGE}`, 'data:image/png;base64,QkFLRQ==');
+    await render(<App services={services} />);
+    await pairAndSignIn();
+
+    // The dark logo and the category image are not on screen yet: the pull fetched them.
+    await waitFor(async () => expect(await services.store.cachedMedia(`item:${IMAGE}`)).toBe('data:image/png;base64,QkFLRQ=='));
+    expect(await services.store.cachedMedia(`brand:${LOGO}`)).toBe(LOGO_URI);
+    expect(await services.store.cachedMedia(`brand:${DARK_LOGO}`)).toBe('data:image/png;base64,REFSSw==');
+  });
 });
 
 describe('the sell screen with a POS layout (LAY-05)', () => {
@@ -236,10 +254,41 @@ describe('CustomerDisplayScreen (LAY-05)', () => {
     expect(screen.queryByText('USD 3.85')).toBeNull();
   });
 
+  it('ignores messages of another shape (any tab of the origin can post)', async () => {
+    const channel = resetDisplayChannel();
+    await render(<CustomerDisplayScreen channel={channel} />);
+    for (const bad of [
+      state({ lines: 'Tusker' }),
+      state({ lines: [{ id: 'l1', name: { text: 'x' }, qty: '1', total: 'KES 1.00' }] }),
+      state({ totals: { subtotal: 1, tax: 'KES 0.00', total: 'KES 1.00' } }),
+      state({ logo: 'https://example.com/x.png' }),
+      state({ v: 2 }),
+    ]) {
+      await act(() => channel.post({ type: 'state', state: bad }));
+    }
+    expect(screen.getByText('Welcome')).toBeOnTheScreen();
+
+    await act(() => channel.post({ type: 'state', state: state() }));
+    expect(screen.getByText('Tusker Lager 500ml')).toBeOnTheScreen();
+  });
+
   it('draws in the till theme it is sent', async () => {
     const channel = resetDisplayChannel();
     await render(<CustomerDisplayScreen channel={channel} />);
     await act(() => channel.post({ type: 'state', state: state({ theme: { theme: 'dark', overrides: { primary: '#d8a3c2' } } }) }));
     expect(screen.getByTestId('theme-root')).toHaveStyle({ '--surface-100': themes.dark['--surface-100'], '--primary': '#d8a3c2' });
+  });
+});
+
+describe('receiptCustomer', () => {
+  it('reads the sale customer by id, never the whole table', async () => {
+    const { receiptCustomer } = require('./ReceiptScreen');
+    const collection = { find: jest.fn(async (customerId) => ({ data: { id: customerId, name: 'Wanjiku' } })), query: jest.fn(() => { throw new Error('full scan'); }) };
+    const database = { get: () => collection };
+    expect(await receiptCustomer(database, id(60))).toEqual({ id: id(60), name: 'Wanjiku' });
+    expect(collection.find).toHaveBeenCalledWith(id(60));
+    collection.find.mockRejectedValueOnce(new Error('not found'));
+    expect(await receiptCustomer(database, id(61))).toBeNull();
+    expect(await receiptCustomer(database, null)).toBeNull();
   });
 });

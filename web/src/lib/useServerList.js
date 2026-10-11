@@ -230,11 +230,20 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     if (pastTheEnd) update({ page: lastPage }, { replace: true })
   })
 
+  // A saved view whose own filters or sort the API refuses (a field hidden
+  // from this reader, RBAC-05, or a record gone since it was saved): open the
+  // list's own layout and say so, rather than leave the list broken. Only
+  // when the view gave the query, not the URL; the toast has a fixed id.
+  const { t } = useTranslation()
+  const viewRefused = query.error?.status === 422 && Boolean(activeView) && !['sort', ...filterNames].some((name) => searchParams.has(name))
+  // Once per refused query: leaving the view re-renders before the URL moves.
+  const refusedQuery = useRef(null)
+
   // A sort the API refuses (a field the user's rules hide, RBAC-05, or an
   // old link): say why and fall back to the default order. The effect runs
   // on every render until the URL changes, so the toast has a fixed id: it
   // is shown once however many renders happen first.
-  const sortRefused = query.error?.status === 422 && Boolean(query.error.errors?.sort) && sort !== defaultSort
+  const sortRefused = !viewRefused && query.error?.status === 422 && Boolean(query.error.errors?.sort) && sort !== defaultSort
   useEffect(() => {
     if (!sortRefused) return
     toast.error(query.error.errors.sort[0] ?? query.error.message, { id: `list-sort-refused-${id}` })
@@ -301,6 +310,13 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     setOverride({ key: '', hidden: null, order: null })
     setSearchParams(next)
   }
+  // The refused view (above): open the list's own layout, once per refused query.
+  useEffect(() => {
+    if (!viewRefused || refusedQuery.current === listQuery) return
+    refusedQuery.current = listQuery
+    toast.error(t('ds.listView.viewRefused', { name: activeView.name }), { id: `list-view-refused-${id}` })
+    selectView(null)
+  })
   /** The columns in a new order (their keys); kept until the view is saved or another is opened. */
   const setColumnOrder = (keys) => setOverride({ key: activeKey ?? '', hidden: current.hidden, order: keys })
   const viewChanged = Boolean(activeView) && (unsaved !== null || current.order !== null ||['sort', 'per_page', ...filterNames].some((name) => searchParams.has(name)))

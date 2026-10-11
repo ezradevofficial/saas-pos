@@ -15,9 +15,14 @@ use App\Core\Layouts\Kinds\FormLayout;
 use App\Core\Layouts\Kinds\ListViewLayout;
 use App\Core\Layouts\Kinds\NavigationLayout;
 use App\Core\MasterData\CreditLimits\Http\Lists\CreditLimitChangeList;
+use App\Core\MasterData\Items\Http\Lists\ItemCategoryList;
 use App\Core\MasterData\Items\Http\Lists\ItemList;
 use App\Core\MasterData\Parties\Http\Lists\PartyList;
+use App\Core\MasterData\PaymentMethods\Http\Lists\PaymentMethodList;
 use App\Core\MasterData\Prices\Http\Lists\ItemPriceList;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -33,6 +38,18 @@ class LayoutsServiceProvider extends ServiceProvider
         'view' => 'core.layout.view',
         'edit' => 'core.layout.edit',
         'publish' => 'core.layout.publish',
+    ];
+
+    /**
+     * LAY-04: web lists whose resources apply no field rules, by the web
+     * list's id (`useServerList({id})`). Modules register their own.
+     */
+    public const PLAIN_LISTS = [
+        'users', 'user-assignments', 'invitations', 'sessions', 'roles',
+        'payment-intents', 'payment-receipts', 'fiscal-submissions', 'custom-fields',
+        'tenant-currencies', 'exchange-rates', 'tax-codes', 'tax-categories', 'price-lists',
+        'notification-deliveries', 'notifications', 'workflows', 'approvals',
+        'automation-rules', 'automation-runs', 'automation-rule-runs', 'uoms',
     ];
 
     public function register(): void
@@ -55,13 +72,25 @@ class LayoutsServiceProvider extends ServiceProvider
         $forms->register(self::itemForm());
         $forms->register(self::partyForm());
 
-        // RBAC-05: the lists whose resources apply field rules, by the web list's id.
+        // LAY-04: the web lists that may have saved views, by the web list's id;
+        // RBAC-05: with the server list of those whose resources apply field rules.
         $lists = $this->app->make(ListViewCatalogue::class);
         $lists->register('items', ItemList::class);
         $lists->register('customers', PartyList::class);
         $lists->register('suppliers', PartyList::class);
         $lists->register('item-prices', ItemPriceList::class);
         $lists->register('credit-limit-changes', CreditLimitChangeList::class);
+        $lists->register('item-categories', ItemCategoryList::class);
+        $lists->register('payment-methods', PaymentMethodList::class);
+        foreach (self::PLAIN_LISTS as $key) {
+            $lists->register($key);
+        }
+        // CF-04: a custom form's records (`custom-forms-<type key>`).
+        $lists->registerPattern('/^custom-forms-[a-z][a-z0-9_]{0,29}\z/');
+
+        // LAY-01: widget data, per user (each dashboard asks once per widget).
+        RateLimiter::for(DashboardSources::LIMITER, fn (Request $request) => Limit::perMinute(DashboardSources::PER_MINUTE)
+            ->by('user|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         $sources = $this->app->make(DashboardSources::class);
         foreach ([ApprovalsWaiting::class, ApprovalsMine::class, WorkflowsOverdue::class, Shortcuts::class] as $source) {

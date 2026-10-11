@@ -94,6 +94,32 @@ abstract class DashboardSource
         return false;
     }
 
+    /** How long one reader's answer is kept (DashboardSources::cached); 0 never keeps it. */
+    public function cacheSeconds(): int
+    {
+        return DashboardSources::CACHE_SECONDS;
+    }
+
+    /**
+     * The part of the cache key that changes with what $user reaches: for
+     * each permission that opens the source, where they hold it (RBAC-04).
+     * A new or removed assignment, or a role gaining or losing the
+     * permission, gives a new key, so a cached answer never outlives the
+     * reader's scope.
+     */
+    public function scopeKey(User $user): string
+    {
+        $resolver = app(ScopeResolver::class);
+        $parts = [];
+
+        foreach ($this->permissions() as $permission) {
+            $visible = $resolver->visibleIds($user, $permission);
+            $parts[$permission] = $visible->all ? 'all' : [$visible->companyIds, $visible->branchIds, $visible->locationIds];
+        }
+
+        return hash('sha256', (string) json_encode($parts));
+    }
+
     public function feeds(string $widget): bool
     {
         return in_array($widget, $this->widgets(), true);
