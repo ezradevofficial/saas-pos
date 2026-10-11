@@ -85,6 +85,11 @@ class SyncServiceProvider extends ServiceProvider
         RateLimiter::for('device-sync', fn (Request $request) => Limit::perMinute((int) config('sync.requests_per_minute', 120))
             ->by('device|'.($request->user() instanceof Device ? $request->user()->id : $request->ip())));
 
+        // BR-02, LAY-05: logos, layout and item images have their own budget, so
+        // a till fetching its media cache never starves its pulls and uploads.
+        RateLimiter::for('device-media', fn (Request $request) => Limit::perMinute((int) config('sync.media_per_minute', 600))
+            ->by('device-media|'.($request->user() instanceof Device ? $request->user()->id : $request->ip())));
+
         // AUTH-06, AUTH-08: secret rotation steps, few per device.
         RateLimiter::for('device-secret', fn (Request $request) => Limit::perHour((int) config('sync.secret_rotations_per_hour', 5) * 3)
             ->by('device-secret|'.($request->user() instanceof Device ? $request->user()->id : $request->ip())));

@@ -217,13 +217,17 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
     Route::middleware('throttle:device-sync')->group(function () {
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap']);
         Route::get('sync/pull', [SyncController::class, 'pull']);
-        Route::get('sync/media/{item_image}', SyncMediaController::class);
-        // BR-02, LAY-05: logos and category images for the till.
-        Route::get('sync/brand-assets/{brand_asset}', SyncBrandAssetController::class);
         Route::post('pos/pin/verify', [DevicePinController::class, 'verify']);
         Route::post('pos/pin/attempts', [DevicePinController::class, 'attempts']);
         Route::post('pos/override', [DevicePinController::class, 'override']);
         Route::post('pos/pin/change', [DevicePinController::class, 'change']);
+    });
+
+    // BR-02, LAY-05: item images, logos and category images for the till, on
+    // their own limiter (`device-media`) apart from pulls and uploads.
+    Route::middleware('throttle:device-media')->group(function () {
+        Route::get('sync/media/{item_image}', SyncMediaController::class);
+        Route::get('sync/brand-assets/{brand_asset}', SyncBrandAssetController::class);
     });
 
     // AUTH-06, AUTH-08: device secret rotation, proven at each step, a few times an hour.

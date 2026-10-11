@@ -315,4 +315,19 @@ class PosLayoutTest extends TestCase
         $this->get('/api/v1/sync/brand-assets/'.$logo, [...$this->headersFor(), 'Accept' => 'application/json'])->assertForbidden();
         $this->assertTrue($this->inTenant(fn () => BrandAsset::query()->whereKey($logo)->exists()));
     }
+
+    public function test_media_has_its_own_limiter_apart_from_pulls(): void
+    {
+        Storage::fake('media');
+        $logo = $this->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('a.png', 32, 32)], [...$this->headersFor(), 'Accept' => 'application/json'])
+            ->assertCreated()->json('data.id');
+        config(['sync.requests_per_minute' => 1, 'sync.media_per_minute' => 2]);
+
+        // The pull budget is spent: media still loads, then its own budget runs out.
+        $this->pulled();
+        $this->getJson('/api/v1/sync/pull?entities[]=pos_layout', $this->tillHeaders())->assertStatus(429);
+        $this->get('/api/v1/sync/brand-assets/'.$logo, $this->tillHeaders())->assertOk();
+        $this->get('/api/v1/sync/brand-assets/'.$logo, $this->tillHeaders())->assertOk();
+        $this->get('/api/v1/sync/brand-assets/'.$logo, $this->tillHeaders())->assertStatus(429);
+    }
 }
