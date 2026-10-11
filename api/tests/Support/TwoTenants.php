@@ -328,7 +328,7 @@ final class TwoTenants
         $callbackUrls = self::ok($test->getJson("/api/v1/payment-methods/{$paymentMethod}/callbacks", $owner))->json('data.urls');
         $callbackToken = basename(dirname($callbackUrls['c2b-confirm']));
         self::ok($test->postJson("/api/v1/payments/callbacks/{$callbackToken}/c2b-confirm", [
-            'TransactionType' => 'Pay Bill', 'TransID' => "QJK3{$upper}LOOSE1", 'TransTime' => '20261009101500', 'TransAmount' => '700.00',
+            'TransactionType' => 'Pay Bill', 'TransID' => "QJK3{$upper}LOOSE1", 'TransTime' => now()->setTimezone('Africa/Nairobi')->format('YmdHis'), 'TransAmount' => '700.00',
             'BusinessShortCode' => "17437{$key}", 'BillRefNumber' => "Counter {$upper}", 'MSISDN' => '2547 ***** 126', 'FirstName' => 'Jane',
         ]));
         $paymentReceipt = self::ok($test->getJson("/api/v1/companies/{$company}/payment-receipts", $owner))->json('data.0.id');

@@ -48,7 +48,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     api.post.mockImplementation(async (path, body) => documentWith(body.payload, { revision: 2 }))
     renderApp('/settings/layouts/navigation')
 
-    await waitFor(() => expect(usersName()).toBeEnabled())
+    await waitFor(() => expect(usersName()).toBeEnabled(), { timeout: 5000 })
     fireEvent.change(usersName(), { target: { value: 'Staff' } })
     fireEvent.click(screen.getByRole('button', { name: 'Hide Staff' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
@@ -68,7 +68,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     })
     renderApp('/settings/layouts/navigation')
 
-    await waitFor(() => expect(usersName()).toBeEnabled())
+    await waitFor(() => expect(usersName()).toBeEnabled(), { timeout: 5000 })
     fireEvent.change(usersName(), { target: { value: 'Staff' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publish v1' }))
 
@@ -89,7 +89,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     })
     renderApp('/settings/layouts/navigation')
 
-    await waitFor(() => expect(usersName()).toBeEnabled())
+    await waitFor(() => expect(usersName()).toBeEnabled(), { timeout: 5000 })
     fireEvent.change(usersName(), { target: { value: 'Staff' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
@@ -106,7 +106,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     api.post.mockImplementation((path, body) => new Promise((resolve) => (finish = () => resolve(documentWith(body.payload, { revision: 2 })))))
     renderApp('/settings/layouts/navigation')
 
-    await waitFor(() => expect(usersName()).toBeEnabled())
+    await waitFor(() => expect(usersName()).toBeEnabled(), { timeout: 5000 })
     fireEvent.change(usersName(), { target: { value: 'Staff' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
@@ -122,7 +122,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     setUp()
     renderApp('/settings/layouts/navigation')
 
-    await waitFor(() => expect(usersName()).toBeEnabled())
+    await waitFor(() => expect(usersName()).toBeEnabled(), { timeout: 5000 })
     await waitForOption('Applies to', 'Role: Cashier')
     fireEvent.change(usersName(), { target: { value: 'Staff' } })
     chooseOption('Applies to', 'Role: Cashier')

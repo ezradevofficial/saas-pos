@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom/vitest'
+import { configure } from '@testing-library/react'
 import '../i18n'
+
+// CI runners are slower than a laptop: waitFor/findBy wait up to 4 s, not the default 1 s.
+configure({ asyncUtilTimeout: 4000 })
 
 // jsdom lacks a few element APIs that Radix menus and selects call.
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
