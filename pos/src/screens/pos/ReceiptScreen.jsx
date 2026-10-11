@@ -189,9 +189,20 @@ export function useReceiptPrint(sale, kind = 'sale') {
   return async () => {
     const type = kind === 'refund' ? 'pos.refund_receipt' : 'pos.receipt';
     const rows = database ? (await database.get('templates').query().fetch()).map((record) => record.data) : [];
-    const customer = sale.customer_id && database ? ((await database.get('customers').query().fetch()).map((record) => record.data).find((row) => row?.id === sale.customer_id) ?? null) : null;
+    const customer = await receiptCustomer(database, sale.customer_id);
     return receiptDocumentHtml({ sale, kind, catalogue, templateRow: rows.find((row) => row?.id === type) ?? null, customer, fiscal, language: locale, logo });
   };
+}
+
+/** The sale's customer as synced, by id (one row, never the whole table), or null. */
+export async function receiptCustomer(database, customerId) {
+  if (!customerId || !database) return null;
+  try {
+    return (await database.get('customers').find(customerId)).data ?? null;
+  } catch {
+    // Not on this till (left its company, or never synced).
+    return null;
+  }
 }
 
 /** Prints the receipt HTML: the native print service (expo-print), the browser's print on the web preview. */

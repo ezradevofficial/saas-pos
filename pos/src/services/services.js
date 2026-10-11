@@ -9,6 +9,7 @@ import { createApiClient } from '../sync/api';
 import { createSyncEngine } from '../sync/engine';
 import { createSyncScheduler } from '../sync/scheduler';
 import { createSyncStore } from '../sync/store';
+import { syncMedia } from '../theme/media';
 import { createPosStore } from '../pos/posStore';
 import { createSelling } from '../pos/selling';
 
@@ -26,7 +27,8 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const store = createSyncStore(db);
   const credentials = createCredentials(credentialsBackend);
   const api = apiOverride ?? createApiClient({ baseUrl, getToken: () => credentials.token(), getLocale: () => i18n.language, fetchImpl });
-  const engine = createSyncEngine({ api, store, credentials });
+  // BR-02, LAY-05, NFR-04: after each pull, the logos and layout images go into the media cache.
+  const engine = createSyncEngine({ api, store, credentials, afterPull: () => syncMedia({ api, store }) });
   const scheduler = createSyncScheduler({ engine, netInfo });
   const pinGate = createPinGate({
     store,

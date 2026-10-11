@@ -64,7 +64,7 @@ export function retryAfterMs(value, now) {
 
 const hasJsonCode = (response) => typeof response.body?.code === 'string' && response.body.code !== '';
 
-export function createSyncEngine({ api, store, credentials = null, now = () => Date.now(), random = Math.random, options = {}, log = () => {} }) {
+export function createSyncEngine({ api, store, credentials = null, now = () => Date.now(), random = Math.random, options = {}, log = () => {}, afterPull = null }) {
   const settings = { ...DEFAULTS, ...options };
   const listeners = new Set();
   let status = {
@@ -243,6 +243,15 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
         counts[key].tombstones += applied.tombstones;
         counts[key].pages += 1;
         if (!page.has_more) pending.delete(key);
+      }
+    }
+
+    // BR-02, LAY-05: what follows a pull (the media cache), before screens re-read; never fails the pull.
+    if (afterPull) {
+      try {
+        await afterPull(counts);
+      } catch (error) {
+        log('sync: after pull failed', error);
       }
     }
 

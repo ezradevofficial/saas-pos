@@ -27,6 +27,32 @@ function Row({ label, value, strong }) {
   );
 }
 
+const isText = (value) => typeof value === 'string';
+const isOptionalText = (value) => value == null || typeof value === 'string';
+
+/**
+ * A `state` message from the channel, or null when it is not one this
+ * display draws (any tab of the origin can post on a BroadcastChannel):
+ * version 1, lines a list of { id, name, qty, total } texts, text or null
+ * everywhere else, a logo only as an image data URI.
+ */
+export function acceptedDisplayState(message) {
+  const state = message?.type === 'state' ? message.state : null;
+  if (!state || typeof state !== 'object' || state.v !== 1) return null;
+  if (!Array.isArray(state.lines)) return null;
+  const lineOk = (line) => line && typeof line === 'object' && isText(line.id) && isText(line.name) && (isText(line.qty) || Number.isFinite(line.qty)) && isText(line.total);
+  if (!state.lines.every(lineOk)) return null;
+  if (![state.welcome, state.company, state.customer, state.second].every(isOptionalText)) return null;
+  if (state.logo != null && !(isText(state.logo) && /^data:image\/(png|jpeg|webp|gif);base64,/.test(state.logo))) return null;
+  if (state.count != null && !Number.isFinite(state.count)) return null;
+  if (state.showLines != null && typeof state.showLines !== 'boolean') return null;
+  const totals = state.totals;
+  if (totals != null && (typeof totals !== 'object' || ![totals.subtotal, totals.tax, totals.total].every(isText) || !isOptionalText(totals.discount))) return null;
+  const theme = state.theme;
+  if (theme != null && (typeof theme !== 'object' || !isText(theme.theme) || (theme.overrides != null && (typeof theme.overrides !== 'object' || Array.isArray(theme.overrides))))) return null;
+  return state;
+}
+
 /**
  * LAY-05: the customer display, read-only. It shows what the till
  * publishes (customerDisplay.js): the welcome text and logo while no sale
@@ -41,7 +67,8 @@ export function CustomerDisplayScreen({ channel = displayChannel(), onClose }) {
 
   useEffect(() => {
     const stop = channel.listen((message) => {
-      if (message?.type === 'state' && message.state?.v === 1) setState(message.state);
+      const next = acceptedDisplayState(message);
+      if (next) setState(next);
     });
     channel.post({ type: 'hello' });
     return stop;
