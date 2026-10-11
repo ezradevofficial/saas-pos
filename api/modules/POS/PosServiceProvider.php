@@ -3,11 +3,11 @@
 namespace Modules\POS;
 
 use App\Core\Configuration\ConfigKinds;
-use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Layouts\Dashboards\DashboardSources;
+use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;

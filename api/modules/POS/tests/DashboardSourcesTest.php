@@ -4,11 +4,10 @@ namespace Modules\POS\Tests;
 
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Rbac\ModuleRegistry;
-use App\Core\Tenancy\Models\Company;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use App\Core\Rbac\Scope;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;

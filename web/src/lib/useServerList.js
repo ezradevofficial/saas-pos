@@ -238,12 +238,6 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
   const viewRefused = query.error?.status === 422 && Boolean(activeView) && !['sort', ...filterNames].some((name) => searchParams.has(name))
   // Once per refused query: leaving the view re-renders before the URL moves.
   const refusedQuery = useRef(null)
-  useEffect(() => {
-    if (!viewRefused || refusedQuery.current === listQuery) return
-    refusedQuery.current = listQuery
-    toast.error(t('ds.listView.viewRefused', { name: activeView.name }), { id: `list-view-refused-${id}` })
-    selectView(null)
-  })
 
   // A sort the API refuses (a field the user's rules hide, RBAC-05, or an
   // old link): say why and fall back to the default order. The effect runs
@@ -316,6 +310,13 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     setOverride({ key: '', hidden: null, order: null })
     setSearchParams(next)
   }
+  // The refused view (above): open the list's own layout, once per refused query.
+  useEffect(() => {
+    if (!viewRefused || refusedQuery.current === listQuery) return
+    refusedQuery.current = listQuery
+    toast.error(t('ds.listView.viewRefused', { name: activeView.name }), { id: `list-view-refused-${id}` })
+    selectView(null)
+  })
   /** The columns in a new order (their keys); kept until the view is saved or another is opened. */
   const setColumnOrder = (keys) => setOverride({ key: activeKey ?? '', hidden: current.hidden, order: keys })
   const viewChanged = Boolean(activeView) && (unsaved !== null || current.order !== null ||['sort', 'per_page', ...filterNames].some((name) => searchParams.has(name)))
