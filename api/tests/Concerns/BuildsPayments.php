@@ -145,7 +145,7 @@ trait BuildsPayments
             $callback['CallbackMetadata'] = ['Item' => [
                 ['Name' => 'Amount', 'Value' => (float) $amount],
                 ['Name' => 'MpesaReceiptNumber', 'Value' => $receipt],
-                ['Name' => 'TransactionDate', 'Value' => 20261009101500],
+                ['Name' => 'TransactionDate', 'Value' => (int) self::darajaNow()],
                 ['Name' => 'PhoneNumber', 'Value' => 254712345678],
             ]];
         }
@@ -159,7 +159,7 @@ trait BuildsPayments
         return [
             'TransactionType' => 'Pay Bill',
             'TransID' => $transId,
-            'TransTime' => '20261009101500',
+            'TransTime' => self::darajaNow(),
             'TransAmount' => $amount,
             'BusinessShortCode' => '174379',
             'BillRefNumber' => $billRef,
@@ -171,5 +171,11 @@ trait BuildsPayments
             'MiddleName' => '',
             'LastName' => 'Doe',
         ];
+    }
+
+    /** Safaricom's timestamp (Nairobi time, YmdHis) for now, so payments fall inside matching windows whatever the date. */
+    private static function darajaNow(): string
+    {
+        return now()->setTimezone('Africa/Nairobi')->format('YmdHis');
     }
 }
