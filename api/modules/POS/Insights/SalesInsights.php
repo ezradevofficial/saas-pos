@@ -162,6 +162,62 @@ class SalesInsights
     }
 
     /**
+     * LAY-01: today's completed sales for a dashboard KPI, in one grouped
+     * query (no payments, change or top items). Each company's sales are
+     * read in its own today, in its time zone; its base total is converted
+     * to the reporting currency as for() converts it, and a company without
+     * a rate is listed in `missing_rates` and left out of the total.
+     *
+     * @return array{reporting_currency: ?string, sales_count: int, total: ?Money, missing_rates: list<string>, complete: bool}
+     */
+    public function today(User $user, ?string $currency = null): array
+    {
+        $now = CarbonImmutable::now('UTC')->toIso8601String();
+        $localToday = '((?::timestamptz) at time zone companies.timezone)::date';
+
+        $rows = $this->resolver->visibleIds($user, 'pos.sale.view')->applyTo(Sale::query(), Scope::LOCATION)
+            ->join('companies', 'companies.id', '=', 'pos_sales.company_id')
+            ->where('pos_sales.status', Sale::COMPLETED)
+            ->whereRaw("pos_sales.sold_at >= ({$localToday})::timestamp at time zone companies.timezone", [$now])
+            ->whereRaw("pos_sales.sold_at < (({$localToday}) + 1)::timestamp at time zone companies.timezone", [$now])
+            ->groupBy('pos_sales.company_id')
+            ->get(['pos_sales.company_id', DB::raw('count(*) as sales_count'), DB::raw('sum(pos_sales.base_total_minor)::text as base_total')])
+            ->toBase();
+
+        $companies = Company::query()->whereKey($rows->pluck('company_id')->all())->get()->keyBy('id');
+        $reporting = $currency ?? $this->defaultReporting($companies->all());
+        $total = BigInteger::zero();
+        $count = 0;
+        $missing = [];
+
+        foreach ($rows as $row) {
+            $company = $companies[$row->company_id];
+            $count += (int) $row->sales_count;
+
+            if ($reporting === null) {
+                continue;
+            }
+
+            $day = CarbonImmutable::now($company->timezone)->toDateString();
+            $converted = $this->toReporting(Money::ofMinor((string) $row->base_total, $company->base_currency), $reporting, $company, $day);
+
+            if ($converted === null) {
+                $missing[] = $company->id;
+            } else {
+                $total = $total->plus(BigInteger::of($converted['total']->minor()));
+            }
+        }
+
+        return [
+            'reporting_currency' => $reporting,
+            'sales_count' => $count,
+            'total' => $reporting === null ? null : Money::ofMinor((string) $total, $reporting),
+            'missing_rates' => $missing,
+            'complete' => $reporting !== null && $missing === [],
+        ];
+    }
+
+    /**
      * LAY-01: completed sales per calendar day (each company's own days)
      * from $from to $to, for a dashboard chart. Each company's base total
      * of a day is converted to the reporting currency as for() converts it

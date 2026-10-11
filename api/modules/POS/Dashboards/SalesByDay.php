@@ -43,7 +43,7 @@ class SalesByDay extends DashboardSource
 
     public function data(User $user, array $params): array
     {
-        $to = SalesDays::today();
+        $to = SalesDays::today($user);
         $from = CarbonImmutable::parse($to)->subDays((int) ($params['days'] ?? 7) - 1)->toDateString();
         $daily = app(SalesInsights::class)->daily($user, $from, $to);
 

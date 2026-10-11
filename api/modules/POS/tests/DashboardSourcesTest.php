@@ -2,7 +2,12 @@
 
 namespace Modules\POS\Tests;
 
+use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\Models\Company;
+use App\Core\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use App\Core\Rbac\Scope;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -16,13 +21,17 @@ class DashboardSourcesTest extends TestCase
 {
     use BuildsPos, RefreshTenantDatabase;
 
+    private string $shiftA;
+
     protected function setUp(): void
     {
         parent::setUp();
+        // A fixed instant: 15:00 in Nairobi, 02:00 the next day in Kiritimati (UTC+14).
+        $this->travelTo(CarbonImmutable::parse('2026-10-11 12:00:00', 'UTC'));
 
         $this->setUpPos();
         $this->ranges()->assertOk();
-        $shiftA = $this->openShift();
+        $this->shiftA = $shiftA = $this->openShift();
         $this->upload([$this->saleBody($shiftA, 1), $this->saleBody($shiftA, 2)])->assertOk();
 
         [, $tokenB] = $this->pairedTill($this->locationB, 'Till B');
@@ -85,5 +94,63 @@ class DashboardSourcesTest extends TestCase
         $this->source('pos.sales_today', [], $other['user'])->assertOk()->assertJsonPath('data.count', 0);
         $points = $this->source('pos.sales_by_day', [], $other['user'])->assertOk()->json('data.points');
         $this->assertSame(0, array_sum(array_column($points, 'count')));
+    }
+
+    public function test_the_kpi_reads_totals_only(): void
+    {
+        $db = DB::connection(TenantContext::CONNECTION);
+        $db->flushQueryLog();
+        $db->enableQueryLog();
+        $this->source('pos.sales_today')->assertOk()->assertJsonPath('data.count', 3);
+        $queries = implode("\n", array_column($db->getQueryLog(), 'query'));
+        $db->disableQueryLog();
+
+        // No payments, change or top items for a KPI.
+        $this->assertStringNotContainsString('pos_sale_payments', $queries);
+        $this->assertStringNotContainsString('pos_sale_lines', $queries);
+        $this->assertStringNotContainsString('change_minor', $queries);
+    }
+
+    public function test_each_company_is_read_in_its_own_today(): void
+    {
+        // Acme sells in Kiritimati (UTC+14); another company, first by name, is in Pago Pago (UTC-11).
+        $this->inTenant(function () {
+            $this->acme->forceFill(['timezone' => 'Pacific/Kiritimati'])->save();
+            $this->company('Aardvark')->forceFill(['timezone' => 'Pacific/Pago_Pago'])->save();
+        });
+
+        $today = $this->source('pos.sales_today')->assertOk()->json('data');
+        $this->assertSame([3, '337500', '2026-10-12'], [$today['count'], $today['value'], $today['date']]);
+        $points = $this->source('pos.sales_by_day', ['days' => 7])->assertOk()->json('data.points');
+        $this->assertSame(['label' => '2026-10-12', 'value' => '337500', 'count' => 3], end($points));
+    }
+
+    public function test_answers_are_kept_45_seconds_per_reader_and_scope(): void
+    {
+        $managerB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
+        $this->source('pos.sales_today', [], $managerB)->assertJsonPath('data.count', 1);
+        $this->source('pos.sales_today')->assertJsonPath('data.count', 3);
+
+        $this->upload([$this->saleBody($this->shiftA, 3)])->assertOk();
+        // Within 45 seconds the kept answer is served, per reader.
+        $this->source('pos.sales_today')->assertJsonPath('data.count', 3);
+
+        // A new assignment changes the reader's scope: never a kept answer.
+        $this->inTenant(fn () => $this->assign($managerB, $this->roles->get('branch_manager'), Scope::branch($this->branchA->id)));
+        $this->source('pos.sales_today', [], $managerB)->assertJsonPath('data.count', 4);
+
+        $this->travel(DashboardSources::CACHE_SECONDS + 1)->seconds();
+        $this->source('pos.sales_today')->assertJsonPath('data.count', 4);
+    }
+
+    public function test_widget_data_is_throttled_per_user(): void
+    {
+        for ($i = 0; $i < DashboardSources::PER_MINUTE; $i++) {
+            $this->source('pos.sales_today')->assertOk();
+        }
+
+        $this->source('pos.sales_today')->assertStatus(429);
+        // Another user has their own budget.
+        $this->source('pos.sales_today', [], $this->userWith('branch_manager', Scope::branch($this->branchB->id)))->assertOk();
     }
 }

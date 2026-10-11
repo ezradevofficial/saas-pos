@@ -18,6 +18,9 @@ use App\Core\MasterData\CreditLimits\Http\Lists\CreditLimitChangeList;
 use App\Core\MasterData\Items\Http\Lists\ItemList;
 use App\Core\MasterData\Parties\Http\Lists\PartyList;
 use App\Core\MasterData\Prices\Http\Lists\ItemPriceList;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -62,6 +65,10 @@ class LayoutsServiceProvider extends ServiceProvider
         $lists->register('suppliers', PartyList::class);
         $lists->register('item-prices', ItemPriceList::class);
         $lists->register('credit-limit-changes', CreditLimitChangeList::class);
+
+        // LAY-01: widget data, per user (each dashboard asks once per widget).
+        RateLimiter::for(DashboardSources::LIMITER, fn (Request $request) => Limit::perMinute(DashboardSources::PER_MINUTE)
+            ->by('user|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         $sources = $this->app->make(DashboardSources::class);
         foreach ([ApprovalsWaiting::class, ApprovalsMine::class, WorkflowsOverdue::class, Shortcuts::class] as $source) {
