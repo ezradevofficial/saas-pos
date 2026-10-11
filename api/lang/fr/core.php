@@ -912,6 +912,13 @@ return [
             'branch_company' => 'Cette agence n’appartient pas à la société choisie. Choisissez une de ses agences.',
             'location_branch' => 'Cet emplacement n’appartient pas à l’agence choisie. Choisissez un de ses emplacements.',
             'place_forbidden' => 'Vous ne pouvez pas créer ce formulaire à cet endroit. Choisissez un lieu où vous travaillez ou demandez à un administrateur.',
+            'archived' => 'Ce formulaire est archivé : il ne peut pas être annulé. Restaurez-le d’abord.',
+            'archive_pending' => 'Ce formulaire attend une approbation : il ne peut pas être archivé. Annulez-le d’abord.',
+            'type_archived' => 'Ce type de formulaire est archivé : ses brouillons ne peuvent plus être modifiés ni envoyés. Demandez à un administrateur de le restaurer.',
+            'line_unknown' => 'Cette ligne ne fait plus partie du formulaire. Rechargez le formulaire et réessayez.',
+            'lines_required' => 'Ajoutez au moins une ligne avant d’envoyer.',
+            'amount_required' => 'L’approbation de ce formulaire dépend de son montant. Saisissez un montant avant d’envoyer.',
+            'total_too_large' => 'Le total de :field est trop élevé. Répartissez les lignes sur plusieurs formulaires.',
         ],
     ],
     'custom_form_type' => [
@@ -919,6 +926,7 @@ return [
         'key_invalid' => 'Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.',
         'line_field_unknown' => 'Le champ de ligne « :field » n’existe pas dans ce formulaire. Ajoutez-le d’abord aux champs de ligne du formulaire.',
         'workflow_in_use' => 'Des formulaires de ce type attendent une approbation. Laissez-les aboutir avant de désactiver le circuit.',
+        'prefix_taken' => 'Les numéros commençant par « :prefix » sont déjà utilisés par un autre type de document. Choisissez une autre clé.',
         'attributes' => [
             'key' => 'clé', 'name' => 'nom', 'description' => 'description', 'workflow' => 'circuit', 'has_lines' => 'tableau de lignes',
             'attachments' => 'pièces jointes', 'line_fields' => 'colonnes des lignes', 'role_ids' => 'rôles',

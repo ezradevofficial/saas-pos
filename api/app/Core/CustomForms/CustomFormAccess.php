@@ -56,10 +56,16 @@ class CustomFormAccess
         return $user !== null && $this->resolver->can($user, self::MANAGE, Scope::tenant());
     }
 
-    /** Whether the user may use the type anywhere for $permissions (the nav, the list). */
-    public function anywhere(User $user, CustomFormType $type, array $permissions = [self::VIEW, self::EDIT]): bool
+    /**
+     * Whether the user may use the type anywhere for $permissions (the nav,
+     * the list). An archived type is out of use (no nav entry, no new
+     * records) except for managers; with $reading, its records stay
+     * readable, read only, for whoever could see them (the list and the
+     * type's details, as a record's own page).
+     */
+    public function anywhere(User $user, CustomFormType $type, array $permissions = [self::VIEW, self::EDIT], bool $reading = false): bool
     {
-        if ($type->isArchived() && ! $this->manages($user)) {
+        if ($type->isArchived() && ! $reading && ! $this->manages($user)) {
             return false;
         }
 
@@ -115,6 +121,27 @@ class CustomFormAccess
         }
 
         return $query;
+    }
+
+    /**
+     * RBAC-04: whether the type's role list lets the user near the record at
+     * all (an allowed role at a scope covering it), whatever permission they
+     * hold. Flows, approvals and their inbox ask it through
+     * CustomFormDocumentType (DocumentType::sees, mayAct).
+     */
+    public function allowedFor(User $user, CustomFormRecord $record): bool
+    {
+        return $record->tenant_id === $user->tenant_id && $this->allowedAt($user, $record->type, $record->scope());
+    }
+
+    /** The ids of the type's records the role list lets the user near (null: the list doesn't apply to them). */
+    public function allowedIds(User $user, CustomFormType $type): ?\Illuminate\Database\Query\Builder
+    {
+        if ($this->unlisted($user, $type)) {
+            return null;
+        }
+
+        return $this->within(CustomFormRecord::query()->where('type_id', $type->id), $this->roleScope($user, $type->role_ids))->select('id')->toBase();
     }
 
     /** Records at a place the scope covers: the location, else the branch, else the company. */

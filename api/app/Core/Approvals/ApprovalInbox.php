@@ -33,6 +33,15 @@ class ApprovalInbox
         $status = $filters['status'] ?? 'waiting';
         $query = ApprovalRequest::query()->whereIn('document_type', $this->types->keys());
 
+        // RBAC-04: a type's own rule on its documents (a custom form type's roles).
+        foreach ($this->types->all() as $type) {
+            $ids = $type->visibleDocumentIds($user);
+
+            if ($ids !== null) {
+                $query->where(fn (Builder $q) => $q->where('document_type', '!=', $type->key())->orWhereIn('document_id', $ids));
+            }
+        }
+
         if (($filters['view'] ?? 'mine') === 'all') {
             $this->oversight($query, $user);
 

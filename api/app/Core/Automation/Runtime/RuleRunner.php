@@ -238,7 +238,7 @@ class RuleRunner
         }
 
         // M5: this document is outside what the rule's user may see or change.
-        if (! $this->actorReaches($rule, $type, $actor, $scope, $run->document_id !== null)) {
+        if (! $this->actorReaches($rule, $type, $actor, $scope, $run->document_id)) {
             $this->finish($run, AutomationRun::SKIPPED, error: __('automation.errors.out_of_scope'), code: 'out_of_scope');
 
             return;
@@ -407,9 +407,9 @@ class RuleRunner
     }
 
     /** The rule's user may see this document and do the rule's actions at its own place (branch, location). */
-    private function actorReaches(AutomationRule $rule, DocumentType $type, User $actor, DocumentScope $scope, bool $hasDocument): bool
+    private function actorReaches(AutomationRule $rule, DocumentType $type, User $actor, DocumentScope $scope, ?string $documentId): bool
     {
-        if ($hasDocument && ! $this->access->seesDocument($actor, $type, $scope)) {
+        if ($documentId !== null && ! $this->access->seesDocument($actor, $type, $scope, $documentId)) {
             return false;
         }
 

@@ -29,7 +29,9 @@ use App\Core\Rbac\ScopeResolver;
  *
  * LAY-07: the merger lays the layout over the form's catalogue
  * (FormCatalogue): a field it no longer has is skipped; a new one
- * appears in its group's section, else at the end of the last section.
+ * appears in its group's section, else at the end of the last section;
+ * a field that became required without a default since the layout hid
+ * it shows again.
  *
  * The presenter answers for the reader: `hidden_roles` becomes `hidden`
  * when every role the reader holds is listed (several roles: the most
@@ -207,6 +209,21 @@ final class FormLayout
             layoutKeys: $layoutKeys,
         );
 
+        // A field may have become required (without a default) after the layout hid it:
+        // it shows again, or nobody could fill it in (the same rule as `required_hidden`).
+        $payload['sections'] = array_map(function (array $section) {
+            $section['fields'] = array_map(function (array $field) {
+                if (($field['required'] ?? false) === true && ($field['has_default'] ?? false) !== true) {
+                    unset($field['hidden_roles']);
+                    $field['hidden'] = false;
+                }
+
+                return $field;
+            }, $section['fields'] ?? []);
+
+            return $section;
+        }, $payload['sections']);
+
         return $payload;
     }
 
@@ -240,14 +257,22 @@ final class FormLayout
         return $payload;
     }
 
-    /** For the designer: the form's fields and its default layout. */
-    public static function describe(FormDefinition $form): array
+    /** For the designer: the form's fields and its default layout, without the custom fields hidden from $reader (RBAC-05). */
+    public static function describe(FormDefinition $form, ?User $reader = null): array
     {
+        $hidden = $form->entity === null || $reader === null ? [] : app(CustomFieldAccess::class)->hiddenNames($reader, $form->entity);
+        $defaults = self::merge(self::catalogue()->defaults($form), $form->key, [...CatalogueMerge::LAYOUT_KEYS, ...self::LAYOUT_KEYS]);
+        $defaults['sections'] = array_map(function (array $section) use ($hidden) {
+            $section['fields'] = array_values(array_filter($section['fields'], fn (array $field) => ! in_array($field['id'], $hidden, true)));
+
+            return $section;
+        }, $defaults['sections']);
+
         return [
             'key' => $form->key,
             'label' => $form->text($form->label),
-            'fields' => self::catalogue()->fields($form),
-            'defaults' => self::merge(self::catalogue()->defaults($form), $form->key, [...CatalogueMerge::LAYOUT_KEYS, ...self::LAYOUT_KEYS]),
+            'fields' => array_values(array_filter(self::catalogue()->fields($form), fn (array $field) => ! in_array($field['id'], $hidden, true))),
+            'defaults' => $defaults,
         ];
     }
 }

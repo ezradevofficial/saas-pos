@@ -37,7 +37,7 @@ trait TestsRules
             $type = $this->testedType();
             $scope = $type !== null && is_string($value) && Str::isUuid($value) ? $type->scope($value) : null;
 
-            if ($scope === null || ! app(WorkflowAccess::class)->seesDocument($this->user(), $type, $scope)) {
+            if ($scope === null || ! app(WorkflowAccess::class)->seesDocument($this->user(), $type, $scope, $value)) {
                 $fail(__('automation.validation.document_not_found'));
 
                 return;

@@ -72,12 +72,12 @@ class CustomFormRecord extends Model
 
     public function lines(): HasMany
     {
-        return $this->hasMany(CustomFormLine::class, 'record_id')->orderBy('position');
+        return $this->hasMany(CustomFormLine::class, 'record_id')->whereNull('archived_at')->orderBy('position');
     }
 
     public function attachmentFiles(): HasMany
     {
-        return $this->hasMany(CustomFormAttachment::class, 'record_id')->orderBy('created_at');
+        return $this->hasMany(CustomFormAttachment::class, 'record_id')->whereNull('archived_at')->orderBy('created_at');
     }
 
     public function company(): BelongsTo

@@ -198,7 +198,7 @@ class WorkflowInsights
 
         $key = $type->key().'|'.$documentId;
 
-        return $this->seen[$key] ??= ($scope = $type->scope($documentId)) !== null && $this->access->seesDocument($user, $type, $scope);
+        return $this->seen[$key] ??= ($scope = $type->scope($documentId)) !== null && $this->access->seesDocument($user, $type, $scope, $documentId);
     }
 
     /** @return list<string> */

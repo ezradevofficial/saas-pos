@@ -6,6 +6,7 @@ use App\Core\CustomFields\CustomFieldEntities;
 use App\Core\CustomForms\Entities\CustomFormEntity;
 use App\Core\CustomForms\Entities\CustomFormLineEntity;
 use App\Core\CustomForms\Listeners\SettleCustomFormRecord;
+use App\Core\Identity\Models\User;
 use App\Core\Layouts\Forms\FormCatalogue;
 use App\Core\Layouts\Forms\FormDefinition;
 use App\Core\MasterData\History\HistoryTypes;
@@ -96,6 +97,9 @@ class CustomFormsServiceProvider extends ServiceProvider
             $fields[] = ['id' => 'attachments', 'label' => 'layouts.forms.custom_form.attachments', 'wide' => true, 'group' => 'attachments'];
         }
 
-        return new FormDefinition($type->layoutKey(), $type->entity(), $sections, $fields, $type->name, customGroup: 'main');
+        // CF-04, RBAC-04: only those who may use the type design its form.
+        $visibleTo = fn (User $user) => app(CustomFormAccess::class)->anywhere($user, $type, [CustomFormAccess::VIEW, CustomFormAccess::EDIT, CustomFormAccess::CREATE]);
+
+        return new FormDefinition($type->layoutKey(), $type->entity(), $sections, $fields, $type->name, customGroup: 'main', visibleTo: $visibleTo);
     }
 }

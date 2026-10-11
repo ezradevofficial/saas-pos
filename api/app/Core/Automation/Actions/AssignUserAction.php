@@ -84,7 +84,7 @@ class AssignUserAction implements AutomationAction
             throw new ActionFailed(__('automation.errors.user_unavailable'));
         }
 
-        if (! $this->access->seesDocument($user, $context->type, $context->scope)) {
+        if (! $this->access->seesDocument($user, $context->type, $context->scope, $context->documentId)) {
             throw new ActionFailed(__('automation.errors.user_cannot_see', ['user' => $user->name]));
         }
 

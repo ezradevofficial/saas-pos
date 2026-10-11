@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * CF-05: one line of a custom form record, its values custom fields of
- * `custom_form_line:<key>`. Lines are written with their record (replaced
- * as a whole while it is a draft) and audited in the record's entry.
+ * `custom_form_line:<key>`. Lines are written with their record while it
+ * is a draft, matched by id (created, updated in place, archived when
+ * removed; never deleted) and audited in the record's entry.
  *
  * @property string $record_id
  * @property int $position
@@ -26,7 +27,7 @@ class CustomFormLine extends Model
 
     protected function casts(): array
     {
-        return ['custom' => 'array', 'position' => 'integer'];
+        return ['custom' => 'array', 'position' => 'integer', 'archived_at' => 'datetime'];
     }
 
     public function record(): BelongsTo

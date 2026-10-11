@@ -2,8 +2,10 @@
 
 namespace App\Core\CustomForms\Http\Lists;
 
+use App\Core\CustomFields\CustomFieldAccess;
 use App\Core\CustomFields\CustomFieldDefinitions;
 use App\Core\CustomFields\CustomFieldLists;
+use App\Core\CustomForms\CustomFormAmounts;
 use App\Core\CustomForms\CustomFormRecord;
 use App\Core\CustomForms\CustomForms;
 use App\Core\CustomForms\CustomFormType;
@@ -13,6 +15,7 @@ use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListDefinition;
 use App\Core\Lists\ListSort;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -61,7 +64,7 @@ class CustomFormRecordList extends ListDefinition
             'number' => ListSort::column('number'),
             'status' => ListSort::column('status'),
             'created_at' => ListSort::column('created_at'),
-            'amount' => ListSort::column('amount_minor'),
+            'amount' => ListSort::column('amount_minor', ['amount']),
             ...app(CustomFieldLists::class)->sorts($this->type->entity()),
         ];
     }
@@ -79,8 +82,8 @@ class CustomFormRecordList extends ListDefinition
             foreach (app(CustomFieldDefinitions::class)->active($this->type->lineEntity()) as $field) {
                 if (in_array($field->type, CustomForms::TOTALLED, true)) {
                     $key = $field->key;
-                    $totals[] = new ListColumn('total_'.$key, __('core.custom_form.fields.total', ['field' => $field->label]), ['totals'],
-                        fn (array $row, Model $model, ExportValues $values) => is_array($row['totals']->{$key} ?? null) ? $values->money($row['totals']->{$key}) : $values->decimal($row['totals']->{$key} ?? null),
+                    $totals[] = new ListColumn('total_'.$key, __('core.custom_form.fields.total', ['field' => $field->label]), ['total_'.$key],
+                        fn (array $row, Model $model, ExportValues $values) => ! property_exists($row['totals'], $key) ? null : (is_array($row['totals']->{$key} ?? null) ? $values->money($row['totals']->{$key}) : $values->decimal($row['totals']->{$key} ?? null)),
                         literal: true);
                 }
             }
@@ -99,6 +102,29 @@ class CustomFormRecordList extends ListDefinition
                 fn (array $row, CustomFormRecord $record, ExportValues $values) => $values->dateTime($row['created_at'], $record->company_id)),
             ...app(CustomFieldLists::class)->columns($this->type->entity()),
         ];
+    }
+
+    /**
+     * RBAC-05: besides hidden header fields, the totals of hidden line
+     * fields (`total_<key>`) and the amount when it could come from a
+     * hidden field (CustomFormAmounts): their columns, sorts and exports go.
+     */
+    public function hiddenFields(Request $request): array
+    {
+        $hidden = parent::hiddenFields($request);
+        $user = $request->user();
+
+        if ($this->type->has_lines) {
+            foreach (app(CustomFieldAccess::class)->for($user, $this->type->lineEntity())['hidden'] as $key) {
+                $hidden[] = 'total_'.$key;
+            }
+        }
+
+        if (app(CustomFormAmounts::class)->amountHidden($user, $this->type)) {
+            $hidden[] = 'amount';
+        }
+
+        return $hidden;
     }
 
     public function exportRelations(): array

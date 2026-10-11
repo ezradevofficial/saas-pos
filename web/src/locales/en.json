@@ -4962,7 +4962,8 @@
       "fieldOfLine": "{{field}}, line {{n}}",
       "totals": "Totals",
       "total": "Total {{field}}",
-      "mixedCurrencies": "Use one currency on every line"
+      "mixedCurrencies": "Use one currency on every line",
+      "invalidValue": "This value isn’t a number. Correct it or clear it before saving."
     },
     "attachments": {
       "title": "Attachments",

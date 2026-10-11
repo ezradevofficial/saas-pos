@@ -36,7 +36,7 @@ class ListCustomFormRecordsRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return app(CustomFormAccess::class)->anywhere($this->user(), $this->type());
+        return app(CustomFormAccess::class)->anywhere($this->user(), $this->type(), reading: true);
     }
 
     public function rules(): array

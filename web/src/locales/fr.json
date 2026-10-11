@@ -4962,7 +4962,8 @@
       "fieldOfLine": "{{field}}, ligne {{n}}",
       "totals": "Totaux",
       "total": "Total : {{field}}",
-      "mixedCurrencies": "Utilisez une seule devise sur toutes les lignes"
+      "mixedCurrencies": "Utilisez une seule devise sur toutes les lignes",
+      "invalidValue": "Cette valeur n’est pas un nombre. Corrigez-la ou effacez-la avant d’enregistrer."
     },
     "attachments": {
       "title": "Pièces jointes",

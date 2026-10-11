@@ -4,7 +4,11 @@ namespace App\Core\CustomForms\Http\Requests;
 
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\CustomForms\CustomFormRecord;
+use App\Core\CustomForms\CustomFormsServiceProvider;
 use App\Core\CustomForms\CustomFormType;
+use App\Core\Numbering\DocumentNumberType;
+use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Numbering\NumberFormat;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -44,6 +48,8 @@ final class CustomFormTypeRules
 
         if ($existing === null && CustomFormType::query()->where('key', $input['key'])->exists()) {
             $validator->errors()->add('key', __('core.custom_form_type.key_taken'));
+        } elseif ($existing === null && self::prefixInUse((string) $input['key'])) {
+            $validator->errors()->add('key', __('core.custom_form_type.prefix_taken', ['prefix' => self::literalPrefix(CustomFormsServiceProvider::defaultPattern((string) $input['key']))]));
         }
 
         $key = $existing?->key ?? (string) $input['key'];
@@ -58,6 +64,36 @@ final class CustomFormTypeRules
             && CustomFormRecord::query()->where('type_id', $existing->id)->where('status', CustomFormRecord::PENDING)->exists()) {
             $validator->errors()->add('workflow', __('core.custom_form_type.workflow_in_use'));
         }
+    }
+
+    /**
+     * NUM-01: whether the new type's default number prefix (`KEY-`) is the
+     * literal prefix of a number format the tenant has, or of another
+     * numbered type's default. NumberPrefixes checks collisions within one
+     * document type only, so a new form type must not start printing
+     * another type's numbers.
+     */
+    private static function prefixInUse(string $key): bool
+    {
+        $prefix = self::literalPrefix(CustomFormsServiceProvider::defaultPattern($key));
+        $patterns = [
+            ...NumberFormat::query()->pluck('pattern')->all(),
+            ...array_map(fn (DocumentNumberType $type) => $type->defaultPattern, app(DocumentNumberTypes::class)->active()),
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (strcasecmp(self::literalPrefix((string) $pattern), $prefix) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** The text of a pattern before its first token (`PETTY_CASH-` of `PETTY_CASH-{YYYY}-{00001}`). */
+    private static function literalPrefix(string $pattern): string
+    {
+        return strstr($pattern, '{', true) ?: $pattern;
     }
 
     /** @return array<string, string> */

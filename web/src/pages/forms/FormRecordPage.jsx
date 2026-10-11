@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
@@ -11,7 +11,7 @@ import { Alert, Button, Card, Icon, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanySelection } from '@/layouts/companySelection'
 import { customErrors, useCustomFieldSchema, useCustomValues } from '@/lib/customFields'
-import { linesBody, newLine, orderedLineFields, useFormType } from '@/lib/customForms'
+import { invalidLineFields, linesBody, newLine, orderedLineFields, useFormType } from '@/lib/customForms'
 import { formatBytes } from '@/lib/format'
 import { fallbackLayout, useFormLayout } from '@/lib/formLayout'
 import { useLocale } from '@/lib/useLocale'
@@ -134,7 +134,15 @@ function RecordForm({ type, record, workflow }) {
   const custom = useCustomValues(headerSchema.fields, record, timeZone)
   const [lines, setLines] = useState(null)
   const [linesTouched, setLinesTouched] = useState(false)
-  const shownLines = lines ?? (lineSchema.isSuccess ? (record?.lines ?? []).map((line) => newLine(lineFields, line, timeZone)) : [])
+  // The saved lines, made once the line fields are known (so their controls are not remounted on every render).
+  const lineFieldsKey = lineFields.map((field) => field.key).join('|')
+  const savedLines = useMemo(
+    () => (lineSchema.isSuccess ? (record?.lines ?? []).map((line) => newLine(lineFields, line, timeZone)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lineFields is re-sorted on every render; its keys say when it changed
+    [lineSchema.isSuccess, record, timeZone, lineFieldsKey],
+  )
+  const shownLines = lines ?? savedLines
+  const [invalidLines, setInvalidLines] = useState([])
   const [files, setFiles] = useState(record?.attachments ?? [])
   const [submitted, setSubmitted] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -168,7 +176,10 @@ function RecordForm({ type, record, workflow }) {
   })
   const placeFields = ['company_id', 'branch_id', 'location_id']
   const errors = formErrors(save.error, [...placeFields, 'lines', 'attachments', ...custom.errorFields])
-  const lineErrors = Object.fromEntries(Object.entries(save.error?.errors ?? {}).filter(([key]) => key.startsWith('lines.')).map(([key, messages]) => [key, messages[0]]))
+  const lineErrors = {
+    ...Object.fromEntries(Object.entries(save.error?.errors ?? {}).filter(([key]) => key.startsWith('lines.')).map(([key, messages]) => [key, messages[0]])),
+    ...Object.fromEntries(invalidLines.map((key) => [key, t('customForms.lines.invalidValue')])),
+  }
   const formMessage = Object.keys(lineErrors).length && errors.form ? null : errors.form
 
   const branches = scopes.branch.filter((branch) => branch.company_id === companyId && !branch.archived_at)
@@ -220,6 +231,7 @@ function RecordForm({ type, record, workflow }) {
           onChange={(next) => {
             setLines(next)
             setLinesTouched(true)
+            setInvalidLines([])
           }}
           readOnly={!editable}
           loading={!lineSchema.isSuccess}
@@ -244,7 +256,10 @@ function RecordForm({ type, record, workflow }) {
   const { layout } = useFormLayout(type.layout_key, fallback)
   const send = (submit) => {
     setSubmitted(true)
-    if (custom.invalid) return
+    // A line value that can't be read (a number or amount that isn't one) blocks the save, shown on its field.
+    const invalid = type.has_lines ? invalidLineFields(lineFields, shownLines, timeZone) : []
+    setInvalidLines(invalid)
+    if (custom.invalid || invalid.length) return
     save.mutate({ submit })
   }
 

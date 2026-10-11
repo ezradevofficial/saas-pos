@@ -912,6 +912,13 @@ return [
             'branch_company' => 'This branch isn’t part of the chosen company. Choose one of its branches.',
             'location_branch' => 'This location isn’t part of the chosen branch. Choose one of its locations.',
             'place_forbidden' => 'You can’t create this form there. Choose a place where you work, or ask an administrator.',
+            'archived' => 'This form is archived, so it can’t be cancelled. Restore it first.',
+            'archive_pending' => 'This form is waiting for approval, so it can’t be archived. Cancel it first.',
+            'type_archived' => 'This kind of form is archived, so its drafts can no longer be changed or sent. Ask an administrator to restore it.',
+            'line_unknown' => 'This line is no longer part of the form. Reload the form and try again.',
+            'lines_required' => 'Add at least one line before sending.',
+            'amount_required' => 'This form’s approval depends on its amount. Enter an amount before sending.',
+            'total_too_large' => 'The total of :field is too large. Split the lines over several forms.',
         ],
     ],
     'custom_form_type' => [
@@ -919,6 +926,7 @@ return [
         'key_invalid' => 'Use lowercase letters, digits and underscores, starting with a letter.',
         'line_field_unknown' => 'The line field “:field” doesn’t exist on this form. Add it under the form’s line fields first.',
         'workflow_in_use' => 'Some forms of this kind are waiting for approval. Let them finish before turning the workflow off.',
+        'prefix_taken' => 'Numbers starting with “:prefix” are already used by another kind of document. Choose another key.',
         'attributes' => [
             'key' => 'key', 'name' => 'name', 'description' => 'description', 'workflow' => 'workflow', 'has_lines' => 'line table',
             'attachments' => 'attachments', 'line_fields' => 'line columns', 'role_ids' => 'roles',

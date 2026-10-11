@@ -41,23 +41,55 @@ export function orderedLineFields(fields, order = []) {
 }
 
 let lineKey = 0
-/** A new line for the table: its own key and each field's empty value. */
+/**
+ * A line for the table: its key (the saved line's id, so its controls keep
+ * their state across renders; a new key for a new line), the saved line's
+ * id (null for a new one) and each field's value.
+ */
 export function newLine(fields, record = null, timeZone = undefined) {
   lineKey += 1
-  return { key: `line-${lineKey}`, values: Object.fromEntries(fields.map((field) => [field.key, toFormValue(field, record?.custom?.[field.key] ?? null, timeZone)])) }
+  return {
+    key: record?.id ?? `line-${lineKey}`,
+    id: record?.id ?? null,
+    values: Object.fromEntries(fields.map((field) => [field.key, toFormValue(field, record?.custom?.[field.key] ?? null, timeZone)])),
+  }
 }
 
-/** The lines as the API takes them: only editable fields with a value. */
+const editableFields = (fields) => fields.filter((field) => !field.readonly && field.type !== 'formula')
+
+/**
+ * The lines whose values can't be read (a number or amount that isn't
+ * one), as `lines.<n>.custom.<key>`: saving or sending waits until they
+ * are fixed, so nothing typed is ever dropped.
+ */
+export function invalidLineFields(fields, lines, timeZone) {
+  return lines.flatMap((line, index) =>
+    editableFields(fields)
+      .filter((field) => toApiValue(field, line.values[field.key], timeZone) === undefined)
+      .map((field) => `lines.${index}.custom.${field.key}`),
+  )
+}
+
+/**
+ * CF-05: the lines as the API takes them, matched by id: a saved line
+ * sends its id and every editable field (null clears one); a new line
+ * sends only the fields with a value (the others take their defaults).
+ * Fields the user can't change or see are left out, so the server keeps
+ * their stored values.
+ */
 export function linesBody(fields, lines, timeZone) {
-  const editable = fields.filter((field) => !field.readonly && field.type !== 'formula')
-  return lines.map((line) => ({
-    custom: Object.fromEntries(
+  const editable = editableFields(fields)
+  return lines.map((line) => {
+    const custom = Object.fromEntries(
       editable.flatMap((field) => {
         const value = toApiValue(field, line.values[field.key], timeZone)
-        return value === null || value === undefined || (Array.isArray(value) && value.length === 0) ? [] : [[field.key, value]]
+        const empty = value === null || value === undefined || (Array.isArray(value) && value.length === 0)
+        if (!empty) return [[field.key, value]]
+        return line.id ? [[field.key, Array.isArray(value) ? [] : null]] : []
       }),
-    ),
-  }))
+    )
+    return line.id ? { id: line.id, custom } : { custom }
+  })
 }
 
 /** "12.50" → [1250n, 2]: a decimal string as a whole number and its scale; never a float. */

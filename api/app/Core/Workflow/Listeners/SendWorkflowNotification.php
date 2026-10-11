@@ -66,7 +66,7 @@ class SendWorkflowNotification implements ShouldQueue
             $skipped = [];
 
             foreach (User::query()->whereKey($this->recipients->resolve($event->config, $scope))->get() as $user) {
-                if ($this->access->seesDocument($user, $type, $scope)) {
+                if ($this->access->seesDocument($user, $type, $scope, $event->documentId)) {
                     $sent[] = $user->id;
                 } else {
                     $skipped[] = $user->id;

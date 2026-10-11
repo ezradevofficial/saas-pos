@@ -5,6 +5,7 @@ namespace App\Core\CustomForms\Http\Requests;
 use App\Core\CustomFields\CustomFieldDefinitions;
 use App\Core\CustomFields\CustomFieldValidator;
 use App\Core\CustomForms\CustomFormAttachment;
+use App\Core\CustomForms\CustomFormLine;
 use App\Core\CustomForms\CustomFormRecord;
 use App\Core\CustomForms\CustomFormType;
 use App\Core\Identity\Models\User;
@@ -13,8 +14,10 @@ use Illuminate\Validation\Validator;
 
 /**
  * CF-04, CF-05: the body of a custom form record: header values (`custom`,
- * CustomFieldValidator), lines (`lines.*.custom`, the line entity's fields,
- * errors keyed `lines.<n>.custom.<key>`), attachments (files uploaded for
+ * CustomFieldValidator), lines (`lines.*.id` naming one of the record's
+ * active lines, validated against it as an update, or none for a new line;
+ * `lines.*.custom`, the line entity's fields, errors keyed
+ * `lines.<n>.custom.<key>`), attachments (files uploaded for
  * the type by the user, or already the record's) and `submit`. A money
  * line field must use one currency across the lines (its total is one
  * amount).
@@ -27,7 +30,8 @@ final class CustomFormRecordRules
         return [
             ...CustomFieldValidator::rules(),
             'lines' => $type->has_lines ? ['sometimes', 'nullable', 'array', 'max:200'] : ['prohibited'],
-            'lines.*' => ['array:custom'],
+            'lines.*' => ['array:id,custom'],
+            'lines.*.id' => ['sometimes', 'nullable', 'uuid', 'distinct'],
             'lines.*.custom' => ['sometimes', 'nullable', 'array'],
             'attachments' => $type->attachments ? ['sometimes', 'nullable', 'array', 'max:20'] : ['prohibited'],
             'attachments.*' => ['uuid', 'distinct'],
@@ -43,11 +47,22 @@ final class CustomFormRecordRules
         if ($type->has_lines && is_array($data['lines'] ?? null)) {
             $currencies = [];
             $money = app(CustomFieldDefinitions::class)->active($type->lineEntity())->where('type', 'money')->pluck('key')->all();
+            // Lines name the record's active lines by id (updated in place); a line without one is new.
+            $existing = $record === null ? collect() : CustomFormLine::query()->where('record_id', $record->id)->whereNull('archived_at')->get()->keyBy('id');
 
             foreach (array_values($data['lines']) as $index => $line) {
                 $custom = is_array($line) ? ($line['custom'] ?? null) : null;
+                $id = is_array($line) ? ($line['id'] ?? null) : null;
+                $stored = $id === null ? null : $existing->get($id);
+
+                if ($id !== null && $stored === null) {
+                    $validator->errors()->add("lines.{$index}.id", __('core.custom_form.errors.line_unknown'));
+
+                    continue;
+                }
+
                 $lineValidator = Validators::make([], []);
-                app(CustomFieldValidator::class)->validate($lineValidator, $type->lineEntity(), $custom, null, $user);
+                app(CustomFieldValidator::class)->validate($lineValidator, $type->lineEntity(), $custom, $stored, $user);
 
                 foreach ($lineValidator->errors()->messages() as $key => $messages) {
                     foreach ($messages as $message) {
@@ -56,7 +71,9 @@ final class CustomFormRecordRules
                 }
 
                 foreach ($money as $key) {
-                    $currency = is_array($custom) && is_array($custom[$key] ?? null) ? ($custom[$key]['currency'] ?? null) : null;
+                    // A value not given stays as stored (one the saver may not see or change).
+                    $value = is_array($custom) && array_key_exists($key, $custom) ? $custom[$key] : ($stored?->custom[$key] ?? null);
+                    $currency = is_array($value) ? ($value['currency'] ?? null) : null;
 
                     if (! is_string($currency)) {
                         continue;
@@ -72,7 +89,7 @@ final class CustomFormRecordRules
         }
 
         foreach (array_values($data['attachments'] ?? []) as $index => $id) {
-            $ok = is_string($id) && CustomFormAttachment::query()->whereKey($id)->where('type_id', $type->id)
+            $ok = is_string($id) && CustomFormAttachment::query()->whereKey($id)->where('type_id', $type->id)->whereNull('archived_at')
                 ->where(fn ($q) => $q->where(fn ($n) => $n->whereNull('record_id')->where('uploaded_by', $user?->id))
                     ->when($record !== null, fn ($r) => $r->orWhere('record_id', $record->id)))
                 ->exists();

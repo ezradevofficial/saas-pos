@@ -5,9 +5,11 @@ namespace App\Core\CustomForms;
 use App\Core\Automation\Capabilities\LinksDocuments;
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\CustomFields\CustomFieldDefinitions;
+use App\Core\Identity\Models\User;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Str;
 
 /**
@@ -105,6 +107,24 @@ class CustomFormDocumentType extends DocumentType implements LinksDocuments
         return CustomFormAccess::APPROVE;
     }
 
+    /** RBAC-04: the type's role list (CustomFormAccess) on top of the view and approve permissions. */
+    public function sees(User $user, string $documentId): bool
+    {
+        $record = $this->find($documentId);
+
+        return $record !== null && app(CustomFormAccess::class)->allowedFor($user, $record);
+    }
+
+    public function mayAct(User $user, string $documentId, string $action): bool
+    {
+        return $this->sees($user, $documentId);
+    }
+
+    public function visibleDocumentIds(User $user): ?Builder
+    {
+        return app(CustomFormAccess::class)->allowedIds($user, $this->type);
+    }
+
     public function actions(): array
     {
         return ['submit', 'approve', 'reject', 'cancel'];
@@ -125,6 +145,12 @@ class CustomFormDocumentType extends DocumentType implements LinksDocuments
             'title' => $record === null ? null : $this->type->name,
             'amount' => $record?->amount()?->jsonSerialize(),
         ];
+    }
+
+    /** RBAC-05: the amount when it could come from a field hidden from the viewer (CustomFormAmounts). */
+    public function hiddenSummaryFields(User $viewer): array
+    {
+        return app(CustomFormAmounts::class)->amountHidden($viewer, $this->type) ? ['amount'] : [];
     }
 
     public function amountLabel(): ?string

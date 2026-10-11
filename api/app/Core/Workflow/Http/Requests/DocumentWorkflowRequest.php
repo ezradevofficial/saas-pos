@@ -23,7 +23,7 @@ class DocumentWorkflowRequest extends FormRequest
     {
         $scope = $this->documentScope();
 
-        abort_if($scope === null || ! app(WorkflowAccess::class)->seesDocument($this->user(), $this->documentType(), $scope), 404);
+        abort_if($scope === null || ! app(WorkflowAccess::class)->seesDocument($this->user(), $this->documentType(), $scope, $this->workflow()->document_id), 404);
 
         return true;
     }
