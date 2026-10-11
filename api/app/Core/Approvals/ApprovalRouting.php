@@ -179,8 +179,13 @@ class ApprovalRouting
             return [];
         }
 
+        $type = $this->types->find($request->document_type);
+
+        // RBAC-04: nobody the document type's own rule keeps out (a custom form type's roles) is asked.
         return User::query()->whereKey($candidates)->where('status', User::STATUS_ACTIVE)
-            ->orderBy('name')->orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
+            ->orderBy('name')->orderBy('id')->get()
+            ->filter(fn (User $user) => $type === null || $type->mayAct($user, $request->document_id, 'approve'))
+            ->map(fn (User $user) => (string) $user->id)->values()->all();
     }
 
     /**

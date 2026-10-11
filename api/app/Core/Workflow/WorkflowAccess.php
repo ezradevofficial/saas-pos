@@ -53,8 +53,17 @@ class WorkflowAccess
         return $this->reach->reaches($user, $company, [...self::PERMISSIONS, 'core.company.view']);
     }
 
-    public function seesDocument(User $user, DocumentType $type, DocumentScope $scope): bool
+    /**
+     * The type's view or act permission at the document's place and, when
+     * the document is named, the type's own rule on it (DocumentType::sees,
+     * e.g. a custom form type's role allow-list).
+     */
+    public function seesDocument(User $user, DocumentType $type, DocumentScope $scope, ?string $documentId = null): bool
     {
+        if ($documentId !== null && ! $type->sees($user, $documentId)) {
+            return false;
+        }
+
         foreach ([$type->viewPermission(), $type->actPermission()] as $permission) {
             if ($user->can($permission, $scope->scope())) {
                 return true;

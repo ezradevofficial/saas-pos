@@ -57,6 +57,11 @@ class ApprovalAccess
             return null;
         }
 
+        // RBAC-04: the document type's own rule (e.g. a custom form type's roles).
+        if (! ($this->types->find($request->document_type)?->mayAct($user, $request->document_id, 'approve') ?? false)) {
+            return null;
+        }
+
         $pending = $request->assignments()->where('step', $request->step)->where('status', ApprovalAssignment::PENDING)
             ->orderBy('created_at')->orderBy('id')->get();
         $own = $pending->firstWhere('user_id', $user->id);
@@ -83,7 +88,10 @@ class ApprovalAccess
 
     public function sees(User $user, ApprovalRequest $request): bool
     {
-        if ($this->types->find($request->document_type) === null) {
+        $type = $this->types->find($request->document_type);
+
+        // RBAC-04: the document type's own rule (e.g. a custom form type's roles) applies to everyone.
+        if ($type === null || ! $type->sees($user, $request->document_id)) {
             return false;
         }
 
@@ -112,6 +120,6 @@ class ApprovalAccess
         $type = $this->types->find($request->document_type);
         $scope = $type?->scope($request->document_id);
 
-        return $scope !== null && $this->workflows->seesDocument($user, $type, $scope);
+        return $scope !== null && $this->workflows->seesDocument($user, $type, $scope, $request->document_id);
     }
 }

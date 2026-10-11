@@ -15,7 +15,7 @@ class ShowCustomFormTypeRequest extends FormRequest
         /** @var CustomFormType $type */
         $type = $this->route('custom_form_type');
 
-        return $access->manages($this->user()) || $access->anywhere($this->user(), $type, [CustomFormAccess::VIEW, CustomFormAccess::EDIT, CustomFormAccess::CREATE]);
+        return $access->manages($this->user()) || $access->anywhere($this->user(), $type, [CustomFormAccess::VIEW, CustomFormAccess::EDIT, CustomFormAccess::CREATE], reading: true);
     }
 
     public function rules(): array

@@ -24,8 +24,13 @@ class StagePermissions
     ) {}
 
     /** @param 'enter'|'exit' $direction */
-    public function allows(User $user, array $node, string $direction, DocumentScope $scope, DocumentType $type): bool
+    public function allows(User $user, array $node, string $direction, DocumentScope $scope, DocumentType $type, ?string $documentId = null): bool
     {
+        // RBAC-04: the type's own rule on the document (e.g. a custom form type's roles).
+        if ($documentId !== null && ! $type->mayAct($user, $documentId, 'move')) {
+            return false;
+        }
+
         $roleIds = $this->roleIds($node, $direction);
 
         if ($roleIds === null) {

@@ -95,24 +95,12 @@ class CustomFormRecordController
 
     public function archive(ArchiveCustomFormRecordRequest $request): JsonResponse
     {
-        $record = $request->record();
-
-        if (! $record->isArchived()) {
-            $record->archive();
-        }
-
-        return $this->respond($request, $record);
+        return $this->respond($request, $this->forms->archive($request->record()));
     }
 
     public function restore(ArchiveCustomFormRecordRequest $request): JsonResponse
     {
-        $record = $request->record();
-
-        if ($record->isArchived()) {
-            $record->restore();
-        }
-
-        return $this->respond($request, $record);
+        return $this->respond($request, $this->forms->restore($request->record()));
     }
 
     /** The record with its lines, attachments and flow (WF-10). */

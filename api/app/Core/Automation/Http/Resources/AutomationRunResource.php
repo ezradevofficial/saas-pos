@@ -103,7 +103,7 @@ class AutomationRunResource extends JsonResource
             $shown['title'] = is_string($summary['title'] ?? null) && ! in_array('title', $hidden, true) ? $summary['title'] : null;
             $scope = $type->scope($this->document_id);
 
-            if ($scope !== null && app(WorkflowAccess::class)->seesDocument($viewer, $type, $scope)) {
+            if ($scope !== null && app(WorkflowAccess::class)->seesDocument($viewer, $type, $scope, $this->document_id)) {
                 $shown['link'] = match (true) {
                     $type instanceof LinksDocuments => $type->documentLink($this->document_id),
                     DocumentWorkflow::query()->where('document_type', $type->key())->where('document_id', $this->document_id)->exists() => SendWorkflowNotification::statusLink($type->key(), $this->document_id),

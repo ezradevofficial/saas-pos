@@ -6,6 +6,7 @@ use App\Core\Currency\Money;
 use App\Core\CustomFields\CustomFieldDocumentFields;
 use App\Core\Identity\Models\User;
 use App\Core\Workflow\Definitions\FlowGraph;
+use Illuminate\Contracts\Database\Query\Builder;
 use LogicException;
 
 /**
@@ -214,6 +215,38 @@ abstract class DocumentType
     public function hiddenSummaryFields(User $viewer): array
     {
         return [];
+    }
+
+    /**
+     * RBAC-04: a type's own rule on one document, on top of its view and act
+     * permissions (e.g. a custom form type's role allow-list, ADR 012).
+     * Whether $user may see the document (its flow, history, approvals).
+     * WorkflowAccess::seesDocument, the approvals inbox and request detail
+     * call it. By default: yes.
+     */
+    public function sees(User $user, string $documentId): bool
+    {
+        return true;
+    }
+
+    /**
+     * RBAC-04: whether $user may do $action (move, return, cancel, approve)
+     * on the document, on top of stage roles and the act permission. By
+     * default: yes.
+     */
+    public function mayAct(User $user, string $documentId, string $action): bool
+    {
+        return true;
+    }
+
+    /**
+     * RBAC-04: the ids of this type's documents $user may see, as a
+     * subquery (one `id` column), for lists that filter in SQL (the
+     * approvals inbox); null when sees() never refuses anyone.
+     */
+    public function visibleDocumentIds(User $user): ?Builder
+    {
+        return null;
     }
 
     /**

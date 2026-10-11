@@ -169,7 +169,7 @@ class WorkflowEngine
                 throw new ApiException(422, 'outcome_not_allowed', __('workflow.errors.outcome_not_allowed'));
             }
 
-            if (! $this->permissions->allows($by, $node, 'exit', $run->scope, $run->type)) {
+            if (! $this->permissions->allows($by, $node, 'exit', $run->scope, $run->type, $run->workflow->document_id)) {
                 throw new WorkflowBlocked('stage_forbidden', __('workflow.errors.stage_forbidden', ['stage' => $run->flow->name($token->node_id)]), [], $token->node_id, 403);
             }
 
@@ -341,7 +341,7 @@ class WorkflowEngine
                     'holders' => $holders,
                     'can_move' => $viewer !== null && $token->status === DocumentWorkflowToken::ACTIVE && $workflow->isRunning()
                         && ($node['type'] !== 'approval' || $this->approvals->allowsManualCompletion($this->step($run, $token)))
-                        && $this->permissions->allows($viewer, $node, 'exit', $scope, $type),
+                        && $this->permissions->allows($viewer, $node, 'exit', $scope, $type, $workflow->document_id),
                 ];
             })->values()->all();
 
@@ -401,9 +401,14 @@ class WorkflowEngine
      */
     private function mayCancel(Run $run, User $by, Collection $open): bool
     {
+        // RBAC-04: the type's own rule on the document comes first (e.g. a custom form type's roles).
+        if (! $run->type->mayAct($by, $run->workflow->document_id, 'cancel')) {
+            return false;
+        }
+
         return $by->can($run->type->actPermission(), $run->scope->scope())
             || $open->contains(fn (DocumentWorkflowToken $t) => $t->status === DocumentWorkflowToken::ACTIVE
-                && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type));
+                && $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type, $run->workflow->document_id));
     }
 
     /**
@@ -444,9 +449,11 @@ class WorkflowEngine
             throw new ApiException(422, 'return_target', __('workflow.errors.return_target'));
         }
 
-        $mayAct = $authorised || $by->can($run->type->actPermission(), $run->scope->scope());
-        $refused = $mayAct ? null : ($active->isEmpty() ? $affected->first() : $active->first(
-            fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type),
+        // RBAC-04: the type's own rule on the document applies even to an authorised approver.
+        $allowed = $run->type->mayAct($by, $run->workflow->document_id, 'return');
+        $mayAct = $allowed && ($authorised || $by->can($run->type->actPermission(), $run->scope->scope()));
+        $refused = $mayAct ? null : (! $allowed || $active->isEmpty() ? $affected->first() : $active->first(
+            fn (DocumentWorkflowToken $t) => ! $this->permissions->allows($by, $run->flow->node($t->node_id), 'exit', $run->scope, $run->type, $run->workflow->document_id),
         ));
 
         if ($refused !== null) {
@@ -521,7 +528,7 @@ class WorkflowEngine
                     return;
                 }
 
-                if ($run->checkEnter && $run->user !== null && ! $this->permissions->allows($run->user, $node, 'enter', $run->scope, $run->type)) {
+                if ($run->checkEnter && $run->user !== null && ! $this->permissions->allows($run->user, $node, 'enter', $run->scope, $run->type, $run->workflow->document_id)) {
                     throw new WorkflowBlocked('stage_enter_forbidden', __('workflow.errors.stage_enter_forbidden', ['stage' => $run->flow->name($nodeId)]), [], $nodeId, 403);
                 }
 
@@ -829,7 +836,7 @@ class WorkflowEngine
             return $this->describer->reasons($result, $fields, $this->timezone($run));
         }
 
-        if (! $this->access->seesDocument($user, $run->type, $run->scope)) {
+        if (! $this->access->seesDocument($user, $run->type, $run->scope, $run->workflow->document_id)) {
             return $result->failures === [] ? [] : [__('workflow.errors.hidden_rule')];
         }
 

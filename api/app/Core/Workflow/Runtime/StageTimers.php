@@ -158,7 +158,7 @@ class StageTimers
         $link = SendWorkflowNotification::statusLink($workflow->document_type, $workflow->document_id);
 
         if ($remind || $overdue) {
-            $holders = $this->visible($this->holders($node, $scope, $type), $type, $scope);
+            $holders = $this->visible($this->holders($node, $scope, $type), $type, $scope, $workflow->document_id);
 
             if ($remind) {
                 $this->notify(self::REMINDER, $holders, $data, $link);
@@ -174,7 +174,7 @@ class StageTimers
         }
 
         if ($escalate) {
-            $targets = $this->visible($this->escalationTargets($node, $scope, $type), $type, $scope);
+            $targets = $this->visible($this->escalationTargets($node, $scope, $type), $type, $scope, $workflow->document_id);
             $this->notify(self::OVERDUE, $targets, $data, $link);
             $this->event($workflow, $token, 'escalated', ['users' => $targets]);
             $counts['escalated']++;
@@ -258,10 +258,10 @@ class StageTimers
      * @param  list<string>  $userIds
      * @return list<string>
      */
-    private function visible(array $userIds, DocumentType $type, DocumentScope $scope): array
+    private function visible(array $userIds, DocumentType $type, DocumentScope $scope, string $documentId): array
     {
         return User::query()->whereKey($userIds)->orderBy('id')->get()
-            ->filter(fn (User $user) => $this->access->seesDocument($user, $type, $scope))
+            ->filter(fn (User $user) => $this->access->seesDocument($user, $type, $scope, $documentId))
             ->map(fn (User $user) => (string) $user->id)
             ->values()->all();
     }

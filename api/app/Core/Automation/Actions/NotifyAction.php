@@ -171,7 +171,7 @@ class NotifyAction implements AutomationAction
         $skipped = [];
 
         foreach (User::query()->whereKey(array_values(array_unique($ids)))->where('status', User::STATUS_ACTIVE)->orderBy('id')->get() as $user) {
-            if ($context->documentId === null || $this->access->seesDocument($user, $context->type, $context->scope)) {
+            if ($context->documentId === null || $this->access->seesDocument($user, $context->type, $context->scope, $context->documentId)) {
                 $sent[] = $user->id;
             } else {
                 $skipped[] = $user->id;

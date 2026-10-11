@@ -5,6 +5,7 @@ namespace App\Core\CustomForms\Http\Resources;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\CustomFields\CustomFieldPresenter;
 use App\Core\CustomForms\CustomFormAccess;
+use App\Core\CustomForms\CustomFormAmounts;
 use App\Core\CustomForms\CustomFormAttachment;
 use App\Core\CustomForms\CustomFormFiles;
 use App\Core\CustomForms\CustomFormLine;
@@ -37,6 +38,7 @@ class CustomFormRecordResource extends JsonResource
         $user = $request->user();
         $type = $this->type;
         $presenter = app(CustomFieldPresenter::class);
+        $amounts = app(CustomFormAmounts::class);
 
         $data = [
             'id' => $this->id,
@@ -47,8 +49,9 @@ class CustomFormRecordResource extends JsonResource
             'branch' => $this->branch_id === null ? null : ['id' => $this->branch_id, 'name' => $this->branch?->name],
             'location' => $this->location_id === null ? null : ['id' => $this->location_id, 'name' => $this->location?->name],
             'custom' => (object) $presenter->present($user, $type->entity(), $this->custom),
-            'totals' => (object) array_map(fn ($total) => is_array($total) ? ['amount_minor' => (string) $total['amount_minor'], 'currency' => (string) $total['currency']] : $total, $this->totals ?? []),
-            'amount' => $this->amount()?->jsonSerialize(),
+            // RBAC-05: totals of hidden line fields, and an amount taken from a hidden field, are left out.
+            'totals' => (object) array_map(fn ($total) => is_array($total) ? ['amount_minor' => (string) $total['amount_minor'], 'currency' => (string) $total['currency']] : $total, $amounts->totals($user, $this->resource)),
+            'amount' => $amounts->amount($user, $this->resource),
             'created_by' => ['id' => $this->created_by, 'name' => $this->creator?->name],
             'created_at' => $this->created_at?->toIso8601ZuluString(),
             'submitted_at' => $this->submitted_at?->toIso8601ZuluString(),
@@ -77,9 +80,9 @@ class CustomFormRecordResource extends JsonResource
                 ->where('status', ApprovalRequest::PENDING)
                 ->value('id'),
             'can' => [
-                'edit' => $user !== null && $this->resource->isEditable() && $access->edit($user, $this->resource),
+                'edit' => $user !== null && $this->resource->isEditable() && ! $type->isArchived() && $access->edit($user, $this->resource),
                 'cancel' => $user !== null && ! $this->isArchived() && in_array($this->status, [CustomFormRecord::DRAFT, CustomFormRecord::PENDING], true) && $access->edit($user, $this->resource),
-                'archive' => $user !== null && $access->manageRecord($user, $this->resource),
+                'archive' => $user !== null && $this->status !== CustomFormRecord::PENDING && $access->manageRecord($user, $this->resource),
             ],
         ];
     }

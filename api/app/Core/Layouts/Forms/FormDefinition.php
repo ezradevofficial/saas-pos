@@ -2,6 +2,9 @@
 
 namespace App\Core\Layouts\Forms;
 
+use App\Core\Identity\Models\User;
+use Closure;
+
 /**
  * LAY-03: a form whose layout tenants design (the `form_layout` kind): its
  * config key (`item`, `party`, `custom_form.<key>`), the custom field
@@ -15,6 +18,10 @@ namespace App\Core\Layouts\Forms;
  * hidden), `wide` spans every column, `group` is its default section. A
  * section is `['id', 'title', 'columns']`, its title translated the same
  * way (null: no title).
+ *
+ * `$visibleTo` (a closure taking the user) limits who sees the form in the
+ * designer: a custom form type only for those who may use it (CF-04,
+ * RBAC-04). Null: everyone with a layout permission.
  */
 final class FormDefinition
 {
@@ -30,7 +37,13 @@ final class FormDefinition
         public readonly string $label,
         public readonly bool $translated = true,
         public readonly string $customGroup = 'custom',
+        public readonly ?Closure $visibleTo = null,
     ) {}
+
+    public function visibleTo(User $user): bool
+    {
+        return $this->visibleTo === null || ($this->visibleTo)($user) === true;
+    }
 
     public function text(?string $value): ?string
     {

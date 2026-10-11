@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * CF-04: a file attached to a custom form record, on the media disk at
  * `tenants/{tenant}/custom-forms/{type key}/{uuid}.{ext}` (as custom field
  * files, ADR 011). Uploaded first (record_id null, its uploader's only),
- * tied to the record that names it on save; served through a temporary
- * signed URL only.
+ * tied to the record that names it on save; taken off a draft by archiving
+ * it (never deleted); served through a temporary signed URL only.
  */
 class CustomFormAttachment extends Model
 {
@@ -21,6 +21,6 @@ class CustomFormAttachment extends Model
 
     protected function casts(): array
     {
-        return ['size' => 'integer'];
+        return ['size' => 'integer', 'archived_at' => 'datetime'];
     }
 }
