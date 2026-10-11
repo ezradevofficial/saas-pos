@@ -44,19 +44,27 @@ function ThemeEditor({ initial, scope, config, canEdit, canPublish, copyTargets,
   const dirty = JSON.stringify(clean) !== saved.current
   const { saveDraft } = config
 
-  useEffect(() => {
-    const next = cleanTheme(settled)
-    const text = JSON.stringify(next)
-    if (!canEdit || text === saved.current) return
-    saved.current = text
+  const [saveError, setSaveError] = useState(null)
+  const persist = (next) => {
+    saved.current = JSON.stringify(next)
     setSaveState('saving')
+    setSaveError(null)
     saveDraft(next, { name: t('brand.documentName') }).then(
       () => setSaveState('saved'),
-      () => {
+      (failure) => {
         saved.current = ''
         setSaveState('error')
+        setSaveError(failure)
       },
     )
+  }
+  // A failed save stays "not saved" (never "Saving…") until the next edit or Try again.
+  const shownSaveState = saveState === 'error' ? 'error' : dirty ? 'saving' : saveState
+
+  useEffect(() => {
+    const next = cleanTheme(settled)
+    if (!canEdit || JSON.stringify(next) === saved.current) return
+    persist(next)
     // saveDraft changes identity every render; the settled theme is what triggers a save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settled, canEdit])
@@ -66,7 +74,9 @@ function ThemeEditor({ initial, scope, config, canEdit, canPublish, copyTargets,
   const setLogin = (patch) => setTheme((current) => ({ ...current, login: { ...current.login, ...patch } }))
 
   const checks = useMemo(() => tokens.themeChecks(clean), [clean])
-  const checksFor = (field) => checks.filter((check) => check.field === field)
+  // The meters show the theme's own preset and Dark, plus any other preset a user may pick where a pair fails (BR-03).
+  const ownPreset = tokens.baseFor(clean.preset, 'light')
+  const checksFor = (field) => checks.filter((check) => check.field === field && (check.preset === ownPreset || check.preset === 'dark' || !check.passes))
   const base = presetTokens(clean.preset)
   const failing = checks.filter((check) => !check.passes)
   // What the API says about the saved draft (assets, unknown values) besides contrast, which the meters show.
@@ -88,7 +98,7 @@ function ThemeEditor({ initial, scope, config, canEdit, canPublish, copyTargets,
         canPublish={canPublish && !dirty && saveState !== 'saving'}
         copyTargets={copyTargets}
         pending={config.pending}
-        saveState={dirty ? 'saving' : saveState}
+        saveState={shownSaveState}
         onPublish={config.publish}
         onDiscard={async () => {
           await config.discardDraft()
@@ -118,6 +128,19 @@ function ThemeEditor({ initial, scope, config, canEdit, canPublish, copyTargets,
               <li key={`${problem.path}-${problem.code}`}>{problem.message}</li>
             ))}
           </ul>
+        </Alert>
+      ) : null}
+      {saveState === 'error' && !config.conflict ? (
+        <Alert
+          tone="danger"
+          title={t('brand.saveFailed')}
+          action={
+            <Button variant="secondary" onClick={() => persist(clean)}>
+              {t('common.retry')}
+            </Button>
+          }
+        >
+          {saveError ? errorMessage(saveError) : null}
         </Alert>
       ) : null}
       {!canEdit ? <Alert tone="info" title={t('brand.readOnly')} /> : null}

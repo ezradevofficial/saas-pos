@@ -4350,7 +4350,8 @@
       "customerB": "Kivu Supplies",
       "tileA": "Farine de maïs 2 kg",
       "tileB": "Eau en bouteille 500 ml"
-    }
+    },
+    "saveFailed": "Vos modifications n’ont pas été enregistrées. Réessayez ou vérifiez votre connexion."
   },
   "domains": {
     "title": "Domaines",
@@ -4446,7 +4447,8 @@
       "showTable": "Afficher en tableau",
       "hideTable": "Masquer le tableau",
       "day": "Jour",
-      "amountIn": "Montant ({{currency}})"
+      "amountIn": "Montant ({{currency}})",
+      "tooltip": "{{label}} : {{value}}"
     },
     "grid": {
       "position": "Colonne {{column}}, ligne {{row}}, {{width}} colonnes de large, {{height}} lignes de haut",
@@ -4529,6 +4531,12 @@
       "itemGroup": "Groupe de {{name}}",
       "showItem": "Afficher {{name}}",
       "hideItem": "Masquer {{name}}"
+    },
+    "unsaved": {
+      "title": "Abandonner les modifications non enregistrées",
+      "body": "Vos modifications ne sont pas enregistrées. Si vous changez maintenant, elles seront perdues. Enregistrez d’abord le brouillon pour les garder.",
+      "keep": "Continuer la modification",
+      "discard": "Abandonner les modifications"
     }
   },
   "documentTemplates": {
@@ -4586,7 +4594,7 @@
       "lines": "Tableau des lignes",
       "totals": "Totaux",
       "payments": "Paiements",
-      "qr": "QR code",
+      "qr": "Code QR",
       "barcode": "Code-barres",
       "signature": "Signature",
       "terms": "Conditions",
@@ -4869,7 +4877,8 @@
       "charge": "Encaisser",
       "noItems": "Aucun article à montrer pour l’instant.",
       "text": "Les premiers articles de votre catalogue, sans les prix. Les couleurs suivent le thème publié."
-    }
+    },
+    "saveFailed": "Vos modifications n’ont pas été enregistrées. Réessayez ou vérifiez votre connexion."
   },
   "formLayouts": {
     "title": "Mises en page des formulaires",

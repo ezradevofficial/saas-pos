@@ -85,25 +85,29 @@ export function DashboardGrid({ widgets, editing = false, selectedId, onSelect, 
             className={cn('relative min-h-0 min-w-0', placement(widget))}
           >
             {editing ? (
+              // A group, not a button: it holds the handles, so the select button stands beside them.
               <div
-                tabIndex={0}
-                role="button"
-                aria-pressed={selected}
-                aria-label={`${widget.label ?? widget.id}. ${describe(widget)}`}
-                aria-describedby="dashboard-grid-help"
-                onClick={() => onSelect?.(widget.id)}
-                onFocus={() => onSelect?.(widget.id)}
-                onKeyDown={(event) => onKeyDown(event, widget)}
-                className={cn(
-                  'flex h-full min-h-0 flex-col rounded-lg border bg-surface-200',
-                  selected ? 'border-primary' : 'border-dashed border-border-strong',
-                )}
+                role="group"
+                aria-label={widget.label ?? widget.id}
+                className={cn('flex h-full min-h-0 flex-col rounded-lg border bg-surface-200', selected ? 'border-primary' : 'border-dashed border-border-strong')}
               >
                 <div className="flex items-center gap-2 border-b border-border px-2 py-1">
                   <Handle id={widget.id} mode="move" label={t('layouts.grid.move')} className="size-6">
                     <Icon name="drag" />
                   </Handle>
-                  <span className="min-w-0 flex-1 truncate text-caption text-ink-muted">{widget.label ?? widget.id}</span>
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    aria-label={`${widget.label ?? widget.id}. ${describe(widget)}`}
+                    aria-describedby="dashboard-grid-help"
+                    data-widget-select={widget.id}
+                    onClick={() => onSelect?.(widget.id)}
+                    onFocus={() => onSelect?.(widget.id)}
+                    onKeyDown={(event) => onKeyDown(event, widget)}
+                    className="min-w-0 flex-1 truncate rounded-sm text-left text-caption text-ink-muted hover:text-ink"
+                  >
+                    {widget.label ?? widget.id}
+                  </button>
                 </div>
                 <div className="pointer-events-none min-h-0 flex-1 overflow-hidden p-3">{renderWidget(widget)}</div>
                 <Handle id={widget.id} mode="resize" label={t('layouts.grid.resize')} className="absolute right-1 bottom-1 size-6 cursor-se-resize">

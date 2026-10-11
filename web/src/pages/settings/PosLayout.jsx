@@ -133,12 +133,16 @@ function ItemPicker({ label, onPick, exclude = [], disabled }) {
   )
 }
 
-/** The images a category tile may show: the business's brand images and the photos of the category's items. */
-function useImageOptions(categoryId, assets) {
+/**
+ * The images a category tile may show: the business's brand images and the photos of the category's items.
+ * The items are read only when `wanted` (the picker opened, or an item photo is already chosen),
+ * so the page doesn't send one request per category when it opens.
+ */
+function useImageOptions(categoryId, assets, wanted) {
   const items = useQuery({
     queryKey: ['items', 'pos-layout-images', categoryId],
     queryFn: () => api.get(`items?per_page=50&category=${encodeURIComponent(categoryId)}`),
-    enabled: Boolean(categoryId),
+    enabled: Boolean(categoryId) && wanted,
     staleTime: 60_000,
   })
   return useMemo(
@@ -152,7 +156,8 @@ function useImageOptions(categoryId, assets) {
 
 function CategoryRow({ category, name, assets, disabled, onChange }) {
   const { t } = useTranslation()
-  const options = useImageOptions(category.id, assets)
+  const [opened, setOpened] = useState(false)
+  const options = useImageOptions(category.id, assets, opened || category.image?.source === 'item_image')
   const current = category.image ? `${category.image.source}:${category.image.id}` : ''
   return (
     <SortableRow id={category.id} label={t('posLayout.categories.move', { name })} disabled={disabled}>
@@ -164,6 +169,7 @@ function CategoryRow({ category, name, assets, disabled, onChange }) {
         options={[{ value: '', label: t('posLayout.categories.noImage') }, ...options.map(({ value, label }) => ({ value, label }))]}
         value={current}
         disabled={disabled}
+        onOpenChange={(open) => open && setOpened(true)}
         onChange={(event) => {
           const [source, id] = event.target.value.split(':')
           onChange({ ...category, image: id ? { source, id } : null })
@@ -201,19 +207,27 @@ function LayoutEditor({ initial, config, canEdit, canPublish, copyTargets, categ
   const dirty = JSON.stringify(clean) !== saved.current
   const { saveDraft } = config
 
-  useEffect(() => {
-    const next = cleanLayout(settled)
-    const text = JSON.stringify(next)
-    if (!canEdit || text === saved.current) return
-    saved.current = text
+  const [saveError, setSaveError] = useState(null)
+  const persist = (next) => {
+    saved.current = JSON.stringify(next)
     setSaveState('saving')
+    setSaveError(null)
     saveDraft(next, { name: t('posLayout.documentName') }).then(
       () => setSaveState('saved'),
-      () => {
+      (failure) => {
         saved.current = ''
         setSaveState('error')
+        setSaveError(failure)
       },
     )
+  }
+  // A failed save stays "not saved" (never "Saving…") until the next edit or Try again.
+  const shownSaveState = saveState === 'error' ? 'error' : dirty ? 'saving' : saveState
+
+  useEffect(() => {
+    const next = cleanLayout(settled)
+    if (!canEdit || JSON.stringify(next) === saved.current) return
+    persist(next)
     // saveDraft changes identity every render; the settled layout is what triggers a save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settled, canEdit])
@@ -256,7 +270,7 @@ function LayoutEditor({ initial, config, canEdit, canPublish, copyTargets, categ
         canPublish={canPublish && !dirty && saveState !== 'saving'}
         copyTargets={copyTargets}
         pending={config.pending}
-        saveState={dirty ? 'saving' : saveState}
+        saveState={shownSaveState}
         onPublish={config.publish}
         onDiscard={async () => {
           await config.discardDraft()
@@ -273,6 +287,19 @@ function LayoutEditor({ initial, config, canEdit, canPublish, copyTargets, categ
           onReset()
         }}
       />
+      {saveState === 'error' && !config.conflict ? (
+        <Alert
+          tone="danger"
+          title={t('posLayout.saveFailed')}
+          action={
+            <Button variant="secondary" onClick={() => persist(clean)}>
+              {t('common.retry')}
+            </Button>
+          }
+        >
+          {saveError ? errorMessage(saveError) : null}
+        </Alert>
+      ) : null}
       {!canEdit ? <Alert tone="info" title={t('posLayout.readOnly')} /> : null}
 
       <div className="grid gap-5 xl:grid-cols-2">

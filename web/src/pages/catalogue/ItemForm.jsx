@@ -388,7 +388,7 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
     ],
     customSchema.fields,
   )
-  const { layout } = useFormLayout('item', fallback)
+  const { layout, ready: layoutReady } = useFormLayout('item', fallback)
 
   return (
     <form
@@ -407,16 +407,21 @@ export function ItemForm({ item, readOnly = false, onSaved }) {
           <Alert tone="danger" title={errorMessage(mutation.error)} />
         </div>
       ) : null}
-      <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
-        <FormLayoutRenderer
-          layout={layout}
-          fields={fieldRenderers}
-          custom={{ entity: 'item', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
-          readOnly={readOnly}
-          showErrors={submitted}
-        />
-      </fieldset>
-      {readOnly ? null : (
+      {/* LAY-03: the form waits for its published layout, so it never rearranges under the user. */}
+      {layoutReady ? (
+        <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
+          <FormLayoutRenderer
+            layout={layout}
+            fields={fieldRenderers}
+            custom={{ entity: 'item', fields: customSchema.fields, values: custom, errors: customErrors(errors.fields) }}
+            readOnly={readOnly}
+            showErrors={submitted}
+          />
+        </fieldset>
+      ) : (
+        <p className="text-body text-ink-muted">{t('common.loading')}</p>
+      )}
+      {readOnly || !layoutReady ? null : (
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" type="submit" loading={mutation.isPending}>
             {creating ? t('items.form.create') : t('common.save')}

@@ -95,11 +95,11 @@ final class ThemeSchema
             foreach (ThemeCompiler::checks($known) as $check) {
                 if (! $check['passes']) {
                     $problems[] = PayloadSchema::problem($check['field'], 'contrast', [
-                        'mode' => __('config.theme.modes.'.$check['mode']),
+                        'mode' => __('config.theme.modes.'.$check['preset']),
                         'pair' => __('config.theme.pairs.'.$check['pair']),
                         'ratio' => number_format($check['ratio'], 2),
                         'required' => number_format($check['required'], 1),
-                    ]) + ['mode' => $check['mode'], 'pair' => $check['pair']];
+                    ]) + ['mode' => $check['mode'], 'preset' => $check['preset'], 'pair' => $check['pair']];
                 }
             }
         }

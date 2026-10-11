@@ -133,6 +133,31 @@ describe('useConfigDocument (LAY-06)', () => {
     expect(api.post).toHaveBeenLastCalledWith('config/list_view/d-branch/publish', { revision: 9 })
   })
 
+  it('forgets the conflict and the base when the scope changes, also to a scope with no document', async () => {
+    vi.mocked(api.get).mockImplementation(async (path) => {
+      if (path.includes('scope_id=b1')) return { data: LISTED }
+      if (path.startsWith('config/list_view?')) return { data: [] }
+      return DOCUMENT
+    })
+    vi.mocked(api.post).mockRejectedValueOnce(new ApiError({ status: 409, code: 'config_changed', message: 'Someone changed this draft.', data: { data: DOCUMENT.data, meta: { problems: [] } } }))
+
+    const { result, rerender } = renderHook(({ scope }) => useConfigDocument('list_view', 'items', scope), { wrapper, initialProps: { scope: BRANCH } })
+    await waitFor(() => expect(result.current.revision).toBe(5))
+    await act(async () => {
+      await expect(result.current.saveDraft({ columns: [] })).rejects.toMatchObject({ code: 'config_changed' })
+    })
+    await waitFor(() => expect(result.current.conflict).not.toBeNull())
+
+    rerender({ scope: { type: 'branch', id: 'b2' } })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.conflict).toBeNull()
+    expect(result.current.revision).toBeNull()
+
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ...DOCUMENT.data, id: 'd-b2', scope: { type: 'branch', id: 'b2' } }, meta: { problems: [] } })
+    await act(() => result.current.saveDraft({ columns: [] }))
+    expect(api.post).toHaveBeenLastCalledWith('config/list_view', expect.objectContaining({ scope_id: 'b2', revision: null }))
+  })
+
   it('asks the API to replace a draft at the copy target only when told to', async () => {
     vi.mocked(api.get).mockImplementation(async (path) => (path.startsWith('config/list_view?') ? { data: LISTED } : DOCUMENT))
     vi.mocked(api.post).mockResolvedValue(DOCUMENT)

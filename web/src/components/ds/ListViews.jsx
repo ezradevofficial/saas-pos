@@ -105,30 +105,38 @@ export function ListViews({ list }) {
     }
   }
 
-  const write = async (payload) => {
-    await document.saveDraft(payload)
-    await document.publish()
+  // Saves and publishes `build(views now)`. When someone changed the views meanwhile (409
+  // config_changed), it takes theirs and applies the change once more; a second conflict is shown.
+  const write = async (build) => {
+    const apply = async (base) => {
+      const result = build(base ?? EMPTY)
+      await document.saveDraft(result.payload)
+      await document.publish()
+      return result.key
+    }
+    try {
+      return await apply(document.payload)
+    } catch (failure) {
+      if (failure?.code !== 'config_changed') throw failure
+      const current = await document.reload()
+      return apply(current?.draft?.payload ?? current?.published?.payload)
+    }
   }
 
   const saveNew = () =>
-    run(async () => {
-      const base = document.payload ?? EMPTY
-      const id = viewId(name, (base.views ?? []).map((view) => view.id))
-      await write(upsertView(base, viewFromState({ id, name }, state()), { makeDefault }))
-      return `${scope.type}.${id}`
-    }, t('ds.listViews.saved', { name: name.trim() }))
+    run(
+      () =>
+        write((base) => {
+          const id = viewId(name, (base.views ?? []).map((view) => view.id))
+          return { payload: upsertView(base, viewFromState({ id, name }, state()), { makeDefault }), key: `${scope.type}.${id}` }
+        }),
+      t('ds.listViews.saved', { name: name.trim() }),
+    )
 
   const saveChanges = () =>
-    run(async () => {
-      await write(upsertView(document.payload ?? EMPTY, viewFromState({ id: active.id, name: active.name }, state())))
-      return active.key
-    }, t('ds.listViews.saved', { name: active.name }))
+    run(() => write((base) => ({ payload: upsertView(base, viewFromState({ id: active.id, name: active.name }, state())), key: active.key })), t('ds.listViews.saved', { name: active.name }))
 
-  const remove = () =>
-    run(async () => {
-      await write(removeView(document.payload ?? EMPTY, active.id))
-      return null
-    }, t('ds.listViews.deleted', { name: active.name }))
+  const remove = () => run(() => write((base) => ({ payload: removeView(base, active.id), key: null })), t('ds.listViews.deleted', { name: active.name }))
 
   const openSave = () => {
     setName('')

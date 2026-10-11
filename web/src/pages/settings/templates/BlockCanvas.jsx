@@ -64,7 +64,7 @@ function SortableBlock({ block, type, selected, onSelect, onRemove, onChangeRow,
             {...attributes}
             {...listeners}
             aria-label={t('documentTemplates.canvas.move', { block: label })}
-            className="flex size-icon-btn shrink-0 cursor-grab items-center justify-center rounded-sm text-ink-muted hover:bg-surface-300 hover:text-ink"
+            className="flex size-icon-btn shrink-0 cursor-grab touch-none items-center justify-center rounded-sm text-ink-muted hover:bg-surface-300 hover:text-ink"
           >
             <Icon name="grip" />
           </button>

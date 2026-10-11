@@ -18,6 +18,8 @@ const itemKey = (index) => `option-${index}`
  * move, Enter picks and Escape closes; focus returns to the trigger.
  * With `onSearchChange(text)` the caller searches (on the server) and the
  * options are shown as given, not filtered again here.
+ * `onOpenChange(open)` tells the caller when the list opens or closes (to load
+ * its options only when wanted).
  */
 export function Combobox({
   id,
@@ -33,6 +35,7 @@ export function Combobox({
   iconClassName = 'text-ink-muted',
   contentClassName,
   onSearchChange,
+  onOpenChange,
   ...rest
 }) {
   const { t } = useTranslation()
@@ -55,6 +58,7 @@ export function Combobox({
   const changeOpen = (next) => {
     if (!next) setSearch('')
     setOpen(next)
+    onOpenChange?.(next)
   }
 
   const pick = (option) => {
@@ -73,6 +77,7 @@ export function Combobox({
       event.preventDefault()
       setSearch(event.key)
       setOpen(true)
+      onOpenChange?.(true)
     }
   }
 

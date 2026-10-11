@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { canHide, editableLayout, layoutPayload, nextId } from './formLayoutDraft'
 import { moveInTree } from './navigationTree'
 import { parseScope, useLayoutScopes } from './scopes'
+import { samePayload, useUnsavedGuard } from './unsavedGuard'
 
 const COLUMNS = [1, 2, 3]
 
@@ -223,6 +224,8 @@ export default function FormLayoutDesigner() {
     setEdit({ key: loadedKey, draft: editableLayout(config.payload, catalogue.data.data.fields, catalogue.data.data.defaults), dirty: false })
   }
   const draft = edit.draft ?? { tabs: [], sections: [] }
+  const unsaved = useUnsavedGuard(edit.dirty)
+  const fresh = { key: null, draft: null, dirty: false }
   const change = (next) => setEdit((current) => ({ ...current, draft: { ...draft, ...next }, dirty: true }))
   const setSection = (next) => change({ sections: draft.sections.map((section) => (section.id === next.id ? next : section)) })
   const [editing, setEditing] = useState(null)
@@ -278,11 +281,15 @@ export default function FormLayoutDesigner() {
     setError(null)
     setSaving(true)
     try {
-      await config.saveDraft(layoutPayload(draft))
-      setEdit((current) => ({ ...current, dirty: false }))
+      const sent = layoutPayload(draft)
+      await config.saveDraft(sent)
+      // Edits made while the save ran stay unsaved.
+      setEdit((current) => (current.draft && samePayload(layoutPayload(current.draft), sent) ? { ...current, dirty: false } : current))
       toast.success(t('layouts.saved'))
     } catch (failure) {
       setError(errorMessage(failure))
+      // Publish stops on a failed save; the Save button catches.
+      throw failure
     } finally {
       setSaving(false)
     }
@@ -313,12 +320,23 @@ export default function FormLayoutDesigner() {
             options={(forms.data?.data ?? [{ key: 'item', label: t('formLayouts.item') }]).map((form) => ({ value: form.key, label: form.label }))}
             value={formKey}
             onChange={(event) => {
-              setFormKey(event.target.value)
-              setEdit({ key: null, draft: null, dirty: false })
+              const next = event.target.value
+              unsaved.guard(() => {
+                setEdit(fresh)
+                setFormKey(next)
+              })
             }}
             className="w-full max-w-field"
           />
-          <Select label={t('layouts.scopes.label')} options={scopes.options} value={scopeValue} onChange={(event) => setScopeValue(event.target.value)} className="w-full max-w-field" />
+          <Select label={t('layouts.scopes.label')} options={scopes.options} value={scopeValue}
+            onChange={(event) => {
+              const next = event.target.value
+              unsaved.guard(() => {
+                setEdit(fresh)
+                setScopeValue(next)
+              })
+            }}
+            className="w-full max-w-field" />
         </div>
         <VersionBar
           document={config.document}
@@ -327,7 +345,11 @@ export default function FormLayoutDesigner() {
           canEdit={rights.edit}
           canPublish={rights.publish}
           conflict={config.conflict}
-          onReload={config.reload}
+          onReload={async () => {
+            await config.reload()
+            // Drop this editor's edits: the screen shows the draft as it is now.
+            setEdit(fresh)
+          }}
           saveState={edit.dirty ? 'unsaved' : undefined}
           onPublish={async () => {
             if (edit.dirty) await save()
@@ -351,7 +373,7 @@ export default function FormLayoutDesigner() {
                   <Button icon="plus" onClick={addSection}>
                     {t('formLayouts.addSection')}
                   </Button>
-                  <Button variant="primary" disabled={!edit.dirty} loading={saving} onClick={save}>
+                  <Button variant="primary" disabled={!edit.dirty} loading={saving} onClick={() => save().catch(() => {})}>
                     {t('layouts.saveDraft')}
                   </Button>
                 </div>
@@ -447,6 +469,7 @@ export default function FormLayoutDesigner() {
           onSave={applyField}
         />
       ) : null}
+      {unsaved.dialog}
     </>
   )
 }

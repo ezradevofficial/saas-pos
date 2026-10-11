@@ -71,12 +71,12 @@ return [
         'pos_layout_unknown_item' => ':path désigne un article qui n’existe pas ou qui est archivé. Retirez-le ou choisissez un autre article.',
         'pos_layout_unknown_category' => ':path désigne une catégorie qui n’existe pas ou qui est archivée. Retirez-la ou choisissez une autre catégorie.',
         'pos_layout_unknown_image' => ':path désigne une image qui ne fait partie ni de vos images d’articles ni de vos images de marque. Choisissez une autre image.',
-        'contrast' => 'En mode :mode, :pair a un contraste de :ratio:1 et doit atteindre au moins :required:1. Choisissez une couleur plus foncée ou plus claire.',
+        'contrast' => 'Avec le thème :mode, :pair a un contraste de :ratio:1 et doit atteindre au moins :required:1. Choisissez une couleur plus foncée ou plus claire.',
     ],
 
     // BR-03 : les mots d’un problème de contraste.
     'theme' => [
-        'modes' => ['light' => 'clair', 'dark' => 'sombre'],
+        'modes' => ['light' => 'Clair', 'dark' => 'Sombre', 'executive' => 'Exécutif', 'warm' => 'Chaleureux'],
         'pairs' => [
             'primary_text_page' => 'le texte principal sur la page',
             'primary_text_card' => 'le texte principal sur les cartes',

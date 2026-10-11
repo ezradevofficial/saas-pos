@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { editableLayout, layoutPayload } from './formLayoutDraft'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -66,6 +66,33 @@ describe('Form layout designer (LAY-03)', () => {
     expect(body.payload.sections.map((section) => section.id)).toEqual(['details', 'units', 'section-1'])
     expect(body.payload.sections[0].fields).toEqual([{ id: 'code' }, { id: 'name' }, { id: 'category_id', hidden: true }])
     expect(body.payload.sections[1].fields.map((entry) => entry.id)).toEqual(['units', 'custom.shelf'])
+  })
+
+  it('does not publish when saving the edits first fails', async () => {
+    const stored = { id: 'd-1', kind: 'form_layout', key: 'item', scope: { type: 'tenant', id: null }, draft: { version: 1, revision: 1, payload: DEFAULTS }, published: null, history: [] }
+    mockRoutes(
+      api,
+      [
+        ['form-layouts', { data: [{ key: 'item', label: 'Item' }] }],
+        ['form-layouts?form=item', { data: { key: 'item', label: 'Item', fields: FIELDS, defaults: DEFAULTS } }],
+        [/^config\/form_layout\?/, { data: [stored], meta: { total: 1 } }],
+        ['config/form_layout/d-1', { data: stored, meta: { problems: [] } }],
+        [/^roles\?/, { data: [] }],
+      ],
+      { permissions: tenantWide(['core.layout.view', 'core.layout.edit', 'core.layout.publish']) },
+    )
+    api.post.mockImplementation(async (path) => {
+      if (path === 'config/form_layout') throw apiError(422, 'validation_failed', 'The layout could not be saved.')
+      return { data: stored, meta: { problems: [] } }
+    })
+    renderApp('/settings/layouts/forms')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hide Category' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Category' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Publish v1' }))
+
+    expect(await screen.findAllByText('The layout could not be saved.')).not.toHaveLength(0)
+    expect(api.post).not.toHaveBeenCalledWith('config/form_layout/d-1/publish', expect.anything())
   })
 
   it('keeps only what a layout sets when it saves', () => {

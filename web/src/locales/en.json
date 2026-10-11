@@ -4350,7 +4350,8 @@
       "customerB": "Kivu Supplies",
       "tileA": "Maize flour 2 kg",
       "tileB": "Bottled water 500 ml"
-    }
+    },
+    "saveFailed": "Your changes weren’t saved. Try again, or check your connection."
   },
   "domains": {
     "title": "Domains",
@@ -4446,7 +4447,8 @@
       "showTable": "Show as a table",
       "hideTable": "Hide the table",
       "day": "Day",
-      "amountIn": "Amount ({{currency}})"
+      "amountIn": "Amount ({{currency}})",
+      "tooltip": "{{label}}: {{value}}"
     },
     "grid": {
       "position": "Column {{column}}, row {{row}}, {{width}} columns wide, {{height}} rows high",
@@ -4529,6 +4531,12 @@
       "itemGroup": "Group of {{name}}",
       "showItem": "Show {{name}}",
       "hideItem": "Hide {{name}}"
+    },
+    "unsaved": {
+      "title": "Discard unsaved changes",
+      "body": "Your changes here aren’t saved. If you switch now, they are lost. Save the draft first to keep them.",
+      "keep": "Keep editing",
+      "discard": "Discard changes"
     }
   },
   "documentTemplates": {
@@ -4869,7 +4877,8 @@
       "charge": "Charge",
       "noItems": "No items to show yet.",
       "text": "The first items of your catalogue, without prices. Colours follow the published theme."
-    }
+    },
+    "saveFailed": "Your changes weren’t saved. Try again, or check your connection."
   },
   "formLayouts": {
     "title": "Form layouts",

@@ -25,6 +25,11 @@ describe('i18n', () => {
     expect(empty).toEqual([])
   })
 
+  it('words French terms in French order (Code QR, a space before the colon)', () => {
+    expect(fr.documentTemplates.blocks.qr).toBe('Code QR')
+    expect(fr.layouts.chart.tooltip).toBe('{{label}} : {{value}}')
+  })
+
   it('returns the app name from VITE_APP_NAME for app.name', () => {
     expect(i18n.t('app.name')).toBe(import.meta.env.VITE_APP_NAME)
   })

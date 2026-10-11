@@ -15,6 +15,7 @@ import { useConfigDocument } from '@/lib/useConfigDocument'
 import { cn } from '@/lib/utils'
 import { moveInTree, treePayload } from './navigationTree'
 import { parseScope, useLayoutScopes } from './scopes'
+import { samePayload, useUnsavedGuard } from './unsavedGuard'
 
 const CATALOGUE_ITEMS = new Map(NAV_GROUPS.flatMap((group) => group.items.map((item) => [item.to, item])))
 const CATALOGUE_GROUPS = new Map(NAV_GROUPS.map((group) => [group.id, group]))
@@ -165,7 +166,7 @@ export default function NavigationEditor() {
   })
 
   // The draft being edited, per scope and stored version; edits stay until saved.
-  const loadedKey = `${scopeValue}|${config.draft?.version ?? ''}|${config.published?.version ?? ''}|${config.isLoading}`
+  const loadedKey = `${scopeValue}|${config.draft?.version ?? ''}|${config.draft?.revision ?? ''}|${config.published?.version ?? ''}|${config.isLoading}`
   const [edit, setEdit] = useState({ key: null, tree: null, home: null, dirty: false })
   if (!config.isLoading && edit.key !== loadedKey && !(edit.dirty && edit.key?.startsWith(`${scopeValue}|`))) {
     setEdit({ key: loadedKey, tree: navigationTree(NAV_GROUPS, config.payload), home: config.payload?.home ?? null, dirty: false })
@@ -174,6 +175,8 @@ export default function NavigationEditor() {
   const home = edit.home
   const change = (next) => setEdit((current) => ({ ...current, ...next, dirty: true }))
   const payload = treePayload(tree, home)
+  const unsaved = useUnsavedGuard(edit.dirty)
+  const fresh = { key: null, tree: null, home: null, dirty: false }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -214,11 +217,15 @@ export default function NavigationEditor() {
     setError(null)
     setSaving(true)
     try {
-      await config.saveDraft(payload)
-      setEdit((current) => ({ ...current, dirty: false }))
+      const sent = payload
+      await config.saveDraft(sent)
+      // Edits made while the save ran stay unsaved.
+      setEdit((current) => (samePayload(treePayload(current.tree ?? navigationTree(NAV_GROUPS, null), current.home), sent) ? { ...current, dirty: false } : current))
       toast.success(t('layouts.saved'))
     } catch (failure) {
       setError(errorMessage(failure))
+      // Publish stops on a failed save; the Save button catches.
+      throw failure
     } finally {
       setSaving(false)
     }
@@ -229,7 +236,15 @@ export default function NavigationEditor() {
       <PageHeader title={t('layouts.navigation.title')} description={t('layouts.navigation.description')} />
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-end gap-3">
-          <Select label={t('layouts.scopes.label')} options={scopes.options} value={scopeValue} onChange={(event) => setScopeValue(event.target.value)} className="w-full max-w-field" />
+          <Select label={t('layouts.scopes.label')} options={scopes.options} value={scopeValue}
+            onChange={(event) => {
+              const next = event.target.value
+              unsaved.guard(() => {
+                setEdit(fresh)
+                setScopeValue(next)
+              })
+            }}
+            className="w-full max-w-field" />
           <Select
             label={t('layouts.navigation.home')}
             options={homeOptions}
@@ -246,7 +261,11 @@ export default function NavigationEditor() {
           canEdit={rights.edit}
           canPublish={rights.publish}
           conflict={config.conflict}
-          onReload={config.reload}
+          onReload={async () => {
+            await config.reload()
+            // Drop this editor's edits: the screen shows the draft as it is now.
+            setEdit(fresh)
+          }}
           saveState={edit.dirty ? 'unsaved' : undefined}
           onPublish={async () => {
             if (edit.dirty) await save()
@@ -269,7 +288,7 @@ export default function NavigationEditor() {
                   <Button icon="plus" onClick={addGroup}>
                     {t('layouts.navigation.addGroup')}
                   </Button>
-                  <Button variant="primary" disabled={!edit.dirty} loading={saving} onClick={save}>
+                  <Button variant="primary" disabled={!edit.dirty} loading={saving} onClick={() => save().catch(() => {})}>
                     {t('layouts.saveDraft')}
                   </Button>
                 </div>
@@ -302,6 +321,7 @@ export default function NavigationEditor() {
           </Card>
         </div>
       </div>
+      {unsaved.dialog}
     </>
   )
 }

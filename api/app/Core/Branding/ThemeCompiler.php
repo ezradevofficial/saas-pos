@@ -20,6 +20,14 @@ final class ThemeCompiler
 
     public const MODES = ['light', 'dark'];
 
+    /**
+     * [preset, mode]: where a published theme can be seen. A user keeps their own
+     * preset choice while a tenant theme is set, so the light-mode overrides are
+     * checked on Light, Executive and Warm, and the dark-mode ones on Dark
+     * (packages/tokens CHECKED).
+     */
+    public const CHECKED = [['light', 'light'], ['executive', 'light'], ['warm', 'light'], ['dark', 'dark']];
+
     /** The tokens a tenant theme may set (packages/tokens OVERRIDABLE_TOKENS). */
     public const OVERRIDABLE = [
         'primary', 'primary-hover', 'on-primary', 'primary-tint',
@@ -50,7 +58,7 @@ final class ThemeCompiler
 
     public const NON_TEXT = 3.0;
 
-    /** [pair, foreground, background, required ratio], checked in both modes. */
+    /** [pair, foreground, background, required ratio], checked on every preset in CHECKED. */
     public const PAIRS = [
         ['primary_text_page', 'primary', 'surface-100', self::TEXT],
         ['primary_text_card', 'primary', 'surface-200', self::TEXT],
@@ -190,20 +198,21 @@ final class ThemeCompiler
     }
 
     /**
-     * Every BR-03 check in both modes. `ratio` is cut to two decimals.
+     * Every BR-03 check on every preset a user may apply (CHECKED). `ratio` is cut to two decimals.
      *
-     * @return list<array{mode: string, pair: string, field: string, foreground: string, background: string, ratio: float, required: float, passes: bool}>
+     * @return list<array{preset: string, mode: string, pair: string, field: string, foreground: string, background: string, ratio: float, required: float, passes: bool}>
      */
     public static function checks(array $theme): array
     {
         $checks = [];
 
-        foreach (self::MODES as $mode) {
-            $tokens = [...self::presets()[self::baseFor($theme['preset'] ?? null, $mode)], ...self::overrides($theme, $mode)];
+        foreach (self::CHECKED as [$preset, $mode]) {
+            $tokens = [...self::presets()[$preset], ...self::overrides($theme, $mode)];
 
             foreach (self::PAIRS as [$pair, $fg, $bg, $required]) {
                 $ratio = Colour::contrastRatio($tokens[$fg], $tokens[$bg]);
                 $checks[] = [
+                    'preset' => $preset,
                     'mode' => $mode,
                     'pair' => $pair,
                     'field' => self::PAIR_FIELD[$pair],
