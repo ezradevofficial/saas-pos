@@ -6,19 +6,16 @@ use App\Core\CustomFields\CustomFieldLists;
 use App\Core\CustomFields\CustomFieldWriter;
 use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Exports\ListExport;
-use App\Core\MasterData\CreditLimits\CreditLimitChanges;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
 use App\Core\MasterData\Parties\Http\Requests\ListPartiesRequest;
 use App\Core\MasterData\Parties\Http\Requests\PartyActionRequest;
 use App\Core\MasterData\Parties\Http\Requests\PartyRequest;
-use App\Core\MasterData\Parties\Http\Requests\PartyRules;
 use App\Core\MasterData\Parties\Http\Requests\StorePartyRequest;
 use App\Core\MasterData\Parties\Http\Requests\UpdatePartyRequest;
 use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
-use App\Core\MasterData\Parties\PartyRoles;
-use App\Core\MasterData\Sharing\MasterDataSharing;
+use App\Core\MasterData\Parties\PartyWriter;
 use App\Core\MasterData\Support\TextArray;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +24,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -40,10 +36,10 @@ class PartyController
 {
     public function __construct(
         private readonly PartyPolicy $policy,
-        private readonly MasterDataSharing $sharing,
         private readonly DuplicateFinder $duplicates,
         private readonly CustomFieldWriter $customFields,
         private readonly CustomFieldLists $customLists,
+        private readonly PartyWriter $writer,
     ) {}
 
     public function index(ListPartiesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -85,25 +81,7 @@ class PartyController
 
     public function store(StorePartyRequest $request): JsonResponse
     {
-        $data = $request->validated();
-        $companyId = PartyRules::companyId($data, null) ?: null;
-
-        $attributes = PartyRules::attributes($data, $companyId);
-
-        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($attributes, $companyId, $data) {
-            $this->sharing->lockForWrite(PartyRoles::dataTypes($attributes['roles']));
-            $this->assertModeUnchanged($attributes['roles'], $companyId);
-
-            $party = new Party(['company_id' => $companyId, ...$attributes]);
-            // CF-01, CF-02: defaults, formulas and unique fields, then the party's files.
-            $this->customFields->fill(PartyEntity::KEY, $party, $data['custom'] ?? null, creating: true);
-            $party->save();
-            $this->customFields->saved(PartyEntity::KEY, $party);
-
-            return $party;
-        });
-
-        return $this->respond($request, $party, 201, duplicates: true);
+        return $this->respond($request, $this->writer->create($request->validated()), 201, duplicates: true);
     }
 
     public function show(PartyRequest $request, Party $party): JsonResponse
@@ -113,33 +91,7 @@ class PartyController
 
     public function update(UpdatePartyRequest $request, Party $party): JsonResponse
     {
-        $data = $request->validated();
-        $user = $request->user();
-
-        $party = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party, $data, $user) {
-            // Lock order, as in MasterDataSharing::switch: the sharing locks
-            // first (every party type: the stored roles are only known once
-            // the row is read), then the row. Never the other way round.
-            $this->sharing->lockForWrite(PartyRoles::PARTY_DATA_TYPES);
-            $party = Party::query()->whereKey($party->id)->lockForUpdate()->firstOrFail();
-            $companyId = PartyRules::companyId($data, $party) ?: null;
-            $attributes = PartyRules::attributes($data, $companyId);
-            $this->assertModeUnchanged($attributes['roles'] ?? $party->roles, $companyId);
-
-            // M1, WF-01: the credit limit rule again, against the locked row.
-            if (array_key_exists('credit_limit', $data)) {
-                app(CreditLimitChanges::class)->assertDirectChange($user, $party->creditLimit(), CreditLimitChanges::limitFrom($data), [$party->company_id, $companyId]);
-            }
-
-            $party->fill(['company_id' => $companyId, ...$attributes]);
-            $this->customFields->fill(PartyEntity::KEY, $party, $data['custom'] ?? null, creating: false);
-            $party->save();
-            $this->customFields->saved(PartyEntity::KEY, $party);
-
-            return $party;
-        });
-
-        return $this->respond($request, $party, duplicates: true);
+        return $this->respond($request, $this->writer->update($party, $request->validated(), $request->user()), duplicates: true);
     }
 
     public function archive(PartyActionRequest $request, Party $party): JsonResponse
@@ -196,19 +148,6 @@ class PartyController
                 $q->orWhereRaw('phones::text like ?', ['%'.$digits.'%']);
             }
         });
-    }
-
-    /**
-     * Re-checked under the sharing lock: the mode may have changed since
-     * the request was validated (TEN-08).
-     *
-     * @param  list<string>  $roles
-     */
-    private function assertModeUnchanged(array $roles, ?string $companyId): void
-    {
-        if (PartyRoles::perCompany($roles, $this->sharing) !== ($companyId !== null)) {
-            throw ValidationException::withMessages(['company_id' => __('core.master_data.sharing_changed')]);
-        }
     }
 
     private function respond(Request $request, Party $party, int $status = 200, bool $duplicates = false): JsonResponse
