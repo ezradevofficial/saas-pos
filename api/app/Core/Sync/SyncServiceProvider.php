@@ -7,6 +7,7 @@ use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\Console\SyncLagCommand;
+use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\Sync\Jobs\RestampItemsForTax;
 use App\Core\Sync\Sources\CurrencySource;
 use App\Core\Sync\Sources\CustomerSource;
@@ -56,6 +57,14 @@ class SyncServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        // SUB-05: billing binds the till's selling state; without it the till always sells.
+        $this->app->bindIf(TillSellingState::class, fn () => new class implements TillSellingState
+        {
+            public function forTill(): ?array
+            {
+                return null;
+            }
+        });
         $this->app->singleton(SyncSources::class, function ($app) {
             $sources = new SyncSources($app->make(ModuleRegistry::class));
 

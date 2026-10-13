@@ -9,6 +9,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { STATUS_TONES, INVOICE_TONES } from '@/pages/settings/subscription/subscriptionData'
+import { useCatalogueKeyNames } from '../useCatalogueName'
 import { usePlatformAuth } from '../usePlatformAuth'
 import { platformApi } from '../platformClient'
 
@@ -19,11 +20,13 @@ export function TenantsList() {
   const { t } = useTranslation()
   const locale = useLocale()
   const navigate = useNavigate()
+  const { can } = usePlatformAuth()
+  const names = useCatalogueKeyNames()
   const tenants = useQuery({ queryKey: TENANTS_KEY, queryFn: () => platformApi.get('platform/tenants') })
   const columns = [
     { key: 'name', label: t('platform.customers.columns.name'), render: (row) => <span className="text-ink">{row.name}</span> },
     { key: 'country', label: t('platform.customers.columns.country'), render: (row) => row.country },
-    { key: 'plan', label: t('platform.customers.columns.plan'), render: (row) => <span className="font-mono text-caption">{row.plan}</span> },
+    { key: 'plan', label: t('platform.customers.columns.plan'), render: (row) => names?.plan(row.plan) ?? '' },
     {
       key: 'status',
       label: t('platform.customers.columns.status'),
@@ -50,7 +53,63 @@ export function TenantsList() {
         emptyText={t('platform.customers.empty')}
         onRowClick={(row) => navigate(`/platform/tenants/${row.tenant_id}`)}
       />
+      {can('tenants.create') ? <AwaitingHandover /> : null}
     </>
+  )
+}
+
+/** ONB-08: tenants created for customers and not handed over after 30 days (never deleted). */
+function AwaitingHandover() {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const navigate = useNavigate()
+  const awaiting = useQuery({ queryKey: [...TENANTS_KEY, 'awaiting-handover'], queryFn: () => platformApi.get('platform/tenants/awaiting-handover') })
+  const columns = [
+    { key: 'business', label: t('platform.customers.awaitingColumns.business'), render: (row) => <span className="text-ink">{row.business_name}</span> },
+    { key: 'staff', label: t('platform.customers.awaitingColumns.staff'), render: (row) => row.staff_name ?? '' },
+    { key: 'contact', label: t('platform.customers.awaitingColumns.contact'), render: (row) => row.contact },
+    { key: 'created', label: t('platform.customers.awaitingColumns.created'), render: (row) => (row.created_at ? formatCalendarDate(row.created_at, locale) : '') },
+  ]
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-h2 text-ink">{t('platform.customers.awaitingTitle')}</h2>
+        <p className="text-body text-ink-muted">{t('platform.customers.awaitingDescription')}</p>
+      </div>
+      {awaiting.error ? <Alert tone="danger" title={errorMessage(awaiting.error)} /> : null}
+      <DataTable
+        caption={t('platform.customers.awaitingTitle')}
+        columns={columns}
+        rows={awaiting.data?.data ?? []}
+        loading={awaiting.isPending}
+        emptyText={t('platform.customers.awaitingEmpty')}
+        onRowClick={(row) => navigate(`/platform/tenants/${row.tenant_id}`)}
+      />
+    </section>
+  )
+}
+
+/** ONB-08: a new Owner invitation while the tenant has not been handed over. */
+function Reinvite({ tenantId, contact }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const reinvite = useMutation({
+    mutationFn: () => platformApi.post(`platform/tenants/${tenantId}/reinvite`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: TENANTS_KEY }),
+  })
+  return (
+    <div className="flex flex-col gap-3 px-5 pb-4">
+      <Alert
+        tone={reinvite.isSuccess ? 'success' : 'info'}
+        title={reinvite.isSuccess ? t('platform.customers.reinvited', { destination: reinvite.data.data.destination_masked }) : t('platform.customers.handover', { contact })}
+        action={
+          <Button loading={reinvite.isPending} disabled={reinvite.isPending} onClick={() => reinvite.mutate()}>
+            {t('platform.customers.reinvite')}
+          </Button>
+        }
+      />
+      {reinvite.error ? <Alert tone="danger" title={errorMessage(reinvite.error)} /> : null}
+    </div>
   )
 }
 
@@ -153,6 +212,7 @@ export function TenantDetail() {
   const { tenantId } = useParams()
   const { can } = usePlatformAuth()
   const manage = can('billing.manage')
+  const names = useCatalogueKeyNames()
   const [dialog, setDialog] = useState(null)
   const [paying, setPaying] = useState(null)
   const detail = useQuery({ queryKey: [...TENANTS_KEY, tenantId], queryFn: () => platformApi.get(`platform/tenants/${tenantId}`) })
@@ -209,7 +269,7 @@ export function TenantDetail() {
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-caption text-ink-muted">{t('platform.customers.columns.plan')}</dt>
-                <dd className="font-mono text-caption">{data.account.plan} · {t(`subscription.cycles.${data.account.cycle}`)}</dd>
+                <dd>{names ? `${names.plan(data.account.plan)} · ${t(`subscription.cycles.${data.account.cycle}`)}` : ''}</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-caption text-ink-muted">{t('platform.customers.columns.mrr')}</dt>
@@ -228,6 +288,7 @@ export function TenantDetail() {
                 <dd>{data.grace_days == null ? t('platform.customers.gracePlatform') : t('platform.customers.graceValue', { count: data.grace_days })}</dd>
               </div>
             </dl>
+            {data.assisted && !data.assisted.handed_over_at && can('tenants.create') ? <Reinvite tenantId={tenantId} contact={data.assisted.contact} /> : null}
             {data.account.alerts?.length ? (
               <div className="px-5 pb-4">
                 <Alert tone="danger" title={t('platform.customers.overpaymentText', { invoices: data.account.alerts.map((alert) => alert.invoice).join(', ') })} />
@@ -235,7 +296,7 @@ export function TenantDetail() {
             ) : null}
             {data.account.purge_due?.length ? (
               <div className="px-5 pb-4">
-                <Alert tone="warning" title={t('platform.customers.purgeDue', { modules: data.account.purge_due.map((entry) => entry.module).join(', ') })} />
+                <Alert tone="warning" title={t('platform.customers.purgeDue', { modules: names ? names.list(data.account.purge_due.map((entry) => entry.module)) : '' })} />
               </div>
             ) : null}
           </Card>

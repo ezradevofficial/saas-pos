@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, MultiSelect, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -9,6 +10,17 @@ import { platformApi } from '../platformClient'
 
 const BUSINESS_TYPES = ['retail', 'supermarket', 'restaurant', 'bar', 'hotel', 'pharmacy', 'wholesale', 'van_sales', 'salon', 'fuel_station', 'non_pos']
 const FIELDS = ['business_name', 'country', 'locale', 'business_type', 'outlets', 'modules', 'cycle', 'contact_name', 'contact']
+const EMPTY = {
+  business_name: '',
+  country: 'KE',
+  locale: 'en',
+  business_type: 'retail',
+  outlets: '1',
+  modules: ['pos', 'inventory', 'loyalty'],
+  cycle: 'monthly',
+  contact_name: '',
+  contact: '',
+}
 
 /**
  * ONB-08: platform staff create a tenant for a customer: the business,
@@ -18,17 +30,7 @@ const FIELDS = ['business_name', 'country', 'locale', 'business_type', 'outlets'
  */
 export default function NewTenant() {
   const { t } = useTranslation()
-  const [values, setValues] = useState({
-    business_name: '',
-    country: 'KE',
-    locale: 'en',
-    business_type: 'retail',
-    outlets: '1',
-    modules: ['pos', 'inventory', 'loyalty'],
-    cycle: 'monthly',
-    contact_name: '',
-    contact: '',
-  })
+  const [values, setValues] = useState(EMPTY)
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const catalogue = useQuery({ queryKey: ['catalogue', values.country], queryFn: () => platformApi.get(`catalogue?country=${values.country}`) })
   const modules = (catalogue.data?.data?.modules ?? []).filter((module) => module.kind === 'module')
@@ -47,6 +49,8 @@ export default function NewTenant() {
         contact_name: values.contact_name.trim(),
         ...contactPayload(values.contact),
       }),
+    // A clean form for the next customer; the alert links to the tenant just made.
+    onSuccess: () => setValues(EMPTY),
   })
   const errors = formErrors(create.error, FIELDS, { email: 'contact', phone: 'contact' })
   const created = create.data?.data
@@ -56,7 +60,12 @@ export default function NewTenant() {
       <PageHeader title={t('platform.tenants.title')} description={t('platform.tenants.intro')} />
       {created ? (
         <Alert tone="success" title={t('platform.tenants.created')}>
-          {t('platform.tenants.createdText', { destination: created.destination_masked, slug: created.slug })}
+          <span className="flex flex-col gap-1">
+            <span>{t('platform.tenants.createdText', { destination: created.destination_masked, slug: created.slug })}</span>
+            <Link to={`/platform/tenants/${created.tenant_id}`} className="text-primary underline-offset-4 hover:underline">
+              {t('platform.tenants.openTenant', { name: created.slug ?? created.tenant_id })}
+            </Link>
+          </span>
         </Alert>
       ) : null}
       <Card>
@@ -121,7 +130,7 @@ export default function NewTenant() {
           </div>
           <p className="text-caption text-ink-muted">{t('platform.tenants.handover')}</p>
           <div className="flex justify-end">
-            <Button type="submit" variant="primary" loading={create.isPending}>
+            <Button type="submit" variant="primary" loading={create.isPending} disabled={create.isPending}>
               {t('platform.tenants.submit')}
             </Button>
           </div>

@@ -49,6 +49,7 @@ return [
         'payment_in_progress' => 'Un paiement de cette facture attend encore le payeur. Validez-le sur le téléphone, ou attendez qu’il se termine, puis réessayez.',
         'payment_failed' => 'Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen.',
         'already_subscribed' => 'Votre abonnement a déjà commencé. Réglez plutôt sa facture ouverte.',
+        'subscribed_change_plan' => 'Vous êtes déjà abonné : la formule se change dans Paramètres, Abonnement.',
         'not_in_trial' => 'Cet abonnement n’est plus en période d’essai.',
     ],
 
@@ -71,6 +72,10 @@ return [
         'proration' => 'Changement de formule pour le reste de la période',
         'proration_days' => ':days jours sur :period',
         'months' => ':months mois',
+        'included' => ':count inclus',
+        'bundle_outlets' => ':outlets points de vente : :included inclus, :extra en plus',
+        'minimum' => 'montant minimum',
+        'overage_days' => ':quantity :unit en plus, :days jours sur :period',
     ],
 
     'units' => [

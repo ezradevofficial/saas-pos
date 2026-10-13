@@ -17,10 +17,12 @@ use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Http\ApiException;
+use App\Core\Onboarding\Assisted\AssistedOnboarding;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Platform console (SUB-02..SUB-06, ONB-04): customer tenants from the
@@ -57,13 +59,15 @@ class PlatformTenantController
     private function detail(string $tenant): JsonResponse
     {
         $account = $this->account404($tenant);
-        $subscription = $this->tenants->run($tenant, fn () => Subscription::query()->first());
+        [$subscription, $assisted] = $this->tenants->run($tenant, fn () => [Subscription::query()->first(), app(AssistedOnboarding::class)->handoverState()]);
         $invoices = $this->operator->run(fn () => OperatorInvoice::query()->where('customer_tenant_id', $tenant)->orderByDesc('issued_at')->limit(100)->get());
 
         return response()->json(['data' => [
             'account' => self::account($account),
             'subscription' => $subscription === null ? null : SubscriptionPresenter::subscription($subscription, ['date' => $subscription->nextDueAt()?->toDateString(), 'amount_minor' => null]),
             'grace_days' => $subscription?->grace_days,
+            // ONB-08: staff may resend the Owner invitation until handover.
+            'assisted' => $assisted,
             'invoices' => $invoices->map(fn (OperatorInvoice $i) => self::invoice($i))->all(),
         ]]);
     }
@@ -74,20 +78,25 @@ class PlatformTenantController
         $this->account404($tenant);
         $until = CarbonImmutable::parse($request->validated('trial_ends_at'))->utc();
 
+        // Locked, so a racing "Subscribe now" or billing cycle cannot start a period meanwhile.
         $subscription = $this->tenants->run($tenant, function () use ($until) {
-            $subscription = Subscription::query()->firstOrFail();
+            $result = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($until) {
+                $subscription = Subscription::query()->lockForUpdate()->firstOrFail();
 
-            if ($subscription->status !== Subscription::TRIAL || $subscription->hasPeriod()) {
-                throw new ApiException(422, 'not_in_trial', __('billing.errors.not_in_trial'));
-            }
+                if ($subscription->status !== Subscription::TRIAL || $subscription->hasPeriod()) {
+                    throw new ApiException(422, 'not_in_trial', __('billing.errors.not_in_trial'));
+                }
 
-            $before = $subscription->trial_ends_at?->toIso8601String();
-            $subscription->fill(['trial_ends_at' => $until])->save();
-            // One trial end: onboarding's record follows the subscription's.
-            BillingTrial::syncOnboarding($subscription);
-            $this->accounts->sync($subscription);
+                $before = $subscription->trial_ends_at?->toIso8601String();
+                $subscription->fill(['trial_ends_at' => $until])->save();
+                // One trial end: onboarding's record follows the subscription's.
+                BillingTrial::syncOnboarding($subscription);
 
-            return [$subscription, $before];
+                return [$subscription, $before];
+            });
+            $this->accounts->sync($result[0]);
+
+            return $result;
         });
 
         $this->auditor->record('platform.subscription.trial_extend', $subscription[0], ['tenant_id' => $tenant, 'trial_ends_at' => $subscription[1]], ['tenant_id' => $tenant, 'trial_ends_at' => $until->toIso8601String()]);
@@ -102,12 +111,16 @@ class PlatformTenantController
         $days = $request->validated('grace_days');
 
         [$subscription, $before] = $this->tenants->run($tenant, function () use ($days) {
-            $subscription = Subscription::query()->firstOrFail();
-            $before = $subscription->grace_days;
-            $subscription->fill(['grace_days' => $days])->save();
-            $this->accounts->sync($subscription);
+            $result = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($days) {
+                $subscription = Subscription::query()->lockForUpdate()->firstOrFail();
+                $before = $subscription->grace_days;
+                $subscription->fill(['grace_days' => $days])->save();
 
-            return [$subscription, $before];
+                return [$subscription, $before];
+            });
+            $this->accounts->sync($result[0]);
+
+            return $result;
         });
 
         $this->auditor->record('platform.subscription.grace_override', $subscription, ['tenant_id' => $tenant, 'grace_days' => $before], ['tenant_id' => $tenant, 'grace_days' => $days]);

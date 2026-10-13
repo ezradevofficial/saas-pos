@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing;
 
+use App\Core\Billing\Console\BackfillSubscriptions;
 use App\Core\Billing\Console\CreateOperator;
 use App\Core\Billing\Console\ModulePurgeReport;
 use App\Core\Billing\Console\RunBillingCycleCommand;
@@ -11,6 +12,7 @@ use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Listeners\SettleBillingPayment;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Overage\SubscriptionAllowances;
+use App\Core\Billing\Subscriptions\BillingTillState;
 use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Limits\PlanAllowances;
@@ -22,6 +24,7 @@ use App\Core\Onboarding\Trial\TrialExpiry;
 use App\Core\Onboarding\Trial\TrialStarter;
 use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Payments\Events\PaymentIntentSettled;
+use App\Core\Sync\Contracts\TillSellingState;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -47,6 +50,8 @@ class BillingServiceProvider extends ServiceProvider
         $this->app->singleton(TrialStarter::class, BillingTrial::class);
         $this->app->singleton(TrialStatusProvider::class, BillingTrial::class);
         $this->app->singleton(TrialExpiry::class, BillingTrial::class);
+        // SUB-05: the till learns when selling stops through sync.
+        $this->app->singleton(TillSellingState::class, BillingTillState::class);
     }
 
     public function boot(): void
@@ -57,7 +62,7 @@ class BillingServiceProvider extends ServiceProvider
         Event::listen(PaymentIntentSettled::class, [SettleBillingPayment::class, 'handle']);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class]);
+            $this->commands([BackfillSubscriptions::class, CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class]);
         }
     }
 }

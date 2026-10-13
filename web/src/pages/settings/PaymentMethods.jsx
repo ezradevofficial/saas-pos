@@ -289,7 +289,7 @@ function MethodRow({ method, canEdit, canConfigure, first, last, onMove, onToggl
  * buttons, so keyboards work), switched on only when their provider is
  * set up, and the provider settings (secrets never shown).
  */
-export default function PaymentMethods() {
+export default function PaymentMethods({ embedded = false }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
@@ -361,6 +361,7 @@ export default function PaymentMethods() {
   return (
     <>
       <PageHeader
+        embedded={embedded}
         title={t('settings.paymentMethods.title')}
         description={t('settings.paymentMethods.description')}
         actions={company ? <ExportMenu onExport={(format) => exporter.exportTo(format)} exporting={exporter.exporting} /> : null}

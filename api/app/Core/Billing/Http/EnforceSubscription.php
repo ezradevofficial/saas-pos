@@ -25,7 +25,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   payroll runs get the same treatment when Payroll lands;
  * - the user's own account: signing out (here or everywhere), revoking a
  *   session, two-factor and their own POS PIN;
- * - the full data export (EXP-02, `tenant-exports`);
+ * - the full data export (EXP-02, `tenant-exports`), its download link included;
  * - the till's own sign-in and device security (PIN, overrides, secret);
  * - POS uploads (sales, shifts, voids, refunds, cash movements, number
  *   ranges, payments at the till) for the POS window after read-only
@@ -86,6 +86,7 @@ class EnforceSubscription
         'POST sync/device-secret/rotate' => self::DEVICE,
         'POST sync/device-secret/activate' => self::DEVICE,
         'POST tenant-exports' => self::EXPORT,
+        'POST tenant-exports/{tenant_export}/link' => self::EXPORT,
         'POST pos/number-ranges' => self::POS_UPLOAD,
         'POST pos/shifts' => self::POS_UPLOAD,
         'POST pos/sales' => self::POS_UPLOAD,

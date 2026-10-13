@@ -101,6 +101,60 @@ describe('Subscription page (SUB-02..SUB-06)', () => {
     expect(await within(dialog).findByText('Payment received. Thank you.')).toBeInTheDocument()
   })
 
+  it('hides the trial banner once the first invoice is paid, without a reload (ONB-04)', async () => {
+    let trial = { state: 'trial', ends_at: '2026-11-15T08:00:00Z', days_left: 9 }
+    const subscribed = { ...SUBSCRIPTION, status: 'trial' }
+    mockRoutes(api, [['onboarding/trial', () => ({ data: trial })], ...routes(subscribed)], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    api.post.mockImplementation(async () => {
+      trial = { state: 'none', ends_at: null, days_left: 0 }
+      return { data: { id: 'p-1', status: 'pending', label: METHOD.label, redirect_url: null } }
+    })
+    renderApp('/settings/subscription')
+
+    expect(await screen.findByText('Trial · 9 days left')).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Pay KES 3,900.00' }))
+
+    expect(await screen.findByText('Payment received. Thank you.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Trial · 9 days left')).not.toBeInTheDocument())
+  })
+
+  it('clears "Your plan was changed." on the next action', async () => {
+    let current = SUBSCRIPTION
+    mockRoutes(api, [['subscription', () => ({ data: current })], ...routes()], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    api.post.mockImplementation(async (path) => {
+      if (path === 'subscription/quote') return { data: QUOTE }
+      if (path === 'subscription/change') {
+        current = { ...SUBSCRIPTION, modules: ['inventory', 'loyalty', 'payroll', 'pos'], quantities: { employee: 20, outlet: 1 } }
+        return { data: { quote: QUOTE, invoice: null, subscription: current } }
+      }
+      throw new Error(path)
+    })
+    renderApp('/settings/subscription')
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Payroll' }))
+    fireEvent.change(await screen.findByLabelText('Employees'), { target: { value: '20' } })
+    const confirm = await screen.findByRole('button', { name: 'Confirm and pay KES 1,000.00' }, { timeout: 3000 })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+    expect(await screen.findByText('Your plan was changed.')).toBeInTheDocument()
+
+    // Changing a module and changing it back: the old message does not come back.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Payroll' }))
+    expect(screen.queryByText('Your plan was changed.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Payroll' }))
+    expect(screen.queryByText('Your plan was changed.')).not.toBeInTheDocument()
+  })
+
+  it('shows a placeholder, never raw module keys, until the catalogue loads', async () => {
+    mockRoutes(api, [['catalogue?country=KE', () => new Promise(() => {})], ...routes()], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    renderApp('/settings/subscription')
+
+    expect(await screen.findByRole('status', { name: 'Loading the subscription' })).toBeInTheDocument()
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('catalogue?country=KE'))
+    expect(screen.queryByText(/starter|inventory/)).not.toBeInTheDocument()
+  })
+
   it('hides plan changes and payments from those who may only see the subscription', async () => {
     mockRoutes(api, routes(), { permissions: tenantWide(['core.subscription.view']) })
     renderApp('/settings/subscription')

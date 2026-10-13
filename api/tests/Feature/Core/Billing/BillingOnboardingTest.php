@@ -112,4 +112,37 @@ class BillingOnboardingTest extends TestCase
         $this->artisan('billing:cycle')->assertSuccessful();
         $this->assertSame(1, $this->inTenant(fn () => BillingInvoice::query()->count()));
     }
+
+    public function test_picking_modules_after_subscribe_now_during_the_trial_points_to_the_subscription_page(): void
+    {
+        $this->pick();
+        $this->postJson('/api/v1/subscription/subscribe', [], $this->bearer($this->owner['token']))->assertCreated();
+
+        $this->putJson('/api/v1/onboarding/modules', ['modules' => ['inventory', 'pos'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => null], $this->bearer($this->owner['token']))
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'already_subscribed')
+            ->assertJsonPath('message', __('billing.errors.subscribed_change_plan', [], 'en'));
+        $this->assertStringContainsString('Settings', __('billing.errors.subscribed_change_plan', [], 'en'));
+        $this->assertStringContainsString('Paramètres', __('billing.errors.subscribed_change_plan', [], 'fr'));
+    }
+
+    public function test_the_console_tenant_page_says_whether_an_assisted_tenant_was_handed_over(): void
+    {
+        // ONB-08: the reinvite button shows only while the tenant waits for its Owner.
+        $this->pick();
+        $staff = $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT));
+        $tenantId = $this->postJson('/api/v1/platform/tenants', [
+            'business_name' => 'Quincaillerie Lumière', 'country' => 'KE', 'locale' => 'fr', 'business_type' => 'retail',
+            'modules' => ['pos'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly',
+            'contact_name' => 'Jeanne Mbuyi', 'email' => 'jeanne@example.com',
+        ], $staff)->assertCreated()->json('data.tenant_id');
+
+        $assisted = $this->getJson("/api/v1/platform/tenants/{$tenantId}", $staff)->assertOk()->json('data.assisted');
+        $this->assertNull($assisted['handed_over_at']);
+        $this->assertNotSame('jeanne@example.com', $assisted['contact']);
+        $this->assertStringEndsWith('@example.com', $assisted['contact']);
+
+        // A tenant that signed up on its own was never assisted.
+        $this->getJson("/api/v1/platform/tenants/{$this->owner['tenant']}", $staff)->assertOk()->assertJsonPath('data.assisted', null);
+    }
 }

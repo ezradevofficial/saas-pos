@@ -3,6 +3,7 @@
 namespace App\Core\Billing\Payments;
 
 use App\Core\Audit\Auditor;
+use App\Core\Billing\Dunning\BillingCycle;
 use App\Core\Billing\Dunning\BillingNotices;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
@@ -472,7 +473,13 @@ class BillingPayments
         $subscription = Subscription::query()->first();
 
         if ($subscription !== null) {
-            $this->subscriptions->paid($subscription, $copy);
+            $overdue = in_array($subscription->status, [Subscription::PAST_DUE, Subscription::READ_ONLY], true);
+            $subscription = $this->subscriptions->paid($subscription, $copy);
+
+            // Reactivated after the period ended: the period restarts today (ADR 016).
+            if ($overdue) {
+                app(BillingCycle::class)->restartAfterReactivation($subscription, CarbonImmutable::now());
+            }
         }
 
         $this->notices->send(BillingNotices::PAYMENT_RECEIVED, [

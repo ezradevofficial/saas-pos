@@ -5290,7 +5290,8 @@
       "contactName": "Nom du contact",
       "contact": "E-mail ou téléphone du contact",
       "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
-      "submit": "Créer le client"
+      "submit": "Créer le client",
+      "openTenant": "Ouvrir {{name}}"
     },
     "customers": {
       "title": "Clients",
@@ -5325,7 +5326,19 @@
       },
       "purgeDue": "Les données de modules désactivés ont plus de 12 mois : {{modules}}. Rien n’a été supprimé.",
       "overpayment": "Trop-perçu",
-      "overpaymentText": "Un paiement a été reçu pour une facture déjà payée : {{invoices}}. Remboursez le client."
+      "overpaymentText": "Un paiement a été reçu pour une facture déjà payée : {{invoices}}. Remboursez le client.",
+      "awaitingTitle": "En attente de remise",
+      "awaitingDescription": "Clients créés par l’équipe dont le propriétaire n’a pas accepté l’invitation après 30 jours. Rien n’est supprimé.",
+      "awaitingEmpty": "Aucun client n’attend sa remise.",
+      "awaitingColumns": {
+        "business": "Entreprise",
+        "staff": "Créé par",
+        "contact": "Invitation envoyée à",
+        "created": "Créé le"
+      },
+      "handover": "En attente de l’acceptation de l’invitation envoyée à {{contact}} par le propriétaire.",
+      "reinvite": "Renvoyer l’invitation",
+      "reinvited": "Une nouvelle invitation a été envoyée à {{destination}}. La précédente ne fonctionne plus."
     }
   },
   "subscription": {
@@ -5468,7 +5481,8 @@
       "removeFor": "Retirer {{label}}",
       "save": "Enregistrer le moyen",
       "cardSaved": "Votre carte a été enregistrée."
-    }
+    },
+    "loading": "Chargement de l’abonnement"
   },
   "subscriptionBanner": {
     "pastDue": "Une facture est en retard. Réglez-la avant le {{date}} pour garder un accès complet.",

@@ -12,6 +12,7 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\Models\Tenant;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\CreatesIdentities;
@@ -102,6 +103,23 @@ class AssistedOnboardingTest extends TestCase
         $this->assertContains('platform.tenant.handover', $actions);
         // A staff token reaches no tenant route.
         $this->getJson('/api/v1/onboarding', $this->staffBearer($staff))->assertUnauthorized();
+    }
+
+    public function test_check_then_create_holds_an_advisory_lock_on_the_lower_cased_contact(): void
+    {
+        // ONB-08: two staff creating for one contact at once make one tenant.
+        $order = [];
+        DB::listen(function ($query) use (&$order) {
+            if (str_contains($query->sql, 'pg_advisory_xact_lock') && in_array('assisted:jeanne@example.com', $query->bindings, true)) {
+                $order[] = 'lock';
+            } elseif (str_contains($query->sql, 'app_assisted_tenant_for_contact')) {
+                $order[] = 'check';
+            }
+        });
+
+        $this->create($this->staff(PlatformUser::ROLE_SUPPORT), ['email' => 'Jeanne@Example.com'])->assertCreated();
+
+        $this->assertSame(['lock', 'check'], array_slice($order, 0, 2));
     }
 
     public function test_only_owner_and_support_staff_may_create_tenants_and_tenant_tokens_are_refused(): void

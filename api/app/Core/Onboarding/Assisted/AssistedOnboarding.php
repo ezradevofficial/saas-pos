@@ -67,6 +67,18 @@ class AssistedOnboarding
     {
         $contact = (string) (($data['email'] ?? null) ?? $data['phone']);
 
+        // Check, then create, under an advisory lock on the contact: two staff (or a double
+        // click) creating for one contact at once make one tenant.
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($staff, $data, $contact) {
+            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['assisted:'.Str::lower($contact)]);
+
+            return $this->createLocked($staff, $data, $contact);
+        });
+    }
+
+    /** create(), under the contact's lock. */
+    private function createLocked(PlatformUser $staff, array $data, string $contact): array
+    {
         // A retry (a lost answer, a double click) finds the tenant it made.
         if (($existing = $this->due->assistedFor($contact)) !== null) {
             return [...$this->summary($existing), 'existing' => true];
@@ -200,6 +212,30 @@ class AssistedOnboarding
                 'created_at' => $assisted['created_at'] ?? null,
             ];
         }), $this->due->awaitingHandover(now()->subDays($days)));
+    }
+
+    /**
+     * ONB-08: the current tenant's handover as the console shows it, or
+     * null when staff did not create it. The contact is masked.
+     *
+     * @return array{created_at: ?string, staff_name: ?string, contact: string, handed_over_at: ?string}|null
+     */
+    public function handoverState(): ?array
+    {
+        $assisted = OnboardingState::query()->first()?->assisted;
+
+        if ($assisted === null) {
+            return null;
+        }
+
+        $invitation = Invitation::query()->find($assisted['invitation_id'] ?? null);
+
+        return [
+            'created_at' => $assisted['created_at'] ?? null,
+            'staff_name' => $assisted['staff_name'] ?? null,
+            'contact' => $invitation === null ? '' : self::mask($invitation),
+            'handed_over_at' => $assisted['handed_over_at'] ?? null,
+        ];
     }
 
     /**

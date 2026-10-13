@@ -3,39 +3,39 @@
     "bootstrap": {
         "status": 200,
         "body": {
-            "server_time": "2026-10-09T18:47:02.402080Z",
+            "server_time": "2026-10-13T17:14:41.234456Z",
             "device": {
-                "id": "01a121fd-79bb-7124-862b-3e7fcbc3330e",
-                "location_id": "01a121fd-7958-7264-8c5b-01d0e5671925",
+                "id": "01a13642-5c6e-72d6-9caf-86b22ba1aa58",
+                "location_id": "01a13642-5bf4-7365-865c-012367c1126e",
                 "name": "Till 1",
                 "code": null,
                 "status": "active",
-                "paired_at": "2026-10-09T18:47:02+00:00",
+                "paired_at": "2026-10-13T17:14:41+00:00",
                 "last_seen_at": null,
                 "last_pull_at": null,
                 "last_push_at": null,
                 "last_bootstrap_at": null
             },
-            "device_secret_kid": "080ea172a5b0b156",
+            "device_secret_kid": "2e92896859942e9a",
             "settings": {
                 "id": "device",
                 "device": {
-                    "id": "01a121fd-79bb-7124-862b-3e7fcbc3330e",
+                    "id": "01a13642-5c6e-72d6-9caf-86b22ba1aa58",
                     "name": "Till 1"
                 },
                 "location": {
-                    "id": "01a121fd-7958-7264-8c5b-01d0e5671925",
+                    "id": "01a13642-5bf4-7365-865c-012367c1126e",
                     "name": "Outlet A",
                     "type": "outlet"
                 },
                 "branch": {
-                    "id": "01a121fd-7954-70e5-a36d-e164f67763af",
+                    "id": "01a13642-5bef-71a3-9af9-7f4f4fc7b2db",
                     "name": "Branch A",
                     "code": "A",
                     "address": []
                 },
                 "company": {
-                    "id": "01a121fd-794f-7218-ac27-2db268085654",
+                    "id": "01a13642-5be8-70ca-b580-bcb379cfbd86",
                     "name": "Acme",
                     "legal_name": "Acme",
                     "tax_id": null,
@@ -173,13 +173,14 @@
             "pin": {
                 "scheme": "pbkdf2-sha256+hmac-sha256/v1",
                 "max_attempts": 5
-            }
+            },
+            "subscription": null
         }
     },
     "pull_first": {
         "status": 200,
         "body": {
-            "server_time": "2026-10-09T18:47:02.539606Z",
+            "server_time": "2026-10-13T17:14:41.284558Z",
             "entities": {
                 "items": {
                     "mode": "incremental",
@@ -187,14 +188,14 @@
                     "replace": false,
                     "upserts": [
                         {
-                            "id": "01a121fd-79da-72c5-859d-421f19df1182",
+                            "id": "01a13642-5c9b-71a3-a95c-d87e8f4800e4",
                             "code": "SOAP",
                             "name": "Soap",
                             "type": "stock",
                             "category_id": null,
-                            "base_uom_id": "01a121fd-79c7-70c6-a50a-4d4047d95a5b",
-                            "tax_category_id": "01a121fd-79d6-70b7-9809-9525bd6f340f",
-                            "tax_code_id": "01a121fd-79ca-73c0-aeea-680c89687e25",
+                            "base_uom_id": "01a13642-5c7e-7102-a8c8-eef40a83bc86",
+                            "tax_category_id": "01a13642-5c93-73dd-b53d-6c3cfae56ff5",
+                            "tax_code_id": "01a13642-5c83-71c8-bed3-7773ab18c0b2",
                             "sellable": true,
                             "reason": null,
                             "shared": true,
@@ -202,11 +203,11 @@
                             "barcodes": [],
                             "images": [],
                             "custom": [],
-                            "updated_at": "2026-10-09T18:47:02.000000Z"
+                            "updated_at": "2026-10-13T17:14:41.000000Z"
                         }
                     ],
                     "tombstones": [],
-                    "cursor": "aTEuMi42MjUyMzgyLjE5NTE",
+                    "cursor": "aTEuMi44MjczNjg0Ljk0OQ",
                     "has_more": false
                 },
                 "item_prices": {
@@ -215,19 +216,19 @@
                     "replace": false,
                     "upserts": [
                         {
-                            "id": "01a121fd-79e0-70a0-a52b-361f7caff07e",
-                            "price_list_id": "01a121fd-79dd-72d8-8e8f-8fdeb9ff116f",
-                            "item_id": "01a121fd-79da-72c5-859d-421f19df1182",
-                            "uom_id": "01a121fd-79c7-70c6-a50a-4d4047d95a5b",
+                            "id": "01a13642-5ca5-70e8-8e67-f08e5fdaea88",
+                            "price_list_id": "01a13642-5ca1-724c-bd9e-e16e7dc316ca",
+                            "item_id": "01a13642-5c9b-71a3-a95c-d87e8f4800e4",
+                            "uom_id": "01a13642-5c7e-7102-a8c8-eef40a83bc86",
                             "amount_minor": "56250",
                             "currency": "KES",
                             "effective_from": "2026-01-01",
                             "min_quantity": "1",
-                            "updated_at": "2026-10-09T18:47:02.000000Z"
+                            "updated_at": "2026-10-13T17:14:41.000000Z"
                         }
                     ],
                     "tombstones": [],
-                    "cursor": "aTEuMS42MjUyMzgyLjE5NTI",
+                    "cursor": "aTEuMS44MjczNjg0Ljk1MA",
                     "has_more": false
                 },
                 "exchange_rates": {
@@ -236,28 +237,29 @@
                     "replace": true,
                     "upserts": [
                         {
-                            "id": "01a121fd-79e9-7056-832d-c0388c08a37d",
+                            "id": "01a13642-5cb4-736e-bdeb-ed175f7b5a77",
                             "base": "USD",
                             "quote": "KES",
                             "kind": "shop",
                             "mid": "130.00000000",
                             "buy": null,
                             "sell": null,
-                            "effective_at": "2026-10-08T18:47:02.376823Z",
+                            "effective_at": "2026-10-12T17:14:41.204465Z",
                             "current": true
                         }
                     ],
                     "tombstones": [],
-                    "cursor": "czEuMS40MzI0M2RlYTkzZTc4MGZmZjdmZjE1NjgyY2JjYjkzMjAxNjA1MmQ5YmY3NjA4MTkwMzNlMjJmZjRlZWI3OGRj",
+                    "cursor": "czEuMS5lY2E1NDExMDg2MmE0MzU4ZWI1MGFkOGI5NzUyODZkYzBjMjcxMWFjZWM3ZTY1MjdjOWNlNDBlZGY2NjU1OWI1",
                     "has_more": false
                 }
-            }
+            },
+            "subscription": null
         }
     },
     "pull_tombstone": {
         "status": 200,
         "body": {
-            "server_time": "2026-10-09T18:47:02.552782Z",
+            "server_time": "2026-10-13T17:14:41.299692Z",
             "entities": {
                 "items": {
                     "mode": "incremental",
@@ -265,12 +267,13 @@
                     "replace": false,
                     "upserts": [],
                     "tombstones": [
-                        "01a121fd-79da-72c5-859d-421f19df1182"
+                        "01a13642-5c9b-71a3-a95c-d87e8f4800e4"
                     ],
-                    "cursor": "aTEuMi42MjUyMzgyLjE5NTM",
+                    "cursor": "aTEuMi44MjczNjg0Ljk1MQ",
                     "has_more": false
                 }
-            }
+            },
+            "subscription": null
         }
     },
     "pull_invalid_cursor": {
@@ -291,7 +294,7 @@
         "body": {
             "data": [
                 {
-                    "id": "01a121fd-7aba-70e0-b9ed-fc022364bb05",
+                    "id": "01a13642-5d38-707e-ad2e-db001920996e",
                     "document_type": "pos.receipt",
                     "period": "all",
                     "pattern": "R-L01-{000001}",
@@ -299,7 +302,7 @@
                     "to": 500,
                     "next": 1,
                     "status": "active",
-                    "allocated_at": "2026-10-09T18:47:02+00:00"
+                    "allocated_at": "2026-10-13T17:14:41+00:00"
                 }
             ]
         }
@@ -307,9 +310,9 @@
     "shifts_request": {
         "shifts": [
             {
-                "id": "01a121fd-7ac0-70e9-9cbf-d82c2dc275fd",
-                "opened_by_id": "01a121fd-78e0-7298-8746-89054a82ece3",
-                "opened_at": "2026-10-09T17:47:02+00:00",
+                "id": "01a13642-5d3f-71bc-9324-a85b2217953b",
+                "opened_by_id": "01a13642-5b6e-7037-8f88-9281d9f73d4d",
+                "opened_at": "2026-10-13T16:14:41+00:00",
                 "opening_float": [
                     {
                         "currency": "KES",
@@ -325,11 +328,11 @@
         "body": {
             "results": [
                 {
-                    "id": "01a121fd-7ac0-70e9-9cbf-d82c2dc275fd",
+                    "id": "01a13642-5d3f-71bc-9324-a85b2217953b",
                     "status": "stored",
                     "shift_status": "open",
                     "flags": [],
-                    "received_at": "2026-10-09T18:47:02+00:00",
+                    "received_at": "2026-10-13T17:14:41+00:00",
                     "closed_received_at": null
                 }
             ]
@@ -338,35 +341,35 @@
     "sales_request": {
         "sales": [
             {
-                "id": "01a121fd-7b22-7272-8ef3-77237bfc34d5",
-                "shift_id": "01a121fd-7ac0-70e9-9cbf-d82c2dc275fd",
-                "cashier_id": "01a121fd-78e0-7298-8746-89054a82ece3",
+                "id": "01a13642-5d7e-7287-8b45-5e31284d0d4c",
+                "shift_id": "01a13642-5d3f-71bc-9324-a85b2217953b",
+                "cashier_id": "01a13642-5b6e-7037-8f88-9281d9f73d4d",
                 "actor_proof": {
-                    "session_id": "01a121fd-7b22-7272-8ef3-77237c751524",
-                    "user_id": "01a121fd-78e0-7298-8746-89054a82ece3",
-                    "signed_in_at": "2026-10-09T18:39:02.690Z",
-                    "kid": "080ea172a5b0b156",
-                    "signature": "lKVdGgd-7c9WVhflY47kgvehXthqd-VhaCTXtqKeD-U"
+                    "session_id": "01a13642-5d7e-7287-8b45-5e31288183d2",
+                    "user_id": "01a13642-5b6e-7037-8f88-9281d9f73d4d",
+                    "signed_in_at": "2026-10-13T17:06:41.406Z",
+                    "kid": "2e92896859942e9a",
+                    "signature": "hAIfIpAMkiV0ueATp9JGqgyAwAA-u5Xv6uro0DzhqBY"
                 },
                 "customer_id": null,
                 "receipt_seq": 1,
                 "receipt_number": "R-L01-000001",
-                "sold_at": "2026-10-09T18:42:02+00:00",
+                "sold_at": "2026-10-13T17:09:41+00:00",
                 "offline": true,
                 "currency": "KES",
-                "price_list_id": "01a121fd-79dd-72d8-8e8f-8fdeb9ff116f",
+                "price_list_id": "01a13642-5ca1-724c-bd9e-e16e7dc316ca",
                 "lines": [
                     {
-                        "id": "01a121fd-7b22-7272-8ef3-77237bc185e1",
-                        "item_id": "01a121fd-79da-72c5-859d-421f19df1182",
-                        "uom_id": "01a121fd-79c7-70c6-a50a-4d4047d95a5b",
+                        "id": "01a13642-5d7e-7287-8b45-5e3127e05d2a",
+                        "item_id": "01a13642-5c9b-71a3-a95c-d87e8f4800e4",
+                        "uom_id": "01a13642-5c7e-7102-a8c8-eef40a83bc86",
                         "qty": "2",
                         "unit_price_minor": "56250",
                         "list_price_minor": "56250",
-                        "price_list_id": "01a121fd-79dd-72d8-8e8f-8fdeb9ff116f",
+                        "price_list_id": "01a13642-5ca1-724c-bd9e-e16e7dc316ca",
                         "tax_inclusive": true,
                         "discount_minor": "0",
-                        "tax_code_id": "01a121fd-79ca-73c0-aeea-680c89687e25",
+                        "tax_code_id": "01a13642-5c83-71c8-bed3-7773ab18c0b2",
                         "tax_rate": "12.5000",
                         "tax_minor": "12500",
                         "total_minor": "112500",
@@ -381,8 +384,8 @@
                 },
                 "payments": [
                     {
-                        "id": "01a121fd-7b22-7272-8ef3-77237d654e99",
-                        "payment_method_id": "01a121fd-79e2-70c3-8c80-e9d3637077f6",
+                        "id": "01a13642-5d7e-7287-8b45-5e31296e474e",
+                        "payment_method_id": "01a13642-5caa-7392-8919-b9b5fad3edf6",
                         "currency": "KES",
                         "amount_minor": "112500",
                         "amount_in_sale_minor": "112500",
@@ -403,11 +406,11 @@
         "body": {
             "results": [
                 {
-                    "id": "01a121fd-7b22-7272-8ef3-77237bfc34d5",
+                    "id": "01a13642-5d7e-7287-8b45-5e31284d0d4c",
                     "status": "stored",
                     "receipt_number": "R-L01-000001",
                     "flags": [],
-                    "received_at": "2026-10-09T18:47:02+00:00",
+                    "received_at": "2026-10-13T17:14:41+00:00",
                     "fiscal": null
                 }
             ]
@@ -418,11 +421,11 @@
         "body": {
             "results": [
                 {
-                    "id": "01a121fd-7b22-7272-8ef3-77237bfc34d5",
+                    "id": "01a13642-5d7e-7287-8b45-5e31284d0d4c",
                     "status": "stored",
                     "receipt_number": "R-L01-000001",
                     "flags": [],
-                    "received_at": "2026-10-09T18:47:02+00:00",
+                    "received_at": "2026-10-13T17:14:41+00:00",
                     "fiscal": null
                 }
             ]
@@ -435,7 +438,7 @@
             "code": "upload_rejected",
             "results": [
                 {
-                    "id": "01a121fd-7b9c-71b0-8e09-19bbb0ae14f0",
+                    "id": "01a13642-5e02-71e5-9b6b-874b83cb63b7",
                     "status": "rejected",
                     "error": {
                         "code": "shift_unknown",
@@ -454,7 +457,7 @@
             "code": "upload_rejected",
             "results": [
                 {
-                    "id": "01a121fd-7b22-7272-8ef3-77237bfc34d5",
+                    "id": "01a13642-5d7e-7287-8b45-5e31284d0d4c",
                     "status": "rejected",
                     "error": {
                         "code": "payload_mismatch",

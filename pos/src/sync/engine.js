@@ -34,6 +34,10 @@ import { OUTBOX } from './store';
  *   engine stops and says so; nothing local is deleted.
  * - No answer at all (offline): nothing changes locally; the scheduler
  *   tries again on reconnect.
+ * - Subscription (SUB-05): bootstrap and pull carry when the POS stops
+ *   (`pos_stops_at`) or that it has (`pos_stopped`); a 402 upload says so
+ *   too. Both are kept in the store, so sellingPaused() holds offline and
+ *   after a restart; a later answer without them resumes selling.
  */
 export const AUTH = { OK: 'ok', LOST: 'lost' };
 export const NETWORK = { UNKNOWN: 'unknown', ONLINE: 'online', OFFLINE: 'offline' };
@@ -78,8 +82,11 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     auth: AUTH.OK,
     authCode: null,
     moduleInactive: false,
-    // SUB-05: the subscription is overdue past the POS window; uploads wait until it is paid.
+    // SUB-05: the subscription is overdue past the POS window (a 402, or the server says so);
+    // uploads wait until it is paid and selling is paused (sellingPaused()).
     subscriptionStopped: false,
+    // SUB-05: when the server will stop the POS (ms), from bootstrap and pull; checked offline.
+    posStopsAt: null,
     skewMs: 0,
     secretMissing: false,
     lastError: null,
@@ -126,6 +133,21 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     return Number.isFinite(server) ? Math.round(server - (startedAt + endedAt) / 2) : null;
   }
 
+  /**
+   * SUB-05: the subscription as bootstrap and pull report it. A stop time
+   * is kept (the till checks it offline); `pos_stopped` pauses selling at
+   * once; an answer without either (paid again) lifts the pause.
+   */
+  async function applySubscription(body) {
+    if (!body || !Object.prototype.hasOwnProperty.call(body, 'subscription')) return;
+    const info = body.subscription;
+    const stopsAt = info?.pos_stops_at ? Date.parse(info.pos_stops_at) : NaN;
+    const patch = { subscriptionStopped: Boolean(info?.pos_stopped), posStopsAt: Number.isFinite(stopsAt) ? stopsAt : null };
+    if (patch.subscriptionStopped === status.subscriptionStopped && patch.posStopsAt === status.posStopsAt) return;
+    update(patch);
+    await store.setMeta(patch);
+  }
+
   function backoff(attempts) {
     const exponential = Math.min(settings.maxBackoffMs, settings.baseBackoffMs * 2 ** Math.max(0, attempts));
     return Math.round(exponential / 2 + (exponential / 2) * random());
@@ -167,6 +189,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
       authCode: null,
     });
     update({ skewMs, secretMissing, auth: AUTH.OK, authCode: null });
+    await applySubscription(body);
     return body;
   }
 
@@ -232,6 +255,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
 
       const skewMs = skewFrom(response.body.server_time, startedAt, now());
       if (skewMs !== null) update({ skewMs });
+      await applySubscription(response.body);
       const pulledAt = now();
 
       for (const key of entities) {
@@ -299,6 +323,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
       const at = now();
       await store.setMeta({ lastPushedAt: at });
       update({ lastPushedAt: at, moduleInactive: false, subscriptionStopped: false });
+      await store.setMeta({ subscriptionStopped: false });
     }
     await store.pruneAcknowledged(now() - settings.keepAcknowledgedMs);
     await refreshCounts();
@@ -376,6 +401,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
       // SUB-05: the subscription is overdue and the POS window is over. Keep everything; it
       // uploads once the invoice is paid. The till says why.
       update({ subscriptionStopped: true });
+      await store.setMeta({ subscriptionStopped: true });
       summary.retried += batch.length;
       await retryLater(batch, error);
       return error.code;
@@ -491,6 +517,8 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
       auth: meta.auth ?? AUTH.OK,
       authCode: meta.authCode ?? null,
       secretMissing: Boolean(meta.secretMissing),
+      subscriptionStopped: Boolean(meta.subscriptionStopped),
+      posStopsAt: Number.isFinite(meta.posStopsAt) ? meta.posStopsAt : null,
     });
     await refreshCounts();
     return status;
@@ -508,6 +536,12 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     setNetwork: (network) => update({ network }),
     /** The server's clock as this device best knows it (ms). */
     serverNow: () => now() + (status.skewMs ?? 0),
+    /**
+     * SUB-05: selling is paused: the server refused uploads (402) or said
+     * the POS is stopped, or this till's clock is past the known stop time.
+     * Sales already taken stay queued and keep retrying.
+     */
+    sellingPaused: (at = now() + (status.skewMs ?? 0)) => status.subscriptionStopped || (status.posStopsAt !== null && status.posStopsAt !== undefined && at >= status.posStopsAt),
     getStatus: () => status,
     subscribe(listener) {
       listeners.add(listener);

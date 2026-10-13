@@ -17,6 +17,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     serverTime: null,
     secretIssued: true,
     pageSizeDefault: 500,
+    // SUB-05: the subscription as bootstrap and pull report it (null: no billing).
+    subscription: null,
     entities: {},
     stored: new Map(),
     reject: new Map(),
@@ -96,6 +98,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
             page_size: state.pageSizeDefault,
             max_page_size: 1000,
             pin: { scheme: 'pbkdf2-sha256+hmac-sha256/v1', max_attempts: 5 },
+            subscription: state.subscription,
           },
         };
       }
@@ -146,7 +149,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
             };
           }
         }
-        return { status: 200, body: { server_time: time, entities: out } };
+        return { status: 200, body: { server_time: time, entities: out, subscription: state.subscription } };
       }
 
       if (method === 'POST' && path === 'pos/pin/attempts') {

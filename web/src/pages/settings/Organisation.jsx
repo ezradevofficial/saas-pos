@@ -46,7 +46,7 @@ function NodeRow({ icon, name, meta, archived, actions, className, heading: Name
  * filtered to the user's scope (RBAC-04); actions show only where the user
  * holds the permission at the record or above it.
  */
-export default function Organisation() {
+export default function Organisation({ embedded = false }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { canWithin, tenantWide } = usePermissions()
@@ -250,6 +250,7 @@ export default function Organisation() {
   return (
     <>
       <PageHeader
+        embedded={embedded}
         title={t('settings.organisation.title')}
         description={t('settings.organisation.description')}
         actions={

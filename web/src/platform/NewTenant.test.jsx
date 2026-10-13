@@ -52,6 +52,10 @@ describe('Platform: new tenant (ONB-08)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create tenant' }))
 
     expect(await screen.findByText('The invitation went to j***@example.com. Subdomain: quincaillerie-lumiere.')).toBeInTheDocument()
+    // A link to the new tenant, and a clean form for the next customer.
+    expect(screen.getByRole('link', { name: 'Open quincaillerie-lumiere' })).toHaveAttribute('href', '/platform/tenants/t-9')
+    expect(screen.getByLabelText('Business name', { exact: false })).toHaveValue('')
+    expect(screen.getByLabelText('Contact name', { exact: false })).toHaveValue('')
     expect(platformApi.post).toHaveBeenCalledWith('platform/tenants', expect.objectContaining({
       business_name: 'Quincaillerie Lumière',
       country: 'CD',
@@ -60,6 +64,16 @@ describe('Platform: new tenant (ONB-08)', () => {
       email: 'jeanne@example.com',
       modules: ['pos', 'inventory', 'loyalty'],
     }))
+  })
+
+  it('disables Create tenant while the request is pending', async () => {
+    mockConsole(staff('support', ['catalogue.view', 'tenants.create']))
+    platformApi.post.mockReturnValue(new Promise(() => {}))
+    renderApp('/platform/tenants/new')
+
+    await screen.findByRole('heading', { level: 1, name: 'New tenant' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create tenant' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Create tenant/ })).toBeDisabled())
   })
 
   it('shows field errors from the API and hides the link from staff who cannot create tenants', async () => {

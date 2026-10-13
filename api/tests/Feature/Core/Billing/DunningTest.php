@@ -4,10 +4,12 @@ namespace Tests\Feature\Core\Billing;
 
 use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Billing\Models\Subscription;
+use App\Core\DataExport\Models\TenantExport;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -41,6 +43,11 @@ class DunningTest extends TestCase
     private function posUpload(): int
     {
         return $this->postJson('/api/v1/pos/sales', ['sales' => []], ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])->getStatusCode();
+    }
+
+    private function tillState(string $uri): TestResponse
+    {
+        return $this->getJson('/api/v1/'.$uri, ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])->assertOk();
     }
 
     private function aWrite(): TestResponse
@@ -89,6 +96,9 @@ class DunningTest extends TestCase
         $this->getJson('/api/v1/parties', $this->headersFor())->assertOk();
         $this->getJson('/api/v1/subscription', $this->headersFor())->assertOk();
         $this->assertNotSame(402, $this->posUpload());
+        // The till learns when selling stops, through bootstrap and every pull.
+        $this->tillState('sync/bootstrap')->assertJsonPath('subscription', ['status' => 'read_only', 'pos_stops_at' => '2026-12-11T06:00:00Z', 'pos_stopped' => false]);
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription.pos_stops_at', '2026-12-11T06:00:00Z');
         // No new invoice while read-only.
         $this->cycle('2027-01-02 06:00:00');
         $this->assertCount(2, $this->invoices());
@@ -98,6 +108,7 @@ class DunningTest extends TestCase
         $this->assertSame(402, $this->posUpload());
         $this->postJson('/api/v1/pos/sales', ['sales' => []], ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])
             ->assertJsonPath('code', 'subscription_pos_stopped');
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription.pos_stopped', true);
 
         // SUB-06: paying the open invoice restores everything at once.
         $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
@@ -105,6 +116,8 @@ class DunningTest extends TestCase
         $this->assertSame([Subscription::ACTIVE, null, null], [$subscription->status, $subscription->read_only_since, $subscription->pos_stops_at]);
         $this->aWrite()->assertCreated();
         $this->assertNotSame(402, $this->posUpload());
+        // The next sync tells the till it may sell again.
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription', ['status' => 'active', 'pos_stops_at' => null, 'pos_stopped' => false]);
     }
 
     public function test_paying_after_the_period_ended_stays_active_through_the_next_cycles(): void
@@ -121,15 +134,46 @@ class DunningTest extends TestCase
         $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
         $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
 
-        // The catch-up invoice for the period that already started falls due now, not on 1 January.
+        // The period restarts from the payment date (ADR 016): its invoice falls due now, not on 1 January.
         $this->cycle('2027-01-05 11:00:00');
-        $catchUp = collect($this->invoices())->firstWhere('period_start', CarbonImmutable::parse('2027-01-01'));
+        $this->assertNull(collect($this->invoices())->firstWhere('period_start', CarbonImmutable::parse('2027-01-01')));
+        $catchUp = collect($this->invoices())->firstWhere('period_start', CarbonImmutable::parse('2027-01-05'));
         $this->assertSame('2027-01-05', $catchUp->due_at->toDateString());
         $this->cycle('2027-01-05 23:00:00');
         $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
         // Its own grace period runs from today.
         $this->cycle('2027-01-06 12:00:00');
         $this->assertSame([Subscription::PAST_DUE, '2027-01-05'], [$this->subscription()->status, $this->subscription()->past_due_since->toDateString()]);
+    }
+
+    public function test_paying_after_three_months_read_only_restarts_the_period_with_one_invoice(): void
+    {
+        // ADR 016 (owner may reverse): no back-charging for the months spent read-only.
+        $this->activate();
+        $this->cycle('2026-12-01 06:00:00');
+        $this->cycle('2026-12-02 06:00:00');
+        $this->cycle('2026-12-08 06:00:00');
+        $this->assertSame(Subscription::READ_ONLY, $this->subscription()->status);
+        $this->cycle('2027-01-01 06:00:00');
+        $this->cycle('2027-02-01 06:00:00');
+        $this->cycle('2027-03-01 06:00:00');
+        $this->assertCount(2, $this->invoices());
+
+        $this->travelToDay('2027-03-10 10:00:00');
+        $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
+        $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
+        $this->cycle('2027-03-10 11:00:00');
+        $this->cycle('2027-03-11 11:00:00');
+
+        $invoices = $this->invoices();
+        $this->assertCount(3, $invoices);
+        $restart = $invoices[2];
+        $this->assertSame(['2027-03-10', '2027-04-10', '2027-03-10', 390000], [
+            $restart->period_start->toDateString(), $restart->period_end->toDateString(), $restart->issued_at->toDateString(), $restart->total_minor,
+        ]);
+        $subscription = $this->subscription();
+        $this->assertSame(['2027-03-10', '2027-04-10'], [$subscription->current_period_start->toDateString(), $subscription->current_period_end->toDateString()]);
+        $this->assertSame(Subscription::PAST_DUE, $subscription->status);
     }
 
     public function test_a_trial_not_paid_by_its_end_is_invoiced_then_past_due(): void
@@ -149,6 +193,22 @@ class DunningTest extends TestCase
         $this->inTenant(fn () => $this->subscription()->fill(['grace_days' => 2])->save());
         $this->cycle('2026-11-17 09:00:00');
         $this->assertSame(Subscription::READ_ONLY, $this->subscription()->status);
+    }
+
+    public function test_a_read_only_owner_exports_gets_the_link_and_downloads(): void
+    {
+        // EXP-02, SUB-05: the full export stays reachable in read-only, link included.
+        Storage::fake('media');
+        $this->inTenant(fn () => $this->subscription()->forceFill(['status' => Subscription::READ_ONLY, 'read_only_since' => now(), 'pos_stops_at' => now()->addDays(3)])->save());
+        $this->aWrite()->assertStatus(402);
+
+        $id = $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202)->json('data.id');
+        $export = $this->inTenant(fn () => TenantExport::query()->findOrFail($id));
+        $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
+
+        $url = $this->postJson("/api/v1/tenant-exports/{$id}/link", [], $this->headersFor())->assertOk()->json('data.url');
+        $response = $this->get($url)->assertOk();
+        $this->assertSame(Storage::disk('media')->get($export->path), $response->streamedContent());
     }
 
     public function test_read_only_refuses_every_write_route_except_the_allow_list(): void
@@ -222,6 +282,7 @@ class DunningTest extends TestCase
             'POST sync/device-secret/activate' => 'device',
             'POST sync/device-secret/rotate' => 'device',
             'POST tenant-exports' => 'export',
+            'POST tenant-exports/{tenant_export}/link' => 'export',
         ];
         ksort($expected);
         $this->assertSame($expected, $allowed);

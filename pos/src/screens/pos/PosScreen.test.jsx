@@ -194,6 +194,30 @@ describe('PosScreen', () => {
     await view.unmount();
   }, 20000);
 
+  it('pauses Charge while the subscription has stopped the POS and resumes once a sync shows it paid (SUB-05)', async () => {
+    const { services, server } = setup();
+    server.state.subscription = { status: 'read_only', pos_stops_at: '2020-01-01T00:00:00Z', pos_stopped: true };
+    const view = await render(<App services={services} />);
+    await fireEvent.changeText(await screen.findByLabelText('Pairing code'), 'abcd-efgh');
+    await fireEvent.changeText(screen.getByLabelText('Till name'), 'Till 2');
+    await fireEvent.press(screen.getByRole('button', { name: 'Pair till' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue' }));
+    await signInAs('Amina Otieno', '274915');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Open shift' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tusker Lager 500ml, KES 250.00' }));
+
+    const paused = 'Selling is paused until the subscription is paid. Ask the Owner to pay the invoice.';
+    expect(await screen.findByText(paused)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Charge KES 250.00' })).toBeDisabled();
+
+    // The Owner pays; the next sync says so and selling resumes.
+    server.state.subscription = { status: 'active', pos_stops_at: null, pos_stopped: false };
+    await act(() => services.engine.sync({ force: true }));
+    await waitFor(() => expect(screen.queryByText(paused)).toBeNull());
+    expect(screen.getByRole('button', { name: 'Charge KES 250.00' })).toBeEnabled();
+    await view.unmount();
+  });
+
   it('gets receipt ranges on a newly paired till before the first sale (NUM-02)', async () => {
     const { services, server } = setup();
     server.state.entities.pos_number_ranges.rows.clear();

@@ -12,7 +12,7 @@ import { CustomerDisplayScreen } from '../CustomerDisplayScreen';
 import { useCustomerDisplayFeed } from './useCustomerDisplayFeed';
 import { useServices } from '../../services/services';
 import { AUTH } from '../../sync/engine';
-import { useSyncStatus } from '../../sync/useSyncStatus';
+import { useSellingPaused, useSyncStatus } from '../../sync/useSyncStatus';
 import { CashDialog, CustomerDialog, HeldDialog, LineDialog, MenuDialog } from './Dialogs';
 import { OverrideDialog } from './OverrideDialog';
 import { PaymentScreen } from './PaymentScreen';
@@ -30,6 +30,7 @@ function SyncProblems() {
   const { scheduler } = useServices();
   const { pinChange } = useSession();
   const sync = useSyncStatus();
+  const sellingPaused = useSellingPaused();
   const alerts = [];
   if (sync.auth === AUTH.LOST)
     alerts.push(
@@ -39,7 +40,13 @@ function SyncProblems() {
     );
   if (sync.secretMissing) alerts.push(<Alert key="secret" tone="warning">{t('home.secretMissing')}</Alert>);
   if (sync.moduleInactive) alerts.push(<Alert key="module" tone="warning">{t('home.moduleInactive')}</Alert>);
-  if (sync.subscriptionStopped) alerts.push(<Alert key="subscription" tone="danger">{t('home.subscriptionStopped')}</Alert>);
+  // SUB-05: Charge is off; sales already taken stay queued and upload once paid.
+  if (sellingPaused)
+    alerts.push(
+      <Alert key="subscription" tone="danger" title={t('pos.sale.sellingPaused')}>
+        {t('home.subscriptionStopped')}
+      </Alert>,
+    );
   if (pinChange) alerts.push(<Alert key="pin" tone="warning" title={t('home.pinChangeTitle')}>{t('home.pinChangeOffline')}</Alert>);
   if (sync.failed) alerts.push(<Alert key="failed" tone="warning">{t('home.failed', { count: sync.failed })}</Alert>);
   if (!alerts.length) return null;

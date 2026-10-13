@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Billing;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
+use App\Core\Billing\Dunning\BillingCycle;
 use App\Core\Billing\Invoicing\BillingInvoicePdf;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\BillingPayment;
@@ -15,6 +16,7 @@ use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\DocumentTemplates\TemplateRenderer;
 use App\Core\Fiscal\Models\FiscalSubmission;
+use App\Core\Http\ApiException;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\UsageLimits;
 use App\Core\Limits\UsageOverage;
@@ -118,6 +120,42 @@ class SubscriptionBillingTest extends TestCase
 
         // AUD-01: the subscription's changes are audited in the tenant's chain.
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.subscription.update')->exists()));
+    }
+
+    public function test_a_second_subscribe_now_racing_the_first_issues_nothing_and_answers_already_subscribed(): void
+    {
+        // SUB-03: both requests read the trial before either locked it.
+        $stale = $this->subscription();
+        $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated();
+
+        try {
+            $this->inTenant(fn () => app(BillingCycle::class)->subscribeNow($stale, CarbonImmutable::now()));
+            $this->fail('The second start was not refused.');
+        } catch (ApiException $e) {
+            $this->assertSame([409, 'already_subscribed'], [$e->getStatusCode(), $e->errorCode]);
+        }
+
+        $this->assertCount(1, $this->invoices());
+        $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'already_subscribed');
+        $this->assertCount(1, $this->invoices());
+    }
+
+    public function test_a_renewal_racing_another_starts_the_period_once(): void
+    {
+        $this->activate();
+        $this->travelToDay('2026-12-01 06:00:00');
+        $stale = $this->subscription();
+        $this->artisan('billing:cycle')->assertSuccessful();
+        $this->assertCount(2, $this->invoices());
+
+        // A second worker that read the subscription before the first renewed it.
+        $start = new \ReflectionMethod(BillingCycle::class, 'startPeriod');
+        $due = CarbonImmutable::parse('2026-12-01', 'UTC');
+        $result = $this->inTenant(fn () => $start->invoke(app(BillingCycle::class), $stale, $due, $due, 'renewal'));
+
+        $this->assertNull($result);
+        $this->assertCount(2, $this->invoices());
+        $this->assertSame('2027-01-01', $this->subscription()->current_period_end->toDateString());
     }
 
     public function test_an_upgrade_is_charged_pro_rata_for_the_days_left_with_exact_amounts(): void

@@ -19,7 +19,7 @@ import { initials, maskPhone } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { amountDueIn } from '../../pos/tender';
 import { useMedia } from '../../theme/media';
-import { useSyncStatus } from '../../sync/useSyncStatus';
+import { useSellingPaused, useSyncStatus } from '../../sync/useSyncStatus';
 import { CAMERA_SCANNING, CameraScanner } from './CameraScanner';
 import { formatTime, useMoneyText } from './format';
 
@@ -323,6 +323,8 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
 
   const count = computed?.itemCount ?? 0;
   const blocked = computed?.blocked.length > 0;
+  // SUB-05: the subscription stopped the POS (PosScreen says why); nothing new is charged.
+  const paused = useSellingPaused();
 
   return (
     <View className={cn('min-h-0 flex-1 gap-3', className)}>
@@ -384,7 +386,7 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
           total={computed?.totals.total_minor ?? '0'}
           secondary={dual}
           labels={{ tax: t('pos.sale.tax') }}
-          disabled={blocked}
+          disabled={blocked || paused}
           onPay={onPay}
         />
       ) : null}
@@ -402,6 +404,7 @@ export function PhoneSaleBar({ onOpen, onPay }) {
   const total = computed?.totals.total_minor ?? '0';
   const currency = catalogue?.saleCurrency ?? '';
   const blocked = computed?.blocked.length > 0;
+  const paused = useSellingPaused();
   return (
     <View className="gap-3 rounded-t-lg border-t border-border bg-surface-200 p-4 shadow-lg">
       <Pressable accessibilityRole="button" onPress={onOpen} className={cn('min-h-12 flex-row items-center justify-between gap-3', FOCUS_RING)}>
@@ -411,7 +414,7 @@ export function PhoneSaleBar({ onOpen, onPay }) {
         </View>
         <Money amount={total} currency={currency} size="lg" />
       </Pressable>
-      <Button variant="pay" block onPress={onPay} disabled={blocked || BigInt(total) === 0n}>
+      <Button variant="pay" block onPress={onPay} disabled={blocked || paused || BigInt(total) === 0n}>
         {t('ds.saleTotal.pay', { amount: money(total, currency) })}
       </Button>
       <OfflineNote />

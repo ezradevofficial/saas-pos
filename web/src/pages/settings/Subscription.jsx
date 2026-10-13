@@ -8,6 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, Dialog, ListView, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { TRIAL_KEY } from '@/pages/onboarding/useOnboarding'
 import { browser } from '@/lib/browser'
 import { formatCalendarDate } from '@/lib/dates'
 import { downloadFile } from '@/lib/files'
@@ -32,10 +33,10 @@ import {
 
 const day = (value, locale) => (value ? formatCalendarDate(value, locale) : '')
 
-/** Refresh everything billing shows after a change or a payment. */
+/** Refresh everything billing shows after a change or a payment, the trial banner included (ONB-04). */
 function useRefreshBilling() {
   const queryClient = useQueryClient()
-  return () => queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY })
+  return () => Promise.all([queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY }), queryClient.invalidateQueries({ queryKey: TRIAL_KEY })])
 }
 
 function nameOf(catalogue, key, kind = 'module') {
@@ -44,12 +45,12 @@ function nameOf(catalogue, key, kind = 'module') {
 }
 
 /** The plan, its status and the next invoice (SUB-02, SUB-05). */
-function Overview({ subscription, catalogue, canManage }) {
+function Overview({ subscription, catalogue, canManage, onAction }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const refresh = useRefreshBilling()
-  const subscribe = useMutation({ mutationFn: () => api.post('subscription/subscribe'), onSuccess: refresh })
-  const cancelPending = useMutation({ mutationFn: () => api.post('subscription/pending/cancel'), onSuccess: refresh })
+  const subscribe = useMutation({ mutationFn: () => api.post('subscription/subscribe'), onMutate: onAction, onSuccess: refresh })
+  const cancelPending = useMutation({ mutationFn: () => api.post('subscription/pending/cancel'), onMutate: onAction, onSuccess: refresh })
   const pending = subscription.pending_change
   const modules = subscription.modules.filter((key) => !(subscription.bundle && catalogue?.bundles?.find((b) => b.key === subscription.bundle)?.modules?.includes(key)))
 
@@ -134,8 +135,17 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const refresh = useRefreshBilling()
-  const [plan, setPlan] = useState(() => planOf(subscription))
-  const [coupon, setCoupon] = useState('')
+  const [plan, setEditedPlan] = useState(() => planOf(subscription))
+  const [coupon, setEditedCoupon] = useState('')
+  // "Your plan was changed." lasts until the next action.
+  const setPlan = (next) => {
+    if (done) onDone(null)
+    setEditedPlan(next)
+  }
+  const setCoupon = (next) => {
+    if (done) onDone(null)
+    setEditedCoupon(next)
+  }
   const wanted = useMemo(() => cleanPlan(plan, catalogue), [plan, catalogue])
   const body = useDebounced(JSON.stringify({ ...wanted, coupon: coupon.trim() || null }), 400)
   const dirty = !samePlan(wanted, subscription) || coupon.trim() !== ''
@@ -149,8 +159,8 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
   const change = useMutation({
     mutationFn: () => api.post('subscription/change', { ...JSON.parse(body), expected_charge: quote.data.data.charge_now }),
     onSuccess: async (response) => {
+      setEditedCoupon('')
       onDone(response.data)
-      setCoupon('')
       await refresh()
     },
     onError: (error) => {
@@ -363,7 +373,7 @@ function PayDialog({ invoice, subscription, methods, onClose }) {
 }
 
 /** The invoices from the platform: list, PDF, pay (SUB-03). */
-function Invoices({ subscription, methods, canManage }) {
+function Invoices({ subscription, methods, canManage, onAction }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const [paying, setPaying] = useState(null)
@@ -394,7 +404,7 @@ function Invoices({ subscription, methods, canManage }) {
             {t('subscription.invoices.pdf')}
           </Button>
           {invoice.status === 'open' && canManage ? (
-            <Button variant="primary" onClick={() => setPaying(invoice)} aria-label={t('subscription.invoices.payFor', { number: invoice.number })}>
+            <Button variant="primary" onClick={() => { onAction?.(); setPaying(invoice) }} aria-label={t('subscription.invoices.payFor', { number: invoice.number })}>
               {t('subscription.invoices.pay')}
             </Button>
           ) : null}
@@ -426,7 +436,7 @@ function Invoices({ subscription, methods, canManage }) {
 }
 
 /** Saved payment methods: wallets by phone, cards through the hosted checkout (SUB-04). */
-function PaymentMethods({ subscription, methods, canManage }) {
+function PaymentMethods({ subscription, methods, canManage, onAction }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
@@ -435,15 +445,16 @@ function PaymentMethods({ subscription, methods, canManage }) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY })
   const add = useMutation({
     mutationFn: () => api.post('subscription/payment-methods', { kind: 'mobile_money', provider, phone }),
+    onMutate: onAction,
     onSuccess: async () => {
       setAdding(false)
       setPhone('')
       await refresh()
     },
   })
-  const addCard = useMutation({ mutationFn: () => api.post('subscription/payment-methods', { kind: 'card' }), onSuccess: (response) => browser.go(response.data.redirect_url) })
-  const makeDefault = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/default`), onSuccess: refresh })
-  const remove = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/archive`), onSuccess: refresh })
+  const addCard = useMutation({ mutationFn: () => api.post('subscription/payment-methods', { kind: 'card' }), onMutate: onAction, onSuccess: (response) => browser.go(response.data.redirect_url) })
+  const makeDefault = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/default`), onMutate: onAction, onSuccess: refresh })
+  const remove = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/archive`), onMutate: onAction, onSuccess: refresh })
   const errors = formErrors(add.error)
   const failure = addCard.error ?? makeDefault.error ?? remove.error
 
@@ -528,6 +539,7 @@ function CheckoutReturn() {
     mutationFn: (reference) => api.post('subscription/payment-methods/card/complete', { reference }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY })
+      queryClient.invalidateQueries({ queryKey: TRIAL_KEY })
       setParams((current) => {
         const next = new URLSearchParams(current)
         next.delete('card_setup')
@@ -549,6 +561,23 @@ function CheckoutReturn() {
   return null
 }
 
+/** Placeholder while the subscription or the catalogue loads: never raw module keys. */
+function SubscriptionSkeleton() {
+  const { t } = useTranslation()
+  return (
+    <Card title={t('subscription.overview.title')}>
+      <div role="status" aria-busy="true" aria-label={t('subscription.loading')} className="flex flex-col gap-4 px-5 py-4">
+        <div className="h-6 w-1/2 animate-pulse rounded-md bg-surface-300" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="h-10 animate-pulse rounded-md bg-surface-300" />
+          ))}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 /** Settings → Subscription (SUB-02..SUB-06). */
 export default function Subscription() {
   const { t } = useTranslation()
@@ -561,6 +590,7 @@ export default function Subscription() {
   const queryClient = useQueryClient()
   // Kept here: the editor starts afresh from the new plan after a change.
   const [changed, setChanged] = useState(null)
+  const clearChanged = () => setChanged(null)
 
   useEffect(() => {
     if (data) queryClient.invalidateQueries({ queryKey: STATUS_KEY })
@@ -571,12 +601,13 @@ export default function Subscription() {
       <PageHeader title={t('subscription.title')} description={t('subscription.description')} />
       <CheckoutReturn />
       {subscription.error ? <Alert tone={subscription.error.status === 404 ? 'info' : 'danger'} title={errorMessage(subscription.error)} /> : null}
-      {data ? (
+      {subscription.isPending || (data && catalogue.isPending) ? <SubscriptionSkeleton /> : null}
+      {data && !catalogue.isPending ? (
         <>
-          <Overview subscription={data} catalogue={catalogue.data} canManage={canManage} />
+          <Overview subscription={data} catalogue={catalogue.data} canManage={canManage} onAction={clearChanged} />
           {canManage && catalogue.data ? <ChangePlan key={JSON.stringify(planOf(data))} subscription={data} catalogue={catalogue.data} done={changed} onDone={setChanged} /> : null}
-          <Invoices subscription={data} methods={methods.data?.data ?? []} canManage={canManage} />
-          <PaymentMethods subscription={data} methods={methods.data?.data ?? []} canManage={canManage} />
+          <Invoices subscription={data} methods={methods.data?.data ?? []} canManage={canManage} onAction={clearChanged} />
+          <PaymentMethods subscription={data} methods={methods.data?.data ?? []} canManage={canManage} onAction={clearChanged} />
         </>
       ) : null}
     </>

@@ -27,12 +27,14 @@ The billing service writes the copy in the tenant's own context, in the same tra
 - What is charged is whole steps of the currency (`Rounding`, `billing.rounding_minor`): KES in whole shillings, which M-Pesa requires. Coupon discounts, quote totals and overage lines are rounded half up, and an invoice whose total still is not a whole step gets a rounding line.
 - The module registry follows the plan, for modules the catalogue sells. A module switched off records `switched_off_at` and keeps its data. `billing:purge-report` flags it after 12 months for staff and deletes nothing.
 
-**Renewal and dunning (SUB-03, SUB-05, SUB-06).** `billing:cycle` runs hourly. It gets tenant ids from `app_tenants_with_billing_due(at)` and runs a job per tenant in its context.
+**Renewal and dunning (SUB-03, SUB-05, SUB-06).** `billing:cycle` runs hourly. It gets tenant ids from `app_tenants_with_billing_due(at)` and runs a job per tenant in its context. The job (`RunBillingCycle`) goes on the `payments` queue, so it runs on Horizon's payments supervisor next to settlement, not on the default workers.
 - Reminders go 7 and 3 days before the due date and on the due date, each once.
 - On the due date the next period starts. The pending change applies, prices are the day's (then locked), overage is added, and the invoice is issued. A default saved method requests payment automatically.
 - An invoice still open a day after its due date makes the subscription `past_due`. After the grace period (platform setting, default 7 days, per-tenant override) it becomes `read_only`, and `pos_stops_at` is the read-only time plus the POS window (default 3 days).
 - A read-only subscription is not renewed.
 - Paying the last overdue invoice makes it `active` at once.
+- **Decision (the owner can reverse it): reactivation restarts the period.** When the overdue invoice is paid after the subscription's `current_period_end`, the period restarts from the payment date: one new period invoice, dated and due that day. The months spent read-only are never back-charged. (The alternative, a catch-up invoice from the old period end, charged for time the customer could not use.) `BillingCycle::restartAfterReactivation`; pinned by `DunningTest`.
+- A period starts once. `startPeriod` re-checks under the subscription's lock that it has not started (the first: no period yet; a renewal: the period still ends on the due date) and issues nothing otherwise. A racing "Subscribe now" answers 409 `already_subscribed`.
 - An invoice issued late (a catch-up after a reactivation) falls due when it is issued, never in the past. Its grace period runs from then, so a reactivated subscription does not slip back into read-only.
 - A trial is invoiced when it ends, or earlier with "Subscribe now" (period from today, due at the trial end).
 
@@ -40,11 +42,13 @@ The billing service writes the copy in the tenant's own context, in the same tra
 - billing (`subscription/*`);
 - approvals: decisions, comments, attachments and reassignment, the bulk approve, and the POS's held voids, refunds and cash movements;
 - the user's own account: sign-out (here or everywhere), session revoke, two-factor and their own POS PIN (there is no own-password route; password reset is public);
-- `tenant-exports` (EXP-02);
+- `tenant-exports` (EXP-02), and the export's download link (`tenant-exports/{id}/link`);
 - the till's PIN, override and secret routes;
 - POS uploads, until `pos_stops_at`; after that they answer 402 `subscription_pos_stopped`.
 
-The till keeps the records and shows why. `DunningTest` enumerates every write route and asserts the allow-list. LIM-04 is absolute: approvals are never blocked, by usage limits or by dunning. Payroll runs get the same treatment when Payroll lands.
+The till keeps the records and shows why.
+
+**The till's stop (SUB-05).** `sync/bootstrap` and every `sync/pull` carry `subscription: {status, pos_stops_at, pos_stopped}` (Sync's `TillSellingState` contract, bound by billing to `BillingTillState`). The till stores the stop time and the stopped flag (a 402 upload sets it too) in its sync metadata, so they hold offline and after a restart. Selling is paused when the server said stopped, or the till's clock (corrected for skew) is past `pos_stops_at`: Charge is disabled on the selling screen, with "Selling is paused until the subscription is paid. Ask the Owner to pay the invoice." (en/fr). A sale already on the payment screen can still be completed, since the customer may have paid. Sales already taken stay queued and the till keeps retrying uploads, so they go up once the invoice is paid. A later sync that shows the subscription active again (no stop time, not stopped) resumes selling. `DunningTest` enumerates every write route and asserts the allow-list. LIM-04 is absolute: approvals are never blocked, by usage limits or by dunning. Payroll runs get the same treatment when Payroll lands.
 
 **Payments (SUB-04).** Payment intents of the operator tenant carry reference `billing.invoice`. They now have a `checkout` mode for hosted cards. `billing.drivers` picks the adapter per provider: M-Pesa through Daraja; Airtel Money, Orange Money, Afrimoney and the card checkout through adapters that report themselves unconfigured. All of these are `fake` in local and testing. An intent keeps the adapter it started with. A settled intent (`SettleBillingPayment`, also run when the payer's screen polls) marks the operator invoice, then the copy and the subscription. Staff mark bank transfers paid.
 - **Exactly once.** Settling locks the operator invoice. The copy is paid by a conditional update, and only the update that changed it notifies and audits.
@@ -58,6 +62,8 @@ The till keeps the records and shows why. `DunningTest` enumerates every write r
 - users at nothing.
 
 Each line is pro-rated by days over period days, half up. `subscriptions.overage_billed_through` makes each period charged once. Billing binds `PlanAllowances` to `SubscriptionAllowances`, which falls back to the onboarding selection. A plan change re-meters usage, so an overage the new plan covers closes at once.
+
+**Backfill.** Tenants created before billing get a trial subscription from the one-off deploy step `billing:backfill-subscriptions` (docs/integrations.md): from the onboarding selection, else the active modules; per tenant in its context, idempotent.
 
 **Trial (ONB-04).** Onboarding's picker (at sign-up) and assisted creation start the trial through `TrialStarter`. Billing binds it, `TrialStatusProvider` and `TrialExpiry` to `BillingTrial`:
 - The first selection opens the trial subscription. A later one changes its plan at once, while the trial runs and no period is paid.
@@ -76,4 +82,4 @@ Each line is pro-rated by days over period days, half up. `subscriptions.overage
 - Owner questions:
   - Are prices tax-inclusive?
   - Should coupons last longer than one period?
-  - Should a reactivated read-only account restart its period?
+  - A reactivated read-only account restarts its period from the payment date (see Renewal and dunning). Keep it, or back-charge from the old period end?

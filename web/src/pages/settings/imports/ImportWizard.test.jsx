@@ -228,4 +228,24 @@ describe('Import wizard (IMP-01..IMP-03)', () => {
     expect(await screen.findByText('Row 3, A-2 Two: Used in a sale')).toBeInTheDocument()
     expect(screen.getByText('The import was not undone: 1 record is in use or changed since')).toBeInTheDocument()
   })
+
+  it('the imports list checks an undo every 2 seconds until it finishes, then stops (IMP-03)', async () => {
+    let calls = 0
+    mockRoutes(api, [
+      ['imports/importers', IMPORTERS],
+      [/^imports\?/, () => {
+        calls += 1
+        return { data: [record({ status: calls === 1 ? 'undoing' : 'undone' })], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }
+      }],
+      [/^config\/list_view/, { data: [] }],
+    ], { permissions: tenantWide(['core.import.run', 'core.item.create', 'core.item.view']) })
+    renderApp('/settings/imports')
+
+    expect(await screen.findByText('Undoing')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Undone')).toBeInTheDocument(), { timeout: 2600 })
+    const settled = calls
+    await new Promise((resolve) => setTimeout(resolve, 2300))
+    expect(calls).toBe(settled)
+  }, 10000)
 })
+

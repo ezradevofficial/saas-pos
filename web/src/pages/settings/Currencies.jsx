@@ -321,7 +321,7 @@ function CompanyCurrenciesForm({ company, data, currencies, saved, onSaved }) {
  * CUR-01, CUR-02: the currencies the business uses (decimals, cash
  * rounding, on or off) and each company's base and reporting currencies.
  */
-export default function Currencies() {
+export default function Currencies({ embedded = false }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
@@ -397,6 +397,7 @@ export default function Currencies() {
   return (
     <>
       <PageHeader
+        embedded={embedded}
         title={t('settings.currencies.title')}
         description={t('settings.currencies.description')}
         actions={

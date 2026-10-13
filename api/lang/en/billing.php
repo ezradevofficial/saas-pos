@@ -49,6 +49,7 @@ return [
         'payment_in_progress' => 'A payment of this invoice is still waiting for the payer. Approve it on the phone, or wait for it to finish, then try again.',
         'payment_failed' => 'The payment didn’t go through. Try again or use another method.',
         'already_subscribed' => 'Your subscription has already started. Pay its open invoice instead.',
+        'subscribed_change_plan' => 'You’ve already subscribed, so the plan is changed in Settings, Subscription.',
         'not_in_trial' => 'This subscription is no longer in its trial.',
     ],
 
@@ -71,6 +72,10 @@ return [
         'proration' => 'Plan change for the rest of the period',
         'proration_days' => ':days of :period days',
         'months' => ':months months',
+        'included' => ':count included',
+        'bundle_outlets' => ':outlets outlets: :included included, :extra extra',
+        'minimum' => 'minimum charge',
+        'overage_days' => ':quantity extra :unit, :days of :period days',
     ],
 
     'units' => [

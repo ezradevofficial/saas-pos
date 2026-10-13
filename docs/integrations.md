@@ -278,6 +278,19 @@ entities. Enter their details the way any business does:
   Both get their tenant ids from security-definer functions and never use
   the owner's credentials.
 
+  `billing:cycle` jobs run on the `payments` queue (Horizon's payments
+  supervisor), next to payment settlement.
+- **Deploy step, once, when billing first reaches an environment with
+  existing tenants**: `php artisan billing:backfill-subscriptions`, after
+  `platform:operator`. Every tenant without a subscription gets a trial
+  one, planned from its onboarding selection, or else from its active
+  modules (with its outlets, devices and employees counted). It runs
+  tenant by tenant in each tenant's context (DueTenants, never the owner
+  connection), skips the operator, and is idempotent: running it again
+  changes nothing. A tenant whose selection cannot be priced is listed
+  and the command exits non-zero, so it can be fixed and the command run
+  again.
+
 ## Branding: tenant hosts, custom domains and email (BR-04 to BR-07)
 
 Code in `api/app/Core/Branding`. A tenant reaches the web app on its
