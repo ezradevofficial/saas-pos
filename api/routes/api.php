@@ -37,6 +37,7 @@ use App\Core\CustomForms\CustomFormType;
 use App\Core\CustomForms\Http\Controllers\CustomFormFileController;
 use App\Core\CustomForms\Http\Controllers\CustomFormRecordController;
 use App\Core\CustomForms\Http\Controllers\CustomFormTypeController;
+use App\Core\DataExport\Http\Controllers\TenantExportController;
 use App\Core\DocumentTemplates\Http\Controllers\DocumentTemplateController;
 use App\Core\Fiscal\Http\Controllers\FiscalSettingsController;
 use App\Core\Fiscal\Http\Controllers\FiscalSubmissionController;
@@ -120,7 +121,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'tenant_export', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -192,6 +193,10 @@ Route::get('branding/assets/{path}', BrandAssetFileController::class)->where('pa
 Route::get('custom-field-files/{path}', [CustomFieldFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_fields.file');
 
 Route::get('custom-form-files/{path}', [CustomFormFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_forms.file');
+// EXP-02: a full tenant export behind a temporary signed URL bound to the
+// Owner who asked for it (TenantExports::url). The controller enters the
+// signed tenant and serves the zip only to that requester, still an active Owner.
+Route::get('tenant-exports/{tenant_export}/download', [TenantExportController::class, 'download'])->middleware(['throttle:media', 'signed'])->name('tenant_exports.download');
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
 // APR-08: an emailed approve/reject link; the single-use token is the credential.
@@ -575,6 +580,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('branding/domains', [DomainController::class, 'store']);
     Route::post('branding/domains/{tenant_domain}/check', [DomainController::class, 'check']);
     Route::post('branding/domains/{tenant_domain}/archive', [DomainController::class, 'archive']);
+
+    // EXP-02: full tenant data exports (Owners only, core.tenant.export at tenant scope).
+    Route::get('tenant-exports', [TenantExportController::class, 'index']);
+    Route::post('tenant-exports', [TenantExportController::class, 'store']);
 
     // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
     // layouts, templates): documents per key and scope, their versions, and

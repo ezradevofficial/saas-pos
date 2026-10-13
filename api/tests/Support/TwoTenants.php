@@ -58,7 +58,7 @@ use Tests\TestCase;
  * and its run, payment intents made at the till and money received that
  * matched nothing, fiscal settings and a submission to the authority, and
  * the POS module with a till's ranges, shift, sales, a void, a refund and a
- * cash movement). Field rules, limit
+ * cash movement, and a full data export). Field rules, limit
  * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
@@ -487,6 +487,9 @@ final class TwoTenants
         // one left for the isolation suite to void) and a cash pay-in.
         $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
 
+        // EXP-02: a full export of the tenant, built at once (sync queue) and ready.
+        $tenantExport = self::ok($test->postJson('/api/v1/tenant-exports', [], $owner), 202)->json('data.id');
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -504,6 +507,7 @@ final class TwoTenants
                 'manager' => $managerId,
                 'role' => $role,
                 'owner_role' => $roles['owner'],
+                'tenant_export' => $tenantExport,
                 'invitation' => $invitation,
                 'assignment' => $assignment,
                 'session' => $session,

@@ -52,6 +52,7 @@ return [
                 'custom_field' => 'Champs personnalisés',
                 'custom_form' => 'Formulaires personnalisés',
                 'custom_form_type' => 'Types de formulaires personnalisés',
+                'tenant' => 'Export complet des données',
             ],
             'pos' => [
                 'sale' => 'Ventes',

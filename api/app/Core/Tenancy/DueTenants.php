@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * The tenants a scheduled command has work for, found before any tenant is
  * set (ADR 002). Each question is an owner-owned security-definer function
  * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100,
- * 2026_10_20_000200, 2026_10_24_000100 and 2026_10_25_000100) called on the runtime connection: it
+ * 2026_10_20_000200, 2026_10_24_000100, 2026_10_25_000100 and 2026_10_30_000600) called on the runtime connection: it
  * returns only tenant ids, so the scheduler and the workers never need the
  * owner's credentials. The work itself then runs in each tenant's context,
  * under row-level security.
@@ -74,6 +74,12 @@ class DueTenants
     public function withDomainChecksDue(CarbonInterface $at): array
     {
         return $this->ids('app_tenants_with_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> EXP-02: full exports past their expiry at $at, or builds left queued or running for six hours. */
+    public function withDueExports(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_due_exports(?::timestamptz)', [$at->toIso8601String()]);
     }
 
     /** @return list<string> Every active tenant. */

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Isolation;
 
+use App\Core\DataExport\ExportColumns;
+use App\Core\DataExport\Models\TenantExport;
 use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
@@ -17,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
@@ -32,6 +35,7 @@ use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
+use ZipArchive;
 
 /**
  * TEN-01, the sprint exit criterion: a user of tenant A provably cannot see
@@ -69,6 +73,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/public/branding' => 'BR-04: the sign-in page\'s branding of a host, through a security-definer function that returns only public fields (name, look, welcome text, signed asset URLs), never ids or rows; rate-limited',
         'GET api/v1/tls/ask' => 'BR-05: answers only 200 or 404 for whether a host is a verified custom domain (Caddy on-demand TLS); "no" cached 60 s; reachable only from Caddy on the private interface',
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
+        'GET api/v1/tenant-exports/{tenant_export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
     ];
 
@@ -687,6 +692,71 @@ class TenantIsolationTest extends TestCase
 
         foreach (['Tenant B', 'Owner B', 'Manager B', 'Company B', 'Branch B', 'Outlet B', 'Clerk B'] as $name) {
             $this->assertStringNotContainsString($name, $csv);
+        }
+    }
+
+    /**
+     * EXP-02: the full export of tenant A, made after both tenants exist,
+     * has a file for every tenant table, each with A's rows only, A's media,
+     * and nothing of B. No secret of either tenant is in it: the values of
+     * every denied column are looked up and searched for.
+     */
+    public function test_the_full_export_of_tenant_a_has_every_table_and_nothing_of_tenant_b(): void
+    {
+        $a = $this->tenants->a;
+        $b = $this->tenants->b;
+        $id = $this->postJson('/api/v1/tenant-exports', [], $a->bearer())->assertStatus(202)->json('data.id');
+        $export = $this->asTenant($a->tenantId, fn () => TenantExport::query()->findOrFail($id));
+        $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open(Storage::disk('media')->path($export->path)));
+        $manifest = json_decode((string) $zip->getFromName('manifest.json'), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($a->tenantId, $manifest['tenant']['id']);
+        $this->assertSame(GlobalTables::TABLES, $manifest['omitted']['tables']);
+        $this->assertEqualsCanonicalizing([...$this->tenantTables(), 'tenants'], array_column($manifest['tables'], 'name'));
+
+        $content = '';
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $content .= $zip->getFromIndex($i)."\n";
+        }
+
+        foreach ($manifest['tables'] as $table) {
+            $lines = array_values(array_filter(explode("\n", (string) $zip->getFromName($table['file']))));
+            $this->assertGreaterThan(0, count($lines), "{$table['name']}: tenant A's rows are exported");
+
+            foreach ($lines as $line) {
+                $row = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
+                $this->assertSame($a->tenantId, $row[$table['name'] === 'tenants' ? 'id' : 'tenant_id'], "{$table['name']}: a row that is not tenant A's");
+            }
+        }
+
+        // A's media (item image, approval attachment, custom form files...) are in files/.
+        $this->assertGreaterThan(0, $export->file_count);
+        $this->assertNotEmpty(array_filter(array_column($manifest['files'], 'path'), fn ($path) => str_starts_with($path, 'files/')));
+
+        foreach ($this->identifiersOf($b) as $value) {
+            $this->assertStringNotContainsString($value, $content, "the full export of tenant A contains {$value} of tenant B");
+        }
+
+        foreach (['Tenant B', 'Owner B', 'Manager B', 'Company B', 'Branch B', 'Outlet B', 'Customer B', 'Item B'] as $name) {
+            $this->assertStringNotContainsString($name, $content);
+        }
+
+        // Secrets: the stored value of every denied column, in either tenant, and the plain M-Pesa credentials.
+        $secrets = ['key-a', 'secret-a', 'pass-a', 'key-b', 'secret-b', 'pass-b'];
+        foreach ([$a, $b] as $tenant) {
+            $this->asTenant($tenant->tenantId, function () use (&$secrets) {
+                foreach (array_keys(ExportColumns::DENIED) as $key) {
+                    [$table, $column] = explode('.', $key, 2);
+                    array_push($secrets, ...DB::table($table)->whereNotNull($column)->pluck($column)->map(fn ($v) => (string) $v)->filter(fn ($v) => strlen($v) >= 8)->all());
+                }
+            });
+        }
+        $this->assertGreaterThan(10, count($secrets), 'the fixture has secrets to look for');
+
+        foreach (array_unique($secrets) as $secret) {
+            $this->assertStringNotContainsString($secret, $content, 'the full export contains a secret');
         }
     }
 
