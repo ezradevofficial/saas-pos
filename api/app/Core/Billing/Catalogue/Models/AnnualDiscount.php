@@ -5,6 +5,7 @@ namespace App\Core\Billing\Catalogue\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * SUB-01: the annual discount as data ("2 months free" is 10 months
@@ -13,8 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $id
  * @property int $months_charged
  * @property int $months_in_cycle
- * @property \Illuminate\Support\Carbon $effective_from
- * @property \Illuminate\Support\Carbon|null $archived_at
+ * @property Carbon $effective_from
+ * @property Carbon|null $archived_at
  */
 class AnnualDiscount extends Model
 {

@@ -191,7 +191,8 @@ class CatalogueApiTest extends TestCase
 
     public function test_prices_are_versioned_by_date_and_never_edited(): void
     {
-        $owner = $this->staffBearer($this->staff());
+        $staff = $this->staff();
+        $owner = $this->staffBearer($staff);
         $tomorrow = now()->addDay()->toDateString();
 
         $this->postJson('/api/v1/platform/catalogue/prices', ['item_type' => 'module', 'item_key' => 'pos', 'country' => 'KE', 'amount' => 270000, 'effective_from' => now()->subDay()->toDateString()], $owner)
@@ -217,9 +218,11 @@ class CatalogueApiTest extends TestCase
         $this->assertSame(250000, (int) DB::table('catalogue_prices')->where(['item_key' => 'pos', 'country' => 'KE'])->orderBy('effective_from')->value('amount'));
 
         // Once in effect it cannot be archived; the history keeps both rows.
+        $owner = $this->staffBearer($staff);
         $this->postJson("/api/v1/platform/catalogue/prices/{$price['id']}/archive", [], $owner)->assertConflict()->assertJsonPath('code', 'price_in_effect');
         $this->assertCount(2, $this->getJson('/api/v1/platform/catalogue/prices?item_type=module&item_key=pos&country=KE', $owner)->json('data'));
         $this->travelBack();
+        $owner = $this->staffBearer($staff);
 
         // A scheduled price can be archived (a mistake caught before it applies).
         $next = $this->postJson('/api/v1/platform/catalogue/prices', ['item_type' => 'module', 'item_key' => 'crm', 'country' => 'CD', 'amount' => 1700, 'effective_from' => now()->addWeek()->toDateString()], $owner)->assertCreated()->json('data');

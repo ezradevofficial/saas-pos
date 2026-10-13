@@ -6,6 +6,7 @@ use App\Core\Billing\Catalogue\Pricing\Coupon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * SUB-01: a coupon: a percent or a fixed amount in one currency, for every
@@ -21,10 +22,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $currency
  * @property list<string> $applies_to_modules
  * @property list<string> $applies_to_bundles
- * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property Carbon|null $expires_at
  * @property int|null $max_redemptions
  * @property int $redemptions
- * @property \Illuminate\Support\Carbon|null $archived_at
+ * @property Carbon|null $archived_at
  */
 class CatalogueCoupon extends Model
 {

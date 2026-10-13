@@ -5,6 +5,7 @@ namespace App\Core\Billing\Catalogue\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * SUB-01: a module (or extra, or add-on) of the plan catalogue. Global
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property array<string, int> $includes
  * @property string|null $requires
  * @property int $sort
- * @property \Illuminate\Support\Carbon|null $archived_at
+ * @property Carbon|null $archived_at
  */
 class CatalogueModule extends Model
 {

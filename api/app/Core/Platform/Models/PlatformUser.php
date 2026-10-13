@@ -5,6 +5,7 @@ namespace App\Core\Platform\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Carbon;
 
 /**
  * Platform staff (SUB-01, ADM-07 minimal): our own team, not tenant users.
@@ -18,11 +19,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  * @property string $role
  * @property string $status
  * @property string|null $two_factor_secret
- * @property \Illuminate\Support\Carbon|null $two_factor_confirmed_at
+ * @property Carbon|null $two_factor_confirmed_at
  * @property int|null $two_factor_last_used_step
  * @property int $failed_sign_ins
- * @property \Illuminate\Support\Carbon|null $locked_until
- * @property \Illuminate\Support\Carbon|null $last_sign_in_at
+ * @property Carbon|null $locked_until
+ * @property Carbon|null $last_sign_in_at
  */
 class PlatformUser extends Authenticatable
 {

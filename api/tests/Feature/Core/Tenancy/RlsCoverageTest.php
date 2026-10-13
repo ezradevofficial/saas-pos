@@ -39,6 +39,17 @@ class RlsCoverageTest extends TestCase
         $this->assertSame(GlobalTables::TABLES, $tables, 'every allow-listed table must exist with a tenant_id');
     }
 
+    /** ADR 013: platform tables are global by design and never hold a tenant_id. */
+    public function test_platform_tables_are_global_and_hold_no_tenant_id(): void
+    {
+        $tables = array_keys(GlobalTables::PLATFORM);
+        $found = collect(DB::select("select table_name from information_schema.tables where table_schema = 'public' and table_name = any(?)", ['{'.implode(',', $tables).'}']))->pluck('table_name')->sort()->values()->all();
+        $this->assertSame(collect($tables)->sort()->values()->all(), $found, 'every documented platform table must exist');
+
+        $withTenant = collect(DB::select("select table_name from information_schema.columns where table_schema = 'public' and column_name = 'tenant_id' and table_name = any(?)", ['{'.implode(',', $tables).'}']))->pluck('table_name')->all();
+        $this->assertSame([], $withTenant, 'a platform table must not hold tenant rows');
+    }
+
     public function test_tenants_table_forces_row_level_security_keyed_on_id(): void
     {
         $table = DB::selectOne("

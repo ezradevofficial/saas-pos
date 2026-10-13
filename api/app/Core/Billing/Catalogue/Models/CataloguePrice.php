@@ -5,6 +5,7 @@ namespace App\Core\Billing\Catalogue\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * SUB-01: the monthly price of a module or bundle in one country and its
@@ -21,8 +22,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $amount
  * @property int|null $minimum_amount
  * @property int|null $extra_outlet_amount
- * @property \Illuminate\Support\Carbon $effective_from
- * @property \Illuminate\Support\Carbon|null $archived_at
+ * @property Carbon $effective_from
+ * @property Carbon|null $archived_at
  */
 class CataloguePrice extends Model
 {

@@ -5,6 +5,7 @@ namespace App\Core\Platform\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * A platform staff bearer token (ADR 013). Kept apart from tenant tokens
@@ -15,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $platform_user_id
  * @property string $token
  * @property list<string> $abilities
- * @property \Illuminate\Support\Carbon $expires_at
- * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property Carbon $expires_at
+ * @property Carbon|null $last_used_at
  */
 class PlatformAccessToken extends Model
 {
