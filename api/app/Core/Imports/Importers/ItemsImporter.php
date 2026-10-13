@@ -288,7 +288,7 @@ class ItemsImporter extends Importer
 
     private function existing(string $code, ?string $companyId): ?Item
     {
-        return Item::query()->whereNull('archived_at')->where('code', $code)
+        return Item::query()->whereNull('archived_at')->whereCode($code)
             ->when($companyId === null, fn ($q) => $q->whereNull('company_id'), fn ($q) => $q->where('company_id', $companyId))
             ->first();
     }

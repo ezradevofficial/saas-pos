@@ -26,7 +26,7 @@ class ItemUniqueness
         $errors = [];
 
         $codeTaken = $this->inScope(Item::query()->active(), $companyId)
-            ->where('code', $code)
+            ->whereCode($code)
             ->when($exceptItemId !== null, fn (Builder $q) => $q->whereKeyNot($exceptItemId))
             ->exists();
 

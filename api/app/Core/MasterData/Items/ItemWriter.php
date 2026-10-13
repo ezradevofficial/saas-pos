@@ -51,8 +51,15 @@ class ItemWriter
             $this->customFields->fill(ItemEntity::KEY, $item, $data['custom'] ?? null, creating: true);
             $item->save();
             $this->customFields->saved(ItemEntity::KEY, $item);
-            $this->syncUoms($item, $data['uoms'] ?? []);
-            $this->syncBarcodes($item, $barcodes);
+
+            // A new item has no units or barcodes yet: nothing to replace or audit without them.
+            if (($data['uoms'] ?? []) !== []) {
+                $this->syncUoms($item, $data['uoms']);
+            }
+
+            if ($barcodes !== []) {
+                $this->syncBarcodes($item, $barcodes);
+            }
 
             return $item;
         }));

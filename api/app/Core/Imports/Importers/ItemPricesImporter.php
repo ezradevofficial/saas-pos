@@ -101,7 +101,7 @@ class ItemPricesImporter extends Importer
         /** @var PriceList $list */
         $list = $matches->first();
         // TEN-08: a shared item, or the list's company's.
-        $item = Item::query()->whereNull('archived_at')->where('code', $values['item_code'] ?? '')
+        $item = Item::query()->whereNull('archived_at')->whereCode((string) ($values['item_code'] ?? ''))
             ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $list->company_id))->first();
 
         if ($item === null) {

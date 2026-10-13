@@ -177,7 +177,8 @@ class ImportRunner
      */
     private function writeBatch(Import $import, array $plan, array $batch, array &$seen, array &$counts, ImportReport $report): void
     {
-        $results = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($import, $plan, $batch, &$seen) {
+        // AUD-03: the audit chain head is locked once per batch (Auditor::batch).
+        $results = $this->auditor->batch(function () use ($import, $plan, $batch, &$seen) {
             $results = [];
             $rows = [];
 

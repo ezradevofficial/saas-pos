@@ -98,7 +98,7 @@ class ImportUndo
         $importer = $this->registry->get($import->importer);
         $context = new ImportContext($by, $import->mode);
 
-        return $this->audit->actingAs($by->id, ['import_id' => $import->id], fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($import, $importer, $context, $by) {
+        return $this->audit->actingAs($by->id, ['import_id' => $import->id], fn () => $this->auditor->batch(function () use ($import, $importer, $context, $by) {
             $blockers = $this->blockers($import);
 
             if ($blockers['count'] > 0) {
