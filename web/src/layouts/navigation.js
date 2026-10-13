@@ -79,6 +79,18 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Loyalty (docs/modules/loyalty.md): only while the module is active (RBAC-08).
+    id: 'loyalty',
+    label: (t) => t('nav.groups.loyalty'),
+    items: [
+      { to: '/loyalty/promotions', icon: 'promotions', label: (t) => t('nav.loyaltyPromotions'), permission: ['loyalty.promotion.view', 'loyalty.promotion.create', 'loyalty.promotion.edit'], module: 'loyalty' },
+      { to: '/loyalty/gift-cards', icon: 'giftCards', label: (t) => t('nav.loyaltyGiftCards'), permission: 'loyalty.gift_card.view', module: 'loyalty' },
+      { to: '/loyalty/credit', icon: 'creditLimits', label: (t) => t('nav.loyaltyCredit'), permission: 'loyalty.credit.view', module: 'loyalty' },
+      { to: '/loyalty/ageing', icon: 'chart', label: (t) => t('nav.loyaltyAgeing'), permission: 'loyalty.credit.view', module: 'loyalty' },
+      { to: '/loyalty/programme', icon: 'loyalty', label: (t) => t('nav.loyaltyProgramme'), permission: ['loyalty.programme.view', 'loyalty.programme.edit'], module: 'loyalty' },
+    ],
+  },
+  {
     id: 'catalogue',
     label: (t) => t('nav.groups.catalogue'),
     items: [

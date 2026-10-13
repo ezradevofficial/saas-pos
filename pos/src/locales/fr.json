@@ -471,12 +471,12 @@
       "dark": "Sombre"
     },
     "loyalty": {
-      "points": "Points {{points}}",
+      "points": "Solde : {{points}} points",
       "credit": "Doit {{owed}}",
       "creditOf": "Doit {{owed}} sur {{limit}}",
       "coupon": "Code de coupon",
       "applyCoupon": "Appliquer",
-      "couponApplied": "Coupon {{code}}",
+      "couponApplied": "Coupon appliqué : {{code}}",
       "removeCoupon": "Retirer le coupon {{code}}",
       "remove": "Retirer",
       "input": {
@@ -484,7 +484,7 @@
         "code": "Code de la carte cadeau"
       },
       "tenderLabel": {
-        "points": "{{label}} points",
+        "points": "{{label}} pts",
         "voucher": "Carte {{label}}"
       },
       "errors": {

@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/pages/settings/ConfirmDialog'
 import { CREDIT_REQUEST } from './creditLimitData'
 import { PartyCreditChanges, RequestCreditChangeDialog } from './creditLimits'
 import { PartyForm } from './PartyForm'
+import { partyTabsFor } from './partyTabs'
 import { ROLE_PATHS } from './partyData'
 
 const detailKey = (id) => ['parties', 'detail', id]
@@ -41,7 +42,7 @@ export default function PartyDetail({ role }) {
   const location = useLocation()
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const { can, canWithin } = usePermissions()
+  const { can, canWithin, hasModule } = usePermissions()
   const path = ROLE_PATHS[role]
   const [duplicates, setDuplicates] = useState(() => location.state?.duplicates ?? [])
   const [saved, setSaved] = useState(Boolean(location.state?.created))
@@ -86,8 +87,11 @@ export default function PartyDetail({ role }) {
   // RBAC-05: the credit limit (and its changes) only when field rules show it.
   const seesCredit = 'credit_limit' in party
   const canRequest = seesCredit && !archived && can(CREDIT_REQUEST)
-  const tabs = TABS.filter((name) => name !== 'credit' || seesCredit)
+  // LOY-27: tabs other modules add (the Loyalty tab), while active and permitted.
+  const moduleTabs = partyTabsFor(role, { hasModule, can })
+  const tabs = [...TABS.filter((name) => name !== 'credit' || seesCredit), ...moduleTabs.map((entry) => entry.value)]
   const tab = tabs.includes(asked) ? asked : 'details'
+  const moduleTab = moduleTabs.find((entry) => entry.value === tab)
 
   return (
     <>
@@ -145,11 +149,13 @@ export default function PartyDetail({ role }) {
         </Card>
       ) : null}
       <Tabs
-        items={tabs.map((value) => ({ value, label: value === 'credit' ? t('creditLimits.tab') : t(`items.tabs.${value}`) }))}
+        items={tabs.map((value) => ({ value, label: value === 'credit' ? t('creditLimits.tab') : (moduleTabs.find((entry) => entry.value === value)?.label(t) ?? t(`items.tabs.${value}`)) }))}
         value={tab}
         onChange={(next) => setParams(next === 'details' ? {} : { tab: next }, { replace: true })}
       />
-      {tab === 'credit' ? (
+      {moduleTab ? (
+        <moduleTab.Component party={party} />
+      ) : tab === 'credit' ? (
         <Card>
           <PartyCreditChanges party={party} />
         </Card>
