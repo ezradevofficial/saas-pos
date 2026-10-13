@@ -102,7 +102,7 @@ function IssueDialog({ onClose }) {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          <Select label={t('loyalty.giftCards.columns.kind')} value={form.kind} onChange={set('kind')} options={['gift_card', 'voucher'].map((kind) => ({ value: kind, label: t(`loyalty.giftCards.kinds.${kind}`) }))} />
+          <Select label={t('loyalty.giftCards.columns.kind')} value={form.kind} onChange={(event) => set('kind')(event.target.value)} options={['gift_card', 'voucher'].map((kind) => ({ value: kind, label: t(`loyalty.giftCards.kinds.${kind}`) }))} />
           <MoneyInput label={t('loyalty.giftCards.value')} currency={currency} value={form.amount_minor} onChange={(value) => set('amount_minor')(value ?? '')} error={errors.amount_minor} />
           <TextField label={t('loyalty.giftCards.count')} inputMode="numeric" value={form.count} onChange={(event) => set('count')(event.target.value)} error={errors.count} />
           <TextField type="date" label={t('loyalty.giftCards.expiresOn')} value={form.expires_on} onChange={(event) => set('expires_on')(event.target.value)} error={errors.expires_on} />

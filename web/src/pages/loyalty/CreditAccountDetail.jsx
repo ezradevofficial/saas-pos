@@ -166,7 +166,7 @@ function EntryDialog({ action, account, onClose, onDone }) {
     >
       <MoneyInput label={t('loyalty.credit.dialog.amount')} currency={account.currency} value={amount} onChange={(value) => setAmount(value ?? '')} error={errors.amount_minor} />
       {action === 'adjustments' ? (
-        <Checkbox label={t('loyalty.credit.dialog.reduce')} checked={negative} onCheckedChange={(checked) => setNegative(Boolean(checked))} />
+        <Checkbox label={t('loyalty.credit.dialog.reduce')} checked={negative} onChange={(event) => setNegative(event.target.checked)} />
       ) : (
         <TextField label={t('loyalty.credit.dialog.reference')} value={reference} onChange={(event) => setReference(event.target.value)} error={errors.reference} />
       )}

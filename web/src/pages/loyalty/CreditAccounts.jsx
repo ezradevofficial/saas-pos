@@ -87,7 +87,7 @@ export function OpenAccountDialog({ onClose, onOpened, partyId = null }) {
     >
       <p className="text-body text-ink-muted">{t('loyalty.credit.openHelp')}</p>
       {!partyId ? (
-        <Select label={t('loyalty.credit.customer')} placeholder={t('loyalty.credit.chooseCustomer')} value={party} onChange={setParty} error={errors.party_id}
+        <Select label={t('loyalty.credit.customer')} placeholder={t('loyalty.credit.chooseCustomer')} value={party} onChange={(event) => setParty(event.target.value)} error={errors.party_id}
           options={(customers.data?.data ?? []).map((row) => ({ value: row.id, label: row.name }))} />
       ) : null}
       {open.isError && !errors.party_id ? <Alert tone="danger" title={errorMessage(open.error)} /> : null}

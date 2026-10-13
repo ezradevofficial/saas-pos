@@ -127,7 +127,7 @@ export default function PromotionEditor() {
       <Card title={t('loyalty.promotions.what')}>
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label={t('loyalty.promotions.name')} value={form.name} onChange={text('name')} error={errors.name} disabled={!editable} required />
-          <Select label={t('loyalty.promotions.type')} value={form.type} onChange={set('type')} disabled={!creating} options={PROMOTION_TYPES.map((type) => ({ value: type, label: t(`loyalty.promotions.types.${type}`) }))} />
+          <Select label={t('loyalty.promotions.type')} value={form.type} onChange={(event) => set('type')(event.target.value)} disabled={!creating} options={PROMOTION_TYPES.map((type) => ({ value: type, label: t(`loyalty.promotions.types.${type}`) }))} />
           {typeIs('percent', 'buy_x_get_y') ? <TextField label={typeIs('percent') ? t('loyalty.promotions.percent') : t('loyalty.promotions.getPercent')} suffix="%" inputMode="decimal" value={form.percent} onChange={text('percent')} error={errors.percent} disabled={!editable} /> : null}
           {typeIs('amount_off', 'bundle') ? <MoneyInput label={typeIs('bundle') ? t('loyalty.promotions.bundlePrice') : t('loyalty.promotions.amountOff')} currency={currency} value={form.amount_minor} onChange={set('amount_minor')} error={errors.amount_minor} disabled={!editable} /> : null}
           {typeIs('buy_x_get_y') ? (
@@ -147,7 +147,7 @@ export default function PromotionEditor() {
               {form.components.map((component, index) => (
                 <div key={index} className="flex flex-wrap items-end gap-3">
                   <Select className="min-w-48 flex-1" label={t('loyalty.promotions.componentItem')} placeholder={t('loyalty.promotions.chooseItem')} value={component.item_id} options={items} disabled={!editable}
-                    onChange={(value) => set('components')(form.components.map((c, i) => (i === index ? { ...c, item_id: value } : c)))} />
+                    onChange={(event) => set('components')(form.components.map((c, i) => (i === index ? { ...c, item_id: event.target.value } : c)))} />
                   <TextField className="w-28" label={t('loyalty.promotions.componentQty')} inputMode="numeric" value={component.qty} disabled={!editable}
                     onChange={(event) => set('components')(form.components.map((c, i) => (i === index ? { ...c, qty: event.target.value } : c)))} />
                   {editable ? <Button variant="ghost" icon="remove" aria-label={t('loyalty.promotions.removeComponent')} onClick={() => set('components')(form.components.filter((_, i) => i !== index))} /> : null}
@@ -177,7 +177,7 @@ export default function PromotionEditor() {
             <legend className="mb-2 text-label text-ink">{t('loyalty.promotions.days')}</legend>
             {WEEKDAYS.map((day) => (
               <Checkbox key={day} label={t(`loyalty.weekdays.${day}`)} checked={form.days.includes(day)} disabled={!editable}
-                onCheckedChange={(checked) => set('days')(checked ? [...form.days, day].sort() : form.days.filter((d) => d !== day))} />
+                onChange={(event) => set('days')(event.target.checked ? [...form.days, day].sort() : form.days.filter((d) => d !== day))} />
             ))}
           </fieldset>
           <Switch label={t('loyalty.promotions.requiresCoupon')} checked={form.requires_coupon} onChange={set('requires_coupon')} disabled={!editable} />
@@ -275,7 +275,7 @@ function Preview({ companyId, currency, draft, items, branches }) {
       <div className="flex flex-col gap-3">
         {lines.map((line, index) => (
           <div key={index} className="flex flex-wrap items-end gap-3">
-            <Select className="min-w-48 flex-1" label={t('loyalty.preview.item')} placeholder={t('loyalty.promotions.chooseItem')} value={line.item_id} options={items} onChange={(value) => setLines(lines.map((l, i) => (i === index ? { ...l, item_id: value } : l)))} />
+            <Select className="min-w-48 flex-1" label={t('loyalty.preview.item')} placeholder={t('loyalty.promotions.chooseItem')} value={line.item_id} options={items} onChange={(event) => setLines(lines.map((l, i) => (i === index ? { ...l, item_id: event.target.value } : l)))} />
             <TextField className="w-24" label={t('loyalty.preview.qty')} inputMode="decimal" value={line.qty} onChange={(event) => setLines(lines.map((l, i) => (i === index ? { ...l, qty: event.target.value } : l)))} />
             <MoneyInput className="w-48" label={t('loyalty.preview.price')} currency={currency} value={line.unit_price_minor} onChange={(value) => setLines(lines.map((l, i) => (i === index ? { ...l, unit_price_minor: value ?? '' } : l)))} />
           </div>
@@ -284,7 +284,7 @@ function Preview({ companyId, currency, draft, items, branches }) {
           <Button icon="plus" onClick={() => setLines([...lines, { item_id: '', qty: '1', unit_price_minor: '' }])}>{t('loyalty.preview.addLine')}</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          <Select label={t('loyalty.preview.branch')} placeholder={t('loyalty.preview.anyBranch')} value={branch} options={branches} onChange={setBranch} />
+          <Select label={t('loyalty.preview.branch')} placeholder={t('loyalty.preview.anyBranch')} value={branch} options={branches} onChange={(event) => setBranch(event.target.value)} />
           <TextField type="datetime-local" label={t('loyalty.preview.at')} help={t('loyalty.preview.atHelp')} value={at} onChange={(event) => setAt(event.target.value)} />
           <TextField label={t('loyalty.preview.coupon')} value={coupon} onChange={(event) => setCoupon(event.target.value)} />
         </div>

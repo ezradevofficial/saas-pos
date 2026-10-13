@@ -101,7 +101,7 @@ function AdjustPoints({ party, companyId, onClose, onDone }) {
         </>
       }
     >
-      <Select label={t('loyalty.customer.direction')} value={direction} onChange={setDirection} options={[{ value: 'add', label: t('loyalty.customer.add') }, { value: 'remove', label: t('loyalty.customer.remove') }]} />
+      <Select label={t('loyalty.customer.direction')} value={direction} onChange={(event) => setDirection(event.target.value)} options={[{ value: 'add', label: t('loyalty.customer.add') }, { value: 'remove', label: t('loyalty.customer.remove') }]} />
       <TextField label={t('loyalty.customer.pointsField')} inputMode="numeric" value={points} onChange={(event) => setPoints(event.target.value)} error={errors.points} />
       <TextField label={t('loyalty.credit.dialog.reason')} value={reason} onChange={(event) => setReason(event.target.value)} error={errors.reason} />
       {save.isError && !errors.points && !errors.reason ? <Alert tone="danger" title={errorMessage(save.error)} /> : null}
