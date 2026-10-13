@@ -14,7 +14,6 @@ use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Overage\SubscriptionAllowances;
 use App\Core\Billing\Subscriptions\BillingTillState;
 use App\Core\Billing\Subscriptions\BillingTrial;
-use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Notifications\EventTypes;
@@ -25,6 +24,7 @@ use App\Core\Onboarding\Trial\TrialExpiry;
 use App\Core\Onboarding\Trial\TrialStarter;
 use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Payments\Events\PaymentIntentSettled;
+use App\Core\Sync\Contracts\TillSellingState;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 

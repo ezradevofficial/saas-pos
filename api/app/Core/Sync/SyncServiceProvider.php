@@ -2,12 +2,12 @@
 
 namespace App\Core\Sync;
 
-use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\Console\SyncLagCommand;
+use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\Sync\Jobs\RestampItemsForTax;
 use App\Core\Sync\Sources\CurrencySource;
 use App\Core\Sync\Sources\CustomerSource;
