@@ -5294,7 +5294,8 @@
       "completed": "Completed",
       "failed": "Stopped",
       "undoing": "Undoing",
-      "undone": "Undone"
+      "undone": "Undone",
+      "partly_undone": "Partly undone"
     },
     "modes": {
       "create": "Add new records only",
@@ -5410,7 +5411,9 @@
       "blockedTitle_one": "The import was not undone: {{count}} record is in use or changed since",
       "blockedTitle_other": "The import was not undone: {{count}} records are in use or changed since",
       "blockedRow": "Row {{row}}, {{record}}: {{reason}}",
-      "all": "All imports"
+      "all": "All imports",
+      "partlyUndone": "Part of this import was undone. The rows listed below are still in place because something now depends on them; you can try the undo again.",
+      "offlineTills": "Tills that already received these items keep them until they next sync. A sale a till made offline with one of them still arrives and is kept."
     }
   }
 }

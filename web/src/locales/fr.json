@@ -5294,7 +5294,8 @@
       "completed": "Terminé",
       "failed": "Interrompu",
       "undoing": "Annulation en cours",
-      "undone": "Annulé"
+      "undone": "Annulé",
+      "partly_undone": "Partiellement annulée"
     },
     "modes": {
       "create": "Ajouter seulement les nouveaux enregistrements",
@@ -5410,7 +5411,9 @@
       "blockedTitle_one": "L’importation n’a pas été annulée : {{count}} enregistrement est utilisé ou a été modifié depuis",
       "blockedTitle_other": "L’importation n’a pas été annulée : {{count}} enregistrements sont utilisés ou ont été modifiés depuis",
       "blockedRow": "Ligne {{row}}, {{record}} : {{reason}}",
-      "all": "Toutes les importations"
+      "all": "Toutes les importations",
+      "partlyUndone": "Une partie de cette importation a été annulée. Les lignes ci-dessous sont toujours en place car quelque chose en dépend désormais ; vous pouvez relancer l’annulation.",
+      "offlineTills": "Les caisses qui ont déjà reçu ces articles les gardent jusqu’à leur prochaine synchronisation. Une vente faite hors ligne avec l’un d’eux arrive quand même et est conservée."
     }
   }
 }

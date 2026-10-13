@@ -75,7 +75,10 @@ class ImportFiles
             return [$disk->path($path), fn () => null];
         }
 
-        $copy = tempnam(sys_get_temp_dir(), 'import-').'.'.pathinfo($path, PATHINFO_EXTENSION);
+        // tempnam creates the file it names: the copy (with the extension the
+        // reader needs) sits beside it, and both go when done.
+        $base = tempnam(sys_get_temp_dir(), 'import-');
+        $copy = $base.'.'.pathinfo($path, PATHINFO_EXTENSION);
         $stream = $disk->readStream($path);
         file_put_contents($copy, $stream);
 
@@ -83,7 +86,10 @@ class ImportFiles
             fclose($stream);
         }
 
-        return [$copy, fn () => @unlink($copy)];
+        return [$copy, function () use ($base, $copy) {
+            @unlink($copy);
+            @unlink($base);
+        }];
     }
 
     /** A temporary download URL for $user. */

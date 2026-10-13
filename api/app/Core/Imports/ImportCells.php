@@ -29,12 +29,19 @@ use Throwable;
  */
 class ImportCells
 {
+    /** The longest cell read; a longer one is a row error (`too_long`). */
+    public const MAX_CELL = 10000;
+
     public function __construct(private readonly CurrencyDecimals $decimals) {}
 
     public function read(ImportColumn $column, mixed $raw, ?CustomFieldDefinition $field = null): mixed
     {
         if ($raw === null || (is_string($raw) && trim($raw) === '')) {
             return null;
+        }
+
+        if (is_string($raw) && mb_strlen($raw) > self::MAX_CELL) {
+            return new ImportCellError('too_long');
         }
 
         if ($field !== null) {

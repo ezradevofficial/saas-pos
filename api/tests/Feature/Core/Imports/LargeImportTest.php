@@ -21,7 +21,7 @@ use Tests\TestCase;
  * transaction holding 50,000 rows' savepoints runs out of lock space),
  * so the next test migrates afresh, as SyncConcurrencyTest does.
  */
-#[Group('large')]
+#[Group('slow')]
 class LargeImportTest extends TestCase
 {
     use BuildsImports, BuildsOrganisation, RefreshTenantDatabase;

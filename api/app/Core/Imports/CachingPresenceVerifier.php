@@ -7,12 +7,15 @@ use Illuminate\Validation\DatabasePresenceVerifierInterface;
 use Illuminate\Validation\PresenceVerifierInterface;
 
 /**
- * IMP-03: during an import, the `exists` checks the domain rules run on
+ * IMP-03: during an import, the presence checks the domain rules run on
  * reference data (units, categories, tax categories, companies, price
  * lists, currencies) are answered once per batch instead of once per row.
- * Only these tables are cached, and only `exists` checks (no excluded
- * id): unique checks, and any table the import writes, always reach the
- * database. The rules themselves are unchanged (RLS still applies).
+ * Only these tables are cached, and only checks without an excluded id:
+ * that covers `exists` rules, and also `unique` rules on these tables that
+ * ignore no id. No importer writes any of these tables, so an answer can't
+ * go stale within a batch; the cache is cleared at every batch, and tables
+ * an import writes (items, parties, prices) always reach the database.
+ * The rules themselves are unchanged (RLS still applies).
  */
 class CachingPresenceVerifier implements DatabasePresenceVerifierInterface
 {

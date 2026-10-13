@@ -21,6 +21,7 @@ return [
         'completed' => 'Terminé',
         'failed' => 'Interrompu',
         'undoing' => 'Annulation en cours',
+        'partly_undone' => 'Partiellement annulé',
         'undone' => 'Annulé',
     ],
     'list_columns' => [
@@ -118,6 +119,7 @@ return [
         'boolean' => 'Saisissez oui ou non.',
         'option' => 'Saisissez une des valeurs proposées.',
         'money' => 'Saisissez un montant avec sa devise, comme KES 12,50.',
+        'too_long' => 'Cette cellule dépasse 10 000 caractères. Raccourcissez-la.',
     ],
     'errors' => [
         'required' => 'Cette colonne doit être renseignée.',
@@ -140,6 +142,8 @@ return [
         'column_required' => 'Associez une colonne du fichier à :column.',
         'mode_forbidden' => 'Vous n’avez pas l’autorisation de mettre à jour les enregistrements existants.',
         'file_unreadable' => 'Ce fichier est illisible. Enregistrez-le en XLSX ou en CSV UTF-8 et téléversez-le à nouveau.',
+        'file_encoding' => 'Ce fichier n’est pas dans un codage de texte que nous lisons. Enregistrez-le en CSV UTF-8 ou en XLSX et téléversez-le à nouveau.',
+        'file_too_large' => 'Ce fichier se décompresse au-delà de ce que nous lisons. Retirez les feuilles et la mise en forme inutiles, ou divisez-le.',
         'file_empty' => 'Ce fichier n’a aucune ligne. Remplissez le modèle et téléversez-le à nouveau.',
         'too_many_rows' => 'Ce fichier a plus de :rows lignes. Divisez-le en fichiers plus petits.',
         'not_undoable' => 'Cet import ne peut plus être annulé. Un import peut être annulé dans les 24 heures.',

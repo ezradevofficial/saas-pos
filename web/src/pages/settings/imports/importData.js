@@ -14,10 +14,11 @@ export const STATUS_TONE = {
   completed: 'success',
   failed: 'danger',
   undoing: 'warning',
+  partly_undone: 'warning',
   undone: 'neutral',
 }
 
-export const IMPORT_STATUSES = ['ready', 'checking', 'checked', 'importing', 'completed', 'failed', 'undoing', 'undone']
+export const IMPORT_STATUSES = ['ready', 'checking', 'checked', 'importing', 'completed', 'failed', 'undoing', 'partly_undone', 'undone']
 
 /** The importers the user may run, with their columns (labels in the UI language). */
 export function useImporters() {

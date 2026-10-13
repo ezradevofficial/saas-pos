@@ -21,6 +21,7 @@ return [
         'completed' => 'Completed',
         'failed' => 'Stopped',
         'undoing' => 'Undoing',
+        'partly_undone' => 'Partly undone',
         'undone' => 'Undone',
     ],
     'list_columns' => [
@@ -118,6 +119,7 @@ return [
         'boolean' => 'Enter yes or no.',
         'option' => 'Enter one of the listed values.',
         'money' => 'Enter an amount with its currency, such as KES 12.50.',
+        'too_long' => 'This cell is longer than 10,000 characters. Shorten it.',
     ],
     'errors' => [
         'required' => 'This column needs a value.',
@@ -140,6 +142,8 @@ return [
         'column_required' => 'Map a file column to :column.',
         'mode_forbidden' => 'You do not have permission to update existing records.',
         'file_unreadable' => 'This file could not be read. Save it as XLSX or UTF-8 CSV and upload it again.',
+        'file_encoding' => 'This file is not in a text encoding we read. Save it as UTF-8 CSV or XLSX and upload it again.',
+        'file_too_large' => 'This file expands to more than we read. Remove unused sheets and formatting, or split it.',
         'file_empty' => 'This file has no rows. Fill in the template and upload it again.',
         'too_many_rows' => 'This file has more than :rows rows. Split it into smaller files.',
         'not_undoable' => 'This import can no longer be undone. Imports can be undone within 24 hours.',

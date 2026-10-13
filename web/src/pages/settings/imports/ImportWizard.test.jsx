@@ -193,6 +193,24 @@ describe('Import wizard (IMP-01..IMP-03)', () => {
     expect(await screen.findByText('This import was undone.')).toBeInTheDocument()
   })
 
+  it('shows a partly undone import with what still blocks, and warns about offline tills before undo', async () => {
+    setUp(() =>
+      record({
+        status: 'partly_undone',
+        processed_rows: 20,
+        created_rows: 20,
+        can_undo: true,
+        blocking: [{ row: 2, record: 'A-1 One', reason: 'Used in a sale' }],
+      }),
+    )
+    renderApp('/settings/imports/imp-1')
+
+    expect(await screen.findByText(/Part of this import was undone/)).toBeInTheDocument()
+    expect(screen.getByText('Row 2, A-1 One: Used in a sale')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo import' }))
+    expect(within(await screen.findByRole('dialog')).getByText(/Tills that already received these items/)).toBeInTheDocument()
+  })
+
   it('lists the rows that block an undo', async () => {
     setUp(() => record({ status: 'completed', processed_rows: 20, created_rows: 20, can_undo: true }))
     api.post.mockRejectedValue(

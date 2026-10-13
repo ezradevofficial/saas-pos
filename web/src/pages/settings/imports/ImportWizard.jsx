@@ -449,6 +449,7 @@ function Result({ record }) {
         <Counts record={record} />
         {record.failure ? <Alert tone="danger">{record.failure}</Alert> : null}
         {record.status === 'undone' ? <Alert tone="info">{t('imports.result.undone')}</Alert> : null}
+        {record.status === 'partly_undone' ? <Alert tone="warning">{t('imports.result.partlyUndone')}</Alert> : null}
         {blocked && record.status !== 'undone' ? (
           <Alert tone="danger" title={t('imports.result.blockedTitle', { count: blocked.count })}>
             <ul className="mt-2 flex flex-col gap-1">
@@ -496,6 +497,7 @@ function Result({ record }) {
         }
       >
         <p className="text-body text-ink">{t('imports.result.undoText', { created: record.created_rows, updated: record.updated_rows })}</p>
+        {record.importer === 'items' ? <p className="mt-3 text-body text-ink-muted">{t('imports.result.offlineTills')}</p> : null}
       </Dialog>
     </Card>
   )

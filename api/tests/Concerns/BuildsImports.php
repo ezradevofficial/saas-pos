@@ -36,7 +36,9 @@ trait BuildsImports
     /** @param list<list<mixed>> $rows header row first */
     protected function xlsxFile(array $rows, string $name = 'import.xlsx'): UploadedFile
     {
-        $path = tempnam(sys_get_temp_dir(), 'test-import-').'.xlsx';
+        $base = tempnam(sys_get_temp_dir(), 'test-import-');
+        @unlink($base);
+        $path = $base.'.xlsx';
         $writer = new Writer;
         $writer->openToFile($path);
 

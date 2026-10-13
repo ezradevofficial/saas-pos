@@ -54,7 +54,7 @@ class ImportReport
         $values = [];
 
         for ($i = 0; $i < $width; $i++) {
-            $values[] = ImportCells::display($cells[$i] ?? null);
+            $values[] = mb_substr(ImportCells::display($cells[$i] ?? null), 0, ImportCells::MAX_CELL);
         }
 
         $values[] = (string) $number;

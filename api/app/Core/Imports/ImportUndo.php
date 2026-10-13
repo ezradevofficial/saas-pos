@@ -7,6 +7,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -154,7 +155,7 @@ class ImportUndo
         }
     }
 
-    /** @return \Illuminate\Database\Eloquent\Builder<ImportRow> */
+    /** @return Builder<ImportRow> */
     private function pending(Import $import)
     {
         return ImportRow::query()->where('import_id', $import->id)->whereNull('undone_at');
