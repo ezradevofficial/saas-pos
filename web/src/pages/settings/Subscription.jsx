@@ -130,13 +130,12 @@ function Overview({ subscription, catalogue, canManage }) {
 }
 
 /** Change the plan: a live quote, then a confirm with the amount shown (SUB-02). */
-function ChangePlan({ subscription, catalogue }) {
+function ChangePlan({ subscription, catalogue, done, onDone }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const refresh = useRefreshBilling()
   const [plan, setPlan] = useState(() => planOf(subscription))
   const [coupon, setCoupon] = useState('')
-  const [done, setDone] = useState(null)
   const wanted = useMemo(() => cleanPlan(plan, catalogue), [plan, catalogue])
   const body = useDebounced(JSON.stringify({ ...wanted, coupon: coupon.trim() || null }), 400)
   const dirty = !samePlan(wanted, subscription) || coupon.trim() !== ''
@@ -150,7 +149,7 @@ function ChangePlan({ subscription, catalogue }) {
   const change = useMutation({
     mutationFn: () => api.post('subscription/change', { ...JSON.parse(body), expected_charge: quote.data.data.charge_now }),
     onSuccess: async (response) => {
-      setDone(response.data)
+      onDone(response.data)
       setCoupon('')
       await refresh()
     },
@@ -557,9 +556,11 @@ export default function Subscription() {
   const canManage = tenantWide('core.subscription.manage')
   const subscription = useQuery({ queryKey: SUBSCRIPTION_KEY, queryFn: () => api.get('subscription'), retry: false })
   const data = subscription.data?.data
-  const catalogue = useQuery({ queryKey: ['catalogue', data?.country], queryFn: () => api.get(`catalogue?country=${data.country}`), enabled: Boolean(data?.country), staleTime: 300_000 })
+  const catalogue = useQuery({ queryKey: ['catalogue', data?.country], queryFn: async () => (await api.get(`catalogue?country=${data.country}`)).data, enabled: Boolean(data?.country), staleTime: 300_000 })
   const methods = useQuery({ queryKey: METHODS_KEY, queryFn: () => api.get('subscription/payment-methods'), enabled: Boolean(data) })
   const queryClient = useQueryClient()
+  // Kept here: the editor starts afresh from the new plan after a change.
+  const [changed, setChanged] = useState(null)
 
   useEffect(() => {
     if (data) queryClient.invalidateQueries({ queryKey: STATUS_KEY })
@@ -573,7 +574,7 @@ export default function Subscription() {
       {data ? (
         <>
           <Overview subscription={data} catalogue={catalogue.data} canManage={canManage} />
-          {canManage && catalogue.data ? <ChangePlan key={JSON.stringify(planOf(data))} subscription={data} catalogue={catalogue.data} /> : null}
+          {canManage && catalogue.data ? <ChangePlan key={JSON.stringify(planOf(data))} subscription={data} catalogue={catalogue.data} done={changed} onDone={setChanged} /> : null}
           <Invoices subscription={data} methods={methods.data?.data ?? []} canManage={canManage} />
           <PaymentMethods subscription={data} methods={methods.data?.data ?? []} canManage={canManage} />
         </>

@@ -45,7 +45,7 @@ function routes(subscription = SUBSCRIPTION, status = { status: subscription.sta
     ['subscription/payment-methods', { data: [METHOD] }],
     [/^subscription\/invoices/, { data: [INVOICE], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }],
     [/^subscription\/payments\//, { data: { id: 'p-1', status: 'succeeded', label: METHOD.label, amount: INVOICE.total } }],
-    ['catalogue?country=KE', CATALOGUE],
+    ['catalogue?country=KE', { data: CATALOGUE }],
     [/^config\/list_view/, { data: [] }],
   ]
 }
