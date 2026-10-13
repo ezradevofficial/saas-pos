@@ -4,6 +4,7 @@ namespace Modules\Inventory\Tests;
 
 use App\Core\Currency\Models\ExchangeRate;
 use App\Core\Currency\TenantCurrencies;
+use App\Core\Http\ApiException;
 use App\Core\Rbac\ModuleRegistry;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,7 @@ use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Inventory\Models\Movement;
 use Modules\Inventory\Models\Serial;
+use Modules\Inventory\Stock\OpeningStock;
 use Modules\Inventory\Tests\Concerns\BuildsInventory;
 use Tests\Concerns\BuildsImports;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -77,6 +79,38 @@ class IntegrationContractsTest extends TestCase
         $this->inTenant(fn () => GoodsReceived::dispatch($event->tenantId, $event->receiptId, $event->companyId, $event->locationId, $event->receivedAt, $event->reference, $event->lines));
 
         $this->assertSame(0, $this->inTenant(fn () => Movement::query()->count()));
+    }
+
+    public function test_an_opening_reversal_is_refused_under_the_lock_once_the_item_moved(): void
+    {
+        $opening = $this->inTenant(fn () => app(OpeningStock::class)->record(['item_id' => $this->soap->id, 'location_id' => $this->locationA->id, 'qty' => '5', 'unit_cost' => '1'], $this->owner));
+        $this->move($this->soap, Movement::SALE, '-1', manual: false);
+
+        // Straight to the ledger, as a reversal racing the sale would arrive after its own check.
+        try {
+            $this->move($this->soap, Movement::OPENING_REVERSAL, '-5', extra: ['reverses' => $opening->id, 'source_type' => 'inventory.opening'], source: $opening->source_id);
+            $this->fail('The opening was reversed after the item moved.');
+        } catch (ApiException $e) {
+            $this->assertSame('opening_used', $e->errorCode);
+        }
+
+        $this->assertSame('4', $this->onHand($this->soap));
+    }
+
+    public function test_an_opening_that_covered_negative_stock_is_not_undone(): void
+    {
+        $this->move($this->soap, Movement::SALE, '-3', manual: false);
+        $opening = $this->inTenant(fn () => app(OpeningStock::class)->record(['item_id' => $this->soap->id, 'location_id' => $this->locationA->id, 'qty' => '10', 'unit_cost' => '1'], $this->owner));
+        $this->assertNotSame('0', (string) $opening->cost_variance_minor);
+
+        try {
+            $this->inTenant(fn () => app(OpeningStock::class)->reverse($opening, $this->owner));
+            $this->fail('An opening with a cost variance was reversed.');
+        } catch (ApiException $e) {
+            $this->assertSame([409, 'opening_has_variance'], [$e->getStatusCode(), $e->errorCode]);
+        }
+
+        $this->assertSame('7', $this->onHand($this->soap));
     }
 
     public function test_opening_stock_is_imported_and_undone_until_stock_moves(): void

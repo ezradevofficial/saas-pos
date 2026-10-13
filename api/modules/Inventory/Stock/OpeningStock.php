@@ -16,7 +16,8 @@ use Modules\Inventory\Models\Movement;
  *
  * reverse(): an imported line undone (IMP-02), exactly (its own cost and
  * layer), refused once anything later moved the item in the company
- * (`opening_used`).
+ * (`opening_used`) or when it covered a shortfall (`opening_has_variance`),
+ * checked again under the item's cost lock (StockLedger::assertReversible).
  */
 class OpeningStock
 {
@@ -97,9 +98,7 @@ class OpeningStock
                 return;
             }
 
-            if ($this->used($movement)) {
-                throw StockLedger::error(422, 'opening_used');
-            }
+            StockLedger::assertReversible($movement);
 
             $this->auditor->record('inventory.opening.reverse', $movement->item, null, ['opening_id' => $movement->source_id, 'movement_id' => $movement->id]);
 

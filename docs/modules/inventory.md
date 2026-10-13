@@ -247,6 +247,13 @@ Decisions taken while building (no owner input asked, per instructions):
     only change to the POS module.
 12. Returned goods go back to stock as sellable; a "return to damaged" path
     is an adjustment.
+13. **Undoing opening stock is exact or refused.** An imported opening
+    line is reversed at its own cost and layer only while nothing later
+    moved the item in the company (`opening_used`, checked again under the
+    item's cost lock) and only when it covered no shortfall: an opening that
+    covered negative stock carries a cost variance an exact reversal cannot
+    undo, so its undo is refused (409 `opening_has_variance`); the stock is
+    adjusted instead.
 
 Open for the owner:
 

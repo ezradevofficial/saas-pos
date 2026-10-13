@@ -96,6 +96,8 @@ class StockLedger
 
                 if ($line->kind === Movement::OPENING_REVERSAL && $line->reversesMovementId !== null) {
                     $original = Movement::query()->findOrFail($line->reversesMovementId);
+                    // M2: checked again under the item's cost lock, so nothing can move it in between.
+                    self::assertReversible($original);
                     $result = $this->costs->reverseReceipt($state, $method, $original->id, $line->qty->negated(), BigInteger::of((string) $original->value_minor));
                     $value = $result['cost']->negated();
                 } elseif (in_array($line->kind, Movement::TRANSFERS, true)) {
@@ -362,6 +364,24 @@ class StockLedger
         };
 
         Serial::query()->whereKey($line->serialIds)->update(['status' => $status, 'location_id' => $location, 'updated_at' => now()]);
+    }
+
+    /**
+     * IMP-02, INV-18: an opening line is taken back exactly only while
+     * nothing later moved its item in the company (`opening_used`), and
+     * only when it covered no shortfall: a receipt that covered negative
+     * stock carries a cost variance that an exact reversal cannot undo
+     * (409 `opening_has_variance`; adjust the stock instead).
+     */
+    public static function assertReversible(Movement $original): void
+    {
+        if (BigInteger::of((string) $original->cost_variance_minor)->isZero() === false) {
+            throw self::error(409, 'opening_has_variance');
+        }
+
+        if (app(OpeningStock::class)->used($original)) {
+            throw self::error(422, 'opening_used');
+        }
     }
 
     /** @param array<string, string> $replace */

@@ -36,6 +36,7 @@ return [
         'count_no_items' => 'There is nothing to count here. Choose items or a category.',
         'line_unknown' => 'This line is not part of the document.',
         'opening_used' => 'Stock of this item moved after the import, so it cannot be undone. Adjust the stock instead.',
+        'opening_has_variance' => 'This opening stock covered stock that had gone below zero, so it cannot be undone exactly. Adjust the stock instead.',
         'place_forbidden' => 'You cannot do this at this location. Ask an administrator for access.',
         'too_many_labels' => 'Print at most :max labels at a time.',
     ],

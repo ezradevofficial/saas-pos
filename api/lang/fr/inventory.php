@@ -36,6 +36,7 @@ return [
         'count_no_items' => 'Il n’y a rien à compter ici. Choisissez des articles ou une catégorie.',
         'line_unknown' => 'Cette ligne ne fait pas partie du document.',
         'opening_used' => 'Le stock de cet article a bougé après l’import : il ne peut pas être annulé. Ajustez plutôt le stock.',
+        'opening_has_variance' => 'Ce stock initial a couvert un stock passé sous zéro : il ne peut pas être annulé exactement. Ajustez plutôt le stock.',
         'place_forbidden' => 'Vous ne pouvez pas faire cela à cet emplacement. Demandez l’accès à un administrateur.',
         'too_many_labels' => 'Imprimez au plus :max étiquettes à la fois.',
     ],
