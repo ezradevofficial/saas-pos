@@ -4,7 +4,6 @@ namespace App\Core\DataExport;
 
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
-use LogicException;
 
 /**
  * EXP-02, TEN-01: the tables a full tenant export reads, discovered from
@@ -18,8 +17,8 @@ use LogicException;
  *   It holds credentials only and is left out (omitted()).
  * - Columns in table order, without the denied ones and without any
  *   secret-like column left unclassified (fail closed; ExportColumns).
- * - Each table is read in primary-key order (keyset paging), so a table
- *   without a primary key is refused rather than read unreliably.
+ * - A column may be exported through a transform (ExportColumns::
+ *   TRANSFORMS), e.g. automation actions without their webhook URLs.
  */
 class TenantTables
 {
@@ -51,11 +50,8 @@ class TenantTables
             $name = (string) $row->name;
             $all = $this->columns($name);
             $omitted = array_values(array_filter($all, fn (string $column) => ! $this->exported($name, $column)));
+            // Rows come out in primary-key order when there is one (stable files).
             $primary = $this->primaryKey($name);
-
-            if ($primary === []) {
-                throw new LogicException("Table [{$name}] has no primary key: a full export cannot page through it.");
-            }
 
             $tables[] = [
                 'name' => $name,

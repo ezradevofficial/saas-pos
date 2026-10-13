@@ -5,6 +5,7 @@ return [
     'errors' => [
         'in_progress' => 'An export is already being prepared. Wait for it to finish, then try again.',
         'limit' => 'You can request :count exports in 24 hours. Try again later, or download a recent export.',
+        'not_downloadable' => 'This export can’t be downloaded. Only the Owner who requested it can, until it expires.',
     ],
 
     'notifications' => [

@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\Schema;
 //   its row with status `expired` and no file.
 // - At most one export is queued or running per tenant (partial unique
 //   index), whatever the application does.
-// - app_tenants_with_due_exports(at) finds, before any tenant is set
-//   (ADR 002), the tenants with a ready export past its expiry, or one
-//   left queued or running for more than six hours by a dead worker.
+// - app_tenants_with_due_exports(at, running_before, queued_before) finds,
+//   before any tenant is set (ADR 002), the tenants with a ready export
+//   past its expiry, a build running since before running_before (a dead
+//   worker), one queued since before queued_before (no worker), or a
+//   failed one whose file could not be deleted yet.
 return new class extends Migration
 {
     public function up(): void
@@ -52,25 +54,27 @@ return new class extends Migration
         $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
 
         DB::unprepared(<<<'SQL'
-            create or replace function public.app_tenants_with_due_exports(p_at timestamptz) returns setof uuid
+            create or replace function public.app_tenants_with_due_exports(p_at timestamptz, p_running_before timestamptz, p_queued_before timestamptz) returns setof uuid
             language sql stable security definer
             set search_path = pg_catalog, public
             as $fn$
                 select distinct e.tenant_id from public.tenant_exports e
                 where (e.status = 'ready' and e.expires_at <= p_at)
-                   or (e.status in ('queued', 'running') and e.created_at <= p_at - interval '6 hours')
+                   or (e.status = 'running' and e.started_at <= p_running_before)
+                   or (e.status = 'queued' and e.created_at <= p_queued_before)
+                   or (e.status = 'failed' and e.path is not null)
                 order by 1
             $fn$;
 
-            revoke all on function public.app_tenants_with_due_exports(timestamptz) from public;
+            revoke all on function public.app_tenants_with_due_exports(timestamptz, timestamptz, timestamptz) from public;
             SQL);
 
-        DB::statement("grant execute on function public.app_tenants_with_due_exports(timestamptz) to {$runtimeRole}");
+        DB::statement("grant execute on function public.app_tenants_with_due_exports(timestamptz, timestamptz, timestamptz) to {$runtimeRole}");
     }
 
     public function down(): void
     {
-        DB::unprepared('drop function if exists public.app_tenants_with_due_exports(timestamptz)');
+        DB::unprepared('drop function if exists public.app_tenants_with_due_exports(timestamptz, timestamptz, timestamptz)');
         Schema::dropIfExists('tenant_exports');
     }
 };

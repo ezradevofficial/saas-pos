@@ -14,6 +14,7 @@ use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Number;
@@ -22,27 +23,29 @@ use Throwable;
 /**
  * EXP-02: full tenant data exports.
  *
- * - request(): an Owner asks for one (the caller checks RBAC-10 and
- *   `core.tenant.export`). One at a time per tenant (409, and a partial
- *   unique index), at most `data_export.per_day` in any 24 hours (429).
- *   Audited as `core.tenant_export.request`; the build is queued.
- * - build(): run by BuildTenantExport in the tenant's context. The zip goes
- *   to the media disk at `tenants/{tenant}/exports/{id}.zip`, kept
- *   `data_export.keep_days`. Audited as `core.tenant_export.ready` (or
- *   `.fail`); the requester is notified (`core.tenant_export.ready`).
- * - url(): a temporary signed URL bound to the requester, valid
- *   `data_export.link_hours` (never past the file's expiry). The download
- *   (TenantExportFileController) checks the signed-for user is still an
- *   active Owner and is audited as `core.tenant_export.download`.
+ * - request(): an Owner asks for one (the caller checks RBAC-10,
+ *   `core.tenant.export` and the Owner's password). One at a time per
+ *   tenant (409, and a partial unique index), at most
+ *   `data_export.per_day` in any 24 hours (429). Audited as
+ *   `core.tenant_export.request`; the build is queued.
+ * - build(): run by BuildTenantExport in the tenant's context. The final
+ *   path is recorded before anything is written, the zip is uploaded under
+ *   `{path}.part` and moved into place once complete, so a failed or stale
+ *   build always knows what to delete. Kept `data_export.keep_days`.
+ *   Audited as `core.tenant_export.ready` (or `.fail`); the requester is
+ *   notified (`core.tenant_export.ready`).
+ * - link(): a temporary signed URL bound to the requester, minted only on
+ *   an authenticated request and valid `data_export.link_minutes`. The
+ *   download (TenantExportController::download) checks the signed-for
+ *   user is still an active Owner and is audited.
  * - expireDue(): deletes files past their expiry and marks them expired
- *   (`core.tenant_export.expire`); fails builds a dead worker left behind.
+ *   (`core.tenant_export.expire`), keeping the row ready to retry when the
+ *   delete fails; fails builds running since before the job timeout (plus
+ *   an hour) or queued for `data_export.queued_stale_hours`.
  */
 class TenantExports
 {
     public const READY_EVENT = 'core.tenant_export.ready';
-
-    /** A build still queued or running after this long was left by a dead worker. */
-    public const STALE_HOURS = 6;
 
     public function __construct(
         private readonly TenantContext $tenants,
@@ -50,6 +53,18 @@ class TenantExports
         private readonly TenantExportBuilder $builder,
         private readonly Notifier $notifier,
     ) {}
+
+    /** A build running since before this was left by a dead worker. */
+    public static function runningStaleBefore(CarbonImmutable $at): CarbonImmutable
+    {
+        return $at->subSeconds((int) config('data_export.timeout', 3600) + 3600);
+    }
+
+    /** A build queued since before this found no worker. */
+    public static function queuedStaleBefore(CarbonImmutable $at): CarbonImmutable
+    {
+        return $at->subHours(max(1, (int) config('data_export.queued_stale_hours', 24)));
+    }
 
     public function request(User $owner): TenantExport
     {
@@ -91,9 +106,15 @@ class TenantExports
             return;
         }
 
-        $export->forceFill(['status' => TenantExport::RUNNING, 'started_at' => CarbonImmutable::now()])->save();
-        $built = null;
         $path = sprintf('tenants/%s/exports/%s.zip', $this->tenants->require(), $export->id);
+        // The path is known before anything is written: clean-up finds it.
+        $export->forceFill([
+            'status' => TenantExport::RUNNING,
+            'started_at' => CarbonImmutable::now(),
+            'disk' => TenantExportBuilder::MEDIA_DISK,
+            'path' => $path,
+        ])->save();
+        $built = null;
         $disk = Storage::disk(TenantExportBuilder::MEDIA_DISK);
 
         try {
@@ -101,22 +122,21 @@ class TenantExports
             $stream = fopen($built['zip'], 'rb');
 
             try {
-                $disk->writeStream($path, $stream);
+                $disk->writeStream("{$path}.part", $stream);
             } finally {
                 if (is_resource($stream)) {
                     fclose($stream);
                 }
             }
 
+            $disk->move("{$path}.part", $path);
             $size = (int) filesize($built['zip']);
             $sha = (string) hash_file('sha256', $built['zip']);
             $now = CarbonImmutable::now();
 
-            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($export, $built, $path, $size, $sha, $now) {
+            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($export, $built, $size, $sha, $now) {
                 $export->forceFill([
                     'status' => TenantExport::READY,
-                    'disk' => TenantExportBuilder::MEDIA_DISK,
-                    'path' => $path,
                     'size' => $size,
                     'sha256' => $sha,
                     'table_count' => $built['tables'],
@@ -131,8 +151,11 @@ class TenantExports
                     'tables' => $built['tables'], 'rows' => $built['rows'], 'files' => $built['files'],
                 ]);
             });
+        } catch (ExportTooLarge) {
+            $this->fail($export, 'too_large');
+
+            return;
         } catch (Throwable $e) {
-            $disk->delete($path);
             $this->fail($export, 'build_failed');
             report($e);
 
@@ -146,33 +169,46 @@ class TenantExports
         $this->notifyReady($export);
     }
 
+    /** Fail $export and delete whatever its build stored (the file and its upload in progress). */
     public function fail(TenantExport $export, string $failure): void
     {
-        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($export, $failure) {
+        // A file that could not be deleted keeps its path: expireDue() tries again.
+        $deleted = $this->deleteFiles($export);
+
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($export, $failure, $deleted) {
             $before = $export->status;
-            $export->forceFill(['status' => TenantExport::FAILED, 'failure' => $failure, 'completed_at' => CarbonImmutable::now()])->save();
+            $export->forceFill(['status' => TenantExport::FAILED, 'failure' => $failure, 'completed_at' => CarbonImmutable::now(), 'path' => $deleted ? null : $export->path])->save();
             $this->auditor->record('core.tenant_export.fail', $export, ['status' => $before], ['status' => TenantExport::FAILED, 'failure' => $failure]);
         });
     }
 
-    /** The signed download URL of $export for $user, or null when it is not theirs or not ready. */
-    public function url(TenantExport $export, User $user): ?string
+    /**
+     * A signed download URL of $export for $user, valid a few minutes.
+     *
+     * @return array{url: string, expires_at: string}
+     *
+     * @throws ApiException 404 when it is not theirs or not downloadable
+     */
+    public function link(TenantExport $export, User $user): array
     {
         if ($export->requested_by !== $user->id || ! $export->isDownloadable()) {
-            return null;
+            throw new ApiException(404, 'not_found', __('data_export.errors.not_downloadable'));
         }
 
-        $expires = CarbonImmutable::now()->addHours(max(1, (int) config('data_export.link_hours', 24)));
+        $expires = CarbonImmutable::now()->addMinutes(max(1, (int) config('data_export.link_minutes', 5)));
 
         if ($export->expires_at->isBefore($expires)) {
             $expires = $export->expires_at;
         }
 
-        return URL::temporarySignedRoute('tenant_exports.download', $expires, [
-            'tenant_export' => $export->id,
-            'tenant' => $export->tenant_id,
-            'user' => $user->id,
-        ]);
+        return [
+            'url' => URL::temporarySignedRoute('tenant_exports.download', $expires, [
+                'export' => $export->id,
+                'tenant' => $export->tenant_id,
+                'user' => $user->id,
+            ]),
+            'expires_at' => $expires->toIso8601String(),
+        ];
     }
 
     /** Record that $user downloaded $export (AUD-01). */
@@ -188,8 +224,10 @@ class TenantExports
 
     /**
      * Delete the files of the current tenant's exports past their expiry
-     * (TEN-06: the rows stay, as `expired`) and fail builds left queued or
-     * running for STALE_HOURS. Returns how many exports changed.
+     * (TEN-06: the rows stay, as `expired`) and fail stale builds. An
+     * export whose file could not be deleted stays ready (past its expiry,
+     * so no longer downloadable) and is tried again on the next run.
+     * Returns how many exports changed.
      */
     public function expireDue(CarbonImmutable $at): int
     {
@@ -197,8 +235,8 @@ class TenantExports
 
         TenantExport::query()->where('status', TenantExport::READY)->where('expires_at', '<=', $at)->orderBy('id')
             ->each(function (TenantExport $export) use (&$changed) {
-                if ($export->disk !== null && $export->path !== null) {
-                    Storage::disk($export->disk)->delete($export->path);
+                if (! $this->deleteFiles($export)) {
+                    return;
                 }
 
                 DB::connection(TenantContext::CONNECTION)->transaction(function () use ($export) {
@@ -208,16 +246,29 @@ class TenantExports
                 $changed++;
             });
 
-        TenantExport::query()->whereIn('status', TenantExport::ACTIVE)->where('created_at', '<=', $at->subHours(self::STALE_HOURS))->orderBy('id')
+        // Failed builds whose files could not be deleted then.
+        TenantExport::query()->where('status', TenantExport::FAILED)->whereNotNull('path')->orderBy('id')
             ->each(function (TenantExport $export) use (&$changed) {
-                $this->fail($export, 'stale');
-                $changed++;
+                if ($this->deleteFiles($export)) {
+                    $export->forceFill(['path' => null])->save();
+                    $changed++;
+                }
             });
+
+        $stale = TenantExport::query()
+            ->where(fn ($q) => $q->where('status', TenantExport::RUNNING)->where('started_at', '<=', self::runningStaleBefore($at)))
+            ->orWhere(fn ($q) => $q->where('status', TenantExport::QUEUED)->where('created_at', '<=', self::queuedStaleBefore($at)))
+            ->orderBy('id');
+
+        $stale->each(function (TenantExport $export) use (&$changed) {
+            $this->fail($export, 'stale');
+            $changed++;
+        });
 
         return $changed;
     }
 
-    /** @return array<string, mixed> the export as the API shows it to $viewer */
+    /** @return array<string, mixed> the export as the API shows it (never a download URL: link() mints one) */
     public function present(TenantExport $export, User $viewer): array
     {
         return [
@@ -234,8 +285,37 @@ class TenantExports
             'completed_at' => $export->completed_at?->toIso8601String(),
             'expires_at' => $export->expires_at?->toIso8601String(),
             'downloaded_at' => $export->downloaded_at?->toIso8601String(),
-            'download_url' => $this->url($export, $viewer),
+            'can_download' => $export->requested_by === $viewer->id && $export->isDownloadable(),
         ];
+    }
+
+    /** Delete $export's file and any upload in progress; false when one is still there. */
+    private function deleteFiles(TenantExport $export): bool
+    {
+        if ($export->disk === null || $export->path === null) {
+            return true;
+        }
+
+        $disk = Storage::disk($export->disk);
+        $ok = true;
+
+        foreach ([$export->path, "{$export->path}.part"] as $path) {
+            try {
+                if ($disk->exists($path) && ! $disk->delete($path)) {
+                    $ok = false;
+                }
+            } catch (Throwable $e) {
+                $ok = false;
+            }
+
+            if (! $ok) {
+                Log::warning('Tenant export file could not be deleted; retrying on the next run.', ['export' => $export->id, 'path' => $path]);
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function notifyReady(TenantExport $export): void

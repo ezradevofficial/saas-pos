@@ -5061,7 +5061,7 @@
     "description": "Download a complete copy of your organisation’s data, in a format other systems can read.",
     "request": {
       "title": "Request an export",
-      "text": "We prepare the export in the background and tell you when it is ready. Only you can download it: the link lasts {{hours}} hours and the file is deleted after {{days}} days.",
+      "text": "We prepare the export in the background and tell you when it is ready. Only you can download it, and the file is deleted after {{days}} days.",
       "action": "Request export",
       "limit": "Up to {{count}} exports in 24 hours, one at a time."
     },
@@ -5092,6 +5092,12 @@
       "ready": "Ready",
       "failed": "Failed",
       "expired": "Expired"
+    },
+    "tooLarge": "it was larger than an export may be; contact support",
+    "confirm": {
+      "title": "Confirm with your password",
+      "text": "The export holds all of your organisation’s data. Enter your password to request it.",
+      "password": "Your password"
     }
   }
 }

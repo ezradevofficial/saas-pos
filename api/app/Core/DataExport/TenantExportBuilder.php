@@ -5,11 +5,13 @@ namespace App\Core\DataExport;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 use ZipArchive;
 
 /**
@@ -17,26 +19,44 @@ use ZipArchive;
  * context on the runtime connection (row-level security on; TEN-01).
  *
  * - `tables/{table}.jsonl`: one JSON object per row, one file per table
- *   (TenantTables), columns in table order, denied columns left out
- *   (ExportColumns). PostgreSQL renders each row as JSON (row_to_json), so
- *   numbers, money in minor units and exchange rates keep their exact
- *   digits. Rows are read in primary-key order, `chunk` at a time (keyset
- *   paging), never a whole table at once, and each query also filters on
- *   the tenant as a second guard behind row-level security.
- * - `files/...`: the tenant's media (item images, brand assets, custom
- *   field and custom form files, approval attachments): every file under
- *   `tenants/{tenant}/` on the media disk except earlier exports.
+ *   (TenantTables), columns in table order, denied columns left out and
+ *   transformed ones rewritten (ExportColumns). PostgreSQL renders each row
+ *   as JSON (row_to_json), so money and exchange rates keep their exact
+ *   digits. Each table is read through one server-side cursor in its own
+ *   REPEATABLE READ READ ONLY transaction: a consistent snapshot of the
+ *   table, one scan, `chunk` rows per fetch, never the whole table in
+ *   memory. A read-only transaction takes no transaction id, so it does not
+ *   hold back device sync (ADR 004). The query also filters on the tenant,
+ *   a second guard behind row-level security.
+ * - `files/...`: the tenant's media: every file under `tenants/{tenant}/`
+ *   on the media disk except exports. On a local disk the zip reads each
+ *   file in place; on an object store files go through a bounded set of
+ *   temporary copies, flushed into the zip as they accumulate.
  * - `manifest.json`: tables with row counts and columns, the files with
  *   their size and SHA-256, the schema version (the last migration), when
  *   it was made, and the tenant's id and name.
+ * - Larger than `data_export.max_bytes` (before compression): refused with
+ *   ExportTooLarge.
  *
- * Work files live in a private temporary directory, removed afterwards.
+ * Work files live in a private temporary directory under TEMP_ROOT,
+ * removed afterwards; sweepTemporary() removes any a killed worker left.
  */
 class TenantExportBuilder
 {
     public const FORMAT_VERSION = 1;
 
     public const MEDIA_DISK = 'media';
+
+    public const TEMP_ROOT = 'app/private/tenant-exports';
+
+    /** Temporary media copies flushed into the zip once they reach this size or count. */
+    private const FLUSH_BYTES = 256 * 1024 * 1024;
+
+    private const FLUSH_FILES = 100;
+
+    private int $bytes = 0;
+
+    private int $maxBytes = 0;
 
     public function __construct(
         private readonly TenantContext $tenants,
@@ -48,13 +68,17 @@ class TenantExportBuilder
      * and then calls cleanup() with the directory.
      *
      * @return array{dir: string, zip: string, tables: int, rows: int, files: int}
+     *
+     * @throws ExportTooLarge
      */
     public function build(string $exportId): array
     {
         $tenantId = $this->tenants->require();
-        $dir = storage_path('app/private/tenant-exports/'.Str::uuid7());
+        $dir = storage_path(self::TEMP_ROOT.'/'.Str::uuid7());
         File::ensureDirectoryExists($dir.'/tables', 0700);
-        File::ensureDirectoryExists($dir.'/files', 0700);
+        File::ensureDirectoryExists($dir.'/media', 0700);
+        $this->bytes = 0;
+        $this->maxBytes = max(1, (int) config('data_export.max_bytes'));
 
         try {
             $manifest = [
@@ -69,16 +93,19 @@ class TenantExportBuilder
                 'omitted' => [
                     'tables' => $this->tables->omitted(),
                     'columns' => array_keys(ExportColumns::DENIED),
+                    'transformed' => array_keys(ExportColumns::TRANSFORMS),
                 ],
             ];
-            $entries = [];
+            $zipPath = "{$dir}/export.zip";
+            $zip = $this->open($zipPath, ZipArchive::CREATE | ZipArchive::EXCL);
             $rows = 0;
 
             foreach ($this->tables->all() as $table) {
                 $file = "tables/{$table['name']}.jsonl";
-                $count = $this->writeTable($tenantId, $table, "{$dir}/{$file}");
+                $local = "{$dir}/{$file}";
+                $count = $this->writeTable($tenantId, $table, $local);
                 $rows += $count;
-                $entries[$file] = "{$dir}/{$file}";
+                $zip->addFile($local, $file);
                 $manifest['tables'][] = [
                     'name' => $table['name'],
                     'file' => $file,
@@ -86,34 +113,19 @@ class TenantExportBuilder
                     'columns' => $table['columns'],
                     'omitted_columns' => $table['omitted'],
                 ];
+                $manifest['files'][] = ['path' => $file, 'size' => filesize($local), 'sha256' => hash_file('sha256', $local)];
             }
 
-            $media = $this->copyMedia($tenantId, $dir);
-            $entries = [...$entries, ...$media];
-
-            foreach ($entries as $name => $path) {
-                $manifest['files'][] = ['path' => $name, 'size' => filesize($path), 'sha256' => hash_file('sha256', $path)];
-            }
-
-            $zipPath = "{$dir}/export.zip";
-            $zip = new ZipArchive;
-
-            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
-                throw new RuntimeException('The export zip could not be created.');
-            }
+            $media = $this->addMedia($tenantId, $dir, $zip, $zipPath, $manifest['files']);
 
             $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-
-            foreach ($entries as $name => $path) {
-                $zip->addFile($path, $name);
-            }
 
             if (! $zip->close()) {
                 throw new RuntimeException('The export zip could not be written.');
             }
 
-            return ['dir' => $dir, 'zip' => $zipPath, 'tables' => count($manifest['tables']), 'rows' => $rows, 'files' => count($media)];
-        } catch (\Throwable $e) {
+            return ['dir' => $dir, 'zip' => $zipPath, 'tables' => count($manifest['tables']), 'rows' => $rows, 'files' => $media];
+        } catch (Throwable $e) {
             $this->cleanup($dir);
 
             throw $e;
@@ -125,23 +137,45 @@ class TenantExportBuilder
         File::deleteDirectory($dir);
     }
 
+    /** Remove work directories older than $seconds: left by a worker killed mid-build. */
+    public static function sweepTemporary(int $seconds): int
+    {
+        $root = storage_path(self::TEMP_ROOT);
+        $removed = 0;
+
+        if (! is_dir($root)) {
+            return 0;
+        }
+
+        foreach (File::directories($root) as $dir) {
+            if ((int) filemtime($dir) < time() - $seconds) {
+                File::deleteDirectory($dir);
+                $removed++;
+            }
+        }
+
+        return $removed;
+    }
+
     /** @param array{name: string, key: string, columns: list<string>, primary: list<string>} $table */
     private function writeTable(string $tenantId, array $table, string $path): int
     {
+        if (! Str::isUuid($tenantId)) {
+            throw new RuntimeException('Invalid tenant id.');
+        }
+
         $db = DB::connection(TenantContext::CONNECTION);
         $chunk = max(1, (int) config('data_export.chunk', 1000));
         $q = fn (string $name) => '"'.str_replace('"', '""', $name).'"';
 
-        $primary = $table['primary'];
-        $pkList = implode(', ', array_map($q, $primary));
-        // Keyset columns come back alongside the row, under names no table uses.
-        $keys = implode(', ', array_map(fn (string $c, int $i) => 'x.'.$q($c)." as \"__k{$i}\"", $primary, array_keys($primary)));
-        // The primary key is always selected for paging, then dropped if it is not exported.
-        $inner = implode(', ', array_map($q, array_values(array_unique([...$table['columns'], ...$primary]))));
-        $dropped = array_values(array_diff($primary, $table['columns']));
-        $json = $dropped === []
-            ? 'row_to_json(x)::text'
-            : '(to_jsonb(x) - array['.implode(', ', array_map(fn ($c) => "'".str_replace("'", "''", $c)."'", $dropped)).'])::text';
+        $select = implode(', ', array_map(function (string $column) use ($table, $q) {
+            $transform = ExportColumns::TRANSFORMS["{$table['name']}.{$column}"] ?? null;
+
+            return $transform === null ? "t.{$q($column)}" : "({$transform}) as {$q($column)}";
+        }, $table['columns']));
+        $order = $table['primary'] === [] ? '' : ' order by '.implode(', ', array_map(fn ($c) => "t.{$q($c)}", $table['primary']));
+        // The tenant id is a validated UUID, inlined: DECLARE takes no parameters.
+        $sql = "select row_to_json(x)::text as line from (select {$select} from public.{$q($table['name'])} t where t.{$q($table['key'])} = '{$tenantId}'::uuid{$order}) x";
 
         $handle = fopen($path, 'xb');
 
@@ -150,32 +184,36 @@ class TenantExportBuilder
         }
 
         $count = 0;
-        $after = null;
+        $outer = $db->transactionLevel();
+        $db->beginTransaction();
 
         try {
+            // A transaction of its own: one consistent snapshot of the table.
+            // Nested (a caller's transaction, as in tests), it reads in that one.
+            if ($outer === 0) {
+                $db->unprepared('set transaction isolation level repeatable read, read only');
+            }
+
+            $db->unprepared("declare tenant_export_rows no scroll cursor for {$sql}");
+
             do {
-                $bindings = [$tenantId];
-                $where = "{$q($table['key'])} = ?::uuid";
-
-                if ($after !== null) {
-                    $where .= " and ({$pkList}) > (".implode(', ', array_fill(0, count($after), '?')).')';
-                    array_push($bindings, ...$after);
-                }
-
-                $sql = "select {$json} as \"__line\", {$keys} from (select {$inner} from public.{$q($table['name'])} where {$where} order by {$pkList} limit {$chunk}) x order by {$pkList}";
-                $batch = $db->select($sql, $bindings);
+                $batch = $db->select("fetch forward {$chunk} from tenant_export_rows");
 
                 foreach ($batch as $row) {
-                    fwrite($handle, $row->__line."\n");
+                    $line = $row->line."\n";
+                    $this->count(strlen($line));
+                    fwrite($handle, $line);
                 }
 
                 $count += count($batch);
-
-                if ($batch !== []) {
-                    $last = (array) end($batch);
-                    $after = array_map(fn (int $i) => $last["__k{$i}"], array_keys($primary));
-                }
             } while (count($batch) === $chunk);
+
+            $db->unprepared('close tenant_export_rows');
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollBack();
+
+            throw $e;
         } finally {
             fclose($handle);
         }
@@ -183,13 +221,20 @@ class TenantExportBuilder
         return $count;
     }
 
-    /** @return array<string, string> zip entry name => local path */
-    private function copyMedia(string $tenantId, string $dir): array
+    /**
+     * Add the tenant's media under `files/`, recording each in $files.
+     *
+     * @param  list<array{path: string, size: int, sha256: string}>  $files
+     */
+    private function addMedia(string $tenantId, string $dir, ZipArchive &$zip, string $zipPath, array &$files): int
     {
         $disk = Storage::disk(self::MEDIA_DISK);
         $prefix = "tenants/{$tenantId}/";
         $exports = "{$prefix}exports/";
-        $entries = [];
+        $local = config('filesystems.disks.'.self::MEDIA_DISK.'.driver') === 'local';
+        $pending = [];
+        $pendingBytes = 0;
+        $added = 0;
 
         foreach ($disk->allFiles(rtrim($prefix, '/')) as $path) {
             if (! str_starts_with($path, $prefix) || str_starts_with($path, $exports)) {
@@ -202,26 +247,69 @@ class TenantExportBuilder
                 continue;
             }
 
-            $local = "{$dir}/files/{$relative}";
-            File::ensureDirectoryExists(dirname($local), 0700);
-            $in = $disk->readStream($path);
-            $out = fopen($local, 'xb');
+            $this->count((int) $disk->size($path));
+            $source = $local ? $disk->path($path) : $this->copy($disk, $path, "{$dir}/media/".Str::uuid7());
+            $zip->addFile($source, "files/{$relative}");
+            $files[] = ['path' => "files/{$relative}", 'size' => (int) filesize($source), 'sha256' => (string) hash_file('sha256', $source)];
+            $added++;
 
-            if ($in === null || $out === false) {
-                throw new RuntimeException("The media file [{$relative}] could not be copied.");
+            if (! $local) {
+                $pending[] = $source;
+                $pendingBytes += (int) filesize($source);
+
+                // Write what is queued into the zip, then drop the copies.
+                if ($pendingBytes >= self::FLUSH_BYTES || count($pending) >= self::FLUSH_FILES) {
+                    if (! $zip->close()) {
+                        throw new RuntimeException('The export zip could not be written.');
+                    }
+
+                    array_map('unlink', $pending);
+                    [$pending, $pendingBytes] = [[], 0];
+                    $zip = $this->open($zipPath, 0);
+                }
             }
-
-            try {
-                stream_copy_to_stream($in, $out);
-            } finally {
-                fclose($in);
-                fclose($out);
-            }
-
-            $entries["files/{$relative}"] = $local;
         }
 
-        return $entries;
+        return $added;
+    }
+
+    private function copy(Filesystem $disk, string $path, string $local): string
+    {
+        $in = $disk->readStream($path);
+        $out = fopen($local, 'xb');
+
+        if ($in === null || $out === false) {
+            throw new RuntimeException("The media file [{$path}] could not be copied.");
+        }
+
+        try {
+            stream_copy_to_stream($in, $out);
+        } finally {
+            fclose($in);
+            fclose($out);
+        }
+
+        return $local;
+    }
+
+    private function open(string $path, int $flags): ZipArchive
+    {
+        $zip = new ZipArchive;
+
+        if ($zip->open($path, $flags) !== true) {
+            throw new RuntimeException('The export zip could not be opened.');
+        }
+
+        return $zip;
+    }
+
+    private function count(int $bytes): void
+    {
+        $this->bytes += $bytes;
+
+        if ($this->bytes > $this->maxBytes) {
+            throw new ExportTooLarge($this->maxBytes);
+        }
     }
 
     /** @return array{id: string, name: string} */

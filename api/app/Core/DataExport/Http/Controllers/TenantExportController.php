@@ -2,11 +2,13 @@
 
 namespace App\Core\DataExport\Http\Controllers;
 
+use App\Core\DataExport\Http\Requests\StoreTenantExportRequest;
 use App\Core\DataExport\Http\Requests\TenantExportDownloadRequest;
 use App\Core\DataExport\Http\Requests\TenantExportRequest;
 use App\Core\DataExport\Models\TenantExport;
 use App\Core\DataExport\TenantExports;
 use App\Core\Identity\Models\User;
+use App\Core\Identity\Pin\PasswordCheck;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +19,12 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * EXP-02: Settings → Data export (Owners only, TenantExportRequest).
  *
- * - index: the tenant's exports, newest first (the last 20), each with a
- *   signed download URL for the Owner who requested it while it is ready.
- * - store: request a new export (TenantExports::request: one at a time, a
- *   few a day); built in the background.
+ * - index: the tenant's exports, newest first (the last 20). Never a URL:
+ *   `can_download` says whether the viewer may ask for one.
+ * - store: request a new export, confirming the Owner's password
+ *   (PasswordCheck; wrong ones count towards the lockout). One at a time,
+ *   a few a day; built in the background.
+ * - link: a signed download URL for the requester, valid a few minutes.
  * - download: the zip behind the signed URL. The URL names the tenant and
  *   the user; the controller enters that tenant, finds the export under
  *   row-level security and serves it only to its requester while they are
@@ -39,28 +43,36 @@ class TenantExportController
             'data' => $exports->map(fn (TenantExport $export) => $this->exports->present($export, $user))->values(),
             'meta' => [
                 'per_day' => (int) config('data_export.per_day', 3),
-                'link_hours' => (int) config('data_export.link_hours', 24),
+                'link_minutes' => (int) config('data_export.link_minutes', 5),
                 'keep_days' => (int) config('data_export.keep_days', 7),
             ],
         ]);
     }
 
-    public function store(TenantExportRequest $request): JsonResponse
+    public function store(StoreTenantExportRequest $request, PasswordCheck $password): JsonResponse
     {
+        // The whole tenant leaves with this: a stolen session alone is not enough.
+        $password->confirm($request->user(), (string) $request->validated('password'));
         $export = $this->exports->request($request->user());
         $export->load('requester');
 
         return response()->json(['data' => $this->exports->present($export, $request->user())], 202);
     }
 
-    public function download(TenantExportDownloadRequest $request, TenantContext $tenants, string $tenantExport): Response
+    /** A download link for the requester, valid a few minutes (never listed). */
+    public function link(TenantExportRequest $request, TenantExport $tenantExport): JsonResponse
+    {
+        return response()->json(['data' => $this->exports->link($tenantExport, $request->user())]);
+    }
+
+    public function download(TenantExportDownloadRequest $request, TenantContext $tenants, string $export): Response
     {
         $tenantId = (string) $request->query('tenant');
         $userId = (string) $request->query('user');
-        abort_unless(Str::isUuid($tenantId) && Str::isUuid($userId) && Str::isUuid($tenantExport), 404);
+        abort_unless(Str::isUuid($tenantId) && Str::isUuid($userId) && Str::isUuid($export), 404);
 
-        return $tenants->run($tenantId, function () use ($request, $tenantExport, $userId) {
-            $export = TenantExport::query()->find($tenantExport);
+        return $tenants->run($tenantId, function () use ($request, $export, $userId) {
+            $export = TenantExport::query()->find($export);
             $user = User::query()->find($userId);
 
             abort_unless(

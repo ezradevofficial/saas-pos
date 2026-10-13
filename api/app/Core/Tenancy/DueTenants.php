@@ -76,10 +76,10 @@ class DueTenants
         return $this->ids('app_tenants_with_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
     }
 
-    /** @return list<string> EXP-02: full exports past their expiry at $at, or builds left queued or running for six hours. */
-    public function withDueExports(CarbonInterface $at): array
+    /** @return list<string> EXP-02: full exports past their expiry at $at, builds running since before $runningBefore, or queued since before $queuedBefore. */
+    public function withDueExports(CarbonInterface $at, CarbonInterface $runningBefore, CarbonInterface $queuedBefore): array
     {
-        return $this->ids('app_tenants_with_due_exports(?::timestamptz)', [$at->toIso8601String()]);
+        return $this->ids('app_tenants_with_due_exports(?::timestamptz, ?::timestamptz, ?::timestamptz)', [$at->toIso8601String(), $runningBefore->toIso8601String(), $queuedBefore->toIso8601String()]);
     }
 
     /** @return list<string> Every active tenant. */

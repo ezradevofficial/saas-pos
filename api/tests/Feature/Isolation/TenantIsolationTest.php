@@ -73,7 +73,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/public/branding' => 'BR-04: the sign-in page\'s branding of a host, through a security-definer function that returns only public fields (name, look, welcome text, signed asset URLs), never ids or rows; rate-limited',
         'GET api/v1/tls/ask' => 'BR-05: answers only 200 or 404 for whether a host is a verified custom domain (Caddy on-demand TLS); "no" cached 60 s; reachable only from Caddy on the private interface',
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
-        'GET api/v1/tenant-exports/{tenant_export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
+        'GET api/v1/tenant-exports/{export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
     ];
 
@@ -125,6 +125,7 @@ class TenantIsolationTest extends TestCase
         'pos_void' => 'pos_void', // H2: pos/voids/{pos_void}/approve|reject, a held void
         'pos_refund' => 'pos_refund', // H2: pos/refunds/{pos_refund}/approve|reject, a held refund
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
+        'tenant_export' => 'tenant_export', // EXP-02: tenant-exports/{tenant_export}/link, the Owner's export request
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
@@ -705,7 +706,7 @@ class TenantIsolationTest extends TestCase
     {
         $a = $this->tenants->a;
         $b = $this->tenants->b;
-        $id = $this->postJson('/api/v1/tenant-exports', [], $a->bearer())->assertStatus(202)->json('data.id');
+        $id = $this->postJson('/api/v1/tenant-exports', ['password' => TwoTenants::PASSWORD], $a->bearer())->assertStatus(202)->json('data.id');
         $export = $this->asTenant($a->tenantId, fn () => TenantExport::query()->findOrFail($id));
         $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
 
@@ -744,7 +745,8 @@ class TenantIsolationTest extends TestCase
         }
 
         // Secrets: the stored value of every denied column, in either tenant, and the plain M-Pesa credentials.
-        $secrets = ['key-a', 'secret-a', 'pass-a', 'key-b', 'secret-b', 'pass-b'];
+        // AUTO-03: webhook URLs are write-only; their tokens never leave.
+        $secrets = ['key-a', 'secret-a', 'pass-a', 'key-b', 'secret-b', 'pass-b', 'hook-token-a', 'hook-token-b'];
         foreach ([$a, $b] as $tenant) {
             $this->asTenant($tenant->tenantId, function () use (&$secrets) {
                 foreach (array_keys(ExportColumns::DENIED) as $key) {

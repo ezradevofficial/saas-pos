@@ -7,16 +7,21 @@ use App\Core\Audit\Auditor;
 use App\Core\DataExport\ExportColumns;
 use App\Core\DataExport\Jobs\BuildTenantExport;
 use App\Core\DataExport\Models\TenantExport;
+use App\Core\DataExport\TenantExportBuilder;
 use App\Core\DataExport\TenantTables;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Mockery;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Concerns\WithoutOwnerConnection;
@@ -46,7 +51,7 @@ class TenantExportTest extends TestCase
     /** Request an export as $user (the owner by default) and return it, built (sync queue). */
     private function export(?User $user = null): TenantExport
     {
-        $id = $this->postJson('/api/v1/tenant-exports', [], $this->headersFor($user))->assertStatus(202)->json('data.id');
+        $id = $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor($user))->assertStatus(202)->json('data.id');
 
         return $this->inTenant(fn () => TenantExport::query()->findOrFail($id));
     }
@@ -136,7 +141,7 @@ class TenantExportTest extends TestCase
     {
         $this->headersFor(); // signed in before the password changes
         $this->inTenant(function () {
-            $this->owner->forceFill(['password' => Hash::make('Correct-Horse-2026'), 'two_factor_secret' => 'JBSWY3DPEHPK3PXPSECRET'])->save();
+            $this->owner->forceFill(['password' => Hash::make($this->password), 'two_factor_secret' => 'JBSWY3DPEHPK3PXPSECRET'])->save();
         });
         $hash = $this->inTenant(fn () => DB::table('users')->where('id', $this->owner->id)->value('password'));
 
@@ -232,7 +237,7 @@ class TenantExportTest extends TestCase
 
         foreach ([$admin, $manager, $holder] as $user) {
             $this->getJson('/api/v1/tenant-exports', $this->headersFor($user))->assertForbidden();
-            $this->postJson('/api/v1/tenant-exports', [], $this->headersFor($user))->assertForbidden();
+            $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor($user))->assertForbidden();
         }
 
         $this->assertSame(0, $this->inTenant(fn () => TenantExport::count()));
@@ -240,7 +245,33 @@ class TenantExportTest extends TestCase
         $this->getJson('/api/v1/tenant-exports')->assertUnauthorized();
     }
 
-    public function test_the_download_url_is_signed_and_bound_to_the_requesting_owner(): void
+    /** A download link of $export for $user (authenticated POST .../link). */
+    private function link(TenantExport $export, ?User $user = null): string
+    {
+        return $this->postJson("/api/v1/tenant-exports/{$export->id}/link", [], $this->headersFor($user))->assertOk()->json('data.url');
+    }
+
+    public function test_requesting_an_export_confirms_the_owners_password(): void
+    {
+        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->postJson('/api/v1/tenant-exports', ['password' => 'not-the-password'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'invalid_password');
+        $this->assertSame(0, $this->inTenant(fn () => TenantExport::count()));
+
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202);
+    }
+
+    public function test_the_list_never_carries_a_download_url(): void
+    {
+        $export = $this->export();
+
+        $listed = $this->getJson('/api/v1/tenant-exports', $this->headersFor())->assertOk()
+            ->assertJsonPath('data.0.id', $export->id)->assertJsonPath('data.0.can_download', true);
+        $this->assertStringNotContainsString('signature=', (string) $listed->getContent());
+        $this->assertArrayNotHasKey('download_url', $listed->json('data.0'));
+    }
+
+    public function test_the_download_link_is_minted_on_request_and_bound_to_the_requesting_owner(): void
     {
         $second = $this->inTenant(function () {
             $user = $this->colleague($this->owner);
@@ -250,14 +281,14 @@ class TenantExportTest extends TestCase
         });
         $export = $this->export();
 
-        $url = $this->getJson('/api/v1/tenant-exports', $this->headersFor())->assertOk()
-            ->assertJsonPath('data.0.status', 'ready')->json('data.0.download_url');
-        $this->assertNotNull($url);
-        $this->assertStringContainsString("user={$this->owner->id}", $url);
-
-        // Another Owner sees the export but gets no link to it.
+        // Another Owner sees the export but can neither get a link nor use the requester's.
         $this->getJson('/api/v1/tenant-exports', $this->headersFor($second))->assertOk()
-            ->assertJsonPath('data.0.id', $export->id)->assertJsonPath('data.0.download_url', null);
+            ->assertJsonPath('data.0.id', $export->id)->assertJsonPath('data.0.can_download', false);
+        $this->postJson("/api/v1/tenant-exports/{$export->id}/link", [], $this->headersFor($second))->assertNotFound();
+        $this->postJson("/api/v1/tenant-exports/{$export->id}/link")->assertUnauthorized();
+
+        $url = $this->link($export);
+        $this->assertStringContainsString("user={$this->owner->id}", $url);
 
         // Changing the user (or anything else) breaks the signature.
         $this->get(str_replace("user={$this->owner->id}", "user={$second->id}", $url))->assertForbidden();
@@ -271,29 +302,41 @@ class TenantExportTest extends TestCase
         $this->assertSame([$this->owner->id, $export->id], [$download->user_id, $download->auditable_id]);
         $this->assertNotNull($this->inTenant(fn () => $export->fresh()->downloaded_at));
 
-        // The link expires after 24 hours.
-        $this->travel(25)->hours();
+        // The link lasts five minutes.
+        $this->travel(6)->minutes();
         $this->get($url)->assertForbidden();
         $this->travelBack();
 
-        // A requester who is no longer an Owner cannot use it.
+        // A requester who is no longer an Owner cannot use a fresh one.
+        $url = $this->link($export);
         $this->inTenant(fn () => DB::table('role_assignments')->where('user_id', $this->owner->id)->delete());
         $this->get($url)->assertNotFound();
+    }
+
+    public function test_downloads_of_one_export_are_limited_per_hour(): void
+    {
+        $export = $this->export();
+        $url = $this->link($export);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->get($url)->assertOk();
+        }
+
+        $this->get($url)->assertStatus(429);
     }
 
     public function test_expired_exports_are_deleted_by_the_scheduled_clean_up(): void
     {
         $export = $this->export();
-        $stale = $this->inTenant(fn () => TenantExport::create(['requested_by' => $this->owner->id, 'status' => TenantExport::QUEUED]));
-        $this->inTenant(fn () => DB::table('tenant_exports')->where('id', $stale->id)->update(['created_at' => now()->subHours(7)]));
+        $queued = $this->inTenant(fn () => TenantExport::create(['requested_by' => $this->owner->id, 'status' => TenantExport::QUEUED]));
         Storage::disk('media')->assertExists($export->path);
         $this->assertTrue($export->expires_at->equalTo($export->completed_at->addDays(7)));
         $this->withoutOwnerConnection();
 
-        // Six days on: kept (the stale build is failed).
+        // Six days on: kept; the queued build (no worker for six days) is failed.
         $this->artisan('exports:expire', ['--at' => CarbonImmutable::now()->addDays(6)->toIso8601String()])->assertSuccessful();
         Storage::disk('media')->assertExists($export->path);
-        $this->assertSame([TenantExport::READY, TenantExport::FAILED, 'stale'], $this->inTenant(fn () => [$export->fresh()->status, $stale->fresh()->status, $stale->fresh()->failure]));
+        $this->assertSame([TenantExport::READY, TenantExport::FAILED, 'stale'], $this->inTenant(fn () => [$export->fresh()->status, $queued->fresh()->status, $queued->fresh()->failure]));
 
         // Seven days on: the file is deleted, the row kept as expired (TEN-06).
         $this->artisan('exports:expire', ['--at' => CarbonImmutable::now()->addDays(7)->addMinute()->toIso8601String()])->assertSuccessful();
@@ -302,30 +345,156 @@ class TenantExportTest extends TestCase
         $this->assertSame([TenantExport::EXPIRED, null], [$fresh->status, $fresh->path]);
         $this->assertSame(1, $this->inTenant(fn () => AuditEntry::where('action', 'core.tenant_export.expire')->count()));
 
-        $this->getJson('/api/v1/tenant-exports', $this->headersFor())->assertOk()
-            ->assertJsonPath('data.0.id', $export->id)->assertJsonPath('data.0.status', 'expired')->assertJsonPath('data.0.download_url', null)
-            ->assertJsonPath('data.1.status', 'failed');
+        $listed = collect($this->getJson('/api/v1/tenant-exports', $this->headersFor())->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame(['expired', false], [$listed[$export->id]['status'], $listed[$export->id]['can_download']]);
+        $this->assertSame('failed', $listed[$queued->id]['status']);
+    }
+
+    public function test_running_builds_go_stale_from_their_start_and_queued_ones_after_a_day(): void
+    {
+        $this->withoutOwnerConnection();
+        $at = CarbonImmutable::now();
+        $make = fn (string $status, array $times) => $this->inTenant(function () use ($status, $times) {
+            $export = TenantExport::create(['requested_by' => $this->owner->id, 'status' => $status]);
+            DB::table('tenant_exports')->where('id', $export->id)->update($times);
+
+            return $export;
+        });
+
+        // Queued long ago but started 30 minutes ago: still building.
+        $running = $make(TenantExport::RUNNING, ['created_at' => $at->subHours(20), 'started_at' => $at->subMinutes(30), 'path' => "tenants/{$this->owner->tenant_id}/exports/x.zip", 'disk' => 'media']);
+        Storage::disk('media')->put("tenants/{$this->owner->tenant_id}/exports/x.zip.part", 'partial upload');
+        $this->artisan('exports:expire', ['--at' => $at->toIso8601String()])->assertSuccessful();
+        $this->assertSame(TenantExport::RUNNING, $this->inTenant(fn () => $running->fresh()->status));
+
+        // Started more than the timeout plus an hour ago: a dead worker. Its partial upload is removed.
+        $this->artisan('exports:expire', ['--at' => $at->addHours(2)->addMinute()->toIso8601String()])->assertSuccessful();
+        $this->assertSame([TenantExport::FAILED, 'stale', null], $this->inTenant(fn () => [$running->fresh()->status, $running->fresh()->failure, $running->fresh()->path]));
+        Storage::disk('media')->assertMissing("tenants/{$this->owner->tenant_id}/exports/x.zip.part");
+
+        // Queued for 23 hours: waiting for a worker; for 25: failed.
+        $queued = $make(TenantExport::QUEUED, ['created_at' => $at->subHours(23)]);
+        $this->artisan('exports:expire', ['--at' => $at->toIso8601String()])->assertSuccessful();
+        $this->assertSame(TenantExport::QUEUED, $this->inTenant(fn () => $queued->fresh()->status));
+        $this->artisan('exports:expire', ['--at' => $at->addHours(2)->toIso8601String()])->assertSuccessful();
+        $this->assertSame(TenantExport::FAILED, $this->inTenant(fn () => $queued->fresh()->status));
+    }
+
+    public function test_a_file_that_cannot_be_deleted_keeps_its_export_until_the_next_run(): void
+    {
+        $export = $this->export();
+        $real = Storage::disk('media');
+        $failing = Mockery::mock(Filesystem::class);
+        $failing->shouldReceive('exists')->andReturn(true);
+        $failing->shouldReceive('delete')->andReturn(false);
+        Storage::set('media', $failing);
+
+        $this->artisan('exports:expire', ['--at' => CarbonImmutable::now()->addDays(8)->toIso8601String()])->assertSuccessful();
+        $fresh = $this->inTenant(fn () => $export->fresh());
+        $this->assertSame([TenantExport::READY, $export->path], [$fresh->status, $fresh->path]);
+        $this->assertFalse($fresh->isDownloadable(CarbonImmutable::now()->addDays(8)));
+        $this->assertSame(0, $this->inTenant(fn () => AuditEntry::where('action', 'core.tenant_export.expire')->count()));
+
+        // The store answers again: the next run deletes it.
+        Storage::set('media', $real);
+        $this->artisan('exports:expire', ['--at' => CarbonImmutable::now()->addDays(8)->toIso8601String()])->assertSuccessful();
+        $this->assertSame(TenantExport::EXPIRED, $this->inTenant(fn () => $export->fresh()->status));
+        $real->assertMissing($export->path);
+    }
+
+    public function test_an_export_over_the_size_cap_fails_clearly_and_leaves_nothing_behind(): void
+    {
+        config(['data_export.max_bytes' => 10_000]);
+        $id = $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202)->json('data.id');
+        $export = $this->inTenant(fn () => TenantExport::query()->findOrFail($id));
+
+        $this->assertSame([TenantExport::FAILED, 'too_large', null], [$export->status, $export->failure, $export->path]);
+        $this->assertSame([], Storage::disk('media')->allFiles("tenants/{$this->owner->tenant_id}/exports"));
+        $this->assertSame([], File::directories(storage_path(TenantExportBuilder::TEMP_ROOT)));
+    }
+
+    public function test_left_over_work_directories_are_swept(): void
+    {
+        $old = storage_path(TenantExportBuilder::TEMP_ROOT.'/left-by-a-killed-worker');
+        $new = storage_path(TenantExportBuilder::TEMP_ROOT.'/still-building');
+        File::ensureDirectoryExists($old);
+        File::ensureDirectoryExists($new);
+        File::put("{$old}/users.jsonl", '{"email":"someone@example.com"}');
+        touch($old, time() - 3 * 3600);
+
+        $this->withoutOwnerConnection();
+        $this->artisan('exports:expire')->assertSuccessful();
+
+        $this->assertDirectoryDoesNotExist($old);
+        $this->assertDirectoryExists($new);
+        File::deleteDirectory($new);
+    }
+
+    public function test_tables_are_read_through_one_cursor_each_never_by_keyset_pages(): void
+    {
+        config(['data_export.chunk' => 2]);
+        $statements = [];
+        DB::listen(function ($query) use (&$statements) {
+            $statements[] = $query->sql;
+        });
+
+        $export = $this->export();
+        $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
+        $declares = array_values(array_filter($statements, fn ($sql) => str_starts_with($sql, 'declare tenant_export_rows')));
+
+        $this->assertCount($export->table_count, $declares);
+        $this->assertNotEmpty(array_filter($statements, fn ($sql) => str_starts_with($sql, 'fetch forward 2 from tenant_export_rows')));
+        $this->assertSame([], array_values(array_filter($statements, fn ($sql) => str_contains($sql, ') > ('))), 'no keyset paging');
+    }
+
+    public function test_webhook_urls_and_encrypted_contact_details_are_left_out(): void
+    {
+        $this->inTenant(function () {
+            DB::table('automation_rules')->insert([
+                'id' => (string) Str::uuid7(), 'name' => 'Ping', 'document_type' => 'test.doc', 'trigger_type' => 'record_created', 'trigger' => '{}',
+                'actions' => json_encode([
+                    ['id' => 'a1', 'type' => 'webhook', 'url' => 'https://hooks.example.com/in/abc?token=hook-token-xyz#frag'],
+                    ['id' => 'a2', 'type' => 'notify', 'message' => 'Hello'],
+                ]),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+
+        $zip = $this->zip($this->export());
+        $content = $this->allContent($zip);
+        $this->assertStringNotContainsString('hook-token-xyz', $content);
+        $this->assertStringNotContainsString('#frag', $content);
+
+        $rule = collect($this->rows($zip, 'automation_rules'))->firstWhere('name', 'Ping');
+        $this->assertSame([
+            ['id' => 'a1', 'type' => 'webhook', 'has_url' => true, 'url_display' => 'https://hooks.example.com/in/abc'],
+            ['id' => 'a2', 'type' => 'notify', 'message' => 'Hello'],
+        ], $rule['actions']);
+
+        $manifest = $this->manifest($zip);
+        $this->assertNotContains('url', collect($manifest['tables'])->firstWhere('name', 'automation_webhook_deliveries')['columns']);
+        $this->assertNotContains('phone', collect($manifest['tables'])->firstWhere('name', 'payment_intents')['columns']);
     }
 
     public function test_one_export_at_a_time_and_three_a_day(): void
     {
         Queue::fake();
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(202)->assertJsonPath('data.status', 'queued');
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202)->assertJsonPath('data.status', 'queued');
         Queue::assertPushed(BuildTenantExport::class, fn (BuildTenantExport $job) => $job->tenantId === $this->owner->tenant_id && $job->queue === 'exports');
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'export_in_progress');
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'export_in_progress');
 
         // Finished ones count towards the daily limit.
         $this->inTenant(fn () => TenantExport::query()->update(['status' => TenantExport::FAILED]));
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(202);
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202);
         $this->inTenant(fn () => TenantExport::query()->update(['status' => TenantExport::FAILED]));
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(202);
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202);
         $this->inTenant(fn () => TenantExport::query()->update(['status' => TenantExport::FAILED]));
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(429)->assertJsonPath('code', 'export_limit');
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(429)->assertJsonPath('code', 'export_limit');
         $this->assertSame(3, $this->inTenant(fn () => TenantExport::count()));
 
         // A day later, one more.
         $this->inTenant(fn () => DB::table('tenant_exports')->update(['created_at' => now()->subHours(25)]));
-        $this->postJson('/api/v1/tenant-exports', [], $this->headersFor())->assertStatus(202);
+        $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202);
     }
 
     public function test_the_owner_is_notified_and_each_step_is_audited(): void

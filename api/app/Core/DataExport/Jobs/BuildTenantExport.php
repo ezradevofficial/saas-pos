@@ -3,7 +3,9 @@
 namespace App\Core\DataExport\Jobs;
 
 use App\Core\Audit\AuditContext;
+use App\Core\DataExport\Console\ExpireExportsCommand;
 use App\Core\DataExport\Models\TenantExport;
+use App\Core\DataExport\TenantExportBuilder;
 use App\Core\DataExport\TenantExports;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Tenancy\TenantContext;
@@ -45,6 +47,8 @@ class BuildTenantExport implements ShouldQueue
     {
         // The system builds the export: no user or device is recorded (AUD-02).
         $audit->reset();
+        // Work directories a killed worker left on this host.
+        TenantExportBuilder::sweepTemporary(ExpireExportsCommand::sweepAfter());
         $export = TenantExport::query()->find($this->exportId);
 
         if ($export !== null) {

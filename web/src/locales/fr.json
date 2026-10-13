@@ -5061,7 +5061,7 @@
     "description": "Téléchargez une copie complète des données de votre organisation, dans un format lisible par d’autres systèmes.",
     "request": {
       "title": "Demander un export",
-      "text": "Nous préparons l’export en arrière-plan et vous prévenons lorsqu’il est prêt. Vous seul pouvez le télécharger : le lien est valable {{hours}} heures et le fichier est supprimé après {{days}} jours.",
+      "text": "Nous préparons l’export en arrière-plan et vous prévenons lorsqu’il est prêt. Vous seul pouvez le télécharger, et le fichier est supprimé après {{days}} jours.",
       "action": "Demander l’export",
       "limit": "Jusqu’à {{count}} exports par 24 heures, un à la fois."
     },
@@ -5092,6 +5092,12 @@
       "ready": "Prêt",
       "failed": "Échec",
       "expired": "Expiré"
+    },
+    "tooLarge": "il dépassait la taille maximale d’un export ; contactez le support",
+    "confirm": {
+      "title": "Confirmez avec votre mot de passe",
+      "text": "L’export contient toutes les données de votre organisation. Saisissez votre mot de passe pour le demander.",
+      "password": "Votre mot de passe"
     }
   }
 }

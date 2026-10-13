@@ -40,6 +40,30 @@ final class ExportColumns
         'payment_methods.callback_token_hash' => 'payment provider callback token hash',
         'company_fiscal_settings.credentials' => 'tax authority credentials (encrypted)',
         'automation_rules.webhook_secret' => 'webhook signing secret (AUTO-03, encrypted)',
+        'automation_webhook_deliveries.url' => 'the webhook URL called, which may carry a token (AUTO-03, encrypted)',
+        // Denied rather than decrypted: the app only ever shows it masked, and
+        // decrypting would put the application key in the export path.
+        'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
+    ];
+
+    /**
+     * `table.column` => a SQL expression over the row alias `t` exported in
+     * its place. Webhook URLs are write-only (AUTO-03): actions are exported
+     * as the API shows them (ActionList::shown), with `url_display` (scheme,
+     * host and path, no query or fragment) and `has_url`.
+     */
+    public const TRANSFORMS = [
+        'automation_rules.actions' => <<<'SQL'
+            case when jsonb_typeof(t."actions") = 'array' then (
+                select coalesce(jsonb_agg(case
+                    when jsonb_typeof(e.a) = 'object' and e.a->>'type' = 'webhook' then
+                        (e.a - 'url') || jsonb_build_object(
+                            'url_display', case when jsonb_typeof(e.a->'url') = 'string' then split_part(split_part(e.a->>'url', '#', 1), '?', 1) end,
+                            'has_url', jsonb_typeof(e.a->'url') = 'string')
+                    else e.a end order by e.o), '[]'::jsonb)
+                from jsonb_array_elements(t."actions") with ordinality as e(a, o)
+            ) else t."actions" end
+            SQL,
     ];
 
     /** `table.column` => why it is not a secret although its name looks like one. */
