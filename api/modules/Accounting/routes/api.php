@@ -41,6 +41,7 @@ $records = [
     'acc_journal' => Journal::class,
     'acc_recurring_journal' => RecurringJournal::class,
     'acc_document' => Document::class,
+    'acc_credit_note' => Document::class,
     'acc_payment' => Payment::class,
     'acc_bank_account' => BankAccount::class,
     'acc_bank_statement_line' => BankStatementLine::class,
@@ -95,7 +96,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::patch('accounting/documents/{acc_document}', [DocumentController::class, 'update']);
     Route::post('accounting/documents/{acc_document}/post', [DocumentController::class, 'post']);
     Route::post('accounting/documents/{acc_document}/cancel', [DocumentController::class, 'cancel']);
-    Route::post('accounting/documents/{acc_document}/allocate', [DocumentController::class, 'allocate']);
+    Route::post('accounting/credit-notes/{acc_credit_note}/allocate', [DocumentController::class, 'allocate']);
     Route::get('accounting/documents/{acc_document}/pdf', [DocumentController::class, 'pdf']);
     Route::get('companies/{company}/accounting/payments', [PaymentController::class, 'index']);
     Route::post('companies/{company}/accounting/payments', [PaymentController::class, 'store']);

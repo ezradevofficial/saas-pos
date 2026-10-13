@@ -93,31 +93,27 @@ class DocumentController
     }
 
     /** ACC-10: a posted credit note settles open invoices of its party. */
-    public function allocate(AllocateDocumentRequest $request, Document $accDocument, Allocations $allocations, CurrencyDecimals $decimals): DocumentResource
+    public function allocate(AllocateDocumentRequest $request, Document $accCreditNote, Allocations $allocations, CurrencyDecimals $decimals): DocumentResource
     {
-        if (! $accDocument->isCredit()) {
+        if (! $accCreditNote->isCredit()) {
             throw LedgerError::make('allocation_mismatch', field: 'allocations');
         }
 
-        $date = CarbonImmutable::parse($request->validated('date', CarbonImmutable::now($accDocument->company->timezone ?: 'UTC')->toDateString()));
+        $date = CarbonImmutable::parse($request->validated('date', CarbonImmutable::now($accCreditNote->company->timezone ?: 'UTC')->toDateString()));
 
-        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $accDocument, $allocations, $decimals, $date) {
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $accCreditNote, $allocations, $decimals, $date) {
             foreach ($request->validated('allocations') as $index => $line) {
-                $invoice = Document::query()->where('company_id', $accDocument->company_id)->findOrFail($line['document_id']);
-                $allocations->allocate($accDocument, $invoice, Money::parse($line['amount'], $invoice->currency, $decimals), $date, $request->user());
+                $invoice = Document::query()->where('company_id', $accCreditNote->company_id)->findOrFail($line['document_id']);
+                $allocations->allocate($accCreditNote, $invoice, Money::parse($line['amount'], $invoice->currency, $decimals), $date, $request->user());
             }
         });
 
-        return DocumentResource::make($accDocument->refresh())->detail();
+        return DocumentResource::make($accCreditNote->refresh())->detail();
     }
 
-    /** TPL-04: the posted document as a PDF, printed with the template that applies. */
+    /** TPL-04: the document as a PDF, printed with the template that applies (a draft has no number yet). */
     public function pdf(ShowDocumentRequest $request, Document $accDocument, DocumentPrints $prints, DocumentOutput $output): Response
     {
-        if ($accDocument->status !== Document::POSTED) {
-            throw LedgerError::make('document_not_posted');
-        }
-
         $document = $prints->document($accDocument);
 
         return response($output->pdf($document), 200, [

@@ -2,7 +2,7 @@
 
 namespace Modules\Accounting\Http\Requests;
 
-/** POST accounting/documents/{acc_document}/allocate: a credit note against invoices (ACC-10). */
+/** POST accounting/credit-notes/{acc_credit_note}/allocate: a credit note against invoices (ACC-10). */
 class AllocateDocumentRequest extends AccountingRequest
 {
     protected function permission(): string

@@ -28,6 +28,16 @@ class IntegrationTest extends TestCase
         $this->setUpAccounting();
     }
 
+    /** Decision 1, SUB-07: Essentials or Pro switch Accounting on; only Pro switches the Pro features on. */
+    public function test_accounting_follows_either_catalogue_key_and_pro_only_its_own(): void
+    {
+        $modules = app(ModuleRegistry::class);
+
+        $this->assertSame(['accounting'], array_values(array_intersect($modules->coveredBy(['accounting_essentials']), ['accounting', 'accounting_pro'])));
+        $this->assertSame(['accounting', 'accounting_pro'], array_values(array_intersect($modules->coveredBy(['accounting_pro']), ['accounting', 'accounting_pro'])));
+        $this->assertSame(['pos'], $modules->catalogueKeys('pos'));
+    }
+
     public function test_the_chart_and_opening_balances_come_in_through_the_import_framework_and_undo(): void
     {
         $chart = $this->importFile('chart_of_accounts', $this->csvFile([
