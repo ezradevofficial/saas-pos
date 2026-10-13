@@ -54,6 +54,9 @@ class StockCount extends Model implements HasScope
 
     protected $table = 'inventory_counts';
 
+    /** Microseconds kept on the freeze (timestamptz(6)), as on movements (H2). */
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected string $auditModule = 'inventory';
 
     protected string $auditResource = 'count';

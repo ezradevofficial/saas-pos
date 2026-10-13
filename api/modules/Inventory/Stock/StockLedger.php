@@ -11,6 +11,7 @@ use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Inventory\Documents\Counts;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Inventory\Models\BatchBalance;
 use Modules\Inventory\Models\CostState;
@@ -70,6 +71,11 @@ class StockLedger
 
             if ($existing->isNotEmpty()) {
                 return $existing->all();
+            }
+
+            // M1: a count starting at one of these places waits, or is waited for.
+            foreach (collect($posting->lines)->pluck('locationId')->filter()->unique()->sort()->values() as $locationId) {
+                DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock_shared(hashtextextended(?, 0))', [Counts::lockKey($locationId)]);
             }
 
             $settings = $this->settings($posting->companyId);

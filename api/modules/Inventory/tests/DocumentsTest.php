@@ -204,15 +204,40 @@ class DocumentsTest extends TestCase
         $this->putJson("/api/v1/inventory/counts/{$count['id']}/lines", ['lines' => [['id' => $count['lines'][0]['id'], 'counted_qty' => '95']]], $this->headersFor($this->storekeeper))
             ->assertOk()->assertJsonPath('data.lines.0.counted_qty', '95');
         $this->postJson("/api/v1/inventory/counts/{$count['id']}/submit", [], $this->headersFor($this->storekeeper))
-            ->assertOk()->assertJsonPath('data.status', 'pending')->assertJsonPath('data.lines.0.variance_qty', '-5');
+            ->assertOk()->assertJsonPath('data.status', 'pending')->assertJsonPath('data.lines.0.variance_qty', '-3');
 
         $this->approve($count['id']);
 
-        // The variance (95 − 100) moves the current 98 to 93.
-        $this->assertSame('93', $this->onHand($this->soap));
+        // The sale during the count is already in the balance: 95 counted
+        // against 100 − 2 is a loss of 3, and stock ends at what was counted.
+        $this->assertSame('95', $this->onHand($this->soap));
         $this->getJson("/api/v1/inventory/counts/{$count['id']}", $this->headersFor())->assertJsonPath('data.status', 'posted')
-            ->assertJsonPath('data.loss', ['amount_minor' => '500', 'currency' => 'KES']);
-        Event::assertDispatched(StockCountPosted::class, fn (StockCountPosted $e) => $e->lossMinor === '500' && $e->gainMinor === '0');
+            ->assertJsonPath('data.loss', ['amount_minor' => '300', 'currency' => 'KES'])
+            ->assertJsonPath('data.lines.0.variance_qty', '-3');
+        Event::assertDispatched(StockCountPosted::class, fn (StockCountPosted $e) => $e->lossMinor === '300' && $e->gainMinor === '0');
+    }
+
+    public function test_goods_received_during_a_count_are_not_counted_twice(): void
+    {
+        $count = $this->postJson('/api/v1/inventory/counts', ['location_id' => $this->locationA->id, 'kind' => 'cycle', 'item_ids' => [$this->soap->id]], $this->headersFor())->assertCreated()->json('data');
+        // Goods arrive while counting (never refused, flagged); the shelf now holds 110.
+        [$receipt] = $this->move($this->soap, Movement::RECEIPT, '10', 1000, manual: false);
+        $this->assertContains('during_count', $receipt->flagCodes());
+
+        $this->putJson("/api/v1/inventory/counts/{$count['id']}/lines", ['lines' => [['id' => $count['lines'][0]['id'], 'counted_qty' => '110']]], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/inventory/counts/{$count['id']}/submit", [], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.status', 'posted')->assertJsonPath('data.lines.0.variance_qty', '0');
+        $this->assertSame('110', $this->onHand($this->soap));
+    }
+
+    public function test_a_sale_during_a_count_is_not_counted_twice(): void
+    {
+        $count = $this->postJson('/api/v1/inventory/counts', ['location_id' => $this->locationA->id, 'kind' => 'cycle', 'item_ids' => [$this->soap->id]], $this->headersFor())->assertCreated()->json('data');
+        $this->move($this->soap, Movement::SALE, '-4', manual: false);
+
+        $this->putJson("/api/v1/inventory/counts/{$count['id']}/lines", ['lines' => [['id' => $count['lines'][0]['id'], 'counted_qty' => '96']]], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/inventory/counts/{$count['id']}/submit", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'posted');
+        $this->assertSame('96', $this->onHand($this->soap));
     }
 
     public function test_a_count_without_variance_posts_at_once(): void

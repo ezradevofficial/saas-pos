@@ -4,12 +4,14 @@ namespace Modules\Inventory\Documents;
 
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
+use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Brick\Math\Exception\MathException;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Events\StockCountPosted;
 use Modules\Inventory\Models\Balance;
 use Modules\Inventory\Models\BatchBalance;
@@ -37,7 +39,8 @@ use Modules\Inventory\Stock\Valuer;
  *   for those items until the count is submitted or cancelled. An item
  *   already in an open count there is refused (`count_in_progress`).
  * - enter(): counted quantities (base unit, its precision).
- * - submit(): every line counted; variances valued at the company's cost.
+ * - submit(): every line counted; variances (counted − (expected at the
+ *   freeze + what moved there since)) valued at the company's cost.
  *   No variance: posted at once. Otherwise pending, with the
  *   `inventory.count` flow (variance approval).
  * - completed(): approved: the variances posted (`count_gain`,
@@ -66,6 +69,9 @@ class Counts
         }
 
         return StockInput::transaction(function () use ($data, $by, $place, $locationId) {
+            // M1: one count starts at a time per location, and postings there
+            // (which take this lock shared) wait for the snapshot.
+            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [self::lockKey($locationId)]);
             $itemIds = $this->itemsToCount($data, $locationId);
 
             if ($itemIds === []) {
@@ -150,7 +156,7 @@ class Counts
             $loss = BigInteger::zero();
 
             foreach ($lines as $line) {
-                $variance = Qty::of(BigDecimal::of((string) $line->counted_qty)->minus((string) $line->expected_qty));
+                $variance = $this->variance($count, $line);
                 $value = $this->valuer->value($count->company_id, $line->item_id, $variance->abs());
 
                 if ($variance->isNegative()) {
@@ -212,7 +218,9 @@ class Counts
             $posting = [];
 
             foreach ($count->lines()->get() as $line) {
-                $variance = Qty::of((string) $line->variance_qty);
+                // H2: what moved since the freeze is already in the balance.
+                $variance = $this->variance($count, $line);
+                $line->forceFill(['variance_qty' => (string) $variance])->save();
 
                 if (! $variance->isZero()) {
                     $posting[] = new PostingLine($line->item_id, $count->location_id, $variance->isPositive() ? Movement::COUNT_GAIN : Movement::COUNT_LOSS, $variance,
@@ -276,6 +284,31 @@ class Counts
 
             return $count->refresh();
         });
+    }
+
+    /** The advisory lock of counts at a location (StockLedger takes it shared). */
+    public static function lockKey(string $locationId): string
+    {
+        return 'inventory:count-location:'.$locationId;
+    }
+
+    /**
+     * H2: counted − (expected at the freeze + what moved that item, and
+     * batch, at the location since the freeze, the count's own posting
+     * left out): sales and receipts during the count are already in the
+     * balance, so they are never counted twice.
+     */
+    private function variance(StockCount $count, CountLine $line): BigDecimal
+    {
+        $since = Movement::query()
+            ->where('location_id', $count->location_id)
+            ->where('item_id', $line->item_id)
+            ->where(fn ($q) => $line->batch_id === null ? $q->whereNull('batch_id') : $q->where('batch_id', $line->batch_id))
+            ->where('occurred_at', '>=', $count->frozen_at->format('Y-m-d H:i:s.uP'))
+            ->where(fn ($q) => $q->where('source_type', '<>', 'inventory.count')->orWhere('source_id', '<>', $count->id))
+            ->sum('qty');
+
+        return Qty::of(BigDecimal::of((string) $line->counted_qty)->minus((string) $line->expected_qty)->minus((string) ($since ?? '0')));
     }
 
     /** @return list<string> the stock items the count covers */

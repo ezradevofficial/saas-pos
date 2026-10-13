@@ -2,14 +2,17 @@
 
 namespace Modules\Inventory\Tests;
 
+use App\Core\Http\ApiException;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Database\Seeders\CatalogueSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Inventory\Documents\Counts;
 use Modules\Inventory\Models\InventorySetting;
 use Modules\Inventory\Models\Movement;
+use Modules\Inventory\Models\StockCount;
 use Modules\Inventory\Stock\Posting;
 use Modules\Inventory\Stock\PostingLine;
 use Modules\Inventory\Stock\Qty;
@@ -96,6 +99,23 @@ class ConcurrencyTest extends TestCase
 
         $this->assertSame('195', $this->onHand($this->soap));
         $this->assertSame(1, $this->inTenant(fn () => Movement::query()->where('source_id', $source)->count()));
+    }
+
+    public function test_counts_started_at_once_at_one_place_never_overlap(): void
+    {
+        $results = $this->race(array_map(fn () => function () {
+            try {
+                app(Counts::class)->start(['location_id' => $this->locationA->id, 'kind' => 'cycle', 'item_ids' => [$this->soap->id]], $this->owner);
+
+                return 'started';
+            } catch (ApiException $e) {
+                return $e->errorCode;
+            }
+        }, range(1, self::WORKERS)));
+
+        $this->assertSame(1, count(array_filter($results, fn ($r) => $r === 'started')));
+        $this->assertSame(self::WORKERS - 1, count(array_filter($results, fn ($r) => $r === 'count_in_progress')));
+        $this->assertSame(1, $this->inTenant(fn () => StockCount::query()->count()));
     }
 
     /** @param list<callable(): mixed> $workers */

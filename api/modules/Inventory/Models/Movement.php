@@ -81,6 +81,9 @@ class Movement extends Model implements HasScope
 
     protected $table = 'inventory_movements';
 
+    /** Microseconds kept (timestamptz(6)): what moved since a count's freeze is told apart (H2). */
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected $guarded = [];
 
     protected function casts(): array
