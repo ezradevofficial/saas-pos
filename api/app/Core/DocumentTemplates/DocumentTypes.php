@@ -27,6 +27,10 @@ final class DocumentTypes
         'stores.delivery_note' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
         'payroll.payslip' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'payroll'],
         'party.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
+        // ACC-09, ACC-11, ACC-19: the Accounting module's invoices, credit notes and party statements.
+        'accounting.invoice' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'accounting'],
+        'accounting.credit_note' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'accounting'],
+        'accounting.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'accounting'],
         'letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
         // INV-21: barcode labels, one page per label on a label roll.
         'inventory.label' => ['paper' => '58mm', 'fiscal' => false, 'module' => 'inventory'],

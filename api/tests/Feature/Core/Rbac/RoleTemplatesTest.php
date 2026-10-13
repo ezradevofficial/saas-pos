@@ -108,7 +108,8 @@ class RoleTemplatesTest extends TestCase
         // CF-04: core.custom_form.view|create|edit|approve and core.custom_form_type.manage.
         // LAY-05: pos.layout.view|edit|publish. EXP-02: core.tenant.export. IMP-01: core.import.run. ONB-02..ONB-07: core.onboarding.view|edit|modules. SUB-02: core.subscription.view|manage.
         // INV: the Inventory module's 23 (inventory.*), registered whether or not a tenant has it.
-        $this->assertSame(113 + 18 + 23, count($names));
+        // ACC-22: the Accounting module's 23 permissions (accounting.*).
+        $this->assertSame(113 + 18 + 23 + 23, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void

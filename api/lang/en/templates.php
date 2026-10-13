@@ -16,6 +16,9 @@ return [
         'party_statement' => 'Customer statement',
         'letter' => 'Letter',
         'inventory_label' => 'Barcode label',
+        'accounting_invoice' => 'Invoice',
+        'accounting_credit_note' => 'Credit note',
+        'accounting_statement' => 'Account statement',
     ],
 
     'groups' => [

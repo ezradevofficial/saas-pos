@@ -29,6 +29,7 @@ use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
+use Modules\Accounting\AccountingServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\POS\PosServiceProvider;
 
@@ -63,5 +64,6 @@ return [
     OnboardingServiceProvider::class,
     PosServiceProvider::class,
     InventoryServiceProvider::class,
+    AccountingServiceProvider::class,
     HorizonServiceProvider::class,
 ];

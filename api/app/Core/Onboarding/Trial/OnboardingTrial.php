@@ -36,7 +36,8 @@ class OnboardingTrial implements TrialStarter, TrialStatusProvider
             }
 
             $installed = array_values(array_diff($this->modules->registered(), [ModuleRegistry::CORE]));
-            $wanted = array_values(array_intersect($this->covered($selection), $installed));
+            // A module may be sold under other catalogue keys (ModuleRegistry::soldAs).
+            $wanted = array_values(array_intersect($this->modules->coveredBy($this->covered($selection)), $installed));
 
             foreach ($wanted as $module) {
                 if (! $this->modules->isActive($module)) {

@@ -16,6 +16,9 @@ return [
         'party_statement' => 'Relevé client',
         'letter' => 'Lettre',
         'inventory_label' => 'Étiquette code-barres',
+        'accounting_invoice' => 'Facture',
+        'accounting_credit_note' => 'Avoir',
+        'accounting_statement' => 'Relevé de compte',
     ],
 
     'groups' => [
