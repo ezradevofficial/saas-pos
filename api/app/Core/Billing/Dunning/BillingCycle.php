@@ -32,7 +32,8 @@ use Illuminate\Support\Facades\DB;
  *   after the grace period (platform setting, or the tenant's override)
  *   it is read-only, and the POS keeps uploading sales for the POS window.
  * - A read-only subscription is not renewed: no new invoice until it is
- *   paid (SUB-06 restores it at once).
+ *   paid (SUB-06 restores it at once). Paid after its period ended, the
+ *   period restarts from the payment date (restartAfterReactivation).
  *
  * LIM-04: approvals are never blocked, by limits or by dunning (they stay
  * open in read-only, EnforceSubscription); sales from the POS continue
@@ -84,6 +85,28 @@ class BillingCycle
         $due = $subscription->trial_ends_at === null ? $at : CarbonImmutable::instance($subscription->trial_ends_at)->max($at);
         // A racing request (or the cycle) started the period first: nothing is issued twice.
         $invoice = $this->startPeriod($subscription, $at->utc()->startOfDay(), $due, 'first') ?? throw self::alreadySubscribed();
+        $this->accounts->sync($subscription->fresh());
+
+        return $invoice;
+    }
+
+    /**
+     * SUB-06 (ADR 016, a decision the owner can reverse): paying the overdue
+     * invoice after the period has ended restarts the period from the
+     * payment date. One new period invoice, dated today and due today; the
+     * months spent read-only are never back-charged. Null when the period
+     * has not ended (the normal renewal follows).
+     */
+    public function restartAfterReactivation(Subscription $subscription, CarbonImmutable $at): ?BillingInvoice
+    {
+        $today = $at->utc()->startOfDay();
+
+        if (! $subscription->hasPeriod() || $subscription->status !== Subscription::ACTIVE
+            || $subscription->current_period_end->toDateString() >= $today->toDateString()) {
+            return null;
+        }
+
+        $invoice = $this->startPeriod($subscription, $today, $at, 'renewal');
         $this->accounts->sync($subscription->fresh());
 
         return $invoice;

@@ -27,12 +27,14 @@ The billing service writes the copy in the tenant's own context, in the same tra
 - What is charged is whole steps of the currency (`Rounding`, `billing.rounding_minor`): KES in whole shillings, which M-Pesa requires. Coupon discounts, quote totals and overage lines are rounded half up, and an invoice whose total still is not a whole step gets a rounding line.
 - The module registry follows the plan, for modules the catalogue sells. A module switched off records `switched_off_at` and keeps its data. `billing:purge-report` flags it after 12 months for staff and deletes nothing.
 
-**Renewal and dunning (SUB-03, SUB-05, SUB-06).** `billing:cycle` runs hourly. It gets tenant ids from `app_tenants_with_billing_due(at)` and runs a job per tenant in its context.
+**Renewal and dunning (SUB-03, SUB-05, SUB-06).** `billing:cycle` runs hourly. It gets tenant ids from `app_tenants_with_billing_due(at)` and runs a job per tenant in its context. The job (`RunBillingCycle`) goes on the `payments` queue, so it runs on Horizon's payments supervisor next to settlement, not on the default workers.
 - Reminders go 7 and 3 days before the due date and on the due date, each once.
 - On the due date the next period starts. The pending change applies, prices are the day's (then locked), overage is added, and the invoice is issued. A default saved method requests payment automatically.
 - An invoice still open a day after its due date makes the subscription `past_due`. After the grace period (platform setting, default 7 days, per-tenant override) it becomes `read_only`, and `pos_stops_at` is the read-only time plus the POS window (default 3 days).
 - A read-only subscription is not renewed.
 - Paying the last overdue invoice makes it `active` at once.
+- **Decision (the owner can reverse it): reactivation restarts the period.** When the overdue invoice is paid after the subscription's `current_period_end`, the period restarts from the payment date: one new period invoice, dated and due that day. The months spent read-only are never back-charged. (The alternative, a catch-up invoice from the old period end, charged for time the customer could not use.) `BillingCycle::restartAfterReactivation`; pinned by `DunningTest`.
+- A period starts once. `startPeriod` re-checks under the subscription's lock that it has not started (the first: no period yet; a renewal: the period still ends on the due date) and issues nothing otherwise. A racing "Subscribe now" answers 409 `already_subscribed`.
 - An invoice issued late (a catch-up after a reactivation) falls due when it is issued, never in the past. Its grace period runs from then, so a reactivated subscription does not slip back into read-only.
 - A trial is invoiced when it ends, or earlier with "Subscribe now" (period from today, due at the trial end).
 
@@ -76,4 +78,4 @@ Each line is pro-rated by days over period days, half up. `subscriptions.overage
 - Owner questions:
   - Are prices tax-inclusive?
   - Should coupons last longer than one period?
-  - Should a reactivated read-only account restart its period?
+  - A reactivated read-only account restarts its period from the payment date (see Renewal and dunning). Keep it, or back-charge from the old period end?
