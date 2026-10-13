@@ -13,6 +13,7 @@ use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
+use App\Core\Onboarding\Http\Controllers\AssistedTenantController;
 use App\Core\Platform\Http\Controllers\PlatformAuthController;
 use App\Core\Platform\Http\Middleware\EnsurePlatformAccess;
 use App\Core\Platform\PlatformServiceProvider;
@@ -46,6 +47,13 @@ Route::prefix('platform')->group(function () {
         Route::post('auth/sign-out', [PlatformAuthController::class, 'signOut']);
         Route::post('me/two-factor/totp', [PlatformAuthController::class, 'startTotp']);
         Route::post('me/two-factor/totp/confirm', [PlatformAuthController::class, 'confirmTotp'])->middleware($ip);
+    });
+
+    // ONB-08: a tenant created for a customer and handed over by invitation.
+    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->group(function () {
+        Route::post('tenants', [AssistedTenantController::class, 'store']);
+        Route::get('tenants/awaiting-handover', [AssistedTenantController::class, 'awaiting']);
+        Route::post('tenants/{tenant}/reinvite', [AssistedTenantController::class, 'reinvite'])->whereUuid('tenant');
     });
 
     // Full access: a token issued after two-factor. Roles are checked by

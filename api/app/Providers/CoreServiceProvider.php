@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Core\Audit\AuditContext;
+use App\Core\Audit\Auditor;
 use App\Core\Audit\Console\VerifyAuditChain;
 use App\Core\Exports\ListExport;
 use App\Core\Support\Console\Preflight;
@@ -77,6 +78,8 @@ class CoreServiceProvider extends ServiceProvider
         // the connection is usable again, re-apply the PHP tenant.
         Event::listen(TransactionRolledBack::class, function (TransactionRolledBack $event) {
             $this->resyncTenant($event->connection, onlyWhenSet: false);
+            // AUD-03: a savepoint rolled back in an audit batch may have taken its last entry.
+            Auditor::rolledBack($event->connectionName);
         });
 
         $this->resetContextBetweenJobs();

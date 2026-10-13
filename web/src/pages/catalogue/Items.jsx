@@ -78,9 +78,17 @@ export default function Items() {
         description={t('catalogue.items.description')}
         actions={
           can('core.item.create') ? (
-            <Button variant="primary" icon="plus" onClick={() => navigate('/catalogue/items/new')}>
-              {t('items.add')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {/* IMP-01: import items from a file. */}
+              {can('core.import.run') ? (
+                <Button icon="upload" onClick={() => navigate('/settings/imports/new?type=items')}>
+                  {t('imports.entry')}
+                </Button>
+              ) : null}
+              <Button variant="primary" icon="plus" onClick={() => navigate('/catalogue/items/new')}>
+                {t('items.add')}
+              </Button>
+            </div>
           ) : null
         }
       />

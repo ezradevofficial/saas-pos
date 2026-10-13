@@ -78,9 +78,17 @@ export default function Parties({ role }) {
         description={t(`contacts.${path}.description`)}
         actions={
           can('core.party.create') ? (
-            <Button variant="primary" icon="plus" onClick={() => navigate(`/contacts/${path}/new`)}>
-              {t(`parties.add.${role}`)}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {/* IMP-01: import customers or suppliers from a file. */}
+              {can('core.import.run') ? (
+                <Button icon="upload" onClick={() => navigate(`/settings/imports/new?type=${path}`)}>
+                  {t('imports.entry')}
+                </Button>
+              ) : null}
+              <Button variant="primary" icon="plus" onClick={() => navigate(`/contacts/${path}/new`)}>
+                {t(`parties.add.${role}`)}
+              </Button>
+            </div>
           ) : null
         }
       />

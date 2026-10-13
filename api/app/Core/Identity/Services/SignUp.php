@@ -2,36 +2,32 @@
 
 namespace App\Core\Identity\Services;
 
-use App\Core\Currency\TenantCurrencies;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
-use App\Core\Tenancy\Events\CompanyCreated;
 use App\Core\Tenancy\Events\TenantProvisioned;
-use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
+use App\Core\Tenancy\TenantProvisioner;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Self sign-up (AUTH-01, ONB-): a tenant with one company, branch and
- * location, and its pending owner, in one transaction under the new
- * tenant's context. The owner gets a 6-digit code to verify the contact.
+ * Self sign-up (AUTH-01, ONB-01): the country and language come first and
+ * set the company's currency, time zone and the tenant's language; a
+ * tenant with its subdomain, one company, branch and location, and its
+ * pending owner, in one transaction under the new tenant's context
+ * (TenantProvisioner). The owner gets a 6-digit code to verify the contact.
  */
 class SignUp
 {
-    /** Per-country company defaults. */
-    public const COUNTRIES = [
-        'KE' => ['currency' => 'KES', 'timezone' => 'Africa/Nairobi'],
-        'CD' => ['currency' => 'USD', 'timezone' => 'Africa/Kinshasa'],
-    ];
+    /** Per-country company defaults (the country is chosen first, ONB-01). */
+    public const COUNTRIES = TenantProvisioner::COUNTRIES;
 
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Challenges $challenges,
-        private readonly TenantCurrencies $currencies,
+        private readonly TenantProvisioner $provisioner,
     ) {}
 
     /**
@@ -43,39 +39,10 @@ class SignUp
         $tenantId = (string) Str::uuid7();
         $email = $data['email'] ?? null;
         $locale = $data['locale'];
-        $country = self::COUNTRIES[$data['country']];
 
         try {
-            [$user, $challenge, $code] = $this->tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantId, $data, $email, $locale, $country) {
-                $tenant = Tenant::provision([
-                    'id' => $tenantId,
-                    'name' => $data['business_name'],
-                    'default_locale' => $locale,
-                ]);
-
-                $company = Company::create([
-                    'name' => $data['business_name'],
-                    'legal_name' => $data['business_name'],
-                    'country' => $data['country'],
-                    'base_currency' => $country['currency'],
-                    'fiscal_year_start_month' => 1,
-                    'timezone' => $country['timezone'],
-                ]);
-
-                // CUR-01: KE uses KES and USD; CD uses USD and CDF.
-                $this->currencies->provisionFor($company);
-                // CP-01: the country pack's tax codes.
-                event(new CompanyCreated($company));
-
-                $branch = $company->branches()->create([
-                    'name' => __('core.defaults.branch', [], $locale),
-                    'code' => 'MAIN',
-                ]);
-
-                $branch->locations()->create([
-                    'name' => __('core.defaults.location', [], $locale),
-                    'type' => 'outlet',
-                ]);
+            [$user, $challenge, $code] = $this->tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantId, $data, $email, $locale) {
+                ['tenant' => $tenant] = $this->provisioner->provision($tenantId, $data['business_name'], $data['country'], $locale);
 
                 $user = User::create([
                     'name' => $data['name'],

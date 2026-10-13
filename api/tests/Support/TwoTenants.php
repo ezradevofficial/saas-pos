@@ -519,6 +519,14 @@ final class TwoTenants
         $billingInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
         $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
         $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$billingInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+        // IMP-01..IMP-03: one customer imported from a file (an import, its
+        // row and the remembered mapping), with its result file.
+        $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
+        file_put_contents($csv, "Name,Tax ID\nImported {$upper},IMP{$upper}\n");
+        $import = self::ok($test->post('/api/v1/imports', ['importer' => 'customers', 'file' => new UploadedFile($csv, "customers-{$key}.csv", 'text/csv', null, true)], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/imports/{$import}", ['mode' => 'create'], $owner));
+        self::ok($test->postJson("/api/v1/imports/{$import}/run", [], $owner), 202);
+
         // LIM-01, LIM-02: a day's usage metered against a plan of no devices: the paired till is over,
         // so the tenant has meter rows and an open overage (the Owner is warned).
         $plans = app(PlanAllowances::class);
@@ -586,6 +594,7 @@ final class TwoTenants
                 'billing_invoice' => $billingInvoice,
                 'billing_payment' => $billingPayment,
                 'billing_payment_method' => $billingMethod,
+                'import' => $import,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

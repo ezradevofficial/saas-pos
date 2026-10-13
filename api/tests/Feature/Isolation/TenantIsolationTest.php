@@ -68,6 +68,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
+        'GET api/v1/import-files/{path}' => 'temporary signed URL for one import file and one user; the controller enters the tenant the path names, finds the import there (RLS) and checks that user may still see it (IMP-03)',
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
@@ -142,6 +143,7 @@ class TenantIsolationTest extends TestCase
         'preview' => 'template_preview', // TPL-01: templates/previews/{preview}/pdf, the owner's preview (a cache key bound to its tenant and user)
         'document_share' => 'document_share', // TPL-04: pos/sales/{pos_sale}/shares/{document_share}/revoke, a link to the sale's receipt
         'record' => 'party', // GET history/{type}/{record}, with type = party
+        'import' => 'import', // IMP-01..IMP-03: imports/{import}[/preview|dry-run|run|undo], a completed customers import
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -158,6 +160,7 @@ class TenantIsolationTest extends TestCase
         'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
         'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
         'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
+        'importer' => 'customers', // IMP-01: imports/importers/{importer}/template: a registered importer key; custom field columns are the caller's tenant's
     ];
 
     /**
@@ -308,6 +311,10 @@ class TenantIsolationTest extends TestCase
         ['key' => 'default', 'scope_type' => 'tenant'],
         // LAY-03: one form's fields and default layout.
         ['form' => 'item'],
+        // IMP-02: imports of one importer (both tenants imported customers).
+        ['importer' => 'customers'],
+        // IMP-01: a template in French.
+        ['locale' => 'fr'],
     ];
 
     /**
@@ -318,7 +325,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale'];
 
     private TwoTenants $tenants;
 

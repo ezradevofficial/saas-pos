@@ -387,7 +387,8 @@
     "formTypes": "Forms",
     "dataExport": "Data export",
     "subscription": "Subscription",
-    "usage": "Usage"
+    "usage": "Usage",
+    "imports": "Imports"
   },
   "shell": {
     "account": "Account menu",
@@ -5106,7 +5107,8 @@
     "console": "Platform console",
     "nav": {
       "catalogue": "Catalogue",
-      "tenants": "Tenants"
+      "tenants": "Tenants",
+      "newTenant": "New tenant"
     },
     "roles": {
       "owner": "Owner",
@@ -5295,7 +5297,30 @@
         "intent": "Paid online",
         "bank_transfer": "Bank transfer"
       },
-      "purgeDue": "Data of switched-off modules is past its 12 months: {{modules}}. Nothing has been deleted."
+      "purgeDue": "Data of switched-off modules is past its 12 months: {{modules}}. Nothing has been deleted.",
+      "intro": "Create an account for a customer. They get an invitation to become its Owner; you keep no access to it.",
+      "created": "Tenant created",
+      "createdText": "The invitation went to {{destination}}. Subdomain: {{slug}}.",
+      "businessName": "Business name",
+      "businessType": "Business type",
+      "types": {
+        "retail": "Retail shop",
+        "supermarket": "Supermarket or mini-mart",
+        "restaurant": "Restaurant or café",
+        "bar": "Bar or lounge",
+        "hotel": "Hotel or lodge",
+        "pharmacy": "Pharmacy or agrovet",
+        "wholesale": "Wholesale or distributor",
+        "van_sales": "Route or van sales",
+        "salon": "Salon, spa or services",
+        "fuel_station": "Fuel station",
+        "non_pos": "No till needed"
+      },
+      "outlets": "Outlets",
+      "contactName": "Contact name",
+      "contact": "Contact email or phone number",
+      "handover": "The 14-day trial starts with these modules. The customer becomes Owner when they accept; your setup access ends then.",
+      "submit": "Create tenant"
     }
   },
   "subscription": {
@@ -5491,6 +5516,393 @@
       "line": "{{item}}: {{count}} of {{allowed}}, {{over}} over",
       "extra": "Extra cost {{amount}} a month, charged on your next invoice.",
       "note": "Everything already set up keeps working. Sales, payroll and approvals are never stopped."
+    }
+  },
+  "onboarding": {
+    "back": "Back",
+    "stages": {
+      "business": "Business",
+      "modules": "Modules",
+      "setup": "Setup"
+    },
+    "trial": {
+      "daysLeft_one": "Trial · {{count}} day left",
+      "daysLeft_other": "Trial · {{count}} days left",
+      "ended": "Trial ended",
+      "help": "No payment needed during your free trial.",
+      "endedHelp": "Your free trial has ended. Choose how to pay to keep using every module."
+    },
+    "welcome": {
+      "title": "Start your free trial",
+      "intro": "First, where is your business and which language do you prefer? They set your currency, taxes and e-invoicing.",
+      "country": "Country",
+      "countryDetail": {
+        "KE": "KES · VAT and KRA eTIMS",
+        "CD": "USD and CDF · TVA and DGI"
+      },
+      "language": "Language",
+      "trial": "Free for 14 days. No payment details needed.",
+      "continue": "Continue",
+      "chosen": "{{country}} · {{language}}.",
+      "change": "Change"
+    },
+    "business": {
+      "title": "What kind of business do you run?",
+      "intro": "We set up the till, roles and approval steps that suit your business. You can change everything later.",
+      "typesLabel": "Business types",
+      "name": "Business",
+      "outlets": "Number of outlets",
+      "outletRanges": {
+        "one": "1",
+        "few": "2 to 5",
+        "several": "6 to 20",
+        "many": "More than 20"
+      },
+      "selected": "Selected: {{name}}",
+      "pickOne": "Pick the closest match.",
+      "continue": "Continue to modules"
+    },
+    "modules": {
+      "title": "Pick the modules you need",
+      "intro": "Pay only for what you switch on, and add more any time.",
+      "introFor": "We picked the usual ones for: {{type}}. Pay only for what you switch on, and add more any time.",
+      "counters": {
+        "outlet": "Outlets",
+        "device": "POS devices",
+        "employee": "Employees"
+      },
+      "fewer": "Fewer: {{what}}",
+      "more": "More: {{what}}",
+      "devicesIncluded_one": "{{count}} included, then charged per device",
+      "devicesIncluded_other": "{{count}} included, then charged per device",
+      "counterHelp": {
+        "outlet": "Shops or branches",
+        "employee": "For HR and payroll"
+      },
+      "per": {
+        "outlet": "{{price}} per outlet",
+        "device": "{{price}} per device",
+        "employee": "{{price}} per employee",
+        "company": "{{price}} per company",
+        "online_store": "{{price}} per online store",
+        "tenant": "{{price}} per account",
+        "warehouse": "{{price}} per warehouse"
+      },
+      "priceTitle": "Your monthly price",
+      "priceTitleYear": "Your yearly price",
+      "cycle": "Billing cycle",
+      "cycles": {
+        "monthly": "Monthly",
+        "annual": "Yearly · 2 months free"
+      },
+      "nothing": "No modules selected yet.",
+      "bundleApplied": "{{name}} bundle applied",
+      "removeBundle": "Remove",
+      "suggestion": "{{name}} covers this for {{total}}, saving {{saving}}.",
+      "useBundle": "Use {{name}}",
+      "perYear": "Per year",
+      "perMonth": "Per month",
+      "terms": "Prices exclude VAT. You pay nothing for 14 days. Pay later by mobile money or card.",
+      "startTrial": "Start free trial"
+    },
+    "moduleGroups": {
+      "sell": "Sell",
+      "operate": "Operate",
+      "finance_people": "Finance and people"
+    },
+    "moduleDescriptions": {
+      "pos": "Every till type, offline selling, receipts, e-invoicing",
+      "inventory": "Stock levels, transfers, counts, reorder alerts",
+      "stores": "Internal requisitions and issues",
+      "loyalty": "Points, promotions, customer credit accounts",
+      "ecommerce": "Online shop, WhatsApp orders, riders",
+      "accounting_essentials": "Ledger, bank and mobile money reconciliation, reports",
+      "accounting_pro": "Multi-currency, budgets, consolidation",
+      "procurement": "Requisitions, tenders, orders, goods received",
+      "crm": "Leads, quotes, follow-ups",
+      "fixed_assets": "Asset register, depreciation",
+      "manufacturing": "Recipes, production, wastage",
+      "hr": "Staff records, leave, shifts, attendance",
+      "payroll": "Statutory deductions and payslips"
+    },
+    "setup": {
+      "title": "Get ready for your first sale",
+      "intro": "Finish these in any order. Skip what you don’t need today; you can come back from Settings.",
+      "progress": "{{done}} of {{total}} done",
+      "progressLabel": "Setup progress",
+      "open": "Start",
+      "review": "Review",
+      "status": {
+        "done": "Done",
+        "skipped": "Skipped"
+      },
+      "help": {
+        "title": "Need a hand?",
+        "text": "Our team can import your products and set up your tills with you."
+      },
+      "canSell": {
+        "title": "You can already sell",
+        "text": "Your till works now with cash. Add mobile money and e-invoicing before going live with customers.",
+        "text_KE": "Your till works now with cash. Add M-Pesa and KRA eTIMS before going live with customers.",
+        "text_CD": "Your till works now with cash. Add mobile money and DGI e-invoicing before going live with customers."
+      },
+      "toDashboard": "Go to the dashboard",
+      "stepsLabel": "Setup steps",
+      "overview": "All steps",
+      "stepOf": "Step {{step}} of {{total}}",
+      "reopen": "Mark as to do",
+      "skip": "Skip for now",
+      "markDone": "Mark as done"
+    },
+    "steps": {
+      "company": {
+        "title": "Company details and tax ID",
+        "title_KE": "Company details and KRA PIN",
+        "title_CD": "Company details and NIF",
+        "description": "Your legal name and tax registration, printed on receipts and invoices.",
+        "taxId": "Tax ID",
+        "taxId_KE": "KRA PIN",
+        "taxId_CD": "NIF",
+        "noTaxId": "Not added yet",
+        "currency": "Base currency",
+        "edit": "Edit company details"
+      },
+      "currencies": {
+        "title": "Currencies and exchange rates",
+        "description": "The currencies you accept and the rates you use."
+      },
+      "branches": {
+        "title": "Branches and outlets",
+        "description": "Your branches and the outlets or stores in each."
+      },
+      "taxes": {
+        "title": "Taxes",
+        "description": "Tax codes from your country pack. Rates marked “Rate needed” must be confirmed before you sell."
+      },
+      "payment_methods": {
+        "title": "Payment methods",
+        "description": "Cash, mobile money and cards your tills accept."
+      },
+      "items": {
+        "title": "Your first items",
+        "description": "Add products one by one, or import a spreadsheet.",
+        "manualTitle": "Add items by hand",
+        "manualText": "Type a name, a unit and a price. Scan barcodes as you go.",
+        "addItem": "Add an item",
+        "importTitle": "Import a spreadsheet",
+        "importText": "Bring your products from Excel or CSV in one go.",
+        "import": "Import items",
+        "importSoon": "Importing from a spreadsheet isn’t available yet. Add items one by one for now."
+      },
+      "users": {
+        "title": "Users and roles",
+        "description": "Invite your staff and give each a role.",
+        "cardTitle": "Invite your team",
+        "text": "Each person gets an invitation by email or SMS and chooses their own password.",
+        "invite": "Invite a user",
+        "roles": "See the roles"
+      },
+      "devices": {
+        "title": "Devices",
+        "description": "Pair your tills with a one-time code.",
+        "how": "Open an outlet’s Devices, add a till, then enter the pairing code in the POS app."
+      }
+    },
+    "sample": {
+      "title": "Try it with sample data",
+      "subtitle": "Remove it in one click when you’re ready",
+      "text": "Load sample products, categories and customers to explore the till and reports before adding your own.",
+      "loaded": "Sample data is loaded: {{items}} products and {{customers}} customers.",
+      "load": "Load sample data",
+      "remove": "Remove sample data"
+    },
+    "checklist": {
+      "title": "Getting started",
+      "progress": "{{done}} of {{total}} done",
+      "showHelp": "Show help",
+      "dismiss": "Hide checklist",
+      "go": "Open",
+      "video": "Watch the video",
+      "panelIntro": "Short help for each step to your first sale.",
+      "items": {
+        "company": {
+          "title": "Set up your company",
+          "help": "Check your business name and legal name."
+        },
+        "tax_id": {
+          "title": "Add your tax ID",
+          "help": "Your KRA PIN or NIF is printed on every receipt."
+        },
+        "item": {
+          "title": "Add your first item",
+          "help": "Sample items don’t count: add one of your own."
+        },
+        "till": {
+          "title": "Pair a till",
+          "help": "Add a device to an outlet and enter its code in the POS app."
+        },
+        "first_sale": {
+          "title": "Make your first sale",
+          "help": "Sell on a paired till; the sale appears here when it syncs."
+        },
+        "first_payroll": {
+          "title": "Run your first payroll",
+          "help": "Approve a payroll run."
+        }
+      }
+    }
+  },
+  "imports": {
+    "title": "Imports",
+    "description": "Bring items, customers, suppliers and prices from a spreadsheet, check them, then import them.",
+    "new": "New import",
+    "entry": "Import",
+    "search": "Search file names",
+    "empty": "No imports yet. Start one with New import.",
+    "emptyFiltered": "No imports match these filters.",
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses"
+    },
+    "columns": {
+      "created_at": "Uploaded",
+      "importer": "Type",
+      "file_name": "File",
+      "status": "Status",
+      "total_rows": "Rows",
+      "created_rows": "Added",
+      "updated_rows": "Updated",
+      "failed_rows": "Failed",
+      "user": "Uploaded by"
+    },
+    "statuses": {
+      "ready": "Ready",
+      "checking": "Checking",
+      "checked": "Checked",
+      "importing": "Importing",
+      "completed": "Completed",
+      "failed": "Stopped",
+      "undoing": "Undoing",
+      "undone": "Undone",
+      "partly_undone": "Partly undone"
+    },
+    "modes": {
+      "create": "Add new records only",
+      "upsert": "Add new and update existing records"
+    },
+    "steps": {
+      "type": "Type",
+      "template": "Template",
+      "upload": "Upload",
+      "mapping": "Map columns",
+      "preview": "Preview",
+      "dryRun": "Check",
+      "import": "Import",
+      "result": "Result"
+    },
+    "wizard": {
+      "title": "New import",
+      "titleOf": "Import of {{file}}",
+      "description": "Each row is checked with the same rules as a record typed in the app.",
+      "back": "All imports",
+      "previous": "Back",
+      "loading": "Loading…"
+    },
+    "type": {
+      "title": "What do you want to import?",
+      "subtitle": "Only the types you may create are listed.",
+      "none": "You have no import types. Ask an administrator for import access.",
+      "columns_one": "{{count}} column",
+      "columns_other": "{{count}} columns",
+      "next": "Continue to the template"
+    },
+    "template": {
+      "title": "{{type}} template",
+      "subtitle": "Download the template, fill in one row per record, then upload it. Required columns are marked.",
+      "required": "Required",
+      "download": {
+        "en": "Download template in English",
+        "fr": "Download template in French"
+      },
+      "next": "Continue to upload"
+    },
+    "upload": {
+      "title": "Upload the {{type}} file",
+      "subtitle": "XLSX or UTF-8 CSV, up to 50,000 rows and 20 MB.",
+      "choose": "Choose file",
+      "change": "Choose another file",
+      "noFile": "No file chosen",
+      "send": "Upload and map columns"
+    },
+    "mapping": {
+      "title": "Map columns",
+      "subtitle": "Choose the file column for each field. {{rows}} rows were found.",
+      "skip": "Not imported",
+      "column": "Column {{number}}",
+      "mode": "When a record already exists",
+      "matchedBy": "Existing records are matched by: {{columns}}.",
+      "next": "Save and preview"
+    },
+    "preview": {
+      "title": "Preview",
+      "subtitle": "The first {{shown}} of {{total}} rows, checked with the app’s rules.",
+      "counts": "In the preview: {{valid}} ready, {{invalid}} with errors. Rows in the file: {{total}}.",
+      "onlyErrors": "Rows with errors",
+      "allRows": "All rows",
+      "noErrors": "No errors in these rows.",
+      "empty": "No rows.",
+      "row": "Row",
+      "status": "Result",
+      "create": "Will be added",
+      "update": "Will be updated",
+      "back": "Change mapping",
+      "check": "Check the whole file"
+    },
+    "progress": {
+      "text": "{{done}} of {{total}} rows"
+    },
+    "counts": {
+      "check": {
+        "created": "Ready to add",
+        "updated": "Ready to update",
+        "failed": "With errors"
+      },
+      "done": {
+        "created": "Added",
+        "updated": "Updated",
+        "failed": "Not imported"
+      }
+    },
+    "dryRun": {
+      "title": "Check the whole file",
+      "running": "Nothing is saved while the file is checked.",
+      "done": "The whole file was checked. Nothing has been saved yet.",
+      "errorsTitle_one": "{{count}} row has errors",
+      "errorsTitle_other": "{{count}} rows have errors",
+      "errorsHelp": "These rows will be skipped. Download them, fix them and upload them again, or import the other rows now.",
+      "errorFile": "Download rows with errors",
+      "import_one": "Import {{rows}} row",
+      "import_other": "Import {{rows}} rows"
+    },
+    "running": {
+      "title": "Importing",
+      "subtitle": "You can leave this page; the import continues in the background."
+    },
+    "result": {
+      "title": "Result",
+      "download": "Download result file",
+      "undo": "Undo import",
+      "undoTitle": "Undo this import?",
+      "undoText": "Added records are archived and updated records get their earlier values back. {{created}} added and {{updated}} updated records are affected.",
+      "undoConfirm": "Undo import",
+      "keep": "Keep import",
+      "undone": "This import was undone.",
+      "blockedTitle_one": "The import was not undone: {{count}} record is in use or changed since",
+      "blockedTitle_other": "The import was not undone: {{count}} records are in use or changed since",
+      "blockedRow": "Row {{row}}, {{record}}: {{reason}}",
+      "all": "All imports",
+      "partlyUndone": "Part of this import was undone. The rows listed below are still in place because something now depends on them; you can try the undo again.",
+      "offlineTills": "Tills that already received these items keep them until they next sync. A sale a till made offline with one of them still arrives and is kept."
     }
   }
 }

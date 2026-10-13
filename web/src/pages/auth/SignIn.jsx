@@ -45,7 +45,7 @@ export default function SignIn() {
       intro={brand?.welcome || t('auth.signIn.intro')}
       footer={
         <p>
-          {t('auth.signIn.noAccount')} <TextLink to="/sign-up">{t('auth.signIn.createAccount')}</TextLink>
+          {t('auth.signIn.noAccount')} <TextLink to="/welcome">{t('auth.signIn.createAccount')}</TextLink>
         </p>
       }
     >

@@ -8,6 +8,7 @@ use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,9 @@ class Item extends Model
     protected $fillable = ['company_id', 'code', 'name', 'category_id', 'type', 'base_uom_id', 'tax_category_id'];
 
     protected $attributes = ['custom' => '{}'];
+
+    /** lower(code), stored by the database for lookups (scopeWhereCode); never shown or audited. */
+    protected $hidden = ['code_key'];
 
     protected function casts(): array
     {
@@ -82,5 +86,16 @@ class Item extends Model
     public function isShared(): bool
     {
         return $this->company_id === null;
+    }
+
+    /**
+     * Items with this code, ignoring case (as citext compares), through the
+     * stored `code_key` (lower(code)): under RLS the planner uses only
+     * leakproof comparisons in index conditions, and citext's `=` is not,
+     * so `code = ?` would read every item of the tenant.
+     */
+    public function scopeWhereCode(Builder $query, string $code): Builder
+    {
+        return $query->whereRaw('code_key = lower(?)', [$code]);
     }
 }

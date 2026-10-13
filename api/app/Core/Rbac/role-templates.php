@@ -28,8 +28,9 @@ return [
         // TPL-04: shares POS documents by email and link (pos.sale.share).
         // LAY-05: designs the tills' sell screen once the POS module is active.
         'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*'],
-        // EXP-02: the full tenant export is the Owner's alone.
-        'except' => ['core.tenant.export'],
+        // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
+        // so are the business type and the modules (what the tenant pays for).
+        'except' => ['core.tenant.export', 'core.onboarding.modules'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -103,6 +104,8 @@ return [
             'core.payment_method.view', 'core.dimension.*', 'core.payment.*', 'core.fiscal.view', 'core.fiscal.edit',
             // CF-04: fills in and approves custom forms (petty cash and the like).
             'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.approve',
+            // IMP-01: imports customers and suppliers (core.party.create|edit).
+            'core.import.run',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             'core.template.view',

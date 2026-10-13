@@ -38,7 +38,8 @@ class Authenticate
     {
         $user = $this->findUser($login);
 
-        if ($user === null) {
+        // ONB-08: an assisted tenant's setup account never signs in (staff keep no tenant access).
+        if ($user === null || $user->is_platform_staff) {
             Hash::check($password, self::$dummyHash ??= Hash::make(Str::random(40)));
 
             return SignInResult::invalid();
@@ -107,6 +108,11 @@ class Authenticate
      */
     public function issueToken(User $user, string $ip, string $userAgent, ?string $deviceName = null): string
     {
+        // ONB-08: an assisted tenant's setup account never gets a token, whatever path asks.
+        if ($user->is_platform_staff) {
+            throw new ApiException(403, 'setup_account', __('auth.setup_account'));
+        }
+
         $fingerprint = LoginEvent::fingerprint($userAgent, $ip);
         $seen = LoginEvent::where('user_id', $user->id)->where('succeeded', true);
         $newDevice = (clone $seen)->exists() && ! (clone $seen)->where('fingerprint', $fingerprint)->exists();

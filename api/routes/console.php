@@ -50,3 +50,12 @@ Schedule::command('billing:purge-report')->dailyAt('03:30')->withoutOverlapping(
 
 // LIM-01..LIM-03: the daily usage count, overage warnings, daily reminders and closing.
 Schedule::command('usage:meter')->dailyAt('03:00')->withoutOverlapping()->onOneServer();
+
+// ONB-04: modules of ended trials switched off (billing rebinds TrialExpiry).
+Schedule::command('onboarding:expire-trials')->hourly()->withoutOverlapping()->onOneServer();
+
+// ONB-01: sign-ups whose owner never verified, closed after 24 hours.
+Schedule::command('onboarding:prune-pending')->hourly()->withoutOverlapping()->onOneServer();
+
+// ONB-08: assisted tenants not handed over after 30 days, listed for staff.
+Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverlapping()->onOneServer();

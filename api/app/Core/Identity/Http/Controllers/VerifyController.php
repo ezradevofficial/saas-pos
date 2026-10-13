@@ -10,6 +10,8 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Services\Authenticate;
 use App\Core\Identity\Services\Challenges;
+use App\Core\Onboarding\TenantSlugs;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 
@@ -21,7 +23,7 @@ class VerifyController
         private readonly TenantContext $tenants,
     ) {}
 
-    public function verify(VerifyRequest $request, Authenticate $authenticate): JsonResponse
+    public function verify(VerifyRequest $request, Authenticate $authenticate, TenantSlugs $slugs): JsonResponse
     {
         $challenge = $this->challenges->verify(
             $request->string('challenge_id'),
@@ -40,6 +42,12 @@ class VerifyController
             $challenge->channel === 'sms' ? 'phone_verified_at' : 'email_verified_at' => now(),
             'status' => User::STATUS_ACTIVE,
         ])->save();
+
+        // ONB-01: the subdomain is claimed only once the contact is verified.
+        $tenant = Tenant::findOrFail($challenge->tenant_id);
+        if ($tenant->slug === null) {
+            $slugs->assign($tenant, $tenant->name);
+        }
 
         $token = $authenticate->issueToken($user, (string) $request->ip(), (string) $request->userAgent(), $request->deviceName());
 

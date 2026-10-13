@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/AuthProvider'
+import { usePermissions } from '@/auth/usePermissions'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { Widget } from '@/components/dashboard/widgets'
 import { Button } from '@/components/ds'
+import { GettingStarted } from '@/components/onboarding/GettingStarted'
+import { resumePath, useOnboarding } from '@/pages/onboarding/useOnboarding'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useNavigation } from '@/layouts/useNavigation'
 import { useDashboard, WIDGET_TYPES } from '@/lib/dashboardData'
@@ -21,6 +24,12 @@ export default function Home() {
   const [now] = useState(() => new Date())
   const { home } = useNavigation()
   const { dashboard, isLoading } = useDashboard()
+  // ONB-02, ONB-03: an owner who has not picked a business type or modules yet resumes there.
+  const { can } = usePermissions()
+  const onboarding = useOnboarding()
+  const resume = can('core.onboarding.modules') ? resumePath(onboarding.data) : null
+
+  if (resume) return <Navigate to={resume} replace />
 
   // LAY-02: straight after signing in, the role's home page when it has one.
   if (location.state?.landing && home) return <Navigate to={home} replace />
@@ -44,6 +53,7 @@ export default function Home() {
           </Button>
         }
       />
+      <GettingStarted />
       {isLoading ? (
         <p className="text-body text-ink-muted">{t('common.loading')}</p>
       ) : (

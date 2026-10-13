@@ -3,6 +3,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { PlatformAuthProvider, RequirePlatformAccess } from './PlatformAuth'
 import { PlatformLayout } from './PlatformLayout'
 import CatalogueConsole from './pages/CatalogueConsole'
+import NewTenant from './pages/NewTenant'
 import PlatformEnrol from './pages/PlatformEnrol'
 import PlatformSetup from './pages/PlatformSetup'
 import PlatformSignIn from './pages/PlatformSignIn'
@@ -41,6 +42,8 @@ export const platformRoutes = [
           // ADR 016: customer tenants, their subscriptions and invoices.
           { path: 'tenants', element: <TenantsList /> },
           { path: 'tenants/:tenantId', element: <TenantDetail /> },
+          // ONB-08: a tenant created for a customer, handed over by invitation.
+          { path: 'tenants/new', element: <NewTenant /> },
         ],
       },
     ],

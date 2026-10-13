@@ -12,6 +12,7 @@ use App\Core\DataExport\DataExportServiceProvider;
 use App\Core\DocumentTemplates\DocumentTemplatesServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
+use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\Limits\LimitsServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
@@ -19,6 +20,7 @@ use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Numbering\NumberingServiceProvider;
+use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
@@ -49,6 +51,7 @@ return [
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
     CustomFormsServiceProvider::class,
+    ImportsServiceProvider::class,
     DataExportServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,
@@ -56,6 +59,7 @@ return [
     PlatformServiceProvider::class,
     BillingServiceProvider::class,
     LimitsServiceProvider::class,
+    OnboardingServiceProvider::class,
     PosServiceProvider::class,
     HorizonServiceProvider::class,
 ];
