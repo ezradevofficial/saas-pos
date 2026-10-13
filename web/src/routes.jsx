@@ -75,6 +75,7 @@ import CustomFields from './pages/settings/CustomFields'
 import DocumentTemplates from './pages/settings/DocumentTemplates'
 import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
+import DataExport from './pages/settings/DataExport'
 import Imports from './pages/settings/Imports'
 import ImportWizard from './pages/settings/imports/ImportWizard'
 import Domains from './pages/settings/Domains'
@@ -102,6 +103,7 @@ import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
 import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
 import WorkflowInsights from './pages/workflows/WorkflowInsights'
 import Workflows from './pages/workflows/Workflows'
+import { platformRoutes } from './platform/routes'
 
 // Development only: every design-system component in its states.
 const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./dev/ComponentGallery.jsx')) : null
@@ -120,6 +122,8 @@ const devRoutes = ComponentGallery
 
 export const routes = [
   ...devRoutes,
+  // ADR 013: the platform staff console, outside the tenant shell.
+  ...platformRoutes,
   {
     element: (
       <GuestOnly>
@@ -319,6 +323,8 @@ export const routes = [
       // LAY-05: the API answers 404 for the kind without the POS module (RBAC-08).
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
+      // EXP-02: the full data export (Owners only; the API also checks the Owner role).
+      { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.
       { path: '/settings/pos-pin', element: <MyPosPin /> },

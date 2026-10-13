@@ -106,9 +106,8 @@ class RoleTemplatesTest extends TestCase
         }
         // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.*; TPL: core.template.*;
         // CF-04: core.custom_form.view|create|edit|approve and core.custom_form_type.manage.
-        // LAY-05: pos.layout.view|edit|publish.
-        // IMP-01: core.import.run.
-        $this->assertSame(107 + 18, count($names));
+        // LAY-05: pos.layout.view|edit|publish. EXP-02: core.tenant.export. IMP-01: core.import.run.
+        $this->assertSame(108 + 18, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -128,7 +127,10 @@ class RoleTemplatesTest extends TestCase
         $admin = Role::where('template_key', 'admin')->sole();
         // core.* and, for the POS module, sharing receipts (pos.sale.share, TPL-04) and the till's
         // layout designer (pos.layout.*, LAY-05); they apply once the module is active (RBAC-08).
-        $this->assertSame(Permission::where('module', 'core')->count() + 4, $admin->permissions()->count());
+        // EXP-02: everything in core except the full tenant export, which is the Owner's alone.
+        $this->assertSame(Permission::where('module', 'core')->count() - 1 + 4, $admin->permissions()->count());
+        $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
+        $this->assertTrue($owner->hasPermissionTo('core.tenant.export'));
         $this->assertSame(['pos.layout.edit', 'pos.layout.publish', 'pos.layout.view', 'pos.sale.share'], $admin->permissions()->where('module', 'pos')->orderBy('name')->pluck('name')->all());
         $this->assertFalse($admin->is_owner);
 
@@ -334,7 +336,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(107, $permissions);
+        $this->assertCount(108, $permissions); // core, EXP-02 core.tenant.export and IMP-01 core.import.run included
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

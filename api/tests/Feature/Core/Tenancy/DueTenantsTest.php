@@ -26,6 +26,7 @@ class DueTenantsTest extends TestCase
             'app_active_tenant_ids',
             'app_tenants_with_due_stage_timers',
             'app_tenants_with_unsettled_credit_changes',
+            'app_tenants_with_due_exports',
         ];
         $runtime = DB::selectOne('select current_user as name')->name;
         $owner = config('database.connections.pgsql_owner.username');

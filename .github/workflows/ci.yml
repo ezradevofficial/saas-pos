@@ -78,7 +78,7 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
-      # Roles (app_owner, app) as the postgres superuser, then the app and
+      # Roles (app_owner, app, app_platform) as the postgres superuser, then the app and
       # app_test databases owned by app_owner (ADR 002).
       - name: Create roles and databases
         env:
