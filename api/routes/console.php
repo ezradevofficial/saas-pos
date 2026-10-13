@@ -41,3 +41,6 @@ Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->on
 
 // EXP-02: full tenant exports past their expiry (files deleted after 7 days) and builds a dead worker left behind.
 Schedule::command('exports:expire')->hourly()->withoutOverlapping()->onOneServer();
+
+// LIM-01..LIM-03: the daily usage count, overage warnings, daily reminders and closing.
+Schedule::command('usage:meter')->dailyAt('03:00')->withoutOverlapping()->onOneServer();

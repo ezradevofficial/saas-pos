@@ -9,6 +9,8 @@ use App\Core\Identity\Http\Requests\StoreInvitationRequest;
 use App\Core\Identity\Http\Resources\InvitationResource;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Services\Invitations;
+use App\Core\Limits\UsageLimits;
+use App\Core\Limits\Units;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
@@ -29,6 +31,7 @@ class InvitationController
     public function __construct(
         private readonly Invitations $invitations,
         private readonly ScopeResolver $resolver,
+        private readonly UsageLimits $limits,
     ) {}
 
     public function index(ListInvitationsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -45,6 +48,9 @@ class InvitationController
 
     public function store(StoreInvitationRequest $request): JsonResponse
     {
+        // LIM-03: inviting adds a user. Invitations already sent may still be accepted.
+        $this->limits->ensureCanAdd(Units::USER);
+
         $invitation = $this->invitations->invite($request->user(), $request->validated());
 
         return InvitationResource::make($invitation)->response()->setStatusCode(201);

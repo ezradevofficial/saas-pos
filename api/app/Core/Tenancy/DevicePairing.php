@@ -5,6 +5,8 @@ namespace App\Core\Tenancy;
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Limits\UsageLimits;
+use App\Core\Limits\Units;
 use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\Events\DeviceUnpaired;
 use App\Core\Tenancy\Models\Device;
@@ -39,6 +41,7 @@ class DevicePairing
         private readonly AuditContext $auditContext,
         private readonly Archiver $archiver,
         private readonly DeviceSecrets $secrets,
+        private readonly UsageLimits $limits,
     ) {}
 
     /**
@@ -109,6 +112,9 @@ class DevicePairing
                 throw $invalid();
             }
 
+            // LIM-03: pairing adds an active device.
+            $this->limits->ensureCanAdd(Units::DEVICE);
+
             $this->auditContext->setDeviceId($device->id)->setLocationId($device->location_id);
 
             $this->transition($device, 'pair', [
@@ -163,6 +169,11 @@ class DevicePairing
 
             // A device suspended before it was ever paired goes back to pending.
             $status = $device->paired_at !== null ? Device::STATUS_ACTIVE : Device::STATUS_PENDING;
+
+            if ($status === Device::STATUS_ACTIVE) {
+                // LIM-03: resuming adds an active device.
+                $this->limits->ensureCanAdd(Units::DEVICE);
+            }
 
             return $this->transition($device, 'resume', ['status' => $status], revokeTokens: false);
         });

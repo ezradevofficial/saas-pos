@@ -62,6 +62,7 @@ use App\Core\Identity\Pin\Http\Controllers\UserPinController;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\Http\Controllers\DashboardSourceController;
 use App\Core\Layouts\Http\Controllers\FormLayoutCatalogueController;
+use App\Core\Limits\Http\Controllers\UsageController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
@@ -589,6 +590,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('tenant-exports', [TenantExportController::class, 'index']);
     Route::post('tenant-exports', [TenantExportController::class, 'store']);
     Route::post('tenant-exports/{tenant_export}/link', [TenantExportController::class, 'link']);
+
+    // LIM-01, LIM-02: the plan's usage, overages and extra cost (Owners only).
+    Route::get('usage', UsageController::class);
 
     // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
     // layouts, templates): documents per key and scope, their versions, and
