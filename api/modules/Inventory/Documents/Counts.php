@@ -187,6 +187,9 @@ class Counts
             return $none ? $count->refresh() : null;
         });
 
+        // L4: the freeze is over: adjustments approved while it held are posted now.
+        app(Adjustments::class)->postWaiting($count->location_id);
+
         if ($posted !== null) {
             StockCountPosted::dispatch($posted->tenant_id, $posted->id, $posted->company_id, $posted->location_id, (string) $posted->currency, '0', '0');
 
@@ -200,6 +203,12 @@ class Counts
     public function completed(string $countId, string $outcome, ?string $userId): void
     {
         $posted = StockInput::transaction(function () use ($countId, $outcome, $userId) {
+            $companyId = StockCount::query()->whereKey($countId)->value('company_id');
+
+            if ($companyId !== null) {
+                $this->ledger->baseCurrency($companyId);
+            }
+
             $count = StockCount::query()->whereKey($countId)->lockForUpdate()->first();
 
             if ($count === null || $count->status !== StockCount::PENDING) {
@@ -267,6 +276,15 @@ class Counts
     }
 
     public function cancel(StockCount $count, User $by, string $reason): StockCount
+    {
+        $cancelled = $this->cancelNow($count, $by, $reason);
+        // L4: the freeze is over: adjustments approved while it held are posted now.
+        app(Adjustments::class)->postWaiting($cancelled->location_id);
+
+        return $cancelled;
+    }
+
+    private function cancelNow(StockCount $count, User $by, string $reason): StockCount
     {
         return StockInput::transaction(function () use ($count, $by, $reason) {
             $count = StockCount::query()->whereKey($count->id)->lockForUpdate()->firstOrFail();

@@ -5946,7 +5946,8 @@
       "cancelled": "Annulé",
       "posted": "Comptabilisé",
       "failed": "Non comptabilisé",
-      "counting": "Comptage en cours"
+      "counting": "Comptage en cours",
+      "waiting": "En attente de la fin d’un inventaire"
     },
     "kinds": {
       "opening": "Stock initial",

@@ -50,6 +50,7 @@ return [
         'cancelled' => 'Annulé',
         'posted' => 'Comptabilisé',
         'failed' => 'Non comptabilisé',
+        'waiting' => 'En attente de la fin d’un inventaire',
         'counting' => 'Comptage en cours',
     ],
     'kinds' => [

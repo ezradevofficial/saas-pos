@@ -4,6 +4,7 @@ namespace Modules\Inventory\Documents;
 
 use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Location;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
@@ -71,10 +72,31 @@ abstract class InventoryDocumentType extends DocumentType
         ];
     }
 
-    /** RBAC-05: values only for holders of `inventory.valuation.view`. */
+    /**
+     * RBAC-05, L3: values only for holders of `inventory.valuation.view`
+     * wherever they see these documents. The core asks per viewer, not per
+     * document, so the amount shows only when the valuation places cover
+     * every place the viewer sees the type at (a valuation holder at one
+     * branch who sees documents of another does not get amounts at all).
+     */
     public function hiddenSummaryFields(User $viewer): array
     {
-        return app(ScopeResolver::class)->can($viewer, 'inventory.valuation.view') ? [] : ['amount'];
+        $resolver = app(ScopeResolver::class);
+        $values = $resolver->visibleIds($viewer, 'inventory.valuation.view');
+
+        if ($values->all) {
+            return [];
+        }
+
+        $sees = $resolver->visibleIds($viewer, $this->viewPermission());
+
+        if ($sees->all) {
+            return ['amount'];
+        }
+
+        $seen = $sees->idsFor(Scope::LOCATION);
+
+        return $seen !== [] && array_diff($seen, $values->idsFor(Scope::LOCATION)) === [] ? [] : ['amount'];
     }
 
     /** The summary's amount: the document's value at the company's cost. */

@@ -140,7 +140,8 @@ The POS events carry ids; the POS module provides their stock lines
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `inventory.settings.edit`, `inventory.item.configure` and the views;
 **Branch Manager** `inventory.*`; **Storekeeper** `inventory.*` except the
-three `approve` permissions and `inventory.settings.edit`; **Accountant**
+three `approve` permissions, `inventory.settings.edit` and
+`inventory.valuation.view` (costs belong to Accountants and Admins); **Accountant**
 `inventory.*.view` and `inventory.valuation.view`; **Procurement Officer**
 and **Read-only Auditor** `inventory.*.view`; **Approver** the `approve`
 permissions (`*.approve`).
@@ -264,5 +265,4 @@ Decisions taken while building (no owner input asked, per instructions):
 Open for the owner:
 
 - Should transfers between companies of one tenant be allowed (TEN-09)?
-- Should storekeepers see costs (`inventory.valuation.view`) by default?
 - Should counts block sales of counted items while frozen?

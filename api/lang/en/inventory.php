@@ -50,6 +50,7 @@ return [
         'cancelled' => 'Cancelled',
         'posted' => 'Posted',
         'failed' => 'Not posted',
+        'waiting' => 'Waiting for a count to end',
         'counting' => 'Counting',
     ],
     'kinds' => [

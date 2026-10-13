@@ -123,14 +123,41 @@ class Adjustments
             return;
         }
 
+        $this->attempt($adjustmentId, $userId);
+    }
+
+    /**
+     * L4: post approved adjustments that waited for a count at $locationId
+     * to end (as their approver).
+     */
+    public function postWaiting(string $locationId): void
+    {
+        foreach (Adjustment::query()->where('status', Adjustment::WAITING)->where('location_id', $locationId)->orderBy('decided_at')->orderBy('id')->get() as $adjustment) {
+            $this->attempt($adjustment->id, $adjustment->decided_by);
+        }
+    }
+
+    /**
+     * Post an approved (or waiting) adjustment. Refused because a count
+     * froze its items: it waits (`waiting`) and is posted when the count
+     * ends; refused for any other reason (stock moved meanwhile): `failed`.
+     */
+    private function attempt(string $adjustmentId, ?string $userId): void
+    {
         try {
             $posted = StockInput::transaction(fn () => $this->post($adjustmentId, $userId));
         } catch (ApiException $e) {
             StockInput::transaction(function () use ($adjustmentId, $userId, $e) {
                 $adjustment = Adjustment::query()->whereKey($adjustmentId)->lockForUpdate()->first();
 
-                if ($adjustment !== null && $adjustment->status === Adjustment::PENDING) {
-                    $adjustment->fill(['status' => Adjustment::FAILED, 'failure' => $e->errorCode, 'decided_by' => $userId, 'decided_at' => CarbonImmutable::now()])->save();
+                if ($adjustment !== null && in_array($adjustment->status, [Adjustment::PENDING, Adjustment::WAITING], true)) {
+                    $waits = $e->errorCode === 'count_in_progress';
+                    $adjustment->fill([
+                        'status' => $waits ? Adjustment::WAITING : Adjustment::FAILED,
+                        'failure' => $waits ? null : $e->errorCode,
+                        'decided_by' => $userId,
+                        'decided_at' => $adjustment->decided_at ?? CarbonImmutable::now(),
+                    ])->save();
                 }
             });
 
@@ -146,14 +173,21 @@ class Adjustments
     /** @return array{0: Adjustment, 1: BigInteger, 2: BigInteger, 3: string}|null */
     private function post(string $adjustmentId, ?string $userId): ?array
     {
+        $companyId = Adjustment::query()->whereKey($adjustmentId)->value('company_id');
+
+        if ($companyId !== null) {
+            // L5: the company row (first posting) before the audit head.
+            $this->ledger->baseCurrency($companyId);
+        }
+
         $adjustment = Adjustment::query()->whereKey($adjustmentId)->lockForUpdate()->first();
 
-        if ($adjustment === null || $adjustment->status !== Adjustment::PENDING) {
+        if ($adjustment === null || ! in_array($adjustment->status, [Adjustment::PENDING, Adjustment::WAITING], true)) {
             return null;
         }
 
         $now = CarbonImmutable::now();
-        $adjustment->fill(['status' => Adjustment::POSTED, 'decided_by' => $userId, 'decided_at' => $now, 'posted_at' => $now])->save();
+        $adjustment->fill(['status' => Adjustment::POSTED, 'decided_by' => $userId, 'decided_at' => $adjustment->decided_at ?? $now, 'posted_at' => $now])->save();
         $lines = $adjustment->lines()->get();
         $posting = [];
 

@@ -5946,7 +5946,8 @@
       "cancelled": "Cancelled",
       "posted": "Posted",
       "failed": "Not posted",
-      "counting": "Counting"
+      "counting": "Counting",
+      "waiting": "Waiting for a count to end"
     },
     "kinds": {
       "opening": "Opening stock",

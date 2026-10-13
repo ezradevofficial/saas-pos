@@ -22,12 +22,13 @@ export const SETTINGS_EDIT = 'inventory.settings.edit'
 export const LABEL_PRINT = 'inventory.label.print'
 
 export const TRANSFER_STATUSES = ['pending', 'approved', 'rejected', 'in_transit', 'received', 'cancelled']
-export const ADJUSTMENT_STATUSES = ['pending', 'posted', 'rejected', 'cancelled', 'failed']
+export const ADJUSTMENT_STATUSES = ['pending', 'waiting', 'posted', 'rejected', 'cancelled', 'failed']
 export const COUNT_STATUSES = ['counting', 'pending', 'posted', 'rejected', 'cancelled']
 
 /** Status as a dot and a word: waiting is amber, done is green, refused or failed is red, closed is grey. */
 export const STATUS_TONES = {
   pending: 'warning',
+  waiting: 'warning',
   approved: 'info',
   in_transit: 'info',
   counting: 'info',

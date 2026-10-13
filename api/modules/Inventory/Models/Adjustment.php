@@ -44,7 +44,10 @@ class Adjustment extends Model implements HasScope
     /** Approved, but stock moved meanwhile so it could not be posted (`failure` says why). */
     public const FAILED = 'failed';
 
-    public const STATUSES = [self::PENDING, self::POSTED, self::REJECTED, self::CANCELLED, self::FAILED];
+    /** Approved while a count froze its items: posted when the count ends (L4). */
+    public const WAITING = 'waiting';
+
+    public const STATUSES = [self::PENDING, self::WAITING, self::POSTED, self::REJECTED, self::CANCELLED, self::FAILED];
 
     public const REASONS = ['damage', 'expiry', 'theft', 'found', 'correction', 'internal_use', 'other'];
 

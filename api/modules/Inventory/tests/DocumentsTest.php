@@ -4,13 +4,18 @@ namespace Modules\Inventory\Tests;
 
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Models\Company;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Modules\Inventory\Documents\Adjustments;
+use Modules\Inventory\Documents\TransferType;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockCountPosted;
 use Modules\Inventory\Events\TransferReceived;
@@ -65,8 +70,10 @@ class DocumentsTest extends TestCase
         ], $this->headersFor($this->storekeeper))->assertCreated()
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.lines.0.qty_base', '24')
-            ->assertJsonPath('data.value', ['amount_minor' => '2400', 'currency' => 'KES'])
+            ->assertJsonPath('data.value', null)
             ->json('data');
+        // Storekeepers see quantities, not costs (RBAC-05).
+        $this->getJson("/api/v1/inventory/transfers/{$transfer['id']}", $this->headersFor())->assertJsonPath('data.value', ['amount_minor' => '2400', 'currency' => 'KES']);
 
         $this->assertMatchesRegularExpression('/^TR-A-\d{4}-00001$/', $transfer['number']);
 
@@ -158,9 +165,11 @@ class DocumentsTest extends TestCase
             ],
         ], $this->headersFor($this->storekeeper))->assertCreated()
             ->assertJsonPath('data.status', 'pending')
-            ->assertJsonPath('data.value_out', ['amount_minor' => '300', 'currency' => 'KES'])
-            ->assertJsonPath('data.value_in', ['amount_minor' => '2500', 'currency' => 'KES'])
+            ->assertJsonPath('data.value_out', null)
             ->json('data');
+        $this->getJson("/api/v1/inventory/adjustments/{$adjustment['id']}", $this->headersFor())
+            ->assertJsonPath('data.value_out', ['amount_minor' => '300', 'currency' => 'KES'])
+            ->assertJsonPath('data.value_in', ['amount_minor' => '2500', 'currency' => 'KES']);
 
         // APR-07: the requester never approves their own request.
         $this->assertSame('100', $this->onHand($this->soap));
@@ -294,6 +303,72 @@ class DocumentsTest extends TestCase
         $this->asTenant($other['user']->tenant_id, fn () => app(ModuleRegistry::class)->activate('inventory'));
         $this->getJson("/api/v1/inventory/adjustments/{$id}", $this->headersFor($other['user']))->assertNotFound();
         $this->postJson('/api/v1/inventory/adjustments', $body, $this->headersFor($other['user']))->assertUnprocessable()->assertJsonValidationErrors(['location_id', 'lines.0.item_id']);
+    }
+
+    public function test_a_batch_cannot_go_below_zero_when_the_company_does_not_allow_it(): void
+    {
+        $this->costing(InventorySetting::WEIGHTED_AVERAGE, allowNegative: false);
+        $first = $this->postJson('/api/v1/inventory/opening-stock', ['item_id' => $this->milk->id, 'location_id' => $this->locationA->id, 'qty' => '5', 'unit_cost' => '1', 'batch_number' => 'LOT-1', 'expires_on' => '2027-01-31'], $this->headersFor())
+            ->assertCreated()->json('data.batch.id');
+        $this->postJson('/api/v1/inventory/opening-stock', ['item_id' => $this->milk->id, 'location_id' => $this->locationA->id, 'qty' => '10', 'unit_cost' => '1', 'batch_number' => 'LOT-2', 'expires_on' => '2027-02-28'], $this->headersFor())->assertCreated();
+
+        // 15 at the outlet, but only 5 of LOT-1.
+        try {
+            $this->move($this->milk, Movement::ADJUSTMENT_OUT, '-6', extra: ['batch_id' => $first]);
+            $this->fail('A batch went below zero.');
+        } catch (ApiException $e) {
+            $this->assertSame('insufficient_stock', $e->errorCode);
+        }
+
+        $this->assertSame('15', $this->onHand($this->milk));
+    }
+
+    public function test_an_adjustment_approved_during_a_count_waits_and_posts_when_the_count_ends(): void
+    {
+        $adjustment = $this->postJson('/api/v1/inventory/adjustments', [
+            'location_id' => $this->locationA->id, 'reason' => 'damage', 'lines' => [['item_id' => $this->soap->id, 'qty' => '-3']],
+        ], $this->headersFor($this->storekeeper))->assertCreated()->json('data.id');
+        $count = $this->postJson('/api/v1/inventory/counts', ['location_id' => $this->locationA->id, 'kind' => 'cycle', 'item_ids' => [$this->soap->id]], $this->headersFor())->assertCreated()->json('data');
+
+        $this->approve($adjustment);
+        $this->getJson("/api/v1/inventory/adjustments/{$adjustment}", $this->headersFor())->assertJsonPath('data.status', 'waiting')->assertJsonPath('data.failure', null);
+        $this->assertSame('100', $this->onHand($this->soap));
+
+        $this->postJson("/api/v1/inventory/counts/{$count['id']}/cancel", ['reason' => 'Later'], $this->headersFor())->assertOk();
+        $this->getJson("/api/v1/inventory/adjustments/{$adjustment}", $this->headersFor())->assertJsonPath('data.status', 'posted');
+        $this->assertSame('97', $this->onHand($this->soap));
+    }
+
+    public function test_amounts_in_the_inbox_follow_valuation_where_the_documents_are_seen(): void
+    {
+        $type = app(TransferType::class);
+        $this->assertSame([], $this->inTenant(fn () => $type->hiddenSummaryFields($this->manager)));
+
+        // The manager of A also keeps stock at B, without values there.
+        $this->inTenant(fn () => $this->assign($this->manager, $this->roles->get('storekeeper'), Scope::location($this->locationB->id)));
+        $this->assertSame(['amount'], $this->inTenant(fn () => $type->hiddenSummaryFields($this->manager->fresh())));
+        $this->assertSame(['amount'], $this->inTenant(fn () => $type->hiddenSummaryFields($this->storekeeper)));
+    }
+
+    public function test_postings_lock_the_company_before_writing_audited_documents(): void
+    {
+        $this->inTenant(fn () => Company::query()->whereKey($this->acme->id)->update(['base_currency_locked_at' => null]));
+        $adjustment = $this->postJson('/api/v1/inventory/adjustments', [
+            'location_id' => $this->locationA->id, 'reason' => 'found', 'lines' => [['item_id' => $this->soap->id, 'qty' => '1']],
+        ], $this->headersFor($this->storekeeper))->assertCreated()->json('data.id');
+        $this->inTenant(fn () => Company::query()->whereKey($this->acme->id)->update(['base_currency_locked_at' => null]));
+
+        $order = [];
+        DB::listen(function ($query) use (&$order) {
+            if (str_contains($query->sql, 'from "companies"') && str_contains($query->sql, 'for update')) {
+                $order[] = 'company';
+            } elseif (str_contains($query->sql, 'audit_chain_heads')) {
+                $order[] = 'audit';
+            }
+        });
+        $this->inTenant(fn () => app(Adjustments::class)->completed($adjustment, 'approved', $this->manager->id));
+
+        $this->assertSame('company', $order[0] ?? null, implode(',', $order));
     }
 
     public function test_another_companys_private_item_is_refused_everywhere(): void

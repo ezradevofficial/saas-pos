@@ -94,7 +94,8 @@ return [
             'inventory.*', 'purchasing.receipt.*', 'purchasing.order.view',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
-        'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit'],
+        // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
+        'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

@@ -360,7 +360,7 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'location_id', 'created_at']);
         });
-        DB::statement("alter table inventory_adjustments add constraint inventory_adjustments_status_check check (status in ('pending', 'posted', 'rejected', 'cancelled', 'failed') and reason in ('damage', 'expiry', 'theft', 'found', 'correction', 'internal_use', 'other'))");
+        DB::statement("alter table inventory_adjustments add constraint inventory_adjustments_status_check check (status in ('pending', 'waiting', 'posted', 'rejected', 'cancelled', 'failed') and reason in ('damage', 'expiry', 'theft', 'found', 'correction', 'internal_use', 'other'))");
         Rls::enable('inventory_adjustments');
 
         Schema::create('inventory_adjustment_lines', function (Blueprint $table) use ($qty) {

@@ -58,8 +58,7 @@ class StockLedger
         }
 
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($posting) {
-            $company = Company::query()->findOrFail($posting->companyId);
-            $currency = $company->base_currency_locked_at !== null ? $company->base_currency : app(BaseCurrencyLock::class)->lock($company);
+            $currency = $this->baseCurrency($posting->companyId);
             $kinds = array_values(array_unique(array_map(fn (PostingLine $line) => $line->kind, $posting->lines)));
 
             DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [
@@ -131,11 +130,10 @@ class StockLedger
                 if ($line->locationId !== null) {
                     $after = $this->moveBalance($posting->companyId, $line->locationId, $line->itemId, $line->qty);
 
-                    if ($line->batchId !== null) {
-                        $this->moveBatchBalance($line->locationId, $line->itemId, $line->batchId, $line->qty);
-                    }
+                    $batchAfter = $line->batchId === null ? null : $this->moveBatchBalance($line->locationId, $line->itemId, $line->batchId, $line->qty);
 
-                    if ($line->qty->isNegative() && $after->isNegative()) {
+                    // L1: a batch goes below zero as the location does (allowed, flagged; refused for manual moves when not allowed).
+                    if ($line->qty->isNegative() && ($after->isNegative() || $batchAfter?->isNegative())) {
                         if ($posting->manual && ! $settings->allow_negative) {
                             throw self::error(422, 'insufficient_stock', ['item' => $items[$line->itemId]?->name ?? '']);
                         }
@@ -342,14 +340,30 @@ class StockLedger
         return Qty::of((string) $row->qty);
     }
 
-    private function moveBatchBalance(string $locationId, string $itemId, string $batchId, BigDecimal $qty): void
+    private function moveBatchBalance(string $locationId, string $itemId, string $batchId, BigDecimal $qty): BigDecimal
     {
-        DB::connection(TenantContext::CONNECTION)->statement(
+        $row = DB::connection(TenantContext::CONNECTION)->selectOne(
             'insert into inventory_batch_balances (id, tenant_id, location_id, item_id, batch_id, qty, created_at, updated_at)
              values (?, ?, ?, ?, ?, ?, now(), now())
-             on conflict (tenant_id, location_id, item_id, batch_id) do update set qty = inventory_batch_balances.qty + excluded.qty, updated_at = now()',
+             on conflict (tenant_id, location_id, item_id, batch_id) do update set qty = inventory_batch_balances.qty + excluded.qty, updated_at = now()
+             returning qty',
             [(string) Str::uuid7(), $this->tenants->require(), $locationId, $itemId, $batchId, (string) $qty],
         );
+
+        return Qty::of((string) $row->qty);
+    }
+
+    /**
+     * L5, CUR-02: the company's base currency, locked by its first posting.
+     * Lock order everywhere in Inventory: the company row (first posting
+     * only), then the audit chain head, then cost states. Document postings
+     * call this first, before their audited writes.
+     */
+    public function baseCurrency(string $companyId): string
+    {
+        $company = Company::query()->findOrFail($companyId);
+
+        return $company->base_currency_locked_at !== null ? $company->base_currency : app(BaseCurrencyLock::class)->lock($company);
     }
 
     /** INV-07: the serials the movement carried, and where each one is now. */

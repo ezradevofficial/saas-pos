@@ -54,6 +54,7 @@ class OpeningStock
         $cost = $this->valuer->typedCost((string) $data['unit_cost'], $line->qty, $currency);
 
         return StockInput::transaction(function () use ($data, $by, $line, $place, $cost) {
+            $this->ledger->baseCurrency($place['company_id']);
             $sourceId = (string) Str::uuid7();
             $this->auditor->record('inventory.opening.create', $line->item, null, [
                 'opening_id' => $sourceId,
@@ -94,6 +95,7 @@ class OpeningStock
     public function reverse(Movement $movement, ?User $by): void
     {
         StockInput::transaction(function () use ($movement, $by) {
+            $this->ledger->baseCurrency($movement->company_id);
             if (Movement::query()->where('reverses_movement_id', $movement->id)->exists()) {
                 return;
             }

@@ -142,6 +142,7 @@ class Transfers
     public function dispatch(Transfer $transfer, User $by): Transfer
     {
         return StockInput::transaction(function () use ($transfer, $by) {
+            $this->ledger->baseCurrency($transfer->company_id);
             $transfer = Transfer::query()->whereKey($transfer->id)->lockForUpdate()->firstOrFail();
             $this->assertStatus($transfer, [Transfer::APPROVED]);
             $this->place($transfer->from_location_id, 'from_location_id');
@@ -170,6 +171,7 @@ class Transfers
     public function receive(Transfer $transfer, User $by, ?array $received, ?string $lossReason): Transfer
     {
         $result = StockInput::transaction(function () use ($transfer, $by, $received, $lossReason) {
+            $this->ledger->baseCurrency($transfer->company_id);
             $transfer = Transfer::query()->whereKey($transfer->id)->lockForUpdate()->firstOrFail();
             $this->assertStatus($transfer, [Transfer::IN_TRANSIT]);
             $this->place($transfer->to_location_id, 'to_location_id');

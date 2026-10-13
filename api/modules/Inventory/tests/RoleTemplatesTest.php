@@ -53,7 +53,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(self::ALL, $this->held('branch_manager'));
         $this->assertSame(array_values(array_diff(self::ALL, [
-            'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.transfer.approve', 'inventory.settings.edit',
+            'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.transfer.approve', 'inventory.settings.edit', 'inventory.valuation.view',
         ])), $this->held('storekeeper'));
         $this->assertSame(collect(['inventory.item.configure', 'inventory.settings.edit', ...self::VIEWS])->sort()->values()->all(), $this->held('admin'));
         $this->assertSame(self::VIEWS, $this->held('accountant'));
