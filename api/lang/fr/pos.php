@@ -10,6 +10,8 @@ return [
     'validation' => [
         'minor_units' => 'Envoyez le montant en unités mineures, sous forme de nombre entier, par exemple « 125000 » pour KES 1 250,00.',
         'quantity' => 'Envoyez la quantité sous forme de nombre supérieur à zéro avec au plus 6 décimales, par exemple « 1.5 ».',
+        'tender' => 'Envoyez le moyen de paiement sous forme d’objet de noms courts et de valeurs simples.',
+        'extensions' => 'Envoyez les données des modules sous forme d’objet d’objets par module, 16 Ko au plus.',
     ],
 
     'errors' => [
@@ -45,6 +47,7 @@ return [
         'uom_unknown' => 'Cette unité n’est pas une unité de l’article. Actualisez les données de la caisse.',
         'discount_above_price' => 'La remise dépasse le prix de la ligne. Réduisez la remise.',
         'line_totals_inconsistent' => 'Les montants de la ligne ne concordent pas. Mettez la caisse à jour et renvoyez la vente.',
+        'adjustments_above_discount' => 'La remise de la ligne est inférieure aux remises qu’elle cite. Mettez la caisse à jour et renvoyez la vente.',
         'sale_totals_inconsistent' => 'Les totaux de la vente ne sont pas la somme de ses lignes. Mettez la caisse à jour et renvoyez la vente.',
         'tax_code_missing' => ':item n’a pas de code de taxe pour cette société. Demandez à un administrateur de définir la catégorie de taxe de l’article.',
         'rate_needed' => ':item ne peut pas être vendu : son taux de taxe est marqué « Taux à saisir ». Demandez à un administrateur de saisir le taux.',

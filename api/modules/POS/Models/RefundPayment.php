@@ -18,6 +18,6 @@ class RefundPayment extends Model
 
     protected function casts(): array
     {
-        return ['fx' => FxSnapshot::class.':fx'];
+        return ['fx' => FxSnapshot::class.':fx', 'tender' => 'array'];
     }
 }

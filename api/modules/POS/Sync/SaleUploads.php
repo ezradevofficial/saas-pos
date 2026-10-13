@@ -16,11 +16,14 @@ use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\Prices\DiscountSources;
 use App\Core\MasterData\Prices\PriceResolver;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRateMissing;
+use App\Core\Payments\Tenders\TenderProviders;
+use App\Core\Payments\Tenders\TenderUse;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -28,6 +31,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Events\SaleSnapshot;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
@@ -68,6 +72,11 @@ use Modules\POS\Models\Shift;
  *   sale; each line converts at the server's rate in force at the sale's
  *   time, else at the till's rate for that pair, else the sale waits
  *   (`rate_unavailable`, retryable).
+ * - **Other modules' data** (LOY-27): a line's discount provenance
+ *   (`adjustments`; the part an active DiscountSources source vouches for
+ *   is not a manual discount), each payment's `tender` (its provider's
+ *   review flags become `tender_flagged`) and the sale's `extensions` are
+ *   stored as sent and passed on in SaleCompleted's snapshot.
  */
 class SaleUploads
 {
@@ -85,6 +94,8 @@ class SaleUploads
         private readonly TenantContext $tenants,
         private readonly ShiftCash $cash,
         private readonly PriceResolver $prices,
+        private readonly DiscountSources $discountSources,
+        private readonly TenderProviders $tenders,
     ) {}
 
     /**
@@ -185,6 +196,8 @@ class SaleUploads
             throw new Rejection('sale_underpaid', 'payments');
         }
 
+        $this->checkTenders($place, $payments, $data, $currency, $flags);
+
         [$change, $rounding, $changeSnapshot] = $this->change($data['change'] ?? null, $currency, $paidExact->minus($totals['total_minor']));
 
         // H1: money out at a rate the server doesn't hold is flagged.
@@ -223,6 +236,7 @@ class SaleUploads
             'received_at' => now(),
             'offline' => (bool) ($data['offline'] ?? false),
             'flags' => $flags->all(),
+            'extensions' => ($data['extensions'] ?? null) ?: null,
             'payload_hash' => Records::hash($data),
         ]);
 
@@ -236,7 +250,7 @@ class SaleUploads
 
         $this->audit($sale, $lines, $cashier, $at, $total);
         $this->cash->recountIfClosed($shift->id, 'sale', $sale->id);
-        SaleCompleted::dispatch($this->tenants->require(), $sale->id, $sale->company_id, $sale->location_id);
+        SaleCompleted::dispatch($this->tenants->require(), $sale->id, $sale->company_id, $sale->location_id, SaleSnapshot::sale($sale));
 
         return $sale;
     }
@@ -366,6 +380,9 @@ class SaleUploads
             throw new Rejection('discount_above_price', "{$field}.discount_minor");
         }
 
+        // LOY-27: the part of the discount a module vouches for (a promotion) is not a manual discount.
+        $vouched = $this->vouched($line['adjustments'] ?? null, $discount, $field);
+        $manual = $discount->minus($vouched);
         $amount = $gross->minus($discount);
         $tax = BigDecimal::of((string) $line['tax_minor']);
         $total = BigDecimal::of((string) $line['total_minor']);
@@ -412,8 +429,8 @@ class SaleUploads
         $percent = null;
         $discountApproval = null;
 
-        if ($discount->isPositive()) {
-            $percent = $discount->multipliedBy(100)->dividedBy($gross, 4, RoundingMode::HalfUp);
+        if ($manual->isPositive()) {
+            $percent = $manual->multipliedBy(100)->dividedBy($gross, 4, RoundingMode::HalfUp);
             $discountApproval = $this->restricted($place, $this->giver($line, $cashier), $line['override'] ?? null, $line['actor_proof'] ?? null, 'pos.discount.give',
                 fn (User $user) => $this->authority->within($user, 'max_discount_percent', $place->scope(), $percent),
                 $line['id'], "{$field}.override", 'discount_unauthorised', $index, $flags);
@@ -469,6 +486,7 @@ class SaleUploads
                 'total_minor' => (string) $total,
                 'price_override_by' => $priceApproval?->approverId(),
                 'discount_override_by' => $discountApproval?->approverId(),
+                'adjustments' => ($line['adjustments'] ?? null) ?: null,
             ],
             'gross' => $gross,
             'discount' => $discount,
@@ -479,7 +497,64 @@ class SaleUploads
             'price_override' => $priceApproval,
             'reference_price' => $reference,
             'percent' => $percent,
+            'vouched' => $vouched,
         ];
+    }
+
+    /**
+     * LOY-27: the sum of a line's adjustments whose source an active
+     * module vouches for. The adjustments together never exceed the
+     * line's discount (`adjustments_above_discount`).
+     *
+     * @param  list<array{source: string, reference?: ?string, amount_minor: string|int}>|null  $adjustments
+     */
+    private function vouched(?array $adjustments, BigDecimal $discount, string $field): BigDecimal
+    {
+        $all = BigDecimal::zero();
+        $vouched = BigDecimal::zero();
+
+        foreach ($adjustments ?? [] as $adjustment) {
+            $amount = BigDecimal::of((string) $adjustment['amount_minor']);
+            $all = $all->plus($amount);
+
+            if ($this->discountSources->vouches($adjustment['source'])) {
+                $vouched = $vouched->plus($amount);
+            }
+        }
+
+        if ($all->isGreaterThan($discount)) {
+            throw new Rejection('adjustments_above_discount', "{$field}.adjustments");
+        }
+
+        return $vouched;
+    }
+
+    /**
+     * LOY-27: each payment whose method type has an active tender
+     * provider (core TenderProviders) is checked by it; what it notices is
+     * flagged `tender_flagged`, never refused (device wins).
+     *
+     * @param  list<array{row: array<string, mixed>}>  $payments
+     */
+    private function checkTenders(DevicePlace $place, array $payments, array $data, string $currency, Flags $flags): void
+    {
+        foreach ($payments as $index => $payment) {
+            $provider = $this->tenders->for($payment['row']['method_type']);
+
+            if ($provider === null) {
+                continue;
+            }
+
+            $codes = $provider->check(new TenderUse(
+                TenderUse::SALE, $place->company->id, $place->branch->id, $data['customer_id'] ?? null, $data['cashier_id'],
+                $payment['row']['currency'], (string) $payment['row']['amount_minor'], $currency, (string) $payment['row']['amount_in_sale_minor'],
+                (array) ($payment['row']['tender'] ?? []),
+            ));
+
+            foreach ($codes as $code) {
+                $flags->add('tender_flagged', null, ['payment' => $index + 1, 'code' => $code]);
+            }
+        }
     }
 
     /** A tax code's rate in force at $at (null when exempt or not set: rates are never invented). */
@@ -616,6 +691,7 @@ class SaleUploads
                     'fx' => $snapshot,
                     'provider_reference' => $payment['provider_reference'] ?? null,
                     'status' => $payment['status'] ?? SalePayment::CONFIRMED,
+                    'tender' => ($payment['tender'] ?? null) ?: null,
                 ],
                 'fx_snapshot' => $snapshot,
             ];
@@ -724,9 +800,11 @@ class SaleUploads
                 $this->auditor->record('pos.sale.discount', $sale, null, [
                     'line' => $line['row']['line_no'],
                     'discount_minor' => $line['row']['discount_minor'],
+                    // LOY-27: the part a module vouched for (a promotion), not checked against the limit.
+                    'vouched_minor' => (string) $line['vouched'],
                     'percent' => (string) $line['percent'],
                     'approved_by' => $line['override']?->approverId(),
-                    'allowed' => $line['override'] !== null,
+                    'allowed' => $line['override'] !== null || ! $line['discount']->minus($line['vouched'])->isPositive(),
                 ], [...$extra, 'on_behalf_of_user_id' => $line['override']?->approverId()]);
             }
 

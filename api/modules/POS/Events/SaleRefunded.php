@@ -5,7 +5,10 @@ namespace Modules\POS\Events;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
-/** POS-13: lines of a sale were refunded (after commit, once per refund). */
+/**
+ * POS-13: lines of a sale were refunded (after commit, once per refund),
+ * with a snapshot of the refund (SaleSnapshot::refund).
+ */
 class SaleRefunded implements ShouldDispatchAfterCommit
 {
     use Dispatchable;
@@ -14,5 +17,7 @@ class SaleRefunded implements ShouldDispatchAfterCommit
         public readonly string $tenantId,
         public readonly string $saleId,
         public readonly string $refundId,
+        /** @var array<string, mixed> SaleSnapshot::refund() */
+        public readonly array $refund = [],
     ) {}
 }

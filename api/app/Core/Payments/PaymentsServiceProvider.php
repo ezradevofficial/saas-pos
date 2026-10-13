@@ -3,6 +3,7 @@
 namespace App\Core\Payments;
 
 use App\Core\Payments\Console\ProcessPaymentTimersCommand;
+use App\Core\Payments\Tenders\TenderProviders;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -20,6 +21,8 @@ class PaymentsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PaymentProviderRegistry::class);
+        // MD-04: tenders whose value a module keeps (points, gift cards, store credit).
+        $this->app->singleton(TenderProviders::class);
     }
 
     public function boot(): void
