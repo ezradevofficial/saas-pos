@@ -30,6 +30,8 @@ class TwoFactorTest extends TestCase
 {
     use CreatesIdentities, RefreshTenantDatabase;
 
+    private ?string $lastSecret = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -65,6 +67,7 @@ class TwoFactorTest extends TestCase
         $secret = $this->postJson('/api/v1/me/two-factor/totp', [], $this->bearer($token))->assertOk()->json('secret');
         $this->postJson('/api/v1/me/two-factor/totp/confirm', ['code' => app(Google2FA::class)->getCurrentOtp($secret)], $this->bearer($token))
             ->assertOk();
+        $this->lastSecret = $secret;
 
         return $secret;
     }
@@ -80,9 +83,26 @@ class TwoFactorTest extends TestCase
         });
     }
 
+    /** A code valid in no nearby time step (test clock or real clock), so it is always refused. */
     private function wrong(string $code): string
     {
-        return $code === '000000' ? '111111' : '000000';
+        $google = app(Google2FA::class);
+        $secret = $this->lastSecret;
+        $valid = [$code];
+        if ($secret !== null) {
+            foreach ([now()->getTimestamp(), time()] as $at) {
+                foreach (range(-3, 3) as $offset) {
+                    $valid[] = $google->oathTotp($secret, intdiv($at, 30) + $offset);
+                }
+            }
+        }
+        foreach (['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999'] as $candidate) {
+            if (! in_array($candidate, $valid, true)) {
+                return $candidate;
+            }
+        }
+
+        return '123456';
     }
 
     public function test_starting_totp_enrolment_returns_the_secret_url_and_qr_code(): void
