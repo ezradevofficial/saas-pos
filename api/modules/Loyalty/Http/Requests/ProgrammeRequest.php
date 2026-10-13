@@ -7,25 +7,21 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * GET and PUT companies/{company}/loyalty-programme (LOY-01): read with
- * `loyalty.programme.view` (or edit), change with `loyalty.programme.edit`.
+ * PUT companies/{company}/loyalty-programme (LOY-01): `loyalty.programme.edit`
+ * at the company.
  * The gift card item is one the company sells (its own or shared).
  */
 class ProgrammeRequest extends LoyaltyRequest
 {
     public function authorize(): bool
     {
-        $this->authorizeAt($this->route('company')->id, ['loyalty.programme.view', 'loyalty.programme.edit'], $this->isMethod('GET') ? null : 'loyalty.programme.edit');
+        $this->authorizeAt($this->route('company')->id, ['loyalty.programme.view', 'loyalty.programme.edit'], 'loyalty.programme.edit');
 
         return true;
     }
 
     public function rules(): array
     {
-        if ($this->isMethod('GET')) {
-            return [];
-        }
-
         return [
             'active' => ['sometimes', 'boolean'],
             'earn_points' => ['sometimes', 'integer', 'between:0,1000'],

@@ -502,6 +502,13 @@ final class TwoTenants
         // one left for the isolation suite to void) and a cash pay-in.
         $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
 
+        // Loyalty (docs/modules/loyalty.md): the module switched on, the
+        // programme, a promotion with a coupon, a gift card, a credit
+        // account with a charge and a statement, a points adjustment, and a
+        // till sale for the customer with the promotion and the card (so
+        // every loyalty table has rows, a notice included).
+        $loyalty = self::loyalty($test, $owner, $tenantId, $company, $customer, $deviceToken, $pos, $ownerId, $item, $uoms['EA'], $priceList, $taxCode, $key);
+
         // EXP-02: a full export request. Not built here: a build reads every
         // table inside the test's transaction, and its locks stay until the
         // test ends (the isolation suite builds one itself). Marked failed so
@@ -601,6 +608,7 @@ final class TwoTenants
                 'import' => $import,
                 ...$dimensions,
                 ...$pos,
+                ...$loyalty,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
@@ -665,6 +673,48 @@ final class TwoTenants
             'pos_void' => $void,
             'pos_refund' => $refund['id'],
             'pos_cash_movement' => $movement,
+        ];
+    }
+
+    /** @return array<string, string> loyalty_promotion, loyalty_coupon, loyalty_account, loyalty_statement, loyalty_gift_card */
+    private static function loyalty(TestCase $test, array $owner, string $tenantId, string $company, string $customer, string $deviceToken, array $pos, string $ownerId, string $item, string $uom, string $priceList, string $taxCode, string $key): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('loyalty'));
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        $id = fn () => (string) Str::uuid7();
+        $upper = strtoupper($key);
+
+        self::ok($test->putJson("/api/v1/companies/{$company}/loyalty-programme", ['active' => true, 'expiry_months' => 12, 'gift_card_low_minor' => '500000', 'gift_card_item_id' => $item], $owner));
+        $promotion = self::ok($test->postJson('/api/v1/loyalty/promotions', [
+            'company_id' => $company, 'name' => "Ten off {$upper}", 'type' => 'percent', 'percent' => '10', 'status' => 'active', 'requires_coupon' => true,
+        ], $owner), 201)->json('data.id');
+        $coupon = self::ok($test->postJson("/api/v1/loyalty/promotions/{$promotion}/coupons", ['codes' => ["SAVE10{$upper}"], 'max_uses' => 5], $owner), 201)->json('data.0.id');
+        $card = self::ok($test->postJson('/api/v1/loyalty/gift-cards', ['company_id' => $company, 'kind' => 'gift_card', 'currency' => 'KES', 'amount_minor' => '200000', 'active' => true], $owner), 201)->json('data.0');
+        $account = self::ok($test->postJson('/api/v1/loyalty/accounts', ['party_id' => $customer, 'company_id' => $company], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/loyalty/accounts/{$account}/charges", ['amount_minor' => '50000', 'reference' => "INV-{$upper}"], $owner), 201);
+        $statement = self::ok($test->postJson("/api/v1/loyalty/accounts/{$account}/statements", ['from' => now()->subMonth()->format('Y-m-d'), 'to' => now()->format('Y-m-d')], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/loyalty/customers/{$customer}/points/adjust", ['company_id' => $company, 'points' => '25', 'reason' => 'Welcome'], $owner), 201);
+        // A customer without a credit account (the isolation suite opens one for it).
+        $creditCustomer = self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "Credit customer {$upper}", 'roles' => ['customer']], $owner), 201)->json('data.id');
+        $voucher = self::ok($test->postJson("/api/v1/companies/{$company}/payment-methods", ['type' => 'voucher', 'name' => "Gift card {$upper}", 'currency' => 'KES', 'active' => true], $owner), 201)->json('data.id');
+
+        // KES 1,125.00 less the coupon's 10 % (KES 112.50), paid by the card; the card falls below its threshold.
+        $sale = self::posSale($id, $pos['pos_shift'], $ownerId, 4, str_replace('{000001}', '000004', $pos['pos_receipt_pattern']), $item, $uom, $priceList, $voucher, $taxCode);
+        $sale['customer_id'] = $customer;
+        $sale['lines'][0] = [...$sale['lines'][0], 'discount_minor' => '11250', 'tax_minor' => '11250', 'total_minor' => '101250',
+            'adjustments' => [['source' => 'loyalty.promotion', 'reference' => $promotion, 'amount_minor' => '11250']]];
+        $sale['totals'] = ['subtotal_minor' => '112500', 'discount_minor' => '11250', 'tax_minor' => '11250', 'total_minor' => '101250'];
+        $sale['payments'][0] = [...$sale['payments'][0], 'amount_minor' => '101250', 'amount_in_sale_minor' => '101250', 'tender' => ['code_hash' => hash('sha256', str_replace('-', '', $card['code']))]];
+        $sale['extensions'] = ['loyalty' => ['coupons' => ["SAVE10{$upper}"], 'promotions' => [['id' => $promotion, 'version' => 1]]]];
+        Assert::assertSame('stored', self::ok($test->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $device))->json('results.0.status'));
+
+        return [
+            'loyalty_promotion' => $promotion,
+            'loyalty_coupon' => $coupon,
+            'loyalty_account' => $account,
+            'loyalty_statement' => $statement,
+            'loyalty_gift_card' => $card['id'],
+            'loyalty_customer' => $creditCustomer,
         ];
     }
 

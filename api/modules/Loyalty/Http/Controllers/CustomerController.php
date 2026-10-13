@@ -7,6 +7,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Modules\Loyalty\Http\Requests\AdjustPointsRequest;
 use Modules\Loyalty\Http\Requests\CustomerRequest;
 use Modules\Loyalty\Http\Resources\AccountResource;
 use Modules\Loyalty\Http\Resources\EntryResource;
@@ -54,7 +55,7 @@ class CustomerController
     }
 
     /** LOY-07: a manual adjustment of the customer's points at a company, with a reason (audited). */
-    public function adjustPoints(CustomerRequest $request, Party $party, Ledgers $ledgers, Auditor $auditor): JsonResponse
+    public function adjustPoints(AdjustPointsRequest $request, Party $party, Ledgers $ledgers, Auditor $auditor): JsonResponse
     {
         $entry = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $party, $ledgers, $auditor) {
             $account = $ledgers->pointsAccount($request->validated('company_id'), $party->id, $request->user()->id);

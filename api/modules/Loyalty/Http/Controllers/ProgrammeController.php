@@ -5,6 +5,7 @@ namespace Modules\Loyalty\Http\Controllers;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Modules\Loyalty\Http\Requests\ProgrammeRequest;
+use Modules\Loyalty\Http\Requests\ShowProgrammeRequest;
 use Modules\Loyalty\Models\Programme;
 use Modules\Loyalty\Programmes;
 
@@ -13,7 +14,7 @@ class ProgrammeController
 {
     public function __construct(private readonly Programmes $programmes) {}
 
-    public function show(ProgrammeRequest $request, Company $company): JsonResponse
+    public function show(ShowProgrammeRequest $request, Company $company): JsonResponse
     {
         return response()->json(['data' => $this->present($company, $this->programmes->for($company->id))]);
     }
