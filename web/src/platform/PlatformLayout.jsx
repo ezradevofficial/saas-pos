@@ -28,6 +28,14 @@ export function PlatformLayout() {
             >
               {t('platform.nav.catalogue')}
             </NavLink>
+            {user?.abilities?.includes('tenants.create') ? (
+              <NavLink
+                to="/platform/tenants/new"
+                className={({ isActive }) => cn('rounded-sm py-1 text-label hover:text-ink', isActive ? 'text-ink' : 'text-ink-muted')}
+              >
+                {t('platform.nav.newTenant')}
+              </NavLink>
+            ) : null}
           </nav>
         </div>
         <div className="flex items-center gap-3">

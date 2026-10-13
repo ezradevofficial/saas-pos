@@ -163,3 +163,8 @@ export function ambiguousFrenchComma(text, locale) {
   const [, whole, part] = match
   return { key: 'ambiguousComma', values: { thousands: `${whole} ${part}`, decimal: `${whole},${part}0` } }
 }
+
+/** "KES 3,900.00": an amount in minor units as text, its currency code first (writing rules). */
+export function moneyText(minor, currency, locale = 'en') {
+  return `${currency} ${formatAmount(minor, currency, locale)}`
+}

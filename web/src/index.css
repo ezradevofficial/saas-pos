@@ -311,3 +311,8 @@
 .workflow-canvas .react-flow__attribution a {
   color: var(--ink-muted);
 }
+
+/* 96px: a choice tile on the onboarding screens (business types, modules). */
+@utility min-h-tile {
+  min-height: calc(var(--space-12) * 2);
+}

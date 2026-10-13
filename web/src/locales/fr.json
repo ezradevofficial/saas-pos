@@ -5103,7 +5103,8 @@
   "platform": {
     "console": "Console de la plateforme",
     "nav": {
-      "catalogue": "Catalogue des offres"
+      "catalogue": "Catalogue des offres",
+      "newTenant": "Nouveau client"
     },
     "roles": {
       "owner": "Propriétaire",
@@ -5260,6 +5261,266 @@
         "not_applicable": "Ce code promo ne s’applique à rien dans ce devis."
       },
       "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
+    },
+    "tenants": {
+      "title": "Nouveau client",
+      "intro": "Créez un compte pour un client. Il reçoit une invitation pour en devenir le propriétaire ; vous n’y gardez aucun accès.",
+      "created": "Client créé",
+      "createdText": "L’invitation a été envoyée à {{destination}}. Sous-domaine : {{slug}}.",
+      "businessName": "Nom de l’entreprise",
+      "businessType": "Type d’activité",
+      "types": {
+        "retail": "Boutique",
+        "supermarket": "Supermarché ou supérette",
+        "restaurant": "Restaurant ou café",
+        "bar": "Bar ou lounge",
+        "hotel": "Hôtel ou lodge",
+        "pharmacy": "Pharmacie ou agro-vétérinaire",
+        "wholesale": "Grossiste ou distributeur",
+        "van_sales": "Vente itinérante",
+        "salon": "Salon, spa ou services",
+        "fuel_station": "Station-service",
+        "non_pos": "Pas besoin de caisse"
+      },
+      "outlets": "Points de vente",
+      "contactName": "Nom du contact",
+      "contact": "E-mail ou téléphone du contact",
+      "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
+      "submit": "Créer le client"
+    }
+  },
+  "onboarding": {
+    "back": "Retour",
+    "stages": {
+      "business": "Activité",
+      "modules": "Modules",
+      "setup": "Configuration"
+    },
+    "trial": {
+      "daysLeft_one": "Essai · {{count}} jour restant",
+      "daysLeft_other": "Essai · {{count}} jours restants",
+      "ended": "Essai terminé",
+      "help": "Aucun paiement pendant votre essai gratuit.",
+      "endedHelp": "Votre essai gratuit est terminé. Choisissez un moyen de paiement pour continuer à utiliser tous les modules."
+    },
+    "welcome": {
+      "title": "Commencez votre essai gratuit",
+      "intro": "D’abord, où se trouve votre entreprise et quelle langue préférez-vous ? Cela fixe votre devise, vos taxes et la facturation électronique.",
+      "country": "Pays",
+      "countryDetail": {
+        "KE": "KES · TVA et KRA eTIMS",
+        "CD": "USD et CDF · TVA et DGI"
+      },
+      "language": "Langue",
+      "trial": "Gratuit pendant 14 jours. Aucun moyen de paiement demandé.",
+      "continue": "Continuer",
+      "chosen": "Choisis : {{country}} · {{language}}.",
+      "change": "Modifier"
+    },
+    "business": {
+      "title": "Quel type d’activité avez-vous ?",
+      "intro": "Nous configurons la caisse, les rôles et les étapes d’approbation adaptés à votre activité. Vous pourrez tout changer plus tard.",
+      "typesLabel": "Types d’activité",
+      "name": "Entreprise",
+      "outlets": "Nombre de points de vente",
+      "outletRanges": {
+        "one": "1",
+        "few": "2 à 5",
+        "several": "6 à 20",
+        "many": "Plus de 20"
+      },
+      "selected": "Sélection : {{name}}",
+      "pickOne": "Choisissez le plus proche.",
+      "continue": "Continuer vers les modules"
+    },
+    "modules": {
+      "title": "Choisissez vos modules",
+      "intro": "Ne payez que ce que vous activez, et ajoutez-en à tout moment.",
+      "introFor": "Nous avons choisi les modules habituels pour : {{type}}. Ne payez que ce que vous activez, et ajoutez-en à tout moment.",
+      "counters": {
+        "outlet": "Points de vente",
+        "device": "Appareils de caisse",
+        "employee": "Employés"
+      },
+      "fewer": "Moins : {{what}}",
+      "more": "Plus : {{what}}",
+      "devicesIncluded_one": "{{count}} inclus, puis facturé par appareil",
+      "devicesIncluded_other": "{{count}} inclus, puis facturés par appareil",
+      "counterHelp": {
+        "outlet": "Boutiques ou succursales",
+        "employee": "Pour les RH et la paie"
+      },
+      "per": {
+        "outlet": "{{price}} par point de vente",
+        "device": "{{price}} par appareil",
+        "employee": "{{price}} par employé",
+        "company": "{{price}} par société",
+        "online_store": "{{price}} par boutique en ligne",
+        "tenant": "{{price}} par compte",
+        "warehouse": "{{price}} par entrepôt"
+      },
+      "priceTitle": "Votre prix mensuel",
+      "priceTitleYear": "Votre prix annuel",
+      "cycle": "Cycle de facturation",
+      "cycles": {
+        "monthly": "Mensuel",
+        "annual": "Annuel · 2 mois offerts"
+      },
+      "nothing": "Aucun module choisi pour l’instant.",
+      "bundleApplied": "Offre {{name}} appliquée",
+      "removeBundle": "Retirer",
+      "suggestion": "{{name}} couvre ceci pour {{total}}, soit {{saving}} d’économie.",
+      "useBundle": "Prendre {{name}}",
+      "perYear": "Par an",
+      "perMonth": "Par mois",
+      "terms": "Prix hors TVA. Rien à payer pendant 14 jours. Payez ensuite par mobile money ou carte.",
+      "startTrial": "Commencer l’essai gratuit"
+    },
+    "moduleGroups": {
+      "sell": "Vendre",
+      "operate": "Exploiter",
+      "finance_people": "Finances et personnel"
+    },
+    "moduleDescriptions": {
+      "pos": "Tous les types de caisse, vente hors ligne, reçus, facturation électronique",
+      "inventory": "Niveaux de stock, transferts, inventaires, alertes de réapprovisionnement",
+      "stores": "Demandes et sorties internes",
+      "loyalty": "Points, promotions, comptes clients à crédit",
+      "ecommerce": "Boutique en ligne, commandes WhatsApp, livreurs",
+      "accounting_essentials": "Grand livre, rapprochement bancaire et mobile money, rapports",
+      "accounting_pro": "Multidevise, budgets, consolidation",
+      "procurement": "Demandes d’achat, appels d’offres, commandes, réceptions",
+      "crm": "Prospects, devis, relances",
+      "fixed_assets": "Registre des immobilisations, amortissements",
+      "manufacturing": "Recettes, production, pertes",
+      "hr": "Dossiers du personnel, congés, horaires, présences",
+      "payroll": "Retenues légales et bulletins de paie"
+    },
+    "setup": {
+      "title": "Préparez votre première vente",
+      "intro": "Faites-les dans l’ordre que vous voulez. Passez ce dont vous n’avez pas besoin aujourd’hui ; vous pourrez y revenir depuis les paramètres.",
+      "progress": "{{done}} sur {{total}} terminées",
+      "progressLabel": "Progression de la configuration",
+      "open": "Commencer",
+      "review": "Revoir",
+      "status": {
+        "done": "Terminé",
+        "skipped": "Passé"
+      },
+      "help": {
+        "title": "Besoin d’aide ?",
+        "text": "Notre équipe peut importer vos produits et configurer vos caisses avec vous."
+      },
+      "canSell": {
+        "title": "Vous pouvez déjà vendre",
+        "text": "Votre caisse fonctionne déjà en espèces. Ajoutez le mobile money et la facturation électronique avant de servir vos clients.",
+        "text_KE": "Votre caisse fonctionne déjà en espèces. Ajoutez M-Pesa et KRA eTIMS avant de servir vos clients.",
+        "text_CD": "Votre caisse fonctionne déjà en espèces. Ajoutez le mobile money et la facturation électronique DGI avant de servir vos clients."
+      },
+      "toDashboard": "Aller au tableau de bord",
+      "stepsLabel": "Étapes de configuration",
+      "overview": "Toutes les étapes",
+      "stepOf": "Étape {{step}} sur {{total}}",
+      "reopen": "Remettre à faire",
+      "skip": "Passer pour l’instant",
+      "markDone": "Marquer comme terminé"
+    },
+    "steps": {
+      "company": {
+        "title": "Coordonnées de la société et identifiant fiscal",
+        "title_KE": "Coordonnées de la société et KRA PIN",
+        "title_CD": "Coordonnées de la société et NIF",
+        "description": "Votre raison sociale et votre immatriculation fiscale, imprimées sur les reçus et factures.",
+        "taxId": "Identifiant fiscal",
+        "taxId_KE": "KRA PIN",
+        "taxId_CD": "NIF",
+        "noTaxId": "Pas encore ajouté",
+        "currency": "Devise de base",
+        "edit": "Modifier la société"
+      },
+      "currencies": {
+        "title": "Devises et taux de change",
+        "description": "Les devises acceptées et les taux que vous utilisez."
+      },
+      "branches": {
+        "title": "Succursales et points de vente",
+        "description": "Vos succursales et les points de vente ou magasins de chacune."
+      },
+      "taxes": {
+        "title": "Taxes et impôts",
+        "description": "Les codes de taxe de votre pack pays. Les taux marqués « Taux requis » doivent être confirmés avant de vendre."
+      },
+      "payment_methods": {
+        "title": "Moyens de paiement",
+        "description": "Espèces, mobile money et cartes acceptés par vos caisses."
+      },
+      "items": {
+        "title": "Vos premiers articles",
+        "description": "Ajoutez vos produits un par un, ou importez un tableur.",
+        "manualTitle": "Ajouter des articles à la main",
+        "manualText": "Saisissez un nom, une unité et un prix. Scannez les codes-barres au fur et à mesure.",
+        "addItem": "Ajouter un article",
+        "importTitle": "Importer un tableur",
+        "importText": "Reprenez vos produits depuis Excel ou CSV en une fois.",
+        "import": "Importer des articles",
+        "importSoon": "L’import depuis un tableur n’est pas encore disponible. Ajoutez vos articles un par un pour l’instant."
+      },
+      "users": {
+        "title": "Utilisateurs et rôles",
+        "description": "Invitez votre personnel et donnez un rôle à chacun.",
+        "cardTitle": "Invitez votre équipe",
+        "text": "Chaque personne reçoit une invitation par e-mail ou SMS et choisit son mot de passe.",
+        "invite": "Inviter un utilisateur",
+        "roles": "Voir les rôles"
+      },
+      "devices": {
+        "title": "Appareils",
+        "description": "Associez vos caisses avec un code à usage unique.",
+        "how": "Ouvrez les appareils d’un point de vente, ajoutez une caisse, puis saisissez le code d’association dans l’application de caisse."
+      }
+    },
+    "sample": {
+      "title": "Essayez avec des données d’exemple",
+      "subtitle": "Retirez-les en un clic quand vous êtes prêt",
+      "text": "Chargez des produits, catégories et clients d’exemple pour découvrir la caisse et les rapports avant d’ajouter les vôtres.",
+      "loaded": "Données d’exemple chargées : {{items}} produits et {{customers}} clients.",
+      "load": "Charger des données d’exemple",
+      "remove": "Retirer les données d’exemple"
+    },
+    "checklist": {
+      "title": "Premiers pas",
+      "progress": "{{done}} sur {{total}} terminées",
+      "showHelp": "Afficher l’aide",
+      "dismiss": "Masquer la liste",
+      "go": "Ouvrir",
+      "video": "Voir la vidéo",
+      "panelIntro": "Une aide courte pour chaque étape jusqu’à votre première vente.",
+      "items": {
+        "company": {
+          "title": "Configurez votre société",
+          "help": "Vérifiez le nom commercial et la raison sociale."
+        },
+        "tax_id": {
+          "title": "Ajoutez votre identifiant fiscal",
+          "help": "Votre KRA PIN ou NIF figure sur chaque reçu."
+        },
+        "item": {
+          "title": "Ajoutez votre premier article",
+          "help": "Les articles d’exemple ne comptent pas : ajoutez-en un à vous."
+        },
+        "till": {
+          "title": "Associez une caisse",
+          "help": "Ajoutez un appareil à un point de vente et saisissez son code dans l’application de caisse."
+        },
+        "first_sale": {
+          "title": "Faites votre première vente",
+          "help": "Vendez sur une caisse associée ; la vente apparaît ici une fois synchronisée."
+        },
+        "first_payroll": {
+          "title": "Lancez votre première paie",
+          "help": "Approuvez une paie."
+        }
+      }
     }
   }
 }

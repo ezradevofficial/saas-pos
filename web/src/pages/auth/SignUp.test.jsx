@@ -1,9 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api, getToken } from '@/api/client'
 import i18n from '@/i18n'
 import { apiError, mockApi, OWNER, renderApp, resetSession } from '@/test/renderApp'
 import { contactPayload } from '@/lib/contact'
-import { chooseOption } from '@/test/combobox'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -31,7 +30,7 @@ describe('Sign up and verify', () => {
       if (path === 'auth/verify') return { token: 'fresh', user: OWNER, two_factor_enrollment_required: false }
       throw new Error(path)
     })
-    const { router } = renderApp('/sign-up')
+    const { router } = renderApp('/sign-up?country=KE&locale=en')
 
     fill('Your name', 'Amina Otieno')
     fill('Email or phone number', 'amina@example.com')
@@ -60,7 +59,7 @@ describe('Sign up and verify', () => {
 
   it('shows an email or phone error under the contact field', async () => {
     api.post.mockRejectedValue(apiError(422, 'validation_failed', 'Check the form.', { email: ['This email is already taken.'] }))
-    renderApp('/sign-up')
+    renderApp('/sign-up?country=KE&locale=en')
     fill('Email or phone number', 'amina@example.com')
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
     const contact = screen.getByLabelText('Email or phone number', { exact: false })
@@ -68,10 +67,25 @@ describe('Sign up and verify', () => {
     expect(screen.getByText('This email is already taken.')).toBeInTheDocument()
   })
 
-  it('switches the page to French when French is chosen', async () => {
-    renderApp('/sign-up')
-    chooseOption(screen.getByRole('combobox', { name: 'Language' }), 'Français')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Créez votre compte' })).toBeInTheDocument()
+  it('asks for the country and language first, then signs up with them (ONB-01)', async () => {
+    api.post.mockResolvedValue({ challenge_id: 'ch-1', destination_masked: 'a***@example.com' })
+    const { router } = renderApp('/sign-up')
+    // Without a country and language, sign-up starts on /welcome.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Start your free trial' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /DR Congo/ }))
+    fireEvent.click(within(screen.getAllByRole('group', { name: 'Language' }).find((group) => group.tagName === 'FIELDSET')).getByRole('button', { name: 'Français' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Commencez votre essai gratuit' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+
+    await waitFor(() => expect(router.state.location.search).toBe('?country=CD&locale=fr'))
+    expect(await screen.findByText(/Choisis : RD Congo · Français/)).toBeInTheDocument()
+    fill('Votre nom', 'Amani Kabila')
+    fill('E-mail ou numéro de téléphone', 'amani@example.com')
+    fill('Nouveau mot de passe', 'long enough pass')
+    fill("Nom de l'entreprise", 'Pharmacie Amani')
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le compte' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('auth/sign-up', expect.objectContaining({ country: 'CD', locale: 'fr' })))
   })
 
   it('sends a new code and uses the new challenge', async () => {
@@ -80,7 +94,7 @@ describe('Sign up and verify', () => {
       if (path === 'auth/verify') throw apiError(422, 'invalid_code', 'This code is wrong or has expired.', { code: ['This code is wrong or has expired.'] })
       throw new Error(path)
     })
-    const { router } = renderApp('/sign-up')
+    const { router } = renderApp('/sign-up?country=KE&locale=en')
     router.navigate('/verify', { state: { challengeId: 'ch-1' } })
 
     fireEvent.click(await screen.findByRole('button', { name: 'Send a new code' }))

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { Navigate } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
@@ -55,6 +56,11 @@ import FormRecordPage from './pages/forms/FormRecordPage'
 import FormRecords from './pages/forms/FormRecords'
 import FormTypes from './pages/forms/FormTypes'
 import Home from './pages/Home'
+import BusinessType from './pages/onboarding/BusinessType'
+import ModulePicker from './pages/onboarding/ModulePicker'
+import { OnboardingLayout } from './pages/onboarding/OnboardingLayout'
+import { SetupOverview, SetupStep } from './pages/onboarding/Setup'
+import Welcome from './pages/onboarding/Welcome'
 import Inbox from './pages/notifications/Inbox'
 import NotFound from './pages/NotFound'
 import Held from './pages/pos/Held'
@@ -129,6 +135,8 @@ export const routes = [
     ),
     children: [
       { path: '/sign-in', element: <SignIn /> },
+      // ONB-01: the country and language come first, then the account.
+      { path: '/welcome', element: <Welcome /> },
       { path: '/sign-up', element: <SignUp /> },
       { path: '/verify', element: <Verify /> },
       { path: '/two-factor', element: <TwoFactor /> },
@@ -152,6 +160,23 @@ export const routes = [
       </RequireAuth>
     ),
     children: [{ path: '/two-factor/enrol', element: <TwoFactorEnrol /> }],
+  },
+  // ONB-02..ONB-05: onboarding screens, outside the app shell (OnboardBusiness, OnboardModules, OnboardSetup).
+  {
+    element: (
+      <RequireAuth>
+        <RequirePermission permission="core.onboarding.edit" tenantWide>
+          <OnboardingLayout />
+        </RequirePermission>
+      </RequireAuth>
+    ),
+    children: [
+      { path: '/onboarding', element: <Navigate to="/onboarding/business" replace /> },
+      { path: '/onboarding/business', handle: { stage: 'business' }, element: <BusinessType /> },
+      { path: '/onboarding/modules', handle: { stage: 'modules' }, element: <ModulePicker /> },
+      { path: '/onboarding/setup', handle: { stage: 'setup' }, element: <SetupOverview /> },
+      { path: '/onboarding/setup/:step', handle: { stage: 'setup' }, element: <SetupStep /> },
+    ],
   },
   {
     element: (
