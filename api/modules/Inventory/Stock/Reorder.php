@@ -41,7 +41,7 @@ class Reorder
         $db = DB::connection(TenantContext::CONNECTION);
 
         if ($qty->isLessThanOrEqualTo($level)) {
-            $marked = $db->table('inventory_reorder_rules')->whereKey($rule->id)->whereNull('low_since')->update(['low_since' => now()]);
+            $marked = $db->table('inventory_reorder_rules')->where('id', $rule->id)->whereNull('low_since')->update(['low_since' => now()]);
 
             if ($marked === 1) {
                 StockLow::dispatch(
@@ -58,6 +58,6 @@ class Reorder
             return;
         }
 
-        $db->table('inventory_reorder_rules')->whereKey($rule->id)->whereNotNull('low_since')->update(['low_since' => null]);
+        $db->table('inventory_reorder_rules')->where('id', $rule->id)->whereNotNull('low_since')->update(['low_since' => null]);
     }
 }

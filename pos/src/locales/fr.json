@@ -501,7 +501,14 @@
           "period": "Période",
           "subject": "Objet",
           "employee": "Salarié",
-          "supplier": "Fournisseur"
+          "supplier": "Fournisseur",
+          "item_name": "Article",
+          "item_code": "Code",
+          "barcode": "Code-barres",
+          "unit": "Unité",
+          "price": "Prix",
+          "batch": "Lot",
+          "expires_on": "Expire le"
         },
         "customer": {
           "name": "Client",
@@ -534,7 +541,8 @@
         "stores_delivery_note": "Bon de livraison",
         "payroll_payslip": "Bulletin de paie",
         "party_statement": "Relevé",
-        "letter": "Référence"
+        "letter": "Référence",
+        "inventory_label": "Étiquette"
       },
       "columns": {
         "item_name": "Article",

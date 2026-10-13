@@ -501,7 +501,14 @@
           "period": "Period",
           "subject": "Subject",
           "employee": "Employee",
-          "supplier": "Supplier"
+          "supplier": "Supplier",
+          "item_name": "Item",
+          "item_code": "Code",
+          "barcode": "Barcode",
+          "unit": "Unit",
+          "price": "Price",
+          "batch": "Batch",
+          "expires_on": "Expires"
         },
         "customer": {
           "name": "Customer",
@@ -534,7 +541,8 @@
         "stores_delivery_note": "Delivery note",
         "payroll_payslip": "Payslip",
         "party_statement": "Statement",
-        "letter": "Reference"
+        "letter": "Reference",
+        "inventory_label": "Label"
       },
       "columns": {
         "item_name": "Item",

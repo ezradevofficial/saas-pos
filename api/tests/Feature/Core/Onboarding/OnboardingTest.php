@@ -197,9 +197,9 @@ class OnboardingTest extends TestCase
         $this->pickModules($owner)->assertOk()->assertJsonPath('data.trial.state', 'trial')->assertJsonPath('data.trial.days_left', 14);
 
         $this->asTenant($owner['tenant'], function () {
-            // POS is installed and now active; inventory and loyalty stay in the selection only (not installed yet).
+            // POS and Inventory are installed and now active; loyalty stays in the selection only (not installed yet).
             $this->assertTrue(app(ModuleRegistry::class)->isActive('pos'));
-            $this->assertSame(['pos'], TenantModule::where('status', 'active')->pluck('module')->all());
+            $this->assertSame(['inventory', 'pos'], TenantModule::where('status', 'active')->orderBy('module')->pluck('module')->all());
             $state = OnboardingState::sole();
             $this->assertSame(['pos', 'inventory', 'loyalty'], $state->selection['modules']);
             $this->assertSame('pharmacy', $state->selection['business_type']);
