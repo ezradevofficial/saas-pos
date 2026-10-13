@@ -5694,7 +5694,7 @@
         "importTitle": "Importer un tableur",
         "importText": "Reprenez vos produits depuis Excel ou CSV en une fois.",
         "import": "Importer des articles",
-        "importSoon": "L’import depuis un tableur n’est pas encore disponible. Ajoutez vos articles un par un pour l’instant."
+        "importNoAccess": "Demandez à une personne autorisée à importer des données d’importer votre tableur, ou ajoutez les articles un par un."
       },
       "users": {
         "title": "Utilisateurs et rôles",

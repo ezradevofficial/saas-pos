@@ -3,17 +3,21 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
+import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Icon, StatusBadge } from '@/components/ds'
 import { SampleDataCard } from '@/components/onboarding/SampleDataCard'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { cn } from '@/lib/utils'
-import { hasRoute, IMPORT_ITEMS_PATH } from '@/lib/hasRoute'
 import Currencies from '../settings/Currencies'
 import Organisation from '../settings/Organisation'
 import { RecordDialog } from '../settings/organisation/RecordDialog'
 import PaymentMethods from '../settings/PaymentMethods'
 import Taxes from '../settings/Taxes'
+import { IMPORT_PERMISSION } from '../settings/imports/importData'
 import { SETUP_STEPS, useOnboarding, useOnboardingWrite } from './useOnboarding'
+
+// IMP-01: the import wizard, opened on items.
+const IMPORT_ITEMS_PATH = '/settings/imports/new?type=items'
 
 function stepStatus(state, key) {
   return state?.steps?.find((step) => step.key === key)?.status ?? 'todo'
@@ -143,7 +147,8 @@ function CompanyStep({ country }) {
 
 function ItemsStep() {
   const { t } = useTranslation()
-  const canImport = hasRoute(IMPORT_ITEMS_PATH)
+  const { can } = usePermissions()
+  const canImport = can(IMPORT_PERMISSION)
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Card title={t('onboarding.steps.items.manualTitle')}>
@@ -162,7 +167,7 @@ function ItemsStep() {
               {t('onboarding.steps.items.import')}
             </Link>
           ) : (
-            <p className="text-caption text-ink-muted">{t('onboarding.steps.items.importSoon')}</p>
+            <p className="text-caption text-ink-muted">{t('onboarding.steps.items.importNoAccess')}</p>
           )}
         </div>
       </Card>
