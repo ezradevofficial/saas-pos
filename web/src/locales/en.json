@@ -386,7 +386,8 @@
     "formLayouts": "Form layouts",
     "formTypes": "Forms",
     "dataExport": "Data export",
-    "subscription": "Subscription"
+    "subscription": "Subscription",
+    "usage": "Usage"
   },
   "shell": {
     "account": "Account menu",
@@ -5414,5 +5415,48 @@
     "choosePlan": "Choose a plan",
     "pay": "Pay now",
     "label": "Subscription status"
+  },
+  "usage": {
+    "title": "Usage",
+    "description": "What your organisation uses against what your plan includes, counted every day.",
+    "card": {
+      "title": "Usage against your plan",
+      "counted": "Last counted {{when}}",
+      "notCounted": "Not counted yet. Usage is counted once a day."
+    },
+    "units": {
+      "outlet": "Outlets",
+      "device": "POS devices",
+      "user": "Users",
+      "employee": "Employees"
+    },
+    "items": {
+      "outlet": "outlets",
+      "device": "POS devices",
+      "user": "users",
+      "employee": "employees"
+    },
+    "of": "{{count}} of {{allowed}}",
+    "noLimit": "{{count}}, no limit",
+    "state": {
+      "within": "Within plan",
+      "over": "Over plan",
+      "blocked": "Adding paused",
+      "unlimited": "No limit"
+    },
+    "overBy": "{{over}} over",
+    "extraCost": "Extra cost",
+    "perMonth": "a month",
+    "daysLeft_one": "{{count}} day left to upgrade",
+    "daysLeft_other": "{{count}} days left to upgrade",
+    "paused": "Adding more is paused until you upgrade.",
+    "upgrade": "Upgrade",
+    "error": "Usage could not be loaded. Refresh the page to try again.",
+    "banner": {
+      "title": "Your organisation is above its plan",
+      "line": "{{item}}: {{count}} of {{allowed}}, {{over}} over",
+      "extra": "Extra cost {{amount}} a month, charged on your next invoice.",
+      "note": "Everything already set up keeps working. Sales, payroll and approvals are never stopped."
+    }
   }
 }

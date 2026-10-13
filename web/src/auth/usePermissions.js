@@ -46,6 +46,8 @@ export function usePermissions() {
     return {
       permissions,
       modules,
+      // RBAC-10: an active Owner (the usage banner and card, LIM-02); the API checks again.
+      isOwner: query.data?.owner === true,
       isLoading: query.isPending,
       // `name` may be a list: allowed when any of them is.
       can: (name, scope) => (Array.isArray(name) ? name : [name]).some((one) => allows(permissions, one, scope)),

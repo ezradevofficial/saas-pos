@@ -17,6 +17,10 @@ use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Identity\Pin\OverrideVerifier;
+use App\Core\Limits\Allowances;
+use App\Core\Limits\PlanAllowances;
+use App\Core\Limits\Units;
+use App\Core\Limits\UsageLimits;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
@@ -29,6 +33,7 @@ use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -41,6 +46,7 @@ use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\Fiscal\TestFiscalSource;
+use Tests\Support\Limits\FixedAllowances;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -513,6 +519,14 @@ final class TwoTenants
         $billingInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
         $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
         $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$billingInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+        // LIM-01, LIM-02: a day's usage metered against a plan of no devices: the paired till is over,
+        // so the tenant has meter rows and an open overage (the Owner is warned).
+        $plans = app(PlanAllowances::class);
+        $fixed = new FixedAllowances;
+        $fixed->set($tenantId, new Allowances([Units::DEVICE => 0]));
+        app()->instance(PlanAllowances::class, $fixed);
+        app(TenantContext::class)->run($tenantId, fn () => app(UsageLimits::class)->meter(CarbonImmutable::now()));
+        app()->instance(PlanAllowances::class, $plans);
 
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');

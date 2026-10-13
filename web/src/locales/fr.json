@@ -386,7 +386,8 @@
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
     "dataExport": "Export des données",
-    "subscription": "Abonnement"
+    "subscription": "Abonnement",
+    "usage": "Utilisation"
   },
   "shell": {
     "account": "Menu du compte",
@@ -5414,5 +5415,48 @@
     "choosePlan": "Choisir une formule",
     "pay": "Payer maintenant",
     "label": "État de l’abonnement"
+  },
+  "usage": {
+    "title": "Utilisation",
+    "description": "Ce que votre organisation utilise par rapport à ce que comprend votre abonnement, compté chaque jour.",
+    "card": {
+      "title": "Utilisation par rapport à votre abonnement",
+      "counted": "Dernier comptage {{when}}",
+      "notCounted": "Pas encore compté. L’utilisation est comptée une fois par jour."
+    },
+    "units": {
+      "outlet": "Points de vente",
+      "device": "Appareils de caisse",
+      "user": "Utilisateurs",
+      "employee": "Employés"
+    },
+    "items": {
+      "outlet": "points de vente",
+      "device": "appareils de caisse",
+      "user": "utilisateurs",
+      "employee": "employés"
+    },
+    "of": "{{count}} sur {{allowed}}",
+    "noLimit": "{{count}}, sans limite",
+    "state": {
+      "within": "Dans l’abonnement",
+      "over": "Au-delà de l’abonnement",
+      "blocked": "Ajout suspendu",
+      "unlimited": "Sans limite"
+    },
+    "overBy": "{{over}} en plus",
+    "extraCost": "Coût supplémentaire",
+    "perMonth": "par mois",
+    "daysLeft_one": "{{count}} jour restant pour mettre à niveau",
+    "daysLeft_other": "{{count}} jours restants pour mettre à niveau",
+    "paused": "L’ajout est suspendu jusqu’à la mise à niveau.",
+    "upgrade": "Mettre à niveau",
+    "error": "L’utilisation n’a pas pu être chargée. Actualisez la page pour réessayer.",
+    "banner": {
+      "title": "Votre organisation dépasse son abonnement",
+      "line": "{{item}} : {{count}} sur {{allowed}}, {{over}} en plus",
+      "extra": "Coût supplémentaire de {{amount}} par mois, facturé sur votre prochaine facture.",
+      "note": "Tout ce qui est déjà en place continue de fonctionner. Les ventes, la paie et les approbations ne sont jamais bloquées."
+    }
   }
 }

@@ -47,3 +47,6 @@ Schedule::command('billing:cycle')->hourly()->withoutOverlapping()->onOneServer(
 
 // SUB-07: switched-off module data past its 12 months, reported to platform staff (nothing deleted).
 Schedule::command('billing:purge-report')->dailyAt('03:30')->withoutOverlapping()->onOneServer();
+
+// LIM-01..LIM-03: the daily usage count, overage warnings, daily reminders and closing.
+Schedule::command('usage:meter')->dailyAt('03:00')->withoutOverlapping()->onOneServer();
