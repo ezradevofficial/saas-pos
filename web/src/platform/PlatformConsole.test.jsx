@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { apiError, mockApi, renderApp, resetSession } from '@/test/renderApp'
-import { getPlatformToken, platformApi, setPlatformToken } from './platformClient'
+import { getPlatformToken, PLATFORM_TOKEN_KEY, platformApi, setPlatformToken } from './platformClient'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -87,6 +87,9 @@ describe('Platform console', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/platform/catalogue'))
     expect(platformApi.post).toHaveBeenCalledWith('platform/auth/two-factor', { challenge: 'enc-challenge', code: '123456' })
     expect(getPlatformToken()).toBe('plat_x|secret')
+    // The staff token lives for this tab only, never in localStorage.
+    expect(window.sessionStorage.getItem(PLATFORM_TOKEN_KEY)).toBe('plat_x|secret')
+    expect(window.localStorage.getItem(PLATFORM_TOKEN_KEY)).toBeNull()
     // The tenant session is untouched.
     expect(api.post).not.toHaveBeenCalled()
     expect(await screen.findByRole('heading', { name: 'Catalogue' })).toBeInTheDocument()

@@ -71,7 +71,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `verification_challenges` | Sign-up, sign-in, 2FA and password-reset codes are checked before a session exists. Only `Identity\Services\Challenges` touches the table, and codes are stored as HMACs. |
 | `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. `app` may only read it; `permissions:sync` writes it as the owner. |
 | `currencies` | The ISO 4217 catalogue (CUR-01), the same for every tenant and with no `tenant_id`. `app` may only read it; `currencies:sync` writes it as the owner. The currencies a tenant uses (`tenant_currencies`) and a company's reporting currencies (`company_reporting_currencies`) are tenant tables. |
-| `platform_*`, `catalogue_*` | Platform staff, their tokens and audit log, and the plan catalogue (ADR 013). No `tenant_id`; staff belong to no tenant and the catalogue is the same for every tenant. Listed in `GlobalTables::PLATFORM`. |
+| `platform_*`, `catalogue_*` | Platform staff, their tokens and audit log, and the plan catalogue (ADR 013). No `tenant_id`; staff belong to no tenant and the catalogue is the same for every tenant. Listed in `GlobalTables::PLATFORM`. Grants keep them apart instead of RLS: only role `app_platform` reaches the staff tables and writes the catalogue; `app` only reads the catalogue. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.

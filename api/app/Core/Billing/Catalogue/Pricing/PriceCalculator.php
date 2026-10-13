@@ -34,7 +34,17 @@ final class PriceCalculator
      */
     public function quote(CatalogueSnapshot $catalogue, QuoteRequest $request): array
     {
-        $quote = $this->price($catalogue, $request, $request->bundle);
+        try {
+            $quote = $this->price($catalogue, $request, $request->bundle);
+        } catch (QuoteError $e) {
+            // An add-on needs a bundle: point to the cheapest bundle that sells it.
+            if ($e->reason === 'addon_requires_bundle' && $request->bundle === null) {
+                $e->suggestion = $this->suggest($catalogue, $request, null);
+            }
+
+            throw $e;
+        }
+
         $quote['suggestion'] = $request->bundle === null ? $this->suggest($catalogue, $request, $quote) : null;
 
         return $quote;
@@ -87,7 +97,7 @@ final class PriceCalculator
                 'extra_unit_amount' => $bundle->extraOutletAmount,
                 'minimum_amount' => null,
                 'minimum_applied' => false,
-                'amount' => $bundle->amount + $extra * ($bundle->extraOutletAmount ?? 0),
+                'amount' => self::add($bundle->amount, self::mul($extra, $bundle->extraOutletAmount ?? 0)),
             ];
         }
 
@@ -101,7 +111,7 @@ final class PriceCalculator
             }
 
             foreach ($module->includes as $extraKey => $perUnit) {
-                $included[$extraKey] = ($included[$extraKey] ?? 0) + max(0, (int) $perUnit) * max(1, $request->quantity($module->unit));
+                $included[$extraKey] = self::add($included[$extraKey] ?? 0, self::mul(max(0, (int) $perUnit), max(1, $request->quantity($module->unit))));
             }
         }
 
@@ -178,7 +188,7 @@ final class PriceCalculator
         }
 
         $billable = max(0, $quantity - $included);
-        $amount = $billable * $module->amount;
+        $amount = self::mul($billable, $module->amount);
         $minimum = $withMinimum ? $module->minimum : null;
         $minimumApplied = $minimum !== null && $amount < $minimum;
 
@@ -206,9 +216,9 @@ final class PriceCalculator
         $annual = $request->cycle === QuoteRequest::ANNUAL;
         $months = $annual ? $catalogue->monthsInCycle : 1;
         $charged = $annual ? min($catalogue->annualMonthsCharged, $catalogue->monthsInCycle) : 1;
-        $monthly = array_sum(array_column($lines, 'amount'));
-        $subtotal = $monthly * $months;
-        $annualDiscount = $monthly * ($months - $charged);
+        $monthly = array_reduce(array_column($lines, 'amount'), fn (int $sum, int $amount) => self::add($sum, $amount), 0);
+        $subtotal = self::mul($monthly, $months);
+        $annualDiscount = self::mul($monthly, $months - $charged);
         $coupon = $this->coupon($catalogue, $request->coupon, $lines, $charged);
 
         return [
@@ -245,18 +255,18 @@ final class PriceCalculator
             $names = $line['type'] === 'bundle' ? $coupon->bundles : $coupon->modules;
 
             if ($coupon->appliesToAll() || in_array($line['key'], $names, true)) {
-                $eligible += $line['amount'];
+                $eligible = self::add($eligible, $line['amount']);
             }
         }
 
-        $eligible *= $charged;
+        $eligible = self::mul($eligible, $charged);
 
         [$discount, $reason] = match (true) {
             $eligible === 0 => [0, 'not_applicable'],
             $coupon->kind === Coupon::FIXED && $coupon->currency !== $catalogue->currency => [0, 'currency'],
             $coupon->kind === Coupon::FIXED => [min(max(0, (int) $coupon->amount), $eligible), null],
-            // Percent of minor units, rounded half up.
-            default => [intdiv($eligible * max(0, min(100, (int) $coupon->percent)) + 50, 100), null],
+            // Percent of minor units, rounded half up (half a minor unit goes to the customer).
+            default => [intdiv(self::add(self::mul($eligible, max(0, min(100, (int) $coupon->percent))), 50), 100), null],
         };
 
         return ['code' => $coupon->code, 'applied' => $discount > 0, 'reason' => $reason, 'discount' => $discount];
@@ -288,15 +298,22 @@ final class PriceCalculator
      * (every selected module, in the bundle or beside it). Bundles that
      * share no module with the selection are not suggested.
      *
-     * @param  array<string, mixed>  $alaCarte
-     * @return array{bundle: string, total: int, saving: int, currency: string}|null
+     * Without an à la carte price (an add-on that needs a bundle), the
+     * cheapest bundle that can sell the selection, with no saving.
+     *
+     * @param  array<string, mixed>|null  $alaCarte
+     * @return array{bundle: string, total: int, saving: int|null, currency: string}|null
      */
-    private function suggest(CatalogueSnapshot $catalogue, QuoteRequest $request, array $alaCarte): ?array
+    private function suggest(CatalogueSnapshot $catalogue, QuoteRequest $request, ?array $alaCarte): ?array
     {
         $best = null;
 
         foreach ($catalogue->bundles as $bundle) {
-            if ($bundle->quoted || $bundle->amount === null || array_intersect($request->modules, $bundle->modules) === []) {
+            $sells = $alaCarte === null
+                ? array_intersect($request->modules, $bundle->addons) !== []
+                : array_intersect($request->modules, $bundle->modules) !== [];
+
+            if ($bundle->quoted || $bundle->amount === null || ! $sells) {
                 continue;
             }
 
@@ -306,16 +323,40 @@ final class PriceCalculator
                 continue;
             }
 
-            if ($quote['total'] < $alaCarte['total'] && ($best === null || $quote['total'] < $best['total'])) {
+            if (($alaCarte === null || $quote['total'] < $alaCarte['total']) && ($best === null || $quote['total'] < $best['total'])) {
                 $best = [
                     'bundle' => $bundle->key,
                     'total' => $quote['total'],
-                    'saving' => $alaCarte['total'] - $quote['total'],
+                    'saving' => $alaCarte === null ? null : $alaCarte['total'] - $quote['total'],
                     'currency' => $catalogue->currency,
                 ];
             }
         }
 
         return $best;
+    }
+
+    /** @throws QuoteError amount_too_large instead of overflowing into a float */
+    private static function mul(int $a, int $b): int
+    {
+        $product = $a * $b;
+
+        if (! is_int($product)) {
+            throw new QuoteError('amount_too_large', 'quantities');
+        }
+
+        return $product;
+    }
+
+    /** @throws QuoteError amount_too_large instead of overflowing into a float */
+    private static function add(int $a, int $b): int
+    {
+        $sum = $a + $b;
+
+        if (! is_int($sum)) {
+            throw new QuoteError('amount_too_large', 'quantities');
+        }
+
+        return $sum;
     }
 }

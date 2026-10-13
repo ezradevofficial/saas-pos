@@ -23,6 +23,8 @@ class PlatformServiceProvider extends ServiceProvider
 
     public const PUBLIC_CATALOGUE_LIMITER = 'catalogue-public';
 
+    public const COUPON_LIMITER = 'catalogue-coupon';
+
     public function register(): void
     {
         $this->app->singleton(PlatformTokens::class);
@@ -37,6 +39,14 @@ class PlatformServiceProvider extends ServiceProvider
         RateLimiter::for(self::AUTH_IP_LIMITER, fn (Request $request) => Limit::perMinute(LoginThrottle::PER_IP_PER_MINUTE)->by('platform-ip|'.$request->ip()));
         RateLimiter::for(self::AUTH_LOGIN_LIMITER, fn (Request $request) => Limit::perMinute(LoginThrottle::PER_LOGIN_PER_MINUTE)
             ->by('platform-login|'.mb_strtolower(trim((string) $request->input('email', '')))));
+
+        // Quotes carrying a coupon code: 5 a minute per IP and 100 a minute in all, so codes cannot be guessed.
+        RateLimiter::for(self::COUPON_LIMITER, fn (Request $request) => filled($request->input('coupon'))
+            ? [
+                Limit::perMinute((int) config('platform.coupon_per_minute', 5))->by('coupon-ip|'.$request->ip()),
+                Limit::perMinute((int) config('platform.coupon_global_per_minute', 100))->by('coupon-all'),
+            ]
+            : Limit::none());
 
         RateLimiter::for(self::PUBLIC_CATALOGUE_LIMITER, fn (Request $request) => Limit::perMinute((int) config('platform.public_per_minute', 60))->by('catalogue|'.$request->ip()));
 

@@ -55,7 +55,7 @@ class CreatePlatformUser extends Command
 
         $this->info("Platform account ready for {$email} ({$role}).");
         $this->line('One-time setup link, valid '.PlatformAuth::SETUP_HOURS.' hours:');
-        $this->line(rtrim((string) config('app.frontend_url'), '/').'/platform/setup/'.$token);
+        $this->line(rtrim((string) config('platform.url'), '/').'/platform/setup/'.$token);
 
         return self::SUCCESS;
     }

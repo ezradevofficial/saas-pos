@@ -10,9 +10,9 @@ use App\Core\Billing\Catalogue\Models\CatalogueCountry;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
 use App\Core\Http\ApiException;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 
 /**
  * SUB-01: versioned prices. A change of price is a new row from a date
@@ -48,7 +48,7 @@ class CataloguePriceController extends Controller
         $data = $request->validated();
         $country = strtoupper($data['country']);
 
-        $price = DB::transaction(function () use ($data, $country, $request) {
+        $price = PlatformDatabase::transaction(function () use ($data, $country, $request) {
             $exists = CataloguePrice::live()
                 ->where(['item_type' => $data['item_type'], 'item_key' => $data['item_key'], 'country' => $country])
                 ->whereDate('effective_from', $data['effective_from'])
@@ -90,7 +90,7 @@ class CataloguePriceController extends Controller
             throw new ApiException(409, 'price_in_effect', __('billing.price.in_effect'));
         }
 
-        DB::transaction(function () use ($cataloguePrice) {
+        PlatformDatabase::transaction(function () use ($cataloguePrice) {
             $cataloguePrice->forceFill(['archived_at' => now()])->save();
             $this->audit->record('catalogue.price.archived', $cataloguePrice, null, ['effective_from' => $cataloguePrice->effective_from->toDateString()]);
         });

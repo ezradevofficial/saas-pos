@@ -4,6 +4,7 @@
 return [
     'catalogue' => [
         'unknown_country' => 'Choisissez un pays où nous vendons : le Kenya ou la RD Congo.',
+        'makeup_fixed' => 'Ce point est figé tant que l’élément a un prix. Ajoutez plutôt un nouveau module ou une nouvelle offre avec son propre prix.',
         'unknown_module' => 'Choisissez un module du catalogue.',
     ],
 
@@ -16,6 +17,7 @@ return [
         'bundle_outlet_limit' => ':name ne couvre qu’un seul point de vente. Choisissez une offre qui en permet plus, ou choisissez les modules un par un.',
         'addon_requires_bundle' => ':name n’est vendu qu’avec une offre groupée. Choisissez une offre qui le propose.',
         'addon_not_available' => ':name n’est pas proposé avec cette offre. Retirez-le ou choisissez une autre offre.',
+        'amount_too_large' => 'Ces quantités sont trop élevées pour être chiffrées. Réduisez-les ou contactez l’équipe commerciale.',
         'requires_module' => ':name a besoin du module qu’il complète. Ajoutez aussi ce module.',
     ],
 

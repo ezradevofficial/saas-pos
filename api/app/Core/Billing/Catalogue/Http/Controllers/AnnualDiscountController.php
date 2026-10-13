@@ -9,9 +9,9 @@ use App\Core\Billing\Catalogue\Http\Requests\ViewCatalogueRequest;
 use App\Core\Billing\Catalogue\Models\AnnualDiscount;
 use App\Core\Http\ApiException;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 
 /** SUB-01: the annual discount ("2 months free"), versioned like prices. */
 class AnnualDiscountController extends Controller
@@ -29,7 +29,7 @@ class AnnualDiscountController extends Controller
     {
         $data = $request->validated();
 
-        $row = DB::transaction(function () use ($data, $request) {
+        $row = PlatformDatabase::transaction(function () use ($data, $request) {
             if (AnnualDiscount::live()->whereDate('effective_from', $data['effective_from'])->exists()) {
                 throw new ApiException(409, 'price_exists', __('billing.price.exists'), ['effective_from' => [__('billing.price.exists')]]);
             }
@@ -55,7 +55,7 @@ class AnnualDiscountController extends Controller
                 throw new ApiException(409, 'price_in_effect', __('billing.price.in_effect'));
             }
 
-            DB::transaction(function () use ($annualDiscount) {
+            PlatformDatabase::transaction(function () use ($annualDiscount) {
                 $annualDiscount->forceFill(['archived_at' => now()])->save();
                 $this->audit->record('catalogue.annual_discount.archived', $annualDiscount);
             });

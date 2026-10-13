@@ -7,7 +7,8 @@ use Illuminate\Validation\Rule;
 /** SUB-01: a new price row from a date (today or later); prices are never edited. */
 class StoreCataloguePriceRequest extends ManageCatalogueRequest
 {
-    public const MAX_AMOUNT = 1_000_000_000_000;
+    /** At most 10,000,000.00 per unit a month, so no total can overflow (the calculator also checks). */
+    public const MAX_AMOUNT = 1_000_000_000;
 
     public function rules(): array
     {
