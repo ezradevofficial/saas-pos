@@ -487,6 +487,14 @@ final class TwoTenants
         // one left for the isolation suite to void) and a cash pay-in.
         $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
 
+        // IMP-01..IMP-03: one customer imported from a file (an import, its
+        // row and the remembered mapping), with its result file.
+        $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
+        file_put_contents($csv, "Name,Tax ID\nImported {$upper},IMP{$upper}\n");
+        $import = self::ok($test->post('/api/v1/imports', ['importer' => 'customers', 'file' => new UploadedFile($csv, "customers-{$key}.csv", 'text/csv', null, true)], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/imports/{$import}", ['mode' => 'create'], $owner));
+        self::ok($test->postJson("/api/v1/imports/{$import}/run", [], $owner), 202);
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -541,6 +549,7 @@ final class TwoTenants
                 'template_preview' => $templatePreview,
                 'tenant_domain' => $tenantDomain,
                 'brand_asset' => $brandAsset,
+                'import' => $import,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

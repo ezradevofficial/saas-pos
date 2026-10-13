@@ -57,7 +57,7 @@ class ImportUndo
                 $changed = DB::connection(TenantContext::CONNECTION)->table('audit_logs')
                     ->where('auditable_type', $morph)
                     ->whereIn('auditable_id', $ids)
-                    ->where('occurred_at', '>',($import->started_at ?? $import->created_at)->format('Y-m-d H:i:s.uP'))
+                    ->where('occurred_at', '>', ($import->started_at ?? $import->created_at)->format('Y-m-d H:i:s.uP'))
                     ->whereRaw("coalesce(after -> 'metadata' ->> 'import_id', '') <> ?", [$import->id])
                     ->distinct()->pluck('auditable_id')->all();
 

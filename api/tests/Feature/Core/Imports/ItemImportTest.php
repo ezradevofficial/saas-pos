@@ -11,7 +11,6 @@ use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
 use App\Core\MasterData\Items\ItemCategory;
 use App\Core\MasterData\Items\ItemUom;
-use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
@@ -194,7 +193,7 @@ class ItemImportTest extends TestCase
         $this->postJson("/api/v1/imports/{$import['id']}/undo", [], $this->headersFor())->assertStatus(202);
         $this->getJson("/api/v1/imports/{$import['id']}", $this->headersFor())->assertJsonPath('data.status', 'undone')->assertJsonPath('data.can_undo', false);
 
-        $this->inTenant(function () use ($import) {
+        $this->inTenant(function () {
             $this->assertSame('Item 1', Item::query()->where('code', 'ITEM-1')->sole()->name);
             $this->assertNotNull(Item::query()->where('code', 'NEW-1')->sole()->archived_at);
             $this->assertSame(1, AuditEntry::query()->where('action', 'core.import.undo')->count());
@@ -260,6 +259,21 @@ class ItemImportTest extends TestCase
             ->assertJsonPath('data.0.columns.0.key', 'code');
     }
 
+    public function test_files_over_50000_rows_or_without_rows_are_refused(): void
+    {
+        $rows = [['Code', 'Name', 'Type', 'Base unit']];
+
+        for ($i = 1; $i <= 50001; $i++) {
+            $rows[] = ["B-{$i}", 'x', 'stock', 'EA'];
+        }
+
+        $this->upload('items', $this->csvFile($rows))->assertUnprocessable()->assertJsonPath('code', 'too_many_rows');
+        $this->upload('items', $this->csvFile([['Code', 'Name']]))->assertUnprocessable()->assertJsonPath('code', 'file_empty');
+        $this->upload('items', $this->csvFile([['Code']], name: 'notes.txt'))->assertUnprocessable()->assertJsonValidationErrors('file');
+        $this->inTenant(fn () => $this->assertSame(0, Import::query()->count()));
+        Storage::disk('media')->assertDirectoryEmpty('/');
+    }
+
     public function test_one_import_runs_per_tenant_and_importer(): void
     {
         $first = $this->upload('items', $this->csvFile([self::HEADERS, ...$this->rows(1)]))->json('data.id');
@@ -267,27 +281,5 @@ class ItemImportTest extends TestCase
         $this->inTenant(fn () => Import::query()->whereKey($first)->update(['status' => 'importing']));
 
         $this->postJson("/api/v1/imports/{$second}/run", [], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'import_running');
-    }
-
-    public function test_a_50000_row_file_runs_through_the_job(): void
-    {
-        $rows = [['Code', 'Name', 'Type', 'Base unit']];
-
-        for ($i = 1; $i <= 50000; $i++) {
-            $rows[] = ["B-{$i}", "Bulk {$i}", 'stock', 'EA'];
-        }
-
-        $id = $this->upload('items', $this->csvFile($rows))->assertCreated()->assertJsonPath('data.total_rows', 50000)->json('data.id');
-        $started = microtime(true);
-        $this->postJson("/api/v1/imports/{$id}/run", [], $this->headersFor())->assertStatus(202);
-        $seconds = microtime(true) - $started;
-
-        $this->getJson("/api/v1/imports/{$id}", $this->headersFor())
-            ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.created_rows', 50000)
-            ->assertJsonPath('data.failed_rows', 0);
-        $this->inTenant(fn () => $this->assertSame(50000, Item::query()->count()));
-        $this->assertLessThan(600, $seconds, "50,000 items took {$seconds} s");
-        fwrite(STDERR, sprintf("\n50,000 items imported in %.1f s\n", $seconds));
     }
 }

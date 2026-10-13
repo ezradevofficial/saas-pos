@@ -195,9 +195,9 @@ class ImportController
         return ImportResource::make($import->load('user:id,name'));
     }
 
-    public function preview(ImportActionRequest $request, Import $import, ImportRunner $runner): JsonResponse
+    /** Read-only: also for an import already run (its rows as the importer reads them now). */
+    public function preview(ImportRequest $request, Import $import, ImportRunner $runner): JsonResponse
     {
-        $this->assertOpen($import);
         $this->assertMapped($request, $import);
 
         return response()->json(['data' => [
@@ -272,7 +272,7 @@ class ImportController
         }
     }
 
-    private function assertMapped(ImportActionRequest $request, Import $import): void
+    private function assertMapped(ImportRequest $request, Import $import): void
     {
         $errors = $this->mapper->errors($this->registry->get($import->importer), $request->user(), $import->headers, $import->mapping);
 
