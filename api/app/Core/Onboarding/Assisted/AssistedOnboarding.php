@@ -67,6 +67,18 @@ class AssistedOnboarding
     {
         $contact = (string) (($data['email'] ?? null) ?? $data['phone']);
 
+        // Check, then create, under an advisory lock on the contact: two staff (or a double
+        // click) creating for one contact at once make one tenant.
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($staff, $data, $contact) {
+            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['assisted:'.Str::lower($contact)]);
+
+            return $this->createLocked($staff, $data, $contact);
+        });
+    }
+
+    /** create(), under the contact's lock. */
+    private function createLocked(PlatformUser $staff, array $data, string $contact): array
+    {
         // A retry (a lost answer, a double click) finds the tenant it made.
         if (($existing = $this->due->assistedFor($contact)) !== null) {
             return [...$this->summary($existing), 'existing' => true];

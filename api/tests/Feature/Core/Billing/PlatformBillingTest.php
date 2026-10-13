@@ -82,6 +82,24 @@ class PlatformBillingTest extends TestCase
         $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-12-30T00:00:00Z'], $billing)->assertStatus(422);
     }
 
+    public function test_trial_extension_and_grace_override_lock_the_subscription_in_a_transaction(): void
+    {
+        // A racing "Subscribe now" or billing cycle must not interleave with staff changes.
+        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
+        $tenant = $this->owner->tenant_id;
+        $locked = [];
+        DB::listen(function ($query) use (&$locked) {
+            if (preg_match('/from "subscriptions".* for update/i', $query->sql)) {
+                $locked[] = $query->connectionName;
+            }
+        });
+
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-11-30T00:00:00Z'], $billing)->assertOk();
+        $this->assertCount(1, $locked, 'the trial extension locks the subscription');
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/grace", ['grace_days' => 14], $billing)->assertOk();
+        $this->assertCount(2, $locked, 'the grace override locks the subscription');
+    }
+
     public function test_billing_settings_are_platform_data_changed_by_owner_and_billing_staff(): void
     {
         $this->getJson('/api/v1/platform/billing-settings', $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT)))->assertOk()
