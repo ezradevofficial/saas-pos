@@ -25,13 +25,33 @@ class Catalogue
 {
     public function __construct(private readonly PriceCalculator $calculator) {}
 
-    /** The live modules, bundles and prices in force in $country on $date (today by default). */
-    public function snapshot(string $country, ?string $date = null): CatalogueSnapshot
+    /**
+     * The live modules, bundles and prices in force in $country on $date
+     * (today by default). SUB-02: $locked ("module:key" or "bundle:key" =>
+     * price row id) keeps the rows a subscription's period was sold at,
+     * whatever is in force now; other items take today's price.
+     *
+     * @param  array<string, string>  $locked
+     */
+    public function snapshot(string $country, ?string $date = null, array $locked = []): CatalogueSnapshot
     {
         $date ??= now()->toDateString();
         $currency = CatalogueCountry::find($country)?->currency ?? throw self::unknownCountry();
 
         $prices = CataloguePrice::query()->current($country, $date)->get()->keyBy(fn (CataloguePrice $p) => "{$p->item_type}:{$p->item_key}");
+
+        if ($locked !== []) {
+            // Archived rows included: a row archived after the sale still prices the period it was sold for.
+            $kept = CataloguePrice::query()->whereIn('id', array_values($locked))->where('country', $country)->get();
+
+            foreach ($kept as $price) {
+                $key = "{$price->item_type}:{$price->item_key}";
+
+                if (($locked[$key] ?? null) === $price->id) {
+                    $prices->put($key, $price);
+                }
+            }
+        }
         $annual = AnnualDiscount::current($date);
 
         $modules = [];
