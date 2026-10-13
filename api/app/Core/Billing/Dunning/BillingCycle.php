@@ -159,12 +159,10 @@ class BillingCycle
             return null;
         }
 
-        // A trial converted early already has its first period and invoice.
-        if (! $subscription->hasPeriod()) {
-            $invoice = $this->startPeriod($subscription, $due->startOfDay(), $due, 'first');
-        } else {
-            $invoice = $this->startPeriod($subscription, $due->startOfDay(), $due, 'renewal');
-        }
+        // An invoice issued late (a catch-up after the period ended, or after a reactivation)
+        // falls due when it is issued, never in the past: the grace period starts from there.
+        $payBy = $due->max($at);
+        $invoice = $this->startPeriod($subscription, $due->startOfDay(), $payBy, $subscription->hasPeriod() ? 'renewal' : 'first');
 
         $this->notifyOnce($subscription->fresh(), $due, 0);
 

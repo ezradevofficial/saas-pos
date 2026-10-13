@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\Billing;
 use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Tenancy\Models\Device;
+use Carbon\CarbonImmutable;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
@@ -70,7 +71,7 @@ class DunningTest extends TestCase
         $this->cycle('2026-12-02 06:00:00');
         $this->assertSame(Subscription::PAST_DUE, $this->subscription()->status);
         $this->assertContains('core.subscription.past_due', $this->ownerNotices());
-        $this->getJson('/api/v1/subscription/status', $this->headersFor())->assertJsonPath('data.read_only_on', '2026-12-08T00:00:00+00:00');
+        $this->getJson('/api/v1/subscription/status', $this->headersFor())->assertJsonPath('data.read_only_on', '2026-12-08T06:00:00+00:00');
         $this->aWrite()->assertCreated();
 
         // Grace (7 days) over: read-only; the POS keeps uploading for 3 days.
@@ -104,6 +105,31 @@ class DunningTest extends TestCase
         $this->assertSame([Subscription::ACTIVE, null, null], [$subscription->status, $subscription->read_only_since, $subscription->pos_stops_at]);
         $this->aWrite()->assertCreated();
         $this->assertNotSame(402, $this->posUpload());
+    }
+
+    public function test_paying_after_the_period_ended_stays_active_through_the_next_cycles(): void
+    {
+        $this->activate();
+        $this->cycle('2026-12-01 06:00:00');
+        $this->cycle('2026-12-02 06:00:00');
+        $this->cycle('2026-12-08 06:00:00');
+        $this->assertSame(Subscription::READ_ONLY, $this->subscription()->status);
+
+        // Paid only after the next period should have started (2027-01-01): active at once.
+        $this->travelToDay('2027-01-05 10:00:00');
+        $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
+        $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
+        $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
+
+        // The catch-up invoice for the period that already started falls due now, not on 1 January.
+        $this->cycle('2027-01-05 11:00:00');
+        $catchUp = collect($this->invoices())->firstWhere('period_start', CarbonImmutable::parse('2027-01-01'));
+        $this->assertSame('2027-01-05', $catchUp->due_at->toDateString());
+        $this->cycle('2027-01-05 23:00:00');
+        $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
+        // Its own grace period runs from today.
+        $this->cycle('2027-01-06 12:00:00');
+        $this->assertSame([Subscription::PAST_DUE, '2027-01-05'], [$this->subscription()->status, $this->subscription()->past_due_since->toDateString()]);
     }
 
     public function test_a_trial_not_paid_by_its_end_is_invoiced_then_past_due(): void
