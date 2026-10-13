@@ -7,7 +7,7 @@ use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Accounts;
-use App\Core\Billing\Overage\UsageOverage;
+use App\Core\Billing\Overage\OveragePricing;
 use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Billing\Subscriptions\Subscriptions;
@@ -45,7 +45,7 @@ class BillingCycle
         private readonly BillingPayments $payments,
         private readonly BillingNotices $notices,
         private readonly PlatformSettings $settings,
-        private readonly UsageOverage $overage,
+        private readonly OveragePricing $overage,
         private readonly Catalogue $catalogue,
         private readonly Accounts $accounts,
     ) {}
@@ -182,6 +182,8 @@ class BillingCycle
                 $from = CarbonImmutable::parse($subscription->current_period_start->toDateString(), 'UTC');
                 $to = CarbonImmutable::parse($subscription->current_period_end->toDateString(), 'UTC');
                 $overage = $this->overage->forPeriod($subscription, $this->catalogue->snapshot($subscription->country, $from->toDateString(), $subscription->price_ids ?? []), $from, $to);
+                // Charged once: the period is marked with the invoice that carries it (saved with the plan below).
+                $this->overage->billed($subscription, $to);
             }
 
             // A coupon applies to the period it was redeemed for.
@@ -200,13 +202,7 @@ class BillingCycle
             ]);
             $this->subscriptions->applyPlan($subscription, $plan, $quote);
 
-            $invoice = $this->invoicing->issue($subscription, $kind, $this->invoicing->linesFromQuote($quote, $overage), $start, $end, $due);
-
-            if ($overage !== []) {
-                $this->overage->billed($subscription, $invoice->id, $overage);
-            }
-
-            return $invoice;
+            return $this->invoicing->issue($subscription, $kind, $this->invoicing->linesFromQuote($quote, $overage), $start, $end, $due);
         });
     }
 

@@ -10,6 +10,9 @@ use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Fiscal\Models\FiscalSubmission;
+use App\Core\Limits\PlanAllowances;
+use App\Core\Limits\UsageOverage;
+use App\Core\Limits\UsageOverageLine;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRates;
 use App\Core\Payments\Models\PaymentIntent;
@@ -159,6 +162,40 @@ class SubscriptionBillingTest extends TestCase
         ]);
         $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
         $this->assertSame([390000, '2026-12-01'], [$renewal->total_minor, $renewal->period_start->toDateString()]);
+    }
+
+    public function test_usage_overage_from_metering_is_priced_on_the_renewal_once(): void
+    {
+        // LIM-05: a test double of metering: one extra POS device on 10 of the period's 30 days.
+        $this->app->instance(UsageOverage::class, new class implements UsageOverage
+        {
+            public array $asked = [];
+
+            public function overageFor(string $tenantId, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): array
+            {
+                $this->asked[] = [$periodStart->toDateString(), $periodEnd->toDateString()];
+
+                return [new UsageOverageLine('device', 1, 10, 30), new UsageOverageLine('user', 3, 30, 30)];
+            }
+        });
+        $this->activate();
+
+        $this->cycle('2026-12-01 06:00:00');
+        $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
+        $overage = collect($renewal->lines)->firstWhere('type', 'overage');
+        // KES 500 a device a month, 10 of 30 days: KES 166.67; users are not sold, never charged.
+        $this->assertSame(['pos_device', 1, 50000, 16667, 10, 30], [$overage['key'], $overage['quantity'], $overage['unit_amount'], $overage['amount'], $overage['days'], $overage['period_days']]);
+        $this->assertSame(390000 + 16667, $renewal->total_minor);
+        $this->assertCount(1, array_filter($renewal->lines, fn ($l) => $l['type'] === 'overage'));
+        $this->assertSame('2026-12-01', $this->subscription()->overage_billed_through->toDateString());
+        $this->assertSame([['2026-11-01', '2026-12-01']], app(UsageOverage::class)->asked);
+    }
+
+    public function test_limits_follow_the_subscriptions_plan(): void
+    {
+        $allowances = app(PlanAllowances::class)->for($this->owner->tenant_id);
+        // Starter at one outlet: 1 outlet and the 2 POS devices it includes; users unlimited.
+        $this->assertSame([1, 2, null], [$allowances->of('outlet'), $allowances->of('device'), $allowances->of('user')]);
     }
 
     public function test_switching_a_module_off_hides_it_and_keeps_its_data_and_subscribing_again_restores_it(): void

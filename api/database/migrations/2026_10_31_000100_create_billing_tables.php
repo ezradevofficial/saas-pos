@@ -106,6 +106,8 @@ return new class extends Migration
             // Staff override of the platform grace period, in days.
             $table->integer('grace_days')->nullable();
             $table->jsonb('reminders_sent')->default('[]');
+            // LIM-05: usage overage is charged for periods ending on or before this date (once each).
+            $table->date('overage_billed_through')->nullable();
             $table->uuid('default_payment_method_id')->nullable();
             $table->timestampsTz();
 

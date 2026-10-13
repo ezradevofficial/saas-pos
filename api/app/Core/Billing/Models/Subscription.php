@@ -48,6 +48,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $grace_days
  * @property list<string> $reminders_sent
  * @property string|null $default_payment_method_id
+ * @property Carbon|null $overage_billed_through
  */
 class Subscription extends Model
 {
@@ -74,7 +75,7 @@ class Subscription extends Model
         'country', 'currency', 'cycle', 'bundle', 'modules', 'quantities', 'price_ids', 'coupon_id', 'coupon_code',
         'coupon_until', 'status', 'trial_ends_at', 'current_period_start', 'current_period_end', 'period_amount_minor',
         'monthly_amount_minor', 'pending_change', 'past_due_since', 'read_only_since', 'pos_stops_at', 'grace_days',
-        'reminders_sent', 'default_payment_method_id',
+        'reminders_sent', 'default_payment_method_id', 'overage_billed_through',
     ];
 
     /** The reminder log is bookkeeping, not a change of the subscription. */
@@ -96,6 +97,7 @@ class Subscription extends Model
             'pending_change' => 'array',
             'reminders_sent' => 'array',
             'coupon_until' => 'date',
+            'overage_billed_through' => 'date',
             'trial_ends_at' => 'datetime',
             'current_period_start' => 'date',
             'current_period_end' => 'date',

@@ -10,9 +10,9 @@ use App\Core\Billing\Invoicing\BillingFiscalSource;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Listeners\SettleBillingPayment;
 use App\Core\Billing\Operator\Operator;
-use App\Core\Billing\Overage\NoUsageOverage;
-use App\Core\Billing\Overage\UsageOverage;
+use App\Core\Billing\Overage\SubscriptionAllowances;
 use App\Core\Fiscal\FiscalSources;
+use App\Core\Limits\PlanAllowances;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -26,8 +26,9 @@ use Illuminate\Support\ServiceProvider;
  * (fiscal source `billing`, numbering type `core.billing_invoice`, never
  * shown to tenants: its module is not a tenant module), payments settled
  * from the operator's payment intents, dunning notifications and the
- * scheduler commands. UsageOverage defaults to none until metering binds
- * its own (LIM-05, Task 3).
+ * scheduler commands. Overage comes from metering (App\Core\Limits\
+ * UsageOverage), priced here (OveragePricing, LIM-05); plan allowances
+ * follow the subscription (SubscriptionAllowances, LIM-01).
  */
 class BillingServiceProvider extends ServiceProvider
 {
@@ -35,7 +36,8 @@ class BillingServiceProvider extends ServiceProvider
     {
         $this->app->scoped(Operator::class);
         $this->app->scoped(PlatformSettings::class);
-        $this->app->bindIf(UsageOverage::class, NoUsageOverage::class);
+        // LIM-01: limits follow the paid plan (Limits' default reads the onboarding selection).
+        $this->app->singleton(PlanAllowances::class, SubscriptionAllowances::class);
     }
 
     public function boot(): void
