@@ -61,15 +61,17 @@ class QueuesTest extends TestCase
     {
         $supervisors = config('horizon.defaults');
         $queues = collect($supervisors)->flatMap(fn ($s) => $s['queue'])->all();
-        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal'], $queues);
+        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports'], $queues);
 
         $webhook = config('automation.webhook_timeout') + config('automation.dns_timeout');
-        $retryAfter = config('queue.connections.redis.retry_after');
 
         foreach ($supervisors as $name => $supervisor) {
-            $this->assertSame('redis', $supervisor['connection'], $name);
+            // Each supervisor pops from a redis connection whose retry_after outlasts its timeout;
+            // long jobs (tenant exports, EXP-02) have their own connection with a longer window.
+            $connection = $supervisor['connection'];
+            $this->assertSame('redis', config("queue.connections.{$connection}.driver"), $name);
             $this->assertGreaterThan($webhook, $supervisor['timeout'], "{$name} outlasts a webhook");
-            $this->assertLessThan($retryAfter, $supervisor['timeout'], "{$name} ends before redis hands the job to another worker");
+            $this->assertLessThan(config("queue.connections.{$connection}.retry_after"), $supervisor['timeout'], "{$name} ends before redis hands the job to another worker");
         }
 
         foreach (['local', '*'] as $environment) {
