@@ -639,3 +639,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('custom-form-records/{custom_form_record}/archive', [CustomFormRecordController::class, 'archive']);
     Route::post('custom-form-records/{custom_form_record}/restore', [CustomFormRecordController::class, 'restore']);
 });
+
+// ADR 013, SUB-01, ONB-03: the public plan catalogue and the platform staff console.
+require __DIR__.'/platform.php';
