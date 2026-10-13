@@ -174,7 +174,14 @@ class StockController
 
     public function variant(ItemRequest $request, ItemStock $stock, Item $item): JsonResponse
     {
-        $variant = $stock->linkVariant($request->item(), $request->validated('parent_item_id'), $request->variantAttributes());
+        // Attribute names trimmed and lower case, values trimmed.
+        $attributes = [];
+
+        foreach ((array) $request->validated('attributes', []) as $name => $value) {
+            $attributes[mb_strtolower(trim((string) $name))] = trim((string) $value);
+        }
+
+        $variant = $stock->linkVariant($request->item(), $request->validated('parent_item_id'), $attributes);
 
         return new JsonResponse(['data' => $variant === null ? null : [
             'parent' => Refs::item($variant->parent()->first()),

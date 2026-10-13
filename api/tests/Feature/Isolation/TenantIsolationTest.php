@@ -144,6 +144,10 @@ class TenantIsolationTest extends TestCase
         'document_share' => 'document_share', // TPL-04: pos/sales/{pos_sale}/shares/{document_share}/revoke, a link to the sale's receipt
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'import' => 'import', // IMP-01..IMP-03: imports/{import}[/preview|dry-run|run|undo], a completed customers import
+        // Inventory (docs/modules/inventory.md): a pending transfer and adjustment, a running count.
+        'inventory_transfer' => 'inventory_transfer',
+        'inventory_adjustment' => 'inventory_adjustment',
+        'inventory_count' => 'inventory_count',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -196,6 +200,11 @@ class TenantIsolationTest extends TestCase
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
         'item_id' => 'item', // MD-03 follow-up: the item a price is for
+        // Inventory: a transfer's two ends, a batch, a variant's parent.
+        'from_location_id' => 'location',
+        'to_location_id' => 'inventory_location',
+        'batch_id' => 'inventory_batch',
+        'parent_item_id' => 'inventory_item',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
@@ -322,10 +331,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item'];
 
     private TwoTenants $tenants;
 
@@ -893,6 +902,14 @@ class TenantIsolationTest extends TestCase
             // POS-12: sales and shifts of A's till.
             'pos/sales?status=all' => ['Outlet A', 'Owner A', 'KES 1,125.00'],
             'pos/shifts' => ['Outlet A', 'Owner A', 'KES 5,000.00'],
+            // Inventory (INV-19, INV-20): its lists.
+            'inventory/stock' => ['ITEM-A', 'Outlet A'],
+            'inventory/movements' => ['ITEM-A', 'Opening stock'],
+            'inventory/transfers' => ['Outlet A', 'Store A'],
+            'inventory/adjustments' => ['Outlet A', 'Damaged'],
+            'inventory/counts' => ['Store A', 'Cycle count'],
+            'inventory/reorder-rules' => ['ITEM-A', 'Outlet A'],
+            'inventory/valuation' => ['ITEM-A', 'Company A'],
         ];
     }
 
@@ -1383,6 +1400,25 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published', 'replace' => true],
             // TPL-01: a template preview for the company (TPL-03 reads the company's country).
             'POST api/v1/templates/preview' => ['type' => 'pos.receipt', 'payload' => DefaultTemplates::for('pos.receipt'), 'scope_type' => 'company', 'scope_id' => $tenant->id('company')],
+            // Inventory: opening stock of the item's box; a reorder level; the item as a
+            // variant of the batch item; a transfer to the store, an adjustment and a
+            // cycle count of the item's category at the outlet; labels priced from the list.
+            'POST api/v1/inventory/opening-stock' => ['item_id' => $tenant->id('item'), 'location_id' => $tenant->id('location'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'unit_cost' => '120'],
+            'PUT api/v1/inventory/reorder-rules' => ['item_id' => $tenant->id('item'), 'location_id' => $tenant->id('location'), 'reorder_level' => '6', 'reorder_qty' => '12'],
+            'PUT api/v1/inventory/items/{item}/variant' => ['parent_item_id' => $tenant->id('inventory_item'), 'attributes' => ['size' => 'Hijack']],
+            'POST api/v1/inventory/transfers' => [
+                'from_location_id' => $tenant->id('location'), 'to_location_id' => $tenant->id('inventory_location'),
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'batch_id' => $tenant->id('inventory_batch')]],
+            ],
+            'POST api/v1/inventory/adjustments' => [
+                'location_id' => $tenant->id('location'), 'reason' => 'found',
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'batch_id' => $tenant->id('inventory_batch')]],
+            ],
+            'POST api/v1/inventory/counts' => ['location_id' => $tenant->id('location'), 'kind' => 'cycle', 'category_id' => $tenant->id('item_category')],
+            'POST api/v1/inventory/labels' => [
+                'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
+                'price_list_id' => $tenant->id('price_list'),
+            ],
             // Payments: the money received matched to the till's manual payment.
             'POST api/v1/payment-receipts/{payment_receipt}/match' => ['payment_intent_id' => $tenant->id('payment_intent')],
             default => null,

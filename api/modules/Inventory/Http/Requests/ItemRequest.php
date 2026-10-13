@@ -47,16 +47,4 @@ class ItemRequest extends FormRequest
             default => [],
         };
     }
-
-    /** @return array<string, string> attribute name => value, names trimmed and lower case */
-    public function variantAttributes(): array
-    {
-        $attributes = [];
-
-        foreach ((array) $this->validated('attributes', []) as $name => $value) {
-            $attributes[mb_strtolower(trim((string) $name))] = trim((string) $value);
-        }
-
-        return $attributes;
-    }
 }
