@@ -127,7 +127,8 @@
     "secretMissing": "Cette caisse n’a pas de clé de connexion hors ligne. Le personnel ne peut se connecter qu’en ligne jusqu’à une nouvelle association.",
     "pinChangeTitle": "Nouveau code PIN requis",
     "pinChangeOffline": "Choisissez un nouveau code PIN quand la caisse sera de nouveau en ligne.",
-    "moduleInactive": "Le module Point de vente n’est pas actif pour votre entreprise. Les ventes restent sur cette caisse et seront envoyées quand il sera de nouveau actif."
+    "moduleInactive": "Le module Point de vente n’est pas actif pour votre entreprise. Les ventes restent sur cette caisse et seront envoyées quand il sera de nouveau actif.",
+    "subscriptionStopped": "L’abonnement est en retard de paiement : cette caisse ne peut plus envoyer de ventes. Elles restent sur la caisse et seront envoyées dès que le propriétaire aura réglé la facture ouverte dans Paramètres, Abonnement."
   },
   "pos": {
     "header": {
