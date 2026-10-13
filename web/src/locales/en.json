@@ -384,7 +384,8 @@
     "documentTemplates": "Document templates",
     "posLayout": "POS layout",
     "formLayouts": "Form layouts",
-    "formTypes": "Forms"
+    "formTypes": "Forms",
+    "imports": "Imports"
   },
   "shell": {
     "account": "Account menu",
@@ -5053,6 +5054,156 @@
       "numbering": "Numbering",
       "flow": "Approval flow",
       "open": "Open the forms"
+    }
+  },
+  "imports": {
+    "title": "Imports",
+    "description": "Bring items, customers, suppliers and prices from a spreadsheet, check them, then import them.",
+    "new": "New import",
+    "entry": "Import",
+    "search": "Search file names",
+    "empty": "No imports yet. Start one with New import.",
+    "emptyFiltered": "No imports match these filters.",
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses"
+    },
+    "columns": {
+      "created_at": "Uploaded",
+      "importer": "Type",
+      "file_name": "File",
+      "status": "Status",
+      "total_rows": "Rows",
+      "created_rows": "Added",
+      "updated_rows": "Updated",
+      "failed_rows": "Failed",
+      "user": "Uploaded by"
+    },
+    "statuses": {
+      "ready": "Ready",
+      "checking": "Checking",
+      "checked": "Checked",
+      "importing": "Importing",
+      "completed": "Completed",
+      "failed": "Stopped",
+      "undoing": "Undoing",
+      "undone": "Undone"
+    },
+    "modes": {
+      "create": "Add new records only",
+      "upsert": "Add new and update existing records"
+    },
+    "steps": {
+      "type": "Type",
+      "template": "Template",
+      "upload": "Upload",
+      "mapping": "Map columns",
+      "preview": "Preview",
+      "dryRun": "Check",
+      "import": "Import",
+      "result": "Result"
+    },
+    "wizard": {
+      "title": "New import",
+      "titleOf": "Import of {{file}}",
+      "description": "Each row is checked with the same rules as a record typed in the app.",
+      "back": "All imports",
+      "previous": "Back",
+      "loading": "Loading…"
+    },
+    "type": {
+      "title": "What do you want to import?",
+      "subtitle": "Only the types you may create are listed.",
+      "none": "You have no import types. Ask an administrator for import access.",
+      "columns_one": "{{count}} column",
+      "columns_other": "{{count}} columns",
+      "next": "Continue to the template"
+    },
+    "template": {
+      "title": "{{type}} template",
+      "subtitle": "Download the template, fill in one row per record, then upload it. Required columns are marked.",
+      "required": "Required",
+      "download": {
+        "en": "Download template in English",
+        "fr": "Download template in French"
+      },
+      "next": "Continue to upload"
+    },
+    "upload": {
+      "title": "Upload the {{type}} file",
+      "subtitle": "XLSX or UTF-8 CSV, up to 50,000 rows and 20 MB.",
+      "choose": "Choose file",
+      "change": "Choose another file",
+      "noFile": "No file chosen",
+      "send": "Upload and map columns"
+    },
+    "mapping": {
+      "title": "Map columns",
+      "subtitle": "Choose the file column for each field. {{rows}} rows were found.",
+      "skip": "Not imported",
+      "column": "Column {{number}}",
+      "mode": "When a record already exists",
+      "matchedBy": "Existing records are matched by: {{columns}}.",
+      "next": "Save and preview"
+    },
+    "preview": {
+      "title": "Preview",
+      "subtitle": "The first {{shown}} of {{total}} rows, checked with the app’s rules.",
+      "counts": "{{valid}} rows are ready and {{invalid}} have errors in the preview. The whole file has {{total}} rows.",
+      "onlyErrors": "Rows with errors",
+      "allRows": "All rows",
+      "noErrors": "No errors in these rows.",
+      "empty": "No rows.",
+      "row": "Row",
+      "status": "Result",
+      "create": "Will be added",
+      "update": "Will be updated",
+      "back": "Change mapping",
+      "check": "Check the whole file"
+    },
+    "progress": {
+      "text": "{{done}} of {{total}} rows"
+    },
+    "counts": {
+      "check": {
+        "created": "Ready to add",
+        "updated": "Ready to update",
+        "failed": "With errors"
+      },
+      "done": {
+        "created": "Added",
+        "updated": "Updated",
+        "failed": "Not imported"
+      }
+    },
+    "dryRun": {
+      "title": "Check the whole file",
+      "running": "Nothing is saved while the file is checked.",
+      "done": "The whole file was checked. Nothing has been saved yet.",
+      "errorsTitle_one": "{{count}} row has errors",
+      "errorsTitle_other": "{{count}} rows have errors",
+      "errorsHelp": "These rows will be skipped. Download them, fix them and upload them again, or import the other rows now.",
+      "errorFile": "Download rows with errors",
+      "import_one": "Import {{rows}} row",
+      "import_other": "Import {{rows}} rows"
+    },
+    "running": {
+      "title": "Importing",
+      "subtitle": "You can leave this page; the import continues in the background."
+    },
+    "result": {
+      "title": "Result",
+      "download": "Download result file",
+      "undo": "Undo import",
+      "undoTitle": "Undo this import?",
+      "undoText": "Added records are archived and updated records get their earlier values back. {{created}} added and {{updated}} updated records are affected.",
+      "undoConfirm": "Undo import",
+      "keep": "Keep import",
+      "undone": "This import was undone.",
+      "blockedTitle_one": "The import was not undone: {{count}} record is in use or changed since",
+      "blockedTitle_other": "The import was not undone: {{count}} records are in use or changed since",
+      "blockedRow": "Row {{row}}, {{record}}: {{reason}}",
+      "all": "All imports"
     }
   }
 }

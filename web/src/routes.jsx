@@ -29,6 +29,7 @@ import {
   LAYOUT_VIEW,
   WORKFLOW_VIEW,
 } from './layouts/navigation'
+import { IMPORT_PERMISSION } from './pages/settings/imports/importData'
 import AutomationRules from './pages/automation/AutomationRules'
 import RuleEditor from './pages/automation/RuleEditor'
 import AutomationRuns from './pages/automation/RunLog'
@@ -74,6 +75,8 @@ import CustomFields from './pages/settings/CustomFields'
 import DocumentTemplates from './pages/settings/DocumentTemplates'
 import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
+import Imports from './pages/settings/Imports'
+import ImportWizard from './pages/settings/imports/ImportWizard'
 import Domains from './pages/settings/Domains'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import Fiscal from './pages/settings/Fiscal'
@@ -266,6 +269,10 @@ export const routes = [
         ['/settings/dimensions', DIMENSION_VIEW, <Dimensions key="dimensions" />],
         // CF-01, CF-03: custom fields of items and contacts.
         ['/settings/custom-fields', CUSTOM_FIELD_VIEW, <CustomFields key="custom-fields" />],
+        // IMP-01..IMP-03: imports, the wizard and one import where it stands.
+        ['/settings/imports', IMPORT_PERMISSION, <Imports key="imports" />],
+        ['/settings/imports/new', IMPORT_PERMISSION, <ImportWizard key="import-new" />],
+        ['/settings/imports/:importId', IMPORT_PERMISSION, <ImportWizard key="import" />],
         // TPL-01..TPL-05: document templates and the designer.
         ['/settings/document-templates', TEMPLATE_VIEW, <DocumentTemplates key="document-templates" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
