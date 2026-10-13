@@ -385,7 +385,8 @@
     "posLayout": "Disposition de caisse",
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
-    "dataExport": "Export des données"
+    "dataExport": "Export des données",
+    "subscription": "Abonnement"
   },
   "shell": {
     "account": "Menu du compte",
@@ -5261,5 +5262,157 @@
       },
       "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
     }
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "description": "Votre formule, ses factures et la façon de la payer.",
+    "status": {
+      "trial": "Essai",
+      "active": "Actif",
+      "past_due": "En retard",
+      "read_only": "Lecture seule",
+      "suspended": "Suspendu",
+      "cancelled": "Résilié"
+    },
+    "cycles": {
+      "monthly": "Mensuel",
+      "annual": "Annuel (2 mois offerts)"
+    },
+    "units": {
+      "outlet_one": "{{count}} point de vente",
+      "outlet_other": "{{count}} points de vente",
+      "device_one": "{{count}} appareil",
+      "device_other": "{{count}} appareils",
+      "employee_one": "{{count}} employé",
+      "employee_other": "{{count}} employés",
+      "company_one": "{{count}} société",
+      "company_other": "{{count}} sociétés",
+      "online_store_one": "{{count}} boutique en ligne",
+      "online_store_other": "{{count}} boutiques en ligne",
+      "warehouse_one": "{{count}} entrepôt",
+      "warehouse_other": "{{count}} entrepôts"
+    },
+    "unitLabels": {
+      "outlet": "Points de vente",
+      "device": "Appareils de caisse",
+      "employee": "Employés",
+      "company": "Sociétés",
+      "online_store": "Boutiques en ligne",
+      "warehouse": "Entrepôts"
+    },
+    "providers": {
+      "mpesa_ke": "M-Pesa",
+      "airtel_ke": "Airtel Money",
+      "airtel_money_cd": "Airtel Money",
+      "orange_money_cd": "Orange Money",
+      "afrimoney_cd": "Afrimoney",
+      "card_aggregator": "Carte"
+    },
+    "overview": {
+      "title": "Votre formule",
+      "noModules": "Aucun module pour l’instant",
+      "cycle": "Facturation",
+      "quantities": "Quantités",
+      "none": "Aucune",
+      "period": "Période en cours",
+      "periodRange": "Du {{from}} au {{to}}",
+      "trialUntil": "Essai jusqu’au {{date}}",
+      "nextInvoice": "Prochaine facture",
+      "monthly": "Coût mensuel",
+      "pending": "Changements à partir du {{date}}",
+      "cancelPending": "Garder la formule actuelle",
+      "subscribeText": "Votre essai se termine le {{date}}. Abonnez-vous maintenant pour recevoir votre première facture ; elle est due à la fin de l’essai.",
+      "subscribe": "S’abonner maintenant"
+    },
+    "change": {
+      "title": "Changer de formule",
+      "subtitle": "Un ajout coûte la différence pour les jours restants de la période. Un retrait prend effet à la fin de la période.",
+      "bundle": "Offre groupée",
+      "noBundle": "Sans offre, modules à l’unité",
+      "cycle": "Facturation",
+      "modules": "Modules",
+      "inBundle": "Inclus dans l’offre",
+      "coupon": "Code coupon",
+      "upgrade": "Le changement prend effet maintenant. Vous payez la différence pour les {{days}} jours restants sur {{period}}.",
+      "trial": "Le changement prend effet maintenant. Rien n’est facturé pendant l’essai.",
+      "scheduled": "Le changement prend effet le {{date}}, à la fin de la période en cours.",
+      "none": "C’est votre formule actuelle.",
+      "newTotal": "Nouveau prix ({{cycle}})",
+      "chargeNow": "À payer maintenant",
+      "couponApplied": "Coupon {{code}} appliqué.",
+      "confirm": "Confirmer le changement",
+      "confirmCharge": "Confirmer et payer {{amount}}",
+      "done": "Votre formule a été modifiée.",
+      "doneInvoice": "Votre formule a été modifiée. La facture {{number}} est à régler ci-dessous."
+    },
+    "pay": {
+      "title": "Régler la facture {{number}}",
+      "method": "Payer avec",
+      "phone": "Numéro de téléphone",
+      "otherPhone": "{{provider}}, un autre numéro",
+      "card": "Carte, sur la page du prestataire",
+      "submit": "Payer {{amount}}",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "starting": "Lancement du paiement.",
+      "waiting": "En attente",
+      "approveOnPhone": "Validez la demande sur le téléphone {{label}}. Cette page se met à jour toute seule.",
+      "checkout": "Terminez le paiement sur la page du prestataire de carte.",
+      "succeeded": "Paiement reçu. Merci.",
+      "failed": "Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen."
+    },
+    "invoices": {
+      "title": "Factures",
+      "search": "Rechercher par numéro",
+      "allStatuses": "Tous les statuts",
+      "empty": "Aucune facture pour l’instant.",
+      "pdf": "PDF",
+      "pdfFor": "Télécharger la facture {{number}} en PDF",
+      "pay": "Payer",
+      "payFor": "Régler la facture {{number}}",
+      "columns": {
+        "number": "Numéro",
+        "issued": "Émise le",
+        "kind": "Type",
+        "period": "Période",
+        "total": "Total",
+        "due": "Échéance",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "kinds": {
+        "first": "Première facture",
+        "renewal": "Renouvellement",
+        "upgrade": "Changement de formule"
+      },
+      "statuses": {
+        "open": "Ouverte",
+        "paid": "Payée",
+        "void": "Annulée"
+      }
+    },
+    "methods": {
+      "title": "Moyens de paiement",
+      "subtitle": "Le moyen par défaut renouvelle votre abonnement automatiquement. Les données de carte restent chez le prestataire.",
+      "addWallet": "Ajouter un mobile money",
+      "addCard": "Ajouter une carte",
+      "empty": "Aucun moyen de paiement enregistré.",
+      "default": "Par défaut",
+      "makeDefault": "Définir par défaut",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{label}}",
+      "save": "Enregistrer le moyen",
+      "cardSaved": "Votre carte a été enregistrée."
+    }
+  },
+  "subscriptionBanner": {
+    "trial_one": "Votre essai se termine demain, le {{date}}.",
+    "trial_other": "Il reste {{count}} jours d’essai, jusqu’au {{date}}.",
+    "pastDue": "Une facture est en retard. Réglez-la avant le {{date}} pour garder un accès complet.",
+    "readOnly": "Votre compte est en lecture seule jusqu’au paiement de la facture en retard. Les caisses vendent encore jusqu’au {{date}}.",
+    "suspended": "Votre abonnement est suspendu. Contactez le support.",
+    "choosePlan": "Choisir une formule",
+    "pay": "Payer maintenant",
+    "label": "État de l’abonnement"
   }
 }

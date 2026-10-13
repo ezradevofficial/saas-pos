@@ -385,7 +385,8 @@
     "posLayout": "POS layout",
     "formLayouts": "Form layouts",
     "formTypes": "Forms",
-    "dataExport": "Data export"
+    "dataExport": "Data export",
+    "subscription": "Subscription"
   },
   "shell": {
     "account": "Account menu",
@@ -5261,5 +5262,157 @@
       },
       "suggestion": "{{bundle}} covers this selection for less. It saves {{saving}}."
     }
+  },
+  "subscription": {
+    "title": "Subscription",
+    "description": "Your plan, its invoices and how you pay for it.",
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "past_due": "Past due",
+      "read_only": "Read-only",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled"
+    },
+    "cycles": {
+      "monthly": "Monthly",
+      "annual": "Annual (2 months free)"
+    },
+    "units": {
+      "outlet_one": "{{count}} outlet",
+      "outlet_other": "{{count}} outlets",
+      "device_one": "{{count}} device",
+      "device_other": "{{count}} devices",
+      "employee_one": "{{count}} employee",
+      "employee_other": "{{count}} employees",
+      "company_one": "{{count}} company",
+      "company_other": "{{count}} companies",
+      "online_store_one": "{{count}} online store",
+      "online_store_other": "{{count}} online stores",
+      "warehouse_one": "{{count}} warehouse",
+      "warehouse_other": "{{count}} warehouses"
+    },
+    "unitLabels": {
+      "outlet": "Outlets",
+      "device": "POS devices",
+      "employee": "Employees",
+      "company": "Companies",
+      "online_store": "Online stores",
+      "warehouse": "Warehouses"
+    },
+    "providers": {
+      "mpesa_ke": "M-Pesa",
+      "airtel_ke": "Airtel Money",
+      "airtel_money_cd": "Airtel Money",
+      "orange_money_cd": "Orange Money",
+      "afrimoney_cd": "Afrimoney",
+      "card_aggregator": "Card"
+    },
+    "overview": {
+      "title": "Your plan",
+      "noModules": "No modules yet",
+      "cycle": "Billing",
+      "quantities": "Quantities",
+      "none": "None",
+      "period": "Current period",
+      "periodRange": "{{from}} to {{to}}",
+      "trialUntil": "Trial until {{date}}",
+      "nextInvoice": "Next invoice",
+      "monthly": "Monthly cost",
+      "pending": "Changes from {{date}}",
+      "cancelPending": "Keep the current plan",
+      "subscribeText": "Your trial ends on {{date}}. Subscribe now to get your first invoice; it falls due when the trial ends.",
+      "subscribe": "Subscribe now"
+    },
+    "change": {
+      "title": "Change plan",
+      "subtitle": "Adding costs the difference for the days left in the period. Removing takes effect at the period end.",
+      "bundle": "Bundle",
+      "noBundle": "No bundle, modules one by one",
+      "cycle": "Billing",
+      "modules": "Modules",
+      "inBundle": "Included in the bundle",
+      "coupon": "Coupon code",
+      "upgrade": "This takes effect now. You pay the difference for the {{days}} days left of {{period}}.",
+      "trial": "This takes effect now. Nothing is charged during the trial.",
+      "scheduled": "This takes effect on {{date}}, at the end of the current period.",
+      "none": "This is your current plan.",
+      "newTotal": "New price ({{cycle}})",
+      "chargeNow": "To pay now",
+      "couponApplied": "Coupon {{code}} applied.",
+      "confirm": "Confirm change",
+      "confirmCharge": "Confirm and pay {{amount}}",
+      "done": "Your plan was changed.",
+      "doneInvoice": "Your plan was changed. Invoice {{number}} is ready to pay below."
+    },
+    "pay": {
+      "title": "Pay invoice {{number}}",
+      "method": "Pay with",
+      "phone": "Phone number",
+      "otherPhone": "{{provider}}, another number",
+      "card": "Card, on the card provider’s page",
+      "submit": "Pay {{amount}}",
+      "cancel": "Cancel",
+      "close": "Close",
+      "starting": "Starting the payment.",
+      "waiting": "Waiting",
+      "approveOnPhone": "Approve the request on the phone {{label}}. This page updates by itself.",
+      "checkout": "Finish the payment on the card provider’s page.",
+      "succeeded": "Payment received. Thank you.",
+      "failed": "The payment didn’t go through. Try again or use another method."
+    },
+    "invoices": {
+      "title": "Invoices",
+      "search": "Search by number",
+      "allStatuses": "All statuses",
+      "empty": "No invoices yet.",
+      "pdf": "PDF",
+      "pdfFor": "Download invoice {{number}} as PDF",
+      "pay": "Pay",
+      "payFor": "Pay invoice {{number}}",
+      "columns": {
+        "number": "Number",
+        "issued": "Issued",
+        "kind": "Type",
+        "period": "Period",
+        "total": "Total",
+        "due": "Due",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "kinds": {
+        "first": "First invoice",
+        "renewal": "Renewal",
+        "upgrade": "Plan change"
+      },
+      "statuses": {
+        "open": "Open",
+        "paid": "Paid",
+        "void": "Cancelled"
+      }
+    },
+    "methods": {
+      "title": "Payment methods",
+      "subtitle": "The default method renews your subscription automatically. Card details stay with the card provider.",
+      "addWallet": "Add mobile money",
+      "addCard": "Add card",
+      "empty": "No saved payment methods.",
+      "default": "Default",
+      "makeDefault": "Make default",
+      "remove": "Remove",
+      "removeFor": "Remove {{label}}",
+      "save": "Save method",
+      "cardSaved": "Your card was saved."
+    }
+  },
+  "subscriptionBanner": {
+    "trial_one": "Your trial ends tomorrow, on {{date}}.",
+    "trial_other": "{{count}} days left in your trial, until {{date}}.",
+    "pastDue": "An invoice is overdue. Pay it by {{date}} to keep full access.",
+    "readOnly": "Your account is read-only until the overdue invoice is paid. Tills keep selling until {{date}}.",
+    "suspended": "Your subscription is suspended. Contact support.",
+    "choosePlan": "Choose a plan",
+    "pay": "Pay now",
+    "label": "Subscription status"
   }
 }

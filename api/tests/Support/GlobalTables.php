@@ -32,4 +32,16 @@ final class GlobalTables
         'catalogue_annual_discounts' => 'the annual discount as data (SUB-01)',
         'catalogue_coupons' => 'coupons, created by platform staff (SUB-01)',
     ];
+
+    /**
+     * Tenant tables whose rows live only in the operator tenant (ADR 016):
+     * under row-level security like every tenant table, but a customer
+     * tenant never has rows in them. The isolation suite checks that
+     * customers see none of the operator's rows instead of comparing two
+     * customers.
+     */
+    public const OPERATOR = [
+        'operator_invoices' => 'the platform invoices the operator issues to its customers (SUB-03)',
+        'operator_accounts' => 'the operator\'s record of each customer for the platform console',
+    ];
 }

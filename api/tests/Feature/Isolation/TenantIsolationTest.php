@@ -11,6 +11,7 @@ use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
+use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
@@ -226,6 +227,8 @@ class TenantIsolationTest extends TestCase
         'PATCH api/v1/cost-centres/{cost_centre}' => ['parent_id' => 'cost_centre_parent'],
         'POST api/v1/companies/{company}/projects' => ['parent_id' => 'project_parent'],
         'PATCH api/v1/projects/{project}' => ['parent_id' => 'project_parent'],
+        // SUB-04: a saved payment method of the subscription (never a till's payment method).
+        'POST api/v1/subscription/invoices/{billing_invoice}/pay' => ['payment_method_id' => 'billing_payment_method'],
     ];
 
     /**
@@ -355,6 +358,16 @@ class TenantIsolationTest extends TestCase
         $b = $this->tenants->b->tenantId;
 
         foreach ($this->tenantTables() as $table) {
+            // ADR 016: rows only in the operator tenant; customers see none of them.
+            if (isset(GlobalTables::OPERATOR[$table])) {
+                $operator = (string) app(DueTenants::class)->operator();
+                $this->assertGreaterThan(0, $this->asTenant($operator, fn () => $this->rows("select count(*) from \"{$table}\"")), "{$table}: the operator has no rows; extend tests/Support/TwoTenants.php");
+                $this->assertSame(0, $this->asTenant($a, fn () => $this->rows("select count(*) from \"{$table}\"")), "{$table}: tenant A sees the operator's rows");
+                $this->assertSame(0, $this->asTenant($b, fn () => $this->rows("select count(*) from \"{$table}\"")), "{$table}: tenant B sees the operator's rows");
+
+                continue;
+            }
+
             $inB = $this->asTenant($b, fn () => $this->rows("select count(*) from \"{$table}\""));
             $this->assertGreaterThan(0, $inB, "{$table}: tenant B has no rows, so isolation is not proven; extend tests/Support/TwoTenants.php");
 
@@ -745,7 +758,9 @@ class TenantIsolationTest extends TestCase
 
         foreach ($manifest['tables'] as $table) {
             $lines = array_values(array_filter(explode("\n", (string) $zip->getFromName($table['file']))));
-            $this->assertGreaterThan(0, count($lines), "{$table['name']}: tenant A's rows are exported");
+            if (! isset(GlobalTables::OPERATOR[$table['name']])) {
+                $this->assertGreaterThan(0, count($lines), "{$table['name']}: tenant A's rows are exported");
+            }
 
             foreach ($lines as $line) {
                 $row = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
@@ -1241,6 +1256,7 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            'POST api/v1/subscription/invoices/{billing_invoice}/pay' => ['payment_method_id' => $tenant->id('billing_payment_method')],
             // MD-03: a shared category (items are shared, TEN-08) mapping the company's tax code.
             'POST api/v1/tax-categories' => [
                 'name' => 'Hijack check',

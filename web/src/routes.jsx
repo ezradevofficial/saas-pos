@@ -75,6 +75,7 @@ import DocumentTemplates from './pages/settings/DocumentTemplates'
 import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
 import DataExport from './pages/settings/DataExport'
+import Subscription from './pages/settings/Subscription'
 import Domains from './pages/settings/Domains'
 import ExchangeRates from './pages/settings/ExchangeRates'
 import Fiscal from './pages/settings/Fiscal'
@@ -317,6 +318,8 @@ export const routes = [
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
+      // SUB-02..SUB-06: the plan, invoices and payment methods.
+      { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },
       { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.

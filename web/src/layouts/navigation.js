@@ -115,6 +115,8 @@ export const NAV_GROUPS = [
       // LAY-05: the tills' sell screen, while the POS module is active.
       { to: '/settings/pos-layout', icon: 'device', label: (t) => t('nav.posLayout'), permission: POS_LAYOUT_VIEW, module: 'pos' },
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
+      // SUB-02..SUB-06: the subscription (Owner, Admin).
+      { to: '/settings/subscription', icon: 'subscription', label: (t) => t('nav.subscription'), permission: 'core.subscription.view', tenantWide: true, module: 'core' },
       // EXP-02: the full data export (Owners only).
       { to: '/settings/data-export', icon: 'download', label: (t) => t('nav.dataExport'), permission: 'core.tenant.export', tenantWide: true, module: 'core' },
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.

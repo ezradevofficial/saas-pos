@@ -68,15 +68,16 @@ class BillingPayments
             throw new ApiException(422, 'invoice_not_open', __('billing.errors.invoice_not_open'));
         }
 
+        $subscription = $this->subscriptions->require();
+        [$provider, $phone, $token, $saved, $label] = $this->resolve($subscription, $how);
+
+        // A payment of this invoice still waiting on the payer: show it rather than push again.
         $open = BillingPayment::query()->where('billing_invoice_id', $invoice->id)->whereIn('status', ['pending', 'unknown'])
             ->where('created_at', '>', CarbonImmutable::now()->subMinutes(2))->first();
 
         if ($open !== null) {
             return $this->refresh($open);
         }
-
-        $subscription = $this->subscriptions->require();
-        [$provider, $phone, $token, $saved, $label] = $this->resolve($subscription, $how);
         $customerId = $this->tenants->require();
         $id = (string) Str::uuid7();
 
