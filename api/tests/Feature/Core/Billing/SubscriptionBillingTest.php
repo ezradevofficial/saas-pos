@@ -11,6 +11,8 @@ use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Limits\PlanAllowances;
+use App\Core\Limits\UsageLimits;
+use App\Core\Tenancy\Models\Device;
 use App\Core\Limits\UsageOverage;
 use App\Core\Limits\UsageOverageLine;
 use App\Core\MasterData\Taxes\TaxCode;
@@ -196,6 +198,31 @@ class SubscriptionBillingTest extends TestCase
         $allowances = app(PlanAllowances::class)->for($this->owner->tenant_id);
         // Starter at one outlet: 1 outlet and the 2 POS devices it includes; users unlimited.
         $this->assertSame([1, 2, null], [$allowances->of('outlet'), $allowances->of('device'), $allowances->of('user')]);
+    }
+
+    public function test_an_upgrade_unblocks_adding_a_device_at_once(): void
+    {
+        // Starter at one outlet allows the 2 POS devices it includes; 3 are active.
+        $this->inTenant(function () {
+            foreach (['Till 1', 'Till 2', 'Till 3'] as $name) {
+                Device::create(['location_id' => $this->locationA->id, 'name' => $name])->forceFill(['status' => Device::STATUS_ACTIVE, 'paired_at' => now()])->save();
+            }
+            app(UsageLimits::class)->meter(CarbonImmutable::now());
+        });
+        $this->travelToDay('2026-11-09 06:00:00');
+        $this->inTenant(fn () => app(UsageLimits::class)->meter(CarbonImmutable::now()));
+        $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor())->assertStatus(402)->assertJsonPath('code', 'usage_limit_reached');
+
+        // Four devices on the plan (during the trial it applies at once): adding works right away.
+        $plan = [...self::STARTER, 'quantities' => ['device' => 4, 'outlet' => 1]];
+        $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 0], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor())->assertCreated();
+    }
+
+    public function test_owners_hold_the_subscription_permissions(): void
+    {
+        $this->assertTrue($this->inTenant(fn () => $this->owner->fresh()->can('core.subscription.view', Scope::tenant())));
+        $this->assertTrue($this->inTenant(fn () => $this->owner->fresh()->can('core.subscription.manage', Scope::tenant())));
     }
 
     public function test_switching_a_module_off_hides_it_and_keeps_its_data_and_subscribing_again_restores_it(): void

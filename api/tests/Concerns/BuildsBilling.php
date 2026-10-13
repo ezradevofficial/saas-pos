@@ -34,6 +34,8 @@ trait BuildsBilling
         app(Operator::class)->forget();
         $this->operatorId = (string) app(Operator::class)->id();
         $this->setUpOrganisation();
+        // One outlet, as Starter sells (the second one archived): no usage overage unless a test adds it.
+        $this->inTenant(fn () => $this->locationB->archive());
         $this->inTenant(fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
     }
 

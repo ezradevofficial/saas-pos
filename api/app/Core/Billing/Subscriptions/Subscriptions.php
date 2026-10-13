@@ -20,6 +20,7 @@ use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Limits\UsageLimits;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -290,6 +291,11 @@ class Subscriptions
         ])->save();
 
         $this->syncModules($subscription);
+
+        // LIM-01..LIM-03: meter against the new allowances once the change commits, so an
+        // overage the plan now covers closes and adding is unblocked at once.
+        $tenantId = $this->tenants->require();
+        DB::connection(TenantContext::CONNECTION)->afterCommit(fn () => $this->tenants->run($tenantId, fn () => app(UsageLimits::class)->meter(CarbonImmutable::now())));
     }
 
     /**
