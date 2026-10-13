@@ -138,13 +138,13 @@ describe('Import wizard (IMP-01..IMP-03)', () => {
 
     await screen.findByRole('heading', { name: 'Map columns' })
     expect(screen.getByText('Map columns', { selector: '[aria-current="step"] *' })).toBeInTheDocument()
-    chooseOption('Base unit', 'Unit')
+    chooseOption(/^Base unit/, 'Unit')
     chooseOption('When a record already exists', 'Add new and update existing records')
     fireEvent.click(screen.getByRole('button', { name: 'Save and preview' }))
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('imports/imp-1', { mode: 'upsert', mapping: { code: 0, name: 1, base_unit: 2, cf_colour: 3 } }))
     expect(await screen.findByText('There is no unit with code XX.', { exact: false })).toBeInTheDocument()
-    expect(screen.getByText(/19 rows are ready and 1 have errors/)).toBeInTheDocument()
+    expect(screen.getByText(/In the preview: 19 ready, 1 with errors/)).toBeInTheDocument()
     // Only rows with errors first; all rows on demand.
     expect(screen.queryByText('A-1')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'All rows' }))

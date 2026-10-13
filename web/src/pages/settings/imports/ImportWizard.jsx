@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
-import { Alert, Button, Card, Combobox, DataTable, Dialog, Icon, Select, StageTracker, StatusBadge } from '@/components/ds'
+import { Alert, Button, Card, DataTable, Dialog, Icon, Select, StageTracker, StatusBadge } from '@/components/ds'
 import { Progress } from '@/components/ui/progress'
 import { PageHeader } from '@/layouts/PageHeader'
 import { downloadFile } from '@/lib/files'
@@ -229,37 +229,19 @@ function Mapping({ record, onDone }) {
   return (
     <Card title={t('imports.mapping.title')} subtitle={t('imports.mapping.subtitle', { rows: record.total_rows })}>
       <div className="flex flex-col gap-4 p-5">
-        <div className="grid gap-3">
-          {importer.columns.map((column) => {
-            const id = `map-${column.key}`
-            const error = errors[`mapping.${column.key}`]?.[0]
-            return (
-              <div key={column.key} className="grid items-center gap-2 sm:grid-cols-2">
-                <div className="flex items-baseline gap-2">
-                  <label htmlFor={id} className="text-label text-ink">
-                    {column.label}
-                  </label>
-                  {column.required ? <span className="text-caption text-ink-muted">{t('imports.template.required')}</span> : null}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Combobox
-                    id={id}
-                    value={mapping[column.key] ?? ''}
-                    onValueChange={(value) => setMapping((current) => ({ ...current, [column.key]: value }))}
-                    options={headerOptions}
-                    invalid={Boolean(error)}
-                    required={column.required}
-                    aria-describedby={error ? `${id}-error` : undefined}
-                  />
-                  {error ? (
-                    <span id={`${id}-error`} className="text-caption text-danger">
-                      {error}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            )
-          })}
+        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+          {importer.columns.map((column) => (
+            <Select
+              key={column.key}
+              id={`map-${column.key}`}
+              label={column.label}
+              required={column.required}
+              value={mapping[column.key] ?? ''}
+              onChange={(event) => setMapping((current) => ({ ...current, [column.key]: event.target.value }))}
+              options={headerOptions}
+              error={errors[`mapping.${column.key}`]?.[0]}
+            />
+          ))}
         </div>
         <Select
           label={t('imports.mapping.mode')}

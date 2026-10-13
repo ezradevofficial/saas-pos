@@ -5149,7 +5149,7 @@
     "preview": {
       "title": "Aperçu",
       "subtitle": "Les {{shown}} premières lignes sur {{total}}, vérifiées avec les règles de l’application.",
-      "counts": "{{valid}} lignes sont prêtes et {{invalid}} ont des erreurs dans l’aperçu. Le fichier compte {{total}} lignes.",
+      "counts": "Dans l’aperçu : {{valid}} prêtes, {{invalid}} en erreur. Lignes du fichier : {{total}}.",
       "onlyErrors": "Lignes en erreur",
       "allRows": "Toutes les lignes",
       "noErrors": "Aucune erreur dans ces lignes.",

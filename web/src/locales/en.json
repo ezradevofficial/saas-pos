@@ -5149,7 +5149,7 @@
     "preview": {
       "title": "Preview",
       "subtitle": "The first {{shown}} of {{total}} rows, checked with the app’s rules.",
-      "counts": "{{valid}} rows are ready and {{invalid}} have errors in the preview. The whole file has {{total}} rows.",
+      "counts": "In the preview: {{valid}} ready, {{invalid}} with errors. Rows in the file: {{total}}.",
       "onlyErrors": "Rows with errors",
       "allRows": "All rows",
       "noErrors": "No errors in these rows.",
