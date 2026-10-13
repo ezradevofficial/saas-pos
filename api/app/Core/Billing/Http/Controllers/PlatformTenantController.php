@@ -17,6 +17,7 @@ use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Http\ApiException;
+use App\Core\Onboarding\Assisted\AssistedOnboarding;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -58,13 +59,15 @@ class PlatformTenantController
     private function detail(string $tenant): JsonResponse
     {
         $account = $this->account404($tenant);
-        $subscription = $this->tenants->run($tenant, fn () => Subscription::query()->first());
+        [$subscription, $assisted] = $this->tenants->run($tenant, fn () => [Subscription::query()->first(), app(AssistedOnboarding::class)->handoverState()]);
         $invoices = $this->operator->run(fn () => OperatorInvoice::query()->where('customer_tenant_id', $tenant)->orderByDesc('issued_at')->limit(100)->get());
 
         return response()->json(['data' => [
             'account' => self::account($account),
             'subscription' => $subscription === null ? null : SubscriptionPresenter::subscription($subscription, ['date' => $subscription->nextDueAt()?->toDateString(), 'amount_minor' => null]),
             'grace_days' => $subscription?->grace_days,
+            // ONB-08: staff may resend the Owner invitation until handover.
+            'assisted' => $assisted,
             'invoices' => $invoices->map(fn (OperatorInvoice $i) => self::invoice($i))->all(),
         ]]);
     }

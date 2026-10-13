@@ -125,4 +125,24 @@ class BillingOnboardingTest extends TestCase
         $this->assertStringContainsString('Settings', __('billing.errors.subscribed_change_plan', [], 'en'));
         $this->assertStringContainsString('Paramètres', __('billing.errors.subscribed_change_plan', [], 'fr'));
     }
+
+    public function test_the_console_tenant_page_says_whether_an_assisted_tenant_was_handed_over(): void
+    {
+        // ONB-08: the reinvite button shows only while the tenant waits for its Owner.
+        $this->pick();
+        $staff = $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT));
+        $tenantId = $this->postJson('/api/v1/platform/tenants', [
+            'business_name' => 'Quincaillerie Lumière', 'country' => 'KE', 'locale' => 'fr', 'business_type' => 'retail',
+            'modules' => ['pos'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly',
+            'contact_name' => 'Jeanne Mbuyi', 'email' => 'jeanne@example.com',
+        ], $staff)->assertCreated()->json('data.tenant_id');
+
+        $assisted = $this->getJson("/api/v1/platform/tenants/{$tenantId}", $staff)->assertOk()->json('data.assisted');
+        $this->assertNull($assisted['handed_over_at']);
+        $this->assertNotSame('jeanne@example.com', $assisted['contact']);
+        $this->assertStringEndsWith('@example.com', $assisted['contact']);
+
+        // A tenant that signed up on its own was never assisted.
+        $this->getJson("/api/v1/platform/tenants/{$this->owner['tenant']}", $staff)->assertOk()->assertJsonPath('data.assisted', null);
+    }
 }

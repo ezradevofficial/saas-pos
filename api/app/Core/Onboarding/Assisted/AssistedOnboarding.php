@@ -215,6 +215,30 @@ class AssistedOnboarding
     }
 
     /**
+     * ONB-08: the current tenant's handover as the console shows it, or
+     * null when staff did not create it. The contact is masked.
+     *
+     * @return array{created_at: ?string, staff_name: ?string, contact: string, handed_over_at: ?string}|null
+     */
+    public function handoverState(): ?array
+    {
+        $assisted = OnboardingState::query()->first()?->assisted;
+
+        if ($assisted === null) {
+            return null;
+        }
+
+        $invitation = Invitation::query()->find($assisted['invitation_id'] ?? null);
+
+        return [
+            'created_at' => $assisted['created_at'] ?? null,
+            'staff_name' => $assisted['staff_name'] ?? null,
+            'contact' => $invitation === null ? '' : self::mask($invitation),
+            'handed_over_at' => $assisted['handed_over_at'] ?? null,
+        ];
+    }
+
+    /**
      * The customer accepted the current Owner invitation: they are the
      * Owner now (the invitation gave them the role), and the setup account
      * loses every role and is deactivated, so staff keep no access.
