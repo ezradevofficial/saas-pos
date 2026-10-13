@@ -93,6 +93,7 @@ import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
 import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
+import Usage from './pages/settings/Usage'
 import PriceListDetail from './pages/settings/taxes/PriceListDetail'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
@@ -317,6 +318,8 @@ export const routes = [
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
+      // LIM-01, LIM-02: usage against the plan (Owners only).
+      { path: '/settings/usage', element: <RequirePermission owner><Usage /></RequirePermission> },
       { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
+import { UsageBanner } from './UsageBanner'
 
 /**
  * Back office layout (design system, Layout): a 232px sidebar and the
@@ -63,6 +64,8 @@ export function AppShell() {
 
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">
           <div className={cn('mx-auto flex flex-col gap-6', !wide && 'max-w-content')}>
+            {/* LIM-02, LIM-03: Owners only, while above the plan. */}
+            <UsageBanner />
             <Outlet />
           </div>
         </main>

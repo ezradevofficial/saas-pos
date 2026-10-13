@@ -115,6 +115,8 @@ export const NAV_GROUPS = [
       // LAY-05: the tills' sell screen, while the POS module is active.
       { to: '/settings/pos-layout', icon: 'device', label: (t) => t('nav.posLayout'), permission: POS_LAYOUT_VIEW, module: 'pos' },
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
+      // LIM-01, LIM-02: usage against the plan (Owners only).
+      { to: '/settings/usage', icon: 'chart', label: (t) => t('nav.usage'), owner: true },
       // EXP-02: the full data export (Owners only).
       { to: '/settings/data-export', icon: 'download', label: (t) => t('nav.dataExport'), permission: 'core.tenant.export', tenantWide: true, module: 'core' },
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
@@ -176,9 +178,10 @@ export const NAV_GROUPS = [
 ]
 
 /** The groups and items the user may see; empty groups are dropped. */
-export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCompany = true }) {
+export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCompany = true, isOwner = false }) {
   const allowed = (item) => {
     if (item.needsCompany && !hasCompany) return false
+    if (item.owner) return isOwner
     if (!item.permission) return true
     if (!item.tenantWide) return can(item.permission)
     return (Array.isArray(item.permission) ? item.permission : [item.permission]).some((name) => tenantWide(name))
