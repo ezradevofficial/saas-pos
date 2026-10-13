@@ -1,0 +1,41 @@
+<?php
+
+// Module Stocks (docs/modules/inventory.md) : messages de l'API, colonnes
+// des listes, documents et notifications. Les noms saisis (articles,
+// emplacements) s'affichent tels quels.
+return [
+    'errors' => [
+        'item_unknown' => 'Choisissez un article existant et non archivé.',
+        'not_a_stock_item' => ':item n\'est pas un article stocké. Seuls les articles stockés ont du stock.',
+        'uom_not_on_item' => 'Cette unité n\'est pas une unité de l\'article. Choisissez l\'une de ses unités.',
+        'qty_invalid' => 'Saisissez une quantité différente de zéro.',
+        'qty_precision' => 'Cette unité accepte des nombres entiers (ou jusqu\'à 3 décimales pour les poids et mesures). Modifiez la quantité.',
+        'insufficient_stock' => 'Le stock de :item est insuffisant ici et cette société n\'autorise pas le stock négatif. Réduisez la quantité ou réceptionnez du stock d\'abord.',
+        'count_in_progress' => 'Un inventaire est en cours pour cet article ici. Terminez ou annulez l\'inventaire d\'abord.',
+        'transfer_cross_company' => 'Les deux emplacements doivent appartenir à la même société. Les transferts entre sociétés ne sont pas encore disponibles.',
+        'same_location' => 'Choisissez deux emplacements différents.',
+        'location_archived' => 'Cet emplacement est archivé. Choisissez un emplacement actif.',
+        'location_unknown' => 'Choisissez un emplacement existant.',
+        'serials_required' => 'Saisissez un numéro de série par unité (:count).',
+        'serial_unknown' => 'Le numéro de série :serial est inconnu pour cet article.',
+        'serial_not_in_stock' => 'Le numéro de série :serial n\'est pas en stock ici.',
+        'serial_exists' => 'Le numéro de série :serial est déjà en stock.',
+        'batch_required' => 'Choisissez un lot pour cet article.',
+        'batch_unknown' => 'Choisissez un lot de cet article.',
+        'expiry_required' => 'Saisissez la date de péremption de ce lot.',
+        'tracking_locked' => 'Cet article a déjà des mouvements de stock : son suivi ne peut plus changer.',
+        'costing_method_locked' => 'Cette société a déjà des mouvements de stock : sa méthode de valorisation ne peut plus changer.',
+        'document_not_open' => 'Ce document ne peut plus être modifié de cette façon.',
+        'variant_self' => 'Un article ne peut pas être une variante de lui-même.',
+        'variant_parent_is_variant' => 'Le parent est lui-même une variante. Choisissez l\'article principal.',
+        'variant_has_variants' => 'Cet article a ses propres variantes : il ne peut pas devenir une variante.',
+        'variant_attributes_taken' => 'Une autre variante de cet article a déjà ces attributs.',
+        'receive_too_much' => 'Vous ne pouvez pas réceptionner plus que ce qui a été expédié.',
+        'serials_partial' => 'Les articles avec numéros de série sont réceptionnés en totalité.',
+        'count_incomplete' => 'Saisissez une quantité comptée pour chaque ligne avant de soumettre.',
+        'count_no_items' => 'Il n\'y a rien à compter ici. Choisissez des articles ou une catégorie.',
+        'line_unknown' => 'Cette ligne ne fait pas partie du document.',
+        'opening_used' => 'Le stock de cet article a bougé après l\'import : il ne peut pas être annulé.',
+        'price_list_currency' => 'Choisissez une liste de prix.',
+    ],
+];
