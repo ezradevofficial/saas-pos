@@ -54,7 +54,7 @@ class JournalPoster
      * @param  array{date: CarbonImmutable, kind: string, status?: string, memo?: ?string, reference?: ?string, source_type?: ?string, source_id?: ?string, created_by?: ?string, reverses_journal_id?: ?string, recurring_journal_id?: ?string}  $header
      * @param  list<LineInput>  $lines
      */
-    public function draft(Company $company, array $header, array $lines, bool $allowControl = true, bool $rounding = false): Journal
+    public function draft(Company $company, array $header, array $lines, bool $allowControl = true, bool|int $rounding = false): Journal
     {
         return $this->transaction(function () use ($company, $header, $lines, $allowControl, $rounding) {
             $date = $header['date']->startOfDay();
@@ -91,9 +91,9 @@ class JournalPoster
      * @param  array{date?: CarbonImmutable, memo?: ?string, reference?: ?string}  $header
      * @param  list<LineInput>  $lines
      */
-    public function revise(Journal $journal, array $header, array $lines, bool $allowControl = false): Journal
+    public function revise(Journal $journal, array $header, array $lines, bool $allowControl = false, bool|int $rounding = false): Journal
     {
-        return $this->transaction(function () use ($journal, $header, $lines, $allowControl) {
+        return $this->transaction(function () use ($journal, $header, $lines, $allowControl, $rounding) {
             $journal = Journal::query()->whereKey($journal->id)->lockForUpdate()->firstOrFail();
 
             if (! $journal->isEditable()) {
@@ -102,7 +102,7 @@ class JournalPoster
 
             $company = Company::query()->findOrFail($journal->company_id);
             $date = ($header['date'] ?? $journal->date)->startOfDay();
-            $rows = $this->lines($company, (string) $company->base_currency, $date, $lines, $allowControl, false);
+            $rows = $this->lines($company, (string) $company->base_currency, $date, $lines, $allowControl, $rounding);
 
             JournalLine::query()->where('journal_id', $journal->id)->delete();
             $journal->fill([
@@ -171,7 +171,7 @@ class JournalPoster
      * @param  array{date: CarbonImmutable, kind: string, memo?: ?string, reference?: ?string, source_type?: ?string, source_id?: ?string, created_by?: ?string, reverses_journal_id?: ?string}  $header
      * @param  list<LineInput>  $lines
      */
-    public function record(Company $company, array $header, array $lines, ?User $by, bool $rounding = false): Journal
+    public function record(Company $company, array $header, array $lines, ?User $by, bool|int $rounding = false): Journal
     {
         return $this->transaction(function () use ($company, $header, $lines, $by, $rounding) {
             // CUR-02: lock the base before computing base amounts.
@@ -183,13 +183,15 @@ class JournalPoster
 
     /**
      * The rows of $inputs: checked, converted to $base at the date's rate,
-     * zero lines dropped, and (when $rounding) a rounding line for a
-     * difference of at most one minor unit per line.
+     * zero lines dropped, and a rounding line (to the rounding account,
+     * described as rounding) for a difference within the tolerance: one
+     * minor unit per line when $rounding is true, that many minor units
+     * when it is a number. Any larger difference is refused.
      *
      * @param  list<LineInput>  $inputs
      * @return list<array<string, mixed>>
      */
-    public function lines(Company $company, string $base, CarbonImmutable $date, array $inputs, bool $allowControl, bool $rounding): array
+    public function lines(Company $company, string $base, CarbonImmutable $date, array $inputs, bool $allowControl, bool|int $rounding): array
     {
         $accounts = Account::query()->where('company_id', $company->id)
             ->whereKey(array_values(array_unique(array_map(fn (LineInput $line) => $line->accountId, $inputs))))->get()->keyBy('id');
@@ -212,7 +214,9 @@ class JournalPoster
 
         $difference = array_sum(array_column($rows, 'base_debit_minor')) - array_sum(array_column($rows, 'base_credit_minor'));
 
-        if ($difference !== 0 && $rounding && abs($difference) <= max(1, count($rows))) {
+        $tolerance = $rounding === true ? max(1, count($rows)) : (is_int($rounding) ? $rounding : 0);
+
+        if ($difference !== 0 && abs($difference) <= $tolerance) {
             $account = AccountingSettings::query()->where('company_id', $company->id)->value('rounding_account_id')
                 ?? throw LedgerError::make('setting_missing', ['role' => __('accounting.roles.rounding')]);
             $amount = Money::ofMinor((string) abs($difference), $base);

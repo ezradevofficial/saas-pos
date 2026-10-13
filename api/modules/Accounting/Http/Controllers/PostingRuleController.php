@@ -4,6 +4,7 @@ namespace Modules\Accounting\Http\Controllers;
 
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -41,20 +42,25 @@ class PostingRuleController
         $data = $request->validated();
         $this->assertPostable($company, array_column($data['lines'], 'account_id'));
 
-        $rule = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $data, $request) {
-            PostingRule::query()->where('company_id', $company->id)->where('event_type', $data['event_type'])->whereNull('archived_at')
-                ->lockForUpdate()->get()->each->archive();
+        try {
+            $rule = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $data, $request) {
+                PostingRule::query()->where('company_id', $company->id)->where('event_type', $data['event_type'])->whereNull('archived_at')
+                    ->lockForUpdate()->get()->each->archive();
 
-            return PostingRule::query()->create([
-                'company_id' => $company->id,
-                'event_type' => $data['event_type'],
-                'description' => $data['description'] ?? null,
-                'lines' => array_map(fn (array $line) => [
-                    'field' => $line['field'], 'side' => $line['side'], 'account_id' => $line['account_id'], 'party' => (bool) ($line['party'] ?? false),
-                ], array_values($data['lines'])),
-                'created_by' => $request->user()->id,
-            ]);
-        });
+                return PostingRule::query()->create([
+                    'company_id' => $company->id,
+                    'event_type' => $data['event_type'],
+                    'description' => $data['description'] ?? null,
+                    'lines' => array_map(fn (array $line) => [
+                        'field' => $line['field'], 'side' => $line['side'], 'account_id' => $line['account_id'], 'party' => (bool) ($line['party'] ?? false),
+                    ], array_values($data['lines'])),
+                    'created_by' => $request->user()->id,
+                ]);
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Two rules for the same event type saved at once: the other one won.
+            throw LedgerError::make('posting_rule_conflict', status: 409);
+        }
 
         return RecordResource::make($rule)->response()->setStatusCode(201);
     }

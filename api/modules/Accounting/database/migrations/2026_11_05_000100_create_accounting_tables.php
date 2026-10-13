@@ -341,7 +341,8 @@ return new class extends Migration
                     raise exception 'acc_journal_period_mismatch: journal % is not in period %', new.id, new.period_id using errcode = 'check_violation';
                 end if;
 
-                if p.status <> 'open' then
+                -- Nothing is dated before the start of the latest closed period (back-dating).
+                if p.status <> 'open' or exists (select 1 from acc_periods c where c.company_id = new.company_id and c.status = 'closed' and c.starts_on > new.date) then
                     raise exception 'acc_period_closed: journal % is dated in a closed period', new.id using errcode = 'check_violation';
                 end if;
 

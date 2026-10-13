@@ -15,6 +15,7 @@ use Modules\Accounting\Ledger\LineInput;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Models\PostingRule;
+use Throwable;
 
 /**
  * ACC-07: posts a source document through its company's posting rule.
@@ -29,8 +30,9 @@ use Modules\Accounting\Models\PostingRule;
  *   archived account, a missing rate, unbalanced amounts) is kept as a
  *   posting exception with the reason, and retried (retry()).
  * - Base amounts use the source's own rate when it gives one (CUR-04),
- *   else the core rate on its date; a rounding difference of at most one
- *   minor unit per line goes to the rounding account.
+ *   else the core rate on its date; for a source in another currency only,
+ *   a rounding difference of at most one minor unit per line goes to the
+ *   rounding account (a base-currency source must balance exactly).
  */
 class PostingService
 {
@@ -53,6 +55,11 @@ class PostingService
             return new PostingResult($existing, created: false);
         } catch (ApiException $e) {
             return new PostingResult(null, created: false, exception: $this->keep($source, $e->errorCode, $e->getMessage()));
+        } catch (Throwable $e) {
+            // Never lost: whatever went wrong, the source is kept to retry, and the fault is logged.
+            report($e);
+
+            return new PostingResult(null, created: false, exception: $this->keep($source, 'posting_failed', __('accounting.errors.posting_failed')));
         }
 
         $this->resolve($source, $journal);
@@ -104,7 +111,7 @@ class PostingService
             'reference' => $source->reference === null ? null : mb_substr($source->reference, 0, 80),
             'memo' => $source->memo,
             'created_by' => $by?->id,
-        ], $lines, $by, rounding: true);
+        ], $lines, $by, rounding: $source->currency !== $company->base_currency);
     }
 
     /** The day the source happened in the company's time zone. */

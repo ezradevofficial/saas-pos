@@ -27,9 +27,22 @@ class Reversals
         private readonly Auditor $auditor,
     ) {}
 
-    public function reverse(Journal $journal, ?CarbonImmutable $date, ?User $by, ?string $memo = null): Journal
+    /**
+     * Who may reverse what by hand: manual, recurring and opening journals,
+     * and system journals of other modules' posting rules. Subledger
+     * journals (documents, payments, allocations, bank lines) are corrected
+     * with a credit note or their own record; revaluation and closing
+     * entries by reopening the period. Those callers reverse internally.
+     */
+    public static function reversible(Journal $journal): bool
     {
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($journal, $date, $by, $memo) {
+        return in_array($journal->kind, ['manual', 'recurring', 'opening'], true)
+            || ($journal->kind === 'system' && ! str_starts_with((string) $journal->source_type, 'accounting.'));
+    }
+
+    public function reverse(Journal $journal, ?CarbonImmutable $date, ?User $by, ?string $memo = null, bool $internal = false): Journal
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($journal, $date, $by, $memo, $internal) {
             $journal = Journal::query()->whereKey($journal->id)->lockForUpdate()->firstOrFail();
 
             if (! $journal->isPosted()) {
@@ -38,6 +51,10 @@ class Reversals
 
             if ($journal->reversed_by_journal_id !== null || $journal->kind === 'reversal') {
                 throw LedgerError::make('journal_reversed');
+            }
+
+            if (! $internal && ! self::reversible($journal)) {
+                throw LedgerError::make('journal_not_reversible');
             }
 
             $company = Company::query()->findOrFail($journal->company_id);

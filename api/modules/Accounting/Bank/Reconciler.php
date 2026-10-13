@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -67,8 +68,14 @@ class Reconciler
             $added = 0;
             $skipped = 0;
 
+            $seen = [];
+
             foreach ($lines as $line) {
-                $fingerprint = hash('sha256', implode('|', [$line['date'], $line['amount_minor'], mb_strtolower($line['reference'] ?? $line['description'])]));
+                // The same date, amount and reference twice in one file are two lines (two equal fees);
+                // the occurrence number keeps them apart, and the same file again matches them one for one.
+                $key = implode('|', [$line['date'], $line['amount_minor'], mb_strtolower($line['reference'] ?? $line['description'])]);
+                $seen[$key] = ($seen[$key] ?? 0) + 1;
+                $fingerprint = hash('sha256', $key.'#'.$seen[$key]);
 
                 if (BankStatementLine::query()->where('bank_account_id', $bank->id)->where('fingerprint', $fingerprint)->exists()) {
                     $skipped++;
@@ -97,6 +104,8 @@ class Reconciler
             ->join('acc_journals', 'acc_journals.id', '=', 'acc_journal_lines.journal_id')
             ->where('acc_journals.status', Journal::POSTED)
             ->where('acc_journal_lines.account_id', $bank->account_id)
+            // Only lines in the account's currency are on the statement.
+            ->where('acc_journal_lines.currency', $bank->currency)
             ->where(fn ($q) => $q->where('acc_journal_lines.debit_minor', '>', 0)->orWhere('acc_journal_lines.credit_minor', '>', 0))
             ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('acc_bank_matches')->whereColumn('acc_bank_matches.journal_line_id', 'acc_journal_lines.id')->whereNull('acc_bank_matches.unmatched_at'))
             ->with('journal:id,number,date,reference,memo,source_type,source_id')
@@ -193,11 +202,20 @@ class Reconciler
     public function fromLine(BankStatementLine $line, string $accountId, ?string $costCentreId, ?string $description, User $by): BankStatementLine
     {
         return $this->transaction(function () use ($line, $accountId, $costCentreId, $description, $by) {
+            $line = BankStatementLine::query()->whereKey($line->id)->lockForUpdate()->firstOrFail();
+
             if ($line->status !== BankStatementLine::UNMATCHED) {
                 throw LedgerError::make('statement_line_matched');
             }
 
             $bank = BankAccount::query()->findOrFail($line->bank_account_id);
+            // Posted once already (then unmatched): its journal is matched again, never posted twice.
+            $earlier = Journal::query()->where('company_id', $bank->company_id)->where('source_type', self::SOURCE)->where('source_id', $line->id)->value('id');
+
+            if ($earlier !== null) {
+                return $this->match($line, [JournalLine::query()->where('journal_id', $earlier)->where('account_id', $bank->account_id)->value('id')], $by);
+            }
+
             $company = Company::query()->findOrFail($bank->company_id);
             $account = Account::query()->where('company_id', $company->id)->find($accountId);
 
@@ -267,6 +285,7 @@ class Reconciler
         $statement = (int) BankStatementLine::query()->where('bank_account_id', $bank->id)->sum('amount_minor');
         $ledger = (int) JournalLine::query()->join('acc_journals', 'acc_journals.id', '=', 'acc_journal_lines.journal_id')
             ->where('acc_journals.status', Journal::POSTED)->where('acc_journal_lines.account_id', $bank->account_id)
+            ->where('acc_journal_lines.currency', $bank->currency)
             ->sum(DB::raw('acc_journal_lines.debit_minor - acc_journal_lines.credit_minor'));
 
         return [
@@ -277,8 +296,13 @@ class Reconciler
         ];
     }
 
+    /** One transaction; a race lost on a unique key (a match, a line, a source) is a 409 to retry, never a 500. */
     private function transaction(callable $fn): mixed
     {
-        return DB::connection(TenantContext::CONNECTION)->transaction($fn);
+        try {
+            return DB::connection(TenantContext::CONNECTION)->transaction($fn);
+        } catch (UniqueConstraintViolationException) {
+            throw LedgerError::make('reconcile_conflict', status: 409);
+        }
     }
 }

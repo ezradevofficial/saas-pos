@@ -64,6 +64,25 @@ class LineParser
         return $inputs;
     }
 
+    /**
+     * ACC-15: a manual journal with lines in another currency may differ
+     * in base by rounding; up to `accounting.manual_rounding_minor` minor
+     * units go to the rounding account on a line marked as rounding. A
+     * journal in base currency only must balance exactly (false).
+     *
+     * @param  list<LineInput>  $inputs
+     */
+    public function roundingTolerance(array $inputs, Company $company): int|false
+    {
+        foreach ($inputs as $line) {
+            if ($line->amount->currency() !== $company->base_currency) {
+                return max(0, (int) config('accounting.manual_rounding_minor', 2));
+            }
+        }
+
+        return false;
+    }
+
     /** Decision 1: foreign-currency documents and lines need Accounting Pro. */
     public function assertPro(?string $field = null): void
     {

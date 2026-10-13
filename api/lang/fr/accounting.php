@@ -67,6 +67,18 @@ return [
         'statement_unreadable' => 'Le fichier n’a pas pu être lu. Exportez-le de nouveau et réessayez.',
         'tax_code_unknown' => 'Ce code de taxe n’existe pas dans cette société. Choisissez un autre code.',
         'template_unknown' => 'Il n’y a pas de plan type pour :template.',
+        'journal_not_reversible' => 'Cette écriture provient d’une facture, d’un règlement, d’un lettrage, d’une réévaluation ou de la clôture. Corrigez-la par un avoir, ou rouvrez la période.',
+        'credit_invoice_required' => 'Un avoir client indique la facture qu’il crédite. Choisissez la facture.',
+        'opening_after_postings' => 'Les soldes d’ouverture sont datés au plus tard de la première écriture (:date). Utilisez une date antérieure.',
+        'role_needs_control' => 'Le compte :code n’est pas un compte collectif de ce côté. Choisissez un compte collectif clients (actif) ou fournisseurs (passif).',
+        'role_has_open_items' => 'Des factures, avoirs ou règlements non affectés sont ouverts sur le compte actuel. Soldez-les avant de changer le rôle.',
+        'allocation_date' => 'Un lettrage est daté au plus tôt des deux documents (:date). Utilisez une date postérieure.',
+        'recurring_stale' => 'La première date remonte à plus d’une période. Choisissez une date dans la dernière période.',
+        'reconcile_conflict' => 'Quelqu’un a rapproché ou importé les mêmes lignes au même moment. Actualisez et réessayez.',
+        'posting_failed' => 'La source n’a pas pu être comptabilisée. Elle est conservée et peut être relancée.',
+        'posting_rule_conflict' => 'Une règle pour ce type d’événement a été enregistrée au même moment. Actualisez et réessayez.',
+        'account_code_taken' => 'Le code :code est déjà utilisé dans ce plan. Choisissez un autre code.',
+        'bank_gl_taken' => 'Ce compte comptable appartient déjà à un autre compte bancaire. Choisissez un autre compte.',
     ],
 
     'roles' => [

@@ -63,8 +63,9 @@ class PeriodsAndFxTest extends TestCase
         // The P&L leaves the closing entry out.
         $this->api('GET', $this->companyUri('reports/profit-and-loss').'?from=2026-01-01&to=2026-12-31')->assertJsonPath('data.net_profit', 380000);
 
-        // Nothing posts into the closed year.
-        $this->api('POST', $this->companyUri('journals'), $this->journalBody('2026-06-01', [['6200', '1.00', null], ['1120', null, '1.00']]))->assertCreated();
+        // Nothing is even drafted into the closed year.
+        $this->api('POST', $this->companyUri('journals'), $this->journalBody('2026-06-01', [['6200', '1.00', null], ['1120', null, '1.00']]))
+            ->assertUnprocessable()->assertJsonPath('code', 'period_closed');
         $november = $this->period('2026-11-01');
         $this->api('POST', "accounting/periods/{$november->id}/reopen", ['reason' => 'Late invoice'])->assertUnprocessable()->assertJsonPath('code', 'period_reopen_order');
 

@@ -129,9 +129,9 @@ class Documents
                 'tax_inclusive' => (bool) ($data['tax_inclusive'] ?? $document->tax_inclusive),
                 'fx' => array_key_exists('rate', $data) ? $this->manualRate($company, $currency, $data['rate']) : ($currency === $document->currency ? $document->fx : null),
                 'supplier_reference' => array_key_exists('supplier_reference', $data) ? $data['supplier_reference'] : $document->supplier_reference,
-                'credits_document_id' => array_key_exists('credits_document_id', $data)
-                    ? $this->credited($company, $document->kind, $party, $currency, $data['credits_document_id'])
-                    : $document->credits_document_id,
+                // A party or currency change re-checks the invoice the credit names.
+                'credits_document_id' => $this->credited($company, $document->kind, $party, $currency,
+                    array_key_exists('credits_document_id', $data) ? $data['credits_document_id'] : $document->credits_document_id),
                 'memo' => array_key_exists('memo', $data) ? $data['memo'] : $document->memo,
             ])->save();
 
@@ -170,7 +170,9 @@ class Documents
 
             $company = Company::query()->findOrFail($document->company_id);
             $base = $this->baseLock->lock($company);
-            $this->party($company, $document->kind, $document->party_id);
+            $party = $this->party($company, $document->kind, $document->party_id);
+            // The invoice a credit names, checked again now (it may have changed since the draft).
+            $this->credited($company, $document->kind, $party, $document->currency, $document->credits_document_id);
             $lines = DocumentLine::query()->where('document_id', $document->id)->orderBy('line_no')->get();
 
             if ($lines->isEmpty()) {
@@ -249,7 +251,8 @@ class Documents
                 $amount = min($invoice->open_minor, $total);
 
                 if ($amount > 0) {
-                    $this->allocations->allocate($document, $invoice, Money::ofMinor($amount, $document->currency), $document->issue_date, $by);
+                    $date = $document->issue_date > $invoice->issue_date ? $document->issue_date : $invoice->issue_date;
+                    $this->allocations->allocate($document, $invoice, Money::ofMinor($amount, $document->currency), $date, $by);
                 }
             }
 
@@ -396,6 +399,11 @@ class Documents
     private function credited(Company $company, string $kind, Party $party, string $currency, ?string $invoiceId): ?string
     {
         if ($invoiceId === null) {
+            // ACC-19: a customer credit note names its invoice (the fiscal refund needs the original sale).
+            if ($kind === 'customer_credit') {
+                throw LedgerError::make('credit_invoice_required', field: 'credits_document_id');
+            }
+
             return null;
         }
 
@@ -417,7 +425,8 @@ class Documents
             return;
         }
 
-        $invoice = Document::query()->findOrFail($credit->credits_document_id);
+        // The invoice row is locked first, so two credit notes posted at once are summed one after the other.
+        $invoice = Document::query()->whereKey($credit->credits_document_id)->lockForUpdate()->firstOrFail();
         $credited = (int) Document::query()->where('credits_document_id', $invoice->id)->where('status', Document::POSTED)->sum('total_minor');
 
         if ($credited + $total > $invoice->total_minor) {

@@ -11,15 +11,21 @@ use Illuminate\Validation\Rule;
 
 /**
  * GET accounting/consolidation (ACC-18, TEN-07): the group's statements
- * over every company where the user holds `accounting.report.consolidate`,
+ * over every active company of the tenant; the user holds
+ * `accounting.report.consolidate` at each of them (spec: Permissions),
  * `?from=`, `?to=`, `?currency=` (an active tenant currency; the first
  * company's base by default).
  */
 class ConsolidationRequest extends FormRequest
 {
+    /** The group is every active company of the tenant: the user needs the permission at each one (403 otherwise). */
     public function authorize(): bool
     {
-        return app(ScopeResolver::class)->can($this->user(), 'accounting.report.consolidate');
+        $resolver = app(ScopeResolver::class);
+        $companies = $this->companies();
+
+        return $companies->isNotEmpty()
+            && $companies->every(fn (Company $company) => $resolver->can($this->user(), 'accounting.report.consolidate', Scope::company($company->id)));
     }
 
     public function rules(): array
@@ -31,13 +37,9 @@ class ConsolidationRequest extends FormRequest
         ];
     }
 
-    /** @return Collection<int, Company> the companies of the group, by name */
+    /** @return Collection<int, Company> the companies of the group (every active company), by name */
     public function companies(): Collection
     {
-        $resolver = app(ScopeResolver::class);
-
-        return Company::query()->orderBy('name')->orderBy('id')->get()
-            ->filter(fn (Company $company) => $resolver->can($this->user(), 'accounting.report.consolidate', Scope::company($company->id)))
-            ->values();
+        return Company::query()->whereNull('archived_at')->orderBy('name')->orderBy('id')->get();
     }
 }

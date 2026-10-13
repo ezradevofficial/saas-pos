@@ -132,8 +132,9 @@ class Consolidation
         }
 
         $netProfit = $group['income'] - $group['expense'];
-        // The intercompany balances that do not cancel stay in the group's equity as the elimination difference.
-        $difference = $intercompany;
+        // Intercompany balances that do not cancel leave assets net of liabilities by
+        // their (debit) total; equity carries the opposite as the elimination difference.
+        $difference = -$intercompany;
         $equity = $group['equity'] + $reserve + $difference + $netProfit;
 
         return [

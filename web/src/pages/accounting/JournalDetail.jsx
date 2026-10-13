@@ -71,7 +71,7 @@ export default function JournalDetail() {
             {journal.status === 'approved' && can('accounting.journal.approve') ? (
               <Button variant="primary" loading={post.isPending} onClick={() => post.mutate()}>{t('accounting.journalDetail.post')}</Button>
             ) : null}
-            {journal.status === 'posted' && !journal.reversed_by_journal_id && journal.kind !== 'reversal' && can('accounting.journal.reverse') ? (
+            {journal.reversible && can('accounting.journal.reverse') ? (
               <Button onClick={() => setReversing(true)}>{t('accounting.journalDetail.reverse')}</Button>
             ) : null}
           </>

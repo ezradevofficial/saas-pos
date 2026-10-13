@@ -119,7 +119,7 @@ class Payments
             $payment->id = $paymentId;
             $payment->save();
 
-            $this->allocate($payment, $data['allocations'] ?? [], $by);
+            $this->allocate($payment, $data['allocations'] ?? [], $by, $date);
             PaymentRecorded::dispatch((string) $payment->tenant_id, $payment->id, $company->id, $kind);
 
             return $payment->refresh();
@@ -130,10 +130,12 @@ class Payments
     public function allocate(Payment $payment, array $allocations, User $by, ?CarbonImmutable $date = null): Payment
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($payment, $allocations, $by, $date) {
+            // A later allocation is dated today in the company's time zone unless a date is given.
+            $company = Company::query()->findOrFail($payment->company_id);
             foreach (array_values($allocations) as $index => $allocation) {
                 $invoice = Document::query()->where('company_id', $payment->company_id)->find($allocation['document_id'])
                     ?? throw LedgerError::make('allocation_mismatch', field: "allocations.{$index}.document_id");
-                $this->allocations->allocate($payment, $invoice, Money::parse((string) $allocation['amount'], $invoice->currency, $this->decimals), $date ?? $payment->date, $by);
+                $this->allocations->allocate($payment, $invoice, Money::parse((string) $allocation['amount'], $invoice->currency, $this->decimals), $date ?? CarbonImmutable::now($company->timezone ?: 'UTC')->startOfDay(), $by);
             }
 
             return $payment->refresh();

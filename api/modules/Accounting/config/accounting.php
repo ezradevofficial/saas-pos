@@ -10,6 +10,9 @@ return [
         'procurement.supplier_invoice', 'payroll.run', 'loyalty.points',
     ],
 
+    // ACC-15: the base-currency rounding a manual journal with foreign lines may carry, in minor units.
+    'manual_rounding_minor' => (int) env('ACCOUNTING_MANUAL_ROUNDING_MINOR', 2),
+
     // ACC-13: the largest statement file accepted, in kilobytes.
     'statement_max_kb' => (int) env('ACCOUNTING_STATEMENT_MAX_KB', 2048),
 ];

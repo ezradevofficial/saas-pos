@@ -89,7 +89,7 @@ class PeriodClose
 
             if ($period->closing_journal_id !== null) {
                 $closing = Journal::query()->findOrFail($period->closing_journal_id);
-                $this->reversals->reverse($closing, $period->ends_on, $by);
+                $this->reversals->reverse($closing, $period->ends_on, $by, internal: true);
                 $period->fill(['closing_journal_id' => null])->save();
             }
 

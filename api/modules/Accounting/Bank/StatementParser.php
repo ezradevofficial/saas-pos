@@ -42,14 +42,40 @@ class StatementParser
         return $format === 'mpesa' ? $this->mpesa($rows, $currency) : $this->csv($rows, $currency, $mapping);
     }
 
+    /**
+     * The file as UTF-8: UTF-8 as it is (a byte-order mark dropped);
+     * Windows-1252 (Excel's CSV on Windows) or ISO-8859-1 converted. Anything
+     * else (UTF-16, binary data such as a spreadsheet) is refused
+     * (`statement_unreadable`) rather than read as nonsense.
+     */
+    public static function utf8(string $content): string
+    {
+        if (str_starts_with($content, "\xFF\xFE") || str_starts_with($content, "\xFE\xFF") || str_contains($content, "\0")) {
+            throw LedgerError::make('statement_unreadable', field: 'file');
+        }
+
+        if (mb_check_encoding($content, 'UTF-8')) {
+            return preg_replace('/^\xEF\xBB\xBF/', '', $content) ?? $content;
+        }
+
+        // Bytes Windows-1252 leaves undefined mean ISO-8859-1 (C1 controls).
+        $from = preg_match('/[\x81\x8D\x8F\x90\x9D]/', $content) === 1 ? 'ISO-8859-1' : 'Windows-1252';
+
+        return mb_convert_encoding($content, 'UTF-8', $from);
+    }
+
     /** @return list<list<string>> */
     private function rows(string $path): array
     {
-        $handle = fopen($path, 'rb');
+        $content = is_readable($path) ? file_get_contents($path) : false;
 
-        if ($handle === false) {
+        if ($content === false) {
             throw LedgerError::make('statement_unreadable', field: 'file');
         }
+
+        $handle = fopen('php://temp', 'w+b');
+        fwrite($handle, self::utf8($content));
+        rewind($handle);
 
         $rows = [];
 

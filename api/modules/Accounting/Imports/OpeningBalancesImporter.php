@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Modules\Accounting\Chart\Charts;
 use Modules\Accounting\Http\Requests\OpeningBalanceRequest;
+use Modules\Accounting\Http\Requests\ReverseJournalRequest;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\LineInput;
 use Modules\Accounting\Ledger\LineParser;
@@ -28,7 +29,7 @@ use Modules\Accounting\Models\Journal;
  * with its rate). Each row posts an opening journal: the account against
  * the suspense account, so the suspense account is back to zero once
  * every balance is in. Rows pass OpeningBalanceRequest
- * (`accounting.journal.create` at the company). Control accounts are
+ * (`accounting.journal.create` and `accounting.journal.approve` or `accounting.account.manage` at the company; dated on or before the company's first other posting). Control accounts are
  * refused: open invoices come in as documents, so the subledgers agree
  * with the ledger. Undo reverses each row's journal.
  */
@@ -141,9 +142,8 @@ class OpeningBalancesImporter extends Importer
             return;
         }
 
-        app(DomainRequests::class)->validate(OpeningBalanceRequest::class, [
-            'date' => $journal->date->toDateString(), 'account_id' => $journal->lines()->value('account_id'), 'debit' => '1',
-        ], $context->user, ['company' => Company::query()->findOrFail($journal->company_id)]);
+        // As POST accounting/journals/{id}/reverse: `accounting.journal.reverse` at the journal's company.
+        app(DomainRequests::class)->validate(ReverseJournalRequest::class, [], $context->user, ['acc_journal' => $journal]);
         app(Reversals::class)->reverse($journal, null, $context->user);
     }
 

@@ -41,7 +41,7 @@ class ManualJournals
             'reference' => $data['reference'] ?? null,
             'created_by' => $by->id,
             'recurring_journal_id' => $recurringId,
-        ], $this->parser->parse($company, $data['lines']), allowControl: false);
+        ], $inputs = $this->parser->parse($company, $data['lines']), allowControl: false, rounding: $this->parser->roundingTolerance($inputs, $company));
     }
 
     /** @param array{date?: string, memo?: ?string, reference?: ?string, lines: list<array<string, mixed>>} $data */
@@ -54,7 +54,9 @@ class ManualJournals
             $header['date'] = CarbonImmutable::parse($data['date']);
         }
 
-        return $this->poster->revise($journal, $header, $this->parser->parse($company, $data['lines']));
+        $inputs = $this->parser->parse($company, $data['lines']);
+
+        return $this->poster->revise($journal, $header, $inputs, rounding: $this->parser->roundingTolerance($inputs, $company));
     }
 
     public function submit(Journal $journal, User $by): Journal

@@ -112,7 +112,7 @@ class Revaluer
             ], $this->lines($company, $base, $items, $rates), $by);
 
             $next = $this->periods->forDate($company, $asOf->addDay());
-            $reversal = $this->reversals->reverse($journal, $next->starts_on, $by, __('accounting.revaluation.reversal_memo', ['date' => $asOf->toDateString()]));
+            $reversal = $this->reversals->reverse($journal, $next->starts_on, $by, __('accounting.revaluation.reversal_memo', ['date' => $asOf->toDateString()]), internal: true);
             $revaluation->fill(['journal_id' => $journal->id, 'reversal_journal_id' => $reversal->id])->save();
 
             return $revaluation;

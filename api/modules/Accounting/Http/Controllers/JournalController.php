@@ -22,8 +22,8 @@ use Modules\Accounting\Http\Requests\UpdateRecurringJournalRequest;
 use Modules\Accounting\Http\Resources\JournalResource;
 use Modules\Accounting\Http\Resources\RecordResource;
 use Modules\Accounting\Ledger\LedgerError;
-use Modules\Accounting\Ledger\LineParser;
 use Modules\Accounting\Ledger\ManualJournals;
+use Modules\Accounting\Ledger\RecurringJournals;
 use Modules\Accounting\Ledger\Reversals;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\RecurringJournal;
@@ -114,14 +114,14 @@ class JournalController
         return RecordResource::collection($query->get());
     }
 
-    public function storeRecurring(StoreRecurringJournalRequest $request, Company $company, LineParser $parser): JsonResponse
+    public function storeRecurring(StoreRecurringJournalRequest $request, Company $company, RecurringJournals $recurring): JsonResponse
     {
         $data = $request->validated();
         $data['currency'] ??= $company->base_currency;
-        // The lines are checked now as a journal would be (accounts, sides, dimensions, Pro for a foreign currency).
-        $parser->parse($company, array_map(fn (array $line) => [...$line, 'currency' => $data['currency']], $data['lines']));
+        // ACC-06: checked now as its journals will be (accounts, control accounts, dimensions, balance, Pro, date).
+        $recurring->check($company, $data['currency'], $data['lines'], $data['frequency'], CarbonImmutable::parse($data['next_run_on']));
 
-        $recurring = RecurringJournal::query()->create([
+        $template = RecurringJournal::query()->create([
             ...array_intersect_key($data, array_flip(['name', 'frequency', 'next_run_on', 'ends_on', 'memo', 'currency'])),
             'lines' => array_values($data['lines']),
             'company_id' => $company->id,
@@ -129,16 +129,18 @@ class JournalController
             'created_by' => $request->user()->id,
         ]);
 
-        return RecordResource::make($recurring)->response()->setStatusCode(201);
+        return RecordResource::make($template)->response()->setStatusCode(201);
     }
 
-    public function updateRecurring(UpdateRecurringJournalRequest $request, RecurringJournal $accRecurringJournal, LineParser $parser): RecordResource
+    public function updateRecurring(UpdateRecurringJournalRequest $request, RecurringJournal $accRecurringJournal, RecurringJournals $recurring): RecordResource
     {
         $data = $request->validated();
+        $lines = isset($data['lines']) ? array_values($data['lines']) : $accRecurringJournal->lines;
+        $recurring->check($accRecurringJournal->company, $accRecurringJournal->currency, $lines, $data['frequency'] ?? $accRecurringJournal->frequency,
+            CarbonImmutable::parse($data['next_run_on'] ?? $accRecurringJournal->next_run_on->toDateString()));
 
         if (isset($data['lines'])) {
-            $parser->parse($accRecurringJournal->company, array_map(fn (array $line) => [...$line, 'currency' => $accRecurringJournal->currency], $data['lines']));
-            $data['lines'] = array_values($data['lines']);
+            $data['lines'] = $lines;
         }
 
         $accRecurringJournal->fill($data)->save();

@@ -36,6 +36,7 @@ class Periods
     public function forDate(Company $company, CarbonImmutable $date): Period
     {
         $date = $date->startOfDay();
+        $this->assertNotBeforeClose($company, $date);
         $found = Period::query()->where('company_id', $company->id)
             ->where('starts_on', '<=', $date->toDateString())->where('ends_on', '>=', $date->toDateString())->first();
 
@@ -55,18 +56,37 @@ class Periods
         return $periods->count() === 12 ? $periods : $this->createYear($company, $year);
     }
 
+    /**
+     * ACC-08: nothing is dated before the start of the company's latest
+     * closed period: those dates are closed, and an open year must never be
+     * created there (it would let back-dated postings in). The database
+     * refuses the same (acc_journal_period_open).
+     */
+    public function assertNotBeforeClose(Company $company, CarbonImmutable $date): void
+    {
+        $closed = Period::query()->where('company_id', $company->id)->where('status', Period::CLOSED)->max('starts_on');
+
+        if ($closed !== null && $date->toDateString() < CarbonImmutable::parse($closed)->toDateString()) {
+            throw LedgerError::make('period_closed', ['date' => $date->toDateString()], 'date');
+        }
+    }
+
     /** @return Collection<int, Period> */
     private function createYear(Company $company, int $year): Collection
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $year) {
             DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['acc_periods:'.$company->id]);
             $start = $this->yearStart($company, $year);
+            // A year before the latest closed period is created closed, never open.
+            $closedFrom = Period::query()->where('company_id', $company->id)->where('status', Period::CLOSED)->max('starts_on');
 
             for ($number = 1; $number <= 12; $number++) {
                 $from = $start->addMonthsNoOverflow($number - 1);
+                $closed = $closedFrom !== null && $from->toDateString() < CarbonImmutable::parse($closedFrom)->toDateString();
                 Period::query()->firstOrCreate(
                     ['company_id' => $company->id, 'starts_on' => $from->toDateString()],
-                    ['fiscal_year' => $year, 'number' => $number, 'ends_on' => $from->endOfMonth()->toDateString(), 'status' => Period::OPEN],
+                    ['fiscal_year' => $year, 'number' => $number, 'ends_on' => $from->endOfMonth()->toDateString(),
+                        'status' => $closed ? Period::CLOSED : Period::OPEN, 'closed_at' => $closed ? CarbonImmutable::now() : null],
                 );
             }
 

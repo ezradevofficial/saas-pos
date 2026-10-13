@@ -13,6 +13,7 @@ use Modules\Accounting\Chart\Charts;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Ledger\LineInput;
+use Modules\Accounting\Ledger\Periods;
 use Modules\Accounting\Models\Allocation;
 use Modules\Accounting\Models\Document;
 use Modules\Accounting\Models\Payment;
@@ -26,7 +27,9 @@ use Modules\Accounting\Models\Payment;
  * at its own: the base-currency residue of the settled part (invoice base
  * − source base) is the realised FX difference, posted against the
  * control account (with the party) to the FX gain or loss account. Each
- * allocation is a record of its own; nothing is ever deleted.
+ * allocation is a record of its own; nothing is ever deleted. It is dated
+ * on or after both documents, in an open period, and its realised FX is
+ * dated the same day.
  */
 class Allocations
 {
@@ -43,6 +46,7 @@ class Allocations
     public function __construct(
         private readonly JournalPoster $poster,
         private readonly Charts $charts,
+        private readonly Periods $periods,
     ) {}
 
     public function allocate(Payment|Document $source, Document $invoice, Money $amount, CarbonImmutable $date, User $by): Allocation
@@ -70,6 +74,17 @@ class Allocations
             }
 
             $company = Company::query()->findOrFail($invoice->company_id);
+            $sourceDate = $source instanceof Payment ? $source->date : $source->issue_date;
+
+            // A settlement is dated on or after both documents, in an open period.
+            if ($date->toDateString() < $invoice->issue_date->toDateString() || $date->toDateString() < $sourceDate->toDateString()) {
+                throw LedgerError::make('allocation_date', ['date' => max($invoice->issue_date, $sourceDate)->toDateString()], 'date');
+            }
+
+            if ($this->periods->forDate($company, $date)->isClosed()) {
+                throw LedgerError::make('period_closed', ['date' => $date->toDateString()], 'date');
+            }
+
             $atInvoice = $this->toBase($invoice->fx, $amount);
             $atSource = $this->toBase($source->fx, $amount);
 

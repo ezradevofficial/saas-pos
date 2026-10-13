@@ -67,6 +67,18 @@ return [
         'statement_unreadable' => 'The file could not be read. Export it again and retry.',
         'tax_code_unknown' => 'This tax code is not in this company. Choose another code.',
         'template_unknown' => 'There is no chart template for :template.',
+        'journal_not_reversible' => 'This journal comes from an invoice, payment, settlement, revaluation or year-end close. Correct it with a credit note, or reopen the period.',
+        'credit_invoice_required' => 'A customer credit note names the invoice it credits. Choose the invoice.',
+        'opening_after_postings' => 'Opening balances are dated on or before the first posting (:date). Use an earlier date.',
+        'role_needs_control' => 'Account :code is not a control account of this side. Choose a receivable (asset) or payable (liability) control account.',
+        'role_has_open_items' => 'Open invoices, credit notes or unallocated payments are booked on the current account. Settle them before moving the role.',
+        'allocation_date' => 'A settlement is dated on or after both documents (:date). Use a later date.',
+        'recurring_stale' => 'The first date is more than one period back. Choose a date within the last period.',
+        'reconcile_conflict' => 'Someone matched or imported the same lines at the same moment. Refresh and try again.',
+        'posting_failed' => 'The source could not be posted. It is kept and can be retried.',
+        'posting_rule_conflict' => 'A rule for this event type was saved at the same moment. Refresh and try again.',
+        'account_code_taken' => 'Code :code is already used in this chart. Choose another code.',
+        'bank_gl_taken' => 'This ledger account already belongs to another bank account. Choose another account.',
     ],
 
     'roles' => [

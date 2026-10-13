@@ -3,6 +3,7 @@
 namespace Modules\Accounting\Http\Controllers;
 
 use App\Core\Tenancy\Models\Company;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Accounting\Bank\Reconciler;
@@ -61,21 +62,29 @@ class BankController
             throw LedgerError::make('bank_gl_account', field: 'account_id');
         }
 
-        if ($data['currency'] !== $company->base_currency) {
+        $foreign = $data['currency'] !== $company->base_currency;
+
+        if ($foreign) {
             $parser->assertPro('currency');
-
-            if ($account->currency !== $data['currency']) {
-                if ($account->currency !== null || $charts->hasPostings($account)) {
-                    throw LedgerError::make('account_currency', ['code' => $account->code, 'currency' => (string) $account->currency], 'account_id');
-                }
-
-                $account->fill(['currency' => $data['currency'], 'revalue' => true])->save();
-            }
-        } elseif ($account->currency !== null && $account->currency !== $data['currency']) {
-            throw LedgerError::make('account_currency', ['code' => $account->code, 'currency' => $account->currency], 'account_id');
         }
 
-        $bank = BankAccount::query()->create([...$data, 'company_id' => $company->id]);
+        // The GL account takes the bank's currency for good, so the ledger side of the
+        // reconciliation is in one currency; its earlier postings must already be in it.
+        if ($account->currency !== $data['currency']) {
+            $others = JournalLine::query()->where('account_id', $account->id)->where('currency', '<>', $data['currency'])->exists();
+
+            if ($account->currency !== null || $others) {
+                throw LedgerError::make('account_currency', ['code' => $account->code, 'currency' => (string) ($account->currency ?? $company->base_currency)], 'account_id');
+            }
+
+            $account->fill(['currency' => $data['currency'], 'revalue' => $foreign])->save();
+        }
+
+        try {
+            $bank = BankAccount::query()->create([...$data, 'company_id' => $company->id]);
+        } catch (UniqueConstraintViolationException) {
+            throw LedgerError::make('bank_gl_taken', field: 'account_id', status: 409);
+        }
 
         return RecordResource::make($bank)->response()->setStatusCode(201);
     }

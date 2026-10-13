@@ -18,7 +18,7 @@ const ACCOUNTS = [
 const JOURNAL = {
   id: 'j-1', company_id: 'c-1', number: 'JV-2026-00001', date: '2026-10-12', kind: 'manual', status: 'posted', reference: null, memo: 'October rent',
   total: money('1500000'), source: null, reverses_journal_id: null, reversed_by_journal_id: null, post_error: null, created_by: { id: 'u-1', name: 'Amina Otieno' },
-  posted_at: '2026-10-12T09:00:00Z', editable: false,
+  posted_at: '2026-10-12T09:00:00Z', editable: false, reversible: true,
   lines: [
     { id: 'l-1', line_no: 1, account: { id: 'a-6200', code: '6200', name: 'Rent' }, description: null, debit: money('1500000'), credit: money('0'), base_debit: money('1500000'), base_credit: money('0'), fx: null, party: null, cost_centre: { id: 'cc', name: 'Operations' }, department: null, project: null },
     { id: 'l-2', line_no: 2, account: { id: 'a-1120', code: '1120', name: 'Bank accounts' }, description: null, debit: money('0'), credit: money('1500000'), base_debit: money('0'), base_credit: money('1500000'), fx: null, party: null, cost_centre: null, department: null, project: null },
@@ -66,6 +66,17 @@ describe('Accounting journals (ACC-03 to ACC-05)', () => {
     expect(within(lines).getByText('Operations')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reverse' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Submit for approval' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer the reversal of a journal that comes from a document (ACC-05)', async () => {
+    setup()
+    api.get.mockImplementation(((fallback) => async (path) => (path === 'accounting/journals/j-1'
+      ? { data: { ...JOURNAL, kind: 'system', source: { type: 'accounting.document', id: 'd-1' }, reversible: false } }
+      : fallback(path)))(api.get.getMockImplementation()))
+    renderApp('/accounting/journals/j-1')
+    await screen.findByRole('table', { name: 'Lines' })
+    expect(screen.queryByRole('button', { name: 'Reverse' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Invoice or credit note' })).toHaveAttribute('href', '/accounting/documents/d-1')
   })
 
   it('totals the base-currency lines so the form shows whether the journal balances', () => {

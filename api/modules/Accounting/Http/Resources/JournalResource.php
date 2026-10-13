@@ -6,6 +6,7 @@ use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Accounting\Ledger\JournalType;
+use Modules\Accounting\Ledger\Reversals;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\JournalLine;
 
@@ -40,6 +41,8 @@ class JournalResource extends JsonResource
             'created_by' => Shapes::user($this->created_by),
             'posted_at' => $this->posted_at?->toIso8601String(),
             'editable' => $this->isEditable(),
+            // ACC-05: whether a person may reverse it (subledger, revaluation and closing journals are corrected otherwise).
+            'reversible' => $this->isPosted() && $this->reversed_by_journal_id === null && $this->kind !== 'reversal' && Reversals::reversible($this->resource),
         ];
 
         if (! $this->detail) {
