@@ -289,6 +289,26 @@ class StockLedger
         $flags[] = ['code' => 'during_count'];
     }
 
+    /**
+     * INV-09: refuse a manual document naming items a running count has
+     * frozen at $locationId (checked again when it posts).
+     *
+     * @param  list<string>  $itemIds
+     */
+    public static function assertNotFrozen(string $locationId, array $itemIds, string $field = 'lines'): void
+    {
+        $frozen = CountLine::query()
+            ->join('inventory_counts', 'inventory_counts.id', '=', 'inventory_count_lines.count_id')
+            ->where('inventory_counts.status', StockCount::COUNTING)
+            ->where('inventory_counts.location_id', $locationId)
+            ->whereIn('inventory_count_lines.item_id', $itemIds)
+            ->exists();
+
+        if ($frozen) {
+            throw self::error(422, 'count_in_progress', field: $field);
+        }
+    }
+
     private function moveBalance(string $companyId, string $locationId, string $itemId, BigDecimal $qty): BigDecimal
     {
         $row = DB::connection(TenantContext::CONNECTION)->selectOne(

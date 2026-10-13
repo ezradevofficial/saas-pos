@@ -47,7 +47,7 @@ abstract class InventoryList extends ListDefinition
         return ListColumn::make($key, 'inventory.columns.'.$key, [$key], fn (array $row, $model, ExportValues $values) => $values->money($row[$key] ?? null));
     }
 
-    protected static function name(string $key, string $field): ListColumn
+    protected static function named(string $key, string $field): ListColumn
     {
         return ListColumn::make($key, 'inventory.columns.'.$key, [$field], fn (array $row) => $row[$field]['name'] ?? null);
     }

@@ -54,8 +54,8 @@ class AdjustmentList extends InventoryList
             self::at('created_at'),
             ListColumn::make('status', 'inventory.columns.status', ['status'], fn (array $row) => __('inventory.statuses.'.$row['status'])),
             ListColumn::make('reason', 'inventory.columns.reason', ['reason'], fn (array $row) => __('inventory.reasons.'.$row['reason'])),
-            self::name('location', 'location'),
-            self::name('requested_by', 'requested_by'),
+            self::named('location', 'location'),
+            self::named('requested_by', 'requested_by'),
             self::money('value_in'),
             self::money('value_out'),
         ];

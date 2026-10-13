@@ -54,8 +54,8 @@ class ReorderRuleList extends InventoryList
     {
         return [
             ListColumn::make('code', 'inventory.columns.code', ['item'], fn (array $row) => $row['item']['code'] ?? null),
-            self::name('item', 'item'),
-            self::name('location', 'location'),
+            self::named('item', 'item'),
+            self::named('location', 'location'),
             self::qty('reorder_level', 'reorder_level'),
             self::qty('reorder_qty', 'reorder_qty'),
             self::qty('qty', 'on_hand'),

@@ -8,6 +8,7 @@ return [
         'customers' => 'Clients',
         'suppliers' => 'Fournisseurs',
         'item_prices' => 'Prix des articles',
+        'opening_stock' => 'Stock initial',
     ],
     'modes' => [
         'create' => 'Ajouter seulement les nouveaux enregistrements',
@@ -68,6 +69,12 @@ return [
         'amount' => 'Prix',
         'effective_from' => 'En vigueur le',
         'min_quantity' => 'Quantité minimale',
+        'location' => 'Emplacement',
+        'quantity' => 'Quantité',
+        'unit_cost' => 'Coût unitaire',
+        'batch_number' => 'Numéro de lot',
+        'expires_on' => 'Date de péremption',
+        'serials' => 'Numéros de série',
     ],
     'help' => [
         'code' => 'Lettres, chiffres et . _ - / sans espaces. Les articles existants sont reconnus par leur code.',
@@ -92,6 +99,9 @@ return [
         'amount' => 'En unités principales de la devise de la liste de prix, comme 60.00.',
         'effective_from' => 'Une date, comme 2026-11-01. Aujourd’hui si vide.',
         'min_quantity' => 'Un seuil de quantité. 1 si vide.',
+        'location' => 'Le code de l\'emplacement, sinon son nom, exactement comme dans les paramètres.',
+        'unit_cost' => 'Le coût d\'une unité, dans la devise de base de la société.',
+        'serials' => 'Un par unité, séparés par ; ou ,.',
     ],
     'types' => [
         'text' => 'Texte',
@@ -156,6 +166,7 @@ return [
         'price' => 'A un prix',
         'document' => 'Utilisé dans un document',
         'changed' => 'Modifié depuis l’import',
+        'stock_moved' => 'Du stock a bougé depuis',
     ],
     'report' => [
         'sheet' => 'Lignes',

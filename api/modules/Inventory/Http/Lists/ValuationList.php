@@ -62,9 +62,9 @@ class ValuationList extends InventoryList
     public function columns(): array
     {
         return [
-            self::name('company', 'company'),
+            self::named('company', 'company'),
             ListColumn::make('code', 'inventory.columns.code', ['item'], fn (array $row) => $row['item']['code'] ?? null),
-            self::name('item', 'item'),
+            self::named('item', 'item'),
             self::qty('qty', 'qty'),
             ListColumn::make('unit', 'inventory.columns.unit', ['base_uom'], fn (array $row) => $row['base_uom']['code'] ?? null),
             ListColumn::make('unit_cost', 'inventory.columns.unit_cost', ['unit_cost_minor'], fn (array $row, $model, ExportValues $values) => $row['unit_cost_minor'] === null ? null

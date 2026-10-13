@@ -54,7 +54,7 @@ class CountList extends InventoryList
             self::at('created_at'),
             ListColumn::make('kind', 'inventory.columns.count_kind', ['kind'], fn (array $row) => __('inventory.count_kinds.'.$row['kind'])),
             ListColumn::make('status', 'inventory.columns.status', ['status'], fn (array $row) => __('inventory.statuses.'.$row['status'])),
-            self::name('location', 'location'),
+            self::named('location', 'location'),
             ListColumn::make('lines_count', 'inventory.columns.lines_count', ['lines_count'], fn (array $row) => (string) $row['lines_count']),
             self::money('gain'),
             self::money('loss'),

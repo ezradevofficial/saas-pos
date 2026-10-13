@@ -27,7 +27,8 @@ return [
         'key' => 'admin',
         // TPL-04: shares POS documents by email and link (pos.sale.share).
         // LAY-05: designs the tills' sell screen once the POS module is active.
-        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*'],
+        // INV-12, INV-01: sets a company's costing and items' tracking, and reads stock and its value.
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules'],
@@ -92,6 +93,8 @@ return [
             'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.uom.view',
             'inventory.*', 'purchasing.receipt.*', 'purchasing.order.view',
         ],
+        // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
+        'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -110,6 +113,8 @@ return [
             'core.config.view',
             'core.template.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
+            // INV-20: stock, its value and the valuation report.
+            'inventory.*.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

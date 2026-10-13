@@ -53,10 +53,10 @@ class TransferList extends InventoryList
             ListColumn::text('number', 'inventory.columns.number'),
             self::at('created_at'),
             ListColumn::make('status', 'inventory.columns.status', ['status'], fn (array $row) => __('inventory.statuses.'.$row['status'])),
-            self::name('from_location', 'from_location'),
-            self::name('to_location', 'to_location'),
+            self::named('from_location', 'from_location'),
+            self::named('to_location', 'to_location'),
             ListColumn::make('lines_count', 'inventory.columns.lines_count', ['lines_count'], fn (array $row) => (string) $row['lines_count']),
-            self::name('requested_by', 'requested_by'),
+            self::named('requested_by', 'requested_by'),
             self::money('value'),
         ];
     }

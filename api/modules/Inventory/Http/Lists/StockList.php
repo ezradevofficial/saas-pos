@@ -53,8 +53,8 @@ class StockList extends InventoryList
     {
         return [
             ListColumn::make('code', 'inventory.columns.code', ['item'], fn (array $row) => $row['item']['code'] ?? null),
-            self::name('item', 'item'),
-            self::name('location', 'location'),
+            self::named('item', 'item'),
+            self::named('location', 'location'),
             self::qty('qty', 'qty'),
             ListColumn::make('unit', 'inventory.columns.unit', ['base_uom'], fn (array $row) => $row['base_uom']['code'] ?? null),
             self::qty('reorder_level', 'reorder_level'),
