@@ -134,6 +134,9 @@ class TenantIsolationTest extends TestCase
         'tenant_export' => 'tenant_export', // EXP-02: tenant-exports/{tenant_export}/link, the Owner's export request
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
+        'billing_invoice' => 'billing_invoice', // SUB-03: subscription/invoices/{billing_invoice}[/pdf|pay], the first invoice (the tenant's copy)
+        'billing_payment' => 'billing_payment', // SUB-04: subscription/payments/{billing_payment}, an M-Pesa payment of that invoice
+        'billing_payment_method' => 'billing_payment_method', // SUB-04: subscription/payment-methods/{billing_payment_method}/default|archive, a saved wallet
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
         'preview' => 'template_preview', // TPL-01: templates/previews/{preview}/pdf, the owner's preview (a cache key bound to its tenant and user)
         'document_share' => 'document_share', // TPL-04: pos/sales/{pos_sale}/shares/{document_share}/revoke, a link to the sale's receipt

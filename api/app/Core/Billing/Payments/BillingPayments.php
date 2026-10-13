@@ -228,6 +228,7 @@ class BillingPayments
             'provider' => $provider,
             'label' => self::maskPhone($normalised),
             'phone' => $normalised,
+            'is_default' => false,
             'auto_renew' => true,
             'created_by' => $by->id,
         ]);
@@ -262,6 +263,7 @@ class BillingPayments
             'provider' => self::CARD,
             'label' => mb_substr($card['label'], 0, 60),
             'token' => $card['token'],
+            'is_default' => false,
             'auto_renew' => true,
             'created_by' => $by->id,
         ]);

@@ -293,9 +293,9 @@ class Subscriptions
     }
 
     /**
-     * SUB-07, RBAC-08: the registry follows the plan. Registered modules in
-     * the plan (or its bundle) are switched on; the others off, their data
-     * kept (re-subscribing restores it).
+     * SUB-07, RBAC-08: the registry follows the plan. Registered modules the
+     * catalogue sells are switched on when in the plan (or its bundle) and
+     * off otherwise, their data kept (re-subscribing restores it).
      */
     public function syncModules(Subscription $subscription): void
     {
@@ -305,8 +305,11 @@ class Subscriptions
             $subscribed = [...$subscribed, ...($this->catalogue->snapshot($subscription->country)->bundle($subscription->bundle)?->modules ?? [])];
         }
 
+        // Only modules the catalogue sells follow the plan; others are left as they are.
+        $sold = CatalogueModule::on(PlatformDatabase::READ)->pluck('key')->all();
+
         foreach ($this->modules->registered() as $module) {
-            if ($module === ModuleRegistry::CORE) {
+            if ($module === ModuleRegistry::CORE || ! in_array($module, $sold, true)) {
                 continue;
             }
 

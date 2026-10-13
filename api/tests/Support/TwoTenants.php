@@ -2,6 +2,8 @@
 
 namespace Tests\Support;
 
+use App\Core\Billing\Operator\Operator;
+use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
@@ -117,6 +119,10 @@ final class TwoTenants
         app(DocumentTypeRegistry::class)->register(TestOrderType::class);
         // LAY-06: a configuration kind (as a layout designer registers one).
         TestLayoutKind::register();
+
+        // SUB-03: the operator (the platform's seller), with fake fiscal and payment drivers.
+        $test->artisan('platform:operator', ['--country' => ['KE'], '--fake' => true])->assertSuccessful();
+        app(Operator::class)->forget();
 
         return new self(
             self::tenant($test, 'a', ['email' => 'owner-a@example.com']),
@@ -500,6 +506,14 @@ final class TwoTenants
         Bus::swap($bus);
         app(TenantContext::class)->run($tenantId, fn () => TenantExport::query()->whereKey($tenantExport)->update(['status' => TenantExport::FAILED, 'failure' => 'build_failed']));
 
+        // SUB-02..SUB-04: a subscription converted from its trial, its first
+        // invoice (issued by the operator, copied here), a saved M-Pesa
+        // wallet and a payment of the invoice waiting for the phone.
+        app(TenantContext::class)->run($tenantId, fn () => app(Subscriptions::class)->startTrial('KE', ['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter']));
+        $billingInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
+        $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
+        $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$billingInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -555,6 +569,9 @@ final class TwoTenants
                 'template_preview' => $templatePreview,
                 'tenant_domain' => $tenantDomain,
                 'brand_asset' => $brandAsset,
+                'billing_invoice' => $billingInvoice,
+                'billing_payment' => $billingPayment,
+                'billing_payment_method' => $billingMethod,
                 ...$dimensions,
                 ...$pos,
                 'challenge' => $challenge,

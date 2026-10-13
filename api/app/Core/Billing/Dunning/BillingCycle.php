@@ -60,12 +60,14 @@ class BillingCycle
 
         $this->remind($subscription, $at);
         $invoice = $this->renew($subscription, $at);
-        $this->dun($subscription->fresh(), $at);
-        $this->accounts->sync($subscription->fresh());
 
+        // SUB-04: a saved default method requests the new invoice before dunning looks at it.
         if ($invoice !== null) {
             $this->payments->autoRenew($subscription->fresh(), $invoice);
         }
+
+        $this->dun($subscription->fresh(), $at);
+        $this->accounts->sync($subscription->fresh());
     }
 
     /**
