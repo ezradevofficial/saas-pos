@@ -5481,7 +5481,8 @@
       "removeFor": "Retirer {{label}}",
       "save": "Enregistrer le moyen",
       "cardSaved": "Votre carte a été enregistrée."
-    }
+    },
+    "loading": "Chargement de l’abonnement"
   },
   "subscriptionBanner": {
     "pastDue": "Une facture est en retard. Réglez-la avant le {{date}} pour garder un accès complet.",

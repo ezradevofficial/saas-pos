@@ -5481,7 +5481,8 @@
       "removeFor": "Remove {{label}}",
       "save": "Save method",
       "cardSaved": "Your card was saved."
-    }
+    },
+    "loading": "Loading the subscription"
   },
   "subscriptionBanner": {
     "pastDue": "An invoice is overdue. Pay it by {{date}} to keep full access.",
