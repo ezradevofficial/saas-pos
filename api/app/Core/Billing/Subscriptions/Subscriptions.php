@@ -2,9 +2,12 @@
 
 namespace App\Core\Billing\Subscriptions;
 
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Audit\Auditor;
 use App\Core\Billing\Catalogue\Catalogue;
+use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
+use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Pricing\CatalogueSnapshot;
 use App\Core\Billing\Catalogue\Pricing\Coupon;
 use App\Core\Billing\Catalogue\Pricing\PriceCalculator;
@@ -120,7 +123,10 @@ class Subscriptions
         try {
             $quote = $this->calculator->quote($snapshot, new QuoteRequest($plan['modules'], $plan['quantities'], $plan['cycle'], $plan['bundle'], $coupon));
         } catch (QuoteError $e) {
-            throw new ApiException(422, 'quote_'.$e->reason, __("billing.quote.{$e->reason}", ['key' => (string) $e->key]), [$e->field => [__("billing.quote.{$e->reason}", ['key' => (string) $e->key])]]);
+            $name = $e->key === null ? '' : (CatalogueModule::on(PlatformDatabase::READ)->where('key', $e->key)->first()?->localName() ?? CatalogueBundle::on(PlatformDatabase::READ)->where('key', $e->key)->first()?->localName() ?? $e->key);
+            $message = __("billing.quote.{$e->reason}", ['name' => $name]);
+
+            throw new ApiException(422, $e->reason, $message, [$e->field => [$message]], $e->suggestion === null ? [] : ['suggestion' => $e->suggestion]);
         }
 
         if ($quote['quoted']) {
@@ -345,7 +351,7 @@ class Subscriptions
             return null;
         }
 
-        return CatalogueCoupon::query()->find($subscription->coupon_id)?->toPricing();
+        return CatalogueCoupon::on(PlatformDatabase::READ)->find($subscription->coupon_id)?->toPricing();
     }
 
     /**
@@ -354,8 +360,9 @@ class Subscriptions
      */
     private function redeem(Subscription $subscription, string $code): void
     {
-        $coupon = CatalogueCoupon::query()->where('code', trim($code))->first();
-        $counted = $coupon === null ? 0 : DB::connection(TenantContext::CONNECTION)->table('catalogue_coupons')
+        $coupon = CatalogueCoupon::on(PlatformDatabase::READ)->where('code', trim($code))->first();
+        // ADR 013: only the platform role writes the catalogue; the count is guarded by the limit in the same statement.
+        $counted = $coupon === null ? 0 : PlatformDatabase::connection()->table('catalogue_coupons')
             ->where('id', $coupon->id)
             ->whereNull('archived_at')
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', CarbonImmutable::now()))
@@ -365,6 +372,10 @@ class Subscriptions
         if ($counted === 0) {
             throw new ApiException(422, 'coupon_invalid', __('billing.coupon.invalid'), ['coupon' => [__('billing.coupon.invalid')]]);
         }
+
+        // The redemption commits on its own connection: give it back if the change does not commit.
+        DB::connection(TenantContext::CONNECTION)->afterRollBack(fn () => PlatformDatabase::connection()->table('catalogue_coupons')
+            ->where('id', $coupon->id)->where('redemptions', '>', 0)->decrement('redemptions'));
 
         $subscription->fill([
             'coupon_id' => $coupon->id,

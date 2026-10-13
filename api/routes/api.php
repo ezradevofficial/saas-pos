@@ -656,3 +656,4 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
 // ADR 013, SUB-01, ONB-03: the public plan catalogue and the platform staff console.
 require __DIR__.'/platform.php';
+require __DIR__.'/billing.php';

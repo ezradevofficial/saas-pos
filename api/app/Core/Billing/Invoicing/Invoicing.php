@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Invoicing;
 
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Models\BillingInvoice;
@@ -61,8 +62,8 @@ class Invoicing
     public function linesFromQuote(array $quote, array $overage = []): array
     {
         $months = (int) ($quote['months'] ?? 1);
-        $modules = CatalogueModule::query()->pluck('name', 'key');
-        $bundles = CatalogueBundle::query()->pluck('name', 'key');
+        $modules = CatalogueModule::on(PlatformDatabase::READ)->pluck('name', 'key');
+        $bundles = CatalogueBundle::on(PlatformDatabase::READ)->pluck('name', 'key');
         $lines = [];
 
         foreach ($quote['lines'] as $line) {

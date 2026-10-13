@@ -49,6 +49,10 @@ class PlatformUser extends Authenticatable
     private const ABILITIES = [
         'catalogue.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
         'catalogue.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
+        // ADR 016: tenants, subscriptions and invoices (view); trial extension,
+        // grace override, bank transfers marked paid, billing settings (manage).
+        'billing.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
+        'billing.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
     ];
 
     /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */

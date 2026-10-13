@@ -6,9 +6,13 @@ use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentProviders;
 use App\Core\Payments\Contracts\PaymentProvider;
 use App\Core\Payments\Daraja\MpesaDarajaProvider;
+use App\Core\Payments\Drivers\AfrimoneyProvider;
+use App\Core\Payments\Drivers\AirtelMoneyProvider;
 use App\Core\Payments\Drivers\CashProvider;
 use App\Core\Payments\Drivers\FakeProvider;
+use App\Core\Payments\Drivers\HostedCardProvider;
 use App\Core\Payments\Drivers\ManualProvider;
+use App\Core\Payments\Drivers\OrangeMoneyProvider;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 use RuntimeException;
@@ -29,6 +33,11 @@ class PaymentProviderRegistry
         'manual' => ManualProvider::class,
         'fake' => FakeProvider::class,
         'mpesa_daraja' => MpesaDarajaProvider::class,
+        // SUB-04: the platform's own billing (unavailable until configured).
+        'airtel_money' => AirtelMoneyProvider::class,
+        'orange_money' => OrangeMoneyProvider::class,
+        'afrimoney' => AfrimoneyProvider::class,
+        'card_hosted' => HostedCardProvider::class,
     ];
 
     public function __construct(

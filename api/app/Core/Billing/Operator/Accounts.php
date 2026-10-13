@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Operator;
 
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\Subscription;
@@ -59,7 +60,7 @@ class Accounts
     /** "starter + payroll", "pos + inventory": the bundle then the modules outside it, by key. */
     public static function planLabel(Subscription $subscription): string
     {
-        $inBundle = $subscription->bundle === null ? [] : (CatalogueBundle::query()->where('key', $subscription->bundle)->first()?->modules ?? []);
+        $inBundle = $subscription->bundle === null ? [] : (CatalogueBundle::on(PlatformDatabase::READ)->where('key', $subscription->bundle)->first()?->modules ?? []);
         $parts = $subscription->bundle === null ? [] : [$subscription->bundle];
 
         return mb_substr(implode(' + ', [...$parts, ...array_values(array_diff($subscription->modules ?? [], $inBundle))]), 0, 255);

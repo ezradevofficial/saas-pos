@@ -42,13 +42,23 @@ class BillingNotices
     public static function register(EventTypes $types): void
     {
         $sample = ['amount' => 'KES 3,900.00', 'date' => '2026-11-01'];
-        $common = ['defaultChannels' => [Channels::IN_APP, Channels::EMAIL], 'mandatoryAllowed' => true];
+        $events = [
+            self::TRIAL_ENDING => [...$sample, 'days' => '7'],
+            self::RENEWAL_DUE => [...$sample, 'days' => '3'],
+            self::PAST_DUE => [...$sample, 'number' => 'INV-2026-000012', 'read_only_date' => '2026-11-08'],
+            self::READ_ONLY => [...$sample, 'number' => 'INV-2026-000012', 'pos_until' => '2026-11-11'],
+            self::PAYMENT_RECEIVED => [...$sample, 'number' => 'INV-2026-000012'],
+        ];
 
-        $types->register(new EventType(key: self::TRIAL_ENDING, placeholders: [...$sample, 'days' => '7'], langKey: 'billing.notifications.trial_ending', ...$common));
-        $types->register(new EventType(key: self::RENEWAL_DUE, placeholders: [...$sample, 'days' => '3'], langKey: 'billing.notifications.renewal_due', ...$common));
-        $types->register(new EventType(key: self::PAST_DUE, placeholders: [...$sample, 'number' => 'INV-2026-000012', 'read_only_date' => '2026-11-08'], langKey: 'billing.notifications.past_due', ...$common));
-        $types->register(new EventType(key: self::READ_ONLY, placeholders: [...$sample, 'number' => 'INV-2026-000012', 'pos_until' => '2026-11-11'], langKey: 'billing.notifications.read_only', ...$common));
-        $types->register(new EventType(key: self::PAYMENT_RECEIVED, placeholders: [...$sample, 'number' => 'INV-2026-000012'], langKey: 'billing.notifications.payment_received', ...$common));
+        foreach ($events as $key => $placeholders) {
+            $types->register(new EventType(
+                key: $key,
+                placeholders: $placeholders,
+                defaultChannels: [Channels::IN_APP, Channels::EMAIL],
+                mandatoryAllowed: true,
+                langKey: 'billing.notifications.'.substr($key, strlen('core.subscription.')),
+            ));
+        }
     }
 
     /** @param array<string, string|int|null> $data */

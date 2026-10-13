@@ -4,6 +4,7 @@ namespace App\Core\Billing;
 
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -58,7 +59,7 @@ class PlatformSettings
     {
         $before = $this->all();
 
-        DB::transaction(function () use ($values, $by) {
+        PlatformDatabase::transaction(function () use ($values, $by) {
             foreach ($values as $key => $value) {
                 [$min, $max] = self::KEYS[$key] ?? throw new InvalidArgumentException("Unknown platform setting [{$key}].");
 
@@ -66,7 +67,7 @@ class PlatformSettings
                     throw new InvalidArgumentException("Platform setting [{$key}] is out of range.");
                 }
 
-                DB::table('platform_settings')->upsert(
+                PlatformDatabase::connection()->table('platform_settings')->upsert(
                     [['key' => $key, 'value' => json_encode($value), 'updated_by' => $by->id, 'created_at' => now(), 'updated_at' => now()]],
                     ['key'],
                     ['value', 'updated_by', 'updated_at'],

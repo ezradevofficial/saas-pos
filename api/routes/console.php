@@ -41,3 +41,9 @@ Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->on
 
 // EXP-02: full tenant exports past their expiry (files deleted after 7 days) and builds a dead worker left behind.
 Schedule::command('exports:expire')->hourly()->withoutOverlapping()->onOneServer();
+
+// SUB-03, SUB-05: reminders, renewals and invoices, past due and read-only, hourly (each acts once a day).
+Schedule::command('billing:cycle')->hourly()->withoutOverlapping()->onOneServer();
+
+// SUB-07: switched-off module data past its 12 months, reported to platform staff (nothing deleted).
+Schedule::command('billing:purge-report')->dailyAt('03:30')->withoutOverlapping()->onOneServer();

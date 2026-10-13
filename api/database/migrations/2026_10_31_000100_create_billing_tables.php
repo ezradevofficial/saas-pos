@@ -44,6 +44,10 @@ return new class extends Migration
         });
         DB::statement('create unique index tenants_one_operator on tenants (is_operator) where is_operator');
 
+        // SUB-04: a hosted card checkout (or a saved card charged) is a payment intent mode.
+        DB::statement('alter table payment_intents drop constraint payment_intents_mode_check');
+        DB::statement("alter table payment_intents add constraint payment_intents_mode_check check (mode in ('direct', 'stk', 'manual', 'payout', 'checkout'))");
+
         Schema::table('tenant_modules', function (Blueprint $table) {
             $table->timestampTz('switched_off_at')->nullable();
             $table->timestampTz('purge_flagged_at')->nullable();
@@ -242,7 +246,11 @@ return new class extends Migration
         });
 
         $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
-        DB::statement("revoke delete, truncate on platform_settings from {$runtimeRole}");
+        $platformRole = '"'.str_replace('"', '""', config('database.connections.pgsql_platform.username') ?: 'app_platform').'"';
+        // ADR 013: staff write platform settings on their own connection; the tenant runtime only reads them (dunning).
+        DB::statement("revoke all on platform_settings from {$runtimeRole}");
+        DB::statement("grant select on platform_settings to {$runtimeRole}");
+        DB::statement("grant select, insert, update on platform_settings to {$platformRole}");
 
         foreach (self::FUNCTIONS as $signature => $body) {
             $name = strstr($signature, '(', true);
@@ -324,6 +332,9 @@ return new class extends Migration
         Schema::table('tenant_modules', function (Blueprint $table) {
             $table->dropColumn(['switched_off_at', 'purge_flagged_at']);
         });
+
+        DB::statement('alter table payment_intents drop constraint payment_intents_mode_check');
+        DB::statement("alter table payment_intents add constraint payment_intents_mode_check check (mode in ('direct', 'stk', 'manual', 'payout'))");
 
         DB::statement('drop index if exists tenants_one_operator');
         Schema::table('tenants', function (Blueprint $table) {
