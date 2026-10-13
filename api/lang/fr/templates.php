@@ -15,6 +15,9 @@ return [
         'payroll_payslip' => 'Bulletin de paie',
         'party_statement' => 'Relevé client',
         'letter' => 'Lettre',
+        'accounting_invoice' => 'Facture',
+        'accounting_credit_note' => 'Avoir',
+        'accounting_statement' => 'Relevé de compte',
     ],
 
     'groups' => [

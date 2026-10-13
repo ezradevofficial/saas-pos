@@ -327,12 +327,15 @@ class Subscriptions
         // Only modules the catalogue sells follow the plan; others are left as they are.
         $sold = CatalogueModule::on(PlatformDatabase::READ)->pluck('key')->all();
 
+        $covered = $this->modules->coveredBy($subscribed);
+
         foreach ($this->modules->registered() as $module) {
-            if ($module === ModuleRegistry::CORE || ! in_array($module, $sold, true)) {
+            // A module may be sold under other catalogue keys (ModuleRegistry::soldAs).
+            if ($module === ModuleRegistry::CORE || array_intersect($this->modules->catalogueKeys($module), $sold) === []) {
                 continue;
             }
 
-            $wanted = in_array($module, $subscribed, true);
+            $wanted = in_array($module, $covered, true);
             $active = $this->modules->isActive($module);
 
             if ($wanted && ! $active) {

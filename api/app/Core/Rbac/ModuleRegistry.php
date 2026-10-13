@@ -19,11 +19,46 @@ class ModuleRegistry
     /** @var array<string, true> */
     private array $modules = [self::CORE => true];
 
+    /** @var array<string, list<string>> registry module => the catalogue keys that switch it on (default: its own name) */
+    private array $soldAs = [];
+
     public function __construct(private readonly TenantContext $tenants) {}
 
     public function register(string $module): void
     {
         $this->modules[$module] = true;
+    }
+
+    /**
+     * SUB-07: $module follows any of these catalogue keys instead of its own
+     * name (Accounting is sold as Essentials or Pro, docs/modules/accounting.md).
+     *
+     * @param  list<string>  $catalogueKeys
+     */
+    public function soldAs(string $module, array $catalogueKeys): void
+    {
+        $this->soldAs[$module] = array_values(array_unique($catalogueKeys));
+    }
+
+    /** @return list<string> the catalogue keys that switch $module on */
+    public function catalogueKeys(string $module): array
+    {
+        return $this->soldAs[$module] ?? [$module];
+    }
+
+    /**
+     * The registered optional modules that $catalogueKeys (a plan's or a
+     * trial's selection) switch on.
+     *
+     * @param  list<string>  $catalogueKeys
+     * @return list<string>
+     */
+    public function coveredBy(array $catalogueKeys): array
+    {
+        return array_values(array_filter(
+            array_diff($this->registered(), [self::CORE]),
+            fn (string $module) => array_intersect($this->catalogueKeys($module), $catalogueKeys) !== [],
+        ));
     }
 
     /** @return list<string> */

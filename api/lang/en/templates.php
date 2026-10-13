@@ -15,6 +15,9 @@ return [
         'payroll_payslip' => 'Payslip',
         'party_statement' => 'Customer statement',
         'letter' => 'Letter',
+        'accounting_invoice' => 'Invoice',
+        'accounting_credit_note' => 'Credit note',
+        'accounting_statement' => 'Account statement',
     ],
 
     'groups' => [
