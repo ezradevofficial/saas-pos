@@ -14,6 +14,7 @@ use Modules\Accounting\Http\Requests\RetryPostingExceptionRequest;
 use Modules\Accounting\Http\Requests\StorePostingRuleRequest;
 use Modules\Accounting\Http\Resources\JournalResource;
 use Modules\Accounting\Http\Resources\RecordResource;
+use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Models\PostingRule;
@@ -91,7 +92,7 @@ class PostingRuleController
     {
         foreach (Account::query()->where('company_id', $company->id)->whereKey($ids)->get() as $account) {
             if (! $account->postable || $account->isArchived()) {
-                throw \Modules\Accounting\Ledger\LedgerError::make('account_not_postable', ['code' => $account->code], 'lines');
+                throw LedgerError::make('account_not_postable', ['code' => $account->code], 'lines');
             }
         }
     }

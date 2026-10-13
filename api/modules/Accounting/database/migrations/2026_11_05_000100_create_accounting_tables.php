@@ -53,7 +53,6 @@ return new class extends Migration
             $table->timestampTz('archived_at')->nullable();
             $table->timestampsTz();
 
-            $table->foreign('parent_id')->references('id')->on('acc_accounts')->restrictOnDelete();
             $table->foreign('currency')->references('code')->on('currencies')->restrictOnDelete();
             $table->unique(['company_id', 'code']);
             $table->index(['company_id', 'type']);
@@ -61,6 +60,7 @@ return new class extends Migration
 
         DB::statement("alter table acc_accounts add constraint acc_accounts_type_check check (type in ('asset', 'liability', 'equity', 'income', 'expense'))");
         DB::statement("alter table acc_accounts add constraint acc_accounts_cash_flow_check check (cash_flow is null or cash_flow in ('cash', 'operating', 'non_cash', 'investing', 'financing'))");
+        DB::statement('alter table acc_accounts add constraint acc_accounts_parent_fk foreign key (parent_id) references acc_accounts (id) on delete restrict');
         Rls::enable('acc_accounts');
 
         // ACC-02: the accounts each role posts to, per company.
@@ -174,8 +174,6 @@ return new class extends Migration
             $table->string('post_error', 40)->nullable();
             $table->timestampsTz();
 
-            $table->foreign('reverses_journal_id')->references('id')->on('acc_journals')->restrictOnDelete();
-            $table->foreign('reversed_by_journal_id')->references('id')->on('acc_journals')->restrictOnDelete();
             $table->index(['company_id', 'date']);
             $table->index(['company_id', 'status']);
         });
@@ -187,6 +185,8 @@ return new class extends Migration
         // ACC-07: a source posts once per company (idempotency key).
         DB::statement('create unique index acc_journals_source_unique on acc_journals (company_id, source_type, source_id) where source_type is not null');
         DB::statement('alter table acc_periods add constraint acc_periods_closing_journal_fk foreign key (closing_journal_id) references acc_journals (id) on delete restrict');
+        DB::statement('alter table acc_journals add constraint acc_journals_reverses_fk foreign key (reverses_journal_id) references acc_journals (id) on delete restrict');
+        DB::statement('alter table acc_journals add constraint acc_journals_reversed_by_fk foreign key (reversed_by_journal_id) references acc_journals (id) on delete restrict');
         Rls::enable('acc_journals');
 
         // ACC-03, ACC-21: journal lines.
@@ -224,7 +224,7 @@ return new class extends Migration
 
         // ACC-03: a posted journal balances in base currency, checked at commit.
         DB::unprepared(<<<'SQL'
-            create function acc_journal_balanced() returns trigger language plpgsql as $$
+            create or replace function acc_journal_balanced() returns trigger language plpgsql as $$
             declare
                 jid uuid;
                 jstatus text;
@@ -270,7 +270,7 @@ return new class extends Migration
 
         // ACC-03: posted journals are immutable; only the reversal link may be set.
         DB::unprepared(<<<'SQL'
-            create function acc_journal_lines_immutable() returns trigger language plpgsql as $$
+            create or replace function acc_journal_lines_immutable() returns trigger language plpgsql as $$
             declare
                 jid uuid;
             begin
@@ -293,7 +293,7 @@ return new class extends Migration
                 before insert or update or delete on acc_journal_lines
                 for each row execute function acc_journal_lines_immutable();
 
-            create function acc_journal_immutable() returns trigger language plpgsql as $$
+            create or replace function acc_journal_immutable() returns trigger language plpgsql as $$
             begin
                 if tg_op = 'DELETE' then
                     if old.status = 'posted' then
@@ -327,7 +327,7 @@ return new class extends Migration
 
         // ACC-08: nothing is posted into a closed period (the row lock waits for a concurrent close).
         DB::unprepared(<<<'SQL'
-            create function acc_journal_period_open() returns trigger language plpgsql as $$
+            create or replace function acc_journal_period_open() returns trigger language plpgsql as $$
             declare
                 p record;
             begin
@@ -427,7 +427,6 @@ return new class extends Migration
             $table->timestampsTz();
 
             $table->foreign('currency')->references('code')->on('currencies')->restrictOnDelete();
-            $table->foreign('credits_document_id')->references('id')->on('acc_documents')->restrictOnDelete();
             $table->index(['company_id', 'kind', 'status']);
             $table->index(['party_id']);
         });
@@ -437,6 +436,7 @@ return new class extends Migration
         DB::statement('alter table acc_documents add constraint acc_documents_amounts_check check (subtotal_minor >= 0 and tax_minor >= 0 and total_minor >= 0 and open_minor >= 0 and open_minor <= total_minor and due_date >= issue_date)');
         DB::statement("alter table acc_documents add constraint acc_documents_posted_check check ((status = 'posted') = (journal_id is not null and number is not null and posted_at is not null))");
         DB::statement('create unique index acc_documents_number_unique on acc_documents (company_id, kind, number) where number is not null');
+        DB::statement('alter table acc_documents add constraint acc_documents_credits_fk foreign key (credits_document_id) references acc_documents (id) on delete restrict');
         Rls::enable('acc_documents');
 
         Schema::create('acc_document_lines', function (Blueprint $table) use ($dimensions) {

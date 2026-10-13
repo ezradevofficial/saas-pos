@@ -4,11 +4,10 @@ namespace Modules\Accounting\Http\Controllers;
 
 use App\Core\Exports\ListExport;
 use App\Core\Tenancy\Models\Company;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Modules\Accounting\Chart\ChartTemplates;
 use Modules\Accounting\Chart\Charts;
+use Modules\Accounting\Chart\ChartTemplates;
 use Modules\Accounting\Http\Requests\AccountActionRequest;
 use Modules\Accounting\Http\Requests\ChartTemplatesRequest;
 use Modules\Accounting\Http\Requests\CreateChartRequest;

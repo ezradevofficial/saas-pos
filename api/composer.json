@@ -44,7 +44,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "Modules\\POS\\Tests\\": "modules/POS/tests/"
+            "Modules\\POS\\Tests\\": "modules/POS/tests/",
+            "Modules\\Accounting\\Tests\\": "modules/Accounting/tests/"
         }
     },
     "scripts": {

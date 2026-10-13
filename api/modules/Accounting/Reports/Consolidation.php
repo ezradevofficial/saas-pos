@@ -96,15 +96,17 @@ class Consolidation
 
             for ($month = CarbonImmutable::parse($from)->startOfMonth(); $month->toDateString() <= $to; $month = $month->addMonthNoOverflow()) {
                 $end = min($month->endOfMonth()->toDateString(), $to);
-                $rate = $this->rate($company, $currency, $end);
+                // A month with no movement needs no rate.
+                $rate = false;
 
                 foreach ($this->statements->sums($company, max($month->toDateString(), $from), $end, [], withoutClosing: true) as $row) {
                     $account = $accounts[$row->account_id] ?? null;
 
-                    if ($account === null || $account->isBalanceSheet()) {
+                    if ($account === null || $account->isBalanceSheet() || (int) $row->credit === (int) $row->debit) {
                         continue;
                     }
 
+                    $rate = $rate === false ? $this->rate($company, $currency, $end) : $rate;
                     $amount = $this->translate($company, (int) $row->credit - (int) $row->debit, $currency, $rate);
                     $account->type === 'income' ? $sections['income'] += $amount : $sections['expense'] -= $amount;
                     $earnings += $amount;
