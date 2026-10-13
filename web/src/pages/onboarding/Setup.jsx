@@ -194,20 +194,20 @@ function UsersStep() {
   )
 }
 
-/** Each step reuses the app's own page or form (no second copy of a form). */
+/** Each step reuses the app's own page or form (no second copy of a form), embedded: the step keeps its h1 and title. */
 function StepBody({ step, state }) {
   const { t } = useTranslation()
   switch (step) {
     case 'company':
       return <CompanyStep country={state.country} />
     case 'currencies':
-      return <Currencies />
+      return <Currencies embedded />
     case 'branches':
-      return <Organisation />
+      return <Organisation embedded />
     case 'taxes':
-      return <Taxes />
+      return <Taxes embedded />
     case 'payment_methods':
-      return <PaymentMethods />
+      return <PaymentMethods embedded />
     case 'items':
       return <ItemsStep />
     case 'users':
@@ -216,7 +216,7 @@ function StepBody({ step, state }) {
       return (
         <div className="flex flex-col gap-4">
           <Alert tone="info" title={t('onboarding.steps.devices.how')} />
-          <Organisation />
+          <Organisation embedded />
         </div>
       )
     default:

@@ -1,8 +1,13 @@
 import { usePageTitle } from '@/lib/usePageTitle'
 
-/** The page title (h1, 24px), an optional caption above and description below, and actions. */
-export function PageHeader({ title, eyebrow, description, actions }) {
-  usePageTitle(title)
+/**
+ * The page title (h1, 24px), an optional caption above and description
+ * below, and actions. `embedded`: the page sits inside another (a setup
+ * step), which owns the h1 and the browser title; only the actions show.
+ */
+export function PageHeader({ title, eyebrow, description, actions, embedded = false }) {
+  usePageTitle(title, !embedded)
+  if (embedded) return actions ? <div className="flex flex-wrap justify-end gap-2">{actions}</div> : null
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1">

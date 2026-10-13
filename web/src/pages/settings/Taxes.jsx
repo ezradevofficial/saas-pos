@@ -13,7 +13,7 @@ import { TaxCodes } from './taxes/TaxCodes'
  * rates ("Rate needed" until a figure is confirmed; never invented), tax
  * categories and price lists.
  */
-export default function Taxes() {
+export default function Taxes({ embedded = false }) {
   const { t } = useTranslation()
   const { can } = usePermissions()
   const { company, picker, ready } = useSettingsCompany()
@@ -29,7 +29,7 @@ export default function Taxes() {
 
   return (
     <>
-      <PageHeader title={t('settings.taxes.title')} description={t('settings.taxes.description')} />
+      <PageHeader embedded={embedded} title={t('settings.taxes.title')} description={t('settings.taxes.description')} />
       {picker}
       {!ready ? <p className="text-ink-muted">{t('common.loading')}</p> : null}
       {ready && !company ? <Alert tone="info" title={t('finance.company.none')} /> : null}

@@ -188,6 +188,24 @@ describe('Onboarding screens', () => {
     })
   })
 
+  it.each([
+    ['currencies', 'Currencies and exchange rates'],
+    ['branches', 'Branches and outlets'],
+    ['taxes', 'Taxes'],
+    ['payment_methods', 'Payment methods'],
+  ])('embeds the %s page without a second h1 or its own browser title (ONB-05)', async (step, title) => {
+    const current = state({ stage: 'setup' })
+    mockRoutes(api, [['onboarding', () => ({ data: current })], ['onboarding/trial', () => ({ data: current.trial })], ['onboarding/checklist', { data: { visible: false, items: [] } }]], {
+      permissions: tenantWide(['core.onboarding.view', 'core.onboarding.edit', 'core.company.view', 'core.company.edit', 'core.currency.view', 'core.tax.view', 'core.payment_method.view']),
+    })
+    renderApp(`/onboarding/setup/${step}`)
+
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(document.title.startsWith(`${title} · `) || document.title === title).toBe(true)
+  })
+
   it('links the items step to the import wizard for people who may import (ONB-05, IMP-01)', async () => {
     const current = state({ stage: 'setup' })
     mockRoutes(api, [['onboarding', () => ({ data: current })], ['onboarding/trial', () => ({ data: current.trial })], ['onboarding/checklist', { data: { visible: false, items: [] } }]], {
