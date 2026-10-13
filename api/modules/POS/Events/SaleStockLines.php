@@ -7,6 +7,7 @@ use Modules\POS\Models\RefundLine;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SaleVoid;
+use Modules\POS\Sync\Records;
 
 /**
  * POS-13: what a sale, void or refund did to stock, as the POS module
@@ -20,13 +21,28 @@ use Modules\POS\Models\SaleVoid;
  */
 final class SaleStockLines
 {
-    /** @return StockLines|null a completed sale's lines (null when it is not stored) */
+    /**
+     * A sale's lines (null when it is not stored), with its status
+     * (`completed` or `voided`), each line's `refunded_qty` and the ids of
+     * its applied refunds, so a listener that sees the sale after its void
+     * or refunds can account for them.
+     *
+     * @return (StockLines&array{status: string, refund_ids: list<string>})|null
+     */
     public static function forSale(string $saleId): ?array
     {
         $sale = Sale::query()->find($saleId);
 
-        return $sale === null ? null : self::of($sale, $sale->sold_at->toIso8601String(), SaleLine::query()->where('sale_id', $sale->id)->orderBy('line_no')->get()
-            ->map(fn (SaleLine $line) => self::line($line->id, $line))->all());
+        if ($sale === null) {
+            return null;
+        }
+
+        return [
+            ...self::of($sale, $sale->sold_at->toIso8601String(), SaleLine::query()->where('sale_id', $sale->id)->orderBy('line_no')->get()
+                ->map(fn (SaleLine $line) => [...self::line($line->id, $line), 'refunded_qty' => (string) $line->refunded_qty])->all()),
+            'status' => $sale->status,
+            'refund_ids' => Refund::query()->where('sale_id', $sale->id)->where('status', Records::APPLIED)->orderBy('refunded_at')->orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all(),
+        ];
     }
 
     /** @return StockLines|null the lines of the sale a void cancelled */

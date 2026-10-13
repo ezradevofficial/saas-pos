@@ -7,14 +7,18 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+use Modules\Inventory\Listeners\MoveStockForSale;
 use Modules\Inventory\Models\Balance;
+use Modules\Inventory\Models\CostState;
 use Modules\Inventory\Models\Movement;
 use Modules\Inventory\Stock\Posting;
 use Modules\Inventory\Stock\PostingLine;
 use Modules\Inventory\Stock\Qty;
 use Modules\Inventory\Stock\StockLedger;
 use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Models\SaleVoid;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -61,6 +65,99 @@ class PosIntegrationTest extends TestCase
         $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
 
         return $sale;
+    }
+
+    /** A refund of $qty of the sale's line, applied (approved when the till's was held). */
+    private function refund(array $sale, string $qty, int $seq): string
+    {
+        $id = $this->id();
+        $total = (string) (56250 * (int) $qty);
+        $stored = $this->postJson('/api/v1/pos/refunds', ['refunds' => [[
+            'id' => $id, 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->owner->id,
+            'receipt_seq' => $seq, 'receipt_number' => sprintf('RF-L01-%06d', $seq), 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged', 'total_minor' => $total,
+            'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => $qty]],
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => $total, 'amount_in_sale_minor' => $total]],
+            'override' => $this->override($this->manager->id),
+        ]]], $this->tillHeaders())->assertOk();
+
+        if ($stored->json('results.0.refund_status') === 'held') {
+            $this->postJson("/api/v1/pos/refunds/{$id}/approve", ['note' => 'Checked'], $this->headersFor())->assertOk();
+        }
+
+        return $id;
+    }
+
+    private function voidSale(array $sale): string
+    {
+        $id = $this->id();
+        $this->postJson('/api/v1/pos/voids', ['voids' => [[
+            'id' => $id, 'sale_id' => $sale['id'], 'voided_by_id' => $this->owner->id,
+            'voided_at' => now()->toIso8601String(), 'reason' => 'Mistake', 'override' => $this->override($this->manager->id),
+        ]]], $this->tillHeaders())->assertOk();
+
+        if ($this->inTenant(fn () => SaleVoid::query()->findOrFail($id)->status) === 'held') {
+            $this->postJson("/api/v1/pos/voids/{$id}/approve", ['note' => 'Checked'], $this->headersFor())->assertOk();
+        }
+
+        return $id;
+    }
+
+    /** The sale's own event, handled now (as a queued job delivered late). */
+    private function handleSale(array $sale): void
+    {
+        app(MoveStockForSale::class)->handle(new SaleCompleted($this->owner->tenant_id, $sale['id'], $this->acme->id, $this->locationA->id));
+    }
+
+    public function test_a_void_handled_before_its_sale_leaves_stock_as_it_was(): void
+    {
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
+        $this->receive('10', 1000);
+        Event::fake([SaleCompleted::class]);
+
+        $sale = $this->sell(1, '3');
+        $this->voidSale($sale);
+        $this->assertSame('10', $this->onHand());
+
+        $this->handleSale($sale);
+        $this->handleSale($sale);
+
+        $this->assertSame('10', $this->onHand());
+        $this->assertSame(1, $this->inTenant(fn () => Movement::query()->count()));
+    }
+
+    public function test_a_partial_refund_handled_before_its_sale_is_counted_once(): void
+    {
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
+        $this->receive('10', 1000);
+        Event::fake([SaleCompleted::class]);
+
+        $sale = $this->sell(1, '3');
+        $refund = $this->refund($sale, '1', 1);
+        $this->assertSame('10', $this->onHand());
+
+        $this->handleSale($sale);
+        $this->assertSame('8', $this->onHand());
+
+        // Duplicate events: the sale again, and the refund's own event late.
+        $this->handleSale($sale);
+        app(MoveStockForSale::class)->handle(new SaleRefunded($this->owner->tenant_id, $sale['id'], $refund));
+        $this->assertSame('8', $this->onHand());
+        $this->assertSame(['8.000000', '800'], $this->inTenant(fn () => [(string) CostState::query()->sole()->qty, (string) CostState::query()->sole()->value_minor]));
+    }
+
+    public function test_the_last_refunded_units_take_what_is_left_of_the_sales_value(): void
+    {
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
+        $this->receive('3', 1000);
+        $sale = $this->sell(1, '3');
+
+        foreach ([1, 2, 3] as $seq) {
+            $this->refund($sale, '1', $seq);
+        }
+
+        $values = $this->inTenant(fn () => Movement::query()->where('kind', 'sale_return')->orderBy('created_at')->orderBy('id')->pluck('value_minor')->map(fn ($v) => (int) $v)->all());
+        $this->assertSame([333, 333, 334], $values);
+        $this->assertSame('3', $this->onHand());
     }
 
     public function test_with_inventory_off_a_sale_moves_nothing(): void

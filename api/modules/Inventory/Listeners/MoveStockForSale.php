@@ -34,11 +34,15 @@ use Modules\POS\Events\SaleVoided;
  * - SaleVoided: what the sale took comes back (`sale_void`), at its cost.
  * - SaleRefunded: the refunded quantities come back (`sale_return`) from
  *   the sale line's movements, in order, at their cost and into their
- *   batches. Sales posted before Inventory was switched on have no
- *   movements and are not reversed.
+ *   batches; the last units take what is left of the value exactly.
  *
- * Idempotent: the ledger posts a source once (a redelivered event moves
- * nothing); returns are computed under a lock on the sale.
+ * Events may arrive in any order (queued jobs, retries). Everything about
+ * one sale runs under one advisory lock: a void or refund handled before
+ * its sale finds no movements and moves nothing; the sale, handled later,
+ * reads the sale's state: a voided sale moves nothing, and refunds already
+ * applied are posted right after it, each as its own refund's posting, so
+ * the refund's own event (handled before or after) never moves stock twice.
+ * The ledger posts each source once, so redelivered events move nothing.
  */
 class MoveStockForSale implements ShouldQueue
 {
@@ -78,42 +82,52 @@ class MoveStockForSale implements ShouldQueue
 
     private function sale(string $saleId): void
     {
-        $sale = SaleStockLines::forSale($saleId);
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($saleId) {
+            $this->lockSale($saleId);
+            $sale = SaleStockLines::forSale($saleId);
 
-        if ($sale === null) {
-            return;
-        }
-
-        $items = Item::query()->whereKey(array_column($sale['lines'], 'item_id'))->where('type', 'stock')->get()->keyBy('id');
-        $serial = ItemSetting::query()->whereIn('item_id', $items->keys())->where('tracking', ItemSetting::SERIAL)->pluck('item_id')->all();
-        $lines = [];
-
-        foreach ($sale['lines'] as $line) {
-            $item = $items->get($line['item_id']);
-
-            if ($item === null || BigDecimal::of($line['qty'])->isZero()) {
-                continue;
+            // A voided sale moved nothing yet: nothing to do (its void moved nothing either).
+            if ($sale === null || $sale['status'] !== 'completed') {
+                return;
             }
 
-            $factor = $this->units->factor($item, $line['uom_id']);
-            $flags = $factor === null ? [['code' => 'uom_unknown']] : [];
-            $flags = in_array($item->id, $serial, true) ? [...$flags, ['code' => 'serial_not_captured']] : $flags;
+            $items = Item::query()->whereKey(array_column($sale['lines'], 'item_id'))->where('type', 'stock')->get()->keyBy('id');
+            $serial = ItemSetting::query()->whereIn('item_id', $items->keys())->where('tracking', ItemSetting::SERIAL)->pluck('item_id')->all();
+            $lines = [];
 
-            $lines[] = new PostingLine(
-                $item->id, $sale['location_id'], Movement::SALE, $this->units->toBase(BigDecimal::of($line['qty']), $factor ?? BigDecimal::one())->negated(),
-                sourceLineId: $line['line_id'], uomId: $line['uom_id'], uomQty: Qty::of($line['qty']), flags: $flags, fefo: true,
-            );
-        }
+            foreach ($sale['lines'] as $line) {
+                $item = $items->get($line['item_id']);
 
-        $this->ledger->post(new Posting($sale['company_id'], 'pos.sale', $saleId, CarbonImmutable::parse($sale['occurred_at']), null, $lines, manual: false));
+                if ($item === null || BigDecimal::of($line['qty'])->isZero()) {
+                    continue;
+                }
+
+                $factor = $this->units->factor($item, $line['uom_id']);
+                $flags = $factor === null ? [['code' => 'uom_unknown']] : [];
+                $flags = in_array($item->id, $serial, true) ? [...$flags, ['code' => 'serial_not_captured']] : $flags;
+
+                $lines[] = new PostingLine(
+                    $item->id, $sale['location_id'], Movement::SALE, $this->units->toBase(BigDecimal::of($line['qty']), $factor ?? BigDecimal::one())->negated(),
+                    sourceLineId: $line['line_id'], uomId: $line['uom_id'], uomQty: Qty::of($line['qty']), flags: $flags, fefo: true,
+                );
+            }
+
+            $this->ledger->post(new Posting($sale['company_id'], 'pos.sale', $saleId, CarbonImmutable::parse($sale['occurred_at']), null, $lines, manual: false));
+
+            // Refunds applied before this event was handled come back now.
+            foreach ($sale['refund_ids'] as $refundId) {
+                $this->postBack('pos.refund', $refundId, SaleStockLines::forRefund($refundId), Movement::SALE_RETURN);
+            }
+        });
     }
 
-    /**
-     * What came back: for each line, from the movements the sale line made,
-     * what they still hold back, at each one's cost.
-     *
-     * @param  array{sale_id: string, company_id: string, location_id: string, occurred_at: string, lines: list<array{line_id: string, sale_line_id: string, item_id: string, uom_id: string, qty: string}>}|null  $source
-     */
+    /** One lock per sale: its posting, void and refunds never interleave. */
+    private function lockSale(string $saleId): void
+    {
+        DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['inventory:pos-sale:'.$saleId]);
+    }
+
+    /** @param array<string, mixed>|null $source */
     private function back(string $sourceType, string $sourceId, ?array $source, string $kind): void
     {
         if ($source === null) {
@@ -121,46 +135,67 @@ class MoveStockForSale implements ShouldQueue
         }
 
         DB::connection(TenantContext::CONNECTION)->transaction(function () use ($sourceType, $sourceId, $source, $kind) {
-            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['inventory:pos-sale:'.$source['sale_id']]);
+            $this->lockSale($source['sale_id']);
+            $this->postBack($sourceType, $sourceId, $source, $kind);
+        });
+    }
 
-            $sold = Movement::query()->where('source_type', 'pos.sale')->where('source_id', $source['sale_id'])->where('kind', Movement::SALE)
-                ->orderBy('created_at')->orderBy('id')->get()->groupBy('source_line_id');
-            $items = Item::query()->whereKey(array_column($source['lines'], 'item_id'))->get()->keyBy('id');
-            $lines = [];
+    /**
+     * Under the sale's lock: from the movements of each sale line, what they
+     * still hold back, at their cost.
+     *
+     * @param  array{sale_id: string, company_id: string, location_id: string, occurred_at: string, lines: list<array{line_id: string, sale_line_id: string, item_id: string, uom_id: string, qty: string}>}|null  $source
+     */
+    private function postBack(string $sourceType, string $sourceId, ?array $source, string $kind): void
+    {
+        if ($source === null) {
+            return;
+        }
 
-            foreach ($source['lines'] as $line) {
-                $item = $items->get($line['item_id']);
+        $sold = Movement::query()->where('source_type', 'pos.sale')->where('source_id', $source['sale_id'])->where('kind', Movement::SALE)
+            ->orderBy('created_at')->orderBy('id')->get()->groupBy('source_line_id');
+        $items = Item::query()->whereKey(array_column($source['lines'], 'item_id'))->get()->keyBy('id');
+        $lines = [];
 
-                if ($item === null || ! $sold->has($line['sale_line_id'])) {
+        foreach ($source['lines'] as $line) {
+            $item = $items->get($line['item_id']);
+
+            if ($item === null || ! $sold->has($line['sale_line_id'])) {
+                continue;
+            }
+
+            $left = $this->units->toBase(BigDecimal::of($line['qty']), $this->units->factor($item, $line['uom_id']) ?? BigDecimal::one());
+
+            foreach ($sold[$line['sale_line_id']] as $out) {
+                if (! $left->isPositive()) {
+                    break;
+                }
+
+                $outQty = Qty::of((string) $out->qty)->abs();
+                $outValue = BigInteger::of((string) $out->value_minor)->abs();
+                $back = Movement::query()->where('reverses_movement_id', $out->id);
+                $returnedQty = Qty::of((string) ((clone $back)->sum('qty') ?? '0'));
+                $returnedValue = BigInteger::of((string) ((clone $back)->sum('value_minor') ?? '0'));
+                $remaining = Qty::of($outQty->minus($returnedQty));
+                $take = Qty::min($remaining, $left);
+
+                if (! $take->isPositive()) {
                     continue;
                 }
 
-                $left = $this->units->toBase(BigDecimal::of($line['qty']), $this->units->factor($item, $line['uom_id']) ?? BigDecimal::one());
+                // L2: the last units take what is left of the value, exactly.
+                $cost = $take->isEqualTo($remaining) ? $outValue->minus($returnedValue) : Qty::share($outValue, $take, $outQty);
 
-                foreach ($sold[$line['sale_line_id']] as $out) {
-                    if (! $left->isPositive()) {
-                        break;
-                    }
-
-                    $outQty = Qty::of((string) $out->qty)->abs();
-                    $returned = Qty::of((string) Movement::query()->where('reverses_movement_id', $out->id)->sum('qty'));
-                    $take = Qty::min(Qty::of($outQty->minus($returned)), $left);
-
-                    if (! $take->isPositive()) {
-                        continue;
-                    }
-
-                    $lines[] = new PostingLine(
-                        $out->item_id, $out->location_id, $kind, $take,
-                        sourceLineId: $line['line_id'], batchId: $out->batch_id,
-                        cost: Qty::share(BigInteger::of((string) $out->value_minor)->abs(), $take, $outQty),
-                        reversesMovementId: $out->id,
-                    );
-                    $left = Qty::of($left->minus($take));
-                }
+                $lines[] = new PostingLine(
+                    $out->item_id, $out->location_id, $kind, $take,
+                    sourceLineId: $line['line_id'], batchId: $out->batch_id,
+                    cost: $cost,
+                    reversesMovementId: $out->id,
+                );
+                $left = Qty::of($left->minus($take));
             }
+        }
 
-            $this->ledger->post(new Posting($source['company_id'], $sourceType, $sourceId, CarbonImmutable::parse($source['occurred_at']), null, $lines, manual: false));
-        });
+        $this->ledger->post(new Posting($source['company_id'], $sourceType, $sourceId, CarbonImmutable::parse($source['occurred_at']), null, $lines, manual: false));
     }
 }
