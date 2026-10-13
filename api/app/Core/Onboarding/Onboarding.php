@@ -5,10 +5,13 @@ namespace App\Core\Onboarding;
 use App\Core\Audit\Auditor;
 use App\Core\Billing\Catalogue\Catalogue;
 use App\Core\Billing\Catalogue\Http\Controllers\PublicCatalogueController;
+use App\Core\Http\ApiException;
 use App\Core\Onboarding\Models\OnboardingState;
 use App\Core\Onboarding\Trial\TrialSelection;
 use App\Core\Onboarding\Trial\TrialStarter;
+use App\Core\Onboarding\Trial\TrialEnded;
 use App\Core\Onboarding\Trial\TrialStatus;
+use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
@@ -39,6 +42,7 @@ class Onboarding
         private readonly TenantContext $tenants,
         private readonly BusinessTypes $types,
         private readonly TrialStarter $trials,
+        private readonly TrialStatusProvider $statuses,
         private readonly Catalogue $catalogue,
         private readonly RoleTemplates $roleTemplates,
         private readonly DocumentTypeRegistry $documentTypes,
@@ -110,9 +114,21 @@ class Onboarding
      */
     public function chooseModules(array $input): array
     {
+        // ONB-04: a selection starts or changes a trial only before it ends.
+        if (! in_array($this->statuses->status()->state, [TrialStatus::NONE, TrialStatus::TRIAL], true)) {
+            throw TrialEnded::make();
+        }
+
         $country = $this->country();
         $quantities = array_map('intval', $input['quantities'] ?? []);
         $quote = PublicCatalogueController::price($this->catalogue, [...$input, 'country' => $country, 'quantities' => $quantities, 'coupon' => null]);
+
+        // Enterprise is priced by sales (concept note 8.4): no self-service trial of it.
+        if ($quote['quoted'] ?? false) {
+            $message = __('onboarding.errors.bundle_quoted');
+
+            throw new ApiException(422, 'bundle_quoted', $message, ['bundle' => [$message]]);
+        }
 
         return $this->transaction(function () use ($input, $country, $quantities, $quote) {
             $state = OnboardingState::locked();

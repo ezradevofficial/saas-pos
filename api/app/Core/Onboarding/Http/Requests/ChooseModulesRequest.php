@@ -13,6 +13,8 @@ use Illuminate\Validation\Rule;
  */
 class ChooseModulesRequest extends EditOnboardingRequest
 {
+    protected string $permission = 'core.onboarding.modules';
+
     public function rules(): array
     {
         $rules = [

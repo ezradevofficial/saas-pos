@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 /** ONB-02: a business type from the presets and, optionally, the number of outlets. */
 class ChooseBusinessTypeRequest extends EditOnboardingRequest
 {
+    protected string $permission = 'core.onboarding.modules';
+
     public function rules(): array
     {
         return [

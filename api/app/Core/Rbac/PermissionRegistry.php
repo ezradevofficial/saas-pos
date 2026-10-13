@@ -84,9 +84,10 @@ class PermissionRegistry
         // EXP-02: a full export of the tenant's data (Owner template only; the
         // API also requires an active Owner, RBAC-10).
         'tenant' => ['export'],
-        // ONB-02..ONB-07: the onboarding steps, setup wizard, sample data and
-        // checklist (tenant scope; Owner, Admin).
-        'onboarding' => ['view', 'edit'],
+        // ONB-02..ONB-07: the setup wizard, sample data and checklist (view,
+        // edit: tenant scope; Owner, Admin); the business type and the
+        // modules the trial covers (modules: the subscription, Owner only).
+        'onboarding' => ['view', 'edit', 'modules'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

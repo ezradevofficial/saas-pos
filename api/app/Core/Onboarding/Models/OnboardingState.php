@@ -3,9 +3,12 @@
 namespace App\Core\Onboarding\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Audit\Auditor;
 use App\Core\Tenancy\BelongsToTenant;
+use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 /**
  * A tenant's onboarding (ONB-01..ONB-08): one row per tenant, created at
@@ -36,7 +39,7 @@ class OnboardingState extends Model
 
     protected string $auditResource = 'onboarding';
 
-    protected $fillable = ['stage', 'business_type', 'selection', 'applied', 'steps', 'trial_started_at', 'trial_ends_at', 'sample', 'checklist_dismissed_at', 'assisted', 'completed_at'];
+    protected $fillable = ['stage', 'business_type', 'selection', 'applied', 'steps', 'trial_started_at', 'trial_ends_at', 'sample', 'checklist_dismissed_at', 'assisted', 'completed_at', 'trial_expired_at'];
 
     protected $attributes = ['stage' => self::STAGE_BUSINESS, 'steps' => '{}'];
 
@@ -52,13 +55,38 @@ class OnboardingState extends Model
             'trial_ends_at' => 'datetime',
             'checklist_dismissed_at' => 'datetime',
             'completed_at' => 'datetime',
+            'trial_expired_at' => 'datetime',
         ];
     }
 
-    /** The current tenant's record, created on first use (tenants that signed up before ONB). */
+    /**
+     * The current tenant's record, created on first use (tenants that signed
+     * up before ONB). Two first reads at once both insert with "on conflict
+     * do nothing" (tenant_id is unique), then both read the one row; the
+     * creation is audited once, by the insert that won.
+     */
     public static function current(): self
     {
-        return static::query()->first() ?? tap(new static, fn (self $state) => $state->save());
+        if (($state = static::query()->first()) !== null) {
+            return $state;
+        }
+
+        $tenantId = app(TenantContext::class)->require();
+        $inserted = static::query()->insertOrIgnore([
+            'id' => (string) Str::uuid7(),
+            'tenant_id' => $tenantId,
+            'stage' => self::STAGE_BUSINESS,
+            'steps' => '{}',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $state = static::query()->firstOrFail();
+
+        if ($inserted > 0) {
+            app(Auditor::class)->record('core.onboarding.create', $state, null, ['stage' => $state->stage]);
+        }
+
+        return $state;
     }
 
     /** The current tenant's record, locked for the rest of the transaction. */
