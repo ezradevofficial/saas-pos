@@ -5465,7 +5465,7 @@
         "importTitle": "Import a spreadsheet",
         "importText": "Bring your products from Excel or CSV in one go.",
         "import": "Import items",
-        "importSoon": "Importing from a spreadsheet isn’t available yet. Add items one by one for now."
+        "importNoAccess": "Ask someone who can import data to bring in your spreadsheet, or add items one by one."
       },
       "users": {
         "title": "Users and roles",

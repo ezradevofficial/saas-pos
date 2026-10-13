@@ -168,8 +168,9 @@ describe('Onboarding screens', () => {
 
     router.navigate('/onboarding/setup/items')
     expect(await screen.findByRole('heading', { level: 1, name: 'Your first items' })).toBeInTheDocument()
-    // The import wizard is not on this build: said plainly, no broken link.
-    expect(screen.getByText(/Importing from a spreadsheet isn’t available yet/)).toBeInTheDocument()
+    // IMP-01: without core.import.run the import link is replaced by who to ask.
+    expect(screen.getByText(/Ask someone who can import data/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Import items' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Add an item' })).toHaveAttribute('href', '/catalogue/items/new')
 
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
@@ -179,6 +180,17 @@ describe('Onboarding screens', () => {
     router.navigate('/onboarding/setup/items')
     fireEvent.click(await screen.findByRole('button', { name: 'Mark as to do' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('onboarding/steps', { step: 'items', status: 'todo' }))
+  })
+
+  it('links the items step to the import wizard for people who may import (ONB-05, IMP-01)', async () => {
+    const current = state({ stage: 'setup' })
+    mockRoutes(api, [['onboarding', () => ({ data: current })], ['onboarding/trial', () => ({ data: current.trial })], ['onboarding/checklist', { data: { visible: false, items: [] } }]], {
+      permissions: tenantWide(['core.onboarding.view', 'core.onboarding.edit', 'core.import.run']),
+    })
+    renderApp('/onboarding/setup/items')
+
+    expect(await screen.findByRole('link', { name: 'Import items' })).toHaveAttribute('href', '/settings/imports/new?type=items')
+    expect(screen.queryByText(/Ask someone who can import data/)).not.toBeInTheDocument()
   })
 
   it('loads and removes sample data, and shows why removal is refused (ONB-06)', async () => {
