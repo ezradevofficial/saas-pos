@@ -112,14 +112,17 @@ class DevicePairing
                 throw $invalid();
             }
 
-            // LIM-03: pairing adds an active device.
-            $this->limits->ensureCanAdd(Units::DEVICE);
+            if ($device->first_paired_at === null) {
+                // LIM-03: a first pairing adds an active device; a till paired before is never kept off sales (LIM-04).
+                $this->limits->ensureCanAdd(Units::DEVICE);
+            }
 
             $this->auditContext->setDeviceId($device->id)->setLocationId($device->location_id);
 
             $this->transition($device, 'pair', [
                 'status' => Device::STATUS_ACTIVE,
                 'paired_at' => now(),
+                'first_paired_at' => $device->first_paired_at ?? now(),
             ]);
 
             $secret = $this->secrets->issueFirst($device);
@@ -170,8 +173,8 @@ class DevicePairing
             // A device suspended before it was ever paired goes back to pending.
             $status = $device->paired_at !== null ? Device::STATUS_ACTIVE : Device::STATUS_PENDING;
 
-            if ($status === Device::STATUS_ACTIVE) {
-                // LIM-03: resuming adds an active device.
+            if ($status === Device::STATUS_ACTIVE && $device->first_paired_at === null) {
+                // LIM-03: resuming adds an active device, unless it is a till that worked before (LIM-04).
                 $this->limits->ensureCanAdd(Units::DEVICE);
             }
 

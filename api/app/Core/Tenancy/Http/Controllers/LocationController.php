@@ -50,15 +50,17 @@ class LocationController
 
     public function store(StoreLocationRequest $request, Branch $branch): LocationResource
     {
-        if ($request->validated('type') === self::OUTLET) {
-            // LIM-03: creating an outlet.
-            $this->limits->ensureCanAdd(Units::OUTLET);
-        }
-
         // TEN-06: nothing new under an archived branch.
-        return LocationResource::make(DB::transaction(
-            fn () => $this->archiver->lockActive(Branch::class, $branch->id)->locations()->create($request->validated()),
-        ));
+        return LocationResource::make(DB::transaction(function () use ($request, $branch) {
+            $parent = $this->archiver->lockActive(Branch::class, $branch->id);
+
+            if ($request->validated('type') === self::OUTLET) {
+                // LIM-03: creating an outlet.
+                $this->limits->ensureCanAdd(Units::OUTLET);
+            }
+
+            return $parent->locations()->create($request->validated());
+        }));
     }
 
     public function show(Request $request, Location $location): LocationResource
@@ -70,12 +72,14 @@ class LocationController
 
     public function update(UpdateLocationRequest $request, Location $location): LocationResource
     {
-        if ($request->validated('type') === self::OUTLET && $location->type !== self::OUTLET && $location->archived_at === null) {
-            // LIM-03: a warehouse, store or office made an outlet.
-            $this->limits->ensureCanAdd(Units::OUTLET);
-        }
+        DB::transaction(function () use ($request, $location) {
+            if ($request->validated('type') === self::OUTLET && $location->type !== self::OUTLET && $location->archived_at === null) {
+                // LIM-03: a warehouse, store or office made an outlet.
+                $this->limits->ensureCanAdd(Units::OUTLET);
+            }
 
-        $location->fill($request->validated())->save();
+            $location->fill($request->validated())->save();
+        });
 
         return LocationResource::make($location);
     }
@@ -91,12 +95,14 @@ class LocationController
     {
         $this->authorizeInScope($request, 'restore', $location);
 
-        if ($location->type === self::OUTLET && $location->archived_at !== null) {
-            // LIM-03: an archived outlet back in use.
-            $this->limits->ensureCanAdd(Units::OUTLET);
-        }
+        return LocationResource::make(DB::transaction(function () use ($location) {
+            if ($location->type === self::OUTLET && $location->archived_at !== null) {
+                // LIM-03: an archived outlet back in use.
+                $this->limits->ensureCanAdd(Units::OUTLET);
+            }
 
-        return LocationResource::make($this->archiver->restore($location));
+            return $this->archiver->restore($location);
+        }));
     }
 
     private function list(ListRequest $request, Builder $query): AnonymousResourceCollection

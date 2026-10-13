@@ -12,6 +12,7 @@ use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\Models\Tenant;
+use Carbon\CarbonImmutable;
 
 /**
  * LIM-02, LIM-03: the Owners hear about a unit above the plan in the app
@@ -57,8 +58,8 @@ final class UsageNotices
         }
     }
 
-    /** @param  array{currency: string, units: array<string, int>}|null  $cost */
-    public function send(string $type, Overage $overage, ?array $cost): void
+    /** @param  array{currency: string, units: array<string, int>}|null  $cost  the run's price; $at the run's time */
+    public function send(string $type, Overage $overage, ?array $cost, CarbonImmutable $at): void
     {
         $owners = $this->owners->ownerIds();
 
@@ -77,7 +78,7 @@ final class UsageNotices
             'extra_cost' => $amount === null
                 ? __('limits.cost.unpriced', [], $locale)
                 : __('limits.cost.monthly', ['amount' => self::money($amount, $cost['currency'], $locale)], $locale),
-            'days_left' => (string) $overage->daysLeft(now()),
+            'days_left' => (string) $overage->daysLeft($at),
             'blocks_on' => LocalDate::format($overage->blocksAt(), $locale),
         ], (string) config('limits.upgrade_path', '/settings/subscription')));
     }

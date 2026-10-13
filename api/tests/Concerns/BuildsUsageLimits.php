@@ -44,7 +44,8 @@ trait BuildsUsageLimits
 
             for ($i = 1; $i <= $count; $i++) {
                 $device = Device::create(['location_id' => ($location ?? $this->locationA)->id, 'name' => "Till {$status} {$i}"]);
-                $device->forceFill(['status' => $status, 'paired_at' => $status === Device::STATUS_PENDING ? null : now()])->save();
+                $paired = $status === Device::STATUS_PENDING ? null : now();
+                $device->forceFill(['status' => $status, 'paired_at' => $status === Device::STATUS_UNPAIRED ? null : $paired, 'first_paired_at' => $paired])->save();
                 $devices[] = $device;
             }
 

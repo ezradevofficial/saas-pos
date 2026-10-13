@@ -214,7 +214,8 @@ class UsageLimitsTest extends TestCase
         $this->allow([Units::DEVICE => 2]);
         $this->devices(3);
         $this->meter();
-        $this->travelTo(CarbonImmutable::parse('2026-10-19T05:59:00Z'));
+        // The last second of day 6 (UTC calendar days).
+        $this->travelTo(CarbonImmutable::parse('2026-10-18T23:59:59Z'));
 
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor())->assertCreated();
     }
@@ -234,8 +235,10 @@ class UsageLimitsTest extends TestCase
             ->assertJsonPath('upgrade_url', '/settings/subscription');
         $this->assertSame('Your plan includes 2 POS devices and you have 3. Upgrade your plan to add more. Everything already set up keeps working.', $refused->json('message'));
 
+        // A device never paired gets no code; a till that worked before is resumed (LIM-04).
         $this->postJson("/api/v1/devices/{$pending->id}/pairing-code", [], $this->headersFor())->assertStatus(402);
-        $this->postJson("/api/v1/devices/{$suspended->id}/resume", [], $this->headersFor())->assertStatus(402);
+        $this->postJson("/api/v1/devices/{$suspended->id}/resume", [], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/devices/{$suspended->id}/suspend", [], $this->headersFor())->assertOk();
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor() + ['Accept-Language' => 'fr'])
             ->assertStatus(402)
             ->assertJsonPath('message', 'Votre abonnement comprend 2 appareils de caisse et vous en avez 3. Passez à un abonnement supérieur pour en ajouter. Tout ce qui est déjà en place continue de fonctionner.');
@@ -288,41 +291,42 @@ class UsageLimitsTest extends TestCase
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor($cashier))->assertForbidden();
     }
 
-    public function test_the_overage_closes_when_back_within_the_plan_and_adding_works_again(): void
+    public function test_the_guard_never_closes_an_overage_and_the_meter_does(): void
     {
         $devices = $this->blockDevices();
 
-        // Two unpaired: one more fits, so the guard closes the overage and lets it through.
+        // Two unpaired: one more fits (1 + 1 <= 2), so it goes through, but the overage stays open.
         $this->postJson("/api/v1/devices/{$devices[0]->id}/unpair", [], $this->headersFor())->assertOk();
         $this->postJson("/api/v1/devices/{$devices[1]->id}/unpair", [], $this->headersFor())->assertOk();
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor())->assertCreated();
-        $closed = $this->inTenant(fn () => Overage::query()->where('unit', 'device')->firstOrFail());
-        $this->assertSame(Overage::WITHIN_ALLOWANCE, $closed->close_reason);
-        $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.usage_overage.update')->exists()));
-
-        // Over again: a new overage, a new window. Back within: the meter closes it.
-        $this->devices(2);
-        $this->meter();
         $this->assertNotNull($this->openOverage(Units::DEVICE));
-        $this->inTenant(fn () => Device::query()->where('status', 'active')->limit(1)->get()->each(fn (Device $d) => $d->forceFill(['status' => 'unpaired'])->save()));
+
+        // The meter counts 1 of 2: closed, audited.
         $this->meter();
         $this->assertNull($this->openOverage(Units::DEVICE));
-        $this->assertSame(2, $this->inTenant(fn () => Overage::query()->whereNotNull('closed_at')->count()));
+        $this->assertSame(Overage::WITHIN_ALLOWANCE, $this->inTenant(fn () => Overage::query()->where('unit', 'device')->firstOrFail())->close_reason);
+        $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.usage_overage.update')->exists()));
     }
 
-    public function test_an_upgrade_lifts_the_block_at_once(): void
+    public function test_an_upgrade_lifts_the_block_at_once_and_the_meter_closes_the_overage(): void
     {
         $this->blockDevices();
         $this->allow([Units::DEVICE => 5]);
 
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 4'], $this->headersFor())->assertCreated();
+        $this->assertNotNull($this->openOverage(Units::DEVICE));
+        $this->meter();
         $this->assertNull($this->openOverage(Units::DEVICE));
 
-        // No limit at all on the unit closes it too.
+        // No limit at all on the unit: adding works, and the meter closes it as unlimited.
+        $this->travelTo(CarbonImmutable::parse('2026-11-01T06:00:00Z'));
         $this->allow([Units::DEVICE => 2]);
         $this->devices(1);
         $this->meter();
+        $this->inTenant(fn () => Overage::query()->open()->firstOrFail()->forceFill(['started_at' => now()->subDays(8)])->save());
         $this->allow([]);
+        // Signed in again: the earlier session timed out over the weeks travelled.
+        $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 5'], $this->bearer($this->tokenFor($this->owner), ['Accept' => 'application/json']))->assertCreated();
         $this->meter();
         $this->assertSame(Overage::UNLIMITED, $this->inTenant(fn () => Overage::query()->latest('started_at')->firstOrFail())->close_reason);
     }

@@ -44,8 +44,9 @@ Subscriptions (SUB-02) were built in parallel, so limits and billing meet only t
   - It is a system event type (ADR 009): mandatory and never digested.
   - It names the item, the count, the allowance and the extra monthly cost, and links to `/settings/subscription`.
   - The extra cost is the catalogue quote of the plan with the exceeded units at their counts, minus the quote at the allowances.
-- On days 1 to 6 they receive `core.usage_limit.reminder`, once a day, whatever time the job runs: the day number is computed from `started_at`.
-- From day 7 they receive `core.usage_limit.blocked` once.
+- Days are UTC calendar days from the day of `started_at`, the same rule for reminders, `blocksAt`, `isBlocking` and the guard. On days 1 to 6 they receive `core.usage_limit.reminder`, once a day, whatever time the job runs. From day 7 (00:00 UTC) they receive `core.usage_limit.blocked` once.
+- Notices are sent after the meter's transaction commits, with the run's own time.
+- An overage that reopens within 7 days of closing (back within the plan) keeps the original `started_at`, reminders and block notice.
 - A row is closed (`within_allowance`, or `unlimited` when the plan stops limiting the unit), never deleted. Opening, updates and closing are audited as `core.usage_overage.*` (AUD-01).
 
 **The only guard (LIM-03, LIM-04).** `UsageLimits::ensureCanAdd($unit)` is the only code that consults the limits.
@@ -56,8 +57,10 @@ Subscriptions (SUB-02) were built in parallel, so limits and billing meet only t
   - users: invite, reactivate.
 
   Each is called after the Form Request and policy, so a user without permission gets 403, not 402.
-- It refuses with `402 usage_limit_reached` only when both are true: the unit's overage is past its window, and one more would still be above the allowance. The 402 carries a translated message (en and fr), `unit`, `allowed`, `count` and `upgrade_url`.
-- If the count already fits (items archived or unpaired, or the plan upgraded), it closes the overage at once and lets the action through.
+- It runs inside the transaction that adds the item, takes `pg_advisory_xact_lock` per tenant and unit, and counts after the lock, so concurrent adds cannot both pass.
+- It refuses with `402 usage_limit_reached` only when both are true: the unit's overage is past its window, and `count + 1 > allowed`. An Owner gets a translated message (en and fr), `unit`, `allowed`, `count` and `upgrade_url`; anyone else only `unit` and "ask an Owner to upgrade".
+- It never closes an overage. Only the meter does, when the count is within the plan or the plan no longer limits the unit. So archiving down for a moment, adding one and restoring the rest is refused.
+- A device that has been paired before (`devices.first_paired_at`, kept when unpaired) gets a pairing code, pairs and resumes without the guard: a till that worked is never taken off sales.
 - `UsageLimitGuardsTest` finds every call in `app/` and `modules/`, and every route that reaches one, and fails on any other.
 - Approvals, workflows, POS sales, shifts, number ranges and sync are proven to work while every unit is blocked.
 
@@ -68,7 +71,7 @@ Subscriptions (SUB-02) were built in parallel, so limits and billing meet only t
 
 ## Consequences
 
-- An invitation sent before the block can still be accepted, because it already exists. Devices given a code before the block are refused when they pair.
-- Overage starts a new window each time it reopens. Going back within the plan for a day and then over again gives 7 more days of adding. The extra usage is still billed day by day from the meter records.
+- An invitation sent before the block can still be accepted, because it already exists. A device never paired that got a code before the block is refused when it pairs.
+- Unpairing a till and pairing it again is not limited; only devices never paired count as additions at pairing.
 - Days with no meter record (a missed run) are billed as within the plan.
 - When billing binds `PlanAllowances`, the allowances come from the subscription's quantities. The meter rows record the allowance in force each day, so billing never re-derives past allowances.

@@ -52,13 +52,14 @@ class DeviceController
 
     public function store(StoreDeviceRequest $request, Location $location): DeviceResource
     {
-        // LIM-03: adding a device.
-        $this->limits->ensureCanAdd(Units::DEVICE);
-
         // TEN-06: nothing new under an archived location.
-        return DeviceResource::make(DB::transaction(
-            fn () => $this->archiver->lockActive(Location::class, $location->id)->devices()->create($request->validated()),
-        ));
+        return DeviceResource::make(DB::transaction(function () use ($request, $location) {
+            $parent = $this->archiver->lockActive(Location::class, $location->id);
+            // LIM-03: adding a device.
+            $this->limits->ensureCanAdd(Units::DEVICE);
+
+            return $parent->devices()->create($request->validated());
+        }));
     }
 
     public function show(Request $request, Device $device): DeviceResource
@@ -79,10 +80,14 @@ class DeviceController
     public function pairingCode(DeviceActionRequest $request, Device $device): JsonResponse
     {
         $this->authorizeInScope($request, 'pair', $device);
-        // LIM-03: a pairing code adds an active device once used.
-        $this->limits->ensureCanAdd(Units::DEVICE);
         $issued = DB::transaction(function () use ($device) {
             $this->archiver->lockActive(Location::class, $device->location_id);
+
+            if ($device->first_paired_at === null) {
+                // LIM-03: a code for a device never paired adds an active device once used.
+                // A till that worked before is never kept off sales (LIM-04).
+                $this->limits->ensureCanAdd(Units::DEVICE);
+            }
 
             return $this->pairing->issueCode($device);
         });
