@@ -212,7 +212,8 @@ class BillingCycle
 
     private function dun(Subscription $subscription, CarbonImmutable $at): void
     {
-        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', $at)->orderBy('due_at')->first();
+        // Overdue once a whole day has passed since it fell due (the due date itself is for paying).
+        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', $at->subDay())->orderBy('due_at')->first();
         $grace = $subscription->grace_days ?? $this->settings->get('grace_days');
 
         if ($overdue !== null && in_array($subscription->status, [Subscription::TRIAL, Subscription::ACTIVE], true)) {

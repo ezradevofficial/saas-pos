@@ -281,7 +281,8 @@ return new class extends Migration
             SQL,
         // SUB-03, SUB-05: subscriptions with billing work at p_at: a trial or
         // period ending within 7 days (reminders, invoices, renewals), or a
-        // subscription past due or read-only (grace, POS window).
+        // subscription past due or read-only (grace, POS window), or an open
+        // invoice already due (it turns past due).
         'app_tenants_with_billing_due(p_at timestamptz)' => <<<'SQL'
             select s.tenant_id from public.subscriptions s
             join public.tenants t on t.id = s.tenant_id
@@ -291,6 +292,8 @@ return new class extends Migration
                 (s.status = 'trial' and s.current_period_start is null and s.trial_ends_at <= p_at + interval '7 days')
                 or (s.current_period_end is not null and s.current_period_end <= (p_at + interval '7 days')::date)
                 or s.status in ('past_due', 'read_only')
+                or exists (select 1 from public.billing_invoices i
+                           where i.tenant_id = s.tenant_id and i.status = 'open' and i.due_at <= p_at)
               )
             order by 1
             SQL,

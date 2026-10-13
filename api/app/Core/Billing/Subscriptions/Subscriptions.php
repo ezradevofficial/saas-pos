@@ -331,7 +331,7 @@ class Subscriptions
      */
     public function paid(Subscription $subscription, BillingInvoice $invoice): Subscription
     {
-        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', CarbonImmutable::now())->exists();
+        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', CarbonImmutable::now()->subDay())->exists();
 
         if (! $overdue && in_array($subscription->status, [Subscription::TRIAL, Subscription::PAST_DUE, Subscription::READ_ONLY], true)) {
             $subscription->fill([
