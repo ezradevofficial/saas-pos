@@ -163,10 +163,10 @@ Recorded here as the brief asked; the owner may revisit them.
 
 - **Core `App\Core\Payments\Tenders\TenderProviders`.** A module registers
   a `TenderProvider` for a payment method type (`points`, `voucher`,
-  `credit`). POS validates a payment's `tender` object with the provider's
-  `rules()` (a malformed tender is a 422, as any malformed field) and asks
-  the provider for review flags (`check()`), which POS adds to the sale's
-  flags as `tender_flagged` with the provider's code. Providers of an
+  `credit`). POS checks only the `tender` object's shape (a flat object of
+  short keys; otherwise a 422, as any malformed field) and asks the
+  provider for review flags (`check()`), which POS adds to the sale's or
+  refund's flags as `tender_flagged` with the provider's code. Providers of an
   inactive module are not used: the tender is stored as sent.
 - **Core `App\Core\Sales\DiscountSources`.** A module registers a source
   key (`loyalty.promotion`). A line's `adjustments: [{source, reference,
@@ -314,13 +314,72 @@ Prefix `/api/v1`, every route behind `module:loyalty` (403
 
 ## Status (phase 7, branch `feat/loyalty`)
 
-See the phase 7 report for what was built and tested; requirements not
-built are listed under Deferred.
+| ID | Status | Evidence |
+| --- | --- | --- |
+| LOY-01 | Built | BackOfficeTest (programme), web Programme page |
+| LOY-02 | Built | PosIntegrationTest, customer tab |
+| LOY-03 | Built | PosIntegrationTest (earn once, resend), shared points cases |
+| LOY-04 | Built | PosIntegrationTest (void, proportional refunds) |
+| LOY-05 | Built | PosIntegrationTest (overdraw flagged), Jest offline rule |
+| LOY-06 | Built | SyncAndExpiryTest (FIFO, notice once) |
+| LOY-07 | Built | BackOfficeTest (customer tab) |
+| LOY-08 | Built | BackOfficeTest (versions, validation), web editor |
+| LOY-09 | Built | BackOfficeTest (coupons), Jest (uses left) |
+| LOY-10 | Built | PromotionEngineFixturesTest and engine.test.js on one fixture |
+| LOY-11 | Built | Jest promotions on the cart, sale provenance |
+| LOY-12 | Built | BackOfficeTest (re-evaluation flags `promotion_differs`) |
+| LOY-13 | Built | BackOfficeTest preview, Playwright preview |
+| LOY-14 | Built | BackOfficeTest (open, close, limit from the party) |
+| LOY-15 | Built | PosIntegrationTest (flags), BackOfficeTest (refusal and RBAC-06 override), Jest (till limit) |
+| LOY-16 | Built | BackOfficeTest |
+| LOY-17 | Built | BackOfficeTest (statement and PDF) |
+| LOY-18 | Built | BackOfficeTest (FIFO buckets, export) |
+| LOY-19 | Built | SyncAndExpiryTest |
+| LOY-20 | Built | BackOfficeTest (code shown once, hash kept) |
+| LOY-21 | Partly | Back-office sale and the server's till-sale loading (`extensions.loyalty.gift_cards`) are built; the till screen to sell a card is deferred |
+| LOY-22 | Built | PosIntegrationTest, GiftCardConcurrencyTest, Jest |
+| LOY-23 | Built | BackOfficeTest (back office and device lookup), Jest (live lookup) |
+| LOY-24 | Built | SyncAndExpiryTest |
+| LOY-25 | Built | PosIntegrationTest (refund to a card) |
+| LOY-26 | Built | PosIntegrationTest and BackOfficeTest (module off), SyncAndExpiryTest |
+| LOY-27 | Built | POS tests unchanged and passing; seams in core and the POS app |
+| LOY-28 | Built | Audited through Auditor and Audited models |
+| LOY-29 | Built | Isolation suite with every loyalty table and route |
+| LOY-30 | Built | TranslationParityTest, check:i18n |
+
+### Decisions taken while building
+
+- **Tender reference checks flag, they do not refuse.** A tender object of
+  the wrong shape (not a flat object of short keys) is a 422 like any
+  malformed field; a tender that does not add up (unknown card, points
+  worth another amount) is stored and flagged `tender_flagged` with the
+  provider's code, because the sale already happened (device wins).
+- **Company-wide records.** Programmes, promotions, accounts, statements and
+  gift cards belong to a company; a loyalty permission held at the company
+  or at any of its branches or locations covers them (LoyaltyAccess), so a
+  branch manager takes a customer's payment at their branch.
+- **Promotion versions take effect when saved.** The server re-evaluates
+  a sale with the versions in force at its sale time; a till that applied a
+  promotion saved after the sale is flagged `promotion_unknown`.
+- **A credit sale without an open account** is still recorded (device
+  wins): an account is opened for it and the sale flagged
+  `credit_no_account`. A credit sale by someone without
+  `loyalty.credit.sell` is flagged `credit_not_permitted`.
+- **Points adjustments** may be made for any party of the company (its
+  roles may change); points accounts follow the party.
+- **The ageing report's as-of day** ends at midnight UTC; per-account pages
+  use the company's time zone.
+- **Gift card code hashes in the full export** (EXP-02) are allowed: they
+  are not reversible and every till of the company holds them.
 
 ## Deferred
 
 - Manager override of the credit limit at the till (raise the limit
   through the core flow instead).
+- Selling a gift card on the till's screen (the server already loads a
+  card sold on a sale's `extensions.loyalty.gift_cards`).
+- Points earned shown on the till's receipt (the server's posting is the
+  record).
 - Points for items or categories only (every item earns today), tiers,
   referral and birthday rewards.
 - Per-customer coupon limits (total limit only).

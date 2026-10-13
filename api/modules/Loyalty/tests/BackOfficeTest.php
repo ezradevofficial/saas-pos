@@ -161,7 +161,7 @@ class BackOfficeTest extends TestCase
         $this->getJson('/api/v1/loyalty/ageing', $this->headersFor())->assertOk()->assertJsonPath('data.0.ageing.open_minor', '110000');
         $this->getJson('/api/v1/loyalty/ageing?format=csv', $this->headersFor())->assertOk();
 
-        $statement = $this->postJson("/api/v1/loyalty/accounts/{$id}/statements", ['from' => now()->subDays(30)->format('Y-m-d'), 'to' => now()->format('Y-m-d')], $this->headersFor())
+        $statement = $this->postJson("/api/v1/loyalty/accounts/{$id}/statements", ['from' => now('Africa/Nairobi')->subDays(30)->format('Y-m-d'), 'to' => now('Africa/Nairobi')->format('Y-m-d')], $this->headersFor())
             ->assertCreated()->assertJsonPath('data.opening.amount_minor', '100000')->assertJsonPath('data.closing.amount_minor', '110000')->assertJsonCount(2, 'data.lines');
         $this->assertMatchesRegularExpression('/^ST-\d{4}-00001$/', $statement->json('data.number'));
         $pdf = $this->get("/api/v1/loyalty/statements/{$statement->json('data.id')}/pdf", $this->headersFor())->assertOk();
