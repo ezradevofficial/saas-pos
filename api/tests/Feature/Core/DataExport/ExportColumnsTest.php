@@ -109,7 +109,7 @@ class ExportColumnsTest extends TestCase
             'users.password', 'users.two_factor_secret', 'device_secrets.secret', 'user_pins.pin_hash', 'user_pins.card_key',
             'payment_methods.secrets', 'payment_methods.callback_token', 'company_fiscal_settings.credentials',
             'automation_rules.webhook_secret', 'document_shares.token_hash', 'invitations.token_hash', 'devices.pairing_code_hash',
-            'automation_webhook_deliveries.url', 'payment_intents.phone',
+            'automation_webhook_deliveries.url', 'payment_intents.phone', 'billing_payments.redirect_url',
         ] as $key) {
             $this->assertArrayHasKey($key, ExportColumns::DENIED);
         }
@@ -118,6 +118,7 @@ class ExportColumnsTest extends TestCase
         $this->assertFalse($tables->exported('users', 'password'));
         $this->assertTrue($tables->exported('users', 'email'));
         $this->assertTrue($tables->exported('audit_logs', 'hash'));
+        $this->assertFalse($tables->exported('billing_payments', 'redirect_url'));
         // Fail closed: a secret-like name nobody reviewed is left out.
         $this->assertFalse($tables->exported('some_new_table', 'api_key'));
         $this->assertFalse($tables->exported('some_new_table', 'refresh_token'));

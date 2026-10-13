@@ -46,6 +46,7 @@ final class ExportColumns
         // decrypting would put the application key in the export path.
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
         'billing_payment_methods.token' => 'a card provider\'s token for charging the subscription (SUB-04, encrypted)',
+        'billing_payments.redirect_url' => 'a hosted card checkout link for a subscription payment, which may carry a session token (SUB-04)',
         'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
     ];
 
