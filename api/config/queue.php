@@ -73,6 +73,18 @@ return [
             'after_commit' => false,
         ],
 
+        // EXP-02: full tenant exports run up to `data_export.timeout` (an
+        // hour): their worker reserves jobs for longer than that, so a
+        // running export is never handed to a second worker.
+        'redis-exports' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => env('DATA_EXPORT_QUEUE', 'exports'),
+            'retry_after' => (int) env('REDIS_EXPORTS_RETRY_AFTER', 3900),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

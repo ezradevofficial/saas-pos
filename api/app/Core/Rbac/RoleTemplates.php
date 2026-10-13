@@ -17,12 +17,12 @@ use Illuminate\Support\Str;
  */
 class RoleTemplates
 {
-    /** @var list<array{key: string, permissions: list<string>, is_owner: bool, requires_two_factor: bool}>|null */
+    /** @var list<array{key: string, permissions: list<string>, except?: list<string>, is_owner: bool, requires_two_factor: bool}>|null */
     private ?array $templates = null;
 
     public function __construct(private readonly TenantContext $tenants) {}
 
-    /** @return list<array{key: string, permissions: list<string>, is_owner: bool, requires_two_factor: bool}> */
+    /** @return list<array{key: string, permissions: list<string>, except?: list<string>, is_owner: bool, requires_two_factor: bool}> */
     public function all(): array
     {
         return $this->templates ??= require __DIR__.'/role-templates.php';
@@ -85,7 +85,7 @@ class RoleTemplates
             'requires_two_factor' => $template['requires_two_factor'],
         ])->save();
 
-        $role->syncPermissions($this->expand($template['permissions']));
+        $role->syncPermissions($this->expand($template['permissions'], $template['except'] ?? []));
 
         return $role;
     }
@@ -104,7 +104,7 @@ class RoleTemplates
             Role::where('is_system', true)->whereNotNull('template_key')->get()
                 ->each(function (Role $role) use ($templates) {
                     if ($template = $templates->get($role->template_key)) {
-                        $role->setPermissions($this->expand($template['permissions']));
+                        $role->setPermissions($this->expand($template['permissions'], $template['except'] ?? []));
                     }
                 });
         });
@@ -143,12 +143,13 @@ class RoleTemplates
      * Catalogue permissions matching any of $patterns (`*` is a wildcard).
      *
      * @param  list<string>  $patterns
+     * @param  list<string>  $except  exact names left out
      * @return Collection<int, Permission>
      */
-    public function expand(array $patterns): Collection
+    public function expand(array $patterns, array $except = []): Collection
     {
         return Permission::where('guard_name', Permission::GUARD)->orderBy('name')->get()
-            ->filter(fn (Permission $permission) => Str::is($patterns, $permission->name))
+            ->filter(fn (Permission $permission) => Str::is($patterns, $permission->name) && ! in_array($permission->name, $except, true))
             ->values();
     }
 

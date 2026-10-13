@@ -16,8 +16,10 @@ final class GlobalTables
     /**
      * Platform tables (ADR 013): global by design, with no tenant_id and no
      * row-level security. Staff are not tenant users and the catalogue is
-     * the same for every tenant. RlsCoverageTest checks they stay free of
-     * tenant_id, so no tenant row can ever land in them.
+     * the same for every tenant. Instead of RLS, grants keep them apart:
+     * only the platform role (app_platform) reaches staff tables and writes
+     * the catalogue; the tenant runtime role only reads the catalogue.
+     * RlsCoverageTest checks the grants and that they stay free of tenant_id.
      */
     public const PLATFORM = [
         'platform_users' => 'platform staff; they belong to no tenant',

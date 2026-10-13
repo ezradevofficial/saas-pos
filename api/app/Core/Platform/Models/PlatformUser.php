@@ -2,6 +2,7 @@
 
 namespace App\Core\Platform\Models;
 
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -51,6 +52,9 @@ class PlatformUser extends Authenticatable
         // ONB-08: create a tenant for a customer and hand it over (field sales, support).
         'tenants.create' => [self::ROLE_OWNER, self::ROLE_SUPPORT],
     ];
+
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
 
     protected $table = 'platform_users';
 

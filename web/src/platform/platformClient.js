@@ -1,6 +1,9 @@
 // The platform console's own API client (ADR 013). It keeps the staff token
 // apart from a tenant session (its own storage key) and never sends the
-// tenant token or company header, so the two sessions cannot mix.
+// tenant token or company header, so the two sessions cannot mix. The token
+// lives in sessionStorage: it ends with the tab and is never shared with
+// other tabs. In production the console is served on its own subdomain
+// (PLATFORM_URL), so tenant pages never share its origin.
 import { ApiError } from '@/api/client'
 import { apiUrl } from '@/config'
 import i18n from '@/i18n'
@@ -11,7 +14,7 @@ const memory = new Map()
 
 export function getPlatformToken() {
   try {
-    const value = window.localStorage.getItem(PLATFORM_TOKEN_KEY)
+    const value = window.sessionStorage.getItem(PLATFORM_TOKEN_KEY)
     if (value !== null) return value
   } catch {
     // Fall back to memory.
@@ -23,8 +26,8 @@ export function setPlatformToken(token) {
   if (token) memory.set(PLATFORM_TOKEN_KEY, token)
   else memory.delete(PLATFORM_TOKEN_KEY)
   try {
-    if (token) window.localStorage.setItem(PLATFORM_TOKEN_KEY, token)
-    else window.localStorage.removeItem(PLATFORM_TOKEN_KEY)
+    if (token) window.sessionStorage.setItem(PLATFORM_TOKEN_KEY, token)
+    else window.sessionStorage.removeItem(PLATFORM_TOKEN_KEY)
   } catch {
     // Kept in memory.
   }

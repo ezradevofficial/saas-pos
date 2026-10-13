@@ -29,7 +29,7 @@ Route::model('annual_discount', AnnualDiscount::class);
 // sign-up. Global data only; rate-limited per IP.
 Route::middleware('throttle:'.PlatformServiceProvider::PUBLIC_CATALOGUE_LIMITER)->group(function () {
     Route::get('catalogue', [PublicCatalogueController::class, 'index']);
-    Route::post('catalogue/quote', [PublicCatalogueController::class, 'quote']);
+    Route::post('catalogue/quote', [PublicCatalogueController::class, 'quote'])->middleware('throttle:'.PlatformServiceProvider::COUPON_LIMITER);
 });
 
 Route::prefix('platform')->group(function () {

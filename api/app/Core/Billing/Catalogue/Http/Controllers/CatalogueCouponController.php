@@ -9,10 +9,10 @@ use App\Core\Billing\Catalogue\Http\Requests\UpdateCatalogueCouponRequest;
 use App\Core\Billing\Catalogue\Http\Requests\ViewCatalogueRequest;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\DB;
 
 /**
  * SUB-01: coupons. Their value (kind, percent, amount, currency, what they
@@ -32,7 +32,7 @@ class CatalogueCouponController extends Controller
 
     public function store(StoreCatalogueCouponRequest $request): JsonResponse
     {
-        $coupon = DB::transaction(function () use ($request) {
+        $coupon = PlatformDatabase::transaction(function () use ($request) {
             $data = $request->validated();
             $coupon = CatalogueCoupon::create([
                 ...Arr::only($data, ['kind', 'percent', 'amount', 'expires_at', 'max_redemptions']),
@@ -52,7 +52,7 @@ class CatalogueCouponController extends Controller
 
     public function update(UpdateCatalogueCouponRequest $request, CatalogueCoupon $catalogueCoupon): JsonResponse
     {
-        DB::transaction(function () use ($request, $catalogueCoupon) {
+        PlatformDatabase::transaction(function () use ($request, $catalogueCoupon) {
             $before = CataloguePresenter::coupon($catalogueCoupon);
             $catalogueCoupon->fill(Arr::only($request->validated(), ['expires_at', 'max_redemptions']))->save();
             $this->audit->record('catalogue.coupon.updated', $catalogueCoupon, $before, CataloguePresenter::coupon($catalogueCoupon));
@@ -64,7 +64,7 @@ class CatalogueCouponController extends Controller
     public function archive(ManageCatalogueRequest $request, CatalogueCoupon $catalogueCoupon): JsonResponse
     {
         if ($catalogueCoupon->archived_at === null) {
-            DB::transaction(function () use ($catalogueCoupon) {
+            PlatformDatabase::transaction(function () use ($catalogueCoupon) {
                 $catalogueCoupon->forceFill(['archived_at' => now()])->save();
                 $this->audit->record('catalogue.coupon.archived', $catalogueCoupon);
             });

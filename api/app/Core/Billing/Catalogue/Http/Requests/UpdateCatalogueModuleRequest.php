@@ -22,6 +22,9 @@ class UpdateCatalogueModuleRequest extends ManageCatalogueRequest
 
     public function after(): array
     {
-        return [fn (Validator $v) => ModuleCompositionRules::check($v, $this, (string) $this->route('catalogue_module')?->key)];
+        return [
+            fn (Validator $v) => ModuleCompositionRules::check($v, $this, (string) $this->route('catalogue_module')?->key),
+            fn (Validator $v) => PricedMakeUp::check($v, $this->all(), $this->route('catalogue_module'), 'module', ['includes', 'requires']),
+        ];
     }
 }

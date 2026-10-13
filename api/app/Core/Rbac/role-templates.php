@@ -11,6 +11,8 @@
  * not registered yet match nothing; system roles are refreshed when a
  * tenant activates a module (ModuleRegistry::activate).
  *
+ * `except` (optional) removes exact names the patterns matched.
+ *
  * Two-factor is off for every template; tenant admins turn it on per role.
  */
 
@@ -26,6 +28,8 @@ return [
         // TPL-04: shares POS documents by email and link (pos.sale.share).
         // LAY-05: designs the tills' sell screen once the POS module is active.
         'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*'],
+        // EXP-02: the full tenant export is the Owner's alone.
+        'except' => ['core.tenant.export'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

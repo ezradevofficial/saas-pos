@@ -126,6 +126,26 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // ADR 013: platform staff (auth, tokens, their audit log) and the
+        // catalogue admin writes. Role app_platform reaches only the platform
+        // and catalogue tables; the tenant runtime role cannot touch staff
+        // tables and may only read the catalogue.
+        'pgsql_platform' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_PLATFORM_USERNAME', 'app_platform'),
+            'password' => env('DB_PLATFORM_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'timezone' => 'UTC',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

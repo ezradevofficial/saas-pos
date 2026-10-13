@@ -384,7 +384,8 @@
     "documentTemplates": "Modèles de documents",
     "posLayout": "Disposition de caisse",
     "formLayouts": "Mises en page des formulaires",
-    "formTypes": "Formulaires"
+    "formTypes": "Formulaires",
+    "dataExport": "Export des données"
   },
   "shell": {
     "account": "Menu du compte",
@@ -5053,6 +5054,50 @@
       "numbering": "Numérotation",
       "flow": "Circuit d’approbation",
       "open": "Ouvrir les formulaires"
+    }
+  },
+  "dataExport": {
+    "title": "Export des données",
+    "description": "Téléchargez une copie complète des données de votre organisation, dans un format lisible par d’autres systèmes.",
+    "request": {
+      "title": "Demander un export",
+      "text": "Nous préparons l’export en arrière-plan et vous prévenons lorsqu’il est prêt. Vous seul pouvez le télécharger, et le fichier est supprimé après {{days}} jours.",
+      "action": "Demander l’export",
+      "limit": "Jusqu’à {{count}} exports par 24 heures, un à la fois."
+    },
+    "preparing": "Votre export est en préparation. Cette page se met à jour lorsqu’il est prêt.",
+    "contents": {
+      "title": "Contenu de l’export",
+      "included": "Inclus",
+      "tables": "Tous les enregistrements de votre organisation, un fichier JSON Lines par table",
+      "files": "Vos fichiers : images des articles, logos, pièces jointes et fichiers des champs personnalisés",
+      "manifest": "Un manifeste listant chaque table avec son nombre de lignes et une somme SHA-256 par fichier",
+      "excluded": "Exclus",
+      "secrets": "Les secrets : empreintes des mots de passe et des codes PIN, secrets de connexion en deux étapes, secrets des appareils, identifiants des prestataires de paiement et de l’administration fiscale, secrets des webhooks et jetons des liens",
+      "sessions": "Les sessions de connexion et les codes à usage unique"
+    },
+    "past": {
+      "title": "Exports précédents",
+      "empty": "Aucun export pour l’instant."
+    },
+    "requestedAt": "Demandé le {{when}}",
+    "by": "par {{name}}",
+    "expires": "disponible jusqu’au {{when}}",
+    "failedText": "il n’a pas pu être préparé ; demandez-en un nouveau",
+    "download": "Télécharger",
+    "downloadFor": "Télécharger l’export demandé le {{when}}",
+    "status": {
+      "queued": "En attente",
+      "running": "En préparation",
+      "ready": "Prêt",
+      "failed": "Échec",
+      "expired": "Expiré"
+    },
+    "tooLarge": "il dépassait la taille maximale d’un export ; contactez le support",
+    "confirm": {
+      "title": "Confirmez avec votre mot de passe",
+      "text": "L’export contient toutes les données de votre organisation. Saisissez votre mot de passe pour le demander.",
+      "password": "Votre mot de passe"
     }
   },
   "platform": {

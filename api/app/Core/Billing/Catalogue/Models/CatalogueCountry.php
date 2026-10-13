@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Catalogue\Models;
 
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +15,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CatalogueCountry extends Model
 {
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
+
     protected $table = 'catalogue_countries';
 
     protected $primaryKey = 'country';

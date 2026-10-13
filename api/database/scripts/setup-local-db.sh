@@ -10,7 +10,8 @@
 #   PGHOST        default 127.0.0.1
 #   PGPORT        default 5432
 #   DATABASES     space-separated database names (default: "app app_test")
-#   APP_PASSWORD, APP_OWNER_PASSWORD   role passwords (default: app, app_owner)
+#   APP_PASSWORD, APP_OWNER_PASSWORD, APP_PLATFORM_PASSWORD   role passwords
+#                 (default: app, app_owner, app_platform)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,6 +21,7 @@ PGPORT="${PGPORT:-5432}"
 DATABASES="${DATABASES:-app app_test}"
 APP_PASSWORD="${APP_PASSWORD:-app}"
 APP_OWNER_PASSWORD="${APP_OWNER_PASSWORD:-app_owner}"
+APP_PLATFORM_PASSWORD="${APP_PLATFORM_PASSWORD:-app_platform}"
 export PGHOST PGPORT
 
 psql_su() { psql -U "$PGSUPERUSER" -v ON_ERROR_STOP=1 -q "$@"; }
@@ -32,13 +34,14 @@ for db in $DATABASES; do
   fi
 done
 
-echo "Creating roles app_owner and app (as $PGSUPERUSER on $PGHOST:$PGPORT)"
+echo "Creating roles app_owner, app and app_platform (as $PGSUPERUSER on $PGHOST:$PGPORT)"
 psql_su -d postgres -f "$DIR/create-roles.sql"
 # Passwords go through psql variables (:'name' quotes them as literals), so
 # any character is safe whatever the bash version.
-psql_su -d postgres -v owner_pw="$APP_OWNER_PASSWORD" -v app_pw="$APP_PASSWORD" <<'SQL'
+psql_su -d postgres -v owner_pw="$APP_OWNER_PASSWORD" -v app_pw="$APP_PASSWORD" -v platform_pw="$APP_PLATFORM_PASSWORD" <<'SQL'
 ALTER ROLE app_owner PASSWORD :'owner_pw';
 ALTER ROLE app PASSWORD :'app_pw';
+ALTER ROLE app_platform PASSWORD :'platform_pw';
 SQL
 
 for db in $DATABASES; do
@@ -49,6 +52,8 @@ for db in $DATABASES; do
   psql_su -d "$db" <<SQL
 ALTER SCHEMA public OWNER TO app_owner;
 GRANT USAGE ON SCHEMA public TO app;
+-- ADR 013: no default privileges; the platform migrations grant its tables.
+GRANT USAGE ON SCHEMA public TO app_platform;
 ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app;
 ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app;
 ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO app;

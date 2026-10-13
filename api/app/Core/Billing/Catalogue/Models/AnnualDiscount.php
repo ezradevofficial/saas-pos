@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Catalogue\Models;
 
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,9 @@ class AnnualDiscount extends Model
 {
     use HasUuids;
 
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
+
     protected $table = 'catalogue_annual_discounts';
 
     protected $fillable = ['months_charged', 'months_in_cycle', 'effective_from', 'created_by'];
@@ -35,9 +39,9 @@ class AnnualDiscount extends Model
         $query->whereNull('archived_at');
     }
 
-    public static function current(string $date): ?self
+    public static function current(string $date, string $connection = PlatformDatabase::READ): ?self
     {
-        return self::live()->where('effective_from', '<=', $date)->orderByDesc('effective_from')->first();
+        return self::on($connection)->whereNull('archived_at')->where('effective_from', '<=', $date)->orderByDesc('effective_from')->first();
     }
 
     public function isInEffect(): bool

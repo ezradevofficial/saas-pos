@@ -27,7 +27,7 @@ class PlatformTokens
     public function issue(PlatformUser $user, array $abilities, ?string $ip, ?string $userAgent): string
     {
         $secret = Str::random(48);
-        $minutes = in_array(PlatformAccessToken::FULL, $abilities, true) ? (int) config('platform.token_minutes', 720) : self::ENROL_MINUTES;
+        $minutes = in_array(PlatformAccessToken::FULL, $abilities, true) ? (int) config('platform.token_minutes', 480) : self::ENROL_MINUTES;
 
         $token = PlatformAccessToken::create([
             'platform_user_id' => $user->id,
@@ -82,7 +82,7 @@ class PlatformTokens
     {
         $token->forceFill([
             'abilities' => [PlatformAccessToken::FULL],
-            'expires_at' => now()->addMinutes((int) config('platform.token_minutes', 720)),
+            'expires_at' => now()->addMinutes((int) config('platform.token_minutes', 480)),
         ])->save();
     }
 

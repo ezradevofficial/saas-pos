@@ -11,6 +11,9 @@ use RuntimeException;
  */
 final class QuoteError extends RuntimeException
 {
+    /** For `addon_requires_bundle`: the cheapest bundle that sells the add-on (same shape as a quote's suggestion). */
+    public ?array $suggestion = null;
+
     public function __construct(public readonly string $reason, public readonly string $field, public readonly ?string $key = null)
     {
         parent::__construct("{$reason}: {$field}".($key === null ? '' : " ({$key})"));

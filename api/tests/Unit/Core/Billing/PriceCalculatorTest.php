@@ -237,6 +237,30 @@ class PriceCalculatorTest extends TestCase
         $this->assertSame('addon_not_available', $this->error(fn () => $this->quote(['brand_pack'], bundle: 'business'))->reason);
     }
 
+    public function test_an_add_on_without_a_bundle_still_suggests_the_bundle_that_sells_it(): void
+    {
+        $error = $this->error(fn () => $this->quote(['pos', 'inventory', 'loyalty', 'brand_pack']));
+
+        $this->assertSame('addon_requires_bundle', $error->reason);
+        $this->assertSame(['bundle' => 'starter', 'total' => 390000 + 150000, 'saving' => null, 'currency' => 'KES'], $error->suggestion);
+        // With a bundle chosen that does not sell it, no suggestion is invented.
+        $this->assertNull($this->error(fn () => $this->quote(['brand_pack'], bundle: 'business'))->suggestion);
+    }
+
+    public function test_totals_that_would_overflow_are_refused_not_turned_into_floats(): void
+    {
+        $snapshot = self::catalogue();
+        $huge = new CatalogueSnapshot('KE', 'KES', [...$snapshot->modules, 'crm' => new ModuleOffer('crm', 'module', 'company', intdiv(PHP_INT_MAX, 2))], $snapshot->bundles, 10);
+
+        $error = $this->error(fn () => $this->calculator->quote($huge, new QuoteRequest(['crm'], ['company' => 3])));
+        $this->assertSame(['amount_too_large', 'quantities'], [$error->reason, $error->field]);
+
+        // Annual multiplies by 12: also checked.
+        $edge = new CatalogueSnapshot('KE', 'KES', [...$snapshot->modules, 'crm' => new ModuleOffer('crm', 'module', 'company', intdiv(PHP_INT_MAX, 11))], $snapshot->bundles, 10);
+        $this->assertSame('amount_too_large', $this->error(fn () => $this->calculator->quote($edge, new QuoteRequest(['crm'], [], 'annual')))->reason);
+        $this->assertIsInt($this->calculator->quote($edge, new QuoteRequest(['crm']))['total']);
+    }
+
     public function test_unknown_or_unsold_selections_are_refused(): void
     {
         $this->assertSame(['unknown_module', 'modules.1', 'nope'], $this->errorParts(fn () => $this->quote(['pos', 'nope'])));

@@ -10,10 +10,10 @@ use App\Core\Billing\Catalogue\Http\Requests\ViewCatalogueRequest;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\DB;
 
 /**
  * SUB-01: bundles and the add-ons each one sells (Brand Pack with
@@ -35,7 +35,7 @@ class CatalogueBundleController extends Controller
 
     public function store(StoreCatalogueBundleRequest $request): JsonResponse
     {
-        $bundle = DB::transaction(function () use ($request) {
+        $bundle = PlatformDatabase::transaction(function () use ($request) {
             $bundle = CatalogueBundle::create(['addons' => [], ...Arr::only($request->validated(), self::FIELDS)]);
             $this->audit->record('catalogue.bundle.created', $bundle, null, CataloguePresenter::bundle($bundle));
 
@@ -47,7 +47,7 @@ class CatalogueBundleController extends Controller
 
     public function update(UpdateCatalogueBundleRequest $request, CatalogueBundle $catalogueBundle): JsonResponse
     {
-        DB::transaction(function () use ($request, $catalogueBundle) {
+        PlatformDatabase::transaction(function () use ($request, $catalogueBundle) {
             $before = CataloguePresenter::bundle($catalogueBundle);
             $catalogueBundle->fill(Arr::only($request->validated(), self::FIELDS))->save();
             $this->audit->record('catalogue.bundle.updated', $catalogueBundle, $before, CataloguePresenter::bundle($catalogueBundle));
@@ -68,7 +68,7 @@ class CatalogueBundleController extends Controller
 
     private function setArchived(CatalogueBundle $bundle, bool $archived): JsonResponse
     {
-        DB::transaction(function () use ($bundle, $archived) {
+        PlatformDatabase::transaction(function () use ($bundle, $archived) {
             $bundle->forceFill(['archived_at' => $archived ? now() : null])->save();
             $this->audit->record($archived ? 'catalogue.bundle.archived' : 'catalogue.bundle.restored', $bundle);
         });

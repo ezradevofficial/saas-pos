@@ -8,7 +8,6 @@ use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -51,15 +50,17 @@ class PlatformAuditor
             'user_agent' => $console ? null : mb_substr((string) request()->userAgent(), 0, 1024),
         ];
 
-        DB::transaction(function () use ($fields) {
-            DB::select('select pg_advisory_xact_lock(?)', [self::LOCK_KEY]);
-            $last = DB::table('platform_audit_logs')->orderByDesc('seq')->first(['seq', 'hash']);
+        $db = PlatformDatabase::connection();
+
+        $db->transaction(function () use ($db, $fields) {
+            $db->select('select pg_advisory_xact_lock(?)', [self::LOCK_KEY]);
+            $last = $db->table('platform_audit_logs')->orderByDesc('seq')->first(['seq', 'hash']);
 
             $fields['seq'] = $last === null ? 1 : (int) $last->seq + 1;
             $row = self::normalise($fields);
             $prev = $last->hash ?? Auditor::GENESIS_HASH;
 
-            DB::table('platform_audit_logs')->insert([
+            $db->table('platform_audit_logs')->insert([
                 ...$row,
                 'id' => (string) Str::uuid7(),
                 'before' => self::jsonColumn($row['before']),
@@ -76,7 +77,7 @@ class PlatformAuditor
         $expected = 1;
         $prev = Auditor::GENESIS_HASH;
 
-        foreach (DB::table('platform_audit_logs')->lazyById(500, 'seq') as $entry) {
+        foreach (PlatformDatabase::connection()->table('platform_audit_logs')->lazyById(500, 'seq') as $entry) {
             $fields = self::normalise((array) $entry);
 
             if ($fields['seq'] !== $expected || $entry->prev_hash !== $prev || ! hash_equals(self::hash($prev, $fields), $entry->hash)) {

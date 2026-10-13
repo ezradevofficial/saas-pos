@@ -10,9 +10,11 @@ use Illuminate\Database\QueryException;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\ResetsPlatformTables;
 use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 
@@ -23,7 +25,7 @@ use Tests\TestCase;
  */
 class PlatformAuthTest extends TestCase
 {
-    use CreatesIdentities, CreatesPlatformStaff, RefreshTenantDatabase, WithoutOwnerConnection;
+    use CreatesIdentities, CreatesPlatformStaff, RefreshTenantDatabase, ResetsPlatformTables, WithoutOwnerConnection;
 
     private function setupToken(string $output): string
     {
@@ -77,7 +79,7 @@ class PlatformAuthTest extends TestCase
         $this->getJson('/api/v1/platform/catalogue/modules', $bearer)->assertOk();
         $this->postJson('/api/v1/platform/me/two-factor/totp', [], $bearer)->assertConflict();
 
-        $actions = DB::table('platform_audit_logs')->orderBy('seq')->pluck('action')->all();
+        $actions = DB::connection('pgsql_platform')->table('platform_audit_logs')->orderBy('seq')->pluck('action')->all();
         $this->assertSame(['platform.user.created', 'platform.auth.setup_completed', 'platform.auth.enrolment_sign_in', 'platform.auth.sign_in_failed', 'platform.auth.two_factor_enabled'], $actions);
         $this->assertNull(app(PlatformAuditor::class)->verify());
     }
@@ -136,7 +138,7 @@ class PlatformAuthTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/platform/me', $bearer)->assertUnauthorized();
 
-        $this->assertContains('platform.auth.sign_in', DB::table('platform_audit_logs')->pluck('action')->all());
+        $this->assertContains('platform.auth.sign_in', DB::connection('pgsql_platform')->table('platform_audit_logs')->pluck('action')->all());
         $this->assertNull(app(PlatformAuditor::class)->verify());
     }
 
@@ -149,8 +151,15 @@ class PlatformAuthTest extends TestCase
             $this->postJson('/api/v1/platform/auth/sign-in', ['email' => 'lock@example.com', 'password' => 'wrong-password-123'])->assertUnprocessable();
         }
 
-        $this->postJson('/api/v1/platform/auth/sign-in', ['email' => 'lock@example.com', 'password' => $this->staffPassword])
-            ->assertStatus(423)->assertJsonPath('code', 'locked')->assertHeader('Retry-After');
+        // A locked account answers exactly like wrong credentials (no enumeration), even with the right password.
+        $wrong = $this->postJson('/api/v1/platform/auth/sign-in', ['email' => 'nobody@example.com', 'password' => 'wrong-password-123'])->assertUnprocessable()->json();
+        for ($i = 0; $i < 4; $i++) {
+            $locked = $this->postJson('/api/v1/platform/auth/sign-in', ['email' => 'lock@example.com', 'password' => $this->staffPassword])->assertUnprocessable();
+            $this->assertSame($wrong, $locked->json());
+        }
+
+        // Locked attempts are audited once per account per lock period, not once per attempt.
+        $this->assertSame(1, DB::connection('pgsql_platform')->table('platform_audit_logs')->where('action', 'platform.auth.sign_in_failed')->whereRaw("after->>'reason' = 'locked'")->count());
 
         $this->travel(16)->minutes();
         $this->postJson('/api/v1/platform/auth/sign-in', ['email' => 'lock@example.com', 'password' => $this->staffPassword])->assertOk();
@@ -204,7 +213,7 @@ class PlatformAuthTest extends TestCase
         $bearer = $this->staffBearer($user);
         $this->getJson('/api/v1/platform/me', $bearer)->assertOk();
 
-        $this->travel(13)->hours();
+        $this->travel(9)->hours();
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/platform/me', $bearer)->assertUnauthorized();
         $this->travelBack();
@@ -230,16 +239,32 @@ class PlatformAuthTest extends TestCase
         app(PlatformAuditor::class)->record('platform.test', null, ['n' => 1], ['n' => 2]);
         $this->assertNull(app(PlatformAuditor::class)->verify());
 
-        // The runtime role may not update or delete entries (and a trigger refuses every role).
-        foreach (['update platform_audit_logs set action = ?', 'delete from platform_audit_logs where action <> ?'] as $sql) {
-            $refused = false;
-            try {
-                DB::transaction(fn () => DB::statement($sql, ['platform.forged']));
-            } catch (QueryException) {
-                $refused = true;
+        // Neither the platform role nor the tenant runtime role may change or remove entries.
+        foreach (['pgsql_platform', 'pgsql'] as $connection) {
+            foreach (['update platform_audit_logs set action = ?', 'delete from platform_audit_logs where action <> ?'] as $sql) {
+                $refused = false;
+                try {
+                    DB::connection($connection)->transaction(fn ($db) => $db->statement($sql, ['platform.forged']));
+                } catch (QueryException) {
+                    $refused = true;
+                }
+                $this->assertTrue($refused, "{$sql} on {$connection} should be refused");
             }
-            $this->assertTrue($refused, "{$sql} should be refused");
         }
-        $this->assertSame(2, DB::table('platform_audit_logs')->where('action', 'platform.test')->count());
+        $this->assertSame(2, DB::connection('pgsql_platform')->table('platform_audit_logs')->where('action', 'platform.test')->count());
+    }
+
+    public function test_a_setup_link_is_used_once_even_by_racing_requests(): void
+    {
+        $token = app(PlatformAuth::class)->invite('race@example.com', 'Race', 'owner');
+        // Two requests both found the pending account before either used the link.
+        $first = app(PlatformAuth::class)->pendingSetup($token);
+        $second = app(PlatformAuth::class)->pendingSetup($token);
+
+        $this->assertTrue(app(PlatformAuth::class)->claimSetup($first, $token, 'first-password-long-1'));
+        $this->assertFalse(app(PlatformAuth::class)->claimSetup($second, $token, 'second-password-long-2'));
+
+        $this->assertTrue(Hash::check('first-password-long-1', $first->refresh()->password));
+        $this->assertNull($first->getRawOriginal('setup_token_hash'));
     }
 }
