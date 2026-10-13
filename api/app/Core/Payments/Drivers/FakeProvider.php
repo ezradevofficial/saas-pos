@@ -25,9 +25,10 @@ class FakeProvider implements HostedCheckout, PaymentProvider
         return 'fake';
     }
 
+    /** Any currency, unless a test declares a provider's rules (`payments.fake_currencies`, e.g. M-Pesa's whole shillings). */
     public function currencies(): array
     {
-        return [];
+        return (array) config('payments.fake_currencies', []);
     }
 
     public function canPush(): bool

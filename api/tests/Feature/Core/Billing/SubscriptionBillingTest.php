@@ -189,9 +189,9 @@ class SubscriptionBillingTest extends TestCase
         $this->cycle('2026-12-01 06:00:00');
         $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
         $overage = collect($renewal->lines)->firstWhere('type', 'overage');
-        // KES 500 a device a month, 10 of 30 days: KES 166.67; users are not sold, never charged.
-        $this->assertSame(['pos_device', 1, 50000, 16667, 10, 30], [$overage['key'], $overage['quantity'], $overage['unit_amount'], $overage['amount'], $overage['days'], $overage['period_days']]);
-        $this->assertSame(390000 + 16667, $renewal->total_minor);
+        // KES 500 a device a month, 10 of 30 days: KES 166.67, charged as KES 167; users are not sold, never charged.
+        $this->assertSame(['pos_device', 1, 50000, 16700, 10, 30], [$overage['key'], $overage['quantity'], $overage['unit_amount'], $overage['amount'], $overage['days'], $overage['period_days']]);
+        $this->assertSame(390000 + 16700, $renewal->total_minor);
         $this->assertCount(1, array_filter($renewal->lines, fn ($l) => $l['type'] === 'overage'));
         $this->assertSame('2026-12-01', $this->subscription()->overage_billed_through->toDateString());
         $this->assertSame([['2026-11-01', '2026-12-01']], app(UsageOverage::class)->asked);
@@ -250,6 +250,37 @@ class SubscriptionBillingTest extends TestCase
         $module = $this->inTenant(fn () => TenantModule::query()->where('module', 'pos')->sole());
         $this->assertSame(['active', null, null], [$module->status, $module->switched_off_at, $module->purge_flagged_at]);
         $this->getJson('/api/v1/pos/sales', $this->headersFor())->assertOk();
+    }
+
+    public function test_kes_invoices_are_in_whole_shillings_so_m_pesa_can_collect_them(): void
+    {
+        // Daraja-like rules: KES in whole units only.
+        config(['payments.fake_currencies' => ['KES' => true]]);
+        $this->app->instance(UsageOverage::class, new class implements UsageOverage
+        {
+            public function overageFor(string $tenantId, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): array
+            {
+                return [new UsageOverageLine('device', 1, 10, 30)];
+            }
+        });
+        (new CatalogueCoupon(['code' => 'THREE-PERCENT', 'kind' => 'percent', 'percent' => 3]))->save();
+
+        // Starter + Payroll for 15 employees (KES 2,250) less 3 %: KES 184.50 rounds to KES 185.
+        $plan = [...self::STARTER, 'modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 15, 'outlet' => 1], 'coupon' => 'THREE-PERCENT'];
+        $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 0], $this->headersFor())->assertOk();
+        $first = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated();
+        $this->assertSame(615000 - 18500, $first->json('data.total.amount_minor'));
+        $this->payWithMpesa($first->json('data.id'))->assertJsonPath('data.status', 'succeeded');
+
+        // The renewal's overage (KES 166.67) rounds to KES 167; every line and the total are whole shillings.
+        $this->cycle('2026-12-01 06:00:00');
+        $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
+        $this->assertSame(16700, collect($renewal->lines)->firstWhere('type', 'overage')['amount']);
+        foreach ($renewal->lines as $line) {
+            $this->assertSame(0, $line['amount'] % 100, $line['type']);
+        }
+        $this->assertSame(0, $renewal->total_minor % 100);
+        $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
     }
 
     public function test_coupon_redemptions_are_counted_against_their_limit(): void

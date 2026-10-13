@@ -9,6 +9,7 @@ use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Overage\OverageLine;
+use App\Core\Billing\Rounding;
 use App\Core\Fiscal\FiscalQueue;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Numbering\NumberContext;
@@ -120,6 +121,14 @@ class Invoicing
      */
     public function issue(Subscription $subscription, string $kind, array $lines, CarbonImmutable $periodStart, CarbonImmutable $periodEnd, CarbonImmutable $dueAt): BillingInvoice
     {
+        // SUB-04: a total that is not a whole step of the currency (KES: shillings) gets a rounding line.
+        $total = array_sum(array_map(fn (array $line) => (int) $line['amount'], $lines));
+        $rounded = Rounding::round($total, $subscription->currency);
+
+        if ($rounded !== $total) {
+            $lines[] = ['type' => 'rounding', 'key' => null, 'name' => null, 'amount' => $rounded - $total];
+        }
+
         $customerTenantId = $this->tenants->require();
         $customer = $this->customer();
         $issuedAt = CarbonImmutable::now();

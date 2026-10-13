@@ -66,6 +66,7 @@ return [
         'overage' => 'Extra use: :key',
         'annual_discount' => 'Annual billing discount',
         'coupon' => 'Coupon :key',
+        'rounding' => 'Rounding',
         'proration' => 'Plan change for the rest of the period',
         'proration_days' => ':days of :period days',
         'months' => ':months months',

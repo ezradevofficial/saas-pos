@@ -5,6 +5,7 @@ namespace App\Core\Billing\Overage;
 use App\Core\Billing\Catalogue\Pricing\CatalogueSnapshot;
 use App\Core\Billing\Catalogue\Pricing\QuoteRequest;
 use App\Core\Billing\Models\Subscription;
+use App\Core\Billing\Rounding;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageOverage;
 use App\Core\Limits\UsageOverageLine;
@@ -27,7 +28,8 @@ use Carbon\CarbonImmutable;
  *
  * The rate covers the months charged for the period (annual: those of the
  * annual discount) and is pro-rated by the days the units were over:
- * quantity × rate × months × days ÷ period days, half up, in minor units.
+ * quantity × rate × months × days ÷ period days, half up, in minor units,
+ * then to whole steps of the currency (Rounding).
  */
 class OveragePricing
 {
@@ -53,7 +55,7 @@ class OveragePricing
             }
 
             $unitAmount = $rate * $months;
-            $amount = intdiv(2 * $line->quantity * $unitAmount * $line->days + $line->periodDays, 2 * $line->periodDays);
+            $amount = Rounding::round(intdiv(2 * $line->quantity * $unitAmount * $line->days + $line->periodDays, 2 * $line->periodDays), $subscription->currency);
 
             if ($amount > 0) {
                 $lines[] = new OverageLine($key, $line->unit, $line->quantity, $unitAmount, $amount, $line->days, $line->periodDays);

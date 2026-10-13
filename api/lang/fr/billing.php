@@ -66,6 +66,7 @@ return [
         'overage' => 'Utilisation supplémentaire : :key',
         'annual_discount' => 'Remise pour paiement annuel',
         'coupon' => 'Coupon :key',
+        'rounding' => 'Arrondi',
         'proration' => 'Changement de formule pour le reste de la période',
         'proration_days' => ':days jours sur :period',
         'months' => ':months mois',

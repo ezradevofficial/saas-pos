@@ -17,6 +17,7 @@ use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\PlatformSettings;
+use App\Core\Billing\Rounding;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\UsageLimits;
@@ -134,6 +135,14 @@ class Subscriptions
             throw new ApiException(422, 'plan_quoted', __('billing.errors.plan_quoted'), ['bundle' => [__('billing.errors.plan_quoted')]]);
         }
 
+        // SUB-04: what is charged is whole steps of the currency (KES: whole shillings for M-Pesa).
+        if ((int) ($quote['coupon_discount'] ?? 0) > 0) {
+            $discount = Rounding::round((int) $quote['coupon_discount'], $quote['currency']);
+            $quote['coupon_discount'] = $discount;
+            $quote['coupon']['discount'] = $discount;
+        }
+
+        $quote['total'] = Rounding::round(max(0, (int) $quote['subtotal'] - (int) $quote['annual_discount'] - (int) $quote['coupon_discount']), $quote['currency']);
         $quote['price_ids'] = self::priceIds($snapshot, $quote);
         $quote['snapshot'] = $snapshot;
 
