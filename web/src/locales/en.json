@@ -5054,5 +5054,167 @@
       "flow": "Approval flow",
       "open": "Open the forms"
     }
+  },
+  "platform": {
+    "console": "Platform console",
+    "nav": {
+      "catalogue": "Catalogue"
+    },
+    "roles": {
+      "owner": "Owner",
+      "billing": "Billing",
+      "support": "Support"
+    },
+    "fields": {
+      "email": "Email",
+      "confirmPassword": "Confirm the password",
+      "country": "Country"
+    },
+    "signIn": {
+      "title": "Platform sign-in",
+      "intro": "For our own team only. Customers sign in on their business page.",
+      "submit": "Continue",
+      "codeTitle": "Enter your code",
+      "codeIntro": "Enter the 6-digit code from your authenticator app.",
+      "verify": "Sign in"
+    },
+    "setup": {
+      "title": "Set up your platform account",
+      "intro": "This account is for {{name}} ({{email}}). Choose a password, then set up your authenticator app.",
+      "passwordHelp": "At least 12 characters. Avoid common passwords.",
+      "submit": "Save password"
+    },
+    "enrol": {
+      "title": "Set up your authenticator app",
+      "intro": "Platform accounts need two-step sign-in. Nothing else works until it is set up.",
+      "scan": "Scan this code with your authenticator app, then enter the code it shows.",
+      "submit": "Turn on two-step sign-in"
+    },
+    "catalogue": {
+      "title": "Catalogue",
+      "intro": "Modules, bundles, prices per country and coupons. Prices are never edited: a new price takes over from its date.",
+      "tabs": {
+        "modules": "Modules and prices",
+        "bundles": "Bundles",
+        "coupons": "Coupons",
+        "quote": "Quote preview"
+      },
+      "columns": {
+        "module": "Module",
+        "kind": "Type",
+        "unit": "Priced per",
+        "status": "Status",
+        "bundle": "Bundle",
+        "includes": "Includes",
+        "addons": "Add-ons"
+      },
+      "notSold": "Not sold",
+      "minimum": "Minimum {{amount}}",
+      "extraOutlet": "{{amount}} per extra outlet",
+      "nextPrice": "New price from {{date}}",
+      "includes_one": "Includes {{count}} device per outlet",
+      "includes_other": "Includes {{count}} devices per outlet",
+      "annual": "Annual billing charges {{charged}} months for {{months}}.",
+      "newPrice": "New price",
+      "quoted": "Quoted by sales",
+      "empty": "Nothing in the catalogue yet."
+    },
+    "kinds": {
+      "module": "Module",
+      "extra": "Extra units",
+      "addon": "Add-on"
+    },
+    "units": {
+      "outlet": "Outlet",
+      "device": "Device",
+      "warehouse": "Warehouse",
+      "online_store": "Online store",
+      "company": "Company",
+      "employee": "Employee",
+      "tenant": "Account"
+    },
+    "status": {
+      "active": "Active",
+      "in_effect": "In effect",
+      "scheduled": "Scheduled",
+      "expired": "Expired",
+      "used_up": "Used up",
+      "archived": "Archived"
+    },
+    "coupons": {
+      "new": "New coupon",
+      "save": "Create coupon",
+      "empty": "No coupons yet.",
+      "code": "Code",
+      "codeHelp": "3 to 40 letters, digits, dashes or underscores. Customers type it in any case.",
+      "value": "Discount",
+      "percentOff": "{{percent}}% off",
+      "kind": "Discount type",
+      "kinds": {
+        "percent": "Percentage",
+        "fixed": "Fixed amount"
+      },
+      "percent": "Percentage off",
+      "currency": "Currency",
+      "amount": "Amount off",
+      "appliesTo": "Applies to",
+      "everything": "Everything",
+      "modules": "Modules",
+      "bundles": "Bundles",
+      "appliesHelp": "Leave modules and bundles empty to apply it to everything.",
+      "expires": "Expires",
+      "redemptions": "Used",
+      "maxRedemptions": "Maximum uses"
+    },
+    "prices": {
+      "title": "New price for {{key}}",
+      "intro": "The current price stays until the new one's date. Amounts are monthly, per unit.",
+      "amount": "Monthly price",
+      "minimum": "Monthly minimum",
+      "extraOutlet": "Price per extra outlet",
+      "effectiveFrom": "From",
+      "save": "Add price"
+    },
+    "quote": {
+      "title": "Quote preview",
+      "intro": "The price a customer sees in the module picker, from today's catalogue.",
+      "cycle": "Billing",
+      "cycles": {
+        "monthly": "Monthly",
+        "annual": "Annual"
+      },
+      "modules": "Modules",
+      "bundle": "Bundle",
+      "noBundle": "No bundle",
+      "quantities": {
+        "outlet": "Outlets",
+        "device": "POS devices",
+        "employee": "Employees",
+        "company": "Companies",
+        "online_store": "Online stores"
+      },
+      "coupon": "Coupon code",
+      "submit": "Get quote",
+      "result": "Quote",
+      "empty": "Choose modules and get a quote to see the price.",
+      "quoted": "Enterprise is quoted by sales. Contact sales for a price.",
+      "line": "Item",
+      "quantity": "Quantity",
+      "withIncluded": "{{quantity}} ({{included}} included)",
+      "monthly": "Monthly",
+      "minimumApplied": "Minimum applies",
+      "subtotal": "Subtotal",
+      "annualDiscount": "Annual discount",
+      "couponDiscount": "Coupon",
+      "total": {
+        "monthly": "Total a month",
+        "annual": "Total a year"
+      },
+      "couponNotApplied": {
+        "currency": "This coupon is in another currency, so it doesn't apply here.",
+        "not_applicable": "This coupon doesn't apply to anything in this quote."
+      },
+      "suggestion": "{{bundle}} covers this selection for less. It saves {{saving}}."
+    }
   }
 }
