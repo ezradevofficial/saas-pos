@@ -9,7 +9,6 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\LimitRules;
 use App\Core\Rbac\Models\Role;
-use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -166,7 +165,8 @@ class CreditAccounts
 
     private function mayExceed(User $user, Account $account, BigInteger $excess): bool
     {
-        $scope = Scope::company($account->company_id);
+        // Accounts are company-wide (LoyaltyAccess): the user's roles anywhere they reach it count.
+        $scope = null;
         $roles = $this->resolver->roleIds($user, $scope);
 
         if ($roles !== [] && Role::query()->whereKey($roles)->where('is_owner', true)->exists()) {

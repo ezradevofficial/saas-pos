@@ -176,7 +176,8 @@ class Promotions
     {
         $after = self::audited($promotion);
 
-        if ($after === $before) {
+        // jsonb keeps its own key order: compare by keys and values, not order.
+        if ($after == $before) {
             return $promotion;
         }
 
