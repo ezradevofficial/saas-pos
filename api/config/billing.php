@@ -16,8 +16,7 @@ return [
         'grace_days' => 7,
         // SUB-05: days the POS keeps uploading sales once read-only.
         'pos_window_days' => 3,
-        // ONB-04: length of a new trial, in days.
-        'trial_days' => 14,
+        // ONB-04: the trial length defaults to onboarding.trial_days (ONBOARDING_TRIAL_DAYS).
     ],
 
     // SUB-05: reminders, in days before the due date (0: on the due date).

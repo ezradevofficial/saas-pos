@@ -82,6 +82,9 @@ class DunningTest extends TestCase
         $this->assertContains('core.subscription.read_only', $this->ownerNotices());
 
         $this->aWrite()->assertStatus(402)->assertJsonPath('code', 'subscription_overdue');
+        // LIM-04: approvals and the user's own account are never refused for dunning.
+        $this->assertNotSame(402, $this->postJson('/api/v1/approvals/bulk-approve', [], $this->headersFor())->getStatusCode());
+        $this->assertNotSame(402, $this->deleteJson('/api/v1/me/pos-pin', [], $this->headersFor())->getStatusCode());
         $this->getJson('/api/v1/parties', $this->headersFor())->assertOk();
         $this->getJson('/api/v1/subscription', $this->headersFor())->assertOk();
         $this->assertNotSame(402, $this->posUpload());
@@ -145,7 +148,26 @@ class DunningTest extends TestCase
 
         ksort($allowed);
         $this->assertGreaterThan(100, $writes);
-        $this->assertSame([
+        $expected = [
+            'POST approvals/bulk-approve' => 'approval',
+            'POST approvals/{approval}/approve' => 'approval',
+            'POST approvals/{approval}/attachments' => 'approval',
+            'POST approvals/{approval}/comment' => 'approval',
+            'POST approvals/{approval}/reassign' => 'approval',
+            'POST approvals/{approval}/reject' => 'approval',
+            'POST approvals/{approval}/request-info' => 'approval',
+            'POST approvals/{approval}/return' => 'approval',
+            'POST pos/cash-movements/{pos_cash_movement}/approve' => 'approval',
+            'POST pos/cash-movements/{pos_cash_movement}/reject' => 'approval',
+            'POST pos/refunds/{pos_refund}/approve' => 'approval',
+            'POST pos/refunds/{pos_refund}/reject' => 'approval',
+            'POST pos/voids/{pos_void}/approve' => 'approval',
+            'POST pos/voids/{pos_void}/reject' => 'approval',
+            'DELETE auth/sessions/{id}' => 'account',
+            'POST users/{user}/sign-out-everywhere' => 'account',
+            'DELETE me/two-factor' => 'account',
+            'PUT me/pos-pin' => 'account',
+            'DELETE me/pos-pin' => 'account',
             'POST auth/sign-out' => 'account',
             'POST me/two-factor/sms' => 'account',
             'POST me/two-factor/sms/confirm' => 'account',
@@ -174,14 +196,17 @@ class DunningTest extends TestCase
             'POST sync/device-secret/activate' => 'device',
             'POST sync/device-secret/rotate' => 'device',
             'POST tenant-exports' => 'export',
-        ], $allowed);
+        ];
+        ksort($expected);
+        $this->assertSame($expected, $allowed);
 
         // Every allow-listed name is a real route (none left behind after a rename).
         foreach (array_keys(EnforceSubscription::ACCOUNT_WRITES) as $key) {
             $this->assertArrayHasKey($key, $allowed, "{$key} is allow-listed but no such route exists");
         }
 
-        // LIM-04: an approval decision is a write like any other while read-only.
-        $this->assertSame(EnforceSubscription::BLOCKED, EnforceSubscription::classify('POST', 'api/v1/approvals/{approval}/approve'));
+        // LIM-04 is absolute: approvals are never blocked, by limits or by dunning.
+        $this->assertSame(EnforceSubscription::APPROVAL, EnforceSubscription::classify('POST', 'api/v1/approvals/{approval}/approve'));
+        $this->assertSame(EnforceSubscription::APPROVAL, EnforceSubscription::classify('POST', 'api/v1/approvals/bulk-approve'));
     }
 }

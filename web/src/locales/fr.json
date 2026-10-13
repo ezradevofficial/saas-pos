@@ -5466,12 +5466,9 @@
     }
   },
   "subscriptionBanner": {
-    "trial_one": "Votre essai se termine demain, le {{date}}.",
-    "trial_other": "Il reste {{count}} jours d’essai, jusqu’au {{date}}.",
     "pastDue": "Une facture est en retard. Réglez-la avant le {{date}} pour garder un accès complet.",
     "readOnly": "Votre compte est en lecture seule jusqu’au paiement de la facture en retard. Les caisses vendent encore jusqu’au {{date}}.",
     "suspended": "Votre abonnement est suspendu. Contactez le support.",
-    "choosePlan": "Choisir une formule",
     "pay": "Payer maintenant",
     "label": "État de l’abonnement"
   },

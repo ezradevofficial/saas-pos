@@ -48,7 +48,9 @@ class PlatformSettings
 
         foreach (array_keys(self::KEYS) as $key) {
             $value = isset($stored[$key]) ? json_decode((string) $stored[$key], true) : null;
-            $values[$key] = is_int($value) ? $value : (int) config("billing.defaults.{$key}");
+            // One trial length: onboarding's setting is the default the staff setting overrides.
+            $default = $key === 'trial_days' ? config('onboarding.trial_days', 14) : config("billing.defaults.{$key}");
+            $values[$key] = is_int($value) ? $value : (int) $default;
         }
 
         return $this->loaded = $values;

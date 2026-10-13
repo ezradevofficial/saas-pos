@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Onboarding;
 
+use App\Core\Billing\Models\Subscription;
 use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
@@ -9,6 +10,7 @@ use App\Core\Identity\Services\Authenticate;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Onboarding\Models\OnboardingState;
+use App\Core\Onboarding\Trial\OnboardingTrialExpiry;
 use App\Core\Onboarding\Trial\TrialExpiry;
 use App\Core\Onboarding\Trial\TrialSelection;
 use App\Core\Onboarding\Trial\TrialStarter;
@@ -76,7 +78,11 @@ class OnboardingReviewTest extends TestCase
 
     private function endTrial(array $owner): void
     {
-        $this->asTenant($owner['tenant'], fn () => OnboardingState::sole()->forceFill(['trial_ends_at' => now()->subMinute()])->saveQuietly());
+        // ADR 016: the subscription holds the one trial end (onboarding's record is its copy).
+        $this->asTenant($owner['tenant'], function () {
+            Subscription::query()->sole()->forceFill(['trial_ends_at' => now()->subMinute()])->saveQuietly();
+            OnboardingState::sole()->forceFill(['trial_ends_at' => now()->subMinute()])->saveQuietly();
+        });
     }
 
     // ---- 1. The trial's end -------------------------------------------------
@@ -102,6 +108,8 @@ class OnboardingReviewTest extends TestCase
 
     public function test_ended_trials_lose_their_modules_once_through_the_rebindable_expiry(): void
     {
+        // Onboarding's default expiry (billing binds its own, which leaves subscribed modules on: BillingOnboardingTest).
+        $this->app->singleton(TrialExpiry::class, OnboardingTrialExpiry::class);
         $owner = $this->signUp();
         $this->pick($owner)->assertOk();
         $this->asTenant($owner['tenant'], fn () => $this->assertTrue(app(ModuleRegistry::class)->isActive('pos')));

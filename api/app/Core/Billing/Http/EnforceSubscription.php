@@ -19,7 +19,12 @@ use Symfony\Component\HttpFoundation\Response;
  * Still allowed (classify()):
  * - reading (GET, HEAD, OPTIONS), list exports included (EXP-01);
  * - billing (`subscription*`): seeing and paying what is owed (SUB-06);
- * - signing out and finishing two-factor;
+ * - approvals (LIM-04 is absolute: approving, rejecting, returning,
+ *   commenting, asking for information, attaching and reassigning, the
+ *   bulk approve, and the POS's held voids, refunds and cash movements);
+ *   payroll runs get the same treatment when Payroll lands;
+ * - the user's own account: signing out (here or everywhere), revoking a
+ *   session, two-factor and their own POS PIN;
  * - the full data export (EXP-02, `tenant-exports`);
  * - the till's own sign-in and device security (PIN, overrides, secret);
  * - POS uploads (sales, shifts, voids, refunds, cash movements, number
@@ -27,14 +32,15 @@ use Symfony\Component\HttpFoundation\Response;
  *   starts (`pos_stops_at`); after it they answer 402
  *   `subscription_pos_stopped` and the till shows why.
  *
- * LIM-04: approvals are never blocked by usage limits; read-only is
- * dunning, not a limit, and approvals pause with every other write.
+ * Everything else is refused, including new records and settings.
  */
 class EnforceSubscription
 {
     public const ALLOWED = 'allowed';
 
     public const BILLING = 'billing';
+
+    public const APPROVAL = 'approval';
 
     public const ACCOUNT = 'account';
 
@@ -49,6 +55,26 @@ class EnforceSubscription
     /** Writes allowed in read-only mode, "METHOD uri" (uri without the api/v1 prefix) => why. */
     public const ACCOUNT_WRITES = [
         'POST auth/sign-out' => self::ACCOUNT,
+        'DELETE auth/sessions/{id}' => self::ACCOUNT,
+        'POST users/{user}/sign-out-everywhere' => self::ACCOUNT,
+        'DELETE me/two-factor' => self::ACCOUNT,
+        'PUT me/pos-pin' => self::ACCOUNT,
+        'DELETE me/pos-pin' => self::ACCOUNT,
+        // LIM-04: approvals are never blocked, by limits or by dunning.
+        'POST approvals/bulk-approve' => self::APPROVAL,
+        'POST approvals/{approval}/approve' => self::APPROVAL,
+        'POST approvals/{approval}/reject' => self::APPROVAL,
+        'POST approvals/{approval}/return' => self::APPROVAL,
+        'POST approvals/{approval}/comment' => self::APPROVAL,
+        'POST approvals/{approval}/request-info' => self::APPROVAL,
+        'POST approvals/{approval}/attachments' => self::APPROVAL,
+        'POST approvals/{approval}/reassign' => self::APPROVAL,
+        'POST pos/voids/{pos_void}/approve' => self::APPROVAL,
+        'POST pos/voids/{pos_void}/reject' => self::APPROVAL,
+        'POST pos/refunds/{pos_refund}/approve' => self::APPROVAL,
+        'POST pos/refunds/{pos_refund}/reject' => self::APPROVAL,
+        'POST pos/cash-movements/{pos_cash_movement}/approve' => self::APPROVAL,
+        'POST pos/cash-movements/{pos_cash_movement}/reject' => self::APPROVAL,
         'POST me/two-factor/totp' => self::ACCOUNT,
         'POST me/two-factor/totp/confirm' => self::ACCOUNT,
         'POST me/two-factor/sms' => self::ACCOUNT,
@@ -81,7 +107,7 @@ class EnforceSubscription
 
         $subscription = Subscription::query()->first(['id', 'status', 'pos_stops_at']);
 
-        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::ACCOUNT, self::EXPORT, self::DEVICE], true)) {
+        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE], true)) {
             return $next($request);
         }
 

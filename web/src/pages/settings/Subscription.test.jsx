@@ -118,14 +118,14 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
     signedIn()
   })
 
-  it('shows the trial days left as a dot and a word across the app', async () => {
-    mockRoutes(api, routes(SUBSCRIPTION, { status: 'trial', trial_days_left: 9, trial_ends_at: '2026-11-15T08:00:00Z' }), { permissions: tenantWide(['core.subscription.view']) })
+  it('leaves the trial to the trial banner and shows past due with the date it turns read-only', async () => {
+    mockRoutes(api, routes(SUBSCRIPTION, { status: 'past_due', read_only_on: '2026-12-08T00:00:00Z' }), { permissions: tenantWide(['core.subscription.view']) })
     renderApp('/')
 
     const banner = await screen.findByRole('status', { name: 'Subscription status' })
-    expect(within(banner).getByText('Trial')).toBeInTheDocument()
-    expect(within(banner).getByText(/9 days left in your trial/)).toBeInTheDocument()
-    expect(within(banner).getByRole('link', { name: 'Choose a plan' })).toHaveAttribute('href', '/settings/subscription')
+    expect(within(banner).getByText('Past due')).toBeInTheDocument()
+    expect(within(banner).getByText(/Pay it by 8 Dec 2026/)).toBeInTheDocument()
+    expect(within(banner).getByRole('link', { name: 'Pay now' })).toHaveAttribute('href', '/settings/subscription')
   })
 
   it('says the account is read-only, without a link for those who cannot pay', async () => {

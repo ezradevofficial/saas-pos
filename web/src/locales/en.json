@@ -5466,12 +5466,9 @@
     }
   },
   "subscriptionBanner": {
-    "trial_one": "Your trial ends tomorrow, on {{date}}.",
-    "trial_other": "{{count}} days left in your trial, until {{date}}.",
     "pastDue": "An invoice is overdue. Pay it by {{date}} to keep full access.",
     "readOnly": "Your account is read-only until the overdue invoice is paid. Tills keep selling until {{date}}.",
     "suspended": "Your subscription is suspended. Contact support.",
-    "choosePlan": "Choose a plan",
     "pay": "Pay now",
     "label": "Subscription status"
   },

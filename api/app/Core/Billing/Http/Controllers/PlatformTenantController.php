@@ -14,6 +14,7 @@ use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Payments\BillingPayments;
+use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Http\ApiException;
 use App\Core\Platform\PlatformAuditor;
@@ -82,6 +83,8 @@ class PlatformTenantController
 
             $before = $subscription->trial_ends_at?->toIso8601String();
             $subscription->fill(['trial_ends_at' => $until])->save();
+            // One trial end: onboarding's record follows the subscription's.
+            BillingTrial::syncOnboarding($subscription);
             $this->accounts->sync($subscription);
 
             return [$subscription, $before];

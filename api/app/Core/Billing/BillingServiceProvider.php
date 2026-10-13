@@ -12,7 +12,11 @@ use App\Core\Billing\Listeners\SettleBillingPayment;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Overage\SubscriptionAllowances;
 use App\Core\Fiscal\FiscalSources;
+use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Limits\PlanAllowances;
+use App\Core\Onboarding\Trial\TrialExpiry;
+use App\Core\Onboarding\Trial\TrialStarter;
+use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -38,6 +42,11 @@ class BillingServiceProvider extends ServiceProvider
         $this->app->scoped(PlatformSettings::class);
         // LIM-01: limits follow the paid plan (Limits' default reads the onboarding selection).
         $this->app->singleton(PlanAllowances::class, SubscriptionAllowances::class);
+        // ONB-04: the trial is the subscription's (onboarding binds its defaults with bindIf).
+        $this->app->singleton(BillingTrial::class);
+        $this->app->singleton(TrialStarter::class, BillingTrial::class);
+        $this->app->singleton(TrialStatusProvider::class, BillingTrial::class);
+        $this->app->singleton(TrialExpiry::class, BillingTrial::class);
     }
 
     public function boot(): void

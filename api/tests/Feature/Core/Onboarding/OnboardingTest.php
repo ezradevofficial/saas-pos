@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Onboarding;
 
+use App\Core\Billing\Models\Subscription;
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
@@ -206,7 +207,8 @@ class OnboardingTest extends TestCase
         });
 
         // Picking again keeps the end date and switches POS off when dropped.
-        $this->asTenant($owner['tenant'], fn () => OnboardingState::sole()->forceFill(['trial_ends_at' => now()->addDays(11)->subMinute()])->saveQuietly());
+        // ADR 016: the subscription holds the one trial end.
+        $this->asTenant($owner['tenant'], fn () => Subscription::query()->sole()->forceFill(['trial_ends_at' => now()->addDays(11)->subMinute()])->saveQuietly());
         $this->pickModules($owner, ['modules' => ['accounting_essentials']])->assertOk()->assertJsonPath('data.trial.days_left', 11);
         $this->asTenant($owner['tenant'], fn () => $this->assertFalse(app(ModuleRegistry::class)->isActive('pos')));
 
