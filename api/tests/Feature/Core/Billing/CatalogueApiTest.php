@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\ResetsPlatformTables;
 use Tests\TestCase;
 
 /**
@@ -18,7 +19,7 @@ use Tests\TestCase;
  */
 class CatalogueApiTest extends TestCase
 {
-    use CreatesPlatformStaff, RefreshTenantDatabase;
+    use CreatesPlatformStaff, RefreshTenantDatabase, ResetsPlatformTables;
 
     private function quote(array $body, array $headers = [])
     {
@@ -104,7 +105,7 @@ class CatalogueApiTest extends TestCase
 
     public function test_quotes_apply_only_usable_coupons(): void
     {
-        DB::table('catalogue_coupons')->insert([
+        DB::connection('pgsql_platform')->table('catalogue_coupons')->insert([
             ['id' => (string) str()->uuid7(), 'code' => 'LAUNCH10', 'kind' => 'percent', 'percent' => 10, 'amount' => null, 'currency' => null, 'expires_at' => null, 'max_redemptions' => null, 'redemptions' => 0, 'applies_to_modules' => '[]', 'applies_to_bundles' => '[]'],
             ['id' => (string) str()->uuid7(), 'code' => 'OLD', 'kind' => 'percent', 'percent' => 50, 'amount' => null, 'currency' => null, 'expires_at' => now()->subDay(), 'max_redemptions' => null, 'redemptions' => 0, 'applies_to_modules' => '[]', 'applies_to_bundles' => '[]'],
             ['id' => (string) str()->uuid7(), 'code' => 'GONE', 'kind' => 'fixed', 'percent' => null, 'amount' => 1000, 'currency' => 'KES', 'expires_at' => null, 'max_redemptions' => 3, 'redemptions' => 3, 'applies_to_modules' => '[]', 'applies_to_bundles' => '[]'],
@@ -133,7 +134,7 @@ class CatalogueApiTest extends TestCase
     {
         $support = $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT));
         $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
-        $coupon = ['code' => 'WELCOME', 'kind' => 'percent', 'percent' => 20];
+        $coupon = ['code' => 'WELCOME20', 'kind' => 'percent', 'percent' => 20];
 
         foreach (['modules', 'bundles', 'prices', 'coupons', 'annual-discounts'] as $list) {
             $this->getJson("/api/v1/platform/catalogue/{$list}", $support)->assertOk();
@@ -143,9 +144,9 @@ class CatalogueApiTest extends TestCase
         $this->postJson('/api/v1/platform/catalogue/prices', ['item_type' => 'module', 'item_key' => 'pos', 'country' => 'KE', 'amount' => 1, 'effective_from' => now()->toDateString()], $support)->assertForbidden();
         $module = DB::table('catalogue_modules')->where('key', 'crm')->value('id');
         $this->postJson("/api/v1/platform/catalogue/modules/{$module}/archive", [], $support)->assertForbidden();
-        $this->assertDatabaseMissing('catalogue_coupons', ['code' => 'WELCOME']);
+        $this->assertDatabaseMissing('catalogue_coupons', ['code' => 'WELCOME20'], 'pgsql_platform');
 
-        $this->postJson('/api/v1/platform/catalogue/coupons', $coupon, $billing)->assertCreated()->assertJsonPath('data.code', 'WELCOME')->assertJsonPath('data.status', 'active');
+        $this->postJson('/api/v1/platform/catalogue/coupons', $coupon, $billing)->assertCreated()->assertJsonPath('data.code', 'WELCOME20')->assertJsonPath('data.status', 'active');
 
         // Unauthenticated callers get nothing.
         $this->getJson('/api/v1/platform/catalogue/modules')->assertUnauthorized();
@@ -167,13 +168,11 @@ class CatalogueApiTest extends TestCase
         $this->patchJson("/api/v1/platform/catalogue/modules/{$module['id']}", ['unit' => 'outlet'], $owner)->assertUnprocessable()->assertJsonValidationErrors('unit');
         $this->patchJson("/api/v1/platform/catalogue/modules/{$module['id']}", ['name' => ['en' => 'SMS bundle', 'fr' => 'Forfait SMS']], $owner)->assertOk()->assertJsonPath('data.name.fr', 'Forfait SMS');
 
-        // Add-ons per bundle: Business now offers the SMS pack too.
-        $business = DB::table('catalogue_bundles')->where('key', 'business')->value('id');
-        $this->patchJson("/api/v1/platform/catalogue/bundles/{$business}", ['addons' => ['pos']], $owner)->assertUnprocessable()->assertJsonValidationErrors('addons.0');
-        $this->patchJson("/api/v1/platform/catalogue/bundles/{$business}", ['addons' => ['sms_pack']], $owner)->assertOk()->assertJsonPath('data.addons', ['sms_pack']);
-
-        $this->postJson('/api/v1/platform/catalogue/bundles', ['key' => 'growth', 'name' => ['en' => 'Growth', 'fr' => 'Croissance'], 'modules' => ['pos', 'crm'], 'included_outlets' => 2], $owner)
-            ->assertCreated()->assertJsonPath('data.modules', ['pos', 'crm'])->assertJsonPath('data.addons', []);
+        // A new bundle, not yet priced, may still change what it offers (add-ons included).
+        $growth = $this->postJson('/api/v1/platform/catalogue/bundles', ['key' => 'growth', 'name' => ['en' => 'Growth', 'fr' => 'Croissance'], 'modules' => ['pos', 'crm'], 'included_outlets' => 2], $owner)
+            ->assertCreated()->assertJsonPath('data.modules', ['pos', 'crm'])->assertJsonPath('data.addons', [])->json('data');
+        $this->patchJson("/api/v1/platform/catalogue/bundles/{$growth['id']}", ['addons' => ['pos']], $owner)->assertUnprocessable()->assertJsonValidationErrors('addons.0');
+        $this->patchJson("/api/v1/platform/catalogue/bundles/{$growth['id']}", ['addons' => ['sms_pack']], $owner)->assertOk()->assertJsonPath('data.addons', ['sms_pack']);
 
         // Archived modules leave the public catalogue; restored ones come back.
         $this->postJson("/api/v1/platform/catalogue/modules/{$module['id']}/archive", [], $owner)->assertOk();
@@ -183,9 +182,9 @@ class CatalogueApiTest extends TestCase
         $this->postJson("/api/v1/platform/catalogue/modules/{$crm}/restore", [], $owner)->assertOk();
         $this->assertContains('crm', collect($this->getJson('/api/v1/catalogue?country=KE')->json('data.modules'))->pluck('key'));
 
-        $actions = DB::table('platform_audit_logs')->orderBy('seq')->pluck('action')->all();
-        $this->assertSame(['catalogue.module.created', 'catalogue.module.updated', 'catalogue.bundle.updated', 'catalogue.bundle.created', 'catalogue.module.archived', 'catalogue.module.archived', 'catalogue.module.restored'], $actions);
-        $this->assertNotNull(DB::table('platform_audit_logs')->where('action', 'catalogue.module.updated')->value('before'));
+        $actions = DB::connection('pgsql_platform')->table('platform_audit_logs')->orderBy('seq')->pluck('action')->all();
+        $this->assertSame(['catalogue.module.created', 'catalogue.module.updated', 'catalogue.bundle.created', 'catalogue.bundle.updated', 'catalogue.module.archived', 'catalogue.module.archived', 'catalogue.module.restored'], $actions);
+        $this->assertNotNull(DB::connection('pgsql_platform')->table('platform_audit_logs')->where('action', 'catalogue.module.updated')->value('before'));
         $this->assertNull(app(PlatformAuditor::class)->verify());
     }
 
@@ -228,19 +227,13 @@ class CatalogueApiTest extends TestCase
         $next = $this->postJson('/api/v1/platform/catalogue/prices', ['item_type' => 'module', 'item_key' => 'crm', 'country' => 'CD', 'amount' => 1700, 'effective_from' => now()->addWeek()->toDateString()], $owner)->assertCreated()->json('data');
         $this->postJson("/api/v1/platform/catalogue/prices/{$next['id']}/archive", [], $owner)->assertOk()->assertJsonPath('data.status', 'archived');
 
-        // The database refuses any edit of a price row, whoever asks.
+        // The database refuses any edit of a price row, even by the platform role.
         $seeded = CataloguePrice::where(['item_key' => 'pos', 'country' => 'KE'])->orderBy('effective_from')->first();
         foreach (['update catalogue_prices set amount = 1 where id = ?', 'update catalogue_prices set archived_at = now() where id = ?', 'delete from catalogue_prices where id = ?'] as $sql) {
-            $refused = false;
-            try {
-                DB::transaction(fn () => DB::statement($sql, [$seeded->id]));
-            } catch (QueryException) {
-                $refused = true;
-            }
-            $this->assertTrue($refused, $sql);
+            $this->assertRefused('pgsql_platform', $sql, [$seeded->id]);
         }
 
-        $this->assertSame(['catalogue.price.created', 'catalogue.price.created', 'catalogue.price.archived'], DB::table('platform_audit_logs')->orderBy('seq')->pluck('action')->all());
+        $this->assertSame(['catalogue.price.created', 'catalogue.price.created', 'catalogue.price.archived'], DB::connection('pgsql_platform')->table('platform_audit_logs')->orderBy('seq')->pluck('action')->all());
     }
 
     public function test_the_annual_discount_is_data(): void
@@ -269,19 +262,140 @@ class CatalogueApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('currency');
 
         $coupon = $this->postJson('/api/v1/platform/catalogue/coupons', [
-            'code' => 'flat500', 'kind' => 'fixed', 'amount' => 50000, 'currency' => 'KES',
+            'code' => 'flat5000', 'kind' => 'fixed', 'amount' => 50000, 'currency' => 'KES',
             'applies_to_modules' => ['pos'], 'max_redemptions' => 100, 'expires_at' => now()->addMonth()->toIso8601String(),
-        ], $owner)->assertCreated()->assertJsonPath('data.code', 'FLAT500')->json('data');
-        $this->postJson('/api/v1/platform/catalogue/coupons', ['code' => 'Flat500', 'kind' => 'percent', 'percent' => 5], $owner)
+        ], $owner)->assertCreated()->assertJsonPath('data.code', 'FLAT5000')->json('data');
+        $this->postJson('/api/v1/platform/catalogue/coupons', ['code' => 'Flat5000', 'kind' => 'percent', 'percent' => 5], $owner)
             ->assertUnprocessable()->assertJsonValidationErrors('code');
 
         $this->patchJson("/api/v1/platform/catalogue/coupons/{$coupon['id']}", ['amount' => 900000], $owner)->assertUnprocessable()->assertJsonValidationErrors('amount');
         $this->patchJson("/api/v1/platform/catalogue/coupons/{$coupon['id']}", ['max_redemptions' => 500, 'expires_at' => null], $owner)
             ->assertOk()->assertJsonPath('data.max_redemptions', 500)->assertJsonPath('data.expires_at', null);
 
-        $this->quote(['modules' => ['pos', 'crm'], 'coupon' => 'FLAT500'])->assertOk()->assertJsonPath('data.coupon_discount', 50000);
+        $this->quote(['modules' => ['pos', 'crm'], 'coupon' => 'FLAT5000'])->assertOk()->assertJsonPath('data.coupon_discount', 50000);
 
         $this->postJson("/api/v1/platform/catalogue/coupons/{$coupon['id']}/archive", [], $owner)->assertOk()->assertJsonPath('data.status', 'archived');
-        $this->quote(['modules' => ['pos'], 'coupon' => 'FLAT500'])->assertUnprocessable()->assertJsonPath('code', 'coupon_invalid');
+        $this->quote(['modules' => ['pos'], 'coupon' => 'FLAT5000'])->assertUnprocessable()->assertJsonPath('code', 'coupon_invalid');
+    }
+
+    private function assertRefused(string $connection, string $sql, array $bindings = []): void
+    {
+        $refused = false;
+        try {
+            DB::connection($connection)->transaction(fn ($db) => $db->statement($sql, $bindings));
+        } catch (QueryException) {
+            $refused = true;
+        }
+        $this->assertTrue($refused, "{$sql} on {$connection} should be refused");
+    }
+
+    private function assertAllowed(string $connection, string $sql, array $bindings = []): void
+    {
+        DB::connection($connection)->statement($sql, $bindings);
+        $this->addToAssertionCount(1);
+    }
+
+    /** ADR 013: only the platform role reaches staff tables and writes the catalogue; the runtime role only reads the catalogue. */
+    public function test_database_grants_keep_staff_and_tenant_roles_apart(): void
+    {
+        $this->staff();
+
+        // The tenant runtime role: no staff tables at all, catalogue read-only.
+        foreach (['platform_users', 'platform_access_tokens', 'platform_audit_logs'] as $table) {
+            $this->assertRefused('pgsql', "select count(*) from {$table}");
+        }
+        foreach (['catalogue_modules', 'catalogue_bundles', 'catalogue_prices', 'catalogue_annual_discounts', 'catalogue_coupons', 'catalogue_countries'] as $table) {
+            $this->assertAllowed('pgsql', "select count(*) from {$table}");
+        }
+        $this->assertRefused('pgsql', "insert into catalogue_coupons (id, code, kind, percent) values (gen_random_uuid(), 'TENANTHACK', 'percent', 90)");
+        $this->assertRefused('pgsql', "update catalogue_modules set sort = 1 where key = 'crm'");
+        $this->assertRefused('pgsql', 'update catalogue_coupons set redemptions = 0');
+
+        // The platform role: no tenant tables, no deletes, catalogue writes only as the triggers allow.
+        foreach (['users', 'tenants', 'companies', 'audit_logs', 'personal_access_tokens'] as $table) {
+            $this->assertRefused('pgsql_platform', "select count(*) from {$table}");
+        }
+        $this->assertRefused('pgsql_platform', 'delete from platform_users');
+        $this->assertRefused('pgsql_platform', 'update platform_audit_logs set action = action');
+        $this->assertRefused('pgsql_platform', "delete from catalogue_coupons where code = 'X'");
+        $this->assertRefused('pgsql_platform', "insert into catalogue_countries (country, currency) values ('UG', 'UGX')");
+        $this->assertAllowed('pgsql_platform', "update catalogue_modules set sort = sort where key = 'crm'");
+    }
+
+    /** ADR 013: dates are UTC; a price or annual discount never starts before today, whoever writes it. */
+    public function test_price_rows_are_never_backdated_in_the_database(): void
+    {
+        $yesterday = now('UTC')->subDay()->toDateString();
+        $today = now('UTC')->toDateString();
+
+        $this->assertRefused('pgsql_platform', "insert into catalogue_prices (id, item_type, item_key, country, currency, amount, effective_from) values (gen_random_uuid(), 'module', 'crm', 'KE', 'KES', 1, ?)", [$yesterday]);
+        $this->assertRefused('pgsql_platform', 'insert into catalogue_annual_discounts (id, months_charged, months_in_cycle, effective_from) values (gen_random_uuid(), 11, 12, ?)', [$yesterday]);
+        $this->assertAllowed('pgsql_platform', "insert into catalogue_prices (id, item_type, item_key, country, currency, amount, effective_from) values (gen_random_uuid(), 'module', 'crm', 'KE', 'KES', 1, ?)", [$today]);
+    }
+
+    /** SUB-01: a coupon's value and scope never change in the database; billing may still count redemptions. */
+    public function test_coupon_values_are_fixed_in_the_database(): void
+    {
+        $owner = $this->staffBearer($this->staff());
+        $id = $this->postJson('/api/v1/platform/catalogue/coupons', ['code' => 'LAUNCH10', 'kind' => 'percent', 'percent' => 10], $owner)->assertCreated()->json('data.id');
+
+        foreach (['percent = 90', "kind = 'fixed', percent = null, amount = 1, currency = 'KES'", "applies_to_modules = '[\"pos\"]'", "applies_to_bundles = '[\"starter\"]'", "code = 'LAUNCH99'"] as $change) {
+            $this->assertRefused('pgsql_platform', "update catalogue_coupons set {$change} where id = ?", [$id]);
+        }
+        $this->assertAllowed('pgsql_platform', 'update catalogue_coupons set redemptions = redemptions + 1, max_redemptions = 50 where id = ?', [$id]);
+    }
+
+    /** SUB-01: what a priced module or bundle is made of is fixed (request rule and trigger). */
+    public function test_priced_items_keep_their_make_up(): void
+    {
+        $owner = $this->staffBearer($this->staff());
+        $enterprise = DB::connection('pgsql_platform')->table('catalogue_bundles')->where('key', 'enterprise')->value('id');
+        $starter = DB::connection('pgsql_platform')->table('catalogue_bundles')->where('key', 'starter')->value('id');
+        $pos = DB::connection('pgsql_platform')->table('catalogue_modules')->where('key', 'pos')->value('id');
+
+        // Enterprise can't be flipped to priced, by the API or in the database.
+        $this->patchJson("/api/v1/platform/catalogue/bundles/{$enterprise}", ['quoted' => false], $owner)->assertUnprocessable()->assertJsonValidationErrors('quoted');
+        $this->assertRefused('pgsql_platform', 'update catalogue_bundles set quoted = false where id = ?', [$enterprise]);
+        $this->assertTrue($this->getJson('/api/v1/catalogue?country=KE')->json('data.bundles.2.quoted'));
+
+        foreach ([['modules' => ['pos']], ['addons' => []], ['included_outlets' => 3]] as $change) {
+            $this->patchJson("/api/v1/platform/catalogue/bundles/{$starter}", $change, $owner)->assertUnprocessable()->assertJsonValidationErrors(array_key_first($change));
+        }
+        $this->assertRefused('pgsql_platform', "update catalogue_bundles set modules = '[\"pos\"]' where id = ?", [$starter]);
+        $this->patchJson("/api/v1/platform/catalogue/modules/{$pos}", ['includes' => ['pos_device' => 5]], $owner)->assertUnprocessable()->assertJsonValidationErrors('includes');
+        $this->assertRefused('pgsql_platform', "update catalogue_modules set includes = '{\"pos_device\": 5}' where id = ?", [$pos]);
+
+        // Names and order still change; the same make-up sent again is fine.
+        $this->patchJson("/api/v1/platform/catalogue/bundles/{$starter}", ['name' => ['en' => 'Starter', 'fr' => 'Essentiel'], 'modules' => ['pos', 'inventory', 'loyalty'], 'quoted' => false], $owner)->assertOk();
+    }
+
+    /** Coupon guessing: codes are at least 8 characters, and quotes with a coupon are limited to 5 a minute per IP. */
+    public function test_coupon_codes_are_long_and_coupon_quotes_are_rate_limited(): void
+    {
+        $owner = $this->staffBearer($this->staff());
+        $this->postJson('/api/v1/platform/catalogue/coupons', ['code' => 'SAVE10', 'kind' => 'percent', 'percent' => 10], $owner)->assertUnprocessable()->assertJsonValidationErrors('code');
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->quote(['modules' => ['pos'], 'coupon' => "GUESS{$i}XYZ"])->assertUnprocessable()->assertJsonPath('code', 'coupon_invalid');
+        }
+        $this->quote(['modules' => ['pos'], 'coupon' => 'GUESS9XYZ'])->assertTooManyRequests();
+        // Quotes without a coupon are not held back.
+        $this->quote(['modules' => ['pos']])->assertOk();
+    }
+
+    /** Overflow: unit prices are capped and quantities that would overflow are a 422, never a float. */
+    public function test_huge_amounts_are_refused(): void
+    {
+        $owner = $this->staffBearer($this->staff());
+        $this->postJson('/api/v1/platform/catalogue/prices', ['item_type' => 'module', 'item_key' => 'crm', 'country' => 'KE', 'amount' => 1_000_000_001, 'effective_from' => now()->toDateString()], $owner)
+            ->assertUnprocessable()->assertJsonValidationErrors('amount');
+    }
+
+    /** ONB-03: an add-on that needs a bundle still names the bundle that sells it. */
+    public function test_an_add_on_without_a_bundle_suggests_the_bundle_that_sells_it(): void
+    {
+        $this->quote(['modules' => ['pos', 'inventory', 'loyalty', 'brand_pack']])->assertUnprocessable()
+            ->assertJsonPath('code', 'addon_requires_bundle')
+            ->assertJsonPath('suggestion', ['bundle' => 'starter', 'total' => 540000, 'saving' => null, 'currency' => 'KES']);
     }
 }

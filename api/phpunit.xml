@@ -37,6 +37,8 @@
         <env name="DB_PASSWORD" value="app"/>
         <env name="DB_OWNER_USERNAME" value="app_owner"/>
         <env name="DB_OWNER_PASSWORD" value="app_owner"/>
+        <env name="DB_PLATFORM_USERNAME" value="app_platform"/>
+        <env name="DB_PLATFORM_PASSWORD" value="app_platform"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

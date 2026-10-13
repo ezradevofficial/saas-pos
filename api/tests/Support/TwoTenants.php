@@ -6,6 +6,8 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\DataExport\Jobs\BuildTenantExport;
+use App\Core\DataExport\Models\TenantExport;
 use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\Fiscal\FiscalQueue;
 use App\Core\Fiscal\FiscalSources;
@@ -26,6 +28,7 @@ use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -58,7 +61,7 @@ use Tests\TestCase;
  * and its run, payment intents made at the till and money received that
  * matched nothing, fiscal settings and a submission to the authority, and
  * the POS module with a till's ranges, shift, sales, a void, a refund and a
- * cash movement). Field rules, limit
+ * cash movement, and a full data export). Field rules, limit
  * rules and module flags have
  * no API yet and are written through their models in the tenant's own
  * context. Every tenant table ends up with rows in both tenants, so a
@@ -487,6 +490,16 @@ final class TwoTenants
         // one left for the isolation suite to void) and a cash pay-in.
         $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
 
+        // EXP-02: a full export request. Not built here: a build reads every
+        // table inside the test's transaction, and its locks stay until the
+        // test ends (the isolation suite builds one itself). Marked failed so
+        // the suite may request another.
+        $bus = Bus::getFacadeRoot();
+        Bus::fake([BuildTenantExport::class]);
+        $tenantExport = self::ok($test->postJson('/api/v1/tenant-exports', ['password' => self::PASSWORD], $owner), 202)->json('data.id');
+        Bus::swap($bus);
+        app(TenantContext::class)->run($tenantId, fn () => TenantExport::query()->whereKey($tenantExport)->update(['status' => TenantExport::FAILED, 'failure' => 'build_failed']));
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -504,6 +517,7 @@ final class TwoTenants
                 'manager' => $managerId,
                 'role' => $role,
                 'owner_role' => $roles['owner'],
+                'tenant_export' => $tenantExport,
                 'invitation' => $invitation,
                 'assignment' => $assignment,
                 'session' => $session,

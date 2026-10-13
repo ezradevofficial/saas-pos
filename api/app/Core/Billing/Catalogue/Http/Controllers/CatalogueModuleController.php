@@ -10,10 +10,10 @@ use App\Core\Billing\Catalogue\Http\Requests\ViewCatalogueRequest;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\DB;
 
 /** SUB-01: catalogue modules, for platform staff. Archived, never deleted. */
 class CatalogueModuleController extends Controller
@@ -30,7 +30,7 @@ class CatalogueModuleController extends Controller
 
     public function store(StoreCatalogueModuleRequest $request): JsonResponse
     {
-        $module = DB::transaction(function () use ($request) {
+        $module = PlatformDatabase::transaction(function () use ($request) {
             $module = CatalogueModule::create([
                 ...Arr::only($request->validated(), ['key', 'kind', 'unit', 'name', 'requires', 'sort']),
                 'includes' => (object) ($request->validated('includes') ?? []),
@@ -45,7 +45,7 @@ class CatalogueModuleController extends Controller
 
     public function update(UpdateCatalogueModuleRequest $request, CatalogueModule $catalogueModule): JsonResponse
     {
-        DB::transaction(function () use ($request, $catalogueModule) {
+        PlatformDatabase::transaction(function () use ($request, $catalogueModule) {
             $before = CataloguePresenter::module($catalogueModule);
             $catalogueModule->fill(Arr::only($request->validated(), ['name', 'requires', 'sort']));
 
@@ -72,7 +72,7 @@ class CatalogueModuleController extends Controller
 
     private function setArchived(CatalogueModule $module, bool $archived): JsonResponse
     {
-        DB::transaction(function () use ($module, $archived) {
+        PlatformDatabase::transaction(function () use ($module, $archived) {
             $module->forceFill(['archived_at' => $archived ? now() : null])->save();
             $this->audit->record($archived ? 'catalogue.module.archived' : 'catalogue.module.restored', $module);
         });

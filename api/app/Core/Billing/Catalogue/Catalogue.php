@@ -15,6 +15,7 @@ use App\Core\Billing\Catalogue\Pricing\ModuleOffer;
 use App\Core\Billing\Catalogue\Pricing\PriceCalculator;
 use App\Core\Billing\Catalogue\Pricing\QuoteRequest;
 use App\Core\Http\ApiException;
+use App\Core\Platform\PlatformDatabase;
 
 /**
  * SUB-01, ONB-03: the catalogue read from the database: the snapshot the
@@ -36,13 +37,13 @@ class Catalogue
     public function snapshot(string $country, ?string $date = null, array $locked = []): CatalogueSnapshot
     {
         $date ??= now()->toDateString();
-        $currency = CatalogueCountry::find($country)?->currency ?? throw self::unknownCountry();
+        $currency = CatalogueCountry::on(PlatformDatabase::READ)->find($country)?->currency ?? throw self::unknownCountry();
 
-        $prices = CataloguePrice::query()->current($country, $date)->get()->keyBy(fn (CataloguePrice $p) => "{$p->item_type}:{$p->item_key}");
+        $prices = CataloguePrice::on(PlatformDatabase::READ)->current($country, $date)->get()->keyBy(fn (CataloguePrice $p) => "{$p->item_type}:{$p->item_key}");
 
         if ($locked !== []) {
             // Archived rows included: a row archived after the sale still prices the period it was sold for.
-            $kept = CataloguePrice::query()->whereIn('id', array_values($locked))->where('country', $country)->get();
+            $kept = CataloguePrice::on(PlatformDatabase::READ)->whereIn('id', array_values($locked))->where('country', $country)->get();
 
             foreach ($kept as $price) {
                 $key = "{$price->item_type}:{$price->item_key}";
@@ -55,7 +56,7 @@ class Catalogue
         $annual = AnnualDiscount::current($date);
 
         $modules = [];
-        foreach (CatalogueModule::live()->orderBy('sort')->orderBy('key')->get() as $module) {
+        foreach (CatalogueModule::on(PlatformDatabase::READ)->whereNull('archived_at')->orderBy('sort')->orderBy('key')->get() as $module) {
             $price = $prices->get(CataloguePrice::MODULE.':'.$module->key);
             $modules[$module->key] = new ModuleOffer(
                 key: $module->key,
@@ -70,7 +71,7 @@ class Catalogue
         }
 
         $bundles = [];
-        foreach (CatalogueBundle::live()->orderBy('sort')->orderBy('key')->get() as $bundle) {
+        foreach (CatalogueBundle::on(PlatformDatabase::READ)->whereNull('archived_at')->orderBy('sort')->orderBy('key')->get() as $bundle) {
             $price = $prices->get(CataloguePrice::BUNDLE.':'.$bundle->key);
             $bundles[$bundle->key] = new BundleOffer(
                 key: $bundle->key,
@@ -104,8 +105,8 @@ class Catalogue
     public function publicCatalogue(string $country): array
     {
         $snapshot = $this->snapshot($country);
-        $names = CatalogueModule::live()->pluck('name', 'key');
-        $bundleNames = CatalogueBundle::live()->pluck('name', 'key');
+        $names = CatalogueModule::on(PlatformDatabase::READ)->whereNull('archived_at')->pluck('name', 'key');
+        $bundleNames = CatalogueBundle::on(PlatformDatabase::READ)->whereNull('archived_at')->pluck('name', 'key');
         $pick = fn (?array $name) => Models\CatalogueText::pick($name);
 
         return [
@@ -160,7 +161,7 @@ class Catalogue
             return null;
         }
 
-        $coupon = CatalogueCoupon::where('code', trim($code))->first();
+        $coupon = CatalogueCoupon::on(PlatformDatabase::READ)->where('code', trim($code))->first();
 
         if ($coupon === null || ! $coupon->isUsable()) {
             throw new ApiException(422, 'coupon_invalid', __('billing.coupon.invalid'), ['coupon' => [__('billing.coupon.invalid')]]);

@@ -11,8 +11,8 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
@@ -56,7 +56,7 @@ class PlatformAuth
     {
         $plain = Str::random(48);
 
-        DB::transaction(function () use ($email, $name, $role, $reset, $plain) {
+        PlatformDatabase::transaction(function () use ($email, $name, $role, $reset, $plain) {
             $user = PlatformUser::where('email', $email)->first();
 
             if ($user !== null && ! $reset) {
@@ -101,9 +101,12 @@ class PlatformAuth
      */
     public function completeSetup(string $plain, string $password, ?string $ip, ?string $userAgent): array
     {
-        return DB::transaction(function () use ($plain, $password, $ip, $userAgent) {
+        return PlatformDatabase::transaction(function () use ($plain, $password, $ip, $userAgent) {
             $user = $this->pendingSetup($plain) ?? throw self::setupInvalid();
-            $user->forceFill(['password' => $password, 'setup_token_hash' => null, 'setup_expires_at' => null])->save();
+
+            if (! $this->claimSetup($user, $plain, $password)) {
+                throw self::setupInvalid();
+            }
 
             $twoFactor = $this->startTotp($user);
             $token = $this->tokens->issue($user, [PlatformAccessToken::ENROL], $ip, $userAgent);
@@ -114,26 +117,54 @@ class PlatformAuth
     }
 
     /**
+     * Use the setup link once: a conditional update that clears it only if
+     * it is still this staff member's live link. Two requests racing with
+     * the same link cannot both set a password.
+     */
+    public function claimSetup(PlatformUser $user, string $plain, string $password): bool
+    {
+        $claimed = PlatformUser::whereKey($user->id)
+            ->where('setup_token_hash', hash('sha256', $plain))
+            ->where('setup_expires_at', '>', now())
+            ->where('status', PlatformUser::STATUS_PENDING)
+            ->update(['password' => Hash::make($password), 'setup_token_hash' => null, 'setup_expires_at' => null, 'updated_at' => now()]);
+
+        if ($claimed !== 1) {
+            return false;
+        }
+
+        $user->refresh();
+
+        return true;
+    }
+
+    /**
      * Password step. Answers ['challenge' => ...] when a code is due, or
      * ['token' => ...] limited to enrolment when two-factor is not set up.
      *
      * @return array{challenge?: string, token?: string, user?: PlatformUser}
      *
-     * @throws ApiException 422 invalid_credentials, 423 locked, 403 deactivated
+     * A locked account answers exactly like wrong credentials, after the
+     * same password hash check, so neither the answer nor its timing tells
+     * whether an email has an account or is locked.
+     *
+     * @throws ApiException 422 invalid_credentials, 403 deactivated
      */
     public function signIn(string $email, string $password, ?string $ip, ?string $userAgent): array
     {
         $user = PlatformUser::where('email', $email)->first();
 
-        if ($user === null || $user->password === null) {
-            Hash::check($password, self::$dummyHash ??= Hash::make(Str::random(40)));
+        $matches = Hash::check($password, $user?->password ?? (self::$dummyHash ??= Hash::make(Str::random(40))));
 
+        if ($user === null || $user->password === null) {
             throw self::invalidCredentials();
         }
 
-        $this->assertNotLocked($user);
+        if ($this->isLocked($user)) {
+            throw self::invalidCredentials();
+        }
 
-        if (! Hash::check($password, $user->password)) {
+        if (! $matches) {
             $this->recordFailure($user, 'invalid_password');
 
             throw self::invalidCredentials();
@@ -146,7 +177,7 @@ class PlatformAuth
         }
 
         if (! $user->hasTwoFactor()) {
-            $token = DB::transaction(function () use ($user, $ip, $userAgent) {
+            $token = PlatformDatabase::transaction(function () use ($user, $ip, $userAgent) {
                 $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => null])->save();
                 $this->audit->record('platform.auth.enrolment_sign_in', $user, actor: $user);
 
@@ -183,7 +214,9 @@ class PlatformAuth
             throw new ApiException(422, 'challenge_expired', __('platform.auth.challenge_expired'), ['challenge' => [__('platform.auth.challenge_expired')]]);
         }
 
-        $this->assertNotLocked($user);
+        if ($this->isLocked($user)) {
+            throw self::invalidCode();
+        }
 
         if (! $this->verifyTotp($user, $code)) {
             $this->recordFailure($user, 'invalid_code');
@@ -191,7 +224,7 @@ class PlatformAuth
             throw self::invalidCode();
         }
 
-        return DB::transaction(function () use ($user, $ip, $userAgent) {
+        return PlatformDatabase::transaction(function () use ($user, $ip, $userAgent) {
             $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => null, 'last_sign_in_at' => now()])->save();
             $token = $this->tokens->issue($user, [PlatformAccessToken::FULL], $ip, $userAgent);
             $this->audit->record('platform.auth.sign_in', $user, null, ['token_id' => $user->currentAccessToken()?->id], $user);
@@ -234,7 +267,9 @@ class PlatformAuth
             throw new ApiException(422, 'two_factor_not_started', __('auth.two_factor.not_started'), ['code' => [__('auth.two_factor.not_started')]]);
         }
 
-        $this->assertNotLocked($user);
+        if ($this->isLocked($user)) {
+            throw self::invalidCode();
+        }
 
         if (! $this->verifyTotp($user, $code)) {
             $this->recordFailure($user, 'invalid_enrolment_code');
@@ -242,7 +277,7 @@ class PlatformAuth
             throw self::invalidCode();
         }
 
-        DB::transaction(function () use ($user) {
+        PlatformDatabase::transaction(function () use ($user) {
             $user->forceFill([
                 'two_factor_confirmed_at' => now(),
                 'status' => PlatformUser::STATUS_ACTIVE,
@@ -260,7 +295,7 @@ class PlatformAuth
 
     public function signOut(PlatformUser $user): void
     {
-        DB::transaction(function () use ($user) {
+        PlatformDatabase::transaction(function () use ($user) {
             $user->currentAccessToken()?->delete();
             $this->audit->record('platform.auth.sign_out', $user, actor: $user);
         });
@@ -299,21 +334,29 @@ class PlatformAuth
         return true;
     }
 
-    private function assertNotLocked(PlatformUser $user): void
+    /**
+     * Whether the account is locked. Attempts on a locked account are
+     * audited at most once per account per lock period, so a flood of
+     * attempts cannot grow the audit log without bound.
+     */
+    private function isLocked(PlatformUser $user): bool
     {
-        if ($user->locked_until !== null && $user->locked_until->isFuture()) {
-            $this->audit->record('platform.auth.sign_in_failed', $user, null, ['reason' => 'locked'], $user);
-            $seconds = max(1, (int) ceil(now()->diffInSeconds($user->locked_until, true)));
-
-            throw new ApiException(423, 'locked', LoginThrottle::lockedMessage($seconds), extra: ['retry_after' => $seconds], headers: ['Retry-After' => $seconds]);
+        if ($user->locked_until === null || ! $user->locked_until->isFuture()) {
+            return false;
         }
+
+        if (Cache::add('platform-locked-audit:'.$user->id, true, now()->addMinutes(LoginThrottle::LOCK_MINUTES))) {
+            $this->audit->record('platform.auth.sign_in_failed', $user, null, ['reason' => 'locked'], $user);
+        }
+
+        return true;
     }
 
     /** Count a failure atomically; the fifth locks the account for 15 minutes. */
     private function recordFailure(PlatformUser $user, string $reason): void
     {
-        DB::transaction(function () use ($user, $reason) {
-            $row = DB::selectOne(
+        PlatformDatabase::transaction(function () use ($user, $reason) {
+            $row = PlatformDatabase::connection()->selectOne(
                 'update platform_users set
                     failed_sign_ins = case when failed_sign_ins + 1 >= ? then 0 else failed_sign_ins + 1 end,
                     locked_until = case when failed_sign_ins + 1 >= ? then ? else locked_until end

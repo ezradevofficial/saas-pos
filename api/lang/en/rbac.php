@@ -52,6 +52,7 @@ return [
                 'custom_field' => 'Custom fields',
                 'custom_form' => 'Custom forms',
                 'custom_form_type' => 'Custom form types',
+                'tenant' => 'Full data export',
             ],
             'pos' => [
                 'sale' => 'Sales',

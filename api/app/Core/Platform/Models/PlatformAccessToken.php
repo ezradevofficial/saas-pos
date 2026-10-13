@@ -2,6 +2,7 @@
 
 namespace App\Core\Platform\Models;
 
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,9 @@ class PlatformAccessToken extends Model
 
     /** Only enrol two-factor, read oneself and sign out. */
     public const ENROL = 'platform:enrol';
+
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
 
     protected $table = 'platform_access_tokens';
 

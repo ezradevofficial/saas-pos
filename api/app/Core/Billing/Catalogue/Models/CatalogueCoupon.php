@@ -3,6 +3,7 @@
 namespace App\Core\Billing\Catalogue\Models;
 
 use App\Core\Billing\Catalogue\Pricing\Coupon;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,9 @@ use Illuminate\Support\Carbon;
 class CatalogueCoupon extends Model
 {
     use HasUuids;
+
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
 
     protected $table = 'catalogue_coupons';
 

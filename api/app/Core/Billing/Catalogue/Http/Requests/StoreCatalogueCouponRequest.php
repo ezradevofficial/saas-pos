@@ -10,7 +10,7 @@ class StoreCatalogueCouponRequest extends ManageCatalogueRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{3,40}$/', Rule::unique('catalogue_coupons', 'code')],
+            'code' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{8,40}$/', Rule::unique('catalogue_coupons', 'code')],
             'kind' => ['required', Rule::in(['percent', 'fixed'])],
             'percent' => ['required_if:kind,percent', 'prohibited_unless:kind,percent', 'nullable', 'integer', 'min:1', 'max:100'],
             'amount' => ['required_if:kind,fixed', 'prohibited_unless:kind,fixed', 'nullable', 'integer', 'min:1', 'max:'.StoreCataloguePriceRequest::MAX_AMOUNT],

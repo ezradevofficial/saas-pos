@@ -81,6 +81,9 @@ class PermissionRegistry
         // location (docs/adr/012), and the form types themselves (tenant scope).
         'custom_form' => ['view', 'create', 'edit', 'approve'],
         'custom_form_type' => ['manage'],
+        // EXP-02: a full export of the tenant's data (Owner template only; the
+        // API also requires an active Owner, RBAC-10).
+        'tenant' => ['export'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

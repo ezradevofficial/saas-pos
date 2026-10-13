@@ -9,6 +9,7 @@ use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Pricing\QuoteError;
 use App\Core\Http\ApiException;
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 
@@ -51,10 +52,11 @@ class PublicCatalogueController extends Controller
                 filled($input['coupon'] ?? null) ? (string) $input['coupon'] : null,
             );
         } catch (QuoteError $e) {
-            $name = $e->key === null ? '' : (CatalogueModule::where('key', $e->key)->first()?->localName() ?? CatalogueBundle::where('key', $e->key)->first()?->localName() ?? $e->key);
+            $name = $e->key === null ? '' : (CatalogueModule::on(PlatformDatabase::READ)->where('key', $e->key)->first()?->localName() ?? CatalogueBundle::on(PlatformDatabase::READ)->where('key', $e->key)->first()?->localName() ?? $e->key);
             $message = __("billing.quote.{$e->reason}", ['name' => $name]);
 
-            throw new ApiException(422, $e->reason, $message, [$e->field => [$message]]);
+            // ONB-03: an add-on that needs a bundle still names the bundle to pick.
+            throw new ApiException(422, $e->reason, $message, [$e->field => [$message]], $e->suggestion === null ? [] : ['suggestion' => $e->suggestion]);
         }
     }
 }

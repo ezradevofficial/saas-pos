@@ -2,6 +2,7 @@
 
 namespace App\Core\Platform\Models;
 
+use App\Core\Platform\PlatformDatabase;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -49,6 +50,9 @@ class PlatformUser extends Authenticatable
         'catalogue.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
         'catalogue.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
     ];
+
+    /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
+    protected $connection = PlatformDatabase::CONNECTION;
 
     protected $table = 'platform_users';
 
