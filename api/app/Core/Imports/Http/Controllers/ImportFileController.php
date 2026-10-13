@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
  * signed URL bound to one user (ImportFiles::url). The path names the
  * tenant: the controller enters it, finds the import there (RLS, so
  * another tenant's file is never reached) and checks the signed-for user
- * may still see it. Anything else is not found.
+ * is the uploader and may still see it (ImportAccess::files). Anything else
+ * is not found.
  */
 class ImportFileController
 {
@@ -32,7 +33,7 @@ class ImportFileController
             $user = Str::isUuid($userId) ? User::query()->find($userId) : null;
             $stored = $parts[3] === 'errors' ? $import?->error_file_path : $import?->result_file_path;
 
-            abort_unless($import !== null && $stored === $path && $user !== null && $user->isActive() && $access->view($user, $import), 404);
+            abort_unless($import !== null && $stored === $path && $user !== null && $user->isActive() && $access->files($user, $import), 404);
 
             $disk = Storage::disk($import->file_disk);
             abort_unless($disk->exists($path), 404);

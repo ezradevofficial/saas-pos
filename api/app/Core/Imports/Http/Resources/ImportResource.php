@@ -26,6 +26,7 @@ class ImportResource extends JsonResource
         $access = app(ImportAccess::class);
         $files = app(ImportFiles::class);
         $base = pathinfo($import->file_name, PATHINFO_FILENAME);
+        $ownFiles = $user !== null && $access->files($user, $import);
 
         return [
             'id' => $import->id,
@@ -54,8 +55,10 @@ class ImportResource extends JsonResource
             'undo_until' => $import->undoUntil()?->toIso8601ZuluString(),
             'can_change' => $user !== null && $import->isOpen() && $access->change($user, $import),
             'can_undo' => $user !== null && $import->canBeUndone() && $access->undo($user, $import),
-            'error_file_url' => $user === null || $import->error_file_path === null ? null : $files->url($import->error_file_path, $user, "{$base}-errors.xlsx"),
-            'result_file_url' => $user === null || $import->result_file_path === null ? null : $files->url($import->result_file_path, $user, "{$base}-result.xlsx"),
+            // The file's own rows go to the uploader only (ImportAccess::files).
+            'error_file_url' => $ownFiles && $import->error_file_path !== null ? $files->url($import->error_file_path, $user, "{$base}-errors.xlsx") : null,
+            'result_file_url' => $ownFiles && $import->result_file_path !== null ? $files->url($import->result_file_path, $user, "{$base}-result.xlsx") : null,
+            'is_uploader' => $user !== null && $access->isUploader($user, $import),
         ];
     }
 }

@@ -67,8 +67,32 @@ abstract class Importer
      */
     abstract public function write(PreparedRow $row, ImportContext $context): array;
 
-    /** IMP-02: archive a created record, or put back an updated record's before image. */
+    /**
+     * IMP-02: archive a created record, or put back the values an updated
+     * record had before (only those the import changed), as the undoer:
+     * through the API's own Form Request (policy, scope, field and limit
+     * rules) and the domain writer. Throws RowRejected when refused.
+     */
     abstract public function undo(ImportRow $row, ImportContext $context): void;
+
+    /**
+     * Locks the writers take, taken once per batch before the audit chain
+     * head (the API's order: master data sharing locks, then rows, then the
+     * audit head). Runs inside the batch's transaction.
+     */
+    public function lockForBatch(): void {}
+
+    /**
+     * RBAC-04: the companies of these records (null: shared), so who may read
+     * the import is known.
+     *
+     * @param  list<string>  $ids
+     * @return list<?string>
+     */
+    abstract public function companiesOf(array $ids): array;
+
+    /** @return list<string> permissions that read the records (any one), at their companies */
+    abstract public function readPermissions(): array;
 
     /** What a person calls the record (its code, name) in lists of blocking rows. */
     abstract public function describe(Model $record): string;
@@ -207,8 +231,9 @@ abstract class Importer
     }
 
     /**
-     * The `custom` input that puts $before back: its values, and null for
-     * the keys set since.
+     * The `custom` input that puts $before back: only the keys whose value
+     * changed since (null for those set since), so field rules see only what
+     * the undo changes.
      *
      * @param  array<string, mixed>  $before
      * @param  array<string, mixed>  $now
@@ -216,6 +241,14 @@ abstract class Importer
      */
     protected static function customRestore(array $before, array $now): array
     {
-        return [...array_fill_keys(array_keys(array_diff_key($now, $before)), null), ...$before];
+        $restore = [];
+
+        foreach (array_unique([...array_keys($before), ...array_keys($now)]) as $key) {
+            if (($before[$key] ?? null) !== ($now[$key] ?? null)) {
+                $restore[$key] = $before[$key] ?? null;
+            }
+        }
+
+        return $restore;
     }
 }

@@ -57,22 +57,43 @@ class ImportFile
         }
     }
 
-    /** Data rows (empty ones not counted), stopping once past $limit. */
-    public function count(int $limit): int
+    /**
+     * Data rows (empty rows not counted) and physical rows (every row read,
+     * empty ones included), stopping once past either limit.
+     *
+     * @return array{0: int, 1: int}
+     */
+    public function count(int $limit, int $physicalLimit): array
     {
-        $count = 0;
+        $rows = 0;
+        $physical = 0;
+        $header = true;
 
-        foreach ($this->rows() as $cells) {
-            if (++$count > $limit) {
+        foreach ($this->read(includeEmpty: true) as $cells) {
+            if (++$physical > $physicalLimit) {
+                break;
+            }
+
+            if ($cells === null) {
+                continue;
+            }
+
+            if ($header) {
+                $header = false;
+
+                continue;
+            }
+
+            if (++$rows > $limit) {
                 break;
             }
         }
 
-        return $count;
+        return [$rows, $physical];
     }
 
-    /** @return Generator<int, list<mixed>> non-empty rows, header included, by sheet row number */
-    private function read(): Generator
+    /** @return Generator<int, list<mixed>|null> rows, header included, by sheet row number (null for an empty row, when asked for) */
+    private function read(bool $includeEmpty = false): Generator
     {
         $reader = $this->reader();
         $reader->open($this->path);
@@ -83,6 +104,10 @@ class ImportFile
                     $cells = $row->toArray();
 
                     if (array_filter($cells, fn (mixed $cell) => $cell !== null && trim(ImportCells::display($cell)) !== '') === []) {
+                        if ($includeEmpty) {
+                            yield (int) $number => null;
+                        }
+
                         continue;
                     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Core\Imports\Importers;
 
+use App\Core\Currency\Money;
 use App\Core\CustomFields\Entities\PartyEntity;
 use App\Core\Imports\DomainRequests;
 use App\Core\Imports\ImportColumn;
@@ -10,6 +11,7 @@ use App\Core\Imports\Importer;
 use App\Core\Imports\ImportRow;
 use App\Core\Imports\PreparedRow;
 use App\Core\Imports\RowRejected;
+use App\Core\MasterData\Parties\Http\Requests\PartyActionRequest;
 use App\Core\MasterData\Parties\Http\Requests\StorePartyRequest;
 use App\Core\MasterData\Parties\Http\Requests\UpdatePartyRequest;
 use App\Core\MasterData\Parties\Party;
@@ -18,9 +20,7 @@ use App\Core\MasterData\Parties\PartyWriter;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -185,7 +185,7 @@ abstract class PartiesImporter extends Importer
             throw new RowRejected($errors);
         }
 
-        $existing = isset($values['tax_id']) ? Party::query()->whereNull('archived_at')->where('tax_id', self::taxId($values['tax_id']))->first() : null;
+        $existing = isset($values['tax_id']) ? $this->existing(self::taxId($values['tax_id']), $companyId) : null;
 
         if ($existing !== null && ! $context->updates()) {
             throw new RowRejected(['tax_id' => [__('imports.errors.exists', ['value' => $values['tax_id']])]]);
@@ -228,32 +228,88 @@ abstract class PartiesImporter extends Importer
     }
 
     /**
-     * Created: archived. Updated: the stored values before the import come
-     * back as they were (already normalised), in one audited save.
+     * Created: archived, as POST parties/{party}/archive. Updated: only the
+     * values the import changed go back, as PATCH parties/{party} would (the
+     * undoer's field rules, the credit limit rule WF-01, the sharing locks),
+     * saved by PartyWriter.
      */
     public function undo(ImportRow $row, ImportContext $context): void
     {
-        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($row) {
-            $party = Party::query()->whereKey($row->record_id)->lockForUpdate()->first();
+        $party = Party::query()->whereKey($row->record_id)->first();
 
-            if ($party === null) {
-                return;
+        if ($party === null) {
+            return;
+        }
+
+        $requests = app(DomainRequests::class);
+
+        if ($row->action === 'created') {
+            if (! $party->isArchived()) {
+                $requests->validate(PartyActionRequest::class, [], $context->user, ['party' => $party]);
+                $party->archive();
             }
 
-            if ($row->action === 'created') {
-                if (! $party->isArchived()) {
-                    $party->archive();
-                }
+            return;
+        }
 
-                return;
+        $before = $row->before ?? [];
+        $input = [];
+
+        foreach (array_diff(self::ATTRIBUTES, ['credit_limit_minor', 'credit_limit_currency']) as $key) {
+            if (array_key_exists($key, $before) && $before[$key] != $party->{$key}) {
+                $input[$key] = $before[$key];
             }
+        }
 
-            $before = $row->before ?? [];
-            $party->fill(array_intersect_key($before, array_flip(self::ATTRIBUTES)));
-            $custom = (array) ($before['custom'] ?? []);
-            $party->custom = $custom === [] ? new \stdClass : $custom;
-            $party->save();
-        });
+        if (($before['credit_limit_minor'] ?? null) != $party->credit_limit_minor || ($before['credit_limit_currency'] ?? null) != $party->credit_limit_currency) {
+            $limit = $before['credit_limit_minor'] === null ? null : Money::ofMinor((string) $before['credit_limit_minor'], $before['credit_limit_currency']);
+            $input['credit_limit'] = $limit?->toDecimalString();
+            $input['credit_limit_currency'] = $limit?->currency();
+        }
+
+        $custom = self::customRestore((array) ($before['custom'] ?? []), (array) ($party->custom ?? []));
+
+        if ($custom !== []) {
+            $input['custom'] = $custom;
+        }
+
+        if ($input === []) {
+            return;
+        }
+
+        app(PartyWriter::class)->update($party, $requests->validate(UpdatePartyRequest::class, $input, $context->user, ['party' => $party]), $context->user);
+    }
+
+    public function lockForBatch(): void
+    {
+        app(MasterDataSharing::class)->lockForWrite(PartyRoles::PARTY_DATA_TYPES);
+    }
+
+    public function companiesOf(array $ids): array
+    {
+        return Party::query()->whereIn('id', $ids)->distinct()->pluck('company_id')->all();
+    }
+
+    public function readPermissions(): array
+    {
+        return ['core.party.view'];
+    }
+
+    /**
+     * The active party with this tax ID in the row's scope (its company, or
+     * shared ones), refused when more than one has it.
+     */
+    private function existing(string $taxId, ?string $companyId): ?Party
+    {
+        $matches = Party::query()->whereNull('archived_at')->where('tax_id', $taxId)
+            ->when($companyId === null, fn ($q) => $q->whereNull('company_id'), fn ($q) => $q->where('company_id', $companyId))
+            ->limit(2)->get();
+
+        if ($matches->count() > 1) {
+            throw new RowRejected(['tax_id' => [__('imports.errors.ambiguous', ['value' => $taxId])]]);
+        }
+
+        return $matches->first();
     }
 
     public function describe(Model $record): string

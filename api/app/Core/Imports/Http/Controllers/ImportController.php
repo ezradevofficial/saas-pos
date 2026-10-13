@@ -20,11 +20,11 @@ use App\Core\Imports\ImportColumn;
 use App\Core\Imports\Importer;
 use App\Core\Imports\ImportFile;
 use App\Core\Imports\ImportFiles;
-use App\Core\Imports\ImportLimits;
 use App\Core\Imports\ImportMapper;
 use App\Core\Imports\ImportRegistry;
 use App\Core\Imports\ImportRunner;
 use App\Core\Imports\ImportTemplates;
+use App\Core\Imports\ImportUploads;
 use App\Core\Imports\ImportUndo;
 use App\Core\Imports\Jobs\RunImport;
 use App\Core\Tenancy\TenantContext;
@@ -32,7 +32,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -91,7 +90,8 @@ class ImportController
 
     public function index(ListImportsRequest $request, ListExport $export, ImportAccess $access): AnonymousResourceCollection|StreamedResponse
     {
-        $query = Import::query()->with('user:id,name')->whereIn('importer', $access->visibleImporters($request->user()));
+        // RBAC-04: the user's own imports, and others' whose records their scope covers.
+        $query = $access->visible(Import::query()->with('user:id,name'), $request->user());
 
         foreach (['importer', 'status'] as $filter) {
             if ($request->filled($filter)) {
@@ -109,41 +109,33 @@ class ImportController
         return ImportResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 
-    public function store(StoreImportRequest $request): JsonResponse
+    public function store(StoreImportRequest $request, ImportUploads $uploads): JsonResponse
     {
         $user = $request->user();
         $importer = $this->registry->get($request->validated('importer'));
         $format = $request->fileFormat();
         $id = (string) Str::uuid7();
-        $path = $this->files->storeSource($request->file('file'), $id, $format);
+        $uploaded = $request->file('file');
+
+        // Encoding (converted to UTF-8 or refused), zip size and row count
+        // checked before anything is kept (ImportUploads).
+        $uploads->inspect($uploaded->getRealPath(), $format);
 
         try {
-            [$local, $cleanup] = $this->files->local($path);
-
-            try {
-                $file = new ImportFile($local, $format);
-                $headers = $file->headers();
-                $total = $file->count(ImportLimits::MAX_ROWS);
-            } finally {
-                $cleanup();
-            }
-        } catch (Throwable $e) {
-            Storage::disk(ImportFiles::DISK)->delete($path);
-
+            $file = new ImportFile($uploaded->getRealPath(), $format);
+            $headers = $file->headers();
+            $total = $uploads->count($file);
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (Throwable) {
             throw new ApiException(422, 'file_unreadable', __('imports.errors.file_unreadable'), ['file' => [__('imports.errors.file_unreadable')]]);
         }
 
-        $refuse = match (true) {
-            $headers === [] || $total === 0 => ['file_empty', __('imports.errors.file_empty')],
-            $total > ImportLimits::MAX_ROWS => ['too_many_rows', __('imports.errors.too_many_rows', ['rows' => number_format(ImportLimits::MAX_ROWS)])],
-            default => null,
-        };
-
-        if ($refuse !== null) {
-            Storage::disk(ImportFiles::DISK)->delete($path);
-
-            throw new ApiException(422, $refuse[0], $refuse[1], ['file' => [$refuse[1]]]);
+        if ($headers === [] || $total === 0) {
+            throw new ApiException(422, 'file_empty', __('imports.errors.file_empty'), ['file' => [__('imports.errors.file_empty')]]);
         }
+
+        $path = $this->files->storeSource($uploaded, $id, $format);
 
         $import = new Import([
             'user_id' => $user->id,
@@ -223,6 +215,8 @@ class ImportController
             throw new ApiException(422, 'import_not_undoable', __('imports.errors.not_undoable'));
         }
 
+        // The blockers first (nothing is held), then UNDOING; the job undoes in
+        // committed chunks and checks again in each one.
         $blockers = $undo->blockers($import);
 
         if ($blockers['count'] > 0) {
@@ -231,9 +225,9 @@ class ImportController
             throw new ApiException(422, 'import_undo_blocked', __('imports.errors.undo_blocked', ['count' => $blockers['count']]), extra: ['blocking' => $blockers]);
         }
 
-        $this->transition($import, Import::UNDOING, ['blocking' => [], 'failure' => null]);
+        $token = $this->transition($import, Import::UNDOABLE, Import::UNDOING, ['blocking' => [], 'failure' => null]);
         $this->auditor->record('core.import.undo_start', $import, null, $import->summary());
-        RunImport::dispatch($import->tenant_id, $import->id, RunImport::UNDO, $request->user()->id);
+        RunImport::dispatch($import->tenant_id, $import->id, RunImport::UNDO, $token, $request->user()->id);
 
         return ImportResource::make($import->refresh()->load('user:id,name'))->response()->setStatusCode(202);
     }
@@ -243,26 +237,41 @@ class ImportController
         $this->assertOpen($import);
         $this->assertMapped($request, $import);
 
-        $this->transition($import, $status, [
+        $token = $this->transition($import, [Import::READY, Import::CHECKED], $status, [
             'processed_rows' => 0, 'created_rows' => 0, 'updated_rows' => 0, 'failed_rows' => 0, 'failure' => null,
             'started_at' => now(), 'finished_at' => null,
         ]);
         $this->auditor->record($auditAction, $import, null, [...$import->summary(), 'mapping' => $import->mapping]);
-        RunImport::dispatch($import->tenant_id, $import->id, $action);
+        RunImport::dispatch($import->tenant_id, $import->id, $action, $token);
 
         return ImportResource::make($import->refresh()->load('user:id,name'))->response()->setStatusCode(202);
     }
 
-    /** One run per tenant and importer: the `imports_one_running` index says no with 409. */
-    private function transition(Import $import, string $status, array $attributes): void
+    /**
+     * Start a run: from one of $from to $to, with a new run token a single
+     * worker will claim (RunImport). One run per tenant and importer: the
+     * `imports_one_running` index says no with 409; a status that moved on
+     * meanwhile says no with 409 too.
+     *
+     * @param  list<string>  $from
+     */
+    private function transition(Import $import, array $from, string $status, array $attributes): string
     {
+        $token = (string) Str::uuid7();
+
         try {
-            DB::connection(TenantContext::CONNECTION)->transaction(fn () => $import->forceFill(['status' => $status, ...$attributes])->save());
+            $moved = DB::connection(TenantContext::CONNECTION)->transaction(fn () => $import->transition($from, $status, [...$attributes, 'run_token' => $token, 'claimed_at' => null]));
         } catch (UniqueConstraintViolationException) {
             $import->refresh();
 
             throw new ApiException(409, 'import_running', __('imports.errors.running'));
         }
+
+        if (! $moved) {
+            throw new ApiException(409, 'import_not_open', __('imports.errors.not_open'));
+        }
+
+        return $token;
     }
 
     private function assertOpen(Import $import): void

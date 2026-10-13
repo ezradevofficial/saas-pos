@@ -42,7 +42,13 @@ class Import extends Model
 
     public const UNDONE = 'undone';
 
-    public const STATUSES = [self::READY, self::CHECKING, self::CHECKED, self::IMPORTING, self::COMPLETED, self::FAILED, self::UNDOING, self::UNDONE];
+    /** IMP-02: an undo stopped part way (something came to depend on the rest); the rows undone stay undone. */
+    public const PARTLY_UNDONE = 'partly_undone';
+
+    public const STATUSES = [self::READY, self::CHECKING, self::CHECKED, self::IMPORTING, self::COMPLETED, self::FAILED, self::UNDOING, self::PARTLY_UNDONE, self::UNDONE];
+
+    /** Imports whose batch may (still) be undone. */
+    public const UNDOABLE = [self::COMPLETED, self::FAILED, self::PARTLY_UNDONE];
 
     public const RUNNING = [self::CHECKING, self::IMPORTING, self::UNDOING];
 
@@ -58,6 +64,7 @@ class Import extends Model
         'user_id', 'importer', 'mode', 'status', 'locale', 'file_disk', 'file_path', 'file_name', 'file_format', 'file_size',
         'headers', 'mapping', 'total_rows', 'processed_rows', 'created_rows', 'updated_rows', 'failed_rows', 'checked',
         'error_file_path', 'result_file_path', 'failure', 'blocking', 'started_at', 'finished_at', 'undone_at', 'undone_by',
+        'run_token', 'claimed_at', 'scope_companies',
     ];
 
     protected $attributes = [
@@ -65,6 +72,7 @@ class Import extends Model
         'headers' => '[]',
         'mapping' => '{}',
         'blocking' => '[]',
+        'scope_companies' => '[]',
     ];
 
     protected function casts(): array
@@ -73,6 +81,7 @@ class Import extends Model
             'headers' => 'array',
             'mapping' => JsonObject::class,
             'blocking' => 'array',
+            'scope_companies' => 'array',
             'checked' => 'boolean',
             'total_rows' => 'integer',
             'processed_rows' => 'integer',
@@ -83,6 +92,7 @@ class Import extends Model
             'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime',
             'undone_at' => 'immutable_datetime',
+            'claimed_at' => 'immutable_datetime',
         ];
     }
 
@@ -110,7 +120,7 @@ class Import extends Model
     /** IMP-02: until when the batch may be undone, or null when it can't be. */
     public function undoUntil(): ?CarbonImmutable
     {
-        if (! in_array($this->status, [self::COMPLETED, self::FAILED], true) || $this->finished_at === null) {
+        if (! in_array($this->status, self::UNDOABLE, true) || $this->finished_at === null) {
             return null;
         }
 
@@ -121,6 +131,38 @@ class Import extends Model
     public function finishedStatus(): string
     {
         return $this->processed_rows < $this->total_rows ? self::FAILED : self::COMPLETED;
+    }
+
+    /**
+     * Change the status only if it still is one of $from (another worker,
+     * or a request, may have moved it on): a stale worker never overwrites
+     * a later state such as undone or completed. True when it changed.
+     *
+     * @param  list<string>  $from
+     * @param  array<string, mixed>  $attributes
+     */
+    public function transition(array $from, string $to, array $attributes = []): bool
+    {
+        $values = [...$attributes, 'status' => $to];
+        $model = (new self)->forceFill($values);
+        $changed = self::query()->whereKey($this->id)->whereIn('status', $from)
+            ->update([...array_intersect_key($model->getAttributes(), $values), 'updated_at' => $this->freshTimestampString()]);
+
+        if ($changed === 1) {
+            $this->refresh();
+        }
+
+        return $changed === 1;
+    }
+
+    /**
+     * IMP-03: a worker takes the run named by $token, once. A second
+     * delivery of the same job (or a job of an earlier run) finds it taken.
+     */
+    public function claim(string $token, string $running): bool
+    {
+        return self::query()->whereKey($this->id)->where('status', $running)->where('run_token', $token)->whereNull('claimed_at')
+            ->update(['claimed_at' => now()->format($this->getDateFormat())]) === 1;
     }
 
     public function canBeUndone(): bool

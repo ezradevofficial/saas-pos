@@ -111,7 +111,10 @@ class ImportRunner
                     $plan['context']->forget();
                     $write ? $this->writeBatch($import, $plan, $batch, $seen, $counts, $report) : $this->checkBatch($plan, $batch, $seen, $counts, $report);
                     $batch = [];
-                    $import->forceFill($counts)->save();
+                    // Progress, only while the run is still this one's; else stop here.
+                    if (! $import->transition([$write ? Import::IMPORTING : Import::CHECKING], $write ? Import::IMPORTING : Import::CHECKING, $counts)) {
+                        throw new ImportSuperseded;
+                    }
                 };
 
                 $this->withFile($import, function (ImportFile $file) use (&$batch, $flush) {
@@ -131,6 +134,11 @@ class ImportRunner
         } catch (Throwable $e) {
             $report->discard();
             $this->restoreVerifier($verifier);
+
+            if ($e instanceof ImportSuperseded) {
+                return;
+            }
+
             report($e);
             $this->finish($import->refresh(), $write, failure: __('imports.errors.failed'));
 
@@ -177,8 +185,10 @@ class ImportRunner
      */
     private function writeBatch(Import $import, array $plan, array $batch, array &$seen, array &$counts, ImportReport $report): void
     {
-        // AUD-03: the audit chain head is locked once per batch (Auditor::batch).
-        $results = $this->auditor->batch(function () use ($import, $plan, $batch, &$seen) {
+        // Lock order, as the API's writers take them: the importer's locks
+        // (master data sharing, price lists) first, then the audit chain head
+        // (Auditor::batch, once per batch). Never the other way round.
+        $results = DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->lockedBatch($plan, fn () => $this->auditor->batch(function () use ($import, $plan, $batch, &$seen) {
             $results = [];
             $rows = [];
 
@@ -206,7 +216,7 @@ class ImportRunner
             }
 
             return $results;
-        });
+        })));
 
         foreach ($batch as $number => $cells) {
             $outcome = $results[$number];
@@ -366,15 +376,22 @@ class ImportRunner
         return $shown;
     }
 
+    /**
+     * The run's end, only if the import is still the run's (a stale worker
+     * never moves an import that went on to another state).
+     */
     private function finish(Import $import, bool $write, ?string $path = null, ?string $failure = null): void
     {
-        $import->forceFill([
-            'status' => $failure !== null ? ($write ? Import::FAILED : Import::READY) : ($write ? Import::COMPLETED : Import::CHECKED),
+        $finished = $import->transition([$write ? Import::IMPORTING : Import::CHECKING], $failure !== null ? ($write ? Import::FAILED : Import::READY) : ($write ? Import::COMPLETED : Import::CHECKED), [
             'checked' => ! $write && $failure === null ? true : $import->checked,
             'failure' => $failure,
             'finished_at' => now(),
-            ...($write ? ['result_file_path' => $path] : ['error_file_path' => $path]),
-        ])->save();
+            ...($write ? ['result_file_path' => $path, 'scope_companies' => $this->scopeCompanies($import)] : ['error_file_path' => $path]),
+        ]);
+
+        if (! $finished) {
+            return;
+        }
 
         $this->audit->actingAs($import->user_id, ['import_id' => $import->id], fn () => $this->auditor->record(
             $write ? ($failure === null ? 'core.import.complete' : 'core.import.fail') : 'core.import.dry_run',
@@ -382,6 +399,37 @@ class ImportRunner
             null,
             [...$import->summary(), 'failure' => $failure],
         ));
+    }
+
+    /**
+     * Runs $write with the importer's batch locks held (they last until the
+     * batch's transaction ends).
+     */
+    public function lockedBatch(array $plan, callable $write): mixed
+    {
+        $plan['importer']->lockForBatch();
+
+        return $write();
+    }
+
+    /**
+     * RBAC-04: the companies of the records the import touched ("shared"
+     * for shared ones); who may read the import must reach them all.
+     *
+     * @return list<string>
+     */
+    private function scopeCompanies(Import $import): array
+    {
+        $importer = $this->registry->get($import->importer);
+        $companies = [];
+
+        ImportRow::query()->where('import_id', $import->id)->select('record_id')->chunk(1000, function ($rows) use ($importer, &$companies) {
+            foreach ($importer->companiesOf($rows->pluck('record_id')->all()) as $company) {
+                $companies[$company ?? ImportAccess::SHARED] = true;
+            }
+        });
+
+        return array_keys($companies);
     }
 
     /** @param callable(ImportFile): void $read */

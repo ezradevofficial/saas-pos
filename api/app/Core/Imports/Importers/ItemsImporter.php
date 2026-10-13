@@ -12,6 +12,7 @@ use App\Core\Imports\ImportRow;
 use App\Core\Imports\PreparedRow;
 use App\Core\Imports\RowRejected;
 use App\Core\MasterData\Items\Barcode;
+use App\Core\MasterData\Items\Http\Requests\ItemActionRequest;
 use App\Core\MasterData\Items\Http\Requests\StoreItemRequest;
 use App\Core\MasterData\Items\Http\Requests\UpdateItemRequest;
 use App\Core\MasterData\Items\Item;
@@ -23,9 +24,7 @@ use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Sharing\MasterDataSharing;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -236,21 +235,63 @@ class ItemsImporter extends Importer
             return;
         }
 
-        if ($row->action === 'created') {
-            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($item) {
-                $item = Item::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+        $requests = app(DomainRequests::class);
 
-                if (! $item->isArchived()) {
-                    $item->archive();
-                }
-            });
+        if ($row->action === 'created') {
+            if ($item->isArchived()) {
+                return;
+            }
+
+            // As POST items/{item}/archive: the undoer may archive this item.
+            $requests->validate(ItemActionRequest::class, [], $context->user, ['item' => $item]);
+            $item->archive();
 
             return;
         }
 
+        // Only what the import changed goes back, as PATCH items/{item} would
+        // (field rules see only those fields).
+        $writer = app(ItemWriter::class);
         $before = $row->before ?? [];
-        $before['custom'] = self::customRestore((array) ($before['custom'] ?? []), (array) ($item->custom ?? []));
-        app(ItemWriter::class)->update($item, $before);
+        $now = [
+            ...$item->only(['company_id', 'code', 'name', 'type', 'base_uom_id', 'category_id', 'tax_category_id']),
+            'uoms' => $writer->unitsOf($item),
+            'barcodes' => $writer->barcodesOf($item),
+        ];
+        $input = [];
+
+        foreach ($now as $key => $value) {
+            if (array_key_exists($key, $before) && $before[$key] != $value) {
+                $input[$key] = $before[$key];
+            }
+        }
+
+        $custom = self::customRestore((array) ($before['custom'] ?? []), (array) ($item->custom ?? []));
+
+        if ($custom !== []) {
+            $input['custom'] = $custom;
+        }
+
+        if ($input === []) {
+            return;
+        }
+
+        $writer->update($item, $requests->validate(UpdateItemRequest::class, $input, $context->user, ['item' => $item]));
+    }
+
+    public function lockForBatch(): void
+    {
+        app(MasterDataSharing::class)->lockForWrite([ItemSharing::DATA_TYPE]);
+    }
+
+    public function companiesOf(array $ids): array
+    {
+        return Item::query()->whereIn('id', $ids)->distinct()->pluck('company_id')->all();
+    }
+
+    public function readPermissions(): array
+    {
+        return ['core.item.view'];
     }
 
     public function describe(Model $record): string

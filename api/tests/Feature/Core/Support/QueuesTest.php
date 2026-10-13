@@ -7,6 +7,7 @@ use App\Core\Automation\Jobs\RetryThrottledRun;
 use App\Core\Automation\Jobs\RunAutomationRule;
 use App\Core\Automation\Jobs\ScanTimedTriggers;
 use App\Core\Automation\Jobs\SendWebhookDelivery;
+use App\Core\Imports\Jobs\RunImport;
 use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
 use App\Core\MasterData\CreditLimits\Listeners\SettleCreditLimitChange;
 use App\Core\Notifications\Jobs\SendDelivery;
@@ -61,7 +62,7 @@ class QueuesTest extends TestCase
     {
         $supervisors = config('horizon.defaults');
         $queues = collect($supervisors)->flatMap(fn ($s) => $s['queue'])->all();
-        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports'], $queues);
+        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports', 'imports'], $queues);
 
         $webhook = config('automation.webhook_timeout') + config('automation.dns_timeout');
 
@@ -77,6 +78,19 @@ class QueuesTest extends TestCase
         foreach (['local', '*'] as $environment) {
             $this->assertSame(array_keys($supervisors), array_keys(config("horizon.environments.{$environment}")));
         }
+    }
+
+    public function test_imports_run_on_their_own_queue_and_connection(): void
+    {
+        // IMP-03: an hour-long import is reserved for longer than it may run.
+        $this->assertSame('imports', config('imports.queue'));
+        $this->assertSame('redis-imports', config('horizon.defaults.supervisor-imports.connection'));
+        $this->assertGreaterThan(config('imports.timeout'), config('queue.connections.redis-imports.retry_after'));
+
+        Queue::fake();
+        RunImport::dispatch((string) Str::uuid7(), (string) Str::uuid7(), RunImport::IMPORT, (string) Str::uuid7());
+        Queue::assertPushedOn('imports', RunImport::class);
+        Queue::assertPushed(RunImport::class, fn (RunImport $job) => $job->timeout === config('imports.timeout') && $job->tries === 1);
     }
 
     public function test_the_horizon_dashboard_is_refused_outside_local(): void

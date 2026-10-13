@@ -14,16 +14,16 @@ use App\Core\Imports\RowRejected;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Items\Uom;
+use App\Core\MasterData\Prices\Http\Requests\ItemPriceActionRequest;
 use App\Core\MasterData\Prices\Http\Requests\SetItemPriceRequest;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Prices\PriceWriter;
 use App\Core\MasterData\Taxes\PriceList;
-use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * IMP-01: item prices (MD-03 follow-up) by price list (name) and unit
@@ -176,27 +176,65 @@ class ItemPricesImporter extends Importer
         return ['record' => $result['price'], 'before' => $result['created'] ? null : $before];
     }
 
-    /** Created: archived (under the list's lock). Updated: the amount before comes back. */
+    /**
+     * Created: archived by PriceWriter, as POST item-prices/{item_price}/archive
+     * (`core.price.edit` at the list's company, prices not frozen, RBAC-05).
+     * Updated: the amount before is set again through SetItemPriceRequest and
+     * PriceWriter, as the undoer.
+     */
     public function undo(ImportRow $row, ImportContext $context): void
     {
         $price = ItemPrice::query()->whereKey($row->record_id)->first();
 
-        if ($price === null) {
+        if ($price === null || $price->isArchived()) {
             return;
         }
+
+        $requests = app(DomainRequests::class);
+        $writer = app(PriceWriter::class);
 
         if ($row->action === 'created') {
-            app(PriceWriter::class)->archive($price);
+            $requests->validate(ItemPriceActionRequest::class, [], $context->user, ['item_price' => $price]);
+            $writer->archive($price);
 
             return;
         }
 
-        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($price, $row) {
-            PriceList::query()->whereKey($price->price_list_id)->lockForUpdate()->firstOrFail();
-            $price = ItemPrice::query()->whereKey($price->id)->lockForUpdate()->firstOrFail();
-            $price->amount_minor = (string) ($row->before['amount_minor'] ?? $price->amount_minor);
-            $price->save();
-        });
+        $amount = (string) ($row->before['amount_minor'] ?? $price->amount_minor);
+
+        if ($amount === (string) $price->amount_minor) {
+            return;
+        }
+
+        $list = PriceList::query()->findOrFail($price->price_list_id);
+        $validated = $requests->validate(SetItemPriceRequest::class, [
+            'item_id' => $price->item_id,
+            'uom_id' => $price->uom_id,
+            'amount_minor' => $amount,
+            'currency' => $price->currency,
+            'effective_from' => $price->effective_from->toDateString(),
+            'min_quantity' => $price->minQuantity(),
+        ], $context->user, ['price_list' => $list]);
+        $writer->write($list, [$validated]);
+    }
+
+    /**
+     * The price lists a batch may write, locked in id order before the audit
+     * head, as PriceWriter locks its list before saving (and auditing).
+     */
+    public function lockForBatch(): void
+    {
+        PriceList::query()->whereNull('archived_at')->orderBy('id')->lockForUpdate()->pluck('id');
+    }
+
+    public function companiesOf(array $ids): array
+    {
+        return PriceList::query()->whereIn('id', ItemPrice::query()->whereIn('id', $ids)->select('price_list_id'))->distinct()->pluck('company_id')->all();
+    }
+
+    public function readPermissions(): array
+    {
+        return ['core.price.view', 'core.price.edit'];
     }
 
     public function describe(Model $record): string
@@ -211,7 +249,7 @@ class ItemPricesImporter extends Importer
     {
         try {
             return (string) BigDecimal::of($value)->toScale(6);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return '1.000000';
         }
     }

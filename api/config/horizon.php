@@ -299,6 +299,21 @@ return [
             'timeout' => (int) env('DATA_EXPORT_TIMEOUT', 3600),
             'nice' => 10,
         ],
+        // IMP-03: imports, dry runs and undos, on their own connection
+        // (retry_after above the hour-long timeout).
+        'supervisor-imports' => [
+            'connection' => 'redis-imports',
+            'queue' => [env('IMPORT_QUEUE', 'imports')],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 100,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => (int) env('IMPORT_TIMEOUT', 3600),
+            'nice' => 10,
+        ],
     ],
 
     // The first matching name wins: `local` first, then every other
@@ -311,6 +326,7 @@ return [
             'supervisor-payments' => ['maxProcesses' => 1],
             'supervisor-fiscal' => ['maxProcesses' => 1],
             'supervisor-exports' => ['maxProcesses' => 1],
+            'supervisor-imports' => ['maxProcesses' => 1],
         ],
 
         '*' => [
@@ -320,6 +336,7 @@ return [
             'supervisor-payments' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-fiscal' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-exports' => ['maxProcesses' => 2],
+            'supervisor-imports' => ['maxProcesses' => 2],
         ],
     ],
 

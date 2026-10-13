@@ -46,6 +46,13 @@ return new class extends Migration
             $table->timestampTz('finished_at', 6)->nullable();
             $table->timestampTz('undone_at', 6)->nullable();
             $table->uuid('undone_by')->nullable();
+            // One worker per run: the run's token (set when started) and when a
+            // worker claimed it; a second delivery of the job finds it claimed.
+            $table->uuid('run_token')->nullable();
+            $table->timestampTz('claimed_at', 6)->nullable();
+            // RBAC-04: the companies of the records the import touched
+            // ("shared" for shared records); readers must reach them all.
+            $table->jsonb('scope_companies')->default('[]');
             $table->timestampsTz();
 
             $table->foreign(['tenant_id', 'user_id'])->references(['tenant_id', 'id'])->on('users')->restrictOnDelete();
@@ -53,10 +60,10 @@ return new class extends Migration
             $table->index(['tenant_id', 'created_at']);
         });
 
-        DB::statement("alter table imports add constraint imports_status_check check (status in ('ready', 'checking', 'checked', 'importing', 'completed', 'failed', 'undoing', 'undone'))");
+        DB::statement("alter table imports add constraint imports_status_check check (status in ('ready', 'checking', 'checked', 'importing', 'completed', 'failed', 'undoing', 'partly_undone', 'undone'))");
         DB::statement("alter table imports add constraint imports_mode_check check (mode in ('create', 'upsert'))");
         DB::statement("alter table imports add constraint imports_format_check check (file_format in ('csv', 'xlsx'))");
-        DB::statement("alter table imports add constraint imports_json_check check (jsonb_typeof(headers) = 'array' and jsonb_typeof(mapping) = 'object' and jsonb_typeof(blocking) = 'array')");
+        DB::statement("alter table imports add constraint imports_json_check check (jsonb_typeof(headers) = 'array' and jsonb_typeof(mapping) = 'object' and jsonb_typeof(blocking) = 'array' and jsonb_typeof(scope_companies) = 'array')");
         // One import running per tenant and importer (a dry run, an import or an undo).
         DB::statement("create unique index imports_one_running on imports (tenant_id, importer) where status in ('checking', 'importing', 'undoing')");
         Rls::enable('imports');
@@ -71,6 +78,8 @@ return new class extends Migration
             $table->string('action', 10);
             // The record's values before the import changed it (null when created).
             $table->jsonb('before')->nullable();
+            // IMP-02: when the row was undone (an undo may stop part way).
+            $table->timestampTz('undone_at', 6)->nullable();
             $table->timestampTz('created_at')->useCurrent();
 
             $table->index('import_id');
