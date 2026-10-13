@@ -191,6 +191,11 @@ abstract class PartiesImporter extends Importer
             throw new RowRejected(['tax_id' => [__('imports.errors.exists', ['value' => $values['tax_id']])]]);
         }
 
+        // A new party is an organisation unless the file says otherwise.
+        if ($existing === null && ! array_key_exists('kind', $input)) {
+            $input['kind'] = 'organisation';
+        }
+
         // An existing party keeps its roles and gains this one; a new one has this role.
         $roles = $existing === null ? [$this->role()] : array_values(array_unique([...$existing->roles, $this->role()]));
 

@@ -12,6 +12,7 @@ use App\Core\Imports\ImportRow;
 use App\Core\Imports\PreparedRow;
 use App\Core\Imports\RowRejected;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Prices\Http\Requests\SetItemPriceRequest;
 use App\Core\MasterData\Prices\ItemPrice;
@@ -119,7 +120,16 @@ class ItemPricesImporter extends Importer
             }
         }
 
+        // As PriceWriter checks when saving, so previews and dry runs say it too.
+        if ($item !== null && $uomId !== null && $uomId !== $item->base_uom_id && ! ItemUom::query()->where('item_id', $item->id)->where('uom_id', $uomId)->exists()) {
+            $errors['unit'][] = __('core.price.uom_not_on_item');
+        }
+
         $currency = Str::upper($values['currency'] ?? $list->currency);
+
+        if ($currency !== $list->currency) {
+            $errors['currency'][] = __('core.price.currency_mismatch', ['currency' => $list->currency]);
+        }
 
         try {
             $amount = Money::parse((string) $values['amount'], $currency, app(CurrencyDecimals::class))->minor();
