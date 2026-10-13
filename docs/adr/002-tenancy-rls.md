@@ -104,7 +104,7 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_due_automation(p_kind text, p_at timestamptz)` | `automation:scan schedules` / `dates` (AUTO-01) | live `schedule` rules due at `p_at`, or live `date` rules |
 | `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `automation:scan reap` (AUTO-05) | runs or webhook deliveries untouched since `p_stale_before` |
 | `app_tenants_with_pending_digests()` | `notifications:send-digests` (NOT-05) | emails held for a digest |
-| `app_active_tenant_ids()` | `exchange-rates:fetch` (CUR-03) | status `active` |
+| `app_active_tenant_ids()` | `exchange-rates:fetch` (CUR-03), `usage:meter` (LIM-01, ADR 018) | status `active` |
 | `app_tenants_with_due_stage_timers(p_at timestamptz)` | `workflow:process-stage-timers` (WF-09) | an active stage position whose reminder, overdue notice or escalation is due |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
 | `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
