@@ -83,6 +83,7 @@ use App\Core\Notifications\Http\Controllers\NotificationSettingsController;
 use App\Core\Notifications\Http\Controllers\PreferenceController;
 use App\Core\Notifications\Http\Controllers\TemplateController;
 use App\Core\Numbering\Http\Controllers\NumberFormatController;
+use App\Core\Onboarding\Http\Controllers\OnboardingController;
 use App\Core\Payments\CallbackTokens;
 use App\Core\Payments\Http\Controllers\CallbackController;
 use App\Core\Payments\Http\Controllers\DeviceIntentController;
@@ -273,6 +274,18 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // AUTH-02, AUTH-09, L10N-01: the tenant's settings (core.settings.edit, tenant scope).
     Route::get('tenant/settings', [TenantSettingsController::class, 'show']);
     Route::patch('tenant/settings', [TenantSettingsController::class, 'update']);
+    // ONB-02..ONB-07: onboarding (business type, modules and trial, setup
+    // wizard, sample data, checklist); the trial's days left for everyone.
+    Route::get('onboarding', [OnboardingController::class, 'show']);
+    Route::put('onboarding/business', [OnboardingController::class, 'business']);
+    Route::put('onboarding/modules', [OnboardingController::class, 'modules']);
+    Route::post('onboarding/steps', [OnboardingController::class, 'step']);
+    Route::get('onboarding/trial', [OnboardingController::class, 'trial']);
+    Route::post('onboarding/sample-data', [OnboardingController::class, 'loadSample']);
+    Route::post('onboarding/sample-data/remove', [OnboardingController::class, 'removeSample']);
+    Route::get('onboarding/checklist', [OnboardingController::class, 'checklist']);
+    Route::post('onboarding/checklist/dismiss', [OnboardingController::class, 'dismissChecklist']);
+
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
 

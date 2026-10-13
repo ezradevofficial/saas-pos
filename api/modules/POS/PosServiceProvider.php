@@ -11,6 +11,8 @@ use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Onboarding\Checklist\Checklist;
+use App\Core\Onboarding\Sample\SampleDependents;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -133,6 +135,16 @@ class PosServiceProvider extends ServiceProvider
         Event::listen(SaleCompleted::class, [LinkMobileMoneyPayments::class, 'handle']);
         Event::listen(SaleRefunded::class, [LinkMobileMoneyPayments::class, 'handle']);
         Event::listen(PaymentIntentSettled::class, [ApplyPaymentSettlement::class, 'handle']);
+
+        // ONB-07: the checklist ends with the first sale. ONB-06: sample
+        // items and customers a real sale used cannot be removed.
+        $this->app->make(Checklist::class)->register('first_sale', self::MODULE, fn () => DB::table('pos_sales')->exists(), 50, ends: true);
+        $this->app->make(SampleDependents::class)->register(fn (array $records) => [
+            ...DB::table('pos_sale_lines')->whereIn('item_id', $records['item'] ?? [])->distinct()->pluck('sale_id')
+                ->map(fn ($id) => ['type' => 'item', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            ...DB::table('pos_sales')->whereIn('customer_id', $records['party'] ?? [])->pluck('id')
+                ->map(fn ($id) => ['type' => 'party', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+        ]);
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

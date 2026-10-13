@@ -81,6 +81,9 @@ class PermissionRegistry
         // location (docs/adr/012), and the form types themselves (tenant scope).
         'custom_form' => ['view', 'create', 'edit', 'approve'],
         'custom_form_type' => ['manage'],
+        // ONB-02..ONB-07: the onboarding steps, setup wizard, sample data and
+        // checklist (tenant scope; Owner, Admin).
+        'onboarding' => ['view', 'edit'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

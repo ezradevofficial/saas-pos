@@ -4,6 +4,7 @@ namespace App\Core\Identity\Services;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Identity\Events\InvitationAccepted;
 use App\Core\Identity\IdentityNotices;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
@@ -157,6 +158,9 @@ class Invitations
                     'user_id' => $user->id,
                     'accepted_at' => $invitation->accepted_at,
                 ], ['user_id' => $user->id]);
+
+                // ONB-08: an assisted tenant's ownership moves to the customer here.
+                event(new InvitationAccepted($invitation, $user));
 
                 return $user;
             });
