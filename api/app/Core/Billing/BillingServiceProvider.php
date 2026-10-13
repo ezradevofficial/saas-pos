@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing;
 
+use App\Core\Billing\Console\BackfillSubscriptions;
 use App\Core\Billing\Console\CreateOperator;
 use App\Core\Billing\Console\ModulePurgeReport;
 use App\Core\Billing\Console\RunBillingCycleCommand;
@@ -57,7 +58,7 @@ class BillingServiceProvider extends ServiceProvider
         Event::listen(PaymentIntentSettled::class, [SettleBillingPayment::class, 'handle']);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class]);
+            $this->commands([BackfillSubscriptions::class, CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class]);
         }
     }
 }

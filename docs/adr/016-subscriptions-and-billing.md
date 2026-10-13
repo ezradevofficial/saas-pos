@@ -61,6 +61,8 @@ The till keeps the records and shows why. `DunningTest` enumerates every write r
 
 Each line is pro-rated by days over period days, half up. `subscriptions.overage_billed_through` makes each period charged once. Billing binds `PlanAllowances` to `SubscriptionAllowances`, which falls back to the onboarding selection. A plan change re-meters usage, so an overage the new plan covers closes at once.
 
+**Backfill.** Tenants created before billing get a trial subscription from the one-off deploy step `billing:backfill-subscriptions` (docs/integrations.md): from the onboarding selection, else the active modules; per tenant in its context, idempotent.
+
 **Trial (ONB-04).** Onboarding's picker (at sign-up) and assisted creation start the trial through `TrialStarter`. Billing binds it, `TrialStatusProvider` and `TrialExpiry` to `BillingTrial`:
 - The first selection opens the trial subscription. A later one changes its plan at once, while the trial runs and no period is paid.
 - There is one trial end, `subscriptions.trial_ends_at`. It is copied to `onboarding_states.trial_ends_at`, also when staff extend a trial.
