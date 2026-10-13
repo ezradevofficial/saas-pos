@@ -63,27 +63,34 @@ class Overage extends Model
         $query->whereNull('closed_at');
     }
 
-    /** The 7-day window's end: from then on, adding more of the unit is refused. */
+    /**
+     * The 7-day window's end: the start of the UTC day 7 calendar days
+     * after the day it started. Every rule (reminders, the block, days
+     * left) counts UTC calendar days the same way (dayOfWindow).
+     */
     public function blocksAt(): CarbonImmutable
     {
-        return $this->started_at->addDays(self::windowDays());
+        return $this->started_at->utc()->startOfDay()->addDays(self::windowDays());
     }
 
     public function isBlocking(CarbonInterface $at): bool
     {
-        return $this->closed_at === null && $at->greaterThanOrEqualTo($this->blocksAt());
+        return $this->closed_at === null && $this->dayOfWindow($at) >= self::windowDays();
     }
 
-    /** Whole days left in the window at $at (0 once blocking). */
+    /** UTC calendar days left in the window at $at (0 once blocking). */
     public function daysLeft(CarbonInterface $at): int
     {
         return max(0, self::windowDays() - $this->dayOfWindow($at));
     }
 
-    /** Whole days since the overage started (0 on the first day). */
+    /** UTC calendar days since the day the overage started (0 on that day). */
     public function dayOfWindow(CarbonInterface $at): int
     {
-        return max(0, (int) floor($this->started_at->diffInSeconds($at, false) / 86400));
+        $start = $this->started_at->utc()->startOfDay();
+        $day = CarbonImmutable::parse($at)->utc()->startOfDay();
+
+        return max(0, (int) round($start->diffInDays($day, false)));
     }
 
     public static function windowDays(): int

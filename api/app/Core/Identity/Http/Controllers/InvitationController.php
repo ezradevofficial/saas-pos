@@ -18,6 +18,7 @@ use App\Core\Rbac\VisibleScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -48,10 +49,12 @@ class InvitationController
 
     public function store(StoreInvitationRequest $request): JsonResponse
     {
-        // LIM-03: inviting adds a user. Invitations already sent may still be accepted.
-        $this->limits->ensureCanAdd(Units::USER);
+        $invitation = DB::transaction(function () use ($request) {
+            // LIM-03: inviting adds a user. Invitations already sent may still be accepted.
+            $this->limits->ensureCanAdd(Units::USER);
 
-        $invitation = $this->invitations->invite($request->user(), $request->validated());
+            return $this->invitations->invite($request->user(), $request->validated());
+        });
 
         return InvitationResource::make($invitation)->response()->setStatusCode(201);
     }

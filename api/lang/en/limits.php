@@ -15,6 +15,7 @@ return [
     ],
 
     'errors' => [
+        'blocked_ask_owner' => 'Your plan’s limit for :item is reached. Ask an Owner to upgrade the plan to add more.',
         'blocked' => 'Your plan includes :allowed :item and you have :count. Upgrade your plan to add more. Everything already set up keeps working.',
     ],
 

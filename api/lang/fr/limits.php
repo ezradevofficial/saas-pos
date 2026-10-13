@@ -15,6 +15,7 @@ return [
     ],
 
     'errors' => [
+        'blocked_ask_owner' => 'La limite de votre abonnement pour les :item est atteinte. Demandez à un propriétaire de mettre à niveau l’abonnement pour en ajouter.',
         'blocked' => 'Votre abonnement comprend :allowed :item et vous en avez :count. Passez à un abonnement supérieur pour en ajouter. Tout ce qui est déjà en place continue de fonctionner.',
     ],
 

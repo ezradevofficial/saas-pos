@@ -3,11 +3,15 @@
 namespace App\Core\Limits;
 
 use App\Core\Http\ApiException;
+use App\Core\Identity\Models\User;
 use App\Core\Limits\Models\Overage;
 use App\Core\Limits\Models\UsageMeter;
+use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * LIM-01..LIM-04: soft limits on outlets, devices, users and employees, in
@@ -44,6 +48,7 @@ class UsageLimits
         private readonly UsageCounter $counter,
         private readonly OverageCost $cost,
         private readonly UsageNotices $notices,
+        private readonly OwnerGuard $owners,
     ) {}
 
     /**
@@ -82,38 +87,56 @@ class UsageLimits
 
     /**
      * LIM-03: refuse adding one more $unit once its overage window has
-     * passed and one more would still be above the allowance. An overage
-     * already back within the allowance (items archived, plan upgraded) is
-     * closed here, without waiting for the next meter run.
+     * passed and one more would still be above the allowance
+     * (`count + 1 > allowed`). It never closes an overage: only the meter
+     * does, once the count is within the plan, so archiving down for a
+     * moment and adding back cannot escape the window.
+     *
+     * Call it inside the transaction that creates the item: it takes a
+     * per-tenant, per-unit advisory lock and counts after it, so two adds
+     * at once cannot both pass.
+     *
+     * Owners get the counts and the upgrade link; anyone else only the
+     * unit and "ask an Owner to upgrade".
      *
      * @throws ApiException 402 usage_limit_reached
+     * @throws LogicException outside a transaction
      */
     public function ensureCanAdd(string $unit): void
     {
-        $overage = Overage::query()->open()->where('unit', $unit)->first();
-        $now = CarbonImmutable::now();
+        $db = DB::connection(TenantContext::CONNECTION);
 
-        if ($overage === null || ! $overage->isBlocking($now)) {
+        if ($db->transactionLevel() === 0) {
+            throw new LogicException('ensureCanAdd() must run inside the transaction that adds the item.');
+        }
+
+        $tenantId = $this->tenants->require();
+        $db->select("select pg_advisory_xact_lock(hashtext('usage:' || ? || ':' || ?))", [$tenantId, $unit]);
+
+        $overage = Overage::query()->open()->where('unit', $unit)->first();
+
+        if ($overage === null || ! $overage->isBlocking(CarbonImmutable::now())) {
             return;
         }
 
-        $allowed = $this->plans->for($this->tenants->require())->of($unit);
+        $allowed = $this->plans->for($tenantId)->of($unit);
 
         if ($allowed === null) {
-            $this->close($overage, Overage::UNLIMITED, $now);
-
             return;
         }
 
         $count = $this->counter->count($unit);
 
-        if ($count < $allowed) {
-            $this->close($overage, Overage::WITHIN_ALLOWANCE, $now);
-
+        if ($count + 1 <= $allowed) {
             return;
         }
 
         $item = __("limits.items.{$unit}");
+        $user = Auth::user();
+
+        if (! $user instanceof User || ! $this->owners->isOwner($user)) {
+            throw new ApiException(402, 'usage_limit_reached', __('limits.errors.blocked_ask_owner', ['item' => $item]), extra: ['unit' => $unit]);
+        }
 
         throw new ApiException(402, 'usage_limit_reached', __('limits.errors.blocked', ['allowed' => $allowed, 'count' => $count, 'item' => $item]), extra: [
             'unit' => $unit,
@@ -144,7 +167,7 @@ class UsageLimits
             /** @var ?Overage $overage */
             $overage = $overages->get($unit);
             $state = match (true) {
-                $overage?->isBlocking($at) && $allowed !== null && $count >= $allowed => 'blocked',
+                $overage?->isBlocking($at) && $allowed !== null && $count + 1 > $allowed => 'blocked',
                 $allowed !== null && $count > $allowed => 'over',
                 $allowed === null => 'unlimited',
                 default => 'within',
@@ -191,10 +214,25 @@ class UsageLimits
         }
 
         if ($overage === null) {
-            $overage = Overage::create(['unit' => $unit, 'allowed' => $allowed, 'count' => $count, 'started_at' => $at, 'last_notified_at' => $at]);
-            $this->notices->send(UsageNotices::EXCEEDED, $overage, $cost());
+            // Back over within a window of the last close: the original window goes on.
+            $previous = Overage::query()->where('unit', $unit)->where('close_reason', Overage::WITHIN_ALLOWANCE)
+                ->where('closed_at', '>=', $at->subDays(Overage::windowDays()))->latest('closed_at')->first();
 
-            return;
+            $overage = Overage::create([
+                'unit' => $unit,
+                'allowed' => $allowed,
+                'count' => $count,
+                'started_at' => $previous->started_at ?? $at,
+                'reminders_sent' => $previous->reminders_sent ?? 0,
+                'blocked_notified_at' => $previous?->blocked_notified_at,
+                'last_notified_at' => $at,
+            ]);
+
+            if ($previous === null) {
+                $this->notify(UsageNotices::EXCEEDED, $overage, $cost, $at);
+
+                return;
+            }
         }
 
         $overage->fill(['allowed' => $allowed, 'count' => $count]);
@@ -203,14 +241,14 @@ class UsageLimits
         if ($overage->isBlocking($at)) {
             if ($overage->blocked_notified_at === null) {
                 $overage->fill(['blocked_notified_at' => $at, 'last_notified_at' => $at])->save();
-                $this->notices->send(UsageNotices::BLOCKED, $overage, $cost());
+                $this->notify(UsageNotices::BLOCKED, $overage, $cost, $at);
 
                 return;
             }
         } elseif ($day > $overage->reminders_sent) {
-            // One reminder a day, whatever time the meter runs (LIM-03).
+            // One reminder a UTC day (LIM-03).
             $overage->fill(['reminders_sent' => $day, 'last_notified_at' => $at])->save();
-            $this->notices->send(UsageNotices::REMINDER, $overage, $cost());
+            $this->notify(UsageNotices::REMINDER, $overage, $cost, $at);
 
             return;
         }
@@ -218,6 +256,15 @@ class UsageLimits
         if ($overage->isDirty()) {
             $overage->save();
         }
+    }
+
+    /** Sent once the meter's transaction commits, never for a rolled-back run. */
+    private function notify(string $type, Overage $overage, callable $cost, CarbonImmutable $at): void
+    {
+        $snapshot = clone $overage;
+        $price = $cost();
+
+        DB::connection(TenantContext::CONNECTION)->afterCommit(fn () => $this->notices->send($type, $snapshot, $price, $at));
     }
 
     private function close(Overage $overage, string $reason, CarbonImmutable $at): void

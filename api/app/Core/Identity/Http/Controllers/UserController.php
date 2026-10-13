@@ -114,10 +114,10 @@ class UserController
         }
 
         if ($user->status !== User::STATUS_ACTIVE) {
-            // LIM-03: reactivating adds an active user.
-            $this->limits->ensureCanAdd(Units::USER);
-
             DB::transaction(function () use ($user) {
+                // LIM-03: reactivating adds an active user.
+                $this->limits->ensureCanAdd(Units::USER);
+
                 $before = $user->status;
                 $user->forceFill(['status' => User::STATUS_ACTIVE, 'failed_sign_ins' => 0, 'locked_until' => null])->saveQuietly();
                 $this->auditor->record('core.user.reactivate', $user, ['status' => $before], ['status' => $user->status]);
