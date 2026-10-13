@@ -15,6 +15,7 @@ return [
         'payroll_payslip' => 'Payslip',
         'party_statement' => 'Customer statement',
         'letter' => 'Letter',
+        'inventory_label' => 'Barcode label',
     ],
 
     'groups' => [
@@ -62,6 +63,13 @@ return [
                 'subject' => 'Subject',
                 'employee' => 'Employee',
                 'supplier' => 'Supplier',
+                'item_name' => 'Item',
+                'item_code' => 'Code',
+                'barcode' => 'Barcode',
+                'unit' => 'Unit',
+                'price' => 'Price',
+                'batch' => 'Batch',
+                'expires_on' => 'Expires',
             ],
             'customer' => [
                 'name' => 'Customer',
@@ -95,6 +103,7 @@ return [
             'payroll_payslip' => 'Payslip',
             'party_statement' => 'Statement',
             'letter' => 'Reference',
+            'inventory_label' => 'Label',
         ],
         'columns' => [
             'item_name' => 'Item',

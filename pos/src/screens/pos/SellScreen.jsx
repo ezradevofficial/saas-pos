@@ -146,7 +146,7 @@ const TileCell = memo(function TileCell({ tile, size, reasonText, onAdd }) {
   const select = useCallback(() => onAdd(tile.id), [onAdd, tile.id]);
   return (
     <View className="flex-1 p-1">
-      <PosTile name={tile.name} price={tile.price} currency={tile.currency} color={tile.color} size={size} unavailable={tile.sellable ? undefined : reasonText(tile.reason)} onSelect={select} className="flex-1" />
+      <PosTile name={tile.name} price={tile.price} currency={tile.currency} onHand={tile.onHand} color={tile.color} size={size} unavailable={tile.sellable ? undefined : reasonText(tile.reason)} onSelect={select} className="flex-1" />
     </View>
   );
 });

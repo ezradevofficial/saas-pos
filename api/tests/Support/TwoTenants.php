@@ -523,6 +523,12 @@ final class TwoTenants
         $upgrade = ['modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 20, 'outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter'];
         $charge = self::ok($test->postJson('/api/v1/subscription/quote', $upgrade, $owner))->json('data.charge_now');
         $billingInvoice = self::ok($test->postJson('/api/v1/subscription/change', [...$upgrade, 'expected_charge' => $charge], $owner))->json('data.invoice.id');
+
+        // Inventory (docs/modules/inventory.md): switched on by the trial above;
+        // a store, FIFO costing, a batch item, a serial item and a variant,
+        // opening stock, a reorder level, a pending transfer and adjustment and
+        // a running count.
+        $inventory = self::inventory($test, $owner, $upper, $branch, $location, $company, $item, $uoms['EA']);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -601,6 +607,7 @@ final class TwoTenants
                 'import' => $import,
                 ...$dimensions,
                 ...$pos,
+                ...$inventory,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
@@ -698,6 +705,50 @@ final class TwoTenants
             'total_minor' => '56250',
             'lines' => [['id' => $id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
             'payments' => [['id' => $id(), 'payment_method_id' => $paymentMethod, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250', 'provider_reference' => 'RF'.$seq]],
+        ];
+    }
+
+    /**
+     * The Inventory fixture of one tenant, made through its API.
+     *
+     * @return array<string, string>
+     */
+    private static function inventory(TestCase $test, array $owner, string $upper, string $branch, string $location, string $company, string $item, string $each): array
+    {
+        $store = self::ok($test->postJson("/api/v1/branches/{$branch}/locations", ['name' => "Store {$upper}", 'type' => 'warehouse'], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/inventory/companies/{$company}/settings", ['costing_method' => 'fifo', 'allow_negative' => true], $owner));
+
+        $newItem = fn (string $code) => self::ok($test->postJson('/api/v1/items', ['code' => "{$code}-{$upper}", 'name' => "{$code} {$upper}", 'type' => 'stock', 'base_uom_id' => $each], $owner), 201)->json('data.id');
+        $batchItem = $newItem('INV-BATCH');
+        $serialItem = $newItem('INV-SERIAL');
+        $variant = $newItem('INV-VARIANT');
+        self::ok($test->putJson("/api/v1/inventory/items/{$batchItem}/settings", ['tracking' => 'batch', 'track_expiry' => true], $owner));
+        self::ok($test->putJson("/api/v1/inventory/items/{$serialItem}/settings", ['tracking' => 'serial'], $owner));
+        self::ok($test->putJson("/api/v1/inventory/items/{$variant}/variant", ['parent_item_id' => $batchItem, 'attributes' => ['size' => 'S']], $owner));
+
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $item, 'location_id' => $location, 'qty' => '50', 'unit_cost' => '10'], $owner), 201);
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $batchItem, 'location_id' => $location, 'qty' => '20', 'unit_cost' => '5', 'batch_number' => "LOT-{$upper}", 'expires_on' => '2027-06-30'], $owner), 201);
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $serialItem, 'location_id' => $store, 'qty' => '2', 'unit_cost' => '300', 'serials' => ["SN-{$upper}-1", "SN-{$upper}-2"]], $owner), 201);
+        $batch = self::ok($test->getJson("/api/v1/inventory/items/{$batchItem}", $owner))->json('data.batches.0.id');
+        self::ok($test->putJson('/api/v1/inventory/reorder-rules', ['item_id' => $item, 'location_id' => $location, 'reorder_level' => '5', 'reorder_qty' => '24'], $owner));
+
+        $transfer = self::ok($test->postJson('/api/v1/inventory/transfers', [
+            'from_location_id' => $location, 'to_location_id' => $store, 'lines' => [['item_id' => $item, 'qty' => '2']],
+        ], $owner), 201)->json('data.id');
+        $adjustment = self::ok($test->postJson('/api/v1/inventory/adjustments', [
+            'location_id' => $location, 'reason' => 'damage', 'lines' => [['item_id' => $batchItem, 'qty' => '-1', 'batch_id' => $batch]],
+        ], $owner), 201)->json('data.id');
+        $count = self::ok($test->postJson('/api/v1/inventory/counts', ['location_id' => $store, 'kind' => 'cycle', 'item_ids' => [$serialItem]], $owner), 201)->json('data.id');
+
+        return [
+            'inventory_location' => $store,
+            'inventory_item' => $batchItem,
+            'inventory_serial_item' => $serialItem,
+            'inventory_variant' => $variant,
+            'inventory_batch' => $batch,
+            'inventory_transfer' => $transfer,
+            'inventory_adjustment' => $adjustment,
+            'inventory_count' => $count,
         ];
     }
 

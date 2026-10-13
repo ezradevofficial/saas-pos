@@ -8,6 +8,7 @@ return [
         'customers' => 'Customers',
         'suppliers' => 'Suppliers',
         'item_prices' => 'Item prices',
+        'opening_stock' => 'Opening stock',
     ],
     'modes' => [
         'create' => 'Add new records only',
@@ -68,6 +69,12 @@ return [
         'amount' => 'Price',
         'effective_from' => 'Effective from',
         'min_quantity' => 'Minimum quantity',
+        'location' => 'Location',
+        'quantity' => 'Quantity',
+        'unit_cost' => 'Unit cost',
+        'batch_number' => 'Batch number',
+        'expires_on' => 'Expiry date',
+        'serials' => 'Serial numbers',
     ],
     'help' => [
         'code' => 'Letters, digits and . _ - / without spaces. Existing items are matched by code.',
@@ -92,6 +99,9 @@ return [
         'amount' => 'In major units of the price list currency, such as 60.00.',
         'effective_from' => 'A date, such as 2026-11-01. Today when blank.',
         'min_quantity' => 'A quantity break. 1 when blank.',
+        'location' => 'The location code, else its name, exactly as in Settings.',
+        'unit_cost' => 'The cost of one unit, in the company\'s base currency.',
+        'serials' => 'One per unit, separated by ; or ,.',
     ],
     'types' => [
         'text' => 'Text',
@@ -156,6 +166,7 @@ return [
         'price' => 'Has a price',
         'document' => 'Used in a document',
         'changed' => 'Changed since the import',
+        'stock_moved' => 'Stock moved since',
     ],
     'report' => [
         'sheet' => 'Rows',

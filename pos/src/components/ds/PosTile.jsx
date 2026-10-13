@@ -15,17 +15,20 @@ const DEFAULT_LOW_STOCK = 5;
  * (e.g. "Rate needed") disables the tile and says why, as the web tile does.
  * `color` is a category colour token from the POS layout (LAY-05: one of
  * CATEGORY_COLOURS, never a hex) and tints the tile; `size` is the
- * layout's tile size. Every size keeps the 48px touch target.
+ * layout's tile size. Every size keeps the 48px touch target. `onHand`
+ * (INV-17, a decimal string from Inventory) only informs: the tile stays
+ * selectable whatever it says, since a sale never fails for lack of stock.
  */
-export const PosTile = memo(function PosTile({ name, price, currency, stock, lowStock = DEFAULT_LOW_STOCK, image, color, size = 'standard', unavailable, onSelect, className }) {
+export const PosTile = memo(function PosTile({ name, price, currency, stock, onHand, lowStock = DEFAULT_LOW_STOCK, image, color, size = 'standard', unavailable, onSelect, className }) {
   const { t } = useTranslation();
   const lang = useLocale();
   const out = stock === 0 || Boolean(unavailable);
   const low = !out && stock != null && stock <= lowStock;
   const priceText = price == null ? '' : `${currency} ${formatAmount(price, currency, lang)}`;
   const stockText = unavailable || (out ? t('ds.posTile.outOfStock') : low ? t('ds.posTile.left', { count: stock }) : null);
+  const onHandText = onHand == null ? null : Number(onHand) > 0 ? t('ds.posTile.onHand', { qty: onHand }) : t('ds.posTile.noneOnHand');
   // The badge is inside the button, so its words go into the button's label.
-  const label = [name, priceText, stockText].filter(Boolean).join(', ');
+  const label = [name, priceText, stockText, onHandText].filter(Boolean).join(', ');
   const tint = CATEGORY_COLOURS[color]?.tile;
   const sizing = TILE_SIZE_CLASSES[size] ?? TILE_SIZE_CLASSES.standard;
 
@@ -50,6 +53,7 @@ export const PosTile = memo(function PosTile({ name, price, currency, stock, low
       <Text numberOfLines={2} className={cn('font-sans font-medium text-ink', sizing.name)}>
         {name}
       </Text>
+      {onHandText ? <Text className={cn('font-sans text-label font-normal tabular-nums', tint ? 'text-ink' : 'text-ink-muted')}>{onHandText}</Text> : null}
       <View className="flex-row items-center justify-between gap-2">
         {/* Ink on tints (the design system's pairing); muted ink only on the plain surface. */}
         <Text className={cn('font-sans text-label font-normal tabular-nums', tint ? 'text-ink' : 'text-ink-muted')}>{priceText}</Text>

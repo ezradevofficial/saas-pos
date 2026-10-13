@@ -31,7 +31,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -134,6 +134,8 @@ export const schema = appSchema({
     tableSchema({ name: 'templates', columns: [data, seenAt] }),
     // v6: the sell screen's layout (LAY-05).
     tableSchema({ name: 'pos_layout', columns: [data, seenAt] }),
+    // v7: stock on hand at this till's location (Inventory, INV-17), read-only.
+    tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v6: images by server path (data URIs), local only.
     tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 

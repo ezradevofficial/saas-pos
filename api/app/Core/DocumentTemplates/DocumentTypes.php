@@ -28,6 +28,8 @@ final class DocumentTypes
         'payroll.payslip' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'payroll'],
         'party.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
         'letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
+        // INV-21: barcode labels, one page per label on a label roll.
+        'inventory.label' => ['paper' => '58mm', 'fiscal' => false, 'module' => 'inventory'],
     ];
 
     /** @return list<string> */
