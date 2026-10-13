@@ -82,4 +82,20 @@ describe('Data export page (EXP-02)', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Request export' })).not.toBeInTheDocument())
     expect(api.get).not.toHaveBeenCalledWith('tenant-exports')
   })
+
+  it('checks a building export every 2 seconds, then stops once it is ready', async () => {
+    let calls = 0
+    mockRoutes(api, [['tenant-exports', () => {
+      calls += 1
+      return { data: [calls === 1 ? { ...READY, id: 'e-4', status: 'running', can_download: false } : { ...READY, id: 'e-4' }], meta: META }
+    }]], { permissions: tenantWide(['core.tenant.export']) })
+    renderApp('/settings/data-export')
+
+    expect(await screen.findByText('Preparing')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument(), { timeout: 2600 })
+    const settled = calls
+    await new Promise((resolve) => setTimeout(resolve, 2300))
+    expect(calls).toBe(settled)
+  }, 10000)
 })
+

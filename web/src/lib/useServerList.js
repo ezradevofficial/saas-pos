@@ -142,8 +142,9 @@ export function useListExport({ id, endpoint }) {
  * @param {number} [options.defaultPerPage]
  * @param {Array} [options.columns] DataTable columns plus `sortKey`, `exportKey`, `hideable`, `defaultHidden`, `inMenu` (false keeps an actions column out of the Columns menu)
  * @param {Array} [options.queryKey] query key prefix (default [id]); "list" and the query follow
+ * @param {(rows: Array) => number|false} [options.pollWhile] poll the page every N ms while it answers a number for the rows shown (work in progress), else not
  */
-export function useServerList({ id, endpoint, params: fixed = {}, filters: filterDefaults = {}, defaultSort = '', defaultPerPage = 25, columns: allColumns = [], queryKey }) {
+export function useServerList({ id, endpoint, params: fixed = {}, filters: filterDefaults = {}, defaultSort = '', defaultPerPage = 25, columns: allColumns = [], queryKey, pollWhile }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -216,6 +217,7 @@ export function useServerList({ id, endpoint, params: fixed = {}, filters: filte
     queryKey: [...(queryKey ?? [id]), 'list', listQuery],
     queryFn: () => api.get(`${endpoint}?${listQuery}`),
     placeholderData: (previous) => previous,
+    refetchInterval: pollWhile ? (q) => pollWhile(q.state.data?.data ?? []) : false,
     // A link to a view waits for the views; otherwise the list loads at once and
     // follows a default view's filters and sort when they arrive.
     enabled: !(askedView && askedView !== 'none' && layersQuery.isLoading),

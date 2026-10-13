@@ -25,14 +25,17 @@ export function useImporters() {
   return useQuery({ queryKey: ['imports', 'importers'], queryFn: () => api.get('imports/importers'), select: (answer) => answer?.data ?? [] })
 }
 
-/** One import; polled every second while a dry run, import or undo runs (IMP-03 progress). */
+/** How often work in progress (a dry run, an import, an undo, an export build) is checked: every 2 s, then not at all. */
+export const PROGRESS_POLL_MS = 2000
+
+/** One import; polled while a dry run, import or undo runs (IMP-03 progress). */
 export function useImport(id) {
   return useQuery({
     queryKey: ['imports', 'one', id],
     queryFn: () => api.get(`imports/${id}`),
     enabled: Boolean(id),
     select: (answer) => answer?.data ?? null,
-    refetchInterval: (query) => (RUNNING.includes(query.state.data?.data?.status) ? 1000 : false),
+    refetchInterval: (query) => (RUNNING.includes(query.state.data?.data?.status) ? PROGRESS_POLL_MS : false),
   })
 }
 

@@ -7,7 +7,7 @@ import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
-import { IMPORT_STATUSES, STATUS_TONE, useImporters } from './imports/importData'
+import { IMPORT_STATUSES, PROGRESS_POLL_MS, RUNNING, STATUS_TONE, useImporters } from './imports/importData'
 
 /**
  * IMP-01..IMP-03: past imports, newest first, with search (file name),
@@ -40,6 +40,8 @@ export default function Imports() {
     queryKey: ['imports', 'list'],
     filters: { importer: '', status: '' },
     columns,
+    // A running import or undo moves on to its result without a reload.
+    pollWhile: (rows) => (rows.some((row) => RUNNING.includes(row.status)) ? PROGRESS_POLL_MS : false),
   })
   const filtered = Boolean(list.term || list.filters.importer || list.filters.status)
 

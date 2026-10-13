@@ -9,6 +9,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { browser } from '@/lib/browser'
 import { formatBytes, formatWhen } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
+import { PROGRESS_POLL_MS } from './imports/importData'
 
 const EXPORTS_KEY = ['tenant-exports']
 const TONES = { queued: 'neutral', running: 'warning', ready: 'success', failed: 'danger', expired: 'neutral' }
@@ -122,7 +123,8 @@ export default function DataExport() {
   const query = useQuery({
     queryKey: EXPORTS_KEY,
     queryFn: () => api.get('tenant-exports'),
-    refetchInterval: (q) => ((q.state.data?.data ?? []).some((item) => ACTIVE.includes(item.status)) ? 3000 : false),
+    // Checked every 2 s while one is queued or being built, then not at all.
+    refetchInterval: (q) => ((q.state.data?.data ?? []).some((item) => ACTIVE.includes(item.status)) ? PROGRESS_POLL_MS : false),
   })
   const exports = query.data?.data ?? []
   const meta = query.data?.meta ?? {}
