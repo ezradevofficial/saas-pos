@@ -68,12 +68,13 @@ class BillingInvoicePdf
                 continue;
             }
 
+            [$qty, $unitPrice, $perUnit] = self::quantityAndPrice($line);
             $lines[] = [
-                'item_name' => BillingFiscalSource::name($line, $locale).self::detail($line, $locale),
+                'item_name' => BillingFiscalSource::name($line, $locale).self::detail($line, $perUnit, $locale),
                 'item_code' => strtoupper((string) ($line['key'] ?? $line['type'])),
-                'qty' => (string) ($line['quantity'] ?? 1),
-                'unit' => isset($line['unit']) ? __('billing.units.'.$line['unit'], [], $locale) : '',
-                'unit_price' => $money((int) ($line['unit_amount'] ?? $line['amount'])),
+                'qty' => (string) $qty,
+                'unit' => $perUnit && isset($line['unit']) ? __('billing.units.'.$line['unit'], [], $locale) : '',
+                'unit_price' => $money($unitPrice),
                 'discount' => $money((int) ($line['discount_minor'] ?? 0)),
                 'tax_rate' => $line['tax_rate'] ?? '',
                 'tax' => $money((int) ($line['tax_minor'] ?? 0)),
@@ -129,12 +130,59 @@ class BillingInvoicePdf
         ];
     }
 
-    private static function detail(array $line, string $locale): string
+    /**
+     * What the line prints so that quantity × unit price is its amount: the
+     * billable units at the price for the months of the cycle when that
+     * multiplies out; otherwise (a bundle with its outlets, a minimum
+     * charge, overage by days, a proration) one unit at the amount, the
+     * quantities spelled out in the name.
+     *
+     * @return array{0: int, 1: int, 2: bool} quantity, unit price, whether priced per unit
+     */
+    public static function quantityAndPrice(array $line): array
     {
-        return match ($line['type']) {
-            'proration' => ' ('.__('billing.lines.proration_days', ['days' => (int) ($line['quantity'] ?? 0), 'period' => (int) ($line['period_days'] ?? 0)], $locale).')',
-            default => isset($line['months']) && (int) $line['months'] > 1 ? ' ('.__('billing.lines.months', ['months' => (int) $line['months']], $locale).')' : '',
-        };
+        $amount = (int) $line['amount'];
+
+        if ($line['type'] === 'module' && isset($line['billable'], $line['unit_amount'])) {
+            $billable = (int) $line['billable'];
+            $price = (int) $line['unit_amount'] * max(1, (int) ($line['months'] ?? 1));
+
+            if ($billable > 0 && $billable * $price === $amount) {
+                return [$billable, $price, true];
+            }
+        }
+
+        return [1, $amount, false];
+    }
+
+    private static function detail(array $line, bool $perUnit, string $locale): string
+    {
+        $quantity = (int) ($line['quantity'] ?? 0);
+        $billable = (int) ($line['billable'] ?? $quantity);
+        $parts = [];
+
+        if ($line['type'] === 'proration') {
+            $parts[] = __('billing.lines.proration_days', ['days' => $quantity, 'period' => (int) ($line['period_days'] ?? 0)], $locale);
+        } elseif ($line['type'] === 'overage') {
+            $parts[] = __('billing.lines.overage_days', ['quantity' => $quantity, 'unit' => __('billing.units.'.($line['unit'] ?? 'device'), [], $locale), 'days' => (int) ($line['days'] ?? 0), 'period' => (int) ($line['period_days'] ?? 0)], $locale);
+        } elseif ($line['type'] === 'bundle') {
+            $parts[] = __('billing.lines.bundle_outlets', ['outlets' => $quantity, 'included' => $quantity - $billable, 'extra' => $billable], $locale);
+        } elseif ($line['type'] === 'module') {
+            if (! $perUnit) {
+                $parts[] = $quantity.' '.__('billing.units.'.($line['unit'] ?? 'tenant'), [], $locale);
+                $parts[] = __('billing.lines.minimum', [], $locale);
+            }
+
+            if ($quantity > $billable) {
+                $parts[] = __('billing.lines.included', ['count' => $quantity - $billable], $locale);
+            }
+        }
+
+        if (isset($line['months']) && (int) $line['months'] > 1 && in_array($line['type'], ['module', 'bundle'], true)) {
+            $parts[] = __('billing.lines.months', ['months' => (int) $line['months']], $locale);
+        }
+
+        return $parts === [] ? '' : ' ('.implode(', ', $parts).')';
     }
 
     private static function address(mixed $address): ?string

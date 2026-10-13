@@ -72,6 +72,10 @@ return [
         'proration' => 'Changement de formule pour le reste de la période',
         'proration_days' => ':days jours sur :period',
         'months' => ':months mois',
+        'included' => ':count inclus',
+        'bundle_outlets' => ':outlets points de vente : :included inclus, :extra en plus',
+        'minimum' => 'montant minimum',
+        'overage_days' => ':quantity :unit en plus, :days jours sur :period',
     ],
 
     'units' => [

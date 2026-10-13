@@ -72,6 +72,10 @@ return [
         'proration' => 'Plan change for the rest of the period',
         'proration_days' => ':days of :period days',
         'months' => ':months months',
+        'included' => ':count included',
+        'bundle_outlets' => ':outlets outlets: :included included, :extra extra',
+        'minimum' => 'minimum charge',
+        'overage_days' => ':quantity extra :unit, :days of :period days',
     ],
 
     'units' => [
