@@ -40,7 +40,7 @@ The billing service writes the copy in the tenant's own context, in the same tra
 - billing (`subscription/*`);
 - approvals: decisions, comments, attachments and reassignment, the bulk approve, and the POS's held voids, refunds and cash movements;
 - the user's own account: sign-out (here or everywhere), session revoke, two-factor and their own POS PIN (there is no own-password route; password reset is public);
-- `tenant-exports` (EXP-02);
+- `tenant-exports` (EXP-02), and the export's download link (`tenant-exports/{id}/link`);
 - the till's PIN, override and secret routes;
 - POS uploads, until `pos_stops_at`; after that they answer 402 `subscription_pos_stopped`.
 

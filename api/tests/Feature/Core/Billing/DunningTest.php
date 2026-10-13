@@ -4,10 +4,12 @@ namespace Tests\Feature\Core\Billing;
 
 use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Billing\Models\Subscription;
+use App\Core\DataExport\Models\TenantExport;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -151,6 +153,22 @@ class DunningTest extends TestCase
         $this->assertSame(Subscription::READ_ONLY, $this->subscription()->status);
     }
 
+    public function test_a_read_only_owner_exports_gets_the_link_and_downloads(): void
+    {
+        // EXP-02, SUB-05: the full export stays reachable in read-only, link included.
+        Storage::fake('media');
+        $this->inTenant(fn () => $this->subscription()->forceFill(['status' => Subscription::READ_ONLY, 'read_only_since' => now(), 'pos_stops_at' => now()->addDays(3)])->save());
+        $this->aWrite()->assertStatus(402);
+
+        $id = $this->postJson('/api/v1/tenant-exports', ['password' => $this->password], $this->headersFor())->assertStatus(202)->json('data.id');
+        $export = $this->inTenant(fn () => TenantExport::query()->findOrFail($id));
+        $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
+
+        $url = $this->postJson("/api/v1/tenant-exports/{$id}/link", [], $this->headersFor())->assertOk()->json('data.url');
+        $response = $this->get($url)->assertOk();
+        $this->assertSame(Storage::disk('media')->get($export->path), $response->streamedContent());
+    }
+
     public function test_read_only_refuses_every_write_route_except_the_allow_list(): void
     {
         $allowed = [];
@@ -222,6 +240,7 @@ class DunningTest extends TestCase
             'POST sync/device-secret/activate' => 'device',
             'POST sync/device-secret/rotate' => 'device',
             'POST tenant-exports' => 'export',
+            'POST tenant-exports/{tenant_export}/link' => 'export',
         ];
         ksort($expected);
         $this->assertSame($expected, $allowed);
