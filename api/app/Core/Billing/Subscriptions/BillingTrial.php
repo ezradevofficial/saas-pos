@@ -3,6 +3,7 @@
 namespace App\Core\Billing\Subscriptions;
 
 use App\Core\Billing\Models\Subscription;
+use App\Core\Http\ApiException;
 use App\Core\Onboarding\Models\OnboardingState;
 use App\Core\Onboarding\Trial\TrialEnded;
 use App\Core\Onboarding\Trial\TrialExpiry;
@@ -49,6 +50,11 @@ class BillingTrial implements TrialExpiry, TrialStarter, TrialStatusProvider
 
             if ($subscription === null) {
                 return $this->subscriptions->startTrial($selection->country, $plan);
+            }
+
+            // Subscribed already ("Subscribe now" during the trial): the plan is the Subscription page's.
+            if ($subscription->hasPeriod()) {
+                throw new ApiException(409, 'already_subscribed', __('billing.errors.subscribed_change_plan'));
             }
 
             $running = $subscription->status === Subscription::TRIAL && ! $subscription->hasPeriod()

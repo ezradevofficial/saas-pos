@@ -112,4 +112,17 @@ class BillingOnboardingTest extends TestCase
         $this->artisan('billing:cycle')->assertSuccessful();
         $this->assertSame(1, $this->inTenant(fn () => BillingInvoice::query()->count()));
     }
+
+    public function test_picking_modules_after_subscribe_now_during_the_trial_points_to_the_subscription_page(): void
+    {
+        $this->pick();
+        $this->postJson('/api/v1/subscription/subscribe', [], $this->bearer($this->owner['token']))->assertCreated();
+
+        $this->putJson('/api/v1/onboarding/modules', ['modules' => ['inventory', 'pos'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => null], $this->bearer($this->owner['token']))
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'already_subscribed')
+            ->assertJsonPath('message', __('billing.errors.subscribed_change_plan', [], 'en'));
+        $this->assertStringContainsString('Settings', __('billing.errors.subscribed_change_plan', [], 'en'));
+        $this->assertStringContainsString('Paramètres', __('billing.errors.subscribed_change_plan', [], 'fr'));
+    }
 }
