@@ -13,6 +13,7 @@ return [
     'unverified' => 'Vérifiez d’abord votre e-mail ou votre téléphone. Nous vous avons envoyé un nouveau code.',
     'unverified_wait' => 'Vérifiez d’abord votre e-mail ou votre téléphone. Utilisez le code déjà envoyé, ou patientez un peu et reconnectez-vous pour en recevoir un nouveau.',
     'deactivated' => 'Ce compte est désactivé. Demandez à votre administrateur de le réactiver.',
+    'setup_account' => 'Ce compte sert seulement à configurer l’entreprise et ne peut pas se connecter. Acceptez plutôt l’invitation qui vous a été envoyée.',
     'locked' => 'Trop d’échecs de connexion. Réessayez dans :minutes minute.|Trop d’échecs de connexion. Réessayez dans :minutes minutes.',
 
     // AUTH-06..AUTH-08 : codes PIN de caisse, cartes du personnel et validations du responsable.

@@ -19,6 +19,7 @@ use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Numbering\NumberingServiceProvider;
+use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
@@ -56,6 +57,7 @@ return [
     FiscalServiceProvider::class,
     PlatformServiceProvider::class,
     LimitsServiceProvider::class,
+    OnboardingServiceProvider::class,
     PosServiceProvider::class,
     HorizonServiceProvider::class,
 ];

@@ -3,6 +3,7 @@
 namespace App\Core\Branding\Http\Requests;
 
 use App\Core\Branding\Domains\TenantDomains;
+use App\Core\Onboarding\TenantSlugs;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -52,7 +53,9 @@ class UpdateBrandingSettingsRequest extends DomainRequest
     public function rules(): array
     {
         return [
-            'slug' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', Rule::notIn(self::reserved())],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:63', 'regex:/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', Rule::notIn(self::reserved()),
+                // ONB-01: no protected brand name, look-alike characters folded.
+                fn (string $attribute, mixed $value, \Closure $fail) => is_string($value) && TenantSlugs::isProtected($value) ? $fail(__('branding.errors.slug_reserved')) : null],
             'email_from_name' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[^\r\n<>"]*$/'],
             'email_from_address' => ['sometimes', 'nullable', 'string', 'max:254', 'email:rfc'],
             'sms_sender_id' => ['sometimes', 'nullable', 'string', 'regex:/^(?=.*[A-Za-z])[A-Za-z0-9 ]{3,11}$/'],

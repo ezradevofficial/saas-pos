@@ -40,23 +40,54 @@ class RoleTemplates
             $roles = new Collection;
 
             foreach ($this->all() as $template) {
-                $role = new Role([
-                    'name' => __("rbac.templates.{$template['key']}", [], $tenant->default_locale),
-                    'guard_name' => Permission::GUARD,
-                ]);
-                $role->forceFill([
-                    'is_system' => true,
-                    'template_key' => $template['key'],
-                    'is_owner' => $template['is_owner'],
-                    'requires_two_factor' => $template['requires_two_factor'],
-                ])->save();
-
-                $role->syncPermissions($this->expand($template['permissions'], $template['except'] ?? []));
-                $roles->put($template['key'], $role);
+                $roles->put($template['key'], $this->seed($tenant, $template));
             }
 
             return $roles;
         }));
+    }
+
+    /**
+     * ONB-02: the current tenant's system roles for $keys, seeding any
+     * template it does not have yet (a tenant from before the template
+     * existed). Unknown keys are ignored.
+     *
+     * @param  list<string>  $keys
+     * @return Collection<int, Role> keyed by template key
+     */
+    public function ensure(Tenant $tenant, array $keys): Collection
+    {
+        return $this->tenants->run($tenant->id, fn () => $this->transaction(function () use ($tenant, $keys) {
+            $existing = Role::where('is_system', true)->whereIn('template_key', $keys)->get()->keyBy('template_key');
+            $roles = new Collection;
+
+            foreach ($this->all() as $template) {
+                if (in_array($template['key'], $keys, true)) {
+                    $roles->put($template['key'], $existing->get($template['key']) ?? $this->seed($tenant, $template));
+                }
+            }
+
+            return $roles;
+        }));
+    }
+
+    /** @param array{key: string, permissions: list<string>, is_owner: bool, requires_two_factor: bool} $template */
+    private function seed(Tenant $tenant, array $template): Role
+    {
+        $role = new Role([
+            'name' => __("rbac.templates.{$template['key']}", [], $tenant->default_locale),
+            'guard_name' => Permission::GUARD,
+        ]);
+        $role->forceFill([
+            'is_system' => true,
+            'template_key' => $template['key'],
+            'is_owner' => $template['is_owner'],
+            'requires_two_factor' => $template['requires_two_factor'],
+        ])->save();
+
+        $role->syncPermissions($this->expand($template['permissions'], $template['except'] ?? []));
+
+        return $role;
     }
 
     /**

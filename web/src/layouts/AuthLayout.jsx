@@ -8,7 +8,7 @@ import { useTheme } from '@/theme/ThemeProvider'
 import { isDarkTheme } from '@/theme/themes'
 import { LogoMark, PoweredBy } from './Sidebar'
 
-function LanguageSwitch() {
+export function LanguageSwitch() {
   const { t } = useTranslation()
   const locale = useLocale()
   const names = { en: t('shell.languages.en'), fr: t('shell.languages.fr') }

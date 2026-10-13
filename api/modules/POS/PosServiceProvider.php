@@ -12,6 +12,8 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Onboarding\Checklist\Checklist;
+use App\Core\Onboarding\Sample\SampleDependents;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -66,6 +68,23 @@ class PosServiceProvider extends ServiceProvider
         // LAY-05: the sell screen's layout (the `pos_layout` configuration kind).
         'layout' => ['view', 'edit', 'publish'],
     ];
+
+    /** @param list<string> $ids @return list<array{type: string, id: string, used_by: string}> */
+    private static function layoutsNaming(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $pattern = '('.implode('|', array_map(fn (string $id) => preg_quote($id, '/'), $ids)).')';
+
+        return DB::table('config_versions')->join('config_documents', 'config_documents.id', '=', 'config_versions.document_id')
+            ->where('config_documents.kind', PosLayout::KEY)
+            ->whereNull('config_versions.archived_at')->whereNull('config_versions.discarded_at')
+            ->whereRaw('config_versions.payload::text ~ ?', [$pattern])
+            ->pluck('config_versions.id')
+            ->map(fn ($id) => ['type' => 'item', 'id' => (string) $id, 'used_by' => 'pos_layout'])->all();
+    }
 
     public function register(): void
     {
@@ -139,6 +158,20 @@ class PosServiceProvider extends ServiceProvider
         Event::listen(SaleCompleted::class, [LinkMobileMoneyPayments::class, 'handle']);
         Event::listen(SaleRefunded::class, [LinkMobileMoneyPayments::class, 'handle']);
         Event::listen(PaymentIntentSettled::class, [ApplyPaymentSettlement::class, 'handle']);
+
+        // ONB-07: the checklist ends with the first sale. ONB-06: sample
+        // items and customers a real sale used cannot be removed.
+        $this->app->make(Checklist::class)->register('first_sale', self::MODULE, fn () => DB::table('pos_sales')->exists(), 50, ends: true);
+        $this->app->make(SampleDependents::class)->register(fn (array $records) => [
+            ...DB::table('pos_sale_lines')->whereIn('item_id', $records['item'] ?? [])->distinct()->pluck('sale_id')
+                ->map(fn ($id) => ['type' => 'item', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            ...DB::table('pos_sales')->whereIn('customer_id', $records['party'] ?? [])->pluck('id')
+                ->map(fn ($id) => ['type' => 'party', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            ...DB::table('pos_sales')->whereIn('price_list_id', $records['price_list'] ?? [])->pluck('id')
+                ->map(fn ($id) => ['type' => 'price_list', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            // LAY-05: a live (draft or published) sell-screen layout pinning a sample item or category.
+            ...self::layoutsNaming([...($records['item'] ?? []), ...($records['item_category'] ?? [])]),
+        ]);
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

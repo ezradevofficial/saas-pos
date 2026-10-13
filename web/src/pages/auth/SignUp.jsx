@@ -1,24 +1,40 @@
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
-import { Button, Select, TextField } from '@/components/ds'
-import { resolveLocale, setLocale } from '@/i18n'
+import { Button, TextField } from '@/components/ds'
+import { setLocale } from '@/i18n'
 import { contactPayload } from '@/lib/contact'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 
-const FIELDS = ['name', 'contact', 'password', 'business_name', 'country', 'locale']
+// Country and language errors have no field here: they show in the form's alert.
+const FIELDS = ['name', 'contact', 'password', 'business_name']
 
-/** AUTH-01: a new business and its owner; a code then verifies the contact. */
+const COUNTRIES = ['KE', 'CD']
+const LOCALES = ['en', 'fr']
+
+/**
+ * AUTH-01, ONB-01: a new business and its owner, after the country and
+ * language were chosen on /welcome (they arrive as ?country=&locale=); a
+ * code then verifies the contact.
+ */
 export default function SignUp() {
+  const [params] = useSearchParams()
+  const country = params.get('country')
+  const locale = params.get('locale')
+  if (!COUNTRIES.includes(country) || !LOCALES.includes(locale)) return <Navigate to="/welcome" replace />
+  return <SignUpForm country={country} locale={locale} />
+}
+
+function SignUpForm({ country, locale }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [values, setValues] = useState(() => {
-    const locale = resolveLocale(typeof navigator === 'undefined' ? undefined : navigator.language)
-    return { name: '', contact: '', password: '', business_name: '', country: locale === 'fr' ? 'CD' : 'KE', locale }
-  })
+  const [values, setValues] = useState({ name: '', contact: '', password: '', business_name: '', country, locale })
+  useEffect(() => {
+    setLocale(locale)
+  }, [locale])
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
 
   const mutation = useMutation({
@@ -29,11 +45,6 @@ export default function SignUp() {
   })
 
   const errors = formErrors(mutation.error, FIELDS, { email: 'contact', phone: 'contact' })
-
-  const changeLocale = (event) => {
-    set('locale')(event)
-    setLocale(event.target.value)
-  }
 
   return (
     <AuthPage
@@ -81,28 +92,10 @@ export default function SignUp() {
           error={errors.fields.business_name}
           required
         />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            label={t('auth.fields.country')}
-            value={values.country}
-            onChange={set('country')}
-            error={errors.fields.country}
-            options={[
-              { value: 'KE', label: t('auth.countries.KE') },
-              { value: 'CD', label: t('auth.countries.CD') },
-            ]}
-          />
-          <Select
-            label={t('auth.fields.language')}
-            value={values.locale}
-            onChange={changeLocale}
-            error={errors.fields.locale}
-            options={[
-              { value: 'en', label: t('shell.languages.en') },
-              { value: 'fr', label: t('shell.languages.fr') },
-            ]}
-          />
-        </div>
+        <p className="text-caption text-ink-muted">
+          {t('onboarding.welcome.chosen', { country: t(`auth.countries.${country}`), language: t(`shell.languages.${locale}`) })}{' '}
+          <TextLink to="/welcome">{t('onboarding.welcome.change')}</TextLink>
+        </p>
         <Button type="submit" variant="primary" block loading={mutation.isPending}>
           {t('auth.signUp.submit')}
         </Button>

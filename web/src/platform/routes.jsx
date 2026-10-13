@@ -3,6 +3,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { PlatformAuthProvider, RequirePlatformAccess } from './PlatformAuth'
 import { PlatformLayout } from './PlatformLayout'
 import CatalogueConsole from './pages/CatalogueConsole'
+import NewTenant from './pages/NewTenant'
 import PlatformEnrol from './pages/PlatformEnrol'
 import PlatformSetup from './pages/PlatformSetup'
 import PlatformSignIn from './pages/PlatformSignIn'
@@ -37,6 +38,8 @@ export const platformRoutes = [
         children: [
           { index: true, element: <Navigate to="/platform/catalogue" replace /> },
           { path: 'catalogue', element: <CatalogueConsole /> },
+          // ONB-08: a tenant created for a customer, handed over by invitation.
+          { path: 'tenants/new', element: <NewTenant /> },
         ],
       },
     ],

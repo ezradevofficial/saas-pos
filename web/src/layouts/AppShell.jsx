@@ -4,6 +4,7 @@ import { Outlet, useMatches } from 'react-router'
 import { Button, Icon } from '@/components/ds'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { TrialBanner } from '@/components/onboarding/TrialBanner'
 import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
 import { UsageBanner } from './UsageBanner'
@@ -62,6 +63,7 @@ export function AppShell() {
           <NotificationBell />
         </header>
 
+        <TrialBanner />
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">
           <div className={cn('mx-auto flex flex-col gap-6', !wide && 'max-w-content')}>
             {/* LIM-02, LIM-03: Owners only, while above the plan. */}

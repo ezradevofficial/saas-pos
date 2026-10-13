@@ -49,6 +49,8 @@ class PlatformUser extends Authenticatable
     private const ABILITIES = [
         'catalogue.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
         'catalogue.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
+        // ONB-08: create a tenant for a customer and hand it over (field sales, support).
+        'tenants.create' => [self::ROLE_OWNER, self::ROLE_SUPPORT],
     ];
 
     /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */

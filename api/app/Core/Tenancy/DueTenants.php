@@ -82,6 +82,30 @@ class DueTenants
         return $this->ids('app_tenants_with_due_exports(?::timestamptz, ?::timestamptz, ?::timestamptz)', [$at->toIso8601String(), $runningBefore->toIso8601String(), $queuedBefore->toIso8601String()]);
     }
 
+    /** @return list<string> ONB-04: trials past their end at $at whose modules are not switched off yet. */
+    public function withExpiredTrials(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_expired_trials(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> ONB-01: self sign-ups created before $before whose owner never verified. */
+    public function pendingVerification(CarbonInterface $before): array
+    {
+        return $this->ids('app_tenants_pending_verification(?::timestamptz)', [$before->toIso8601String()]);
+    }
+
+    /** @return list<string> ONB-08: assisted tenants created before $before and not handed over yet. */
+    public function awaitingHandover(CarbonInterface $before): array
+    {
+        return $this->ids('app_tenants_awaiting_handover(?::timestamptz)', [$before->toIso8601String()]);
+    }
+
+    /** ONB-08: the pending assisted tenant created for $contact (email or phone), if any. */
+    public function assistedFor(string $contact): ?string
+    {
+        return $this->ids('app_assisted_tenant_for_contact(?)', [$contact])[0] ?? null;
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {
