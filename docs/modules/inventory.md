@@ -254,6 +254,12 @@ Decisions taken while building (no owner input asked, per instructions):
     covered negative stock carries a cost variance an exact reversal cannot
     undo, so its undo is refused (409 `opening_has_variance`); the stock is
     adjusted instead.
+14. **A transfer's value is what left the source.** The dispatch carries the
+    company's unit cost then; on receipt, what arrived takes its share of
+    that value and the loss the rest, so arrived + lost = dispatched
+    exactly, whatever moved the cost in between. The company's cost goes
+    down by what the loss takes from it now; the difference is the loss's
+    `cost_variance_minor`.
 
 Open for the owner:
 

@@ -186,16 +186,20 @@ class Transfers
                 $lost = Qty::of(BigDecimal::of((string) $line->qty_base)->minus($base));
                 $factor = BigDecimal::of((string) $line->qty)->dividedBy((string) $line->qty_base, 12, RoundingMode::HalfUp);
                 $line->forceFill(['qty_received' => (string) Qty::of($base->multipliedBy($factor)), 'qty_lost' => (string) Qty::of($lost->multipliedBy($factor))])->save();
-                $serials = $out->get($line->id)?->serials()->pluck('inventory_serials.id')->all() ?? [];
+                $dispatched = $out->get($line->id);
+                $serials = $dispatched?->serials()->pluck('inventory_serials.id')->all() ?? [];
+                // M4: what arrived and what was lost share exactly the value that left.
+                $sent = BigInteger::of((string) ($dispatched?->value_minor ?? '0'))->abs();
+                $inCost = $lost->isPositive() ? Qty::share($sent, $base, Qty::of((string) $line->qty_base)) : $sent;
 
                 if ($base->isPositive()) {
                     $posting[] = new PostingLine($line->item_id, $transfer->to_location_id, Movement::TRANSFER_IN, $base,
-                        sourceLineId: $line->id, batchId: $line->batch_id, serialIds: $serials);
+                        sourceLineId: $line->id, batchId: $line->batch_id, cost: $inCost, serialIds: $serials);
                 }
 
                 if ($lost->isPositive()) {
                     $posting[] = new PostingLine($line->item_id, null, Movement::TRANSFER_LOSS, $lost->negated(),
-                        sourceLineId: $line->id, batchId: $line->batch_id);
+                        sourceLineId: $line->id, batchId: $line->batch_id, cost: $sent->minus($base->isPositive() ? $inCost : BigInteger::zero()));
                 }
             }
 

@@ -97,6 +97,28 @@ class DocumentsTest extends TestCase
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'inventory.transfer.update')->exists()));
     }
 
+    public function test_what_arrives_and_what_is_lost_share_exactly_what_left_even_when_cost_moves_in_between(): void
+    {
+        $transfer = $this->postJson('/api/v1/inventory/transfers', [
+            'from_location_id' => $this->locationA->id, 'to_location_id' => $this->locationB->id,
+            'lines' => [['item_id' => $this->soap->id, 'qty' => '7']],
+        ], $this->headersFor($this->storekeeper))->assertCreated()->json('data');
+        $this->approve($transfer['id']);
+        $this->postJson("/api/v1/inventory/transfers/{$transfer['id']}/dispatch", [], $this->headersFor())->assertOk();
+
+        // A dearer receipt moves the company's average while the goods travel.
+        $this->move($this->soap, Movement::RECEIPT, '30', 9000);
+        $receiver = $this->userWith('storekeeper', Scope::location($this->locationB->id));
+        $this->postJson("/api/v1/inventory/transfers/{$transfer['id']}/receive", [
+            'lines' => [['id' => $transfer['lines'][0]['id'], 'qty_received' => '4']], 'loss_reason' => 'Broken',
+        ], $this->headersFor($receiver))->assertOk();
+
+        $values = $this->inTenant(fn () => Movement::query()->where('source_id', $transfer['id'])->pluck('value_minor', 'kind')->map(fn ($v) => (int) $v)->all());
+        $this->assertSame(-700, $values['transfer_out']);
+        $this->assertSame(700, $values['transfer_in'] - $values['transfer_loss']);
+        $this->assertSame(400, $values['transfer_in']);
+    }
+
     public function test_transfers_between_companies_or_to_the_same_place_are_refused(): void
     {
         $headers = $this->headersFor();

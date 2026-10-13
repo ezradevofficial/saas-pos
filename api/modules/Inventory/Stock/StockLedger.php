@@ -101,8 +101,20 @@ class StockLedger
                     $result = $this->costs->reverseReceipt($state, $method, $original->id, $line->qty->negated(), BigInteger::of((string) $original->value_minor));
                     $value = $result['cost']->negated();
                 } elseif (in_array($line->kind, Movement::TRANSFERS, true)) {
+                    // M4: an arrival carries its share of what left (the line's cost); a dispatch the company's unit cost now.
                     $unit = $this->costs->displayUnit($state);
-                    $value = $unit === null ? BigInteger::zero() : Qty::round($unit->multipliedBy($line->qty));
+                    $value = match (true) {
+                        $line->cost !== null => $line->qty->isNegative() ? $line->cost->negated() : $line->cost,
+                        $unit === null => BigInteger::zero(),
+                        default => Qty::round($unit->multipliedBy($line->qty)),
+                    };
+                } elseif ($line->kind === Movement::TRANSFER_LOSS && $line->cost !== null) {
+                    // M4: the loss carries the rest of what left; the company's cost goes down by what it takes now,
+                    // and the difference is the loss's cost variance (taken now − carried).
+                    $result = $this->costs->issue($state, $method, $line->qty->negated());
+                    $value = $line->cost->negated();
+                    $variance = $result['cost']->minus($line->cost);
+                    $flags = [...$flags, ...$result['flags']];
                 } elseif ($line->isInbound()) {
                     $result = $this->costs->receive($state, $method, $line->qty, $line->cost, $movementId, $posting->occurredAt, $line->setsLastCost);
                     $value = $result['cost'];
