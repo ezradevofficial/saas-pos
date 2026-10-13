@@ -72,7 +72,7 @@ class Counts
             // M1: one count starts at a time per location, and postings there
             // (which take this lock shared) wait for the snapshot.
             DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', [self::lockKey($locationId)]);
-            $itemIds = $this->itemsToCount($data, $locationId);
+            $itemIds = $this->itemsToCount($data, $locationId, $place['company_id'], $by);
 
             if ($itemIds === []) {
                 throw StockLedger::error(422, 'count_no_items', field: $data['kind'] === StockCount::FULL ? 'location_id' : 'item_ids');
@@ -312,9 +312,23 @@ class Counts
     }
 
     /** @return list<string> the stock items the count covers */
-    private function itemsToCount(array $data, string $locationId): array
+    private function itemsToCount(array $data, string $locationId, string $companyId, User $by): array
     {
-        $stock = Item::query()->where('type', 'stock')->whereNull('archived_at');
+        // M3: shared items and the location's company's only.
+        $stock = Item::query()->where('type', 'stock')->whereNull('archived_at')
+            ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId));
+
+        if (! empty($data['item_ids'])) {
+            foreach (Item::query()->whereKey($data['item_ids'])->get() as $item) {
+                if (! $by->can('view', $item)) {
+                    throw StockLedger::error(422, 'item_unknown', field: 'item_ids');
+                }
+
+                if (! StockInput::itemAt($item, $companyId)) {
+                    throw StockLedger::error(422, 'item_not_at_location', ['item' => $item->name], 'item_ids');
+                }
+            }
+        }
 
         if ($data['kind'] === StockCount::FULL) {
             $ids = Balance::query()->where('location_id', $locationId)->pluck('item_id')

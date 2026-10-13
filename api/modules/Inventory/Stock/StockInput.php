@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Stock;
 
 use App\Core\Http\ApiException;
+use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
@@ -30,7 +31,32 @@ class StockInput
 
     private ?string $firstCode = null;
 
-    public function __construct(private readonly Units $units) {}
+    private ?User $user = null;
+
+    public function __construct(
+        private readonly Units $units,
+        private readonly Places $places,
+    ) {}
+
+    /**
+     * M3: the person the lines are for: an item they may not see
+     * (MD-02, `view` on the item) is unknown to them.
+     */
+    public function for(?User $user): self
+    {
+        $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * M3, TEN-08: whether $item may be stocked at a place of $companyId: a
+     * shared item, or one of that company's.
+     */
+    public static function itemAt(Item $item, ?string $companyId): bool
+    {
+        return $item->company_id === null || $item->company_id === $companyId;
+    }
 
     /**
      * Check a set of lines; throws when any is wrong.
@@ -73,8 +99,14 @@ class StockInput
     {
         $item = Item::query()->whereKey((string) ($line['item_id'] ?? ''))->whereNull('archived_at')->first();
 
-        if ($item === null) {
+        if ($item === null || ($this->user !== null && ! $this->user->can('view', $item))) {
             $this->fail("{$at}item_id", 'item_unknown');
+
+            return null;
+        }
+
+        if (! self::itemAt($item, $this->places->of($locationId)['company_id'] ?? null)) {
+            $this->fail("{$at}item_id", 'item_not_at_location', ['item' => $item->name]);
 
             return null;
         }

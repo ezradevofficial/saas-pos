@@ -66,7 +66,7 @@ class Transfers
             throw StockLedger::error(422, 'transfer_cross_company', field: 'to_location_id');
         }
 
-        $lines = $this->input->lines($data['lines'], 'lines', fn () => false, $data['from_location_id']);
+        $lines = $this->input->for($by)->lines($data['lines'], 'lines', fn () => false, $data['from_location_id']);
         StockLedger::assertNotFrozen($data['from_location_id'], array_map(fn ($line) => $line->item->id, $lines));
         StockLedger::assertNotFrozen($data['to_location_id'], array_map(fn ($line) => $line->item->id, $lines));
         $currency = $this->valuer->currency($from['company_id']);

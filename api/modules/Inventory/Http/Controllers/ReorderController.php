@@ -51,6 +51,7 @@ class ReorderController
             (string) $request->validated('location_id'),
             $request->validated('reorder_level'),
             $request->validated('reorder_qty'),
+            $request->user(),
         );
 
         return new JsonResponse(['data' => $rule === null ? null : ReorderRuleResource::make(self::query()->whereKey($rule->id)->firstOrFail())->resolve($request)]);

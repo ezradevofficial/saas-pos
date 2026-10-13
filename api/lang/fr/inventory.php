@@ -6,6 +6,7 @@
 return [
     'errors' => [
         'item_unknown' => 'Choisissez un article existant et non archivé.',
+        'item_not_at_location' => ':item appartient à une autre société. Choisissez un article partagé ou un article de cette société.',
         'not_a_stock_item' => ':item n’est pas un article stocké. Seuls les articles stockés ont du stock.',
         'uom_not_on_item' => 'Cette unité n’est pas une unité de l’article. Choisissez l’une de ses unités.',
         'qty_invalid' => 'Saisissez une quantité différente de zéro.',

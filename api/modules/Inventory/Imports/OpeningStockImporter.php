@@ -157,7 +157,7 @@ class OpeningStockImporter extends Importer
     public function check(PreparedRow $row, ImportContext $context): void
     {
         try {
-            app(OpeningStock::class)->check($row->validated);
+            app(OpeningStock::class)->check($row->validated, $context->user);
         } catch (Throwable $e) {
             throw RowRejected::from($e) ?? $e;
         }

@@ -5,6 +5,7 @@ namespace Modules\Inventory\Labels;
 use App\Core\Audit\Auditor;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\DocumentTemplates\DocumentData;
+use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemBarcode;
 use App\Core\MasterData\Items\Uom;
@@ -13,6 +14,8 @@ use App\Core\MasterData\Taxes\PriceList;
 use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Modules\Inventory\Models\Batch;
+use Modules\Inventory\Stock\StockInput;
+use Modules\Inventory\Stock\StockLedger;
 
 /**
  * INV-21: barcode labels, one document per copy, printed through the
@@ -33,13 +36,22 @@ class Labels
      * @param  list<array{item_id: string, uom_id?: ?string, batch_id?: ?string, copies: int}>  $labels
      * @return non-empty-list<DocumentData>
      */
-    public function documents(array $labels, ?PriceList $list): array
+    public function documents(array $labels, ?PriceList $list, ?User $by = null): array
     {
         $company = $list === null ? null : Company::query()->find($list->company_id);
         $documents = [];
 
-        foreach ($labels as $label) {
+        foreach (array_values($labels) as $index => $label) {
             $item = Item::query()->with('baseUom')->findOrFail($label['item_id']);
+
+            // M3: an item the person may see, shared or of the price list's company.
+            if ($by !== null && ! $by->can('view', $item)) {
+                throw StockLedger::error(422, 'item_unknown', field: "labels.{$index}.item_id");
+            }
+
+            if ($list !== null && ! StockInput::itemAt($item, $list->company_id)) {
+                throw StockLedger::error(422, 'item_not_at_location', ['item' => $item->name], "labels.{$index}.item_id");
+            }
             $uom = isset($label['uom_id']) ? Uom::query()->find($label['uom_id']) : $item->baseUom;
             $batch = isset($label['batch_id']) ? Batch::query()->where('item_id', $item->id)->find($label['batch_id']) : null;
             $data = $this->data($item, $uom ?? $item->baseUom, $batch, $list, $company);

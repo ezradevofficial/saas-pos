@@ -55,7 +55,7 @@ class Adjustments
             throw StockLedger::error(422, 'location_archived', field: 'location_id');
         }
 
-        $lines = $this->input->lines($data['lines'], 'lines', fn (int $index, $qty) => $qty->isPositive(), $data['location_id'], signed: true);
+        $lines = $this->input->for($by)->lines($data['lines'], 'lines', fn (int $index, $qty) => $qty->isPositive(), $data['location_id'], signed: true);
         StockLedger::assertNotFrozen($data['location_id'], array_map(fn ($line) => $line->item->id, $lines));
         $currency = $this->valuer->currency($place['company_id']);
         $in = BigInteger::zero();

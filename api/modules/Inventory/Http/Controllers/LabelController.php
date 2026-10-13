@@ -26,7 +26,7 @@ class LabelController
         }
 
         $list = $request->filled('price_list_id') ? PriceList::query()->findOrFail($request->validated('price_list_id')) : null;
-        $documents = $labels->documents($request->validated('labels'), $list);
+        $documents = $labels->documents($request->validated('labels'), $list, $request->user());
 
         if ($request->validated('format', 'html') === 'pdf') {
             return new Response($output->pdfPages($documents), 200, [

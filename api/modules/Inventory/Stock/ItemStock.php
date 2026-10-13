@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Stock;
 
+use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use Modules\Inventory\Models\ItemSetting;
 use Modules\Inventory\Models\Movement;
@@ -80,12 +81,21 @@ class ItemStock
      * A rule's level and quantity at a place: made, changed, or archived
      * when the level is null; compared with the stock there at once.
      */
-    public function reorderRule(Item $item, string $locationId, ?string $level, ?string $quantity): ?ReorderRule
+    public function reorderRule(Item $item, string $locationId, ?string $level, ?string $quantity, ?User $by = null): ?ReorderRule
     {
         $place = $this->places->of($locationId) ?? throw StockLedger::error(422, 'location_unknown', field: 'location_id');
 
+        if ($by !== null && ! $by->can('view', $item)) {
+            throw StockLedger::error(422, 'item_unknown', field: 'item_id');
+        }
+
         if ($item->type !== 'stock') {
             throw StockLedger::error(422, 'not_a_stock_item', ['item' => $item->name], 'item_id');
+        }
+
+        // M3: a shared item, or one of the location's company.
+        if (! StockInput::itemAt($item, $place['company_id'])) {
+            throw StockLedger::error(422, 'item_not_at_location', ['item' => $item->name], 'item_id');
         }
 
         return StockInput::transaction(function () use ($item, $locationId, $level, $quantity, $place) {

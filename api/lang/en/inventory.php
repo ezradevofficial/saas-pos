@@ -6,6 +6,7 @@
 return [
     'errors' => [
         'item_unknown' => 'Choose an item that exists and is not archived.',
+        'item_not_at_location' => ':item belongs to another company. Choose a shared item or one of this company’s.',
         'not_a_stock_item' => ':item is not a stock item. Only stock items keep stock.',
         'uom_not_on_item' => 'This unit is not one of the item’s units. Choose one of its units.',
         'qty_invalid' => 'Enter a quantity other than zero.',

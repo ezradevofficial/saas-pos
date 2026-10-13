@@ -34,7 +34,7 @@ class OpeningStock
      *
      * @param  array<string, mixed>  $data
      */
-    public function check(array $data): ResolvedLine
+    public function check(array $data, ?User $by = null): ResolvedLine
     {
         $place = $this->places->of((string) $data['location_id']) ?? throw StockLedger::error(422, 'location_unknown', field: 'location_id');
 
@@ -42,13 +42,13 @@ class OpeningStock
             throw StockLedger::error(422, 'location_archived', field: 'location_id');
         }
 
-        return $this->input->single($data, fn () => true, (string) $data['location_id']);
+        return $this->input->for($by)->single($data, fn () => true, (string) $data['location_id']);
     }
 
     /** @param array{item_id: string, location_id: string, uom_id?: ?string, qty: string, unit_cost: string, batch_number?: ?string, expires_on?: ?string, serials?: list<string>} $data */
     public function record(array $data, ?User $by): Movement
     {
-        $line = $this->check($data);
+        $line = $this->check($data, $by);
         $place = $this->places->of($data['location_id']);
         $currency = $this->valuer->currency($place['company_id']);
         $cost = $this->valuer->typedCost((string) $data['unit_cost'], $line->qty, $currency);

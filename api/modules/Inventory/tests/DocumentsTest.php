@@ -5,6 +5,8 @@ namespace Modules\Inventory\Tests;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Taxes\PriceList;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
@@ -270,6 +272,32 @@ class DocumentsTest extends TestCase
         $this->asTenant($other['user']->tenant_id, fn () => app(ModuleRegistry::class)->activate('inventory'));
         $this->getJson("/api/v1/inventory/adjustments/{$id}", $this->headersFor($other['user']))->assertNotFound();
         $this->postJson('/api/v1/inventory/adjustments', $body, $this->headersFor($other['user']))->assertUnprocessable()->assertJsonValidationErrors(['location_id', 'lines.0.item_id']);
+    }
+
+    public function test_another_companys_private_item_is_refused_everywhere(): void
+    {
+        $other = $this->inTenant(function () {
+            $company = $this->company('Second co');
+
+            return Item::create(['company_id' => $company->id, 'code' => 'PRIVATE', 'name' => 'Private item', 'type' => 'stock', 'base_uom_id' => $this->each->id]);
+        });
+        $headers = $this->headersFor();
+        $at = $this->locationA->id;
+
+        $this->postJson('/api/v1/inventory/opening-stock', ['item_id' => $other->id, 'location_id' => $at, 'qty' => '1', 'unit_cost' => '1'], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
+        $this->postJson('/api/v1/inventory/adjustments', ['location_id' => $at, 'reason' => 'found', 'lines' => [['item_id' => $other->id, 'qty' => '1']]], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
+        $this->postJson('/api/v1/inventory/transfers', ['from_location_id' => $at, 'to_location_id' => $this->locationB->id, 'lines' => [['item_id' => $other->id, 'qty' => '1']]], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
+        $this->putJson('/api/v1/inventory/reorder-rules', ['item_id' => $other->id, 'location_id' => $at, 'reorder_level' => '1'], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
+        $this->postJson('/api/v1/inventory/counts', ['location_id' => $at, 'kind' => 'cycle', 'item_ids' => [$other->id]], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
+
+        $list = $this->inTenant(fn () => PriceList::create(['company_id' => $this->acme->id, 'name' => 'Retail', 'currency' => 'KES', 'tax_inclusive' => true, 'is_default' => true]));
+        $this->postJson('/api/v1/inventory/labels', ['labels' => [['item_id' => $other->id, 'copies' => 1]], 'price_list_id' => $list->id], $headers)
+            ->assertUnprocessable()->assertJsonPath('code', 'item_not_at_location');
     }
 
     public function test_the_module_switched_off_closes_the_routes(): void
