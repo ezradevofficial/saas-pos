@@ -422,6 +422,60 @@ describe('sync engine: review fixes', () => {
     expect(engine.getStatus()).toMatchObject({ subscriptionStopped: false, pending: 0 });
   });
 
+  it('remembers a 402 stop across a restart, keeps retrying, and resumes when a sync shows the subscription paid (SUB-05)', async () => {
+    const { server, engine, store, make } = setup();
+    await engine.enqueue('pos.sales', 's1', sale('s1'));
+    server.state.uploadOverride = () => ({ status: 402, body: { code: 'subscription_pos_stopped', message: 'Overdue' } });
+    await engine.sync();
+    expect(engine.sellingPaused()).toBe(true);
+
+    // The app restarts: selling is still paused, the sale still queued, and the till tries again.
+    const restarted = make();
+    await restarted.load();
+    expect(restarted.getStatus()).toMatchObject({ subscriptionStopped: true, pending: 1 });
+    expect(restarted.sellingPaused()).toBe(true);
+    await restarted.sync({ force: true });
+    expect(server.requestsTo('pos/sales')).toHaveLength(2);
+    expect((await store.entries())[0]).toMatchObject({ status: OUTBOX.PENDING });
+
+    // Paid: the server takes the sale and says the subscription is active again.
+    server.state.uploadOverride = null;
+    server.state.subscription = { status: 'active', pos_stops_at: null, pos_stopped: false };
+    await restarted.sync({ force: true });
+    expect(restarted.getStatus()).toMatchObject({ subscriptionStopped: false, posStopsAt: null, pending: 0 });
+    expect(restarted.sellingPaused()).toBe(false);
+  });
+
+  it('learns when selling stops from bootstrap and pull, and pauses offline once the clock passes it (SUB-05)', async () => {
+    const { server, engine, make, advance } = setup();
+    server.define('items', { rows: [item('a')] });
+    server.state.subscription = { status: 'read_only', pos_stops_at: '2026-10-11T10:00:00Z', pos_stopped: false };
+
+    await engine.sync();
+    expect(engine.getStatus().posStopsAt).toBe(Date.parse('2026-10-11T10:00:00Z'));
+    expect(engine.sellingPaused()).toBe(false);
+
+    // Offline past the stop time: paused, and remembered after a restart.
+    server.goOffline();
+    advance(3 * 24 * 60 * 60 * 1000);
+    expect(engine.sellingPaused()).toBe(true);
+    const restarted = make();
+    await restarted.load();
+    expect(restarted.sellingPaused()).toBe(true);
+
+    // Back online after the invoice was paid: a pull lifts the pause, with nothing to upload.
+    server.goOnline();
+    server.state.subscription = { status: 'active', pos_stops_at: null, pos_stopped: false };
+    await restarted.sync();
+    expect(restarted.getStatus().posStopsAt).toBeNull();
+    expect(restarted.sellingPaused()).toBe(false);
+
+    // The server says stopped (suspended, or the window over by its clock): paused at once.
+    server.state.subscription = { status: 'suspended', pos_stops_at: null, pos_stopped: true };
+    await restarted.sync();
+    expect(restarted.sellingPaused()).toBe(true);
+  });
+
   it('treats only 401 and device 403 codes as lost access; module_inactive keeps the till syncing', async () => {
     const { server, engine, store } = setup();
     server.define('items', { rows: [item('a')] });

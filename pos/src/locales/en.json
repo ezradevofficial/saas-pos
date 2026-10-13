@@ -179,7 +179,8 @@
       "tax": "Tax",
       "discountCleared": "The discount was removed: it is above what you may give at this quantity. Ask a manager to give it again.",
       "paymentLocked": "Mobile money was sent for this sale, so its items and customer cannot change. Complete the sale, or refund the payment first.",
-      "mobilePaid": "The customer has already paid by mobile money. Complete the sale; any money owed goes back through a refund afterwards."
+      "mobilePaid": "The customer has already paid by mobile money. Complete the sale; any money owed goes back through a refund afterwards.",
+      "sellingPaused": "Selling is paused until the subscription is paid. Ask the Owner to pay the invoice."
     },
     "phone": {
       "items_one": "{{count}} item",
