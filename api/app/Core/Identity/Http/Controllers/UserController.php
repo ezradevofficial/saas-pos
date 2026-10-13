@@ -10,6 +10,8 @@ use App\Core\Identity\Http\Requests\UserActionRequest;
 use App\Core\Identity\Http\Requests\UserListRequest;
 use App\Core\Identity\Http\Resources\UserAdminResource;
 use App\Core\Identity\Models\User;
+use App\Core\Limits\Units;
+use App\Core\Limits\UsageLimits;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Rbac\ScopeNames;
 use App\Core\Rbac\ScopeResolver;
@@ -33,6 +35,7 @@ class UserController
         private readonly ScopeNames $scopeNames,
         private readonly OwnerGuard $owners,
         private readonly Auditor $auditor,
+        private readonly UsageLimits $limits,
     ) {}
 
     public function index(UserListRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -112,6 +115,9 @@ class UserController
 
         if ($user->status !== User::STATUS_ACTIVE) {
             DB::transaction(function () use ($user) {
+                // LIM-03: reactivating adds an active user.
+                $this->limits->ensureCanAdd(Units::USER);
+
                 $before = $user->status;
                 $user->forceFill(['status' => User::STATUS_ACTIVE, 'failed_sign_ins' => 0, 'locked_until' => null])->saveQuietly();
                 $this->auditor->record('core.user.reactivate', $user, ['status' => $before], ['status' => $user->status]);

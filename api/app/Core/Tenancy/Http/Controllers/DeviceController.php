@@ -2,6 +2,8 @@
 
 namespace App\Core\Tenancy\Http\Controllers;
 
+use App\Core\Limits\Units;
+use App\Core\Limits\UsageLimits;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Archiver;
@@ -29,6 +31,7 @@ class DeviceController
         private readonly Visibility $visibility,
         private readonly DevicePairing $pairing,
         private readonly Archiver $archiver,
+        private readonly UsageLimits $limits,
     ) {}
 
     public function index(DeviceListRequest $request, Location $location): AnonymousResourceCollection
@@ -50,9 +53,13 @@ class DeviceController
     public function store(StoreDeviceRequest $request, Location $location): DeviceResource
     {
         // TEN-06: nothing new under an archived location.
-        return DeviceResource::make(DB::transaction(
-            fn () => $this->archiver->lockActive(Location::class, $location->id)->devices()->create($request->validated()),
-        ));
+        return DeviceResource::make(DB::transaction(function () use ($request, $location) {
+            $parent = $this->archiver->lockActive(Location::class, $location->id);
+            // LIM-03: adding a device.
+            $this->limits->ensureCanAdd(Units::DEVICE);
+
+            return $parent->devices()->create($request->validated());
+        }));
     }
 
     public function show(Request $request, Device $device): DeviceResource
@@ -75,6 +82,12 @@ class DeviceController
         $this->authorizeInScope($request, 'pair', $device);
         $issued = DB::transaction(function () use ($device) {
             $this->archiver->lockActive(Location::class, $device->location_id);
+
+            if ($device->first_paired_at === null) {
+                // LIM-03: a code for a device never paired adds an active device once used.
+                // A till that worked before is never kept off sales (LIM-04).
+                $this->limits->ensureCanAdd(Units::DEVICE);
+            }
 
             return $this->pairing->issueCode($device);
         });

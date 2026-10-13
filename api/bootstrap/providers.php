@@ -13,6 +13,7 @@ use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
+use App\Core\Limits\LimitsServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
@@ -54,6 +55,7 @@ return [
     PaymentsServiceProvider::class,
     FiscalServiceProvider::class,
     PlatformServiceProvider::class,
+    LimitsServiceProvider::class,
     PosServiceProvider::class,
     HorizonServiceProvider::class,
 ];

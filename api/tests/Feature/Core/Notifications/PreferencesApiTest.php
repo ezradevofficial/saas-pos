@@ -47,7 +47,8 @@ class PreferencesApiTest extends TestCase
             'core.approval.reminder', 'core.approval.requested', 'core.approval.returned',
             'core.automation.failed', 'core.automation.notify', 'core.credit_limit_change.apply_failed', 'core.credit_limit_change.conflicted', 'core.domain.lost',
             'core.fiscal.delayed', 'core.fiscal.needs_attention', 'core.fiscal.rejected',
-            'core.identity.new_device', 'core.notification.test', 'core.report.ready', 'core.tenant_export.ready', 'core.workflow.notify', 'core.workflow.stage_overdue', 'core.workflow.stage_reminder',
+            'core.identity.new_device', 'core.notification.test', 'core.report.ready', 'core.tenant_export.ready',
+            'core.usage_limit.blocked', 'core.usage_limit.exceeded', 'core.usage_limit.reminder', 'core.workflow.notify', 'core.workflow.stage_overdue', 'core.workflow.stage_reminder',
         ], array_column($data, 'event_type'));
 
         $test = $this->entry($data, 'core.notification.test');
