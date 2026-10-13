@@ -5105,7 +5105,8 @@
   "platform": {
     "console": "Console de la plateforme",
     "nav": {
-      "catalogue": "Catalogue des offres"
+      "catalogue": "Catalogue des offres",
+      "tenants": "Clients"
     },
     "roles": {
       "owner": "Propriétaire",
@@ -5262,6 +5263,39 @@
         "not_applicable": "Ce code promo ne s’applique à rien dans ce devis."
       },
       "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
+    },
+    "tenants": {
+      "title": "Clients",
+      "description": "Les clients, leurs formules et ce qu’ils doivent.",
+      "empty": "Aucun client pour l’instant.",
+      "columns": {
+        "name": "Nom",
+        "country": "Pays",
+        "plan": "Formule",
+        "status": "Statut",
+        "mrr": "Revenu mensuel",
+        "trialEnds": "Fin de l’essai"
+      },
+      "subscription": "Abonnement",
+      "extendTrial": "Prolonger l’essai",
+      "trialEndsOn": "Fin de l’essai le",
+      "saveTrial": "Prolonger l’essai",
+      "grace": "Délai de grâce",
+      "graceDays": "Délai de grâce",
+      "graceHelp": "Jours pendant lesquels une facture impayée reste en retard avant la lecture seule. Laissez vide pour le réglage de la plateforme.",
+      "gracePlatform": "Réglage de la plateforme",
+      "graceValue_one": "{{count}} jour",
+      "graceValue_other": "{{count}} jours",
+      "saveGrace": "Enregistrer le délai",
+      "markPaid": "Marquer payée",
+      "markPaidFor": "Marquer la facture {{number}} payée",
+      "markPaidTitle": "Virement pour la facture {{number}}",
+      "bankReference": "Référence bancaire",
+      "paidVia": {
+        "intent": "Payée en ligne",
+        "bank_transfer": "Virement bancaire"
+      },
+      "purgeDue": "Les données de modules désactivés ont plus de 12 mois : {{modules}}. Rien n’a été supprimé."
     }
   },
   "subscription": {

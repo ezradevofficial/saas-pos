@@ -5105,7 +5105,8 @@
   "platform": {
     "console": "Platform console",
     "nav": {
-      "catalogue": "Catalogue"
+      "catalogue": "Catalogue",
+      "tenants": "Tenants"
     },
     "roles": {
       "owner": "Owner",
@@ -5262,6 +5263,39 @@
         "not_applicable": "This coupon doesn't apply to anything in this quote."
       },
       "suggestion": "{{bundle}} covers this selection for less. It saves {{saving}}."
+    },
+    "tenants": {
+      "title": "Tenants",
+      "description": "Customers, their plans and what they owe.",
+      "empty": "No customer tenants yet.",
+      "columns": {
+        "name": "Name",
+        "country": "Country",
+        "plan": "Plan",
+        "status": "Status",
+        "mrr": "Monthly revenue",
+        "trialEnds": "Trial ends"
+      },
+      "subscription": "Subscription",
+      "extendTrial": "Extend trial",
+      "trialEndsOn": "Trial ends on",
+      "saveTrial": "Extend trial",
+      "grace": "Grace period",
+      "graceDays": "Grace period",
+      "graceHelp": "Days an unpaid invoice stays past due before read-only. Leave empty for the platform’s setting.",
+      "gracePlatform": "Platform setting",
+      "graceValue_one": "{{count}} day",
+      "graceValue_other": "{{count}} days",
+      "saveGrace": "Save grace period",
+      "markPaid": "Mark paid",
+      "markPaidFor": "Mark invoice {{number}} paid",
+      "markPaidTitle": "Bank transfer for invoice {{number}}",
+      "bankReference": "Bank reference",
+      "paidVia": {
+        "intent": "Paid online",
+        "bank_transfer": "Bank transfer"
+      },
+      "purgeDue": "Data of switched-off modules is past its 12 months: {{modules}}. Nothing has been deleted."
     }
   },
   "subscription": {

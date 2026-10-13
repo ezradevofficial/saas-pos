@@ -6,6 +6,7 @@ import CatalogueConsole from './pages/CatalogueConsole'
 import PlatformEnrol from './pages/PlatformEnrol'
 import PlatformSetup from './pages/PlatformSetup'
 import PlatformSignIn from './pages/PlatformSignIn'
+import { TenantDetail, TenantsList } from './pages/TenantsConsole'
 
 /**
  * ADR 013: the platform console at /platform, outside the tenant app shell,
@@ -37,6 +38,9 @@ export const platformRoutes = [
         children: [
           { index: true, element: <Navigate to="/platform/catalogue" replace /> },
           { path: 'catalogue', element: <CatalogueConsole /> },
+          // ADR 016: customer tenants, their subscriptions and invoices.
+          { path: 'tenants', element: <TenantsList /> },
+          { path: 'tenants/:tenantId', element: <TenantDetail /> },
         ],
       },
     ],
