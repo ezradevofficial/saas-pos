@@ -27,7 +27,7 @@ export default function Home() {
   // ONB-02, ONB-03: an owner who has not picked a business type or modules yet resumes there.
   const { can } = usePermissions()
   const onboarding = useOnboarding()
-  const resume = can('core.onboarding.edit') ? resumePath(onboarding.data) : null
+  const resume = can('core.onboarding.modules') ? resumePath(onboarding.data) : null
 
   if (resume) return <Navigate to={resume} replace />
 

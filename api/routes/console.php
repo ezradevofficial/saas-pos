@@ -41,3 +41,12 @@ Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->on
 
 // EXP-02: full tenant exports past their expiry (files deleted after 7 days) and builds a dead worker left behind.
 Schedule::command('exports:expire')->hourly()->withoutOverlapping()->onOneServer();
+
+// ONB-04: modules of ended trials switched off (billing rebinds TrialExpiry).
+Schedule::command('onboarding:expire-trials')->hourly()->withoutOverlapping()->onOneServer();
+
+// ONB-01: sign-ups whose owner never verified, closed after 24 hours.
+Schedule::command('onboarding:prune-pending')->hourly()->withoutOverlapping()->onOneServer();
+
+// ONB-08: assisted tenants not handed over after 30 days, listed for staff.
+Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverlapping()->onOneServer();

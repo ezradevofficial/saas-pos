@@ -49,7 +49,7 @@ const CATALOGUE = {
   },
 }
 
-const PERMISSIONS = tenantWide(['core.onboarding.view', 'core.onboarding.edit', 'core.company.view'])
+const PERMISSIONS = tenantWide(['core.onboarding.view', 'core.onboarding.edit', 'core.onboarding.modules', 'core.company.view'])
 
 function setUp(current, extra = []) {
   mockRoutes(api, [['onboarding', () => ({ data: current() })], ['onboarding/trial', () => ({ data: current().trial })], ['onboarding/checklist', { data: { visible: false, items: [] } }], [/^catalogue\?country=/, CATALOGUE], ...extra], {
@@ -198,6 +198,28 @@ describe('Onboarding screens', () => {
     expect(await screen.findByText('Sample data is loaded: 12 products and 3 customers.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Remove sample data' }))
     expect(await screen.findByText(/Sample data can’t be removed/)).toBeInTheDocument()
+  })
+
+  it('keeps the module picker for the Owner (an Admin runs the setup only)', async () => {
+    mockRoutes(api, [['onboarding', { data: state({ stage: 'setup' }) }], ['onboarding/trial', { data: { state: 'trial', days_left: 9 } }]], {
+      permissions: tenantWide(['core.onboarding.view', 'core.onboarding.edit']),
+    })
+    renderApp('/onboarding/modules')
+    expect(await screen.findByText(/access/i)).toBeInTheDocument()
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/^catalogue/))
+  })
+
+  it('says plainly when the trial has ended and modules can no longer be picked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const current = state({ stage: 'setup', selection: { modules: ['pos'], quantities: { outlet: 1 }, cycle: 'monthly' }, trial: { state: 'ended', days_left: 0 } })
+    setUp(() => current)
+    api.post.mockResolvedValue({ data: { currency: 'KES', quoted: false, lines: [], total: 250000, suggestion: null } })
+    api.put.mockRejectedValue(apiError(409, 'trial_ended', 'Your free trial has ended. Choose a plan to switch modules on again.'))
+    renderApp('/onboarding/modules')
+    fireEvent.click(await screen.findByRole('button', { name: 'Start free trial' }))
+    expect(await screen.findByText('Your free trial has ended. Choose a plan to switch modules on again.')).toBeInTheDocument()
+    expect(screen.getByText('Trial ended')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('needs the onboarding permission', async () => {

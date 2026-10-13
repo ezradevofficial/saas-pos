@@ -172,8 +172,9 @@ export const routes = [
     ),
     children: [
       { path: '/onboarding', element: <Navigate to="/onboarding/business" replace /> },
-      { path: '/onboarding/business', handle: { stage: 'business' }, element: <BusinessType /> },
-      { path: '/onboarding/modules', handle: { stage: 'modules' }, element: <ModulePicker /> },
+      // ONB-02, ONB-03: the business type and modules are the Owner's (core.onboarding.modules); the wizard is Admin's too.
+      { path: '/onboarding/business', handle: { stage: 'business' }, element: <RequirePermission permission="core.onboarding.modules" tenantWide><BusinessType /></RequirePermission> },
+      { path: '/onboarding/modules', handle: { stage: 'modules' }, element: <RequirePermission permission="core.onboarding.modules" tenantWide><ModulePicker /></RequirePermission> },
       { path: '/onboarding/setup', handle: { stage: 'setup' }, element: <SetupOverview /> },
       { path: '/onboarding/setup/:step', handle: { stage: 'setup' }, element: <SetupStep /> },
     ],

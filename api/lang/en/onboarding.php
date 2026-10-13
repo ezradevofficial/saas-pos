@@ -29,6 +29,9 @@ return [
     ],
 
     'errors' => [
+        'trial_ended' => 'Your free trial has ended. Choose a plan to switch modules on again.',
+        'bundle_quoted' => 'Enterprise is priced by our sales team. Contact us for a quote, or pick modules or another bundle.',
+        'already_handed_over' => 'The customer already accepted ownership of this business. No new invitation is needed.',
         'sample_loaded' => 'Sample data is already loaded. Remove it before loading it again.',
         'sample_not_loaded' => 'There is no sample data to remove.',
         'sample_in_use' => 'Sample data can’t be removed: :count of your own records use it. Change those records first, then try again.',

@@ -86,12 +86,16 @@ class OnboardingTest extends TestCase
             'name' => 'Amani Kabila', 'email' => 'amani@example.com', 'password' => $this->password,
             'country' => 'CD', 'locale' => 'fr', 'business_name' => 'Pharmacie Amani',
         ])->assertCreated()->json('challenge_id');
+        $tenantId = VerificationChallenge::findOrFail($challenge)->tenant_id;
+
+        // No subdomain before the contact is verified (no squatting).
+        $this->asTenant($tenantId, fn () => $this->assertNull(Tenant::sole()->slug));
+        $this->postJson('/api/v1/auth/verify', ['challenge_id' => $challenge, 'code' => $this->lastCode()])->assertOk();
         $elapsed = microtime(true) - $started;
 
         // ONB-01: the tenant and its subdomain exist in under a minute.
         $this->assertLessThan(60, $elapsed);
 
-        $tenantId = VerificationChallenge::findOrFail($challenge)->tenant_id;
         $this->asTenant($tenantId, function () {
             $tenant = Tenant::sole();
             $this->assertSame(['fr', 'pharmacie-amani'], [$tenant->default_locale, $tenant->slug]);

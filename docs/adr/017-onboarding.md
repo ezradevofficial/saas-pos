@@ -24,6 +24,14 @@ A customer must go from nothing to a trial tenant on their own, in their country
 
 **Assisted onboarding (ONB-08).** `POST platform/tenants` (staff `owner` or `support`) provisions the tenant inside `TenantContext::run`. Its first Owner is a setup account (`is_platform_staff`, an unusable password, a `.invalid` email) that Authenticate refuses, so staff never sign in to the tenant. It invites the customer as Owner; on acceptance (`InvitationAccepted`) the setup account loses its roles and is deactivated. Both steps are audited in the tenant chain and the platform chain (on the platform connection).
 
+## Review hardening
+
+- **The trial runs once.** After `trial_ends_at`, `PUT onboarding/modules` and `TrialStarter::start` answer 409 `trial_ended`. `onboarding:expire-trials` (hourly; `DueTenants`, never the owner connection) calls `TrialExpiry::expire()` once per ended trial; the default switches off every optional module, and billing rebinds it to keep what is paid for. A bundle's modules count as selected.
+- **The subscription is the Owner's.** `core.onboarding.modules` (Admin's template excludes it) guards the business type and the modules; the rest of the wizard stays on `core.onboarding.edit`. Quoted bundles (Enterprise) are refused with 422 `bundle_quoted`.
+- **Sign-up abuse.** Limits per IP, per email or phone (3 an hour) and platform-wide (`SIGN_UPS_PER_HOUR`, 200). The subdomain is claimed when the contact is verified. Protected brand names (`onboarding.protected_slugs` plus `PLATFORM_BRAND_NAMES`), compared after folding look-alike characters, never become a subdomain (sign-up gets `shop-xxxx`; branding settings refuse them). `onboarding:prune-pending` closes sign-ups unverified after 24 hours and frees the address; nothing is deleted.
+- **Assisted tenants.** Staff can resend the Owner invitation (`POST platform/tenants/{tenant}/reinvite`) until handover; only the latest invitation hands over. Tenants not handed over after 30 days are listed (`GET platform/tenants/awaiting-handover`, daily `onboarding:handover-report`), never deleted. A create for a contact with a pending assisted tenant returns it. Platform audit entries are written after the tenant transaction commits. The setup account is also refused at token issue and by the tenant middleware.
+- **Sample data** removal is also refused while a custom field (any entity, custom form records and lines), a live POS layout or a POS sale's price list names a sample record.
+
 ## Consequences
 
 - Billing replaces two bindings and keeps the endpoints and screens.

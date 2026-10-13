@@ -9,8 +9,8 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
 
 /**
- * A new tenant's skeleton (TEN-02..TEN-05, ONB-01): the tenant and its
- * subdomain, one company in the chosen country (its currency and time
+ * A new tenant's skeleton (TEN-02..TEN-05, ONB-01): the tenant (and its
+ * subdomain when asked), one company in the chosen country (its currency and time
  * zone, CUR-01, and the country pack's taxes, CP-01), a main branch and a
  * main outlet, named in the chosen language. Runs in the caller's
  * transaction and inside the new tenant's context (self sign-up, AUTH-01;
@@ -31,7 +31,7 @@ class TenantProvisioner
     ) {}
 
     /** @return array{tenant: Tenant, company: Company} */
-    public function provision(string $tenantId, string $businessName, string $country, string $locale): array
+    public function provision(string $tenantId, string $businessName, string $country, string $locale, bool $withSubdomain = false): array
     {
         $defaults = self::COUNTRIES[$country];
 
@@ -40,7 +40,10 @@ class TenantProvisioner
             'name' => $businessName,
             'default_locale' => $locale,
         ]);
-        $this->slugs->assign($tenant, $businessName);
+        // ONB-01: a self sign-up gets its subdomain once the owner verifies (no squatting).
+        if ($withSubdomain) {
+            $this->slugs->assign($tenant, $businessName);
+        }
 
         $company = Company::create([
             'name' => $businessName,

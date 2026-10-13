@@ -2,8 +2,8 @@
 
 namespace App\Core\Onboarding\Trial;
 
-use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Models\TenantModule;
+use App\Core\Rbac\ModuleRegistry;
 
 /**
  * ONB-04 until billing exists: nothing is paid for, so once the trial has

@@ -68,6 +68,23 @@ class PosServiceProvider extends ServiceProvider
         'layout' => ['view', 'edit', 'publish'],
     ];
 
+    /** @param list<string> $ids @return list<array{type: string, id: string, used_by: string}> */
+    private static function layoutsNaming(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $pattern = '('.implode('|', array_map(fn (string $id) => preg_quote($id, '/'), $ids)).')';
+
+        return DB::table('config_versions')->join('config_documents', 'config_documents.id', '=', 'config_versions.document_id')
+            ->where('config_documents.kind', PosLayout::KEY)
+            ->whereNull('config_versions.archived_at')->whereNull('config_versions.discarded_at')
+            ->whereRaw('config_versions.payload::text ~ ?', [$pattern])
+            ->pluck('config_versions.id')
+            ->map(fn ($id) => ['type' => 'item', 'id' => (string) $id, 'used_by' => 'pos_layout'])->all();
+    }
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/pos.php', 'pos');
@@ -144,6 +161,10 @@ class PosServiceProvider extends ServiceProvider
                 ->map(fn ($id) => ['type' => 'item', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
             ...DB::table('pos_sales')->whereIn('customer_id', $records['party'] ?? [])->pluck('id')
                 ->map(fn ($id) => ['type' => 'party', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            ...DB::table('pos_sales')->whereIn('price_list_id', $records['price_list'] ?? [])->pluck('id')
+                ->map(fn ($id) => ['type' => 'price_list', 'id' => (string) $id, 'used_by' => 'pos_sale'])->all(),
+            // LAY-05: a live (draft or published) sell-screen layout pinning a sample item or category.
+            ...self::layoutsNaming([...($records['item'] ?? []), ...($records['item_category'] ?? [])]),
         ]);
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');

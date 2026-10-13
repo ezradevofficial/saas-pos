@@ -13,6 +13,7 @@ return [
     'unverified' => 'Verify your email or phone first. We’ve sent you a new code.',
     'unverified_wait' => 'Verify your email or phone first. Use the code we already sent you, or wait a little and sign in again to get a new one.',
     'deactivated' => 'This account is deactivated. Ask your administrator to reactivate it.',
+    'setup_account' => 'This account is used only to set up the business and can’t sign in. Accept the invitation sent to you instead.',
     'locked' => 'Too many failed sign-ins. Try again in :minutes minute.|Too many failed sign-ins. Try again in :minutes minutes.',
 
     // AUTH-06..AUTH-08: POS PINs, staff cards and manager overrides.

@@ -87,6 +87,7 @@ use App\Core\Notifications\Http\Controllers\PreferenceController;
 use App\Core\Notifications\Http\Controllers\TemplateController;
 use App\Core\Numbering\Http\Controllers\NumberFormatController;
 use App\Core\Onboarding\Http\Controllers\OnboardingController;
+use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\CallbackTokens;
 use App\Core\Payments\Http\Controllers\CallbackController;
 use App\Core\Payments\Http\Controllers\DeviceIntentController;
@@ -162,7 +163,8 @@ foreach (Dimensions::TYPES as $parameter => $model) {
 
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-03, AUTH-04, AUTH-09, AUTH-10.
 Route::prefix('auth')->group(function () {
-    Route::post('sign-up', SignUpController::class)->middleware('throttle:auth-ip');
+    // ONB-01: per IP, per email or phone number, and across the platform.
+    Route::post('sign-up', SignUpController::class)->middleware(['throttle:auth-ip', 'throttle:'.OnboardingServiceProvider::SIGN_UP_DESTINATION_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_GLOBAL_LIMITER]);
     Route::post('verify', [VerifyController::class, 'verify'])->middleware('throttle:auth-ip');
     Route::post('verify/resend', [VerifyController::class, 'resend'])->middleware('throttle:auth-ip');
     Route::post('sign-in', SignInController::class)->middleware(['throttle:auth-ip', 'throttle:auth-login']);

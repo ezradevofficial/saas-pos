@@ -50,7 +50,11 @@ Route::prefix('platform')->group(function () {
     });
 
     // ONB-08: a tenant created for a customer and handed over by invitation.
-    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->post('tenants', [AssistedTenantController::class, 'store']);
+    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->group(function () {
+        Route::post('tenants', [AssistedTenantController::class, 'store']);
+        Route::get('tenants/awaiting-handover', [AssistedTenantController::class, 'awaiting']);
+        Route::post('tenants/{tenant}/reinvite', [AssistedTenantController::class, 'reinvite'])->whereUuid('tenant');
+    });
 
     // Full access: a token issued after two-factor. Roles are checked by
     // each Form Request (catalogue.view: every role; catalogue.manage: owner, billing).

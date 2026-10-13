@@ -29,6 +29,9 @@ return [
     ],
 
     'errors' => [
+        'trial_ended' => 'Votre essai gratuit est terminé. Choisissez une offre pour réactiver des modules.',
+        'bundle_quoted' => 'L’offre Entreprise est chiffrée par notre équipe commerciale. Contactez-nous pour un devis, ou choisissez des modules ou une autre offre.',
+        'already_handed_over' => 'Le client a déjà accepté la propriété de cette entreprise. Aucune nouvelle invitation n’est nécessaire.',
         'sample_loaded' => 'Les données d’exemple sont déjà chargées. Retirez-les avant de les charger à nouveau.',
         'sample_not_loaded' => 'Il n’y a pas de données d’exemple à retirer.',
         'sample_in_use' => 'Impossible de retirer les données d’exemple : :count de vos propres enregistrements les utilisent. Modifiez d’abord ces enregistrements, puis réessayez.',
