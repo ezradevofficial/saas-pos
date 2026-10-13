@@ -24,7 +24,31 @@ class BillingInvoicePdf
     {
         $locale = in_array($locale, ['en', 'fr'], true) ? $locale : 'en';
 
-        return $this->pdf->pdf('sales.invoice', DefaultTemplates::for('sales.invoice', $locale), $this->data($invoice, $locale), false);
+        return $this->pdf->pdf('sales.invoice', $this->template($locale), $this->data($invoice, $locale), false);
+    }
+
+    /**
+     * The default A4 invoice, with the service period where a sales invoice
+     * prints its reference: that field is labelled for refunds ("Original
+     * receipt"), never right for a subscription period.
+     */
+    public function template(string $locale): array
+    {
+        $swap = function (array $node) use (&$swap): array {
+            if (($node['field'] ?? null) === 'document.reference') {
+                $node['field'] = 'document.period';
+            }
+
+            foreach ($node as $key => $child) {
+                if (is_array($child)) {
+                    $node[$key] = $swap($child);
+                }
+            }
+
+            return $node;
+        };
+
+        return $swap(DefaultTemplates::for('sales.invoice', $locale));
     }
 
     public function fileName(BillingInvoice $invoice): string
@@ -80,7 +104,7 @@ class BillingInvoicePdf
                 'date' => $invoice->issued_at->toDateString(),
                 'currency' => $currency,
                 'due_date' => $invoice->due_at->toDateString(),
-                'reference' => $invoice->period_start->toDateString().' – '.$invoice->period_end->subDay()->toDateString(),
+                'period' => $invoice->period_start->toDateString().' – '.$invoice->period_end->subDay()->toDateString(),
             ],
             'customer' => [
                 'name' => $customer['name'] ?? '',
