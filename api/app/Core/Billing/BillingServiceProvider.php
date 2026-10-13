@@ -12,7 +12,9 @@ use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Listeners\SettleBillingPayment;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Overage\SubscriptionAllowances;
+use App\Core\Billing\Subscriptions\BillingTillState;
 use App\Core\Billing\Subscriptions\BillingTrial;
+use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Notifications\EventTypes;
@@ -48,6 +50,8 @@ class BillingServiceProvider extends ServiceProvider
         $this->app->singleton(TrialStarter::class, BillingTrial::class);
         $this->app->singleton(TrialStatusProvider::class, BillingTrial::class);
         $this->app->singleton(TrialExpiry::class, BillingTrial::class);
+        // SUB-05: the till learns when selling stops through sync.
+        $this->app->singleton(TillSellingState::class, BillingTillState::class);
     }
 
     public function boot(): void

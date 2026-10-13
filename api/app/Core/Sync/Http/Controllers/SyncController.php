@@ -3,6 +3,7 @@
 namespace App\Core\Sync\Http\Controllers;
 
 use App\Core\Identity\Pin\Pins;
+use App\Core\Sync\Contracts\TillSellingState;
 use App\Core\Sync\DeviceScope;
 use App\Core\Sync\DeviceSecrets;
 use App\Core\Sync\DeviceSyncStatus;
@@ -25,7 +26,8 @@ use Illuminate\Http\JsonResponse;
  * (clock-skew check), the device and where it sits, the entities to pull
  * in order (key, mode, module, version) and the page sizes.
  * GET sync/pull: changes per entity since the device's cursors
- * (SyncPuller). Device secret rotation in three steps (DeviceSecrets):
+ * (SyncPuller). Both carry `subscription` (TillSellingState, SUB-05):
+ * when the POS stops selling. Device secret rotation in three steps (DeviceSecrets):
  * GET sync/device-secret/challenge, POST sync/device-secret/rotate,
  * POST sync/device-secret/activate.
  */
@@ -35,6 +37,7 @@ class SyncController
         private readonly SyncSources $sources,
         private readonly SyncPuller $puller,
         private readonly DeviceSyncStatus $status,
+        private readonly TillSellingState $selling,
     ) {}
 
     public function bootstrap(BootstrapRequest $request, SettingsSource $settings, DeviceSecrets $secrets): JsonResponse
@@ -59,6 +62,8 @@ class SyncController
             'page_size' => (int) config('sync.page_size'),
             'max_page_size' => (int) config('sync.max_page_size'),
             'pin' => ['scheme' => Pins::SCHEME, 'max_attempts' => Pins::maxAttempts()],
+            // SUB-05: when selling stops (the till stores it and checks its clock offline).
+            'subscription' => $this->selling->forTill(),
         ]);
     }
 
@@ -68,7 +73,7 @@ class SyncController
         $entities = $this->puller->pull(DeviceScope::of($device), $request->entities(), $request->cursors(), $request->limit());
         $this->status->recordPull($device);
 
-        return response()->json(['server_time' => self::now(), 'entities' => (object) $entities]);
+        return response()->json(['server_time' => self::now(), 'entities' => (object) $entities, 'subscription' => $this->selling->forTill()]);
     }
 
     public function secretChallenge(DeviceSecretChallengeRequest $request, DeviceSecrets $secrets): JsonResponse

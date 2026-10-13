@@ -45,6 +45,11 @@ class DunningTest extends TestCase
         return $this->postJson('/api/v1/pos/sales', ['sales' => []], ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])->getStatusCode();
     }
 
+    private function tillState(string $uri): TestResponse
+    {
+        return $this->getJson('/api/v1/'.$uri, ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])->assertOk();
+    }
+
     private function aWrite(): TestResponse
     {
         return $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Wanjiru', 'roles' => ['customer']], $this->headersFor());
@@ -91,6 +96,9 @@ class DunningTest extends TestCase
         $this->getJson('/api/v1/parties', $this->headersFor())->assertOk();
         $this->getJson('/api/v1/subscription', $this->headersFor())->assertOk();
         $this->assertNotSame(402, $this->posUpload());
+        // The till learns when selling stops, through bootstrap and every pull.
+        $this->tillState('sync/bootstrap')->assertJsonPath('subscription', ['status' => 'read_only', 'pos_stops_at' => '2026-12-11T06:00:00Z', 'pos_stopped' => false]);
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription.pos_stops_at', '2026-12-11T06:00:00Z');
         // No new invoice while read-only.
         $this->cycle('2027-01-02 06:00:00');
         $this->assertCount(2, $this->invoices());
@@ -100,6 +108,7 @@ class DunningTest extends TestCase
         $this->assertSame(402, $this->posUpload());
         $this->postJson('/api/v1/pos/sales', ['sales' => []], ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])
             ->assertJsonPath('code', 'subscription_pos_stopped');
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription.pos_stopped', true);
 
         // SUB-06: paying the open invoice restores everything at once.
         $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
@@ -107,6 +116,8 @@ class DunningTest extends TestCase
         $this->assertSame([Subscription::ACTIVE, null, null], [$subscription->status, $subscription->read_only_since, $subscription->pos_stops_at]);
         $this->aWrite()->assertCreated();
         $this->assertNotSame(402, $this->posUpload());
+        // The next sync tells the till it may sell again.
+        $this->tillState('sync/pull?entities[]=settings')->assertJsonPath('subscription', ['status' => 'active', 'pos_stops_at' => null, 'pos_stopped' => false]);
     }
 
     public function test_paying_after_the_period_ended_stays_active_through_the_next_cycles(): void
