@@ -263,6 +263,12 @@ export function PosProvider({ children }) {
        * now, and only while `saleId` (the sale the payment was started for) is still the cart.
        */
       addTender: (saleId, tender) => dispatch({ type: 'addTender', saleId, tender }),
+      /** LOY-27: a module's data on the current sale (coupons); resolves null or 'payment_locked'. */
+      setExtension(key, value) {
+        if (locked()) return PAYMENT_LOCKED;
+        dispatch({ type: 'ext', key, value });
+        return null;
+      },
       /** Resolves null, or 'mobile_paid' for a confirmed mobile-money tender (it is never removed). */
       removeTender(saleId, tenderId) {
         const tender = current().cart.tenders?.find((entry) => entry.id === tenderId);
@@ -370,7 +376,7 @@ export function PosProvider({ children }) {
     };
   }, [activeList, authorize, finishOverride, posStore, refreshHeld, refreshShift, selling]);
 
-  const computed = useMemo(() => (catalogue ? computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.day }) : null), [cart, catalogue]);
+  const computed = useMemo(() => (catalogue ? computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.day, catalogue }) : null), [cart, catalogue]);
   const cartValue = useMemo(() => ({ cart, computed }), [cart, computed]);
   const data = useMemo(
     () => ({ catalogue, shift, held, nextReceipt, overrideRequest, lastSale }),

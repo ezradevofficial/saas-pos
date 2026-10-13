@@ -33,7 +33,7 @@ export function overridePayload(override) {
  * (`amounts`), `payments` the tenders with their share in the sale
  * currency (`inDue`) and rate, `change` the tender result's change.
  */
-export function salePayload({ id, shiftId, cashierId, actorProof, customerId, number, soldAt, offline, currency, priceListId, lines, totals, payments, change, changeRate }) {
+export function salePayload({ id, shiftId, cashierId, actorProof, customerId, number, soldAt, offline, currency, priceListId, lines, totals, payments, change, changeRate, extensions }) {
   return clean({
     id,
     shift_id: shiftId,
@@ -66,6 +66,8 @@ export function salePayload({ id, shiftId, cashierId, actorProof, customerId, nu
         override: overridePayload(line.override),
         price_override: overridePayload(line.priceOverride),
         actor_proof: line.actorProof ?? undefined,
+        // LOY-27: the discount's provenance (a promotion), when a module vouched for part of it.
+        adjustments: line.amounts.adjustments?.length ? line.amounts.adjustments.map(({ source, reference, amount_minor }) => ({ source, reference, amount_minor })) : undefined,
       }),
     ),
     totals,
@@ -74,6 +76,7 @@ export function salePayload({ id, shiftId, cashierId, actorProof, customerId, nu
       change && BigInt(change.minor) > 0n
         ? clean({ currency: change.currency, amount_minor: String(change.minor), rate: change.currency === currency ? undefined : ratePayload(changeRate) })
         : undefined,
+    extensions: extensions && Object.keys(extensions).length ? extensions : undefined,
   });
 }
 
@@ -87,6 +90,8 @@ function tenderPayload(payment, saleCurrency) {
     rate: payment.currency === saleCurrency ? undefined : ratePayload(payment.rate),
     provider_reference: payment.reference || undefined,
     status: payment.status ?? undefined,
+    // LOY-27: the tender provider's reference (points, a gift card).
+    tender: payment.tender ?? undefined,
   });
 }
 

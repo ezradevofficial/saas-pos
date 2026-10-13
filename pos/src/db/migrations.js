@@ -101,5 +101,15 @@ export const migrations = schemaMigrations({
         createTable({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
       ],
     },
+    {
+      // Loyalty module (LOY-05, LOY-11, LOY-22): settings, promotions, balances and gift cards.
+      toVersion: 7,
+      steps: [
+        createTable({ name: 'loyalty_settings', columns: [data, seenAt] }),
+        createTable({ name: 'loyalty_promotions', columns: [data, seenAt] }),
+        createTable({ name: 'loyalty_members', columns: [{ name: 'customer_id', type: 'string', isIndexed: true }, { name: 'kind', type: 'string' }, data, seenAt] }),
+        createTable({ name: 'loyalty_gift_cards', columns: [{ name: 'code_hash', type: 'string', isIndexed: true }, data, seenAt] }),
+      ],
+    },
   ],
 });

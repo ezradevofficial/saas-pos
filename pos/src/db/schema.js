@@ -29,9 +29,13 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * screen's layout) and local `media_cache` (logos and category images
  * fetched from the server as data URIs, so they show offline).
  *
+ * v7 (Loyalty module, LOY-05, LOY-11, LOY-22): the synced `loyalty_settings`,
+ * `loyalty_promotions` (snapshots), `loyalty_members` (balances by
+ * customer) and `loyalty_gift_cards` (by code hash, never the code).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -134,6 +138,11 @@ export const schema = appSchema({
     tableSchema({ name: 'templates', columns: [data, seenAt] }),
     // v6: the sell screen's layout (LAY-05).
     tableSchema({ name: 'pos_layout', columns: [data, seenAt] }),
+    // v7: the Loyalty module's synced entities.
+    tableSchema({ name: 'loyalty_settings', columns: [data, seenAt] }),
+    tableSchema({ name: 'loyalty_promotions', columns: [data, seenAt] }),
+    tableSchema({ name: 'loyalty_members', columns: [{ name: 'customer_id', type: 'string', isIndexed: true }, { name: 'kind', type: 'string' }, data, seenAt] }),
+    tableSchema({ name: 'loyalty_gift_cards', columns: [{ name: 'code_hash', type: 'string', isIndexed: true }, data, seenAt] }),
     // v6: images by server path (data URIs), local only.
     tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 

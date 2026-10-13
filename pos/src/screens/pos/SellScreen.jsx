@@ -15,6 +15,7 @@ import { cn } from '../../lib/cn';
 import { FOCUS_RING } from '../../lib/focus';
 import { useLocale } from '../../lib/useLocale';
 import { filterTiles } from '../../pos/catalogue';
+import { cartPanelComponents } from '../../pos/extensions';
 import { initials, maskPhone } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { amountDueIn } from '../../pos/tender';
@@ -275,6 +276,12 @@ const SaleLineRow = memo(function SaleLineRow({ line, money, onStep, onOpen, lab
         </Text>
         <Text className="font-sans text-caption tabular-nums text-ink-muted">{unit}</Text>
         {line.discountMinor !== '0' ? <Text className="font-sans text-caption tabular-nums text-accent-ink">{labels.discount(money(line.discountMinor, line.currency))}</Text> : null}
+        {/* LOY-11: discounts a module vouches for (promotions), with their name. */}
+        {(line.amounts.adjustments ?? []).map((adjustment) => (
+          <Text key={`${adjustment.source}:${adjustment.reference}`} className="font-sans text-caption tabular-nums text-primary">
+            {labels.adjustment(adjustment.label, money(adjustment.amount_minor, line.currency))}
+          </Text>
+        ))}
         {blocked ? <StatusBadge tone="danger">{labels.blocked(blocked)}</StatusBadge> : null}
       </Pressable>
       {/* The total sits over the stepper so a narrow sale panel still leaves room for the name. */}
@@ -311,6 +318,7 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
       less: t('pos.sale.less'),
       more: t('pos.sale.more'),
       discount: (amount) => t('pos.sale.lineDiscount', { amount }),
+      adjustment: (name, amount) => (name ? t('pos.sale.lineAdjustment', { name, amount }) : t('pos.sale.lineAdjustmentUnnamed', { amount })),
       blocked: (reason) => reasonText(reason),
     }),
     [reasonText, t],
@@ -367,6 +375,9 @@ export function SalePanel({ onPay, onCustomer, onLine, className }) {
             <Text className="font-sans text-body-lg text-primary">{t('pos.sale.addCustomer')}</Text>
           )}
         </Pressable>
+        {cartPanelComponents().map(([key, Panel]) => (
+          <Panel key={key} />
+        ))}
         <FlatList
           data={lines}
           keyExtractor={(line) => line.id}

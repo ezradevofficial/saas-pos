@@ -2,6 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 import { setCurrencyDecimals } from '../lib/money';
 import { localDate, resolvePrice } from '../sync/prices';
 import { createCurrencies } from './currency';
+import { loadCatalogueExtensions } from './extensions';
 import { CATEGORY_COLOURS, mergeLayout, orderTiles } from './layout';
 import { taxRateFor, TaxRateNeeded } from './tax';
 
@@ -39,11 +40,13 @@ export async function loadCatalogue({ database, now = Date.now() }) {
   // CUR-01: amounts on screen use the tenant's decimals.
   setCurrencyDecimals(currencies);
   const layout = layouts.find((row) => row.id === 'layout') ?? null;
-  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layout, now });
+  // LOY-27: modules' data (extensions.js), reloaded with the catalogue after every pull.
+  const ext = await loadCatalogueExtensions(database, { settings, categories });
+  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layout, ext, now });
 }
 
 /** The catalogue from plain rows (tests build it directly). */
-export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], layout: layoutRow = null, now = Date.now() }) {
+export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], layout: layoutRow = null, ext = {}, now = Date.now() }) {
   const timeZone = settings?.timezone ?? 'UTC';
   // POS-11, MD-03: tax rates and prices take effect by the company's day (TaxCode::localDate,
   // PriceResolver), which may differ from the branch zone used for times on screen and receipts.
@@ -157,6 +160,7 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
     staff,
     priceFor,
     salesUom,
+    ext,
   };
 }
 
