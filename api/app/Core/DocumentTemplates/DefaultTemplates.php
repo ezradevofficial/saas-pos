@@ -23,9 +23,23 @@ final class DefaultTemplates
             'language' => $language,
             'blocks' => match (true) {
                 $type === 'pos.receipt' || $type === 'pos.refund_receipt' => self::receipt($type),
+                $type === 'inventory.label' => self::label(),
                 default => self::a4($type),
             },
             'variants' => [],
+        ];
+    }
+
+    /** INV-21: a shelf label: the item's name, price and barcode, its code and batch. */
+    private static function label(): array
+    {
+        return [
+            ['id' => 'name', 'type' => 'text', 'text' => '{{document.item_name}}', 'align' => 'center', 'size' => 'normal', 'weight' => 'medium'],
+            ['id' => 'price', 'type' => 'field', 'field' => 'document.price', 'label' => false],
+            ['id' => 'barcode', 'type' => 'barcode', 'content' => '{{document.barcode}}'],
+            ['id' => 'code', 'type' => 'text', 'text' => '{{document.item_code}} · {{document.unit}}', 'align' => 'center', 'size' => 'small', 'weight' => 'regular'],
+            ['id' => 'batch', 'type' => 'field', 'field' => 'document.batch', 'label' => true],
+            ['id' => 'expiry', 'type' => 'field', 'field' => 'document.expires_on', 'label' => true],
         ];
     }
 

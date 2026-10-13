@@ -4,6 +4,7 @@ namespace Modules\Inventory\Models;
 
 use App\Core\Audit\Audited;
 use App\Core\MasterData\Items\Item;
+use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -12,15 +13,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * INV-02: an item sold as a variant of a parent item, with its attribute
  * values (`{"size": "M", "colour": "Red"}`). Audited as
- * `inventory.variant.*` (INV-24).
+ * `inventory.variant.*` (INV-24). An unlinked variant's row is archived.
  *
  * @property string $item_id
  * @property string $parent_item_id
- * @property array<string, string> $attributes
+ * @property array<string, string> $attribute_values
  */
 class Variant extends Model
 {
-    use Audited, BelongsToTenant, HasUuids;
+    use Archivable, Audited, BelongsToTenant, HasUuids;
 
     protected $table = 'inventory_variants';
 
@@ -28,11 +29,11 @@ class Variant extends Model
 
     protected string $auditResource = 'variant';
 
-    protected $fillable = ['item_id', 'parent_item_id', 'attributes'];
+    protected $fillable = ['item_id', 'parent_item_id', 'attribute_values'];
 
     protected function casts(): array
     {
-        return ['attributes' => 'array'];
+        return ['attribute_values' => 'array'];
     }
 
     public function item(): BelongsTo

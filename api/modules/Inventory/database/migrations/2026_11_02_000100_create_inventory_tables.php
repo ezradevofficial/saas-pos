@@ -67,14 +67,16 @@ return new class extends Migration
             $table->tenantId();
             $table->foreignUuid('item_id')->constrained()->restrictOnDelete();
             $table->foreignUuid('parent_item_id')->constrained('items')->restrictOnDelete();
-            $table->jsonb('attributes');
+            $table->jsonb('attribute_values');
+            // Unlinked links are archived, never deleted (TEN-06).
+            $table->timestampTz('archived_at')->nullable();
             $table->timestampsTz();
 
-            $table->unique(['tenant_id', 'item_id']);
             $table->index(['tenant_id', 'parent_item_id']);
         });
-        DB::statement("alter table inventory_variants add constraint inventory_variants_attributes_check check (jsonb_typeof(attributes) = 'object' and item_id <> parent_item_id)");
-        DB::statement('create unique index inventory_variants_unique_attributes on inventory_variants (tenant_id, parent_item_id, attributes)');
+        DB::statement("alter table inventory_variants add constraint inventory_variants_attributes_check check (jsonb_typeof(attribute_values) = 'object' and item_id <> parent_item_id)");
+        DB::statement('create unique index inventory_variants_one_active on inventory_variants (tenant_id, item_id) where archived_at is null');
+        DB::statement('create unique index inventory_variants_unique_attributes on inventory_variants (tenant_id, parent_item_id, attribute_values) where archived_at is null');
         Rls::enable('inventory_variants');
 
         // INV-06: batches of an item, numbers unique per item ignoring case.
@@ -209,8 +211,12 @@ return new class extends Migration
             create trigger inventory_movement_serials_no_truncate before truncate on inventory_movement_serials
                 for each statement execute function inventory_ledger_append_only();
             SQL);
+        // Deletes are taken back from the runtime role too. UPDATE stays granted
+        // only because row locks (`select … for update`, which an import undo
+        // takes on the rows it created) need it; the trigger refuses every
+        // actual update, for every role.
         $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
-        DB::statement("revoke update, delete, truncate on inventory_movements, inventory_movement_serials from {$runtimeRole}");
+        DB::statement("revoke delete, truncate on inventory_movements, inventory_movement_serials from {$runtimeRole}");
 
         // INV-12: what a company holds of an item and its value.
         Schema::create('inventory_cost_states', function (Blueprint $table) use ($qty) {
@@ -291,6 +297,9 @@ return new class extends Migration
             $userRef($table, 'received_by');
             $table->timestampTz('received_at')->nullable();
             $table->text('loss_reason')->nullable();
+            // WF-04, APR-04: the value at the company's cost when asked (conditions, the inbox).
+            $table->bigInteger('value_minor')->nullable();
+            $table->char('currency', 3)->nullable();
             $userRef($table, 'cancelled_by');
             $table->timestampTz('cancelled_at')->nullable();
             $table->text('cancel_reason')->nullable();
@@ -338,6 +347,12 @@ return new class extends Migration
             $userRef($table, 'decided_by');
             $table->timestampTz('decided_at')->nullable();
             $table->timestampTz('posted_at')->nullable();
+            // Approved but not posted (stock moved meanwhile): the error code.
+            $table->string('failure', 40)->nullable();
+            // WF-04, APR-04: the value in and out at the company's cost when asked.
+            $table->bigInteger('value_in_minor')->nullable();
+            $table->bigInteger('value_out_minor')->nullable();
+            $table->char('currency', 3)->nullable();
             $userRef($table, 'cancelled_by');
             $table->timestampTz('cancelled_at')->nullable();
             $table->text('cancel_reason')->nullable();
@@ -345,7 +360,7 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'location_id', 'created_at']);
         });
-        DB::statement("alter table inventory_adjustments add constraint inventory_adjustments_status_check check (status in ('pending', 'posted', 'rejected', 'cancelled') and reason in ('damage', 'expiry', 'theft', 'found', 'correction', 'internal_use', 'other'))");
+        DB::statement("alter table inventory_adjustments add constraint inventory_adjustments_status_check check (status in ('pending', 'posted', 'rejected', 'cancelled', 'failed') and reason in ('damage', 'expiry', 'theft', 'found', 'correction', 'internal_use', 'other'))");
         Rls::enable('inventory_adjustments');
 
         Schema::create('inventory_adjustment_lines', function (Blueprint $table) use ($qty) {
@@ -390,6 +405,10 @@ return new class extends Migration
             $userRef($table, 'decided_by');
             $table->timestampTz('decided_at')->nullable();
             $table->timestampTz('posted_at')->nullable();
+            // WF-04, APR-04: the variance's value at submission (gains and losses, both positive).
+            $table->bigInteger('gain_minor')->nullable();
+            $table->bigInteger('loss_minor')->nullable();
+            $table->char('currency', 3)->nullable();
             $userRef($table, 'cancelled_by');
             $table->timestampTz('cancelled_at')->nullable();
             $table->text('cancel_reason')->nullable();

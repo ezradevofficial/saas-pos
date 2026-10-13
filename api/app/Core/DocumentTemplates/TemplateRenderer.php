@@ -78,6 +78,27 @@ final class TemplateRenderer
             .'<body><div class="doc">'.$this->blocks($blocks, false).'</div></body></html>';
     }
 
+    /**
+     * Several documents of one type as one HTML page set, each on its own
+     * page (INV-21: a sheet of labels), with the same template.
+     *
+     * @param  list<array>  $pages  each document's data
+     */
+    public function htmlPages(string $type, array $template, array $pages, bool $fiscalRequired, ?float $heightMm = null): string
+    {
+        $head = '';
+        $bodies = [];
+
+        foreach ($pages as $data) {
+            $html = $this->html($type, $template, $data, $fiscalRequired, $heightMm);
+            $start = strpos($html, '<body>');
+            $head = substr($html, 0, $start);
+            $bodies[] = substr($html, $start + strlen('<body>'), -strlen('</body></html>'));
+        }
+
+        return $head.'<body>'.implode('<div style="page-break-before: always"></div>', $bodies).'</body></html>';
+    }
+
     /** The app's printed wording in both languages (TPL-02). */
     public static function printLabels(): array
     {

@@ -29,6 +29,27 @@ class DocumentOutput
         return app(PdfRenderer::class)->pdf($document->type, $template, $document->data, $required);
     }
 
+    /**
+     * INV-21: several documents of one type at one place, a page each, with
+     * the template that applies to the first.
+     *
+     * @param  non-empty-list<DocumentData>  $documents
+     */
+    public function htmlPages(array $documents): string
+    {
+        [$template, $required] = $this->prepare($documents[0]);
+
+        return app(TemplateRenderer::class)->htmlPages($documents[0]->type, $template, array_map(fn (DocumentData $d) => $d->data, $documents), $required);
+    }
+
+    /** @param non-empty-list<DocumentData> $documents */
+    public function pdfPages(array $documents): string
+    {
+        [$template, $required] = $this->prepare($documents[0]);
+
+        return app(PdfRenderer::class)->pdfPages($documents[0]->type, $template, array_map(fn (DocumentData $d) => $d->data, $documents), $required);
+    }
+
     /** @return array{0: array, 1: bool} */
     private function prepare(DocumentData $document): array
     {
