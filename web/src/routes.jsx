@@ -12,6 +12,14 @@ import {
   DIMENSION_VIEW,
   EXCHANGE_RATE_VIEW,
   FISCAL_VIEW,
+  INVENTORY_ADJUSTMENT_VIEW,
+  INVENTORY_COUNT_VIEW,
+  INVENTORY_LABEL_PRINT,
+  INVENTORY_REORDER_VIEW,
+  INVENTORY_SETTINGS_VIEW,
+  INVENTORY_STOCK_VIEW,
+  INVENTORY_TRANSFER_VIEW,
+  INVENTORY_VALUATION_VIEW,
   ITEM_VIEW,
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
@@ -63,6 +71,22 @@ import { OnboardingLayout } from './pages/onboarding/OnboardingLayout'
 import { SetupOverview, SetupStep } from './pages/onboarding/Setup'
 import Welcome from './pages/onboarding/Welcome'
 import Inbox from './pages/notifications/Inbox'
+import AdjustmentDetail from './pages/inventory/AdjustmentDetail'
+import AdjustmentForm from './pages/inventory/AdjustmentForm'
+import Adjustments from './pages/inventory/Adjustments'
+import CountDetail from './pages/inventory/CountDetail'
+import CountForm from './pages/inventory/CountForm'
+import Counts from './pages/inventory/Counts'
+import InventorySettings from './pages/inventory/InventorySettings'
+import ItemStock from './pages/inventory/ItemStock'
+import Labels from './pages/inventory/Labels'
+import Movements from './pages/inventory/Movements'
+import ReorderRules from './pages/inventory/ReorderRules'
+import StockOnHand from './pages/inventory/StockOnHand'
+import TransferDetail from './pages/inventory/TransferDetail'
+import TransferForm from './pages/inventory/TransferForm'
+import Transfers from './pages/inventory/Transfers'
+import Valuation from './pages/inventory/Valuation'
 import NotFound from './pages/NotFound'
 import Held from './pages/pos/Held'
 import SaleDetail from './pages/pos/SaleDetail'
@@ -221,6 +245,25 @@ export const routes = [
         ['/pos/shifts', POS_SHIFT_VIEW, <Shifts key="pos-shifts" />],
         ['/pos/shifts/:shiftId', POS_SHIFT_VIEW, <ShiftDetail key="pos-shift" />],
         ['/pos/held', POS_HELD_VIEW, <Held key="pos-held" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // INV-19, docs/modules/inventory.md (Screens): the Inventory back office (the API answers 403 module_inactive without the module).
+      ...[
+        ['/inventory/stock', INVENTORY_STOCK_VIEW, <StockOnHand key="inventory-stock" />],
+        ['/inventory/items/:itemId', INVENTORY_STOCK_VIEW, <ItemStock key="inventory-item" />],
+        ['/inventory/movements', INVENTORY_STOCK_VIEW, <Movements key="inventory-movements" />],
+        ['/inventory/transfers', INVENTORY_TRANSFER_VIEW, <Transfers key="inventory-transfers" />],
+        ['/inventory/transfers/new', 'inventory.transfer.create', <TransferForm key="inventory-transfer-new" />],
+        ['/inventory/transfers/:transferId', INVENTORY_TRANSFER_VIEW, <TransferDetail key="inventory-transfer" />],
+        ['/inventory/adjustments', INVENTORY_ADJUSTMENT_VIEW, <Adjustments key="inventory-adjustments" />],
+        ['/inventory/adjustments/new', 'inventory.adjustment.create', <AdjustmentForm key="inventory-adjustment-new" />],
+        ['/inventory/adjustments/:adjustmentId', INVENTORY_ADJUSTMENT_VIEW, <AdjustmentDetail key="inventory-adjustment" />],
+        ['/inventory/counts', INVENTORY_COUNT_VIEW, <Counts key="inventory-counts" />],
+        ['/inventory/counts/new', 'inventory.count.create', <CountForm key="inventory-count-new" />],
+        ['/inventory/counts/:countId', INVENTORY_COUNT_VIEW, <CountDetail key="inventory-count" />],
+        ['/inventory/reorder', INVENTORY_REORDER_VIEW, <ReorderRules key="inventory-reorder" />],
+        ['/inventory/valuation', INVENTORY_VALUATION_VIEW, <Valuation key="inventory-valuation" />],
+        ['/inventory/labels', INVENTORY_LABEL_PRINT, <Labels key="inventory-labels" />],
+        ['/inventory/settings', INVENTORY_SETTINGS_VIEW, <InventorySettings key="inventory-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },

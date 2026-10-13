@@ -107,11 +107,12 @@ async function request(method, path, body) {
 
 /**
  * A file from the API (e.g. the access review CSV) with the bearer token:
- * `{ blob, filename }`, the name from Content-Disposition.
+ * `{ blob, filename }`, the name from Content-Disposition. A file made from
+ * a request body (barcode labels, INV-21) is fetched with `{ method: 'POST', body }`.
  */
-async function download(path) {
+async function download(path, { method = 'GET', body } = {}) {
   const token = getToken()
-  const response = await send('GET', path, undefined, headersFor())
+  const response = await send(method, path, body, headersFor(body))
   if (response.ok) {
     const disposition = response.headers.get('Content-Disposition') ?? ''
     const filename = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1] ?? null

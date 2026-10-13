@@ -9,6 +9,15 @@ import {
   ArrowUp,
   Bell,
   Bookmark,
+  Barcode,
+  Boxes,
+  ArrowDownUp,
+  ArrowRightLeft,
+  Calculator,
+  ClipboardCheck,
+  PackageMinus,
+  Settings2,
+  TrendingDown,
   Building2,
   Eye,
   EyeOff,
@@ -177,6 +186,16 @@ const ICONS = {
   resize: MoveDiagonal2,
   views: Bookmark,
   layouts: PanelsTopLeft,
+  // Inventory module (docs/modules/inventory.md).
+  stock: Boxes,
+  movements: ArrowDownUp,
+  transfers: ArrowRightLeft,
+  counts: ClipboardCheck,
+  adjustments: PackageMinus,
+  reorder: TrendingDown,
+  valuation: Calculator,
+  labels: Barcode,
+  settings: Settings2,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */
