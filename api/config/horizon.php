@@ -284,6 +284,21 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // EXP-02: full tenant exports, one at a time per process, on their
+        // own connection (retry_after above the hour-long timeout).
+        'supervisor-exports' => [
+            'connection' => 'redis-exports',
+            'queue' => [env('DATA_EXPORT_QUEUE', 'exports')],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 50,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => (int) env('DATA_EXPORT_TIMEOUT', 3600),
+            'nice' => 10,
+        ],
     ],
 
     // The first matching name wins: `local` first, then every other
@@ -295,6 +310,7 @@ return [
             'supervisor-automation' => ['maxProcesses' => 1],
             'supervisor-payments' => ['maxProcesses' => 1],
             'supervisor-fiscal' => ['maxProcesses' => 1],
+            'supervisor-exports' => ['maxProcesses' => 1],
         ],
 
         '*' => [
@@ -303,6 +319,7 @@ return [
             'supervisor-automation' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-payments' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-fiscal' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
+            'supervisor-exports' => ['maxProcesses' => 2],
         ],
     ],
 

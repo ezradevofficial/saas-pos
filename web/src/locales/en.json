@@ -384,7 +384,8 @@
     "documentTemplates": "Document templates",
     "posLayout": "POS layout",
     "formLayouts": "Form layouts",
-    "formTypes": "Forms"
+    "formTypes": "Forms",
+    "dataExport": "Data export"
   },
   "shell": {
     "account": "Account menu",
@@ -5053,6 +5054,50 @@
       "numbering": "Numbering",
       "flow": "Approval flow",
       "open": "Open the forms"
+    }
+  },
+  "dataExport": {
+    "title": "Data export",
+    "description": "Download a complete copy of your organisation’s data, in a format other systems can read.",
+    "request": {
+      "title": "Request an export",
+      "text": "We prepare the export in the background and tell you when it is ready. Only you can download it, and the file is deleted after {{days}} days.",
+      "action": "Request export",
+      "limit": "Up to {{count}} exports in 24 hours, one at a time."
+    },
+    "preparing": "Your export is being prepared. This page updates when it is ready.",
+    "contents": {
+      "title": "What the export contains",
+      "included": "Included",
+      "tables": "Every record of your organisation, one JSON Lines file per table",
+      "files": "Your files: item images, logos, attachments and custom field files",
+      "manifest": "A manifest listing each table with its row count and a SHA-256 checksum per file",
+      "excluded": "Left out",
+      "secrets": "Secrets: password and PIN hashes, two-step sign-in secrets, device secrets, payment and tax authority credentials, webhook secrets and link tokens",
+      "sessions": "Sign-in sessions and one-time codes"
+    },
+    "past": {
+      "title": "Past exports",
+      "empty": "No exports yet."
+    },
+    "requestedAt": "Requested {{when}}",
+    "by": "by {{name}}",
+    "expires": "available until {{when}}",
+    "failedText": "it could not be prepared; request a new one",
+    "download": "Download",
+    "downloadFor": "Download the export requested {{when}}",
+    "status": {
+      "queued": "Waiting",
+      "running": "Preparing",
+      "ready": "Ready",
+      "failed": "Failed",
+      "expired": "Expired"
+    },
+    "tooLarge": "it was larger than an export may be; contact support",
+    "confirm": {
+      "title": "Confirm with your password",
+      "text": "The export holds all of your organisation’s data. Enter your password to request it.",
+      "password": "Your password"
     }
   }
 }

@@ -38,3 +38,6 @@ Schedule::command('fiscal:process')->everyMinute()->withoutOverlapping()->onOneS
 
 // BR-05: custom domains waiting for their DNS TXT record.
 Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->onOneServer();
+
+// EXP-02: full tenant exports past their expiry (files deleted after 7 days) and builds a dead worker left behind.
+Schedule::command('exports:expire')->hourly()->withoutOverlapping()->onOneServer();
