@@ -2,10 +2,10 @@
 
 namespace App\Core\Billing\Operator;
 
-use App\Core\Platform\PlatformDatabase;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\Subscription;
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Models\TenantModule;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;

@@ -236,6 +236,48 @@ Decided (phase 4 Task 3 review):
   `stk` only for an M-Pesa method on the Daraja adapter with every
   required key (sync entity version 2).
 
+## The platform's own billing (SUB-03, SUB-04, ADR 016)
+
+The platform sells itself through the **operator tenant**
+(`php artisan platform:operator --country=KE --country=CD`, once per
+environment, on the runtime connection). Its companies are the selling
+entities. Enter their details the way any business does:
+
+1. **Company details**: legal name, KRA PIN or NIF (`tax_id`), address.
+2. **Fiscal settings** (eTIMS in Kenya, DGI in the DRC), as described
+   above. Platform invoices are fiscal source `billing`, sent by the same
+   queue.
+3. **Tax**: `BILLING_TAX_CODE_KE` and `BILLING_TAX_CODE_CD` (default
+   `VAT_STD`) name the company tax code the invoices carry. Its rate is
+   the company's own effective-dated rate. **Owner input**: confirm that
+   prices are tax-inclusive, and enter the rate. Until then, the tax is
+   left out and the invoices are held for attention.
+4. **Payment methods** of the operator companies:
+   - **M-Pesa**: the operator's Daraja method (above); `BILLING_DRIVER_MPESA_KE` overrides the adapter;
+   - **Airtel Money** (KE, CD), **Orange Money** (CD) and **Afrimoney** (CD), adapters `airtel_money`, `orange_money` and `afrimoney`;
+   - **cards**, through a generic hosted checkout (adapter `card_hosted`).
+   The wallet and card adapters report themselves unconfigured until
+   their merchant APIs are chosen.
+
+| Variable | What | Default |
+| --- | --- | --- |
+| `BILLING_DRIVER_MPESA_KE`, `BILLING_DRIVER_AIRTEL_KE`, `BILLING_DRIVER_AIRTEL_CD`, `BILLING_DRIVER_ORANGE_CD`, `BILLING_DRIVER_AFRIMONEY_CD`, `BILLING_DRIVER_CARD` | The adapter collecting each provider for the operator | `fake` in local and testing; otherwise the real adapter (M-Pesa: the method's Daraja adapter) |
+| `AIRTEL_MONEY_BASE_URL`, `AIRTEL_MONEY_CLIENT_ID`, `AIRTEL_MONEY_CLIENT_SECRET` | Airtel Money merchant API | owner input |
+| `ORANGE_MONEY_BASE_URL`, `ORANGE_MONEY_MERCHANT_KEY`, `ORANGE_MONEY_CLIENT_SECRET` | Orange Money merchant API | owner input |
+| `AFRIMONEY_BASE_URL`, `AFRIMONEY_MERCHANT_ID`, `AFRIMONEY_API_KEY` | Afrimoney merchant API | owner input |
+| `BILLING_CARD_BASE_URL`, `BILLING_CARD_MERCHANT_ID`, `BILLING_CARD_API_KEY` | Hosted card checkout: card details stay on the provider's page; the platform keeps only its token | owner input |
+
+- **Bank transfer** (Enterprise): platform staff with the billing role mark
+  the invoice paid in the console, with the bank's reference.
+- **Platform settings** in the console: grace period (7 days), POS window
+  (3 days) and trial length (14 days).
+- **Scheduler**:
+  - `billing:cycle` runs hourly: reminders, renewals, past due and read-only;
+  - `billing:purge-report` runs daily: switched-off module data past 12 months, reported to staff and never deleted.
+
+  Both get their tenant ids from security-definer functions and never use
+  the owner's credentials.
+
 ## Branding: tenant hosts, custom domains and email (BR-04 to BR-07)
 
 Code in `api/app/Core/Branding`. A tenant reaches the web app on its

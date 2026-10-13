@@ -2,7 +2,6 @@
 
 namespace App\Core\Billing\Invoicing;
 
-use App\Core\Platform\PlatformDatabase;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Models\BillingInvoice;
@@ -14,6 +13,7 @@ use App\Core\Fiscal\FiscalQueue;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Numbering\NumberContext;
 use App\Core\Numbering\Numbering;
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;

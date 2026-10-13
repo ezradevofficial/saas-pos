@@ -7,6 +7,7 @@ use App\Core\Billing\Models\Subscription;
 use App\Core\Tenancy\Models\Device;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Concerns\ResetsPlatformTables;
@@ -41,7 +42,7 @@ class DunningTest extends TestCase
         return $this->postJson('/api/v1/pos/sales', ['sales' => []], ['Authorization' => 'Bearer '.$this->tillToken, 'Accept' => 'application/json'])->getStatusCode();
     }
 
-    private function aWrite(): \Illuminate\Testing\TestResponse
+    private function aWrite(): TestResponse
     {
         return $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Wanjiru', 'roles' => ['customer']], $this->headersFor());
     }

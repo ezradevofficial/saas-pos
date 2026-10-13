@@ -2,7 +2,6 @@
 
 namespace App\Core\Billing\Subscriptions;
 
-use App\Core\Platform\PlatformDatabase;
 use App\Core\Audit\Auditor;
 use App\Core\Billing\Catalogue\Catalogue;
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
@@ -21,6 +20,7 @@ use App\Core\Billing\PlatformSettings;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\UsageLimits;
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;

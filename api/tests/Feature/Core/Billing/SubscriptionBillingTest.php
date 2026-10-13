@@ -6,23 +6,27 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\BillingPayment;
+use App\Core\Billing\Models\BillingPaymentMethod;
 use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
+use App\Core\Billing\Payments\BillingPayments;
+use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\UsageLimits;
-use App\Core\Tenancy\Models\Device;
 use App\Core\Limits\UsageOverage;
 use App\Core\Limits\UsageOverageLine;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRates;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Platform\PlatformDatabase;
-use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Models\TenantModule;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Company;
+use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsBilling;
@@ -263,7 +267,7 @@ class SubscriptionBillingTest extends TestCase
         // A second coupon is refused; the used-up coupon is refused to another tenant.
         $this->postJson('/api/v1/subscription/quote', $plan, $this->headersFor())->assertStatus(422)->assertJsonPath('code', 'coupon_already_applied');
         $other = $this->otherTenant();
-        $this->asTenant($other['user']->tenant_id, fn () => app(\App\Core\Billing\Subscriptions\Subscriptions::class)->startTrial('KE', self::STARTER));
+        $this->asTenant($other['user']->tenant_id, fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
         $this->postJson('/api/v1/subscription/quote', $plan, $this->headersFor($other['user']))->assertStatus(422)->assertJsonPath('code', 'coupon_invalid');
         $this->assertSame(1, (int) PlatformDatabase::connection()->table('catalogue_coupons')->where('code', 'LAUNCH-2026')->value('redemptions'));
     }
@@ -272,7 +276,7 @@ class SubscriptionBillingTest extends TestCase
     {
         $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
         $other = $this->otherTenant();
-        $this->asTenant($other['user']->tenant_id, fn () => app(\App\Core\Billing\Subscriptions\Subscriptions::class)->startTrial('KE', self::STARTER));
+        $this->asTenant($other['user']->tenant_id, fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
         $theirs = $this->headersFor($other['user']);
 
         $this->getJson("/api/v1/subscription/invoices/{$invoice}", $theirs)->assertNotFound();
@@ -315,7 +319,7 @@ class SubscriptionBillingTest extends TestCase
         $card = $this->postJson('/api/v1/subscription/payment-methods/card/complete', ['reference' => $query['card_setup']], $this->headersFor())
             ->assertCreated()->assertJsonPath('data.label', 'Card •••• 4242')->assertJsonPath('data.is_default', false);
         $this->postJson('/api/v1/subscription/payment-methods/card/complete', ['reference' => $query['card_setup']], $this->headersFor())->assertStatus(422);
-        $this->assertStringStartsWith('fake_tok_', $this->inTenant(fn () => \App\Core\Billing\Models\BillingPaymentMethod::query()->findOrFail($card->json('data.id'))->token));
+        $this->assertStringStartsWith('fake_tok_', $this->inTenant(fn () => BillingPaymentMethod::query()->findOrFail($card->json('data.id'))->token));
         $this->postJson('/api/v1/subscription/payment-methods/'.$card->json('data.id').'/default', [], $this->headersFor())->assertOk()->assertJsonPath('data.is_default', true);
 
         // At the trial end the first invoice is issued and the saved card is charged at once.
@@ -331,12 +335,12 @@ class SubscriptionBillingTest extends TestCase
         $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
         $operatorInvoiceId = $this->inTenant(fn () => BillingInvoice::query()->findOrFail($invoice)->operator_invoice_id);
 
-        $payments = app(\App\Core\Billing\Payments\BillingPayments::class);
+        $payments = app(BillingPayments::class);
         $payments->markPaid($this->operatorInvoice($operatorInvoiceId), 'bank_transfer', 'BANK-REF-77');
 
         $this->assertSame(['paid', 'bank_transfer', 'BANK-REF-77'], [$this->operatorInvoice($operatorInvoiceId)->status, $this->operatorInvoice($operatorInvoiceId)->paid_via, $this->operatorInvoice($operatorInvoiceId)->payment_reference]);
         $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
-        app(\App\Core\Tenancy\TenantContext::class)->set(null);
+        app(TenantContext::class)->set(null);
         $this->assertSame(0, (int) DB::table('billing_invoices')->count(), 'outside any tenant the copies are invisible');
     }
 }

@@ -109,6 +109,9 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
 | `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `domains:verify` (BR-05) | active tenants with a pending claim, a verified domain due for its daily re-check, or a claim failed for 7 days |
+| `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
+| `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
+| `app_operator_tenant_id()` | billing (ADR 016) | the operator tenant, the platform's seller (at most one) |
 
 They follow the same rules as the lookups above: `security definer`, `search_path` pinned, schema-qualified names, revoked from `PUBLIC`, granted to the runtime role, and they return `setof uuid`, never a row. `DueTenantsTest` checks each of these properties. Each command then dispatches one job per tenant, and the job does the work in that tenant's context under row-level security.
 

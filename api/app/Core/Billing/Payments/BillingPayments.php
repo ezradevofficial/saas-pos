@@ -96,28 +96,28 @@ class BillingPayments
 
         try {
             $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id) {
-            $operatorInvoice = OperatorInvoice::query()->findOrFail($invoice->operator_invoice_id);
+                $operatorInvoice = OperatorInvoice::query()->findOrFail($invoice->operator_invoice_id);
 
-            if ($operatorInvoice->customer_tenant_id !== $customerId || ! $operatorInvoice->isOpen()) {
-                throw new ApiException(422, 'invoice_not_open', __('billing.errors.invoice_not_open'));
-            }
+                if ($operatorInvoice->customer_tenant_id !== $customerId || ! $operatorInvoice->isOpen()) {
+                    throw new ApiException(422, 'invoice_not_open', __('billing.errors.invoice_not_open'));
+                }
 
-            [$method, $driver] = $this->collector($operatorInvoice->company_id, $provider);
-            $card = $provider === self::CARD;
+                [$method, $driver] = $this->collector($operatorInvoice->company_id, $provider);
+                $card = $provider === self::CARD;
 
-            return $this->intents->request($method, $driver, [
-                'id' => $id,
-                'company_id' => $operatorInvoice->company_id,
-                'payment_method_id' => $method->id,
-                'provider' => $provider,
-                'purpose' => 'sale',
-                'mode' => $card ? 'checkout' : 'stk',
-                'currency' => $operatorInvoice->currency,
-                'amount_minor' => $operatorInvoice->total_minor,
-                'phone' => $phone,
-                'reference_type' => Invoicing::REFERENCE_TYPE,
-                'reference' => $operatorInvoice->id,
-            ], $token !== null && $driver instanceof HostedCheckout ? fn (PaymentIntent $intent) => $driver->charge($intent, $method, $token) : null);
+                return $this->intents->request($method, $driver, [
+                    'id' => $id,
+                    'company_id' => $operatorInvoice->company_id,
+                    'payment_method_id' => $method->id,
+                    'provider' => $provider,
+                    'purpose' => 'sale',
+                    'mode' => $card ? 'checkout' : 'stk',
+                    'currency' => $operatorInvoice->currency,
+                    'amount_minor' => $operatorInvoice->total_minor,
+                    'phone' => $phone,
+                    'reference_type' => Invoicing::REFERENCE_TYPE,
+                    'reference' => $operatorInvoice->id,
+                ], $token !== null && $driver instanceof HostedCheckout ? fn (PaymentIntent $intent) => $driver->charge($intent, $method, $token) : null);
             });
         } catch (\Throwable $e) {
             // Never left pending: the request did not start.
