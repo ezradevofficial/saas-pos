@@ -104,3 +104,8 @@ registerEntity('pos_open_shift', { table: 'pos_open_shift' });
 registerEntity('pos_layout', { table: 'pos_layout' });
 // TPL-01, TPL-05: the receipt templates of the till's branch (snapshot).
 registerEntity('templates', { table: 'templates' });
+
+// The Inventory module's stock on hand at this till's location (INV-17,
+// served only while the tenant has Inventory): shown on the tiles, never
+// used to refuse a sale.
+registerEntity('inventory_stock', { table: 'inventory_stock', columns: (row) => ({ item_id: row.item_id }) });

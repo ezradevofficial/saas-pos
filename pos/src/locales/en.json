@@ -26,7 +26,9 @@
       "out": "Out",
       "left_one": "{{count}} left",
       "left_other": "{{count}} left",
-      "outOfStock": "out of stock"
+      "outOfStock": "out of stock",
+      "onHand": "{{qty}} in stock",
+      "noneOnHand": "None in stock"
     },
     "saleTotal": {
       "subtotal": "Subtotal",

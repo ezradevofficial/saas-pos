@@ -26,7 +26,9 @@
       "out": "Épuisé",
       "left_one": "{{count}} restant",
       "left_other": "{{count}} restants",
-      "outOfStock": "en rupture de stock"
+      "outOfStock": "en rupture de stock",
+      "onHand": "{{qty}} en stock",
+      "noneOnHand": "Aucun en stock"
     },
     "saleTotal": {
       "subtotal": "Sous-total",

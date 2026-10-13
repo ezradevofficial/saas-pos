@@ -101,5 +101,10 @@ export const migrations = schemaMigrations({
         createTable({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
       ],
     },
+    {
+      // INV-17: stock on hand at the till's location (the Inventory module's read-only entity).
+      toVersion: 7,
+      steps: [createTable({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] })],
+    },
   ],
 });
