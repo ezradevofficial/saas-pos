@@ -406,6 +406,22 @@ describe('sync engine: review fixes', () => {
     expect(engine.getStatus().secretMissing).toBe(true);
   });
 
+  it('keeps sales when the subscription stopped the POS (SUB-05) and uploads them once paid', async () => {
+    const { server, engine, store } = setup();
+    await engine.enqueue('pos.sales', 's1', sale('s1'));
+    server.state.uploadOverride = () => ({ status: 402, body: { code: 'subscription_pos_stopped', message: 'Overdue' } });
+
+    const result = await engine.sync();
+
+    expect(result.pushed.stopped).toBe('subscription_pos_stopped');
+    expect(engine.getStatus()).toMatchObject({ auth: AUTH.OK, subscriptionStopped: true, pending: 1 });
+    expect((await store.entries())[0]).toMatchObject({ status: OUTBOX.PENDING });
+
+    server.state.uploadOverride = null;
+    await engine.sync({ force: true });
+    expect(engine.getStatus()).toMatchObject({ subscriptionStopped: false, pending: 0 });
+  });
+
   it('treats only 401 and device 403 codes as lost access; module_inactive keeps the till syncing', async () => {
     const { server, engine, store } = setup();
     server.define('items', { rows: [item('a')] });

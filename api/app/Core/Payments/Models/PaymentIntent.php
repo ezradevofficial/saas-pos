@@ -42,7 +42,8 @@ class PaymentIntent extends Model implements HasScope
 
     public const FINAL = ['succeeded', 'failed', 'cancelled', 'timeout'];
 
-    public const MODES = ['direct', 'stk', 'manual', 'payout'];
+    // `checkout`: a hosted card checkout or a saved card charged (SUB-04, platform billing).
+    public const MODES = ['direct', 'stk', 'manual', 'payout', 'checkout'];
 
     public const VERIFICATIONS = ['unverified', 'verified', 'mismatch'];
 

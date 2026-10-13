@@ -2,6 +2,7 @@
 
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
+use App\Core\Billing\BillingServiceProvider;
 use App\Core\Branding\BrandingServiceProvider;
 use App\Core\Configuration\ConfigurationServiceProvider;
 use App\Core\Currency\CurrencyServiceProvider;
@@ -56,6 +57,7 @@ return [
     PaymentsServiceProvider::class,
     FiscalServiceProvider::class,
     PlatformServiceProvider::class,
+    BillingServiceProvider::class,
     LimitsServiceProvider::class,
     OnboardingServiceProvider::class,
     PosServiceProvider::class,

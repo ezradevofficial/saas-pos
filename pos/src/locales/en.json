@@ -127,7 +127,8 @@
     "secretMissing": "This till has no offline sign-in key. Staff can sign in online only until the till is paired again.",
     "pinChangeTitle": "New PIN needed",
     "pinChangeOffline": "Choose a new PIN when the till is back online.",
-    "moduleInactive": "The POS module is not active for your business. Sales stay on this till and upload once it is active again."
+    "moduleInactive": "The POS module is not active for your business. Sales stay on this till and upload once it is active again.",
+    "subscriptionStopped": "The subscription is overdue, so this till can no longer send sales. They stay on this till and upload once the owner pays the open invoice in Settings, Subscription."
   },
   "pos": {
     "header": {

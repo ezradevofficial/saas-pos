@@ -6,6 +6,8 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\Billing\Operator\Operator;
+use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\DataExport\Jobs\BuildTenantExport;
 use App\Core\DataExport\Models\TenantExport;
 use App\Core\DocumentTemplates\DefaultTemplates;
@@ -123,6 +125,10 @@ final class TwoTenants
         app(DocumentTypeRegistry::class)->register(TestOrderType::class);
         // LAY-06: a configuration kind (as a layout designer registers one).
         TestLayoutKind::register();
+
+        // SUB-03: the operator (the platform's seller), with fake fiscal and payment drivers.
+        $test->artisan('platform:operator', ['--country' => ['KE'], '--fake' => true])->assertSuccessful();
+        app(Operator::class)->forget();
 
         return new self(
             self::tenant($test, 'a', ['email' => 'owner-a@example.com']),
@@ -506,6 +512,17 @@ final class TwoTenants
         Bus::swap($bus);
         app(TenantContext::class)->run($tenantId, fn () => TenantExport::query()->whereKey($tenantExport)->update(['status' => TenantExport::FAILED, 'failure' => 'build_failed']));
 
+        // SUB-02..SUB-04: a subscription converted from its trial, its first
+        // invoice (issued by the operator, copied here), a saved M-Pesa
+        // wallet and a payment of the invoice waiting for the phone.
+        app(TenantContext::class)->run($tenantId, fn () => app(Subscriptions::class)->startTrial('KE', ['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter']));
+        $firstInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
+        $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
+        $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$firstInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+        // An upgrade in the period: its own invoice, open with no payment (the routes' invoice).
+        $upgrade = ['modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 20, 'outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter'];
+        $charge = self::ok($test->postJson('/api/v1/subscription/quote', $upgrade, $owner))->json('data.charge_now');
+        $billingInvoice = self::ok($test->postJson('/api/v1/subscription/change', [...$upgrade, 'expected_charge' => $charge], $owner))->json('data.invoice.id');
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -578,6 +595,9 @@ final class TwoTenants
                 'template_preview' => $templatePreview,
                 'tenant_domain' => $tenantDomain,
                 'brand_asset' => $brandAsset,
+                'billing_invoice' => $billingInvoice,
+                'billing_payment' => $billingPayment,
+                'billing_payment_method' => $billingMethod,
                 'import' => $import,
                 ...$dimensions,
                 ...$pos,

@@ -82,6 +82,7 @@ import DocumentTemplates from './pages/settings/DocumentTemplates'
 import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
 import Dimensions from './pages/settings/Dimensions'
 import DataExport from './pages/settings/DataExport'
+import Subscription from './pages/settings/Subscription'
 import Imports from './pages/settings/Imports'
 import ImportWizard from './pages/settings/imports/ImportWizard'
 import Domains from './pages/settings/Domains'
@@ -351,6 +352,8 @@ export const routes = [
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
+      // SUB-02..SUB-06: the plan, invoices and payment methods.
+      { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },
       // LIM-01, LIM-02: usage against the plan (Owners only).
       { path: '/settings/usage', element: <RequirePermission owner><Usage /></RequirePermission> },
       { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },

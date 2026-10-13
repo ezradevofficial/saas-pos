@@ -128,6 +128,8 @@ const ICONS = {
   exchangeRates: ArrowLeftRight,
   taxes: Percent,
   paymentMethods: CreditCard,
+  // SUB-02: Settings, Subscription.
+  subscription: CreditCard,
   dimensions: FolderTree,
   sharing: Share2,
   items: Package,

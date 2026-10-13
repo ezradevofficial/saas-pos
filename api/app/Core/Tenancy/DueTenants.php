@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * The tenants a scheduled command has work for, found before any tenant is
  * set (ADR 002). Each question is an owner-owned security-definer function
  * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100,
- * 2026_10_20_000200, 2026_10_24_000100, 2026_10_25_000100 and 2026_10_30_000600) called on the runtime connection: it
+ * 2026_10_20_000200, 2026_10_24_000100, 2026_10_25_000100, 2026_10_30_000600 and 2026_10_31_000100) called on the runtime connection: it
  * returns only tenant ids, so the scheduler and the workers never need the
  * owner's credentials. The work itself then runs in each tenant's context,
  * under row-level security.
@@ -74,6 +74,24 @@ class DueTenants
     public function withDomainChecksDue(CarbonInterface $at): array
     {
         return $this->ids('app_tenants_with_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> SUB-03, SUB-05: subscriptions with a trial or period ending within 7 days of $at, past due or read-only. */
+    public function withBillingDue(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_billing_due(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> SUB-07: switched-off modules, switched off before $before, not yet flagged for purge. */
+    public function withModulesToPurge(CarbonInterface $before): array
+    {
+        return $this->ids('app_tenants_with_modules_to_purge(?::timestamptz)', [$before->toIso8601String()]);
+    }
+
+    /** SUB-03: the operator tenant (the seller of the platform), when one was set up (`platform:operator`). */
+    public function operator(): ?string
+    {
+        return $this->ids('app_operator_tenant_id()')[0] ?? null;
     }
 
     /** @return list<string> EXP-02: full exports past their expiry at $at, builds running since before $runningBefore, or queued since before $queuedBefore. */

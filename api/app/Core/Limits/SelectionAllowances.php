@@ -37,8 +37,16 @@ class SelectionAllowances implements PlanAllowances
 
     public function for(string $tenantId): Allowances
     {
-        $selection = $this->tenants->run($tenantId, fn () => $this->selection());
+        return $this->fromSelection($this->tenants->run($tenantId, fn () => $this->selection()));
+    }
 
+    /**
+     * The allowances of a selection (`country`, `modules`, `quantities`,
+     * `bundle`); unlimited without one. Billing (SUB-02) passes the
+     * subscription's plan.
+     */
+    public function fromSelection(?array $selection): Allowances
+    {
         if (! is_array($selection) || ! is_string($selection['country'] ?? null)) {
             return Allowances::unlimited();
         }

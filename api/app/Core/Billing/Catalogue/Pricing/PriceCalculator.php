@@ -51,6 +51,33 @@ final class PriceCalculator
     }
 
     /**
+     * SUB-02: the pro-rated charge for an upgrade made with $remainingDays
+     * of a $periodDays period left: the difference between the new and the
+     * old period totals (both from quote(), coupon and annual discount
+     * included) times remainingDays / periodDays.
+     *
+     * Integer maths only. Rounding: half up, to a whole $step of minor
+     * units (100 for KES, so mobile money can collect it in whole
+     * shillings; 1 for USD cents). A change that does not cost more is not
+     * charged now (a downgrade takes effect at the period end), so the
+     * result is never negative; remaining days are clamped to the period.
+     */
+    public function prorate(int $oldTotal, int $newTotal, int $periodDays, int $remainingDays, int $step = 1): int
+    {
+        if ($periodDays <= 0 || $newTotal <= $oldTotal) {
+            return 0;
+        }
+
+        $step = max(1, $step);
+        $remaining = max(0, min($periodDays, $remainingDays));
+        $difference = $newTotal - $oldTotal;
+        // difference * remaining / periodDays in steps, rounded half up: floor((2n + d) / 2d).
+        $steps = intdiv(2 * $difference * $remaining + $periodDays * $step, 2 * $periodDays * $step);
+
+        return $steps * $step;
+    }
+
+    /**
      * @return array<string, mixed>
      *
      * @throws QuoteError

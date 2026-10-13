@@ -28,6 +28,12 @@ export function PlatformLayout() {
             >
               {t('platform.nav.catalogue')}
             </NavLink>
+            <NavLink
+              to="/platform/tenants"
+              className={({ isActive }) => cn('rounded-sm py-1 text-label hover:text-ink', isActive ? 'text-ink' : 'text-ink-muted')}
+            >
+              {t('platform.nav.tenants')}
+            </NavLink>
             {user?.abilities?.includes('tenants.create') ? (
               <NavLink
                 to="/platform/tenants/new"

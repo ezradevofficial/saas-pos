@@ -49,6 +49,10 @@ class PlatformUser extends Authenticatable
     private const ABILITIES = [
         'catalogue.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
         'catalogue.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
+        // ADR 016: tenants, subscriptions and invoices (view); trial extension,
+        // grace override, bank transfers marked paid, billing settings (manage).
+        'billing.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
+        'billing.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
         // ONB-08: create a tenant for a customer and hand it over (field sales, support).
         'tenants.create' => [self::ROLE_OWNER, self::ROLE_SUPPORT],
     ];

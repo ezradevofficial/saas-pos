@@ -39,6 +39,7 @@ function SyncProblems() {
     );
   if (sync.secretMissing) alerts.push(<Alert key="secret" tone="warning">{t('home.secretMissing')}</Alert>);
   if (sync.moduleInactive) alerts.push(<Alert key="module" tone="warning">{t('home.moduleInactive')}</Alert>);
+  if (sync.subscriptionStopped) alerts.push(<Alert key="subscription" tone="danger">{t('home.subscriptionStopped')}</Alert>);
   if (pinChange) alerts.push(<Alert key="pin" tone="warning" title={t('home.pinChangeTitle')}>{t('home.pinChangeOffline')}</Alert>);
   if (sync.failed) alerts.push(<Alert key="failed" tone="warning">{t('home.failed', { count: sync.failed })}</Alert>);
   if (!alerts.length) return null;

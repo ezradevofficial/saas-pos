@@ -81,6 +81,10 @@ class PermissionRegistry
         // location (docs/adr/012), and the form types themselves (tenant scope).
         'custom_form' => ['view', 'create', 'edit', 'approve'],
         'custom_form_type' => ['manage'],
+        // SUB-02..SUB-06: the tenant's subscription: see it and its invoices
+        // (view); pay, save payment methods, subscribe from the trial (manage).
+        // Changing the plan also needs the Owner (SubscriptionRequest).
+        'subscription' => ['view', 'manage'],
         // IMP-01..IMP-03: run imports (with the importer's own create/edit permission on its entity).
         'import' => ['run'],
         // EXP-02: a full export of the tenant's data (Owner template only; the

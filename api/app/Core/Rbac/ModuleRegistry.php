@@ -67,10 +67,13 @@ class ModuleRegistry
 
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($module) {
             $row = TenantModule::firstOrNew(['module' => $module]);
+            // SUB-07: re-subscribing restores the module with the data it kept.
             $row->fill([
                 'status' => TenantModule::ACTIVE,
                 'activated_at' => now(),
                 'deactivated_at' => null,
+                'switched_off_at' => null,
+                'purge_flagged_at' => null,
             ])->save();
 
             app(RoleTemplates::class)->refresh();
@@ -84,7 +87,8 @@ class ModuleRegistry
         $this->assertOptional($module);
 
         $row = TenantModule::firstOrNew(['module' => $module]);
-        $row->fill(['status' => TenantModule::INACTIVE, 'deactivated_at' => now()])->save();
+        // SUB-07: hidden (RBAC-08) with its data kept; due for purge 12 months after it was switched off.
+        $row->fill(['status' => TenantModule::INACTIVE, 'deactivated_at' => now(), 'switched_off_at' => $row->switched_off_at ?? now()])->save();
 
         return $row;
     }

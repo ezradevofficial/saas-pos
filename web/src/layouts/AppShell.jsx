@@ -7,6 +7,7 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@
 import { TrialBanner } from '@/components/onboarding/TrialBanner'
 import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
+import { SubscriptionBanner } from './SubscriptionBanner'
 import { UsageBanner } from './UsageBanner'
 
 /**
@@ -63,6 +64,7 @@ export function AppShell() {
           <NotificationBell />
         </header>
 
+        <SubscriptionBanner />
         <TrialBanner />
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">
           <div className={cn('mx-auto flex flex-col gap-6', !wide && 'max-w-content')}>

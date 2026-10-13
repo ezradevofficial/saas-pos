@@ -8,6 +8,7 @@ return [
         'refund_currency_mismatch' => 'A refund is paid back in the currency of the original payment.',
         'refund_exceeds_payment' => 'This refund, with the refunds already paid back, is more than the original payment. Refund the rest another way.',
         'payout_no_answer' => 'The payment provider did not answer, so the refund may still be paid. Wait for its result before refunding the customer another way.',
+        'provider_not_configured' => 'This payment provider isn’t set up yet. Choose another payment method or contact support.',
         'provider_no_answer' => 'The payment provider did not answer. The payment is still being checked; ask the customer whether the prompt arrived.',
         'too_many_requests' => 'Too many payment requests. Wait a moment, then try again.',
         'cashier_not_staff' => 'Sign in at this till as a staff member who works here, then try again.',

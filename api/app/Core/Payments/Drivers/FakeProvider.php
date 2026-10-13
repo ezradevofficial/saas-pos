@@ -3,6 +3,7 @@
 namespace App\Core\Payments\Drivers;
 
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Payments\Contracts\HostedCheckout;
 use App\Core\Payments\Contracts\PaymentProvider;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\ProviderResult;
@@ -13,18 +14,21 @@ use App\Core\Payments\ProviderResult;
  * digits: `000` is refused at once, `111` never answers (times out),
  * `222` is declined by the customer; anything else is pending after the
  * push and succeeds when checked. Refunds and checks of manual codes
- * succeed.
+ * succeed. As a hosted card checkout (SUB-04): the "checkout page" sends
+ * the payer straight back to the app, saving a card always works (label
+ * "Card •••• 4242"), and charges succeed.
  */
-class FakeProvider implements PaymentProvider
+class FakeProvider implements HostedCheckout, PaymentProvider
 {
     public function name(): string
     {
         return 'fake';
     }
 
+    /** Any currency, unless a test declares a provider's rules (`payments.fake_currencies`, e.g. M-Pesa's whole shillings). */
     public function currencies(): array
     {
-        return [];
+        return (array) config('payments.fake_currencies', []);
     }
 
     public function canPush(): bool
@@ -38,7 +42,26 @@ class FakeProvider implements PaymentProvider
             return ProviderResult::failed('fake_refused', __('payments.errors.provider_refused'));
         }
 
+        if ($intent->mode === 'checkout') {
+            return ProviderResult::pending('fake-req-'.$intent->id, 'fake-chk-'.$intent->id, ['redirect_url' => rtrim((string) config('app.frontend_url'), '/').'/settings/subscription?payment='.$intent->id]);
+        }
+
         return ProviderResult::pending('fake-req-'.$intent->id, 'fake-chk-'.$intent->id);
+    }
+
+    public function setupUrl(string $reference, string $returnUrl): string
+    {
+        return $returnUrl.(str_contains($returnUrl, '?') ? '&' : '?').'card_setup='.rawurlencode($reference);
+    }
+
+    public function completeSetup(string $reference): ?array
+    {
+        return ['token' => 'fake_tok_'.hash('sha256', $reference), 'label' => 'Card •••• 4242'];
+    }
+
+    public function charge(PaymentIntent $intent, PaymentMethod $method, string $token): ProviderResult
+    {
+        return ProviderResult::succeeded(self::receipt($intent), ['result_code' => '0'], $intent->amount_minor);
     }
 
     public function status(PaymentIntent $intent, PaymentMethod $method): ProviderResult

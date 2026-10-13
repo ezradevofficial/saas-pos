@@ -6,6 +6,7 @@ use App\Core\Currency\CurrencyDecimals;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Payments\Contracts\PaymentProvider;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Models\PaymentReceipt;
@@ -557,7 +558,8 @@ class PaymentIntents
         $method = PaymentMethod::query()->findOrFail($intent->payment_method_id);
 
         try {
-            $result = $this->registry->for($method)->status($intent, $method);
+            // The adapter the intent was started with (billing may collect through another than the till's).
+            $result = $this->registry->driver($intent->driver)->status($intent, $method);
         } catch (ProviderUnavailable) {
             $result = ProviderResult::pending();
         }
@@ -578,23 +580,63 @@ class PaymentIntents
     /** STK push: the intent is stored first (pending), then the provider is asked. */
     private function push(PaymentMethod $method, array $attributes): PaymentIntent
     {
+        return $this->request($method, $this->registry->for($method), [...$attributes, 'mode' => 'stk']);
+    }
+
+    /**
+     * Ask a payer for money through $provider (a push to a phone, a hosted
+     * card checkout): the intent is stored first (pending, `mode` stk or
+     * checkout), then the provider is asked; nothing known yet is
+     * `unknown` and checked again. $initiate replaces the provider's
+     * initiate() (a charge of a saved card token, SUB-04). Used by the
+     * till (push) and by the platform's billing (ADR 016).
+     *
+     * @param  array<string, mixed>  $attributes  PaymentIntent attributes
+     * @param  (callable(PaymentIntent): ProviderResult)|null  $initiate
+     */
+    public function request(PaymentMethod $method, PaymentProvider $provider, array $attributes, ?callable $initiate = null): PaymentIntent
+    {
+        $this->assertAmount($provider->currencies(), (string) $attributes['currency'], (int) $attributes['amount_minor']);
+
         $intent = PaymentIntent::create([
             ...$attributes,
-            'mode' => 'stk',
+            'driver' => $provider->name(),
             'status' => 'pending',
             'account_reference' => strtoupper(substr(str_replace('-', '', (string) $attributes['id']), -12)),
             'expires_at' => CarbonImmutable::now()->addSeconds((int) config('payments.stk_timeout_seconds', 90)),
         ]);
 
         try {
-            $result = $this->registry->for($method)->initiate($intent, $method);
+            $result = $initiate !== null ? $initiate($intent) : $provider->initiate($intent, $method);
         } catch (ProviderUnavailable) {
-            // Nothing is known: the push may have reached the phone. Keep checking (and match
+            // Nothing is known: the request may have reached the payer. Keep checking (and match
             // a late result or a C2B confirmation) instead of failing it.
             $result = new ProviderResult('unknown', resultCode: 'no_answer_from_provider', message: __('payments.errors.provider_no_answer'));
         }
 
         return $this->apply($intent, $result);
+    }
+
+    /**
+     * Ask the provider now where an open intent stands (a payer waiting
+     * on a screen polls this), through the adapter it was started with.
+     * A final answer is applied; still open stays open.
+     */
+    public function check(PaymentIntent $intent): PaymentIntent
+    {
+        if (! in_array($intent->status, ['pending', 'unknown'], true) || $intent->mode === 'payout') {
+            return $intent;
+        }
+
+        $method = PaymentMethod::query()->findOrFail($intent->payment_method_id);
+
+        try {
+            $result = $this->registry->driver($intent->driver)->status($intent, $method);
+        } catch (ProviderUnavailable) {
+            return $intent;
+        }
+
+        return $result->isPending() ? $intent : $this->apply($intent, $result);
     }
 
     private function candidateFor(PaymentReceipt $receipt): ?PaymentIntent

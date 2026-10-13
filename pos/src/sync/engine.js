@@ -78,6 +78,8 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     auth: AUTH.OK,
     authCode: null,
     moduleInactive: false,
+    // SUB-05: the subscription is overdue past the POS window; uploads wait until it is paid.
+    subscriptionStopped: false,
     skewMs: 0,
     secretMissing: false,
     lastError: null,
@@ -296,7 +298,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     if (summary.acknowledged) {
       const at = now();
       await store.setMeta({ lastPushedAt: at });
-      update({ lastPushedAt: at, moduleInactive: false });
+      update({ lastPushedAt: at, moduleInactive: false, subscriptionStopped: false });
     }
     await store.pruneAcknowledged(now() - settings.keepAcknowledgedMs);
     await refreshCounts();
@@ -368,6 +370,15 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
       summary.retried += batch.length;
       await retryLater(batch, error);
       return 'module_inactive';
+    }
+
+    if (response.status === 402 && (error.code === 'subscription_pos_stopped' || error.code === 'subscription_overdue')) {
+      // SUB-05: the subscription is overdue and the POS window is over. Keep everything; it
+      // uploads once the invoice is paid. The till says why.
+      update({ subscriptionStopped: true });
+      summary.retried += batch.length;
+      await retryLater(batch, error);
+      return error.code;
     }
 
     if ((response.status === 409 || response.status === 422) && hasJsonCode(response)) {

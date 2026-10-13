@@ -386,8 +386,9 @@
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
     "dataExport": "Export des données",
-    "imports": "Importations",
-    "usage": "Utilisation"
+    "subscription": "Abonnement",
+    "usage": "Utilisation",
+    "imports": "Importations"
   },
   "shell": {
     "account": "Menu du compte",
@@ -5106,6 +5107,7 @@
     "console": "Console de la plateforme",
     "nav": {
       "catalogue": "Catalogue des offres",
+      "tenants": "Clients",
       "newTenant": "Nouveau client"
     },
     "roles": {
@@ -5289,6 +5291,233 @@
       "contact": "E-mail ou téléphone du contact",
       "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
       "submit": "Créer le client"
+    },
+    "customers": {
+      "title": "Clients",
+      "description": "Les clients, leurs formules et ce qu’ils doivent.",
+      "empty": "Aucun client pour l’instant.",
+      "columns": {
+        "name": "Nom",
+        "country": "Pays",
+        "plan": "Formule",
+        "status": "Statut",
+        "mrr": "Revenu mensuel",
+        "trialEnds": "Fin de l’essai"
+      },
+      "subscription": "Abonnement",
+      "extendTrial": "Prolonger l’essai",
+      "trialEndsOn": "Fin de l’essai le",
+      "saveTrial": "Prolonger l’essai",
+      "grace": "Délai de grâce",
+      "graceDays": "Délai de grâce",
+      "graceHelp": "Jours pendant lesquels une facture impayée reste en retard avant la lecture seule. Laissez vide pour le réglage de la plateforme.",
+      "gracePlatform": "Réglage de la plateforme",
+      "graceValue_one": "{{count}} jour",
+      "graceValue_other": "{{count}} jours",
+      "saveGrace": "Enregistrer le délai",
+      "markPaid": "Marquer payée",
+      "markPaidFor": "Marquer la facture {{number}} payée",
+      "markPaidTitle": "Virement pour la facture {{number}}",
+      "bankReference": "Référence bancaire",
+      "paidVia": {
+        "intent": "Payée en ligne",
+        "bank_transfer": "Virement bancaire"
+      },
+      "purgeDue": "Les données de modules désactivés ont plus de 12 mois : {{modules}}. Rien n’a été supprimé.",
+      "overpayment": "Trop-perçu",
+      "overpaymentText": "Un paiement a été reçu pour une facture déjà payée : {{invoices}}. Remboursez le client."
+    }
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "description": "Votre formule, ses factures et la façon de la payer.",
+    "status": {
+      "trial": "Essai",
+      "active": "Actif",
+      "past_due": "En retard",
+      "read_only": "Lecture seule",
+      "suspended": "Suspendu",
+      "cancelled": "Résilié"
+    },
+    "cycles": {
+      "monthly": "Mensuel",
+      "annual": "Annuel (2 mois offerts)"
+    },
+    "units": {
+      "outlet_one": "{{count}} point de vente",
+      "outlet_other": "{{count}} points de vente",
+      "device_one": "{{count}} appareil",
+      "device_other": "{{count}} appareils",
+      "employee_one": "{{count}} employé",
+      "employee_other": "{{count}} employés",
+      "company_one": "{{count}} société",
+      "company_other": "{{count}} sociétés",
+      "online_store_one": "{{count}} boutique en ligne",
+      "online_store_other": "{{count}} boutiques en ligne",
+      "warehouse_one": "{{count}} entrepôt",
+      "warehouse_other": "{{count}} entrepôts"
+    },
+    "unitLabels": {
+      "outlet": "Points de vente",
+      "device": "Appareils de caisse",
+      "employee": "Employés",
+      "company": "Sociétés",
+      "online_store": "Boutiques en ligne",
+      "warehouse": "Entrepôts"
+    },
+    "providers": {
+      "mpesa_ke": "M-Pesa",
+      "airtel_ke": "Airtel Money",
+      "airtel_money_cd": "Airtel Money",
+      "orange_money_cd": "Orange Money",
+      "afrimoney_cd": "Afrimoney",
+      "card_aggregator": "Carte"
+    },
+    "overview": {
+      "title": "Votre formule",
+      "noModules": "Aucun module pour l’instant",
+      "cycle": "Facturation",
+      "quantities": "Quantités",
+      "none": "Aucune",
+      "period": "Période en cours",
+      "periodRange": "Du {{from}} au {{to}}",
+      "trialUntil": "Essai jusqu’au {{date}}",
+      "nextInvoice": "Prochaine facture",
+      "monthly": "Coût mensuel",
+      "pending": "Changements à partir du {{date}}",
+      "cancelPending": "Garder la formule actuelle",
+      "subscribeText": "Votre essai se termine le {{date}}. Abonnez-vous maintenant pour recevoir votre première facture ; elle est due à la fin de l’essai.",
+      "subscribe": "S’abonner maintenant"
+    },
+    "change": {
+      "title": "Changer de formule",
+      "subtitle": "Un ajout coûte la différence pour les jours restants de la période. Un retrait prend effet à la fin de la période.",
+      "bundle": "Offre groupée",
+      "noBundle": "Sans offre, modules à l’unité",
+      "cycle": "Facturation",
+      "modules": "Modules",
+      "inBundle": "Inclus dans l’offre",
+      "coupon": "Code coupon",
+      "upgrade": "Le changement prend effet maintenant. Vous payez la différence pour les {{days}} jours restants sur {{period}}.",
+      "trial": "Le changement prend effet maintenant. Rien n’est facturé pendant l’essai.",
+      "scheduled": "Le changement prend effet le {{date}}, à la fin de la période en cours.",
+      "none": "C’est votre formule actuelle.",
+      "newTotal": "Nouveau prix ({{cycle}})",
+      "chargeNow": "À payer maintenant",
+      "couponApplied": "Coupon {{code}} appliqué.",
+      "confirm": "Confirmer le changement",
+      "confirmCharge": "Confirmer et payer {{amount}}",
+      "done": "Votre formule a été modifiée.",
+      "doneInvoice": "Votre formule a été modifiée. La facture {{number}} est à régler ci-dessous."
+    },
+    "pay": {
+      "title": "Régler la facture {{number}}",
+      "method": "Payer avec",
+      "phone": "Numéro de téléphone",
+      "otherPhone": "{{provider}}, un autre numéro",
+      "card": "Carte, sur la page du prestataire",
+      "submit": "Payer {{amount}}",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "starting": "Lancement du paiement.",
+      "waiting": "En attente",
+      "approveOnPhone": "Validez la demande sur le téléphone {{label}}. Cette page se met à jour toute seule.",
+      "checkout": "Terminez le paiement sur la page du prestataire de carte.",
+      "succeeded": "Paiement reçu. Merci.",
+      "failed": "Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen."
+    },
+    "invoices": {
+      "title": "Factures",
+      "search": "Rechercher par numéro",
+      "allStatuses": "Tous les statuts",
+      "empty": "Aucune facture pour l’instant.",
+      "pdf": "PDF",
+      "pdfFor": "Télécharger la facture {{number}} en PDF",
+      "pay": "Payer",
+      "payFor": "Régler la facture {{number}}",
+      "columns": {
+        "number": "Numéro",
+        "issued": "Émise le",
+        "kind": "Type",
+        "period": "Période",
+        "total": "Total",
+        "due": "Échéance",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "kinds": {
+        "first": "Première facture",
+        "renewal": "Renouvellement",
+        "upgrade": "Changement de formule"
+      },
+      "statuses": {
+        "open": "Ouverte",
+        "paid": "Payée",
+        "void": "Annulée"
+      }
+    },
+    "methods": {
+      "title": "Moyens de paiement",
+      "subtitle": "Le moyen par défaut renouvelle votre abonnement automatiquement. Les données de carte restent chez le prestataire.",
+      "addWallet": "Ajouter un mobile money",
+      "addCard": "Ajouter une carte",
+      "empty": "Aucun moyen de paiement enregistré.",
+      "default": "Par défaut",
+      "makeDefault": "Définir par défaut",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{label}}",
+      "save": "Enregistrer le moyen",
+      "cardSaved": "Votre carte a été enregistrée."
+    }
+  },
+  "subscriptionBanner": {
+    "pastDue": "Une facture est en retard. Réglez-la avant le {{date}} pour garder un accès complet.",
+    "readOnly": "Votre compte est en lecture seule jusqu’au paiement de la facture en retard. Les caisses vendent encore jusqu’au {{date}}.",
+    "suspended": "Votre abonnement est suspendu. Contactez le support.",
+    "pay": "Payer maintenant",
+    "label": "État de l’abonnement"
+  },
+  "usage": {
+    "title": "Utilisation",
+    "description": "Ce que votre organisation utilise par rapport à ce que comprend votre abonnement, compté chaque jour.",
+    "card": {
+      "title": "Utilisation par rapport à votre abonnement",
+      "counted": "Dernier comptage {{when}}",
+      "notCounted": "Pas encore compté. L’utilisation est comptée une fois par jour."
+    },
+    "units": {
+      "outlet": "Points de vente",
+      "device": "Appareils de caisse",
+      "user": "Utilisateurs",
+      "employee": "Employés"
+    },
+    "items": {
+      "outlet": "points de vente",
+      "device": "appareils de caisse",
+      "user": "utilisateurs",
+      "employee": "employés"
+    },
+    "of": "{{count}} sur {{allowed}}",
+    "noLimit": "{{count}}, sans limite",
+    "state": {
+      "within": "Dans l’abonnement",
+      "over": "Au-delà de l’abonnement",
+      "blocked": "Ajout suspendu",
+      "unlimited": "Sans limite"
+    },
+    "overBy": "{{over}} en plus",
+    "extraCost": "Coût supplémentaire",
+    "perMonth": "par mois",
+    "daysLeft_one": "{{count}} jour restant pour mettre à niveau",
+    "daysLeft_other": "{{count}} jours restants pour mettre à niveau",
+    "paused": "L’ajout est suspendu jusqu’à la mise à niveau.",
+    "upgrade": "Mettre à niveau",
+    "error": "L’utilisation n’a pas pu être chargée. Actualisez la page pour réessayer.",
+    "banner": {
+      "title": "Votre organisation dépasse son abonnement",
+      "line": "{{item}} : {{count}} sur {{allowed}}, {{over}} en plus",
+      "extra": "Coût supplémentaire de {{amount}} par mois, facturé sur votre prochaine facture.",
+      "note": "Tout ce qui est déjà en place continue de fonctionner. Les ventes, la paie et les approbations ne sont jamais bloquées."
     }
   },
   "onboarding": {
@@ -5676,49 +5905,6 @@
       "all": "Toutes les importations",
       "partlyUndone": "Une partie de cette importation a été annulée. Les lignes ci-dessous sont toujours en place car quelque chose en dépend désormais ; vous pouvez relancer l’annulation.",
       "offlineTills": "Les caisses qui ont déjà reçu ces articles les gardent jusqu’à leur prochaine synchronisation. Une vente faite hors ligne avec l’un d’eux arrive quand même et est conservée."
-    }
-  },
-  "usage": {
-    "title": "Utilisation",
-    "description": "Ce que votre organisation utilise par rapport à ce que comprend votre abonnement, compté chaque jour.",
-    "card": {
-      "title": "Utilisation par rapport à votre abonnement",
-      "counted": "Dernier comptage {{when}}",
-      "notCounted": "Pas encore compté. L’utilisation est comptée une fois par jour."
-    },
-    "units": {
-      "outlet": "Points de vente",
-      "device": "Appareils de caisse",
-      "user": "Utilisateurs",
-      "employee": "Employés"
-    },
-    "items": {
-      "outlet": "points de vente",
-      "device": "appareils de caisse",
-      "user": "utilisateurs",
-      "employee": "employés"
-    },
-    "of": "{{count}} sur {{allowed}}",
-    "noLimit": "{{count}}, sans limite",
-    "state": {
-      "within": "Dans l’abonnement",
-      "over": "Au-delà de l’abonnement",
-      "blocked": "Ajout suspendu",
-      "unlimited": "Sans limite"
-    },
-    "overBy": "{{over}} en plus",
-    "extraCost": "Coût supplémentaire",
-    "perMonth": "par mois",
-    "daysLeft_one": "{{count}} jour restant pour mettre à niveau",
-    "daysLeft_other": "{{count}} jours restants pour mettre à niveau",
-    "paused": "L’ajout est suspendu jusqu’à la mise à niveau.",
-    "upgrade": "Mettre à niveau",
-    "error": "L’utilisation n’a pas pu être chargée. Actualisez la page pour réessayer.",
-    "banner": {
-      "title": "Votre organisation dépasse son abonnement",
-      "line": "{{item}} : {{count}} sur {{allowed}}, {{over}} en plus",
-      "extra": "Coût supplémentaire de {{amount}} par mois, facturé sur votre prochaine facture.",
-      "note": "Tout ce qui est déjà en place continue de fonctionner. Les ventes, la paie et les approbations ne sont jamais bloquées."
     }
   }
 }

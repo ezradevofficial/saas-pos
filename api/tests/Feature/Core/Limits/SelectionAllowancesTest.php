@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Limits;
 
+use App\Core\Billing\Overage\SubscriptionAllowances;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\SelectionAllowances;
 use App\Core\Rbac\Console\SyncPermissions;
@@ -50,9 +51,11 @@ class SelectionAllowancesTest extends TestCase
         $this->asTenant($tenantId, fn () => DB::table('onboarding_states')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'selection' => $selection === null ? null : json_encode($selection)]));
     }
 
-    public function test_it_is_the_default_binding(): void
+    public function test_billing_binds_the_subscriptions_allowances_which_fall_back_to_the_selection(): void
     {
-        $this->assertInstanceOf(SelectionAllowances::class, app(PlanAllowances::class));
+        // SUB-02: billing binds its own; without a subscription it reads this selection.
+        $this->assertInstanceOf(SubscriptionAllowances::class, app(PlanAllowances::class));
+        $this->assertSame([], app(PlanAllowances::class)->for($this->owner->tenant_id)->limits);
     }
 
     public function test_without_a_selection_everything_is_unlimited(): void

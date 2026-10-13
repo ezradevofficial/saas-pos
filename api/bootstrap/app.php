@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Http\ApiErrorRenderer;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
@@ -44,7 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
             $middleware->trustProxies(at: $proxies, headers: TrustedProxies::HEADERS);
         }
         // RBAC-08: `module:{name}` after `tenant`.
-        $middleware->alias(['tenant' => RequireTenant::class, 'module' => EnsureModuleActive::class]);
+        $middleware->alias(['module' => EnsureModuleActive::class]);
+        // TEN-01, SUB-05: `tenant` refuses a request without a tenant, then
+        // writes while the subscription is read-only (EnforceSubscription).
+        $middleware->group('tenant', [RequireTenant::class, EnforceSubscription::class]);
         // TEN-05: the token kind is checked straight after authentication,
         // before route-model binding, so a device token on a back-office
         // route is 401 whether or not the id exists.
