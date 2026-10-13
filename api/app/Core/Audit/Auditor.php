@@ -9,6 +9,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use LogicException;
 
 /**
  * Appends entries to the current tenant's hash-chained audit log and
@@ -91,15 +92,10 @@ class Auditor
         }
 
         return $this->connection()->transaction(function (Connection $db) use ($tenantId, $fields) {
-            // First use: create the head; then lock it for this append.
-            $db->insert(
-                'insert into audit_chain_heads (tenant_id, seq, hash) values (?, 0, ?) on conflict (tenant_id) do nothing',
-                [$tenantId, self::GENESIS_HASH],
-            );
-            $head = $db->selectOne(
-                'select seq, hash from audit_chain_heads where tenant_id = ? for update',
-                [$tenantId],
-            );
+            $batched = self::$batchTenant === $tenantId;
+            // In a batch the head is locked already: the chain's tail is its
+            // last entry (an entry rolled back with its savepoint is gone).
+            $head = $batched ? $this->tail($db, $tenantId) : $this->lockHead($db, $tenantId);
 
             $fields['seq'] = (int) $head->seq + 1;
             $row = self::normalise($fields);
@@ -111,16 +107,112 @@ class Auditor
                 'before' => self::jsonColumn($row['before']),
                 'after' => self::jsonColumn($row['after']),
             ]));
-            $db->update(
-                'update audit_chain_heads set seq = ?, hash = ? where tenant_id = ?',
-                [$row['seq'], $row['hash'], $tenantId],
-            );
+
+            if ($batched) {
+                self::$batchTail = (object) ['seq' => $row['seq'], 'hash' => $row['hash']];
+            } else {
+                $db->update(
+                    'update audit_chain_heads set seq = ?, hash = ? where tenant_id = ?',
+                    [$row['seq'], $row['hash'], $tenantId],
+                );
+            }
 
             return (new AuditEntry)->newFromBuilder(array_merge($row, [
                 'before' => self::jsonColumn($row['before']),
                 'after' => self::jsonColumn($row['after']),
             ]));
         });
+    }
+
+    /**
+     * IMP-03: append many entries (an import batch) in one transaction with
+     * the chain head locked once and moved once, at the end, to the last
+     * entry. Each entry still links to the one before it (read back from
+     * the log, so an entry rolled back with its savepoint leaves no gap);
+     * hashes and verification are unchanged. Updating the head row for
+     * every entry of a large transaction would leave a version of it per
+     * entry, and each later read would walk them all.
+     *
+     * Runs $fn inside a transaction (the caller's, or a new one).
+     */
+    public function batch(callable $fn): mixed
+    {
+        $tenantId = $this->tenants->require();
+
+        if (self::$batchTenant !== null) {
+            throw new LogicException('Audit batches do not nest.');
+        }
+
+        return $this->connection()->transaction(function (Connection $db) use ($tenantId, $fn) {
+            $locked = $this->lockHead($db, $tenantId);
+            $head = (object) ['seq' => (int) $locked->seq, 'hash' => $locked->hash];
+            [self::$batchTenant, self::$batchHead, self::$batchTail, self::$batchRolledBack] = [$tenantId, $head, $head, false];
+
+            try {
+                $result = $fn();
+                $tail = $this->tail($db, $tenantId);
+            } finally {
+                [self::$batchTenant, self::$batchHead, self::$batchTail, self::$batchRolledBack] = [null, null, null, false];
+            }
+
+            if ((int) $tail->seq > (int) $head->seq) {
+                $db->update('update audit_chain_heads set seq = ?, hash = ? where tenant_id = ?', [$tail->seq, $tail->hash, $tenantId]);
+            }
+
+            return $result;
+        });
+    }
+
+    /** The tenant this process is appending a batch for, if any, its head when the batch began, and the last entry appended. */
+    private static ?string $batchTenant = null;
+
+    private static ?object $batchHead = null;
+
+    private static ?object $batchTail = null;
+
+    /** A savepoint rolled back during the batch: the last entry appended may be gone. */
+    private static bool $batchRolledBack = false;
+
+    /**
+     * Any transaction or savepoint rolled back on the tenant connection
+     * during a batch may have taken the last entry with it (called for
+     * every TransactionRolledBack, CoreServiceProvider).
+     */
+    public static function rolledBack(?string $connectionName): void
+    {
+        if (self::$batchTenant !== null && $connectionName === TenantContext::CONNECTION) {
+            self::$batchRolledBack = true;
+        }
+    }
+
+    /** Create the head on first use, then lock it until the transaction ends. */
+    private function lockHead(Connection $db, string $tenantId): object
+    {
+        $db->insert(
+            'insert into audit_chain_heads (tenant_id, seq, hash) values (?, 0, ?) on conflict (tenant_id) do nothing',
+            [$tenantId, self::GENESIS_HASH],
+        );
+
+        return $db->selectOne('select seq, hash from audit_chain_heads where tenant_id = ? for update', [$tenantId]);
+    }
+
+    /**
+     * In a batch, the chain's last entry: the one appended last, unless a
+     * savepoint rolled back since (it may have gone with it); then the last
+     * entry above the batch's head, read back, or the head itself.
+     */
+    private function tail(Connection $db, string $tenantId): object
+    {
+        $head = self::$batchHead;
+
+        if (! self::$batchRolledBack) {
+            return self::$batchTail;
+        }
+
+        self::$batchRolledBack = false;
+        $tail = $db->selectOne('select seq, hash from audit_logs where tenant_id = ? and seq > ? order by seq desc limit 1', [$tenantId, $head->seq]) ?? $head;
+
+        return self::$batchTail = (object) ['seq' => (int) $tail->seq, 'hash' => $tail->hash];
     }
 
     /**

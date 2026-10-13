@@ -11,6 +11,7 @@ use App\Core\DataExport\DataExportServiceProvider;
 use App\Core\DocumentTemplates\DocumentTemplatesServiceProvider;
 use App\Core\Fiscal\FiscalServiceProvider;
 use App\Core\Identity\IdentityServiceProvider;
+use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
@@ -47,6 +48,7 @@ return [
     ApprovalsServiceProvider::class,
     CreditLimitsServiceProvider::class,
     CustomFormsServiceProvider::class,
+    ImportsServiceProvider::class,
     DataExportServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,

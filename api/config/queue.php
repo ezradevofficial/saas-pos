@@ -85,6 +85,17 @@ return [
             'after_commit' => false,
         ],
 
+        // IMP-03: dry runs, imports and undos run up to `imports.timeout` (an
+        // hour); their own connection reserves jobs for longer than that.
+        'redis-imports' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => env('IMPORT_QUEUE', 'imports'),
+            'retry_after' => (int) env('REDIS_IMPORTS_RETRY_AFTER', 3900),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

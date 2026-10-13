@@ -385,7 +385,8 @@
     "posLayout": "Disposition de caisse",
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
-    "dataExport": "Export des données"
+    "dataExport": "Export des données",
+    "imports": "Importations"
   },
   "shell": {
     "account": "Menu du compte",
@@ -5260,6 +5261,159 @@
         "not_applicable": "Ce code promo ne s’applique à rien dans ce devis."
       },
       "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
+    }
+  },
+  "imports": {
+    "title": "Importations",
+    "description": "Reprenez articles, clients, fournisseurs et prix depuis un tableur, vérifiez-les, puis importez-les.",
+    "new": "Nouvelle importation",
+    "entry": "Importer",
+    "search": "Rechercher un nom de fichier",
+    "empty": "Aucune importation pour l’instant. Commencez par Nouvelle importation.",
+    "emptyFiltered": "Aucune importation ne correspond à ces filtres.",
+    "filters": {
+      "allTypes": "Tous les types",
+      "allStatuses": "Tous les statuts"
+    },
+    "columns": {
+      "created_at": "Téléversé le",
+      "importer": "Données",
+      "file_name": "Fichier",
+      "status": "Statut",
+      "total_rows": "Lignes",
+      "created_rows": "Ajoutées",
+      "updated_rows": "Mises à jour",
+      "failed_rows": "En échec",
+      "user": "Téléversé par"
+    },
+    "statuses": {
+      "ready": "Prêt",
+      "checking": "Vérification en cours",
+      "checked": "Vérifié",
+      "importing": "Importation en cours",
+      "completed": "Terminé",
+      "failed": "Interrompu",
+      "undoing": "Annulation en cours",
+      "undone": "Annulé",
+      "partly_undone": "Partiellement annulée"
+    },
+    "modes": {
+      "create": "Ajouter seulement les nouveaux enregistrements",
+      "upsert": "Ajouter les nouveaux et mettre à jour les existants"
+    },
+    "steps": {
+      "type": "Données",
+      "template": "Modèle",
+      "upload": "Fichier",
+      "mapping": "Colonnes",
+      "preview": "Aperçu",
+      "dryRun": "Vérification",
+      "import": "Importation",
+      "result": "Résultat"
+    },
+    "wizard": {
+      "title": "Nouvelle importation",
+      "titleOf": "Importation de {{file}}",
+      "description": "Chaque ligne est vérifiée avec les mêmes règles qu’un enregistrement saisi dans l’application.",
+      "back": "Toutes les importations",
+      "previous": "Retour",
+      "loading": "Chargement…"
+    },
+    "type": {
+      "title": "Que voulez-vous importer ?",
+      "subtitle": "Seuls les types que vous pouvez créer sont proposés.",
+      "none": "Vous n’avez accès à aucun type d’importation. Demandez l’accès à un administrateur.",
+      "columns_one": "{{count}} colonne",
+      "columns_other": "{{count}} colonnes",
+      "next": "Passer au modèle"
+    },
+    "template": {
+      "title": "Modèle : {{type}}",
+      "subtitle": "Téléchargez le modèle, remplissez une ligne par enregistrement, puis téléversez-le. Les colonnes obligatoires sont indiquées.",
+      "required": "Obligatoire",
+      "download": {
+        "en": "Télécharger le modèle en anglais",
+        "fr": "Télécharger le modèle en français"
+      },
+      "next": "Passer au téléversement"
+    },
+    "upload": {
+      "title": "Téléverser le fichier : {{type}}",
+      "subtitle": "XLSX ou CSV UTF-8, jusqu’à 50 000 lignes et 20 Mo.",
+      "choose": "Choisir un fichier",
+      "change": "Choisir un autre fichier",
+      "noFile": "Aucun fichier choisi",
+      "send": "Téléverser et associer les colonnes"
+    },
+    "mapping": {
+      "title": "Associer les colonnes",
+      "subtitle": "Choisissez la colonne du fichier pour chaque champ. {{rows}} lignes ont été trouvées.",
+      "skip": "Non importée",
+      "column": "Colonne {{number}}",
+      "mode": "Quand un enregistrement existe déjà",
+      "matchedBy": "Les enregistrements existants sont reconnus par : {{columns}}.",
+      "next": "Enregistrer et prévisualiser"
+    },
+    "preview": {
+      "title": "Aperçu",
+      "subtitle": "Les {{shown}} premières lignes sur {{total}}, vérifiées avec les règles de l’application.",
+      "counts": "Dans l’aperçu : {{valid}} prêtes, {{invalid}} en erreur. Lignes du fichier : {{total}}.",
+      "onlyErrors": "Lignes en erreur",
+      "allRows": "Toutes les lignes",
+      "noErrors": "Aucune erreur dans ces lignes.",
+      "empty": "Aucune ligne.",
+      "row": "Ligne",
+      "status": "Résultat",
+      "create": "Sera ajoutée",
+      "update": "Sera mise à jour",
+      "back": "Modifier l’association",
+      "check": "Vérifier tout le fichier"
+    },
+    "progress": {
+      "text": "{{done}} lignes sur {{total}}"
+    },
+    "counts": {
+      "check": {
+        "created": "Prêtes à ajouter",
+        "updated": "Prêtes à mettre à jour",
+        "failed": "Avec erreurs"
+      },
+      "done": {
+        "created": "Ajoutées",
+        "updated": "Mises à jour",
+        "failed": "Non importées"
+      }
+    },
+    "dryRun": {
+      "title": "Vérifier tout le fichier",
+      "running": "Rien n’est enregistré pendant la vérification.",
+      "done": "Tout le fichier a été vérifié. Rien n’est encore enregistré.",
+      "errorsTitle_one": "{{count}} ligne a des erreurs",
+      "errorsTitle_other": "{{count}} lignes ont des erreurs",
+      "errorsHelp": "Ces lignes seront ignorées. Téléchargez-les, corrigez-les et téléversez-les à nouveau, ou importez les autres lignes maintenant.",
+      "errorFile": "Télécharger les lignes en erreur",
+      "import_one": "Importer {{rows}} ligne",
+      "import_other": "Importer {{rows}} lignes"
+    },
+    "running": {
+      "title": "Importation en cours",
+      "subtitle": "Vous pouvez quitter cette page ; l’importation continue en arrière-plan."
+    },
+    "result": {
+      "title": "Résultat",
+      "download": "Télécharger le fichier de résultat",
+      "undo": "Annuler l’importation",
+      "undoTitle": "Annuler cette importation ?",
+      "undoText": "Les enregistrements ajoutés sont archivés et ceux mis à jour retrouvent leurs valeurs précédentes. Sont concernés : {{created}} ajoutés et {{updated}} mis à jour.",
+      "undoConfirm": "Annuler l’importation",
+      "keep": "Garder l’importation",
+      "undone": "Cette importation a été annulée.",
+      "blockedTitle_one": "L’importation n’a pas été annulée : {{count}} enregistrement est utilisé ou a été modifié depuis",
+      "blockedTitle_other": "L’importation n’a pas été annulée : {{count}} enregistrements sont utilisés ou ont été modifiés depuis",
+      "blockedRow": "Ligne {{row}}, {{record}} : {{reason}}",
+      "all": "Toutes les importations",
+      "partlyUndone": "Une partie de cette importation a été annulée. Les lignes ci-dessous sont toujours en place car quelque chose en dépend désormais ; vous pouvez relancer l’annulation.",
+      "offlineTills": "Les caisses qui ont déjà reçu ces articles les gardent jusqu’à leur prochaine synchronisation. Une vente faite hors ligne avec l’un d’eux arrive quand même et est conservée."
     }
   }
 }

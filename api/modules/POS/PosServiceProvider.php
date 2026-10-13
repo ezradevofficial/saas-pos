@@ -8,6 +8,7 @@ use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\ListViewCatalogue;
+use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
@@ -89,6 +90,11 @@ class PosServiceProvider extends ServiceProvider
             || DB::table('pos_sale_payments')->where('currency', $code)->exists()
             || DB::table('pos_shift_balances')->where('currency', $code)->exists()
             || DB::table('pos_cash_movements')->where('currency', $code)->exists());
+
+        // IMP-02: an imported item sold, or customer sold to, keeps its import from being undone.
+        $usage = $this->app->make(RecordUsage::class);
+        $usage->register('item', 'sale', fn (array $ids) => DB::table('pos_sale_lines')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
+        $usage->register('party', 'sale', fn (array $ids) => DB::table('pos_sales')->whereIn('customer_id', $ids)->distinct()->pluck('customer_id')->all());
 
         // NFR-04: what the till pulls from the POS module (core's sync API).
         $sources = $this->app->make(SyncSources::class);

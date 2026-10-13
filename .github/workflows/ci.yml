@@ -17,9 +17,10 @@ permissions:
   contents: read
 
 jobs:
-  # One job definition, two runs: the tenant-isolation suite runs on its own
-  # so its result is visible separately (TEN-01). The Feature suite excludes
-  # tests/Feature/Isolation (phpunit.xml), so no test runs twice.
+  # One job definition, three runs: the tenant-isolation suite runs on its own
+  # so its result is visible separately (TEN-01), and the `slow` group (tests
+  # that take minutes) beside the rest. The Feature suite excludes
+  # tests/Feature/Isolation (phpunit.xml) and the slow group, so no test runs twice.
   api:
     name: api (${{ matrix.suite.name }})
     runs-on: ubuntu-24.04
@@ -30,10 +31,15 @@ jobs:
         suite:
           - name: tests
             pint: true
-            command: php artisan test --exclude-testsuite=Isolation
+            command: php artisan test --exclude-testsuite=Isolation --exclude-group=slow
           - name: isolation
             pint: false
             command: php artisan test --testsuite=Isolation
+          # IMP-03: tests that take minutes (50,000 imported rows) run beside
+          # the main job, so a PR still waits for them but not in series.
+          - name: slow
+            pint: false
+            command: php artisan test --group=slow
     services:
       postgres:
         image: postgres:16

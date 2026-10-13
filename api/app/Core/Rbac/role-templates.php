@@ -103,6 +103,8 @@ return [
             'core.payment_method.view', 'core.dimension.*', 'core.payment.*', 'core.fiscal.view', 'core.fiscal.edit',
             // CF-04: fills in and approves custom forms (petty cash and the like).
             'core.custom_form.view', 'core.custom_form.create', 'core.custom_form.approve',
+            // IMP-01: imports customers and suppliers (core.party.create|edit).
+            'core.import.run',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             'core.template.view',
