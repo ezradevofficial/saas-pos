@@ -53,7 +53,7 @@ class OperatorInvoice extends Model
     protected $fillable = [
         'id', 'company_id', 'customer_tenant_id', 'subscription_id', 'number', 'kind', 'status', 'currency',
         'subtotal_minor', 'discount_minor', 'tax_minor', 'total_minor', 'tax_code_id', 'tax_rate', 'period_start',
-        'period_end', 'issued_at', 'due_at', 'paid_at', 'paid_via', 'payment_reference', 'lines', 'customer',
+        'period_end', 'issued_at', 'due_at', 'paid_at', 'paid_via', 'payment_reference', 'overpayments', 'lines', 'customer',
     ];
 
     protected function casts(): array
@@ -68,6 +68,7 @@ class OperatorInvoice extends Model
             'issued_at' => 'datetime',
             'due_at' => 'datetime',
             'paid_at' => 'datetime',
+            'overpayments' => 'array',
             'lines' => 'array',
             'customer' => 'array',
         ];

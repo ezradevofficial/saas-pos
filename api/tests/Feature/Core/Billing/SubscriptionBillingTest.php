@@ -29,6 +29,7 @@ use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Concerns\ResetsPlatformTables;
@@ -359,6 +360,47 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame(['first', 'paid'], [$invoice->kind, $invoice->status]);
         $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
         $this->assertSame('checkout', $this->inOperator(fn () => PaymentIntent::query()->sole()->mode));
+    }
+
+    public function test_a_second_payment_is_refused_while_one_may_still_be_paid_whatever_its_age(): void
+    {
+        $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
+        // The fake provider never answers a phone ending 111: the push stays pending.
+        $this->postJson("/api/v1/subscription/invoices/{$invoice}/pay", ['provider' => 'mpesa_ke', 'phone' => '0712345111'], $this->headersFor())->assertCreated();
+
+        $this->travelToDay('2026-11-01 08:10:00');
+        $this->postJson("/api/v1/subscription/invoices/{$invoice}/pay", ['provider' => 'mpesa_ke', 'phone' => '0712345678'], $this->headersFor())
+            ->assertStatus(409)->assertJsonPath('code', 'payment_in_progress');
+        $this->assertSame(1, $this->inOperator(fn () => PaymentIntent::query()->count()));
+    }
+
+    public function test_settlement_happens_once_and_money_for_a_paid_invoice_is_kept_as_an_overpayment(): void
+    {
+        $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
+        $this->payWithMpesa($invoice)->assertJsonPath('data.status', 'succeeded');
+        $operatorInvoiceId = $this->inTenant(fn () => BillingInvoice::query()->findOrFail($invoice)->operator_invoice_id);
+        $first = $this->inOperator(fn () => PaymentIntent::query()->sole());
+        $payments = app(BillingPayments::class);
+
+        // The same settlement delivered again changes nothing, says nothing.
+        $payments->settle($first->id, $operatorInvoiceId);
+        $this->assertSame(1, count(array_filter($this->ownerNotices(), fn ($t) => $t === 'core.subscription.payment_received')));
+        $this->assertSame(1, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.billing_invoice.paid')->count()));
+
+        // A second payment that went through anyway (a provider's late answer) is an overpayment for staff.
+        $second = $this->inOperator(fn () => PaymentIntent::create([
+            'id' => (string) Str::uuid7(), 'company_id' => $first->company_id, 'payment_method_id' => $first->payment_method_id,
+            'provider' => 'mpesa_ke', 'driver' => 'fake', 'purpose' => 'sale', 'mode' => 'stk', 'currency' => 'KES', 'amount_minor' => 390000,
+            'reference_type' => 'billing.invoice', 'reference' => $operatorInvoiceId, 'status' => 'succeeded', 'provider_receipt' => 'FKSECOND1', 'completed_at' => now(),
+        ]));
+        $payments->settle($second->id, $operatorInvoiceId);
+        $payments->settle($second->id, $operatorInvoiceId);
+
+        $overpayments = $this->operatorInvoice($operatorInvoiceId)->overpayments;
+        $this->assertSame([[$second->id, 390000, 'FKSECOND1']], array_map(fn ($o) => [$o['intent_id'], $o['amount_minor'], $o['receipt']], $overpayments));
+        $this->assertSame('overpayment', $this->inOperator(fn () => OperatorAccount::query()->sole()->alerts[0]['kind']));
+        $this->assertSame(1, PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.invoice.overpaid')->count());
+        $this->assertSame(1, count(array_filter($this->ownerNotices(), fn ($t) => $t === 'core.subscription.payment_received')));
     }
 
     public function test_staff_mark_a_bank_transfer_paid_and_the_tenant_is_active_at_once(): void

@@ -516,9 +516,13 @@ final class TwoTenants
         // invoice (issued by the operator, copied here), a saved M-Pesa
         // wallet and a payment of the invoice waiting for the phone.
         app(TenantContext::class)->run($tenantId, fn () => app(Subscriptions::class)->startTrial('KE', ['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter']));
-        $billingInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
+        $firstInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
         $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
-        $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$billingInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+        $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$firstInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
+        // An upgrade in the period: its own invoice, open with no payment (the routes' invoice).
+        $upgrade = ['modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 20, 'outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter'];
+        $charge = self::ok($test->postJson('/api/v1/subscription/quote', $upgrade, $owner))->json('data.charge_now');
+        $billingInvoice = self::ok($test->postJson('/api/v1/subscription/change', [...$upgrade, 'expected_charge' => $charge], $owner))->json('data.invoice.id');
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');

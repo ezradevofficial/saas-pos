@@ -46,6 +46,7 @@ return [
         'payment_method_archived' => 'This payment method was removed. Choose another one.',
         'payment_method_unknown' => 'Choose one of your saved payment methods.',
         'provider_unavailable' => 'This payment method isn’t available yet. Choose another one or contact support.',
+        'payment_in_progress' => 'A payment of this invoice is still waiting for the payer. Approve it on the phone, or wait for it to finish, then try again.',
         'payment_failed' => 'The payment didn’t go through. Try again or use another method.',
         'already_subscribed' => 'Your subscription has already started. Pay its open invoice instead.',
         'not_in_trial' => 'This subscription is no longer in its trial.',

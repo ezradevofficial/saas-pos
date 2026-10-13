@@ -33,9 +33,9 @@ class OperatorAccount extends Model
 {
     use BelongsToTenant, HasUuids;
 
-    protected $fillable = ['customer_tenant_id', 'name', 'country', 'currency', 'plan', 'cycle', 'status', 'mrr_minor', 'trial_ends_at', 'current_period_end', 'grace_days', 'purge_due'];
+    protected $fillable = ['customer_tenant_id', 'name', 'country', 'currency', 'plan', 'cycle', 'status', 'mrr_minor', 'trial_ends_at', 'current_period_end', 'grace_days', 'purge_due', 'alerts'];
 
-    protected $attributes = ['purge_due' => '[]'];
+    protected $attributes = ['purge_due' => '[]', 'alerts' => '[]'];
 
     protected function casts(): array
     {
@@ -45,6 +45,7 @@ class OperatorAccount extends Model
             'current_period_end' => 'date',
             'grace_days' => 'integer',
             'purge_due' => 'array',
+            'alerts' => 'array',
         ];
     }
 }

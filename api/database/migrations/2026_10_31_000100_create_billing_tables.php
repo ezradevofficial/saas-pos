@@ -202,6 +202,8 @@ return new class extends Migration
             // `intent` (a payment intent id) or `bank_transfer` (marked by staff).
             $table->string('paid_via', 20)->nullable();
             $table->string('payment_reference', 100)->nullable();
+            // SUB-04: money received for the invoice once it was already paid, for staff to refund.
+            $table->jsonb('overpayments')->default('[]');
             $table->jsonb('lines');
             $table->jsonb('customer');
             $table->timestampsTz();
@@ -232,6 +234,8 @@ return new class extends Migration
             $table->integer('grace_days')->nullable();
             // SUB-07: switched-off modules whose data is due for purge (a report; nothing is deleted).
             $table->jsonb('purge_due')->default('[]');
+            // What staff must look at (an overpayment to refund).
+            $table->jsonb('alerts')->default('[]');
             $table->timestampsTz();
 
             $table->unique(['tenant_id', 'customer_tenant_id']);

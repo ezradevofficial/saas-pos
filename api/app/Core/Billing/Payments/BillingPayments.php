@@ -2,6 +2,10 @@
 
 namespace App\Core\Billing\Payments;
 
+use App\Core\Audit\Auditor;
+use App\Core\Billing\Models\OperatorAccount;
+use App\Core\Platform\PlatformAuditor;
+use Illuminate\Support\Facades\DB;
 use App\Core\Billing\Dunning\BillingNotices;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
@@ -71,12 +75,16 @@ class BillingPayments
         $subscription = $this->subscriptions->require();
         [$provider, $phone, $token, $saved, $label] = $this->resolve($subscription, $how);
 
-        // A payment of this invoice still waiting on the payer: show it rather than push again.
-        $open = BillingPayment::query()->where('billing_invoice_id', $invoice->id)->whereIn('status', ['pending', 'unknown'])
-            ->where('created_at', '>', CarbonImmutable::now()->subMinutes(2))->first();
+        // Never two requests for one invoice: while one may still be paid (pending, or unknown at
+        // the provider), ask where it stands; still open, a new one is refused.
+        foreach (BillingPayment::query()->where('billing_invoice_id', $invoice->id)->whereIn('status', ['pending', 'unknown'])->get() as $open) {
+            if ($this->refresh($open)->isPending()) {
+                throw new ApiException(409, 'payment_in_progress', __('billing.errors.payment_in_progress'));
+            }
+        }
 
-        if ($open !== null) {
-            return $this->refresh($open);
+        if (! $invoice->fresh()->isOpen()) {
+            throw new ApiException(422, 'invoice_not_open', __('billing.errors.invoice_not_open'));
         }
         $customerId = $this->tenants->require();
         $id = (string) Str::uuid7();
@@ -161,20 +169,30 @@ class BillingPayments
      */
     public function settle(string $intentId, string $operatorInvoiceId): void
     {
-        [$intent, $invoice] = $this->operator->run(function () use ($intentId, $operatorInvoiceId) {
+        // Exactly once: the invoice row is locked while its payment is decided.
+        [$intent, $invoice, $paidNow] = $this->operator->run(fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($intentId, $operatorInvoiceId) {
             $intent = PaymentIntent::query()->find($intentId);
-            $invoice = OperatorInvoice::query()->find($operatorInvoiceId);
+            $invoice = OperatorInvoice::query()->lockForUpdate()->find($operatorInvoiceId);
 
             if ($intent === null || $invoice === null || $intent->reference !== $invoice->id) {
-                return [null, null];
+                return [null, null, false];
             }
 
-            if ($invoice->isOpen() && $intent->status === 'succeeded' && $intent->amount_minor === $invoice->total_minor && $intent->currency === $invoice->currency) {
+            $succeeded = $intent->status === 'succeeded' && $intent->currency === $invoice->currency;
+
+            if ($succeeded && $invoice->isOpen() && $intent->amount_minor === $invoice->total_minor) {
                 $this->markOperatorPaid($invoice, 'intent', $intent->provider_receipt ?? $intent->id);
+
+                return [$intent, $invoice, true];
             }
 
-            return [$intent, $invoice->fresh()];
-        });
+            // Money for an invoice already paid (a second payment raced the first): kept as an overpayment for staff.
+            if ($succeeded && ! $invoice->isOpen() && $invoice->payment_reference !== ($intent->provider_receipt ?? $intent->id)) {
+                $this->recordOverpayment($invoice, $intent);
+            }
+
+            return [$intent, $invoice, false];
+        }));
 
         if ($intent === null) {
             return;
@@ -191,6 +209,24 @@ class BillingPayments
                 $this->copyPaid($invoice);
             }
         });
+    }
+
+    /** In the operator's context, the invoice locked: an extra payment recorded once, alerted in the console and the platform audit. */
+    private function recordOverpayment(OperatorInvoice $invoice, PaymentIntent $intent): void
+    {
+        $overpayments = $invoice->overpayments ?? [];
+
+        if (in_array($intent->id, array_column($overpayments, 'intent_id'), true)) {
+            return;
+        }
+
+        $entry = ['intent_id' => $intent->id, 'amount_minor' => $intent->amount_minor, 'currency' => $intent->currency, 'receipt' => $intent->provider_receipt, 'at' => CarbonImmutable::now()->toIso8601String()];
+        $invoice->fill(['overpayments' => [...$overpayments, $entry]])->save();
+
+        $account = OperatorAccount::query()->where('customer_tenant_id', $invoice->customer_tenant_id)->first();
+        $account?->fill(['alerts' => [...($account->alerts ?? []), ['kind' => 'overpayment', 'invoice' => $invoice->number, ...$entry]]])->save();
+
+        app(PlatformAuditor::class)->record('platform.invoice.overpaid', $invoice, null, ['tenant_id' => $invoice->customer_tenant_id, ...$entry]);
     }
 
     /**
@@ -423,13 +459,16 @@ class BillingPayments
     /** In the customer's context: the copy is paid, and the subscription active again (SUB-06). */
     private function copyPaid(OperatorInvoice $invoice): void
     {
-        $copy = BillingInvoice::query()->where('operator_invoice_id', $invoice->id)->first();
+        // Exactly once: only the update that finds the copy still open goes on to notify and audit.
+        $changed = BillingInvoice::query()->where('operator_invoice_id', $invoice->id)->where('status', BillingInvoice::OPEN)
+            ->update(['status' => BillingInvoice::PAID, 'paid_at' => $invoice->paid_at, 'updated_at' => CarbonImmutable::now()]);
 
-        if ($copy === null || $copy->status === BillingInvoice::PAID) {
+        if ($changed === 0) {
             return;
         }
 
-        $copy->fill(['status' => BillingInvoice::PAID, 'paid_at' => $invoice->paid_at])->save();
+        $copy = BillingInvoice::query()->where('operator_invoice_id', $invoice->id)->firstOrFail();
+        app(Auditor::class)->record('core.billing_invoice.paid', $copy, ['status' => BillingInvoice::OPEN], ['status' => BillingInvoice::PAID, 'paid_at' => $copy->paid_at?->toIso8601String()]);
         $subscription = Subscription::query()->first();
 
         if ($subscription !== null) {

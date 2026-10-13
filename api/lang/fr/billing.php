@@ -46,6 +46,7 @@ return [
         'payment_method_archived' => 'Ce moyen de paiement a été retiré. Choisissez-en un autre.',
         'payment_method_unknown' => 'Choisissez l’un de vos moyens de paiement enregistrés.',
         'provider_unavailable' => 'Ce moyen de paiement n’est pas encore disponible. Choisissez-en un autre ou contactez le support.',
+        'payment_in_progress' => 'Un paiement de cette facture attend encore le payeur. Validez-le sur le téléphone, ou attendez qu’il se termine, puis réessayez.',
         'payment_failed' => 'Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen.',
         'already_subscribed' => 'Votre abonnement a déjà commencé. Réglez plutôt sa facture ouverte.',
         'not_in_trial' => 'Cet abonnement n’est plus en période d’essai.',

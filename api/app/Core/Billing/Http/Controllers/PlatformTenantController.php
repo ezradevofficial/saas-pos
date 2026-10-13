@@ -161,6 +161,7 @@ class PlatformTenantController
             'current_period_end' => $account->current_period_end?->toDateString(),
             'grace_days' => $account->grace_days,
             'purge_due' => $account->purge_due ?? [],
+            'alerts' => $account->alerts ?? [],
         ];
     }
 
@@ -180,6 +181,7 @@ class PlatformTenantController
             'paid_at' => $invoice->paid_at?->toIso8601String(),
             'paid_via' => $invoice->paid_via,
             'payment_reference' => $invoice->payment_reference,
+            'overpayments' => $invoice->overpayments ?? [],
         ];
     }
 }
