@@ -79,6 +79,21 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Accounting (docs/modules/accounting.md): only while the module is active (RBAC-08); budgets need Accounting Pro.
+    id: 'accounting',
+    label: (t) => t('nav.groups.accounting'),
+    items: [
+      { to: '/accounting/journals', icon: 'templates', label: (t) => t('nav.accountingJournals'), permission: 'accounting.journal.view', module: 'accounting' },
+      { to: '/accounting/documents', icon: 'sales', label: (t) => t('nav.accountingDocuments'), permission: 'accounting.invoice.view', module: 'accounting' },
+      { to: '/accounting/payments', icon: 'payments', label: (t) => t('nav.accountingPayments'), permission: 'accounting.payment.view', module: 'accounting' },
+      { to: '/accounting/bank', icon: 'currencies', label: (t) => t('nav.accountingBank'), permission: 'accounting.bank.view', module: 'accounting' },
+      { to: '/accounting/budgets', icon: 'chart', label: (t) => t('nav.accountingBudgets'), permission: 'accounting.budget.view', module: 'accounting_pro' },
+      { to: '/accounting/periods', icon: 'lock', label: (t) => t('nav.accountingPeriods'), permission: 'accounting.period.view', module: 'accounting' },
+      { to: '/accounting/reports', icon: 'chart', label: (t) => t('nav.accountingReports'), permission: ['accounting.report.view', 'accounting.report.consolidate'], module: 'accounting' },
+      { to: '/accounting/chart', icon: 'numbering', label: (t) => t('nav.accountingChart'), permission: ['accounting.account.view', 'accounting.account.manage'], module: 'accounting' },
+    ],
+  },
+  {
     id: 'catalogue',
     label: (t) => t('nav.groups.catalogue'),
     items: [

@@ -70,6 +70,19 @@ import Sales from './pages/pos/Sales'
 import SalesDashboard from './pages/pos/SalesDashboard'
 import ShiftDetail from './pages/pos/ShiftDetail'
 import Shifts from './pages/pos/Shifts'
+import { ACCOUNT_VIEW, BANK_VIEW, BUDGET_VIEW, INVOICE_VIEW, JOURNAL_VIEW, PAYMENT_VIEW as ACCOUNTING_PAYMENT_VIEW, PERIOD_VIEW, REPORT_VIEW } from './pages/accounting/accountingData'
+import BankAccounts, { Reconcile } from './pages/accounting/Bank'
+import Budgets, { BudgetDetail } from './pages/accounting/Budgets'
+import ChartOfAccounts from './pages/accounting/ChartOfAccounts'
+import DocumentDetail from './pages/accounting/DocumentDetail'
+import DocumentForm from './pages/accounting/DocumentForm'
+import Documents from './pages/accounting/Documents'
+import JournalDetail from './pages/accounting/JournalDetail'
+import JournalForm from './pages/accounting/JournalForm'
+import Journals from './pages/accounting/Journals'
+import AccountingPayments, { PaymentDetail } from './pages/accounting/Payments'
+import Periods from './pages/accounting/Periods'
+import Reports, { GeneralLedger } from './pages/accounting/Reports'
 import Appearance from './pages/settings/Appearance'
 import Brand from './pages/settings/Brand'
 import PosLayout from './pages/settings/PosLayout'
@@ -221,6 +234,26 @@ export const routes = [
         ['/pos/shifts', POS_SHIFT_VIEW, <Shifts key="pos-shifts" />],
         ['/pos/shifts/:shiftId', POS_SHIFT_VIEW, <ShiftDetail key="pos-shift" />],
         ['/pos/held', POS_HELD_VIEW, <Held key="pos-held" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Accounting (docs/modules/accounting.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/accounting/chart', ACCOUNT_VIEW, <ChartOfAccounts key="acc-chart" />],
+        ['/accounting/journals', JOURNAL_VIEW, <Journals key="acc-journals" />],
+        ['/accounting/journals/new', 'accounting.journal.create', <JournalForm key="acc-journal-new" />],
+        ['/accounting/journals/:journalId', JOURNAL_VIEW, <JournalDetail key="acc-journal" />],
+        ['/accounting/journals/:journalId/edit', 'accounting.journal.create', <JournalForm key="acc-journal-edit" />],
+        ['/accounting/documents', INVOICE_VIEW, <Documents key="acc-documents" />],
+        ['/accounting/documents/new', 'accounting.invoice.create', <DocumentForm key="acc-document-new" />],
+        ['/accounting/documents/:documentId', INVOICE_VIEW, <DocumentDetail key="acc-document" />],
+        ['/accounting/payments', ACCOUNTING_PAYMENT_VIEW, <AccountingPayments key="acc-payments" />],
+        ['/accounting/payments/:paymentId', ACCOUNTING_PAYMENT_VIEW, <PaymentDetail key="acc-payment" />],
+        ['/accounting/bank', BANK_VIEW, <BankAccounts key="acc-bank" />],
+        ['/accounting/bank/:bankId', BANK_VIEW, <Reconcile key="acc-reconcile" />],
+        ['/accounting/budgets', BUDGET_VIEW, <Budgets key="acc-budgets" />],
+        ['/accounting/budgets/:budgetId', BUDGET_VIEW, <BudgetDetail key="acc-budget" />],
+        ['/accounting/periods', PERIOD_VIEW, <Periods key="acc-periods" />],
+        ['/accounting/reports', REPORT_VIEW, <Reports key="acc-reports" />],
+        ['/accounting/reports/ledger', 'accounting.report.view', <GeneralLedger key="acc-ledger" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },
