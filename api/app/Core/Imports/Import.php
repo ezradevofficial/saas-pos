@@ -51,6 +51,9 @@ class Import extends Model
     /** IMP-02: an import may be undone this long after it finished. */
     public const UNDO_HOURS = 24;
 
+    /** Microseconds kept: undo compares started_at with audit entries (IMP-02). */
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected $fillable = [
         'user_id', 'importer', 'mode', 'status', 'locale', 'file_disk', 'file_path', 'file_name', 'file_format', 'file_size',
         'headers', 'mapping', 'total_rows', 'processed_rows', 'created_rows', 'updated_rows', 'failed_rows', 'checked',

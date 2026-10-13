@@ -113,7 +113,7 @@ class ImportController
     {
         $user = $request->user();
         $importer = $this->registry->get($request->validated('importer'));
-        $format = $request->format();
+        $format = $request->fileFormat();
         $id = (string) Str::uuid7();
         $path = $this->files->storeSource($request->file('file'), $id, $format);
 

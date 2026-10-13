@@ -81,6 +81,8 @@ class PermissionRegistry
         // location (docs/adr/012), and the form types themselves (tenant scope).
         'custom_form' => ['view', 'create', 'edit', 'approve'],
         'custom_form_type' => ['manage'],
+        // IMP-01..IMP-03: run imports (with the importer's own create/edit permission on its entity).
+        'import' => ['run'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

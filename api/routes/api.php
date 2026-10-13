@@ -51,6 +51,10 @@ use App\Core\Identity\Http\Controllers\SignUpController;
 use App\Core\Identity\Http\Controllers\TwoFactorController;
 use App\Core\Identity\Http\Controllers\UserController;
 use App\Core\Identity\Http\Controllers\VerifyController;
+use App\Core\Imports\Http\Controllers\ImportController;
+use App\Core\Imports\Http\Controllers\ImportFileController;
+use App\Core\Imports\Import;
+use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Identity\Pin\Http\Controllers\DevicePinController;
@@ -120,7 +124,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'import', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -140,6 +144,7 @@ Route::model('tenant_domain', TenantDomain::class);
 Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
 Route::model('custom_form_record', CustomFormRecord::class);
+Route::model('import', Import::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -191,6 +196,8 @@ Route::get('branding/assets/{path}', BrandAssetFileController::class)->where('pa
 // CF-01: a file field's file, behind a temporary signed URL bound to one user (CustomFieldFiles::url).
 Route::get('custom-field-files/{path}', [CustomFieldFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_fields.file');
 
+// IMP-03: an import's result or error file, signed for one user (ImportFileController).
+Route::get('import-files/{path}', ImportFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('imports.file');
 Route::get('custom-form-files/{path}', [CustomFormFileController::class, 'download'])->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('custom_forms.file');
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
@@ -610,6 +617,18 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('form-layouts', FormLayoutCatalogueController::class);
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.
+    // IMP-01..IMP-03: the import wizard (core.import.run plus the importer's own permissions).
+    Route::get('imports/importers', [ImportController::class, 'importers']);
+    Route::get('imports/importers/{importer}/template', [ImportController::class, 'template'])->where('importer', '[a-z][a-z0-9_]*');
+    Route::get('imports', [ImportController::class, 'index']);
+    Route::post('imports', [ImportController::class, 'store'])->middleware('throttle:'.ImportsServiceProvider::LIMITER);
+    Route::get('imports/{import}', [ImportController::class, 'show']);
+    Route::patch('imports/{import}', [ImportController::class, 'update']);
+    Route::get('imports/{import}/preview', [ImportController::class, 'preview']);
+    Route::post('imports/{import}/dry-run', [ImportController::class, 'dryRun']);
+    Route::post('imports/{import}/run', [ImportController::class, 'run']);
+    Route::post('imports/{import}/undo', [ImportController::class, 'undo']);
+
     Route::get('custom-fields', [CustomFieldController::class, 'index']);
     Route::post('custom-fields', [CustomFieldController::class, 'store']);
     Route::get('custom-fields/meta', [CustomFieldController::class, 'meta']);

@@ -33,7 +33,7 @@ class StoreImportRequest extends FormRequest
         ];
     }
 
-    public function format(): string
+    public function fileFormat(): string
     {
         return strtolower($this->file('file')->getClientOriginalExtension()) === 'xlsx' ? 'xlsx' : 'csv';
     }

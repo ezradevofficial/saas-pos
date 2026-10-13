@@ -42,9 +42,9 @@ return new class extends Migration
             $table->string('failure', 500)->nullable();
             // IMP-02: the rows that blocked the last undo.
             $table->jsonb('blocking')->default('[]');
-            $table->timestampTz('started_at')->nullable();
-            $table->timestampTz('finished_at')->nullable();
-            $table->timestampTz('undone_at')->nullable();
+            $table->timestampTz('started_at', 6)->nullable();
+            $table->timestampTz('finished_at', 6)->nullable();
+            $table->timestampTz('undone_at', 6)->nullable();
             $table->uuid('undone_by')->nullable();
             $table->timestampsTz();
 
