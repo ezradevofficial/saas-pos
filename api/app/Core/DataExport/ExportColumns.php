@@ -45,6 +45,8 @@ final class ExportColumns
         // Denied rather than decrypted: the app only ever shows it masked, and
         // decrypting would put the application key in the export path.
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
+        'billing_payment_methods.token' => 'a card provider\'s token for charging the subscription (SUB-04, encrypted)',
+        'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
     ];
 
     /**
