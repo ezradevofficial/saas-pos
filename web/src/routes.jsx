@@ -100,6 +100,7 @@ import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
 import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
 import WorkflowInsights from './pages/workflows/WorkflowInsights'
 import Workflows from './pages/workflows/Workflows'
+import { platformRoutes } from './platform/routes'
 
 // Development only: every design-system component in its states.
 const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./dev/ComponentGallery.jsx')) : null
@@ -118,6 +119,8 @@ const devRoutes = ComponentGallery
 
 export const routes = [
   ...devRoutes,
+  // ADR 013: the platform staff console, outside the tenant shell.
+  ...platformRoutes,
   {
     element: (
       <GuestOnly>

@@ -5099,5 +5099,167 @@
       "text": "L’export contient toutes les données de votre organisation. Saisissez votre mot de passe pour le demander.",
       "password": "Votre mot de passe"
     }
+  },
+  "platform": {
+    "console": "Console de la plateforme",
+    "nav": {
+      "catalogue": "Catalogue des offres"
+    },
+    "roles": {
+      "owner": "Propriétaire",
+      "billing": "Facturation",
+      "support": "Assistance"
+    },
+    "fields": {
+      "email": "E-mail",
+      "confirmPassword": "Confirmez le mot de passe",
+      "country": "Pays"
+    },
+    "signIn": {
+      "title": "Connexion à la plateforme",
+      "intro": "Réservé à notre équipe. Les clients se connectent sur la page de leur entreprise.",
+      "submit": "Continuer",
+      "codeTitle": "Saisissez votre code",
+      "codeIntro": "Saisissez le code à 6 chiffres de votre application d’authentification.",
+      "verify": "Se connecter"
+    },
+    "setup": {
+      "title": "Configurez votre compte plateforme",
+      "intro": "Ce compte est celui de {{name}} ({{email}}). Choisissez un mot de passe, puis configurez votre application d’authentification.",
+      "passwordHelp": "Au moins 12 caractères. Évitez les mots de passe courants.",
+      "submit": "Enregistrer le mot de passe"
+    },
+    "enrol": {
+      "title": "Configurez votre application d’authentification",
+      "intro": "Les comptes plateforme exigent la connexion en deux étapes. Rien d’autre ne fonctionne avant sa configuration.",
+      "scan": "Scannez ce code avec votre application d’authentification, puis saisissez le code qu’elle affiche.",
+      "submit": "Activer la connexion en deux étapes"
+    },
+    "catalogue": {
+      "title": "Catalogue des offres",
+      "intro": "Modules, offres groupées, prix par pays et codes promo. Un prix n’est jamais modifié : un nouveau prix prend le relais à sa date.",
+      "tabs": {
+        "modules": "Modules et prix",
+        "bundles": "Offres groupées",
+        "coupons": "Codes promo",
+        "quote": "Aperçu de devis"
+      },
+      "columns": {
+        "module": "Module",
+        "kind": "Type",
+        "unit": "Prix par",
+        "status": "Statut",
+        "bundle": "Offre",
+        "includes": "Comprend",
+        "addons": "Options"
+      },
+      "notSold": "Non vendu",
+      "minimum": "Minimum {{amount}}",
+      "extraOutlet": "{{amount}} par point de vente supplémentaire",
+      "nextPrice": "Nouveau prix à partir du {{date}}",
+      "includes_one": "Comprend {{count}} appareil par point de vente",
+      "includes_other": "Comprend {{count}} appareils par point de vente",
+      "annual": "La facturation annuelle compte {{charged}} mois pour {{months}}.",
+      "newPrice": "Nouveau prix",
+      "quoted": "Sur devis",
+      "empty": "Le catalogue est encore vide."
+    },
+    "kinds": {
+      "module": "Module",
+      "extra": "Unités supplémentaires",
+      "addon": "Option"
+    },
+    "units": {
+      "outlet": "Point de vente",
+      "device": "Appareil",
+      "warehouse": "Entrepôt",
+      "online_store": "Boutique en ligne",
+      "company": "Société",
+      "employee": "Employé",
+      "tenant": "Compte"
+    },
+    "status": {
+      "active": "Actif",
+      "in_effect": "En vigueur",
+      "scheduled": "Programmé",
+      "expired": "Expiré",
+      "used_up": "Épuisé",
+      "archived": "Archivé"
+    },
+    "coupons": {
+      "new": "Nouveau code promo",
+      "save": "Créer le code promo",
+      "empty": "Aucun code promo pour l’instant.",
+      "code": "Code",
+      "codeHelp": "3 à 40 lettres, chiffres, tirets ou tirets bas. Les clients le saisissent en majuscules ou minuscules.",
+      "value": "Remise",
+      "percentOff": "{{percent}} % de remise",
+      "kind": "Type de remise",
+      "kinds": {
+        "percent": "Pourcentage",
+        "fixed": "Montant fixe"
+      },
+      "percent": "Pourcentage de remise",
+      "currency": "Devise",
+      "amount": "Montant de la remise",
+      "appliesTo": "S’applique à",
+      "everything": "Tout",
+      "modules": "Modules",
+      "bundles": "Offres groupées",
+      "appliesHelp": "Laissez modules et offres vides pour l’appliquer à tout.",
+      "expires": "Expire le",
+      "redemptions": "Utilisé",
+      "maxRedemptions": "Utilisations maximales"
+    },
+    "prices": {
+      "title": "Nouveau prix pour {{key}}",
+      "intro": "Le prix actuel reste valable jusqu’à la date du nouveau. Les montants sont mensuels, par unité.",
+      "amount": "Prix mensuel",
+      "minimum": "Minimum mensuel",
+      "extraOutlet": "Prix par point de vente supplémentaire",
+      "effectiveFrom": "À partir du",
+      "save": "Ajouter le prix"
+    },
+    "quote": {
+      "title": "Aperçu de devis",
+      "intro": "Le prix qu’un client voit dans le choix des modules, selon le catalogue du jour.",
+      "cycle": "Facturation",
+      "cycles": {
+        "monthly": "Mensuelle",
+        "annual": "Annuelle"
+      },
+      "modules": "Modules",
+      "bundle": "Offre groupée",
+      "noBundle": "Aucune offre groupée",
+      "quantities": {
+        "outlet": "Points de vente",
+        "device": "Appareils de caisse",
+        "employee": "Employés",
+        "company": "Sociétés",
+        "online_store": "Boutiques en ligne"
+      },
+      "coupon": "Code promo",
+      "submit": "Calculer le devis",
+      "result": "Devis",
+      "empty": "Choisissez des modules et calculez le devis pour voir le prix.",
+      "quoted": "L’offre Entreprise est sur devis. Contactez l’équipe commerciale pour un prix.",
+      "line": "Élément",
+      "quantity": "Quantité",
+      "withIncluded": "{{quantity}} ({{included}} compris)",
+      "monthly": "Par mois",
+      "minimumApplied": "Minimum appliqué",
+      "subtotal": "Sous-total",
+      "annualDiscount": "Remise annuelle",
+      "couponDiscount": "Code promo",
+      "total": {
+        "monthly": "Total par mois",
+        "annual": "Total par an"
+      },
+      "couponNotApplied": {
+        "currency": "Ce code promo est dans une autre devise : il ne s’applique pas ici.",
+        "not_applicable": "Ce code promo ne s’applique à rien dans ce devis."
+      },
+      "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
+    }
   }
 }

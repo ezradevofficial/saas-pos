@@ -41,6 +41,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Platform staff (ADR 013): bearer tokens from platform_access_tokens
+        // only (PlatformTokens). Tenant tokens never authenticate here.
+        'platform' => [
+            'driver' => 'platform-token',
+        ],
     ],
 
     /*

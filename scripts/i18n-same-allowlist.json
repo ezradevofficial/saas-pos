@@ -74,5 +74,8 @@
   "Style",
   "Centre",
   "Document",
-  "Page"
+  "Page",
+  "Module",
+  "Modules",
+  "Minimum {{amount}}"
 ]

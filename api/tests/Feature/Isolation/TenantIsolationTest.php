@@ -75,6 +75,12 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
         'GET api/v1/tenant-exports/{export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
+        'GET api/v1/catalogue' => 'ONB-03: the global plan catalogue of a country (no tenant data, global tables); rate-limited',
+        'POST api/v1/catalogue/quote' => 'ONB-03: prices a selection against the global catalogue; reads no tenant row; rate-limited',
+        'POST api/v1/platform/auth/sign-in' => 'ADR 013: platform staff sign-in (platform_users, global); needs the email and password; rate-limited',
+        'POST api/v1/platform/auth/two-factor' => 'ADR 013: needs the encrypted sign-in challenge and a TOTP code',
+        'GET api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential; answers only the staff member\'s name and email',
+        'POST api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential',
     ];
 
     /**
@@ -388,7 +394,10 @@ class TenantIsolationTest extends TestCase
                 $seen[] = $key;
 
                 if (! isset(self::PUBLIC_ROUTES[$key])) {
-                    $this->assertContains('auth:sanctum', $route->gatherMiddleware(), "{$key} has no bearer authentication and is not in PUBLIC_ROUTES");
+                    // ADR 013: staff routes take only a platform token (auth:platform), never a tenant one.
+                    $guard = $this->isPlatform($route) ? 'auth:platform' : 'auth:sanctum';
+                    $this->assertContains($guard, $route->gatherMiddleware(), "{$key} has no {$guard} authentication and is not in PUBLIC_ROUTES");
+                    $this->assertNotContains($this->isPlatform($route) ? 'auth:sanctum' : 'auth:platform', $route->gatherMiddleware(), "{$key} mixes tenant and platform authentication");
                 }
             }
         }
@@ -406,6 +415,13 @@ class TenantIsolationTest extends TestCase
         $called = 0;
 
         foreach ($this->apiRoutes() as $route) {
+            // Staff routes hold no tenant data and refuse tenant tokens (PlatformAuthTest); a tenant token is 401 there.
+            if ($this->isPlatform($route)) {
+                $this->assertSame(401, $this->json($this->methods($route)[0], $this->uriWith($route, $b, platform: true), [], $a->bearer())->getStatusCode(), "{$route->uri()} accepted a tenant token");
+
+                continue;
+            }
+
             if ($route->parameterNames() === [] || $this->isPublic($route)) {
                 continue;
             }
@@ -548,7 +564,8 @@ class TenantIsolationTest extends TestCase
 
         foreach ($this->apiRoutes() as $route) {
             // Routes with ids are listed too: they take the same queries (with B's and A's ids) above.
-            if ($this->isPublic($route) || ! in_array('GET', $route->methods(), true)) {
+            // Platform routes (ADR 013) read global data and refuse tenant tokens.
+            if ($this->isPublic($route) || $this->isPlatform($route) || ! in_array('GET', $route->methods(), true)) {
                 continue;
             }
 
@@ -606,7 +623,8 @@ class TenantIsolationTest extends TestCase
         $hijacked = [];
 
         foreach ($this->apiRoutes() as $route) {
-            if ($this->isPublic($route)) {
+            // Platform routes (ADR 013) refuse tenant tokens outright (checked in the route-id test).
+            if ($this->isPublic($route) || $this->isPlatform($route)) {
                 continue;
             }
 
@@ -968,6 +986,12 @@ class TenantIsolationTest extends TestCase
         return array_values(array_diff($route->methods(), ['HEAD']));
     }
 
+    /** ADR 013: the platform staff API (global data, `auth:platform`). */
+    private function isPlatform(RoutingRoute $route): bool
+    {
+        return str_starts_with($route->uri(), 'api/v1/platform/') && ! $this->isPublic($route);
+    }
+
     private function isPublic(RoutingRoute $route): bool
     {
         foreach ($this->methods($route) as $method) {
@@ -979,9 +1003,14 @@ class TenantIsolationTest extends TestCase
         return false;
     }
 
-    private function uriWith(RoutingRoute $route, TenantFixture $tenant): string
+    private function uriWith(RoutingRoute $route, TenantFixture $tenant, bool $platform = false): string
     {
         $uri = '/'.$route->uri();
+
+        if ($platform) {
+            // Platform ids are catalogue rows, never tenant rows: any UUID will do.
+            return preg_replace('/\{[a-z_]+\??\}/', '00000000-0000-7000-8000-000000000000', $uri);
+        }
 
         foreach ($route->parameterNames() as $name) {
             if (isset(self::GLOBAL_PARAMETERS[$name])) {
