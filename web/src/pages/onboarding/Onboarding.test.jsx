@@ -178,8 +178,14 @@ describe('Onboarding screens', () => {
     expect(api.post).toHaveBeenCalledWith('onboarding/steps', { step: 'items', status: 'skipped' })
 
     router.navigate('/onboarding/setup/items')
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark as to do' }))
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('onboarding/steps', { step: 'items', status: 'todo' }))
+    await screen.findByRole('button', { name: 'Mark as to do' })
+    // The skip refetches permissions and the trial, which can re-render the
+    // page under the first button found: click whichever one is current.
+    await waitFor(() => {
+      const reopen = screen.queryByRole('button', { name: 'Mark as to do' })
+      if (reopen) fireEvent.click(reopen)
+      expect(api.post).toHaveBeenCalledWith('onboarding/steps', { step: 'items', status: 'todo' })
+    })
   })
 
   it('links the items step to the import wizard for people who may import (ONB-05, IMP-01)', async () => {

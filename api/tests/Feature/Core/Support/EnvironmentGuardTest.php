@@ -35,6 +35,7 @@ class EnvironmentGuardTest extends TestCase
             // Real environments never allow the fake payment or fiscal drivers.
             'payments.allow_fake' => false,
             'payments.drivers' => [],
+            'billing.drivers' => [],
             'fiscal.allow_fake' => false,
         ], $config));
     }
