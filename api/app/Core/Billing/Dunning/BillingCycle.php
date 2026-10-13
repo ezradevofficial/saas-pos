@@ -78,11 +78,12 @@ class BillingCycle
     public function subscribeNow(Subscription $subscription, CarbonImmutable $at): BillingInvoice
     {
         if ($subscription->status !== Subscription::TRIAL || $subscription->hasPeriod()) {
-            throw new ApiException(422, 'already_subscribed', __('billing.errors.already_subscribed'));
+            throw self::alreadySubscribed();
         }
 
         $due = $subscription->trial_ends_at === null ? $at : CarbonImmutable::instance($subscription->trial_ends_at)->max($at);
-        $invoice = $this->startPeriod($subscription, $at->utc()->startOfDay(), $due, 'first');
+        // A racing request (or the cycle) started the period first: nothing is issued twice.
+        $invoice = $this->startPeriod($subscription, $at->utc()->startOfDay(), $due, 'first') ?? throw self::alreadySubscribed();
         $this->accounts->sync($subscription->fresh());
 
         return $invoice;
@@ -167,16 +168,37 @@ class BillingCycle
         $payBy = $due->max($at);
         $invoice = $this->startPeriod($subscription, $due->startOfDay(), $payBy, $subscription->hasPeriod() ? 'renewal' : 'first');
 
+        if ($invoice === null) {
+            return null;
+        }
+
         $this->notifyOnce($subscription->fresh(), $due, 0);
 
         return $invoice;
     }
 
-    /** Start the period beginning on $start and invoice it, due at $due. */
-    private function startPeriod(Subscription $subscription, CarbonImmutable $start, CarbonImmutable $due, string $kind): BillingInvoice
+    /** SUB-03: the period has started already (409, never a second invoice). */
+    public static function alreadySubscribed(): ApiException
+    {
+        return new ApiException(409, 'already_subscribed', __('billing.errors.already_subscribed'));
+    }
+
+    /**
+     * Start the period beginning on $start and invoice it, due at $due.
+     * Null when, under the lock, it has already been started (a racing
+     * "Subscribe now", or a second cycle run): nothing is issued.
+     */
+    private function startPeriod(Subscription $subscription, CarbonImmutable $start, CarbonImmutable $due, string $kind): ?BillingInvoice
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($subscription, $start, $due, $kind) {
+            $expectedEnd = $subscription->current_period_end?->toDateString();
             $subscription = Subscription::query()->whereKey($subscription->id)->lockForUpdate()->firstOrFail();
+
+            // Re-checked under the lock: the first period not started yet, or the renewal's period still ending on the due date.
+            if ($kind === 'first' ? $subscription->hasPeriod() : $subscription->current_period_end?->toDateString() !== $expectedEnd) {
+                return null;
+            }
+
             $overage = [];
 
             if ($kind === 'renewal' && $subscription->hasPeriod()) {
