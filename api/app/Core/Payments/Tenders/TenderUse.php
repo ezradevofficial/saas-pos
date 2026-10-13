@@ -18,6 +18,7 @@ final class TenderUse
         public readonly string $kind,
         public readonly string $companyId,
         public readonly string $branchId,
+        public readonly string $locationId,
         public readonly ?string $customerId,
         public readonly ?string $userId,
         public readonly string $currency,

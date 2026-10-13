@@ -546,7 +546,7 @@ class SaleUploads
             }
 
             $codes = $provider->check(new TenderUse(
-                TenderUse::SALE, $place->company->id, $place->branch->id, $data['customer_id'] ?? null, $data['cashier_id'],
+                TenderUse::SALE, $place->company->id, $place->branch->id, $place->location->id, $data['customer_id'] ?? null, $data['cashier_id'],
                 $payment['row']['currency'], (string) $payment['row']['amount_minor'], $currency, (string) $payment['row']['amount_in_sale_minor'],
                 (array) ($payment['row']['tender'] ?? []),
             ));

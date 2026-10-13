@@ -137,7 +137,7 @@ class RefundUploads
         // LOY-25, LOY-27: money given back as points, a gift card or store credit is checked by its provider.
         foreach ($payments as $index => $payment) {
             foreach ($this->tenders->for($payment['method_type'])?->check(new TenderUse(
-                TenderUse::REFUND, $place->company->id, $place->branch->id, $sale->customer_id, $cashier->id,
+                TenderUse::REFUND, $place->company->id, $place->branch->id, $place->location->id, $sale->customer_id, $cashier->id,
                 $payment['currency'], (string) $payment['amount_minor'], $sale->currency, (string) $payment['amount_in_sale_minor'], (array) ($payment['tender'] ?? []),
             )) ?? [] as $code) {
                 $flags->add('tender_flagged', null, ['payment' => $index + 1, 'code' => $code]);

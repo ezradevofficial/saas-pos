@@ -29,6 +29,7 @@ use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
+use Modules\Loyalty\LoyaltyServiceProvider;
 use Modules\POS\PosServiceProvider;
 
 return [
@@ -61,5 +62,6 @@ return [
     LimitsServiceProvider::class,
     OnboardingServiceProvider::class,
     PosServiceProvider::class,
+    LoyaltyServiceProvider::class,
     HorizonServiceProvider::class,
 ];

@@ -27,7 +27,8 @@ return [
         'key' => 'admin',
         // TPL-04: shares POS documents by email and link (pos.sale.share).
         // LAY-05: designs the tills' sell screen once the POS module is active.
-        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*'],
+        // LOY-01, LOY-08: sets up the loyalty programme and promotions once the module is active.
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'loyalty.programme.*', 'loyalty.promotion.*'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules'],
@@ -55,6 +56,8 @@ return [
             // TPL-01: sees the document templates that apply at their branch.
             'core.template.view',
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
+            // Loyalty (docs/modules/loyalty.md): promotions, points, credit and gift cards at their branch.
+            'loyalty.*',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -70,6 +73,9 @@ return [
             'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
             // AUTH-06: signs in at the tills where the role is held.
             'pos.till.sign_in',
+            // LOY-05, LOY-23: sees customers' points and gift card balances at the till. Selling on
+            // credit (loyalty.credit.sell) is granted by the tenant, not by this template.
+            'loyalty.points.view', 'loyalty.gift_card.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -110,6 +116,8 @@ return [
             'core.config.view',
             'core.template.view',
             'accounting.*', 'sales.*.view', 'purchasing.*.view', 'pos.*.view', 'reports.*',
+            // LOY-14..LOY-18: customer credit (accounts, payments, adjustments, statements, ageing).
+            'loyalty.credit.view', 'loyalty.credit.manage', 'loyalty.credit.receive', 'loyalty.credit.adjust', 'loyalty.*.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
