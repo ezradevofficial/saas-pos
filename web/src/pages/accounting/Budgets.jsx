@@ -126,7 +126,7 @@ export function BudgetDetail() {
                     <tr key={account.id} className="border-t border-border">
                       <th scope="row" className="whitespace-nowrap px-2 py-2 text-left font-normal">{`${account.code} · ${account.name}`}</th>
                       {MONTHS.map((month) => (
-                        <td key={month} className="min-w-32 px-1 py-1">
+                        <td key={month} className="px-1 py-1">
                           <MoneyInput aria-label={t('accounting.budgets.cellLabel', { account: account.code, number: month })} currency={base} value={cell(account.id, month)} disabled={!editable}
                             onChange={(value) => setEdits((current) => ({ ...current, [`${account.id}|${month}`]: value ?? '' }))} />
                         </td>

@@ -15,7 +15,7 @@ const TYPES = ['asset', 'liability', 'equity', 'income', 'expense']
 const SUBTYPES = ['header', 'cash', 'bank', 'mobile_money', 'receivable', 'inventory', 'current_asset', 'fixed_asset', 'accumulated_depreciation', 'intercompany', 'suspense',
   'payable', 'tax', 'current_liability', 'long_term_liability', 'equity', 'retained_earnings', 'revenue', 'other_income', 'cost_of_sales', 'expense', 'depreciation', 'fx']
 const CASH_FLOWS = ['cash', 'operating', 'non_cash', 'investing', 'financing']
-const INDENT = ['', 'pl-4', 'pl-8', 'pl-12']
+const INDENT = ['', 'pl-4', 'pl-6', 'pl-10', 'pl-12']
 const ROLES = ['receivable', 'payable', 'sales_tax', 'purchase_tax', 'fx_gain', 'fx_loss', 'rounding', 'retained_earnings', 'suspense']
 
 /** Depth of an account in the chart (headings above it), for indentation. */
@@ -202,10 +202,10 @@ function RuleDialog({ company, eventTypes, onClose }) {
         {save.isError ? <Alert tone="danger" title={errorMessage(save.error)} /> : null}
         <TextField label={t('accounting.rules.eventType')} help={t('accounting.rules.eventTypeHelp', { examples: eventTypes.slice(0, 3).join(', ') })} value={eventType} onChange={(event) => setEventType(event.target.value)} maxLength={60} />
         {lines.map((line, index) => (
-          <div key={index} className="grid items-end gap-3 sm:grid-cols-[1fr_8rem_2fr]">
+          <div key={index} className="grid items-end gap-3 sm:grid-cols-4">
             <TextField label={t('accounting.rules.field')} value={line.field} onChange={(event) => update(index, { field: event.target.value })} maxLength={60} />
             <Select label={t('accounting.rules.side')} options={['debit', 'credit'].map((value) => ({ value, label: t(`accounting.columns.${value}`) }))} value={line.side} onChange={(event) => update(index, { side: event.target.value })} />
-            <Select label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={options} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
+            <Select className="sm:col-span-2" label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={options} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
           </div>
         ))}
         <div><Button icon="plus" onClick={() => setLines((current) => [...current, { field: '', side: 'credit', account_id: '', party: false }])}>{t('accounting.journalForm.addLine')}</Button></div>

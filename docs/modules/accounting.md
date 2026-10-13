@@ -243,6 +243,42 @@ holds everything. Admin and Branch Manager hold none.
     reference); a line without a reference is deduplicated on its
     description.
 
+13. **Rules made while building** (stage 7A):
+    - A customer credit note must name the invoice it credits (the fiscal
+      queue sends it as a refund of that sale); supplier credits may not.
+      Posting a credit note settles its invoice as far as both are open;
+      the rest of the credit is allocated from
+      `POST accounting/credit-notes/{id}/allocate`.
+    - Realised FX goes to the FX gain or loss account by sign (two
+      accounts, as SYSCOHADA keeps 776 and 676 apart), not one net account.
+    - One revaluation per period; reopening a period does not undo it
+      (reverse its journal by hand if needed).
+    - The opening balances import refuses control accounts: open invoices
+      come in as documents, so subledgers and ledger agree. Each row posts
+      against the suspense account.
+    - Manual journals are approved through the `accounting.journal` flow
+      (`approvals/{id}/approve`); an approved journal whose posting is
+      refused keeps `post_error` and is posted again from its page.
+    - Drafts print (no number yet); reports default to the current fiscal
+      year to date in the company's time zone; P&L, cash flow and
+      consolidation leave year-end closing entries out.
+    - The isolation fixture builds every `acc_*` table in both tenants; the
+      Accounting module sits in the fixture's subscription as
+      `accounting_pro`.
+14. **Database rules** are triggers in the migration
+    (`acc_journal_balanced` deferred, made immediate by the poster inside
+    its transaction; `acc_journal_immutable`; `acc_journal_period_open`,
+    which shares the period row lock with a concurrent close).
+
+## Status (stage 7A)
+
+| ID | Status |
+| --- | --- |
+| ACC-01 to ACC-05, ACC-07 to ACC-15, ACC-17, ACC-19 to ACC-22 | Built and tested |
+| ACC-06 | Built and tested (daily `accounting:recurring` at 05:00) |
+| ACC-16, ACC-18 | Built and tested (Accounting Pro) |
+| ACC-23 | Events raised (`JournalPosted`, `DocumentPosted`, `PaymentRecorded`, `PeriodClosed`); no webhook mapping yet |
+
 ## Acceptance criteria (stage 7A)
 
 1. A journal whose base debits and credits differ cannot be posted, even

@@ -97,9 +97,9 @@ export default function DocumentForm() {
       <Card title={t('accounting.journalForm.lines')}>
         <div className="flex flex-col gap-3" role="list" aria-label={t('accounting.journalForm.lines')}>
           {lines.map((line, index) => (
-            <div key={index} role="listitem" className="grid items-end gap-3 border-b border-border pb-3 md:grid-cols-[2fr_2fr_6rem_1fr_1.5fr_auto]">
-              <TextField label={t('accounting.columns.description')} value={line.description} onChange={(event) => update(index, { description: event.target.value })} maxLength={255} required />
-              <Select label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={accountChoices} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
+            <div key={index} role="listitem" className="grid items-end gap-3 border-b border-border pb-3 md:grid-cols-8">
+              <TextField className="md:col-span-2" label={t('accounting.columns.description')} value={line.description} onChange={(event) => update(index, { description: event.target.value })} maxLength={255} required />
+              <Select className="md:col-span-2" label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={accountChoices} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
               <DecimalInput maxDecimals={4} label={t('accounting.documentForm.qty')} value={line.qty} onChange={(value) => update(index, { qty: value ?? '' })} />
               <MoneyInput label={t('accounting.documentForm.unitPrice')} currency={currencyCode} value={line.unit_price} onChange={(value) => update(index, { unit_price: value ?? '' })} />
               <Select label={t('accounting.documentForm.tax')} options={taxChoices} value={line.tax_code_id} onChange={(event) => update(index, { tax_code_id: event.target.value })} />

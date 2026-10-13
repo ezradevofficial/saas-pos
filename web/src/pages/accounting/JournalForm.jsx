@@ -102,15 +102,15 @@ function JournalEditor({ company, journal }) {
       <Card title={t('accounting.journalForm.lines')}>
         <div className="flex flex-col gap-3" role="list" aria-label={t('accounting.journalForm.lines')}>
           {lines.map((line, index) => (
-            <div key={index} role="listitem" className="grid items-end gap-3 border-b border-border pb-3 md:grid-cols-[2fr_1fr_1fr_6rem_1fr_auto]">
-              <Select label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={options} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
+            <div key={index} role="listitem" className="grid items-end gap-3 border-b border-border pb-3 md:grid-cols-8">
+              <Select className="md:col-span-2" label={t('accounting.columns.account')} placeholder={t('accounting.journalForm.chooseAccount')} options={options} value={line.account_id} onChange={(event) => update(index, { account_id: event.target.value })} />
               <MoneyInput label={t('accounting.columns.debit')} currency={line.currency} value={line.debit} onChange={(value) => update(index, { debit: value ?? '', credit: value ? '' : line.credit })} />
               <MoneyInput label={t('accounting.columns.credit')} currency={line.currency} value={line.credit} onChange={(value) => update(index, { credit: value ?? '', debit: value ? '' : line.debit })} />
               <Select label={t('accounting.columns.currency')} options={currencyOptions.length ? currencyOptions : [{ value: base, label: base }]} value={line.currency} onChange={(event) => update(index, { currency: event.target.value })} />
               {line.currency !== base ? (
-                <RateInput label={t('accounting.journalForm.rate', { pair: `${line.currency}/${base}` })} value={line.rate} onChange={(value) => update(index, { rate: value ?? '' })} />
+                <RateInput className="md:col-span-2" label={t('accounting.journalForm.rate', { pair: `${line.currency}/${base}` })} value={line.rate} onChange={(value) => update(index, { rate: value ?? '' })} />
               ) : (
-                <TextField label={t('accounting.columns.description')} value={line.description} onChange={(event) => update(index, { description: event.target.value })} maxLength={255} />
+                <TextField className="md:col-span-2" label={t('accounting.columns.description')} value={line.description} onChange={(event) => update(index, { description: event.target.value })} maxLength={255} />
               )}
               <Button variant="ghost" aria-label={t('accounting.journalForm.removeLine', { number: index + 1 })} disabled={lines.length <= 2} onClick={() => setLines((current) => current.filter((_, i) => i !== index))}>
                 <Icon name="remove" size={16} />
