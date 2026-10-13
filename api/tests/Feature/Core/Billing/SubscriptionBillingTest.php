@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Billing;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
+use App\Core\Billing\Invoicing\BillingInvoicePdf;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\BillingPayment;
 use App\Core\Billing\Models\BillingPaymentMethod;
@@ -12,6 +13,7 @@ use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\Subscriptions\Subscriptions;
+use App\Core\DocumentTemplates\TemplateRenderer;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\UsageLimits;
@@ -342,6 +344,16 @@ class SubscriptionBillingTest extends TestCase
         $pdf = $this->get("/api/v1/subscription/invoices/{$invoice}/pdf", $this->headersFor())->assertOk();
         $this->assertSame('application/pdf', $pdf->headers->get('Content-Type'));
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
+
+        // SUB-03: the service period prints as "Period", never under the refund label "Original receipt".
+        $model = $this->asTenant($this->owner->tenant_id, fn () => BillingInvoice::query()->findOrFail($invoice));
+        $pdfs = app(BillingInvoicePdf::class);
+        foreach (['en' => ['Period', 'Original receipt'], 'fr' => [__('templates.print.fields.document.period', [], 'fr'), __('templates.print.fields.document.reference', [], 'fr')]] as $locale => [$shown, $hidden]) {
+            $html = app(TemplateRenderer::class)->html('sales.invoice', $pdfs->template($locale), $pdfs->data($model, $locale), false);
+            $this->assertStringContainsString('>'.e($shown).'<', $html);
+            $this->assertStringNotContainsString(e($hidden), $html);
+            $this->assertStringContainsString($model->period_start->toDateString(), $html);
+        }
     }
 
     public function test_only_the_owner_changes_the_plan_and_only_managers_of_the_subscription_pay(): void
