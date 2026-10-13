@@ -72,6 +72,5 @@ class LargeImportTest extends TestCase
             $this->assertNull(app(Auditor::class)->verify($this->owner->tenant_id));
         });
         $this->assertLessThan(self::MAX_SECONDS, $seconds, sprintf('50,000 rows took %.0f s', $seconds));
-        fwrite(STDERR, sprintf("\nIMP-03: 50,000 items imported in %.0f s\n", $seconds));
     }
 }
