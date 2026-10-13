@@ -4,7 +4,6 @@ namespace App\Core\Billing\Http\Controllers;
 
 use App\Core\Billing\Dunning\BillingCycle;
 use App\Core\Billing\Http\Requests\ChangeSubscriptionRequest;
-use App\Core\Billing\Http\Requests\ManageSubscriptionRequest;
 use App\Core\Billing\Http\Requests\OwnerSubscriptionRequest;
 use App\Core\Billing\Http\Requests\QuoteSubscriptionRequest;
 use App\Core\Billing\Http\Requests\SubscriptionRequest;
@@ -69,8 +68,8 @@ class SubscriptionController
         return response()->json(['data' => SubscriptionPresenter::subscription($subscription, $this->cycle->nextInvoice($subscription))]);
     }
 
-    /** POST subscription/subscribe: end the trial's free status by issuing the first invoice now (due at the trial end). */
-    public function subscribe(ManageSubscriptionRequest $request): JsonResponse
+    /** POST subscription/subscribe (the Owner's): issue the first invoice now, due at the trial end. */
+    public function subscribe(OwnerSubscriptionRequest $request): JsonResponse
     {
         $invoice = $this->cycle->subscribeNow($this->subscriptions->require(), CarbonImmutable::now());
 

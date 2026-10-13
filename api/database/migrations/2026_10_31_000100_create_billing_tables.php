@@ -43,6 +43,25 @@ return new class extends Migration
             $table->boolean('is_operator')->default(false);
         });
         DB::statement('create unique index tenants_one_operator on tenants (is_operator) where is_operator');
+        // A tenant's operator flag is set when platform:operator inserts the operator tenant and is
+        // never changed afterwards, except by the schema owner: no tenant can make itself the seller.
+        DB::unprepared(<<<'SQL'
+            create or replace function tenants_operator_flag_guard() returns trigger
+            language plpgsql as $$
+            begin
+                if new.is_operator is distinct from old.is_operator then
+                    if current_user <> (select c.relowner::regrole::text from pg_catalog.pg_class c where c.oid = 'public.tenants'::regclass) then
+                        raise exception 'only the schema owner sets the operator tenant' using errcode = 'insufficient_privilege';
+                    end if;
+                end if;
+                return new;
+            end;
+            $$;
+
+            create trigger tenants_operator_flag
+                before update on tenants
+                for each row execute function tenants_operator_flag_guard();
+            SQL);
 
         // SUB-04: a hosted card checkout (or a saved card charged) is a payment intent mode.
         DB::statement('alter table payment_intents drop constraint payment_intents_mode_check');
@@ -345,6 +364,8 @@ return new class extends Migration
         DB::statement('alter table payment_intents drop constraint payment_intents_mode_check');
         DB::statement("alter table payment_intents add constraint payment_intents_mode_check check (mode in ('direct', 'stk', 'manual', 'payout'))");
 
+        DB::statement('drop trigger if exists tenants_operator_flag on tenants');
+        DB::statement('drop function if exists tenants_operator_flag_guard()');
         DB::statement('drop index if exists tenants_one_operator');
         Schema::table('tenants', function (Blueprint $table) {
             $table->dropColumn('is_operator');

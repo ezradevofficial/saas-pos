@@ -284,6 +284,27 @@ class SubscriptionBillingTest extends TestCase
         $this->payWithMpesa($renewal->id)->assertJsonPath('data.status', 'succeeded');
     }
 
+    public function test_a_coupon_added_during_a_paid_period_applies_to_the_next_one(): void
+    {
+        $this->activate();
+        (new CatalogueCoupon(['code' => 'LOYAL-2026', 'kind' => 'percent', 'percent' => 10]))->save();
+        $this->travelToDay('2026-11-10 08:00:00');
+
+        $this->postJson('/api/v1/subscription/quote', [...self::STARTER, 'coupon' => 'LOYAL-2026'], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.kind', 'scheduled')->assertJsonPath('data.charge_now', 0)->assertJsonPath('data.new.total', 351000);
+        $this->postJson('/api/v1/subscription/change', [...self::STARTER, 'coupon' => 'LOYAL-2026', 'expected_charge' => 0], $this->headersFor())->assertOk();
+        $this->assertSame(390000, $this->subscription()->period_amount_minor);
+        $this->getJson('/api/v1/subscription', $this->headersFor())->assertJsonPath('data.next_invoice.amount.amount_minor', 351000);
+
+        // The next period is discounted; the one after is not.
+        $this->cycle('2026-12-01 06:00:00');
+        $this->assertSame(351000, collect($this->invoices())->firstWhere('kind', 'renewal')->total_minor);
+        $this->assertSame('2026-12-31', $this->subscription()->coupon_until->toDateString());
+        $this->payWithMpesa(collect($this->invoices())->firstWhere('kind', 'renewal')->id);
+        $this->cycle('2027-01-01 06:00:00');
+        $this->assertSame([351000, 390000], collect($this->invoices())->where('kind', 'renewal')->sortBy('period_start')->pluck('total_minor')->values()->all());
+    }
+
     public function test_coupon_redemptions_are_counted_against_their_limit(): void
     {
         $coupon = new CatalogueCoupon(['code' => 'LAUNCH-2026', 'kind' => 'percent', 'percent' => 10, 'max_redemptions' => 1]);
@@ -338,6 +359,8 @@ class SubscriptionBillingTest extends TestCase
         // An Admin holds core.* (sees, pays) but is not the Owner: no plan changes.
         $this->getJson('/api/v1/subscription', $this->headersFor($admin))->assertOk();
         $this->postJson('/api/v1/subscription/quote', self::STARTER, $this->headersFor($admin))->assertForbidden();
+        // Subscribing from the trial is the Owner's too.
+        $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor($admin))->assertForbidden();
     }
 
     public function test_saved_wallets_renew_automatically_and_cards_are_kept_as_tokens(): void

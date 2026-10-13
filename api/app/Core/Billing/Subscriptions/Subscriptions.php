@@ -180,9 +180,13 @@ class Subscriptions
         [$periodDays, $remaining] = $this->days($subscription, $at);
         $charge = 0;
 
+        // A coupon added during a paid period applies from the next period (with any change made with it).
+        $couponNow = $couponCode !== null && trim($couponCode) !== '';
+
         $kind = match (true) {
             $same => 'none',
             ! $subscription->hasPeriod() => 'trial',
+            $couponNow => 'scheduled',
             $plan['cycle'] !== $subscription->cycle => 'scheduled',
             $new['total'] > $current['total'] => 'upgrade',
             default => 'scheduled',
@@ -362,10 +366,13 @@ class Subscriptions
         return $subscription;
     }
 
-    /** The coupon the subscription holds for its current period, if any. */
-    public function coupon(Subscription $subscription): ?Coupon
+    /**
+     * The coupon that prices the current period (or the trial's plan); a
+     * coupon redeemed during a paid period waits for the next one.
+     */
+    public function coupon(Subscription $subscription, bool $nextPeriod = false): ?Coupon
     {
-        if ($subscription->coupon_id === null) {
+        if ($subscription->coupon_id === null || (! $nextPeriod && $subscription->hasPeriod() && $subscription->coupon_until === null)) {
             return null;
         }
 
@@ -395,10 +402,11 @@ class Subscriptions
         DB::connection(TenantContext::CONNECTION)->afterRollBack(fn () => PlatformDatabase::connection()->table('catalogue_coupons')
             ->where('id', $coupon->id)->where('redemptions', '>', 0)->decrement('redemptions'));
 
+        // Its period is set when one starts (the first after a trial, or the next after a paid one).
         $subscription->fill([
             'coupon_id' => $coupon->id,
             'coupon_code' => $coupon->code,
-            'coupon_until' => $subscription->current_period_end?->subDay()->toDateString(),
+            'coupon_until' => null,
         ])->save();
     }
 

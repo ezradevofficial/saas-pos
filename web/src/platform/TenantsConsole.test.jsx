@@ -16,6 +16,7 @@ const BILLING = { id: 's-2', name: 'Otieno Billing', email: 'billing@example.com
 const ACCOUNT = {
   tenant_id: 't-1', name: 'Duka Bora', country: 'KE', plan: 'starter', cycle: 'monthly', status: 'past_due',
   mrr: { amount_minor: 390000, currency: 'KES' }, trial_ends_at: '2026-11-15T08:00:00Z', current_period_end: '2026-12-01', grace_days: null, purge_due: [],
+  alerts: [{ kind: 'overpayment', invoice: 'INV-2026-000003', amount_minor: 390000, currency: 'KES' }],
 }
 const INVOICE = { id: 'oi-1', number: 'INV-2026-000004', kind: 'renewal', status: 'open', total: { amount_minor: 390000, currency: 'KES' }, period_start: '2026-12-01', period_end: '2027-01-01', due_at: '2026-12-01T00:00:00Z', paid_via: null }
 
@@ -38,6 +39,7 @@ describe('Platform console tenants (ADR 016)', () => {
     expect(await within(table).findByText('Duka Bora')).toBeInTheDocument()
     expect(within(table).getByText('Past due')).toBeInTheDocument()
     expect(within(table).getByText('starter')).toBeInTheDocument()
+    expect(within(table).getByText('Overpayment')).toBeInTheDocument()
 
     fireEvent.click(within(table).getByText('Duka Bora'))
     expect(await screen.findByRole('heading', { name: 'Duka Bora' })).toBeInTheDocument()

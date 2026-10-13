@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Core\Onboarding;
 
-use App\Core\Billing\Models\Subscription;
 use App\Core\Audit\AuditEntry;
+use App\Core\Billing\Models\Subscription;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\MasterData\Items\Item;

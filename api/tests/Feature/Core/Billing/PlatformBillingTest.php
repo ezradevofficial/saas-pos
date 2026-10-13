@@ -6,6 +6,10 @@ use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
+use App\Core\Support\EnvironmentGuard;
+use Illuminate\Config\Repository;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -88,5 +92,20 @@ class PlatformBillingTest extends TestCase
         $this->putJson('/api/v1/platform/billing-settings', ['grace_days' => 5], $this->staffBearer($this->staff(PlatformUser::ROLE_OWNER)))->assertOk()
             ->assertJsonPath('data.grace_days', 5);
         $this->assertTrue($this->audited('platform.billing_settings.update'));
+    }
+
+    public function test_no_tenant_can_make_itself_the_operator(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->inTenant(fn () => DB::table('tenants')->where('id', $this->owner->tenant_id)->update(['is_operator' => true]));
+    }
+
+    public function test_the_environment_guard_refuses_fake_billing_drivers(): void
+    {
+        $config = new Repository(['payments' => ['allow_fake' => false, 'drivers' => []], 'billing' => ['drivers' => ['mpesa_ke' => 'fake']]]);
+        $this->assertNotNull(EnvironmentGuard::checks($config)['Payment drivers']);
+
+        $config->set('billing.drivers', ['mpesa_ke' => 'mpesa_daraja']);
+        $this->assertNull(EnvironmentGuard::checks($config)['Payment drivers']);
     }
 }

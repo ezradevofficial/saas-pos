@@ -5267,6 +5267,32 @@
       "suggestion": "{{bundle}} covers this selection for less. It saves {{saving}}."
     },
     "tenants": {
+      "title": "New tenant",
+      "intro": "Create an account for a customer. They get an invitation to become its Owner; you keep no access to it.",
+      "created": "Tenant created",
+      "createdText": "The invitation went to {{destination}}. Subdomain: {{slug}}.",
+      "businessName": "Business name",
+      "businessType": "Business type",
+      "types": {
+        "retail": "Retail shop",
+        "supermarket": "Supermarket or mini-mart",
+        "restaurant": "Restaurant or café",
+        "bar": "Bar or lounge",
+        "hotel": "Hotel or lodge",
+        "pharmacy": "Pharmacy or agrovet",
+        "wholesale": "Wholesale or distributor",
+        "van_sales": "Route or van sales",
+        "salon": "Salon, spa or services",
+        "fuel_station": "Fuel station",
+        "non_pos": "No till needed"
+      },
+      "outlets": "Outlets",
+      "contactName": "Contact name",
+      "contact": "Contact email or phone number",
+      "handover": "The 14-day trial starts with these modules. The customer becomes Owner when they accept; your setup access ends then.",
+      "submit": "Create tenant"
+    },
+    "customers": {
       "title": "Tenants",
       "description": "Customers, their plans and what they owe.",
       "empty": "No customer tenants yet.",
@@ -5298,29 +5324,8 @@
         "bank_transfer": "Bank transfer"
       },
       "purgeDue": "Data of switched-off modules is past its 12 months: {{modules}}. Nothing has been deleted.",
-      "intro": "Create an account for a customer. They get an invitation to become its Owner; you keep no access to it.",
-      "created": "Tenant created",
-      "createdText": "The invitation went to {{destination}}. Subdomain: {{slug}}.",
-      "businessName": "Business name",
-      "businessType": "Business type",
-      "types": {
-        "retail": "Retail shop",
-        "supermarket": "Supermarket or mini-mart",
-        "restaurant": "Restaurant or café",
-        "bar": "Bar or lounge",
-        "hotel": "Hotel or lodge",
-        "pharmacy": "Pharmacy or agrovet",
-        "wholesale": "Wholesale or distributor",
-        "van_sales": "Route or van sales",
-        "salon": "Salon, spa or services",
-        "fuel_station": "Fuel station",
-        "non_pos": "No till needed"
-      },
-      "outlets": "Outlets",
-      "contactName": "Contact name",
-      "contact": "Contact email or phone number",
-      "handover": "The 14-day trial starts with these modules. The customer becomes Owner when they accept; your setup access ends then.",
-      "submit": "Create tenant"
+      "overpayment": "Overpayment",
+      "overpaymentText": "Money was received for an invoice already paid: {{invoices}}. Refund it to the customer."
     }
   },
   "subscription": {

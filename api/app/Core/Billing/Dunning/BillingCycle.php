@@ -34,8 +34,9 @@ use Illuminate\Support\Facades\DB;
  * - A read-only subscription is not renewed: no new invoice until it is
  *   paid (SUB-06 restores it at once).
  *
- * LIM-04: approvals are writes, so they pause while read-only; sales from
- * the POS continue for the window. Never limited by usage (Task 3).
+ * LIM-04: approvals are never blocked, by limits or by dunning (they stay
+ * open in read-only, EnforceSubscription); sales from the POS continue
+ * for the window.
  */
 class BillingCycle
 {
@@ -145,7 +146,9 @@ class BillingCycle
         $plan = $subscription->pending_change === null ? $this->subscriptions->currentPlan($subscription) : Subscriptions::normalise($subscription->pending_change);
 
         try {
-            return (int) $this->subscriptions->price($subscription->country, $plan, [], null)['total'];
+            $coupon = $subscription->coupon_until === null ? $this->subscriptions->coupon($subscription, nextPeriod: true) : null;
+
+            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon)['total'];
         } catch (ApiException) {
             return $subscription->period_amount_minor;
         }
@@ -190,7 +193,7 @@ class BillingCycle
             }
 
             $plan = $subscription->pending_change === null ? $this->subscriptions->currentPlan($subscription) : Subscriptions::normalise($subscription->pending_change);
-            $quote = $this->subscriptions->price($subscription->country, $plan, [], $this->subscriptions->coupon($subscription), $start);
+            $quote = $this->subscriptions->price($subscription->country, $plan, [], $this->subscriptions->coupon($subscription, nextPeriod: true), $start);
             $end = Subscriptions::periodEnd($start, $plan['cycle']);
 
             $subscription->fill([

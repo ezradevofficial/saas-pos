@@ -3,14 +3,12 @@
 namespace App\Core\Billing\Payments;
 
 use App\Core\Audit\Auditor;
-use App\Core\Billing\Models\OperatorAccount;
-use App\Core\Platform\PlatformAuditor;
-use Illuminate\Support\Facades\DB;
 use App\Core\Billing\Dunning\BillingNotices;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\BillingPayment;
 use App\Core\Billing\Models\BillingPaymentMethod;
+use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Operator;
@@ -24,9 +22,11 @@ use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\PaymentIntents;
 use App\Core\Payments\PaymentProviderRegistry;
 use App\Core\Payments\Phones;
+use App\Core\Platform\PlatformAuditor;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**

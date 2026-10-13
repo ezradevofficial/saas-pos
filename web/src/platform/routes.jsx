@@ -39,11 +39,11 @@ export const platformRoutes = [
         children: [
           { index: true, element: <Navigate to="/platform/catalogue" replace /> },
           { path: 'catalogue', element: <CatalogueConsole /> },
+          // ONB-08: a tenant created for a customer, handed over by invitation.
+          { path: 'tenants/new', element: <NewTenant /> },
           // ADR 016: customer tenants, their subscriptions and invoices.
           { path: 'tenants', element: <TenantsList /> },
           { path: 'tenants/:tenantId', element: <TenantDetail /> },
-          // ONB-08: a tenant created for a customer, handed over by invitation.
-          { path: 'tenants/new', element: <NewTenant /> },
         ],
       },
     ],

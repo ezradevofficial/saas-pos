@@ -5267,6 +5267,32 @@
       "suggestion": "{{bundle}} couvre cette sélection pour moins cher. Économie : {{saving}}."
     },
     "tenants": {
+      "title": "Nouveau client",
+      "intro": "Créez un compte pour un client. Il reçoit une invitation pour en devenir le propriétaire ; vous n’y gardez aucun accès.",
+      "created": "Client créé",
+      "createdText": "L’invitation a été envoyée à {{destination}}. Sous-domaine : {{slug}}.",
+      "businessName": "Nom de l’entreprise",
+      "businessType": "Type d’activité",
+      "types": {
+        "retail": "Boutique",
+        "supermarket": "Supermarché ou supérette",
+        "restaurant": "Restaurant ou café",
+        "bar": "Bar ou lounge",
+        "hotel": "Hôtel ou lodge",
+        "pharmacy": "Pharmacie ou agro-vétérinaire",
+        "wholesale": "Grossiste ou distributeur",
+        "van_sales": "Vente itinérante",
+        "salon": "Salon, spa ou services",
+        "fuel_station": "Station-service",
+        "non_pos": "Pas besoin de caisse"
+      },
+      "outlets": "Points de vente",
+      "contactName": "Nom du contact",
+      "contact": "E-mail ou téléphone du contact",
+      "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
+      "submit": "Créer le client"
+    },
+    "customers": {
       "title": "Clients",
       "description": "Les clients, leurs formules et ce qu’ils doivent.",
       "empty": "Aucun client pour l’instant.",
@@ -5298,29 +5324,8 @@
         "bank_transfer": "Virement bancaire"
       },
       "purgeDue": "Les données de modules désactivés ont plus de 12 mois : {{modules}}. Rien n’a été supprimé.",
-      "intro": "Créez un compte pour un client. Il reçoit une invitation pour en devenir le propriétaire ; vous n’y gardez aucun accès.",
-      "created": "Client créé",
-      "createdText": "L’invitation a été envoyée à {{destination}}. Sous-domaine : {{slug}}.",
-      "businessName": "Nom de l’entreprise",
-      "businessType": "Type d’activité",
-      "types": {
-        "retail": "Boutique",
-        "supermarket": "Supermarché ou supérette",
-        "restaurant": "Restaurant ou café",
-        "bar": "Bar ou lounge",
-        "hotel": "Hôtel ou lodge",
-        "pharmacy": "Pharmacie ou agro-vétérinaire",
-        "wholesale": "Grossiste ou distributeur",
-        "van_sales": "Vente itinérante",
-        "salon": "Salon, spa ou services",
-        "fuel_station": "Station-service",
-        "non_pos": "Pas besoin de caisse"
-      },
-      "outlets": "Points de vente",
-      "contactName": "Nom du contact",
-      "contact": "E-mail ou téléphone du contact",
-      "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
-      "submit": "Créer le client"
+      "overpayment": "Trop-perçu",
+      "overpaymentText": "Un paiement a été reçu pour une facture déjà payée : {{invoices}}. Remboursez le client."
     }
   },
   "subscription": {

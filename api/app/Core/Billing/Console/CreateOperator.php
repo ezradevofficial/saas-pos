@@ -29,7 +29,9 @@ use Illuminate\Support\Str;
  * transmission on with the fake driver and their wallets and card method
  * on, so billing can be tried end to end without credentials.
  *
- * Runs on the runtime connection, in the operator's own context.
+ * Runs on the runtime connection, in the operator's own context. The
+ * operator flag is set when the tenant row is inserted; a trigger refuses
+ * any later change of it except by the schema owner.
  */
 class CreateOperator extends Command
 {
@@ -63,9 +65,9 @@ class CreateOperator extends Command
         $id ??= (string) Str::uuid7();
 
         $added = $tenants->run($id, fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($id, $created, $name, $countries, $currencies) {
+            // Flagged when inserted: a database trigger refuses changing the flag later (ADR 016).
             if ($created) {
-                $tenant = Tenant::provision(['id' => $id, 'name' => $name, 'default_locale' => 'en']);
-                $tenant->forceFill(['is_operator' => true])->save();
+                (new Tenant(['name' => $name, 'default_locale' => 'en']))->forceFill(['id' => $id, 'is_operator' => true])->save();
             }
 
             $added = [];
