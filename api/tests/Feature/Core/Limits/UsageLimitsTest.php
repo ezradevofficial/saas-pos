@@ -7,9 +7,9 @@ use App\Core\Identity\Models\User;
 use App\Core\Limits\EmployeeCount;
 use App\Core\Limits\Models\Overage;
 use App\Core\Limits\Models\UsageMeter;
+use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
 use App\Core\Limits\UsageNotices;
-use App\Core\Limits\Units;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\Scope;
@@ -115,6 +115,25 @@ class UsageLimitsTest extends TestCase
         });
         $this->meter(CarbonImmutable::parse('2026-10-14T03:00:00Z'));
         $this->assertSame(5, $this->meters('2026-10-14')['employee']['count']);
+    }
+
+    public function test_the_tenant_ids_come_from_a_locked_down_security_definer_function(): void
+    {
+        // ADR 002: usage:meter asks app_active_tenant_ids() (DueTenants::active) on the runtime connection.
+        $fn = DB::selectOne(<<<'SQL'
+            select p.prosecdef, p.proretset, p.proconfig::text as config, pg_get_userbyid(p.proowner) as owner,
+                   format_type(p.prorettype, null) as returns, has_function_privilege('public', p.oid, 'execute') as public_execute,
+                   has_function_privilege(current_user, p.oid, 'execute') as runtime_execute
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public' and p.proname = 'app_active_tenant_ids'
+            SQL);
+
+        $this->assertTrue($fn->prosecdef && $fn->proretset && $fn->runtime_execute);
+        $this->assertFalse($fn->public_execute);
+        $this->assertSame(['uuid', config('database.connections.pgsql_owner.username')], [$fn->returns, $fn->owner]);
+        $this->assertStringContainsString('search_path=pg_catalog, public', $fn->config);
+        $this->assertSame('app', DB::selectOne('select current_user as name')->name);
+        $this->assertFalse((bool) DB::selectOne('select rolbypassrls from pg_roles where rolname = current_user')->rolbypassrls);
     }
 
     public function test_suspended_tenants_are_not_metered_and_the_history_cannot_be_deleted(): void

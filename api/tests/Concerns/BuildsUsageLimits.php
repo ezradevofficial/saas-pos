@@ -3,6 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Core\Limits\Allowances;
+use App\Core\Limits\Models\Overage;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\PlanSelection;
 use App\Core\Limits\Units;
@@ -55,6 +56,19 @@ trait BuildsUsageLimits
     protected function meter(?CarbonImmutable $at = null): array
     {
         return $this->inTenant(fn () => app(UsageLimits::class)->meter($at ?? CarbonImmutable::now()));
+    }
+
+    /**
+     * LIM-04 tests: a plan of no outlets, devices or users, metered now,
+     * with every overage's window started 8 days ago: adding any of them
+     * is refused from now on.
+     */
+    protected function overLimitEverywhere(): void
+    {
+        $this->allow([Units::OUTLET => 0, Units::DEVICE => 0, Units::USER => 0], priced: false);
+        $this->meter();
+        $this->inTenant(fn () => Overage::query()->open()->get()
+            ->each(fn (Overage $overage) => $overage->forceFill(['started_at' => now()->subDays(8)])->save()));
     }
 
     /**
