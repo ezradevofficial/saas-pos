@@ -5,6 +5,7 @@ namespace Modules\POS\Events;
 use App\Core\Currency\FxSnapshot;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
+use Carbon\CarbonImmutable;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundLine;
 use Modules\POS\Models\RefundPayment;
@@ -210,7 +211,7 @@ final class SaleSnapshot
 
     private static function time(\DateTimeInterface $at): string
     {
-        return \Carbon\CarbonImmutable::instance($at)->utc()->format('Y-m-d\TH:i:s.u\Z');
+        return CarbonImmutable::instance($at)->utc()->format('Y-m-d\TH:i:s.u\Z');
     }
 
     /** numeric(18,6) without trailing zeros: "2.000000" → "2". */
