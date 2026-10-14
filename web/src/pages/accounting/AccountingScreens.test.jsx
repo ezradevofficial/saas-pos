@@ -12,8 +12,8 @@ const money = (amount_minor, currency = 'KES') => ({ amount_minor, currency })
 const ALL = ['core.company.view', 'accounting.account.view', 'accounting.account.manage', 'accounting.bank.view', 'accounting.bank.reconcile', 'accounting.report.view',
   'accounting.period.view', 'accounting.period.close', 'accounting.period.reopen', 'accounting.invoice.view', 'accounting.invoice.post', 'accounting.invoice.create']
 
-function setup(routes, permissions = ALL) {
-  mockRoutes(api, [...routes, [/^config\/list_view/, { data: [] }]], { permissions: tenantWide(permissions), modules: ['core', 'accounting', 'accounting_pro'], companies: [COMPANY] })
+function setup(routes, permissions = ALL, modules = ['core', 'accounting', 'accounting_pro']) {
+  mockRoutes(api, [...routes, [/^config\/list_view/, { data: [] }]], { permissions: tenantWide(permissions), modules, companies: [COMPANY] })
 }
 
 const RECONCILIATION = {
@@ -100,6 +100,36 @@ describe('Accounting screens', () => {
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Revalue foreign currency items first/ }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close period' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('accounting/periods/p-3/close', { revalue: true }))
+  })
+
+  it('shows consolidation and revalue-first only with Accounting Pro (ACC-15, ACC-18)', async () => {
+    const period = { id: 'p-3', company_id: 'c-1', fiscal_year: 2026, number: 3, starts_on: '2026-03-01', ends_on: '2026-03-31', status: 'open', closed_by: null, reopened_by: null, revalued: false }
+    const tb = { currency: 'KES', from: '2026-01-01', to: '2026-10-31', balanced: true, totals: { opening: 0, debit: 0, credit: 0, closing: 0 }, rows: [] }
+    const routes = [
+      [/^companies\/c-1\/accounting\/periods/, { data: [period], meta: { fiscal_year: 2026 } }],
+      [/^companies\/c-1\/accounting\/reports\/trial-balance/, { data: tb }],
+    ]
+    setup(routes, [...ALL, 'accounting.report.consolidate'], ['core', 'accounting'])
+    api.post.mockResolvedValue({ data: { ...period, status: 'closed' } })
+
+    const reports = renderApp('/accounting/reports?report=consolidation')
+    expect(await screen.findByRole('tab', { name: 'Trial balance' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Group' })).not.toBeInTheDocument()
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/^accounting\/consolidation/))
+    reports.unmount()
+
+    renderApp('/accounting/periods')
+    fireEvent.click(await within(await screen.findByRole('table', { name: 'Periods' })).findByRole('button', { name: 'Close period' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('checkbox', { name: /Revalue foreign currency items first/ })).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close period' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('accounting/periods/p-3/close', { revalue: false }))
+  })
+
+  it('offers the consolidation tab with Accounting Pro and the permission (ACC-18)', async () => {
+    setup([[/^companies\/c-1\/accounting\/reports\/trial-balance/, { data: { currency: 'KES', from: '2026-01-01', to: '2026-10-31', balanced: true, totals: { opening: 0, debit: 0, credit: 0, closing: 0 }, rows: [] } }]], [...ALL, 'accounting.report.consolidate'])
+    renderApp('/accounting/reports')
+    expect(await screen.findByRole('tab', { name: 'Group' })).toBeInTheDocument()
   })
 
   it('offers the country template when the company has no chart yet (ACC-01)', async () => {

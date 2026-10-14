@@ -187,10 +187,10 @@ function Consolidation({ data }) {
  */
 export default function Reports() {
   const { t } = useTranslation()
-  const { can } = usePermissions()
+  const { can, hasModule } = usePermissions()
   const company = useAccountingCompany()
   const { params, set, from, to } = useRange()
-  const tab = TABS.includes(params.get('report')) ? params.get('report') : 'trial-balance'
+  const tab = TABS.includes(params.get('report')) && (params.get('report') !== 'consolidation' || hasModule('accounting_pro')) ? params.get('report') : 'trial-balance'
   const kind = params.get('kind') === 'supplier' ? 'supplier' : 'customer'
   const currency = params.get('currency') ?? ''
   const path = tab === 'consolidation'
@@ -200,7 +200,8 @@ export default function Reports() {
 
   if (!company) return <NoCompany />
 
-  const tabs = TABS.filter((key) => key !== 'consolidation' || can('accounting.report.consolidate'))
+  // ACC-18: group consolidation is an Accounting Pro feature.
+  const tabs = TABS.filter((key) => key !== 'consolidation' || (hasModule('accounting_pro') && can('accounting.report.consolidate')))
   const data = report.data?.data
 
   return (

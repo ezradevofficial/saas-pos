@@ -18,7 +18,7 @@ import { companyPath, useAccountingCompany } from './accountingData'
 export default function Periods() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { can } = usePermissions()
+  const { can, hasModule } = usePermissions()
   const company = useAccountingCompany()
   const [year, setYear] = useState('')
   const [closing, setClosing] = useState(null)
@@ -33,7 +33,7 @@ export default function Periods() {
     setReason('')
     await queryClient.invalidateQueries({ queryKey: ['accounting-periods'] })
   }
-  const close = useMutation({ mutationFn: (period) => api.post(`accounting/periods/${period.id}/close`, { revalue }), onSuccess: done })
+  const close = useMutation({ mutationFn: (period) => api.post(`accounting/periods/${period.id}/close`, { revalue: hasModule('accounting_pro') && revalue }), onSuccess: done })
   const reopen = useMutation({ mutationFn: (period) => api.post(`accounting/periods/${period.id}/reopen`, { reason }), onSuccess: done })
 
   if (!company) return <NoCompany />
@@ -75,7 +75,8 @@ export default function Periods() {
             {close.isError ? <Alert tone="danger" title={errorMessage(close.error)} /> : null}
             <p>{t('accounting.periods.closeText')}</p>
             {closing.number === 12 ? <Alert tone="info" title={t('accounting.periods.yearEnd')} /> : null}
-            <Checkbox label={t('accounting.periods.revalueFirst')} help={t('accounting.periods.revalueHelp')} checked={revalue} onChange={(event) => setRevalue(event.target.checked)} />
+            {/* ACC-15: revaluing foreign items first is an Accounting Pro feature. */}
+            {hasModule('accounting_pro') ? <Checkbox label={t('accounting.periods.revalueFirst')} help={t('accounting.periods.revalueHelp')} checked={revalue} onChange={(event) => setRevalue(event.target.checked)} /> : null}
           </div>
         </Dialog>
       ) : null}
