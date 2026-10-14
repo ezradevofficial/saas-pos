@@ -8,7 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Back } from './InventoryParts'
-import { ADJUSTMENT_REASONS, inventoryKey, locationOptions, usePlaces } from './inventoryData'
+import { ADJUSTMENT_REASONS, inventoryKey, locationCurrency, locationOptions, usePlaces } from './inventoryData'
 import { blankLine, lineBody, lineFieldNames, lineReady } from './inventoryHelpers'
 import { StockLine } from './StockLines'
 
@@ -29,6 +29,7 @@ export default function AdjustmentForm() {
   const [note, setNote] = useState('')
   const [lines, setLines] = useState(() => [blankLine()])
   const [submitted, setSubmitted] = useState(false)
+  const currency = locationCurrency(places, location)
 
   const save = useMutation({
     mutationFn: () =>
@@ -36,7 +37,7 @@ export default function AdjustmentForm() {
         location_id: location,
         reason,
         ...(note.trim() ? { note: note.trim() } : {}),
-        lines: lines.map((line) => lineBody(line, 'adjustment')),
+        lines: lines.map((line) => lineBody(line, 'adjustment', currency)),
       }),
     onSuccess: async (response) => {
       toast.success(t('inventory.adjustments.created', { number: response?.data?.number ?? '' }))
@@ -95,6 +96,7 @@ export default function AdjustmentForm() {
               index={index}
               mode="adjustment"
               locationId={location}
+              currency={currency}
               submitted={submitted}
               removable={lines.length > 1}
               error={(name) => errors.fields[`lines.${index}.${name}`]}

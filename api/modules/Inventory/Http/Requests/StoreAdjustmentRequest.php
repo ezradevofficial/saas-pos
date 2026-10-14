@@ -11,7 +11,8 @@ use Modules\Inventory\Models\Adjustment;
 /**
  * POST inventory/adjustments (INV-10): `inventory.adjustment.create` at the
  * location; `{location_id, reason, note?, lines: [{item_id, uom_id?, qty
- * (signed), batch_id?, batch_number?, expires_on?, serials?, unit_cost?}]}`.
+ * (signed), batch_id?, batch_number?, expires_on?, serials?, unit_cost_minor?,
+ * unit_cost_currency (with a cost: the company's base currency)}]}`.
  */
 class StoreAdjustmentRequest extends FormRequest
 {

@@ -68,7 +68,7 @@ export function minorToMajor(minor, currency) {
 
 let nextKey = 0
 /** A blank line of a stock document (a key keeps React's rows apart). */
-export const blankLine = () => ({ key: `line-${(nextKey += 1)}`, item: null, uom_id: '', qty: '', direction: 'out', batch_id: '', batch_number: '', expires_on: '', unit_cost: '', serials: '' })
+export const blankLine = () => ({ key: `line-${(nextKey += 1)}`, item: null, uom_id: '', qty: '', direction: 'out', batch_id: '', batch_number: '', expires_on: '', unit_cost_minor: '', serials: '' })
 
 /** Whether a line is filled enough to send. */
 export const lineReady = (line) => Boolean(line.item && line.qty)
@@ -76,9 +76,10 @@ export const lineReady = (line) => Boolean(line.item && line.qty)
 /**
  * INV-08: a transfer line as the API takes it ({item_id, uom_id?, qty,
  * batch_id?, serials?}). INV-10: an adjustment line, signed by its
- * direction, with batch number, expiry and unit cost for increases.
+ * direction, with batch number, expiry and unit cost for increases (minor
+ * units in `currency`, the company's base currency, ADR 003).
  */
-export function lineBody(line, mode) {
+export function lineBody(line, mode, currency = null) {
   const serials = parseSerials(line.serials)
   const body = { item_id: line.item.id, ...(line.uom_id ? { uom_id: line.uom_id } : {}), qty: line.qty, ...(serials.length ? { serials } : {}) }
   if (mode === 'transfer') return { ...body, ...(line.batch_id ? { batch_id: line.batch_id } : {}) }
@@ -89,10 +90,10 @@ export function lineBody(line, mode) {
     ...(!increase && line.batch_id ? { batch_id: line.batch_id } : {}),
     ...(increase && line.batch_number.trim() ? { batch_number: line.batch_number.trim() } : {}),
     ...(increase && line.expires_on ? { expires_on: line.expires_on } : {}),
-    ...(increase && line.unit_cost !== '' && line.unit_cost !== null ? { unit_cost: line.unit_cost } : {}),
+    ...(increase && line.unit_cost_minor !== '' && line.unit_cost_minor !== null && line.unit_cost_minor !== undefined ? { unit_cost_minor: line.unit_cost_minor, unit_cost_currency: currency } : {}),
   }
 }
 
 /** Field names of every line, so `formErrors` puts the API's messages under their fields. */
 export const lineFieldNames = (count) =>
-  Array.from({ length: count }, (_, index) => ['item_id', 'uom_id', 'qty', 'batch_id', 'batch_number', 'expires_on', 'unit_cost', 'serials'].map((name) => `lines.${index}.${name}`)).flat()
+  Array.from({ length: count }, (_, index) => ['item_id', 'uom_id', 'qty', 'batch_id', 'batch_number', 'expires_on', 'unit_cost_minor', 'unit_cost_currency', 'serials'].map((name) => `lines.${index}.${name}`)).flat()

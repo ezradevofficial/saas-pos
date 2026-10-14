@@ -65,7 +65,7 @@ class AdjustmentResource extends JsonResource
                     'batch_number' => $line->batch_number,
                     'expires_on' => $line->expires_on?->toDateString(),
                     'serials' => $line->serials ?? [],
-                    'unit_cost' => $values && $line->unit_cost !== null ? Qty::show((string) $line->unit_cost) : null,
+                    'unit_cost' => $values && $line->unit_cost_minor !== null ? Values::money($line->unit_cost_minor, $line->unit_cost_currency) : null,
                     'value' => $values ? Values::money($line->value_minor, $adjustment->currency) : null,
                 ])->all(),
                 'can' => [

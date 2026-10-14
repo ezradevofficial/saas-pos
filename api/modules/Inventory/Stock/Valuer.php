@@ -62,6 +62,16 @@ class Valuer
         return Qty::round($minorPerUnit->multipliedBy($qty->abs()));
     }
 
+    /** ADR 003: a unit cost in minor units per entered unit, times the quantity, in minor units (or null). */
+    public function minorCost(?string $minorPerUnit, BigDecimal $qty): ?BigInteger
+    {
+        if ($minorPerUnit === null || $minorPerUnit === '') {
+            return null;
+        }
+
+        return Qty::round(BigDecimal::of($minorPerUnit)->multipliedBy($qty->abs()));
+    }
+
     public function forget(): void
     {
         $this->states = [];

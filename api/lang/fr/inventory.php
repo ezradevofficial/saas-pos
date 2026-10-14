@@ -5,6 +5,7 @@
 // emplacements) s'affichent tels quels.
 return [
     'errors' => [
+        'unit_cost_currency' => 'Saisissez le coût unitaire en :currency, la devise de base de la société.',
         'item_unknown' => 'Choisissez un article existant et non archivé.',
         'item_not_at_location' => ':item appartient à une autre société. Choisissez un article partagé ou un article de cette société.',
         'not_a_stock_item' => ':item n’est pas un article stocké. Seuls les articles stockés ont du stock.',

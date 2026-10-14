@@ -14,7 +14,7 @@ const named = (id, name) => ({ id, name })
 const page = (data) => ({ data, meta: { total: data.length, last_page: 1, from: 1, to: data.length } })
 const PCS = { id: 'u-pcs', code: 'PCS', name: 'Pieces' }
 const ITEM = { id: 'i-1', code: 'MILK', name: 'Milk 1 l', type: 'stock', base_uom_id: 'u-pcs', uoms: [] }
-const LOCATIONS = [{ id: 'l-1', name: 'Front store', branch: named('br-1', 'Westlands'), archived_at: null }]
+const LOCATIONS = [{ id: 'l-1', name: 'Front store', branch_id: 'br-1', branch: named('br-1', 'Westlands'), archived_at: null }]
 
 const COUNT = {
   id: 'k-1',
@@ -74,7 +74,8 @@ function setup() {
         },
       ],
       [/^items\?/, page([ITEM])],
-      [/^branches\?/, { data: [] }],
+      [/^companies\?/, { data: [COMPANY] }],
+      [/^branches\?/, { data: [{ id: 'br-1', name: 'Westlands', company_id: 'c-1', archived_at: null }] }],
       [/^locations\?/, { data: LOCATIONS }],
     ],
     { permissions: PERMISSIONS, modules: ['core', 'inventory'], companies: [COMPANY] },
@@ -143,7 +144,7 @@ describe('Stock adjustments (INV-10)', () => {
     signedIn()
   })
 
-  it('requests an increase of a batch item with its batch, expiry and unit cost', async () => {
+  it('requests an increase of a batch item with its batch, expiry and unit cost (minor units in the base currency, ADR 003)', async () => {
     setup()
     api.post.mockResolvedValue({ data: { ...ADJUSTMENT, status: 'pending' } })
     const { router } = renderApp('/inventory/adjustments/new')
@@ -164,7 +165,7 @@ describe('Stock adjustments (INV-10)', () => {
         location_id: 'l-1',
         reason: 'found',
         note: 'Back of the store',
-        lines: [{ item_id: 'i-1', uom_id: 'u-pcs', qty: '6', batch_number: 'M-77', expires_on: '2026-11-30', unit_cost: '55' }],
+        lines: [{ item_id: 'i-1', uom_id: 'u-pcs', qty: '6', batch_number: 'M-77', expires_on: '2026-11-30', unit_cost_minor: '5500', unit_cost_currency: 'KES' }],
       }),
     )
     await waitFor(() => expect(router.state.location.pathname).toBe('/inventory/adjustments/a-1'))
