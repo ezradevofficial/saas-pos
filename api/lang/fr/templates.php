@@ -73,6 +73,12 @@ return [
                 'price' => 'Prix',
                 'batch' => 'Lot',
                 'expires_on' => 'Expire le',
+                'opening' => 'Solde d’ouverture',
+                'closing' => 'Solde de clôture',
+                'ageing_0_30' => '0 à 30 jours',
+                'ageing_31_60' => '31 à 60 jours',
+                'ageing_61_90' => '61 à 90 jours',
+                'ageing_90_plus' => 'Plus de 90 jours',
             ],
             'customer' => [
                 'name' => 'Client',

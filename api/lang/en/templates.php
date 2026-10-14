@@ -73,6 +73,12 @@ return [
                 'price' => 'Price',
                 'batch' => 'Batch',
                 'expires_on' => 'Expires',
+                'opening' => 'Opening balance',
+                'closing' => 'Closing balance',
+                'ageing_0_30' => '0–30 days',
+                'ageing_31_60' => '31–60 days',
+                'ageing_61_90' => '61–90 days',
+                'ageing_90_plus' => 'Over 90 days',
             ],
             'customer' => [
                 'name' => 'Customer',
