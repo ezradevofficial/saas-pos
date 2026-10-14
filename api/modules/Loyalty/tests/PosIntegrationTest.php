@@ -6,6 +6,8 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\DueTenants;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
@@ -302,6 +304,35 @@ class PosIntegrationTest extends TestCase
             $this->assertStringContainsString($command, $commands);
         }
         $this->assertStringNotContainsString('loyalty:', (string) file_get_contents(base_path('routes/console.php')));
+    }
+
+    public function test_deadlock_safety_cards_and_accounts_are_locked_in_id_order_before_posting(): void
+    {
+        [$first, $firstCode] = $this->giftCard('50000');
+        [$second, $secondCode] = $this->giftCard('100000');
+        $this->assertLessThan(0, strcmp($first->id, $second->id));
+        $this->creditAccount('500000');
+        // The card with the larger id pays first.
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id, [
+            $this->pay('voucher', '62500', ['code_hash' => GiftCards::proof($secondCode)]),
+            $this->pay('voucher', '50000', ['code_hash' => GiftCards::proof($firstCode)]),
+        ]);
+        $locks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks) {
+            if (str_contains($query->sql, 'for update') && preg_match('/from "(loyalty_gift_cards|loyalty_accounts)"/', $query->sql, $table) === 1) {
+                $locks[] = [$table[1], $query->sql];
+            }
+        });
+
+        $this->upload([$sale])->assertOk();
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
+
+        // Accounts first, then every card the sale touches, each set in one query ordered by id.
+        $this->assertSame('loyalty_accounts', $locks[0][0]);
+        $this->assertStringContainsString('order by "id"', $locks[0][1]);
+        $firstCardLock = collect($locks)->firstWhere(0, 'loyalty_gift_cards');
+        $this->assertStringContainsString('order by "id"', $firstCardLock[1]);
+        $this->assertSame(['0', '37500'], $this->inTenant(fn () => [(string) $first->refresh()->balance_minor, (string) $second->refresh()->balance_minor]));
     }
 
     private function failingProgrammes(): void
