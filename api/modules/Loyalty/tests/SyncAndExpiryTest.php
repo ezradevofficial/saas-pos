@@ -8,8 +8,8 @@ use Carbon\CarbonImmutable;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
-use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Models\PointsEntry;
+use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Points\PointsExpiry;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -147,7 +147,7 @@ class SyncAndExpiryTest extends TestCase
 
         $notice = $this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->owner->id)->where('event_type', 'loyalty.credit.limit_near')->sole());
         $text = $notice->subject.' '.$notice->body;
-        $this->assertStringContainsString("KES 850,00", $text);
+        $this->assertStringContainsString('KES 850,00', $text);
         $this->assertStringContainsString("KES 1\u{202F}000,00", $text);
         $this->assertSame("1\u{202F}250", LoyaltyNotices::number('1250', 'fr'));
         $this->assertSame('1,250', LoyaltyNotices::number('1250', 'en'));
