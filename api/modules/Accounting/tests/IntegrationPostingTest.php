@@ -442,4 +442,21 @@ class IntegrationPostingTest extends TestCase
         $this->assertSame(-50000, $this->balance('4100'));
         $this->assertSame(56250, $this->balance('2310'));
     }
+
+    /** Review #9: a tenant without Accounting never gets an Accounting job queued; with it, the sale's job is queued. */
+    public function test_accounting_jobs_are_queued_only_for_tenants_with_accounting(): void
+    {
+        $this->setUpIntegrations(accounting: false);
+        $shift = $this->openShift();
+        $queued = fn () => collect(\Illuminate\Support\Facades\Queue::pushedJobs()[\Illuminate\Events\CallQueuedListener::class] ?? [])
+            ->filter(fn (array $pushed) => $pushed['job']->class === \Modules\Accounting\Listeners\PostModuleEvent::class)->count();
+
+        \Illuminate\Support\Facades\Queue::fake();
+        $this->upload([$this->saleBody($shift, 1)])->assertOk();
+        $this->assertSame(0, $queued());
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('accounting'));
+        $this->upload([$this->saleBody($shift, 2)])->assertOk();
+        $this->assertSame(1, $queued());
+    }
 }

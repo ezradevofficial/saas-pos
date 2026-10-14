@@ -2,8 +2,10 @@
 
 namespace Modules\Accounting\Listeners;
 
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Modules\Accounting\AccountingServiceProvider;
 use Modules\Accounting\Integrations\Integrations;
 
 /**
@@ -27,7 +29,14 @@ class PostModuleEvent implements ShouldQueue
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Integrations $integrations,
+        private readonly ModuleRegistry $modules,
     ) {}
+
+    /** Review #9: nothing is queued for a tenant without Accounting (checked in the event's tenant). */
+    public function shouldQueue(object $event): bool
+    {
+        return $this->tenants->run($event->tenantId, fn () => $this->modules->isActive(AccountingServiceProvider::MODULE));
+    }
 
     public function viaQueue(): string
     {
