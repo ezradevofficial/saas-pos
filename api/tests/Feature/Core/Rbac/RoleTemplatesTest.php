@@ -107,8 +107,10 @@ class RoleTemplatesTest extends TestCase
         // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.*; TPL: core.template.*;
         // CF-04: core.custom_form.view|create|edit|approve and core.custom_form_type.manage.
         // LAY-05: pos.layout.view|edit|publish. EXP-02: core.tenant.export. IMP-01: core.import.run. ONB-02..ONB-07: core.onboarding.view|edit|modules. SUB-02: core.subscription.view|manage.
-        // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions. Sum with other modules' counts when merging.
-        $this->assertSame(113 + 18 + 19, count($names));
+        // INV: the Inventory module's 23 (inventory.*), registered whether or not a tenant has it.
+        // ACC-22: the Accounting module's 23 permissions (accounting.*).
+        // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions.
+        $this->assertSame(113 + 18 + 23 + 23 + 19, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -130,8 +132,9 @@ class RoleTemplatesTest extends TestCase
         // layout designer (pos.layout.*, LAY-05); they apply once the module is active (RBAC-08).
         // EXP-02, ONB-02, ONB-03: everything in core except the full tenant export and the modules
         // (what the tenant pays for), which are the Owner's alone.
+        // INV-12, INV-01: and Inventory's settings, item configuration and views (8).
         // Loyalty: the programme (2) and promotions (4), LOY-01, LOY-08.
-        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 6, $admin->permissions()->count());
+        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 8 + 6, $admin->permissions()->count());
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
         $this->assertFalse($admin->hasPermissionTo('core.onboarding.modules'));
         $this->assertTrue($owner->hasPermissionTo('core.onboarding.modules'));

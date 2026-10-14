@@ -15,6 +15,10 @@ return [
         'payroll_payslip' => 'Bulletin de paie',
         'party_statement' => 'Relevé client',
         'letter' => 'Lettre',
+        'inventory_label' => 'Étiquette code-barres',
+        'accounting_invoice' => 'Facture',
+        'accounting_credit_note' => 'Avoir',
+        'accounting_statement' => 'Relevé de compte',
     ],
 
     'groups' => [
@@ -62,6 +66,13 @@ return [
                 'subject' => 'Objet',
                 'employee' => 'Salarié',
                 'supplier' => 'Fournisseur',
+                'item_name' => 'Article',
+                'item_code' => 'Code',
+                'barcode' => 'Code-barres',
+                'unit' => 'Unité',
+                'price' => 'Prix',
+                'batch' => 'Lot',
+                'expires_on' => 'Expire le',
             ],
             'customer' => [
                 'name' => 'Client',
@@ -95,6 +106,7 @@ return [
             'payroll_payslip' => 'Bulletin de paie',
             'party_statement' => 'Relevé',
             'letter' => 'Référence',
+            'inventory_label' => 'Étiquette',
         ],
         'columns' => [
             'item_name' => 'Article',

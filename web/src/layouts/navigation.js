@@ -11,6 +11,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * suppliers, credit limit changes), Settings, Finance (currencies, rates, taxes, payment methods)
  * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
  * Point of sale (POS module): dashboard, sales, shifts and held records.
+ * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -40,6 +41,15 @@ export const AUTOMATION_VIEW = ['core.automation.view', 'core.automation.edit']
 export const POS_SALE_VIEW = 'pos.sale.view'
 export const POS_SHIFT_VIEW = 'pos.shift.view'
 export const POS_HELD_VIEW = ['pos.sale.void', 'pos.sale.refund', 'pos.cash.move']
+// Inventory module (docs/modules/inventory.md, RBAC-09): who may open each page (any one is enough; the API checks again).
+export const INVENTORY_STOCK_VIEW = 'inventory.stock.view'
+export const INVENTORY_TRANSFER_VIEW = 'inventory.transfer.view'
+export const INVENTORY_COUNT_VIEW = 'inventory.count.view'
+export const INVENTORY_ADJUSTMENT_VIEW = 'inventory.adjustment.view'
+export const INVENTORY_REORDER_VIEW = ['inventory.reorder.view', 'inventory.reorder.edit']
+export const INVENTORY_VALUATION_VIEW = 'inventory.valuation.view'
+export const INVENTORY_LABEL_PRINT = 'inventory.label.print'
+export const INVENTORY_SETTINGS_VIEW = ['inventory.stock.view', 'inventory.settings.edit']
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -89,6 +99,37 @@ export const NAV_GROUPS = [
       { to: '/loyalty/ageing', icon: 'chart', label: (t) => t('nav.loyaltyAgeing'), permission: 'loyalty.credit.view', module: 'loyalty' },
       { to: '/loyalty/review', icon: 'alert', label: (t) => t('nav.loyaltyReview'), permission: 'loyalty.sale.view', module: 'loyalty' },
       { to: '/loyalty/programme', icon: 'loyalty', label: (t) => t('nav.loyaltyProgramme'), permission: ['loyalty.programme.view', 'loyalty.programme.edit'], module: 'loyalty' },
+    ],
+  },
+  {
+    // INV-19, docs/modules/inventory.md (Screens): only while the Inventory module is active (RBAC-08).
+    id: 'inventory',
+    label: (t) => t('nav.groups.inventory'),
+    items: [
+      { to: '/inventory/stock', icon: 'stock', label: (t) => t('nav.inventoryStock'), permission: INVENTORY_STOCK_VIEW, module: 'inventory' },
+      { to: '/inventory/movements', icon: 'movements', label: (t) => t('nav.inventoryMovements'), permission: INVENTORY_STOCK_VIEW, module: 'inventory' },
+      { to: '/inventory/transfers', icon: 'transfers', label: (t) => t('nav.inventoryTransfers'), permission: INVENTORY_TRANSFER_VIEW, module: 'inventory' },
+      { to: '/inventory/counts', icon: 'counts', label: (t) => t('nav.inventoryCounts'), permission: INVENTORY_COUNT_VIEW, module: 'inventory' },
+      { to: '/inventory/adjustments', icon: 'adjustments', label: (t) => t('nav.inventoryAdjustments'), permission: INVENTORY_ADJUSTMENT_VIEW, module: 'inventory' },
+      { to: '/inventory/reorder', icon: 'reorder', label: (t) => t('nav.inventoryReorder'), permission: INVENTORY_REORDER_VIEW, module: 'inventory' },
+      { to: '/inventory/valuation', icon: 'valuation', label: (t) => t('nav.inventoryValuation'), permission: INVENTORY_VALUATION_VIEW, module: 'inventory' },
+      { to: '/inventory/labels', icon: 'labels', label: (t) => t('nav.inventoryLabels'), permission: INVENTORY_LABEL_PRINT, module: 'inventory' },
+      { to: '/inventory/settings', icon: 'settings', label: (t) => t('nav.inventorySettings'), permission: INVENTORY_SETTINGS_VIEW, module: 'inventory' },
+    ],
+  },
+  {
+    // Accounting (docs/modules/accounting.md): only while the module is active (RBAC-08); budgets need Accounting Pro.
+    id: 'accounting',
+    label: (t) => t('nav.groups.accounting'),
+    items: [
+      { to: '/accounting/journals', icon: 'templates', label: (t) => t('nav.accountingJournals'), permission: 'accounting.journal.view', module: 'accounting' },
+      { to: '/accounting/documents', icon: 'sales', label: (t) => t('nav.accountingDocuments'), permission: 'accounting.invoice.view', module: 'accounting' },
+      { to: '/accounting/payments', icon: 'payments', label: (t) => t('nav.accountingPayments'), permission: 'accounting.payment.view', module: 'accounting' },
+      { to: '/accounting/bank', icon: 'currencies', label: (t) => t('nav.accountingBank'), permission: 'accounting.bank.view', module: 'accounting' },
+      { to: '/accounting/budgets', icon: 'chart', label: (t) => t('nav.accountingBudgets'), permission: 'accounting.budget.view', module: 'accounting_pro' },
+      { to: '/accounting/periods', icon: 'lock', label: (t) => t('nav.accountingPeriods'), permission: 'accounting.period.view', module: 'accounting' },
+      { to: '/accounting/reports', icon: 'chart', label: (t) => t('nav.accountingReports'), permission: ['accounting.report.view', 'accounting.report.consolidate'], module: 'accounting' },
+      { to: '/accounting/chart', icon: 'numbering', label: (t) => t('nav.accountingChart'), permission: ['accounting.account.view', 'accounting.account.manage'], module: 'accounting' },
     ],
   },
   {

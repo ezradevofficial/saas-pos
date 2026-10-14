@@ -42,6 +42,8 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Modules\Accounting\Posting\PostingService;
+use Modules\Accounting\Posting\SourceDocument;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -501,6 +503,8 @@ final class TwoTenants
         // three M-Pesa sales by the owner (one voided, one partly refunded,
         // one left for the isolation suite to void) and a cash pay-in.
         $pos = self::pos($test, $owner, $tenantId, $ownerId, $deviceToken, $item, $uoms['EA'], $priceList, $paymentMethod, $taxCode);
+        // Accounting (docs/modules/accounting.md): every acc_* table in both tenants.
+        $accounting = self::accounting($test, $owner, $tenantId, $company, $customer, $party, $taxCode, $dimensions, $upper);
 
         // Loyalty (docs/modules/loyalty.md): the module switched on, the
         // programme, a promotion with a coupon, a gift card, a credit
@@ -522,14 +526,20 @@ final class TwoTenants
         // SUB-02..SUB-04: a subscription converted from its trial, its first
         // invoice (issued by the operator, copied here), a saved M-Pesa
         // wallet and a payment of the invoice waiting for the phone.
-        app(TenantContext::class)->run($tenantId, fn () => app(Subscriptions::class)->startTrial('KE', ['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter']));
+        app(TenantContext::class)->run($tenantId, fn () => app(Subscriptions::class)->startTrial('KE', ['modules' => ['pos', 'inventory', 'loyalty', 'accounting_pro'], 'quantities' => ['outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter']));
         $firstInvoice = self::ok($test->postJson('/api/v1/subscription/subscribe', [], $owner), 201)->json('data.id');
         $billingMethod = self::ok($test->postJson('/api/v1/subscription/payment-methods', ['kind' => 'mobile_money', 'provider' => 'mpesa_ke', 'phone' => '0712345'.($key === 'a' ? '601' : '602')], $owner), 201)->json('data.id');
         $billingPayment = self::ok($test->postJson("/api/v1/subscription/invoices/{$firstInvoice}/pay", ['payment_method_id' => $billingMethod], $owner), 201)->json('data.id');
         // An upgrade in the period: its own invoice, open with no payment (the routes' invoice).
-        $upgrade = ['modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 20, 'outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter'];
+        $upgrade = ['modules' => ['accounting_pro', 'inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 20, 'outlet' => 1], 'cycle' => 'monthly', 'bundle' => 'starter'];
         $charge = self::ok($test->postJson('/api/v1/subscription/quote', $upgrade, $owner))->json('data.charge_now');
         $billingInvoice = self::ok($test->postJson('/api/v1/subscription/change', [...$upgrade, 'expected_charge' => $charge], $owner))->json('data.invoice.id');
+
+        // Inventory (docs/modules/inventory.md): switched on by the trial above;
+        // a store, FIFO costing, a batch item, a serial item and a variant,
+        // opening stock, a reorder level, a pending transfer and adjustment and
+        // a running count.
+        $inventory = self::inventory($test, $owner, $upper, $branch, $location, $company, $item, $uoms['EA']);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -608,6 +618,8 @@ final class TwoTenants
                 'import' => $import,
                 ...$dimensions,
                 ...$pos,
+                ...$inventory,
+                ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
             ],
@@ -718,6 +730,104 @@ final class TwoTenants
         ];
     }
 
+    /**
+     * The Accounting fixture of one tenant (docs/modules/accounting.md),
+     * through the API: the KE chart and settings, a posting rule and a
+     * source kept as an exception, a manual journal submitted to its flow
+     * and a draft kept for edits, a recurring journal, posted invoices, a
+     * posted supplier bill, credit notes (one left open), a draft invoice, a
+     * receipt partly allocated, a bank account with an imported statement
+     * (one line matched, two not), a rule, a budget with a cell, and a
+     * revaluation of January (nothing foreign: no journal).
+     *
+     * @return array<string, string>
+     */
+    private static function accounting(TestCase $test, array $owner, string $tenantId, string $company, string $customer, string $supplier, string $taxCode, array $dimensions, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, function () {
+            app(ModuleRegistry::class)->activate('accounting');
+            app(ModuleRegistry::class)->activate('accounting_pro');
+        });
+        $base = "/api/v1/companies/{$company}/accounting";
+        self::ok($test->postJson("{$base}/chart", [], $owner), 201);
+        $accounts = collect(self::ok($test->getJson("{$base}/accounts?per_page=200&status=all", $owner))->json('data'))->pluck('id', 'code');
+        $line = fn (string $code, ?string $debit, ?string $credit) => array_filter(['account_id' => $accounts[$code], 'debit' => $debit, 'credit' => $credit]);
+
+        $rule = self::ok($test->postJson("{$base}/posting-rules", ['event_type' => 'test.sale', 'lines' => [
+            ['field' => 'total', 'side' => 'debit', 'account_id' => $accounts['1110']],
+            ['field' => 'total', 'side' => 'credit', 'account_id' => $accounts['4100']],
+        ]], $owner), 201)->json('data.id');
+        $exception = app(TenantContext::class)->run($tenantId, fn () => app(PostingService::class)->post(new SourceDocument(
+            $company, 'test.missing', (string) Str::uuid7(), CarbonImmutable::parse('2026-10-05T10:00:00Z'), 'KES', ['total' => '1000'],
+        ))->exception->id);
+
+        $journalBody = ['date' => '2026-10-05', 'memo' => "Rent {$upper}", 'lines' => [
+            [...$line('6200', '100.00', null), 'cost_centre_id' => $dimensions['cost_centre'], 'department_id' => $dimensions['department'], 'project_id' => $dimensions['project']],
+            $line('1120', null, '100.00'),
+        ]];
+        $submitted = self::ok($test->postJson("{$base}/journals", $journalBody, $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/accounting/journals/{$submitted}/submit", [], $owner));
+        $journal = self::ok($test->postJson("{$base}/journals", $journalBody, $owner), 201)->json('data.id');
+        $recurring = self::ok($test->postJson("{$base}/recurring-journals", ['name' => "Rent {$upper}", 'frequency' => 'monthly', 'next_run_on' => '2027-01-01',
+            'lines' => [$line('6200', '100.00', null), $line('1120', null, '100.00')]], $owner), 201)->json('data.id');
+
+        $document = fn (string $kind, string $party, string $account, string $price, array $extra = []) => self::ok($test->postJson("{$base}/documents", [
+            'kind' => $kind, 'party_id' => $party, 'issue_date' => '2026-10-05',
+            'lines' => [['description' => "Goods {$upper}", 'account_id' => $accounts[$account], 'qty' => '1', 'unit_price' => $price, 'tax_code_id' => $taxCode]], ...$extra,
+        ], $owner), 201)->json('data.id');
+        $post = fn (string $id) => self::ok($test->postJson("/api/v1/accounting/documents/{$id}/post", [], $owner));
+        $invoice = $document('customer_invoice', $customer, '4100', '1000.00');
+        $post($invoice);
+        $openInvoice = $document('customer_invoice', $customer, '4100', '5000.00');
+        $post($openInvoice);
+        $post($document('supplier_invoice', $supplier, '5200', '400.00'));
+        // A credit note settling part of the first invoice.
+        $credit = $document('customer_credit', $customer, '4300', '300.00', ['credits_document_id' => $invoice]);
+        $post($credit);
+        $bank = self::ok($test->postJson("{$base}/bank-accounts", ['name' => "Bank {$upper}", 'kind' => 'bank', 'account_id' => $accounts['1120'], 'currency' => 'KES'], $owner), 201)->json('data.id');
+        $payment = self::ok($test->postJson("{$base}/payments", ['kind' => 'receipt', 'party_id' => $customer, 'bank_account_id' => $bank, 'date' => '2026-10-06', 'amount' => '2000.00',
+            'reference' => "DEP{$upper}", 'allocations' => [['document_id' => $invoice, 'amount' => '787.50'], ['document_id' => $openInvoice, 'amount' => '100.00']]], $owner), 201)->json('data.id');
+        // The first invoice is settled, so this credit note stays open for allocations.
+        $openCredit = $document('customer_credit', $customer, '4300', '100.00', ['credits_document_id' => $invoice]);
+        $post($openCredit);
+        $draftDocument = $document('customer_invoice', $customer, '4100', '10.00');
+        $csv = tempnam(sys_get_temp_dir(), 'two-tenants-statement-');
+        file_put_contents($csv, "Date,Description,Reference,Amount\n2026-10-06,Deposit {$upper},DEP{$upper},2000.00\n2026-10-07,Charges {$upper},,-15.00\n2026-10-08,Charges two {$upper},,-25.00\n");
+        self::ok($test->post("/api/v1/accounting/bank-accounts/{$bank}/statements", [
+            'file' => new UploadedFile($csv, "statement-{$upper}.csv", 'text/csv', null, true), 'format' => 'csv',
+            'mapping' => ['date' => 'Date', 'description' => 'Description', 'reference' => 'Reference', 'amount' => 'Amount'],
+        ], [...$owner, 'Accept' => 'application/json']), 201);
+        $view = self::ok($test->getJson("/api/v1/accounting/bank-accounts/{$bank}/reconciliation", $owner))->json('data');
+        $deposit = collect($view['statement_lines'])->firstWhere('reference', "DEP{$upper}")['id'];
+        self::ok($test->postJson("/api/v1/accounting/bank-statement-lines/{$deposit}/match", ['journal_line_ids' => $view['suggestions'][$deposit]], $owner));
+        $fee = collect($view['statement_lines'])->firstWhere('description', "Charges {$upper}")['id'];
+        $bankRule = self::ok($test->postJson("{$base}/bank-rules", ['name' => "Charges {$upper}", 'contains' => 'Charges', 'direction' => 'out', 'account_id' => $accounts['6400']], $owner), 201)->json('data.id');
+
+        $budget = self::ok($test->postJson("{$base}/budgets", ['name' => "Plan {$upper}", 'fiscal_year' => 2026], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/accounting/budgets/{$budget}/cells", ['cells' => [['account_id' => $accounts['6200'], 'cost_centre_id' => $dimensions['cost_centre'], 'month' => 10, 'amount' => '500.00']]], $owner));
+        $periods = self::ok($test->getJson("{$base}/periods?year=2026", $owner))->json('data');
+        self::ok($test->postJson("/api/v1/accounting/periods/{$periods[0]['id']}/revalue", [], $owner), 201);
+
+        return [
+            'acc_account' => $accounts['6200'],
+            'acc_header' => $accounts['6000'],
+            'acc_free_asset' => $accounts['1210'],
+            'acc_posting_rule' => $rule,
+            'acc_posting_exception' => $exception,
+            'acc_journal' => $journal,
+            'acc_recurring_journal' => $recurring,
+            'acc_document' => $draftDocument,
+            'acc_invoice' => $openInvoice,
+            'acc_credit_note' => $openCredit,
+            'acc_payment' => $payment,
+            'acc_bank_account' => $bank,
+            'acc_bank_statement_line' => $fee,
+            'acc_bank_rule' => $bankRule,
+            'acc_budget' => $budget,
+            'acc_period' => $periods[9]['id'],
+        ];
+    }
+
     /** A sale of 2 × the item at KES 562.50, tax included at the fixture's test rate (12.5 %), paid by M-Pesa. */
     public static function posSale(callable $id, string $shift, string $cashier, int $seq, string $number, string $item, string $uom, string $priceList, string $paymentMethod, string $taxCode): array
     {
@@ -748,6 +858,50 @@ final class TwoTenants
             'total_minor' => '56250',
             'lines' => [['id' => $id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
             'payments' => [['id' => $id(), 'payment_method_id' => $paymentMethod, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250', 'provider_reference' => 'RF'.$seq]],
+        ];
+    }
+
+    /**
+     * The Inventory fixture of one tenant, made through its API.
+     *
+     * @return array<string, string>
+     */
+    private static function inventory(TestCase $test, array $owner, string $upper, string $branch, string $location, string $company, string $item, string $each): array
+    {
+        $store = self::ok($test->postJson("/api/v1/branches/{$branch}/locations", ['name' => "Store {$upper}", 'type' => 'warehouse'], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/inventory/companies/{$company}/settings", ['costing_method' => 'fifo', 'allow_negative' => true], $owner));
+
+        $newItem = fn (string $code) => self::ok($test->postJson('/api/v1/items', ['code' => "{$code}-{$upper}", 'name' => "{$code} {$upper}", 'type' => 'stock', 'base_uom_id' => $each], $owner), 201)->json('data.id');
+        $batchItem = $newItem('INV-BATCH');
+        $serialItem = $newItem('INV-SERIAL');
+        $variant = $newItem('INV-VARIANT');
+        self::ok($test->putJson("/api/v1/inventory/items/{$batchItem}/settings", ['tracking' => 'batch', 'track_expiry' => true], $owner));
+        self::ok($test->putJson("/api/v1/inventory/items/{$serialItem}/settings", ['tracking' => 'serial'], $owner));
+        self::ok($test->putJson("/api/v1/inventory/items/{$variant}/variant", ['parent_item_id' => $batchItem, 'attributes' => ['size' => 'S']], $owner));
+
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $item, 'location_id' => $location, 'qty' => '50', 'unit_cost' => '10'], $owner), 201);
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $batchItem, 'location_id' => $location, 'qty' => '20', 'unit_cost' => '5', 'batch_number' => "LOT-{$upper}", 'expires_on' => '2027-06-30'], $owner), 201);
+        self::ok($test->postJson('/api/v1/inventory/opening-stock', ['item_id' => $serialItem, 'location_id' => $store, 'qty' => '2', 'unit_cost' => '300', 'serials' => ["SN-{$upper}-1", "SN-{$upper}-2"]], $owner), 201);
+        $batch = self::ok($test->getJson("/api/v1/inventory/items/{$batchItem}", $owner))->json('data.batches.0.id');
+        self::ok($test->putJson('/api/v1/inventory/reorder-rules', ['item_id' => $item, 'location_id' => $location, 'reorder_level' => '5', 'reorder_qty' => '24'], $owner));
+
+        $transfer = self::ok($test->postJson('/api/v1/inventory/transfers', [
+            'from_location_id' => $location, 'to_location_id' => $store, 'lines' => [['item_id' => $item, 'qty' => '2']],
+        ], $owner), 201)->json('data.id');
+        $adjustment = self::ok($test->postJson('/api/v1/inventory/adjustments', [
+            'location_id' => $location, 'reason' => 'damage', 'lines' => [['item_id' => $batchItem, 'qty' => '-1', 'batch_id' => $batch]],
+        ], $owner), 201)->json('data.id');
+        $count = self::ok($test->postJson('/api/v1/inventory/counts', ['location_id' => $store, 'kind' => 'cycle', 'item_ids' => [$serialItem]], $owner), 201)->json('data.id');
+
+        return [
+            'inventory_location' => $store,
+            'inventory_item' => $batchItem,
+            'inventory_serial_item' => $serialItem,
+            'inventory_variant' => $variant,
+            'inventory_batch' => $batch,
+            'inventory_transfer' => $transfer,
+            'inventory_adjustment' => $adjustment,
+            'inventory_count' => $count,
         ];
     }
 

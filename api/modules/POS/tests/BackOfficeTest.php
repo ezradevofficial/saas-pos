@@ -67,7 +67,8 @@ class BackOfficeTest extends TestCase
             ->assertJsonPath('data.0.tenders', [['method_type' => 'cash', 'amount' => ['amount_minor' => '112500', 'currency' => 'KES']]]);
         $this->getJson('/api/v1/pos/sales?search=L02', $owner)->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/v1/pos/sales?status=voided', $owner)->assertOk()->assertJsonCount(0, 'data');
-        $this->getJson('/api/v1/pos/sales?from='.now()->addDay()->toDateString(), $owner)->assertOk()->assertJsonCount(0, 'data');
+        // Two days ahead: "from" is read in the company's time zone, which is a day ahead of UTC late at night.
+        $this->getJson('/api/v1/pos/sales?from='.now()->addDays(2)->toDateString(), $owner)->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/pos/sales?sort=receipt_number', $owner)->assertOk()->assertJsonPath('data.0.receipt_number', 'R-L01-000001');
         $this->getJson('/api/v1/pos/sales?sort=nope', $owner)->assertUnprocessable();
 

@@ -142,6 +142,21 @@ class TenantIsolationTest extends TestCase
         'config_document' => 'config_document', // LAY-06: config/{kind}/{config_document}[/draft|publish|rollback|copy|discard-draft]
         'preview' => 'template_preview', // TPL-01: templates/previews/{preview}/pdf, the owner's preview (a cache key bound to its tenant and user)
         'document_share' => 'document_share', // TPL-04: pos/sales/{pos_sale}/shares/{document_share}/revoke, a link to the sale's receipt
+        // Accounting (docs/modules/accounting.md): an account, rule, exception, draft journal, recurring journal, draft invoice,
+        // open credit note, receipt, bank account, unmatched statement line, bank rule, budget and period of each tenant.
+        'acc_account' => 'acc_account',
+        'acc_posting_rule' => 'acc_posting_rule',
+        'acc_posting_exception' => 'acc_posting_exception',
+        'acc_journal' => 'acc_journal',
+        'acc_recurring_journal' => 'acc_recurring_journal',
+        'acc_document' => 'acc_document',
+        'acc_credit_note' => 'acc_credit_note',
+        'acc_payment' => 'acc_payment',
+        'acc_bank_account' => 'acc_bank_account',
+        'acc_bank_statement_line' => 'acc_bank_statement_line',
+        'acc_bank_rule' => 'acc_bank_rule',
+        'acc_budget' => 'acc_budget',
+        'acc_period' => 'acc_period',
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'import' => 'import', // IMP-01..IMP-03: imports/{import}[/preview|dry-run|run|undo], a completed customers import
         // Loyalty (docs/modules/loyalty.md): a promotion, its coupon, a credit account, its statement, a gift card.
@@ -150,6 +165,10 @@ class TenantIsolationTest extends TestCase
         'loyalty_account' => 'loyalty_account',
         'loyalty_statement' => 'loyalty_statement',
         'loyalty_gift_card' => 'loyalty_gift_card',
+        // Inventory (docs/modules/inventory.md): a pending transfer and adjustment, a running count.
+        'inventory_transfer' => 'inventory_transfer',
+        'inventory_adjustment' => 'inventory_adjustment',
+        'inventory_count' => 'inventory_count',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -202,6 +221,11 @@ class TenantIsolationTest extends TestCase
         'uom_id' => 'uom_box', // an item's other unit or a barcode's unit; base_uom_id is EA
         'tax_category_id' => 'tax_category',
         'item_id' => 'item', // MD-03 follow-up: the item a price is for
+        // Inventory: a transfer's two ends, a batch, a variant's parent.
+        'from_location_id' => 'location',
+        'to_location_id' => 'inventory_location',
+        'batch_id' => 'inventory_batch',
+        'parent_item_id' => 'inventory_item',
         'owner_user_id' => 'user', // MD-05: a dimension's owner (APR-02)
         'document_id' => 'document', // AUTO-04: test a rule against a real document (the test type's)
         'rule_id' => 'automation_rule', // AUTO-04: test an edited rule with its stored webhook addresses
@@ -223,6 +247,14 @@ class TenantIsolationTest extends TestCase
         'customer_id' => 'customer',
         'gift_card_item_id' => 'item', // LOY-01: the item a till sells gift cards as
         'item_id' => 'item',
+        // Accounting: accounts, banks, dimensions, the intercompany counterparty and the invoice a credit note names.
+        'account_id' => 'acc_account',
+        'bank_account_id' => 'acc_bank_account',
+        'cost_centre_id' => 'cost_centre',
+        'department_id' => 'department',
+        'project_id' => 'project',
+        'counterparty_company_id' => 'company',
+        'credits_document_id' => 'acc_invoice',
         'scope_id' => null,
     ];
 
@@ -239,6 +271,12 @@ class TenantIsolationTest extends TestCase
         'PATCH api/v1/projects/{project}' => ['parent_id' => 'project_parent'],
         // SUB-04: a saved payment method of the subscription (never a till's payment method).
         'POST api/v1/subscription/invoices/{billing_invoice}/pay' => ['payment_method_id' => 'billing_payment_method'],
+        // Accounting: a parent is a heading account; allocations name invoices.
+        'POST api/v1/companies/{company}/accounting/accounts' => ['parent_id' => 'acc_header'],
+        'PATCH api/v1/accounting/accounts/{acc_account}' => ['parent_id' => 'acc_header'],
+        'POST api/v1/companies/{company}/accounting/payments' => ['document_id' => 'acc_invoice'],
+        'POST api/v1/accounting/payments/{acc_payment}/allocate' => ['document_id' => 'acc_invoice'],
+        'POST api/v1/accounting/credit-notes/{acc_credit_note}/allocate' => ['document_id' => 'acc_invoice'],
     ];
 
     /**
@@ -324,6 +362,8 @@ class TenantIsolationTest extends TestCase
         ['locale' => 'fr'],
         // LOY-18: the ageing report at a date (both tenants charged a customer on account).
         ['as_of' => '2100-01-01'],
+        // ACC-08: a fiscal year's periods (both tenants have 2026).
+        ['year' => '2026'],
     ];
 
     /**
@@ -331,10 +371,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'as_of'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of'];
 
     private TwoTenants $tenants;
 
@@ -903,6 +943,17 @@ class TenantIsolationTest extends TestCase
             // POS-12: sales and shifts of A's till.
             'pos/sales?status=all' => ['Outlet A', 'Owner A', 'KES 1,125.00'],
             'pos/shifts' => ['Outlet A', 'Owner A', 'KES 5,000.00'],
+            // Inventory (INV-19, INV-20): its lists.
+            'inventory/stock' => ['ITEM-A', 'Outlet A'],
+            'inventory/movements' => ['ITEM-A', 'Opening stock'],
+            'inventory/transfers' => ['Outlet A', 'Store A'],
+            'inventory/adjustments' => ['Outlet A', 'Damaged'],
+            'inventory/counts' => ['Store A', 'Cycle count'],
+            'inventory/reorder-rules' => ['ITEM-A', 'Outlet A'],
+            'inventory/valuation' => ['ITEM-A', 'Company A'],
+            // ACC-20: the chart and the journals of A's company.
+            "companies/{$a->id('company')}/accounting/accounts?status=all" => ['6200', 'Rent'],
+            "companies/{$a->id('company')}/accounting/journals?status=all" => ['Rent A'],
         ];
     }
 
@@ -1268,6 +1319,13 @@ class TenantIsolationTest extends TestCase
     /** A valid body for "METHOD uri" naming $tenant's own rows; null when the suite has none. */
     private function bodyFor(string $key, TenantFixture $tenant): ?array
     {
+        $journal = ['date' => '2026-10-05', 'lines' => [
+            ['account_id' => $tenant->id('acc_account'), 'debit' => '10.00', 'party_id' => $tenant->id('party'), 'branch_id' => $tenant->id('branch'),
+                'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'project_id' => $tenant->id('project')],
+            ['account_id' => $tenant->id('acc_free_asset'), 'credit' => '10.00'],
+        ]];
+        $documentLines = [['description' => 'Hijack', 'item_id' => $tenant->id('item'), 'account_id' => $tenant->id('acc_account'), 'qty' => '1', 'unit_price' => '10.00',
+            'tax_code_id' => $tenant->id('tax_code'), 'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'project_id' => $tenant->id('project')]];
         $assignment = ['role_id' => $tenant->id('role'), 'scope_type' => 'location', 'scope_id' => $tenant->id('location')];
 
         return match ($key) {
@@ -1410,8 +1468,48 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/config/{kind}/{config_document}/copy' => ['scope_type' => 'location', 'scope_id' => $tenant->id('location'), 'from' => 'published', 'replace' => true],
             // TPL-01: a template preview for the company (TPL-03 reads the company's country).
             'POST api/v1/templates/preview' => ['type' => 'pos.receipt', 'payload' => DefaultTemplates::for('pos.receipt'), 'scope_type' => 'company', 'scope_id' => $tenant->id('company')],
+            // Inventory: opening stock of the item's box; a reorder level; the item as a
+            // variant of the batch item; a transfer to the store, an adjustment and a
+            // cycle count of the item's category at the outlet; labels priced from the list.
+            'POST api/v1/inventory/opening-stock' => ['item_id' => $tenant->id('item'), 'location_id' => $tenant->id('location'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'unit_cost' => '120'],
+            'PUT api/v1/inventory/reorder-rules' => ['item_id' => $tenant->id('item'), 'location_id' => $tenant->id('location'), 'reorder_level' => '6', 'reorder_qty' => '12'],
+            'PUT api/v1/inventory/items/{item}/variant' => ['parent_item_id' => $tenant->id('inventory_item'), 'attributes' => ['size' => 'Hijack']],
+            'POST api/v1/inventory/transfers' => [
+                'from_location_id' => $tenant->id('location'), 'to_location_id' => $tenant->id('inventory_location'),
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'batch_id' => $tenant->id('inventory_batch')]],
+            ],
+            'POST api/v1/inventory/adjustments' => [
+                'location_id' => $tenant->id('location'), 'reason' => 'found',
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'batch_id' => $tenant->id('inventory_batch')]],
+            ],
+            'POST api/v1/inventory/counts' => ['location_id' => $tenant->id('location'), 'kind' => 'cycle', 'category_id' => $tenant->id('item_category')],
+            'POST api/v1/inventory/labels' => [
+                'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
+                'price_list_id' => $tenant->id('price_list'),
+            ],
             // Payments: the money received matched to the till's manual payment.
             'POST api/v1/payment-receipts/{payment_receipt}/match' => ['payment_intent_id' => $tenant->id('payment_intent')],
+            // Accounting (docs/modules/accounting.md): bodies naming A's own accounts, dimensions, parties and documents.
+            'POST api/v1/companies/{company}/accounting/accounts' => ['code' => 'HJ-1', 'name' => 'Hijack', 'type' => 'expense', 'subtype' => 'expense', 'parent_id' => $tenant->id('acc_header')],
+            'PATCH api/v1/accounting/accounts/{acc_account}' => ['parent_id' => $tenant->id('acc_header')],
+            'PUT api/v1/companies/{company}/accounting/settings' => ['roles' => [['role' => 'suspense', 'account_id' => $tenant->id('acc_free_asset')]]],
+            'POST api/v1/companies/{company}/accounting/posting-rules' => ['event_type' => 'test.other', 'lines' => [
+                ['field' => 'total', 'side' => 'debit', 'account_id' => $tenant->id('acc_account')], ['field' => 'total', 'side' => 'credit', 'account_id' => $tenant->id('acc_free_asset')]]],
+            'POST api/v1/companies/{company}/accounting/journals' => $journal,
+            'PATCH api/v1/accounting/journals/{acc_journal}' => $journal,
+            'POST api/v1/companies/{company}/accounting/recurring-journals' => ['name' => 'Hijack', 'frequency' => 'monthly', 'next_run_on' => '2027-01-01', 'lines' => $journal['lines']],
+            'PATCH api/v1/accounting/recurring-journals/{acc_recurring_journal}' => ['lines' => $journal['lines']],
+            'POST api/v1/companies/{company}/accounting/documents' => ['kind' => 'customer_invoice', 'party_id' => $tenant->id('customer'), 'branch_id' => $tenant->id('branch'), 'issue_date' => '2026-10-05', 'lines' => $documentLines],
+            'PATCH api/v1/accounting/documents/{acc_document}' => ['party_id' => $tenant->id('customer'), 'branch_id' => $tenant->id('branch'), 'lines' => $documentLines],
+            'POST api/v1/accounting/credit-notes/{acc_credit_note}/allocate' => ['allocations' => [['document_id' => $tenant->id('acc_invoice'), 'amount' => '10.00']]],
+            'POST api/v1/companies/{company}/accounting/payments' => ['kind' => 'receipt', 'party_id' => $tenant->id('customer'), 'bank_account_id' => $tenant->id('acc_bank_account'), 'date' => '2026-10-06', 'amount' => '50.00',
+                'allocations' => [['document_id' => $tenant->id('acc_invoice'), 'amount' => '10.00']]],
+            'POST api/v1/accounting/payments/{acc_payment}/allocate' => ['allocations' => [['document_id' => $tenant->id('acc_invoice'), 'amount' => '10.00']]],
+            'POST api/v1/companies/{company}/accounting/bank-accounts' => ['name' => 'Hijack', 'kind' => 'bank', 'account_id' => $tenant->id('acc_free_asset'), 'currency' => 'KES', 'payment_method_id' => $tenant->id('payment_method')],
+            'PATCH api/v1/accounting/bank-accounts/{acc_bank_account}' => ['payment_method_id' => $tenant->id('payment_method')],
+            'POST api/v1/accounting/bank-statement-lines/{acc_bank_statement_line}/post' => ['account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre')],
+            'POST api/v1/companies/{company}/accounting/bank-rules' => ['name' => 'Hijack', 'contains' => 'Hijack', 'account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre'), 'bank_account_id' => $tenant->id('acc_bank_account')],
+            'PUT api/v1/accounting/budgets/{acc_budget}/cells' => ['cells' => [['account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre'), 'month' => 11, 'amount' => '10.00']]],
             default => null,
         };
     }

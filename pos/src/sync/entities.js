@@ -110,3 +110,7 @@ registerEntity('loyalty_settings', { table: 'loyalty_settings' });
 registerEntity('loyalty_promotions', { table: 'loyalty_promotions' });
 registerEntity('loyalty_members', { table: 'loyalty_members', columns: (row) => ({ customer_id: row.customer_id ?? '', kind: row.kind ?? '' }) });
 registerEntity('loyalty_gift_cards', { table: 'loyalty_gift_cards', columns: (row) => ({ code_hash: row.code_hash ?? '' }) });
+// The Inventory module's stock on hand at this till's location (INV-17,
+// served only while the tenant has Inventory): shown on the tiles, never
+// used to refuse a sale.
+registerEntity('inventory_stock', { table: 'inventory_stock', columns: (row) => ({ item_id: row.item_id }) });

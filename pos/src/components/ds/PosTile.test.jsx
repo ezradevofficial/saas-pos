@@ -13,6 +13,18 @@ describe('PosTile', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('shows the stock on hand from Inventory and stays selectable at none (INV-17)', async () => {
+    const onSelect = jest.fn();
+    const { rerender } = await render(<PosTile name="Soda" price={9000} currency="KES" onHand="12" onSelect={onSelect} />);
+    expect(screen.getByText('12 in stock')).toBeOnTheScreen();
+
+    await rerender(<PosTile name="Soda" price={9000} currency="KES" onHand="-2" onSelect={onSelect} />);
+    const tile = screen.getByRole('button', { name: 'Soda, KES 90.00, None in stock' });
+    expect(tile).toBeEnabled();
+    await fireEvent.press(tile);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
   it('selects on press and shows the price', async () => {
     const onSelect = jest.fn();
     await render(<PosTile name="Coca-Cola 500ml" price={9000} currency="KES" stock={120} onSelect={onSelect} />);

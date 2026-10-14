@@ -1,0 +1,34 @@
+<?php
+
+namespace Modules\Accounting\Http\Requests;
+
+use Illuminate\Validation\Rule;
+use Modules\Accounting\Models\Account;
+
+/** POST companies/{company}/accounting/accounts: a new account (ACC-01); the code is unique in the company. */
+class StoreAccountRequest extends AccountingRequest
+{
+    protected function permission(): string
+    {
+        return 'accounting.account.manage';
+    }
+
+    public function rules(): array
+    {
+        $req = 'required';
+
+        return [
+            'code' => ['required', 'string', 'max:20', 'regex:/^[0-9A-Za-z.\-]+\z/', Rule::unique('acc_accounts', 'code')->where('company_id', $this->company()->id)],
+            'name' => [$req, 'string', 'max:150'],
+            'type' => [$req, 'string', Rule::in(Account::TYPES)],
+            'subtype' => [$req, 'string', Rule::in(Account::SUBTYPES)],
+            'parent_id' => ['nullable', 'uuid', $this->ofCompany('acc_accounts')],
+            'postable' => ['sometimes', 'boolean'],
+            'currency' => ['nullable', 'string', 'size:3', $this->activeCurrency()],
+            'is_control' => ['sometimes', 'boolean'],
+            'cash_flow' => ['nullable', 'string', Rule::in(Account::CASH_FLOWS)],
+            'revalue' => ['sometimes', 'boolean'],
+            'counterparty_company_id' => ['nullable', 'uuid', Rule::exists('companies', 'id'), Rule::notIn([$this->company()->id])],
+        ];
+    }
+}

@@ -15,7 +15,9 @@
             "required_on": [
                 "pos.receipt",
                 "pos.refund_receipt",
-                "sales.invoice"
+                "sales.invoice",
+                "accounting.invoice",
+                "accounting.credit_note"
             ],
             "qr": true
         }

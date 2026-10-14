@@ -79,5 +79,11 @@
   "Modules",
   "Minimum {{amount}}",
   "M-Pesa",
-  "KRA PIN"
+  "KRA PIN",
+  "Budgets",
+  "Budget",
+  "Suggestion",
+  "Format",
+  "M{{number}}",
+  "Dates"
 ]

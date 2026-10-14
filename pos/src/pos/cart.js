@@ -91,7 +91,7 @@ export function cartReducer(state, action) {
       return { ...state, lines: state.lines.filter((line) => line.id !== action.id), tenders: [] };
     // LOY-27: a module's data on the sale (coupons typed); a change drops the tenders, as any change does.
     case 'ext':
-      return { ...state, ext: { ...(state.ext ?? {}), [action.key]: action.value }, tenders: [] };
+      return { ...state, ext: { ...state.ext, [action.key]: action.value }, tenders: [] };
     case 'customer':
       return { ...state, customer: action.customer ?? null, priceListId: action.priceListId ?? null, lines: action.lines ?? state.lines, tenders: [] };
     // Payments in progress are kept with the cart (they survive a restart); any change to the sale drops them.

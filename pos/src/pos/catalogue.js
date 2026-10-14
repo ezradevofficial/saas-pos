@@ -22,7 +22,7 @@ import { taxRateFor, TaxRateNeeded } from './tax';
  */
 export async function loadCatalogue({ database, now = Date.now() }) {
   const all = async (name) => (await database.get(name).query().fetch()).map((record) => record.data).filter(Boolean);
-  const [settingsRows, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layouts] = await Promise.all([
+  const [settingsRows, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layouts, stock] = await Promise.all([
     all('settings'),
     all('currencies'),
     all('exchange_rates'),
@@ -35,6 +35,7 @@ export async function loadCatalogue({ database, now = Date.now() }) {
     all('uoms'),
     all('staff'),
     all('pos_layout'),
+    all('inventory_stock'),
   ]);
   const settings = settingsRows.find((row) => row.id === 'device') ?? settingsRows[0] ?? null;
   // CUR-01: amounts on screen use the tenant's decimals.
@@ -42,11 +43,11 @@ export async function loadCatalogue({ database, now = Date.now() }) {
   const layout = layouts.find((row) => row.id === 'layout') ?? null;
   // LOY-27: modules' data (extensions.js), reloaded with the catalogue after every pull.
   const ext = await loadCatalogueExtensions(database, { settings, categories });
-  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layout, ext, now });
+  return buildCatalogue({ settings, currencies, rates, taxCodes, priceLists, paymentMethods, categories, items, prices, uoms, staff, layout, stock, ext, now });
 }
 
 /** The catalogue from plain rows (tests build it directly). */
-export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], layout: layoutRow = null, ext = {}, now = Date.now() }) {
+export function buildCatalogue({ settings = null, currencies = [], rates = [], taxCodes = [], priceLists = [], paymentMethods = [], categories = [], items = [], prices = [], uoms = [], staff = [], layout: layoutRow = null, stock = [], ext = {}, now = Date.now() }) {
   const timeZone = settings?.timezone ?? 'UTC';
   // POS-11, MD-03: tax rates and prices take effect by the company's day (TaxCode::localDate,
   // PriceResolver), which may differ from the branch zone used for times on screen and receipts.
@@ -80,6 +81,9 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
     return resolvePrice({ item, uomId, prices: rows, day, quantity: String(quantity) });
   }
 
+  // INV-17: stock on hand at this location (base unit), when Inventory serves it.
+  const onHandOf = new Map(stock.map((row) => [row.item_id, String(row.qty)]));
+
   const barcodes = new Map();
   const tiles = [];
   const itemById = new Map();
@@ -108,6 +112,7 @@ export function buildCatalogue({ settings = null, currencies = [], rates = [], t
       currency: price?.currency ?? saleCurrency,
       sellable: !reason,
       reason,
+      onHand: onHandOf.get(item.id) ?? null,
       search: `${String(item.name ?? '').toLowerCase()} ${String(item.code ?? '').toLowerCase()}`,
     });
   }

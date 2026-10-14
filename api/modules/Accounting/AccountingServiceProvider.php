@@ -1,0 +1,140 @@
+<?php
+
+namespace Modules\Accounting;
+
+use App\Core\Currency\CurrencyUsage;
+use App\Core\DocumentTemplates\DataSources;
+use App\Core\Fiscal\FiscalSources;
+use App\Core\Imports\ImportRegistry;
+use App\Core\Layouts\ListViewCatalogue;
+use App\Core\MasterData\RecordUsage;
+use App\Core\Numbering\DocumentNumberType;
+use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Numbering\NumberFormat;
+use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\PermissionRegistry;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Events\WorkflowCancelled;
+use App\Core\Workflow\Events\WorkflowCompleted;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use Modules\Accounting\Console\RunRecurringJournals;
+use Modules\Accounting\Documents\AccountingDocumentSource;
+use Modules\Accounting\Documents\Documents;
+use Modules\Accounting\Events\DocumentPosted;
+use Modules\Accounting\Fiscal\AccountingFiscalSource;
+use Modules\Accounting\Imports\ChartOfAccountsImporter;
+use Modules\Accounting\Imports\OpeningBalancesImporter;
+use Modules\Accounting\Ledger\JournalPoster;
+use Modules\Accounting\Ledger\JournalType;
+use Modules\Accounting\Listeners\QueueFiscalDocument;
+use Modules\Accounting\Listeners\SettleJournal;
+use Modules\Accounting\Payments\Payments;
+
+/**
+ * The Accounting module (docs/modules/accounting.md). Registered for every
+ * tenant, as Laravel boots once for all of them; what a tenant reaches
+ * follows its subscription (RBAC-08): the routes carry `module:accounting`
+ * (403 `module_inactive` otherwise), and the Pro features
+ * `module:accounting_pro` as well (decision 1); the `accounting.*`
+ * permissions grant nothing and system roles get them only once the module
+ * is active; its document and numbered types are found only then.
+ */
+class AccountingServiceProvider extends ServiceProvider
+{
+    public const MODULE = 'accounting';
+
+    /** Decision 1: multi-currency, revaluation, budgets and consolidation (concept note 8.4). */
+    public const PRO = 'accounting_pro';
+
+    /** RBAC-01: the module's permission catalogue (`accounting.resource.action`). */
+    public const PERMISSIONS = [
+        'account' => ['view', 'manage'],
+        'posting_rule' => ['view', 'manage'],
+        'journal' => ['view', 'create', 'approve', 'reverse'],
+        'invoice' => ['view', 'create', 'post'],
+        'payment' => ['view', 'create'],
+        'bank' => ['view', 'manage', 'reconcile'],
+        'budget' => ['view', 'manage'],
+        'period' => ['view', 'close', 'reopen'],
+        'report' => ['view', 'consolidate'],
+    ];
+
+    public function register(): void
+    {
+        $this->mergeConfigFrom(__DIR__.'/config/accounting.php', 'accounting');
+    }
+
+    public function boot(): void
+    {
+        $modules = $this->app->make(ModuleRegistry::class);
+        $modules->register(self::MODULE);
+        $modules->register(self::PRO);
+        // SUB-07: Accounting is sold as Essentials or Pro; Pro also unlocks the Pro features.
+        $modules->soldAs(self::MODULE, ['accounting_essentials', 'accounting_pro']);
+        $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+
+        // NUM-01: journals, documents, receipts and payments, numbered per year.
+        $types = $this->app->make(DocumentNumberTypes::class);
+        $types->register(new DocumentNumberType(JournalPoster::NUMBER_TYPE, self::MODULE, 'JV-{YYYY}-{00001}', NumberFormat::RESET_YEARLY, ['BRANCH'], langKey: 'accounting.numbering.journal'));
+
+        foreach ([...Documents::NUMBERING, ...Payments::NUMBERING] as $kind => [$key, $pattern]) {
+            $types->register(new DocumentNumberType($key, self::MODULE, $pattern, NumberFormat::RESET_YEARLY, ['BRANCH'], langKey: "accounting.numbering.{$kind}"));
+        }
+
+        // CUR-01: once an amount is stored in a currency, its decimals are locked.
+        $this->app->make(CurrencyUsage::class)->register(fn (string $code) => DB::table('acc_journal_lines')->where('currency', $code)->exists()
+            || DB::table('acc_documents')->where('currency', $code)->exists()
+            || DB::table('acc_payments')->where('currency', $code)->exists());
+
+        // IMP-02: an imported party or item used by the ledger keeps its import from being undone.
+        $usage = $this->app->make(RecordUsage::class);
+        $usage->register('party', 'accounting_document', fn (array $ids) => DB::table('acc_documents')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('party', 'accounting_payment', fn (array $ids) => DB::table('acc_payments')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('item', 'accounting_document', fn (array $ids) => DB::table('acc_document_lines')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
+
+        // ACC-04, WF-01: manual journals go through their flow.
+        $this->app->make(DocumentTypeRegistry::class)->register(JournalType::class);
+        Event::listen(WorkflowCompleted::class, SettleJournal::class);
+        Event::listen(WorkflowCancelled::class, SettleJournal::class);
+
+        // ACC-19: customer invoices and credit notes go to the core fiscal queue.
+        $this->app->make(FiscalSources::class)->register(AccountingFiscalSource::KEY, AccountingFiscalSource::class);
+        Event::listen(DocumentPosted::class, [QueueFiscalDocument::class, 'handle']);
+
+        // TPL-01: invoices, credit notes and statements print from templates.
+        $documents = $this->app->make(DataSources::class);
+
+        foreach (['accounting.invoice', 'accounting.credit_note', 'accounting.statement'] as $type) {
+            $documents->register(new AccountingDocumentSource($type));
+        }
+
+        // LAY-04: the lists that may have saved views.
+        $lists = $this->app->make(ListViewCatalogue::class);
+
+        foreach (['accounting-accounts', 'accounting-journals', 'accounting-documents', 'accounting-payments'] as $list) {
+            $lists->register($list);
+        }
+
+        // ACC-20, IMP-01: the chart of accounts and opening balances come in through the import framework.
+        $imports = $this->app->make(ImportRegistry::class);
+        $imports->register($this->app->make(ChartOfAccountsImporter::class));
+        $imports->register($this->app->make(OpeningBalancesImporter::class));
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([RunRecurringJournals::class]);
+        }
+
+        // ACC-06: recurring journals due today, every morning.
+        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('accounting:recurring')->dailyAt('05:00')->withoutOverlapping()->onOneServer());
+
+        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
+
+        if (! $this->app->routesAreCached()) {
+            Route::middleware('api')->prefix('api/v1')->group(__DIR__.'/routes/api.php');
+        }
+    }
+}

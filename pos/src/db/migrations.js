@@ -102,8 +102,13 @@ export const migrations = schemaMigrations({
       ],
     },
     {
-      // Loyalty module (LOY-05, LOY-11, LOY-22): settings, promotions, balances and gift cards.
+      // INV-17: stock on hand at the till's location (the Inventory module's read-only entity).
       toVersion: 7,
+      steps: [createTable({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] })],
+    },
+    {
+      // Loyalty module (LOY-05, LOY-11, LOY-22): settings, promotions, balances and gift cards.
+      toVersion: 8,
       steps: [
         createTable({ name: 'loyalty_settings', columns: [data, seenAt] }),
         createTable({ name: 'loyalty_promotions', columns: [data, seenAt] }),

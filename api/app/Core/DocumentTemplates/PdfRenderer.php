@@ -41,6 +41,34 @@ class PdfRenderer
         return $this->render($this->renderer->html($type, $template, $data, $fiscalRequired, $heightMm));
     }
 
+    /**
+     * Several documents of one type in one PDF, a page each (INV-21:
+     * labels). On a thermal roll every page is as long as the first one.
+     *
+     * @param  list<array>  $pages
+     */
+    public function pdfPages(string $type, array $template, array $pages, bool $fiscalRequired): string
+    {
+        $paper = isset(TemplateRenderer::WIDTHS[$template['paper'] ?? '']) ? $template['paper'] : DocumentTypes::paper($type);
+
+        if (! DocumentTypes::isThermal($paper) || $pages === []) {
+            return $this->render($this->renderer->htmlPages($type, $template, $pages, $fiscalRequired));
+        }
+
+        $margins = TemplateRenderer::margins($template['margins'] ?? null);
+        $height = 0.0;
+        $this->render($this->renderer->html($type, $template, $pages[0], $fiscalRequired, 2000), function (Frame $frame) use (&$height) {
+            $node = $frame->get_node();
+
+            if ($node->nodeName === 'div' && $node->getAttribute('class') === 'doc') {
+                $height = max($height, (float) $frame->get_margin_height());
+            }
+        });
+        $heightMm = max(20, $height * 25.4 / 72 + $margins['top'] + $margins['bottom'] + 4);
+
+        return $this->render($this->renderer->htmlPages($type, $template, $pages, $fiscalRequired, $heightMm));
+    }
+
     /** @param  (callable(Frame): void)|null  $onFrame */
     private function render(string $html, ?callable $onFrame = null): string
     {
