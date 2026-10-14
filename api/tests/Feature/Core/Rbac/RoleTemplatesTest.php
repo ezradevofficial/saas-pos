@@ -132,9 +132,10 @@ class RoleTemplatesTest extends TestCase
         // layout designer (pos.layout.*, LAY-05); they apply once the module is active (RBAC-08).
         // EXP-02, ONB-02, ONB-03: everything in core except the full tenant export and the modules
         // (what the tenant pays for), which are the Owner's alone.
-        // INV-12, INV-01: and Inventory's settings, item configuration and views (8).
+        // INV-12, INV-01, INV-11, INV-21: and Inventory's settings, item configuration, views,
+        // reorder levels and labels (10).
         // Loyalty: the programme (2) and promotions (4), LOY-01, LOY-08.
-        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 8 + 6, $admin->permissions()->count());
+        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6, $admin->permissions()->count());
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
         $this->assertFalse($admin->hasPermissionTo('core.onboarding.modules'));
         $this->assertTrue($owner->hasPermissionTo('core.onboarding.modules'));

@@ -138,13 +138,18 @@ The POS events carry ids; the POS module provides their stock lines
 `approve` is the workflow act permission of each document type (WF-08).
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
-`inventory.settings.edit`, `inventory.item.configure` and the views;
+`inventory.settings.edit`, `inventory.item.configure`, `inventory.label.print`,
+`inventory.reorder.edit` and the views;
 **Branch Manager** `inventory.*`; **Storekeeper** `inventory.*` except the
 three `approve` permissions, `inventory.settings.edit` and
 `inventory.valuation.view` (costs belong to Accountants and Admins); **Accountant**
-`inventory.*.view` and `inventory.valuation.view`; **Procurement Officer**
-and **Read-only Auditor** `inventory.*.view`; **Approver** the `approve`
-permissions (`*.approve`).
+`inventory.*.view` and `inventory.valuation.view`; **Read-only Auditor**
+`inventory.*.view`; **Procurement Officer** the views except valuation
+(`inventory.stock.view`, `inventory.reorder.view`, `inventory.transfer.view`,
+`inventory.adjustment.view`, `inventory.count.view`: never costs, RBAC-05);
+**Approver** the `approve` permissions (`*.approve`) and the views of what it
+approves (`inventory.transfer.view`, `inventory.adjustment.view`,
+`inventory.count.view`), not valuation.
 
 ## API
 

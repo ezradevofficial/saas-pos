@@ -55,12 +55,18 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(array_values(array_diff(self::ALL, [
             'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.transfer.approve', 'inventory.settings.edit', 'inventory.valuation.view',
         ])), $this->held('storekeeper'));
-        $this->assertSame(collect(['inventory.item.configure', 'inventory.settings.edit', ...self::VIEWS])->sort()->values()->all(), $this->held('admin'));
+        $this->assertSame(collect(['inventory.item.configure', 'inventory.label.print', 'inventory.reorder.edit', 'inventory.settings.edit', ...self::VIEWS])->sort()->values()->all(), $this->held('admin'));
         $this->assertSame(self::VIEWS, $this->held('accountant'));
         $this->assertSame(self::VIEWS, $this->held('read_only_auditor'));
-        $this->assertSame(self::VIEWS, $this->held('procurement_officer'));
-        $this->assertSame(['inventory.adjustment.approve', 'inventory.count.approve', 'inventory.transfer.approve'], $this->held('approver'));
+        // RBAC-05: buyers see stock, never its value.
+        $this->assertSame(array_values(array_diff(self::VIEWS, ['inventory.valuation.view'])), $this->held('procurement_officer'));
+        // Approvers read what they approve, never stock values.
+        $this->assertSame(['inventory.adjustment.approve', 'inventory.adjustment.view', 'inventory.count.approve', 'inventory.count.view', 'inventory.transfer.approve', 'inventory.transfer.view'], $this->held('approver'));
         $this->assertSame([], $this->held('cashier'));
+        // ACC-04: approvers read the journals they approve (once Accounting is active).
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('accounting'));
+        $approver = $this->userWith('approver', Scope::location($this->locationA->id));
+        $this->assertTrue($this->inTenant(fn () => app(ScopeResolver::class)->can($approver, 'accounting.journal.view', Scope::location($this->locationA->id))));
 
         // RBAC-08: with the module off, the same roles grant nothing of it.
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('inventory'));
