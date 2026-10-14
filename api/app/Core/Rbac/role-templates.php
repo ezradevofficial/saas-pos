@@ -118,7 +118,7 @@ return [
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
         // STR-03, STR-05: departments approve and acknowledge what the store issues, not the storekeeper.
         'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view',
-            'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view'],
+            'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view', 'stores.stock.approve'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

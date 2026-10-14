@@ -4,6 +4,8 @@ namespace Modules\Stores\Stock;
 
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Modules\Stores\Models\Movement;
@@ -11,7 +13,7 @@ use Modules\Stores\Models\Movement;
 /**
  * STR-07: stock into the store's own ledger: opening stock (positive
  * lines) and adjustments (signed lines, with a reason; going below zero is
- * refused). Only while the own ledger holds the store's quantities
+ * refused; a decrease needs `stores.stock.approve` at the store). Only while the own ledger holds the store's quantities
  * (`inventory_active` otherwise: Inventory's opening stock and
  * adjustments apply). Audited as `stores.stock.adjust` (STR-17).
  */
@@ -47,6 +49,14 @@ class StockEntries
             StoreLedger::assertOpened($data['location_id']);
         }
         $lines = $this->lines->resolve($data['lines'], $place['company_id'], $by, signed: ! $opening);
+
+        // Stage 7B closing review (stores.md decision 12): stock leaves the own ledger by an adjustment only
+        // with `stores.stock.approve` at the store; a storekeeper may add stock, not take it out alone.
+        $decrease = ! $opening && collect($lines)->contains(fn (array $line) => $line['qty']->isNegative());
+
+        if ($decrease && ! app(ScopeResolver::class)->can($by, 'stores.stock.approve', Scope::location($data['location_id']))) {
+            throw Errors::make(403, 'stock_decrease_needs_approval');
+        }
         $sourceId = (string) Str::uuid7();
 
         return Errors::transaction(function () use ($data, $by, $place, $opening, $lines, $sourceId) {

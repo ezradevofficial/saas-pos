@@ -111,8 +111,8 @@ class RoleTemplatesTest extends TestCase
         // ACC-22: the Accounting module's 23 permissions (accounting.*).
         // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions.
         // Procurement (docs/modules/procurement.md): 32 procurement.* permissions (procurement.value.view, decision 27).
-        // Stores (docs/modules/stores.md): 13 stores.* permissions.
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 13, count($names));
+        // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void

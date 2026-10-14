@@ -52,8 +52,8 @@ class StoresServiceProvider extends ServiceProvider
         'return' => ['view', 'create'],
         // STR-10, STR-11: the store ledger and stock on hand.
         'ledger' => ['view'],
-        // STR-07: opening stock and adjustments in the own ledger.
-        'stock' => ['adjust'],
+        // STR-07: opening stock and adjustments in the own ledger; a decrease also needs `approve` (stores.md decision).
+        'stock' => ['adjust', 'approve'],
         // STR-12: consumption reports.
         'report' => ['view'],
         // STR-13, RBAC-05: values (hidden from everyone else).

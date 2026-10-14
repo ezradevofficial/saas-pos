@@ -152,7 +152,8 @@ class IssuesAndReturnsTest extends TestCase
         $this->postJson('/api/v1/stores/stock-entries', [
             'location_id' => $this->store->id, 'kind' => 'adjustment', 'reason' => 'count',
             'lines' => [['item_id' => $this->soap->id, 'qty' => '-5'], ['item_id' => $this->sugar->id, 'qty' => '0.5']],
-        ], $this->headersFor($this->storekeeper))->assertCreated()->assertJsonPath('data.0.kind', 'adjustment_out')->assertJsonPath('data.1.kind', 'adjustment_in');
+            // A decrease needs stores.stock.approve (decision 12): entered by the owner here, StockApprovalTest covers the storekeeper.
+        ], $this->headersFor())->assertCreated()->assertJsonPath('data.0.kind', 'adjustment_out')->assertJsonPath('data.1.kind', 'adjustment_in');
         $this->assertSame(['25', '11'], [$this->onHand($this->soap), $this->onHand($this->sugar)]);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'stores.stock.adjust')->exists()));
 

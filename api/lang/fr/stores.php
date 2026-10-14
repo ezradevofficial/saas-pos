@@ -5,6 +5,7 @@
 // (articles, magasins, services) sont affichés tels quels.
 return [
     'errors' => [
+        'stock_decrease_needs_approval' => 'Sortir du stock du magasin demande l’approbation d’un responsable. Demandez à une personne autorisée à approuver les ajustements de le saisir.',
         'location_unknown' => 'Choisissez un magasin existant.',
         'location_archived' => 'Ce magasin est archivé. Choisissez un magasin actif.',
         'not_a_store' => 'Cet emplacement n’est pas un magasin. Choisissez un emplacement de type magasin ou entrepôt.',
