@@ -70,6 +70,7 @@ return [
                 'points' => 'Points',
                 'credit' => 'Customer credit',
                 'gift_card' => 'Gift cards and vouchers',
+                'sale' => 'Loyalty sales to review',
             ],
         ],
         'actions' => [

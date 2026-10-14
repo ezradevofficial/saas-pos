@@ -5,6 +5,7 @@ namespace Modules\Loyalty\Tests;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\ModuleRegistry;
 use Carbon\CarbonImmutable;
+use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
 use Modules\Loyalty\Models\PointsEntry;
@@ -59,6 +60,37 @@ class SyncAndExpiryTest extends TestCase
         $this->assertArrayNotHasKey('loyalty_settings', $this->getJson('/api/v1/sync/pull', $this->tillHeaders())->assertOk()->json('entities'));
     }
 
+    public function test_m6_points_given_back_never_expire_and_are_spent_last(): void
+    {
+        $ledgers = app(Ledgers::class);
+        $this->inTenant(function () use ($ledgers) {
+            $account = $ledgers->pointsAccount($this->acme->id, $this->amina->id);
+            $ledgers->points($account, 'earn', '100', ['source_type' => 'manual', 'occurred_at' => now()->subMonths(7), 'expires_at' => now()->subMonth()]);
+            // A redemption given back: a lot that never expires.
+            $ledgers->points($account, 'reverse_redeem', '50', ['source_type' => 'pos_void', 'occurred_at' => now()->subMonths(6)]);
+            // 60 spent: from the earned lot first, the 50 given back last.
+            $ledgers->points($account, 'redeem', '-60', ['source_type' => 'manual', 'occurred_at' => now()->subMonths(5)]);
+        });
+
+        $this->assertSame('40', $this->inTenant(fn () => app(PointsExpiry::class)->run(CarbonImmutable::now())));
+        $this->assertSame('50', $this->pointsOf($this->amina->id));
+    }
+
+    public function test_m6_a_reversed_earn_takes_its_own_sale_lot_not_the_oldest(): void
+    {
+        $ledgers = app(Ledgers::class);
+        $sale = $this->id();
+        $this->inTenant(function () use ($ledgers, $sale) {
+            $account = $ledgers->pointsAccount($this->acme->id, $this->amina->id);
+            $ledgers->points($account, 'earn', '100', ['source_type' => 'manual', 'occurred_at' => now()->subMonths(7), 'expires_at' => now()->subMonth()]);
+            $ledgers->points($account, 'earn', '30', ['source_type' => 'pos_sale', 'sale_id' => $sale, 'occurred_at' => now()->subDays(3), 'expires_at' => now()->addMonths(6)]);
+            $ledgers->points($account, 'reverse_earn', '-30', ['source_type' => 'pos_refund', 'sale_id' => $sale, 'occurred_at' => now()->subDay()]);
+        });
+
+        $this->assertSame('100', $this->inTenant(fn () => app(PointsExpiry::class)->run(CarbonImmutable::now())));
+        $this->assertSame('0', $this->pointsOf($this->amina->id));
+    }
+
     public function test_points_expire_first_in_first_out_and_managers_are_told_before(): void
     {
         $ledgers = app(Ledgers::class);
@@ -87,10 +119,10 @@ class SyncAndExpiryTest extends TestCase
         $account = $this->creditAccount('100000');
         $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '85000'], $this->headersFor())->assertCreated();
 
-        [$card] = $this->giftCard('100000');
+        [, $code] = $this->giftCard('100000');
         $this->ranges()->assertOk();
         $shift = $this->openShift();
-        $this->upload([$this->loyaltySale($shift, 1, null, [$this->pay('voucher', '56250', ['code_hash' => $card->code_hash])], qty: '1')])->assertOk();
+        $this->upload([$this->loyaltySale($shift, 1, null, [$this->pay('voucher', '56250', ['code_hash' => GiftCards::proof($code)])], qty: '1')])->assertOk();
 
         $types = $this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->owner->id)->pluck('event_type')->all());
         $this->assertContains('loyalty.credit.limit_near', $types);

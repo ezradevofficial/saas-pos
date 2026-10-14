@@ -70,6 +70,7 @@ return [
                 'points' => 'Points',
                 'credit' => 'Crédit client',
                 'gift_card' => 'Cartes cadeaux et bons',
+                'sale' => 'Ventes fidélité à vérifier',
             ],
         ],
         'actions' => [

@@ -126,6 +126,65 @@ class BackOfficeTest extends TestCase
         $this->assertSame([], $this->inTenant(fn () => LoyaltySale::query()->findOrFail($good['id'])->flags));
     }
 
+    public function test_h2_only_what_the_promotion_engine_confirms_is_vouched_the_rest_needs_the_discount_right(): void
+    {
+        $this->inTenant(fn () => $this->branchA->forceFill(['timezone' => 'UTC'])->save());
+        $id = $this->postJson('/api/v1/loyalty/promotions', $this->promotionBody(['schedule' => []]), $this->headersFor())->json('data.id');
+        $this->travel(10)->minutes();
+        $this->ranges()->assertOk();
+        $shift = $this->openShift();
+        $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
+        $asCashier = ['cashier_id' => $cashier->id, 'actor_proof' => $this->actorProof($cashier->id)];
+
+        // The engine gives KES 281.25; the till claims KES 300.00 as the promotion's, by a cashier
+        // without pos.discount.give: the KES 18.75 above it is an unauthorised manual discount.
+        $bad = $this->saleBody($shift, 1, ['lines' => [$this->line(['discount_minor' => '30000', 'tax_minor' => '9167', 'total_minor' => '82500', 'adjustments' => [['source' => 'loyalty.promotion', 'reference' => $id, 'amount_minor' => '30000']]])],
+            'payments' => [$this->pay('cash_kes', '82500')], ...$asCashier]);
+        $flags = $this->upload([$bad])->assertOk()->assertJsonPath('results.0.status', 'stored')->json('results.0.flags');
+
+        $this->assertContains('discount_unauthorised', array_column($flags, 'code'));
+        $audit = $this->inTenant(fn () => AuditEntry::query()->where('action', 'pos.sale.discount')->where('auditable_id', $bad['id'])->sole());
+        $this->assertFalse($audit->after['allowed']);
+        $this->assertSame('28125', $audit->after['vouched_minor']);
+
+        // What the engine confirms is vouched for the same cashier: no flag.
+        $good = $this->saleBody($shift, 2, ['lines' => [$this->line(['discount_minor' => '28125', 'tax_minor' => '9375', 'total_minor' => '84375', 'adjustments' => [['source' => 'loyalty.promotion', 'reference' => $id, 'amount_minor' => '28125']]])],
+            'payments' => [$this->pay('cash_kes', '84375')], ...$asCashier]);
+        $this->upload([$good])->assertOk()->assertJsonPath('results.0.flags', []);
+
+        // Loyalty flagged the difference too; the review list shows it to those who may see it.
+        $this->getJson('/api/v1/loyalty/sales', $this->headersFor())->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $bad['id'])->assertJsonPath('data.0.flags.0.code', 'promotion_differs');
+        $this->getJson('/api/v1/loyalty/sales?flagged=0', $this->headersFor())->assertOk()->assertJsonCount(2, 'data');
+        $this->getJson('/api/v1/loyalty/sales?flag=points_overdrawn', $this->headersFor())->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/loyalty/sales?format=csv', $this->headersFor())->assertOk();
+        $this->getJson('/api/v1/loyalty/sales', $this->headersFor($cashier))->assertForbidden();
+        $accountant = $this->userWith('accountant', Scope::company($this->acme->id));
+        $this->getJson('/api/v1/loyalty/sales', $this->headersFor($accountant))->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_a_back_office_charge_sent_twice_with_its_key_is_recorded_once(): void
+    {
+        $account = $this->creditAccount('500000');
+        $key = $this->id();
+
+        $first = $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['id' => $key, 'amount_minor' => '80000'], $this->headersFor())->assertCreated()->json('data.id');
+        $again = $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['id' => $key, 'amount_minor' => '80000'], $this->headersFor())->assertSuccessful()->json('data.id');
+
+        $this->assertSame($first, $again);
+        $this->assertSame('80000', (string) $this->inTenant(fn () => Account::query()->findOrFail($account->id)->balance));
+        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['id' => 'not-a-uuid', 'amount_minor' => '1'], $this->headersFor())->assertJsonValidationErrors('id');
+    }
+
+    public function test_gift_card_lookups_are_throttled(): void
+    {
+        for ($i = 0; $i < 30; $i++) {
+            $this->postJson('/api/v1/loyalty/gift-cards/lookup', ['code' => 'NOPE-NOPE'], $this->headersFor())->assertNotFound();
+        }
+
+        $this->postJson('/api/v1/loyalty/gift-cards/lookup', ['code' => 'NOPE-NOPE'], $this->headersFor())->assertTooManyRequests();
+    }
+
     public function test_a_back_office_charge_over_the_credit_limit_is_refused_unless_the_override_covers_it(): void
     {
         $account = $this->creditAccount('100000');
@@ -135,9 +194,14 @@ class BackOfficeTest extends TestCase
         $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '30000'], $this->headersFor($manager))
             ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_exceeded');
 
-        // RBAC-06: KES 100.00 of override covers the KES 100.00 excess.
+        // RBAC-06: KES 100.00 of override covers the KES 100.00 excess, but only held at the
+        // account's company (M7): a branch-scoped role's override does not reach it.
         $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'credit_limit_override', 'value' => '100']));
-        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '30000'], $this->headersFor($manager))->assertCreated()
+        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '30000'], $this->headersFor($manager))
+            ->assertUnprocessable()->assertJsonPath('code', 'credit_limit_exceeded');
+
+        $companyManager = $this->userWith('branch_manager', Scope::company($this->acme->id));
+        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '30000'], $this->headersFor($companyManager))->assertCreated()
             ->assertJsonPath('data.flags.0.code', 'credit_limit_overridden');
         $this->assertSame('110000', (string) $this->inTenant(fn () => Account::query()->findOrFail($account->id)->balance));
     }
@@ -194,7 +258,7 @@ class BackOfficeTest extends TestCase
         $this->postJson("/api/v1/loyalty/gift-cards/{$id}/unblock", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'active');
 
         // LOY-23: the till checks a card of its company by hash.
-        $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::hash($code)], $this->tillHeaders())->assertOk()->assertJsonPath('data.balance_minor', '250000');
+        $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::proof($code)], $this->tillHeaders())->assertOk()->assertJsonPath('data.balance_minor', '250000');
         $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => str_repeat('b', 64)], $this->tillHeaders())->assertNotFound();
     }
 

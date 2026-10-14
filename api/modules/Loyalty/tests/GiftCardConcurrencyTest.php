@@ -7,6 +7,7 @@ use App\Core\Tenancy\TenantContext;
 use Database\Seeders\CatalogueSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Models\GiftCard;
 use Modules\Loyalty\Models\GiftCardEntry;
 use Modules\Loyalty\Models\LoyaltySale;
@@ -53,7 +54,7 @@ class GiftCardConcurrencyTest extends TestCase
 
     public function test_two_tills_spending_one_card_at_once_never_lose_an_update(): void
     {
-        [$card] = $this->giftCard('150000');
+        [$card, $code] = $this->giftCard('150000');
         [$second, $secondToken] = $this->pairedTill($this->locationA, 'Till 2');
         $this->ranges()->assertOk();
         $this->ranges(token: $secondToken)->assertOk();
@@ -63,8 +64,8 @@ class GiftCardConcurrencyTest extends TestCase
         $other = $this->inTenant(fn () => NumberRange::query()->where('device_id', $second->id)->value('range_from'));
 
         $sales = [
-            $this->loyaltySale($shifts[0], (int) $first, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])], extra: ['receipt_number' => sprintf($patterns[0], $first)]),
-            $this->loyaltySale($shifts[1], (int) $other, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])], extra: [
+            $this->loyaltySale($shifts[0], (int) $first, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])], extra: ['receipt_number' => sprintf($patterns[0], $first)]),
+            $this->loyaltySale($shifts[1], (int) $other, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])], extra: [
                 'receipt_number' => sprintf($patterns[1], $other), 'actor_proof' => $this->actorProof($this->owner->id, $second),
             ]),
         ];

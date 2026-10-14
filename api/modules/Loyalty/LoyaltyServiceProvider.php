@@ -72,7 +72,7 @@ class LoyaltyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
-        RateLimiter::for(self::LOOKUP_LIMITER, fn (Request $request) => Limit::perMinute(30)->by(self::LOOKUP_LIMITER.'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for(self::LOOKUP_LIMITER, fn (Request $request) => Limit::perMinute(30)->by(self::LOOKUP_LIMITER.'|'.($request->user()?->getKey() ?? $request->ip())));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // NUM-01, LOY-17: statements are numbered per company.

@@ -4,16 +4,20 @@ namespace Modules\Loyalty\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\Event;
+use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
 use Modules\Loyalty\Models\CreditEntry;
 use Modules\Loyalty\Models\GiftCard;
+use Modules\Loyalty\Models\GiftCardEntry;
 use Modules\Loyalty\Models\LoyaltySale;
 use Modules\Loyalty\Models\PointsEntry;
 use Modules\Loyalty\Models\Programme;
 use Modules\Loyalty\Pos\PosSales;
 use Modules\Loyalty\Programmes;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
+use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Models\Sale;
 use RuntimeException;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -141,8 +145,8 @@ class PosIntegrationTest extends TestCase
 
     public function test_a_gift_card_pays_and_its_balance_drops(): void
     {
-        [$card] = $this->giftCard('200000');
-        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])]);
+        [$card, $code] = $this->giftCard('200000');
+        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])]);
 
         $this->upload([$sale])->assertOk()->assertJsonPath('results.0.flags', []);
 
@@ -152,9 +156,9 @@ class PosIntegrationTest extends TestCase
 
     public function test_gift_card_problems_are_flagged_never_refused(): void
     {
-        [$card] = $this->giftCard('50000');
+        [$card, $code] = $this->giftCard('50000');
         $this->inTenant(fn () => GiftCard::query()->whereKey($card->id)->update(['status' => GiftCard::BLOCKED]));
-        $over = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])]);
+        $over = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])]);
         $unknown = $this->loyaltySale($this->shift, 2, null, [$this->pay('voucher', '112500', ['code_hash' => str_repeat('a', 64)])]);
 
         $this->upload([$over, $unknown])->assertOk()->assertJsonPath('results.0.status', 'stored')->assertJsonPath('results.1.status', 'stored');
@@ -166,11 +170,11 @@ class PosIntegrationTest extends TestCase
 
     public function test_a_refund_to_a_gift_card_puts_the_money_back(): void
     {
-        [$card] = $this->giftCard('200000');
-        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])]);
+        [$card, $code] = $this->giftCard('200000');
+        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])]);
         $this->upload([$sale])->assertOk();
 
-        $this->refundSale($sale, $this->shift, '1', '56250', 1, [$this->pay('voucher', '56250', ['code_hash' => $card->code_hash])])->assertOk();
+        $this->refundSale($sale, $this->shift, '1', '56250', 1, [$this->pay('voucher', '56250', ['code_hash' => GiftCards::proof($code)])])->assertOk();
 
         $this->assertSame('143750', (string) $this->inTenant(fn () => GiftCard::query()->findOrFail($card->id)->balance_minor));
     }
@@ -234,5 +238,104 @@ class PosIntegrationTest extends TestCase
 
         $this->assertSame('processed', $this->loyaltySaleRow($sale['id'])->status);
         $this->assertSame('11', $this->pointsOf($this->amina->id));
+    }
+
+    private function failingProgrammes(): void
+    {
+        $this->app->instance(Programmes::class, new class extends Programmes
+        {
+            public function active(string $companyId): ?Programme
+            {
+                throw new RuntimeException('programme unavailable');
+            }
+        });
+    }
+
+    public function test_h1_a_sale_voided_before_it_was_processed_posts_nothing_when_reprocessed(): void
+    {
+        $this->inTenant(fn () => app(Ledgers::class)->points(
+            app(Ledgers::class)->pointsAccount($this->acme->id, $this->amina->id), 'adjust', '500', ['source_type' => 'manual'],
+        ));
+        // Paid in cash (the till's tender checks read the programme too): it would earn 11 points.
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id);
+        $this->failingProgrammes();
+        $this->upload([$sale])->assertOk();
+        $this->assertSame('failed', $this->loyaltySaleRow($sale['id'])->status);
+
+        $this->voidSale($sale['id'])->assertOk();
+        $this->app->forgetInstance(Programmes::class);
+        $this->assertTrue($this->inTenant(fn () => app(PosSales::class)->process($sale['id'])));
+
+        $this->assertSame('500', $this->pointsOf($this->amina->id));
+        $this->assertSame(0, $this->inTenant(fn () => PointsEntry::query()->where('sale_id', $sale['id'])->count()));
+        $this->assertSame(['voided_before_processing'], $this->flags($sale['id']));
+    }
+
+    public function test_h1_a_refund_before_processing_is_applied_after_the_postings_and_never_twice(): void
+    {
+        $captured = null;
+        Event::listen(SaleRefunded::class, function (SaleRefunded $event) use (&$captured) {
+            $captured = $event;
+        });
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id, qty: '4');
+        $this->failingProgrammes();
+        $this->upload([$sale])->assertOk();
+
+        $this->refundSale($sale, $this->shift, '1', '56250', 1)->assertOk();
+        $this->assertSame('0', $this->pointsOf($this->amina->id));
+        $this->assertCount(1, $this->loyaltySaleRow($sale['id'])->pending_refunds);
+
+        $this->app->forgetInstance(Programmes::class);
+        $this->assertTrue($this->inTenant(fn () => app(PosSales::class)->process($sale['id'])));
+        // 22 earned, then a quarter back: 5 reversed.
+        $this->assertSame('17', $this->pointsOf($this->amina->id));
+        $this->assertSame([], $this->loyaltySaleRow($sale['id'])->pending_refunds);
+
+        // A replayed SaleRefunded changes nothing.
+        $this->assertNotNull($captured);
+        $this->inTenant(fn () => app(PosSales::class)->refunded($captured->refund));
+        $this->assertSame('17', $this->pointsOf($this->amina->id));
+        $this->assertSame('56250', (string) $this->loyaltySaleRow($sale['id'])->refunded_minor);
+    }
+
+    public function test_m2_a_gift_card_sold_at_the_till_loads_at_most_its_line_and_mismatches_are_flagged(): void
+    {
+        $this->inTenant(fn () => $this->programme->forceFill(['gift_card_item_id' => $this->soap->id])->save());
+        [$card, $code] = $this->giftCard('100000', false);
+        [$other, $otherCode] = $this->giftCard('100000', false);
+
+        // KES 2,000.00 claimed on a KES 1,125.00 line: KES 1,125.00 is loaded, and flagged.
+        $sale = $this->loyaltySale($this->shift, 1, null);
+        $sale['extensions'] = ['loyalty' => ['gift_cards' => [['line_id' => $sale['lines'][0]['id'], 'code_hash' => GiftCards::proof($code), 'amount_minor' => '200000']]]];
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->assertSame('112500', (string) $this->inTenant(fn () => GiftCardEntry::query()->where('gift_card_id', $card->id)->where('sale_id', $sale['id'])->where('kind', 'load')->value('amount_minor')));
+        $this->assertSame([['code' => 'gift_card_sale_mismatch', 'detail' => ['sold' => 1, 'reason' => 'amount']]], $this->loyaltySaleRow($sale['id'])->flags);
+
+        // A line that is not this sale's: nothing is loaded.
+        $wrong = $this->loyaltySale($this->shift, 2, null);
+        $wrong['extensions'] = ['loyalty' => ['gift_cards' => [['line_id' => $this->id(), 'code_hash' => GiftCards::proof($otherCode), 'amount_minor' => '50000']]]];
+        $this->upload([$wrong])->assertOk();
+        $this->assertSame([['code' => 'gift_card_sale_mismatch', 'detail' => ['sold' => 1, 'reason' => 'line']]], $this->loyaltySaleRow($wrong['id'])->flags);
+        $this->assertSame(0, $this->inTenant(fn () => GiftCardEntry::query()->where('gift_card_id', $other->id)->where('kind', 'load')->where('sale_id', $wrong['id'])->count()));
+
+        // Malformed data is flagged, never a failure.
+        $bad = $this->loyaltySale($this->shift, 3, null);
+        $bad['extensions'] = ['loyalty' => ['gift_cards' => [['line_id' => $bad['lines'][0]['id'], 'amount_minor' => 'lots']]]];
+        $this->upload([$bad])->assertOk();
+        $this->assertSame('processed', $this->loyaltySaleRow($bad['id'])->status);
+        $this->assertSame('malformed', $this->loyaltySaleRow($bad['id'])->flags[0]['detail']['reason']);
+    }
+
+    public function test_m8_a_tender_carrying_the_stored_hash_is_unknown_only_the_proof_pays(): void
+    {
+        [$card, $code] = $this->giftCard('200000');
+        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => $card->code_hash])]);
+
+        $this->upload([$sale])->assertOk();
+
+        $this->assertContains('gift_card_unknown', $this->flags($sale['id']));
+        $this->assertSame('200000', (string) $this->inTenant(fn () => GiftCard::query()->findOrFail($card->id)->balance_minor));
+        $this->assertSame(GiftCards::hash($code), $card->code_hash);
+        $this->assertSame(hash('sha256', GiftCards::proof($code)), $card->code_hash);
     }
 }
