@@ -7760,8 +7760,10 @@
     "bids": {
       "title": "Bids",
       "sealedTitle": "Bids are sealed",
-      "sealedHelp": "Their prices, technical responses and files stay encrypted until two committee openers open them at the opening time. You see only who sent a bid, when, its version and its fingerprint.",
+      "sealedHelp": "Their senders, prices, technical responses and files stay sealed until two committee openers open them at the opening time. Until then you see only how many bids arrived.",
       "sealedCaption": "Sealed bids",
+      "received_one": "{{count}} bid received",
+      "received_other": "{{count}} bids received",
       "empty": "No bids yet.",
       "openedTitle": "Opened bids",
       "openedAt": "Opened",
@@ -7982,6 +7984,8 @@
       "noCompany": "There is no company to set up yet."
     },
     "portal": {
+      "unavailable": "Tender unavailable",
+      "unavailableHelp": "This tender is not available at the moment. Contact the buyer.",
       "title": "Supplier portal",
       "signingIn": "Opening your link",
       "linkInvalid": "This link does not work",

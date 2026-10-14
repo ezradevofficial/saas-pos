@@ -147,6 +147,25 @@ describe('Supplier portal (PRC-07 to PRC-09)', () => {
     expect(window.sessionStorage.getItem(PORTAL_SESSION_KEY)).toBeNull()
   })
 
+  it('locks its pages down: no referrer and a strict content security policy (PRC-07)', async () => {
+    renderApp('/supplier-portal/tender')
+    await screen.findByText('You are not signed in to a tender')
+    expect(document.head.querySelector('meta[name="referrer"]')).toHaveAttribute('content', 'no-referrer')
+    const csp = document.head.querySelector('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
+    expect(csp).toContain("script-src 'self'")
+    expect(csp).not.toContain("'unsafe-eval'")
+    expect(csp).toContain(`connect-src ${new URL(apiUrl).origin}`)
+    expect(csp).toContain("object-src 'none'")
+  })
+
+  it('says the tender is unavailable when the business is suspended (decision 21)', async () => {
+    state = { ...state, tender: { ...state.tender, open_for_bids: false, unavailable: true } }
+    window.sessionStorage.setItem(PORTAL_SESSION_KEY, SESSION)
+    renderApp('/supplier-portal/tender')
+    expect(await screen.findByText('Tender unavailable')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Submit/ })).not.toBeInTheDocument()
+  })
+
   it('asks to open the email link again without a session', async () => {
     renderApp('/supplier-portal/tender')
     expect(await screen.findByText('You are not signed in to a tender')).toBeInTheDocument()

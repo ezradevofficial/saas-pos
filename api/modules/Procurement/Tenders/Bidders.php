@@ -92,7 +92,7 @@ class Bidders
         Tx::run(function () use ($tender, $data, $ip) {
             $tender = Tender::query()->whereKey($tender->id)->lockForUpdate()->firstOrFail();
             $email = strtolower(trim($data['email']));
-            $audit = fn (string $outcome) => $this->auditor->record('procurement.portal.registration', $tender, null, ['email' => $email, 'outcome' => $outcome, 'ip' => $ip], ['ip' => $ip]);
+            $audit = fn (string $outcome) => $this->auditor->record('procurement.portal.registration', $tender, null, ['email_hash' => hash_hmac('sha256', $email, (string) config('app.key')), 'outcome' => $outcome, 'ip' => $ip], ['ip' => $ip]);
 
             if ($tender->kind !== Tender::OPEN || $tender->status !== Tender::PUBLISHED || $tender->closedForBids()) {
                 $audit('not_open');
@@ -168,7 +168,7 @@ class Bidders
     {
         $token = $this->auth->issueLink($bidder, $tender);
         $this->notices->linkSent($bidder, $tender, $token);
-        $this->auditor->record('procurement.portal.link_sent', $bidder, null, ['tender' => $tender->id, 'email' => $bidder->email]);
+        $this->auditor->record('procurement.portal.link_sent', $bidder, null, ['tender' => $tender->id]);
     }
 
     /** @param array<string, mixed> $values */

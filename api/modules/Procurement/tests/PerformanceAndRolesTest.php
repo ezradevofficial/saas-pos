@@ -32,7 +32,7 @@ class PerformanceAndRolesTest extends TestCase
         $this->clockTo('2026-10-17T09:00:00Z');
         $this->postedReceipt($order, [['order_line_id' => $line, 'received_qty' => '4']]);
         $invoice = $this->api('POST', 'procurement/invoices', ['order_id' => $order['id'], 'supplier_reference' => 'P-1', 'invoice_date' => '2026-10-17',
-            'lines' => [['order_line_id' => $line, 'qty' => '10', 'unit_price_minor' => '10200']]])->assertCreated()->json('data');
+            'lines' => [['order_line_id' => $line, 'qty' => '10', 'unit_price_minor' => '10200']]], $this->buyer)->assertCreated()->json('data');
         $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", ['override_reason' => 'Agreed'])->assertOk();
 
         $rows = $this->api('GET', 'procurement/supplier-performance?from=2026-10-01&to=2026-10-31')->assertOk()->json('data');

@@ -38,6 +38,8 @@ return [
         'stock_line_not_received' => 'Line :line is a stock item that has not been received. Post its goods received note before you approve the invoice.',
         'charge_supplier_required' => 'Charge :line needs its supplier before the landed cost can be posted.',
         'charge_bill_required' => 'Charge :line needs the supplier’s bill number before the landed cost can be posted.',
+        'tender_unavailable' => 'This tender is not available at the moment. Contact the buyer.',
+        'invoice_approver_is_creator' => 'You entered this invoice, so someone else must approve it.',
         'override_reason_required' => 'Say why you approve an invoice that does not match.',
         'duplicate_reference' => 'This supplier already has an invoice with this number. Check the number.',
         'receipt_cancelled' => 'One of the goods received notes was cancelled. Remove it, then try again.',

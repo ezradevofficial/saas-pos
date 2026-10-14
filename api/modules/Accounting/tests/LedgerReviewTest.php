@@ -46,7 +46,7 @@ class LedgerReviewTest extends TestCase
     {
         $invoice = $this->api('POST', 'procurement/invoices', [
             'order_id' => $order['id'], 'supplier_reference' => $reference, 'invoice_date' => '2026-10-16', 'lines' => $lines,
-        ])->assertCreated()->json('data');
+        ], $this->buyer)->assertCreated()->json('data');
 
         return $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", $extra)->assertOk()->json('data');
     }

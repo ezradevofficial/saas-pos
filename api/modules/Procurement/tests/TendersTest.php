@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Modules\Procurement\Events\TenderAwarded;
 use Modules\Procurement\Events\TenderOpened;
 use Modules\Procurement\Models\Bid;
+use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\BidFile;
 use Modules\Procurement\Models\Order;
 use Modules\Procurement\Models\Tender;
@@ -58,9 +59,9 @@ class TendersTest extends TestCase
     /** @return array{0: array, 1: array} the portal headers of the two bidders */
     private function bidders(array $tender): array
     {
-        $bidders = collect($this->api('GET', "procurement/tenders/{$tender['id']}")->json('data.bidders'))->keyBy('email');
+        $bidders = collect($this->api('GET', "procurement/tenders/{$tender['id']}")->json('data.bidders'))->keyBy('name');
 
-        return [$this->portal($this->linkFor($bidders['sales@upesi.example.com']['id'])), $this->portal($this->linkFor($bidders['bids@baraka.example.com']['id']))];
+        return [$this->portal($this->linkFor($bidders['Upesi Supplies']['id'])), $this->portal($this->linkFor($bidders['Baraka Wholesale']['id']))];
     }
 
     private function bid(array $headers, array $tender, array $prices, string $currency = 'KES', string $technical = 'Ten years of chairs.', array $files = []): array
@@ -128,16 +129,15 @@ class TendersTest extends TestCase
             $this->assertStringNotContainsString('secret delivery', (string) $stored);
         });
 
-        // Buyers see that bids exist, never their content, in the detail, the list and its export.
+        // Buyers see how many bids exist (decision 22: not who sent them), never their content, in the detail, the list and its export.
         $detail = $this->api('GET', "procurement/tenders/{$tender['id']}")->assertOk();
-        $this->assertCount(2, $detail->json('data.bids'));
-        $this->assertTrue($detail->json('data.bids.0.sealed'));
-        $this->assertArrayNotHasKey('total', $detail->json('data.bids.0'));
+        $this->assertSame(2, $detail->json('data.bids_count'));
+        $this->assertSame([], $detail->json('data.bids'));
         $this->assertStringNotContainsString('12000', $detail->getContent());
         $this->assertStringNotContainsString('Ten years', $detail->getContent());
         $csv = $this->get('/api/v1/procurement/tenders?format=csv', $this->headersFor())->assertOk()->streamedContent();
         $this->assertStringNotContainsString('12000', $csv);
-        $bidId = $detail->json('data.bids.0.id');
+        $bidId = $this->inTenant(fn () => Bid::query()->whereHas('files')->value('id'));
         $this->get("/api/v1/procurement/bids/{$bidId}/files/{$file['id']}", $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'bid_sealed');
         // Nor the audit log.
         $this->inTenant(function () {
@@ -156,7 +156,8 @@ class TendersTest extends TestCase
         $once = $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertOk()->json('data');
         // Past its deadline a published tender shows as closed until it is opened.
         $this->assertSame('closed', $once['status']);
-        $this->assertTrue($once['bids'][0]['sealed']);
+        // One opener is not the opening: still no bid shown (decision 22).
+        $this->assertSame([], $once['bids']);
         $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertStatus(409)->assertJsonPath('code', 'already_confirmed');
         // Someone not on the committee may not confirm (even with the permission).
         $outsider = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
@@ -273,8 +274,10 @@ class TendersTest extends TestCase
         // PRC-08: the same answer for a known email (its link is sent again).
         $this->postJson("/api/v1/supplier-portal/notices/{$notice}/register", ['name' => 'Newco Ltd', 'email' => 'TENDERS@newco.example.com'])->assertStatus(202)->assertJsonPath('data.sent', true);
         $this->getJson('/api/v1/supplier-portal/notices/'.str_repeat('a', 48))->assertNotFound();
+        // Decision 22: before the opening staff do not see who registered.
         $bidders = $this->api('GET', "procurement/tenders/{$tender['id']}")->json('data.bidders');
-        $this->assertSame('registered', collect($bidders)->firstWhere('email', 'tenders@newco.example.com')['source']);
+        $this->assertNull(collect($bidders)->firstWhere('name', 'Newco Ltd'));
+        $this->inTenant(fn () => $this->assertSame('registered', Bidder::query()->whereRaw('lower(email) = ?', ['tenders@newco.example.com'])->value('source')));
 
         // An invited tender has no public notice.
         $invited = $this->publishedTender(['title' => 'Desks']);

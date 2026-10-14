@@ -24,7 +24,7 @@ class LedgerReviewTest extends TestCase
     {
         $invoice = $this->api('POST', 'procurement/invoices', [
             'order_id' => $order['id'], 'supplier_reference' => $reference, 'invoice_date' => '2026-10-15', 'lines' => $lines,
-        ])->assertCreated()->json('data');
+        ], $this->buyer)->assertCreated()->json('data');
 
         return $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", $extra)->assertOk()->json('data');
     }
@@ -66,7 +66,7 @@ class LedgerReviewTest extends TestCase
         $invoice = $this->api('POST', 'procurement/invoices', [
             'order_id' => $order['id'], 'supplier_reference' => 'ADV-1', 'invoice_date' => '2026-10-15',
             'lines' => [['order_line_id' => $soap['id'], 'qty' => '10'], ['order_line_id' => $delivery['id'], 'qty' => '1']],
-        ])->assertCreated()->json('data');
+        ], $this->buyer)->assertCreated()->json('data');
         $this->assertSame(['not_received', 'not_received'], array_column($invoice['lines'], 'match_status'));
         $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", ['override_reason' => 'Paid in advance'])
             ->assertUnprocessable()->assertJsonPath('code', 'stock_line_not_received');

@@ -95,9 +95,10 @@ class InvoiceResource extends JsonResource
                 })->all(),
                 'can' => [
                     'edit' => $open && $at('create'),
+                    // Decision 23: never the person who entered it.
                     'approve' => in_array($invoice->status, [Invoice::MATCHED, Invoice::EXCEPTION], true) && $at('approve')
-                        && ($invoice->status === Invoice::MATCHED || $at('override')),
-                    'override' => $at('override'),
+                        && ($invoice->status === Invoice::MATCHED || $at('override')) && $invoice->created_by !== $request->user()?->id,
+                    'override' => $at('override') && $invoice->created_by !== $request->user()?->id,
                     'cancel' => $open && $at('cancel'),
                 ],
             ] : []),

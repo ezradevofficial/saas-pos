@@ -152,6 +152,11 @@ class Invoices
                 throw ProcurementError::make('document_not_open', status: 409);
             }
 
+            // Decision 23 (separation of duties): whoever entered the invoice never approves it, with or without the override.
+            if ($invoice->created_by === $by->id) {
+                throw ProcurementError::make('invoice_approver_is_creator', status: 403);
+            }
+
             $order = Order::query()->whereKey($invoice->order_id)->lockForUpdate()->firstOrFail();
             $orderLines = OrderLine::query()->where('order_id', $order->id)->lockForUpdate()->get()->keyBy('id');
             $company = Company::query()->findOrFail($invoice->company_id);

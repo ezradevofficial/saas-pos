@@ -157,12 +157,10 @@ describe('Tenders (PRC-06 to PRC-12)', () => {
     renderApp('/procurement/tenders/t-1')
     expect(await screen.findByRole('heading', { name: 'TND-WL-2026-00001' })).toBeInTheDocument()
     expect(screen.getByText('Bids are sealed')).toBeInTheDocument()
-    const sealed = screen.getByRole('table', { name: 'Sealed bids' })
-    const row = within(sealed).getByText('Oven Masters Ltd').closest('tr')
-    expect(within(row).getByText(FINGERPRINT)).toBeInTheDocument()
-    expect(within(row).getByText('2')).toBeInTheDocument()
+    // Decision 22: only how many bids arrived, not who sent them.
+    expect(screen.getByText('2 bids received')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Sealed bids' })).not.toBeInTheDocument()
     // PRC-09: nothing of the content: no prices, no technical response, no files.
-    expect(within(sealed).queryByText(/KES/)).not.toBeInTheDocument()
     expect(screen.queryByText('Technical response')).not.toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Ranking' })).not.toBeInTheDocument()
 

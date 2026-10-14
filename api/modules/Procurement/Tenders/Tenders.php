@@ -58,7 +58,7 @@ class Tenders
     {
         return Tx::run(function () use ($data, $by) {
             $branch = Branch::query()->with('company')->findOrFail($data['branch_id']);
-            $requisition = empty($data['requisition_id']) ? null : $this->requisitions->approved($branch->company_id, $data['requisition_id']);
+            $requisition = empty($data['requisition_id']) ? null : $this->requisitions->approved($branch, $data['requisition_id'], $by);
             $tender = new Tender([
                 'company_id' => $branch->company_id,
                 'branch_id' => $branch->id,

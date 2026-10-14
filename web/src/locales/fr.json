@@ -7760,8 +7760,10 @@
     "bids": {
       "title": "Offres",
       "sealedTitle": "Les offres sont scellées",
-      "sealedHelp": "Leurs prix, réponses techniques et fichiers restent chiffrés jusqu’à ce que deux membres d’ouverture les ouvrent à l’heure d’ouverture. Vous voyez seulement qui a déposé une offre, quand, sa version et son empreinte.",
+      "sealedHelp": "Leurs auteurs, prix, réponses techniques et fichiers restent scellés jusqu’à ce que deux membres ouvreurs du comité les ouvrent à l’heure d’ouverture. D’ici là, vous voyez seulement combien d’offres sont arrivées.",
       "sealedCaption": "Offres scellées",
+      "received_one": "{{count}} offre reçue",
+      "received_other": "{{count}} offres reçues",
       "empty": "Aucune offre pour l’instant.",
       "openedTitle": "Offres ouvertes",
       "openedAt": "Ouvertes le",
@@ -7982,6 +7984,8 @@
       "noCompany": "Il n’y a pas encore de société à paramétrer."
     },
     "portal": {
+      "unavailable": "Appel d’offres indisponible",
+      "unavailableHelp": "Cet appel d’offres n’est pas disponible pour le moment. Contactez l’acheteur.",
       "title": "Portail fournisseurs",
       "signingIn": "Ouverture de votre lien",
       "linkInvalid": "Ce lien ne fonctionne pas",

@@ -41,7 +41,7 @@ class PortalTest extends TestCase
         Storage::fake('media');
         $this->setUpProcurement();
         $this->tender = $this->tenderAt($this->owner, $this->branchA->id, [$this->supplier, $this->otherSupplier]);
-        $this->bidderIds = collect($this->api('GET', "procurement/tenders/{$this->tender['id']}")->json('data.bidders'))->pluck('id', 'email')->all();
+        $this->bidderIds = collect($this->api('GET', "procurement/tenders/{$this->tender['id']}")->json('data.bidders'))->pluck('id', 'name')->all();
     }
 
     private function tenderAt($owner, string $branchId, array $suppliers, string $deadline = '2026-10-20T12:00:00Z', string $tenant = ''): array
@@ -71,7 +71,7 @@ class PortalTest extends TestCase
     {
         // NOT-02, ADR 009: a system message to the supplier's address, the token only in the link.
         $this->inTenant(fn () => $this->assertSame(2, NotificationDelivery::query()->where('event_type', 'procurement.portal.invited')->count()));
-        $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
         $view = $this->getJson('/api/v1/supplier-portal/tender', $upesi)->assertOk();
 
         $this->assertSame('Generators', $view->json('data.tender.title'));
@@ -90,8 +90,8 @@ class PortalTest extends TestCase
 
     public function test_a_session_never_reaches_another_bidders_bid_or_files(): void
     {
-        $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
-        $baraka = $this->portal($this->linkFor($this->bidderIds['bids@baraka.example.com']));
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
+        $baraka = $this->portal($this->linkFor($this->bidderIds['Baraka Wholesale']));
         $file = $this->postJson('/api/v1/supplier-portal/bid/files', ['file' => UploadedFile::fake()->createWithContent('quote.pdf', '%PDF-1.4 upesi')], $upesi)->assertCreated()->json('data.id');
         $this->submit($upesi, '900000', [$file]);
 
@@ -113,7 +113,7 @@ class PortalTest extends TestCase
 
     public function test_user_tokens_are_refused_on_the_portal_and_portal_tokens_in_the_back_office(): void
     {
-        $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
 
         $this->getJson('/api/v1/supplier-portal/tender', $this->headersFor())->assertUnauthorized()->assertJsonPath('code', 'portal_session_invalid');
         $this->getJson('/api/v1/procurement/tenders', $upesi)->assertUnauthorized();
@@ -155,14 +155,15 @@ class PortalTest extends TestCase
 
     public function test_a_removed_bidder_and_an_inactive_module_end_the_session(): void
     {
-        $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
-        $baraka = $this->portal($this->linkFor($this->bidderIds['bids@baraka.example.com']));
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
+        $baraka = $this->portal($this->linkFor($this->bidderIds['Baraka Wholesale']));
         $this->submit($upesi, '1000');
-        $this->api('POST', "procurement/tender-bidders/{$this->bidderIds['sales@upesi.example.com']}/remove")->assertOk();
+        $this->api('POST', "procurement/tender-bidders/{$this->bidderIds['Upesi Supplies']}/remove")->assertOk();
 
         $this->getJson('/api/v1/supplier-portal/tender', $upesi)->assertUnauthorized();
-        $this->assertSame('withdrawn', $this->api('GET', "procurement/tenders/{$this->tender['id']}")->json('data.bids.0.status'));
-        $this->inTenant(fn () => $this->assertNotNull(PortalSession::query()->where('bidder_id', $this->bidderIds['sales@upesi.example.com'])->first()->revoked_at));
+        // Decision 22: staff see no bid before the opening; the removed bidder's bid is withdrawn.
+        $this->inTenant(fn () => $this->assertSame('withdrawn', Bid::query()->where('bidder_id', $this->bidderIds['Upesi Supplies'])->value('status')));
+        $this->inTenant(fn () => $this->assertNotNull(PortalSession::query()->where('bidder_id', $this->bidderIds['Upesi Supplies'])->first()->revoked_at));
 
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('procurement'));
         $this->getJson('/api/v1/supplier-portal/tender', $baraka)->assertForbidden()->assertJsonPath('code', 'module_inactive');
@@ -186,7 +187,7 @@ class PortalTest extends TestCase
 
     public function test_uploads_are_typed_and_limited_and_sign_in_is_rate_limited(): void
     {
-        $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
         $this->postJson('/api/v1/supplier-portal/bid/files', ['file' => UploadedFile::fake()->create('tool.exe', 10, 'application/x-msdownload')], $upesi)
             ->assertUnprocessable()->assertJsonPath('code', 'file_type');
 

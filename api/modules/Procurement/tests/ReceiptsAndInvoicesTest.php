@@ -144,7 +144,7 @@ class ReceiptsAndInvoicesTest extends TestCase
         $invoice = $this->api('POST', 'procurement/invoices', [
             'order_id' => $order['id'], 'supplier_reference' => 'X-1', 'invoice_date' => '2026-10-16',
             'lines' => [['order_line_id' => $order['lines'][0]['id'], 'qty' => '10', 'unit_price_minor' => '11000'], ['order_line_id' => $order['lines'][1]['id'], 'qty' => '1']],
-        ])->assertCreated()->json('data');
+        ], $this->buyer)->assertCreated()->json('data');
         $this->assertSame('exception', $invoice['status']);
         // The delivery was never received.
         $this->assertSame('not_received', $invoice['lines'][1]['match_status']);

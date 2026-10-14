@@ -40,7 +40,8 @@ class Bidder extends ProcurementModel
 
     protected $hidden = ['token_hash'];
 
-    protected array $auditHidden = ['token_hash', 'token_expires_at', 'last_seen_at'];
+    // Decision 22: the audit log never names who registered or how to reach them (bidder confidentiality).
+    protected array $auditHidden = ['token_hash', 'token_expires_at', 'last_seen_at', 'email', 'tax_id', 'name'];
 
     protected function casts(): array
     {

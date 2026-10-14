@@ -196,7 +196,9 @@ class PortalController
         $files = BidFile::query()->where('tender_id', $tender->id)->where('bidder_id', $session->bidder_id)->whereNull('removed_at')->orderBy('created_at')->get();
 
         return [
-            'tender' => [...$this->publicTender($tender), 'open_for_bids' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids()],
+            'tender' => [...$this->publicTender($tender), 'open_for_bids' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids() && ! PortalBids::unavailable(),
+                // Decision 21: a suspended or cancelled business shows "tender unavailable".
+                'unavailable' => PortalBids::unavailable()],
             'bidder' => ['name' => $session->bidder->name, 'email' => $session->bidder->email],
             'bid' => $bid === null ? null : [
                 'status' => $bid->status,

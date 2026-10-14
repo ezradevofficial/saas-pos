@@ -376,6 +376,36 @@ en/fr.
     `GoodsReceiptExceptions` contract event; Procurement keeps each module
     and code on the GRN line (`receive_exceptions`) and the GRN view flags
     the lines, so someone adjusts the stock by hand.
+21. **The portal and billing (owner decision 2026-10-14).** A read-only
+    (overdue) business keeps its supplier portal open. A suspended or
+    cancelled business shows "Tender unavailable" (en/fr): the tender view
+    says `unavailable`, and bids, withdrawals and file uploads or removals
+    answer 409 `tender_unavailable`.
+22. **Bidder confidentiality (owner decision 2026-10-14).** Before the
+    opening, the tender resource shows staff only the number of bids and
+    the invited suppliers' names: no emails, tax IDs or `last_seen_at`, no
+    sealed bid list, and open-notice registrants not at all. They appear
+    once the tender is opened. The audit log never holds a bidder's name,
+    email or tax ID (`Bidder::$auditHidden`; a registration is audited with
+    a keyed hash of the email), nor a bid file's name, type, size or path
+    (`BidFile::$auditHidden`); tender exports and notifications carry no
+    bidder detail. Bids list in the order submitted, then by id.
+23. **Separation of duties on supplier invoices.** Whoever entered an
+    invoice never approves it, with or without the override (403
+    `invoice_approver_is_creator`); the resource's `can.approve` and
+    `can.override` say so.
+24. **Requisitions of another branch (RBAC-04).** A PO, RFQ or tender
+    takes on only an approved requisition of its own branch that the user
+    sees there (`procurement.requisition.view`); an unknown requisition,
+    one of another branch and one the user cannot see all answer the same
+    `requisition_not_approved`.
+25. **The portal's origin (owner decision 2026-10-14).** The portal stays on
+    the back office's origin; its pages send no referrer and carry a strict
+    Content-Security-Policy, its API responses `Referrer-Policy:
+    no-referrer`. What mitigates the shared origin is in ADR 019.
+26. **Supplier performance CSV** passes every cell, the header included,
+    through `SpreadsheetCell::safe()` (no formula) and is written without
+    an escape character, like list exports (EXP-01).
 
 ## Open questions
 

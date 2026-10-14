@@ -39,6 +39,8 @@ return [
         'stock_line_not_received' => 'La ligne :line est un article stocké qui n’a pas été reçu. Validez sa réception avant d’approuver la facture.',
         'charge_supplier_required' => 'Le frais :line doit indiquer son fournisseur avant de valider les frais d’approche.',
         'charge_bill_required' => 'Le frais :line doit indiquer le numéro de facture du fournisseur avant de valider les frais d’approche.',
+        'tender_unavailable' => 'Cet appel d’offres n’est pas disponible pour le moment. Contactez l’acheteur.',
+        'invoice_approver_is_creator' => 'Vous avez saisi cette facture : une autre personne doit l’approuver.',
         'override_reason_required' => 'Indiquez pourquoi vous approuvez une facture qui ne correspond pas.',
         'duplicate_reference' => 'Ce fournisseur a déjà une facture portant ce numéro. Vérifiez le numéro.',
         'receipt_cancelled' => 'L’un des bons de réception a été annulé. Retirez-le, puis réessayez.',
