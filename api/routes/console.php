@@ -60,8 +60,5 @@ Schedule::command('onboarding:prune-pending')->hourly()->withoutOverlapping()->o
 // ONB-08: assisted tenants not handed over after 30 days, listed for staff.
 Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverlapping()->onOneServer();
 
-// LOY-06: expire due loyalty points and warn about points expiring soon.
-Schedule::command('loyalty:expire-points')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
-
-// LOY-03: process again POS sales loyalty kept but could not process.
-Schedule::command('loyalty:reprocess')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+// Modules schedule their own commands from their service providers
+// (callAfterResolving(Schedule::class)), so a module's schedule lives with it.

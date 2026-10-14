@@ -177,6 +177,7 @@ return [
         'promotion_differs' => 'Remise de promotion différente',
         'coupon_unknown' => 'Coupon introuvable',
         'coupon_overused' => 'Coupon trop utilisé',
+        'processing_failed' => 'Traitement impossible',
         'voided_before_processing' => 'Annulée avant traitement',
     ],
 ];

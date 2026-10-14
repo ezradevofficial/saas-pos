@@ -167,8 +167,12 @@ Recorded here as the brief asked; the owner may revisit them.
 - **Event payloads.** `SaleCompleted`, `SaleVoided` and `SaleRefunded`
   gain an optional snapshot of what was stored (a sale or a refund),
   built by POS. Loyalty keeps its own copy (`loyalty_sales`) before
-  processing, so a failure is retried by `loyalty:reprocess` without POS.
-  A Loyalty failure never fails a POS upload.
+  processing, so a failure is retried by `loyalty:reprocess` without POS,
+  at most 5 times with backoff (5 min, 15 min, 1 h, 6 h, 24 h); then the
+  sale is `failed_permanently` and flagged `processing_failed` in the
+  flagged-sales review. Loyalty handles the events in a queued listener
+  (after commit, in the event's tenant), so a Loyalty failure never fails
+  a POS upload nor another module's handling.
 - **POS schema change (approved by the owner on 2026-10-14).** CLAUDE.md
   asks before changing another module's schema. The brief asks for a
   minimal, generic seam in POS, so three nullable `jsonb` columns are

@@ -178,6 +178,7 @@ return [
         'promotion_differs' => 'Promotion discount differs',
         'coupon_unknown' => 'Coupon not found',
         'coupon_overused' => 'Coupon used too often',
+        'processing_failed' => 'Could not be processed',
         'voided_before_processing' => 'Voided before it was processed',
     ],
 ];

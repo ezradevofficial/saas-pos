@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\DB;
  * The tenants a scheduled command has work for, found before any tenant is
  * set (ADR 002). Each question is an owner-owned security-definer function
  * (migrations 2026_10_18_000100, 2026_10_18_000400, 2026_10_20_000100,
- * 2026_10_20_000200, 2026_10_24_000100, 2026_10_25_000100, 2026_10_30_000600 and 2026_10_31_000100) called on the runtime connection: it
+ * 2026_10_20_000200, 2026_10_24_000100, 2026_10_25_000100, 2026_10_30_000600 and 2026_10_31_000100;
+ * the modules' own: Accounting 2026_11_05_000100, Loyalty 2026_11_06_000200) called on the runtime connection: it
  * returns only tenant ids, so the scheduler and the workers never need the
  * owner's credentials. The work itself then runs in each tenant's context,
  * under row-level security.
@@ -122,6 +123,18 @@ class DueTenants
     public function assistedFor(string $contact): ?string
     {
         return $this->ids('app_assisted_tenant_for_contact(?)', [$contact])[0] ?? null;
+    }
+
+    /** @return list<string> LOY-03: Loyalty sales `failed` with a retry due at $at, or left `pending` since before $pendingBefore. */
+    public function withLoyaltySalesToReprocess(CarbonInterface $at, CarbonInterface $pendingBefore): array
+    {
+        return $this->ids('app_tenants_with_loyalty_sales_to_reprocess(?::timestamptz, ?::timestamptz)', [$at->toIso8601String(), $pendingBefore->toIso8601String()]);
+    }
+
+    /** @return list<string> ACC-06: recurring journals due on $on (a calendar day). */
+    public function withDueRecurringJournals(CarbonInterface $on): array
+    {
+        return $this->ids('app_tenants_with_due_recurring_journals(?::date)', [$on->toDateString()]);
     }
 
     /** @return list<string> Every active tenant. */

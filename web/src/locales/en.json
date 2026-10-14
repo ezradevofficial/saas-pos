@@ -6299,6 +6299,7 @@
         "credit_limit_exceeded": "Over the credit limit",
         "gift_card_sale_mismatch": "Gift card sale does not match",
         "gift_card_unknown": "Gift card not found",
+        "processing_failed": "Could not be processed after several tries",
         "voided_before_processing": "Voided before it was processed",
         "other": "To check"
       }

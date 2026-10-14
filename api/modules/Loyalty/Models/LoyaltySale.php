@@ -26,6 +26,12 @@ class LoyaltySale extends Model implements HasScope
 
     public const FAILED = 'failed';
 
+    /** LOY-03: failed past the retry cap; shown in the flagged-sales review (`processing_failed`). */
+    public const FAILED_PERMANENTLY = 'failed_permanently';
+
+    /** LOY-03: seconds before each retry by `loyalty:reprocess` (5 retries: 5 min, 15 min, 1 h, 6 h, 24 h). */
+    public const RETRY_BACKOFF = [300, 900, 3600, 21600, 86400];
+
     public $incrementing = false;
 
     protected $keyType = 'string';
@@ -44,6 +50,8 @@ class LoyaltySale extends Model implements HasScope
             'sold_at' => 'immutable_datetime',
             'processed_at' => 'immutable_datetime',
             'voided_at' => 'immutable_datetime',
+            'next_attempt_at' => 'immutable_datetime',
+            'attempts' => 'integer',
         ];
     }
 

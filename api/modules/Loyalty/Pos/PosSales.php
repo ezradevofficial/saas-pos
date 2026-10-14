@@ -111,7 +111,7 @@ class PosSales
                     $this->earn($sale, $snapshot, $programme, $flags);
                 }
 
-                $sale->forceFill(['status' => LoyaltySale::PROCESSED, 'flags' => $flags, 'processed_at' => now(), 'error' => null])->save();
+                $sale->forceFill(['status' => LoyaltySale::PROCESSED, 'flags' => $flags, 'processed_at' => now(), 'error' => null, 'next_attempt_at' => null])->save();
 
                 // H1: refunds that arrived before the sale was processed, applied in order now.
                 $pending = (array) ($sale->pending_refunds ?? []);
@@ -128,10 +128,43 @@ class PosSales
             return true;
         } catch (Throwable $e) {
             Log::error('loyalty: sale processing failed', ['sale_id' => $saleId, 'error' => $e->getMessage()]);
-            $this->db()->transaction(fn () => LoyaltySale::query()->whereKey($saleId)->update(['status' => LoyaltySale::FAILED, 'error' => mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now()]));
+            $this->failed($saleId, $e);
 
             return false;
         }
+    }
+
+    /**
+     * LOY-03: a failed attempt is counted; the sale is retried after the
+     * next backoff step, and past the last one it is failed permanently,
+     * flagged `processing_failed` for the review list.
+     */
+    private function failed(string $saleId, Throwable $e): void
+    {
+        $this->db()->transaction(function () use ($saleId, $e) {
+            $sale = LoyaltySale::query()->whereKey($saleId)->lockForUpdate()->first();
+
+            if ($sale === null) {
+                return;
+            }
+
+            $attempts = (int) $sale->attempts + 1;
+            $error = mb_substr($e->getMessage(), 0, 1000);
+            $backoff = LoyaltySale::RETRY_BACKOFF[$attempts - 1] ?? null;
+
+            $sale->forceFill($backoff === null ? [
+                'status' => LoyaltySale::FAILED_PERMANENTLY,
+                'attempts' => $attempts,
+                'next_attempt_at' => null,
+                'error' => $error,
+                'flags' => [...($sale->flags ?? []), ['code' => 'processing_failed', 'detail' => ['attempts' => $attempts]]],
+            ] : [
+                'status' => LoyaltySale::FAILED,
+                'attempts' => $attempts,
+                'next_attempt_at' => now()->addSeconds($backoff),
+                'error' => $error,
+            ])->save();
+        });
     }
 
     /** SaleVoided: reverse everything the sale earned, redeemed, charged and loaded. */

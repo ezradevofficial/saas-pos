@@ -11,7 +11,7 @@ export const GIFT_CARD_VIEW = 'loyalty.gift_card.view'
 export const CUSTOMER_TAB = ['loyalty.points.view', 'loyalty.credit.view']
 export const SALE_VIEW = 'loyalty.sale.view'
 /** LOY-12, H2: the flags a manager filters the review list by (the API's codes). */
-export const REVIEW_FLAGS = ['points_overdrawn', 'gift_card_overdrawn', 'coupon_overused', 'promotion_differs', 'credit_not_permitted', 'credit_limit_exceeded', 'gift_card_sale_mismatch', 'gift_card_unknown', 'voided_before_processing']
+export const REVIEW_FLAGS = ['points_overdrawn', 'gift_card_overdrawn', 'coupon_overused', 'promotion_differs', 'credit_not_permitted', 'credit_limit_exceeded', 'gift_card_sale_mismatch', 'gift_card_unknown', 'voided_before_processing', 'processing_failed']
 
 export const PROMOTION_TYPES = ['percent', 'amount_off', 'buy_x_get_y', 'bundle']
 export const PROMOTION_STATUSES = ['draft', 'active', 'archived']

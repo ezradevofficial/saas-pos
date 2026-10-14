@@ -112,6 +112,10 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
 | `app_operator_tenant_id()` | billing (ADR 016) | the operator tenant, the platform's seller (at most one) |
+| `app_tenants_with_due_recurring_journals(p_on date)` | `accounting:recurring` (ACC-06; Accounting migration `2026_11_05_000100`) | an active recurring journal due on or before `p_on` |
+| `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `loyalty:reprocess` (LOY-03; Loyalty migration `2026_11_06_000200`) | a Loyalty sale `failed` whose next attempt is due at `p_at` (backoff 5 min, 15 min, 1 h, 6 h, 24 h, then `failed_permanently`), or left `pending` since before `p_pending_before` |
+
+A module's scheduler function lives in that module's migrations, and its command calls it through `DueTenants` like the core ones. Modules register their schedules in their own service providers (`callAfterResolving(Schedule::class)`), never in `routes/console.php`.
 
 They follow the same rules as the lookups above: `security definer`, `search_path` pinned, schema-qualified names, revoked from `PUBLIC`, granted to the runtime role, and they return `setof uuid`, never a row. `DueTenantsTest` checks each of these properties. Each command then dispatches one job per tenant, and the job does the work in that tenant's context under row-level security.
 

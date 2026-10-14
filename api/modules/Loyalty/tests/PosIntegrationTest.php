@@ -4,6 +4,8 @@ namespace Modules\Loyalty\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\DueTenants;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
@@ -252,6 +254,54 @@ class PosIntegrationTest extends TestCase
 
         $this->assertSame('processed', $this->loyaltySaleRow($sale['id'])->status);
         $this->assertSame('11', $this->pointsOf($this->amina->id));
+    }
+
+    public function test_loy_03_reprocess_retries_with_backoff_then_fails_permanently_into_the_review_list(): void
+    {
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id);
+        $this->failingProgrammes();
+        $this->upload([$sale])->assertOk();
+        $row = fn () => $this->loyaltySaleRow($sale['id']);
+        $this->assertSame(['failed', 1], [$row()->status, $row()->attempts]);
+        $this->assertLessThan(2, abs($row()->next_attempt_at->diffInSeconds(now()->addMinutes(5))));
+
+        // Not due yet: nothing is tried.
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+        $this->assertSame(1, $row()->attempts);
+
+        // Each retry waits longer: 5 min, 15 min, 1 h, 6 h, 24 h.
+        foreach ([300, 900, 3600, 21600, 86400] as $index => $wait) {
+            $this->travel($wait + 1)->seconds();
+            $this->artisan('loyalty:reprocess')->assertSuccessful();
+            $this->assertSame($index + 2, $row()->attempts);
+        }
+
+        $this->assertSame('failed_permanently', $row()->status);
+        $this->assertNull($row()->next_attempt_at);
+        $this->assertContains(['code' => 'processing_failed', 'detail' => ['attempts' => 6]], $row()->flags);
+
+        // Never tried again; it shows in the flagged-sales review.
+        $this->travel(2)->days();
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+        $this->assertSame(6, $row()->attempts);
+        $this->getJson('/api/v1/loyalty/sales?flag=processing_failed', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $sale['id']);
+    }
+
+    public function test_loy_03_reprocess_finds_its_tenants_through_due_tenants(): void
+    {
+        $this->mock(DueTenants::class)->shouldReceive('withLoyaltySalesToReprocess')->once()->andReturn([]);
+
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+    }
+
+    public function test_module_schedules_are_registered_by_their_providers(): void
+    {
+        $commands = collect(app(Schedule::class)->events())->map(fn ($event) => $event->command)->implode("\n");
+
+        foreach (['loyalty:expire-points', 'loyalty:reprocess', 'accounting:recurring'] as $command) {
+            $this->assertStringContainsString($command, $commands);
+        }
+        $this->assertStringNotContainsString('loyalty:', (string) file_get_contents(base_path('routes/console.php')));
     }
 
     private function failingProgrammes(): void
