@@ -102,8 +102,8 @@ values only):
 
 | Event | When | Carries |
 | --- | --- | --- |
-| `StockMoved` | Every posting | tenant, company, currency, source type and id, movements `[{id, kind, item_id, location_id, qty, value_minor, cost_variance_minor, source_line_id}]` |
-| `StockAdjusted` | An adjustment posted | the adjustment id, company, location, currency, total value in and out |
+| `StockMoved` | Every posting | tenant, company, currency, source type and id, the posting date (`occurredAt`) and branch, movements `[{id, kind, item_id, location_id, branch_id, source_line_id, qty, value_minor, cost_variance_minor}]` (`source_line_id`: the sale line for a POS sale) |
+| `StockAdjusted` | An adjustment posted | the adjustment id, company, location, branch, posting date, currency, total value in and out |
 | `StockCountPosted` | A count posted | the count id, company, location, currency, gain and loss values |
 | `TransferReceived` | A transfer received | the transfer id, company, from and to locations, currency, received and lost values |
 | `StockLow` | Stock fell to or below a reorder level | item, location, company, quantity, reorder level and quantity |

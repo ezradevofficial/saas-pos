@@ -10,13 +10,15 @@ use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\AccountingSettings;
 use Modules\Accounting\Models\JournalLine;
+use Modules\Accounting\Posting\PostingDefaults;
 
 /**
  * ACC-01, ACC-02: a company's chart and settings.
  *
  * - fromTemplate(): the chart is created once from the company's country
- *   template (or a named one), with names in the tenant's language, and
- *   the settings' roles pointed at the template's accounts.
+ *   template (or a named one), with names in the tenant's language, the
+ *   settings' roles pointed at the template's accounts, and the
+ *   template's default posting rules (ACC-24).
  * - settings(): the company's settings row (created empty when missing).
  * - Account rules: a code is unique in the company; a parent is a header
  *   of the same company and never the account or one beneath it; an
@@ -24,7 +26,10 @@ use Modules\Accounting\Models\JournalLine;
  */
 class Charts
 {
-    public function __construct(private readonly ChartTemplates $templates) {}
+    public function __construct(
+        private readonly ChartTemplates $templates,
+        private readonly PostingDefaults $defaults,
+    ) {}
 
     public function fromTemplate(Company $company, ?string $template = null): AccountingSettings
     {
@@ -69,6 +74,8 @@ class Charts
             }
 
             $settings->fill($roles)->save();
+            // ACC-24: the template's default posting rules come with the chart.
+            $this->defaults->seed($company);
 
             return $settings;
         });

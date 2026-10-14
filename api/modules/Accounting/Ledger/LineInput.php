@@ -38,13 +38,15 @@ final class LineInput
     }
 
     /** A signed amount on its natural side: negative amounts go to the other side. */
-    public static function signed(string $accountId, string $side, Money $amount, ?FxSnapshot $fx = null, ?string $description = null, array $dimensions = []): self
+    public static function signed(string $accountId, string $side, Money $amount, ?FxSnapshot $fx = null, ?string $description = null, array $dimensions = [], ?Money $base = null): self
     {
         if ($amount->isNegative()) {
-            return new self($accountId, $side === self::DEBIT ? self::CREDIT : self::DEBIT, Money::ofMinor(ltrim($amount->minor(), '-'), $amount->currency()), $fx, null, $description, $dimensions);
+            $positive = fn (Money $money) => Money::ofMinor(ltrim($money->minor(), '-'), $money->currency());
+
+            return new self($accountId, $side === self::DEBIT ? self::CREDIT : self::DEBIT, $positive($amount), $fx, $base === null ? null : $positive($base), $description, $dimensions);
         }
 
-        return new self($accountId, $side, $amount, $fx, null, $description, $dimensions);
+        return new self($accountId, $side, $amount, $fx, $base, $description, $dimensions);
     }
 
     public function dimension(string $key): ?string

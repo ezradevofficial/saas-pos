@@ -57,7 +57,7 @@ class HeldRecords
             'decided_by' => $decider?->id,
         ], $this->actors($void->voided_by, $decider?->id ?? $void->approved_by, $decider === null ? $void->voided_at : null));
         $this->cash->recountIfClosed($sale->shift_id, 'void', $void->id);
-        SaleVoided::dispatch($this->tenants->require(), $sale->id, $void->id, SaleSnapshot::sale($sale));
+        SaleVoided::dispatch($this->tenants->require(), $sale->id, $void->id, SaleSnapshot::sale($sale), $void->voided_at->utc()->format('Y-m-d\TH:i:s.u\Z'));
     }
 
     public function applyRefund(Refund $refund, ?User $decider = null): void

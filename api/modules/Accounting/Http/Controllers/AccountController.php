@@ -139,7 +139,11 @@ class AccountController
             $settings = AccountingSettings::query()->where('company_id', $company->id)->lockForUpdate()->firstOrFail();
             $accounts = Account::query()->where('company_id', $company->id)->get()->keyBy('id');
 
-            foreach ($request->validated('roles') as $index => $role) {
+            if ($request->has('sales_posting')) {
+                $settings->sales_posting = $request->validated('sales_posting');
+            }
+
+            foreach ($request->validated('roles', []) as $index => $role) {
                 $account = $role['account_id'] === null ? null : $accounts->get($role['account_id']);
 
                 if ($account !== null && (! $account->postable || $account->isArchived())) {
@@ -186,6 +190,7 @@ class AccountController
             'base_currency' => $company->base_currency,
             'template' => $settings?->template,
             'has_chart' => $accounts > 0,
+            'sales_posting' => $settings?->sales_posting ?? AccountingSettings::PER_SALE,
             'roles' => array_map(fn (string $role) => ['role' => $role, 'account_id' => $settings?->accountFor($role)], AccountingSettings::ROLES),
         ]], $status);
     }

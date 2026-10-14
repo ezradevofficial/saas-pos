@@ -2,21 +2,38 @@
 
 namespace Modules\POS\Events;
 
+use App\Core\Currency\FxSnapshot;
+use Brick\Math\BigDecimal;
+use Brick\Math\BigInteger;
+use Brick\Math\RoundingMode;
+use Carbon\CarbonImmutable;
 use Modules\POS\Models\Refund;
 use Modules\POS\Models\RefundLine;
 use Modules\POS\Models\RefundPayment;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
+use Modules\POS\Sync\Records;
 
 /**
  * POS-13, LOY-27: what a stored sale or refund was, as plain data for the
  * modules listening to SaleCompleted, SaleVoided and SaleRefunded
- * (Loyalty, later Inventory and Accounting), so they never read POS
- * tables (CLAUDE.md, modular monolith). Amounts are minor-unit digit
- * strings, quantities decimal strings, times ISO 8601 in UTC; other
- * modules' data (`extensions`, `adjustments`, `tender`) is passed on as
- * the till sent it.
+ * (Loyalty, Inventory, Accounting), so they never read POS tables
+ * (CLAUDE.md, modular monolith). Amounts are minor-unit digit strings,
+ * quantities decimal strings, times ISO 8601 in UTC; other modules' data
+ * (`extensions`, `adjustments`, `tender`) is passed on as the till sent it.
+ *
+ * Since stage 7B (Accounting integrations) a snapshot is complete enough
+ * to journal from: per line the tax code, whether the price included tax,
+ * the net, the tax and the discount split by where it came from
+ * (`discount.sources`: what a registered discount source such as a
+ * promotion vouched for, as the till recorded it, capped at the line's
+ * discount; `discount.manual_minor`: the rest); the sale's rounding kept,
+ * the change (in its currency and as its share of the sale currency, so
+ * paid − change = total + rounding exactly) and its base currency, rate
+ * and base amounts (CUR-04). A refund carries the same per-line fields
+ * (each line's share of its sale line, as refunded) and its own rounding
+ * (what the payments differ from the refund total by).
  */
 final class SaleSnapshot
 {
@@ -24,6 +41,9 @@ final class SaleSnapshot
     public static function sale(Sale $sale): array
     {
         $sale->loadMissing(['lines', 'payments']);
+        $total = (string) $sale->total_minor;
+        $paid = (string) $sale->paid_minor;
+        $rounding = (string) $sale->rounding_minor;
 
         return [
             'id' => $sale->id,
@@ -35,19 +55,31 @@ final class SaleSnapshot
             'cashier_id' => $sale->cashier_id,
             'customer_id' => $sale->customer_id,
             'receipt_number' => $sale->receipt_number,
-            'sold_at' => $sale->sold_at->utc()->format('Y-m-d\TH:i:s.u\Z'),
+            'status' => $sale->status,
+            'sold_at' => self::time($sale->sold_at),
+            'voided_at' => $sale->voided_at === null ? null : self::time($sale->voided_at),
             'offline' => (bool) $sale->offline,
             'currency' => $sale->currency,
             'totals' => [
                 'subtotal_minor' => (string) $sale->subtotal_minor,
                 'discount_minor' => (string) $sale->discount_minor,
                 'tax_minor' => (string) $sale->tax_minor,
-                'total_minor' => (string) $sale->total_minor,
+                'total_minor' => $total,
+                'paid_minor' => $paid,
+                // CUR-06: what the shop kept from rounding the change, in the sale currency.
+                'rounding_minor' => $rounding,
             ],
-            // CUR-04: the base currency, the total in it and the rate used.
+            // CUR-06: change given, in its own currency, and its share of the sale currency.
+            'change' => [
+                'currency' => $sale->change_currency,
+                'amount_minor' => (string) $sale->change_minor,
+                'in_sale_minor' => (string) BigInteger::of($paid)->minus($total)->minus($rounding),
+            ],
+            // CUR-04: the base currency, the rate used and the base amounts.
             'base' => [
                 'currency' => $sale->base_currency,
                 'total_minor' => (string) $sale->base_total_minor,
+                'tax_minor' => (string) $sale->base_tax_minor,
                 'fx' => $sale->fx?->jsonSerialize(),
             ],
             'lines' => $sale->lines->map(fn (SaleLine $line) => [
@@ -58,8 +90,13 @@ final class SaleSnapshot
                 'qty' => self::qty((string) $line->qty),
                 'unit_price_minor' => (string) $line->unit_price_minor,
                 'discount_minor' => (string) $line->discount_minor,
+                'tax_code_id' => $line->tax_code_id,
+                'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate,
+                'tax_inclusive' => (bool) $line->tax_inclusive,
+                'net_minor' => (string) $line->net_minor,
                 'tax_minor' => (string) $line->tax_minor,
                 'total_minor' => (string) $line->total_minor,
+                'discount' => self::discount((string) $line->discount_minor, $line->adjustments, $line->verified_discounts),
                 'adjustments' => $line->adjustments,
             ])->values()->all(),
             'payments' => $sale->payments->map(fn (SalePayment $payment) => self::payment($payment))->values()->all(),
@@ -70,24 +107,117 @@ final class SaleSnapshot
     /** @return array<string, mixed> */
     public static function refund(Refund $refund): array
     {
-        $refund->loadMissing(['lines', 'payments']);
+        $refund->loadMissing(['lines', 'payments', 'sale']);
+        $saleLines = SaleLine::query()->whereKey($refund->lines->pluck('sale_line_id')->all())->get()->keyBy('id');
+        $paid = $refund->payments->reduce(fn (BigInteger $sum, RefundPayment $p) => $sum->plus((string) $p->amount_in_sale_minor), BigInteger::zero());
 
         return [
             'id' => $refund->id,
             'sale_id' => $refund->sale_id,
             'company_id' => $refund->company_id,
             'branch_id' => $refund->branch_id,
+            'location_id' => $refund->location_id,
+            'customer_id' => $refund->sale?->customer_id,
             'receipt_number' => $refund->receipt_number,
-            'refunded_at' => $refund->refunded_at->utc()->format('Y-m-d\TH:i:s.u\Z'),
+            'refunded_at' => self::time($refund->refunded_at),
             'currency' => $refund->currency,
             'total_minor' => (string) $refund->total_minor,
-            'lines' => $refund->lines->map(fn (RefundLine $line) => [
-                'sale_line_id' => $line->sale_line_id,
-                'qty' => self::qty((string) $line->qty),
-                'total_minor' => (string) $line->total_minor,
-            ])->values()->all(),
+            'tax_minor' => (string) $refund->tax_minor,
+            // What the money given back differs from the refund total by (at most a unit per payment).
+            'rounding_minor' => (string) $paid->minus((string) $refund->total_minor),
+            'base' => [
+                'currency' => $refund->base_currency,
+                'total_minor' => (string) $refund->base_total_minor,
+                'fx' => $refund->fx?->jsonSerialize(),
+            ],
+            'lines' => $refund->lines->map(fn (RefundLine $line) => self::refundLine($refund, $line, $saleLines->get($line->sale_line_id)))->values()->all(),
             'payments' => $refund->payments->map(fn (RefundPayment $payment) => self::payment($payment))->values()->all(),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function refundLine(Refund $refund, RefundLine $line, ?SaleLine $saleLine): array
+    {
+        $total = (string) $line->total_minor;
+        $tax = (string) $line->tax_minor;
+        // Review #8: the refunded share of the sale line's discount, cumulative by quantity as the
+        // refund's total and tax are (RefundUploads): share(after) − share(before), half up, so the
+        // parts of a line refunded in several refunds add up to its discount exactly.
+        $sold = $saleLine === null ? BigDecimal::zero() : BigDecimal::of((string) $saleLine->qty);
+        $before = $saleLine === null ? BigDecimal::zero() : self::refundedBefore($refund, $line);
+        $after = $before->plus((string) $line->qty);
+        $part = fn (string $amount, BigDecimal $qty) => BigDecimal::of($amount)->multipliedBy($qty)->dividedBy($sold, 0, RoundingMode::HalfUp);
+        $share = fn (string $amount) => $sold->isZero() ? '0' : (string) $part($amount, $after)->minus($part($amount, $before))->toBigInteger();
+        $discount = $saleLine === null ? self::discount('0', null, null) : self::discount((string) $saleLine->discount_minor, $saleLine->adjustments, $saleLine->verified_discounts);
+        $sources = array_map($share, $discount['sources']);
+        $discountShare = $share($discount['total_minor']);
+        $vouched = array_reduce($sources, fn (BigInteger $sum, string $amount) => $sum->plus($amount), BigInteger::zero());
+
+        return [
+            'id' => $line->id,
+            'sale_line_id' => $line->sale_line_id,
+            'item_id' => $saleLine?->item_id,
+            'qty' => self::qty((string) $line->qty),
+            'tax_code_id' => $saleLine?->tax_code_id,
+            'tax_rate' => $saleLine?->tax_rate === null ? null : (string) $saleLine->tax_rate,
+            'tax_inclusive' => (bool) ($saleLine?->tax_inclusive ?? false),
+            'net_minor' => (string) BigInteger::of($total)->minus($tax),
+            'tax_minor' => $tax,
+            'total_minor' => $total,
+            'discount' => [
+                'total_minor' => $discountShare,
+                'sources' => $sources,
+                'manual_minor' => (string) BigInteger::max(BigInteger::zero(), BigInteger::of($discountShare)->minus($vouched)),
+            ],
+        ];
+    }
+
+    /** The quantity of the sale line given back by refunds (not rejected) stored before this one. */
+    private static function refundedBefore(Refund $refund, RefundLine $line): BigDecimal
+    {
+        $earlier = Refund::query()->where('sale_id', $refund->sale_id)->where('status', '<>', Records::REJECTED)
+            ->where(fn ($q) => $q->where('received_at', '<', $refund->received_at)
+                ->orWhere(fn ($q) => $q->where('received_at', $refund->received_at)->where('id', '<', $refund->id)))
+            ->select('id');
+
+        return BigDecimal::of((string) RefundLine::query()->where('sale_line_id', $line->sale_line_id)->whereIn('refund_id', $earlier)->sum('qty'));
+    }
+
+    /**
+     * A line's discount by where it came from: each source's amounts from the
+     * line's adjustments (positive, capped so they never exceed the
+     * discount, nor what the source's verifier confirmed at upload,
+     * `verified_discounts`), and the rest as manual: an unverified claim is
+     * a manual discount.
+     *
+     * @return array{total_minor: string, sources: array<string, string>, manual_minor: string}
+     */
+    private static function discount(string $discount, mixed $adjustments, mixed $verified): array
+    {
+        $verified = is_array($verified) ? $verified : [];
+        $left = BigInteger::of($discount);
+        $sources = [];
+
+        foreach (is_array($adjustments) ? $adjustments : [] as $adjustment) {
+            $amount = is_array($adjustment) ? (string) ($adjustment['amount_minor'] ?? '') : '';
+            $source = is_array($adjustment) ? ($adjustment['source'] ?? null) : null;
+
+            if (! is_string($source) || preg_match('/^\d{1,18}$/', $amount) !== 1 || ! $left->isPositive()) {
+                continue;
+            }
+
+            $cap = BigInteger::of((string) ($verified[$source] ?? '0'))->minus($sources[$source] ?? '0');
+            $take = BigInteger::min(BigInteger::of($amount), $left, BigInteger::max($cap, BigInteger::zero()));
+
+            if (! $take->isPositive()) {
+                continue;
+            }
+
+            $sources[$source] = (string) BigInteger::of($sources[$source] ?? '0')->plus($take);
+            $left = $left->minus($take);
+        }
+
+        return ['total_minor' => $discount, 'sources' => $sources, 'manual_minor' => (string) $left];
     }
 
     /** @return array<string, mixed> */
@@ -100,8 +230,14 @@ final class SaleSnapshot
             'currency' => $payment->currency,
             'amount_minor' => (string) $payment->amount_minor,
             'amount_in_sale_minor' => (string) $payment->amount_in_sale_minor,
+            'fx' => $payment->fx instanceof FxSnapshot ? $payment->fx->jsonSerialize() : null,
             'tender' => $payment->tender,
         ];
+    }
+
+    private static function time(\DateTimeInterface $at): string
+    {
+        return CarbonImmutable::instance($at)->utc()->format('Y-m-d\TH:i:s.u\Z');
     }
 
     /** numeric(18,6) without trailing zeros: "2.000000" → "2". */

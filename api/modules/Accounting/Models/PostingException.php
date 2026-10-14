@@ -16,6 +16,9 @@ class PostingException extends Model implements HasScope
 
     public const RESOLVED = 'resolved';
 
+    /** Review #2: a daily summary another summary of the same sales replaced; never retried. */
+    public const SUPERSEDED = 'superseded';
+
     protected $table = 'acc_posting_exceptions';
 
     protected $guarded = ['id', 'tenant_id'];

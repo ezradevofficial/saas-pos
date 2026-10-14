@@ -37,8 +37,9 @@ final class Shapes
      *
      * @return array{type: string, id: string}|null
      */
-    public static function source(?string $type, ?string $id): ?array
+    /** ACC-17: a journal's source, with where it opens in its own module (`link`, ACC-25 to ACC-28). */
+    public static function source(?string $type, ?string $id, ?array $link = null): ?array
     {
-        return $type === null || $id === null ? null : ['type' => $type, 'id' => $id];
+        return $type === null || $id === null ? null : ['type' => $type, 'id' => $id, 'link' => $link];
     }
 }

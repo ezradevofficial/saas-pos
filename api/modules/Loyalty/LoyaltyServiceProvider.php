@@ -14,6 +14,7 @@ use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Tenders\TenderProviders;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
@@ -23,9 +24,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Loyalty\Console\ExpireGiftCardsCommand;
 use Modules\Loyalty\Console\ExpirePointsCommand;
 use Modules\Loyalty\Console\ReprocessSalesCommand;
 use Modules\Loyalty\Documents\StatementSource;
+use Modules\Loyalty\Ledgers\LedgerEvents;
 use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Pos\HandlePosEvents;
 use Modules\Loyalty\Pos\PosSales;
@@ -78,6 +81,9 @@ class LoyaltyServiceProvider extends ServiceProvider
         RateLimiter::for(self::LOOKUP_LIMITER, fn (Request $request) => Limit::perMinute(30)->by(self::LOOKUP_LIMITER.'|'.($request->user()?->getKey() ?? $request->ip())));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
+        // Stage 7B: the module's ledger events raised again for a period (a later module's backfill).
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(LedgerEvents::class)->replay($from, $to, $emit));
+
         // NUM-01, LOY-17: statements are numbered per company.
         $this->app->make(DocumentNumberTypes::class)->register(new DocumentNumberType(
             'loyalty.statement', self::MODULE, 'ST-{YYYY}-{00001}', NumberFormat::RESET_YEARLY, ['BRANCH'], langKey: 'loyalty.numbering.statement',
@@ -128,12 +134,14 @@ class LoyaltyServiceProvider extends ServiceProvider
         }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ExpirePointsCommand::class, ReprocessSalesCommand::class]);
+            $this->commands([ExpirePointsCommand::class, ExpireGiftCardsCommand::class, ReprocessSalesCommand::class]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             // LOY-06: expire due points and warn about points expiring soon.
             $schedule->command('loyalty:expire-points')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+            // Stage 7B: write off what is left on expired gift cards (breakage).
+            $schedule->command('loyalty:expire-gift-cards')->dailyAt('02:40')->withoutOverlapping()->onOneServer();
             // LOY-03: process again POS sales Loyalty kept but could not process (with backoff).
             $schedule->command('loyalty:reprocess')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
         });

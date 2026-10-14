@@ -42,6 +42,8 @@ class RecordResource extends JsonResource
                 'error_code' => $model->error_code, 'error_message' => $model->error_message, 'attempts' => $model->attempts, 'status' => $model->status,
                 'journal_id' => $model->journal_id, 'last_attempt_at' => $model->last_attempt_at->toIso8601String(),
                 'amounts' => $model->payload['amounts'] ?? [], 'currency' => $model->payload['currency'] ?? null, 'date' => $model->payload['date'] ?? null,
+                // ACC-17: where the source opens in its own module.
+                'reference' => $model->payload['reference'] ?? null, 'link' => $model->payload['link'] ?? null,
             ],
             $model instanceof BankAccount => [
                 'id' => $model->id, 'company_id' => $model->company_id, 'name' => $model->name, 'kind' => $model->kind, 'account_id' => $model->account_id,

@@ -94,7 +94,8 @@ reverses it. Each line carries Inventory's `cost_variance_minor` (what a
 later receipt corrects of a shortfall's cost). **Decision:** for
 `stores.*` sources, Accounting posts from `StoreConsumptionValued` and
 skips Inventory's `StockMoved`, which describes the same movement (the
-rule is added by the Accounting integrations work once both are merged).
+`stores.consumption` source and its default rule, docs/modules/accounting.md
+ACC-31).
 With Inventory off there is no value and nothing to post.
 
 **Consumed:**

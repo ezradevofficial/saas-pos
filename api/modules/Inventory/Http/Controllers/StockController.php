@@ -97,6 +97,10 @@ class StockController
             $query->where('inventory_movements.item_id', $itemId);
         }
 
+        if ($request->filled('source')) {
+            $query->where('inventory_movements.source_id', $request->validated('source'));
+        }
+
         if ($request->filled('kind')) {
             $query->where('inventory_movements.kind', $request->validated('kind'));
         }

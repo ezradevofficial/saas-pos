@@ -245,8 +245,17 @@ database trigger refuses both).
   (earn, redeem, charge, promotion re-evaluation, gift card sale),
   `SaleVoided` (reverse all), `SaleRefunded` (reverse in proportion, put
   back refund tenders).
-- **Raised**: none yet (Accounting will want `CreditPaymentReceived` and
-  `GiftCardSold`; added with the Accounting integration).
+- **Raised** (stage 7B, `Modules\Loyalty\Events`, after commit, one per
+  ledger entry, written by `Ledgers` so no path misses one): `GiftCardSold`,
+  `GiftCardRedeemed`, `GiftCardExpired`, `PointsEarned`, `PointsRedeemed`,
+  `PointsExpired`, `PointsAdjusted`, `CreditCharged`,
+  `CreditPaymentReceived`, `CreditAdjusted`. Each carries the entry, its
+  card or account, party, the sale's branch and rate, the channel (`pos`,
+  `back_office`, `issued`, `system`), an amount signed in the event's
+  direction and, for points, their money value (`points ×
+  point_value_minor`, null when a point has no value). Gift cards past
+  their expiry date have what is left written off daily
+  (`loyalty:expire-gift-cards`, entry kind `expire`).
 
 ## Permissions
 

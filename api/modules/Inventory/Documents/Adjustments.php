@@ -174,7 +174,10 @@ class Adjustments
 
         if ($posted !== null) {
             [$adjustment, $in, $out, $currency] = $posted;
-            StockAdjusted::dispatch($adjustment->tenant_id, $adjustment->id, $adjustment->company_id, $adjustment->location_id, $adjustment->reason, $currency, (string) $in, (string) $out);
+            StockAdjusted::dispatch(
+                $adjustment->tenant_id, $adjustment->id, $adjustment->company_id, $adjustment->location_id, $adjustment->reason, $currency, (string) $in, (string) $out,
+                ($adjustment->posted_at ?? CarbonImmutable::now())->utc()->format('Y-m-d\TH:i:s.u\Z'), $adjustment->branch_id,
+            );
         }
     }
 

@@ -12,6 +12,7 @@ use Modules\Loyalty\Models\CreditEntry;
 use Modules\Loyalty\Models\GiftCard;
 use Modules\Loyalty\Models\GiftCardEntry;
 use Modules\Loyalty\Models\PointsEntry;
+use Modules\Loyalty\Models\Programme;
 
 /**
  * The three append-only ledgers (points, credit, gift cards) and their
@@ -20,10 +21,15 @@ use Modules\Loyalty\Models\PointsEntry;
  * tills spending one card) are serialised and no update is lost (LOY-22).
  * A posting names its source (`pos_sale` and the payment, `manual`, …);
  * the same source posted again is ignored, so retries are harmless.
+ * Every entry written raises its ledger event after commit (LedgerEvents,
+ * stage 7B), so Accounting can journal it without reading these tables.
  */
 class Ledgers
 {
-    public function __construct(private readonly TenantContext $tenants) {}
+    public function __construct(
+        private readonly TenantContext $tenants,
+        private readonly LedgerEvents $events,
+    ) {}
 
     /** LOY-02: the customer's points account at the company, locked; opened when missing. */
     public function pointsAccount(string $companyId, string $partyId, ?string $userId = null): Account
@@ -79,12 +85,15 @@ class Ledgers
             'party_id' => $account->party_id,
             'kind' => $kind,
             'points' => $points,
+            // Review #7: the value of a point when the entry is written (null: a point is worth nothing).
+            'point_value_minor' => $this->pointValue($account->company_id),
             'occurred_at' => $attributes['occurred_at'] ?? CarbonImmutable::now(),
             'flags' => $attributes['flags'] ?? [],
             ...array_intersect_key($attributes, array_flip(['source_type', 'source_id', 'sale_id', 'expires_at', 'reason', 'created_by'])),
         ]);
 
         $account->forceFill(['balance' => (string) BigInteger::of((string) $account->balance)->plus($points)])->save();
+        $this->events->points($entry, $account);
 
         return $entry;
     }
@@ -114,6 +123,7 @@ class Ledgers
         ]);
 
         $account->forceFill(['balance' => (string) BigInteger::of((string) $account->balance)->plus($amount)])->save();
+        $this->events->credit($entry, $account);
 
         return $entry;
     }
@@ -142,8 +152,16 @@ class Ledgers
         ]);
 
         $card->forceFill(['balance_minor' => (string) BigInteger::of((string) $card->balance_minor)->plus($amount)])->save();
+        $this->events->giftCard($entry, $card);
 
         return $entry;
+    }
+
+    private function pointValue(string $companyId): ?string
+    {
+        $value = Programme::query()->where('company_id', $companyId)->value('point_value_minor');
+
+        return $value === null || (int) $value <= 0 ? null : (string) $value;
     }
 
     /** Whether the same source was already posted with $kind (checked under the account's lock). */

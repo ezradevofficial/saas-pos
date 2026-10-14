@@ -7,7 +7,8 @@ use Illuminate\Foundation\Events\Dispatchable;
 
 /**
  * POS-13: a completed sale was voided in full (after commit, once), with
- * a snapshot of the sale (SaleSnapshot::sale).
+ * a snapshot of the sale (SaleSnapshot::sale) and when it was voided
+ * (`voidedAt`, ISO 8601 UTC: the void's posting date for Accounting).
  */
 class SaleVoided implements ShouldDispatchAfterCommit
 {
@@ -19,5 +20,6 @@ class SaleVoided implements ShouldDispatchAfterCommit
         public readonly string $voidId,
         /** @var array<string, mixed> SaleSnapshot::sale() */
         public readonly array $sale = [],
+        public readonly ?string $voidedAt = null,
     ) {}
 }

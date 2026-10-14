@@ -17,6 +17,7 @@ use App\Core\Onboarding\Sample\SampleDependents;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Events\DeviceUnpaired;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ use Illuminate\Support\ServiceProvider;
 use Modules\POS\Dashboards\SalesByDay;
 use Modules\POS\Dashboards\SalesToday;
 use Modules\POS\Documents\ReceiptSource;
+use Modules\POS\Events\PosEventReplay;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -98,6 +100,9 @@ class PosServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+
+        // Stage 7B: the module's events raised again for a period (a later module's backfill).
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(PosEventReplay::class)($from, $to, $emit));
 
         // NUM-01, NUM-02: receipts and refund receipts, drawn from device ranges.
         $types = $this->app->make(DocumentNumberTypes::class);

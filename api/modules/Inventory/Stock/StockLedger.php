@@ -176,14 +176,8 @@ class StockLedger
 
             $this->reorder->check(array_values($places));
 
-            StockMoved::dispatch($this->tenants->require(), $posting->companyId, $currency, $posting->sourceType, $posting->sourceId, array_map(
-                fn (Movement $m) => [
-                    'id' => $m->id, 'kind' => $m->kind, 'item_id' => $m->item_id, 'location_id' => $m->location_id,
-                    'qty' => Qty::show($m->qty), 'value_minor' => (string) $m->value_minor, 'cost_variance_minor' => (string) $m->cost_variance_minor,
-                    'source_line_id' => $m->source_line_id,
-                ],
-                $movements,
-            ));
+            // INV-16, after commit.
+            event(StockMoved::of($this->tenants->require(), $posting->companyId, $currency, $posting->sourceType, $posting->sourceId, $movements, $posting->occurredAt));
 
             return $movements;
         });
