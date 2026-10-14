@@ -6874,7 +6874,8 @@
     "exceptionStatuses": {
       "open": "Waiting",
       "resolved": "Posted",
-      "all": "All"
+      "all": "All",
+      "superseded": "Replaced"
     },
     "fiscalStatuses": {
       "queued": "Queued",

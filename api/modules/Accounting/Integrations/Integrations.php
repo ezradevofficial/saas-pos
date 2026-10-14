@@ -9,6 +9,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Modules\Accounting\AccountingServiceProvider;
 use Modules\Accounting\Models\AccountingSettings;
+use Modules\Accounting\Models\Journal;
+use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingResult;
 use Modules\Accounting\Posting\PostingService;
@@ -31,7 +33,10 @@ use Modules\POS\Events\SaleVoided;
  * POS sales of a company that posts a daily summary (ACC-26) wait in
  * `acc_source_queue` for their location's summary journal, when they are
  * in the base currency; a sale in another currency posts on its own (its
- * rate is its own).
+ * rate is its own). Review #3: a sale posts one way only: one already
+ * posted on its own (or kept as an open exception) is never queued, and
+ * one queued for a summary is never posted on its own, whatever the mode
+ * says when it comes again (a mode switch, a backfill).
  */
 class Integrations
 {
@@ -73,8 +78,17 @@ class Integrations
         $company = Company::query()->find($source->companyId);
         $mode = AccountingSettings::query()->where('company_id', $source->companyId)->value('sales_posting');
 
-        if ($company === null || $mode !== AccountingSettings::DAILY_SUMMARY || $source->currency !== $company->base_currency) {
-            return $this->posting->post($source);
+        $summarised = $mode === AccountingSettings::DAILY_SUMMARY && $company !== null && $source->currency === $company->base_currency;
+
+        // Review #3: a sale posts one way only, whatever the mode was when it first came (a mode switch, a backfill).
+        if ($summarised && $this->postedOnItsOwn($source)) {
+            return null;
+        }
+
+        if (! $summarised) {
+            return QueuedSource::query()->where('company_id', $source->companyId)->where('source_type', $source->sourceType)->where('source_id', $source->sourceId)->exists()
+                ? null
+                : $this->posting->post($source);
         }
 
         QueuedSource::query()->insertOrIgnore([
@@ -92,6 +106,14 @@ class Integrations
         ]);
 
         return null;
+    }
+
+    /** A sale already posted on its own, or kept as an open exception to post on its own. */
+    private function postedOnItsOwn(SourceDocument $source): bool
+    {
+        return Journal::query()->where('company_id', $source->companyId)->where('source_type', $source->sourceType)->where('source_id', $source->sourceId)->exists()
+            || PostingException::query()->where('company_id', $source->companyId)->where('source_type', $source->sourceType)->where('source_id', $source->sourceId)
+                ->where('status', PostingException::OPEN)->exists();
     }
 
     private function post(?SourceDocument $source): ?PostingResult

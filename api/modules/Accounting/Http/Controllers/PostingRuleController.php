@@ -16,6 +16,7 @@ use Modules\Accounting\Http\Requests\SeedPostingRulesRequest;
 use Modules\Accounting\Http\Requests\StorePostingRuleRequest;
 use Modules\Accounting\Http\Resources\JournalResource;
 use Modules\Accounting\Http\Resources\RecordResource;
+use Modules\Accounting\Integrations\SalesSummaries;
 use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\PostingException;
@@ -98,9 +99,14 @@ class PostingRuleController
         return RecordResource::collection($query->limit(500)->get());
     }
 
-    public function retry(RetryPostingExceptionRequest $request, PostingException $accPostingException, PostingService $posting): JsonResponse
+    public function retry(RetryPostingExceptionRequest $request, PostingException $accPostingException, PostingService $posting, SalesSummaries $summaries): JsonResponse
     {
-        $result = $posting->retry($accPostingException, $request->user());
+        // Review #2: a daily summary is rebuilt from its own sales (refused once superseded); other sources from their payload.
+        $result = match (true) {
+            $accPostingException->source_type === 'pos.sale_summary' => $summaries->retry($accPostingException, $request->user()),
+            $accPostingException->status === PostingException::SUPERSEDED => throw LedgerError::make('summary_superseded'),
+            default => $posting->retry($accPostingException, $request->user()),
+        };
 
         return $result->posted()
             ? response()->json(['data' => ['status' => 'posted', 'journal' => JournalResource::make($result->journal)]])

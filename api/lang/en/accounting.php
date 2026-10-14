@@ -53,6 +53,7 @@ return [
         'posting_conflict' => 'The source was posted at the same moment. Refresh to see its journal.',
         'chart_missing' => 'This company has no chart of accounts yet. Create it from its template first.',
         'posting_account_missing' => 'The posting rule names no account for :field. Choose one in the rule, then retry.',
+        'summary_superseded' => 'This summary was replaced by a later one of the same sales, or some of its sales are in another summary. Nothing to retry.',
         'posting_rule_missing' => 'There is no posting rule for :type. Add one, then retry.',
         'range_invalid' => 'The start date is after the end date. Change the dates.',
         'rate_unavailable' => 'There is no :pair rate for :date. Enter a rate, then try again.',

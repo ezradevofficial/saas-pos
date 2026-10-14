@@ -53,6 +53,7 @@ return [
         'posting_conflict' => 'La source a été comptabilisée au même moment. Actualisez pour voir son écriture.',
         'chart_missing' => 'Cette société n’a pas encore de plan comptable. Créez-le d’abord depuis son plan type.',
         'posting_account_missing' => 'La règle de comptabilisation ne nomme aucun compte pour :field. Choisissez-en un dans la règle, puis réessayez.',
+        'summary_superseded' => 'Ce récapitulatif a été remplacé par un autre des mêmes ventes, ou certaines de ses ventes sont dans un autre récapitulatif. Rien à réessayer.',
         'posting_rule_missing' => 'Il n’y a pas de règle de comptabilisation pour :type. Ajoutez-en une, puis réessayez.',
         'range_invalid' => 'La date de début est après la date de fin. Modifiez les dates.',
         'rate_unavailable' => 'Il n’y a pas de taux :pair pour le :date. Saisissez un taux, puis réessayez.',

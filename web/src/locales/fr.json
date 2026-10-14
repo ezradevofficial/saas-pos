@@ -6874,7 +6874,8 @@
     "exceptionStatuses": {
       "open": "En attente",
       "resolved": "Comptabilisée",
-      "all": "Toutes"
+      "all": "Toutes",
+      "superseded": "Remplacée"
     },
     "fiscalStatuses": {
       "queued": "En file",

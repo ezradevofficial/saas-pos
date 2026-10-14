@@ -327,7 +327,7 @@ function RulesTab({ company }) {
           {retry.isError ? <Alert tone="danger" title={errorMessage(retry.error)} /> : null}
           {retry.isSuccess && retry.data?.data?.status === 'posted' ? <Alert tone="success" title={t('accounting.rules.retried')} /> : null}
           <div className="max-w-xs">
-            <Select label={t('accounting.columns.status')} options={['open', 'resolved', 'all'].map((value) => ({ value, label: t(`accounting.exceptionStatuses.${value}`) }))} value={status} onChange={(event) => setStatus(event.target.value)} />
+            <Select label={t('accounting.columns.status')} options={['open', 'resolved', 'superseded', 'all'].map((value) => ({ value, label: t(`accounting.exceptionStatuses.${value}`) }))} value={status} onChange={(event) => setStatus(event.target.value)} />
           </div>
           <DataTable
             caption={t('accounting.rules.exceptionsTitle')}
@@ -349,7 +349,7 @@ function RulesTab({ company }) {
               { key: 'attempts', label: t('accounting.rules.attempts'), align: 'end', render: (row) => <span className="tabular-nums">{row.attempts}</span> },
               { key: 'status', label: t('accounting.columns.status'), render: (row) => (
                 row.journal_id ? <Link to={`/accounting/journals/${row.journal_id}`} className="text-primary hover:text-primary-hover">{t(`accounting.exceptionStatuses.${row.status}`)}</Link>
-                  : <StatusBadge tone={row.status === 'open' ? 'warning' : 'success'}>{t(`accounting.exceptionStatuses.${row.status}`)}</StatusBadge>
+                  : <StatusBadge tone={{ open: 'warning', resolved: 'success' }[row.status] ?? 'neutral'}>{t(`accounting.exceptionStatuses.${row.status}`)}</StatusBadge>
               ) },
               { key: 'retry', label: '', align: 'end', render: (row) => (manage && row.status === 'open' ? <Button size="sm" loading={retry.isPending && retry.variables === row.id} onClick={() => retry.mutate(row.id)}>{t('accounting.rules.retry')}</Button> : null) },
             ]}

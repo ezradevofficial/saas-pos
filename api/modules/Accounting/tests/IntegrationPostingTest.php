@@ -309,4 +309,94 @@ class IntegrationPostingTest extends TestCase
         $this->assertSame(['443' => [0, 111], '571' => [991, 0], '676' => [9, 0], '701' => [0, 889]], $this->linesOf($journal));
         $this->assertSame('500', $this->inTenant(fn () => (string) $journal->lines()->where('currency', 'USD')->where('account_id', $this->accountId('571'))->sole()->debit_minor));
     }
+
+    /** The daily summaries run two days on (the sales' day has ended), then the clock comes back for the API's tokens. */
+    private function summariesLater(): void
+    {
+        $this->travelTo(CarbonImmutable::now()->addDays(2));
+        $this->artisan('accounting:post-sales-summaries')->assertSuccessful();
+        $this->travelBack();
+    }
+
+    /** Daily summary mode, two sales of today, and the pos.sale rule archived so the summary fails. */
+    private function failedSummary(): array
+    {
+        $this->setUpIntegrations();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'daily_summary'], $this->headersFor())->assertOk();
+        $shift = $this->openShift();
+        $soldAt = now()->subMinutes(5)->toIso8601String();
+        $this->upload([$this->saleBody($shift, 1), $this->saleBody($shift, 2)])->assertOk();
+        $rule = $this->inTenant(fn () => PostingRule::query()->where('event_type', 'pos.sale')->value('id'));
+        $this->postJson("/api/v1/accounting/posting-rules/{$rule}/archive", [], $this->headersFor())->assertOk();
+
+        $this->summariesLater();
+        $failed = $this->inTenant(fn () => PostingException::query()->where('source_type', 'pos.sale_summary')->sole());
+
+        // A late sale of the same day (a till that was offline), then the rule is back.
+        $this->upload([$this->saleBody($shift, 3, ['sold_at' => $soldAt])])->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->postJson("/api/v1/companies/{$this->acme->id}/accounting/posting-rules/defaults", [], $this->headersFor())->assertOk();
+
+        return [$failed->id];
+    }
+
+    /** Review #2: the run that covers a failed summary supersedes it; retrying the old one is refused. */
+    public function test_a_later_summary_supersedes_a_failed_one_and_its_retry_is_refused(): void
+    {
+        [$failed] = $this->failedSummary();
+
+        $this->summariesLater();
+        $this->postJson("/api/v1/accounting/posting-exceptions/{$failed}/retry", [], $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'summary_superseded');
+
+        $this->assertCount(1, $this->journalsOf('pos.sale_summary'));
+        $this->assertSame(-300000, $this->balance('4100'));
+        $this->assertSame('superseded', $this->inTenant(fn () => PostingException::query()->findOrFail($failed)->status));
+        $this->assertSame(0, $this->inTenant(fn () => QueuedSource::query()->whereNull('summarised_at')->count()));
+    }
+
+    /** Review #2: a retry first rebuilds the failed summary from its own sales; the run then posts only the late one. */
+    public function test_a_retried_summary_posts_its_own_sales_and_the_run_only_the_rest(): void
+    {
+        [$failed] = $this->failedSummary();
+
+        $this->postJson("/api/v1/accounting/posting-exceptions/{$failed}/retry", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'posted');
+        $this->summariesLater();
+        $this->summariesLater();
+
+        $this->assertCount(2, $this->journalsOf('pos.sale_summary'));
+        $this->assertSame(-300000, $this->balance('4100'));
+        $this->assertSame(0, $this->inTenant(fn () => QueuedSource::query()->whereNull('summarised_at')->count()));
+    }
+
+    /** Review #3: per sale, then daily summary, then a backfill: the posted sale is not queued again. */
+    public function test_switching_to_daily_summary_never_queues_a_posted_sale(): void
+    {
+        $this->setUpIntegrations();
+        $shift = $this->openShift();
+        $this->upload([$this->saleBody($shift, 1)])->assertOk();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'daily_summary'], $this->headersFor())->assertOk();
+        $this->artisan('accounting:backfill', ['--from' => now()->subDay()->toDateString()])->assertSuccessful();
+        $this->travelTo(CarbonImmutable::now()->addDays(2));
+        $this->artisan('accounting:post-sales-summaries')->assertSuccessful();
+
+        $this->assertSame(0, $this->inTenant(fn () => QueuedSource::query()->count()));
+        $this->assertSame([], $this->journalsOf('pos.sale_summary'));
+        $this->assertSame(-100000, $this->balance('4100'));
+    }
+
+    /** Review #3: daily summary, then per sale, then a backfill: the queued sale is not posted on its own as well. */
+    public function test_switching_to_per_sale_never_posts_a_queued_sale_twice(): void
+    {
+        $this->setUpIntegrations();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'daily_summary'], $this->headersFor())->assertOk();
+        $shift = $this->openShift();
+        $this->upload([$this->saleBody($shift, 1)])->assertOk();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'per_sale'], $this->headersFor())->assertOk();
+        $this->artisan('accounting:backfill', ['--from' => now()->subDay()->toDateString()])->assertSuccessful();
+        $this->travelTo(CarbonImmutable::now()->addDays(2));
+        $this->artisan('accounting:post-sales-summaries')->assertSuccessful();
+
+        $this->assertSame([], $this->journalsOf('pos.sale'));
+        $this->assertCount(1, $this->journalsOf('pos.sale_summary'));
+        $this->assertSame(-100000, $this->balance('4100'));
+    }
 }
