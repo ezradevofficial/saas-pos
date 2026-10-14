@@ -86,7 +86,7 @@ export default function JournalDetail() {
           <Detail label={t('accounting.columns.date')}><span className="tabular-nums">{journal.date}</span></Detail>
           <Detail label={t('accounting.columns.total')}><Amount value={journal.total} /></Detail>
           <Detail label={t('accounting.journalDetail.source')}>
-            {link ? <Link to={link} className="text-primary hover:text-primary-hover">{t(`accounting.sources.${journal.source.type}`, { defaultValue: journal.source.type })}</Link> : journal.source ? journal.source.type : t('accounting.journalDetail.manual')}
+            {link ? <Link to={link} className="text-primary hover:text-primary-hover">{t(`accounting.sources.${journal.source.type.replaceAll('.', '_')}`, { defaultValue: journal.source.type })}</Link> : journal.source ? journal.source.type : t('accounting.journalDetail.manual')}
           </Detail>
           <Detail label={t('accounting.columns.memo')}>{journal.memo ?? '—'}</Detail>
           <Detail label={t('accounting.columns.reference')}>{journal.reference ?? '—'}</Detail>
