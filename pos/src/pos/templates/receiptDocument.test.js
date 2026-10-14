@@ -48,7 +48,7 @@ describe('receiptDocumentHtml', () => {
         'Tax ID P051',
         'Westlands · Till 2',
         'Receipt R-WL2-000001',
-        'Date 2026-10-09 14:32',
+        'Date 9 Oct 2026 14:32', // L10N-03: in the receipt's language, as the server prints it
         'Served by Baraka Mwangi',
         'Customer Amina',
         'Tusker "Lager"',

@@ -55,6 +55,21 @@ class TemplateFixturesTest extends TestCase
         $this->assertStringNotContainsString('VAT 16%', TemplateText::of($plain));
     }
 
+    public function test_l10n_03_dates_print_in_the_documents_language_never_as_iso(): void
+    {
+        $fixture = json_decode((string) file_get_contents(base_path('tests/Fixtures/templates/invoice-a4-en.json')), true);
+        $fixture['data']['document']['period'] = '2026-09-01 – 2026-10-09';
+        $fixture['template']['blocks'] = [
+            ['id' => 'd', 'type' => 'field', 'field' => 'document.date', 'label' => false],
+            ['id' => 'p', 'type' => 'field', 'field' => 'document.period', 'label' => false],
+            ['id' => 'n', 'type' => 'field', 'field' => 'document.number', 'label' => false],
+        ];
+        $render = fn (string $language) => TemplateText::of(app(TemplateRenderer::class)->html($fixture['type'], [...$fixture['template'], 'language' => $language], $fixture['data'], false));
+
+        $this->assertSame("9 Oct 2026\n1 Sep 2026 – 9 Oct 2026\nINV-2026-0001", $render('en'));
+        $this->assertSame("9 oct. 2026\n1 sept. 2026 – 9 oct. 2026\nINV-2026-0001", $render('fr'));
+    }
+
     public function test_the_tills_bundled_wording_matches_the_api(): void
     {
         foreach (['en', 'fr'] as $language) {

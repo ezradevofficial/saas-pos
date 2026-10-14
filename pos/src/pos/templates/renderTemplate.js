@@ -22,6 +22,15 @@ import { code128Svg } from './code128';
  *   data URI drawn by the server (the fiscal QR comes with the fiscal
  *   status as `qr_svg`); without one the QR is left out.
  */
+
+/** L10N-03: month abbreviations for printed dates (the server's TemplateRenderer has the same). */
+const MONTHS = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  fr: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+};
+const DATE_VALUE = /^\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?(?:\s*[–-]\s*\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?)?$/;
+const DATE_PART = /(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/g;
+
 export const MERGE = /\{\{\s*([A-Za-z0-9_.]+)\s*\}\}/g;
 export const WIDTHS = { '58mm': 58, '80mm': 80, A5: 148, A4: 210 };
 const THERMAL = ['58mm', '80mm'];
@@ -173,11 +182,22 @@ export function renderTemplate(type, template, data, { fiscalRequired = false, l
     return `${currency} ${negative ? '-' : ''}${whole}${fraction === '' ? '' : point + fraction}`;
   };
 
+  // L10N-03: a date, a local date and time or a period of them, in the document's language (as the server prints).
+  const dates = (text) => {
+    if (!DATE_VALUE.test(text)) return text;
+    const months = MONTHS[language === 'fr' ? 'fr' : 'en'];
+    return text.replace(DATE_PART, (whole, y, m, d, hh, mm) => {
+      const at = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+      if (at.getUTCFullYear() !== Number(y) || at.getUTCMonth() !== Number(m) - 1 || at.getUTCDate() !== Number(d)) return whole;
+      return `${Number(d)} ${months[Number(m) - 1]} ${y}${hh !== undefined ? ` ${hh}:${mm}` : ''}`;
+    });
+  };
+
   const display = (value, key = '') => {
     if (isMoney(value)) return money(value);
     if (typeof value === 'boolean') return value ? '✓' : '';
     if (typeof value === 'string' || typeof value === 'number') {
-      return key.endsWith('_rate') && String(value) !== '' ? `${value}%` : String(value);
+      return key.endsWith('_rate') && String(value) !== '' ? `${value}%` : dates(String(value));
     }
     return '';
   };
