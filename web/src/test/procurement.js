@@ -42,6 +42,7 @@ export function mockProcurement(api, routes = [], { permissions = ALL } = {}) {
       [/^companies\/c-1\/(departments|cost-centres|projects)/, page([])],
       ['tenant/currencies', { data: [{ code: 'KES', active: true }, { code: 'USD', active: true }] }],
       [/^users\?/, page([named('u-1', 'Amina Otieno'), named('u-2', 'Joseph Mwangi')])],
+      [/^procurement\/branches\/[^/]+\/committee-candidates/, { data: [{ ...named('u-1', 'Amina Otieno'), roles: ['opener', 'evaluator'] }, { ...named('u-2', 'Joseph Mwangi'), roles: ['opener', 'evaluator'] }] }],
     ],
     { permissions, modules: ['core', 'procurement'], companies: [COMPANY] },
   )

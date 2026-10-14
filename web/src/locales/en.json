@@ -6346,7 +6346,8 @@
       "transfer_loss": "Lost in transit",
       "sale": "Sale",
       "sale_return": "Sale return",
-      "sale_void": "Sale voided"
+      "sale_void": "Sale voided",
+      "cost_adjustment": "Landed cost added"
     },
     "flags": {
       "negative_stock": "Stock went below zero",
@@ -6359,7 +6360,9 @@
       "uom_unknown": "Unit not on the item",
       "serials_missing": "Serials missing",
       "serial_exists": "Serial already in stock",
-      "batch_missing": "Batch missing"
+      "batch_missing": "Batch missing",
+      "partly_sold": "Partly sold before the cost was added",
+      "nothing_on_hand": "Nothing left on hand"
     },
     "reasons": {
       "damage": "Damaged",
@@ -7663,7 +7666,8 @@
       "copyNotice": "Copy link",
       "noticeCopied": "Link copied.",
       "noticeCopyFailed": "The link could not be copied. Select it and copy it by hand.",
-      "noCriteria": "No technical criteria."
+      "noCriteria": "No technical criteria.",
+      "awardOrder": "Purchase order"
     },
     "bidders": {
       "title": "Bidders",
@@ -7941,7 +7945,9 @@
       "companyName": "Company name",
       "register": "Send me a link",
       "linkSent": "We sent a link to your email",
-      "linkSentHelp": "Open it from {{email}} to see the tender and submit your bid."
+      "linkSentHelp": "Open it from {{email}} to see the tender and submit your bid.",
+      "removeFile": "Remove",
+      "removeFileOf": "Remove {{name}}"
     }
   }
 }

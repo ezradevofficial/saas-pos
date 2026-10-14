@@ -7,7 +7,6 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, DataTable, MoneyInput, Select, StatusBadge, TextField } from '@/components/ds'
 import { formatDateTime } from '@/lib/dates'
 import { formatBytes } from '@/lib/format'
-import { CURRENCY_DECIMALS } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { TextAreaField } from '@/pages/approvals/TextAreaField'
 import { Detail, Qty } from '@/pages/inventory/InventoryParts'
@@ -16,10 +15,17 @@ import { getPortalSession, portal, setPortalSession } from './portalClient'
 
 const viewKey = ['supplier-portal', 'tender']
 
-/** An instant in the bidder's own time zone (the portal does not know the company's). */
-function At({ value }) {
+/** PRC-07, L10N-03: an instant in the tender's time zone (its branch's, else its company's), named after the time. */
+function At({ value, zone }) {
   const locale = useLocale()
-  return value ? <span className="tabular-nums">{formatDateTime(value, locale)}</span> : <span className="text-ink-muted">—</span>
+  return value ? (
+    <span className="tabular-nums">
+      {formatDateTime(value, locale, zone)}
+      {zone ? <span className="text-caption text-ink-muted"> {zone}</span> : null}
+    </span>
+  ) : (
+    <span className="text-ink-muted">—</span>
+  )
 }
 
 /** The tender as any bidder may know it: number, title, company, branch, times, lines and criteria (PRC-08). */
@@ -35,10 +41,10 @@ function TenderFacts({ tender }) {
       <Card>
         <dl className="grid gap-4 sm:grid-cols-3">
           <Detail label={t('procurement.portal.deadline')}>
-            <At value={tender.deadline_at} />
+            <At value={tender.deadline_at} zone={tender.timezone} />
           </Detail>
           <Detail label={t('procurement.portal.opening')}>
-            <At value={tender.opening_at} />
+            <At value={tender.opening_at} zone={tender.timezone} />
           </Detail>
           <Detail label={t('procurement.portal.weights')}>{t('procurement.tender.weightsValue', { technical: tender.technical_weight, financial: tender.financial_weight })}</Detail>
         </dl>
@@ -109,7 +115,8 @@ function BidForm({ view }) {
   const [prices, setPrices] = useState({})
   const [technical, setTechnical] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const currencies = [...new Set([tender.currency, ...Object.keys(CURRENCY_DECIMALS)].filter(Boolean))].map((code) => ({ value: code, label: code }))
+  // PRC-09: only the tenant's active currencies (each needs a rate when the bid is submitted).
+  const currencies = (view.currencies?.length ? view.currencies : [tender.currency]).filter(Boolean).map((code) => ({ value: code, label: code }))
   const offered = (tender.lines ?? []).filter((line) => prices[line.id] !== undefined && prices[line.id] !== '' && prices[line.id] !== null)
   const upload = useMutation({
     mutationFn: async (files) => {
@@ -119,6 +126,11 @@ function BidForm({ view }) {
         await portal('POST', 'bid/files', { form })
       }
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: viewKey }),
+  })
+  // PRC-09: an upload not yet in a submitted bid can be taken out.
+  const remove = useMutation({
+    mutationFn: (file) => portal('DELETE', `bid/files/${file.id}`),
     onSettled: () => queryClient.invalidateQueries({ queryKey: viewKey }),
   })
   const submit = useMutation({
@@ -194,12 +206,20 @@ function BidForm({ view }) {
               {t('procurement.portal.attachmentsHelp')}
             </p>
             {upload.isError ? <Alert tone="danger" title={errorMessage(upload.error)} /> : null}
+            {remove.isError ? <Alert tone="danger" title={errorMessage(remove.error)} /> : null}
             {view.files?.length ? (
               <ul aria-label={t('procurement.portal.uploaded')} className="flex flex-col gap-1">
                 {view.files.map((file) => (
                   <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
                     <span className="text-ink">{file.name}</span>
-                    <span className="text-caption text-ink-muted">{formatBytes(file.size, locale)}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="text-caption text-ink-muted">{formatBytes(file.size, locale)}</span>
+                      {file.attached ? null : (
+                        <Button variant="ghost" aria-label={t('procurement.portal.removeFileOf', { name: file.name })} loading={remove.isPending && remove.variables?.id === file.id} onClick={() => remove.mutate(file)}>
+                          {t('procurement.portal.removeFile')}
+                        </Button>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -229,7 +249,7 @@ function Receipt({ view, onWithdraw, withdrawing }) {
           </Detail>
           <Detail label={t('procurement.columns.version')}>{bid.version}</Detail>
           <Detail label={t('procurement.columns.submittedAt')}>
-            <At value={bid.status === 'withdrawn' ? bid.withdrawn_at : bid.submitted_at} />
+            <At value={bid.status === 'withdrawn' ? bid.withdrawn_at : bid.submitted_at} zone={view.tender.timezone} />
           </Detail>
           <div className="sm:col-span-3">
             <Detail label={t('procurement.columns.fingerprint')}>

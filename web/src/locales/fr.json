@@ -6346,7 +6346,8 @@
       "transfer_loss": "Perte en transit",
       "sale": "Vente",
       "sale_return": "Retour de vente",
-      "sale_void": "Vente annulée"
+      "sale_void": "Vente annulée",
+      "cost_adjustment": "Frais d’approche ajoutés"
     },
     "flags": {
       "negative_stock": "Stock passé sous zéro",
@@ -6359,7 +6360,9 @@
       "uom_unknown": "Unité absente de l’article",
       "serials_missing": "Numéros de série manquants",
       "serial_exists": "Numéro de série déjà en stock",
-      "batch_missing": "Lot manquant"
+      "batch_missing": "Lot manquant",
+      "partly_sold": "Vendu en partie avant l’ajout du coût",
+      "nothing_on_hand": "Plus rien en stock"
     },
     "reasons": {
       "damage": "Endommagé",
@@ -7663,7 +7666,8 @@
       "copyNotice": "Copier le lien",
       "noticeCopied": "Lien copié.",
       "noticeCopyFailed": "Le lien n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
-      "noCriteria": "Aucun critère technique."
+      "noCriteria": "Aucun critère technique.",
+      "awardOrder": "Bon de commande"
     },
     "bidders": {
       "title": "Soumissionnaires",
@@ -7941,7 +7945,9 @@
       "companyName": "Raison sociale",
       "register": "Recevoir un lien",
       "linkSent": "Nous avons envoyé un lien à votre adresse e-mail",
-      "linkSentHelp": "Ouvrez-le depuis {{email}} pour voir l’appel d’offres et déposer votre offre."
+      "linkSentHelp": "Ouvrez-le depuis {{email}} pour voir l’appel d’offres et déposer votre offre.",
+      "removeFile": "Retirer",
+      "removeFileOf": "Retirer {{name}}"
     }
   }
 }

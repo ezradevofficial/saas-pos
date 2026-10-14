@@ -9,7 +9,7 @@ import { Alert, Button, Card, DecimalInput, MultiSelect, Select, TextField } fro
 import { PageHeader } from '@/layouts/PageHeader'
 import { Back, DetailState, LinesEditor, TextAreaField } from './ProcurementParts'
 import { blankLine, lineBody, lineFieldNames, lineFromRecord, lineFromRequisition, lineReady } from './procurementHelpers'
-import { companyById, companyOfBranch, fromLocalInput, namedOptions, procurementKey, TENDER_KINDS, toLocalInput, useCurrencies, usePlaces, useSourceRequisition, useUsers } from './procurementData'
+import { companyById, companyOfBranch, fromLocalInput, namedOptions, procurementKey, TENDER_KINDS, toLocalInput, useCurrencies, usePlaces, useCommitteeCandidates, useSourceRequisition } from './procurementData'
 
 const FIELDS = ['branch_id', 'requisition_id', 'title', 'description', 'kind', 'currency', 'deadline_at', 'opening_at', 'technical_weight', 'pass_mark', 'lines', 'criteria', 'openers', 'evaluators']
 
@@ -21,10 +21,10 @@ function Form({ tender, requisition }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const places = usePlaces()
-  const users = useUsers()
   const editing = Boolean(tender)
   const [branch, setBranch] = useState(tender?.branch?.id ?? requisition?.branch?.id ?? '')
   const companyId = companyOfBranch(places, branch)
+  const candidates = useCommitteeCandidates(branch)
   const zone = companyById(places, companyId)?.timezone
   const currencies = useCurrencies(companyId)
   const [title, setTitle] = useState(tender?.title ?? requisition?.purpose ?? '')
@@ -85,7 +85,6 @@ function Form({ tender, requisition }) {
     setSubmitted(true)
     if (ready) save.mutate()
   }
-  const userOptions = namedOptions(users)
   const updateCriterion = (key, patch) => setCriteria((current) => current.map((criterion) => (criterion.key === key ? { ...criterion, ...patch } : criterion)))
 
   return (
@@ -190,8 +189,8 @@ function Form({ tender, requisition }) {
       </section>
       <Card title={t('procurement.tender.committee')} subtitle={t('procurement.tender.committeeHelp')}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <MultiSelect label={t('procurement.fields.openers')} placeholder={t('procurement.pickers.users')} options={userOptions} value={openers} error={errors.fields.openers} onChange={setOpeners} />
-          <MultiSelect label={t('procurement.fields.evaluators')} placeholder={t('procurement.pickers.users')} options={userOptions} value={evaluators} error={errors.fields.evaluators} onChange={setEvaluators} />
+          <MultiSelect label={t('procurement.fields.openers')} placeholder={t('procurement.pickers.users')} options={namedOptions(candidates.openers)} value={openers} error={errors.fields.openers} onChange={setOpeners} />
+          <MultiSelect label={t('procurement.fields.evaluators')} placeholder={t('procurement.pickers.users')} options={namedOptions(candidates.evaluators)} value={evaluators} error={errors.fields.evaluators} onChange={setEvaluators} />
         </div>
       </Card>
       <div className="flex flex-wrap gap-2">

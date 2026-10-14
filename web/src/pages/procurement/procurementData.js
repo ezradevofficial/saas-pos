@@ -168,9 +168,20 @@ export function useDimension(companyId, path) {
 }
 
 /** The tenant users (tender committees); empty for a reader who may not list users. */
-export function useUsers(enabled = true) {
-  const query = useQuery({ queryKey: ['users', 'procurement-committee'], queryFn: () => api.get('users?status=active&per_page=200'), enabled, staleTime: 60_000, retry: false })
-  return query.data?.data ?? []
+/** PRC-06: who may sit on a tender's committee at a branch (openers hold `procurement.tender.open`, evaluators `.evaluate`). */
+export function useCommitteeCandidates(branchId) {
+  const query = useQuery({
+    queryKey: [...procurementKey, 'committee-candidates', branchId],
+    queryFn: () => api.get(`procurement/branches/${branchId}/committee-candidates`),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+    retry: false,
+  })
+  const users = query.data?.data ?? []
+  return {
+    openers: users.filter((user) => user.roles?.includes('opener')),
+    evaluators: users.filter((user) => user.roles?.includes('evaluator')),
+  }
 }
 
 /** PRC-16: the currencies a document may be in (the tenant's active ones) and the company's base as the default. */

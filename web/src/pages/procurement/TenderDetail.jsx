@@ -1,20 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
-import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, DataTable, DecimalInput, Dialog, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatBytes } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { Amount, Back, CancelDialog, Detail, DetailState, EmailDialog, LineName, Qty, Status, TextAreaField, When } from './ProcurementParts'
 import { useDocumentAction, useDownload } from './procurementHelpers'
-import { basisPoints, namedOptions, procurementKey, TENDER_AWARD, useSuppliers } from './procurementData'
+import { basisPoints, namedOptions, procurementKey, useSuppliers } from './procurementData'
 
 /** PRC-08: invite a bidder: a supplier party (its email unless one is typed) or an outsider by name, email and tax ID. */
 function InviteDialog({ tender, open, onClose, onDone }) {
@@ -114,12 +113,17 @@ function Bidders({ tender, actionKey }) {
           <StatusBadge tone="neutral">{t('procurement.bidders.removed')}</StatusBadge>
         ) : tender.can?.invite ? (
           <span className="flex justify-end gap-2">
-            <Button variant="ghost" aria-label={t('procurement.bidders.resendOf', { name: bidder.name })} onClick={() => action.mutate({ path: `procurement/tender-bidders/${bidder.id}/resend`, done: 'procurement.bidders.resent' })}>
-              {t('procurement.bidders.resend')}
-            </Button>
-            <Button variant="ghost" aria-label={t('procurement.bidders.removeOf', { name: bidder.name })} onClick={() => action.mutate({ path: `procurement/tender-bidders/${bidder.id}/remove`, done: 'procurement.bidders.removedToast' })}>
-              {t('procurement.bidders.remove')}
-            </Button>
+            {/* PRC-07: a link is resent only while the tender is published and open for bids. */}
+            {bidder.can?.resend ? (
+              <Button variant="ghost" aria-label={t('procurement.bidders.resendOf', { name: bidder.name })} onClick={() => action.mutate({ path: `procurement/tender-bidders/${bidder.id}/resend`, done: 'procurement.bidders.resent' })}>
+                {t('procurement.bidders.resend')}
+              </Button>
+            ) : null}
+            {bidder.can?.remove ? (
+              <Button variant="ghost" aria-label={t('procurement.bidders.removeOf', { name: bidder.name })} onClick={() => action.mutate({ path: `procurement/tender-bidders/${bidder.id}/remove`, done: 'procurement.bidders.removedToast' })}>
+                {t('procurement.bidders.remove')}
+              </Button>
+            ) : null}
           </span>
         ) : null,
     },
@@ -367,13 +371,10 @@ function Ranking({ tender, actionKey }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
-  const { can } = usePermissions()
   const download = useDownload()
   const [awarding, setAwarding] = useState(null)
   const [emailing, setEmailing] = useState(null)
   const bids = (tender.bids ?? []).filter((bid) => !bid.sealed && bid.status !== 'withdrawn').sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))
-  const awarded = tender.status === 'awarded'
-  const letters = awarded && can(TENDER_AWARD)
   const columns = [
     { key: 'rank', label: t('procurement.columns.rank'), numeric: true, render: (bid) => bid.rank ?? '—' },
     { key: 'bidder', label: t('procurement.columns.bidder'), render: (bid) => bid.bidder?.name },
@@ -393,15 +394,15 @@ function Ranking({ tender, actionKey }) {
               {t('procurement.award.action')}
             </Button>
           ) : null}
-          {letters && bid.outcome && bid.outcome !== 'disqualified' ? (
-            <>
-              <Button variant="ghost" icon="print" aria-label={t('procurement.letters.downloadOf', { name: bid.bidder?.name })} onClick={() => download.mutate({ path: `procurement/bids/${bid.id}/letter`, name: `${tender.number}-${bid.bidder?.name}.pdf` })}>
-                {t('procurement.letters.download')}
-              </Button>
-              <Button variant="ghost" icon="mail" aria-label={t('procurement.letters.emailOf', { name: bid.bidder?.name })} onClick={() => setEmailing(bid)}>
-                {t('procurement.letters.email')}
-              </Button>
-            </>
+          {tender.can?.letter && bid.outcome && bid.outcome !== 'disqualified' ? (
+            <Button variant="ghost" icon="print" aria-label={t('procurement.letters.downloadOf', { name: bid.bidder?.name })} onClick={() => download.mutate({ path: `procurement/bids/${bid.id}/letter`, name: `${tender.number}-${bid.bidder?.name}.pdf` })}>
+              {t('procurement.letters.download')}
+            </Button>
+          ) : null}
+          {tender.can?.email_letter && bid.outcome && bid.outcome !== 'disqualified' ? (
+            <Button variant="ghost" icon="mail" aria-label={t('procurement.letters.emailOf', { name: bid.bidder?.name })} onClick={() => setEmailing(bid)}>
+              {t('procurement.letters.email')}
+            </Button>
           ) : null}
         </span>
       ),
@@ -518,6 +519,13 @@ export default function TenderDetail() {
               </span>
             </Detail>
             {tender.description ? <Detail label={t('procurement.fields.description')}>{tender.description}</Detail> : null}
+            {tender.order ? (
+              <Detail label={t('procurement.tender.awardOrder')}>
+                <Link to={`/procurement/orders/${tender.order.id}`} className="text-primary hover:text-primary-hover">
+                  {tender.order.number ?? t('procurement.draftNumber')}
+                </Link>
+              </Detail>
+            ) : null}
             {tender.cancelled_at ? (
               <Detail label={t('procurement.fields.cancelled')}>
                 <span className="flex flex-col">

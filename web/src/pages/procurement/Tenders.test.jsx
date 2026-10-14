@@ -208,6 +208,34 @@ describe('Tenders (PRC-06 to PRC-12)', () => {
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('procurement/bids/b-1/scores', { scores: [{ criterion_id: 'cr-1', score: '8', comment: 'Strong references' }] }))
   })
 
+  it('offers a bidder’s link again only when the API allows it, and links the award’s purchase order and letters', async () => {
+    const draft = { ...BASE, status: 'draft', bids: [], order: null, bidders: [{ ...BASE.bidders[0], can: { resend: false, remove: true } }], can: { edit: true, publish: true, invite: true, cancel: true } }
+    mockProcurement(api, [['procurement/tenders/t-1', { data: draft }]])
+    const { unmount } = renderApp('/procurement/tenders/t-1')
+    const bidders = await screen.findByRole('table', { name: 'Bidders' })
+    expect(within(bidders).queryByRole('button', { name: 'Resend link to Oven Masters Ltd' })).not.toBeInTheDocument()
+    expect(within(bidders).getByRole('button', { name: 'Remove Oven Masters Ltd' })).toBeInTheDocument()
+    unmount()
+
+    const awarded = { ...OPENED, status: 'awarded', bids: OPENED.bids.map((bid, index) => ({ ...bid, outcome: index === 0 ? 'awarded' : 'regretted' })), order: { id: 'po-9', number: null, status: 'draft' },
+      can: { ...OPENED.can, award: false, letter: true, email_letter: false } }
+    mockProcurement(api, [['procurement/tenders/t-1', { data: awarded }]])
+    renderApp('/procurement/tenders/t-1')
+    expect(await screen.findByRole('link', { name: 'Draft' })).toHaveAttribute('href', '/procurement/orders/po-9')
+    const ranking = screen.getByRole('table', { name: 'Ranking' })
+    expect(within(ranking).getAllByRole('button', { name: /^Download the letter/ })).toHaveLength(2)
+    expect(within(ranking).queryByRole('button', { name: /^Email the letter/ })).not.toBeInTheDocument()
+  })
+
+  it('picks the committee from the branch’s eligible people', async () => {
+    mockProcurement(api)
+    renderApp('/procurement/tenders/new')
+    await waitForOption(await screen.findByLabelText(/^Branch/), BRANCH.name)
+    chooseOption(screen.getByLabelText(/^Branch/), BRANCH.name)
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('procurement/branches/br-1/committee-candidates'))
+    expect(api.get.mock.calls.some(([path]) => path.startsWith('users?'))).toBe(false)
+  })
+
   it('downloads an opened bid’s attachment with the user’s token', async () => {
     mockProcurement(api, [['procurement/tenders/t-1', { data: OPENED }]])
     api.download.mockResolvedValue({ blob: new Blob(['%PDF']), filename: 'brochure.pdf' })

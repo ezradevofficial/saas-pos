@@ -117,6 +117,27 @@ describe('Supplier portal (PRC-07 to PRC-09)', () => {
     expect(screen.getByRole('button', { name: 'Replace bid' })).toBeInTheDocument()
   })
 
+  it('shows times in the tender’s time zone, offers only active currencies and removes an upload', async () => {
+    state = view({ tender: { ...TENDER, timezone: 'Africa/Nairobi' }, currencies: ['KES', 'USD'], files: [{ id: 'f-1', name: 'old.pdf', mime: 'application/pdf', size: 10, attached: false }, { id: 'f-2', name: 'kept.pdf', mime: 'application/pdf', size: 10, attached: true }] })
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url.endsWith('bid/files/f-1') && init.method === 'DELETE') {
+        state = { ...state, files: state.files.filter((file) => file.id !== 'f-1') }
+        return json(200, { data: state })
+      }
+      return base(url, init)
+    })
+    window.sessionStorage.setItem(PORTAL_SESSION_KEY, SESSION)
+    renderApp('/supplier-portal/tender')
+    // 09:00 UTC is 12:00 in Nairobi.
+    expect((await screen.findAllByText(/12:00/))[0]).toBeInTheDocument()
+    expect(screen.getAllByText('Africa/Nairobi').length).toBeGreaterThan(0)
+    const files = screen.getByRole('list', { name: 'Uploaded files' })
+    expect(within(files).queryByRole('button', { name: 'Remove kept.pdf' })).not.toBeInTheDocument()
+    fireEvent.click(within(files).getByRole('button', { name: 'Remove old.pdf' }))
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Uploaded files' })).queryByText('old.pdf')).not.toBeInTheDocument())
+  })
+
   it('signs out and forgets the session', async () => {
     window.sessionStorage.setItem(PORTAL_SESSION_KEY, SESSION)
     renderApp('/supplier-portal/tender')

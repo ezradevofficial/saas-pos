@@ -229,6 +229,9 @@ export default function RfqDetail() {
   if (!rfq) return <DetailState query={query} back={back} notFound={t('procurement.rfq.notFound')} />
 
   const company = rfq.company?.id
+  // PRC-05: the draft POs the award made, kept on the RFQ (named after their quote's supplier).
+  const supplierNames = Object.fromEntries((rfq.quotes ?? []).map((quote) => [quote.party?.id, quote.party?.name]))
+  const madeOrders = orders.length ? orders : (rfq.orders ?? []).map((order) => ({ ...order, party: order.party ?? { name: supplierNames[order.party_id] } }))
   const lineColumns = [
     { key: 'line_no', label: t('procurement.columns.lineNo'), numeric: true, render: (line) => line.line_no },
     { key: 'item', label: t('procurement.columns.item'), wrap: true, render: (line) => <LineName line={line} /> },
@@ -273,10 +276,10 @@ export default function RfqDetail() {
         }
       />
       <div className="flex flex-col gap-5">
-        {orders.length ? (
-          <Alert tone="success" title={t('procurement.comparison.awarded', { count: orders.length })}>
+        {madeOrders.length ? (
+          <Alert tone="success" title={t('procurement.comparison.awarded', { count: madeOrders.length })}>
             <ul className="flex flex-col gap-1">
-              {orders.map((order) => (
+              {madeOrders.map((order) => (
                 <li key={order.id}>
                   <Link to={`/procurement/orders/${order.id}`} className="text-label text-primary hover:text-primary-hover">
                     {t('procurement.comparison.orderLink', { supplier: order.party?.name ?? '', number: order.number ?? t('procurement.draftNumber') })}
