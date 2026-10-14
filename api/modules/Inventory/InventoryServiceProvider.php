@@ -126,7 +126,7 @@ class InventoryServiceProvider extends ServiceProvider
             key: NotifyLowStock::EVENT,
             placeholders: [
                 'item_name' => 'Soda 500 ml', 'item_code' => 'SODA-500', 'location_name' => 'Main store',
-                'quantity' => '4', 'reorder_level' => '10', 'reorder_quantity' => '48',
+                'quantity' => '4', 'unit' => 'PCS', 'reorder_level' => '10', 'reorder_quantity' => '48',
             ],
             defaultChannels: [Channels::IN_APP, Channels::EMAIL],
             mandatoryAllowed: true,

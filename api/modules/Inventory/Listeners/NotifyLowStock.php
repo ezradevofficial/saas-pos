@@ -47,13 +47,15 @@ class NotifyLowStock
                 return;
             }
 
-            $item = Item::query()->find($event->itemId);
+            $item = Item::query()->with('baseUom')->find($event->itemId);
 
             app(Notifier::class)->send(new NotificationEvent(self::EVENT, $users, [
                 'item_name' => (string) $item?->name,
                 'item_code' => (string) $item?->code,
                 'location_name' => (string) Location::query()->whereKey($event->locationId)->value('name'),
                 'quantity' => $event->qty,
+                // INV-11: quantities are in the item's base unit, named in the message.
+                'unit' => (string) $item?->baseUom?->code,
                 'reorder_level' => $event->reorderLevel,
                 'reorder_quantity' => $event->reorderQty,
             ], '/inventory/items/'.rawurlencode($event->itemId)));

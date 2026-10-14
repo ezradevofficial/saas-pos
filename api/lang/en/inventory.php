@@ -185,8 +185,8 @@ return [
         'stock_low' => [
             'label' => 'Stock below reorder level',
             'subject' => '{item_name} is low at {location_name}',
-            'body' => "Hello {recipient_name},\n\n{item_name} ({item_code}) is down to {quantity} at {location_name}. Its reorder level is {reorder_level}; the usual order is {reorder_quantity}.",
-            'sms' => '{app_name}: {item_name} is low at {location_name} ({quantity} left).',
+            'body' => "Hello {recipient_name},\n\n{item_name} ({item_code}) is down to {quantity} {unit} at {location_name}. Its reorder level is {reorder_level} {unit}; the usual order is {reorder_quantity} {unit}.",
+            'sms' => '{app_name}: {item_name} is low at {location_name} ({quantity} {unit} left).',
         ],
     ],
     'dashboards' => [

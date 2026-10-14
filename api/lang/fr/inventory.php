@@ -185,8 +185,8 @@ return [
         'stock_low' => [
             'label' => 'Stock sous le seuil de réapprovisionnement',
             'subject' => '{item_name} est bas à {location_name}',
-            'body' => "Bonjour {recipient_name},\n\nIl ne reste que {quantity} de {item_name} ({item_code}) à {location_name}. Son seuil de réapprovisionnement est {reorder_level} ; la commande habituelle est de {reorder_quantity}.",
-            'sms' => '{app_name} : {item_name} est bas à {location_name} ({quantity} restants).',
+            'body' => "Bonjour {recipient_name},\n\nIl ne reste que {quantity} {unit} de {item_name} ({item_code}) à {location_name}. Son seuil de réapprovisionnement est {reorder_level} {unit} ; la commande habituelle est de {reorder_quantity} {unit}.",
+            'sms' => '{app_name} : {item_name} est bas à {location_name} ({quantity} {unit} restants).',
         ],
     ],
     'dashboards' => [

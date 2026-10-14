@@ -145,6 +145,11 @@ class StockApiTest extends TestCase
         $this->assertContains($keeper->id, $notified);
         $this->assertContains($this->owner->id, $notified);
         $this->assertNotContains($keeperB->id, $notified);
+        // INV-11: the message names the unit of the quantities.
+        $unit = $this->inTenant(fn () => $this->soap->baseUom()->value('code'));
+        $body = $this->inTenant(fn () => InAppNotification::query()->where('event_type', 'inventory.stock.low')->where('user_id', $this->owner->id)->value('body'));
+        $this->assertStringContainsString("down to 5 {$unit} at", $body);
+        $this->assertStringContainsString("reorder level is 10 {$unit}", $body);
     }
 
     public function test_valuation_report_and_dashboards(): void
