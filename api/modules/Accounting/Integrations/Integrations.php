@@ -24,9 +24,10 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
- * ACC-25 to ACC-28, ACC-31 (stage 7B): what other modules' events post, in the
- * current tenant. Nothing happens unless Accounting and the raising
- * module are both active (RBAC-08). Every source goes through
+ * ACC-25 to ACC-32 (stage 7B): what other modules' events post, in the
+ * current tenant. Nothing happens unless Accounting is active (RBAC-08);
+ * the raising module was active when the event happened (PostModuleEvent
+ * queues only then), whatever it is now. Every source goes through
  * PostingService and the company's posting rules, idempotently by
  * source; one that cannot post (no rule, no account, a closed period,
  * Essentials with a foreign currency) is kept as a posting exception,
@@ -59,15 +60,17 @@ class Integrations
             return null;
         }
 
+        // Stage 7B closing review: the raising module was on when the event happened (PostModuleEvent queues
+        // only then, the backfill replays what modules recorded); it may be off by now (decision, owner may change).
         return match (true) {
-            $event instanceof SaleCompleted => $this->active('pos') && $event->sale !== [] ? $this->sale($event->sale) : null,
-            $event instanceof SaleVoided => $this->active('pos') && $event->sale !== [] ? $this->posting->post($this->pos->void($event->sale, $event->voidId, $event->voidedAt)) : null,
-            $event instanceof SaleRefunded => $this->active('pos') && $event->refund !== [] ? $this->posting->post($this->pos->refund($event->refund)) : null,
-            $event instanceof StockMoved => $this->active('inventory') ? $this->post($this->inventory->stockMoved($event)) : null,
-            $event instanceof LoyaltyLedgerEvent => $this->active('loyalty') ? $this->post($this->loyalty->entry($event)) : null,
-            $event instanceof StoreConsumptionValued => $this->active('stores') ? $this->post($this->stores->consumption($event)) : null,
+            $event instanceof SaleCompleted => $event->sale !== [] ? $this->sale($event->sale) : null,
+            $event instanceof SaleVoided => $event->sale !== [] ? $this->posting->post($this->pos->void($event->sale, $event->voidId, $event->voidedAt)) : null,
+            $event instanceof SaleRefunded => $event->refund !== [] ? $this->posting->post($this->pos->refund($event->refund)) : null,
+            $event instanceof StockMoved => $this->post($this->inventory->stockMoved($event)),
+            $event instanceof LoyaltyLedgerEvent => $this->post($this->loyalty->entry($event)),
+            $event instanceof StoreConsumptionValued => $this->post($this->stores->consumption($event)),
             // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
-            $event instanceof SupplierInvoiceApproved => $this->active('procurement') ? $this->supplierInvoices->approved($event) : null,
+            $event instanceof SupplierInvoiceApproved => $this->supplierInvoices->approved($event),
             default => null,
         };
     }
@@ -126,10 +129,5 @@ class Integrations
     private function post(?SourceDocument $source): ?PostingResult
     {
         return $source === null || $source->isEmpty() ? null : $this->posting->post($source);
-    }
-
-    private function active(string $module): bool
-    {
-        return $this->modules->isActive($module);
     }
 }

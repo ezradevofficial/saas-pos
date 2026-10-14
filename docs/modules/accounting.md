@@ -147,10 +147,17 @@ sales), so receipt and invoice meet in GRNI and nothing posts twice.
 ### Stage 7B: the integrations (ACC-24 to ACC-32)
 
 Accounting listens to other modules' events with one queued listener
-(`PostModuleEvent`, after commit, in the event's tenant, retried), and
-acts only while Accounting **and** the raising module are active
-(RBAC-08); with Accounting off nothing is posted, nothing is kept and no
-job is queued.
+(`PostModuleEvent`, after commit, in the event's tenant, retried). A job
+is queued only while Accounting **and** the raising module are active
+(RBAC-08), and never for a stock posting that posts nothing (Stores' own
+`stores.*` moves, transfers within the company, no movements); with
+Accounting off nothing is posted, nothing is kept and no job is queued.
+Once queued, the job posts on Accounting alone: the event proves the
+raising module was on when it happened, so a module switched off in
+between still has its event posted (stage 7B closing review; decision,
+owner may change). Module flags are memoised per request and tenant
+(`ModuleRegistry`, flushed when a tenant's modules change and before each
+queued job), so deciding what to queue costs no query per sale.
 Every source goes through `PostingService` and the company's rules,
 idempotent per (company, source type, source id); a source that cannot
 post is a posting exception, listed and retried, never lost. Journals are

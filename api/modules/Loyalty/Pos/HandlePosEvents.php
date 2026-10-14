@@ -37,6 +37,12 @@ class HandlePosEvents implements ShouldQueue
         private readonly PosSales $sales,
     ) {}
 
+    /** Stage 7B performance review: no job for a tenant without Loyalty and POS (checked in the event's tenant). */
+    public function shouldQueue(SaleCompleted|SaleVoided|SaleRefunded $event): bool
+    {
+        return $this->tenants->id() === $event->tenantId ? $this->active() : $this->tenants->run($event->tenantId, fn () => $this->active());
+    }
+
     public function viaQueue(): string
     {
         return 'default';

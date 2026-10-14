@@ -43,7 +43,8 @@ use Modules\POS\Events\SaleVoided;
  * the refund's own event (handled before or after) never moves stock twice.
  * The ledger posts each source once, so redelivered events move nothing.
  *
- * The listener itself only queues MoveSaleStock with the event's ids: the
+ * The listener itself only queues MoveSaleStock with the event's ids, and
+ * only while Inventory is active (the job checks again): the
  * sale snapshot the event carries (for Loyalty) is never serialised into
  * Inventory's job, and nothing here can fail the till's upload.
  */
@@ -63,6 +64,14 @@ class MoveStockForSale
 
     public function handle(SaleCompleted|SaleVoided|SaleRefunded $event): void
     {
+        // Stage 7B performance review: no job for a tenant without Inventory (the upload runs in the event's tenant).
+        $tenants = app(TenantContext::class);
+        $active = fn () => $this->modules->isActive(InventoryServiceProvider::MODULE);
+
+        if (! ($tenants->id() === $event->tenantId ? $active() : $tenants->run($event->tenantId, $active))) {
+            return;
+        }
+
         match (true) {
             $event instanceof SaleCompleted => MoveSaleStock::dispatch($event->tenantId, self::SALE, $event->saleId),
             $event instanceof SaleVoided => MoveSaleStock::dispatch($event->tenantId, self::VOID, $event->voidId),

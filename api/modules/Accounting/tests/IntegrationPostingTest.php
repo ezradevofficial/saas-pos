@@ -424,6 +424,36 @@ class IntegrationPostingTest extends TestCase
     }
 
     /**
+     * Stage 7B closing review: a queued job posts on Accounting alone (the event proves the raising
+     * module was on when it happened): Stores switched off after an issue was valued still posts it.
+     * Stock postings that post nothing are never queued (Stores' own moves, transfers, no movements).
+     */
+    public function test_a_queued_event_posts_after_its_module_is_switched_off_and_dead_jobs_are_not_queued(): void
+    {
+        $this->setUpIntegrations();
+        $department = $this->inTenant(fn () => Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen']));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('stores'));
+        $issue = new StoreConsumptionValued($this->owner->tenant_id, 'issue', $this->id(), 'SI-9', $this->acme->id, $this->branchA->id, $this->locationA->id, $department->id, null,
+            now()->toIso8601String(), 'KES', '30000', [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => '30000', 'cost_variance_minor' => '0']]);
+        $this->assertTrue($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)));
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('stores'));
+        app(PostModuleEvent::class)->handle($issue);
+
+        $this->assertSame(['1300' => [0, 30000], '6920' => [30000, 0]], $this->linesOf($this->journalsOf('stores.consumption')[0]));
+
+        $moved = fn (string $source, array $movements) => new StockMoved($this->owner->tenant_id, $this->acme->id, 'KES', $source, $this->id(), $movements, now()->toIso8601String(), $this->branchA->id);
+        $movement = fn (string $kind, string $qty, string $value) => ['id' => $this->id(), 'kind' => $kind, 'item_id' => $this->soap->id, 'location_id' => $this->locationA->id,
+            'branch_id' => $this->branchA->id, 'source_line_id' => null, 'qty' => $qty, 'value_minor' => $value, 'cost_variance_minor' => '0'];
+        $queues = fn (StockMoved $event) => $this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($event));
+
+        $this->assertFalse($queues($moved('stores.issue', [$movement('adjustment_out', '-1', '-30000')])));
+        $this->assertFalse($queues($moved('inventory.transfer', [$movement('transfer_out', '-1', '-30000'), $movement('transfer_in', '1', '30000')])));
+        $this->assertFalse($queues($moved('inventory.adjustment', [])));
+        $this->assertTrue($queues($moved('inventory.adjustment', [$movement('adjustment_out', '-1', '-30000')])));
+    }
+
+    /**
      * Review #6: a gift card line refunded takes the card's load back (raised as a negative
      * GiftCardSold), so revenue and the card liability end at zero; a card already spent is flagged.
      */
@@ -511,9 +541,10 @@ class IntegrationPostingTest extends TestCase
             now()->toIso8601String(), 'KES', $value, [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => $value, 'cost_variance_minor' => $variance]],
         );
         $issue = $valued('issue', $this->id(), '30000', '0');
-        $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($issue)), 'Stores off: nothing posts');
+        $this->assertFalse($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)), 'Stores off: nothing is queued');
 
         $this->inTenant(fn () => app(ModuleRegistry::class)->activate('stores'));
+        $this->assertTrue($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)));
         $this->inTenant(fn () => app(Integrations::class)->handle($issue));
         $this->inTenant(fn () => app(Integrations::class)->handle($issue));
         // A return of KES 120.00 that covered a shortfall: KES 20.00 of it corrects cost of sales.
