@@ -83,6 +83,9 @@ describe('Landed costs (PRC-17)', () => {
     const table = await screen.findByRole('table', { name: 'Allocation' })
     const flour = within(table).getByText('Maize flour 2 kg').closest('tr')
     expect(within(flour).getByText('86,666.67')).toBeInTheDocument()
+    // By value, the basis is the goods' base value as money, not a count of minor units.
+    expect(within(flour).getByText('6,960.00')).toBeInTheDocument()
+    expect(within(flour).queryByText('696,000')).not.toBeInTheDocument()
     expect(within(within(table).getByText('Sugar 1 kg').closest('tr')).getByText('43,333.33')).toBeInTheDocument()
     expect(screen.getByText('What posting will allocate to each received line, in base currency.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Post landed cost' }))

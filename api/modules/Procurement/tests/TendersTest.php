@@ -174,6 +174,22 @@ class TendersTest extends TestCase
         $this->inTenant(fn () => $this->assertTrue(AuditEntry::query()->where('action', 'procurement.tender.opened')->exists()));
     }
 
+    public function test_a_bid_in_another_currency_shows_its_base_total_in_the_base_currency(): void
+    {
+        // CUR-04, PRC-11: a USD bid is converted to KES; the base total is labelled KES, not USD.
+        $tender = $this->publishedTender();
+        [$upesi] = $this->bidders($tender);
+        $this->bid($upesi, $tender, ['100', '1000'], 'USD');
+
+        $this->clockTo('2026-10-20T14:00:00Z');
+        $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertOk();
+        $opened = $this->api('POST', "procurement/tenders/{$tender['id']}/open", [], $this->manager)->assertOk()->json('data');
+
+        // 10 × USD 1.00 + 1 × USD 10.00 = USD 20.00 = KES 2,600.00 at 130.
+        $this->assertSame(['amount_minor' => '2000', 'currency' => 'USD'], $opened['bids'][0]['total']);
+        $this->assertSame(['amount_minor' => '260000', 'currency' => 'KES'], $opened['bids'][0]['base_total']);
+    }
+
     public function test_a_tampered_bid_is_not_opened(): void
     {
         $tender = $this->publishedTender();
