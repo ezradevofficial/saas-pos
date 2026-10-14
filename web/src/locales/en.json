@@ -6873,7 +6873,8 @@
     },
     "exceptionStatuses": {
       "open": "Waiting",
-      "resolved": "Posted"
+      "resolved": "Posted",
+      "all": "All"
     },
     "fiscalStatuses": {
       "queued": "Queued",
@@ -6894,7 +6895,29 @@
       "accounting_revaluation": "Revaluation",
       "accounting_closing": "Year-end close",
       "accounting_opening": "Opening balance",
-      "pos_sale": "Sale"
+      "pos_sale": "POS sale",
+      "pos_refund": "POS refund",
+      "pos_void": "POS void",
+      "pos_sale_summary": "POS daily summary",
+      "inventory_cost_of_sales": "Cost of sales",
+      "inventory_receipt": "Goods received",
+      "inventory_opening": "Opening stock",
+      "inventory_adjustment": "Stock adjustment",
+      "inventory_count": "Stock count",
+      "inventory_transfer_loss": "Transfer loss",
+      "inventory_other": "Other stock movement",
+      "loyalty_gift_card_sold": "Gift card sold",
+      "loyalty_gift_card_redeemed": "Gift card spent",
+      "loyalty_gift_card_expired": "Gift card expired",
+      "loyalty_points_earned": "Points earned",
+      "loyalty_points_redeemed": "Points spent",
+      "loyalty_points_expired": "Points expired",
+      "loyalty_points_adjusted": "Points adjusted",
+      "loyalty_credit_charged": "Sale on account",
+      "loyalty_credit_payment_received": "Payment on account",
+      "loyalty_credit_adjusted": "Credit adjusted",
+      "procurement_supplier_invoice": "Supplier invoice",
+      "payroll_run": "Payroll"
     },
     "columns": {
       "account": "Account",
@@ -7119,7 +7142,14 @@
       "title": "Accounts by role",
       "description": "Where invoices, payments, tax, exchange differences and the year-end close post.",
       "save": "Save settings",
-      "saved": "Settings saved."
+      "saved": "Settings saved.",
+      "salesTitle": "Point of sale",
+      "salesDescription": "How till sales reach the ledger.",
+      "salesPosting": "Sales journals",
+      "salesPostings": {
+        "per_sale": "One journal per sale",
+        "daily_summary": "One summary per location and day"
+      }
     },
     "rules": {
       "tab": "Posting rules",
@@ -7138,7 +7168,20 @@
       "source": "Source",
       "reason": "Reason",
       "attempts": "Attempts",
-      "retry": "Retry"
+      "retry": "Retry",
+      "editTitle": "Posting rule for {{source}}",
+      "edit": "Edit",
+      "fieldHelp": "An amount field ending in .* (tender.*, revenue.*, tax.*) posts every payment method, category or tax code; its own accounts stay as mapped, the default takes the rest.",
+      "mapped": "({{count}} mapped)",
+      "defaultAccount": "Default account ({{count}} mapped)",
+      "noDefault": "No default account",
+      "own": "Own rule",
+      "fallback": "Uses the {{source}} rule",
+      "fallbackReversed": "Uses the {{source}} rule, reversed",
+      "none": "No rule",
+      "defaults": "Add default rules",
+      "defaultsAdded": "Default rules added: {{rules}}. Accounts added: {{accounts}}.",
+      "retried": "Posted."
     },
     "budgets": {
       "title": "Budgets",

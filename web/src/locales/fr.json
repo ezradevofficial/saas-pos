@@ -6873,7 +6873,8 @@
     },
     "exceptionStatuses": {
       "open": "En attente",
-      "resolved": "Comptabilisée"
+      "resolved": "Comptabilisée",
+      "all": "Toutes"
     },
     "fiscalStatuses": {
       "queued": "En file",
@@ -6894,7 +6895,29 @@
       "accounting_revaluation": "Réévaluation",
       "accounting_closing": "Clôture de l’exercice",
       "accounting_opening": "Solde d’ouverture",
-      "pos_sale": "Vente"
+      "pos_sale": "Vente au point de vente",
+      "pos_refund": "Remboursement au point de vente",
+      "pos_void": "Annulation au point de vente",
+      "pos_sale_summary": "Récapitulatif journalier du point de vente",
+      "inventory_cost_of_sales": "Coût des ventes",
+      "inventory_receipt": "Marchandises reçues",
+      "inventory_opening": "Stock d’ouverture",
+      "inventory_adjustment": "Ajustement de stock",
+      "inventory_count": "Inventaire",
+      "inventory_transfer_loss": "Perte de transfert",
+      "inventory_other": "Autre mouvement de stock",
+      "loyalty_gift_card_sold": "Carte cadeau vendue",
+      "loyalty_gift_card_redeemed": "Carte cadeau utilisée",
+      "loyalty_gift_card_expired": "Carte cadeau expirée",
+      "loyalty_points_earned": "Points gagnés",
+      "loyalty_points_redeemed": "Points utilisés",
+      "loyalty_points_expired": "Points expirés",
+      "loyalty_points_adjusted": "Points ajustés",
+      "loyalty_credit_charged": "Vente à crédit",
+      "loyalty_credit_payment_received": "Paiement sur compte",
+      "loyalty_credit_adjusted": "Crédit ajusté",
+      "procurement_supplier_invoice": "Facture fournisseur",
+      "payroll_run": "Paie"
     },
     "columns": {
       "account": "Compte",
@@ -7119,7 +7142,14 @@
       "title": "Comptes par rôle",
       "description": "Où sont comptabilisés les factures, règlements, taxes, écarts de change et la clôture.",
       "save": "Enregistrer les paramètres",
-      "saved": "Paramètres enregistrés."
+      "saved": "Paramètres enregistrés.",
+      "salesTitle": "Point de vente",
+      "salesDescription": "Comment les ventes en caisse arrivent dans la comptabilité.",
+      "salesPosting": "Écritures des ventes",
+      "salesPostings": {
+        "per_sale": "Une écriture par vente",
+        "daily_summary": "Un récapitulatif par lieu et par jour"
+      }
     },
     "rules": {
       "tab": "Règles de comptabilisation",
@@ -7138,7 +7168,20 @@
       "source": "Origine",
       "reason": "Motif",
       "attempts": "Essais",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "editTitle": "Règle de comptabilisation de {{source}}",
+      "edit": "Modifier",
+      "fieldHelp": "Un champ de montant terminé par .* (tender.*, revenue.*, tax.*) comptabilise chaque moyen de paiement, catégorie ou code de taxe ; ses propres comptes restent associés, le compte par défaut prend le reste.",
+      "mapped": "({{count}} associés)",
+      "defaultAccount": "Compte par défaut ({{count}} associés)",
+      "noDefault": "Aucun compte par défaut",
+      "own": "Règle propre",
+      "fallback": "Utilise la règle {{source}}",
+      "fallbackReversed": "Utilise la règle {{source}}, inversée",
+      "none": "Aucune règle",
+      "defaults": "Ajouter les règles par défaut",
+      "defaultsAdded": "Règles par défaut ajoutées : {{rules}}. Comptes ajoutés : {{accounts}}.",
+      "retried": "Comptabilisée."
     },
     "budgets": {
       "title": "Budgets",
