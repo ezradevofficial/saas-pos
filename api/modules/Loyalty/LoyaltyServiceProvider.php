@@ -68,6 +68,8 @@ class LoyaltyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/loyalty.php', 'loyalty');
+        // Per request or job: it keeps the categories it read (Promotions::categoryParents).
+        $this->app->scoped(Promotions::class);
     }
 
     public function boot(): void

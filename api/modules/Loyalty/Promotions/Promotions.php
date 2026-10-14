@@ -31,7 +31,22 @@ class Promotions
     /** Definition keys, in a stable order (the version's payload). */
     public const FIELDS = ['percent', 'amount_minor', 'currency', 'buy_qty', 'get_qty', 'targets', 'get_targets', 'components', 'min_spend_minor', 'branch_ids', 'customer_tags', 'schedule'];
 
+    /**
+     * Each category's parent, per tenant, loaded once per request or job
+     * (this service is scoped): an upload of many sales checks every sale's
+     * promotions without reading the categories again.
+     *
+     * @var array<string, Collection<string, ?string>>
+     */
+    private array $parents = [];
+
     public function __construct(private readonly Auditor $auditor) {}
+
+    /** @return Collection<string, ?string> category id => parent id, in the current tenant */
+    public function categoryParents(): Collection
+    {
+        return $this->parents[(string) app(TenantContext::class)->id()] ??= ItemCategory::query()->pluck('parent_id', 'id');
+    }
 
     /** @param array<string, mixed> $values validated (PromotionRequest) */
     public function create(array $values, User $by): Promotion
@@ -125,7 +140,7 @@ class Promotions
         $party = $partyId === null ? null : Party::query()->find($partyId);
 
         return PromotionEngine::evaluate(
-            self::engineLines($lines),
+            self::engineLines($lines, $this->categoryParents()),
             [
                 'currency' => $currency, 'branch_id' => $branchId, 'customer_tags' => array_values(array_map('strval', (array) ($party?->tags ?? []))),
                 'coupons' => array_values(array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), $coupons))),
@@ -177,12 +192,13 @@ class Promotions
      * the till computes them from its synced categories.
      *
      * @param  list<array{id: string, item_id: string, qty: string, unit_price_minor: string}>  $lines
+     * @param  Collection<string, ?string>|null  $parents  category id => parent id (categoryParents()), else read now
      * @return list<array<string, mixed>>
      */
-    public static function engineLines(array $lines): array
+    public static function engineLines(array $lines, ?Collection $parents = null): array
     {
         $items = Item::query()->whereIn('id', array_column($lines, 'item_id'))->pluck('category_id', 'id');
-        $parents = ItemCategory::query()->pluck('parent_id', 'id');
+        $parents ??= ItemCategory::query()->pluck('parent_id', 'id');
         $chain = function (?string $category) use ($parents): array {
             $ids = [];
 
