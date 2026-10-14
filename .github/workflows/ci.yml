@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  # One job definition, three runs: the tenant-isolation suite runs on its own
+  # One job definition, several runs: the tenant-isolation suite runs on its own
   # so its result is visible separately (TEN-01), and the `slow` group (tests
   # that take minutes) beside the rest. The Feature suite excludes
   # tests/Feature/Isolation (phpunit.xml) and the slow group, so no test runs twice.
@@ -29,9 +29,17 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          - name: tests
+          # Unit + Feature in three shards (phpunit.xml ShardCoreA, ShardCoreB,
+          # ShardModules) so no job nears the time limit as modules are added.
+          - name: core a
             pint: true
-            command: php artisan test --exclude-testsuite=Isolation --exclude-group=slow
+            command: php artisan test --testsuite=ShardCoreA --exclude-group=slow
+          - name: core b
+            pint: false
+            command: php artisan test --testsuite=ShardCoreB --exclude-group=slow
+          - name: modules
+            pint: false
+            command: php artisan test --testsuite=ShardModules --exclude-group=slow
           - name: isolation
             pint: false
             command: php artisan test --testsuite=Isolation

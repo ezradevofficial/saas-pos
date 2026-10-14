@@ -15,6 +15,30 @@
             <!-- Runs only in its own suite (CI job `api (isolation)`). -->
             <exclude>tests/Feature/Isolation</exclude>
         </testsuite>
+        <!-- CI shards of the Feature and Unit suites (NFR-12): together they cover
+             exactly what Unit + Feature cover, so each test runs once. -->
+        <testsuite name="ShardCoreA">
+            <directory>tests/Unit</directory>
+            <directory>tests/Feature/Core/Identity</directory>
+            <directory>tests/Feature/Core/MasterData</directory>
+            <directory>tests/Feature/Core/Currency</directory>
+            <directory>tests/Feature/Core/Automation</directory>
+            <directory>tests/Feature/Core/Tenancy</directory>
+            <directory>tests/Feature/Core/Rbac</directory>
+        </testsuite>
+        <testsuite name="ShardCoreB">
+            <directory>tests/Feature</directory>
+            <exclude>tests/Feature/Isolation</exclude>
+            <exclude>tests/Feature/Core/Identity</exclude>
+            <exclude>tests/Feature/Core/MasterData</exclude>
+            <exclude>tests/Feature/Core/Currency</exclude>
+            <exclude>tests/Feature/Core/Automation</exclude>
+            <exclude>tests/Feature/Core/Tenancy</exclude>
+            <exclude>tests/Feature/Core/Rbac</exclude>
+        </testsuite>
+        <testsuite name="ShardModules">
+            <directory>modules/*/tests</directory>
+        </testsuite>
         <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). -->
         <testsuite name="Isolation">
             <directory>tests/Feature/Isolation</directory>
