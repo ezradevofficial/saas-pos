@@ -1,4 +1,4 @@
-# Accounting module spec (phase 7, stage 7A: the core ledger)
+# Accounting module spec (phase 7, stages 7A and 7B: the core ledger and its integrations)
 
 Source: concept note sections 5 (Accounting row), 6.4 and 7.2, and 8.4
 (Accounting Essentials and Pro); platform core spec (CUR-01 to CUR-09,
@@ -50,6 +50,13 @@ later; their payloads are fixed below.
 | ACC-21 | **Dimensions.** Journal and document lines may carry a cost centre, department and project (MD-05) of the same company; reports filter by them. | Must |
 | ACC-22 | **Tenancy, permissions, audit.** Every table carries `tenant_id` under forced row-level security with an isolation test; every endpoint checks `accounting.*` at the record's company (RBAC-04); every create, update, post, approval, reversal, close and reopen is audited (AUD-01). Money is bigint minor units plus currency; rates `numeric(18,8)`. | Must |
 | ACC-23 | **Events.** `JournalPosted`, `InvoicePosted`, `PaymentRecorded`, `PeriodClosed`, dispatched after commit, for webhooks and other modules. | Should |
+| ACC-24 | **Posting rules for many keys and default rules (7B).** A rule line on `prefix.*` posts every source field `prefix.{key}` (a payment method, an item category, a tax code, a sale line) to the account its map names for the key, else (lines `by: payment_method`) the bank, mobile money or cash account linked to that method (ACC-12) or the map's `type:{method type}`, else its default account; with none, the source is kept as an exception (`posting_account_missing`). A source type without a rule of its own may fall back to another's (`accounting.rule_fallbacks`: refunds and voids use the sale rule with its sides swapped, the daily summary the sale rule). The country chart template carries the default rules (account codes only); they are seeded with the chart, and `POST companies/{company}/accounting/posting-rules/defaults` adds the rules and template accounts a company is missing, never changing what it has. | Must |
+| ACC-25 | **POS → Accounting: a sales journal per sale (7B).** Dr each payment method's account (`tender.{method}`), Cr change to cash (`change`), Cr revenue per item category before promotions (`revenue.{category}`), Dr promotion discounts net of tax (`promotion`, to contra-revenue by default, or an expense account by changing the rule), Cr tax payable per tax code (`tax.{code}`), Cr rounding (`rounding`). A refund posts what it gives back and a void the voided sale, both with the sale rule's sides swapped, dated the refund or void. | Must |
+| ACC-26 | **Daily summary (7B).** A company setting (`sales_posting`: `per_sale`, default, or `daily_summary`). In summary mode, base-currency sales wait in `acc_source_queue` and `accounting:post-sales-summaries` (hourly) posts one `pos.sale_summary` journal per location, day (company time zone) and currency once the day has ended; a sale that arrives later forms another summary for its day. Sales in another currency, refunds and voids still post on their own. | Must |
+| ACC-27 | **Inventory → Accounting (7B).** Every stock posting (`StockMoved`) changes the stock account by what it changed the valuation by (value less cost variance), its counterpart by the opposite of its value, and the cost variance to cost of sales: cost of sales per sale line (`inventory.cost_of_sales`), goods received against GRNI (`inventory.receipt`, for Procurement), opening stock (`inventory.opening`), adjustments and count variances to stock adjustment expense (`inventory.adjustment`, `inventory.count`), transfer losses (`inventory.transfer_loss`). Transfers within a company post nothing else. The stock account equals the valuation report. | Must |
+| ACC-28 | **Loyalty → Accounting (7B).** One journal per Loyalty ledger entry: gift cards (sold: a liability, never revenue; redeemed: liability to the tender; expired: breakage income), points (when the programme gives a point a value: earned Dr loyalty cost / Cr points liability; redeemed into the tender; expired to breakage income; adjusted), customer credit (charged: Dr the store credit receivable control account; payments; adjustments). | Must |
+| ACC-29 | **Backfill (7B).** `accounting:backfill --from=YYYY-MM-DD [--to=] [--tenant=]` posts what POS, Inventory and Loyalty recorded from an owner-chosen day, in each active tenant with Accounting (DueTenants, TenantContext): each module raises its events again (core `EventReplays`), and they post exactly as live ones, idempotently. | Must |
+| ACC-30 | **Integration screens (7B).** The posting rules screen lists every source type with its own rule, its fallback or none, edits rules (maps kept) and adds the defaults; the exceptions list filters by status, retries, and opens the source record; journals drill down to the sale, the movements or the Loyalty record through each module's own route. | Must |
 
 ## Data model
 
@@ -78,6 +85,11 @@ currency (locked on the first posting, `BaseCurrencyLock`).
 | `acc_bank_rules` | Matching rules (ACC-14). |
 | `acc_budgets`, `acc_budget_lines` | Budgets (ACC-16). |
 | `acc_revaluations` | Revaluation runs with the rates used and their journals (ACC-15). |
+| `acc_source_queue` | Stage 7B: POS sales waiting for their location's daily summary: source, location, local day, currency, the source as it would post alone, and the summary and journal once posted (ACC-26). |
+
+Stage 7B adds `acc_settings.sales_posting` (`per_sale`, `daily_summary`) and
+`acc_journals.source_link` (jsonb: the record in its own module, `{kind,
+id}`, for the drill-down).
 
 Database rules (migration): the balance trigger
 `acc_journal_balanced` (deferred constraint trigger on lines and headers:
@@ -130,6 +142,71 @@ the module's public read model, never its tables.
 | `procurement.supplier_invoice` | Procurement invoice matched | `total`, `net`, `tax`, `grni` | party, cost centre, project |
 | `payroll.run` | Payroll `PayrollApproved` | `gross`, `net_pay`, `paye`, `employer.{CODE}`, `employee.{CODE}`, `deduction.{CODE}` | department, cost centre |
 | `loyalty.points` | Loyalty points earned or redeemed | `liability`, `expense` | branch, party |
+
+### Stage 7B: the integrations (ACC-24 to ACC-30)
+
+Accounting listens to other modules' events with one queued listener
+(`PostModuleEvent`, after commit, in the event's tenant, retried), and
+acts only while Accounting **and** the raising module are active
+(RBAC-08); with Accounting off nothing is posted and nothing is kept.
+Every source goes through `PostingService` and the company's rules,
+idempotent per (company, source type, source id); a source that cannot
+post is a posting exception, listed and retried, never lost. Journals are
+never posted into closed periods: the closed-period refusal (ACC-08) keeps
+the source as an exception (`period_closed`); once the period reopens, a
+retry posts it on its own date.
+
+**Event payloads (extended in their raising modules, generic):**
+
+- POS `SaleSnapshot::sale`: status, `voided_at`, `totals.paid_minor` and
+  `rounding_minor`, `change {currency, amount_minor, in_sale_minor}` (paid −
+  change = total + rounding exactly), `base {currency, total_minor,
+  tax_minor, fx}`, each payment's `fx`, and per line `tax_code_id`,
+  `tax_rate`, `tax_inclusive`, `net_minor`, `tax_minor` and `discount
+  {total_minor, sources: {source: minor}, manual_minor}` (adjustments by
+  source, capped at the discount); customer and location as before.
+  `SaleSnapshot::refund` carries the same per-line fields (each refund
+  line's share of its sale line), `rounding_minor`, base, location and
+  customer. `SaleVoided` carries `voidedAt`.
+- Inventory `StockMoved` adds `occurredAt` and `branchId`, and per movement
+  `source_line_id` (the sale line) and `branch_id`; `StockAdjusted` adds
+  `occurredAt` and `branchId`.
+- Loyalty raises one event per ledger entry (`GiftCardSold`,
+  `GiftCardRedeemed`, `GiftCardExpired`, `PointsEarned`, `PointsRedeemed`,
+  `PointsExpired`, `PointsAdjusted`, `CreditCharged`,
+  `CreditPaymentReceived`, `CreditAdjusted`), signed in the event's
+  direction, with the channel (`pos`, `back_office`, `issued`, `system`),
+  the sale's branch and rate, and for points their money value
+  (`points × point_value_minor`) or null.
+
+**Source types and fields:**
+
+| Source type | Fields | Default rule (KE codes) |
+| --- | --- | --- |
+| `pos.sale` | `tender.{payment method}`, `change`, `rounding`, `revenue.{category}` (`none`), `promotion`, `tax.{tax code}` (`none`) | Dr tender by method (linked bank account, else cash 1110, mobile money 1130, card and transfer 1120, gift card, points and credit to loyalty tenders clearing 1230); Cr change 1110; Cr rounding 7200; Cr revenue 4100; Dr promotion 4300 (contra-revenue); Cr tax 2200 |
+| `pos.refund`, `pos.void` | as `pos.sale`, for what is given back or voided | the `pos.sale` rule, sides swapped |
+| `pos.sale_summary` | the sum of a location's day | the `pos.sale` rule |
+| `inventory.cost_of_sales` | `stock.{sale line}`, `cost_of_sales.{sale line}`, `cost_variance` | stock 1300, cost of goods sold 5100 (all debit, signed) |
+| `inventory.receipt` | `stock`, `grni`, `cost_variance` | 1300, GRNI 2130, 5100 |
+| `inventory.opening` | `stock`, `opening`, `cost_variance` | 1300, suspense 1900, 5100 |
+| `inventory.adjustment`, `inventory.count` | `stock`, `adjustment`, `cost_variance` | 1300, stock adjustments and losses 5300, 5100 |
+| `inventory.transfer_loss` | `stock`, `loss`, `cost_variance` | 1300, 5300, 5100 |
+| `loyalty.gift_card_sold` | `amount`, and `pos`, `direct` or `issued` | Cr gift card liability 2310; Dr sales 4100 (sold on a POS sale: reclassified from revenue), cash 1110 (back office), loyalty costs 6910 (given) |
+| `loyalty.gift_card_redeemed` | `amount` | Dr 2310, Cr 1230 |
+| `loyalty.gift_card_expired` | `amount` | Dr 2310, Cr breakage income 4910 |
+| `loyalty.points_earned`, `loyalty.points_adjusted` | `amount` (the points' value) | Dr loyalty costs 6910, Cr points liability 2320 |
+| `loyalty.points_redeemed` | `amount` | Dr 2320, Cr 1230 |
+| `loyalty.points_expired` | `amount` | Dr 2320, Cr 4910 |
+| `loyalty.credit_charged` | `amount`, and `pos` or `direct` | Dr customer store credit receivable 1220 (party), Cr 1230 (POS) or sales 4100 (back office) |
+| `loyalty.credit_payment_received` | `amount` | Dr 1110, Cr 1220 (party) |
+| `loyalty.credit_adjusted` | `amount` | Dr 1220 (party), Cr other expenses 6900 |
+
+The CD (SYSCOHADA) template maps the same roles to 571, 551, 521, 4711,
+658, 701, 7019, 443, 311, 603, 408, 471, 6038, 4191, 4198, 758, 627 and
+4118. Loyalty tender clearing nets to zero when both POS and Loyalty post
+(the POS tender debits it, the Loyalty entry credits it); a balance left
+there is a tender Loyalty did not post (module off, unknown card), for
+review.
 
 ## Permissions
 
@@ -270,6 +347,70 @@ holds everything. Admin and Branch Manager hold none.
     its transaction; `acc_journal_immutable`; `acc_journal_period_open`,
     which shares the period row lock with a concurrent close).
 
+## Decisions (stage 7B, recorded for the owner)
+
+15. **Customer credit is a Loyalty subledger with its own control
+    account.** Loyalty credit accounts post to "Customer store credit
+    receivable" (KE 1220, CD 4118, `is_control`), not to the Accounting AR
+    control (1200), which stays the main receivables ledger for invoices
+    (ACC-09). The two never mix: invoices allocate only in Accounting,
+    credit payments only in Loyalty. The owner can change this by pointing
+    the `loyalty.credit_*` rules at another account; doing so mixes the
+    two subledgers in one control account, so their ageing no longer
+    reconciles to it.
+16. **Gift cards are a liability, never revenue.** A card sold on a POS
+    sale is first revenue in the sale journal (POS does not know it is a
+    card) and is reclassified by `loyalty.gift_card_sold` (Dr sales, Cr
+    gift card liability); the default reclassifies from the sales account
+    4100. A tenant that maps the gift card item's category to another
+    revenue account must point the `pos` line there too. Gift card items
+    should carry an exempt tax code; a taxed gift card line would leave its
+    tax in tax payable (rates are never invented, so this is the tenant's
+    configuration).
+17. **Points are a provision only when they are worth money.** With a
+    point value, earning posts Dr loyalty costs / Cr points liability at
+    `points × point_value_minor`, a redemption moves the liability to the
+    tender, expiry goes to breakage income. With no value (zero), points
+    are not money: nothing posts (not an exception). The liability is
+    measured at the value in force when each entry is made.
+18. **Promotions** post net of tax: a tax-inclusive line's promotion is
+    its share of the line's net (`round_half_up(discount × net / total)`),
+    so revenue (net + that share) − promotion = net exactly. Manual
+    discounts stay netted in revenue. Contra-revenue (4300, CD 7019) is the
+    default; an expense account works by editing the `promotion` line.
+19. **Tenders post at their value in the sale currency** to the method's
+    account, whatever currency was handed over; foreign notes in a drawer
+    are reconciled by the shift count (`pos.shift_variance`, later).
+20. **Voids and refunds reverse proportionally**: a void posts the voided
+    sale's own amounts with the sale rule reversed, dated the void (its
+    base amounts at the sale's rate, so the pair nets to zero); a refund
+    posts its own share (lines, tax, promotion share, rounding) and the
+    stock comes back at the cost it left at.
+21. **Multi-currency** uses the snapshot's rate (CUR-04). Foreign-currency
+    postings need Accounting Pro; with Essentials such a source is kept as
+    an exception (`accounting_pro_required`) and posts on retry after an
+    upgrade.
+22. **Daily summaries** cover base-currency sales only, so every summary
+    has one rate (identity); their id derives from the location, day,
+    currency and the sales summed, so reruns post nothing twice.
+23. **The inventory journal's source id** is the posting's first movement
+    (smallest id), stable on replay and distinct for a transfer's dispatch
+    and receipt; its link opens the document's movements
+    (`/inventory/movements?source=`).
+24. **Gift card expiry** is new in Loyalty (`loyalty:expire-gift-cards`,
+    daily 02:40): what is left on a card past its expiry date is written
+    off by an `expire` entry, once per card.
+25. **Backfill** replays through each module's own `EventReplays`
+    registration (core), never reading their tables; the start date is the
+    owner's choice on the command line. Records in closed periods become
+    exceptions.
+
+## Status (stage 7B)
+
+| ID | Status |
+| --- | --- |
+| ACC-24 to ACC-30 | Built and tested (IntegrationPostingTest, LedgerEventsTest, SaleSnapshotTest, PostingRules.test.jsx) |
+
 ## Status (stage 7A)
 
 | ID | Status |
@@ -307,8 +448,10 @@ holds everything. Admin and Branch Manager hold none.
 - Fixed-asset depreciation (Fixed Assets module, through posting rules).
 - Multi-level approval thresholds per amount ship as flow edits, not
   defaults.
-- Real listeners for POS, Inventory, Procurement, Payroll and Loyalty
-  (stage 7B and later; payloads above).
+- Listeners for Procurement and Payroll (their stages; payloads above).
+- Shift variances (`pos.shift_variance`) and manual cash movements.
+- Editing a rule line's per-key map on the screen (maps from the defaults
+  are kept when a rule is edited; the API takes them).
 - Dashboard widgets for cash and receivables.
 
 ## Open questions
