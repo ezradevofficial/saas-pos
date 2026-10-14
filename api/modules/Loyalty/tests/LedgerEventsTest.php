@@ -118,4 +118,27 @@ class LedgerEventsTest extends TestCase
         $this->assertSame(['11', '1100'], [$earned->points, $earned->amountMinor]);
         $this->assertSame('100', $this->inTenant(fn () => (string) \Modules\Loyalty\Models\PointsEntry::query()->where('kind', 'earn')->value('point_value_minor')));
     }
+
+    /** Review #10: a card whose expiry was extended, and that has value again, expires again on its new date. */
+    public function test_a_card_expires_again_after_its_expiry_is_extended(): void
+    {
+        [$card] = $this->giftCard('30000');
+        $this->inTenant(fn () => $card->forceFill(['expires_on' => '2026-01-31'])->save());
+        CarbonImmutable::setTestNow('2026-02-01T03:00:00Z');
+        $this->artisan('loyalty:expire-gift-cards')->assertSuccessful();
+
+        // Value comes back (a voided sale's redemption put back) and the card is given until March.
+        $this->inTenant(function () use ($card) {
+            $card = app(\Modules\Loyalty\Ledgers\Ledgers::class)->lockCard($card->id);
+            app(\Modules\Loyalty\Ledgers\Ledgers::class)->giftCard($card, 'reverse_redeem', '10000', ['source_type' => 'manual']);
+            $card->forceFill(['expires_on' => '2026-03-31'])->save();
+        });
+        CarbonImmutable::setTestNow('2026-04-01T03:00:00Z');
+        $this->artisan('loyalty:expire-gift-cards')->assertSuccessful();
+
+        $this->inTenant(function () use ($card) {
+            $this->assertSame('0', (string) GiftCard::query()->findOrFail($card->id)->balance_minor);
+            $this->assertSame(['-30000', '-10000'], GiftCardEntry::query()->where('gift_card_id', $card->id)->where('kind', 'expire')->orderBy('occurred_at')->pluck('amount_minor')->map(fn ($a) => (string) $a)->all());
+        });
+    }
 }

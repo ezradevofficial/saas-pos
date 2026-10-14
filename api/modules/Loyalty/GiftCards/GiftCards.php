@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\GiftCard;
 use Modules\Loyalty\Support\LoyaltyError;
+use Ramsey\Uuid\Uuid;
 
 /**
  * LOY-20..LOY-23: gift cards and vouchers.
@@ -170,7 +171,7 @@ class GiftCards
     /**
      * Stage 7B: what is left on cards past their expiry date (the day
      * before $at's, in the tenant's calendar as the card stores it) is
-     * written off by an `expire` entry, once per card (GiftCardExpired,
+     * written off by an `expire` entry, once per card and expiry date (GiftCardExpired,
      * breakage for Accounting). Returns the number of cards expired.
      */
     public function expire(CarbonImmutable $at): int
@@ -188,8 +189,11 @@ class GiftCards
                     return 0;
                 }
 
+                // Review #10: once per card and expiry date, so a card given a later date expires again on it.
+                $expiry = (string) $card->expires_on?->format('Y-m-d');
                 $entry = $this->ledgers->giftCard($card, 'expire', '-'.$card->balance_minor, [
-                    'source_type' => 'expiry', 'source_id' => $card->id, 'occurred_at' => $at, 'reference' => $card->expires_on?->format('Y-m-d'),
+                    'source_type' => 'expiry', 'source_id' => Uuid::uuid5(Uuid::NAMESPACE_URL, "loyalty-gift-card-expiry:{$card->id}:{$expiry}")->toString(),
+                    'occurred_at' => $at, 'reference' => $expiry,
                 ]);
 
                 return $entry === null ? 0 : 1;
