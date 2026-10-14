@@ -390,7 +390,7 @@ export function LeaveTypes() {
         emptyText={t('hr.types.none')}
         columns={[
           { key: 'code', label: t('hr.columns.code'), render: (row) => <span className="font-medium tabular-nums">{row.code}</span> },
-          { key: 'name', label: t('hr.types.name'), render: (row) => (row.statutory_label ? `${row.name} · ${row.statutory_label}` : row.name) },
+          { key: 'name', label: t('hr.types.name'), render: (row) => (row.statutory_label && row.statutory_label !== row.name ? `${row.name} · ${row.statutory_label}` : row.name) },
           { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
           { key: 'accrual', label: t('hr.types.accrual'), render: (row) => enumLabel(t, 'accruals', row.accrual) },
           { key: 'days', label: t('hr.types.entitlement'), align: 'end', render: (row) => <Days value={row.entitlement_days} /> },
@@ -404,7 +404,7 @@ export function LeaveTypes() {
               manage && !row.archived_at ? (
                 <span className="flex justify-end gap-2">
                   {row.days_needed ? (
-                    <Button variant="primary" onClick={() => setDialog({ kind: 'confirm', row })}>
+                    <Button variant="secondary" onClick={() => setDialog({ kind: 'confirm', row })}>
                       {t('hr.types.enterDays')}
                     </Button>
                   ) : null}
