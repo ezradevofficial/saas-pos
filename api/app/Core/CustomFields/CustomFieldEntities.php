@@ -4,6 +4,7 @@ namespace App\Core\CustomFields;
 
 use App\Core\CustomFields\Entities\CustomFieldEntity;
 use App\Core\CustomFields\Entities\LookupTarget;
+use App\Core\Rbac\ModuleRegistry;
 use Closure;
 use InvalidArgumentException;
 
@@ -76,6 +77,19 @@ class CustomFieldEntities
     public function all(): array
     {
         return [...$this->entities, ...$this->fromSources()];
+    }
+
+    /**
+     * RBAC-08: the entities the current tenant may define fields on: core
+     * entities and those of its active modules.
+     *
+     * @return array<string, CustomFieldEntity>
+     */
+    public function offered(): array
+    {
+        $modules = app(ModuleRegistry::class);
+
+        return array_filter($this->all(), fn (CustomFieldEntity $entity) => $entity->module() === null || $modules->isActive($entity->module()));
     }
 
     public function lookup(string $key): ?LookupTarget

@@ -227,7 +227,8 @@ class TendersTest extends TestCase
         $awarded = $this->api('POST', "procurement/bids/{$scored['Baraka Wholesale']['id']}/award")->assertOk()->json('data');
         $this->assertSame('awarded', $awarded['status']);
         $outcomes = collect($awarded['bids'])->mapWithKeys(fn ($bid) => [$bid['bidder']['name'] => $bid['outcome']])->all();
-        $this->assertSame(['Upesi Supplies' => 'regretted', 'Baraka Wholesale' => 'awarded'], $outcomes);
+        ksort($outcomes);
+        $this->assertSame(['Baraka Wholesale' => 'awarded', 'Upesi Supplies' => 'regretted'], $outcomes);
 
         $order = $this->inTenant(fn () => Order::query()->where('bid_id', $scored['Baraka Wholesale']['id'])->sole());
         $this->assertSame('draft', $order->status);

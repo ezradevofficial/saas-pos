@@ -61,6 +61,12 @@ abstract class CustomFieldEntity implements LookupTarget
         return $model::query();
     }
 
+    /** RBAC-08: the module the entity belongs to; null for core entities, always offered. */
+    public function module(): ?string
+    {
+        return null;
+    }
+
     /** Whether a field of the entity may be unique among its records (custom form lines: no). */
     public function allowsUnique(): bool
     {

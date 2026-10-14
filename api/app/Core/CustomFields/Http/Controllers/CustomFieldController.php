@@ -108,8 +108,11 @@ class CustomFieldController
     /** The registered entities, types, lookup targets and the formula language. */
     public function meta(CustomFieldMetaRequest $request, CustomFieldEntities $entities): JsonResponse
     {
+        // RBAC-08: a module's entities are offered only while the tenant has the module.
+        $offered = $entities->offered();
+
         return new JsonResponse(['data' => [
-            'entities' => array_values(array_map(fn ($entity) => ['key' => $entity->key(), 'label' => __($entity->label())], $entities->all())),
+            'entities' => array_values(array_map(fn ($entity) => ['key' => $entity->key(), 'label' => __($entity->label())], $offered)),
             'types' => CustomFieldTypes::ALL,
             'lookup_targets' => array_values(array_map(fn (LookupTarget $target) => ['key' => $target->key(), 'label' => __($target->label())], $entities->lookups())),
             'formula' => ['functions' => Formula::FUNCTIONS, 'operators' => Formula::OPERATORS],
