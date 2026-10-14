@@ -72,7 +72,14 @@ final class DefaultTemplates
     {
         $columns = array_keys(app(DataSources::class)->columns($type));
         $documentFields = array_keys(app(DataSources::class)->get($type)->documentFields());
-        $hasTotals = ! in_array($type, ['letter', 'stores.delivery_note'], true);
+        // PRC-12: award and regret letters are letters with their own default text (the award lists the bid).
+        $letter = in_array($type, ['letter', 'procurement.award_letter', 'procurement.regret_letter'], true);
+        $body = match ($type) {
+            'procurement.award_letter' => __('procurement.letters.award_body', [], $language),
+            'procurement.regret_letter' => __('procurement.letters.regret_body', [], $language),
+            default => '',
+        };
+        $hasTotals = ! in_array($type, ['letter', 'stores.delivery_note', 'procurement.regret_letter'], true);
 
         $right = [['id' => 'number', 'type' => 'field', 'field' => 'document.number', 'label' => true], ['id' => 'date', 'type' => 'field', 'field' => 'document.date', 'label' => true]];
 
@@ -81,7 +88,7 @@ final class DefaultTemplates
         }
 
         $party = match ($type) {
-            'payroll.payslip', 'procurement.po' => [],
+            'payroll.payslip', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter' => [],
             default => [
                 ['id' => 'customer', 'type' => 'field', 'field' => 'customer.name', 'label' => true],
                 ['id' => 'customer-tax', 'type' => 'field', 'field' => 'customer.tax_id', 'label' => true],
@@ -102,12 +109,12 @@ final class DefaultTemplates
             ['id' => 'divider-1', 'type' => 'divider', 'style' => 'solid'],
             ...$party,
             ['id' => 'spacer-1', 'type' => 'spacer', 'size' => 4],
-            $columns === [] || $type === 'letter' ? null : ['id' => 'lines', 'type' => 'lines', 'columns' => $columns],
-            $type === 'letter' ? ['id' => 'body', 'type' => 'text', 'text' => '', 'align' => 'left', 'size' => 'normal', 'weight' => 'regular'] : null,
+            $letter ? ['id' => 'body', 'type' => 'text', 'text' => $body, 'align' => 'left', 'size' => 'normal', 'weight' => 'regular'] : null,
+            $columns === [] || $type === 'letter' || $type === 'procurement.regret_letter' ? null : ['id' => 'lines', 'type' => 'lines', 'columns' => $columns],
             $hasTotals ? ['id' => 'totals', 'type' => 'totals', 'show' => $type === 'sales.invoice' || $type === 'sales.quote' || $type === 'procurement.po' ? ['subtotal', 'discount', 'tax', 'total'] : ['total'], 'tax_lines' => true] : null,
             ['id' => 'spacer-2', 'type' => 'spacer', 'size' => 6],
             in_array($type, ['sales.invoice', 'sales.quote', 'procurement.po'], true) ? ['id' => 'terms', 'type' => 'terms', 'text' => ''] : null,
-            in_array($type, ['payroll.payslip', 'stores.delivery_note', 'letter'], true) ? ['id' => 'signature', 'type' => 'signature', 'label' => ''] : null,
+            in_array($type, ['payroll.payslip', 'stores.delivery_note', 'letter', 'procurement.award_letter', 'procurement.regret_letter'], true) ? ['id' => 'signature', 'type' => 'signature', 'label' => ''] : null,
             DocumentTypes::TYPES[$type]['fiscal'] ? ['id' => 'fiscal', 'type' => 'fiscal'] : null,
         ]));
     }

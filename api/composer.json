@@ -47,7 +47,8 @@
             "Modules\\POS\\Tests\\": "modules/POS/tests/",
             "Modules\\Inventory\\Tests\\": "modules/Inventory/tests/",
             "Modules\\Accounting\\Tests\\": "modules/Accounting/tests/",
-            "Modules\\Loyalty\\Tests\\": "modules/Loyalty/tests/"
+            "Modules\\Loyalty\\Tests\\": "modules/Loyalty/tests/",
+            "Modules\\Procurement\\Tests\\": "modules/Procurement/tests/"
         }
     },
     "scripts": {

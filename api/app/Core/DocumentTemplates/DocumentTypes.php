@@ -26,6 +26,9 @@ final class DocumentTypes
         'sales.invoice' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'sales'],
         'sales.quote' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'sales'],
         'procurement.po' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
+        // PRC-12: the Procurement module's award and regret letters to bidders.
+        'procurement.award_letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
+        'procurement.regret_letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
         'stores.delivery_note' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
         'payroll.payslip' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'payroll'],
         // LOY-17: the Loyalty module's customer credit statements.

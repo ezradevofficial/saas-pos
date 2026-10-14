@@ -48,6 +48,12 @@ final class ExportColumns
         'billing_payment_methods.token' => 'a card provider\'s token for charging the subscription (SUB-04, encrypted)',
         'billing_payments.redirect_url' => 'a hosted card checkout link for a subscription payment, which may carry a session token (SUB-04)',
         'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
+        // PRC-07, PRC-09: the supplier portal's credentials and the sealing of bids.
+        'procurement_tenders.seal_secret' => 'a tender\'s own bid-sealing key (PRC-09, encrypted with the application key)',
+        'procurement_tenders.public_token_hash' => 'an open tender\'s public notice token hash (PRC-08)',
+        'procurement_tender_bidders.token_hash' => 'a bidder\'s portal link token hash (PRC-07)',
+        'procurement_portal_sessions.token_hash' => 'a supplier portal session token hash (PRC-07)',
+        'procurement_bids.sealed_payload' => 'a sealed bid\'s ciphertext (PRC-09): its content is exported in plain columns once the tender is opened',
     ];
 
     /**
