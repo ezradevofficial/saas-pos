@@ -48,7 +48,7 @@ function InviteDialog({ tender, open, onClose, onDone }) {
       }
     >
       <div className="flex flex-col gap-4 pt-1">
-        <p>{t('procurement.bidders.inviteHelp')}</p>
+        <p>{t('procurement.bidders.inviteHelp', { days: tender.link_days_after_deadline ?? 90 })}</p>
         {errors.form ? <Alert tone="danger" title={errors.form} /> : null}
         <Select
           label={t('procurement.bidders.who')}

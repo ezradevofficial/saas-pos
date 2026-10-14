@@ -7737,7 +7737,7 @@
       "invitedHelp": "Seuls ces soumissionnaires peuvent soumissionner.",
       "invite": "Inviter un soumissionnaire",
       "inviteTitle": "Inviter un soumissionnaire",
-      "inviteHelp": "Le soumissionnaire reçoit un lien personnel par e-mail. Il fonctionne jusqu’à la date limite de dépôt.",
+      "inviteHelp": "Le soumissionnaire reçoit un lien personnel par e-mail. Il fonctionne jusqu’à {{days}} jours après la date limite de dépôt, pour suivre le résultat.",
       "who": "Qui",
       "whoParty": "Un fournisseur de vos contacts",
       "whoOutsider": "Une autre entreprise",

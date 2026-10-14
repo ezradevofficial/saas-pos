@@ -89,6 +89,8 @@ class TenderResource extends JsonResource
         $isEvaluator = $members->contains(fn (TenderMember $m) => $m->user_id === $user->id && $m->role === TenderMember::EVALUATOR);
 
         return [
+            // Stage 7B walkthrough: how long a bidder's link works after the deadline (the invite dialog says so).
+            'link_days_after_deadline' => (int) config('procurement.portal.link_days_after_deadline', 90),
             'notice_url' => $tender->kind === Tender::OPEN && Tenders::noticeToken($tender) !== null
                 ? rtrim((string) config('app.frontend_url'), '/').'/supplier-portal/notices/'.Tenders::noticeToken($tender) : null,
             'lines' => $tender->lines()->with(['item', 'uom'])->get()->map(fn (TenderLine $line) => [

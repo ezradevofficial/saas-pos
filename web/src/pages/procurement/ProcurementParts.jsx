@@ -46,7 +46,10 @@ export function LineName({ line }) {
     <span className="flex flex-col">
       <span className="text-ink">{line.item?.name ?? line.description}</span>
       {line.item ? <span className="font-mono text-caption text-ink-muted">{line.item.code}</span> : null}
-      {line.item && line.description ? <span className="text-caption text-ink-muted">{line.description}</span> : null}
+      {/* Stage 7B walkthrough: a description that only repeats the item's name is not shown twice. */}
+      {line.item && line.description && line.description.trim().toLowerCase() !== String(line.item.name ?? '').trim().toLowerCase() ? (
+        <span className="text-caption text-ink-muted">{line.description}</span>
+      ) : null}
     </span>
   )
 }

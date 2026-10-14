@@ -7737,7 +7737,7 @@
       "invitedHelp": "Only these bidders may bid.",
       "invite": "Invite bidder",
       "inviteTitle": "Invite a bidder",
-      "inviteHelp": "The bidder gets a personal link by email. It works until the submission deadline.",
+      "inviteHelp": "The bidder gets a personal link by email. It works until {{days}} days after the submission deadline, so they can follow the outcome.",
       "who": "Who",
       "whoParty": "A supplier in your contacts",
       "whoOutsider": "Another company",

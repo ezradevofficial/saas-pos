@@ -213,6 +213,9 @@ describe('Tenders (PRC-06 to PRC-12)', () => {
     const bidders = await screen.findByRole('table', { name: 'Bidders' })
     expect(within(bidders).queryByRole('button', { name: 'Resend link to Oven Masters Ltd' })).not.toBeInTheDocument()
     expect(within(bidders).getByRole('button', { name: 'Remove Oven Masters Ltd' })).toBeInTheDocument()
+    // Stage 7B walkthrough: the invite says how long the link works after the deadline.
+    fireEvent.click(screen.getByRole('button', { name: 'Invite bidder' }))
+    expect(await screen.findByText(/It works until 90 days after the submission deadline/)).toBeInTheDocument()
     unmount()
 
     const awarded = { ...OPENED, status: 'awarded', bids: OPENED.bids.map((bid, index) => ({ ...bid, outcome: index === 0 ? 'awarded' : 'regretted' })), order: { id: 'po-9', number: null, status: 'draft' },

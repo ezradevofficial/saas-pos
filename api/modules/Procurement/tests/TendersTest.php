@@ -151,7 +151,11 @@ class TendersTest extends TestCase
         $this->clockTo('2026-10-20T13:00:00Z');
         // After the deadline the session has ended and the link no longer opens one: nothing can change.
         $this->putJson('/api/v1/supplier-portal/bid', ['currency' => 'KES', 'lines' => [['tender_line_id' => $tender['lines'][0]['id'], 'unit_price_minor' => '1']]], $upesi)->assertUnauthorized();
-        $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertStatus(409)->assertJsonPath('code', 'opening_not_due');
+        $early = $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertStatus(409)->assertJsonPath('code', 'opening_not_due');
+        // Stage 7B walkthrough: the time as people read it, in the company's time zone, never ISO 8601.
+        $zone = $this->acme->timezone ?: 'UTC';
+        $this->assertStringContainsString("({$zone})", (string) $early->json('message'));
+        $this->assertDoesNotMatchRegularExpression('/\d{4}-\d{2}-\d{2}T/', (string) $early->json('message'));
         $this->clockTo('2026-10-20T14:00:00Z');
         $once = $this->api('POST', "procurement/tenders/{$tender['id']}/open")->assertOk()->json('data');
         // Past its deadline a published tender shows as closed until it is opened.
