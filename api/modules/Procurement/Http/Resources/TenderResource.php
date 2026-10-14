@@ -105,7 +105,7 @@ class TenderResource extends JsonResource
                 'can' => ['resend' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids() && $bidder->removed_at === null,
                     'remove' => in_array($tender->status, [Tender::DRAFT, Tender::PUBLISHED], true) && ! $tender->closedForBids() && $bidder->removed_at === null],
             ])->all(),
-            'bids' => $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->get()->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect())))->all(),
+            'bids' => $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->get()->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect()), (string) $tender->company->base_currency))->all(),
             // PRC-11: the draft PO the award made.
             'order' => $tender->awarded_bid_id === null ? null : (($order = Order::query()->where('bid_id', $tender->awarded_bid_id)->first(['id', 'number', 'status'])) === null ? null
                 : ['id' => $order->id, 'number' => $order->number, 'status' => $order->status]),
@@ -132,7 +132,7 @@ class TenderResource extends JsonResource
      * @param  Collection<int, BidScore>  $scores
      * @return array<string, mixed>
      */
-    public static function bid(Bid $bid, $scores): array
+    public static function bid(Bid $bid, $scores, string $baseCurrency): array
     {
         $sealed = [
             'id' => $bid->id,
@@ -155,7 +155,8 @@ class TenderResource extends JsonResource
             'currency' => $bid->currency,
             'fx' => Refs::fx($bid->fx),
             'total' => Refs::money($bid->total_minor, $bid->currency),
-            'base_total' => Refs::money($bid->base_total_minor, $bid->fx?->base() ?? $bid->currency),
+            // CUR-04: the base total is in the company's base currency, never the snapshot's base() (the bid currency for a USD/KES rate).
+            'base_total' => Refs::money($bid->base_total_minor, $baseCurrency),
             'complete' => $bid->complete,
             'lines' => array_map(fn (array $line) => [
                 'tender_line_id' => $line['tender_line_id'],

@@ -170,7 +170,8 @@ class Rfqs
                 'valid_until' => $data['valid_until'] ?? null,
                 'currency' => $currency,
                 'fx' => $fx,
-                'base_currency' => $fx->isIdentity() ? $currency : $fx->base(),
+                // CUR-04: base amounts are in the company's base currency (a USD/KES snapshot's base() is USD).
+                'base_currency' => $company->base_currency,
                 'status' => Quote::RECEIVED,
                 'note' => $data['note'] ?? null,
             ])->save();
