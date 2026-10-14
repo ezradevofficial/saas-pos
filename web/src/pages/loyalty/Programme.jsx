@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, MoneyInput, Switch, TextField } from '@/components/ds'
+import { Alert, Button, Card, MoneyInput, Select, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { fieldErrors, useLoyaltyCompany } from './loyaltyData'
+import { fieldErrors, useLoyaltyCompanyChoice } from './loyaltyData'
 
 const NUMBERS = ['earn_points', 'expiry_months', 'expiry_notice_days', 'credit_warning_percent']
 
@@ -17,7 +17,7 @@ const NUMBERS = ['earn_points', 'expiry_months', 'expiry_notice_days', 'credit_w
  */
 export default function Programme() {
   const { t } = useTranslation()
-  const company = useLoyaltyCompany()
+  const { company, companies, choose } = useLoyaltyCompanyChoice()
   const queryClient = useQueryClient()
   const { canWithin } = usePermissions()
   const key = ['loyalty', 'programme', company?.id]
@@ -63,6 +63,18 @@ export default function Programme() {
   return (
     <>
       <PageHeader title={t('loyalty.programme.title')} description={t('loyalty.programme.description', { company: company.name })} />
+      {companies.length > 1 ? (
+        <Select
+          label={t('loyalty.promotions.columns.company')}
+          options={companies.map((entry) => ({ value: entry.id, label: entry.name }))}
+          value={company.id}
+          onChange={(event) => {
+            setSaved(false)
+            choose(event.target.value)
+          }}
+          className="max-w-sm"
+        />
+      ) : null}
       {saved ? <Alert tone="success" title={t('loyalty.programme.saved')} /> : null}
       {save.isError && !Object.keys(errors).length ? <Alert tone="danger" title={errorMessage(save.error)} /> : null}
       <form
