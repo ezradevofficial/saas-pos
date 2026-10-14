@@ -16,6 +16,9 @@ use Modules\Accounting\AccountingServiceProvider;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Ledger\LineInput;
+use Brick\Math\BigInteger;
+use App\Core\Currency\Money;
+use Modules\Accounting\Models\AccountingSettings;
 use Modules\Accounting\Models\BankAccount;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\PostingException;
@@ -112,12 +115,20 @@ class PostingService
                     continue;
                 }
 
-                $lines[] = LineInput::signed($this->account($company, $line, $field, $key), $side, $amount, $source->fx, $source->reference, $lineDimensions);
+                $account = $this->account($company, $line, $field, $key);
+                $foreign = $source->foreign[$field] ?? null;
+                $lines[] = is_array($foreign)
+                    ? $this->foreignLine($company, $account, $side, $amount, $foreign, $source, $lineDimensions)
+                    : LineInput::signed($account, $side, $amount, $source->fx, $source->reference, $lineDimensions);
             }
         }
 
         if ($lines === []) {
             throw LedgerError::make('journal_empty');
+        }
+
+        if ($source->foreign !== []) {
+            $lines = $this->balanceFx($company, $source, $lines, $dimensions);
         }
 
         return $this->poster->record($company, [
@@ -129,7 +140,67 @@ class PostingService
             'reference' => $source->reference === null ? null : mb_substr($source->reference, 0, 80),
             'memo' => $source->memo,
             'created_by' => $by?->id,
-        ], $lines, $by, rounding: $source->currency !== $company->base_currency);
+        ], $lines, $by, rounding: $source->currency !== $company->base_currency || $source->foreign !== []);
+    }
+
+    /**
+     * Review #1: a field paid in another currency posts that amount in that
+     * currency, with its base amount as the source worked it out (the rate
+     * the payment used). Its sign follows the field's value in the source
+     * currency.
+     *
+     * @param  array{currency: string, amount_minor: string, base_minor: string, fx?: ?array}  $foreign
+     */
+    private function foreignLine(Company $company, string $account, string $side, Money $amount, array $foreign, SourceDocument $source, array $dimensions): LineInput
+    {
+        $sign = $amount->isNegative() ? '-' : '';
+        $fx = is_array($foreign['fx'] ?? null) ? new \App\Core\Currency\FxSnapshot((string) $foreign['fx']['rate'], (string) $foreign['fx']['base'], (string) $foreign['fx']['quote'], $foreign['fx']['kind'] ?? null, null) : null;
+
+        return LineInput::signed($account, $side, Money::ofMinor($sign.ltrim((string) $foreign['amount_minor'], '-'), (string) $foreign['currency']), $fx,
+            $source->reference, $dimensions, Money::ofMinor($sign.ltrim((string) $foreign['base_minor'], '-'), (string) $company->base_currency));
+    }
+
+    /**
+     * Review #1: when tenders post in their own currencies, the base amounts
+     * no longer add up to the sale's exactly: what the payments' rates make
+     * them differ by goes to exchange gains or losses (beyond a minor unit
+     * per line, which the rounding account takes).
+     *
+     * @param  list<LineInput>  $lines
+     * @return list<LineInput>
+     */
+    private function balanceFx(Company $company, SourceDocument $source, array $lines, array $dimensions): array
+    {
+        $base = (string) $company->base_currency;
+        $difference = BigInteger::zero();
+
+        foreach ($lines as $line) {
+            $value = match (true) {
+                $line->base !== null => $line->base,
+                $line->amount->currency() === $base => $line->amount,
+                $line->fx !== null => $line->fx->convert($line->amount),
+                default => null,
+            };
+
+            if ($value === null) {
+                return $lines;
+            }
+
+            $difference = $line->side === LineInput::DEBIT ? $difference->plus($value->minor()) : $difference->minus($value->minor());
+        }
+
+        if ($difference->abs()->isLessThanOrEqualTo(count($lines))) {
+            return $lines;
+        }
+
+        // Debits short: a loss; debits over: a gain.
+        $loss = $difference->isNegative();
+        $settings = AccountingSettings::query()->where('company_id', $company->id)->first();
+        $account = $settings?->accountFor($loss ? 'fx_loss' : 'fx_gain') ?? throw LedgerError::make('setting_missing', ['role' => __('accounting.roles.'.($loss ? 'fx_loss' : 'fx_gain'))]);
+        $lines[] = new LineInput($account, $loss ? LineInput::DEBIT : LineInput::CREDIT, Money::ofMinor((string) $difference->abs(), $base),
+            description: __('accounting.integrations.fx_difference'), dimensions: $dimensions);
+
+        return $lines;
     }
 
     /**

@@ -18,6 +18,11 @@ use InvalidArgumentException;
  * drill-down (`{kind, id}`, e.g. `{kind: pos.sale, id}`); `rule` posts the
  * source with another event type's rule (a daily summary with the sale
  * rule) and `reverse` swaps that rule's sides.
+ *
+ * Review #1: `foreign` gives a field in the currency it was really paid in
+ * (`{field: {currency, amount_minor, base_minor, fx?}}`): the line posts
+ * that amount in that currency with its base amount; `amounts` keeps the
+ * field's value in the source currency (what the source's total counts).
  */
 final class SourceDocument
 {
@@ -41,6 +46,7 @@ final class SourceDocument
         public readonly ?array $link = null,
         public readonly ?string $rule = null,
         public readonly bool $reverse = false,
+        public readonly array $foreign = [],
     ) {
         if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/', $sourceType) !== 1 || strlen($sourceType) > 60) {
             throw new InvalidArgumentException("Bad source type [{$sourceType}].");
@@ -94,6 +100,7 @@ final class SourceDocument
             'link' => $this->link,
             'rule' => $this->rule,
             'reverse' => $this->reverse,
+            'foreign' => $this->foreign,
         ];
     }
 
@@ -116,6 +123,7 @@ final class SourceDocument
             link: $data['link'] ?? null,
             rule: $data['rule'] ?? null,
             reverse: (bool) ($data['reverse'] ?? false),
+            foreign: (array) ($data['foreign'] ?? []),
         );
     }
 }

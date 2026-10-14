@@ -15,7 +15,6 @@ use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleSnapshot;
 use Modules\POS\Models\Sale;
-use Tests\Concerns\BuildsExchangeRates;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -26,7 +25,7 @@ use Tests\TestCase;
  */
 class IntegrationPostingTest extends TestCase
 {
-    use BuildsExchangeRates, BuildsIntegrations, RefreshTenantDatabase;
+    use BuildsIntegrations, RefreshTenantDatabase;
 
     /** A gift card sold in the back office for KES 1,000.00 (inactive, then sold); returns its code. */
     private function soldCard(): string
@@ -246,5 +245,68 @@ class IntegrationPostingTest extends TestCase
         $this->assertCount(1, $this->journalsOf('pos.sale_summary'));
         $this->assertSame(['1110' => [225000, 0], '2200' => [0, 25000], '4100' => [0, 200000]], $this->linesOf($summary));
         $this->assertSame(0, $this->inTenant(fn () => QueuedSource::query()->whereNull('summarised_at')->count()));
+    }
+
+    /**
+     * Review #1: a tender posts in its own currency and amount, at the rate the till used; here a
+     * KES sale paid in US dollars into a cash account kept in USD.
+     */
+    public function test_a_foreign_tender_posts_in_its_own_currency_to_an_account_in_that_currency(): void
+    {
+        $this->setUpIntegrations();
+        $this->rate('USD', 'KES', '129.50', at: '-1 day');
+        $this->inTenant(function () {
+            $account = \Modules\Accounting\Models\Account::query()->create([
+                'company_id' => $this->acme->id, 'code' => '1115', 'name' => 'Cash on hand USD', 'type' => 'asset', 'subtype' => 'cash',
+                'parent_id' => \Modules\Accounting\Models\Account::query()->where('code', '1100')->value('id'), 'currency' => 'USD', 'cash_flow' => 'cash',
+            ]);
+            \Modules\Accounting\Models\BankAccount::query()->create(['company_id' => $this->acme->id, 'name' => 'Till USD', 'kind' => 'cash', 'account_id' => $account->id,
+                'currency' => 'USD', 'payment_method_id' => $this->methods['cash_usd']->id]);
+        });
+        $shift = $this->openShift();
+        $rate = ['rate' => '129.5', 'base' => 'USD', 'quote' => 'KES', 'kind' => 'shop', 'effective_at' => now()->subDay()->toIso8601String()];
+        // KES 1,125.00 paid with USD 8.69 (KES 1,125.355): change KES 0.35, the shop keeps KES 0.01.
+        $sale = $this->saleBody($shift, 1, [
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_usd']->id, 'currency' => 'USD', 'amount_minor' => '869', 'amount_in_sale_minor' => '112535', 'rate' => $rate, 'status' => 'confirmed']],
+            'change' => ['currency' => 'KES', 'amount_minor' => '35', 'rate' => null],
+        ]);
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()), json_encode($this->inTenant(fn () => PostingException::query()->pluck('error_code'))));
+        [$journal] = $this->journalsOf('pos.sale');
+        $usd = $this->inTenant(fn () => $journal->lines()->where('currency', 'USD')->sole());
+        $this->assertSame([869, 112536], [(int) $usd->debit_minor, (int) $usd->base_debit_minor]);
+        $this->assertSame(['1110' => [0, 34], '1115' => [112536, 0], '2200' => [0, 12500], '4100' => [0, 100000], '7200' => [0, 2]], $this->linesOf($journal));
+    }
+
+    /**
+     * Review #1: a CDF sale part-paid in USD at the till's own rate (2,900) while the sale's base
+     * rate is 2,850: the dollars post as dollars, and what the two rates make the tenders differ by
+     * against the sale's total goes to exchange losses.
+     */
+    public function test_a_tender_at_another_rate_than_the_sale_posts_the_difference_to_fx(): void
+    {
+        $this->setUpIntegrations(congo: true);
+        $this->rate('USD', 'CDF', '2850', at: '-1 day');
+        $cdf = $this->inTenant(fn () => \App\Core\MasterData\PaymentMethods\PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash CDF', 'currency' => 'CDF', 'active' => true, 'position' => 9]));
+        $shift = $this->openShift();
+        $tillRate = ['rate' => '2900', 'base' => 'USD', 'quote' => 'CDF', 'kind' => 'shop', 'effective_at' => now()->subDay()->toIso8601String()];
+        $sale = $this->saleBody($shift, 1, [
+            'currency' => 'CDF', 'price_list_id' => null,
+            'lines' => [$this->line(['qty' => '1', 'unit_price_minor' => '28500', 'list_price_minor' => null, 'price_list_id' => null, 'tax_minor' => '3167', 'total_minor' => '28500'])],
+            'payments' => [
+                ['id' => $this->id(), 'payment_method_id' => $this->methods['cash_usd']->id, 'currency' => 'USD', 'amount_minor' => '500', 'amount_in_sale_minor' => '14500', 'rate' => $tillRate, 'status' => 'confirmed'],
+                ['id' => $this->id(), 'payment_method_id' => $cdf->id, 'currency' => 'CDF', 'amount_minor' => '14000', 'amount_in_sale_minor' => '14000', 'rate' => null, 'status' => 'confirmed'],
+            ],
+            'change' => ['currency' => 'CDF', 'amount_minor' => '0', 'rate' => null],
+        ]);
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()), json_encode($this->inTenant(fn () => PostingException::query()->pluck('error_message'))));
+        [$journal] = $this->journalsOf('pos.sale');
+        // USD 5.00 and CDF 14,000 (USD 4.91) against CDF 28,500 at 2,850 (USD 10.00): USD 0.09 lost.
+        // (The company is now Congolese: the SYSCOHADA chart, cash 571, VAT 443, sales 701, exchange losses 676.)
+        $this->assertSame(['443' => [0, 111], '571' => [991, 0], '676' => [9, 0], '701' => [0, 889]], $this->linesOf($journal));
+        $this->assertSame('500', $this->inTenant(fn () => (string) $journal->lines()->where('currency', 'USD')->where('account_id', $this->accountId('571'))->sole()->debit_minor));
     }
 }

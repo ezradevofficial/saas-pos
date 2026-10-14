@@ -3,6 +3,7 @@
 namespace Modules\Accounting\Integrations;
 
 use App\Core\MasterData\Items\Item;
+use App\Core\Currency\Money;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -26,7 +27,10 @@ use Modules\Accounting\Posting\SourceDocument;
  * - `tax.{tax code}`: the lines' tax per code.
  *
  * So Σ tender − change = total + rounding = Σ revenue − promotion + Σ tax +
- * rounding, exactly. A refund carries the same fields for what it gives
+ * rounding, exactly (in the sale currency). A tender paid in another
+ * currency posts in that currency and amount (review #1); what the rates
+ * then make the base amounts differ by goes to exchange gains or losses
+ * (PostingService). A refund carries the same fields for what it gives
  * back (its own `rounding`: what its payments differ from its total by)
  * and a void the voided sale's, both posted with the sale rule's sides
  * swapped unless they have a rule of their own (`accounting.rule_fallbacks`).
@@ -70,6 +74,8 @@ class PosSources
             $add('tender.'.$payment['payment_method_id'], (string) $payment['amount_in_sale_minor']);
         }
 
+        $foreign = $this->foreignTenders($record, $payments);
+
         $add('change', $change);
         $add('rounding', $rounding);
         $categories = Item::query()->whereKey(array_values(array_filter(array_unique(array_column($lines, 'item_id')))))->pluck('category_id', 'id');
@@ -96,7 +102,69 @@ class PosSources
             dimensions: array_filter(['branch_id' => $record['branch_id'] ?? null, 'party_id' => $record['customer_id'] ?? null]),
             reference: $reference,
             link: ['kind' => 'pos.sale', 'id' => $record['id']],
+            foreign: $foreign,
         );
+    }
+
+    /**
+     * Review #1: tenders paid in another currency than the sale's post in
+     * that currency and amount. Their base amount: the amount itself when
+     * paid in the base currency; else converted at the payment's own rate
+     * when the sale is in the base currency; else the payment's value in the
+     * sale currency at the sale's rate. A method paid in several currencies
+     * on one sale stays in the sale currency.
+     *
+     * @param  list<array<string, mixed>>  $payments
+     * @return array<string, array{currency: string, amount_minor: string, base_minor: string, fx: ?array}>
+     */
+    private function foreignTenders(array $record, array $payments): array
+    {
+        $sale = (string) $record['currency'];
+        $base = (string) ($record['base']['currency'] ?? $sale);
+        $byField = [];
+
+        foreach ($payments as $payment) {
+            $byField['tender.'.$payment['payment_method_id']][] = $payment;
+        }
+
+        $foreign = [];
+
+        foreach ($byField as $field => $rows) {
+            $currencies = array_unique(array_column($rows, 'currency'));
+            $currency = (string) $currencies[0];
+
+            if (count($currencies) !== 1 || $currency === $sale) {
+                continue;
+            }
+
+            $amount = BigInteger::zero();
+            $baseAmount = BigInteger::zero();
+            $fx = null;
+
+            foreach ($rows as $row) {
+                $paid = Money::ofMinor((string) $row['amount_minor'], $currency);
+                $rowFx = is_array($row['fx'] ?? null) ? Integrations::fx($row['fx']) : null;
+                $saleFx = is_array($record['base']['fx'] ?? null) ? Integrations::fx($record['base']['fx']) : null;
+                $value = match (true) {
+                    $currency === $base => $paid,
+                    $sale === $base && $rowFx !== null => $rowFx->convert($paid),
+                    $saleFx !== null && ! $saleFx->isIdentity() => $saleFx->convert(Money::ofMinor((string) $row['amount_in_sale_minor'], $sale)),
+                    default => null,
+                };
+
+                if ($value === null) {
+                    continue 2;
+                }
+
+                $amount = $amount->plus($paid->minor());
+                $baseAmount = $baseAmount->plus($value->minor());
+                $fx = $rowFx !== null && in_array($base, [$rowFx->base(), $rowFx->quote()], true) && in_array($currency, [$rowFx->base(), $rowFx->quote()], true) ? $row['fx'] : $fx;
+            }
+
+            $foreign[$field] = ['currency' => $currency, 'amount_minor' => (string) $amount, 'base_minor' => (string) $baseAmount, 'fx' => $fx];
+        }
+
+        return $foreign;
     }
 
     /** A line's promotion discounts (every source but manual), net of tax. */

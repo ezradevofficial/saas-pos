@@ -9,6 +9,7 @@ use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\JournalLine;
 use Modules\Inventory\Models\CostState;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
+use Tests\Concerns\BuildsExchangeRates;
 
 /**
  * Stage 7B: BuildsLoyalty (POS and Loyalty on Acme, Amina, the soap at
@@ -19,13 +20,19 @@ use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
  */
 trait BuildsIntegrations
 {
-    use BuildsLoyalty;
+    use BuildsExchangeRates, BuildsLoyalty;
 
     protected string $promotion;
 
-    protected function setUpIntegrations(bool $accounting = true, bool $pro = true): void
+    protected function setUpIntegrations(bool $accounting = true, bool $pro = true, bool $congo = false): void
     {
         $this->setUpLoyalty();
+
+        if ($congo) {
+            // DR Congo: base USD, CDF too (before anything posts, so the base locks as USD).
+            $this->congoCurrencies();
+        }
+
         $this->inTenant(function () use ($accounting, $pro) {
             $modules = app(ModuleRegistry::class);
             $modules->activate('inventory');
