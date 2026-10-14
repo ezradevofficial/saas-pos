@@ -209,4 +209,14 @@ class SecurityReviewTest extends TestCase
         $this->api('POST', 'procurement/orders', [...$po, 'branch_id' => $this->branchB->id], $buyerB)->assertCreated();
         $this->inTenant(fn () => $this->assertSame('ordered', DB::table('procurement_requisitions')->where('id', $requisition['id'])->value('status')));
     }
+
+    /** Review: a place the user does not reach answers the translated refusal, never a raw key. */
+    public function test_a_branch_the_buyer_does_not_reach_is_refused_in_words(): void
+    {
+        $response = $this->api('POST', 'procurement/landed-costs', ['branch_id' => $this->branchB->id, 'cost_date' => '2026-10-15', 'method' => 'value',
+            'charges' => [['description' => 'Freight', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => ['01900000-0000-7000-8000-000000000000']], $this->buyer)->assertForbidden();
+
+        $this->assertSame(__('rbac.forbidden'), $response->json('message'));
+        $this->assertStringNotContainsString('rbac.', (string) $response->json('message'));
+    }
 }

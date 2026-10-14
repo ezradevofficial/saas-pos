@@ -39,8 +39,8 @@ class ConsumptionResource extends JsonResource
         return [
             'id' => implode(':', [$key ?? '-', $row->item_id, $row->company_id]),
             'group' => match ($group) {
-                'department' => Refs::dimension($key === null ? null : Department::query()->find($key)),
-                'cost_centre' => Refs::dimension($key === null ? null : CostCentre::query()->find($key)),
+                'department' => Refs::dimension($key === null ? null : self::dimension($request, Department::class, $key)),
+                'cost_centre' => Refs::dimension($key === null ? null : self::dimension($request, CostCentre::class, $key)),
                 'period' => $key === null ? null : ['id' => $key, 'name' => $key],
                 default => null,
             },
@@ -55,6 +55,51 @@ class ConsumptionResource extends JsonResource
             'returned_value' => $values ? Values::money((string) $returnedValue, $currency) : null,
             'net_value' => $values ? Values::money((string) $issuedValue->minus($returnedValue), $currency) : null,
         ];
+    }
+
+    public const DIMENSIONS = 'stores.consumption.dimensions';
+
+    /**
+     * Stage 7B performance review: the rows' departments or cost centres in
+     * one query (kept on the request, so the page's rows share it).
+     *
+     * @param  iterable<Movement>  $rows
+     */
+    public static function preload(Request $request, iterable $rows): void
+    {
+        $keys = [];
+
+        foreach ($rows as $row) {
+            $group = (string) $row->getAttribute('group_by');
+            $key = $row->getAttribute('group_key');
+
+            if ($key !== null && in_array($group, ['department', 'cost_centre'], true)) {
+                $keys[$group === 'department' ? Department::class : CostCentre::class][] = $key;
+            }
+        }
+
+        $loaded = $request->attributes->get(self::DIMENSIONS, []);
+
+        foreach ($keys as $class => $ids) {
+            foreach ($class::query()->whereKey(array_values(array_unique($ids)))->get() as $model) {
+                $loaded[$class][$model->getKey()] = $model;
+            }
+        }
+
+        $request->attributes->set(self::DIMENSIONS, $loaded);
+    }
+
+    /** @param class-string<Department|CostCentre> $class */
+    private static function dimension(Request $request, string $class, string $id): ?object
+    {
+        $loaded = $request->attributes->get(self::DIMENSIONS, []);
+
+        if (! array_key_exists($id, $loaded[$class] ?? [])) {
+            $loaded[$class][$id] = $class::query()->find($id);
+            $request->attributes->set(self::DIMENSIONS, $loaded);
+        }
+
+        return $loaded[$class][$id];
     }
 
     /** RBAC-05: values only when the reader may see them at every store the row adds up. */

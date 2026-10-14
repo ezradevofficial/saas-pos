@@ -47,7 +47,8 @@ class ReturnResource extends JsonResource
             'returned_by' => Refs::user($return->returner),
             'returned_at' => Refs::at($return->returned_at),
             'valued' => $return->valued_at !== null,
-            'value' => $values && $return->valued_at !== null ? Values::money((string) $return->lines()->sum('value_minor'), $return->currency) : null,
+            'value' => $values && $return->valued_at !== null ? Values::money((string) (array_key_exists('lines_sum_value_minor', $return->getAttributes())
+                ? ($return->lines_sum_value_minor ?? 0) : $return->lines()->sum('value_minor')), $return->currency) : null,
             'lines_count' => $return->lines_count ?? $return->lines()->count(),
             ...($this->detail ? [
                 'lines' => $return->lines->map(fn (ReturnLine $line) => [

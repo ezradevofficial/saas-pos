@@ -19,7 +19,8 @@ class ReturnController
 
     public function index(ListReturnsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = StoreReturn::query()->with(ReturnList::RELATIONS)->withCount('lines');
+        // Stage 7B performance review: each return's value in the list query, not one sum per row.
+        $query = StoreReturn::query()->with(ReturnList::RELATIONS)->withCount('lines')->withSum('lines', 'value_minor');
         $request->applyFilters($query, dateColumn: 'returned_at');
         $search = trim((string) $request->validated('search', ''));
 

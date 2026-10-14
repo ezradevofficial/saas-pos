@@ -60,8 +60,16 @@ class LandedCostResource extends JsonResource
         $preview = app(LandedCosts::class)->preview($landedCost);
         // PRC-22: GRNs (and their allocation lines) only where the reader sees receipts or landed costs.
         $places = app(Places::class);
-        $sees = fn (?string $locationId) => $locationId !== null && ($places->atLocation($request->user(), 'procurement.receipt.view', $locationId)
-            || $places->atLocation($request->user(), 'procurement.landed_cost.view', $locationId));
+        // Stage 7B performance review: one scope check per location, not per line.
+        $seen = [];
+        $sees = function (?string $locationId) use ($places, $request, &$seen): bool {
+            if ($locationId === null) {
+                return false;
+            }
+
+            return $seen[$locationId] ??= $places->atLocation($request->user(), 'procurement.receipt.view', $locationId)
+                || $places->atLocation($request->user(), 'procurement.landed_cost.view', $locationId);
+        };
 
         return [
             'charges' => $landedCost->charges()->with('party')->get()->map(fn (LandedCostCharge $charge) => [

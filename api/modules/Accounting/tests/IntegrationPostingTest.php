@@ -349,6 +349,35 @@ class IntegrationPostingTest extends TestCase
         return [$failed->id];
     }
 
+    /** Stage 7B performance review: a summary that failed is not tried on every run; it waits, longer each time. */
+    public function test_a_failed_summary_backs_off_between_runs(): void
+    {
+        $this->setUpIntegrations();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'daily_summary'], $this->headersFor())->assertOk();
+        $this->upload([$this->saleBody($this->openShift(), 1)])->assertOk();
+        $rule = $this->inTenant(fn () => PostingRule::query()->where('event_type', 'pos.sale')->value('id'));
+        $this->postJson("/api/v1/accounting/posting-rules/{$rule}/archive", [], $this->headersFor())->assertOk();
+        $start = CarbonImmutable::now()->addDays(2);
+        $run = function (string $later) use ($start) {
+            $this->travelTo($start->add($later));
+            $this->artisan('accounting:post-sales-summaries')->assertSuccessful();
+            $this->travelBack();
+        };
+        $attempts = fn () => $this->inTenant(fn () => (int) PostingException::query()->where('source_type', 'pos.sale_summary')->sole()->attempts);
+
+        $run('0 minutes');
+        $this->assertSame(1, $attempts());
+        // The hourly run 30 minutes later leaves it alone; after an hour it is tried again, then after two more.
+        $run('30 minutes');
+        $this->assertSame(1, $attempts());
+        $run('61 minutes');
+        $this->assertSame(2, $attempts());
+        $run('150 minutes');
+        $this->assertSame(2, $attempts());
+        $run('182 minutes');
+        $this->assertSame(3, $attempts());
+    }
+
     /** Review #2: the run that covers a failed summary supersedes it; retrying the old one is refused. */
     public function test_a_later_summary_supersedes_a_failed_one_and_its_retry_is_refused(): void
     {
