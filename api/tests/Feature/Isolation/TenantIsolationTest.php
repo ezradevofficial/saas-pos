@@ -245,7 +245,7 @@ class TenantIsolationTest extends TestCase
         'voided_by_id' => 'user',
         'number_range_id' => 'pos_number_range', // NUM-02, M1: the range the till numbered from
         'customer_id' => 'customer',
-        'gift_card_item_id' => 'item', // LOY-01: the item a till sells gift cards as
+        'gift_card_item_id' => 'gift_card_item', // LOY-01, LOY-21: the service item a till sells gift cards as
         'item_id' => 'item',
         // Accounting: accounts, banks, dimensions, the intercompany counterparty and the invoice a credit note names.
         'account_id' => 'acc_account',
@@ -954,6 +954,14 @@ class TenantIsolationTest extends TestCase
             // ACC-20: the chart and the journals of A's company.
             "companies/{$a->id('company')}/accounting/accounts?status=all" => ['6200', 'Rent'],
             "companies/{$a->id('company')}/accounting/journals?status=all" => ['Rent A'],
+            "companies/{$a->id('company')}/accounting/documents?status=all" => ['Customer A'],
+            "companies/{$a->id('company')}/accounting/payments" => ['Customer A', 'DEPA'],
+            // Loyalty (LOY-07, LOY-18, LOY-20, LOY-23): promotions, credit accounts (and their ageing), gift cards, sales to review.
+            'loyalty/promotions?status=all' => ['Ten off A'],
+            'loyalty/accounts' => ['Customer A'],
+            'loyalty/ageing' => ['Customer A'],
+            'loyalty/gift-cards' => ['KES'],
+            'loyalty/sales' => ['Customer A'],
         ];
     }
 
@@ -1332,7 +1340,7 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
-            'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('item')],
+            'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],
             // LOY-13: a preview of a draft bundle for the customer at the branch.
             'POST api/v1/loyalty/promotions/preview' => [
                 'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'party_id' => $tenant->id('customer'), 'currency' => 'KES',

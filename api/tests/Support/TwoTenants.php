@@ -511,7 +511,7 @@ final class TwoTenants
         // account with a charge and a statement, a points adjustment, and a
         // till sale for the customer with the promotion and the card (so
         // every loyalty table has rows, a notice included).
-        $loyalty = self::loyalty($test, $owner, $tenantId, $company, $customer, $deviceToken, $pos, $ownerId, $item, $uoms['EA'], $priceList, $taxCode, $key);
+        $loyalty = self::loyalty($test, $owner, $tenantId, $company, $customer, $deviceToken, $pos, $ownerId, $item, $uoms['EA'], $priceList, $taxCode, $taxCategory, $key);
 
         // EXP-02: a full export request. Not built here: a build reads every
         // table inside the test's transaction, and its locks stay until the
@@ -688,15 +688,19 @@ final class TwoTenants
         ];
     }
 
-    /** @return array<string, string> loyalty_promotion, loyalty_coupon, loyalty_account, loyalty_statement, loyalty_gift_card */
-    private static function loyalty(TestCase $test, array $owner, string $tenantId, string $company, string $customer, string $deviceToken, array $pos, string $ownerId, string $item, string $uom, string $priceList, string $taxCode, string $key): array
+    /** @return array<string, string> loyalty_promotion, loyalty_coupon, loyalty_account, loyalty_statement, loyalty_gift_card, loyalty_customer, gift_card_item */
+    private static function loyalty(TestCase $test, array $owner, string $tenantId, string $company, string $customer, string $deviceToken, array $pos, string $ownerId, string $item, string $uom, string $priceList, string $taxCode, string $taxCategory, string $key): array
     {
         app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('loyalty'));
         $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
         $id = fn () => (string) Str::uuid7();
         $upper = strtoupper($key);
 
-        self::ok($test->putJson("/api/v1/companies/{$company}/loyalty-programme", ['active' => true, 'expiry_months' => 12, 'gift_card_low_minor' => '500000', 'gift_card_item_id' => $item], $owner));
+        // LOY-21: gift cards are sold as a service item (never stock).
+        $giftCardItem = self::ok($test->postJson('/api/v1/items', [
+            'code' => "GIFT-{$upper}", 'name' => "Gift card item {$upper}", 'type' => 'service', 'base_uom_id' => $uom, 'tax_category_id' => $taxCategory,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/companies/{$company}/loyalty-programme", ['active' => true, 'expiry_months' => 12, 'gift_card_low_minor' => '500000', 'gift_card_item_id' => $giftCardItem], $owner));
         $promotion = self::ok($test->postJson('/api/v1/loyalty/promotions', [
             'company_id' => $company, 'name' => "Ten off {$upper}", 'type' => 'percent', 'percent' => '10', 'status' => 'active', 'requires_coupon' => true,
         ], $owner), 201)->json('data.id');
@@ -727,6 +731,7 @@ final class TwoTenants
             'loyalty_statement' => $statement,
             'loyalty_gift_card' => $card['id'],
             'loyalty_customer' => $creditCustomer,
+            'gift_card_item' => $giftCardItem,
         ];
     }
 
