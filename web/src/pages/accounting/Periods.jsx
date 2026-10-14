@@ -6,6 +6,8 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Checkbox, DataTable, Dialog, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 import { NoCompany } from './AccountingParts'
 import { companyPath, useAccountingCompany } from './accountingData'
 
@@ -17,6 +19,8 @@ import { companyPath, useAccountingCompany } from './accountingData'
  */
 export default function Periods() {
   const { t } = useTranslation()
+  const locale = useLocale()
+  const day = (value) => formatCalendarDate(value, locale)
   const queryClient = useQueryClient()
   const { can, hasModule } = usePermissions()
   const company = useAccountingCompany()
@@ -56,7 +60,7 @@ export default function Periods() {
         rows={rows}
         columns={[
           { key: 'number', label: t('accounting.periods.period'), render: (row) => <span className="tabular-nums">{row.number}</span> },
-          { key: 'range', label: t('accounting.periods.dates'), render: (row) => <span className="tabular-nums">{`${row.starts_on} – ${row.ends_on}`}</span> },
+          { key: 'range', label: t('accounting.periods.dates'), render: (row) => <span className="tabular-nums">{`${day(row.starts_on)} – ${day(row.ends_on)}`}</span> },
           { key: 'status', label: t('accounting.columns.status'), render: (row) => <StatusBadge tone={row.status === 'closed' ? 'neutral' : 'success'}>{t(`accounting.periodStatuses.${row.status}`)}</StatusBadge> },
           { key: 'closed', label: t('accounting.periods.closedBy'), render: (row) => (row.closed_by ? `${row.closed_by.name}` : row.reopened_by ? t('accounting.periods.reopenedBy', { name: row.reopened_by.name }) : '—') },
           { key: 'revalued', label: t('accounting.periods.revalued'), render: (row) => (row.revalued ? t('accounting.yes') : '—') },
@@ -69,7 +73,7 @@ export default function Periods() {
         ]}
       />
       {closing ? (
-        <Dialog open title={t('accounting.periods.closeTitle', { start: closing.starts_on })} onClose={() => setClosing(null)}
+        <Dialog open title={t('accounting.periods.closeTitle', { start: day(closing.starts_on) })} onClose={() => setClosing(null)}
           footer={<><Button variant="ghost" onClick={() => setClosing(null)}>{t('accounting.cancel')}</Button><Button variant="pay" loading={close.isPending} onClick={() => close.mutate(closing)}>{t('accounting.periods.close')}</Button></>}>
           <div className="flex flex-col gap-4">
             {close.isError ? <Alert tone="danger" title={errorMessage(close.error)} /> : null}
@@ -81,7 +85,7 @@ export default function Periods() {
         </Dialog>
       ) : null}
       {reopening ? (
-        <Dialog open title={t('accounting.periods.reopenTitle', { start: reopening.starts_on })} onClose={() => setReopening(null)}
+        <Dialog open title={t('accounting.periods.reopenTitle', { start: day(reopening.starts_on) })} onClose={() => setReopening(null)}
           footer={<><Button variant="ghost" onClick={() => setReopening(null)}>{t('accounting.cancel')}</Button><Button variant="primary" loading={reopen.isPending} disabled={reason.trim().length < 3} onClick={() => reopen.mutate(reopening)}>{t('accounting.periods.reopen')}</Button></>}>
           <div className="flex flex-col gap-4">
             {reopen.isError ? <Alert tone="danger" title={errorMessage(reopen.error)} /> : null}

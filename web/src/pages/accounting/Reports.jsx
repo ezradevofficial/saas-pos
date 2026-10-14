@@ -6,7 +6,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Card, DataTable, Select, StatusBadge, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { Minor, NoCompany } from './AccountingParts'
+import { CalendarDate, Minor, NoCompany } from './AccountingParts'
 import { companyPath, sourceLink, useAccountingCompany } from './accountingData'
 
 const TABS = ['trial-balance', 'profit-and-loss', 'balance-sheet', 'cash-flow', 'ageing', 'consolidation']
@@ -255,7 +255,7 @@ export function GeneralLedger() {
             emptyText={t('accounting.reports.noLines')}
             rows={data.lines}
             columns={[
-              { key: 'date', label: t('accounting.columns.date'), render: (row) => <span className="tabular-nums">{row.date}</span> },
+              { key: 'date', label: t('accounting.columns.date'), render: (row) => <CalendarDate value={row.date} /> },
               { key: 'journal', label: t('accounting.columns.number'), render: (row) => <Link to={`/accounting/journals/${row.journal.id}`} className="text-primary hover:text-primary-hover">{row.journal.number}</Link> },
               { key: 'source', label: t('accounting.journalDetail.source'), render: (row) => { const link = sourceLink({ type: row.journal.source_type, id: row.journal.source_id }); return link ? <Link to={link} className="text-primary">{t('accounting.reports.openSource')}</Link> : '—' } },
               { key: 'description', label: t('accounting.columns.description'), render: (row) => [row.description, row.party?.name].filter(Boolean).join(' · ') },

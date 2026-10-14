@@ -8,6 +8,7 @@ use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\Lang;
 use Modules\Loyalty\Documents\StatementSource;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
@@ -258,6 +259,16 @@ class BackOfficeTest extends TestCase
         $this->postJson("/api/v1/loyalty/accounts/{$id}/close", [], $this->headersFor())->assertJsonPath('code', 'credit_balance_not_zero');
         $this->postJson("/api/v1/loyalty/accounts/{$id}/adjustments", ['amount_minor' => '-110000', 'reason' => 'Written off'], $this->headersFor())->assertCreated();
         $this->postJson("/api/v1/loyalty/accounts/{$id}/close", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'closed');
+    }
+
+    /** LOY-17, TPL-01, L10N-02: every statement field prints a label in both languages, never its key. */
+    public function test_statement_fields_have_labels_in_english_and_french(): void
+    {
+        foreach (array_keys(StatementSource::FIELDS) as $path) {
+            foreach (['en', 'fr'] as $locale) {
+                $this->assertTrue(Lang::has("templates.print.fields.{$path}", $locale, false), "templates.print.fields.{$path} is missing in {$locale}");
+            }
+        }
     }
 
     public function test_gift_cards_issue_once_sell_block_and_look_up(): void

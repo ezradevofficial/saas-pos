@@ -153,6 +153,10 @@ describe('Accounting screens', () => {
     renderApp('/accounting/documents/d-1')
     expect(await screen.findByText('A tax rate is needed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled()
+    // L10N-03: calendar dates show in the UI language, not as ISO strings.
+    expect(screen.getByText('10 Oct 2026')).toBeInTheDocument()
+    expect(screen.getByText('9 Nov 2026')).toBeInTheDocument()
+    expect(screen.queryByText('2026-10-10')).not.toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Lines' })).getByText('Rate needed').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning')
   })
 })

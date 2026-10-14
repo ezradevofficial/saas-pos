@@ -10,6 +10,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { saveFile } from '@/lib/files'
 import { formatAmount } from '@/lib/money'
+import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
 import { BalanceOfLimit } from './CreditAccounts'
@@ -108,7 +109,7 @@ export default function CreditAccountDetail() {
           emptyText={t('loyalty.statements.empty')}
           columns={[
             { key: 'number', label: t('loyalty.statements.number'), render: (row) => <span className="font-medium">{row.number}</span> },
-            { key: 'period', label: t('loyalty.statements.period'), render: (row) => `${row.period_from} – ${row.period_to}` },
+            { key: 'period', label: t('loyalty.statements.period'), render: (row) => `${formatCalendarDate(row.period_from, locale)} – ${formatCalendarDate(row.period_to, locale)}` },
             { key: 'closing', label: t('loyalty.statements.closing'), render: (row) => <Money amount={row.closing.amount_minor} currency={row.closing.currency} /> },
             { key: 'pdf', label: '', render: (row) => <StatementPdf statement={row} /> },
           ]}
