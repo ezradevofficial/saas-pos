@@ -20,6 +20,7 @@ const catalogueExtensions = new Map();
 const cartAdjusters = new Map();
 const tenderProviders = new Map();
 const cartPanels = new Map();
+const afterSale = new Map();
 
 export function registerCatalogueExtension(key, loader) {
   catalogueExtensions.set(key, loader);
@@ -63,9 +64,35 @@ export function registerTenderProvider(type, provider) {
   tenderProviders.set(type, provider);
 }
 
-/** The provider of a payment method type, or null (cash, mobile money and cards have none). */
-export function tenderProvider(type) {
-  return tenderProviders.get(type) ?? null;
+/**
+ * The provider of a payment method type, or null (cash, mobile money and
+ * cards have none). A provider with `active(catalogue)` applies only while
+ * that holds (H3: its module's data is on the till); otherwise null too.
+ */
+export function tenderProvider(type, catalogue) {
+  const provider = tenderProviders.get(type) ?? null;
+  if (provider?.active && !provider.active(catalogue)) return null;
+  return provider;
+}
+
+/** Whether a payment method type belongs to a registered provider that is switched off (its option is hidden). */
+export function tenderUnavailable(type, catalogue) {
+  return tenderProviders.has(type) && !tenderProvider(type, catalogue);
+}
+
+/** listener({ sale, catalogue }): after a sale is saved on the till (a module counts its own uses). */
+export function registerAfterSale(key, listener) {
+  afterSale.set(key, listener);
+}
+
+export function runAfterSale(context) {
+  for (const listener of afterSale.values()) {
+    try {
+      listener(context);
+    } catch {
+      // A module's bookkeeping never fails a completed sale.
+    }
+  }
 }
 
 /** A component shown under the customer on the sale panel (balances, coupons). */
@@ -83,4 +110,5 @@ export function resetExtensions() {
   cartAdjusters.clear();
   tenderProviders.clear();
   cartPanels.clear();
+  afterSale.clear();
 }

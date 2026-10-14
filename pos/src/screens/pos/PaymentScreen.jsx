@@ -84,7 +84,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
 
   async function add(amountMinor) {
     setError(null);
-    const provided = active ? tenderProvider(active.method.type) : null;
+    const provided = active ? tenderProvider(active.method.type, catalogue) : null;
     if (!active || ((!provided || provided.input !== 'points') && (!amountMinor || BigInt(amountMinor) <= 0n))) {
       setError(t('pos.pay.errors.amount'));
       return;
@@ -95,7 +95,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     }
     const id = uuidv7();
     const saleId = cart.id;
-    const provider = tenderProvider(active.method.type);
+    const provider = tenderProvider(active.method.type, catalogue);
     if (provider) {
       // LOY-05, LOY-15, LOY-22: the module checks the tender (offline rules) and gives its reference.
       try {
@@ -332,11 +332,11 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
               onSubmitEditing={() => add(amountText ? parseAmount(amountText, decimalsOf(active.currency)) : remainingActive)}
               placeholder={remainingActive ? money(remainingActive, active.currency).replace(`${active.currency} `, '') : undefined}
             />
-            {tenderProvider(active.method.type)?.input ? (
+            {tenderProvider(active.method.type, catalogue)?.input ? (
               <TextField
                 className="min-w-0 grow basis-1/3"
-                label={t(`pos.loyalty.input.${tenderProvider(active.method.type).input}`)}
-                keyboardType={tenderProvider(active.method.type).input === 'points' ? 'number-pad' : 'default'}
+                label={t(`pos.loyalty.input.${tenderProvider(active.method.type, catalogue).input}`)}
+                keyboardType={tenderProvider(active.method.type, catalogue).input === 'points' ? 'number-pad' : 'default'}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 value={tenderInput}

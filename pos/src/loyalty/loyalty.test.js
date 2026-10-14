@@ -10,8 +10,9 @@ import { testDatabase } from '../test/testDatabase';
 import { createSyncEngine } from '../sync/engine';
 import { createSyncStore } from '../sync/store';
 import { loadLoyaltyData, localTime, PROMOTION_SOURCE } from './promotions';
+import { resetExtensions, tenderProvider } from '../pos/extensions';
 import { registerLoyalty } from './register';
-import { codeHash, creditTender, giftCardTender, pointsTender } from './tenders';
+import { codeHash, codeProof, creditTender, giftCardTender, pointsTender } from './tenders';
 
 // LOY-05, LOY-11, LOY-15, LOY-22, NFR-04: loyalty on the till, offline. Promotions apply
 // on the cart with their provenance; points, gift cards and credit follow the offline
@@ -182,7 +183,9 @@ describe('gift cards as a tender (LOY-22, LOY-23)', () => {
     const base = { cart: cartWith(catalogue, [[IDS.bread, 5]]), catalogue, database, currency: 'KES', online: false };
 
     expect(codeHash('abcd efgh-jkmn pqrs')).toBe(codeHash(CARD));
-    await expect(giftCardTender.prepare({ ...base, input: CARD.toLowerCase(), amountMinor: '30000' })).resolves.toEqual({ amountMinor: '15000', tender: { code_hash: codeHash(CARD), last4: 'PQRS' }, label: '•••• PQRS' });
+    // M8: the till looks the card up by H(H(code)) and pays with H(code), the proof.
+    await expect(giftCardTender.prepare({ ...base, input: CARD.toLowerCase(), amountMinor: '30000' })).resolves.toEqual({ amountMinor: '15000', tender: { code_hash: codeProof(CARD), last4: 'PQRS' }, label: '•••• PQRS' });
+    expect(codeHash(CARD)).not.toBe(codeProof(CARD));
     await expect(giftCardTender.prepare({ ...base, input: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ', amountMinor: '100' })).rejects.toMatchObject({ code: 'gift_card_inactive' });
     await expect(giftCardTender.prepare({ ...base, input: 'NOPE', amountMinor: '100' })).rejects.toMatchObject({ code: 'gift_card_unknown' });
   });
@@ -246,3 +249,91 @@ describe('the sale goes up with its loyalty data after a week offline (NFR-04)',
     expect(uploaded[0].lines[0].adjustments[0].reference).toBe(IDS.promo);
   });
 });
+
+describe('review fixes on the till (H3, M3, M4, M5, M8)', () => {
+  it('H3: without the Loyalty module its tenders and payment options are off', async () => {
+    const { catalogue } = await setup();
+    const off = { ...catalogue, ext: { loyalty: null } };
+    expect(tenderProvider('points', off)).toBeNull();
+    expect(tenderProvider('voucher', off)).toBeNull();
+    expect(tenderProvider('credit', off)).toBeNull();
+    expect(paymentOptions(off, NOW).map((option) => option.method.type)).toEqual(['cash']);
+    expect(tenderProvider('points', catalogue)).toBe(pointsTender);
+  });
+
+  it('H3: a till that never pulled loyalty data loads none', async () => {
+    const database = testDatabase();
+    await expect(loadLoyaltyData(database, { categories })).resolves.toBeNull();
+  });
+
+  it('M3: tenders already on the cart count against the balance', async () => {
+    const { catalogue, database } = await setup();
+    const onCart = (methodId, amountMinor, extra) => ({ method: method(methodId), currency: 'KES', amountMinor, ...extra });
+    const cart = cartWith(catalogue, [[IDS.bread, 20]], { ...withCustomer, tenders: [onCart(IDS.points, '40000', { tender: { points: '400' } }), onCart(IDS.voucher, '10000', { tender: { code_hash: codeProof(CARD) } }), onCart(IDS.credit, '50000')] });
+    const base = { cart, catalogue, database, currency: 'KES', online: false };
+
+    await expect(pointsTender.prepare({ ...base, input: '101' })).rejects.toMatchObject({ code: 'points_insufficient', available: '100' });
+    await expect(giftCardTender.prepare({ ...base, input: CARD, amountMinor: '9000' })).resolves.toMatchObject({ amountMinor: '5000' });
+    await expect(creditTender.prepare({ ...base, user: manager, amountMinor: '20001' })).rejects.toMatchObject({ code: 'credit_limit_exceeded', available: '20000' });
+  });
+
+  it('M4: a sale acknowledged before the next pull still counts; after the pull the server balance rules', async () => {
+    const { selling, catalogue, database, proof, engine, server, advance } = await setup();
+    const shift = await selling.openShift({ user: manager, actorProof: proof, openingFloat: [] });
+    const cart = cartWith(catalogue, [[IDS.bread, 5]], withCustomer);
+    const prepared = await pointsTender.prepare({ cart, catalogue, database, currency: 'KES', input: '300' });
+    advance(1000);
+    await selling.completeSale({ shift, user: manager, actorProof: proof, cart, catalogue, tenders: [tender(IDS.points, '30000', { tender: prepared.tender })] });
+    await engine.push();
+    const acknowledged = (await database.get('outbox').query().fetch()).filter((row) => row._raw.kind === 'pos.sales');
+    expect(acknowledged.map((row) => row._raw.status)).toEqual(['acknowledged']);
+
+    // Acknowledged, but the members row was pulled before the sale: still counted.
+    await expect(pointsTender.available({ database, customerId: IDS.customer })).resolves.toBe(200n);
+
+    // The server counts it; the next pull brings 200 and the sale is no longer subtracted.
+    server.upsert('loyalty_members', { id: id(50), customer_id: IDS.customer, kind: 'points', currency: null, balance: '200', status: 'open' });
+    advance(1000);
+    await engine.pull();
+    await expect(pointsTender.available({ database, customerId: IDS.customer })).resolves.toBe(200n);
+  });
+
+  it('M5: a coupon with one use left is not offered again after this till used it, offline', async () => {
+    const { selling, catalogue, proof, engine, server } = await setup();
+    catalogue.ext.loyalty.promotions = [{ ...promotion, customer_tags: [], coupon_codes: ['ONCE'], coupons: [{ code: 'ONCE', remaining: 1 }] }];
+    server.goOffline();
+    engine.setNetwork('offline');
+    const ctx = { taxCodes: catalogue.taxCodes, day: catalogue.day, catalogue, at: NOW };
+    const cart = cartWith(catalogue, [[IDS.soda, 1]], { ext: { loyalty: { coupons: ['ONCE'] } } });
+    expect(computeCart(cart, ctx).totals.discount_minor).toBe('2000');
+
+    const shift = await selling.openShift({ user: manager, actorProof: proof, openingFloat: [] });
+    await selling.completeSale({ shift, user: manager, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, '8000')] });
+
+    expect(computeCart(cartWith(catalogue, [[IDS.soda, 1]], { ext: { loyalty: { coupons: ['ONCE'] } } }), ctx).totals.discount_minor).toBe('0');
+  });
+
+  it('M5: the own uses survive a restart (reloaded from sales the pull may not count)', async () => {
+    const { selling, catalogue, database, proof, engine, server } = await setup();
+    catalogue.ext.loyalty.promotions = [{ ...promotion, customer_tags: [], coupon_codes: ['SAVE20'] }];
+    server.goOffline();
+    engine.setNetwork('offline');
+    const shift = await selling.openShift({ user: manager, actorProof: proof, openingFloat: [] });
+    const cart = cartWith(catalogue, [[IDS.soda, 1]], { ext: { loyalty: { coupons: ['SAVE20'] } } });
+    await selling.completeSale({ shift, user: manager, actorProof: proof, cart, catalogue, tenders: [tender(IDS.cash, '8000')] });
+
+    const reloaded = await loadLoyaltyData(database, { categories });
+    expect(reloaded.couponUses.get('SAVE20')).toBe(1);
+  });
+
+  it('M8: online, the lookup sends the proof, never the stored hash', async () => {
+    const { catalogue, database } = await setup();
+    const calls = [];
+    const api = { post: async (path, body) => (calls.push({ path, body }), { status: 200, body: { data: { last4: 'PQRS', currency: 'KES', balance_minor: '8000', status: 'active', expires_on: null } } }) };
+    const prepared = await giftCardTender.prepare({ cart: {}, catalogue, database, currency: 'KES', input: CARD, amountMinor: '9000', online: true, api });
+    expect(calls).toEqual([{ path: 'loyalty/device/gift-cards/lookup', body: { code_hash: codeProof(CARD) } }]);
+    expect(prepared.amountMinor).toBe('8000');
+  });
+});
+
+afterAll(() => resetExtensions());

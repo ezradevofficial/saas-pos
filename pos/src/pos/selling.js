@@ -3,7 +3,7 @@ import { NetworkError } from '../sync/api';
 import { computeCart } from './cart';
 import { DOCUMENT_TYPES, drawNumber, needsNextPeriod, needsTopUp, nextToReport } from './numbering';
 import { cashMovementPayload, refundAmounts, refundBaseMajor, refundedQuantities, toBaseMinor, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
-import { tenderProvider } from './extensions';
+import { runAfterSale, tenderProvider } from './extensions';
 import { amountDueIn, calculateTender } from './tender';
 
 /**
@@ -240,7 +240,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
             customer_name: cart.customer?.name ?? null,
             methods: Object.fromEntries(tenders.map((tender) => [tender.id, { name: tender.method.name, type: tender.method.type }])),
             // LOY-05, LOY-22: what tenders of a module spent, so the till's offline balance rule counts it until the next pull.
-            spent: tenders.filter((tender) => tenderProvider(tender.method.type)).map((tender) => ({ type: tender.method.type, tender: tender.tender ?? null, amountMinor: String(tender.amountMinor), currency: tender.currency })),
+            spent: tenders.filter((tender) => tenderProvider(tender.method.type, catalogue)).map((tender) => ({ type: tender.method.type, tender: tender.tender ?? null, amountMinor: String(tender.amountMinor), currency: tender.currency })),
             customer_id: cart.customer?.id ?? null,
             rate_ids: [...new Set([...result.lines.map((line) => line.rate?.id), result.changeRate?.id].filter(Boolean))],
             rounding_minor: result.roundingMinor,
@@ -259,6 +259,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           prepare: async () => [await posStore.prepareSale(sale), await posStore.prepareCounters(DOCUMENT_TYPES.receipt, number.used), await posStore.prepareClearOpenCart()].filter(Boolean),
         });
         afterDraw(number, DOCUMENT_TYPES.receipt, catalogue.timeZone);
+        runAfterSale({ sale, catalogue });
         return sale;
       }),
 

@@ -1,6 +1,6 @@
-import { registerCartAdjuster, registerCartPanel, registerCatalogueExtension, registerTenderProvider } from '../pos/extensions';
+import { registerAfterSale, registerCartAdjuster, registerCartPanel, registerCatalogueExtension, registerTenderProvider } from '../pos/extensions';
 import { LoyaltyCartPanel } from './LoyaltyCartPanel';
-import { loadLoyaltyData, promotionAdjuster } from './promotions';
+import { countCouponUses, loadLoyaltyData, promotionAdjuster } from './promotions';
 import { creditTender, giftCardTender, pointsTender } from './tenders';
 
 /**
@@ -15,6 +15,7 @@ export function registerLoyalty() {
   registerTenderProvider('voucher', giftCardTender);
   registerTenderProvider('credit', creditTender);
   registerCartPanel('loyalty', LoyaltyCartPanel);
+  registerAfterSale('loyalty', countCouponUses);
 }
 
 registerLoyalty();
