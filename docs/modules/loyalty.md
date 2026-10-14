@@ -76,14 +76,26 @@ Four parts:
 Recorded here as the brief asked; the owner may revisit them.
 
 - **Offline redemption rule (points and gift cards).** The till allows a
-  redemption up to the last synced balance less what that till has
-  redeemed since (its local unsent and sent-but-not-yet-pulled
-  redemptions). Another till may spend the same balance meanwhile: the
-  server never refuses a completed sale (device wins), posts both
-  redemptions, lets the balance go below zero and flags the second
-  `points_overdrawn` / `gift_card_overdrawn` for review. The exposure is
-  bounded by one balance per till that is offline. Online, the till asks
-  the server for the card's live balance before it accepts the card.
+  redemption up to the last synced balance less what the server may not
+  have counted yet: this till's sales not acknowledged, and its sales
+  after that entity's last pull (M4; sale times and the pull time on one
+  clock, the server's, `serverNow` = device time + measured skew), less
+  the tenders already on the cart for the same card hash, or the same
+  customer for points and credit (M3). Another till may spend the same
+  balance meanwhile: the server never refuses a completed sale (device
+  wins), posts both redemptions, lets the balance go below zero and flags
+  the second `points_overdrawn` / `gift_card_overdrawn` for review. The
+  exposure is bounded by one balance per till that is offline. Online, the
+  till asks the server for the card's live balance before it accepts the
+  card (less this till's sales not acknowledged).
+- **Coupons offline (M5).** A code is offered while its uses left as
+  last synced, less this till's own uses (sales not acknowledged or newer
+  than the pull, counted at load and after each sale), stay above zero.
+- **Only with the module's data (H3).** The till's points, gift card and
+  credit tenders, and their payment options, apply only while the Loyalty
+  catalogue extension is loaded (`catalogue.ext.loyalty`, null when the
+  till holds none of the module's synced data: not subscribed, or never
+  pulled).
 - **Credit limit at the till** uses the same rule: synced balance plus the
   till's own charges since plus this sale, against the limit. No
   override at the till in this phase (a manager raises the limit through
@@ -97,11 +109,14 @@ Recorded here as the brief asked; the owner may revisit them.
 - **Customers need an open credit account** to buy on credit, even when
   the core party has no limit (core: no limit means no bound). Opening an
   account is the deliberate grant; the limit stays the core's.
-- **Gift card codes are never stored in clear**: SHA-256 of the
-  normalised code (upper case, spaces and dashes removed) and the last
-  four characters. The till holds hashes only, so a stolen till exposes no
-  usable code. A lost code cannot be shown again; block the card and issue
-  another.
+- **Gift card codes are never stored in clear (M8).** The proof is
+  `H(code)` = SHA-256 of the normalised code (upper case, spaces and
+  dashes removed); the server stores and syncs `H(H(code))` and the last
+  four characters. The till hashes twice to find a card and sends the
+  proof `H(code)` in a payment or a live lookup; the server hashes it once
+  more. A stolen till or export therefore holds nothing that pays: the
+  stored hash is not accepted as a tender. A lost code cannot be shown
+  again; block the card and issue another.
 - **Promotions engine rules** (LOY-10):
   - Input: lines `{id, item_id, category_ids, qty, unit_price_minor}` in
     cart order, the context `{currency, branch_id, customer_tags, coupons,
@@ -131,7 +146,10 @@ Recorded here as the brief asked; the owner may revisit them.
   - Schedule: `starts_at` and `ends_at` are dates in the branch's zone,
     inclusive; `days` is a set of ISO weekdays (1 Monday … 7 Sunday);
     `time_from` ≤ local time < `time_to` (both `HH:MM`; a window past
-    midnight, `22:00`–`02:00`, is allowed).
+    midnight, `22:00`–`02:00`, is allowed). In such a window the part
+    after midnight belongs to the day it started: a Friday `22:00`–`02:00`
+    window applies at Saturday `01:30`, not at Friday `01:30` (the shared
+    fixtures cover both, PHP and JS).
   - Output: per line `{line_id, promotion_id, version, discount_minor}`,
     per promotion the total, the coupon used.
 - **Points earn** (`floor`) and **refund reversal** (`floor` of earned ×
@@ -151,13 +169,17 @@ Recorded here as the brief asked; the owner may revisit them.
   built by POS. Loyalty keeps its own copy (`loyalty_sales`) before
   processing, so a failure is retried by `loyalty:reprocess` without POS.
   A Loyalty failure never fails a POS upload.
-- **POS schema change (flagged).** CLAUDE.md asks before changing another
-  module's schema. The brief asks for a minimal, generic seam in POS, so
-  three nullable `jsonb` columns are added by a POS migration:
-  `pos_sales.extensions`, `pos_sale_lines.adjustments` and
-  `pos_sale_payments.tender` (and `pos_refund_payments.tender`). They
-  hold module data opaquely; POS reads none of it but the discount amount
-  a registered source vouches for.
+- **POS schema change (approved by the owner on 2026-10-14).** CLAUDE.md
+  asks before changing another module's schema. The brief asks for a
+  minimal, generic seam in POS, so three nullable `jsonb` columns are
+  added by a POS migration: `pos_sales.extensions`,
+  `pos_sale_lines.adjustments` and `pos_sale_payments.tender` (and
+  `pos_refund_payments.tender`). They hold module data opaquely; POS reads
+  none of it but the discount amount a registered source verifies. The
+  migration is safe on busy tables (M1): `lock_timeout` 5 s, nullable
+  columns without defaults, the type CHECK constraints added `NOT VALID`,
+  then validated by a separate migration outside a transaction
+  (`2026_11_05_000110`, `$withinTransaction = false`).
 
 ## Tenders and discount provenance (POS seams)
 
@@ -168,14 +190,25 @@ Recorded here as the brief asked; the owner may revisit them.
   provider for review flags (`check()`), which POS adds to the sale's or
   refund's flags as `tender_flagged` with the provider's code. Providers of an
   inactive module are not used: the tender is stored as sent.
-- **Core `App\Core\Sales\DiscountSources`.** A module registers a source
-  key (`loyalty.promotion`). A line's `adjustments: [{source, reference,
-  amount_minor}]` say which part of its discount came from where; POS
-  checks `pos.discount.give` only for the part no active source vouches
-  for. The source re-evaluates and flags differences itself.
+- **Core `App\Core\MasterData\Prices\DiscountSources`.** A module
+  registers a source key (`loyalty.promotion`) with a synchronous verifier
+  (H2): given the sale (company, branch, customer, currency, time, lines,
+  extensions) it answers what it gives each line. A line's `adjustments:
+  [{source, reference, amount_minor}]` say which part of its discount came
+  from where; POS treats as vouched only what the verifier confirms (the
+  promotion engine, run on the server), and any excess goes through the
+  manual discount check (`pos.discount.give` and its limit, else flagged
+  `discount_unauthorised`). The `pos.sale.discount` audit records the
+  vouched part and whether the rest was allowed. The source re-evaluates
+  and flags differences itself.
 - **Sale `extensions`.** `{loyalty: {coupons: [...], gift_cards: [{line_id,
   code_hash, last4, amount_minor}], points_estimate}}`: stored as sent,
-  hashed with the sale (idempotent uploads), passed in the event.
+  hashed with the sale (idempotent uploads), passed in the event. A gift
+  card sold (M2) must name a line of the sale whose item is the
+  programme's gift card item, a card in the sale currency (`code_hash` is
+  the proof); it loads `min(amount, line total)`. Anything else is
+  flagged `gift_card_sale_mismatch` (reason `malformed`, `line`,
+  `currency` or `amount`), never a failure.
 
 ## Data model
 
@@ -223,6 +256,7 @@ database trigger refuses both).
 | `loyalty.credit.adjust` | Adjust a credit balance with a reason |
 | `loyalty.credit.sell` | Sell on account at the till |
 | `loyalty.gift_card.view`, `.issue`, `.sell`, `.block` | Gift cards and vouchers |
+| `loyalty.sale.view` | The review list of flagged sales |
 
 Role templates: **Branch Manager** holds `loyalty.*`; **Admin** the
 programme and promotions; **Accountant** credit (view, receive, adjust,
@@ -251,17 +285,19 @@ Prefix `/api/v1`, every route behind `module:loyalty` (403
 | `POST loyalty/customers/{party}/points/adjust` | `loyalty.points.adjust` | `{company_id, points, reason}` |
 | `GET loyalty/accounts`, `POST loyalty/accounts` | `loyalty.credit.view` / `.manage` | credit accounts; open `{party_id, company_id}` |
 | `GET loyalty/accounts/{loyalty_account}` | `.view` | ledger with running balance, ageing |
-| `POST loyalty/accounts/{loyalty_account}/payments`, `/charges`, `/adjustments`, `/close` | `.receive`, `.charge`, `.adjust`, `.manage` | |
+| `POST loyalty/accounts/{loyalty_account}/payments`, `/charges`, `/adjustments`, `/close` | `.receive`, `.charge`, `.adjust`, `.manage` | a charge takes an idempotency key `id` (UUID): sent again, it answers the charge it made |
 | `POST loyalty/accounts/{loyalty_account}/statements` | `.view` | `{from, to}` |
 | `GET loyalty/statements/{loyalty_statement}`, `/pdf` | `.view` | |
 | `GET loyalty/ageing` | `.view` | `?company`, `?as_of`, `?search`, export |
 | `GET loyalty/gift-cards`, `POST loyalty/gift-cards` | `loyalty.gift_card.view` / `.issue` | issue answers the codes once |
 | `GET loyalty/gift-cards/{loyalty_gift_card}` | `.view` | |
 | `POST loyalty/gift-cards/{loyalty_gift_card}/sell`, `/block`, `/unblock` | `.sell`, `.block` | |
-| `POST loyalty/gift-cards/lookup` | `.view` | `{code}` |
+| `POST loyalty/gift-cards/lookup` | `.view` | `{code}`; throttled, 30 a minute per user |
+| `GET loyalty/sales` | `loyalty.sale.view` | sales Loyalty flagged (`?flagged=0` for all), `?flag`, `?search` (receipt), export |
 
 **Till** (device token): `POST loyalty/device/gift-cards/lookup` `{code_hash}`
-(the live balance of a card of the till's company).
+(the proof `H(code)`; the live balance of a card of the till's company;
+throttled, 30 a minute per device).
 
 **Sync entities** (core sync API, ADR 004):
 
@@ -278,7 +314,8 @@ Prefix `/api/v1`, every route behind `module:loyalty` (403
   schedule and coupons, preview); Gift cards (list, issue, detail with
   ledger, sell, block, balance check); Credit accounts (list, detail with
   ledger, payments, statements and their PDF); Debt ageing report; the
-  customer page's **Loyalty** tab (points and credit per company).
+  customer page's **Loyalty** tab (points and credit per company); **Sales
+  to review** (`/loyalty/review`), the flagged sales with each reason.
 - **POS app**: promotions shown on cart lines and the total; coupon entry;
   the customer's points, credit and limit in the cart; tenders for
   points, gift card (scan or type the code) and credit, with the offline
@@ -370,7 +407,26 @@ Prefix `/api/v1`, every route behind `module:loyalty` (403
 - **The ageing report's as-of day** ends at midnight UTC; per-account pages
   use the company's time zone.
 - **Gift card code hashes in the full export** (EXP-02) are allowed: they
-  are not reversible and every till of the company holds them.
+  are `H(H(code))`, not reversible, not accepted as a tender, and every
+  till of the company holds them.
+- **A void or refund before processing (H1).** A sale whose processing
+  failed (retried by `loyalty:reprocess`) may be voided or refunded first.
+  A void is recorded on the sale (`voided_at`); processing then posts
+  nothing and flags `voided_before_processing`. Refunds wait on the sale
+  (`pending_refunds`) and are applied, in order, after its postings. A
+  refund applied joins `refund_ids`, so a replayed `SaleRefunded` changes
+  nothing.
+- **Points expiry is a true first in, first out (M6).** The ledger is
+  replayed as lots: an earn is a lot that expires; any other positive
+  entry (a redemption given back, a positive adjustment) is a lot that
+  never expires and is spent last; a `reverse_earn` takes its own sale's
+  lot first; other debits take the oldest earn lots, then the lots that
+  never expire. What is left of the lots expired is what expires.
+- **The credit limit override** (`credit_limit_override`, RBAC-06) for a
+  back-office charge resolves at the account's company (M7): a role held
+  only at a branch does not override a company-wide account's limit.
+- **Lookups by code are throttled** (`loyalty-lookup`, 30 a minute per
+  user or device) so codes cannot be guessed at speed.
 
 ## Deferred
 
