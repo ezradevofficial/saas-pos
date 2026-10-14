@@ -141,11 +141,14 @@ function applicable(promotion, context) {
   const time = String(local.time ?? '');
   const { startsOn, endsOn, days, timeFrom, timeTo } = promotion.schedule;
   if ((startsOn !== null && date < startsOn) || (endsOn !== null && date > endsOn)) return false;
-  if (days.length && !days.includes(Number(local.weekday ?? 0))) return false;
+  let weekday = Number(local.weekday ?? 0);
   if (timeFrom !== null && timeTo !== null) {
     const inside = timeFrom < timeTo ? time >= timeFrom && time < timeTo : time >= timeFrom || time < timeTo;
     if (!inside) return false;
+    // A window past midnight belongs to the day it started: its after-midnight part checks the day before.
+    if (timeFrom > timeTo && time < timeTo) weekday = weekday === 1 ? 7 : weekday - 1;
   }
+  if (days.length && !days.includes(weekday)) return false;
   if (promotion.couponCodes === null) return null;
   for (const code of context.coupons ?? []) {
     const normalised = normaliseCode(code);

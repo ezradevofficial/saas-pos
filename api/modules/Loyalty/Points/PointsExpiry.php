@@ -13,11 +13,9 @@ use Modules\Loyalty\Models\Programme;
 use Modules\Loyalty\Notifications\LoyaltyNotices;
 
 /**
- * LOY-06: points expire first in, first out. For an account at a moment:
- * the earn lots due by then, less what redemptions and other debits used
- * (they take the oldest lots first), less what already expired, is what
- * expires now (never more than the balance). Points given back
- * (reversed redemptions, refunds, positive adjustments) do not expire.
+ * LOY-06: points expire first in, first out (due(): a replay of the
+ * ledger as lots). Points given back (reversed redemptions, refunds,
+ * positive adjustments) never expire and are spent last.
  */
 class PointsExpiry
 {
@@ -55,26 +53,78 @@ class PointsExpiry
         return (string) $total;
     }
 
-    /** What expires at $at on $account (FIFO). */
+    /**
+     * What expires at $at on $account. M6: the ledger replayed as lots, in order:
+     *
+     * - an `earn` is a lot that expires (its `expires_at`; none: never);
+     * - any other positive entry (a redemption or refund given back, a
+     *   positive adjustment) is a lot that never expires, consumed last;
+     * - a `reverse_earn` takes its own sale's lot first (`sale_id`), then
+     *   the oldest;
+     * - an `expire` takes the lots that had expired by then, oldest first;
+     * - any other debit takes the oldest earn lots, then the lots that
+     *   never expire.
+     *
+     * Expiring now: what is left of the lots expired by $at.
+     */
     public static function due(Account $account, CarbonImmutable $at): BigInteger
     {
-        $entries = PointsEntry::query()->where('account_id', $account->id)->get(['kind', 'points', 'expires_at']);
-        $lots = BigInteger::zero();
-        $debits = BigInteger::zero();
-        $expired = BigInteger::zero();
+        $entries = PointsEntry::query()->where('account_id', $account->id)->orderBy('occurred_at')->orderBy('id')->get(['kind', 'points', 'expires_at', 'sale_id', 'occurred_at']);
+        $lots = [];
+
+        $take = function (BigInteger $amount, callable $eligible) use (&$lots): BigInteger {
+            foreach ([true, false] as $expiring) {
+                foreach ($lots as $i => $lot) {
+                    if ($amount->isZero()) {
+                        return $amount;
+                    }
+
+                    if ($lot['expiring'] !== $expiring || ! $lot['left']->isPositive() || ! $eligible($lot)) {
+                        continue;
+                    }
+
+                    $used = BigInteger::min($amount, $lot['left']);
+                    $lots[$i]['left'] = $lot['left']->minus($used);
+                    $amount = $amount->minus($used);
+                }
+            }
+
+            return $amount;
+        };
 
         foreach ($entries as $entry) {
             $points = BigInteger::of((string) $entry->points);
 
-            match (true) {
-                $entry->kind === 'earn' && $entry->expires_at !== null && $entry->expires_at->lessThanOrEqualTo($at) => $lots = $lots->plus($points),
-                $entry->kind === 'expire' => $expired = $expired->plus($points->negated()),
-                $entry->kind !== 'earn' => $debits = $debits->minus($points),
-                default => null,
-            };
+            if ($points->isPositive()) {
+                $earn = $entry->kind === 'earn';
+                $lots[] = ['left' => $points, 'expires_at' => $earn ? $entry->expires_at : null, 'sale_id' => $entry->sale_id, 'expiring' => $earn];
+
+                continue;
+            }
+
+            $amount = $points->negated();
+
+            if ($entry->kind === 'expire') {
+                $take($amount, fn (array $lot) => $lot['expires_at'] !== null && $lot['expires_at']->lessThanOrEqualTo($entry->occurred_at));
+
+                continue;
+            }
+
+            if ($entry->kind === 'reverse_earn' && $entry->sale_id !== null) {
+                $amount = $take($amount, fn (array $lot) => $lot['expiring'] && $lot['sale_id'] === $entry->sale_id);
+            }
+
+            $take($amount, fn () => true);
         }
 
-        $due = $lots->minus(BigInteger::max($debits, BigInteger::zero()))->minus($expired);
+        $due = BigInteger::zero();
+
+        foreach ($lots as $lot) {
+            if ($lot['expires_at'] !== null && $lot['expires_at']->lessThanOrEqualTo($at)) {
+                $due = $due->plus($lot['left']);
+            }
+        }
+
         $cap = BigInteger::max(BigInteger::of((string) $account->balance), BigInteger::zero());
 
         return BigInteger::max(BigInteger::zero(), BigInteger::min($due, $cap));

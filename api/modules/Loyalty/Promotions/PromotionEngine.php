@@ -231,9 +231,7 @@ final class PromotionEngine
             return false;
         }
 
-        if ($schedule['days'] !== [] && ! in_array((int) ($local['weekday'] ?? 0), $schedule['days'], true)) {
-            return false;
-        }
+        $weekday = (int) ($local['weekday'] ?? 0);
 
         if ($schedule['time_from'] !== null && $schedule['time_to'] !== null) {
             $from = $schedule['time_from'];
@@ -243,6 +241,15 @@ final class PromotionEngine
             if (! $inside) {
                 return false;
             }
+
+            // A window past midnight belongs to the day it started: its after-midnight part checks the day before.
+            if ($from > $to && $time < $to) {
+                $weekday = $weekday === 1 ? 7 : $weekday - 1;
+            }
+        }
+
+        if ($schedule['days'] !== [] && ! in_array($weekday, $schedule['days'], true)) {
+            return false;
         }
 
         if ($promotion['coupon_codes'] === null) {

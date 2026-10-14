@@ -222,6 +222,24 @@
       }
     },
     {
+      "name": "a Friday night window still applies at 01:30 on Saturday (it started on Friday)",
+      "context": { "local": { "date": "2026-10-17", "weekday": 6, "time": "01:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "days": [5], "time_from": "22:00", "time_to": "02:00" } }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "100" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "100", "coupon": null }],
+        "total_discount_minor": "100"
+      }
+    },
+    {
+      "name": "a Friday night window does not apply at 01:30 on Friday (that part started on Thursday)",
+      "context": { "local": { "date": "2026-10-16", "weekday": 5, "time": "01:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "days": [5], "time_from": "22:00", "time_to": "02:00" } }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
       "name": "dates are inclusive: not before the start",
       "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
       "promotions": [
