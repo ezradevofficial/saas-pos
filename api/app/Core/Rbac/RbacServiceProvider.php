@@ -5,8 +5,11 @@ namespace App\Core\Rbac;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\Listeners\ProvisionTenantRoles;
+use App\Core\Rbac\Listeners\SyncCatalogueAfterMigrate;
 use App\Core\Tenancy\Events\TenantProvisioned;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\Events\MigrationsEnded;
+use Illuminate\Database\Events\NoPendingMigrations;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -71,6 +74,9 @@ class RbacServiceProvider extends ServiceProvider
         });
 
         Event::listen(TenantProvisioned::class, ProvisionTenantRoles::class);
+
+        // RBAC-01, RBAC-03: every migrate ends with the permission sync (no manual step).
+        Event::listen([MigrationsEnded::class, NoPendingMigrations::class], SyncCatalogueAfterMigrate::class);
     }
 
     /**

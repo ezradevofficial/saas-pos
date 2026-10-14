@@ -115,6 +115,32 @@ class SystemRoleRefreshTest extends TestCase
         ));
     }
 
+    public function test_migrate_syncs_the_catalogue_so_new_permissions_reach_the_owner_and_the_templates(): void
+    {
+        $tenant = $this->signUp('a@example.com', 'Amani Stores');
+        app(PermissionRegistry::class)->register('core', ['migrate_probe' => ['view', 'edit']]);
+
+        // Nothing to migrate: the sync still runs (a module's new permissions need no migration).
+        $this->assertSame(0, Artisan::call('migrate', ['--database' => 'pgsql_owner', '--force' => true]));
+
+        $this->assertSame(['core.migrate_probe.edit', 'core.migrate_probe.view'], DB::table('permissions')->where('name', 'like', 'core.migrate_probe.%')->orderBy('name')->pluck('name')->all());
+        foreach (app(PermissionRegistry::class)->all()->keys() as $name) {
+            $this->assertTrue(DB::table('permissions')->where('name', $name)->exists(), $name);
+        }
+        $this->asTenant($tenant, function () {
+            $names = fn (string $key) => Role::where('template_key', $key)->sole()->permissionNames();
+
+            $this->assertContains('core.migrate_probe.edit', $names('owner'));
+            $this->assertContains('core.migrate_probe.edit', $names('admin'));
+            $this->assertContains('core.migrate_probe.view', $names('read_only_auditor'));
+        });
+
+        // Idempotent: a second migrate adds and records nothing more.
+        $audits = $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.permissions_update')->count());
+        Artisan::call('migrate', ['--database' => 'pgsql_owner', '--force' => true]);
+        $this->assertSame($audits, $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.permissions_update')->count()));
+    }
+
     /**
      * `composer migrate:fresh` seeds with `--database=pgsql_owner`, which
      * makes the owner (BYPASSRLS) the default connection while the seeder

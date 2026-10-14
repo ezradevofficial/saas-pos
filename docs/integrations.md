@@ -421,3 +421,14 @@ fields.
   `php artisan tenant:branding <tenant-id> --hide-platform`
   (`--show-platform` to undo). Tenants cannot change it; plans take this
   over in phase 6.
+
+## Deploys: permissions and modules (RBAC-01, RBAC-03, SUB-02)
+
+- **Permissions sync themselves.** Every `php artisan migrate` (also when
+  there is nothing to migrate) ends with `permissions:sync`: the catalogue
+  each module declares is upserted, and every tenant's system roles (Owner,
+  Admin and the other templates) are re-expanded from `role-templates.php`.
+  The sync is idempotent and never deletes. The deploy (`deploy-target.yml`)
+  still runs `permissions:sync` after the migration, so a host that skips
+  the hook is covered too. A module's new permissions therefore never need a
+  manual step, locally or on a server.
