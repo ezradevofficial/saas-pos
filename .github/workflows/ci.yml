@@ -47,7 +47,7 @@ jobs:
           # the main job, so a PR still waits for them but not in series.
           - name: slow
             pint: false
-            command: php artisan test --group=slow
+            command: php artisan test --testsuite=Feature --group=slow
     services:
       postgres:
         image: postgres:16
