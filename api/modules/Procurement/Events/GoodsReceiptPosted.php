@@ -10,7 +10,8 @@ use Illuminate\Foundation\Events\Dispatchable;
  * (ACC-07) for `procurement.goods_receipt` (docs/modules/procurement.md,
  * Events): `amounts` in base minor units as digit strings (`stock_value`,
  * `expense`, `grni`, `landed_cost`), with stock_value + expense = grni +
- * landed_cost; `fx` the receipt's rate snapshot (CUR-04); `dimensions`
+ * landed_cost, and `untracked_landed` (the landed cost on lines no stock
+ * journal carries: services and untracked stock); `fx` the receipt's rate snapshot (CUR-04); `dimensions`
  * {branch_id, party_id, cost_centre_id?, project_id?}.
  */
 class GoodsReceiptPosted implements ShouldDispatchAfterCommit

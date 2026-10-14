@@ -141,10 +141,12 @@ totals {net, tax, total} and base totals}`, all money as minor digit
 strings in the invoice currency unless named `base_`.
 
 `LandedCostAllocated` carries `{landed_cost_id, number, company_id,
-branch_id, date, base_currency, charges: [{id, description, party_id,
-currency, amount_minor, fx, base_amount_minor}], allocations: [{receipt_id,
-receipt_line_id, item_id, location_id, stock: bool, after_receipt: bool,
-base_amount_minor}]}`. It is raised for every posted landed cost (its
+branch_id, date, base_currency, charges: [{id, line_no, description,
+party_id, bill_reference, currency, amount_minor, fx, base_amount_minor}],
+allocations: [{receipt_id, receipt_line_id, item_id, location_id, stock:
+bool, after_receipt: bool, tracked: bool, base_amount_minor}]}`; its
+`stock_value` covers only tracked stock lines, `expense` the rest
+(decision 19). It is raised for every posted landed cost (its
 charges are what the charges' suppliers bill, Dr landed cost clearing / Cr
 AP); its `amounts` cover only the allocations to GRNs already posted
 (`after_receipt`): what went to draft GRNs reaches Accounting and Inventory
@@ -352,6 +354,22 @@ en/fr.
     base value, R the accepted quantity), so the invoice that reaches the
     received quantity clears the exact remainder, whatever the rates of
     the receipts.
+19. **Landed costs clear through their bills.** A landed cost document's
+    charges name the charge supplier and the supplier's bill reference
+    (both required to post: `charge_supplier_required`,
+    `charge_bill_required`). `GoodsReceived` carries each line's
+    `landed_minor` and Inventory keeps it on the receipt movement, so the
+    receipt journal credits GRNI with the goods and the landed cost
+    clearing account with the charges, whether they were allocated before
+    or after receipt. With Accounting active, its listener posts each
+    supplier's bill (charges grouped by supplier, bill reference and
+    currency) as a posted Accounting supplier invoice, Dr landed cost
+    clearing / Cr AP with the party, and the share of services, expense
+    lines and stock Inventory did not track (Inventory off) Dr purchases /
+    Cr clearing: from `LandedCostAllocated` after receipt
+    (`amounts.expense`, each allocation's `tracked`) and from
+    `GoodsReceiptPosted` before (`amounts.untracked_landed`). The clearing
+    account nets to zero once the bills post.
 
 ## Open questions
 

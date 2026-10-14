@@ -117,6 +117,7 @@ class RecordGoodsReceived implements ShouldQueue
                         serialIds: $serialIds,
                         flags: $tracking === ItemSetting::BATCH && empty($line['batch_number']) ? [...$flags, ['code' => 'batch_missing']] : $flags,
                         setsLastCost: true,
+                        landed: BigInteger::of((string) ($line['landed_minor'] ?? '0')),
                     );
                 }
 

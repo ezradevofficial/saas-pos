@@ -973,7 +973,7 @@ final class TwoTenants
         $invoice = self::ok($test->postJson('/api/v1/procurement/invoices', ['order_id' => $approvedOrder['id'], 'supplier_reference' => "SINV-{$upper}", 'invoice_date' => now()->toDateString(),
             'lines' => [['order_line_id' => $orderLine, 'qty' => '2']]], $owner), 201)->json('data.id');
         $landedBody = ['branch_id' => $branch, 'cost_date' => now()->toDateString(), 'method' => 'value', 'description' => "Freight {$upper}",
-            'charges' => [['description' => "Freight {$upper}", 'party_id' => $supplier, 'currency' => 'KES', 'amount_minor' => '30000']], 'receipt_ids' => [$posted]];
+            'charges' => [['description' => "Freight {$upper}", 'party_id' => $supplier, 'bill_reference' => "FB-{$upper}", 'currency' => 'KES', 'amount_minor' => '30000']], 'receipt_ids' => [$posted]];
         $landedCost = self::ok($test->postJson('/api/v1/procurement/landed-costs', $landedBody, $owner), 201)->json('data.id');
         $postedLanded = self::ok($test->postJson('/api/v1/procurement/landed-costs', $landedBody, $owner), 201)->json('data.id');
         self::ok($test->postJson("/api/v1/procurement/landed-costs/{$postedLanded}/post", [], $owner));

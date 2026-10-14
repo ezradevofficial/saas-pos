@@ -20,6 +20,8 @@ use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\GoodsReceiptPosted;
+use Modules\Procurement\Events\LandedCostAllocated;
 use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
@@ -51,6 +53,7 @@ class Integrations
         private readonly LoyaltySources $loyalty,
         private readonly StoresSources $stores,
         private readonly SupplierInvoices $supplierInvoices,
+        private readonly LandedCostSources $landedCosts,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -71,6 +74,9 @@ class Integrations
             $event instanceof StoreConsumptionValued => $this->post($this->stores->consumption($event)),
             // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
             $event instanceof SupplierInvoiceApproved => $this->supplierInvoices->approved($event),
+            // Stage 7B closing review: landed costs clear through their bills (procurement.md decision 19).
+            $event instanceof LandedCostAllocated => $this->landedCosts->allocated($event),
+            $event instanceof GoodsReceiptPosted => $this->landedCosts->received($event),
             default => null,
         };
     }

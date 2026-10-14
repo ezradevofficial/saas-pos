@@ -62,7 +62,7 @@ class ReceiptsAndInvoicesTest extends TestCase
         $this->assertSame('6', $after['lines'][0]['received_qty']);
         $this->assertSame('1', $after['lines'][0]['rejected_qty']);
 
-        Event::assertDispatched(GoodsReceiptPosted::class, fn (GoodsReceiptPosted $e) => $e->amounts === ['stock_value' => '50000', 'expense' => '50000', 'grni' => '100000', 'landed_cost' => '0']
+        Event::assertDispatched(GoodsReceiptPosted::class, fn (GoodsReceiptPosted $e) => $e->amounts === ['stock_value' => '50000', 'expense' => '50000', 'grni' => '100000', 'landed_cost' => '0', 'untracked_landed' => '0']
             && $e->currency === 'KES' && $e->dimensions['party_id'] === $this->supplier->id);
         // Inventory is not active here: no GoodsReceived.
         Event::assertNotDispatched(GoodsReceived::class);

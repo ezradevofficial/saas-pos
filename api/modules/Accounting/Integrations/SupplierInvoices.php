@@ -124,7 +124,8 @@ class SupplierInvoices
         );
     }
 
-    private function post(SourceDocument $source, ?User $by): PostingResult
+    /** Post $source, then write its Accounting supplier invoice from `link.document` (an invoice, or a landed cost's bill). */
+    public function post(SourceDocument $source, ?User $by): PostingResult
     {
         $result = $this->posting->post($source, $by);
 
@@ -145,7 +146,7 @@ class SupplierInvoices
         try {
             return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($journal, $data, $source) {
                 $company = Company::query()->findOrFail($journal->company_id);
-                $rule = PostingRule::query()->where('company_id', $company->id)->where('event_type', self::SOURCE)->whereNull('archived_at')->first();
+                $rule = PostingRule::query()->where('company_id', $company->id)->where('event_type', $source->sourceType)->whereNull('archived_at')->first();
                 $accounts = collect($rule?->lines ?? [])->pluck('account_id', 'field');
                 $issue = CarbonImmutable::parse($data['invoice_date']);
                 $due = isset($data['due_date']) && $data['due_date'] >= $data['invoice_date'] ? $data['due_date'] : $issue->toDateString();
@@ -176,19 +177,20 @@ class SupplierInvoices
                     'open_minor' => $total,
                     'status' => Document::POSTED,
                     'journal_id' => $journal->id,
-                    'memo' => __('accounting.integrations.procurement_invoice', ['number' => $data['number'] ?? '']),
+                    'memo' => __($data['memo_key'] ?? 'accounting.integrations.procurement_invoice', ['number' => $data['number'] ?? '']),
                     'posted_at' => CarbonImmutable::now(),
                 ]);
 
                 foreach (array_values($data['lines']) as $index => $line) {
-                    // The line's account is where its net went: GRNI for received stock, else the purchases expense.
-                    $field = ($line['kind'] ?? null) === 'stock' ? 'grni' : 'expense';
+                    // The line's account is where its net went: GRNI for received stock, else the purchases expense
+                    // (a landed cost bill's lines name theirs: the landed cost clearing account).
+                    $field = $line['field'] ?? (($line['kind'] ?? null) === 'stock' ? 'grni' : 'expense');
                     DocumentLine::query()->create([
                         'document_id' => $document->id,
                         'line_no' => $index + 1,
                         'description' => mb_substr((string) $line['description'], 0, 255),
                         'item_id' => $line['item_id'] ?? null,
-                        'account_id' => $accounts[$field] ?? $accounts['expense'] ?? $accounts['grni'],
+                        'account_id' => $accounts[$field] ?? $accounts['expense'] ?? $accounts['grni'] ?? $accounts->first(),
                         'qty' => (string) BigDecimal::of((string) $line['qty'])->toScale(4, RoundingMode::HalfUp),
                         'unit_price_minor' => (int) $line['unit_price_minor'],
                         'tax_code_id' => $line['tax_code_id'] ?? null,
@@ -201,7 +203,7 @@ class SupplierInvoices
                     ]);
                 }
 
-                $this->auditor->record('accounting.document.post', $document, null, ['number' => $number->number, 'journal' => $journal->id, 'source' => self::SOURCE]);
+                $this->auditor->record('accounting.document.post', $document, null, ['number' => $number->number, 'journal' => $journal->id, 'source' => $source->sourceType]);
 
                 return $document;
             });

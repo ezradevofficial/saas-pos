@@ -65,7 +65,7 @@ class LandedCostResource extends JsonResource
 
         return [
             'charges' => $landedCost->charges()->with('party')->get()->map(fn (LandedCostCharge $charge) => [
-                'id' => $charge->id, 'description' => $charge->description, 'party' => Refs::named($charge->party),
+                'id' => $charge->id, 'description' => $charge->description, 'party' => Refs::named($charge->party), 'bill_reference' => $charge->bill_reference,
                 'amount' => Refs::money($charge->amount_minor, $charge->currency), 'fx' => Refs::fx($charge->fx),
                 'base_amount' => $charge->base_amount_minor === null ? null : Refs::money($charge->base_amount_minor, $landedCost->base_currency),
             ])->all(),

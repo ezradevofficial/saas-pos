@@ -6943,7 +6943,9 @@
       "procurement_supplier_invoice": "Facture fournisseur",
       "payroll_run": "Paie",
       "stores_consumption": "Consommation des magasins",
-      "inventory_landed_cost": "Frais d’approche"
+      "inventory_landed_cost": "Frais d’approche",
+      "procurement_landed_cost": "Frais d’approche en charges",
+      "procurement_landed_cost_bill": "Facture de frais d’approche"
     },
     "columns": {
       "account": "Compte",
@@ -7550,6 +7552,7 @@
       "method": "Méthode de répartition",
       "receipts": "Réceptions concernées",
       "chargeDescription": "Frais",
+      "billReference": "Numéro de facture du fournisseur",
       "chargeSupplier": "Facturé par",
       "amount": "Montant",
       "email": "E-mail",
@@ -7911,6 +7914,7 @@
       },
       "charges": "Frais",
       "charge": "Frais {{number}}",
+      "billReferenceHelp": "Le numéro de la facture du fournisseur pour ce frais. Nécessaire pour valider : la facture est comptabilisée en dettes fournisseurs.",
       "chargeExamples": "Fret, droits, assurance ou dédouanement.",
       "addCharge": "Ajouter des frais",
       "removeCharge": "Retirer les frais {{number}}",

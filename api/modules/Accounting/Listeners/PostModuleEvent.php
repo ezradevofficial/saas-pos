@@ -13,6 +13,7 @@ use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
@@ -50,6 +51,11 @@ class PostModuleEvent implements ShouldQueue
     {
         // Stores' own moves (stores.*), transfers and empty postings change no ledger value (ACC-27, ACC-31).
         if ($event instanceof StockMoved && $this->inventory->stockMoved($event) === null) {
+            return false;
+        }
+
+        // A GRN posts only the landed cost of lines no stock journal carries (LandedCostSources).
+        if ($event instanceof GoodsReceiptPosted && (string) ($event->amounts['untracked_landed'] ?? '0') === '0') {
             return false;
         }
 

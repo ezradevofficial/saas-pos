@@ -6943,7 +6943,9 @@
       "procurement_supplier_invoice": "Supplier invoice",
       "payroll_run": "Payroll",
       "stores_consumption": "Stores consumption",
-      "inventory_landed_cost": "Landed cost"
+      "inventory_landed_cost": "Landed cost",
+      "procurement_landed_cost": "Landed cost expense",
+      "procurement_landed_cost_bill": "Landed cost bill"
     },
     "columns": {
       "account": "Account",
@@ -7550,6 +7552,7 @@
       "method": "Allocation method",
       "receipts": "Goods received it applies to",
       "chargeDescription": "Charge",
+      "billReference": "Supplier bill number",
       "chargeSupplier": "Charged by",
       "amount": "Amount",
       "email": "Email",
@@ -7911,6 +7914,7 @@
       },
       "charges": "Charges",
       "charge": "Charge {{number}}",
+      "billReferenceHelp": "The number on the supplier’s bill for this charge. Needed to post: the bill is posted to accounts payable.",
       "chargeExamples": "Freight, duty, insurance or clearing.",
       "addCharge": "Add a charge",
       "removeCharge": "Remove charge {{number}}",

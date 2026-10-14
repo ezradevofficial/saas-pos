@@ -278,6 +278,7 @@ return [
     ],
 
     'integrations' => [
+        'landed_cost_bill' => 'Frais d’approche :number',
         'procurement_invoice' => 'Facture fournisseur des achats :number',
         'fx_difference' => 'Écart de change sur les paiements',
         'summary_memo' => 'Récapitulatif journalier de :count ventes du point de vente du :date',

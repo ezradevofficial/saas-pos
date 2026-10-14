@@ -168,6 +168,7 @@ class StockLedger
                     'value_minor' => (string) $value,
                     'currency' => $currency,
                     'cost_variance_minor' => (string) $variance,
+                    'landed_minor' => (string) ($line->landed ?? 0),
                     'balance_after' => $after === null ? null : (string) $after,
                     'source_type' => $posting->sourceType,
                     'source_id' => $posting->sourceId,

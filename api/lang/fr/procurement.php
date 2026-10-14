@@ -37,6 +37,8 @@ return [
         'rejected_exceeds_received' => 'La quantité refusée ne peut pas dépasser la quantité reçue.',
         'match_exception' => 'Cette facture ne correspond pas au bon de commande et aux réceptions. Une personne autorisée à approuver les écarts doit l’approuver.',
         'stock_line_not_received' => 'La ligne :line est un article stocké qui n’a pas été reçu. Validez sa réception avant d’approuver la facture.',
+        'charge_supplier_required' => 'Le frais :line doit indiquer son fournisseur avant de valider les frais d’approche.',
+        'charge_bill_required' => 'Le frais :line doit indiquer le numéro de facture du fournisseur avant de valider les frais d’approche.',
         'override_reason_required' => 'Indiquez pourquoi vous approuvez une facture qui ne correspond pas.',
         'duplicate_reference' => 'Ce fournisseur a déjà une facture portant ce numéro. Vérifiez le numéro.',
         'receipt_cancelled' => 'L’un des bons de réception a été annulé. Retirez-le, puis réessayez.',

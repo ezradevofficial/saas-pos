@@ -30,8 +30,9 @@ use Modules\Procurement\Support\Tx;
 /**
  * PRC-17: landed costs.
  *
- * - create() / update(): a draft with charges (any active currency, an
- *   optional supplier) and the GRNs (draft or posted, of the company) they
+ * - create() / update(): a draft with charges (any active currency, the
+ *   charge's supplier and the supplier's bill reference, both required to
+ *   post: decision 19) and the GRNs (draft or posted, of the company) they
  *   apply to, and a method (`value`, `quantity`, `weight`).
  * - preview(): the allocation the document would post now.
  * - post(): each charge converted to base at the company's rate on the
@@ -157,11 +158,19 @@ class LandedCosts
                 throw ProcurementError::make('receipt_cancelled', field: 'receipt_ids');
             }
 
-            [$total, $charges] = $this->charges($company, $landedCost, persist: true);
+            // Decision 19: each charge names its supplier and the supplier's bill, which Accounting posts.
+            foreach (LandedCostCharge::query()->where('landed_cost_id', $landedCost->id)->orderBy('line_no')->get() as $index => $charge) {
+                if ($charge->party_id === null) {
+                    throw ProcurementError::make('charge_supplier_required', ['line' => $charge->line_no], "charges.{$index}.party_id");
+                }
+
+                if (trim((string) $charge->bill_reference) === '') {
+                    throw ProcurementError::make('charge_bill_required', ['line' => $charge->line_no], "charges.{$index}.bill_reference");
+                }
+            }
+
+            [$total] = $this->charges($company, $landedCost, persist: true);
             $plan = $this->plan($company, $landedCost, $total);
-            $items = Item::query()->whereKey(collect($plan)->pluck('receipt_line.item_id')->filter()->unique()->all())->get()->keyBy('id');
-            $amounts = ['stock_value' => 0, 'expense' => 0, 'landed_cost' => 0];
-            $allocations = [];
 
             foreach ($plan as $part) {
                 $line = $part['receipt_line'];
@@ -175,19 +184,11 @@ class LandedCosts
                     'base_amount_minor' => $part['amount_minor'],
                     'after_receipt' => $after,
                 ]);
-                $stock = $line->item_id !== null && $items->get($line->item_id)?->type === 'stock';
 
                 if ($after) {
                     $line->fill(['landed_minor' => $line->landed_minor + $part['amount_minor']])->save();
                     $receipt->fill(['landed_minor' => $receipt->landed_minor + $part['amount_minor']])->save();
-                    $amounts[$stock ? 'stock_value' : 'expense'] += $part['amount_minor'];
-                    $amounts['landed_cost'] += $part['amount_minor'];
                 }
-
-                $allocations[] = [
-                    'receipt_id' => $receipt->id, 'receipt_line_id' => $line->id, 'item_id' => $line->item_id, 'location_id' => $receipt->location_id,
-                    'stock' => $stock, 'after_receipt' => $after, 'base_amount_minor' => (string) $part['amount_minor'],
-                ];
             }
 
             $landedCost->fill([
@@ -199,13 +200,7 @@ class LandedCosts
                 'posted_at' => CarbonImmutable::now(),
             ])->save();
 
-            $event = new LandedCostAllocated((string) $landedCost->tenant_id, $landedCost->id, $landedCost->company_id, $landedCost->branch_id,
-                $landedCost->cost_date->toDateString(), $base, array_map(fn (int $amount) => (string) $amount, $amounts),
-                $charges->map(fn (LandedCostCharge $charge) => [
-                    'id' => $charge->id, 'description' => $charge->description, 'party_id' => $charge->party_id, 'currency' => $charge->currency,
-                    'amount_minor' => (string) $charge->amount_minor, 'fx' => $charge->fx?->jsonSerialize(), 'base_amount_minor' => (string) $charge->base_amount_minor,
-                ])->values()->all(),
-                $allocations, (string) $landedCost->number);
+            $event = $this->allocatedEvent($landedCost);
 
             return $landedCost->refresh();
         });
@@ -213,6 +208,50 @@ class LandedCosts
         event($event);
 
         return $posted;
+    }
+
+    /**
+     * PRC-17, PRC-25: LandedCostAllocated of a posted landed cost, from what
+     * it stored (also replayed for the Accounting backfill, ACC-29).
+     * `amounts` cover the allocations to GRNs already posted: `stock_value`
+     * those to stock lines Inventory tracked (a cost adjustment carries
+     * them), `expense` the others (services, untracked stock), and
+     * `landed_cost` their sum; each allocation says whether its line was
+     * tracked (`tracked`); each charge its supplier's bill reference.
+     */
+    public function allocatedEvent(LandedCost $landedCost): LandedCostAllocated
+    {
+        $charges = LandedCostCharge::query()->where('landed_cost_id', $landedCost->id)->orderBy('line_no')->get();
+        $allocations = LandedCostAllocation::query()->with('receiptLine.receipt')->where('landed_cost_id', $landedCost->id)->orderBy('id')->get();
+        $items = Item::query()->whereKey($allocations->pluck('receiptLine.item_id')->filter()->unique()->all())->get()->keyBy('id');
+        $amounts = ['stock_value' => 0, 'expense' => 0, 'landed_cost' => 0];
+        $rows = [];
+
+        foreach ($allocations as $allocation) {
+            $line = $allocation->receiptLine;
+            $stock = $line->item_id !== null && $items->get($line->item_id)?->type === 'stock';
+            $after = (bool) $allocation->after_receipt;
+            $tracked = $stock && $after && (bool) $line->stock_tracked;
+
+            if ($after) {
+                $amounts[$tracked ? 'stock_value' : 'expense'] += (int) $allocation->base_amount_minor;
+                $amounts['landed_cost'] += (int) $allocation->base_amount_minor;
+            }
+
+            $rows[] = [
+                'receipt_id' => $allocation->receipt_id, 'receipt_line_id' => $line->id, 'item_id' => $line->item_id, 'location_id' => $line->receipt->location_id,
+                'stock' => $stock, 'after_receipt' => $after, 'tracked' => $tracked, 'base_amount_minor' => (string) $allocation->base_amount_minor,
+            ];
+        }
+
+        return new LandedCostAllocated((string) $landedCost->tenant_id, $landedCost->id, $landedCost->company_id, $landedCost->branch_id,
+            $landedCost->cost_date->toDateString(), (string) $landedCost->base_currency, array_map(fn (int $amount) => (string) $amount, $amounts),
+            $charges->map(fn (LandedCostCharge $charge) => [
+                'id' => $charge->id, 'line_no' => $charge->line_no, 'description' => $charge->description, 'party_id' => $charge->party_id,
+                'bill_reference' => $charge->bill_reference, 'currency' => $charge->currency, 'amount_minor' => (string) $charge->amount_minor,
+                'fx' => $charge->fx?->jsonSerialize(), 'base_amount_minor' => (string) $charge->base_amount_minor,
+            ])->values()->all(),
+            $rows, (string) $landedCost->number);
     }
 
     public function cancel(LandedCost $landedCost, User $by, string $reason): LandedCost
@@ -337,6 +376,7 @@ class LandedCosts
                 'line_no' => $index + 1,
                 'description' => $input['description'],
                 'party_id' => empty($input['party_id']) ? null : $this->resolver->supplier($landedCost->company_id, $input['party_id'], "charges.{$index}.party_id")->id,
+                'bill_reference' => isset($input['bill_reference']) && trim((string) $input['bill_reference']) !== '' ? trim((string) $input['bill_reference']) : null,
                 'currency' => $this->resolver->currency($input['currency'], "charges.{$index}.currency"),
                 'amount_minor' => (int) $input['amount_minor'],
             ]);

@@ -16,6 +16,7 @@ use Modules\Accounting\Http\Requests\SeedPostingRulesRequest;
 use Modules\Accounting\Http\Requests\StorePostingRuleRequest;
 use Modules\Accounting\Http\Resources\JournalResource;
 use Modules\Accounting\Http\Resources\RecordResource;
+use Modules\Accounting\Integrations\LandedCostSources;
 use Modules\Accounting\Integrations\SalesSummaries;
 use Modules\Accounting\Integrations\SupplierInvoices;
 use Modules\Accounting\Ledger\LedgerError;
@@ -107,7 +108,8 @@ class PostingRuleController
             $accPostingException->source_type === 'pos.sale_summary' => $summaries->retry($accPostingException, $request->user()),
             $accPostingException->status === PostingException::SUPERSEDED => throw LedgerError::make('summary_superseded'),
             // ACC-32: a Procurement invoice posts its journal, then writes its Accounting supplier invoice.
-            $accPostingException->source_type === SupplierInvoices::SOURCE => $supplierInvoices->retry($accPostingException, $request->user()),
+            // Stage 7B closing review: so does a landed cost's supplier bill.
+            in_array($accPostingException->source_type, [SupplierInvoices::SOURCE, LandedCostSources::BILL], true) => $supplierInvoices->retry($accPostingException, $request->user()),
             default => $posting->retry($accPostingException, $request->user()),
         };
 

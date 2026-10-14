@@ -11,7 +11,8 @@ use Modules\Procurement\Models\LandedCost;
 /**
  * POST procurement/landed-costs (PRC-17): `procurement.landed_cost.create`
  * at the branch; `{branch_id, cost_date, method: value|quantity|weight,
- * description?, charges: [{description, party_id?, currency, amount_minor}],
+ * description?, charges: [{description, party_id?, bill_reference?, currency,
+ * amount_minor}] (supplier and bill reference required to post),
  * receipt_ids: [GRN id]}`. PATCH procurement/landed-costs/{id}
  * (UpdateLandedCostRequest) takes the same fields but the branch, each
  * optional, on a draft.
@@ -43,6 +44,7 @@ class StoreLandedCostRequest extends FormRequest
             'charges' => [$need, 'array', 'min:1', 'max:50'],
             'charges.*.description' => ['required', 'string', 'max:200'],
             'charges.*.party_id' => ProcurementRules::id('parties'),
+            'charges.*.bill_reference' => ['sometimes', 'nullable', 'string', 'max:100'],
             'charges.*.currency' => ['required', 'string', 'size:3'],
             'charges.*.amount_minor' => ['required', 'string', ProcurementRules::MINOR, 'not_in:0'],
             'receipt_ids' => [$need, 'array', 'min:1', 'max:50'],

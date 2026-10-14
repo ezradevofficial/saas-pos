@@ -82,6 +82,11 @@ export function moduleLink(link) {
     // ACC-32: a Procurement supplier invoice's journal opens the Procurement invoice.
     case 'procurement.invoice':
       return `/procurement/invoices/${id}`
+    // Stage 7B closing review: a landed cost's bill or expense opens the landed cost; a GRN's, the GRN.
+    case 'procurement.landed_cost':
+      return `/procurement/landed-costs/${id}`
+    case 'procurement.receipt':
+      return `/procurement/receipts/${id}`
     case 'loyalty.customer':
       return `/contacts/customers/${id}?tab=loyalty`
     default:
