@@ -345,7 +345,8 @@
       "loyalty": "Fidélité",
       "inventory": "Stocks",
       "accounting": "Comptabilité",
-      "procurement": "Achats"
+      "procurement": "Achats",
+      "stores": "Magasins"
     },
     "dashboard": "Tableau de bord",
     "organisation": "Organisation",
@@ -424,7 +425,13 @@
     "procurementInvoices": "Factures fournisseurs",
     "procurementLandedCosts": "Frais d’approche",
     "procurementPerformance": "Performance fournisseurs",
-    "procurementSettings": "Paramètres des achats"
+    "procurementSettings": "Paramètres des achats",
+    "storesRequisitions": "Demandes",
+    "storesIssues": "Sorties",
+    "storesReturns": "Retours",
+    "storesLedger": "Registre du magasin",
+    "storesStock": "Stock en magasin",
+    "storesConsumption": "Consommation"
   },
   "shell": {
     "account": "Menu du compte",
@@ -6347,7 +6354,9 @@
       "sale": "Vente",
       "sale_return": "Retour de vente",
       "sale_void": "Vente annulée",
-      "cost_adjustment": "Frais d’approche ajoutés"
+      "cost_adjustment": "Frais d’approche ajoutés",
+      "store_issue": "Sortie de magasin",
+      "store_return": "Retour au magasin"
     },
     "flags": {
       "negative_stock": "Stock passé sous zéro",
@@ -7948,6 +7957,291 @@
       "linkSentHelp": "Ouvrez-le depuis {{email}} pour voir l’appel d’offres et déposer votre offre.",
       "removeFile": "Retirer",
       "removeFileOf": "Retirer {{name}}"
+    }
+  },
+  "stores": {
+    "actions": {
+      "keep": "Garder",
+      "reason": "Motif"
+    },
+    "statuses": {
+      "pending": "En attente d’approbation",
+      "approved": "Approuvée",
+      "partially_issued": "Sortie en partie",
+      "issued": "Sortie",
+      "closed": "Clôturée",
+      "rejected": "Refusée",
+      "cancelled": "Annulée",
+      "acknowledged": "Réception confirmée"
+    },
+    "kinds": {
+      "opening": "Stock initial",
+      "receipt": "Réception de marchandises",
+      "adjustment_in": "Ajustement en entrée",
+      "adjustment_out": "Ajustement en sortie",
+      "issue": "Sortie",
+      "return": "Retour"
+    },
+    "ledgers": {
+      "stores": "Registre propre du magasin",
+      "inventory": "Stocks"
+    },
+    "returnReasons": {
+      "unused": "Non utilisé",
+      "excess": "Plus que nécessaire",
+      "wrong_item": "Mauvais article",
+      "damaged": "Endommagé",
+      "other": "Autre"
+    },
+    "entryReasons": {
+      "count": "Compté",
+      "damage": "Endommagé",
+      "expiry": "Périmé",
+      "found": "Retrouvé",
+      "correction": "Rectification",
+      "other": "Autre"
+    },
+    "entryKinds": {
+      "opening": "Stock initial",
+      "adjustment": "Ajustement"
+    },
+    "directions": {
+      "in": "Ajouter au stock",
+      "out": "Retirer du stock"
+    },
+    "groups": {
+      "department": "Service",
+      "cost_centre": "Centre de coût",
+      "item": "Article",
+      "period": "Mois"
+    },
+    "columns": {
+      "number": "Numéro",
+      "createdAt": "Créée le",
+      "status": "Statut",
+      "store": "Magasin",
+      "department": "Service",
+      "costCentre": "Centre de coût",
+      "neededBy": "Pour le",
+      "requestedBy": "Demandée par",
+      "lines": "Lignes",
+      "lineNo": "Ligne",
+      "item": "Article",
+      "code": "Code",
+      "asked": "Demandé",
+      "issued": "Sorti",
+      "open": "Reste à sortir",
+      "issuedAt": "Sortie le",
+      "issuedBy": "Sortie par",
+      "requisition": "Demande",
+      "value": "Valeur",
+      "returnedAt": "Retourné le",
+      "issue": "Sortie",
+      "reason": "Motif",
+      "returnedBy": "Retourné par",
+      "returned": "Retourné",
+      "returnedBase": "Retourné (unité de base)",
+      "keptBase": "Gardé (unité de base)",
+      "date": "Date",
+      "movement": "Mouvement",
+      "document": "Document",
+      "qty": "Quantité",
+      "balanceAfter": "Solde après",
+      "onHand": "En stock",
+      "lastMoved": "Dernier mouvement",
+      "group": "Groupe",
+      "consumed": "Consommé",
+      "consumedValue": "Valeur consommée"
+    },
+    "fields": {
+      "store": "Magasin",
+      "department": "Service",
+      "costCentre": "Centre de coût",
+      "neededBy": "Pour le",
+      "note": "Remarque",
+      "lineNote": "Note pour le magasin",
+      "item": "Article",
+      "unit": "Unité",
+      "qty": "Quantité",
+      "requestedBy": "Demandée par",
+      "requisition": "Demande",
+      "issue": "Sortie",
+      "issuedBy": "Sortie par",
+      "acknowledgedBy": "Reçue par",
+      "returnedBy": "Retourné par",
+      "ledger": "Stock tenu dans",
+      "reason": "Motif",
+      "entryKind": "Saisie",
+      "direction": "Sens"
+    },
+    "pickers": {
+      "store": "Choisissez un magasin",
+      "department": "Choisissez un service",
+      "storeFirst": "Choisissez d’abord un magasin",
+      "costCentre": "Choisissez un centre de coût",
+      "noCostCentre": "Aucun centre de coût",
+      "item": "Rechercher des articles",
+      "reason": "Choisissez un motif"
+    },
+    "validation": {
+      "store": "Choisissez le magasin à qui demander.",
+      "department": "Choisissez le service qui demande.",
+      "item": "Choisissez un article.",
+      "qty": "Saisissez une quantité."
+    },
+    "filters": {
+      "store": "Magasin",
+      "allStores": "Tous les magasins",
+      "status": "Statut",
+      "allStatuses": "Tous les statuts",
+      "kind": "Mouvement",
+      "allKinds": "Tous les mouvements",
+      "from": "Du",
+      "to": "Au"
+    },
+    "flow": {
+      "title": "Approbation",
+      "noCurrent": "Rien n’attend d’approbation.",
+      "heldBy": "En attente de {{names}}",
+      "nobody": "Personne ne peut encore approuver cette étape. Demandez à un administrateur de vérifier le circuit.",
+      "openApproval": "Ouvrir l’approbation",
+      "openFlow": "Voir tout le circuit"
+    },
+    "lines": {
+      "title": "Lignes",
+      "line": "Ligne {{number}}",
+      "add": "Ajouter une ligne",
+      "remove": "Retirer la ligne {{number}}",
+      "removeShort": "Retirer"
+    },
+    "requisitions": {
+      "title": "Demandes",
+      "description": "Ce que les services demandent aux magasins, et où en est chaque demande.",
+      "new": "Nouvelle demande",
+      "search": "Rechercher par numéro ou note",
+      "empty": "Aucune demande pour l’instant. Un service demande au magasin avec Nouvelle demande.",
+      "emptyFiltered": "Aucune demande ne correspond à ces filtres.",
+      "back": "Demandes",
+      "newTitle": "Nouvelle demande",
+      "newHelp": "Demandez des articles au magasin pour un service. Le chef de service l’approuve avant toute sortie.",
+      "submit": "Envoyer pour approbation",
+      "created": "Demande {{number}} envoyée pour approbation"
+    },
+    "requisition": {
+      "eyebrow": "Demande",
+      "summary": "Détails",
+      "issues": "Sorties",
+      "notFound": "Cette demande n’existe pas ou vous ne pouvez pas la voir.",
+      "close": "Clôturer la demande",
+      "cancel": "Annuler la demande",
+      "closedAt": "Clôturée",
+      "cancelledAt": "Annulée",
+      "cancelTitle": "Annuler {{number}}",
+      "cancelHelp": "Rien ne sera sorti pour elle. Son approbation s’arrête.",
+      "confirmCancel": "Annuler la demande",
+      "cancelled": "Demande annulée",
+      "closeTitle": "Clôturer {{number}}",
+      "closeHelp": "Ce qui reste ne sera pas sorti. Ce qui a été sorti reste.",
+      "confirmClose": "Clôturer la demande",
+      "closed": "Demande clôturée"
+    },
+    "issue": {
+      "title": "Sortir des articles",
+      "help": "Sortez tout ou partie de ce qui reste. Les lignes vides ne sortent pas.",
+      "open": "Reste {{qty}} {{unit}} à sortir",
+      "qty": "Sortir ({{unit}})",
+      "submit": "Sortir les articles",
+      "done": "Articles sortis sous {{number}}"
+    },
+    "issues": {
+      "title": "Sorties",
+      "description": "Les articles remis aux services par les magasins. Les sorties attendent l’accusé de réception du service.",
+      "search": "Rechercher par numéro ou note",
+      "empty": "Aucune sortie pour l’instant.",
+      "emptyFiltered": "Aucune sortie ne correspond à ces filtres.",
+      "back": "Sorties"
+    },
+    "issueDetail": {
+      "eyebrow": "Sortie",
+      "summary": "Détails",
+      "returns": "Retours",
+      "notFound": "Cette sortie n’existe pas ou vous ne pouvez pas la voir.",
+      "acknowledge": "Accuser réception",
+      "acknowledgeTitle": "Accuser réception de {{number}}",
+      "acknowledgeHelp": "Confirmez que le service a reçu ces articles. Le magasin garde qui a confirmé et quand.",
+      "acknowledged": "Réception confirmée",
+      "return": "Retourner des articles",
+      "valuing": "Le module Stocks valorise cette sortie. Les valeurs apparaissent ensuite."
+    },
+    "return": {
+      "title": "Retourner des articles",
+      "help": "Saisissez ce qui revient au magasin, dans l’unité de chaque ligne.",
+      "issued": "{{qty}} {{unit}} sortis",
+      "qty": "Retourner ({{unit}})",
+      "submit": "Retourner au magasin",
+      "done": "Articles retournés sous {{number}}"
+    },
+    "returns": {
+      "title": "Retours",
+      "description": "Les articles rapportés aux magasins par les services.",
+      "search": "Rechercher par numéro ou note",
+      "empty": "Aucun retour pour l’instant.",
+      "emptyFiltered": "Aucun retour ne correspond à ces filtres.",
+      "back": "Retours"
+    },
+    "returnDetail": {
+      "eyebrow": "Retour au magasin",
+      "summary": "Détails",
+      "notFound": "Ce retour n’existe pas ou vous ne pouvez pas le voir."
+    },
+    "ledger": {
+      "title": "Registre du magasin",
+      "description": "Chaque entrée et sortie des magasins, avec le solde après.",
+      "search": "Rechercher par article ou document",
+      "empty": "Aucun mouvement pour l’instant.",
+      "emptyFiltered": "Aucun mouvement ne correspond à ces filtres.",
+      "inventoryTitle": "Le module Stocks tient le stock des magasins",
+      "inventoryLink": "Voir le registre complet dans Stocks",
+      "inventoryHelp": "Ce registre montre les sorties et retours des magasins ; le module Stocks tient les quantités."
+    },
+    "stock": {
+      "title": "Stock en magasin",
+      "description": "Ce que chaque magasin détient dans son propre registre.",
+      "search": "Rechercher par article",
+      "empty": "Aucun stock saisi pour l’instant.",
+      "emptyFiltered": "Aucun stock ne correspond à ces filtres.",
+      "inventoryTitle": "Le module Stocks tient le stock des magasins",
+      "inventoryHelp": "Saisissez le stock initial et les ajustements dans Stocks. Les sorties et retours passent toujours par les magasins.",
+      "entryTitle": "Saisir du stock",
+      "entryHelp": "Stock initial, ou ajustement avec son motif. Le stock ne passe jamais sous zéro.",
+      "enter": "Saisir le stock",
+      "entered": "Stock saisi"
+    },
+    "consumption": {
+      "title": "Consommation",
+      "description": "Ce que les services ont utilisé : sorti moins retourné, sur les dates choisies.",
+      "groupBy": "Regrouper par",
+      "search": "Rechercher par article",
+      "empty": "Rien n’a encore été sorti.",
+      "emptyFiltered": "Rien n’a été sorti pour ces filtres.",
+      "none": "Aucun",
+      "totals": "Totaux",
+      "totalIn": "Consommé en {{currency}}",
+      "by": {
+        "department": "Par service",
+        "cost_centre": "Par centre de coût",
+        "item": "Par article",
+        "period": "Par mois"
+      }
+    },
+    "print": {
+      "title": "Imprimer",
+      "help": "Noir sur blanc, depuis les modèles des documents.",
+      "delivery_note": "Bon de livraison",
+      "issue_voucher": "Bon de sortie",
+      "print": "Imprimer",
+      "pdf": "Télécharger le PDF",
+      "frame": "Document à imprimer"
     }
   }
 }

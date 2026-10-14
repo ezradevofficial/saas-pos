@@ -90,11 +90,12 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 
 Movement kinds: `opening`, `receipt`, `adjustment_in`, `adjustment_out`,
 `count_gain`, `count_loss`, `transfer_out`, `transfer_in`, `transfer_loss`,
-`sale`, `sale_return`, `sale_void`, `opening_reversal`, `cost_adjustment`
-(zero quantity, INV-25). Sources:
-`inventory.opening`, `inventory.import`, `inventory.adjustment`,
+`sale`, `sale_return`, `sale_void`, `opening_reversal`, `store_issue`,
+`store_return` (Stores, STR-08), `cost_adjustment` (zero quantity, INV-25).
+Sources: `inventory.opening`, `inventory.import`, `inventory.adjustment`,
 `inventory.transfer`, `inventory.count`, `pos.sale`, `pos.refund`,
-`pos.void`, `procurement.goods_receipt`, `procurement.landed_cost`.
+`pos.void`, `procurement.goods_receipt`, `procurement.landed_cost`,
+`stores.issue`, `stores.return`.
 
 ## Events
 
@@ -103,7 +104,7 @@ values only):
 
 | Event | When | Carries |
 | --- | --- | --- |
-| `StockMoved` | Every posting | tenant, company, currency, source type and id, movements `[{id, kind, item_id, location_id, qty, value_minor}]` |
+| `StockMoved` | Every posting | tenant, company, currency, source type and id, movements `[{id, kind, item_id, location_id, qty, value_minor, cost_variance_minor, source_line_id}]` |
 | `StockAdjusted` | An adjustment posted | the adjustment id, company, location, currency, total value in and out |
 | `StockCountPosted` | A count posted | the count id, company, location, currency, gain and loss values |
 | `TransferReceived` | A transfer received | the transfer id, company, from and to locations, currency, received and lost values |
@@ -118,6 +119,8 @@ values only):
 | `SaleRefunded` | POS | `sale_return` movements back for the refunded quantities, at the sale's cost |
 | `GoodsReceived` | Procurement (contract defined here) | `receipt` movements with cost layers |
 | `LandedCostAllocated` | Procurement | `ApplyLandedCost`: a `cost_adjustment` per stock line allocated after receipt (INV-25), idempotent per allocation line |
+| `StoreIssued` | Stores (`ledger = inventory`) | `store_issue` movements out of the store, never refused (flagged `negative_stock`), batches FEFO (docs/modules/stores.md, STR-08) |
+| `StoreReturned` | Stores (`ledger = inventory`) | `store_return` movements back at the cost the issue went out at |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | settle transfers, adjustments and counts |
 
 The POS events carry ids; the POS module provides their stock lines
@@ -215,6 +218,15 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
   stock on the till (INV-17). Switches on only when both are active.
 - **Procurement → Inventory**: `GoodsReceived` (INV-15) and
   `LandedCostAllocated` (INV-25).
+- **Stores → Inventory**: `StoreIssued`, `StoreReturned` with `ledger =
+  inventory` (fixed by Stores while both were active) move stock whatever
+  the module state when the job runs; `StockMoved` (sources `stores.*`)
+  carries the values back to Stores, and is raised again when a posting
+  is delivered twice (docs/modules/stores.md, STR-08, STR-09).
+- **Inventory → Accounting, exclusion**: for `stores.issue` and
+  `stores.return` sources Accounting does not post `StockMoved`; it posts
+  Stores' `StoreConsumptionValued` (department expense against stock)
+  instead, so the movement is journalled once.
 - **Inventory → Accounting**: `StockMoved`, `StockAdjusted`,
   `StockCountPosted`, `TransferReceived` carry the values for stock
   journals (stage 7B).

@@ -79,7 +79,7 @@ final class DefaultTemplates
             'procurement.regret_letter' => __('procurement.letters.regret_body', [], $language),
             default => '',
         };
-        $hasTotals = ! in_array($type, ['letter', 'stores.delivery_note', 'procurement.regret_letter'], true);
+        $hasTotals = ! in_array($type, ['letter', 'stores.delivery_note', 'stores.issue_voucher', 'procurement.regret_letter'], true);
 
         $right = [['id' => 'number', 'type' => 'field', 'field' => 'document.number', 'label' => true], ['id' => 'date', 'type' => 'field', 'field' => 'document.date', 'label' => true]];
 
@@ -89,6 +89,8 @@ final class DefaultTemplates
 
         $party = match ($type) {
             'payroll.payslip', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter' => [],
+            // STR-14: an issue goes to a department, not a customer.
+            'stores.delivery_note', 'stores.issue_voucher' => [],
             default => [
                 ['id' => 'customer', 'type' => 'field', 'field' => 'customer.name', 'label' => true],
                 ['id' => 'customer-tax', 'type' => 'field', 'field' => 'customer.tax_id', 'label' => true],
@@ -114,7 +116,7 @@ final class DefaultTemplates
             $hasTotals ? ['id' => 'totals', 'type' => 'totals', 'show' => $type === 'sales.invoice' || $type === 'sales.quote' || $type === 'procurement.po' ? ['subtotal', 'discount', 'tax', 'total'] : ['total'], 'tax_lines' => true] : null,
             ['id' => 'spacer-2', 'type' => 'spacer', 'size' => 6],
             in_array($type, ['sales.invoice', 'sales.quote', 'procurement.po'], true) ? ['id' => 'terms', 'type' => 'terms', 'text' => ''] : null,
-            in_array($type, ['payroll.payslip', 'stores.delivery_note', 'letter', 'procurement.award_letter', 'procurement.regret_letter'], true) ? ['id' => 'signature', 'type' => 'signature', 'label' => ''] : null,
+            in_array($type, ['payroll.payslip', 'stores.delivery_note', 'stores.issue_voucher', 'letter', 'procurement.award_letter', 'procurement.regret_letter'], true) ? ['id' => 'signature', 'type' => 'signature', 'label' => ''] : null,
             DocumentTypes::TYPES[$type]['fiscal'] ? ['id' => 'fiscal', 'type' => 'fiscal'] : null,
         ]));
     }

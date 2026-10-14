@@ -190,10 +190,10 @@ class TemplateApiTest extends TestCase
 
         // RBAC-08: an installed module's types are offered only while it is active; types of modules
         // not installed yet keep their sample data.
-        $this->assertSame(['sales.invoice', 'sales.quote', 'stores.delivery_note', 'payroll.payslip', 'letter'], array_column($this->getJson($uri, $this->headersFor())->assertOk()->json('data'), 'key'));
+        $this->assertSame(['sales.invoice', 'sales.quote', 'payroll.payslip', 'letter'], array_column($this->getJson($uri, $this->headersFor())->assertOk()->json('data'), 'key'));
 
         $this->inTenant(function () {
-            foreach (['pos', 'loyalty', 'accounting', 'inventory', 'procurement'] as $module) {
+            foreach (['pos', 'loyalty', 'accounting', 'inventory', 'procurement', 'stores'] as $module) {
                 app(ModuleRegistry::class)->activate($module);
             }
         });
@@ -201,7 +201,7 @@ class TemplateApiTest extends TestCase
         $receipt = collect($types['data'])->firstWhere('key', 'pos.receipt');
         $quote = collect($types['data'])->firstWhere('key', 'sales.quote');
 
-        $this->assertSame(['pos.receipt', 'pos.refund_receipt', 'sales.invoice', 'sales.quote', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter', 'stores.delivery_note', 'payroll.payslip', 'party.statement', 'accounting.invoice', 'accounting.credit_note', 'accounting.statement', 'letter', 'inventory.label'], array_column($types['data'], 'key'));
+        $this->assertSame(['pos.receipt', 'pos.refund_receipt', 'sales.invoice', 'sales.quote', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter', 'stores.delivery_note', 'stores.issue_voucher', 'payroll.payslip', 'party.statement', 'accounting.invoice', 'accounting.credit_note', 'accounting.statement', 'letter', 'inventory.label'], array_column($types['data'], 'key'));
         $this->assertSame([true, true, 'kra_etims', ['fiscal', 'totals']], [$receipt['live'], $receipt['fiscal']['required'], $receipt['fiscal']['authority'], $receipt['locked']]);
         $this->assertSame([false, false, []], [$quote['live'], $quote['fiscal']['required'], $quote['locked']]);
         $this->assertSame('80mm', $receipt['default']['paper']);

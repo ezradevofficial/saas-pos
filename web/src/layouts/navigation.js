@@ -61,6 +61,13 @@ export const PROCUREMENT_INVOICE_VIEW = 'procurement.invoice.view'
 export const PROCUREMENT_LANDED_COST_VIEW = 'procurement.landed_cost.view'
 export const PROCUREMENT_PERFORMANCE_VIEW = 'procurement.performance.view'
 export const PROCUREMENT_SETTINGS_VIEW = ['procurement.po.view', 'procurement.invoice.view', 'procurement.settings.edit']
+
+// Stores module (docs/modules/stores.md, RBAC-09): who may open each page (the API checks again at each store).
+export const STORES_REQUISITION_VIEW = 'stores.requisition.view'
+export const STORES_ISSUE_VIEW = 'stores.issue.view'
+export const STORES_RETURN_VIEW = 'stores.return.view'
+export const STORES_LEDGER_VIEW = 'stores.ledger.view'
+export const STORES_REPORT_VIEW = 'stores.report.view'
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -142,6 +149,19 @@ export const NAV_GROUPS = [
       { to: '/procurement/landed-costs', icon: 'landedCosts', label: (t) => t('nav.procurementLandedCosts'), permission: PROCUREMENT_LANDED_COST_VIEW, module: 'procurement' },
       { to: '/procurement/supplier-performance', icon: 'performance', label: (t) => t('nav.procurementPerformance'), permission: PROCUREMENT_PERFORMANCE_VIEW, module: 'procurement' },
       { to: '/procurement/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.procurementSettings'), permission: PROCUREMENT_SETTINGS_VIEW, module: 'procurement' },
+    ],
+  },
+  {
+    // Stores (docs/modules/stores.md, Screens): only while the Stores module is active (RBAC-08).
+    id: 'stores',
+    label: (t) => t('nav.groups.stores'),
+    items: [
+      { to: '/stores/requisitions', icon: 'templates', label: (t) => t('nav.storesRequisitions'), permission: STORES_REQUISITION_VIEW, module: 'stores' },
+      { to: '/stores/issues', icon: 'transfers', label: (t) => t('nav.storesIssues'), permission: STORES_ISSUE_VIEW, module: 'stores' },
+      { to: '/stores/returns', icon: 'undo', label: (t) => t('nav.storesReturns'), permission: STORES_RETURN_VIEW, module: 'stores' },
+      { to: '/stores/ledger', icon: 'movements', label: (t) => t('nav.storesLedger'), permission: STORES_LEDGER_VIEW, module: 'stores' },
+      { to: '/stores/stock', icon: 'stock', label: (t) => t('nav.storesStock'), permission: STORES_LEDGER_VIEW, module: 'stores' },
+      { to: '/stores/consumption', icon: 'chart', label: (t) => t('nav.storesConsumption'), permission: STORES_REPORT_VIEW, module: 'stores' },
     ],
   },
   {

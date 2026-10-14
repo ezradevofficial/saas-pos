@@ -69,6 +69,8 @@ return [
         'sale_return' => 'Sale return',
         'sale_void' => 'Sale voided',
         'cost_adjustment' => 'Landed cost added',
+        'store_issue' => 'Store issue',
+        'store_return' => 'Return to store',
     ],
     'flags' => [
         'negative_stock' => 'Stock went below zero',

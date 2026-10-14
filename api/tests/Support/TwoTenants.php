@@ -547,6 +547,11 @@ final class TwoTenants
         // through the back office and the supplier portal.
         $procurement = self::procurement($test, $owner, $managerToken, $tenantId, $ownerId, $managerId, $company, $branch, $location,
             $party, $item, $uoms['BOX'], $taxCode, $dimensions, $upper);
+        // Stores (docs/modules/stores.md): the module switched on; a requisition
+        // of the department to Inventory's store, approved by the branch
+        // manager (the department head is its requester), partly issued and
+        // partly returned through Inventory.
+        $stores = self::stores($test, $owner, ['Authorization' => 'Bearer '.$accepted->json('token'), 'Accept' => 'application/json'], $tenantId, $inventory['inventory_location'], $item, $dimensions);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -627,6 +632,7 @@ final class TwoTenants
                 ...$pos,
                 ...$inventory,
                 ...$procurement,
+                ...$stores,
                 ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
@@ -1026,6 +1032,38 @@ final class TwoTenants
             'inventory_transfer' => $transfer,
             'inventory_adjustment' => $adjustment,
             'inventory_count' => $count,
+        ];
+    }
+
+    /**
+     * The Stores fixture of one tenant, made through its API.
+     *
+     * @param  array<string, string>  $dimensions
+     * @return array<string, string>
+     */
+    private static function stores(TestCase $test, array $owner, array $manager, string $tenantId, string $store, string $item, array $dimensions): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('stores'));
+
+        $requisition = self::ok($test->postJson('/api/v1/stores/requisitions', [
+            'location_id' => $store, 'department_id' => $dimensions['department'], 'cost_centre_id' => $dimensions['cost_centre'],
+            'lines' => [['item_id' => $item, 'qty' => '5']],
+        ], $owner), 201)->json('data');
+        $approval = app(TenantContext::class)->run($tenantId, fn () => ApprovalRequest::query()->where('document_id', $requisition['id'])->value('id'));
+        self::ok($test->postJson("/api/v1/approvals/{$approval}/approve", [], $manager));
+        $issue = self::ok($test->postJson("/api/v1/stores/requisitions/{$requisition['id']}/issues", [
+            'lines' => [['requisition_line_id' => $requisition['lines'][0]['id'], 'qty' => '2']],
+        ], $owner), 201)->json('data');
+        $return = self::ok($test->postJson("/api/v1/stores/issues/{$issue['id']}/returns", [
+            'reason' => 'unused', 'lines' => [['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '1']],
+        ], $owner), 201)->json('data.id');
+
+        return [
+            'stores_requisition' => $requisition['id'],
+            'stores_requisition_line' => $requisition['lines'][0]['id'],
+            'stores_issue' => $issue['id'],
+            'stores_issue_line' => $issue['lines'][0]['id'],
+            'stores_return' => $return,
         ];
     }
 

@@ -20,6 +20,11 @@ import {
   INVENTORY_STOCK_VIEW,
   INVENTORY_TRANSFER_VIEW,
   INVENTORY_VALUATION_VIEW,
+  STORES_ISSUE_VIEW,
+  STORES_LEDGER_VIEW,
+  STORES_REPORT_VIEW,
+  STORES_REQUISITION_VIEW,
+  STORES_RETURN_VIEW,
   ITEM_VIEW,
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
@@ -96,6 +101,16 @@ import TransferDetail from './pages/inventory/TransferDetail'
 import TransferForm from './pages/inventory/TransferForm'
 import Transfers from './pages/inventory/Transfers'
 import Valuation from './pages/inventory/Valuation'
+import Consumption from './pages/stores/Consumption'
+import IssueDetail from './pages/stores/IssueDetail'
+import Issues from './pages/stores/Issues'
+import StoresRequisitionDetail from './pages/stores/RequisitionDetail'
+import StoresRequisitionForm from './pages/stores/RequisitionForm'
+import StoresRequisitions from './pages/stores/Requisitions'
+import ReturnDetail from './pages/stores/ReturnDetail'
+import Returns from './pages/stores/Returns'
+import StoreLedger from './pages/stores/StoreLedger'
+import StoreStock from './pages/stores/StoreStock'
 import NotFound from './pages/NotFound'
 import InvoiceDetail from './pages/procurement/InvoiceDetail'
 import InvoiceForm from './pages/procurement/InvoiceForm'
@@ -369,6 +384,19 @@ export const routes = [
         ['/procurement/landed-costs/:landedCostId/edit', 'procurement.landed_cost.create', <LandedCostForm key="prc-landed-cost-edit" />],
         ['/procurement/supplier-performance', PROCUREMENT_PERFORMANCE_VIEW, <SupplierPerformance key="prc-performance" />],
         ['/procurement/settings', PROCUREMENT_SETTINGS_VIEW, <ProcurementSettings key="prc-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Stores (docs/modules/stores.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/stores/requisitions', STORES_REQUISITION_VIEW, <StoresRequisitions key="stores-requisitions" />],
+        ['/stores/requisitions/new', 'stores.requisition.create', <StoresRequisitionForm key="stores-requisition-new" />],
+        ['/stores/requisitions/:requisitionId', STORES_REQUISITION_VIEW, <StoresRequisitionDetail key="stores-requisition" />],
+        ['/stores/issues', STORES_ISSUE_VIEW, <Issues key="stores-issues" />],
+        ['/stores/issues/:issueId', STORES_ISSUE_VIEW, <IssueDetail key="stores-issue" />],
+        ['/stores/returns', STORES_RETURN_VIEW, <Returns key="stores-returns" />],
+        ['/stores/returns/:returnId', STORES_RETURN_VIEW, <ReturnDetail key="stores-return" />],
+        ['/stores/ledger', STORES_LEDGER_VIEW, <StoreLedger key="stores-ledger" />],
+        ['/stores/stock', STORES_LEDGER_VIEW, <StoreStock key="stores-stock" />],
+        ['/stores/consumption', STORES_REPORT_VIEW, <Consumption key="stores-consumption" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // Accounting (docs/modules/accounting.md): the API answers 403 module_inactive without the module.
       ...[

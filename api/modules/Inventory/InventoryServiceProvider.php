@@ -34,6 +34,7 @@ use Modules\Inventory\Imports\OpeningStockImporter;
 use Modules\Inventory\Labels\LabelSource;
 use Modules\Inventory\Listeners\ApplyLandedCost;
 use Modules\Inventory\Listeners\MoveStockForSale;
+use Modules\Inventory\Listeners\MoveStockForStores;
 use Modules\Inventory\Listeners\NotifyLowStock;
 use Modules\Inventory\Listeners\RecordGoodsReceived;
 use Modules\Inventory\Listeners\SettleInventoryDocument;
@@ -46,6 +47,8 @@ use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
 use Modules\Procurement\Events\LandedCostAllocated;
+use Modules\Stores\Events\StoreIssued;
+use Modules\Stores\Events\StoreReturned;
 
 /**
  * The Inventory module (docs/modules/inventory.md). Registered for every
@@ -117,6 +120,11 @@ class InventoryServiceProvider extends ServiceProvider
         // INV-14: POS sales move stock (when both modules are active, checked per tenant).
         foreach ([SaleCompleted::class, SaleVoided::class, SaleRefunded::class] as $event) {
             Event::listen($event, [MoveStockForSale::class, 'handle']);
+        }
+
+        // STR-08: Stores' issues and returns (when both modules are active, checked per tenant).
+        foreach ([StoreIssued::class, StoreReturned::class] as $event) {
+            Event::listen($event, [MoveStockForStores::class, 'handle']);
         }
 
         // INV-15: goods received by Procurement (the contract defined here).

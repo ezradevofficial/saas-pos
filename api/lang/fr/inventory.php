@@ -69,6 +69,8 @@ return [
         'sale_return' => 'Retour de vente',
         'sale_void' => 'Vente annulée',
         'cost_adjustment' => 'Frais d’approche ajoutés',
+        'store_issue' => 'Sortie de magasin',
+        'store_return' => 'Retour au magasin',
     ],
     'flags' => [
         'negative_stock' => 'Stock passé sous zéro',

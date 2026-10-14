@@ -85,6 +85,32 @@ class LandedCostAdjustmentTest extends TestCase
         $this->assertSame(20000, (int) $this->inTenant(fn () => Movement::query()->where('kind', Movement::COST_ADJUSTMENT)->value('cost_variance_minor')));
     }
 
+    /** After every migration the kind check allows Stores' kinds and cost adjustments together, whichever migration ran last. */
+    public function test_the_migrated_ledger_takes_store_issues_store_returns_and_cost_adjustments(): void
+    {
+        $this->inTenant(function () {
+            foreach ([Movement::STORE_ISSUE => '-1', Movement::STORE_RETURN => '1', Movement::COST_ADJUSTMENT => '0'] as $kind => $qty) {
+                DB::table('inventory_movements')->insert([
+                    'id' => (string) Str::uuid7(), 'company_id' => $this->acme->id, 'location_id' => $this->locationA->id, 'item_id' => $this->soap->id,
+                    'kind' => $kind, 'qty' => $qty, 'value_minor' => 100, 'currency' => 'KES', 'source_type' => 'test', 'source_id' => (string) Str::uuid7(),
+                    'occurred_at' => now(), 'flags' => '[]',
+                ]);
+            }
+
+            $this->assertSame([Movement::COST_ADJUSTMENT, Movement::STORE_ISSUE, Movement::STORE_RETURN], DB::table('inventory_movements')->where('source_type', 'test')->orderBy('kind')->pluck('kind')->all());
+        });
+        $this->assertSame(Movement::KINDS, array_values(array_intersect(Movement::KINDS, $this->allowedKinds())));
+        $this->assertCount(count(Movement::KINDS), $this->allowedKinds());
+    }
+
+    /** @return list<string> */
+    private function allowedKinds(): array
+    {
+        preg_match_all("/'([a-z_]+)'/", (string) DB::scalar("select pg_get_constraintdef(oid) from pg_constraint where conname = 'inventory_movements_kind_check'"), $matches);
+
+        return $matches[1];
+    }
+
     public function test_only_cost_adjustments_may_carry_no_quantity(): void
     {
         $this->expectException(QueryException::class);
