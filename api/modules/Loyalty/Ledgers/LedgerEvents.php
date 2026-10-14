@@ -63,9 +63,8 @@ class LedgerEvents
         };
         $points = self::signed((string) $entry->points, $sign);
         $programme = $this->programmes->for($account->company_id);
-        $value = $programme === null || BigInteger::of((string) $programme->point_value_minor)->isLessThanOrEqualTo(0)
-            ? null
-            : (string) BigInteger::of($points)->multipliedBy((string) $programme->point_value_minor);
+        // Review #7: the value stored with the entry, never today's (live and replayed alike).
+        $value = $entry->point_value_minor === null ? null : (string) BigInteger::of($points)->multipliedBy((string) $entry->point_value_minor);
         $currency = $programme?->currency ?? '';
 
         return $this->raise($dispatch, $class, 'points', $entry->id, $entry->kind, $account->id, $account->company_id, $account->party_id, $entry->sale_id,

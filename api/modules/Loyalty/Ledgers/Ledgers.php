@@ -12,6 +12,7 @@ use Modules\Loyalty\Models\CreditEntry;
 use Modules\Loyalty\Models\GiftCard;
 use Modules\Loyalty\Models\GiftCardEntry;
 use Modules\Loyalty\Models\PointsEntry;
+use Modules\Loyalty\Models\Programme;
 
 /**
  * The three append-only ledgers (points, credit, gift cards) and their
@@ -84,6 +85,8 @@ class Ledgers
             'party_id' => $account->party_id,
             'kind' => $kind,
             'points' => $points,
+            // Review #7: the value of a point when the entry is written (null: a point is worth nothing).
+            'point_value_minor' => $this->pointValue($account->company_id),
             'occurred_at' => $attributes['occurred_at'] ?? CarbonImmutable::now(),
             'flags' => $attributes['flags'] ?? [],
             ...array_intersect_key($attributes, array_flip(['source_type', 'source_id', 'sale_id', 'expires_at', 'reason', 'created_by'])),
@@ -152,6 +155,13 @@ class Ledgers
         $this->events->giftCard($entry, $card);
 
         return $entry;
+    }
+
+    private function pointValue(string $companyId): ?string
+    {
+        $value = Programme::query()->where('company_id', $companyId)->value('point_value_minor');
+
+        return $value === null || (int) $value <= 0 ? null : (string) $value;
     }
 
     /** Whether the same source was already posted with $kind (checked under the account's lock). */

@@ -96,4 +96,26 @@ class LedgerEventsTest extends TestCase
         Event::assertDispatchedTimes(GiftCardExpired::class, 1);
         Event::assertDispatched(GiftCardExpired::class, fn (GiftCardExpired $e) => $e->amountMinor === '30000' && $e->channel === 'system');
     }
+
+    /** Review #7: a points entry keeps the point value it was written with; a later programme change never revalues it, live or replayed. */
+    public function test_points_events_use_the_value_stored_with_the_entry(): void
+    {
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id);
+        $this->upload([$sale])->assertOk();
+        $this->inTenant(fn () => $this->programme->forceFill(['point_value_minor' => '500'])->save());
+
+        $replayed = $this->inTenant(function () {
+            $events = [];
+            app(\Modules\Loyalty\Ledgers\LedgerEvents::class)->replay(now()->subDay()->toImmutable(), now()->addDay()->toImmutable(), function (object $e) use (&$events) {
+                $events[] = $e;
+            });
+
+            return $events;
+        });
+        $earned = collect($replayed)->first(fn ($e) => $e instanceof PointsEarned);
+
+        // 11 points earned at KES 1.00 each: KES 11.00, whatever a point is worth today.
+        $this->assertSame(['11', '1100'], [$earned->points, $earned->amountMinor]);
+        $this->assertSame('100', $this->inTenant(fn () => (string) \Modules\Loyalty\Models\PointsEntry::query()->where('kind', 'earn')->value('point_value_minor')));
+    }
 }
