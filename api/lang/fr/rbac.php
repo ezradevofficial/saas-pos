@@ -18,6 +18,7 @@ return [
             'core' => 'Socle',
             'pos' => 'Point de vente',
             'loyalty' => 'Fidélité, promotions et crédit',
+            'procurement' => 'Achats',
         ],
         'resources' => [
             'core' => [
@@ -72,6 +73,17 @@ return [
                 'gift_card' => 'Cartes cadeaux et bons',
                 'sale' => 'Ventes fidélité à vérifier',
             ],
+            'procurement' => [
+                'requisition' => 'Demandes d’achat',
+                'rfq' => 'Demandes de prix',
+                'tender' => 'Appels d’offres',
+                'po' => 'Bons de commande',
+                'receipt' => 'Réceptions',
+                'invoice' => 'Factures fournisseurs',
+                'landed_cost' => 'Frais d’approche',
+                'performance' => 'Performance des fournisseurs',
+                'settings' => 'Paramètres des achats',
+            ],
         ],
         'actions' => [
             'view' => 'Voir',
@@ -106,6 +118,9 @@ return [
             'sell' => 'Vendre',
             'issue' => 'Émettre',
             'block' => 'Bloquer',
+            'evaluate' => 'Évaluer',
+            'award' => 'Attribuer',
+            'cancel' => 'Annuler',
         ],
     ],
 

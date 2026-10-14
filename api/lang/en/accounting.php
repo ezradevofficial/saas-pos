@@ -278,6 +278,7 @@ return [
     ],
 
     'integrations' => [
+        'procurement_invoice' => 'Procurement supplier invoice :number',
         'fx_difference' => 'Exchange difference on tenders',
         'summary_memo' => 'Daily summary of :count POS sales on :date',
         'backfill_from' => 'Give the first day to post with --from=YYYY-MM-DD.',

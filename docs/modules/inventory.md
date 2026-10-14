@@ -61,6 +61,7 @@ POS module itself provides; Procurement will reach it through the
 | INV-21 | **Barcode labels.** Labels print through document templates (TPL-01) as the document type `inventory.label` (58 mm by default): item name and code, price from a price list, unit, batch and expiry, and a Code 128 barcode. Several items and copies print as one HTML page set or PDF. | Must |
 | INV-22 | **Dashboard widgets** (LAY-01): `inventory.low_stock` (list) and `inventory.stock_value` (KPI, needs `inventory.valuation.view`). | Must |
 | INV-23 | **Numbering** (NUM-01): transfers `TR-{BRANCH}-{YYYY}-{00001}`, adjustments `ADJ-{BRANCH}-{YYYY}-{00001}`, counts `CNT-{BRANCH}-{YYYY}-{00001}`, yearly. | Must |
+| INV-25 | **Value-only cost adjustments** (owner approved, 2026-10-14). A `cost_adjustment` movement has zero quantity (the database allows zero only for this kind) and a value; it names the receipt movement it adjusts. The value goes to the units of that receipt still on hand (FIFO: the receipt's layer; weighted average: the company's pool, for at most the received quantity); the share of units already sold is recorded as the movement's `cost_variance_minor` (flags `partly_sold`, `nothing_on_hand`) and raised in `StockMoved` for Accounting. Landed costs allocated after receipt (PRC-17) arrive this way, once per allocation line. | Must |
 | INV-24 | **Audit** (AUD-01): settings, item stock settings and variant links, reorder rules, and every document's create, submit, decision, dispatch, receipt, posting and cancellation. The ledger itself is the record of every movement. | Must |
 
 ## Data model
@@ -90,10 +91,11 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 Movement kinds: `opening`, `receipt`, `adjustment_in`, `adjustment_out`,
 `count_gain`, `count_loss`, `transfer_out`, `transfer_in`, `transfer_loss`,
 `sale`, `sale_return`, `sale_void`, `opening_reversal`, `store_issue`,
-`store_return` (Stores, STR-08). Sources:
-`inventory.opening`, `inventory.import`, `inventory.adjustment`,
+`store_return` (Stores, STR-08), `cost_adjustment` (zero quantity, INV-25).
+Sources: `inventory.opening`, `inventory.import`, `inventory.adjustment`,
 `inventory.transfer`, `inventory.count`, `pos.sale`, `pos.refund`,
-`pos.void`, `procurement.goods_receipt`, `stores.issue`, `stores.return`.
+`pos.void`, `procurement.goods_receipt`, `procurement.landed_cost`,
+`stores.issue`, `stores.return`.
 
 ## Events
 
@@ -116,6 +118,7 @@ values only):
 | `SaleVoided` | POS | `sale_void` movements back, at the sale's cost |
 | `SaleRefunded` | POS | `sale_return` movements back for the refunded quantities, at the sale's cost |
 | `GoodsReceived` | Procurement (contract defined here) | `receipt` movements with cost layers |
+| `LandedCostAllocated` | Procurement | `ApplyLandedCost`: a `cost_adjustment` per stock line allocated after receipt (INV-25), idempotent per allocation line |
 | `StoreIssued` | Stores (`ledger = inventory`) | `store_issue` movements out of the store, never refused (flagged `negative_stock`), batches FEFO (docs/modules/stores.md, STR-08) |
 | `StoreReturned` | Stores (`ledger = inventory`) | `store_return` movements back at the cost the issue went out at |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | settle transfers, adjustments and counts |
@@ -213,7 +216,8 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
 
 - **POS → Inventory**: stock out on sale, back on void and refund (INV-14),
   stock on the till (INV-17). Switches on only when both are active.
-- **Procurement → Inventory**: `GoodsReceived` (INV-15).
+- **Procurement → Inventory**: `GoodsReceived` (INV-15) and
+  `LandedCostAllocated` (INV-25).
 - **Stores → Inventory**: `StoreIssued`, `StoreReturned` with `ledger =
   inventory` (fixed by Stores while both were active) move stock whatever
   the module state when the job runs; `StockMoved` (sources `stores.*`)

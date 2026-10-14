@@ -1,4 +1,11 @@
 import {
+  ClipboardList,
+  Gavel,
+  MessageSquareQuote,
+  PackageCheck,
+  ReceiptText,
+  Ship,
+  ShoppingCart,
   Brush,
   Gift,
   Star,
@@ -202,6 +209,15 @@ const ICONS = {
   valuation: Calculator,
   labels: Barcode,
   settings: Settings2,
+  // Procurement module (docs/modules/procurement.md).
+  requisitions: ClipboardList,
+  rfqs: MessageSquareQuote,
+  tenders: Gavel,
+  orders: ShoppingCart,
+  receipts: PackageCheck,
+  supplierInvoices: ReceiptText,
+  landedCosts: Ship,
+  performance: Gauge,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

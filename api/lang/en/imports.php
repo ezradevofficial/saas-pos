@@ -182,6 +182,9 @@ return [
         'loyalty_account' => 'Has a loyalty or credit account',
         'accounting_document' => 'Used in an invoice or bill',
         'accounting_payment' => 'Used in a payment',
+        'procurement_order' => 'Used in a purchase order',
+        'procurement_rfq' => 'Invited to a request for quotation',
+        'procurement_requisition' => 'Used in a purchase requisition',
     ],
     'report' => [
         'sheet' => 'Rows',

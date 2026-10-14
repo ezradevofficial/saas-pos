@@ -18,6 +18,7 @@ return [
             'core' => 'Core',
             'pos' => 'Point of sale',
             'loyalty' => 'Loyalty, promotions and credit',
+            'procurement' => 'Procurement',
         ],
         'resources' => [
             'core' => [
@@ -72,6 +73,17 @@ return [
                 'gift_card' => 'Gift cards and vouchers',
                 'sale' => 'Loyalty sales to review',
             ],
+            'procurement' => [
+                'requisition' => 'Purchase requisitions',
+                'rfq' => 'Requests for quotation',
+                'tender' => 'Tenders',
+                'po' => 'Purchase orders',
+                'receipt' => 'Goods received',
+                'invoice' => 'Supplier invoices',
+                'landed_cost' => 'Landed costs',
+                'performance' => 'Supplier performance',
+                'settings' => 'Procurement settings',
+            ],
         ],
         'actions' => [
             'view' => 'View',
@@ -106,6 +118,9 @@ return [
             'sell' => 'Sell',
             'issue' => 'Issue',
             'block' => 'Block',
+            'evaluate' => 'Evaluate',
+            'award' => 'Award',
+            'cancel' => 'Cancel',
         ],
     ],
 

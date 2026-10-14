@@ -376,6 +376,51 @@
                 "side": "debit",
                 "account": "5100"
             }
+        ],
+        "procurement.supplier_invoice": [
+            {
+                "field": "grni",
+                "side": "debit",
+                "account": "2130"
+            },
+            {
+                "field": "price_variance",
+                "side": "debit",
+                "account": "5100"
+            },
+            {
+                "field": "expense",
+                "side": "debit",
+                "account": "5200"
+            },
+            {
+                "field": "tax",
+                "side": "debit",
+                "account": "1400"
+            },
+            {
+                "field": "total",
+                "side": "credit",
+                "account": "2110",
+                "party": true
+            }
+        ],
+        "inventory.landed_cost": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "1300"
+            },
+            {
+                "field": "landed_cost",
+                "side": "debit",
+                "account": "2130"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "5100"
+            }
         ]
     }
 }

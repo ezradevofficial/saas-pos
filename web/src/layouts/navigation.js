@@ -12,6 +12,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
  * Point of sale (POS module): dashboard, sales, shifts and held records.
  * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
+ * Procurement (Procurement module): requisitions, RFQs, tenders, POs, goods received, supplier invoices, landed costs, supplier performance and settings.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -50,6 +51,16 @@ export const INVENTORY_REORDER_VIEW = ['inventory.reorder.view', 'inventory.reor
 export const INVENTORY_VALUATION_VIEW = 'inventory.valuation.view'
 export const INVENTORY_LABEL_PRINT = 'inventory.label.print'
 export const INVENTORY_SETTINGS_VIEW = ['inventory.stock.view', 'inventory.settings.edit']
+// Procurement module (docs/modules/procurement.md, Screens; RBAC-09): who may open each page (the API checks again, PRC-22).
+export const PROCUREMENT_REQUISITION_VIEW = 'procurement.requisition.view'
+export const PROCUREMENT_RFQ_VIEW = 'procurement.rfq.view'
+export const PROCUREMENT_TENDER_VIEW = 'procurement.tender.view'
+export const PROCUREMENT_PO_VIEW = 'procurement.po.view'
+export const PROCUREMENT_RECEIPT_VIEW = 'procurement.receipt.view'
+export const PROCUREMENT_INVOICE_VIEW = 'procurement.invoice.view'
+export const PROCUREMENT_LANDED_COST_VIEW = 'procurement.landed_cost.view'
+export const PROCUREMENT_PERFORMANCE_VIEW = 'procurement.performance.view'
+export const PROCUREMENT_SETTINGS_VIEW = ['procurement.po.view', 'procurement.invoice.view', 'procurement.settings.edit']
 
 // Stores module (docs/modules/stores.md, RBAC-09): who may open each page (the API checks again at each store).
 export const STORES_REQUISITION_VIEW = 'stores.requisition.view'
@@ -122,6 +133,22 @@ export const NAV_GROUPS = [
       { to: '/inventory/valuation', icon: 'valuation', label: (t) => t('nav.inventoryValuation'), permission: INVENTORY_VALUATION_VIEW, module: 'inventory' },
       { to: '/inventory/labels', icon: 'labels', label: (t) => t('nav.inventoryLabels'), permission: INVENTORY_LABEL_PRINT, module: 'inventory' },
       { to: '/inventory/settings', icon: 'settings', label: (t) => t('nav.inventorySettings'), permission: INVENTORY_SETTINGS_VIEW, module: 'inventory' },
+    ],
+  },
+  {
+    // Procurement (docs/modules/procurement.md, Screens): only while the Procurement module is active (RBAC-08).
+    id: 'procurement',
+    label: (t) => t('nav.groups.procurement'),
+    items: [
+      { to: '/procurement/requisitions', icon: 'requisitions', label: (t) => t('nav.procurementRequisitions'), permission: PROCUREMENT_REQUISITION_VIEW, module: 'procurement' },
+      { to: '/procurement/rfqs', icon: 'rfqs', label: (t) => t('nav.procurementRfqs'), permission: PROCUREMENT_RFQ_VIEW, module: 'procurement' },
+      { to: '/procurement/tenders', icon: 'tenders', label: (t) => t('nav.procurementTenders'), permission: PROCUREMENT_TENDER_VIEW, module: 'procurement' },
+      { to: '/procurement/orders', icon: 'orders', label: (t) => t('nav.procurementOrders'), permission: PROCUREMENT_PO_VIEW, module: 'procurement' },
+      { to: '/procurement/receipts', icon: 'receipts', label: (t) => t('nav.procurementReceipts'), permission: PROCUREMENT_RECEIPT_VIEW, module: 'procurement' },
+      { to: '/procurement/invoices', icon: 'supplierInvoices', label: (t) => t('nav.procurementInvoices'), permission: PROCUREMENT_INVOICE_VIEW, module: 'procurement' },
+      { to: '/procurement/landed-costs', icon: 'landedCosts', label: (t) => t('nav.procurementLandedCosts'), permission: PROCUREMENT_LANDED_COST_VIEW, module: 'procurement' },
+      { to: '/procurement/supplier-performance', icon: 'performance', label: (t) => t('nav.procurementPerformance'), permission: PROCUREMENT_PERFORMANCE_VIEW, module: 'procurement' },
+      { to: '/procurement/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.procurementSettings'), permission: PROCUREMENT_SETTINGS_VIEW, module: 'procurement' },
     ],
   },
   {

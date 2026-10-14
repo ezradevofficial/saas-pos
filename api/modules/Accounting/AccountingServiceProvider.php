@@ -50,6 +50,7 @@ use Modules\Loyalty\Events\PointsRedeemed;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
@@ -87,6 +88,8 @@ class AccountingServiceProvider extends ServiceProvider
         StockMoved::class,
         // ACC-31: Stores' valued issues and returns (its stock moves post nothing: the same movement).
         StoreConsumptionValued::class,
+        // ACC-32: Procurement's approved supplier invoices (its GRNs post from StockMoved, procurement.goods_receipt).
+        SupplierInvoiceApproved::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */

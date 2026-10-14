@@ -20,6 +20,7 @@ use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
@@ -48,6 +49,7 @@ class Integrations
         private readonly InventorySources $inventory,
         private readonly LoyaltySources $loyalty,
         private readonly StoresSources $stores,
+        private readonly SupplierInvoices $supplierInvoices,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -64,6 +66,8 @@ class Integrations
             $event instanceof StockMoved => $this->active('inventory') ? $this->post($this->inventory->stockMoved($event)) : null,
             $event instanceof LoyaltyLedgerEvent => $this->active('loyalty') ? $this->post($this->loyalty->entry($event)) : null,
             $event instanceof StoreConsumptionValued => $this->active('stores') ? $this->post($this->stores->consumption($event)) : null,
+            // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
+            $event instanceof SupplierInvoiceApproved => $this->active('procurement') ? $this->supplierInvoices->approved($event) : null,
             default => null,
         };
     }

@@ -78,6 +78,7 @@ describe('Posting rules and exceptions (ACC-24)', () => {
   it('opens each source in its own module (ACC-17)', () => {
     expect(moduleLink({ kind: 'pos.sale', id: 's-1' })).toBe('/pos/sales/s-1')
     expect(moduleLink({ kind: 'pos.sales', id: 'l-1', date: '2026-10-13' })).toBe('/pos/sales?location=l-1&from=2026-10-13&to=2026-10-13')
+    expect(moduleLink({ kind: 'procurement.invoice', id: 'pi-1', document: {} })).toBe('/procurement/invoices/pi-1')
     expect(moduleLink({ kind: 'inventory.movements', id: 'm-1', source_type: 'pos.sale' })).toBe('/inventory/movements?source=m-1')
     expect(moduleLink({ kind: 'loyalty.credit_account', id: 'a-1' })).toBe('/loyalty/credit/a-1')
     expect(moduleLink({ kind: 'loyalty.customer', id: 'p-1' })).toBe('/contacts/customers/p-1?tab=loyalty')

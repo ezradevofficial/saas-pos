@@ -58,6 +58,7 @@ later; their payloads are fixed below.
 | ACC-29 | **Backfill (7B).** `accounting:backfill --from=YYYY-MM-DD [--to=] [--tenant=]` posts what POS, Inventory and Loyalty recorded from an owner-chosen day, in each active tenant with Accounting (DueTenants, TenantContext): each module raises its events again (core `EventReplays`), and they post exactly as live ones, idempotently. | Must |
 | ACC-31 | **Stores → Accounting (7B).** `StoreConsumptionValued` posts `stores.consumption`, one journal per issue or return: Dr the department's consumption (`consumption.{department}`, mapped per department, with the department and cost centre as dimensions) / Cr stock for an issue, the reverse for a return, each line's cost variance to cost of sales. Stores' own `StockMoved` (`stores.*`) posts nothing: it is the same movement. | Must |
 | ACC-30 | **Integration screens (7B).** The posting rules screen lists every source type with its own rule, its fallback or none, edits rules (maps kept) and adds the defaults; the exceptions list filters by status, retries, and opens the source record; journals drill down to the sale, the movements or the Loyalty record through each module's own route. | Must |
+| ACC-32 | **Procurement → Accounting (7B).** An approved Procurement supplier invoice (`SupplierInvoiceApproved`) posts `procurement.supplier_invoice` in base currency through the company's rule: Dr GRNI (`grni`, the GRN value of its stock lines, cleared against what Inventory's receipt journal credited), Dr the price variance (`price_variance`, their invoiced net less that value), Dr purchases (`expense`, service lines, and stock lines when Inventory is off), Dr input tax (`tax`) / Cr the supplier's payable (`total`, with the party, in the invoice currency at its rate). Its journal is then the journal of a posted Accounting supplier invoice (ACC-09, numbered BILL, open for the total), so payments, allocation, ageing and statements work as for any bill. Once per invoice (the journal is unique per source, the document per journal); an invoice that cannot post is a posting exception whose retry also writes the document. Procurement's `GoodsReceiptPosted` posts nothing: the GRN posts from `StockMoved` (`inventory.receipt`). Landed costs allocated after a receipt (INV-25) post `inventory.landed_cost`: Dr stock / Cr GRNI, where the charges' own bills, entered in Accounting, clear it. Only while Accounting and Procurement are both active. | Must |
 
 ## Data model
 
@@ -134,7 +135,7 @@ Loyalty and Stores are in the stage 7B section below. Later modules:
 
 | Source type | Raised by | Amount fields | Dimensions |
 | --- | --- | --- | --- |
-| `procurement.supplier_invoice` | Procurement invoice matched | `total`, `net`, `tax`, `grni` | party, cost centre, project |
+| `procurement.supplier_invoice` | Procurement `SupplierInvoiceApproved` (ACC-32) | `grni`, `price_variance`, `expense`, `tax`, `total` | party, branch, cost centre, project |
 | `payroll.run` | Payroll `PayrollApproved` | `gross`, `net_pay`, `paye`, `employer.{CODE}`, `employee.{CODE}`, `deduction.{CODE}` | department, cost centre |
 
 **Procurement posts only the supplier invoice** (Dr GRNI, Dr input tax,
@@ -143,7 +144,7 @@ Inventory's `StockMoved` for `procurement.goods_receipt`
 (`inventory.receipt`: Dr stock, Cr GRNI, cost variance to cost of
 sales), so receipt and invoice meet in GRNI and nothing posts twice.
 
-### Stage 7B: the integrations (ACC-24 to ACC-31)
+### Stage 7B: the integrations (ACC-24 to ACC-32)
 
 Accounting listens to other modules' events with one queued listener
 (`PostModuleEvent`, after commit, in the event's tenant, retried), and
@@ -189,6 +190,8 @@ retry posts it on its own date.
 | `pos.sale_summary` | the sum of a location's day | the `pos.sale` rule |
 | `inventory.cost_of_sales` | `stock.{sale line}`, `cost_of_sales.{sale line}`, `cost_variance` | stock 1300, cost of goods sold 5100 (all debit, signed) |
 | `inventory.receipt` | `stock`, `grni`, `cost_variance` | 1300, GRNI 2130, 5100 |
+| `inventory.landed_cost` | `stock`, `landed_cost`, `cost_variance` | 1300, GRNI 2130, 5100 (CD: 311, 408, 603) |
+| `procurement.supplier_invoice` | `grni`, `price_variance`, `expense`, `tax`, `total` | Dr GRNI 2130, cost of goods sold 5100, purchases 5200, VAT recoverable 1400; Cr payables 2110 with the party (CD: 408, 603, 601, 445; 401) |
 | `inventory.opening` | `stock`, `opening`, `cost_variance` | 1300, suspense 1900, 5100 |
 | `inventory.adjustment`, `inventory.count` | `stock`, `adjustment`, `cost_variance` | 1300, stock adjustments and losses 5300, 5100 |
 | `inventory.transfer_loss` | `stock`, `loss`, `cost_variance` | 1300, 5300, 5100 |
@@ -441,6 +444,7 @@ holds everything. Admin and Branch Manager hold none.
 | ID | Status |
 | --- | --- |
 | ACC-24 to ACC-31 | Built and tested (IntegrationPostingTest, LedgerEventsTest, SaleSnapshotTest, PostingRules.test.jsx) |
+| ACC-32 | Built and tested (ProcurementPostingTest: PO, GRN and invoice clear GRNI to zero; replay; exception and retry; Accounting off) |
 
 ## Status (stage 7A)
 
@@ -479,7 +483,7 @@ holds everything. Admin and Branch Manager hold none.
 - Fixed-asset depreciation (Fixed Assets module, through posting rules).
 - Multi-level approval thresholds per amount ship as flow edits, not
   defaults.
-- Listeners for Procurement and Payroll (their stages; payloads above).
+- The listener for Payroll (its stage; payload above).
 - Shift variances (`pos.shift_variance`) and manual cash movements.
 - Editing a rule line's per-key map on the screen (maps from the defaults
   are kept when a rule is edited; the API takes them).
