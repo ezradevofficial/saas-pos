@@ -1,0 +1,24 @@
+{
+    "code": "KE",
+    "notes": "HR reference data for Kenyan companies (docs/modules/hr.md HR-03, HR-12). Structure only: identifier types and statutory leave types. No figure is entered until it is confirmed from an official source: a null pattern enforces no format, and a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Labels live in lang/{locale}/hr.php (pack.*).",
+    "sources": [],
+    "todo": [
+        "kra_pin: confirm the KRA PIN format (letter, 9 digits, letter) from KRA and its legal reference before enforcing a pattern.",
+        "national_id: confirm the national identity card number format (and the Maisha Namba / UPI format) before enforcing a pattern.",
+        "annual: statutory annual leave days and the qualifying service (Employment Act, 2007, s. 28), with the effective date.",
+        "maternity: statutory maternity leave days and pay (Employment Act, 2007, s. 29), with the effective date.",
+        "paternity: statutory paternity leave days (Employment Act, 2007, s. 29(8)), with the effective date.",
+        "sick: statutory sick leave days at full and at half pay and the qualifying service (Employment Act, 2007, s. 30).",
+        "Other leave (compassionate, pre-adoptive leave under s. 29A, study): confirm which are statutory and their days."
+    ],
+    "identifier_types": [
+        {"key": "national_id", "required": false, "pattern": null},
+        {"key": "kra_pin", "required": false, "pattern": null}
+    ],
+    "statutory_leave_types": [
+        {"key": "annual", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "maternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "paternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "sick", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+    ]
+}

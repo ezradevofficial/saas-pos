@@ -31,10 +31,11 @@ return [
         // INV-11, INV-21: sets reorder levels and prints barcode labels.
         // LOY-01, LOY-08: sets up the loyalty programme and promotions once the module is active.
         // STR-10, STR-12: reads Stores' documents, ledger, consumption and values.
-        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'inventory.label.print', 'inventory.reorder.edit', 'loyalty.programme.*', 'loyalty.promotion.*', 'stores.*.view'],
+        // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'inventory.label.print', 'inventory.reorder.edit', 'loyalty.programme.*', 'loyalty.promotion.*', 'stores.*.view', 'hr.*.view'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
-        'except' => ['core.tenant.export', 'core.onboarding.modules'],
+        'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -63,6 +64,10 @@ return [
             'loyalty.*',
             // Stores (docs/modules/stores.md): requisitions, issues, returns and reports at their branch.
             'stores.*',
+            // HR (docs/modules/hr.md): their staff's records (never the sensitive groups), leave approvals,
+            // rosters and swaps, attendance, checklists and appraisals at their branch.
+            'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
+            'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -156,6 +161,8 @@ return [
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             'payroll.*', 'hr.employee.view',
+            // HR-33: what payroll pays from: contracts and pay, pay accounts and identifiers, leave and attendance.
+            'hr.contract.view', 'hr.pay.view', 'hr.bank.view', 'hr.identity.view', 'hr.leave.view', 'hr.attendance.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -187,6 +194,8 @@ return [
             'accounting.journal.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
             // STR-03: the requisitions they approve.
             'stores.requisition.view',
+            // HR-14, HR-19: the leave and shift swaps they approve.
+            'hr.leave.view', 'hr.roster.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -200,6 +209,8 @@ return [
     [
         'key' => 'read_only_auditor',
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
+        // HR-09: personal data is not an auditor's to read.
+        'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

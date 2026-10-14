@@ -18,6 +18,7 @@ return [
             'core' => 'Socle',
             'pos' => 'Point de vente',
             'loyalty' => 'Fidélité, promotions et crédit',
+            'hr' => 'RH, horaires et présences',
         ],
         'resources' => [
             'core' => [
@@ -72,6 +73,24 @@ return [
                 'gift_card' => 'Cartes cadeaux et bons',
                 'sale' => 'Ventes fidélité à vérifier',
             ],
+            'hr' => [
+                'employee' => 'Employés',
+                'identity' => 'Données d’identité (pièces, date de naissance)',
+                'bank' => 'Comptes de paie',
+                'pay' => 'Salaire',
+                'medical' => 'Données médicales',
+                'contract' => 'Contrats',
+                'position' => 'Postes',
+                'leave' => 'Congés',
+                'roster' => 'Plannings et horaires',
+                'swap' => 'Échanges d’horaire',
+                'attendance' => 'Présence',
+                'device' => 'Pointeuses',
+                'document' => 'Documents des employés',
+                'checklist' => 'Intégration et départ',
+                'disciplinary' => 'Dossiers disciplinaires',
+                'appraisal' => 'Évaluations',
+            ],
         ],
         'actions' => [
             'view' => 'Voir',
@@ -106,6 +125,7 @@ return [
             'sell' => 'Vendre',
             'issue' => 'Émettre',
             'block' => 'Bloquer',
+            'terminate' => 'Faire partir ou réembaucher',
         ],
     ],
 

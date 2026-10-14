@@ -62,3 +62,6 @@ Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverla
 
 // Modules schedule their own commands from their service providers
 // (callAfterResolving(Schedule::class)), so a module's schedule lives with it.
+
+// HR-13, HR-25: leave accrual and yesterday's timesheet days (absences), daily.
+Schedule::command('hr:daily')->dailyAt('02:30')->withoutOverlapping()->onOneServer();

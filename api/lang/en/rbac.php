@@ -18,6 +18,7 @@ return [
             'core' => 'Core',
             'pos' => 'Point of sale',
             'loyalty' => 'Loyalty, promotions and credit',
+            'hr' => 'HR, shifts and attendance',
         ],
         'resources' => [
             'core' => [
@@ -72,6 +73,24 @@ return [
                 'gift_card' => 'Gift cards and vouchers',
                 'sale' => 'Loyalty sales to review',
             ],
+            'hr' => [
+                'employee' => 'Employees',
+                'identity' => 'Identity data (IDs, date of birth)',
+                'bank' => 'Pay accounts',
+                'pay' => 'Pay',
+                'medical' => 'Medical data',
+                'contract' => 'Contracts',
+                'position' => 'Positions',
+                'leave' => 'Leave',
+                'roster' => 'Rosters and shifts',
+                'swap' => 'Shift swaps',
+                'attendance' => 'Attendance',
+                'device' => 'Attendance devices',
+                'document' => 'Employee documents',
+                'checklist' => 'Onboarding and offboarding',
+                'disciplinary' => 'Disciplinary records',
+                'appraisal' => 'Appraisals',
+            ],
         ],
         'actions' => [
             'view' => 'View',
@@ -106,6 +125,7 @@ return [
             'sell' => 'Sell',
             'issue' => 'Issue',
             'block' => 'Block',
+            'terminate' => 'Terminate or rehire',
         ],
     ],
 
