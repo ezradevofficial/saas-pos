@@ -16,6 +16,8 @@ const SOURCE_PATHS = {
   'inventory.adjustment': (id) => `/inventory/adjustments/${id}`,
   'inventory.count': (id) => `/inventory/counts/${id}`,
   'pos.sale': (id) => `/pos/sales/${id}`,
+  'stores.issue': (id) => `/stores/issues/${id}`,
+  'stores.return': (id) => `/stores/returns/${id}`,
 }
 
 /**

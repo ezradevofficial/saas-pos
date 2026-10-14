@@ -68,6 +68,8 @@ return [
         'sale' => 'Vente',
         'sale_return' => 'Retour de vente',
         'sale_void' => 'Vente annulée',
+        'store_issue' => 'Sortie de magasin',
+        'store_return' => 'Retour au magasin',
     ],
     'flags' => [
         'negative_stock' => 'Stock passé sous zéro',

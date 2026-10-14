@@ -89,10 +89,11 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 
 Movement kinds: `opening`, `receipt`, `adjustment_in`, `adjustment_out`,
 `count_gain`, `count_loss`, `transfer_out`, `transfer_in`, `transfer_loss`,
-`sale`, `sale_return`, `sale_void`, `opening_reversal`. Sources:
+`sale`, `sale_return`, `sale_void`, `opening_reversal`, `store_issue`,
+`store_return` (Stores, STR-08). Sources:
 `inventory.opening`, `inventory.import`, `inventory.adjustment`,
 `inventory.transfer`, `inventory.count`, `pos.sale`, `pos.refund`,
-`pos.void`, `procurement.goods_receipt`.
+`pos.void`, `procurement.goods_receipt`, `stores.issue`, `stores.return`.
 
 ## Events
 
@@ -115,6 +116,8 @@ values only):
 | `SaleVoided` | POS | `sale_void` movements back, at the sale's cost |
 | `SaleRefunded` | POS | `sale_return` movements back for the refunded quantities, at the sale's cost |
 | `GoodsReceived` | Procurement (contract defined here) | `receipt` movements with cost layers |
+| `StoreIssued` | Stores (`ledger = inventory`) | `store_issue` movements out of the store, never refused (flagged `negative_stock`), batches FEFO (docs/modules/stores.md, STR-08) |
+| `StoreReturned` | Stores (`ledger = inventory`) | `store_return` movements back at the cost the issue went out at |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | settle transfers, adjustments and counts |
 
 The POS events carry ids; the POS module provides their stock lines
@@ -211,6 +214,15 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
 - **POS → Inventory**: stock out on sale, back on void and refund (INV-14),
   stock on the till (INV-17). Switches on only when both are active.
 - **Procurement → Inventory**: `GoodsReceived` (INV-15).
+- **Stores → Inventory**: `StoreIssued`, `StoreReturned` with `ledger =
+  inventory` (fixed by Stores while both were active) move stock whatever
+  the module state when the job runs; `StockMoved` (sources `stores.*`)
+  carries the values back to Stores, and is raised again when a posting
+  is delivered twice (docs/modules/stores.md, STR-08, STR-09).
+- **Inventory → Accounting, exclusion**: for `stores.issue` and
+  `stores.return` sources Accounting does not post `StockMoved`; it posts
+  Stores' `StoreConsumptionValued` (department expense against stock)
+  instead, so the movement is journalled once.
 - **Inventory → Accounting**: `StockMoved`, `StockAdjusted`,
   `StockCountPosted`, `TransferReceived` carry the values for stock
   journals (stage 7B).

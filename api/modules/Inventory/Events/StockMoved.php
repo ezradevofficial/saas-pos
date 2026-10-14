@@ -19,6 +19,12 @@ use Modules\Inventory\Stock\Qty;
  * posting date), the branch of its first location, and per movement its
  * source line (`source_line_id`: the sale line for a POS sale, so cost of
  * sales matches the sale line by line) and branch.
+ *
+ * Accounting skips it for `stores.issue` and `stores.return` sources: it
+ * posts Stores' StoreConsumptionValued for them instead (one journal per
+ * movement; docs/modules/stores.md, STR-16). For those sources it may be
+ * raised again for a posting delivered twice, so Stores can record values
+ * it missed.
  */
 class StockMoved implements ShouldDispatchAfterCommit
 {
