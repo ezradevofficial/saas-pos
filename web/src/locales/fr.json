@@ -6299,6 +6299,7 @@
         "credit_limit_exceeded": "Limite de crédit dépassée",
         "gift_card_sale_mismatch": "Vente de carte cadeau incohérente",
         "gift_card_unknown": "Carte cadeau introuvable",
+        "processing_failed": "Traitement impossible après plusieurs essais",
         "voided_before_processing": "Annulée avant traitement",
         "other": "À vérifier"
       }
@@ -6976,6 +6977,12 @@
       "new": {
         "customer": "Nouvelle facture",
         "supplier": "Nouvelle facture fournisseur"
+      },
+      "newKind": {
+        "customer_invoice": "Nouvelle facture",
+        "customer_credit": "Nouvel avoir",
+        "supplier_invoice": "Nouvelle facture fournisseur",
+        "supplier_credit": "Nouvel avoir fournisseur"
       }
     },
     "documentForm": {

@@ -179,6 +179,9 @@ return [
         'document' => 'Utilisé dans un document',
         'changed' => 'Modifié depuis l’import',
         'stock_moved' => 'Du stock a bougé depuis',
+        'loyalty_account' => 'A un compte de fidélité ou de crédit',
+        'accounting_document' => 'Utilisé dans une facture',
+        'accounting_payment' => 'Utilisé dans un paiement',
     ],
     'report' => [
         'sheet' => 'Lignes',

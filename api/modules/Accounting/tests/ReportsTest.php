@@ -92,6 +92,9 @@ class ReportsTest extends TestCase
         $gl = $this->api('GET', $this->companyUri('reports/general-ledger')."?account={$account->id}&from=2026-10-01&to=2026-10-31")->assertOk()->json('data');
         $this->assertSame([-30000, -50000], array_column($gl['lines'], 'balance'));
         $this->assertSame(['accounting.document', $invoice['id']], [$gl['lines'][0]['journal']['source_type'], $gl['lines'][0]['journal']['source_id']]);
+        // The drill-down names its source by the document's number.
+        $this->assertSame($this->api('GET', 'accounting/documents/'.$invoice['id'])->json('data.number'), $gl['lines'][0]['journal']['source_number']);
+        $this->assertNotNull($gl['lines'][0]['journal']['source_number']);
         $this->api('GET', 'accounting/journals/'.$gl['lines'][0]['journal']['id'])->assertOk()->assertJsonPath('data.source.id', $invoice['id']);
 
         $pl = $this->api('GET', $this->companyUri('reports/profit-and-loss').'?from=2026-10-01&to=2026-10-31')->assertOk()->json('data');

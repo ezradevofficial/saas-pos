@@ -114,13 +114,24 @@ function CashFlow({ data }) {
     <div className="flex flex-col gap-4">
       <Card title={t('accounting.reports.cash.operating')}>
         <Total label={t('accounting.reports.netProfit')} amount={data.net_profit} currency={c} />
-        <AccountRows rows={data.non_cash.rows} currency={c} caption={t('accounting.reports.cash.nonCash')} from={data.from} to={data.to} />
-        <AccountRows rows={data.working_capital.rows} currency={c} caption={t('accounting.reports.cash.workingCapital')} from={data.from} to={data.to} />
+        {/* ACC-17: a part with no lines shows no (empty, untitled) table. */}
+        {data.non_cash.rows.length ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-label text-ink-muted">{t('accounting.reports.cash.nonCash')}</h3>
+            <AccountRows rows={data.non_cash.rows} currency={c} caption={t('accounting.reports.cash.nonCash')} from={data.from} to={data.to} />
+          </section>
+        ) : null}
+        {data.working_capital.rows.length ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-label text-ink-muted">{t('accounting.reports.cash.workingCapital')}</h3>
+            <AccountRows rows={data.working_capital.rows} currency={c} caption={t('accounting.reports.cash.workingCapital')} from={data.from} to={data.to} />
+          </section>
+        ) : null}
         <Total label={t('accounting.reports.cash.operating')} amount={data.operating} currency={c} />
       </Card>
       {['investing', 'financing'].map((key) => (
         <Card key={key} title={t(`accounting.reports.cash.${key}`)}>
-          <AccountRows rows={data[key].rows} currency={c} caption={t(`accounting.reports.cash.${key}`)} from={data.from} to={data.to} />
+          {data[key].rows.length ? <AccountRows rows={data[key].rows} currency={c} caption={t(`accounting.reports.cash.${key}`)} from={data.from} to={data.to} /> : null}
           <Total label={t('accounting.reports.total')} amount={data[key].total} currency={c} />
         </Card>
       ))}
@@ -187,10 +198,10 @@ function Consolidation({ data }) {
  */
 export default function Reports() {
   const { t } = useTranslation()
-  const { can } = usePermissions()
+  const { can, hasModule } = usePermissions()
   const company = useAccountingCompany()
   const { params, set, from, to } = useRange()
-  const tab = TABS.includes(params.get('report')) ? params.get('report') : 'trial-balance'
+  const tab = TABS.includes(params.get('report')) && (params.get('report') !== 'consolidation' || hasModule('accounting_pro')) ? params.get('report') : 'trial-balance'
   const kind = params.get('kind') === 'supplier' ? 'supplier' : 'customer'
   const currency = params.get('currency') ?? ''
   const path = tab === 'consolidation'
@@ -200,7 +211,8 @@ export default function Reports() {
 
   if (!company) return <NoCompany />
 
-  const tabs = TABS.filter((key) => key !== 'consolidation' || can('accounting.report.consolidate'))
+  // ACC-18: group consolidation is an Accounting Pro feature.
+  const tabs = TABS.filter((key) => key !== 'consolidation' || (hasModule('accounting_pro') && can('accounting.report.consolidate')))
   const data = report.data?.data
 
   return (
@@ -256,7 +268,7 @@ export function GeneralLedger() {
             columns={[
               { key: 'date', label: t('accounting.columns.date'), render: (row) => <CalendarDate value={row.date} /> },
               { key: 'journal', label: t('accounting.columns.number'), render: (row) => <Link to={`/accounting/journals/${row.journal.id}`} className="text-primary hover:text-primary-hover">{row.journal.number}</Link> },
-              { key: 'source', label: t('accounting.journalDetail.source'), render: (row) => { const link = sourceLink({ type: row.journal.source_type, id: row.journal.source_id }); return link ? <Link to={link} className="text-primary">{t('accounting.reports.openSource')}</Link> : '—' } },
+              { key: 'source', label: t('accounting.journalDetail.source'), render: (row) => { const link = sourceLink({ type: row.journal.source_type, id: row.journal.source_id }); return link ? <Link to={link} className="text-primary">{row.journal.source_number ?? t('accounting.reports.openSource')}</Link> : '—' } },
               { key: 'description', label: t('accounting.columns.description'), render: (row) => [row.description, row.party?.name].filter(Boolean).join(' · ') },
               { key: 'debit', label: t('accounting.columns.debit'), align: 'end', render: (row) => (row.base_debit ? <Minor amount={row.base_debit} currency={data.currency} /> : null) },
               { key: 'credit', label: t('accounting.columns.credit'), align: 'end', render: (row) => (row.base_credit ? <Minor amount={row.base_credit} currency={data.currency} /> : null) },

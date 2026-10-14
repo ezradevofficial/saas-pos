@@ -8,7 +8,6 @@ use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Inventory\Models\ItemSetting;
@@ -43,41 +42,46 @@ use Modules\POS\Events\SaleVoided;
  * applied are posted right after it, each as its own refund's posting, so
  * the refund's own event (handled before or after) never moves stock twice.
  * The ledger posts each source once, so redelivered events move nothing.
+ *
+ * The listener itself only queues MoveSaleStock with the event's ids: the
+ * sale snapshot the event carries (for Loyalty) is never serialised into
+ * Inventory's job, and nothing here can fail the till's upload.
  */
-class MoveStockForSale implements ShouldQueue
+class MoveStockForSale
 {
-    public bool $afterCommit = true;
+    public const SALE = 'sale';
 
-    public int $tries = 5;
+    public const VOID = 'void';
 
-    /** @var list<int> */
-    public array $backoff = [10, 60, 300];
+    public const REFUND = 'refund';
 
     public function __construct(
-        private readonly TenantContext $tenants,
         private readonly ModuleRegistry $modules,
         private readonly StockLedger $ledger,
         private readonly Units $units,
     ) {}
 
-    public function viaQueue(): string
-    {
-        return 'default';
-    }
-
     public function handle(SaleCompleted|SaleVoided|SaleRefunded $event): void
     {
-        $this->tenants->run($event->tenantId, function () use ($event) {
-            if (! $this->modules->isActive(InventoryServiceProvider::MODULE)) {
-                return;
-            }
+        match (true) {
+            $event instanceof SaleCompleted => MoveSaleStock::dispatch($event->tenantId, self::SALE, $event->saleId),
+            $event instanceof SaleVoided => MoveSaleStock::dispatch($event->tenantId, self::VOID, $event->voidId),
+            default => MoveSaleStock::dispatch($event->tenantId, self::REFUND, $event->refundId),
+        };
+    }
 
-            match (true) {
-                $event instanceof SaleCompleted => $this->sale($event->saleId),
-                $event instanceof SaleVoided => $this->back('pos.void', $event->voidId, SaleStockLines::forVoid($event->voidId), Movement::SALE_VOID),
-                default => $this->back('pos.refund', $event->refundId, SaleStockLines::forRefund($event->refundId), Movement::SALE_RETURN),
-            };
-        });
+    /** Move the stock of one sale, void or refund ($kind), in the current tenant. */
+    public function move(string $kind, string $id): void
+    {
+        if (! $this->modules->isActive(InventoryServiceProvider::MODULE)) {
+            return;
+        }
+
+        match ($kind) {
+            self::SALE => $this->sale($id),
+            self::VOID => $this->back('pos.void', $id, SaleStockLines::forVoid($id), Movement::SALE_VOID),
+            default => $this->back('pos.refund', $id, SaleStockLines::forRefund($id), Movement::SALE_RETURN),
+        };
     }
 
     private function sale(string $saleId): void

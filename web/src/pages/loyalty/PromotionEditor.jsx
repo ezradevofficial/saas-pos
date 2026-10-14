@@ -7,7 +7,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, DataTable, Icon, Money, MoneyInput, MultiSelect, Select, StatusBadge, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { fieldErrors, PROMOTION_TONES, PROMOTION_TYPES, useBranches, useCatalogueOptions, useLoyaltyCompany, WEEKDAYS } from './loyaltyData'
+import { fieldErrors, PROMOTION_TONES, PROMOTION_TYPES, useBranches, useCatalogueOptions, useLoyaltyCompanyChoice, WEEKDAYS } from './loyaltyData'
 
 const EMPTY = {
   name: '', description: '', type: 'percent', priority: '0', percent: '', amount_minor: '', buy_qty: '', get_qty: '',
@@ -61,7 +61,7 @@ export default function PromotionEditor() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
-  const company = useLoyaltyCompany()
+  const { company, companies, choose } = useLoyaltyCompanyChoice()
   const key = ['loyalty', 'promotion', promotionId]
   const query = useQuery({ queryKey: key, queryFn: () => api.get(`loyalty/promotions/${promotionId}`), enabled: !creating })
   const promotion = query.data?.data
@@ -126,6 +126,15 @@ export default function PromotionEditor() {
       {(save.isError && !Object.keys(errors).length) || status.isError ? <Alert tone="danger" title={errorMessage(save.error ?? status.error)} /> : null}
       <Card title={t('loyalty.promotions.what')}>
         <div className="grid gap-4 md:grid-cols-2">
+          {creating && companies.length > 1 ? (
+            <Select
+              label={t('loyalty.promotions.columns.company')}
+              options={companies.map((entry) => ({ value: entry.id, label: entry.name }))}
+              value={companyId ?? ''}
+              onChange={(event) => choose(event.target.value)}
+              error={errors.company_id}
+            />
+          ) : null}
           <TextField label={t('loyalty.promotions.name')} value={form.name} onChange={text('name')} error={errors.name} disabled={!editable} required />
           <Select label={t('loyalty.promotions.type')} value={form.type} onChange={(event) => set('type')(event.target.value)} disabled={!creating} options={PROMOTION_TYPES.map((type) => ({ value: type, label: t(`loyalty.promotions.types.${type}`) }))} />
           {typeIs('percent', 'buy_x_get_y') ? <TextField label={typeIs('percent') ? t('loyalty.promotions.percent') : t('loyalty.promotions.getPercent')} suffix="%" inputMode="decimal" value={form.percent} onChange={text('percent')} error={errors.percent} disabled={!editable} /> : null}

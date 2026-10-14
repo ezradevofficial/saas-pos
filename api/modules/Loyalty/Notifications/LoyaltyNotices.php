@@ -91,11 +91,12 @@ class LoyaltyNotices
             return;
         }
 
-        $this->once($type, $account->id, now()->format('Y-m-d'), fn () => $this->send($type, $this->holders('loyalty.credit.manage', $account->company_id), [
-            'party_name' => (string) Party::query()->whereKey($account->party_id)->value('name'),
-            'balance' => UsageNotices::money((int) $account->balance, $account->currency),
-            'limit' => UsageNotices::money((int) $limit->minor(), $limit->currency()),
-            'percent' => (string) $percent,
+        $name = (string) Party::query()->whereKey($account->party_id)->value('name');
+        $this->once($type, $account->id, now()->format('Y-m-d'), fn () => $this->send($type, $this->holders('loyalty.credit.manage', $account->company_id), fn (string $locale) => [
+            'party_name' => $name,
+            'balance' => UsageNotices::money((int) $account->balance, $account->currency, $locale),
+            'limit' => UsageNotices::money((int) $limit->minor(), $limit->currency(), $locale),
+            'percent' => self::number((string) $percent, $locale),
         ], '/loyalty/credit/'.$account->id));
     }
 
@@ -108,19 +109,20 @@ class LoyaltyNotices
             return;
         }
 
-        $this->once(self::GIFT_CARD_LOW, $card->id, 'low', fn () => $this->send(self::GIFT_CARD_LOW, $this->holders('loyalty.gift_card.issue', $card->company_id), [
+        $this->once(self::GIFT_CARD_LOW, $card->id, 'low', fn () => $this->send(self::GIFT_CARD_LOW, $this->holders('loyalty.gift_card.issue', $card->company_id), fn (string $locale) => [
             'card' => '•••• '.$card->last4,
-            'balance' => UsageNotices::money((int) $card->balance_minor, $card->currency),
+            'balance' => UsageNotices::money((int) $card->balance_minor, $card->currency, $locale),
         ], '/loyalty/gift-cards/'.$card->id));
     }
 
     /** LOY-06: points of a company entering the expiry window (once a day per company). */
     public function pointsExpiring(Programme $programme, string $points, int $customers, string $date): void
     {
-        $this->once(self::POINTS_EXPIRING, $programme->company_id, $date, fn () => $this->send(self::POINTS_EXPIRING, $this->holders('loyalty.programme.edit', $programme->company_id), [
-            'company_name' => (string) $programme->company()->value('name'),
-            'points' => number_format((int) $points),
-            'customers' => (string) $customers,
+        $company = (string) $programme->company()->value('name');
+        $this->once(self::POINTS_EXPIRING, $programme->company_id, $date, fn () => $this->send(self::POINTS_EXPIRING, $this->holders('loyalty.programme.edit', $programme->company_id), fn (string $locale) => [
+            'company_name' => $company,
+            'points' => self::number($points, $locale),
+            'customers' => self::number((string) $customers, $locale),
             'date' => $date,
         ], '/loyalty/programme'));
     }
@@ -152,11 +154,38 @@ class LoyaltyNotices
         }
     }
 
-    /** @param list<string> $recipients */
-    private function send(string $type, array $recipients, array $data, string $link): void
+    /** A whole number grouped in $locale's style ("1,250"; in French "1 250"), from a digit string (no float). */
+    public static function number(string $digits, string $locale): string
     {
-        if ($recipients !== []) {
-            $this->notifier->send(new NotificationEvent($type, $recipients, $data, $link));
+        $negative = str_starts_with($digits, '-');
+        $grouped = (string) preg_replace('/\B(?=(\d{3})+(?!\d))/', $locale === 'fr' ? "\u{202F}" : ',', ltrim($digits, '-'));
+
+        return ($negative ? '-' : '').$grouped;
+    }
+
+    /**
+     * Each recipient reads the numbers in their own language: one event per
+     * locale, its data built by $data($locale).
+     *
+     * @param  list<string>  $recipients
+     * @param  \Closure(string): array<string, string>  $data
+     */
+    private function send(string $type, array $recipients, \Closure $data, string $link): void
+    {
+        if ($recipients === []) {
+            return;
+        }
+
+        $locales = User::query()->whereKey($recipients)->pluck('locale', 'id');
+        $byLocale = [];
+
+        foreach ($recipients as $id) {
+            $locale = in_array($locales[$id] ?? null, Channels::LOCALES, true) ? $locales[$id] : 'en';
+            $byLocale[$locale][] = $id;
+        }
+
+        foreach ($byLocale as $locale => $ids) {
+            $this->notifier->send(new NotificationEvent($type, $ids, $data($locale), $link));
         }
     }
 }

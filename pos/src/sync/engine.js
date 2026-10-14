@@ -17,7 +17,9 @@ import { OUTBOX } from './store';
  * - pull(): GET sync/pull per entity from its cursor, looping while
  *   has_more. reset and snapshot replace keep old rows until the last
  *   page; tombstones remove. A refused cursor starts the entity over; a
- *   refused entity list bootstraps again once.
+ *   refused entity list, or a pull whose `entities_fingerprint` differs
+ *   from bootstrap's (a module switched on or off mid-session), bootstraps
+ *   again once, and the entities now offered are pulled in the same run.
  * - push(): uploads the outbox in enqueue order, one run of a kind per
  *   request. A row of a group (a shift) waits while an earlier row of the
  *   group is still pending.
@@ -178,6 +180,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     if (body.device) await store.saveDevice(body.device);
     await store.setMeta({
       entities: offered.map(({ key, mode, module, version }) => ({ key, mode, module, version })),
+      entitiesFingerprint: typeof body.entities_fingerprint === 'string' ? body.entities_fingerprint : null,
       pageSize: body.page_size,
       maxPageSize: body.max_page_size,
       pin: body.pin ?? null,
@@ -269,6 +272,22 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
         counts[key].tombstones += applied.tombstones;
         counts[key].pages += 1;
         if (!page.has_more) pending.delete(key);
+      }
+
+      // NFR-04: the server offers other entities than at bootstrap (a module switched on or off
+      // mid-session, a source version changed): bootstrap again, once, and pull what is new.
+      const fingerprint = response.body.entities_fingerprint;
+      if (typeof fingerprint === 'string' && fingerprint !== meta.entitiesFingerprint && !rebootstrapped) {
+        rebootstrapped = true;
+        await bootstrap();
+        meta = await store.meta();
+        wanted = choose(meta.entities);
+        for (const key of [...pending]) if (!wanted.includes(key)) pending.delete(key);
+        for (const key of wanted) {
+          if (counts[key]) continue;
+          counts[key] = { upserts: 0, tombstones: 0, pages: 0 };
+          pending.add(key);
+        }
       }
     }
 

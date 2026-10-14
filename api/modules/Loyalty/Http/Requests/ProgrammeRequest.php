@@ -9,10 +9,14 @@ use Illuminate\Validation\Validator;
 /**
  * PUT companies/{company}/loyalty-programme (LOY-01): `loyalty.programme.edit`
  * at the company.
- * The gift card item is one the company sells (its own or shared).
+ * The gift card item is one the company sells (its own or shared), of
+ * type `service` or `non_stock`: a card sold is a liability, never stock.
  */
 class ProgrammeRequest extends LoyaltyRequest
 {
+    /** LOY-21: the item types a gift card may be sold as. */
+    public const GIFT_CARD_ITEM_TYPES = ['service', 'non_stock'];
+
     public function authorize(): bool
     {
         $this->authorizeAt($this->route('company')->id, ['loyalty.programme.view', 'loyalty.programme.edit'], 'loyalty.programme.edit');
@@ -46,6 +50,8 @@ class ProgrammeRequest extends LoyaltyRequest
 
                 if ($item->company_id !== null && $item->company_id !== $this->route('company')->id) {
                     $validator->errors()->add('gift_card_item_id', __('loyalty.validation.item_other_company'));
+                } elseif (! in_array($item->type, self::GIFT_CARD_ITEM_TYPES, true)) {
+                    $validator->errors()->add('gift_card_item_id', __('loyalty.validation.gift_card_item_type'));
                 }
             }
         }];

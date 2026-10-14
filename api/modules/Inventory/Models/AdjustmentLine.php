@@ -22,7 +22,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?string $batch_id
  * @property ?string $batch_number
  * @property list<string> $serials
- * @property ?string $unit_cost
+ * @property ?string $unit_cost_minor per entered unit, in unit_cost_currency (ADR 003)
+ * @property ?string $unit_cost_currency
  */
 class AdjustmentLine extends Model
 {

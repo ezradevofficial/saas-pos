@@ -9,6 +9,7 @@ use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
 use Modules\Loyalty\Models\PointsEntry;
+use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Points\PointsExpiry;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -42,7 +43,8 @@ class SyncAndExpiryTest extends TestCase
 
         $entities = $this->pull(['loyalty_settings', 'loyalty_promotions', 'loyalty_members', 'loyalty_gift_cards']);
 
-        $this->assertSame('100', $entities['loyalty_settings']['upserts'][0]['point_value_minor']);
+        $this->assertSame(['id' => 'module', 'active' => true], $entities['loyalty_settings']['upserts'][0]);
+        $this->assertSame('100', collect($entities['loyalty_settings']['upserts'])->firstWhere('id', 'programme')['point_value_minor']);
         $promotions = collect($entities['loyalty_promotions']['upserts']);
         $this->assertSame(['VIP'], $promotions->where('kind', 'promotion')->pluck('name')->all(), 'the other branch\'s promotion is not sent');
         $this->assertSame([], $promotions->firstWhere('kind', 'promotion')['coupon_codes']);
@@ -51,6 +53,13 @@ class SyncAndExpiryTest extends TestCase
         $cards = $entities['loyalty_gift_cards']['upserts'];
         $this->assertSame($card->code_hash, $cards[0]['code_hash']);
         $this->assertStringNotContainsString(str_replace('-', '', $code), json_encode($entities));
+    }
+
+    public function test_without_a_points_programme_the_till_still_gets_the_module_row(): void
+    {
+        $this->inTenant(fn () => $this->programme->delete());
+
+        $this->assertSame([['id' => 'module', 'active' => true]], $this->pull(['loyalty_settings'])['loyalty_settings']['upserts']);
     }
 
     public function test_rbac_08_entities_are_not_served_while_the_module_is_off(): void
@@ -128,5 +137,19 @@ class SyncAndExpiryTest extends TestCase
         $this->assertContains('loyalty.credit.limit_near', $types);
         $this->assertContains('loyalty.gift_card.low', $types);
         $this->assertSame('85000', (string) $this->inTenant(fn () => Account::query()->findOrFail($account->id)->balance));
+    }
+
+    public function test_notices_show_numbers_in_the_recipients_language(): void
+    {
+        $this->inTenant(fn () => $this->owner->forceFill(['locale' => 'fr'])->saveQuietly());
+        $account = $this->creditAccount('100000');
+        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '85000'], $this->headersFor())->assertCreated();
+
+        $notice = $this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->owner->id)->where('event_type', 'loyalty.credit.limit_near')->sole());
+        $text = $notice->subject.' '.$notice->body;
+        $this->assertStringContainsString('KES 850,00', $text);
+        $this->assertStringContainsString("KES 1\u{202F}000,00", $text);
+        $this->assertSame("1\u{202F}250", LoyaltyNotices::number('1250', 'fr'));
+        $this->assertSame('1,250', LoyaltyNotices::number('1250', 'en'));
     }
 }

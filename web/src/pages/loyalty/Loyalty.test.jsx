@@ -31,6 +31,8 @@ function setup(routes = [], permissions = ALL) {
   mockRoutes(
     api,
     [
+      // A test's own routes come first, so they can override these.
+      ...routes,
       [/^companies\?/, { data: [COMPANY] }],
       [/^loyalty\/promotions\?/, page([PROMOTION])],
       ['loyalty/promotions/p-1', { data: PROMOTION }],
@@ -42,7 +44,6 @@ function setup(routes = [], permissions = ALL) {
       [/^(items|item-categories)\?/, { data: [] }],
       [/^companies\/c-1\/branches/, { data: [] }],
       ['companies/c-1/loyalty-programme', { data: { company_id: 'c-1', saved: true, active: true, currency: 'KES', earn_points: 1, earn_spend_minor: '10000', point_value_minor: '100', min_redeem_points: '0', expiry_months: 12, expiry_notice_days: 14, credit_warning_percent: 80, gift_card_low_minor: null, gift_card_item: null } }],
-      ...routes,
     ],
     { permissions: tenantWide(permissions), modules: ['core', 'pos', 'loyalty'] },
   )
@@ -117,6 +118,30 @@ describe('Loyalty back office', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save programme' }))
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('companies/c-1/loyalty-programme', expect.objectContaining({ earn_points: 2, expiry_months: 12 })))
     expect(await screen.findByText('Programme saved.')).toBeInTheDocument()
+  })
+
+  it('with several companies, the programme and a new promotion default to the first and offer a choice, as Labels does', async () => {
+    const OTHER = { ...COMPANY, id: 'c-2', name: 'Baraka Wholesale' }
+    const programme = (id) => ({ data: { company_id: id, saved: true, active: true, currency: 'KES', earn_points: 1, earn_spend_minor: '10000', point_value_minor: '100', min_redeem_points: '0', expiry_months: 12, expiry_notice_days: 14, credit_warning_percent: 80, gift_card_low_minor: null } })
+    setup([[/^companies\?/, { data: [COMPANY, OTHER] }], ['companies/c-2/loyalty-programme', programme('c-2')], [/^companies\/c-2\/branches/, { data: [] }]])
+    const view = renderApp('/loyalty/programme')
+    await screen.findByLabelText('Points earned')
+    await waitFor(() => expect(screen.getAllByLabelText('Company')).toHaveLength(2))
+    // The page's own picker (the company switcher is labelled Company too, earlier on the page).
+    const programmePicker = screen.getAllByLabelText('Company').at(-1)
+    expect(programmePicker).toHaveTextContent('Amani Retail')
+    chooseOption(programmePicker, 'Baraka Wholesale')
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('companies/c-2/loyalty-programme'))
+    view.unmount()
+
+    api.post.mockResolvedValue({ data: { ...PROMOTION, id: 'p-9', company_id: 'c-2' } })
+    renderApp('/loyalty/promotions/new')
+    await waitFor(() => expect(screen.getAllByLabelText('Company')).toHaveLength(2))
+    chooseOption(screen.getAllByLabelText('Company').at(-1), 'Baraka Wholesale')
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Weekend' } })
+    fireEvent.change(screen.getByLabelText(/^Discount/), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('loyalty/promotions', expect.objectContaining({ company_id: 'c-2', name: 'Weekend' })))
   })
 
   it('lists flagged sales to review with each reason, filtered by reason, only with loyalty.sale.view (LOY-12, H2)', async () => {

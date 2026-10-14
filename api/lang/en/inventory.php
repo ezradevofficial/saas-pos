@@ -5,6 +5,7 @@
 // (items, locations) are shown as entered.
 return [
     'errors' => [
+        'unit_cost_currency' => 'Enter the unit cost in :currency, the company’s base currency.',
         'item_unknown' => 'Choose an item that exists and is not archived.',
         'item_not_at_location' => ':item belongs to another company. Choose a shared item or one of this company’s.',
         'not_a_stock_item' => ':item is not a stock item. Only stock items keep stock.',
@@ -184,8 +185,8 @@ return [
         'stock_low' => [
             'label' => 'Stock below reorder level',
             'subject' => '{item_name} is low at {location_name}',
-            'body' => "Hello {recipient_name},\n\n{item_name} ({item_code}) is down to {quantity} at {location_name}. Its reorder level is {reorder_level}; the usual order is {reorder_quantity}.",
-            'sms' => '{app_name}: {item_name} is low at {location_name} ({quantity} left).',
+            'body' => "Hello {recipient_name},\n\n{item_name} ({item_code}) is down to {quantity} {unit} at {location_name}. Its reorder level is {reorder_level} {unit}; the usual order is {reorder_quantity} {unit}.",
+            'sms' => '{app_name}: {item_name} is low at {location_name} ({quantity} {unit} left).',
         ],
     ],
     'dashboards' => [

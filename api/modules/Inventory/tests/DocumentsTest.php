@@ -19,6 +19,7 @@ use Modules\Inventory\Documents\TransferType;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockCountPosted;
 use Modules\Inventory\Events\TransferReceived;
+use Modules\Inventory\Models\AdjustmentLine;
 use Modules\Inventory\Models\InventorySetting;
 use Modules\Inventory\Models\Movement;
 use Modules\Inventory\Models\Serial;
@@ -161,7 +162,7 @@ class DocumentsTest extends TestCase
             'location_id' => $this->locationA->id, 'reason' => 'damage', 'note' => 'Wet carton',
             'lines' => [
                 ['item_id' => $this->soap->id, 'qty' => '-3'],
-                ['item_id' => $this->milk->id, 'qty' => '10', 'batch_number' => 'LOT-1', 'expires_on' => '2027-01-31', 'unit_cost' => '2.50'],
+                ['item_id' => $this->milk->id, 'qty' => '10', 'batch_number' => 'LOT-1', 'expires_on' => '2027-01-31', 'unit_cost_minor' => '250', 'unit_cost_currency' => 'KES'],
             ],
         ], $this->headersFor($this->storekeeper))->assertCreated()
             ->assertJsonPath('data.status', 'pending')
@@ -169,7 +170,11 @@ class DocumentsTest extends TestCase
             ->json('data');
         $this->getJson("/api/v1/inventory/adjustments/{$adjustment['id']}", $this->headersFor())
             ->assertJsonPath('data.value_out', ['amount_minor' => '300', 'currency' => 'KES'])
-            ->assertJsonPath('data.value_in', ['amount_minor' => '2500', 'currency' => 'KES']);
+            ->assertJsonPath('data.value_in', ['amount_minor' => '2500', 'currency' => 'KES'])
+            ->assertJsonPath('data.lines.1.unit_cost', ['amount_minor' => '250', 'currency' => 'KES']);
+        // ADR 003: stored as minor units with its currency.
+        $this->assertEquals(['250', 'KES'], $this->inTenant(fn () => array_values(AdjustmentLine::query()->where('adjustment_id', $adjustment['id'])->whereNotNull('unit_cost_minor')
+            ->first(['unit_cost_minor', 'unit_cost_currency'])->only(['unit_cost_minor', 'unit_cost_currency']))));
 
         // APR-07: the requester never approves their own request.
         $this->assertSame('100', $this->onHand($this->soap));
@@ -180,6 +185,24 @@ class DocumentsTest extends TestCase
             ->assertJsonPath('data.lines.0.value', ['amount_minor' => '-300', 'currency' => 'KES']);
         $this->assertSame(['97', '10'], [$this->onHand($this->soap), $this->onHand($this->milk)]);
         Event::assertDispatched(StockAdjusted::class, fn (StockAdjusted $e) => $e->valueOutMinor === '300' && $e->valueInMinor === '2500' && $e->reason === 'damage');
+    }
+
+    public function test_adr_003_a_unit_cost_needs_its_currency_and_the_companys_base_currency(): void
+    {
+        $line = ['item_id' => $this->milk->id, 'qty' => '10', 'batch_number' => 'LOT-1', 'expires_on' => '2027-01-31', 'unit_cost_minor' => '250'];
+        $post = fn (array $line) => $this->postJson('/api/v1/inventory/adjustments', ['location_id' => $this->locationA->id, 'reason' => 'found', 'lines' => [$line]], $this->headersFor($this->storekeeper));
+
+        $post($line)->assertUnprocessable()->assertJsonValidationErrors(['lines.0.unit_cost_currency']);
+        $post([...$line, 'unit_cost' => '2.50', 'unit_cost_minor' => '2.50', 'unit_cost_currency' => 'KES'])->assertUnprocessable()->assertJsonValidationErrors(['lines.0.unit_cost_minor']);
+        $post([...$line, 'unit_cost_currency' => 'USD'])->assertUnprocessable()->assertJsonPath('code', 'unit_cost_currency');
+        $post([...$line, 'unit_cost_currency' => 'KES'])->assertCreated();
+    }
+
+    public function test_adr_003_the_unit_cost_column_is_money(): void
+    {
+        $columns = collect(DB::select("select column_name, data_type from information_schema.columns where table_name = 'inventory_adjustment_lines' and column_name like 'unit_cost%'"))->pluck('data_type', 'column_name')->all();
+
+        $this->assertEquals(['unit_cost_minor' => 'bigint', 'unit_cost_currency' => 'character'], $columns);
     }
 
     public function test_an_approved_adjustment_that_stock_no_longer_allows_is_marked_not_posted(): void

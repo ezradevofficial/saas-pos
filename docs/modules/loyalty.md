@@ -40,7 +40,7 @@ Four parts:
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| LOY-01 | **Programme per company.** Points earned per spend (`earn_points` per `earn_spend_minor` of the programme currency, the company's base currency), the value of one point (`point_value_minor`), the least points a redemption takes (`min_redeem_points`), expiry in months (none: never), the expiry notice in days, the credit warning percentage (80 by default), the gift card low-balance threshold and the gift card item sold at the till. Off until switched on. Audited. | Must |
+| LOY-01 | **Programme per company.** Points earned per spend (`earn_points` per `earn_spend_minor` of the programme currency, the company's base currency), the value of one point (`point_value_minor`), the least points a redemption takes (`min_redeem_points`), expiry in months (none: never), the expiry notice in days, the credit warning percentage (80 by default), the gift card low-balance threshold and the gift card item sold at the till (a `service` or `non_stock` item: a card sold is a liability, never stock). Off until switched on. Audited. | Must |
 | LOY-02 | **Points accounts.** One per customer (a core party with the customer role) and company, opened on the first earn or adjustment. The balance is the sum of an append-only ledger in whole points; the account keeps it cached, updated under the account's row lock with each entry. | Must |
 | LOY-03 | **Earn on completed sales.** A POS sale naming a customer earns `floor(eligible × earn_points / earn_spend_minor)` points, where `eligible` is the sale total less what points paid, converted to the programme currency with the sale's own rate snapshot (CUR-04). Posted once per sale when the sale reaches the server (device wins, idempotent by sale id). Earned points expire `expiry_months` after the sale. | Must |
 | LOY-04 | **Reverse on void and refund.** A void reverses everything the sale earned and redeemed (points, gift card, credit). A refund reverses earned points in proportion to the refunded share of the sale total (floored, never more than is left), and puts back what a refund pays by points, gift card or store credit. | Must |
@@ -167,8 +167,12 @@ Recorded here as the brief asked; the owner may revisit them.
 - **Event payloads.** `SaleCompleted`, `SaleVoided` and `SaleRefunded`
   gain an optional snapshot of what was stored (a sale or a refund),
   built by POS. Loyalty keeps its own copy (`loyalty_sales`) before
-  processing, so a failure is retried by `loyalty:reprocess` without POS.
-  A Loyalty failure never fails a POS upload.
+  processing, so a failure is retried by `loyalty:reprocess` without POS,
+  at most 5 times with backoff (5 min, 15 min, 1 h, 6 h, 24 h); then the
+  sale is `failed_permanently` and flagged `processing_failed` in the
+  flagged-sales review. Loyalty handles the events in a queued listener
+  (after commit, in the event's tenant), so a Loyalty failure never fails
+  a POS upload nor another module's handling.
 - **POS schema change (approved by the owner on 2026-10-14).** CLAUDE.md
   asks before changing another module's schema. The brief asks for a
   minimal, generic seam in POS, so three nullable `jsonb` columns are
@@ -189,7 +193,9 @@ Recorded here as the brief asked; the owner may revisit them.
   short keys; otherwise a 422, as any malformed field) and asks the
   provider for review flags (`check()`), which POS adds to the sale's or
   refund's flags as `tender_flagged` with the provider's code. Providers of an
-  inactive module are not used: the tender is stored as sent.
+  inactive module are not used: the tender is stored as sent and flagged
+  `tender_flagged` with code `module_inactive` (`TenderProviders::registered()`
+  still names a switched-off module's provider; device wins).
 - **Core `App\Core\MasterData\Prices\DiscountSources`.** A module
   registers a source key (`loyalty.promotion`) with a synchronous verifier
   (H2): given the sale (company, branch, customer, currency, time, lines,
@@ -303,7 +309,7 @@ throttled, 30 a minute per device).
 
 | Entity | Mode | Rows |
 | --- | --- | --- |
-| `loyalty_settings` | snapshot | the till's company programme |
+| `loyalty_settings` | snapshot | a `module` row (always: gift cards, vouchers and credit need no programme) and the till's company programme (`programme`, when set up) |
 | `loyalty_promotions` | snapshot | active promotions of the till's branch (current versions), with their coupon codes and uses left, and the customer tags they name with the customers holding them |
 | `loyalty_members` | incremental (`loyalty_accounts`) | per customer of the company: points balance; credit account currency, balance, limit, status |
 | `loyalty_gift_cards` | incremental | the company's cards: hash, last four, kind, currency, balance, status, expiry |

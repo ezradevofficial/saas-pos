@@ -51,6 +51,7 @@ Built in `App\Core\Sync`. Accepted with the rest of the sync design (Task 7, see
 
 - `GET sync/bootstrap`: server time (clock-skew check), the device, where it sits (`settings`), the entities to pull in order (`key`, `mode`, `module`, `version`), page sizes and the PIN scheme.
 - `GET sync/pull?entities[]=items&cursors[items]=...&limit=500`: per entity `{mode, reset, replace, upserts, tombstones, cursor, has_more}`. Without `entities`, every entity the tenant has.
+- Bootstrap and every pull carry `entities_fingerprint`, a hash of the offered entity list. When a pull's fingerprint differs from the one the till kept at bootstrap (a module switched on or off mid-session, a source version changed), the till bootstraps again, once per pull run, and pulls the newly offered entities in the same run.
 - `GET sync/media/{item_image}`: an item image, for items the device may hold.
 - `GET sync/device-secret/challenge`, `POST sync/device-secret/rotate`, `POST sync/device-secret/activate`: rotating the device secret (below).
 

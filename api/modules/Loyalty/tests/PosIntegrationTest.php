@@ -4,6 +4,10 @@ namespace Modules\Loyalty\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\DueTenants;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
@@ -81,10 +85,24 @@ class PosIntegrationTest extends TestCase
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
         $sale = $this->loyaltySale($this->shift, 1, $this->amina->id, [$this->pay('points', '112500', ['points' => '1125'])]);
 
-        // The tender is stored as sent, unchecked; nothing is posted.
-        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored')->assertJsonPath('results.0.flags', []);
+        // The tender is stored as sent, unchecked, and flagged for review (device wins); nothing is posted.
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored')
+            ->assertJsonPath('results.0.flags', [['code' => 'tender_flagged', 'detail' => ['payment' => 1, 'code' => 'module_inactive']]]);
         $this->assertSame(0, $this->inTenant(fn () => LoyaltySale::query()->count()));
         $this->assertSame(['points' => '1125'], $this->inTenant(fn () => Sale::query()->findOrFail($sale['id'])->payments()->first()->tender));
+    }
+
+    public function test_rbac_08_a_refund_to_a_loyalty_tender_after_the_module_is_switched_off_is_flagged(): void
+    {
+        [, $code] = $this->giftCard('200000');
+        $sale = $this->loyaltySale($this->shift, 1, null);
+        $this->upload([$sale])->assertOk();
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
+
+        $refund = $this->refundSale($sale, $this->shift, '1', '56250', 1, [$this->pay('voucher', '56250', ['code_hash' => GiftCards::proof($code)])]);
+
+        $refund->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->assertContains(['code' => 'tender_flagged', 'detail' => ['payment' => 1, 'code' => 'module_inactive']], $refund->json('results.0.flags'));
     }
 
     public function test_a_void_reverses_points_earned_and_redeemed(): void
@@ -238,6 +256,83 @@ class PosIntegrationTest extends TestCase
 
         $this->assertSame('processed', $this->loyaltySaleRow($sale['id'])->status);
         $this->assertSame('11', $this->pointsOf($this->amina->id));
+    }
+
+    public function test_loy_03_reprocess_retries_with_backoff_then_fails_permanently_into_the_review_list(): void
+    {
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id);
+        $this->failingProgrammes();
+        $this->upload([$sale])->assertOk();
+        $row = fn () => $this->loyaltySaleRow($sale['id']);
+        $this->assertSame(['failed', 1], [$row()->status, $row()->attempts]);
+        $this->assertLessThan(2, abs($row()->next_attempt_at->diffInSeconds(now()->addMinutes(5))));
+
+        // Not due yet: nothing is tried.
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+        $this->assertSame(1, $row()->attempts);
+
+        // Each retry waits longer: 5 min, 15 min, 1 h, 6 h, 24 h.
+        foreach ([300, 900, 3600, 21600, 86400] as $index => $wait) {
+            $this->travel($wait + 1)->seconds();
+            $this->artisan('loyalty:reprocess')->assertSuccessful();
+            $this->assertSame($index + 2, $row()->attempts);
+        }
+
+        $this->assertSame('failed_permanently', $row()->status);
+        $this->assertNull($row()->next_attempt_at);
+        $this->assertContains(['code' => 'processing_failed', 'detail' => ['attempts' => 6]], $row()->flags);
+
+        // Never tried again; it shows in the flagged-sales review.
+        $this->travel(2)->days();
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+        $this->assertSame(6, $row()->attempts);
+        $this->getJson('/api/v1/loyalty/sales?flag=processing_failed', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', $sale['id']);
+    }
+
+    public function test_loy_03_reprocess_finds_its_tenants_through_due_tenants(): void
+    {
+        $this->mock(DueTenants::class)->shouldReceive('withLoyaltySalesToReprocess')->once()->andReturn([]);
+
+        $this->artisan('loyalty:reprocess')->assertSuccessful();
+    }
+
+    public function test_module_schedules_are_registered_by_their_providers(): void
+    {
+        $commands = collect(app(Schedule::class)->events())->map(fn ($event) => $event->command)->implode("\n");
+
+        foreach (['loyalty:expire-points', 'loyalty:reprocess', 'accounting:recurring'] as $command) {
+            $this->assertStringContainsString($command, $commands);
+        }
+        $this->assertStringNotContainsString('loyalty:', (string) file_get_contents(base_path('routes/console.php')));
+    }
+
+    public function test_deadlock_safety_cards_and_accounts_are_locked_in_id_order_before_posting(): void
+    {
+        [$first, $firstCode] = $this->giftCard('50000');
+        [$second, $secondCode] = $this->giftCard('100000');
+        $this->assertLessThan(0, strcmp($first->id, $second->id));
+        $this->creditAccount('500000');
+        // The card with the larger id pays first.
+        $sale = $this->loyaltySale($this->shift, 1, $this->amina->id, [
+            $this->pay('voucher', '62500', ['code_hash' => GiftCards::proof($secondCode)]),
+            $this->pay('voucher', '50000', ['code_hash' => GiftCards::proof($firstCode)]),
+        ]);
+        $locks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks) {
+            if (str_contains($query->sql, 'for update') && preg_match('/from "(loyalty_gift_cards|loyalty_accounts)"/', $query->sql, $table) === 1) {
+                $locks[] = [$table[1], $query->sql];
+            }
+        });
+
+        $this->upload([$sale])->assertOk();
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
+
+        // Accounts first, then every card the sale touches, each set in one query ordered by id.
+        $this->assertSame('loyalty_accounts', $locks[0][0]);
+        $this->assertStringContainsString('order by "id"', $locks[0][1]);
+        $firstCardLock = collect($locks)->firstWhere(0, 'loyalty_gift_cards');
+        $this->assertStringContainsString('order by "id"', $firstCardLock[1]);
+        $this->assertSame(['0', '37500'], $this->inTenant(fn () => [(string) $first->refresh()->balance_minor, (string) $second->refresh()->balance_minor]));
     }
 
     private function failingProgrammes(): void

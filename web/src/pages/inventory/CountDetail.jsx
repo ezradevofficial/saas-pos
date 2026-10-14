@@ -190,7 +190,8 @@ export default function CountDetail() {
         <Card title={t('inventory.count.entry')} subtitle={counting ? t('inventory.count.entryHelp') : null}>
           <DataTable caption={t('inventory.count.entry')} columns={columns} rows={count.lines ?? []} emptyText={t('inventory.count.noLines')} />
         </Card>
-        <DocumentFlow type="inventory.count" id={count.id} />
+        {/* WF-10: a count's flow starts when it is submitted. */}
+        <DocumentFlow type="inventory.count" id={count.id} started={Boolean(count.submitted_at)} />
       </div>
       {can.cancel ? (
         <CancelDialog

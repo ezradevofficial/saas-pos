@@ -16,6 +16,7 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Sync\SyncSources;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -67,6 +68,8 @@ class LoyaltyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/loyalty.php', 'loyalty');
+        // Per request or job: it keeps the categories it read (Promotions::categoryParents).
+        $this->app->scoped(Promotions::class);
     }
 
     public function boot(): void
@@ -127,6 +130,13 @@ class LoyaltyServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([ExpirePointsCommand::class, ReprocessSalesCommand::class]);
         }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // LOY-06: expire due points and warn about points expiring soon.
+            $schedule->command('loyalty:expire-points')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+            // LOY-03: process again POS sales Loyalty kept but could not process (with backoff).
+            $schedule->command('loyalty:reprocess')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+        });
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

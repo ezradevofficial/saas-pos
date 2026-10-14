@@ -134,8 +134,13 @@ class RefundUploads
         $this->authority->checkNamed($data['override'] ?? null, 'override');
         $payments = $this->payments($place, $data['payments'], $sale, $total, $at, $flags);
 
-        // LOY-25, LOY-27: money given back as points, a gift card or store credit is checked by its provider.
+        // LOY-25, LOY-27: money given back as points, a gift card or store credit is checked by its provider
+        // (flagged `module_inactive` when the provider's module is switched off).
         foreach ($payments as $index => $payment) {
+            if ($this->tenders->for($payment['method_type']) === null && $this->tenders->registered($payment['method_type']) !== null) {
+                $flags->add('tender_flagged', null, ['payment' => $index + 1, 'code' => 'module_inactive']);
+            }
+
             foreach ($this->tenders->for($payment['method_type'])?->check(new TenderUse(
                 TenderUse::REFUND, $place->company->id, $place->branch->id, $place->location->id, $sale->customer_id, $cashier->id,
                 $payment['currency'], (string) $payment['amount_minor'], $sale->currency, (string) $payment['amount_in_sale_minor'], (array) ($payment['tender'] ?? []),

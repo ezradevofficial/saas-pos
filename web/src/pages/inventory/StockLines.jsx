@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Button, DecimalInput, Select, TextField } from '@/components/ds'
+import { Button, DecimalInput, MoneyInput, Select, TextField } from '@/components/ds'
 import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { ItemPicker } from './InventoryParts'
@@ -12,8 +12,10 @@ import { useUnitOptions } from './inventoryHelpers'
  * what the item's tracking asks for (INV-06, INV-07): a batch held at
  * `locationId`, or a new batch number and expiry for an increase, and
  * serial numbers. `error(field)` gives the API's message for this line.
+ * An increase may carry a unit cost in `currency` (the location's company
+ * base currency), as minor units (ADR 003).
  */
-export function StockLine({ line, index, mode, locationId, onChange, onRemove, removable, error, submitted }) {
+export function StockLine({ line, index, mode, locationId, currency, onChange, onRemove, removable, error, submitted }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const stock = useItemStock(line.item?.id)
@@ -51,7 +53,7 @@ export function StockLine({ line, index, mode, locationId, onChange, onRemove, r
               { value: 'in', label: t('inventory.lines.increase') },
             ]}
             value={line.direction}
-            onChange={(event) => onChange({ ...line, direction: event.target.value, batch_id: '', batch_number: '', expires_on: '', unit_cost: '' })}
+            onChange={(event) => onChange({ ...line, direction: event.target.value, batch_id: '', batch_number: '', expires_on: '', unit_cost_minor: '' })}
           />
         ) : null}
         <Select label={t('inventory.fields.unit')} options={units} value={line.uom_id} disabled={!line.item} error={error('uom_id')} onChange={(event) => set('uom_id')(event.target.value)} />
@@ -64,13 +66,14 @@ export function StockLine({ line, index, mode, locationId, onChange, onRemove, r
           onChange={(value) => set('qty')(value ?? '')}
         />
         {increase ? (
-          <DecimalInput
+          <MoneyInput
+            key={currency ?? 'none'}
             label={t('inventory.fields.unitCost')}
             help={t('inventory.fields.unitCostOptional')}
-            value={line.unit_cost}
-            positive={false}
-            error={error('unit_cost')}
-            onChange={(value) => set('unit_cost')(value ?? '')}
+            currency={currency}
+            value={line.unit_cost_minor}
+            error={error('unit_cost_minor') ?? error('unit_cost_currency')}
+            onChange={(value) => set('unit_cost_minor')(value ?? '')}
           />
         ) : null}
         {tracking === 'batch' && !increase ? (

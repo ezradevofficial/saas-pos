@@ -3,6 +3,8 @@
 namespace Modules\Loyalty\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\DocumentTemplates\DataSources;
+use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -52,6 +54,20 @@ class BackOfficeTest extends TestCase
 
         $this->putJson("/api/v1/companies/{$this->acme->id}/loyalty-programme", ['earn_spend_minor' => 1250], $this->headersFor())->assertUnprocessable();
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'loyalty.programme.create')->exists()));
+    }
+
+    public function test_loy_21_the_gift_card_item_is_a_service_or_non_stock_item(): void
+    {
+        $uri = "/api/v1/companies/{$this->acme->id}/loyalty-programme";
+
+        // The soap is a stock item: refused.
+        $this->putJson($uri, ['gift_card_item_id' => $this->soap->id], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['gift_card_item_id' => __('loyalty.validation.gift_card_item_type')]);
+
+        foreach (['service', 'non_stock'] as $type) {
+            $item = $this->inTenant(fn () => Item::create(['code' => 'GC-'.$type, 'name' => 'Gift card '.$type, 'type' => $type, 'base_uom_id' => $this->each->id, 'tax_category_id' => $this->goods->id]));
+            $this->putJson($uri, ['gift_card_item_id' => $item->id], $this->headersFor())->assertOk()->assertJsonPath('data.gift_card_item_id', $item->id);
+        }
     }
 
     public function test_promotions_are_versioned_on_every_change(): void
@@ -233,6 +249,12 @@ class BackOfficeTest extends TestCase
         $pdf = $this->get("/api/v1/loyalty/statements/{$statement->json('data.id')}/pdf", $this->headersFor())->assertOk();
         $this->assertSame('application/pdf', $pdf->headers->get('Content-Type'));
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
+        // RBAC-08: the statement's live source prints nothing while the module is off.
+        $source = app(DataSources::class)->get(StatementSource::TYPE);
+        $this->assertNotNull($this->inTenant(fn () => $source->load($statement->json('data.id'))));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
+        $this->assertNull($this->inTenant(fn () => $source->load($statement->json('data.id'))));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('loyalty'));
 
         $this->postJson("/api/v1/loyalty/accounts/{$id}/close", [], $this->headersFor())->assertJsonPath('code', 'credit_balance_not_zero');
         $this->postJson("/api/v1/loyalty/accounts/{$id}/adjustments", ['amount_minor' => '-110000', 'reason' => 'Written off'], $this->headersFor())->assertCreated();
@@ -272,6 +294,10 @@ class BackOfficeTest extends TestCase
         // LOY-23: the till checks a card of its company by hash.
         $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::proof($code)], $this->tillHeaders())->assertOk()->assertJsonPath('data.balance_minor', '250000');
         $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => str_repeat('b', 64)], $this->tillHeaders())->assertNotFound();
+
+        // RBAC-08: the till's lookup needs the POS module too.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('pos'));
+        $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::proof($code)], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'module_inactive');
     }
 
     public function test_the_customer_tab_shows_accounts_and_takes_adjustments(): void

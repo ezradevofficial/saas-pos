@@ -161,6 +161,8 @@ jobs:
           php artisan country-packs:holidays CD
           php artisan uoms:seed-defaults
           php artisan payment-methods:seed-defaults
+          # SUB-02, SUB-07: modules installed since a tenant subscribed are switched on when its plan covers them.
+          php artisan billing:sync-modules
           php artisan config:cache
           php artisan route:cache
           php artisan horizon:terminate

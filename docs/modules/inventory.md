@@ -84,7 +84,7 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 | `inventory_cost_layers` | FIFO layers: company, item, the receiving movement, `qty`, `cost_minor`, `remaining_qty`, `remaining_cost_minor` |
 | `inventory_reorder_rules` | Item, location, `reorder_level`, `reorder_qty`, `low_since`, `archived_at` |
 | `inventory_transfers`, `inventory_transfer_lines` | Number, company, branch, from and to locations, status (`pending`, `approved`, `rejected`, `in_transit`, `received`, `cancelled`), people and times; lines with item, unit, quantity, base quantity, batch, serials, received and lost quantities |
-| `inventory_adjustments`, `inventory_adjustment_lines` | Number, company, branch, location, reason, note, status (`pending`, `posted`, `rejected`, `cancelled`); lines with item, unit, signed quantity, base quantity, batch, expiry, serials, unit cost |
+| `inventory_adjustments`, `inventory_adjustment_lines` | Number, company, branch, location, reason, note, status (`pending`, `posted`, `rejected`, `cancelled`); lines with item, unit, signed quantity, base quantity, batch, expiry, serials, unit cost (`unit_cost_minor` bigint plus `unit_cost_currency`) |
 | `inventory_counts`, `inventory_count_lines` | Number, company, branch, location, kind, status (`counting`, `pending`, `posted`, `rejected`, `cancelled`); lines with item, batch, expected, counted and variance quantities and variance value |
 
 Movement kinds: `opening`, `receipt`, `adjustment_in`, `adjustment_out`,
@@ -138,13 +138,18 @@ The POS events carry ids; the POS module provides their stock lines
 `approve` is the workflow act permission of each document type (WF-08).
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
-`inventory.settings.edit`, `inventory.item.configure` and the views;
+`inventory.settings.edit`, `inventory.item.configure`, `inventory.label.print`,
+`inventory.reorder.edit` and the views;
 **Branch Manager** `inventory.*`; **Storekeeper** `inventory.*` except the
 three `approve` permissions, `inventory.settings.edit` and
 `inventory.valuation.view` (costs belong to Accountants and Admins); **Accountant**
-`inventory.*.view` and `inventory.valuation.view`; **Procurement Officer**
-and **Read-only Auditor** `inventory.*.view`; **Approver** the `approve`
-permissions (`*.approve`).
+`inventory.*.view` and `inventory.valuation.view`; **Read-only Auditor**
+`inventory.*.view`; **Procurement Officer** the views except valuation
+(`inventory.stock.view`, `inventory.reorder.view`, `inventory.transfer.view`,
+`inventory.adjustment.view`, `inventory.count.view`: never costs, RBAC-05);
+**Approver** the `approve` permissions (`*.approve`) and the views of what it
+approves (`inventory.transfer.view`, `inventory.adjustment.view`,
+`inventory.count.view`), not valuation.
 
 ## API
 
@@ -152,8 +157,11 @@ Prefix `/api/v1`, people's tokens, every route behind `module:inventory`
 (403 `module_inactive`). Lists follow ADR 008 (`?search`, `?sort`,
 `?per_page`, `?page`, `?format=csv|xlsx|pdf`, `?columns[]`, `?company`,
 `?branch`, `?location`). Quantities are decimal strings; money is
-`{amount_minor, currency}`; `unit_cost` inputs are decimal strings in major
-units of the company's base currency (up to 6 decimals).
+`{amount_minor, currency}`; opening stock's `unit_cost` input is a decimal
+string in major units of the company's base currency (up to 6 decimals); an
+adjustment line's unit cost is money (ADR 003): `unit_cost_minor` (minor units
+per entered unit) with `unit_cost_currency`, required with a cost and equal
+to the company's base currency, stored as bigint plus currency.
 
 | Route | Permission | Notes |
 | --- | --- | --- |
@@ -172,7 +180,7 @@ units of the company's base currency (up to 6 decimals).
 | `POST inventory/transfers/{inventory_transfer}/receive` | `transfer.receive` at the destination | `{lines?: [{id, qty_received}], loss_reason?}`; everything when no lines |
 | `POST inventory/transfers/{inventory_transfer}/cancel` | `transfer.cancel` | `{reason}`; pending or approved only |
 | `GET inventory/adjustments`, `GET …/{inventory_adjustment}` | `adjustment.view` | |
-| `POST inventory/adjustments` | `adjustment.create` at the location | `{location_id, reason, note?, lines: [{item_id, uom_id?, qty (signed), batch_id?, batch_number?, expires_on?, serials?, unit_cost?}]}`; starts the flow |
+| `POST inventory/adjustments` | `adjustment.create` at the location | `{location_id, reason, note?, lines: [{item_id, uom_id?, qty (signed), batch_id?, batch_number?, expires_on?, serials?, unit_cost_minor?, unit_cost_currency?}]}`; starts the flow |
 | `POST inventory/adjustments/{inventory_adjustment}/cancel` | `adjustment.cancel` | `{reason}` |
 | `GET inventory/counts`, `GET …/{inventory_count}` | `count.view` | |
 | `POST inventory/counts` | `count.create` at the location | `{location_id, kind, item_ids?, category_id?, note?}`; freezes and snapshots |

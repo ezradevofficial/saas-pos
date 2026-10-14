@@ -152,9 +152,9 @@ All are checked at the record's company (RBAC-04): a company role reaches
 that company's ledger; a tenant role every company's; consolidation needs
 `accounting.report.consolidate` at every company in the group.
 
-Role templates (no template change needed): **Accountant** holds
+Role templates: **Accountant** holds
 `accounting.*`; **Approver** holds `accounting.journal.approve` through
-`*.approve`; **Read-only Auditor** reads (`accounting.*.view`); the Owner
+`*.approve` and `accounting.journal.view` (it reads what it approves); **Read-only Auditor** reads (`accounting.*.view`); the Owner
 holds everything. Admin and Branch Manager hold none.
 
 ## Screens (web)

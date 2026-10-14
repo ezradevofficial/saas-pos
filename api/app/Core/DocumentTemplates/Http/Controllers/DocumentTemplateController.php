@@ -15,6 +15,7 @@ use App\Core\DocumentTemplates\TemplateRenderer;
 use App\Core\DocumentTemplates\TemplateResolver;
 use App\Core\DocumentTemplates\TemplateSchema;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -80,7 +81,7 @@ class DocumentTemplateController
                 ], array_keys($this->sources->columns($type)), $this->sources->columns($type)),
                 'default' => DefaultTemplates::for($type, $language),
             ];
-        }, DocumentTypes::keys());
+        }, DocumentTypes::offered(app(ModuleRegistry::class)));
 
         return new JsonResponse(['data' => $types, 'meta' => [
             'country' => $country,

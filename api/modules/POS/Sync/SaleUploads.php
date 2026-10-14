@@ -580,7 +580,8 @@ class SaleUploads
     /**
      * LOY-27: each payment whose method type has an active tender
      * provider (core TenderProviders) is checked by it; what it notices is
-     * flagged `tender_flagged`, never refused (device wins).
+     * flagged `tender_flagged`, never refused (device wins). A provider
+     * whose module is switched off flags the payment `module_inactive`.
      *
      * @param  list<array{row: array<string, mixed>}>  $payments
      */
@@ -590,6 +591,11 @@ class SaleUploads
             $provider = $this->tenders->for($payment['row']['method_type']);
 
             if ($provider === null) {
+                // A tender of a switched-off module is stored as sent, and flagged (device wins).
+                if ($this->tenders->registered($payment['row']['method_type']) !== null) {
+                    $flags->add('tender_flagged', null, ['payment' => $index + 1, 'code' => 'module_inactive']);
+                }
+
                 continue;
             }
 

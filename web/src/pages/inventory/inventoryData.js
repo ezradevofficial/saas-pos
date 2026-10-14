@@ -114,6 +114,13 @@ export function usePlaces() {
   }
 }
 
+/** ADR 003: the base currency of a location's company (its stock is valued in it), or null. */
+export function locationCurrency({ companies, branches, locations }, locationId) {
+  const location = locations.find((entry) => entry.id === locationId)
+  const branch = branches.find((entry) => entry.id === (location?.branch_id ?? location?.branch?.id))
+  return companies.find((entry) => entry.id === branch?.company_id)?.base_currency ?? null
+}
+
 /** Place filters for a ListView: company, branch and location, as far as the user sees them. */
 export function placeFilterFields(t, { companies, branches, locations }, names = ['company', 'branch', 'location']) {
   const field = (name, records) =>

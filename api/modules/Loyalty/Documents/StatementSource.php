@@ -72,6 +72,11 @@ final class StatementSource implements RecordSource
 
     public function load(string $recordId): ?DocumentData
     {
+        // RBAC-08: nothing is printed from Loyalty's records while the module is off.
+        if (! $this->live()) {
+            return null;
+        }
+
         $statement = Statement::query()->find($recordId);
 
         if ($statement === null) {

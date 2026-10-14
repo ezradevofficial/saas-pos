@@ -151,6 +151,26 @@ class ApprovalApiTest extends TestCase
         $this->assertNull($this->fresh($blocked)->blocked_reason);
     }
 
+    public function test_apr_07_a_blocked_step_gets_its_approver_when_a_qualifying_role_is_assigned(): void
+    {
+        // Nobody holds the approving role or the escalation target yet: the request is blocked.
+        $graph = $this->approvalGraph(['approver' => ['type' => 'role', 'role' => 'template:hr_officer']], ['escalation' => ['to' => ['type' => 'role', 'role' => 'template:waiter'], 'after' => ['amount' => 1, 'unit' => 'days']]]);
+        $blocked = $this->submit($graph, by: $this->owner);
+        $this->assertSame(ApprovalRequest::BLOCKED_NO_APPROVER, $this->fresh($blocked)->blocked_reason);
+        $this->assertSame([], $this->pendingApprovers($blocked));
+
+        // A role elsewhere changes nothing.
+        $this->person('hr_officer', Scope::company($this->inTenant(fn () => $this->company('Elsewhere Ltd'))->id), 'Hana Elsewhere');
+        $this->assertSame(ApprovalRequest::BLOCKED_NO_APPROVER, $this->fresh($blocked)->blocked_reason);
+
+        // The role at the request's company: the step is routed to its holder.
+        $hr = $this->person('hr_officer', Scope::company($this->acme->id), 'Hana HR');
+
+        $this->assertSame([$hr->id], $this->pendingApprovers($blocked));
+        $this->assertNull($this->fresh($blocked)->blocked_reason);
+        $this->getJson('/api/v1/approvals', $this->headersFor($hr))->assertOk()->assertJsonPath('data.0.id', $blocked->id);
+    }
+
     public function test_all_mode_needs_every_approver_and_one_rejection_rejects(): void
     {
         $second = $this->person('branch_manager', Scope::branch($this->branchA->id), 'Mo Manager A2');

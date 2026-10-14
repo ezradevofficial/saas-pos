@@ -26,7 +26,9 @@ use Illuminate\Http\JsonResponse;
  * (clock-skew check), the device and where it sits, the entities to pull
  * in order (key, mode, module, version) and the page sizes.
  * GET sync/pull: changes per entity since the device's cursors
- * (SyncPuller). Both carry `subscription` (TillSellingState, SUB-05):
+ * (SyncPuller). Both carry `entities_fingerprint` (the offered entities;
+ * a till whose bootstrap had another one bootstraps again, so a module
+ * switched on mid-session reaches it) and `subscription` (TillSellingState, SUB-05):
  * when the POS stops selling. Device secret rotation in three steps (DeviceSecrets):
  * GET sync/device-secret/challenge, POST sync/device-secret/rotate,
  * POST sync/device-secret/activate.
@@ -46,19 +48,15 @@ class SyncController
         $scope = DeviceScope::of($device);
         $this->status->recordBootstrap($device);
 
-        $entities = [];
-
-        foreach ($this->sources->available() as $key => $source) {
-            $entities[] = ['key' => $key, 'mode' => $this->sources->mode($source), 'module' => $source->module(), 'version' => $source->version()];
-        }
-
         return response()->json([
             'server_time' => self::now(),
             'device' => DeviceResource::make($device)->resolve($request),
             // The kid of the device's current secret (null: unpair and pair again).
             'device_secret_kid' => $secrets->current($device)?->kid,
             'settings' => $settings->rows($scope)[0],
-            'entities' => $entities,
+            'entities' => $this->sources->offered(),
+            // NFR-04: pulls carry it too; a different one means bootstrap again.
+            'entities_fingerprint' => $this->sources->fingerprint(),
             'page_size' => (int) config('sync.page_size'),
             'max_page_size' => (int) config('sync.max_page_size'),
             'pin' => ['scheme' => Pins::SCHEME, 'max_attempts' => Pins::maxAttempts()],
@@ -73,7 +71,12 @@ class SyncController
         $entities = $this->puller->pull(DeviceScope::of($device), $request->entities(), $request->cursors(), $request->limit());
         $this->status->recordPull($device);
 
-        return response()->json(['server_time' => self::now(), 'entities' => (object) $entities, 'subscription' => $this->selling->forTill()]);
+        return response()->json([
+            'server_time' => self::now(),
+            'entities' => (object) $entities,
+            'entities_fingerprint' => $this->sources->fingerprint(),
+            'subscription' => $this->selling->forTill(),
+        ]);
     }
 
     public function secretChallenge(DeviceSecretChallengeRequest $request, DeviceSecrets $secrets): JsonResponse

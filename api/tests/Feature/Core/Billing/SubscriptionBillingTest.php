@@ -391,7 +391,11 @@ class SubscriptionBillingTest extends TestCase
             $html = app(TemplateRenderer::class)->html('sales.invoice', $pdfs->template($locale), $pdfs->data($model, $locale), false);
             $this->assertStringContainsString('>'.e($shown).'<', $html);
             $this->assertStringNotContainsString(e($hidden), $html);
-            $this->assertStringContainsString($model->period_start->toDateString(), $html);
+            // L10N-03: the period's dates print in the invoice's language, never as ISO.
+            $months = $locale === 'fr' ? ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            $start = $model->period_start;
+            $this->assertStringContainsString(e($start->day.' '.$months[$start->month - 1].' '.$start->year), $html);
+            $this->assertStringNotContainsString($start->toDateString(), $html);
         }
     }
 

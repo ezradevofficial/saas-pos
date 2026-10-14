@@ -63,7 +63,14 @@ class Adjustments
 
         foreach ($lines as $index => $line) {
             if ($line->qty->isPositive()) {
-                $typed = $this->valuer->typedCost($data['lines'][$index]['unit_cost'] ?? null, $line->qty, $currency);
+                $cost = $data['lines'][$index]['unit_cost_minor'] ?? null;
+
+                // ADR 003: a typed cost is in the company's base currency (the stock's valuation currency).
+                if ($cost !== null && ($data['lines'][$index]['unit_cost_currency'] ?? null) !== $currency) {
+                    throw StockLedger::error(422, 'unit_cost_currency', ['currency' => $currency], "lines.{$index}.unit_cost_currency");
+                }
+
+                $typed = $this->valuer->minorCost($cost, $line->qty);
                 $in = $in->plus($typed ?? $this->valuer->value($place['company_id'], $line->item->id, $line->qtyBase));
             } else {
                 $out = $out->plus($this->valuer->value($place['company_id'], $line->item->id, $line->qtyBase));
@@ -98,7 +105,8 @@ class Adjustments
                     'batch_number' => $line->batchId === null ? $line->batchNumber : null,
                     'expires_on' => $line->batchId === null ? $line->expiresOn : null,
                     'serials' => $line->serials,
-                    'unit_cost' => $line->qty->isPositive() ? ($data['lines'][$index]['unit_cost'] ?? null) : null,
+                    'unit_cost_minor' => $cost = $line->qty->isPositive() ? ($data['lines'][$index]['unit_cost_minor'] ?? null) : null,
+                    'unit_cost_currency' => $cost === null ? null : $currency,
                 ]);
             }
 
@@ -200,9 +208,9 @@ class Adjustments
                 batchId: $line->batch_id ?? ($line->batch_number === null ? null : $this->batch($line)),
                 uomId: $line->uom_id,
                 uomQty: Qty::of((string) $line->qty),
-                cost: $coming ? $this->valuer->typedCost($line->unit_cost === null ? null : (string) $line->unit_cost, Qty::of((string) $line->qty), $this->valuer->currency($adjustment->company_id)) : null,
+                cost: $coming ? $this->valuer->minorCost($line->unit_cost_minor === null ? null : (string) $line->unit_cost_minor, Qty::of((string) $line->qty)) : null,
                 serialIds: $this->input->serialIds($line->item_id, $line->serials ?? [], $coming, $adjustment->location_id),
-                setsLastCost: $coming && $line->unit_cost !== null,
+                setsLastCost: $coming && $line->unit_cost_minor !== null,
             );
         }
 

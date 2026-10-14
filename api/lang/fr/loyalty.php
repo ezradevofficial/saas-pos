@@ -20,6 +20,7 @@ return [
     'validation' => [
         'positive' => 'Saisissez un montant supérieur à zéro.',
         'item_other_company' => 'Choisissez un article que cette société vend.',
+        'gift_card_item_type' => 'Choisissez un article de service ou hors stock pour les cartes cadeaux.',
         'required_for_type' => 'Renseignez ce champ pour une promotion « :type ».',
         'percent' => 'Saisissez un pourcentage supérieur à 0 et au plus égal à 100, avec au plus 4 décimales.',
         'items' => 'Choisissez des articles que cette société vend.',
@@ -176,6 +177,7 @@ return [
         'promotion_differs' => 'Remise de promotion différente',
         'coupon_unknown' => 'Coupon introuvable',
         'coupon_overused' => 'Coupon trop utilisé',
+        'processing_failed' => 'Traitement impossible',
         'voided_before_processing' => 'Annulée avant traitement',
     ],
 ];

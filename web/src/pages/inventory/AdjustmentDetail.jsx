@@ -9,7 +9,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
 import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
-import { Amount, Back, CalendarDate, CancelDialog, Detail, DetailState, DocumentFlow, DocumentStatus, Qty, UnitCost } from './InventoryParts'
+import { Amount, Back, CalendarDate, CancelDialog, Detail, DetailState, DocumentFlow, DocumentStatus, Qty } from './InventoryParts'
 import { inventoryKey } from './inventoryData'
 
 /**
@@ -68,7 +68,7 @@ export default function AdjustmentDetail() {
           ''
         ),
     },
-    { key: 'unit_cost', label: t('inventory.columns.unitCost'), align: 'end', render: (line) => <UnitCost value={line.unit_cost} currency={line.value?.currency} /> },
+    { key: 'unit_cost', label: t('inventory.columns.unitCost'), align: 'end', render: (line) => <Amount value={line.unit_cost} /> },
     { key: 'value', label: t('inventory.columns.value'), align: 'end', render: (line) => <Amount value={line.value} /> },
   ]
 

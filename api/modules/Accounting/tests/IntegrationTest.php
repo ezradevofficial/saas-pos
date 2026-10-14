@@ -7,6 +7,7 @@ use App\Core\Fiscal\FiscalSources;
 use App\Core\Fiscal\Models\FiscalSubmission;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\DueTenants;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Modules\Accounting\Fiscal\AccountingFiscalSource;
@@ -76,6 +77,13 @@ class IntegrationTest extends TestCase
             $document = app(FiscalSources::class)->get(AccountingFiscalSource::KEY)->document('sale', $invoice['id']);
             $this->assertSame(11250, $document->data['totals']['total_minor']);
         });
+    }
+
+    public function test_acc_06_recurring_journals_find_their_tenants_through_due_tenants(): void
+    {
+        $this->mock(DueTenants::class)->shouldReceive('withDueRecurringJournals')->once()->andReturn([]);
+
+        $this->artisan('accounting:recurring', ['--on' => '2026-11-15'])->assertSuccessful();
     }
 
     public function test_recurring_journals_are_made_on_their_dates_and_submitted_to_their_flow(): void

@@ -131,13 +131,15 @@ export function ItemPicker({ label, value, onChange, error, required, disabled, 
 /**
  * WF-10: where a document's flow is: each open step and who holds it, the
  * approval's link while one waits (decided in the approvals inbox), and
- * the full flow page. Nothing when the document has no flow.
+ * the full flow page. Nothing when the document has no flow; with
+ * `started` false (a count not submitted yet) the flow is not asked for.
  */
-export function DocumentFlow({ type, id }) {
+export function DocumentFlow({ type, id, started = true }) {
   const { t } = useTranslation()
   const query = useQuery({
     queryKey: ['document-workflows', type, id],
     queryFn: () => api.get(`document-workflows/${encodeURIComponent(type)}/${encodeURIComponent(id)}`),
+    enabled: started,
     retry: false,
   })
   const flow = query.data?.data

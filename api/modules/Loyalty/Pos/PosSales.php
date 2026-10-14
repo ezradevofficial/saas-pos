@@ -104,6 +104,7 @@ class PosSales
                     // H1: voided before it could be processed: nothing is posted (nothing to reverse).
                     $flags[] = ['code' => 'voided_before_processing'];
                 } else {
+                    $this->lockInOrder($sale, $snapshot);
                     $programme = $this->programmes->active($sale->company_id);
                     $this->promotionsOf($sale, $snapshot, $flags);
                     $this->tenders($sale, $snapshot, $programme, $flags);
@@ -111,7 +112,7 @@ class PosSales
                     $this->earn($sale, $snapshot, $programme, $flags);
                 }
 
-                $sale->forceFill(['status' => LoyaltySale::PROCESSED, 'flags' => $flags, 'processed_at' => now(), 'error' => null])->save();
+                $sale->forceFill(['status' => LoyaltySale::PROCESSED, 'flags' => $flags, 'processed_at' => now(), 'error' => null, 'next_attempt_at' => null])->save();
 
                 // H1: refunds that arrived before the sale was processed, applied in order now.
                 $pending = (array) ($sale->pending_refunds ?? []);
@@ -128,10 +129,43 @@ class PosSales
             return true;
         } catch (Throwable $e) {
             Log::error('loyalty: sale processing failed', ['sale_id' => $saleId, 'error' => $e->getMessage()]);
-            $this->db()->transaction(fn () => LoyaltySale::query()->whereKey($saleId)->update(['status' => LoyaltySale::FAILED, 'error' => mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now()]));
+            $this->failed($saleId, $e);
 
             return false;
         }
+    }
+
+    /**
+     * LOY-03: a failed attempt is counted; the sale is retried after the
+     * next backoff step, and past the last one it is failed permanently,
+     * flagged `processing_failed` for the review list.
+     */
+    private function failed(string $saleId, Throwable $e): void
+    {
+        $this->db()->transaction(function () use ($saleId, $e) {
+            $sale = LoyaltySale::query()->whereKey($saleId)->lockForUpdate()->first();
+
+            if ($sale === null) {
+                return;
+            }
+
+            $attempts = (int) $sale->attempts + 1;
+            $error = mb_substr($e->getMessage(), 0, 1000);
+            $backoff = LoyaltySale::RETRY_BACKOFF[$attempts - 1] ?? null;
+
+            $sale->forceFill($backoff === null ? [
+                'status' => LoyaltySale::FAILED_PERMANENTLY,
+                'attempts' => $attempts,
+                'next_attempt_at' => null,
+                'error' => $error,
+                'flags' => [...($sale->flags ?? []), ['code' => 'processing_failed', 'detail' => ['attempts' => $attempts]]],
+            ] : [
+                'status' => LoyaltySale::FAILED,
+                'attempts' => $attempts,
+                'next_attempt_at' => now()->addSeconds($backoff),
+                'error' => $error,
+            ])->save();
+        });
     }
 
     /** SaleVoided: reverse everything the sale earned, redeemed, charged and loaded. */
@@ -152,8 +186,9 @@ class PosSales
             }
 
             $attributes = ['source_type' => 'pos_void', 'source_id' => $voidId, 'sale_id' => $saleId];
+            $this->lockInOrder($sale, (array) $sale->snapshot);
 
-            foreach (PointsEntry::query()->where('sale_id', $saleId)->whereIn('kind', ['earn', 'redeem'])->get()->groupBy('account_id') as $accountId => $entries) {
+            foreach (PointsEntry::query()->where('sale_id', $saleId)->whereIn('kind', ['earn', 'redeem'])->get()->groupBy('account_id')->sortKeys() as $accountId => $entries) {
                 $account = $this->ledgers->lockAccount($accountId);
 
                 foreach ($entries->groupBy('kind') as $kind => $rows) {
@@ -168,13 +203,13 @@ class PosSales
                 }
             }
 
-            foreach (CreditEntry::query()->where('sale_id', $saleId)->where('kind', 'charge')->get()->groupBy('account_id') as $accountId => $rows) {
+            foreach (CreditEntry::query()->where('sale_id', $saleId)->where('kind', 'charge')->get()->groupBy('account_id')->sortKeys() as $accountId => $rows) {
                 $account = $this->ledgers->lockAccount($accountId);
                 $charged = $rows->reduce(fn (BigInteger $s, CreditEntry $e) => $s->plus((string) $e->amount_minor), BigInteger::zero());
                 $this->ledgers->credit($account, 'reverse_charge', (string) $charged->negated(), $attributes);
             }
 
-            foreach (GiftCardEntry::query()->where('sale_id', $saleId)->whereIn('kind', ['redeem', 'load'])->get()->groupBy('gift_card_id') as $cardId => $rows) {
+            foreach (GiftCardEntry::query()->where('sale_id', $saleId)->whereIn('kind', ['redeem', 'load'])->get()->groupBy('gift_card_id')->sortKeys() as $cardId => $rows) {
                 $card = $this->ledgers->lockCard($cardId);
                 $net = $rows->reduce(fn (BigInteger $s, GiftCardEntry $e) => $s->plus((string) $e->amount_minor), BigInteger::zero());
 
@@ -239,6 +274,7 @@ class PosSales
 
         $flags = $sale->flags ?? [];
         $attributes = ['source_type' => 'pos_refund', 'source_id' => $refund['id'], 'sale_id' => $saleId];
+        $this->lockInOrder($sale, ['payments' => $refund['payments'] ?? []]);
         $refunded = BigInteger::of((string) $sale->refunded_minor)->plus((string) $refund['total_minor']);
         $reverse = PromotionEngine::pointsToReverse((string) $sale->points_earned, (string) $sale->total_minor, (string) $refunded, (string) $sale->points_reversed);
 
@@ -258,6 +294,45 @@ class PosSales
             'refund_ids' => [...(array) ($sale->refund_ids ?? []), $refund['id']],
         ])->save();
 
+    }
+
+    /**
+     * Deadlock safety: the customer's accounts, then the gift cards a sale
+     * (or refund) touches, are locked up front in one fixed order (by id),
+     * so two sales sharing cards or accounts never wait on each other in
+     * opposite orders. Later locks of the same rows in the transaction are
+     * no-ops.
+     *
+     * @param  array<string, mixed>  $snapshot  the sale's (or the refund's payments)
+     */
+    private function lockInOrder(LoyaltySale $sale, array $snapshot): void
+    {
+        if ($sale->party_id !== null) {
+            Account::query()->where('company_id', $sale->company_id)->where('party_id', $sale->party_id)
+                ->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+
+        $proofs = [];
+
+        foreach ((array) ($snapshot['payments'] ?? []) as $payment) {
+            if (($payment['method_type'] ?? null) === 'voucher' && is_string($payment['tender']['code_hash'] ?? null)) {
+                $proofs[] = $payment['tender']['code_hash'];
+            }
+        }
+
+        foreach ((array) ($snapshot['extensions']['loyalty']['gift_cards'] ?? []) as $sold) {
+            if (is_array($sold) && is_string($sold['code_hash'] ?? null)) {
+                $proofs[] = $sold['code_hash'];
+            }
+        }
+
+        $cards = GiftCardEntry::query()->where('sale_id', $sale->id)->distinct()->pluck('gift_card_id')->all();
+
+        if ($proofs !== [] || $cards !== []) {
+            GiftCard::query()->where('company_id', $sale->company_id)
+                ->where(fn ($q) => $q->whereIn('code_hash', array_map(fn (string $proof) => GiftCards::hashProof($proof), array_unique($proofs)))->orWhereIn('id', $cards))
+                ->orderBy('id')->lockForUpdate()->pluck('id');
+        }
     }
 
     /** LOY-12: re-evaluate the promotions the till applied, compare, and count coupon uses. */

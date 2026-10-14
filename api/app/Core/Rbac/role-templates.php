@@ -28,8 +28,9 @@ return [
         // TPL-04: shares POS documents by email and link (pos.sale.share).
         // LAY-05: designs the tills' sell screen once the POS module is active.
         // INV-12, INV-01: sets a company's costing and items' tracking, and reads stock and its value.
+        // INV-11, INV-21: sets reorder levels and prints barcode labels.
         // LOY-01, LOY-08: sets up the loyalty programme and promotions once the module is active.
-        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'loyalty.programme.*', 'loyalty.promotion.*'],
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'inventory.label.print', 'inventory.reorder.edit', 'loyalty.programme.*', 'loyalty.promotion.*'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules'],
@@ -159,7 +160,9 @@ return [
             'core.dimension.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
-            'purchasing.*', 'inventory.*.view',
+            'purchasing.*',
+            // INV-11, INV-19: stock, reorder levels and stock documents; never costs (RBAC-05: no inventory.valuation.view).
+            'inventory.stock.view', 'inventory.reorder.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -169,6 +172,8 @@ return [
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view',
             'approvals.*', '*.approve',
+            // What they approve, they can read: journals (ACC-04) and stock documents (INV-08..INV-10); never stock values.
+            'accounting.journal.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

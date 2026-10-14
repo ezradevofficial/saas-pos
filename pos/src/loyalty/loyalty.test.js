@@ -261,6 +261,28 @@ describe('review fixes on the till (H3, M3, M4, M5, M8)', () => {
     expect(tenderProvider('points', catalogue)).toBe(pointsTender);
   });
 
+  it('gift cards and credit need no points programme; points need an active one', async () => {
+    const { catalogue } = await setup();
+    // The module is on but has no points programme: the server sends its module row only.
+    const server = fakeServer({ now: () => NOW });
+    server.define('loyalty_settings', { mode: 'snapshot', module: 'loyalty', rows: [{ id: 'module', active: true }] });
+    const database = testDatabase();
+    await createSyncEngine({ api: server, store: createSyncStore(database), now: () => NOW, random: () => 0.5 }).pull();
+    const loyalty = await loadLoyaltyData(database, { categories });
+    expect(loyalty).not.toBeNull();
+    expect(loyalty.programme).toBeNull();
+
+    const noProgramme = { ...catalogue, ext: { loyalty } };
+    expect(tenderProvider('voucher', noProgramme)).toBe(giftCardTender);
+    expect(tenderProvider('credit', noProgramme)).toBe(creditTender);
+    expect(tenderProvider('points', noProgramme)).toBeNull();
+    expect(paymentOptions(noProgramme, NOW).map((option) => option.method.type)).toEqual(['cash', 'voucher', 'credit']);
+
+    const paused = { ...catalogue, ext: { loyalty: { ...catalogue.ext.loyalty, programme: { ...catalogue.ext.loyalty.programme, active: false } } } };
+    expect(tenderProvider('points', paused)).toBeNull();
+    expect(tenderProvider('voucher', paused)).toBe(giftCardTender);
+  });
+
   it('H3: a till that never pulled loyalty data loads none', async () => {
     const database = testDatabase();
     await expect(loadLoyaltyData(database, { categories })).resolves.toBeNull();

@@ -33,6 +33,12 @@ final class TemplateRenderer
 
     public const NUMERIC_COLUMNS = ['qty', 'unit_price', 'discount', 'tax_rate', 'tax', 'total', 'amount', 'debit', 'credit', 'balance'];
 
+    /** L10N-03: month abbreviations for printed dates (the JS port has the same). */
+    private const MONTHS = [
+        'en' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        'fr' => ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+    ];
+
     private const FISCAL_ROWS = ['invoice_number', 'receipt_number', 'control_unit_id', 'receipt_signature', 'internal_data', 'authority_time'];
 
     private string $language = 'en';
@@ -491,15 +497,43 @@ final class TemplateRenderer
         return $value;
     }
 
-    /** A value as printed: money with its currency code first, rates with %, other scalars as they are. */
+    /**
+     * A value as printed: money with its currency code first, rates with %,
+     * dates in the document's language (L10N-03), other scalars as they are.
+     */
     private function display(mixed $value, string $key = ''): string
     {
         return match (true) {
             self::isMoney($value) => $this->money($value),
             is_bool($value) => $value ? '✓' : '',
-            is_scalar($value) => str_ends_with($key, '_rate') && (string) $value !== '' ? $value.'%' : (string) $value,
+            is_scalar($value) => str_ends_with($key, '_rate') && (string) $value !== '' ? $value.'%' : $this->dates((string) $value),
             default => '',
         };
+    }
+
+    /**
+     * L10N-03: a calendar date ("2026-10-14"), a local date and time
+     * ("2026-10-14 14:30") or a period of them ("2026-10-01 – 2026-10-14")
+     * as the document's language writes it: "14 Oct 2026" (en; also for
+     * "both", as money), "14 oct. 2026" (fr). Anything else is left as it is.
+     */
+    private function dates(string $value): string
+    {
+        $date = '\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?';
+
+        if (preg_match('/^'.$date.'(?:\s*[–-]\s*'.$date.')?$/u', $value) !== 1) {
+            return $value;
+        }
+
+        $months = self::MONTHS[$this->language === 'fr' ? 'fr' : 'en'];
+
+        return (string) preg_replace_callback('/(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/', function (array $m) use ($months): string {
+            if (! checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+                return $m[0];
+            }
+
+            return ((int) $m[3]).' '.$months[(int) $m[2] - 1].' '.$m[1].(isset($m[4]) ? ' '.$m[4].':'.$m[5] : '');
+        }, $value);
     }
 
     private function cell(array $row, string $column): string

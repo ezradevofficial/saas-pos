@@ -37,7 +37,9 @@ final class InventoryRules
             ...($receiving ? [
                 "{$at}batch_number" => ['sometimes', 'nullable', 'string', 'max:60'],
                 "{$at}expires_on" => ['sometimes', 'nullable', 'date_format:Y-m-d'],
-                "{$at}unit_cost" => ['sometimes', 'nullable', 'string', self::UNIT_COST],
+                // ADR 003: a typed unit cost is money: minor units per entered unit, with its currency.
+                "{$at}unit_cost_minor" => ['sometimes', 'nullable', 'string', 'regex:/^\d{1,18}$/'],
+                "{$at}unit_cost_currency" => ['nullable', 'required_with:'.$at.'unit_cost_minor', 'string', 'regex:/^[A-Z]{3}$/'],
             ] : []),
         ];
     }
