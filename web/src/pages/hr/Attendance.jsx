@@ -53,8 +53,8 @@ export default function Timesheets() {
     { key: 'employee', label: t('hr.columns.employee'), render: (row) => row.employee?.name ?? '' },
     { key: 'status', label: t('hr.columns.status'), render: (row) => <HrStatus status={row.status} /> },
     { key: 'exceptions', label: t('hr.columns.exceptions'), render: (row) => <ExceptionBadges exceptions={row.exceptions} /> },
-    { key: 'first_in', label: t('hr.timesheets.firstIn'), render: (row) => <span className="tabular-nums">{clock(row.first_in)}</span> },
-    { key: 'last_out', label: t('hr.timesheets.lastOut'), render: (row) => <span className="tabular-nums">{clock(row.last_out)}</span> },
+    { key: 'first_in', label: t('hr.timesheets.firstIn'), render: (row) => <span className="tabular-nums">{clock(row.first_in, row.company_id)}</span> },
+    { key: 'last_out', label: t('hr.timesheets.lastOut'), render: (row) => <span className="tabular-nums">{clock(row.last_out, row.company_id)}</span> },
     ...['worked', 'regular', 'overtime', 'night', 'holiday', 'rest_day', 'late', 'early_leave'].map((kind) => ({
       key: `${kind}_minutes`,
       label: t(`hr.timesheets.minutes.${kind}`),
@@ -112,7 +112,7 @@ export function Punches() {
   const manage = can(PERM.attendanceManage)
   const voidPunch = useHrMutation(({ row, reason }) => api.post(`hr/punches/${row.id}/void`, { reason }), { success: t('hr.punches.voided'), onDone: () => setDialog(null) })
   const columns = [
-    { key: 'occurred_at', label: t('hr.columns.occurredAt'), sortKey: 'occurred_at', hideable: false, render: (row) => <span className="tabular-nums">{formatCompanyTime(row.occurred_at, locale, companyOf(null))}</span> },
+    { key: 'occurred_at', label: t('hr.columns.occurredAt'), sortKey: 'occurred_at', hideable: false, render: (row) => <span className="tabular-nums">{formatCompanyTime(row.occurred_at, locale, companyOf(row.company_id))}</span> },
     { key: 'employee', label: t('hr.columns.employee'), render: (row) => row.employee?.name ?? '' },
     { key: 'kind', label: t('hr.columns.kind'), render: (row) => enumLabel(t, 'punchKinds', row.kind) },
     { key: 'source', label: t('hr.columns.source'), render: (row) => enumLabel(t, 'punchSources', row.source) },
@@ -220,13 +220,18 @@ export function Periods() {
         columns={[
           { key: 'range', label: t('hr.periods.dates'), render: (row) => <span className="tabular-nums">{`${day(row.start_date)} – ${day(row.end_date)}`}</span> },
           { key: 'status', label: t('hr.columns.status'), render: (row) => <HrStatus status={row.status} /> },
-          { key: 'employees', label: t('hr.periods.employees'), align: 'end', render: (row) => <span className="tabular-nums">{row.totals?.employees?.length ?? '—'}</span> },
+          // HR-26: `totals` holds one row per employee once the period is closed.
+          { key: 'employees', label: t('hr.periods.employees'), align: 'end', render: (row) => <span className="tabular-nums">{Array.isArray(row.totals) ? row.totals.length : '—'}</span> },
           {
             key: 'actions',
             label: '',
             align: 'end',
             render: (row) =>
-              row.status === 'open' && can(PERM.attendanceClose) ? (
+              row.status === 'closed' && Array.isArray(row.totals) ? (
+                <Button variant="ghost" onClick={() => setDialog({ kind: 'totals', row })}>
+                  {t('hr.periods.viewTotals')}
+                </Button>
+              ) : row.status === 'open' && can(PERM.attendanceClose) ? (
                 <Button
                   onClick={() => {
                     close.reset()
@@ -240,6 +245,7 @@ export function Periods() {
         ]}
       />
       {dialog?.kind === 'add' ? <PeriodDialog company={company} onClose={() => setDialog(null)} /> : null}
+      {dialog?.kind === 'totals' ? <PeriodTotals period={dialog.row} onClose={() => setDialog(null)} /> : null}
       {dialog?.kind === 'close' ? (
         <Dialog
           open
@@ -275,6 +281,41 @@ export function Periods() {
         </Dialog>
       ) : null}
     </>
+  )
+}
+
+/** HR-26: a closed period's totals per employee (days and hours), as Payroll receives them. */
+function PeriodTotals({ period, onClose }) {
+  const { t } = useTranslation()
+  const day = useDay()
+  // The totals carry employee ids only: names come from the company's employees.
+  const employees = useQuery({ queryKey: [...hrKey, 'employees', 'period-names', period.company_id], queryFn: () => api.get(`hr/employees?company=${period.company_id}&status=all&per_page=200`), retry: false })
+  const nameOf = (id) => (employees.data?.data ?? []).find((row) => row.id === id)?.name ?? id
+  const hours = (key) => ({ key, label: t(`hr.periods.totals.${key}`), align: 'end', render: (row) => <span className="tabular-nums">{formatMinutes(row[key])}</span> })
+  const days = (key) => ({ key, label: t(`hr.periods.totals.${key}`), align: 'end', render: (row) => <span className="tabular-nums">{row[key] ?? 0}</span> })
+  return (
+    <Dialog open size="lg" title={t('hr.periods.totalsTitle', { from: day(period.start_date), to: day(period.end_date) })} onClose={onClose} footer={<Button onClick={onClose}>{t('hr.actions.close')}</Button>}>
+      <div className="flex flex-col gap-3 overflow-x-auto">
+        <p className="text-caption text-ink-muted">{t('hr.periods.totalsHelp')}</p>
+        <DataTable
+          caption={t('hr.periods.totalsTitle', { from: day(period.start_date), to: day(period.end_date) })}
+          rows={period.totals.map((row) => ({ id: row.employee_id, ...row }))}
+          emptyText={t('hr.periods.noTotals')}
+          columns={[
+            { key: 'employee', label: t('hr.columns.employee'), render: (row) => nameOf(row.employee_id) },
+            days('days_present'),
+            days('days_absent'),
+            days('days_leave'),
+            hours('worked_minutes'),
+            hours('overtime_minutes'),
+            hours('night_minutes'),
+            hours('holiday_minutes'),
+            hours('rest_day_minutes'),
+            hours('late_minutes'),
+          ]}
+        />
+      </div>
+    </Dialog>
   )
 }
 

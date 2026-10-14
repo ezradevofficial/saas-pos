@@ -4,7 +4,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { formErrors } from '@/api/formErrors'
-import { formatCompanyClock } from '@/lib/companyTime'
+import { formatCompanyClock, formatCompanyTime } from '@/lib/companyTime'
 import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { useCompanyOfRecord } from '@/lib/useTimeZone'
@@ -21,6 +21,13 @@ export function useClock() {
   const locale = useLocale()
   const companyOf = useCompanyOfRecord()
   return (value, companyId) => (value ? formatCompanyClock(value, locale, companyOf(companyId)) : '—')
+}
+
+/** L10N-03: an instant's date and time in its company's zone. */
+export function useWhen() {
+  const locale = useLocale()
+  const companyOf = useCompanyOfRecord()
+  return (value, companyId) => (value ? formatCompanyTime(value, locale, companyOf(companyId)) : '—')
 }
 
 /**

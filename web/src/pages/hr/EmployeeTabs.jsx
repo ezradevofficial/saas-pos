@@ -28,7 +28,7 @@ import {
   usePositions,
   withoutBlanks,
 } from './hrData'
-import { blankLeave, LEAVE_FIELDS, leaveBody, openLink, useClock, useDay, useHrMutation } from './hrForms'
+import { blankLeave, LEAVE_FIELDS, leaveBody, openLink, useClock, useDay, useHrMutation, useWhen } from './hrForms'
 
 const useList = (key, path, enabled = true) => useQuery({ queryKey: [...hrKey, ...key], queryFn: () => api.get(path), enabled, retry: false })
 
@@ -349,8 +349,8 @@ export function TimesheetTable({ rows, loading, caption, showEmployee = false, s
         ...(showEmployee ? [{ key: 'employee', label: t('hr.columns.employee'), render: (row) => row.employee?.name ?? '' }] : []),
         { key: 'status', label: t('hr.columns.status'), render: (row) => <HrStatus status={row.status} /> },
         { key: 'exceptions', label: t('hr.columns.exceptions'), render: (row) => <ExceptionBadges exceptions={row.exceptions} /> },
-        { key: 'in', label: t('hr.timesheets.firstIn'), render: (row) => <span className="tabular-nums">{clock(row.first_in)}</span> },
-        { key: 'out', label: t('hr.timesheets.lastOut'), render: (row) => <span className="tabular-nums">{clock(row.last_out)}</span> },
+        { key: 'in', label: t('hr.timesheets.firstIn'), render: (row) => <span className="tabular-nums">{clock(row.first_in, row.company_id)}</span> },
+        { key: 'out', label: t('hr.timesheets.lastOut'), render: (row) => <span className="tabular-nums">{clock(row.last_out, row.company_id)}</span> },
         { key: 'worked', label: t('hr.timesheets.worked'), align: 'end', render: (row) => <span className="tabular-nums">{formatMinutes(row.worked_minutes)}</span> },
         { key: 'overtime', label: t('hr.timesheets.overtime'), align: 'end', render: (row) => <span className="tabular-nums">{formatMinutes(row.overtime_minutes)}</span> },
         { key: 'night', label: t('hr.timesheets.night'), align: 'end', render: (row) => <span className="tabular-nums">{formatMinutes(row.night_minutes)}</span> },
@@ -364,8 +364,7 @@ export function TimesheetTable({ rows, loading, caption, showEmployee = false, s
 /** HR-22: punches in a table. */
 export function PunchTable({ rows, loading, caption, showEmployee = false, actions }) {
   const { t } = useTranslation()
-  const day = useDay()
-  const clock = useClock()
+  const when = useWhen()
   return (
     <DataTable
       caption={caption}
@@ -373,7 +372,7 @@ export function PunchTable({ rows, loading, caption, showEmployee = false, actio
       rows={rows}
       emptyText={t('hr.punches.none')}
       columns={[
-        { key: 'when', label: t('hr.columns.occurredAt'), render: (row) => <span className="tabular-nums">{`${day(row.occurred_at?.slice(0, 10))} ${clock(row.occurred_at)}`}</span> },
+        { key: 'when', label: t('hr.columns.occurredAt'), render: (row) => <span className="tabular-nums">{when(row.occurred_at, row.company_id)}</span> },
         ...(showEmployee ? [{ key: 'employee', label: t('hr.columns.employee'), render: (row) => row.employee?.name ?? '' }] : []),
         { key: 'kind', label: t('hr.columns.kind'), render: (row) => enumLabel(t, 'punchKinds', row.kind) },
         { key: 'source', label: t('hr.columns.source'), render: (row) => enumLabel(t, 'punchSources', row.source) },

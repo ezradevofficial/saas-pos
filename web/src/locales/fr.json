@@ -7827,6 +7827,7 @@
     "pickers": {
       "branch": "Choisissez une succursale",
       "category": "Choisissez une catégorie",
+      "colleague": "Choisissez un collègue",
       "company": "Choisissez une société",
       "department": "Choisissez un service",
       "employee": "Cherchez un employé",
@@ -8272,7 +8273,22 @@
       "closed": "Période clôturée",
       "openTimesheets": "Ouvrir les feuilles de temps de cette période",
       "openRules": "Ouvrir les règles horaires",
-      "none": "Aucune période pour l’instant."
+      "none": "Aucune période pour l’instant.",
+      "viewTotals": "Voir les totaux",
+      "totalsTitle": "Totaux du {{from}} au {{to}}",
+      "totalsHelp": "Jours et heures (h:mm) par employé, tels qu’envoyés à la paie à la clôture.",
+      "noTotals": "Aucun employé n’avait de quart planifié ni de pointage sur cette période.",
+      "totals": {
+        "days_present": "Jours de présence",
+        "days_absent": "Jours d’absence",
+        "days_leave": "Jours de congé",
+        "worked_minutes": "Travaillé",
+        "overtime_minutes": "Heures sup.",
+        "night_minutes": "Nuit",
+        "holiday_minutes": "Jour férié",
+        "rest_day_minutes": "Jour de repos",
+        "late_minutes": "Retard"
+      }
     },
     "rules": {
       "description": "Comment {{company}} classe le temps travaillé. La paie applique les taux.",
@@ -8531,7 +8547,7 @@
         "send": "Envoyer la demande",
         "asked": "Demande d’échange envoyée à votre collègue",
         "answerHelp": "{{name}} vous demande d’échanger un quart.",
-        "peerShiftsHidden": "Vous ne pouvez pas voir les quarts de votre collègue. Cédez le quart, ou demandez à votre responsable d’organiser l’échange."
+        "noPeers": "Aucun collègue de votre succursale n’est planifié dans les 31 prochains jours."
       },
       "appraisals": {
         "title": "Mes évaluations",

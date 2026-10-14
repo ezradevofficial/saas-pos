@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { EmergencyContacts } from './EmployeeProfile'
 import { BalancesTable, LeaveRequestsTable, PunchTable, TimesheetTable } from './EmployeeTabs'
-import { CalendarDate, ConfirmDialog, Detail, DetailGrid, Empty, EmployeePicker, FormDialog, HrStatus, LeaveRequestFields, PersonalForm, TextAreaField } from './HrParts'
+import { CalendarDate, ConfirmDialog, Detail, DetailGrid, Empty, FormDialog, HrStatus, LeaveRequestFields, PersonalForm, TextAreaField } from './HrParts'
 
 import { addDays, daysFrom, enumLabel, hrKey, meKey, RATINGS, today, useHrMe, weekStart } from './hrData'
 import { ADDRESS_FIELDS, blankLeave, LEAVE_FIELDS, leaveBody, PERSONAL_FIELDS, personalBody, personalForm, useClock, useDay, useHrMutation } from './hrForms'
@@ -172,9 +172,6 @@ function MyLeaveRequest({ types, onClose }) {
   )
 }
 
-/** A punch older than this no longer decides the next one (an "in" left open overnight). */
-const CLOCK_WINDOW = 18 * 60 * 60 * 1000
-
 /** A week chooser (previous, this week, next) for the self-service pages. */
 function WeekNav({ from, setFrom }) {
   const { t } = useTranslation()
@@ -248,11 +245,12 @@ export function MyAttendance() {
   const punches = data?.punches ?? []
   // The clock card reads today alone (with the night before), whatever week is shown below.
   const now = useQuery({ queryKey: [...hrKey, 'me', 'attendance', 'today'], queryFn: () => api.get(`hr/me/attendance?from=${today()}&to=${today()}`), enabled: linked })
-  const recent = (now.data?.data?.punches ?? []).filter((entry) => now.dataUpdatedAt - new Date(entry.occurred_at).getTime() < CLOCK_WINDOW)
-  const last = recent[recent.length - 1] ?? null
-  const next = last?.kind === 'in' ? 'out' : 'in'
+  // HR-22: the API says which punch comes next (the last one of the user's day decides).
+  const next = now.data?.data?.next_kind ?? 'in'
+  const todays = now.data?.data?.punches ?? []
+  const last = todays[todays.length - 1] ?? null
   const punch = useHrMutation(() => api.post('hr/me/clock', { kind: next }), {
-    success: (response) => t(response?.data?.kind === 'out' ? 'hr.me.attendance.clockedOut' : 'hr.me.attendance.clockedIn', { time: clock(response?.data?.occurred_at) }),
+    success: (response) => t(response?.data?.kind === 'out' ? 'hr.me.attendance.clockedOut' : 'hr.me.attendance.clockedIn', { time: clock(response?.data?.occurred_at, response?.data?.company_id) }),
     keys: [[...hrKey, 'me', 'attendance']],
   })
   const canClock = now.data?.data?.can_clock ?? data?.can_clock
@@ -261,7 +259,7 @@ export function MyAttendance() {
       {() => (
         <>
           {canClock ? (
-            <Card title={t('hr.me.attendance.clockTitle')} subtitle={last ? t(last.kind === 'in' ? 'hr.me.attendance.inSince' : 'hr.me.attendance.outSince', { time: clock(last.occurred_at) }) : t('hr.me.attendance.notYet')}>
+            <Card title={t('hr.me.attendance.clockTitle')} subtitle={last ? t(last.kind === 'in' ? 'hr.me.attendance.inSince' : 'hr.me.attendance.outSince', { time: clock(last.occurred_at, last.company_id) }) : t('hr.me.attendance.notYet')}>
               {punch.isError ? <Alert tone="danger" title={errorMessage(punch.error)} className="mb-3" /> : null}
               <Button variant="pay" size="lg" loading={punch.isPending} onClick={() => punch.mutate()}>
                 {next === 'out' ? t('hr.me.attendance.clockOut') : t('hr.me.attendance.clockIn')}
@@ -339,7 +337,7 @@ export function MySwaps() {
               },
             ]}
           />
-          {dialog?.kind === 'ask' ? <AskSwap me={me} onClose={() => setDialog(null)} /> : null}
+          {dialog?.kind === 'ask' ? <AskSwap onClose={() => setDialog(null)} /> : null}
           {dialog?.kind === 'act' ? (
             <ConfirmDialog
               open
@@ -360,26 +358,22 @@ export function MySwaps() {
 }
 
 /**
- * HR-19: ask a peer to take or swap one of the user's next shifts. The
- * peer and their shifts are read from the back-office lists, which need a
- * roster role; without one, the dialog says to ask a manager.
+ * HR-19: ask a colleague (same company and branch, GET hr/me/swap-peers)
+ * to take one of the user's planned shifts, or to swap it for one of theirs
+ * in the next 31 days.
  */
-function AskSwap({ me, onClose }) {
+function AskSwap({ onClose }) {
   const { t } = useTranslation()
   const day = useDay()
+  const clock = useClock()
   const from = today()
-  const to = addDays(from, 41)
-  const mine = useQuery({ queryKey: [...hrKey, 'me', 'roster', 'upcoming'], queryFn: () => api.get(`hr/me/roster?from=${from}&to=${to}`) })
-  const [form, setForm] = useState({ roster_shift_id: '', peer: null, peer_roster_shift_id: '', reason: '' })
-  const peerShifts = useQuery({
-    queryKey: [...hrKey, 'peer-shifts', form.peer?.id],
-    queryFn: () => api.get(`hr/roster-shifts?employee=${form.peer.id}&from=${from}&to=${addDays(from, 30)}`),
-    enabled: Boolean(form.peer),
-    retry: false,
-  })
+  const mine = useQuery({ queryKey: [...hrKey, 'me', 'roster', 'upcoming'], queryFn: () => api.get(`hr/me/roster?from=${from}&to=${addDays(from, 41)}`) })
+  const peers = useQuery({ queryKey: [...hrKey, 'me', 'swap-peers'], queryFn: () => api.get('hr/me/swap-peers') })
+  const [form, setForm] = useState({ roster_shift_id: '', peer_employee_id: '', peer_roster_shift_id: '', reason: '' })
+  const peer = (peers.data?.data ?? []).find((row) => row.id === form.peer_employee_id)
   const save = useHrMutation((body) => api.post('hr/me/swaps', body), { success: t('hr.me.swaps.asked'), onDone: onClose })
   const errors = save.errors(['roster_shift_id', 'peer_employee_id', 'peer_roster_shift_id', 'reason'])
-  const shiftOption = (shift) => ({ value: shift.id, label: `${day(shift.date)} · ${shift.shift?.code ?? ''}` })
+  const shiftOption = (shift) => ({ value: shift.id, label: `${day(shift.date)} · ${shift.shift?.code ?? ''} · ${clock(shift.start_at)} – ${clock(shift.end_at)}` })
   return (
     <FormDialog
       open
@@ -387,18 +381,27 @@ function AskSwap({ me, onClose }) {
       onClose={onClose}
       submitLabel={t('hr.me.swaps.send')}
       pending={save.isPending}
-      disabled={!form.roster_shift_id || !form.peer}
+      disabled={!form.roster_shift_id || !form.peer_employee_id}
       errors={errors}
-      onSubmit={() => save.mutate({ roster_shift_id: form.roster_shift_id, peer_employee_id: form.peer.id, peer_roster_shift_id: form.peer_roster_shift_id || null, reason: form.reason.trim() || null })}
+      onSubmit={() => save.mutate({ roster_shift_id: form.roster_shift_id, peer_employee_id: form.peer_employee_id, peer_roster_shift_id: form.peer_roster_shift_id || null, reason: form.reason.trim() || null })}
     >
+      {mine.isError || peers.isError ? <Alert tone="danger" title={errorMessage(mine.error ?? peers.error)} /> : null}
       <Select label={t('hr.me.swaps.myShift')} placeholder={t('hr.pickers.shift')} options={(mine.data?.data ?? []).map(shiftOption)} value={form.roster_shift_id} required error={errors.fields.roster_shift_id} onChange={(event) => setForm({ ...form, roster_shift_id: event.target.value })} />
-      <EmployeePicker label={t('hr.swaps.peer')} company={me?.company?.id} value={form.peer} exclude={me ? [me.id] : []} required error={errors.fields.peer_employee_id} onChange={(peer) => setForm({ ...form, peer, peer_roster_shift_id: '' })} />
-      {peerShifts.isError ? <Alert tone="info" title={t('hr.me.swaps.peerShiftsHidden')} /> : null}
+      <Select
+        label={t('hr.swaps.peer')}
+        placeholder={t('hr.pickers.colleague')}
+        options={(peers.data?.data ?? []).map((row) => ({ value: row.id, label: `${row.name} · ${row.number}` }))}
+        value={form.peer_employee_id}
+        required
+        error={errors.fields.peer_employee_id}
+        onChange={(event) => setForm({ ...form, peer_employee_id: event.target.value, peer_roster_shift_id: '' })}
+      />
+      {peers.isSuccess && (peers.data?.data ?? []).length === 0 ? <p className="text-caption text-ink-muted">{t('hr.me.swaps.noPeers')}</p> : null}
       <Select
         label={t('hr.swaps.peerShift')}
-        options={[{ value: '', label: t('hr.swaps.giveAway') }, ...(peerShifts.data?.data ?? []).map(shiftOption)]}
+        options={[{ value: '', label: t('hr.swaps.giveAway') }, ...(peer?.shifts ?? []).map(shiftOption)]}
         value={form.peer_roster_shift_id}
-        disabled={!form.peer || peerShifts.isError}
+        disabled={!peer}
         error={errors.fields.peer_roster_shift_id}
         onChange={(event) => setForm({ ...form, peer_roster_shift_id: event.target.value })}
       />

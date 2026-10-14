@@ -5,7 +5,7 @@
 // (HR-24) and the self-service clock button (HR-31).
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { chooseOption } from '@/test/combobox'
+import { chooseOption, waitForOption } from '@/test/combobox'
 import { openFilters } from '@/test/filters'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { addDays, PERM, today, weekStart } from './hrData'
@@ -188,7 +188,7 @@ describe('HR screens', () => {
   })
 
   it('approves the selected timesheet days and shows exceptions as dots and words (HR-25)', async () => {
-    const day = (id, employee, exceptions) => ({ id, employee, work_date: '2026-10-12', roster_shift_id: null, first_in: '2026-10-12T05:20:00Z', last_out: '2026-10-12T13:00:00Z', status: 'present', exceptions, approved_at: null, period_id: null, worked_minutes: 430, regular_minutes: 430, overtime_minutes: 0, night_minutes: 0, holiday_minutes: 0, rest_day_minutes: 0, late_minutes: 20, early_leave_minutes: 0 })
+    const day = (id, employee, exceptions) => ({ id, employee, company_id: 'c-1', work_date: '2026-10-12', roster_shift_id: null, first_in: '2026-10-12T05:20:00Z', last_out: '2026-10-12T13:00:00Z', status: 'present', exceptions, approved_at: null, period_id: null, worked_minutes: 430, regular_minutes: 430, overtime_minutes: 0, night_minutes: 0, holiday_minutes: 0, rest_day_minutes: 0, late_minutes: 20, early_leave_minutes: 0 })
     setup([[/^hr\/timesheets\?/, page([day('ad-1', GRACE, ['late']), day('ad-2', JOSEPH, [])])]], ['hr.attendance.view', 'hr.attendance.manage'])
     api.post.mockResolvedValue({ data: { approved: 1 } })
     renderApp('/hr/attendance/timesheets')
@@ -196,6 +196,8 @@ describe('HR screens', () => {
     // The column is called Late too: the exception is the badge.
     expect(await within(table).findByText('Late', { selector: '[data-tone]' })).toHaveAttribute('data-tone', 'warning')
     expect(within(table).getAllByText('7:10')).toHaveLength(2)
+    // L10N-03: 05:20 UTC is 08:20 in the company's zone (Africa/Nairobi).
+    expect(within(table).getAllByText(/^08:20/)).toHaveLength(2)
 
     const approve = screen.getByRole('button', { name: 'Approve days' })
     expect(approve).toBeDisabled()
@@ -228,7 +230,7 @@ describe('HR screens', () => {
     setup(
       [
         ['hr/me', { data: { ...EMPLOYEE, has_clock_pin: false } }],
-        [/^hr\/me\/attendance\?/, { data: { days: [], punches: [], can_clock: true } }],
+        [/^hr\/me\/attendance\?/, { data: { days: [], punches: [], can_clock: true, next_kind: 'in' } }],
       ],
       [],
     )
@@ -316,5 +318,64 @@ describe('HR screens', () => {
     }
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Personal' }), { button: 0 })
     expect(await screen.findByText('Asthma')).toBeInTheDocument()
+  })
+
+  it('offers Clock out when the API says the next punch is out (HR-22, HR-31)', async () => {
+    const punched = { id: 'pu-1', employee: GRACE, company_id: 'c-1', kind: 'in', occurred_at: '2026-10-14T05:02:00Z', source: 'web', flags: [] }
+    setup(
+      [
+        ['hr/me', { data: { ...EMPLOYEE, has_clock_pin: false } }],
+        [/^hr\/me\/attendance\?/, { data: { days: [], punches: [punched], can_clock: true, next_kind: 'out' } }],
+      ],
+      [],
+    )
+    api.post.mockResolvedValue({ data: { ...punched, id: 'pu-2', kind: 'out', occurred_at: '2026-10-14T14:00:00Z' } })
+    renderApp('/hr/me/attendance')
+    fireEvent.click(await screen.findByRole('button', { name: 'Clock out' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/me/clock', { kind: 'out' }))
+  })
+
+  it('asks a colleague from the swap peers to swap shifts (HR-19, HR-31)', async () => {
+    const date = addDays(today(), 3)
+    const mine = { id: 'rs-1', employee: GRACE, date, shift: { id: 's-1', code: 'MORN', name: 'Morning' }, start_at: `${date}T05:00:00Z`, end_at: `${date}T13:00:00Z`, status: 'planned', holiday: false }
+    const theirs = { id: 'rs-9', date: addDays(date, 1), shift: { id: 's-2', code: 'EVE', name: 'Evening' }, start_at: `${addDays(date, 1)}T13:00:00Z`, end_at: `${addDays(date, 1)}T21:00:00Z` }
+    setup(
+      [
+        ['hr/me', { data: { ...EMPLOYEE, has_clock_pin: false } }],
+        ['hr/me/swaps', { data: [] }],
+        ['hr/me/swap-peers', { data: [{ ...JOSEPH, shifts: [theirs] }] }],
+        [/^hr\/me\/roster\?/, { data: [mine] }],
+      ],
+      [],
+    )
+    api.post.mockResolvedValue({ data: { id: 'sw-1', status: 'awaiting_peer' } })
+    renderApp('/hr/me/swaps')
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask for a swap' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitForOption(within(dialog).getByLabelText(/^My shift/), /MORN/)
+    chooseOption(within(dialog).getByLabelText(/^My shift/), /MORN/)
+    await waitForOption(within(dialog).getByLabelText(/^Colleague(?!’)/), 'Joseph Mwangi · EMP-00002')
+    chooseOption(within(dialog).getByLabelText(/^Colleague(?!’)/), 'Joseph Mwangi · EMP-00002')
+    chooseOption(within(dialog).getByLabelText(/^Colleague’s shift/), /EVE/)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send request' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/me/swaps', { roster_shift_id: 'rs-1', peer_employee_id: 'e-2', peer_roster_shift_id: 'rs-9', reason: null }))
+    // Back-office lists are never needed for it.
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/^hr\/(employees|roster-shifts)\?/))
+  })
+
+  it('counts a closed period’s employees and shows their totals in hours (HR-26)', async () => {
+    const totals = [{ employee_id: 'e-1', days_present: 20, days_absent: 1, days_leave: 2, worked_minutes: 9630, regular_minutes: 9000, overtime_minutes: 630, night_minutes: 0, holiday_minutes: 480, rest_day_minutes: 0, late_minutes: 45, early_leave_minutes: 0 }]
+    const period = { id: 'pe-1', company_id: 'c-1', start_date: '2026-09-01', end_date: '2026-09-30', status: 'closed', closed_at: '2026-10-01T06:00:00Z', totals }
+    setup([[/^hr\/attendance-periods\?/, page([period])], [/^hr\/employees\?/, page([EMPLOYEE])]], ['hr.attendance.view'])
+    renderApp('/hr/attendance/periods')
+    const table = await screen.findByRole('table')
+    const row = await within(table).findByRole('row', { name: /Closed/ })
+    expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('1')
+    fireEvent.click(within(row).getByRole('button', { name: 'View totals' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('Grace Achieng')).toBeInTheDocument()
+    expect(within(dialog).getByText('160:30')).toBeInTheDocument()
+    expect(within(dialog).getByText('10:30')).toBeInTheDocument()
+    expect(within(dialog).getByText('0:45')).toBeInTheDocument()
   })
 })

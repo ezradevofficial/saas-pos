@@ -7827,6 +7827,7 @@
     "pickers": {
       "branch": "Choose a branch",
       "category": "Choose a category",
+      "colleague": "Choose a colleague",
       "company": "Choose a company",
       "department": "Choose a department",
       "employee": "Search for an employee",
@@ -8272,7 +8273,22 @@
       "closed": "Period closed",
       "openTimesheets": "Open the timesheets of this period",
       "openRules": "Open time rules",
-      "none": "No periods yet."
+      "none": "No periods yet.",
+      "viewTotals": "View totals",
+      "totalsTitle": "Totals of {{from}} – {{to}}",
+      "totalsHelp": "Days and hours (h:mm) per employee, as sent to payroll at close.",
+      "noTotals": "No employee had planned shifts or punches in this period.",
+      "totals": {
+        "days_present": "Days present",
+        "days_absent": "Days absent",
+        "days_leave": "Days on leave",
+        "worked_minutes": "Worked",
+        "overtime_minutes": "Overtime",
+        "night_minutes": "Night",
+        "holiday_minutes": "Public holiday",
+        "rest_day_minutes": "Rest day",
+        "late_minutes": "Late"
+      }
     },
     "rules": {
       "description": "How {{company}} classifies worked time. Payroll applies the rates.",
@@ -8531,7 +8547,7 @@
         "send": "Send request",
         "asked": "Swap request sent to your colleague",
         "answerHelp": "{{name}} asked to swap a shift with you.",
-        "peerShiftsHidden": "You cannot see your colleague’s shifts. Give the shift away, or ask your manager to arrange the swap."
+        "noPeers": "No colleagues at your branch are planned in the next 31 days."
       },
       "appraisals": {
         "title": "My appraisals",
