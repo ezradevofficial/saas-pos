@@ -20,6 +20,7 @@ return [
     'validation' => [
         'positive' => 'Enter an amount above zero.',
         'item_other_company' => 'Choose an item this company sells.',
+        'gift_card_item_type' => 'Choose a service or non-stock item for gift cards.',
         'required_for_type' => 'Fill this in for a :type promotion.',
         'percent' => 'Enter a percentage above 0 and at most 100, with up to 4 decimals.',
         'items' => 'Choose items this company sells.',

@@ -3,6 +3,7 @@
 namespace Modules\Loyalty\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -50,6 +51,20 @@ class BackOfficeTest extends TestCase
 
         $this->putJson("/api/v1/companies/{$this->acme->id}/loyalty-programme", ['earn_spend_minor' => 1250], $this->headersFor())->assertUnprocessable();
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'loyalty.programme.create')->exists()));
+    }
+
+    public function test_loy_21_the_gift_card_item_is_a_service_or_non_stock_item(): void
+    {
+        $uri = "/api/v1/companies/{$this->acme->id}/loyalty-programme";
+
+        // The soap is a stock item: refused.
+        $this->putJson($uri, ['gift_card_item_id' => $this->soap->id], $this->headersFor())
+            ->assertUnprocessable()->assertJsonValidationErrors(['gift_card_item_id' => __('loyalty.validation.gift_card_item_type')]);
+
+        foreach (['service', 'non_stock'] as $type) {
+            $item = $this->inTenant(fn () => Item::create(['code' => 'GC-'.$type, 'name' => 'Gift card '.$type, 'type' => $type, 'base_uom_id' => $this->each->id, 'tax_category_id' => $this->goods->id]));
+            $this->putJson($uri, ['gift_card_item_id' => $item->id], $this->headersFor())->assertOk()->assertJsonPath('data.gift_card_item_id', $item->id);
+        }
     }
 
     public function test_promotions_are_versioned_on_every_change(): void
