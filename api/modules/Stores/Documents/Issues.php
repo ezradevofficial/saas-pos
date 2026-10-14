@@ -91,6 +91,10 @@ class Issues
 
             $now = CarbonImmutable::now();
             $ledger = $this->ledger->current();
+
+            if ($ledger === Movement::LEDGER_STORES) {
+                StoreLedger::assertOpened($requisition->location_id);
+            }
             $issue = Issue::create([
                 'number' => $this->numbers->next(DocumentNumbers::ISSUE, $requisition->company_id, $requisition->branch_id, $requisition->location_id),
                 'requisition_id' => $requisition->id,
@@ -113,7 +117,8 @@ class Issues
             foreach ($wanted as $entry) {
                 /** @var RequisitionLine $target */
                 $target = $entry['line'];
-                $base = Qty::of($entry['qty']->multipliedBy(Lines::factor($target->item, $target->uom_id) ?? BigDecimal::one()));
+                // The requisition line's own factor (fixed when it was asked), never today's unit factor.
+                $base = Qty::baseOf($entry['qty'], (string) $target->qty, (string) $target->qty_base);
                 $line = IssueLine::create([
                     'issue_id' => $issue->id,
                     'requisition_line_id' => $target->id,

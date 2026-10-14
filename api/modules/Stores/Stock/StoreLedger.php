@@ -105,13 +105,40 @@ class StoreLedger
         });
     }
 
-    /** The store's quantity of an item in the own ledger (its latest movement's balance). */
+    /**
+     * The store's quantity of an item in the own ledger: its latest own
+     * movement's balance, counting only what moved since Inventory last
+     * held the store (STR-07: balances from before an Inventory period are
+     * stale; the store restarts from an opening entry).
+     */
     public static function balance(string $locationId, string $itemId): BigDecimal
     {
         $balance = Movement::query()->where('location_id', $locationId)->where('item_id', $itemId)
-            ->where('ledger', Movement::LEDGER_STORES)->orderByDesc('seq')->value('balance_after');
+            ->where('ledger', Movement::LEDGER_STORES)->where('seq', '>', self::inventorySeq($locationId))
+            ->orderByDesc('seq')->value('balance_after');
 
         return $balance === null ? Qty::zero() : Qty::of((string) $balance);
+    }
+
+    /** The order of the store's last Inventory-ledger movement (0: Inventory never held it). */
+    public static function inventorySeq(string $locationId): int
+    {
+        return (int) (Movement::query()->where('location_id', $locationId)->where('ledger', Movement::LEDGER_INVENTORY)->max('seq') ?? 0);
+    }
+
+    /**
+     * STR-07: after an Inventory period, the store's own quantities are
+     * unknown until an opening stock entry is made for it: issues and
+     * adjustments from the own ledger are refused (`opening_entry_required`).
+     */
+    public static function assertOpened(string $locationId): void
+    {
+        $since = self::inventorySeq($locationId);
+
+        if ($since > 0 && Movement::query()->where('location_id', $locationId)->where('ledger', Movement::LEDGER_STORES)
+            ->where('source_type', Movement::SOURCE_ENTRY)->where('kind', Movement::OPENING)->where('seq', '>', $since)->doesntExist()) {
+            throw Errors::make(409, 'opening_entry_required');
+        }
     }
 
     /**

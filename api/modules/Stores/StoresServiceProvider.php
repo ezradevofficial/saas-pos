@@ -84,7 +84,7 @@ class StoresServiceProvider extends ServiceProvider
         }
 
         // STR-09: Inventory's values of Stores' issues and returns.
-        Event::listen(StockMoved::class, [RecordStoreValues::class, 'handle']);
+        Event::listen(StockMoved::class, RecordStoreValues::class);
 
         // STR-07: goods received at a store while Inventory is off.
         Event::listen(GoodsReceived::class, [ReceiveGoodsIntoStore::class, 'handle']);

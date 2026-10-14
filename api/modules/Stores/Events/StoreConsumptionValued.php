@@ -11,8 +11,11 @@ use Illuminate\Foundation\Events\Dispatchable;
  * debits the department's expense (by department and cost centre) and
  * credits stock at the store, at `value_minor` in `currency` (the
  * company's base currency, minor units as digit strings); a return
- * reverses it. Accounting posts this, not Inventory's `StockMoved` for the
- * same `stores.*` source.
+ * reverses it. Each line also carries Inventory's `cost_variance_minor`
+ * (signed, as on StockMoved: what a shortfall's later receipt corrects).
+ * Decision (STR-16): for `stores.*` sources Accounting posts from this
+ * event and skips Inventory's `StockMoved`, which describes the same
+ * movement.
  */
 class StoreConsumptionValued implements ShouldDispatchAfterCommit
 {
@@ -23,7 +26,7 @@ class StoreConsumptionValued implements ShouldDispatchAfterCommit
     public const RETURN = 'return';
 
     /**
-     * @param  list<array{line_id: string, item_id: string, qty_base: string, value_minor: string}>  $lines
+     * @param  list<array{line_id: string, item_id: string, qty_base: string, value_minor: string, cost_variance_minor: string}>  $lines
      */
     public function __construct(
         public readonly string $tenantId,

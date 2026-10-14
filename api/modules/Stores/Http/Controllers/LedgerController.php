@@ -60,6 +60,8 @@ class LedgerController
             ->join('items', 'items.id', '=', 'stores_movements.item_id')
             ->where('stores_movements.ledger', Movement::LEDGER_STORES)
             ->whereRaw("stores_movements.seq = (select max(m.seq) from stores_movements m where m.location_id = stores_movements.location_id and m.item_id = stores_movements.item_id and m.ledger = 'stores')")
+            // STR-07: balances from before the store's last Inventory period are stale.
+            ->whereRaw("stores_movements.seq > coalesce((select max(i.seq) from stores_movements i where i.location_id = stores_movements.location_id and i.ledger = 'inventory'), 0)")
             ->with(StockList::RELATIONS);
         $request->applyFilters($query, items: true);
         $request->applySearch($query, ['item' => 'items.name', 'code' => 'items.code']);

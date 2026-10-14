@@ -214,9 +214,15 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
 - **POS → Inventory**: stock out on sale, back on void and refund (INV-14),
   stock on the till (INV-17). Switches on only when both are active.
 - **Procurement → Inventory**: `GoodsReceived` (INV-15).
-- **Stores → Inventory**: `StoreIssued`, `StoreReturned` move stock when
-  both are active; `StockMoved` (sources `stores.*`) carries the values
-  back to Stores (docs/modules/stores.md, STR-08, STR-09).
+- **Stores → Inventory**: `StoreIssued`, `StoreReturned` with `ledger =
+  inventory` (fixed by Stores while both were active) move stock whatever
+  the module state when the job runs; `StockMoved` (sources `stores.*`)
+  carries the values back to Stores, and is raised again when a posting
+  is delivered twice (docs/modules/stores.md, STR-08, STR-09).
+- **Inventory → Accounting, exclusion**: for `stores.issue` and
+  `stores.return` sources Accounting does not post `StockMoved`; it posts
+  Stores' `StoreConsumptionValued` (department expense against stock)
+  instead, so the movement is journalled once.
 - **Inventory → Accounting**: `StockMoved`, `StockAdjusted`,
   `StockCountPosted`, `TransferReceived` carry the values for stock
   journals (stage 7B).

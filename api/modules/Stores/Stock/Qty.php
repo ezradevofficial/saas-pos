@@ -25,6 +25,24 @@ final class Qty
         return BigDecimal::zero()->toScale(self::SCALE);
     }
 
+    /**
+     * $qty of a stored line's unit in the base unit, by the line's own
+     * factor (`$lineBase / $lineQty`, fixed when the line was saved), so a
+     * unit factor changed later never changes what the line means. The
+     * whole line gives exactly its stored base quantity.
+     */
+    public static function baseOf(BigNumber|string $qty, BigNumber|string $lineQty, BigNumber|string $lineBase): BigDecimal
+    {
+        $qty = BigDecimal::of($qty);
+        $lineQty = BigDecimal::of($lineQty);
+
+        if ($qty->isEqualTo($lineQty)) {
+            return self::of($lineBase);
+        }
+
+        return self::of($qty->multipliedBy($lineBase)->dividedBy($lineQty, 12, RoundingMode::HalfUp));
+    }
+
     /** A quantity for people and JSON: "12", "0.5", "-3.25" (no trailing zeros). */
     public static function show(BigNumber|string|int|null $value): ?string
     {

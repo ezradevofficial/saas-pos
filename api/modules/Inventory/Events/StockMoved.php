@@ -11,6 +11,12 @@ use Illuminate\Foundation\Events\Dispatchable;
  * currency (minor units as digit strings), what Accounting needs to post
  * a stock journal, and the source document's line each movement is for
  * (`source_line_id`, STR-09). Dispatched after commit.
+ *
+ * Accounting skips it for `stores.issue` and `stores.return` sources: it
+ * posts Stores' StoreConsumptionValued for them instead (one journal per
+ * movement; docs/modules/stores.md, STR-16). For those sources it may be
+ * raised again for a posting delivered twice, so Stores can record values
+ * it missed.
  */
 class StockMoved implements ShouldDispatchAfterCommit
 {

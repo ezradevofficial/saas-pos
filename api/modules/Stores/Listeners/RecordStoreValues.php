@@ -5,6 +5,7 @@ namespace Modules\Stores\Listeners;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Stores\Events\StoreConsumptionValued;
 use Modules\Stores\Models\Issue;
@@ -20,17 +21,38 @@ use Modules\Stores\Stock\StoreLedger;
  * STR-09: Inventory moved a Stores issue or return and says what it was
  * worth (StockMoved, source `stores.issue` or `stores.return`, a movement
  * per batch taken, each naming the Stores line). Under the document's row
- * lock, once: each line's value (the sum of its movements, positive), the
- * movements' signed values (written once), the document's currency and
- * time, then StoreConsumptionValued for Accounting. Recorded whatever the
- * module state now, so a document's value is never lost.
+ * lock, once: each line's value (the sum of its movements, positive) and
+ * cost variance, the movements' signed values (written once), the
+ * document's currency and time, then StoreConsumptionValued for
+ * Accounting. Queued after Inventory's posting commits and retried; a
+ * redelivered Inventory job raises StockMoved again (MoveStockForStores),
+ * so a value missed once is recorded later, and the `valued_at` guard keeps
+ * it once. Recorded whatever the module state now.
  */
-class RecordStoreValues
+class RecordStoreValues implements ShouldQueue
 {
+    public bool $afterCommit = true;
+
+    public int $tries = 5;
+
+    /** @var list<int> */
+    public array $backoff = [10, 60, 300];
+
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly StoreLedger $ledger,
     ) {}
+
+    public function viaQueue(): string
+    {
+        return 'default';
+    }
+
+    /** Only Stores' own sources are queued. */
+    public function shouldQueue(StockMoved $event): bool
+    {
+        return in_array($event->sourceType, [Movement::SOURCE_ISSUE, Movement::SOURCE_RETURN], true);
+    }
 
     public function handle(StockMoved $event): void
     {
@@ -47,12 +69,14 @@ class RecordStoreValues
             }
 
             $values = [];
+            $variances = [];
 
             foreach ($event->movements as $movement) {
                 $line = $movement['source_line_id'] ?? null;
 
                 if ($line !== null) {
                     $values[$line] = ($values[$line] ?? BigInteger::zero())->plus((string) $movement['value_minor']);
+                    $variances[$line] = ($variances[$line] ?? BigInteger::zero())->plus((string) ($movement['cost_variance_minor'] ?? '0'));
                 }
             }
 
@@ -69,7 +93,7 @@ class RecordStoreValues
                 $value = $values[$line->id]->abs();
                 $line->update(['value_minor' => (string) $value]);
                 $total = $total->plus($value);
-                $payload[] = ['line_id' => $line->id, 'item_id' => $line->item_id, 'qty_base' => Qty::show($line->qty_base), 'value_minor' => (string) $value];
+                $payload[] = ['line_id' => $line->id, 'item_id' => $line->item_id, 'qty_base' => Qty::show($line->qty_base), 'value_minor' => (string) $value, 'cost_variance_minor' => (string) $variances[$line->id]];
             }
 
             $document->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency])->save();

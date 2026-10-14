@@ -11,7 +11,6 @@ use Modules\Stores\Models\Issue;
 use Modules\Stores\Models\IssueLine;
 use Modules\Stores\Models\StoreReturn;
 use Modules\Stores\Stock\Qty;
-use Modules\Stores\Stock\StoreLedger;
 
 /**
  * STR-04 to STR-06, STR-09: an issue, its requisition, department, ledger
@@ -90,8 +89,7 @@ class IssueResource extends JsonResource
             'can' => [
                 'acknowledge' => $issue->status === Issue::ISSUED && $issue->issued_by !== $user->id
                     && $resolver->can($user, 'stores.issue.acknowledge', $at),
-                'return' => $returnable && $issue->ledger === app(StoreLedger::class)->current()
-                    && $resolver->can($user, 'stores.return.create', $at),
+                'return' => $returnable && $resolver->can($user, 'stores.return.create', $at),
             ],
         ];
     }

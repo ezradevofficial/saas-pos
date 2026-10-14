@@ -23,7 +23,7 @@ return [
         'over_return' => 'This is more :item than was issued and not yet returned. Lower the quantity.',
         'acknowledge_self' => 'You issued these goods, so someone from the department must acknowledge them.',
         'inventory_active' => 'Inventory holds this store’s stock. Enter opening stock and adjustments in Inventory.',
-        'ledger_changed' => 'Stock for this store is now kept in another ledger, so this issue cannot take returns here. Adjust the stock instead.',
+        'opening_entry_required' => 'Stock of this store was kept in Inventory until now, so its own quantities are not known. Enter its opening stock first, then issue or adjust.',
         'place_forbidden' => 'You cannot do this at this store. Ask an administrator for access.',
     ],
     'statuses' => [

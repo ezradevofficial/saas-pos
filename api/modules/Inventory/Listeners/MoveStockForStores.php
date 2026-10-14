@@ -3,13 +3,12 @@
 namespace Modules\Inventory\Listeners;
 
 use App\Core\MasterData\Items\Item;
-use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use Modules\Inventory\InventoryServiceProvider;
+use Modules\Inventory\Events\StockMoved;
 use Modules\Inventory\Models\ItemSetting;
 use Modules\Inventory\Models\Movement;
 use Modules\Inventory\Stock\Places;
@@ -22,10 +21,11 @@ use Modules\Stores\Events\StoreReturned;
 use RuntimeException;
 
 /**
- * STR-08 (docs/modules/stores.md): Stores' issues and returns move stock
- * when Inventory is active for the tenant (RBAC-08) and the document went
- * through Inventory's ledger (`ledger = inventory`); with Inventory off,
- * Stores keeps the quantities itself and nothing happens here. Queued
+ * STR-08 (docs/modules/stores.md): Stores' issues and returns whose ledger
+ * Stores fixed as Inventory's (`ledger = inventory`, decided when the
+ * document was saved, while Inventory was active, RBAC-08) move stock here,
+ * whatever the module's state when the job runs; own-ledger documents
+ * never reach Inventory. Queued
  * after the Stores document commits, with the event's own lines (Inventory
  * never reads Stores' tables).
  *
@@ -49,7 +49,7 @@ class MoveStockForStores
     public const RETURN = 'return';
 
     public function __construct(
-        private readonly ModuleRegistry $modules,
+        private readonly TenantContext $tenants,
         private readonly StockLedger $ledger,
         private readonly Places $places,
     ) {}
@@ -78,10 +78,8 @@ class MoveStockForStores
      */
     public function move(string $kind, array $document): void
     {
-        if (! $this->modules->isActive(InventoryServiceProvider::MODULE)) {
-            return;
-        }
-
+        // STR-08: the document's ledger was fixed when Stores saved it; it posts whatever the
+        // module's state now (Inventory's gating applies to new documents, in Stores).
         $place = $this->places->of($document['location_id']);
 
         if ($place === null || $place['company_id'] !== $document['company_id']) {
@@ -113,7 +111,29 @@ class MoveStockForStores
             );
         }
 
-        $this->ledger->post(new Posting($document['company_id'], 'stores.issue', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
+        $this->post(new Posting($document['company_id'], 'stores.issue', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
+    }
+
+    /**
+     * STR-09: post, or, when the document was posted before (a redelivered
+     * event), raise StockMoved again with its movements, so Stores can
+     * still record values it missed (its own guard keeps that once).
+     */
+    private function post(Posting $posting): void
+    {
+        $before = Movement::query()->where('source_type', $posting->sourceType)->where('source_id', $posting->sourceId)->exists();
+        $movements = $this->ledger->post($posting);
+
+        if ($before && $movements !== []) {
+            StockMoved::dispatch($this->tenants->require(), $posting->companyId, $movements[0]->currency, $posting->sourceType, $posting->sourceId, array_map(
+                fn (Movement $m) => [
+                    'id' => $m->id, 'kind' => $m->kind, 'item_id' => $m->item_id, 'location_id' => $m->location_id,
+                    'qty' => Qty::show($m->qty), 'value_minor' => (string) $m->value_minor, 'cost_variance_minor' => (string) $m->cost_variance_minor,
+                    'source_line_id' => $m->source_line_id,
+                ],
+                $movements,
+            ));
+        }
     }
 
     /** Under the issue's lock: from the movements of each issue line, what they still hold back, at their cost. */
@@ -161,6 +181,6 @@ class MoveStockForStores
             }
         }
 
-        $this->ledger->post(new Posting($document['company_id'], 'stores.return', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
+        $this->post(new Posting($document['company_id'], 'stores.return', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
     }
 }

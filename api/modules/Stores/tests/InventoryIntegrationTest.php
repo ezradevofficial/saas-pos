@@ -3,16 +3,24 @@
 namespace Modules\Stores\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\TenantContext;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Events\CallQueuedListener;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Modules\Inventory\Listeners\MoveStockForStores;
+use Modules\Inventory\Listeners\MoveStoreStock;
 use Modules\Inventory\Models\Balance;
 use Modules\Inventory\Models\Movement as InventoryMovement;
 use Modules\Stores\Events\StoreConsumptionValued;
 use Modules\Stores\Events\StoreIssued;
 use Modules\Stores\Events\StoreReturned;
+use Modules\Stores\Listeners\RecordStoreValues;
 use Modules\Stores\Models\Issue;
 use Modules\Stores\Models\Movement;
 use Modules\Stores\Stock\Qty;
+use Modules\Stores\Stock\StoreLedger;
 use Modules\Stores\Tests\Concerns\BuildsStores;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -123,20 +131,78 @@ class InventoryIntegrationTest extends TestCase
         $this->assertSame([], $this->getJson('/api/v1/stores/stock', $this->headersFor())->assertOk()->json('data'));
     }
 
-    public function test_a_return_follows_its_issues_ledger(): void
+    public function test_a_return_follows_its_issues_ledger_in_both_directions(): void
     {
-        // Issued while Inventory was off: the own ledger moved it.
+        // An own-ledger issue (Inventory off), returned once Inventory is on: back into the own ledger.
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('inventory'));
         $this->opening($this->soap, '5');
         $requisition = $this->approved([['item_id' => $this->soap->id, 'qty' => '2']]);
-        $issue = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '2']])->assertCreated()->assertJsonPath('data.ledger', 'stores')->json('data');
-        $this->assertSame(0, $this->inventoryMovements('stores.issue'));
-
-        // Inventory on again: the issue cannot take returns into a ledger that no longer holds the store.
+        $own = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '2']])->assertCreated()->assertJsonPath('data.ledger', 'stores')->json('data');
         $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
-        $this->getJson("/api/v1/stores/issues/{$issue['id']}", $this->headersFor())->assertJsonPath('data.can.return', false);
-        $this->postJson("/api/v1/stores/issues/{$issue['id']}/returns", ['reason' => 'unused', 'lines' => [['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '1']]], $this->headersFor())
-            ->assertStatus(409)->assertJsonPath('code', 'ledger_changed');
-        $this->assertSame('3', $this->onHand($this->soap));
+        $this->getJson("/api/v1/stores/issues/{$own['id']}", $this->headersFor())->assertJsonPath('data.can.return', true);
+        $this->postJson("/api/v1/stores/issues/{$own['id']}/returns", ['reason' => 'unused', 'lines' => [['issue_line_id' => $own['lines'][0]['id'], 'qty' => '1']]], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.ledger', 'stores');
+        $this->assertSame(['4', 0, '20'], [$this->onHand($this->soap), $this->inventoryMovements('stores.return'), $this->inventoryOnHand()]);
+
+        // An Inventory-ledger issue, returned once Inventory is off: back through Inventory, at its cost.
+        $requisition = $this->approved([['item_id' => $this->soap->id, 'qty' => '6']]);
+        $issue = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '6']])->assertCreated()->assertJsonPath('data.ledger', 'inventory')->json('data');
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('inventory'));
+        $this->postJson("/api/v1/stores/issues/{$issue['id']}/returns", ['reason' => 'unused', 'lines' => [['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '2']]], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.ledger', 'inventory')->assertJsonPath('data.valued', true);
+        $this->assertSame(['16', 1], [$this->inventoryOnHand(), $this->inventoryMovements('stores.return')]);
+    }
+
+    public function test_an_inventory_ledger_issue_posts_even_when_inventory_was_switched_off_before_its_job_ran(): void
+    {
+        $requisition = $this->approved([['item_id' => $this->soap->id, 'qty' => '4']]);
+        Queue::fake([MoveStoreStock::class]);
+        $issue = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '4']])->assertCreated()->assertJsonPath('data.ledger', 'inventory')->json('data');
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('inventory'));
+
+        $job = Queue::pushed(MoveStoreStock::class)->sole();
+        $this->inTenant(fn () => $job->handle(app(MoveStockForStores::class)));
+
+        $this->assertSame(['16', 1], [$this->inventoryOnHand(), $this->inventoryMovements('stores.issue')]);
+        $this->getJson("/api/v1/stores/issues/{$issue['id']}", $this->headersFor())->assertJsonPath('data.value.amount_minor', '400');
+    }
+
+    public function test_values_missed_once_are_recorded_by_the_retry_or_a_redelivered_posting(): void
+    {
+        $listener = new \ReflectionClass(RecordStoreValues::class);
+        $this->assertTrue($listener->implementsInterface(ShouldQueue::class));
+        $this->assertTrue((new RecordStoreValues(app(TenantContext::class), app(StoreLedger::class)))->afterCommit);
+
+        // The queued listener fails once (its first attempt), then the retry values the document.
+        $queue = Queue::getFacadeRoot();
+        $requisition = $this->approved([['item_id' => $this->soap->id, 'qty' => '3']]);
+        $later = $this->approved([['item_id' => $this->soap->id, 'qty' => '2']]);
+        Queue::fake([CallQueuedListener::class]);
+        $issue = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '3']])->assertCreated()->json('data');
+        $queued = Queue::pushed(CallQueuedListener::class, fn (CallQueuedListener $job) => $job->class === RecordStoreValues::class)->sole();
+        $failing = $this->createMock(StoreLedger::class);
+        $failing->method('value')->willThrowException(new \RuntimeException('database went away'));
+        try {
+            (new RecordStoreValues(app(TenantContext::class), $failing))->handle($queued->data[0]);
+            $this->fail('the first attempt should fail');
+        } catch (\RuntimeException) {
+        }
+        $this->getJson("/api/v1/stores/issues/{$issue['id']}", $this->headersFor())->assertJsonPath('data.valued', false);
+        app(RecordStoreValues::class)->handle($queued->data[0]);
+        $this->getJson("/api/v1/stores/issues/{$issue['id']}", $this->headersFor())->assertJsonPath('data.valued', true)->assertJsonPath('data.value.amount_minor', '300');
+        $this->assertCount(1, $this->valued);
+        $this->assertSame('0', $this->valued[0]->lines[0]['cost_variance_minor']);
+
+        // Lost altogether (the queued listener never ran): Inventory's job delivered again raises StockMoved again.
+        $lost = $this->issue($later['id'], [[$later['lines'][0]['id'], '2']])->assertCreated()->json('data');
+        Queue::swap($queue);
+        $this->getJson("/api/v1/stores/issues/{$lost['id']}", $this->headersFor())->assertJsonPath('data.valued', false);
+        $event = $this->inTenant(fn () => Issue::query()->findOrFail($lost['id']));
+        $this->inTenant(fn () => StoreIssued::dispatch($this->owner->tenant_id, $event->id, $event->number, $event->company_id, $event->branch_id, $event->location_id,
+            $event->department_id, $event->cost_centre_id, 'inventory', $event->issued_at->toIso8601String(), null,
+            [['line_id' => $lost['lines'][0]['id'], 'item_id' => $this->soap->id, 'uom_id' => $this->each->id, 'qty' => '2', 'qty_base' => '2']]));
+        $this->getJson("/api/v1/stores/issues/{$lost['id']}", $this->headersFor())->assertJsonPath('data.valued', true)->assertJsonPath('data.value.amount_minor', '200');
+        $this->assertSame(2, $this->inventoryMovements('stores.issue'));
+        $this->assertCount(2, $this->valued);
     }
 }

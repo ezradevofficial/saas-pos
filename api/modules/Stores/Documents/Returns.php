@@ -23,10 +23,10 @@ use Modules\Stores\Stock\StoreLedger;
  * STR-06: returns to store, under the issue's row lock. Each line names a
  * line of the issue and a positive quantity in its unit; what comes back
  * never exceeds what was issued less what already came back
- * (`over_return`). The goods come back through the issue's own ledger
- * (`ledger_changed` when that ledger no longer holds the store's
- * quantities): the own ledger takes them in; with Inventory, StoreReturned
- * (after commit) has Inventory bring them back at the issue's cost.
+ * (`over_return`). The goods come back through the issue's own ledger,
+ * whatever the module state now (STR-08): the own ledger takes them in;
+ * an Inventory-ledger issue's return has Inventory bring them back at the
+ * issue's cost (StoreReturned, after commit).
  */
 class Returns
 {
@@ -42,10 +42,6 @@ class Returns
     {
         return Errors::transaction(function () use ($issue, $data, $by) {
             $issue = Issue::query()->whereKey($issue->id)->lockForUpdate()->firstOrFail();
-
-            if ($issue->ledger !== $this->ledger->current()) {
-                throw Errors::make(409, 'ledger_changed');
-            }
 
             $this->places->store($issue->location_id);
             $issued = $issue->lines()->with('item')->get()->keyBy('id');
@@ -75,7 +71,8 @@ class Returns
                 }
 
                 $total = ($wanted[$target->id]['qty'] ?? BigDecimal::zero())->plus($qty);
-                $base = Qty::of($total->multipliedBy(Lines::factor($target->item, $target->uom_id) ?? BigDecimal::one()));
+                // The issue line's own factor (fixed when it was issued), never today's unit factor.
+                $base = Qty::baseOf($total, (string) $target->qty, (string) $target->qty_base);
                 $left = BigDecimal::of((string) $target->qty_base)->minus((string) $target->qty_returned_base);
 
                 if ($base->isGreaterThan($left)) {

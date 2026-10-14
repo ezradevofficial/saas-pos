@@ -42,6 +42,10 @@ class StockEntries
 
         $place = $this->places->store($data['location_id']);
         $opening = $data['kind'] === self::OPENING;
+
+        if (! $opening) {
+            StoreLedger::assertOpened($data['location_id']);
+        }
         $lines = $this->lines->resolve($data['lines'], $place['company_id'], $by, signed: ! $opening);
         $sourceId = (string) Str::uuid7();
 

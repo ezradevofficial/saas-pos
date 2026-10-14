@@ -47,9 +47,9 @@ cost centre and item consumed.
 | STR-04 | **Issues, full or partial.** A storekeeper issues against an approved requisition: each issue line names a requisition line and a positive quantity in that line's unit; what is issued over all issues never exceeds what was approved (`over_issue`). The requisition moves to `partially_issued`, then `issued` when every line is fully issued. A requisition with quantities still open can be closed (`closed`, with a reason); a pending or approved one with nothing issued can be cancelled (its flow cancelled). Issues are numbered (STR-15). | Must |
 | STR-05 | **Department acknowledgement.** The department acknowledges an issue (`issued` → `acknowledged`), with an optional note; who and when are kept. The person who issued it cannot acknowledge it (`acknowledge_self`). Issues waiting for acknowledgement are listed (`?status=issued`). | Must |
 | STR-06 | **Returns to store.** Goods come back against an issue's lines: a positive quantity per line, never more than issued less what was already returned (`over_return`), with a reason (`unused`, `excess`, `wrong_item`, `damaged`, `other`) and an optional note. Numbered (STR-15). A return follows its issue's ledger (STR-07, STR-08): an issue moved by Inventory comes back through Inventory at the cost it went out at. | Must |
-| STR-07 | **Stores' own ledger (Inventory off).** `stores_movements` is append-only (a trigger refuses deletes and every update except recording a value once). Each movement is signed, per store and item, in the base unit, with the balance after it. Balances move under a lock per store and item. Issues beyond what the store holds are refused (`insufficient_stock`, naming the item). Stock enters through stock entries (`opening`, `adjustment` up or down, with a reason; `stores.stock.adjust`) and through goods received by another module (Inventory's `GoodsReceived` contract at a store location) while Inventory is off. | Must |
-| STR-08 | **Inventory integration (Inventory on).** When the tenant has Inventory active at the moment of an issue or return, Stores raises `StoreIssued` / `StoreReturned` after commit, and Inventory's listener posts `store_issue` / `store_return` movements at the store (never refused: a shortfall is flagged `negative_stock`, as POS sales are; batch items are taken earliest expiry first). A return comes back at the cost its issue went out at. An event delivered twice moves stock once (the ledger is idempotent per source line). Stores' own movement rows are still written (the record of its documents) but carry no balance: the quantity on hand is Inventory's. Stock entries are refused (`inventory_active`). The ledger is decided per issue and kept on it: a return of an issue moved by Inventory while Inventory is now off, or of an own-ledger issue while Inventory is now on, is refused (`ledger_changed`). | Must |
-| STR-09 | **Values.** With Inventory on, Inventory's `StockMoved` for a `stores.issue` or `stores.return` source carries the value of each movement (company base currency, ADR 003); Stores records it on its document lines and movements once, then raises `StoreConsumptionValued` (STR-16). With Inventory off, Stores has no costs: consumption is in quantities only and values show as "not valued". | Must |
+| STR-07 | **Stores' own ledger (Inventory off).** `stores_movements` is append-only (a trigger refuses deletes and every update except recording a value once). Each movement is signed, per store and item, in the base unit, with the balance after it. Balances move under a lock per store and item. Issues beyond what the store holds are refused (`insufficient_stock`, naming the item). Stock enters through stock entries (`opening`, `adjustment` up or down, with a reason; `stores.stock.adjust`) and through goods received by another module (Inventory's `GoodsReceived` contract at a store location) while Inventory is off. After an Inventory period (Inventory switched off again), a store's own balances are stale: they count only movements since its last Inventory-ledger movement, and own-ledger issues and adjustments there are refused (`opening_entry_required`) until an opening stock entry is made for that store. | Must |
+| STR-08 | **Inventory integration (Inventory on).** When the tenant has Inventory active at the moment of an issue or return, Stores raises `StoreIssued` / `StoreReturned` after commit, and Inventory's listener posts `store_issue` / `store_return` movements at the store (never refused: a shortfall is flagged `negative_stock`, as POS sales are; batch items are taken earliest expiry first). A return comes back at the cost its issue went out at. An event delivered twice moves stock once (the ledger is idempotent per source line). Stores' own movement rows are still written (the record of its documents) but carry no balance: the quantity on hand is Inventory's. Stock entries are refused (`inventory_active`). The ledger is decided per document when it is saved (Inventory's ledger only while Inventory is active) and kept on it: a document whose ledger is Inventory's posts there whatever the module's state when Inventory's job runs, and a return always goes through its issue's ledger (an Inventory-ledger issue comes back through Inventory even after Inventory is switched off; an own-ledger issue comes back into the own ledger even after it is switched on). Issues and returns take each line's own unit factor (`qty_base / qty` of the requisition line or issue line, fixed when it was saved), never the item's current factor. | Must |
+| STR-09 | **Values.** With Inventory on, Inventory's `StockMoved` for a `stores.issue` or `stores.return` source carries the value of each movement (company base currency, ADR 003); Stores records it on its document lines and movements once, then raises `StoreConsumptionValued` (STR-16). Recording is a queued listener, retried; when Inventory's job is delivered again for a document it already posted, it raises `StockMoved` again, so a value missed once is recorded later (the document's `valued_at` keeps it once). With Inventory off, Stores has no costs: consumption is in quantities only and values show as "not valued". | Must |
 | STR-10 | **Store ledger.** Per store and item: every Stores movement (kind, document, date, signed quantity, balance after it in the own ledger, value when known), with filters (store, item, kind, dates), search, sort and export (EXP-01). With Inventory on, the screen says the full stock ledger is Inventory's and links to it. | Must |
 | STR-11 | **Stock on hand (own ledger).** Quantity per store and item from the own ledger, with filters and export. | Must |
 | STR-12 | **Consumption reports.** Net consumption (issued − returned) over a period, grouped by department, cost centre, item or month (`?group=department\|cost_centre\|item\|period`), one row per group and item, with issued, returned and net quantity in the item's base unit and, when valued and visible, issued, returned and net value; totals per currency. Dates are issue and return dates in the company's time zone. Filters: store, department, cost centre, item, `from`, `to`. Export (EXP-01). | Must |
@@ -85,15 +85,17 @@ values only):
 | --- | --- | --- |
 | `StoreIssued` | An issue is saved | tenant, issue id and number, company, branch, store location, department, cost centre, `ledger`, `issued_at`, user, lines `[{line_id, item_id, uom_id, qty, qty_base}]` |
 | `StoreReturned` | A return is saved | tenant, return id and number, issue id, company, branch, store location, department, cost centre, `ledger`, `returned_at`, user, lines `[{line_id, issue_line_id, item_id, uom_id, qty, qty_base}]` |
-| `StoreConsumptionValued` | Inventory valued an issue or return | tenant, `direction` (`issue`, `return`), document id and number, company, branch, store location, department, cost centre, date, currency, total `value_minor`, lines `[{line_id, item_id, qty_base, value_minor}]` |
+| `StoreConsumptionValued` | Inventory valued an issue or return | tenant, `direction` (`issue`, `return`), document id and number, company, branch, store location, department, cost centre, date, currency, total `value_minor`, lines `[{line_id, item_id, qty_base, value_minor, cost_variance_minor}]` |
 
 **For Accounting (stage 7B onwards).** An issue is department expense
 against stock: debit the department's consumption (by department and cost
 centre), credit stock at the store, at Inventory's value. A return
-reverses it. Accounting posts from `StoreConsumptionValued`; Inventory's
-`StockMoved` for `stores.*` sources describes the same movement and must
-not be posted a second time (flagged to the Accounting owner). With
-Inventory off there is no value and nothing to post.
+reverses it. Each line carries Inventory's `cost_variance_minor` (what a
+later receipt corrects of a shortfall's cost). **Decision:** for
+`stores.*` sources, Accounting posts from `StoreConsumptionValued` and
+skips Inventory's `StockMoved`, which describes the same movement (the
+rule is added by the Accounting integrations work once both are merged).
+With Inventory off there is no value and nothing to post.
 
 **Consumed:**
 
@@ -167,7 +169,7 @@ Errors: `not_a_store`, `location_archived`, `department_other_company`,
 `cost_centre_other_company`, `uom_not_on_item`, `not_a_stock_item`,
 `item_other_company`, `qty_precision`, `document_not_open`, `over_issue`,
 `over_return`, `insufficient_stock`, `acknowledge_self`,
-`inventory_active`, `ledger_changed`.
+`inventory_active`, `opening_entry_required`.
 
 ## Screens (web)
 
@@ -193,8 +195,10 @@ tokens only, en/fr, back-office list patterns as the Inventory screens
 Decisions taken while building (no owner input asked, per instructions):
 
 1. **The ledger is chosen per document**, when it is saved, and kept on
-   it: the module state can change between an issue and its return, so a
-   return follows its issue (`ledger_changed` when it can't).
+   it: the module state can change between an issue and its return (or
+   before Inventory's queued job runs), so an Inventory-ledger document
+   always posts through Inventory and a return always follows its issue.
+   Module gating applies to new documents only.
 2. **Own-ledger issues are refused beyond stock** (Stores holds the
    numbers and can refuse at once); Inventory-ledger issues are never
    refused and are flagged by Inventory (Stores cannot ask Inventory
@@ -211,8 +215,23 @@ Decisions taken while building (no owner input asked, per instructions):
    warehouse can issue to departments too.
 7. **A return of an Inventory-ledger issue whose issue has not been posted
    yet** (queued jobs out of order) waits and is retried by its job.
-8. **Values are recorded once.** The movement table is append-only except
-   that a value may be written once into a row that has none.
+8. **Values are recorded once, and never lost.** The movement table is
+   append-only except that a value may be written once into a row that
+   has none; the recording listener is queued and retried, and a
+   redelivered Inventory posting raises `StockMoved` again.
+9. **Accounting posts Stores' consumption from `StoreConsumptionValued`**
+   and skips `StockMoved` for `stores.*` sources (one journal per
+   movement, with the department and cost centre).
+10. **After an Inventory period the own ledger restarts from an opening
+    entry.** When Inventory is switched off again, a store's own balances
+    count only what moved since its last Inventory-ledger movement, and
+    own-ledger issues and adjustments wait for an opening stock entry
+    there (`opening_entry_required`), so stale quantities are never
+    issued against.
+11. **Unit factors are fixed per line.** Issues and returns convert with
+    the factor stored on the requisition or issue line, so changing an
+    item's unit factor later never changes stock already asked for or
+    issued.
 
 Open for the owner:
 

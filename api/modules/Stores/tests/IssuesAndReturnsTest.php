@@ -3,6 +3,8 @@
 namespace Modules\Stores\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\MasterData\Items\ItemUom;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -175,5 +177,44 @@ class IssuesAndReturnsTest extends TestCase
         $this->assertSame([['Soap', '37'], ['Sugar', '11']], array_map(fn ($row) => [$row['item']['name'], $row['qty']], $stock));
         $this->assertStringContainsString('Sugar', $this->get('/api/v1/stores/stock?format=csv', $this->headersFor())->assertOk()->streamedContent());
         $this->assertStringContainsString('GRN-0001', $this->get('/api/v1/stores/ledger?format=csv', $this->headersFor())->assertOk()->streamedContent());
+    }
+
+    public function test_issues_and_returns_keep_the_unit_factor_of_their_lines(): void
+    {
+        // Asked as 2 boxes of 12; the box changes to 10 before the issue, then to 6 before the return.
+        $requisition = $this->approved([['item_id' => $this->soap->id, 'uom_id' => $this->box->id, 'qty' => '2']]);
+        $factor = fn (string $value) => $this->inTenant(fn () => ItemUom::query()->where('item_id', $this->soap->id)->where('uom_id', $this->box->id)->update(['factor' => $value]));
+        $factor('10');
+        $issue = $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '1']])->assertCreated()->assertJsonPath('data.lines.0.qty_base', '12')->json('data');
+        $this->assertSame('18', $this->onHand($this->soap));
+
+        $factor('6');
+        $this->postJson("/api/v1/stores/issues/{$issue['id']}/returns", ['reason' => 'unused', 'lines' => [['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '1']]], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.lines.0.qty_base', '12');
+        $this->assertSame('30', $this->onHand($this->soap));
+    }
+
+    public function test_after_an_inventory_period_the_store_needs_an_opening_entry_before_own_issues(): void
+    {
+        $requisition = $this->approved([['item_id' => $this->soap->id, 'qty' => '20']]);
+
+        // Inventory holds the store for a while (its issue moves Inventory's stock).
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
+        $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '5']])->assertCreated()->assertJsonPath('data.ledger', 'inventory');
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('inventory'));
+
+        // Back on the own ledger: its old balance (30) is stale, so issues and adjustments wait for an opening entry.
+        $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '1']])->assertStatus(409)->assertJsonPath('code', 'opening_entry_required');
+        $this->postJson('/api/v1/stores/stock-entries', ['location_id' => $this->store->id, 'kind' => 'adjustment', 'reason' => 'count', 'lines' => [['item_id' => $this->soap->id, 'qty' => '-1']]], $this->headersFor())
+            ->assertStatus(409)->assertJsonPath('code', 'opening_entry_required');
+        $this->assertSame([], array_column($this->getJson('/api/v1/stores/stock', $this->headersFor())->json('data'), 'qty'));
+
+        $this->opening($this->soap, '8');
+        $this->assertSame('8', $this->onHand($this->soap));
+        $this->issue($requisition['id'], [[$requisition['lines'][0]['id'], '3']])->assertCreated()->assertJsonPath('data.ledger', 'stores');
+        $this->assertSame('5', $this->onHand($this->soap));
+        $this->assertSame(['5'], array_column($this->getJson('/api/v1/stores/stock', $this->headersFor())->json('data'), 'qty'));
+        // Other stores are not affected.
+        $this->opening($this->soap, '2', $this->storeB);
     }
 }

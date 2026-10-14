@@ -23,7 +23,7 @@ return [
         'over_return' => 'C’est plus de :item que ce qui a été sorti et pas encore retourné. Réduisez la quantité.',
         'acknowledge_self' => 'Vous avez sorti ces articles : une personne du service doit en accuser réception.',
         'inventory_active' => 'Le module Stocks tient le stock de ce magasin. Saisissez le stock initial et les ajustements dans Stocks.',
-        'ledger_changed' => 'Le stock de ce magasin est désormais tenu dans un autre registre : cette sortie ne peut plus recevoir de retours ici. Ajustez plutôt le stock.',
+        'opening_entry_required' => 'Le stock de ce magasin était tenu par le module Stocks jusqu’ici : ses propres quantités ne sont pas connues. Saisissez d’abord son stock initial, puis sortez ou ajustez.',
         'place_forbidden' => 'Vous ne pouvez pas faire cela dans ce magasin. Demandez un accès à un administrateur.',
     ],
     'statuses' => [
