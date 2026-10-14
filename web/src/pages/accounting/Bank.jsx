@@ -184,9 +184,11 @@ export function Reconcile() {
     setLedgerIds([])
     await queryClient.invalidateQueries({ queryKey: key })
   }
-  const match = useMutation({ mutationFn: () => api.post(`accounting/bank-statement-lines/${statementId}/match`, { journal_line_ids: ledgerIds }), onSuccess: refresh })
-  const post = useMutation({ mutationFn: () => api.post(`accounting/bank-statement-lines/${statementId}/post`, { account_id: postAccount }), onSuccess: refresh })
-  const auto = useMutation({ mutationFn: () => api.post(`accounting/bank-accounts/${bankId}/auto-match`), onSuccess: refresh })
+  // A later action clears what an earlier one said (its result banner or error).
+  const clearResults = (except = null) => [match, post, auto].filter((mutation) => mutation !== except).forEach((mutation) => mutation.reset())
+  const match = useMutation({ mutationFn: () => api.post(`accounting/bank-statement-lines/${statementId}/match`, { journal_line_ids: ledgerIds }), onMutate: () => clearResults(match), onSuccess: refresh })
+  const post = useMutation({ mutationFn: () => api.post(`accounting/bank-statement-lines/${statementId}/post`, { account_id: postAccount }), onMutate: () => clearResults(post), onSuccess: refresh })
+  const auto = useMutation({ mutationFn: () => api.post(`accounting/bank-accounts/${bankId}/auto-match`), onMutate: () => clearResults(auto), onSuccess: refresh })
   const data = query.data?.data
   const error = match.error ?? post.error ?? auto.error
   const reconcile = can('accounting.bank.reconcile')
@@ -210,7 +212,7 @@ export function Reconcile() {
         actions={
           reconcile ? (
             <>
-              <Button icon="upload" onClick={() => setImporting(true)}>{t('accounting.reconcile.import')}</Button>
+              <Button icon="upload" onClick={() => { clearResults(); setImporting(true) }}>{t('accounting.reconcile.import')}</Button>
               <Button loading={auto.isPending} onClick={() => auto.mutate()}>{t('accounting.reconcile.autoMatch')}</Button>
             </>
           ) : null

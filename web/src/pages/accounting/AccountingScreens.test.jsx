@@ -51,6 +51,22 @@ describe('Accounting screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('accounting/bank-statement-lines/s-1/match', { journal_line_ids: ['g-1'] }))
   })
 
+  it('clears the auto-match banner after a later action (ACC-14)', async () => {
+    setup([['accounting/bank-accounts/b-1/reconciliation', { data: RECONCILIATION }], [/^companies\/c-1\/accounting\/accounts\?/, { data: [] }]])
+    api.post.mockImplementation((path) => Promise.resolve(path.endsWith('/auto-match') ? { data: { matched: 1, ruled: 0 } } : { data: { id: 's-1', status: 'matched' } }))
+    renderApp('/accounting/bank/b-1')
+
+    const statement = await screen.findByRole('list', { name: 'Statement lines' })
+    fireEvent.click(screen.getByRole('button', { name: 'Match what is certain' }))
+    const banner = await screen.findByText(/1 matched/)
+    expect(banner).toBeInTheDocument()
+
+    fireEvent.click(within(statement).getByRole('button', { name: /Customer Payment/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Match' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('accounting/bank-statement-lines/s-1/match', { journal_line_ids: ['g-1'] }))
+    await waitFor(() => expect(screen.queryByText(/1 matched/)).not.toBeInTheDocument())
+  })
+
   it('does not match ledger lines that do not add up to the statement line', async () => {
     setup([['accounting/bank-accounts/b-1/reconciliation', { data: RECONCILIATION }], [/^companies\/c-1\/accounting\/accounts\?/, { data: [] }]])
     renderApp('/accounting/bank/b-1')
