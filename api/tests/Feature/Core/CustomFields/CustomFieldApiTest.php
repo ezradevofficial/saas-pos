@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\CustomFields;
 use App\Core\Audit\AuditEntry;
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\Rbac\Models\Role;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -28,6 +29,18 @@ class CustomFieldApiTest extends TestCase
     private function create(array $body, ?array $headers = null)
     {
         return $this->postJson('/api/v1/custom-fields', $body + ['entity' => 'item', 'type' => 'text'], $headers ?? $this->headersFor());
+    }
+
+    public function test_a_modules_entities_are_offered_only_while_the_module_is_active(): void
+    {
+        // RBAC-08: without Procurement, its documents take no custom fields.
+        $keys = fn () => array_column($this->getJson('/api/v1/custom-fields/meta', $this->headersFor())->assertOk()->json('data.entities'), 'key');
+        $this->assertNotContains('procurement_requisition', $keys());
+        $this->create(['entity' => 'procurement_requisition', 'key' => 'budget_line', 'label' => 'Budget line'])->assertUnprocessable()->assertJsonValidationErrors('entity');
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('procurement'));
+        $this->assertContains('procurement_requisition', $keys());
+        $this->create(['entity' => 'procurement_requisition', 'key' => 'budget_line', 'label' => 'Budget line'])->assertCreated();
     }
 
     public function test_the_owner_adds_lists_changes_archives_and_restores_a_field(): void

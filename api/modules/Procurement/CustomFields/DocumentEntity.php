@@ -16,6 +16,11 @@ use Modules\Procurement\Support\Places;
  */
 abstract class DocumentEntity extends CustomFieldEntity
 {
+    public function module(): ?string
+    {
+        return 'procurement';
+    }
+
     /** `procurement.requisition` or `procurement.po` */
     abstract protected function permission(): string;
 

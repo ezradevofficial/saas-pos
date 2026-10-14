@@ -34,7 +34,7 @@ final class CustomFieldRules
         $role = Rule::exists('roles', 'id')->whereNull('archived_at');
 
         return [
-            'entity' => [...$required, 'string', Rule::in(app(CustomFieldEntities::class)->keys())],
+            'entity' => [...$required, 'string', Rule::in(array_keys(app(CustomFieldEntities::class)->offered()))],
             'key' => [...$required, 'string', 'max:40', 'regex:'.CustomFieldTypes::KEY_PATTERN],
             'type' => [...$required, 'string', Rule::in(CustomFieldTypes::ALL)],
             // CF-02: one label, as the admin types it.
