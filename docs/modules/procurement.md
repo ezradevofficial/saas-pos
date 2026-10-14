@@ -112,8 +112,12 @@ receipt time, the GRN number, and per accepted stock line `{line_id,
 item_id, uom_id, qty (accepted), cost_minor (goods base value + landed base
 value), currency (the base currency), batch_number, expires_on, serials}`.
 Costs are already in base currency, so Inventory does not convert them
-again. Raised only while Inventory is active for the tenant (Inventory
-checks again).
+again. Raised while Inventory or Stores is active for the tenant (each
+listener decides what it receives: Inventory when it is active, Stores'
+own ledger at a store when Inventory is off; decision 17). Each receipt
+line records whether its stock was tracked (`stock_tracked`: the event
+was raised for it with Inventory active), which is what its invoice
+later clears GRNI over (decision 16).
 
 **Accounting payloads** (`SourceDocument` of ACC-07: `company_id`,
 `source_type`, `source_id`, `date`, `currency` = the company's base
@@ -326,6 +330,28 @@ en/fr.
 15. **Branch managers sit on committees** by default (open and evaluate),
     so a tenant has two openers without extra roles; buyers (Procurement
     Officer) run tenders but never award them.
+
+### Stage 7B closing review (decisions, owner may change)
+
+16. **GRNI follows what was tracked at receipt, not the modules at
+    invoice time.** Each receipt line records `stock_tracked` (a stock
+    line whose `GoodsReceived` was raised with Inventory active, so a
+    receipt journal credited GRNI). An invoice line clears GRNI only over
+    the tracked receipts of its PO line and keeps its tracked share of the
+    base net (`base_stock_net_minor`, net × tracked qty ÷ received qty);
+    the rest of its net is purchases (`expense`). Switching Inventory off
+    or on between a GRN and its invoice leaves GRNI at zero.
+17. **A GRN reaches Stores when Inventory is off.** `GoodsReceived` is
+    raised whenever Inventory or Stores is active; Inventory's and
+    Stores' own listeners decide what to receive.
+18. **No invoice before receipt for stock.** The `not_received` override
+    is refused for stock lines (422 `stock_line_not_received`); service
+    lines may still be approved in advance with the override. GRNI is
+    cleared cumulatively per PO line: round(V × min(invoiced so far, R) ÷
+    R) less what approved invoices already cleared (V the tracked receipts'
+    base value, R the accepted quantity), so the invoice that reaches the
+    received quantity clears the exact remainder, whatever the rates of
+    the receipts.
 
 ## Open questions
 

@@ -127,13 +127,13 @@ class ReceiptsAndInvoicesTest extends TestCase
         // 8 × 105.00 + 16 % VAT and the 500.00 delivery: net 1,340.00, tax 134.40.
         $this->assertSame('134000', $approved['subtotal']['amount_minor']);
         $this->assertSame('13440', $approved['tax']['amount_minor']);
-        // GRNI cleared: the received value of 8 soaps (800.00) and the delivery (500.00).
-        $this->assertSame('130000', $approved['base_grni']['amount_minor']);
+        // Decision 16: Inventory is off, so no receipt journal credited GRNI: the invoice clears none, all of it is purchases.
+        $this->assertSame('0', $approved['base_grni']['amount_minor']);
         $this->assertSame('8', $this->api('GET', "procurement/orders/{$order['id']}")->json('data.lines.0.invoiced_qty'));
 
         Event::assertDispatched(SupplierInvoiceApproved::class, function (SupplierInvoiceApproved $e) {
-            return $e->amounts === ['net' => '134000', 'tax' => '13440', 'total' => '147440', 'grni' => '130000', 'price_variance' => '4000']
-                && $e->document['supplier_reference'] === 'INV-5501' && $e->document['lines'][0]['kind'] === 'stock' && $e->document['lines'][1]['kind'] === 'expense';
+            return $e->amounts === ['net' => '134000', 'tax' => '13440', 'total' => '147440', 'grni' => '0', 'price_variance' => '0']
+                && $e->document['supplier_reference'] === 'INV-5501' && $e->document['lines'][0]['kind'] === 'expense' && $e->document['lines'][1]['kind'] === 'expense';
         });
     }
 

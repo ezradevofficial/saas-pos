@@ -6,7 +6,6 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\Numbering\NumberContext;
 use App\Core\Numbering\Numbering;
-use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -38,8 +37,9 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
  *   value of stock lines, at the receipt's rate, cleared against what
  *   Inventory's receipt journal credited, `inventory.receipt`),
  *   `price_variance` (their invoiced net less that value), `expense` (the
- *   net of service lines, and of stock lines when Inventory is off: no
- *   receipt journal credited GRNI for them), `tax` and `total` (the
+ *   net of service lines, and of stock not tracked by Inventory when it
+ *   was received: no receipt journal credited GRNI for it; Procurement
+ *   says per line, decision 16), `tax` and `total` (the
  *   payable, with the party, in the invoice currency at the invoice's
  *   rate). Procurement's own GoodsReceiptPosted posts nothing: the GRN's
  *   journal comes from StockMoved (`procurement.goods_receipt`), once.
@@ -58,7 +58,6 @@ class SupplierInvoices
 
     public function __construct(
         private readonly PostingService $posting,
-        private readonly ModuleRegistry $modules,
         private readonly Numbering $numbering,
         private readonly Auditor $auditor,
     ) {}
@@ -77,21 +76,20 @@ class SupplierInvoices
     public function source(SupplierInvoiceApproved $event): SourceDocument
     {
         $document = $event->document;
-        $inventory = $this->modules->isActive('inventory');
         $grni = BigInteger::zero();
         $variance = BigInteger::zero();
         $expense = BigInteger::zero();
 
+        // Decision 16 (procurement.md): Procurement says per line what met GRNI (its tracked stock share), so the
+        // posting never depends on which modules are active now; the rest of the net is purchases.
         foreach ($document['lines'] as $line) {
             $net = BigInteger::of((string) $line['base_net_minor']);
-
-            if ($inventory && ($line['kind'] ?? null) === 'stock') {
-                $lineGrni = BigInteger::of((string) $line['base_grni_minor']);
-                $grni = $grni->plus($lineGrni);
-                $variance = $variance->plus($net->minus($lineGrni));
-            } else {
-                $expense = $expense->plus($net);
-            }
+            $stock = ($line['kind'] ?? null) === 'stock';
+            $stockNet = $stock ? BigInteger::of((string) ($line['base_stock_net_minor'] ?? $line['base_net_minor'])) : BigInteger::zero();
+            $lineGrni = $stock ? BigInteger::of((string) $line['base_grni_minor']) : BigInteger::zero();
+            $grni = $grni->plus($lineGrni);
+            $variance = $variance->plus($stockNet->minus($lineGrni));
+            $expense = $expense->plus($net->minus($stockNet));
         }
 
         $amounts = array_filter([
@@ -154,7 +152,6 @@ class SupplierInvoices
                 $branch = $data['branch_id'] === null ? null : Branch::query()->find($data['branch_id']);
                 [$type] = Documents::NUMBERING['supplier_invoice'];
                 $number = $this->numbering->next($type, new NumberContext($company, $branch, at: $issue->setTime(12, 0)));
-                $inventory = ($source->amounts['grni'] ?? '0') !== '0' || ($source->amounts['price_variance'] ?? '0') !== '0';
                 $total = (int) $data['totals']['total'];
 
                 $document = Document::query()->create([
@@ -185,7 +182,7 @@ class SupplierInvoices
 
                 foreach (array_values($data['lines']) as $index => $line) {
                     // The line's account is where its net went: GRNI for received stock, else the purchases expense.
-                    $field = $inventory && ($line['kind'] ?? null) === 'stock' ? 'grni' : 'expense';
+                    $field = ($line['kind'] ?? null) === 'stock' ? 'grni' : 'expense';
                     DocumentLine::query()->create([
                         'document_id' => $document->id,
                         'line_no' => $index + 1,

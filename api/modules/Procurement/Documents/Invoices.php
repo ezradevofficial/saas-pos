@@ -32,9 +32,11 @@ use Modules\Procurement\Support\Tx;
  * - approve(): matched, or an exception with `procurement.invoice.override`
  *   and a reason: matched again, amounts strict (`tax_rate_missing`), the
  *   rate on the invoice date and base amounts frozen (CUR-04), the received
- *   value it clears (GRNI: the lines' GRN base value per accepted unit ×
- *   quantity), numbered, the PO's invoiced quantities and status updated;
- *   then SupplierInvoiceApproved (decision 3).
+ *   value it clears (GRNI over tracked receipts only, cumulative per PO
+ *   line: decisions 16 and 18), numbered, the PO's invoiced quantities and
+ *   status updated; then SupplierInvoiceApproved (decision 3). A stock
+ *   line not yet received is refused, override or not
+ *   (`stock_line_not_received`, decision 18).
  * - cancel(): any invoice not approved.
  */
 class Invoices
@@ -157,6 +159,18 @@ class Invoices
             $this->computeLines($invoice, strict: true);
             $this->match($invoice);
 
+            $lines = InvoiceLine::query()->where('invoice_id', $invoice->id)->orderBy('line_no')->get();
+            $items = Item::query()->whereKey($orderLines->pluck('item_id')->filter()->unique()->all())->get()->keyBy('id');
+
+            // Decision 18: a stock line not yet received cannot be approved, not even with the override (service lines can).
+            foreach ($lines as $line) {
+                $orderLine = $orderLines->get($line->order_line_id);
+
+                if ($line->match_status === InvoiceLine::NOT_RECEIVED && $orderLine->item_id !== null && $items->get($orderLine->item_id)?->type === 'stock') {
+                    throw ProcurementError::make('stock_line_not_received', ['line' => $line->line_no], 'lines.'.($line->line_no - 1).'.order_line_id');
+                }
+            }
+
             if ($invoice->status === Invoice::EXCEPTION) {
                 if (! $mayOverride) {
                     throw ProcurementError::make('match_exception', status: 403);
@@ -168,39 +182,21 @@ class Invoices
             }
 
             $fx = $this->pricing->fx($company, $invoice->currency, Pricing::endOfDay($company, $invoice->invoice_date));
-            $lines = InvoiceLine::query()->where('invoice_id', $invoice->id)->orderBy('line_no')->get();
-            $items = Item::query()->whereKey($orderLines->pluck('item_id')->filter()->unique()->all())->get()->keyBy('id');
             $baseNet = 0;
             $baseTax = 0;
             $baseGrni = 0;
-            $documentLines = [];
 
             foreach ($lines as $line) {
                 $orderLine = $orderLines->get($line->order_line_id);
                 $lineBaseNet = Pricing::convert($fx, $line->net_minor, $invoice->currency);
                 $lineBaseTax = Pricing::convert($fx, $line->tax_minor, $invoice->currency);
-                $lineGrni = $this->grni($orderLine, (string) $line->qty);
-                $line->fill(['base_net_minor' => $lineBaseNet, 'base_grni_minor' => $lineGrni])->save();
-                $orderLine->fill(['invoiced_qty' => (string) BigDecimal::of((string) $orderLine->invoiced_qty)->plus((string) $line->qty)])->save();
+                $invoiced = BigDecimal::of((string) $orderLine->invoiced_qty)->plus((string) $line->qty);
+                [$lineGrni, $stockNet] = $this->grni($orderLine, $invoiced, $lineBaseNet);
+                $line->fill(['base_net_minor' => $lineBaseNet, 'base_grni_minor' => $lineGrni, 'base_stock_net_minor' => $stockNet])->save();
+                $orderLine->fill(['invoiced_qty' => (string) $invoiced])->save();
                 $baseNet += $lineBaseNet;
                 $baseTax += $lineBaseTax;
                 $baseGrni += $lineGrni;
-                $documentLines[] = [
-                    'description' => $orderLine->description,
-                    'item_id' => $orderLine->item_id,
-                    'qty' => Receipts::decimal((string) $line->qty),
-                    'unit_price_minor' => (string) $line->unit_price_minor,
-                    'net_minor' => (string) $line->net_minor,
-                    'tax_code_id' => $line->tax_code_id,
-                    'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate,
-                    'tax_minor' => (string) $line->tax_minor,
-                    'total_minor' => (string) $line->total_minor,
-                    'base_net_minor' => (string) $lineBaseNet,
-                    'base_grni_minor' => (string) $lineGrni,
-                    'cost_centre_id' => $orderLine->cost_centre_id,
-                    'project_id' => $orderLine->project_id,
-                    'kind' => $orderLine->item_id !== null && $items->get($orderLine->item_id)?->type === 'stock' ? 'stock' : 'expense',
-                ];
             }
 
             $invoice->fill([
@@ -217,29 +213,7 @@ class Invoices
                 'approved_at' => CarbonImmutable::now(),
             ])->save();
             $this->orders->invoiced($order->refresh());
-
-            $dimensions = ['party_id' => $invoice->party_id, 'branch_id' => $invoice->branch_id];
-
-            foreach (['cost_centre_id', 'project_id'] as $dimension) {
-                $values = collect($documentLines)->pluck($dimension)->unique();
-                $dimensions[$dimension] = $values->count() === 1 ? $values->first() : null;
-            }
-
-            $event = new SupplierInvoiceApproved((string) $invoice->tenant_id, $invoice->id, $invoice->company_id, $invoice->invoice_date->toDateString(), $base,
-                [
-                    'net' => (string) $baseNet, 'tax' => (string) $baseTax, 'total' => (string) ($baseNet + $baseTax),
-                    'grni' => (string) $baseGrni, 'price_variance' => (string) ($baseNet - $baseGrni),
-                ],
-                $fx->jsonSerialize(), $dimensions, (string) $invoice->number,
-                [
-                    'invoice_id' => $invoice->id, 'number' => $invoice->number, 'supplier_reference' => $invoice->supplier_reference,
-                    'party_id' => $invoice->party_id, 'company_id' => $invoice->company_id, 'branch_id' => $invoice->branch_id,
-                    'invoice_date' => $invoice->invoice_date->toDateString(), 'due_date' => $invoice->due_date?->toDateString(),
-                    'currency' => $invoice->currency, 'tax_inclusive' => (bool) $invoice->tax_inclusive, 'lines' => $documentLines,
-                    'totals' => ['net' => (string) $invoice->subtotal_minor, 'tax' => (string) $invoice->tax_minor, 'total' => (string) $invoice->total_minor],
-                    'base_totals' => ['net' => (string) $baseNet, 'tax' => (string) $baseTax, 'total' => (string) ($baseNet + $baseTax)],
-                ],
-            );
+            $event = $this->approvedEvent($invoice);
 
             return $invoice->refresh();
         });
@@ -264,18 +238,106 @@ class Invoices
         });
     }
 
-    /** The received base value the quantity clears: the line's posted GRN base value per accepted unit × qty (half up). */
-    private function grni(OrderLine $orderLine, string $qty): int
+    /**
+     * Decision 16, 18: what an invoice line clears, cumulative per PO line.
+     * V is the base value of the line's tracked receipts (their stock went
+     * into Inventory, so a receipt journal credited GRNI), R the quantity
+     * accepted on all its posted receipts: the line clears
+     * round(V x min(invoiced so far, R) / R) less what approved invoices of
+     * the PO line already cleared, so the invoice that reaches R clears the
+     * exact remainder whatever the rates of the receipts. Its stock net is
+     * the tracked share of its base net (the rest is purchases).
+     *
+     * @return array{0: int, 1: int} [GRNI cleared, stock net]
+     */
+    private function grni(OrderLine $orderLine, BigDecimal $invoiced, int $baseNet): array
     {
         $received = ReceiptLine::query()->where('order_line_id', $orderLine->id)
             ->whereIn('receipt_id', fn ($q) => $q->select('id')->from('procurement_receipts')->where('status', 'posted'))
-            ->selectRaw('coalesce(sum(base_value_minor), 0) as value, coalesce(sum(accepted_qty), 0) as qty')->first();
+            ->selectRaw('coalesce(sum(base_value_minor) filter (where stock_tracked), 0) as value')
+            ->selectRaw('coalesce(sum(accepted_qty) filter (where stock_tracked), 0) as tracked_qty')
+            ->selectRaw('coalesce(sum(accepted_qty), 0) as qty')->first();
+        $qty = BigDecimal::of((string) ($received->qty ?? '0'));
 
-        if ($received === null || ! BigDecimal::of((string) $received->qty)->isPositive()) {
-            return 0;
+        if (! $qty->isPositive() || ! BigDecimal::of((string) $received->tracked_qty)->isPositive()) {
+            return [0, 0];
         }
 
-        return (int) (string) BigDecimal::of((string) $received->value)->multipliedBy($qty)->dividedBy((string) $received->qty, 0, RoundingMode::HalfUp);
+        $cleared = (int) InvoiceLine::query()->where('order_line_id', $orderLine->id)
+            ->whereIn('invoice_id', fn ($q) => $q->select('id')->from('procurement_invoices')->where('status', Invoice::APPROVED))
+            ->sum('base_grni_minor');
+        $upTo = $invoiced->isGreaterThan($qty) ? $qty : $invoiced;
+        $total = (int) (string) BigDecimal::of((string) $received->value)->multipliedBy($upTo)->dividedBy($qty, 0, RoundingMode::HalfUp);
+        $stockNet = (int) (string) BigDecimal::of($baseNet)->multipliedBy((string) $received->tracked_qty)->dividedBy($qty, 0, RoundingMode::HalfUp);
+
+        return [$total - $cleared, $stockNet];
+    }
+
+    /**
+     * PRC-15, PRC-25: SupplierInvoiceApproved of an approved invoice, from
+     * what it stored (also replayed for the Accounting backfill, ACC-29).
+     */
+    public function approvedEvent(Invoice $invoice): SupplierInvoiceApproved
+    {
+        $lines = InvoiceLine::query()->where('invoice_id', $invoice->id)->orderBy('line_no')->get();
+        $orderLines = OrderLine::query()->whereKey($lines->pluck('order_line_id')->all())->get()->keyBy('id');
+        $items = Item::query()->whereKey($orderLines->pluck('item_id')->filter()->unique()->all())->get()->keyBy('id');
+        $baseNet = (int) $invoice->base_subtotal_minor;
+        $baseTax = (int) $invoice->base_tax_minor;
+        $grni = 0;
+        $variance = 0;
+        $documentLines = [];
+
+        foreach ($lines as $line) {
+            $orderLine = $orderLines->get($line->order_line_id);
+            $stockItem = $orderLine->item_id !== null && $items->get($orderLine->item_id)?->type === 'stock';
+            // Invoices approved before decision 16 kept no stock net: their stock lines were all stock.
+            $stockNet = $line->base_stock_net_minor ?? ($stockItem ? (int) $line->base_net_minor : 0);
+            $stock = $stockItem && ($stockNet !== 0 || (int) $line->base_grni_minor !== 0);
+            $grni += (int) $line->base_grni_minor;
+            $variance += $stock ? $stockNet - (int) $line->base_grni_minor : 0;
+            $documentLines[] = [
+                'description' => $orderLine->description,
+                'item_id' => $orderLine->item_id,
+                'qty' => Receipts::decimal((string) $line->qty),
+                'unit_price_minor' => (string) $line->unit_price_minor,
+                'net_minor' => (string) $line->net_minor,
+                'tax_code_id' => $line->tax_code_id,
+                'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate,
+                'tax_minor' => (string) $line->tax_minor,
+                'total_minor' => (string) $line->total_minor,
+                'base_net_minor' => (string) $line->base_net_minor,
+                'base_grni_minor' => (string) (int) $line->base_grni_minor,
+                'base_stock_net_minor' => (string) ($stock ? $stockNet : 0),
+                'cost_centre_id' => $orderLine->cost_centre_id,
+                'project_id' => $orderLine->project_id,
+                'kind' => $stock ? 'stock' : 'expense',
+            ];
+        }
+
+        $dimensions = ['party_id' => $invoice->party_id, 'branch_id' => $invoice->branch_id];
+
+        foreach (['cost_centre_id', 'project_id'] as $dimension) {
+            $values = collect($documentLines)->pluck($dimension)->unique();
+            $dimensions[$dimension] = $values->count() === 1 ? $values->first() : null;
+        }
+
+        return new SupplierInvoiceApproved((string) $invoice->tenant_id, $invoice->id, $invoice->company_id, $invoice->invoice_date->toDateString(),
+            (string) $invoice->base_currency,
+            [
+                'net' => (string) $baseNet, 'tax' => (string) $baseTax, 'total' => (string) ($baseNet + $baseTax),
+                'grni' => (string) $grni, 'price_variance' => (string) $variance,
+            ],
+            $invoice->fx->jsonSerialize(), $dimensions, (string) $invoice->number,
+            [
+                'invoice_id' => $invoice->id, 'number' => $invoice->number, 'supplier_reference' => $invoice->supplier_reference,
+                'party_id' => $invoice->party_id, 'company_id' => $invoice->company_id, 'branch_id' => $invoice->branch_id,
+                'invoice_date' => $invoice->invoice_date->toDateString(), 'due_date' => $invoice->due_date?->toDateString(),
+                'currency' => $invoice->currency, 'tax_inclusive' => (bool) $invoice->tax_inclusive, 'lines' => $documentLines,
+                'totals' => ['net' => (string) $invoice->subtotal_minor, 'tax' => (string) $invoice->tax_minor, 'total' => (string) $invoice->total_minor],
+                'base_totals' => ['net' => (string) $baseNet, 'tax' => (string) $baseTax, 'total' => (string) ($baseNet + $baseTax)],
+            ],
+        );
     }
 
     private function assertReference(string $partyId, string $reference, ?string $exceptId): void

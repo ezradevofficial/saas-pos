@@ -35,6 +35,7 @@ return [
         'line_repeated' => 'Each purchase order line can appear only once. Merge the quantities.',
         'rejected_exceeds_received' => 'The rejected quantity cannot be more than the quantity received.',
         'match_exception' => 'This invoice does not match the purchase order and goods received. Someone allowed to approve exceptions must approve it.',
+        'stock_line_not_received' => 'Line :line is a stock item that has not been received. Post its goods received note before you approve the invoice.',
         'override_reason_required' => 'Say why you approve an invoice that does not match.',
         'duplicate_reference' => 'This supplier already has an invoice with this number. Check the number.',
         'receipt_cancelled' => 'One of the goods received notes was cancelled. Remove it, then try again.',
