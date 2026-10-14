@@ -10,7 +10,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { decimalsOf, minorToDecimal } from '@/lib/money'
 import { useServerList } from '@/lib/useServerList'
 import { dateField } from '@/pages/pos/posFields'
-import { Amount, Detail, NoCompany } from './AccountingParts'
+import { Amount, CalendarDate, Detail, NoCompany } from './AccountingParts'
 import { companyPath, today, useAccountingCompany } from './accountingData'
 
 /**
@@ -83,7 +83,7 @@ function PaymentDialog({ company, onClose }) {
             rows={openRows}
             columns={[
               { key: 'number', label: t('accounting.columns.number'), render: (row) => row.number },
-              { key: 'due', label: t('accounting.columns.dueDate'), render: (row) => <span className="tabular-nums">{row.due_date}</span> },
+              { key: 'due', label: t('accounting.columns.dueDate'), render: (row) => <CalendarDate value={row.due_date} /> },
               { key: 'open', label: t('accounting.columns.open'), align: 'end', render: (row) => <Amount value={row.open} /> },
               { key: 'allocate', label: t('accounting.payments.allocate'), render: (row) => <MoneyInput aria-label={t('accounting.documentDetail.amountFor', { number: row.number })} currency={row.currency} value={allocations[row.id] ?? ''} onChange={(value) => setAllocations((current) => ({ ...current, [row.id]: value ?? '' }))} /> },
             ]}
@@ -118,7 +118,7 @@ export default function Payments() {
 function PaymentList({ company, onOpen }) {
   const { t } = useTranslation()
   const columns = [
-    { key: 'date', label: t('accounting.columns.date'), sortKey: 'date', hideable: false, render: (row) => <span className="tabular-nums">{row.date}</span> },
+    { key: 'date', label: t('accounting.columns.date'), sortKey: 'date', hideable: false, render: (row) => <CalendarDate value={row.date} /> },
     { key: 'number', label: t('accounting.columns.number'), sortKey: 'number', render: (row) => row.number },
     { key: 'kind', label: t('accounting.columns.kind'), render: (row) => t(`accounting.paymentKinds.${row.kind}`) },
     { key: 'party', label: t('accounting.columns.party'), render: (row) => row.party?.name ?? '' },
@@ -159,7 +159,7 @@ export function PaymentDetail() {
       <Card>
         <dl className="grid gap-4 sm:grid-cols-4">
           <Detail label={t('accounting.columns.party')}>{payment.party?.name}</Detail>
-          <Detail label={t('accounting.columns.date')}><span className="tabular-nums">{payment.date}</span></Detail>
+          <Detail label={t('accounting.columns.date')}><CalendarDate value={payment.date} /></Detail>
           <Detail label={t('accounting.columns.amount')}><Amount value={payment.amount} /></Detail>
           <Detail label={t('accounting.columns.unallocated')}><Amount value={payment.unallocated} /></Detail>
           <Detail label={t('accounting.columns.bankAccount')}>{payment.bank_account?.name}</Detail>
@@ -173,7 +173,7 @@ export function PaymentDetail() {
         emptyText={t('accounting.payments.noAllocations')}
         rows={payment.allocations}
         columns={[
-          { key: 'date', label: t('accounting.columns.date'), render: (row) => <span className="tabular-nums">{row.date}</span> },
+          { key: 'date', label: t('accounting.columns.date'), render: (row) => <CalendarDate value={row.date} /> },
           { key: 'document', label: t('accounting.columns.number'), render: (row) => <Link to={`/accounting/documents/${row.document.id}`} className="text-primary">{row.document.number}</Link> },
           { key: 'amount', label: t('accounting.columns.amount'), align: 'end', render: (row) => <Amount value={row.amount} /> },
           { key: 'fx', label: t('accounting.documentDetail.fxDifference'), align: 'end', render: (row) => (row.fx_difference.amount_minor !== '0' ? <Amount value={row.fx_difference} /> : '—') },

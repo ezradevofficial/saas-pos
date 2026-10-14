@@ -7,7 +7,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, DataTable, Dialog, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { Amount, Detail } from './AccountingParts'
+import { Amount, CalendarDate, Detail } from './AccountingParts'
 import { JOURNAL_TONES, sourceLink } from './accountingData'
 
 /**
@@ -83,7 +83,7 @@ export default function JournalDetail() {
       <Card>
         <dl className="grid gap-4 sm:grid-cols-4">
           <Detail label={t('accounting.columns.status')}><StatusBadge tone={JOURNAL_TONES[journal.status]}>{t(`accounting.journalStatuses.${journal.status}`)}</StatusBadge></Detail>
-          <Detail label={t('accounting.columns.date')}><span className="tabular-nums">{journal.date}</span></Detail>
+          <Detail label={t('accounting.columns.date')}><CalendarDate value={journal.date} /></Detail>
           <Detail label={t('accounting.columns.total')}><Amount value={journal.total} /></Detail>
           <Detail label={t('accounting.journalDetail.source')}>
             {link ? <Link to={link} className="text-primary hover:text-primary-hover">{t(`accounting.sources.${journal.source.type.replaceAll('.', '_')}`, { defaultValue: journal.source.type })}</Link> : journal.source ? journal.source.type : t('accounting.journalDetail.manual')}

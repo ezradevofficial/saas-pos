@@ -9,7 +9,7 @@ import { Alert, Button, Card, DataTable, Dialog, MoneyInput, StatusBadge } from 
 import { PageHeader } from '@/layouts/PageHeader'
 import { saveFile } from '@/lib/files'
 import { decimalsOf, minorToDecimal } from '@/lib/money'
-import { Amount, Detail } from './AccountingParts'
+import { Amount, CalendarDate, Detail } from './AccountingParts'
 import { companyPath, DOCUMENT_TONES } from './accountingData'
 
 /** ACC-10: a posted credit note settles open invoices of its contact, in its currency. */
@@ -122,8 +122,8 @@ export default function DocumentDetail() {
         <dl className="grid gap-4 sm:grid-cols-4">
           <Detail label={t('accounting.columns.status')}><StatusBadge tone={DOCUMENT_TONES[document.status]}>{t(`accounting.documentStatuses.${document.status}`)}</StatusBadge></Detail>
           <Detail label={t('accounting.columns.party')}>{document.party?.name}</Detail>
-          <Detail label={t('accounting.columns.issueDate')}><span className="tabular-nums">{document.issue_date}</span></Detail>
-          <Detail label={t('accounting.columns.dueDate')}><span className="tabular-nums">{document.due_date}</span></Detail>
+          <Detail label={t('accounting.columns.issueDate')}><CalendarDate value={document.issue_date} /></Detail>
+          <Detail label={t('accounting.columns.dueDate')}><CalendarDate value={document.due_date} /></Detail>
           <Detail label={t('accounting.documentDetail.subtotal')}><Amount value={document.subtotal} /></Detail>
           <Detail label={t('accounting.documentForm.tax')}><Amount value={document.tax} /></Detail>
           <Detail label={t('accounting.columns.total')}><Amount value={document.total} /></Detail>
@@ -139,7 +139,7 @@ export default function DocumentDetail() {
           caption={t('accounting.documentDetail.settlements')}
           rows={document.allocations}
           columns={[
-            { key: 'date', label: t('accounting.columns.date'), render: (row) => <span className="tabular-nums">{row.date}</span> },
+            { key: 'date', label: t('accounting.columns.date'), render: (row) => <CalendarDate value={row.date} /> },
             { key: 'by', label: t('accounting.documentDetail.settledBy'), render: (row) => (row.payment_id ? <Link to={`/accounting/payments/${row.payment_id}`} className="text-primary">{t('accounting.documentDetail.payment')}</Link> : t('accounting.documentDetail.creditNote')) },
             { key: 'amount', label: t('accounting.columns.amount'), align: 'end', render: (row) => <Amount value={row.amount} /> },
             { key: 'fx', label: t('accounting.documentDetail.fxDifference'), align: 'end', render: (row) => (row.fx_difference.amount_minor !== '0' ? <Amount value={row.fx_difference} /> : '—') },

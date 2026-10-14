@@ -5,7 +5,7 @@ import { usePermissions } from '@/auth/usePermissions'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList } from '@/lib/useServerList'
 import { dateField } from '@/pages/pos/posFields'
-import { Amount, NoCompany } from './AccountingParts'
+import { Amount, CalendarDate, NoCompany } from './AccountingParts'
 import { companyPath, JOURNAL_TONES, useAccountingCompany } from './accountingData'
 
 const STATUSES = ['draft', 'pending', 'approved', 'posted', 'rejected', 'cancelled']
@@ -15,7 +15,7 @@ function JournalList({ company }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const columns = [
-    { key: 'date', label: t('accounting.columns.date'), sortKey: 'date', hideable: false, render: (row) => <span className="tabular-nums">{row.date}</span> },
+    { key: 'date', label: t('accounting.columns.date'), sortKey: 'date', hideable: false, render: (row) => <CalendarDate value={row.date} /> },
     { key: 'number', label: t('accounting.columns.number'), sortKey: 'number', render: (row) => row.number ?? <span className="text-ink-muted">{t('accounting.journals.unnumbered')}</span> },
     { key: 'kind', label: t('accounting.columns.kind'), render: (row) => t(`accounting.journalKinds.${row.kind}`) },
     { key: 'status', label: t('accounting.columns.status'), render: (row) => <StatusBadge tone={JOURNAL_TONES[row.status]}>{t(`accounting.journalStatuses.${row.status}`)}</StatusBadge> },
