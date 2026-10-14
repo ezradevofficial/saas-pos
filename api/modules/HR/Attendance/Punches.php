@@ -134,8 +134,9 @@ class Punches
     {
         $local = $at->setTimezone($timezone);
         $last = Punch::query()->where('employee_id', $employee->id)->whereNull('voided_at')
-            ->whereBetween('occurred_at', [$local->startOfDay()->utc(), $at])->where('occurred_at', '<', $at)
-            ->orderByDesc('occurred_at')->first();
+            ->whereBetween('occurred_at', [$local->startOfDay()->utc(), $at])
+            // Times are stored to the second: within one, the later id (UUID v7) is the later punch.
+            ->orderByDesc('occurred_at')->orderByDesc('id')->first();
 
         return $last?->kind === Punch::IN ? Punch::OUT : Punch::IN;
     }

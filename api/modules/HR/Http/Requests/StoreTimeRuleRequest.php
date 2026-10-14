@@ -12,6 +12,6 @@ class StoreTimeRuleRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return TimeRuleRequest::FIELDS(true);
+        return TimeRuleRequest::rulesFor(true);
     }
 }

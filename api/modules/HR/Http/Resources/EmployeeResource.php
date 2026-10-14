@@ -50,7 +50,7 @@ class EmployeeResource extends JsonResource
         $user = $request->user();
         $sensitive = app(Sensitive::class);
         $hidden = $user === null ? [] : $sensitive->hiddenFields($user, $request);
-        $sees = fn (string $group) => ! $this->self && $user !== null && $sensitive->sees($user, $employee, $group, $request);
+        $sees = fn (string $group, ?string $field = null) => ! $this->self && $user !== null && $sensitive->sees($user, $employee, $group, $request, $field);
         $shown = [];
 
         $data = [
@@ -84,7 +84,7 @@ class EmployeeResource extends JsonResource
             'created_at' => Refs::at($employee->created_at),
         ];
 
-        if ($this->self || $sees(Sensitive::IDENTITY)) {
+        if ($this->self || $sees(Sensitive::IDENTITY, 'date_of_birth')) {
             $data['date_of_birth'] = Refs::date($employee->date_of_birth);
             $shown[] = $this->self ? null : Sensitive::IDENTITY;
         }
@@ -121,7 +121,7 @@ class EmployeeResource extends JsonResource
     private function sensitiveDetail(Employee $employee, callable $sees, array &$shown): array
     {
         $data = [];
-        $identity = $sees(Sensitive::IDENTITY);
+        $identity = $sees(Sensitive::IDENTITY, 'identifiers');
         $data['identifiers'] = $employee->identifiers->map(fn (EmployeeIdentifier $id) => [
             'type' => $id->type,
             'label' => HrPack::label('identifiers', $id->type),

@@ -12,6 +12,6 @@ class StorePositionRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return PositionRequest::FIELDS(true);
+        return PositionRequest::rulesFor(true);
     }
 }

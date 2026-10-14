@@ -5,7 +5,7 @@ namespace Modules\HR\Http\Requests;
 /** PATCH hr/appraisal-cycles/{hr_appraisal_cycle}, POST …/open, …/close (HR-30). */
 class AppraisalCycleRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -33,6 +33,6 @@ class AppraisalCycleRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

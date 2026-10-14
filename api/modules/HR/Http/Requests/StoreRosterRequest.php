@@ -15,7 +15,7 @@ class StoreRosterRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return [...RosterRequest::FIELDS(true), ...collect(RosterRequest::MEMBERS())->map(fn ($rules, $key) => $key === 'members' ? ['sometimes', 'array', 'max:500'] : $rules)->all()];
+        return [...RosterRequest::rulesFor(true), ...collect(RosterRequest::MEMBERS())->map(fn ($rules, $key) => $key === 'members' ? ['sometimes', 'array', 'max:500'] : $rules)->all()];
     }
 
     public function after(): array

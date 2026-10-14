@@ -12,6 +12,6 @@ class StoreChecklistTemplateRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return ChecklistTemplateRequest::FIELDS(true);
+        return ChecklistTemplateRequest::rulesFor(true);
     }
 }

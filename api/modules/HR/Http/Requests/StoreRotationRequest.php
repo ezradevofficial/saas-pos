@@ -12,6 +12,6 @@ class StoreRotationRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return RotationRequest::FIELDS(true);
+        return RotationRequest::rulesFor(true);
     }
 }

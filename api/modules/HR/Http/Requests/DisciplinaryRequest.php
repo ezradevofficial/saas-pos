@@ -14,7 +14,7 @@ use Modules\HR\Support\Sensitive;
  */
 class DisciplinaryRequest extends HrRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -46,7 +46,7 @@ class DisciplinaryRequest extends HrRequest
     public function rules(): array
     {
         return match (true) {
-            $this->isMethod('PATCH') => self::FIELDS(false),
+            $this->isMethod('PATCH') => self::rulesFor(false),
             $this->isMethod('POST') => ['outcome' => ['required', 'string', 'max:5000']],
             default => [],
         };

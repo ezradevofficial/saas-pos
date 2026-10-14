@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * LIM-04: limits never block operations. The only code that consults them
  * is UsageLimits::ensureCanAdd(), and it is called by exactly the actions
- * that add one more outlet, device or user (employees when HR exists):
+ * that add one more outlet, device, user or employee (HR's hire and rehire):
  * this test finds every call in the code and every route reaching one.
  * Approvals and workflows still go through while every unit is over the
  * plan past its window (sales and sync: Modules\POS\Tests\UsageLimitsNeverBlockTest).
@@ -33,6 +33,8 @@ class UsageLimitGuardsTest extends TestCase
         'app/Core/Tenancy/DevicePairing.php' => ['pair' => 'DEVICE', 'resume' => 'DEVICE'],
         'app/Core/Identity/Http/Controllers/InvitationController.php' => ['store' => 'USER'],
         'app/Core/Identity/Http/Controllers/UserController.php' => ['reactivate' => 'USER'],
+        // HR-32: HR's hire path (the API and the employees import) and rehire.
+        'modules/HR/Employees/Employees.php' => ['hire' => 'EMPLOYEE', 'rehire' => 'EMPLOYEE'],
     ];
 
     /** The routes that reach a guarded action: all of them add one more of a unit. */
@@ -46,6 +48,8 @@ class UsageLimitGuardsTest extends TestCase
         'POST api/v1/devices/{device}/resume',
         'POST api/v1/invitations',
         'POST api/v1/users/{user}/reactivate',
+        'POST api/v1/hr/employees',
+        'POST api/v1/hr/employees/{hr_employee}/rehire',
     ];
 
     public function test_only_the_add_more_actions_consult_the_limits(): void
@@ -85,8 +89,8 @@ class UsageLimitGuardsTest extends TestCase
         // The guarded actions listed for people are the same ones, by unit, and only the four units.
         $this->assertSame(Units::ALL, array_keys(UsageLimits::GUARDED));
         $byUnit = array_count_values(array_merge(...array_map('array_values', array_values(self::CALL_SITES))));
-        $this->assertSame([3, 4, 2, 0], array_map(fn (string $unit) => $byUnit[strtoupper($unit)] ?? 0, Units::ALL));
-        $this->assertSame([3, 4, 2, 0], array_map('count', array_values(UsageLimits::GUARDED)));
+        $this->assertSame([3, 4, 2, 2], array_map(fn (string $unit) => $byUnit[strtoupper($unit)] ?? 0, Units::ALL));
+        $this->assertSame([3, 4, 2, 2], array_map('count', array_values(UsageLimits::GUARDED)));
     }
 
     public function test_the_routes_reaching_a_guarded_action_all_add_one_more(): void
@@ -102,6 +106,9 @@ class UsageLimitGuardsTest extends TestCase
             'App\Core\Tenancy\Http\Controllers\DeviceController@resume',
             'App\Core\Identity\Http\Controllers\InvitationController@store',
             'App\Core\Identity\Http\Controllers\UserController@reactivate',
+            // HR-32: Employees::hire and ::rehire.
+            'Modules\HR\Http\Controllers\EmployeeController@store',
+            'Modules\HR\Http\Controllers\EmployeeController@rehire',
         ];
         $routes = [];
 

@@ -4,6 +4,7 @@ namespace Modules\HR\Leave;
 
 use App\Core\Approvals\Resolvers\ApprovalSubject;
 use App\Core\Approvals\Resolvers\ApproverResolver;
+use App\Core\Approvals\Resolvers\ApproverResolvers;
 use App\Core\Workflow\DocumentTypes\DocumentType;
 use Illuminate\Support\Str;
 use Modules\HR\Models\Employee;
@@ -11,8 +12,10 @@ use Modules\HR\Models\Employee;
 /**
  * APR-02 `line_manager`, registered by HR: the linked user of the
  * `reports_to` employee of the employee the document names (its reference
- * field to `hr.employee`). Nobody when the employee has no line manager or
- * the manager has no user: the step falls back per its escalation (APR-07).
+ * field to `hr.employee`). When the employee has no line manager, or the
+ * manager has no user, the node's escalation target is asked at once
+ * (HR-14: the HR Officers by default); with no target either, the step
+ * falls back to the next level's managers (APR-07).
  */
 class LineManagerResolver implements ApproverResolver
 {
@@ -63,7 +66,14 @@ class LineManagerResolver implements ApproverResolver
         $managerId = Employee::query()->whereKey($employeeId)->value('reports_to_id');
         $userId = $managerId === null ? null : Employee::query()->whereKey($managerId)->where('status', Employee::ACTIVE)->value('user_id');
 
-        return $userId === null ? [] : [(string) $userId];
+        if ($userId !== null) {
+            return [(string) $userId];
+        }
+
+        $to = $subject->node['escalation']['to'] ?? null;
+        $resolver = is_array($to) && is_string($to['type'] ?? null) && $to['type'] !== self::KEY ? app(ApproverResolvers::class)->find($to['type']) : null;
+
+        return $resolver === null ? [] : $resolver->resolve($to, $subject);
     }
 
     public function describe(array $approver): string

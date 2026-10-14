@@ -430,7 +430,7 @@ return new class extends Migration
             $table->foreignUuid('employee_id')->constrained('hr_employees')->restrictOnDelete();
             $table->foreignUuid('company_id')->constrained()->restrictOnDelete();
             $table->string('kind', 5);
-            $table->timestampTz('occurred_at');
+            $table->timestampTz('occurred_at', 6);
             $table->string('source', 10);
             $table->foreignUuid('device_id')->nullable()->constrained('devices')->restrictOnDelete();
             $table->foreignUuid('attendance_device_id')->nullable()->constrained('hr_attendance_devices')->restrictOnDelete();

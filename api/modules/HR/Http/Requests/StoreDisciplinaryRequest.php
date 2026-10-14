@@ -18,7 +18,7 @@ class StoreDisciplinaryRequest extends EmployeeBodyRequest
     {
         return [
             'employee_id' => ['required', 'uuid', Rule::exists('hr_employees', 'id')],
-            ...DisciplinaryRequest::FIELDS(true),
+            ...DisciplinaryRequest::rulesFor(true),
         ];
     }
 

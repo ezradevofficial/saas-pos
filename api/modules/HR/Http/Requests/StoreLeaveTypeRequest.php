@@ -12,6 +12,6 @@ class StoreLeaveTypeRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return LeaveTypeRequest::FIELDS(true);
+        return LeaveTypeRequest::rulesFor(true);
     }
 }

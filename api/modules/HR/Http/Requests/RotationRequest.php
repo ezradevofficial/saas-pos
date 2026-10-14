@@ -7,7 +7,7 @@ use Illuminate\Validation\Rule;
 /** PATCH hr/rotations/{hr_rotation}, POST …/archive (HR-16): `days` lists a shift id or null (rest) per day of the cycle. */
 class RotationRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -35,6 +35,6 @@ class RotationRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

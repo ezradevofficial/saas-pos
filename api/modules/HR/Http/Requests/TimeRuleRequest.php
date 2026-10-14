@@ -8,7 +8,7 @@ use Modules\HR\Models\TimeRule;
 /** PATCH hr/time-rules/{hr_time_rule} (HR-20). */
 class TimeRuleRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         return [
             'effective_from' => [$creating ? 'required' : 'sometimes', 'date_format:Y-m-d'],
@@ -41,6 +41,6 @@ class TimeRuleRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

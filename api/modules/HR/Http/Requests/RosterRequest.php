@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
  */
 class RosterRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -53,7 +53,7 @@ class RosterRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return $this->isMethod('PUT') ? self::MEMBERS() : self::FIELDS(false);
+        return $this->isMethod('PUT') ? self::MEMBERS() : self::rulesFor(false);
     }
 
     protected function actionFields(): array

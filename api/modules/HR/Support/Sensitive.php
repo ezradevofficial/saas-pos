@@ -56,8 +56,12 @@ class Sensitive
         private readonly Auditor $auditor,
     ) {}
 
-    /** Whether $user sees $group of $employee in full (permission at the place, not hidden by field rules). */
-    public function sees(User $user, Employee $employee, string $group, ?Request $request = null): bool
+    /**
+     * Whether $user sees $group of $employee in full: its view permission
+     * at the place, and none of its fields (or only $field, when given)
+     * hidden by the user's field rules.
+     */
+    public function sees(User $user, Employee $employee, string $group, ?Request $request = null, ?string $field = null): bool
     {
         [$view, , $fields] = self::GROUPS[$group];
 
@@ -65,7 +69,7 @@ class Sensitive
             return false;
         }
 
-        return array_intersect($fields, $this->hiddenFields($user, $request)) === [];
+        return array_intersect($field === null ? $fields : [$field], $this->hiddenFields($user, $request)) === [];
     }
 
     /** Whether field $field (not of a group) is hidden from $user by field rules. */

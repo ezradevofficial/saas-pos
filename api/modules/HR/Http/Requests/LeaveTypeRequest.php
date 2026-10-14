@@ -8,7 +8,7 @@ use Modules\HR\Models\LeaveType;
 /** PATCH hr/leave-types/{hr_leave_type} (with `confirm` to confirm statutory days, HR-12), POST …/archive. */
 class LeaveTypeRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -44,6 +44,6 @@ class LeaveTypeRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

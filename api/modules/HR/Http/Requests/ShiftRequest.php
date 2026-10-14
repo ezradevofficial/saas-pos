@@ -5,7 +5,7 @@ namespace Modules\HR\Http\Requests;
 /** PATCH hr/shifts/{hr_shift}, POST …/archive (HR-16). */
 class ShiftRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -35,6 +35,6 @@ class ShiftRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

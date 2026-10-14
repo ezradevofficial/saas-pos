@@ -149,6 +149,8 @@ return [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
+            // IMP-01, HR-34: imports employees (hr.employee.create|edit).
+            'core.import.run',
             'hr.*',
         ],
         'is_owner' => false,

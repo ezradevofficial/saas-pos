@@ -7,7 +7,7 @@ use Illuminate\Validation\Rule;
 /** PATCH hr/positions/{hr_position}, POST …/archive, …/restore (HR-08). */
 class PositionRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -36,6 +36,6 @@ class PositionRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

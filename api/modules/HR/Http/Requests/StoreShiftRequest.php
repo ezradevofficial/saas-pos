@@ -12,6 +12,6 @@ class StoreShiftRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return ShiftRequest::FIELDS(true);
+        return ShiftRequest::rulesFor(true);
     }
 }

@@ -7,7 +7,7 @@ use Illuminate\Validation\Rule;
 /** PATCH hr/checklist-templates/{hr_checklist_template}, POST …/archive (HR-28). */
 class ChecklistTemplateRequest extends SetupRowRequest
 {
-    public static function FIELDS(bool $creating): array
+    public static function rulesFor(bool $creating): array
     {
         $required = $creating ? 'required' : 'sometimes';
 
@@ -39,6 +39,6 @@ class ChecklistTemplateRequest extends SetupRowRequest
 
     protected function fields(): array
     {
-        return self::FIELDS(false);
+        return self::rulesFor(false);
     }
 }

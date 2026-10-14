@@ -111,7 +111,8 @@ class RoleTemplatesTest extends TestCase
         // ACC-22: the Accounting module's 23 permissions (accounting.*).
         // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions.
         // Stores (docs/modules/stores.md): 13 stores.* permissions.
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 13, count($names));
+        // HR (docs/modules/hr.md): 35 hr.* permissions.
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 13 + 35, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -137,7 +138,8 @@ class RoleTemplatesTest extends TestCase
         // reorder levels and labels (10).
         // Loyalty: the programme (2) and promotions (4), LOY-01, LOY-08.
         // Stores: the views, reports and values (stores.*.view, 6), STR-10, STR-12.
-        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 6, $admin->permissions()->count());
+        // HR: hr.*.view without the five sensitive groups (9), HR-09.
+        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 6 + 9, $admin->permissions()->count());
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
         $this->assertFalse($admin->hasPermissionTo('core.onboarding.modules'));
         $this->assertTrue($owner->hasPermissionTo('core.onboarding.modules'));

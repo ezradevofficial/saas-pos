@@ -12,6 +12,6 @@ class StoreAppraisalCycleRequest extends SetupStoreRequest
 
     protected function fields(): array
     {
-        return [...AppraisalCycleRequest::FIELDS(true), 'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start']];
+        return [...AppraisalCycleRequest::rulesFor(true), 'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start']];
     }
 }
