@@ -24,7 +24,7 @@ final class DefaultTemplates
             'blocks' => match (true) {
                 $type === 'pos.receipt' || $type === 'pos.refund_receipt' => self::receipt($type),
                 $type === 'inventory.label' => self::label(),
-                default => self::a4($type),
+                default => self::a4($type, $language),
             },
             'variants' => [],
         ];
@@ -68,7 +68,7 @@ final class DefaultTemplates
         ]));
     }
 
-    private static function a4(string $type): array
+    private static function a4(string $type, string $language = 'en'): array
     {
         $columns = array_keys(app(DataSources::class)->columns($type));
         $documentFields = array_keys(app(DataSources::class)->get($type)->documentFields());

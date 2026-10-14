@@ -92,6 +92,13 @@ trait BuildsProcurement
         $this->buyer = $this->userWith('procurement_officer', Scope::branch($this->branchA->id));
     }
 
+    /** Move the clock; people sign in again (their sessions time out, AUTH-09). */
+    protected function clockTo(string $at): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse($at));
+        $this->organisationTokens = [];
+    }
+
     protected function api(string $method, string $uri, array $body = [], ?User $as = null): TestResponse
     {
         return $this->json($method, '/api/v1/'.ltrim($uri, '/'), $body, $this->headersFor($as ?? $this->owner));
@@ -156,7 +163,9 @@ trait BuildsProcurement
     /** A portal session's bearer headers for a link token. */
     protected function portal(string $link): array
     {
-        $token = $this->postJson('/api/v1/supplier-portal/sessions', ['token' => $link])->assertCreated()->json('data.session_token');
+        $response = $this->postJson('/api/v1/supplier-portal/sessions', ['token' => $link]);
+        $this->assertSame(201, $response->getStatusCode(), (string) $response->getContent());
+        $token = $response->json('data.session_token');
 
         return ['Authorization' => 'Bearer '.$token];
     }
