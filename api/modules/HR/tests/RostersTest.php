@@ -110,6 +110,10 @@ class RostersTest extends TestCase
         $mine = $this->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $this->amina->id, 'date' => '2026-11-10', 'shift_id' => $this->day], $this->headersFor($this->managerA))->assertCreated()->json('data.id');
         $theirs = $this->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $this->baraka->id, 'date' => '2026-11-11', 'shift_id' => $this->night], $this->headersFor($this->managerA))->assertCreated()->json('data.id');
 
+        // Self-service lists the colleagues and their coming shifts to swap with.
+        $peers = $this->getJson('/api/v1/hr/me/swap-peers', $this->headersFor($aminaUser))->assertOk()->json('data');
+        $this->assertSame([[$this->baraka->id, [$theirs]]], array_map(fn ($p) => [$p['id'], array_column($p['shifts'], 'id')], $peers));
+
         // Amina asks in self-service; only Baraka (the peer) answers.
         $swap = $this->postJson('/api/v1/hr/me/swaps', ['roster_shift_id' => $mine, 'peer_employee_id' => $this->baraka->id, 'peer_roster_shift_id' => $theirs, 'reason' => 'Exam'], $this->headersFor($aminaUser))
             ->assertCreated()->assertJsonPath('data.status', 'awaiting_peer')->json('data.id');

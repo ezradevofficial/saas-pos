@@ -14,6 +14,7 @@ class AttendanceDayResource extends JsonResource
         $data = [
             'id' => $this->id,
             'employee' => Refs::employee($this->employee),
+            'company_id' => $this->company_id,
             'work_date' => Refs::date($this->work_date),
             'roster_shift_id' => $this->roster_shift_id,
             'first_in' => Refs::at($this->first_in),

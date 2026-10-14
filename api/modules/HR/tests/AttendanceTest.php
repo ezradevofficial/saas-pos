@@ -101,7 +101,7 @@ class AttendanceTest extends TestCase
 
         $this->postJson('/api/v1/hr/me/clock', [], $this->headersFor($user))->assertCreated()->assertJsonPath('data.kind', 'in')->assertJsonPath('data.source', 'web');
         $this->postJson('/api/v1/hr/me/clock', [], $this->headersFor($user))->assertCreated()->assertJsonPath('data.kind', 'out');
-        $this->assertTrue($this->getJson('/api/v1/hr/me/attendance', $this->headersFor($user))->assertOk()->json('data.can_clock'));
+        $this->getJson('/api/v1/hr/me/attendance', $this->headersFor($user))->assertOk()->assertJsonPath('data.can_clock', true)->assertJsonPath('data.next_kind', 'in');
 
         $this->patchJson("/api/v1/hr/employees/{$this->amina->id}", ['clock_methods' => ['till']], $this->headersFor($this->hrOfficer))->assertOk();
         $this->postJson('/api/v1/hr/me/clock', [], $this->headersFor($user))->assertForbidden()->assertJsonPath('code', 'clock_method_off');

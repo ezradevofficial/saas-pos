@@ -13,6 +13,7 @@ class PunchResource extends JsonResource
         return [
             'id' => $this->id,
             'employee' => Refs::employee($this->employee),
+            'company_id' => $this->company_id,
             'kind' => $this->kind,
             'occurred_at' => Refs::at($this->occurred_at),
             'source' => $this->source,

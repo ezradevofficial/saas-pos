@@ -30,6 +30,7 @@ use Modules\HR\Leave\LeaveLedger;
 use Modules\HR\Leave\LeaveRequests;
 use Modules\HR\Models\Appraisal;
 use Modules\HR\Models\AttendanceDay;
+use Modules\HR\Models\Employee;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Models\Punch;
@@ -83,7 +84,7 @@ class SelfServiceController
             ->where('status', RosterShift::PLANNED)->whereBetween('date', [$from, $to])->orderBy('date')->get());
     }
 
-    public function attendance(SelfRangeRequest $request): JsonResponse
+    public function attendance(SelfRangeRequest $request, Punches $punches, Schedules $schedules): JsonResponse
     {
         [$from, $to] = $this->range($request);
         $me = $request->me();
@@ -93,7 +94,32 @@ class SelfServiceController
             'punches' => PunchResource::collection(Punch::query()->with('employee')->where('employee_id', $me->id)->whereNull('voided_at')
                 ->whereBetween('occurred_at', [CarbonImmutable::parse($from)->subDay(), CarbonImmutable::parse($to)->addDays(2)])->orderBy('occurred_at')->get())->resolve($request),
             'can_clock' => in_array('web', $me->clock_methods ?? [], true),
+            // HR-22: what the clock button records next (the opposite of today's last punch).
+            'next_kind' => $punches->nextKind($me, CarbonImmutable::now()->utc(), $schedules->timezoneOf($me)),
         ]]);
+    }
+
+    /**
+     * HR-31, HR-19: colleagues the employee may ask for a swap (active
+     * employees of the same company and branch) with their planned shifts
+     * of the next 31 days; names, numbers and shift times only.
+     */
+    public function swapPeers(SelfRequest $request): JsonResponse
+    {
+        $me = $request->me();
+        $peers = Employee::query()->where('company_id', $me->company_id)->where('status', 'active')->whereKeyNot($me->id)
+            ->when($me->branch_id !== null, fn ($q) => $q->where('branch_id', $me->branch_id))
+            ->orderBy('first_name')->orderBy('last_name')->orderBy('id')->limit(200)->get(['id', 'number', 'first_name', 'last_name']);
+        $today = CarbonImmutable::now()->toDateString();
+        $shifts = RosterShift::query()->with('shift')->whereIn('employee_id', $peers->pluck('id')->all())->where('status', RosterShift::PLANNED)
+            ->whereBetween('date', [$today, CarbonImmutable::now()->addDays(31)->toDateString()])->orderBy('date')->get()->groupBy('employee_id');
+
+        return new JsonResponse(['data' => $peers->map(fn ($peer) => [
+            ...Refs::employee($peer),
+            'shifts' => ($shifts[$peer->id] ?? collect())->map(fn (RosterShift $s) => [
+                'id' => $s->id, 'date' => $s->date->toDateString(), 'shift' => Refs::coded($s->shift), 'start_at' => Refs::at($s->start_at), 'end_at' => Refs::at($s->end_at),
+            ])->values()->all(),
+        ])->values()->all()]);
     }
 
     public function clock(SelfClockRequest $request, Punches $punches, Schedules $schedules): JsonResponse

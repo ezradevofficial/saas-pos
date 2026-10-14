@@ -69,6 +69,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
         'GET api/v1/import-files/{path}' => 'temporary signed URL for one import file and one user; the controller enters the tenant the path names, finds the import there (RLS) and checks that user may still see it (IMP-03)',
+        'GET api/v1/hr-files/{path}' => 'temporary signed URL for one HR document and one user; the controller enters the tenant the path names, finds the document there (RLS) and checks that user may still see its category for that employee (HR-27)',
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
@@ -173,6 +174,28 @@ class TenantIsolationTest extends TestCase
         'stores_requisition' => 'stores_requisition',
         'stores_issue' => 'stores_issue',
         'stores_return' => 'stores_return',
+        // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
+        'hr_employee' => 'hr_employee',
+        'hr_pay_account' => 'hr_pay_account',
+        'hr_contract' => 'hr_contract',
+        'hr_document' => 'hr_document',
+        'hr_position' => 'hr_position',
+        'hr_leave_type' => 'hr_leave_type',
+        'hr_leave_request' => 'hr_leave_request',
+        'hr_shift' => 'hr_shift',
+        'hr_rotation' => 'hr_rotation',
+        'hr_roster' => 'hr_roster',
+        'hr_roster_shift' => 'hr_roster_shift',
+        'hr_shift_swap' => 'hr_shift_swap',
+        'hr_time_rule' => 'hr_time_rule',
+        'hr_punch' => 'hr_punch',
+        'hr_attendance_period' => 'hr_attendance_period',
+        'hr_attendance_device' => 'hr_attendance_device',
+        'hr_checklist_template' => 'hr_checklist_template',
+        'hr_checklist_item' => 'hr_checklist_item',
+        'hr_disciplinary_case' => 'hr_disciplinary_case',
+        'hr_appraisal_cycle' => 'hr_appraisal_cycle',
+        'hr_appraisal' => 'hr_appraisal',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -262,6 +285,17 @@ class TenantIsolationTest extends TestCase
         // Stores: the requisition line an issue takes from, the issue line a return gives back to.
         'requisition_line_id' => 'stores_requisition_line',
         'issue_line_id' => 'stores_issue_line',
+        // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
+        'employee_id' => 'hr_employee',
+        'reports_to_id' => 'hr_employee',
+        'peer_employee_id' => 'hr_employee_peer',
+        'leave_type_id' => 'hr_leave_type',
+        'position_id' => 'hr_position',
+        'rotation_id' => 'hr_rotation',
+        'roster_shift_id' => 'hr_roster_shift',
+        'peer_roster_shift_id' => 'hr_roster_shift_peer',
+        'template_id' => 'hr_checklist_template',
+        'reviewer_id' => 'user',
         'scope_id' => null,
     ];
 
@@ -293,6 +327,9 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/companies/{company}/accounting/payments' => ['document_id' => 'acc_invoice'],
         'POST api/v1/accounting/payments/{acc_payment}/allocate' => ['document_id' => 'acc_invoice'],
         'POST api/v1/accounting/credit-notes/{acc_credit_note}/allocate' => ['document_id' => 'acc_invoice'],
+        // HR-18: a planned shift names an HR shift (POS uploads' shift_id is the till's).
+        'POST api/v1/hr/roster-shifts' => ['shift_id' => 'hr_shift'],
+        'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
     ];
 
     /**
@@ -328,6 +365,7 @@ class TenantIsolationTest extends TestCase
     public const NOT_REFERENCES = [
         'tax_id' => "a company's tax registration number, free text",
         'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
+        'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
@@ -389,10 +427,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee'];
 
     private TwoTenants $tenants;
 
@@ -979,6 +1017,14 @@ class TenantIsolationTest extends TestCase
             'stores/ledger' => ['ITEM-A', 'Store A'],
             'stores/stock' => [],
             'stores/consumption?group=cost_centre' => ['ITEM-A', 'Unit A renamed'],
+            // HR (HR-35): its lists.
+            'hr/employees' => ['Worker A', 'Peer A', 'Cashier A'],
+            'hr/leave-requests' => ['Peer A', 'Annual A'],
+            'hr/roster-shifts?from=2026-12-01&to=2026-12-07' => ['Worker A', 'Day A'],
+            'hr/punches' => ['Worker A', 'Gate A'],
+            'hr/timesheets' => ['Worker A'],
+            'hr/disciplinary-cases' => ['Worker A'],
+            'hr/appraisals' => ['Worker A', 'Review A'],
             // ACC-20: the chart and the journals of A's company.
             "companies/{$a->id('company')}/accounting/accounts?status=all" => ['6200', 'Rent'],
             "companies/{$a->id('company')}/accounting/journals?status=all" => ['Rent A'],
@@ -1530,6 +1576,56 @@ class TenantIsolationTest extends TestCase
                 'location_id' => $tenant->id('inventory_location'), 'kind' => 'opening',
                 'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']],
             ],
+            // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
+            'POST api/v1/hr/employees' => [
+                'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),
+                'location_id' => $tenant->id('location'), 'department_id' => $tenant->id('department'), 'position_id' => $tenant->id('hr_position'),
+                'reports_to_id' => $tenant->id('hr_employee'), 'user_id' => $tenant->id('manager'),
+            ],
+            'PATCH api/v1/hr/employees/{hr_employee}' => [
+                'branch_id' => $tenant->id('branch'), 'location_id' => $tenant->id('location'), 'department_id' => $tenant->id('department'),
+                'position_id' => $tenant->id('hr_position'), 'user_id' => $tenant->id('user'),
+            ],
+            'POST api/v1/hr/employees/{hr_employee}/contracts' => [
+                'type' => 'fixed_term', 'start_date' => '2025-01-06', 'end_date' => '2025-06-30', 'pay_basis' => 'monthly', 'pay_amount' => '1000', 'currency' => 'KES',
+                'position_id' => $tenant->id('hr_position'), 'department_id' => $tenant->id('department'),
+            ],
+            'PATCH api/v1/hr/contracts/{hr_contract}' => ['position_id' => $tenant->id('hr_position'), 'department_id' => $tenant->id('department')],
+            'POST api/v1/hr/employees/{hr_employee}/checklists' => ['template_id' => $tenant->id('hr_checklist_template')],
+            'POST api/v1/hr/positions' => ['company_id' => $tenant->id('company'), 'code' => 'POS-HIJACK', 'title' => 'Hijack', 'department_id' => $tenant->id('department')],
+            'PATCH api/v1/hr/positions/{hr_position}' => ['department_id' => $tenant->id('department')],
+            'POST api/v1/hr/leave-types' => ['company_id' => $tenant->id('company'), 'code' => 'LT-HIJACK', 'name' => 'Hijack', 'accrual' => 'none', 'count_basis' => 'calendar_days'],
+            'POST api/v1/hr/leave-types/apply-pack' => ['company_id' => $tenant->id('company')],
+            'POST api/v1/hr/leave-adjustments' => ['employee_id' => $tenant->id('hr_employee'), 'leave_type_id' => $tenant->id('hr_leave_type'), 'days' => '1', 'reason' => 'Check'],
+            'POST api/v1/hr/leave-accruals/run' => ['company_id' => $tenant->id('company')],
+            'POST api/v1/hr/leave-requests' => ['employee_id' => $tenant->id('hr_employee'), 'leave_type_id' => $tenant->id('hr_leave_type'), 'start_date' => '2026-12-21', 'end_date' => '2026-12-22'],
+            'POST api/v1/hr/shifts' => ['company_id' => $tenant->id('company'), 'code' => 'SH-HIJACK', 'name' => 'Hijack', 'start_time' => '09:00', 'end_time' => '17:00'],
+            'POST api/v1/hr/rotations' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack', 'days' => [$tenant->id('hr_shift')]],
+            'POST api/v1/hr/rosters' => [
+                'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'department_id' => $tenant->id('department'), 'name' => 'Hijack',
+                'rotation_id' => $tenant->id('hr_rotation'), 'anchor_date' => '2026-12-07', 'members' => [['employee_id' => $tenant->id('hr_employee')]],
+            ],
+            'PATCH api/v1/hr/rosters/{hr_roster}' => ['branch_id' => $tenant->id('branch'), 'department_id' => $tenant->id('department'), 'rotation_id' => $tenant->id('hr_rotation')],
+            'PUT api/v1/hr/rosters/{hr_roster}/members' => ['members' => [['employee_id' => $tenant->id('hr_employee'), 'offset_days' => 0], ['employee_id' => $tenant->id('hr_employee_peer'), 'offset_days' => 1]]],
+            'POST api/v1/hr/roster-shifts' => ['employee_id' => $tenant->id('hr_employee'), 'date' => '2027-01-04', 'shift_id' => $tenant->id('hr_shift')],
+            'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => $tenant->id('hr_shift')],
+            'POST api/v1/hr/shift-swaps' => [
+                'employee_id' => $tenant->id('hr_employee'), 'roster_shift_id' => $tenant->id('hr_roster_shift'),
+                'peer_employee_id' => $tenant->id('hr_employee_peer'), 'peer_roster_shift_id' => $tenant->id('hr_roster_shift_peer'),
+            ],
+            'POST api/v1/hr/time-rules' => ['company_id' => $tenant->id('company'), 'effective_from' => '2027-01-01', 'effective_to' => '2027-12-31'],
+            'POST api/v1/hr/punches' => ['employee_id' => $tenant->id('hr_employee'), 'kind' => 'out', 'occurred_at' => '2026-10-05T17:00:00+03:00', 'note' => 'Check'],
+            'POST api/v1/hr/timesheets/recompute' => ['company_id' => $tenant->id('company'), 'from' => '2026-10-01', 'to' => '2026-10-07'],
+            'POST api/v1/hr/attendance-periods' => ['company_id' => $tenant->id('company'), 'start_date' => '2026-03-01', 'end_date' => '2026-03-31'],
+            'POST api/v1/hr/attendance-devices' => ['location_id' => $tenant->id('location'), 'name' => 'Hijack'],
+            'POST api/v1/hr/till/punches' => ['punches' => [['id' => (string) Str::uuid7(), 'employee_id' => $tenant->id('hr_employee'), 'kind' => 'in', 'occurred_at' => '2026-10-06T08:00:00+03:00']]],
+            'POST api/v1/hr/checklist-templates' => ['company_id' => $tenant->id('company'), 'kind' => 'offboarding', 'name' => 'Hijack', 'items' => [['title' => 'Return keys']]],
+            'POST api/v1/hr/disciplinary-cases' => ['employee_id' => $tenant->id('hr_employee'), 'category' => 'other', 'incident_date' => '2026-10-02', 'description' => 'Check'],
+            'POST api/v1/hr/appraisal-cycles' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack', 'period_start' => '2027-01-01', 'period_end' => '2027-12-31'],
+            'PATCH api/v1/hr/appraisals/{hr_appraisal}' => ['reviewer_id' => $tenant->id('user')],
+            // HR-31: the Owner is linked to A's employee.
+            'POST api/v1/hr/me/leave-requests' => ['leave_type_id' => $tenant->id('hr_leave_type'), 'start_date' => '2027-01-11', 'end_date' => '2027-01-12'],
+            'POST api/v1/hr/me/swaps' => ['roster_shift_id' => $tenant->id('hr_roster_shift'), 'peer_employee_id' => $tenant->id('hr_employee_peer'), 'peer_roster_shift_id' => $tenant->id('hr_roster_shift_peer')],
             'POST api/v1/inventory/labels' => [
                 'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
                 'price_list_id' => $tenant->id('price_list'),

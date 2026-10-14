@@ -193,6 +193,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('hr/me/attendance', [SelfServiceController::class, 'attendance']);
     Route::post('hr/me/clock', [SelfServiceController::class, 'clock']);
     Route::get('hr/me/swaps', [SelfServiceController::class, 'swaps']);
+    Route::get('hr/me/swap-peers', [SelfServiceController::class, 'swapPeers']);
     Route::post('hr/me/swaps', [SelfServiceController::class, 'requestSwap']);
     Route::post('hr/me/swaps/{hr_shift_swap}/accept', [SelfServiceController::class, 'acceptSwap']);
     Route::post('hr/me/swaps/{hr_shift_swap}/decline', [SelfServiceController::class, 'declineSwap']);
