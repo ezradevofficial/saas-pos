@@ -5,7 +5,7 @@ import { Button, ListView, StatusBadge, Tabs } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList } from '@/lib/useServerList'
 import { dateField } from '@/pages/pos/posFields'
-import { Amount, NoCompany } from './AccountingParts'
+import { Amount, CalendarDate, NoCompany } from './AccountingParts'
 import { companyPath, DOCUMENT_TONES, useAccountingCompany } from './accountingData'
 
 const STATUSES = ['draft', 'posted', 'open', 'cancelled']
@@ -14,11 +14,11 @@ function DocumentList({ company, side }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const columns = [
-    { key: 'issue_date', label: t('accounting.columns.issueDate'), sortKey: 'issue_date', hideable: false, render: (row) => <span className="tabular-nums">{row.issue_date}</span> },
+    { key: 'issue_date', label: t('accounting.columns.issueDate'), sortKey: 'issue_date', hideable: false, render: (row) => <CalendarDate value={row.issue_date} /> },
     { key: 'number', label: t('accounting.columns.number'), sortKey: 'number', render: (row) => row.number ?? <span className="text-ink-muted">{t('accounting.documents.unnumbered')}</span> },
     { key: 'kind', label: t('accounting.columns.kind'), render: (row) => t(`accounting.documentKinds.${row.kind}`) },
     { key: 'party', label: t('accounting.columns.party'), render: (row) => row.party?.name ?? '' },
-    { key: 'due_date', label: t('accounting.columns.dueDate'), sortKey: 'due_date', render: (row) => <span className="tabular-nums">{row.due_date}</span> },
+    { key: 'due_date', label: t('accounting.columns.dueDate'), sortKey: 'due_date', render: (row) => <CalendarDate value={row.due_date} /> },
     { key: 'status', label: t('accounting.columns.status'), render: (row) => <StatusBadge tone={DOCUMENT_TONES[row.status]}>{t(`accounting.documentStatuses.${row.status}`)}</StatusBadge> },
     { key: 'total', label: t('accounting.columns.total'), sortKey: 'total', align: 'end', render: (row) => <Amount value={row.total} /> },
     { key: 'open', label: t('accounting.columns.open'), align: 'end', render: (row) => (row.status === 'posted' ? <Amount value={row.open} /> : null) },

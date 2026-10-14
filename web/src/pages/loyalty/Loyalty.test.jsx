@@ -83,6 +83,7 @@ describe('Loyalty back office', () => {
     expect(await screen.findByText('Duka Moja')).toBeInTheDocument()
     expect(screen.getByText('MPESA-1')).toBeInTheDocument()
     expect(screen.getByText('ST-2026-00001')).toBeInTheDocument()
+    expect(screen.getByText('1 Oct 2026 – 13 Oct 2026')).toBeInTheDocument()
     expect(screen.getByText('KES 600.00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeInTheDocument()
   })

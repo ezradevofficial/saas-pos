@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Alert, Money } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** An API money value (`{amount_minor, currency}`) with its code first; a dash when absent. */
 export function Amount({ value, tone }) {
@@ -31,4 +33,10 @@ export function NoCompany() {
   // While the companies load, say so rather than asking to choose one.
   if (!ready) return <p className="text-ink-muted">{t('accounting.loading')}</p>
   return <Alert tone="info" title={t('accounting.noCompany')} />
+}
+
+/** A calendar date ("2026-10-14") in the UI language, never shifted by the browser's time zone (L10N-03). */
+export function CalendarDate({ value }) {
+  const locale = useLocale()
+  return value ? <span className="tabular-nums">{formatCalendarDate(value, locale)}</span> : <span className="text-ink-muted">—</span>
 }
