@@ -208,8 +208,8 @@ return [
         'award_subject' => 'Attribution de l’appel d’offres : :title',
         'regret_subject' => 'Résultat de l’appel d’offres : :title',
         'sample_title' => 'Fourniture de mobilier de bureau',
-        'award_body' => "Madame, Monsieur {{document.bidder}},\n\nNous avons le plaisir de vous informer que votre offre pour {{document.tender_title}} ({{document.reference}}) a été retenue, pour un total de {{document.awarded_total}}. Un bon de commande suivra.\n\nNous vous remercions de votre participation.",
-        'regret_body' => "Madame, Monsieur {{document.bidder}},\n\nNous vous remercions de votre offre pour {{document.tender_title}} ({{document.reference}}). Nous avons le regret de vous informer qu’elle n’a pas été retenue cette fois.\n\nNous espérons vous compter parmi les participants de nos prochains appels d’offres.",
+        'award_body' => "Madame, Monsieur {{document.bidder}},\n\nNous avons le plaisir de vous informer que votre offre pour {{document.tender_title}} ({{document.tender_ref}}) a été retenue, pour un total de {{document.awarded_total}}. Un bon de commande suivra.\n\nNous vous remercions de votre participation.",
+        'regret_body' => "Madame, Monsieur {{document.bidder}},\n\nNous vous remercions de votre offre pour {{document.tender_title}} ({{document.tender_ref}}). Nous avons le regret de vous informer qu’elle n’a pas été retenue cette fois.\n\nNous espérons vous compter parmi les participants de nos prochains appels d’offres.",
     ],
     'notifications' => [
         'portal_invited' => [

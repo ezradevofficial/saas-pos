@@ -207,8 +207,8 @@ return [
         'award_subject' => 'Award of tender: :title',
         'regret_subject' => 'Outcome of tender: :title',
         'sample_title' => 'Supply of office furniture',
-        'award_body' => "Dear {{document.bidder}},\n\nWe are pleased to inform you that your bid for {{document.tender_title}} ({{document.reference}}) has been successful, for a total of {{document.awarded_total}}. A purchase order will follow.\n\nThank you for taking part.",
-        'regret_body' => "Dear {{document.bidder}},\n\nThank you for your bid for {{document.tender_title}} ({{document.reference}}). We regret to inform you that it was not successful this time.\n\nWe hope you will take part in our future tenders.",
+        'award_body' => "Dear {{document.bidder}},\n\nWe are pleased to inform you that your bid for {{document.tender_title}} ({{document.tender_ref}}) has been successful, for a total of {{document.awarded_total}}. A purchase order will follow.\n\nThank you for taking part.",
+        'regret_body' => "Dear {{document.bidder}},\n\nThank you for your bid for {{document.tender_title}} ({{document.tender_ref}}). We regret to inform you that it was not successful this time.\n\nWe hope you will take part in our future tenders.",
     ],
     'notifications' => [
         'portal_invited' => [

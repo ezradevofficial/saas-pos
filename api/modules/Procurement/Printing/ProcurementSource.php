@@ -33,9 +33,10 @@ final class ProcurementSource implements RecordSource
     public function documentFields(): array
     {
         return match ($this->type) {
-            self::PO => ['document.supplier' => 'text', 'document.due_date' => 'date', 'document.reference' => 'text', 'document.delivery_to' => 'text', 'document.terms' => 'text'],
-            self::AWARD => ['document.subject' => 'text', 'document.reference' => 'text', 'document.bidder' => 'text', 'document.tender_title' => 'text', 'document.awarded_total' => 'money'],
-            default => ['document.subject' => 'text', 'document.reference' => 'text', 'document.bidder' => 'text', 'document.tender_title' => 'text'],
+            // Stage 7B walkthrough: Procurement's own fields, never the POS refund's `document.reference` ("Original receipt").
+            self::PO => ['document.supplier' => 'text', 'document.expected_on' => 'date', 'document.requisition_ref' => 'text', 'document.delivery_to' => 'text', 'document.terms' => 'text'],
+            self::AWARD => ['document.subject' => 'text', 'document.tender_ref' => 'text', 'document.bidder' => 'text', 'document.tender_title' => 'text', 'document.awarded_total' => 'money'],
+            default => ['document.subject' => 'text', 'document.tender_ref' => 'text', 'document.bidder' => 'text', 'document.tender_title' => 'text'],
         };
     }
 
@@ -88,8 +89,7 @@ final class ProcurementSource implements RecordSource
                 'date' => '2026-10-09',
                 'currency' => $currency,
                 'supplier' => __('templates.sample.supplier'),
-                'due_date' => '2026-10-30',
-                'reference' => $this->type === self::PO ? 'PR-BR1-2026-00003' : 'TND-BR1-2026-00001',
+                ...($this->type === self::PO ? ['expected_on' => '2026-10-30', 'requisition_ref' => 'PR-BR1-2026-00003'] : ['tender_ref' => 'TND-BR1-2026-00001']),
                 'delivery_to' => __('templates.sample.location'),
                 'terms' => null,
                 'subject' => __('procurement.letters.'.($this->type === self::AWARD ? 'award' : 'regret').'_subject', ['title' => __('procurement.letters.sample_title')]),
