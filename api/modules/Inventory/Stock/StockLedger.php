@@ -180,6 +180,7 @@ class StockLedger
                 fn (Movement $m) => [
                     'id' => $m->id, 'kind' => $m->kind, 'item_id' => $m->item_id, 'location_id' => $m->location_id,
                     'qty' => Qty::show($m->qty), 'value_minor' => (string) $m->value_minor, 'cost_variance_minor' => (string) $m->cost_variance_minor,
+                    'source_line_id' => $m->source_line_id,
                 ],
                 $movements,
             ));

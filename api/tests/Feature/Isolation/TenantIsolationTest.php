@@ -169,6 +169,10 @@ class TenantIsolationTest extends TestCase
         'inventory_transfer' => 'inventory_transfer',
         'inventory_adjustment' => 'inventory_adjustment',
         'inventory_count' => 'inventory_count',
+        // Stores (docs/modules/stores.md): a partly issued requisition, its issue (partly returned), the return.
+        'stores_requisition' => 'stores_requisition',
+        'stores_issue' => 'stores_issue',
+        'stores_return' => 'stores_return',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -255,7 +259,19 @@ class TenantIsolationTest extends TestCase
         'project_id' => 'project',
         'counterparty_company_id' => 'company',
         'credits_document_id' => 'acc_invoice',
+        // Stores: the requisition line an issue takes from, the issue line a return gives back to.
+        'requisition_line_id' => 'stores_requisition_line',
+        'issue_line_id' => 'stores_issue_line',
         'scope_id' => null,
+    ];
+
+    /**
+     * Writes whose control with A's own ids passes validation and the
+     * permission check but is refused for a business reason of the fixture
+     * ("METHOD uri" => [error code, why]).
+     */
+    public const CONTROL_REFUSALS = [
+        'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
     ];
 
     /**
@@ -364,6 +380,8 @@ class TenantIsolationTest extends TestCase
         ['as_of' => '2100-01-01'],
         // ACC-08: a fiscal year's periods (both tenants have 2026).
         ['year' => '2026'],
+        // STR-12, STR-14: consumption by cost centre (both tenants issued to theirs), the issue voucher.
+        ['group' => 'cost_centre', 'document' => 'issue_voucher'],
     ];
 
     /**
@@ -371,10 +389,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document'];
 
     private TwoTenants $tenants;
 
@@ -720,9 +738,12 @@ class TenantIsolationTest extends TestCase
                     $hijacked[$key][] = $label;
                 }
 
-                // Control: the same body with A's own ids is accepted, so the refusals are about B's ids.
+                // Control: the same body with A's own ids is accepted, so the refusals are about B's ids
+                // (or passes validation and is refused for a documented business reason, CONTROL_REFUSALS).
                 $control = $this->json($method, $uri, $base, $this->bearerFor($route, $a));
-                $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}");
+                isset(self::CONTROL_REFUSALS[$key])
+                    ? $this->assertSame(self::CONTROL_REFUSALS[$key][0], $control->json('code'), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}")
+                    : $this->assertTrue($control->isSuccessful(), "{$key} control with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}");
             }
         }
 
@@ -951,6 +972,13 @@ class TenantIsolationTest extends TestCase
             'inventory/counts' => ['Store A', 'Cycle count'],
             'inventory/reorder-rules' => ['ITEM-A', 'Outlet A'],
             'inventory/valuation' => ['ITEM-A', 'Company A'],
+            // Stores (STR-18): its lists (stock on hand is empty while Inventory holds the stores' stock).
+            'stores/requisitions?status=all' => ['Store A', 'Unit A renamed'],
+            'stores/issues' => ['Store A', 'Unit A renamed'],
+            'stores/returns' => ['Store A', 'Unused'],
+            'stores/ledger' => ['ITEM-A', 'Store A'],
+            'stores/stock' => [],
+            'stores/consumption?group=cost_centre' => ['ITEM-A', 'Unit A renamed'],
             // ACC-20: the chart and the journals of A's company.
             "companies/{$a->id('company')}/accounting/accounts?status=all" => ['6200', 'Rent'],
             "companies/{$a->id('company')}/accounting/journals?status=all" => ['Rent A'],
@@ -1491,6 +1519,17 @@ class TenantIsolationTest extends TestCase
                 'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'batch_id' => $tenant->id('inventory_batch')]],
             ],
             'POST api/v1/inventory/counts' => ['location_id' => $tenant->id('location'), 'kind' => 'cycle', 'category_id' => $tenant->id('item_category')],
+            // Stores (STR-02, STR-04, STR-06, STR-07).
+            'POST api/v1/stores/requisitions' => [
+                'location_id' => $tenant->id('inventory_location'), 'department_id' => $tenant->id('department'), 'cost_centre_id' => $tenant->id('cost_centre'),
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']],
+            ],
+            'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['lines' => [['requisition_line_id' => $tenant->id('stores_requisition_line'), 'qty' => '1']]],
+            'POST api/v1/stores/issues/{stores_issue}/returns' => ['reason' => 'unused', 'lines' => [['issue_line_id' => $tenant->id('stores_issue_line'), 'qty' => '1']]],
+            'POST api/v1/stores/stock-entries' => [
+                'location_id' => $tenant->id('inventory_location'), 'kind' => 'opening',
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']],
+            ],
             'POST api/v1/inventory/labels' => [
                 'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
                 'price_list_id' => $tenant->id('price_list'),

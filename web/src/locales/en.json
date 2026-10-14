@@ -344,7 +344,8 @@
       "forms": "Forms",
       "loyalty": "Loyalty",
       "inventory": "Inventory",
-      "accounting": "Accounting"
+      "accounting": "Accounting",
+      "stores": "Stores"
     },
     "dashboard": "Dashboard",
     "organisation": "Organisation",
@@ -414,7 +415,13 @@
     "accountingBudgets": "Budgets",
     "accountingPeriods": "Periods",
     "accountingReports": "Reports",
-    "accountingChart": "Chart of accounts"
+    "accountingChart": "Chart of accounts",
+    "storesRequisitions": "Requisitions",
+    "storesIssues": "Issues",
+    "storesReturns": "Returns",
+    "storesLedger": "Store ledger",
+    "storesStock": "Store stock",
+    "storesConsumption": "Consumption"
   },
   "shell": {
     "account": "Account menu",
@@ -6336,7 +6343,9 @@
       "transfer_loss": "Lost in transit",
       "sale": "Sale",
       "sale_return": "Sale return",
-      "sale_void": "Sale voided"
+      "sale_void": "Sale voided",
+      "store_issue": "Store issue",
+      "store_return": "Return to store"
     },
     "flags": {
       "negative_stock": "Stock went below zero",
@@ -7248,6 +7257,291 @@
       "noLines": "No postings in this range.",
       "openSource": "Open",
       "truncated": "Only the first 2,000 lines are shown. Narrow the dates."
+    }
+  },
+  "stores": {
+    "actions": {
+      "keep": "Keep it",
+      "reason": "Reason"
+    },
+    "statuses": {
+      "pending": "Waiting for approval",
+      "approved": "Approved",
+      "partially_issued": "Partly issued",
+      "issued": "Issued",
+      "closed": "Closed",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "acknowledged": "Acknowledged"
+    },
+    "kinds": {
+      "opening": "Opening stock",
+      "receipt": "Goods received",
+      "adjustment_in": "Adjustment in",
+      "adjustment_out": "Adjustment out",
+      "issue": "Issue",
+      "return": "Return"
+    },
+    "ledgers": {
+      "stores": "This store’s own ledger",
+      "inventory": "Inventory"
+    },
+    "returnReasons": {
+      "unused": "Unused",
+      "excess": "More than needed",
+      "wrong_item": "Wrong item",
+      "damaged": "Damaged",
+      "other": "Other"
+    },
+    "entryReasons": {
+      "count": "Counted",
+      "damage": "Damaged",
+      "expiry": "Expired",
+      "found": "Found",
+      "correction": "Correction",
+      "other": "Other"
+    },
+    "entryKinds": {
+      "opening": "Opening stock",
+      "adjustment": "Adjustment"
+    },
+    "directions": {
+      "in": "Add to stock",
+      "out": "Take out of stock"
+    },
+    "groups": {
+      "department": "Department",
+      "cost_centre": "Cost centre",
+      "item": "Item",
+      "period": "Month"
+    },
+    "columns": {
+      "number": "Number",
+      "createdAt": "Created",
+      "status": "Status",
+      "store": "Store",
+      "department": "Department",
+      "costCentre": "Cost centre",
+      "neededBy": "Needed by",
+      "requestedBy": "Requested by",
+      "lines": "Lines",
+      "lineNo": "Line",
+      "item": "Item",
+      "code": "Code",
+      "asked": "Asked",
+      "issued": "Issued",
+      "open": "Still open",
+      "issuedAt": "Issued",
+      "issuedBy": "Issued by",
+      "requisition": "Requisition",
+      "value": "Value",
+      "returnedAt": "Returned",
+      "issue": "Issue",
+      "reason": "Reason",
+      "returnedBy": "Returned by",
+      "returned": "Returned",
+      "returnedBase": "Returned (base unit)",
+      "keptBase": "Kept (base unit)",
+      "date": "Date",
+      "movement": "Movement",
+      "document": "Document",
+      "qty": "Quantity",
+      "balanceAfter": "Balance after",
+      "onHand": "On hand",
+      "lastMoved": "Last movement",
+      "group": "Group",
+      "consumed": "Consumed",
+      "consumedValue": "Value consumed"
+    },
+    "fields": {
+      "store": "Store",
+      "department": "Department",
+      "costCentre": "Cost centre",
+      "neededBy": "Needed by",
+      "note": "Note",
+      "lineNote": "Note for the store",
+      "item": "Item",
+      "unit": "Unit",
+      "qty": "Quantity",
+      "requestedBy": "Requested by",
+      "requisition": "Requisition",
+      "issue": "Issue",
+      "issuedBy": "Issued by",
+      "acknowledgedBy": "Received by",
+      "returnedBy": "Returned by",
+      "ledger": "Stock kept in",
+      "reason": "Reason",
+      "entryKind": "Entry",
+      "direction": "Direction"
+    },
+    "pickers": {
+      "store": "Choose a store",
+      "department": "Choose a department",
+      "storeFirst": "Choose a store first",
+      "costCentre": "Choose a cost centre",
+      "noCostCentre": "No cost centre",
+      "item": "Search items",
+      "reason": "Choose a reason"
+    },
+    "validation": {
+      "store": "Choose the store to ask.",
+      "department": "Choose the department asking.",
+      "item": "Choose an item.",
+      "qty": "Enter a quantity."
+    },
+    "filters": {
+      "store": "Store",
+      "allStores": "All stores",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "kind": "Movement",
+      "allKinds": "All movements",
+      "from": "From",
+      "to": "To"
+    },
+    "flow": {
+      "title": "Approval",
+      "noCurrent": "Nothing is waiting for approval.",
+      "heldBy": "Waiting for {{names}}",
+      "nobody": "Nobody can approve this step yet. Ask an administrator to check the flow.",
+      "openApproval": "Open the approval",
+      "openFlow": "See the whole flow"
+    },
+    "lines": {
+      "title": "Lines",
+      "line": "Line {{number}}",
+      "add": "Add a line",
+      "remove": "Remove line {{number}}",
+      "removeShort": "Remove"
+    },
+    "requisitions": {
+      "title": "Requisitions",
+      "description": "What departments ask the stores for, and where each request is.",
+      "new": "New requisition",
+      "search": "Search by number or note",
+      "empty": "No requisitions yet. A department asks a store with New requisition.",
+      "emptyFiltered": "No requisitions match these filters.",
+      "back": "Requisitions",
+      "newTitle": "New requisition",
+      "newHelp": "Ask a store for goods for a department. The department head approves it before the store issues anything.",
+      "submit": "Send for approval",
+      "created": "Requisition {{number}} sent for approval"
+    },
+    "requisition": {
+      "eyebrow": "Requisition",
+      "summary": "Details",
+      "issues": "Issues",
+      "notFound": "This requisition does not exist or you cannot see it.",
+      "close": "Close requisition",
+      "cancel": "Cancel requisition",
+      "closedAt": "Closed",
+      "cancelledAt": "Cancelled",
+      "cancelTitle": "Cancel {{number}}",
+      "cancelHelp": "Nothing will be issued against it. Its approval stops.",
+      "confirmCancel": "Cancel requisition",
+      "cancelled": "Requisition cancelled",
+      "closeTitle": "Close {{number}}",
+      "closeHelp": "What is still open will not be issued. What was issued stays.",
+      "confirmClose": "Close requisition",
+      "closed": "Requisition closed"
+    },
+    "issue": {
+      "title": "Issue goods",
+      "help": "Issue all or part of what is open. Lines left empty are not issued.",
+      "open": "{{qty}} {{unit}} still open",
+      "qty": "Issue ({{unit}})",
+      "submit": "Issue goods",
+      "done": "Goods issued as {{number}}"
+    },
+    "issues": {
+      "title": "Issues",
+      "description": "Goods the stores handed to departments. Issued ones wait for the department to acknowledge them.",
+      "search": "Search by number or note",
+      "empty": "No goods issued yet.",
+      "emptyFiltered": "No issues match these filters.",
+      "back": "Issues"
+    },
+    "issueDetail": {
+      "eyebrow": "Issue",
+      "summary": "Details",
+      "returns": "Returns",
+      "notFound": "This issue does not exist or you cannot see it.",
+      "acknowledge": "Acknowledge receipt",
+      "acknowledgeTitle": "Acknowledge {{number}}",
+      "acknowledgeHelp": "Confirm the department received these goods. The store keeps who confirmed and when.",
+      "acknowledged": "Receipt acknowledged",
+      "return": "Return goods",
+      "valuing": "Inventory is valuing this issue. Values show once it has."
+    },
+    "return": {
+      "title": "Return goods",
+      "help": "Enter what comes back to the store, in each line’s unit.",
+      "issued": "{{qty}} {{unit}} issued",
+      "qty": "Return ({{unit}})",
+      "submit": "Return to store",
+      "done": "Goods returned as {{number}}"
+    },
+    "returns": {
+      "title": "Returns",
+      "description": "Goods departments brought back to the stores.",
+      "search": "Search by number or note",
+      "empty": "No goods returned yet.",
+      "emptyFiltered": "No returns match these filters.",
+      "back": "Returns"
+    },
+    "returnDetail": {
+      "eyebrow": "Return to store",
+      "summary": "Details",
+      "notFound": "This return does not exist or you cannot see it."
+    },
+    "ledger": {
+      "title": "Store ledger",
+      "description": "Every movement in and out of the stores, with the balance after it.",
+      "search": "Search by item or document",
+      "empty": "No movements yet.",
+      "emptyFiltered": "No movements match these filters.",
+      "inventoryTitle": "Inventory keeps the stock of the stores",
+      "inventoryLink": "See the full stock ledger in Inventory",
+      "inventoryHelp": "This ledger shows the stores’ issues and returns; Inventory holds the quantities."
+    },
+    "stock": {
+      "title": "Stock on hand",
+      "description": "What each store holds in its own ledger.",
+      "search": "Search by item",
+      "empty": "No stock entered yet.",
+      "emptyFiltered": "No stock matches these filters.",
+      "inventoryTitle": "Inventory keeps the stock of the stores",
+      "inventoryHelp": "Enter opening stock and adjustments in Inventory. Issues and returns still go through the stores.",
+      "entryTitle": "Enter stock",
+      "entryHelp": "Opening stock, or an adjustment with its reason. Stock never goes below zero.",
+      "enter": "Enter stock",
+      "entered": "Stock entered"
+    },
+    "consumption": {
+      "title": "Consumption",
+      "description": "What departments used: issued less returned, over the dates you choose.",
+      "groupBy": "Group by",
+      "search": "Search by item",
+      "empty": "Nothing issued yet.",
+      "emptyFiltered": "Nothing was issued for these filters.",
+      "none": "None",
+      "totals": "Totals",
+      "totalIn": "Consumed in {{currency}}",
+      "by": {
+        "department": "By department",
+        "cost_centre": "By cost centre",
+        "item": "By item",
+        "period": "By month"
+      }
+    },
+    "print": {
+      "title": "Print",
+      "help": "Black on white, from the documents’ templates.",
+      "delivery_note": "Delivery note",
+      "issue_voucher": "Issue voucher",
+      "print": "Print",
+      "pdf": "Download PDF",
+      "frame": "Document to print"
     }
   }
 }

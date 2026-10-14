@@ -30,7 +30,8 @@ return [
         // INV-12, INV-01: sets a company's costing and items' tracking, and reads stock and its value.
         // INV-11, INV-21: sets reorder levels and prints barcode labels.
         // LOY-01, LOY-08: sets up the loyalty programme and promotions once the module is active.
-        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'inventory.label.print', 'inventory.reorder.edit', 'loyalty.programme.*', 'loyalty.promotion.*'],
+        // STR-10, STR-12: reads Stores' documents, ledger, consumption and values.
+        'permissions' => ['core.*', 'pos.sale.share', 'pos.layout.*', 'inventory.settings.edit', 'inventory.item.configure', 'inventory.*.view', 'inventory.label.print', 'inventory.reorder.edit', 'loyalty.programme.*', 'loyalty.promotion.*', 'stores.*.view'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules'],
@@ -60,6 +61,8 @@ return [
             'pos.*', 'inventory.*', 'sales.*', 'purchasing.*.view', 'reports.*.view', 'approvals.*',
             // Loyalty (docs/modules/loyalty.md): promotions, points, credit and gift cards at their branch.
             'loyalty.*',
+            // Stores (docs/modules/stores.md): requisitions, issues, returns and reports at their branch.
+            'stores.*',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -99,10 +102,14 @@ return [
             'core.item.view', 'core.item.create', 'core.item.edit',
             'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.uom.view',
             'inventory.*', 'purchasing.receipt.*', 'purchasing.order.view',
+            // STR-02 to STR-12: requisitions, issues, returns, the store ledger and consumption.
+            'stores.*',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
-        'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view'],
+        // STR-03, STR-05: departments approve and acknowledge what the store issues, not the storekeeper.
+        'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view',
+            'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -125,6 +132,8 @@ return [
             'loyalty.credit.view', 'loyalty.credit.manage', 'loyalty.credit.receive', 'loyalty.credit.adjust', 'loyalty.*.view',
             // INV-20: stock, its value and the valuation report.
             'inventory.*.view',
+            // STR-12: Stores' documents, ledger, consumption and values.
+            'stores.*.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -163,6 +172,8 @@ return [
             'purchasing.*',
             // INV-11, INV-19: stock, reorder levels and stock documents; never costs (RBAC-05: no inventory.valuation.view).
             'inventory.stock.view', 'inventory.reorder.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
+            // STR-02, STR-10, STR-12: what departments ask stores for and consume; never values.
+            'stores.requisition.view', 'stores.ledger.view', 'stores.report.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -174,6 +185,8 @@ return [
             'approvals.*', '*.approve',
             // What they approve, they can read: journals (ACC-04) and stock documents (INV-08..INV-10); never stock values.
             'accounting.journal.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
+            // STR-03: the requisitions they approve.
+            'stores.requisition.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

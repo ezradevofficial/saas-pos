@@ -556,7 +556,14 @@
           "ageing_0_30": "0–30 days",
           "ageing_31_60": "31–60 days",
           "ageing_61_90": "61–90 days",
-          "ageing_90_plus": "Over 90 days"
+          "ageing_90_plus": "Over 90 days",
+          "requisition": "Requisition",
+          "store": "Store",
+          "department": "Department",
+          "cost_centre": "Cost centre",
+          "issued_by": "Issued by",
+          "received_by": "Received by",
+          "total_value": "Total value"
         },
         "customer": {
           "name": "Customer",
@@ -587,6 +594,7 @@
         "sales_quote": "Quote",
         "procurement_po": "Purchase order",
         "stores_delivery_note": "Delivery note",
+        "stores_issue_voucher": "Issue voucher",
         "payroll_payslip": "Payslip",
         "party_statement": "Statement",
         "letter": "Reference",
@@ -607,7 +615,9 @@
         "date": "Date",
         "debit": "Debit",
         "credit": "Credit",
-        "balance": "Balance"
+        "balance": "Balance",
+        "unit_cost": "Unit cost",
+        "value": "Value"
       },
       "totals": {
         "subtotal": "Subtotal",

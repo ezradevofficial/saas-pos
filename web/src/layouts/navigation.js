@@ -50,6 +50,13 @@ export const INVENTORY_REORDER_VIEW = ['inventory.reorder.view', 'inventory.reor
 export const INVENTORY_VALUATION_VIEW = 'inventory.valuation.view'
 export const INVENTORY_LABEL_PRINT = 'inventory.label.print'
 export const INVENTORY_SETTINGS_VIEW = ['inventory.stock.view', 'inventory.settings.edit']
+
+// Stores module (docs/modules/stores.md, RBAC-09): who may open each page (the API checks again at each store).
+export const STORES_REQUISITION_VIEW = 'stores.requisition.view'
+export const STORES_ISSUE_VIEW = 'stores.issue.view'
+export const STORES_RETURN_VIEW = 'stores.return.view'
+export const STORES_LEDGER_VIEW = 'stores.ledger.view'
+export const STORES_REPORT_VIEW = 'stores.report.view'
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -115,6 +122,19 @@ export const NAV_GROUPS = [
       { to: '/inventory/valuation', icon: 'valuation', label: (t) => t('nav.inventoryValuation'), permission: INVENTORY_VALUATION_VIEW, module: 'inventory' },
       { to: '/inventory/labels', icon: 'labels', label: (t) => t('nav.inventoryLabels'), permission: INVENTORY_LABEL_PRINT, module: 'inventory' },
       { to: '/inventory/settings', icon: 'settings', label: (t) => t('nav.inventorySettings'), permission: INVENTORY_SETTINGS_VIEW, module: 'inventory' },
+    ],
+  },
+  {
+    // Stores (docs/modules/stores.md, Screens): only while the Stores module is active (RBAC-08).
+    id: 'stores',
+    label: (t) => t('nav.groups.stores'),
+    items: [
+      { to: '/stores/requisitions', icon: 'templates', label: (t) => t('nav.storesRequisitions'), permission: STORES_REQUISITION_VIEW, module: 'stores' },
+      { to: '/stores/issues', icon: 'transfers', label: (t) => t('nav.storesIssues'), permission: STORES_ISSUE_VIEW, module: 'stores' },
+      { to: '/stores/returns', icon: 'undo', label: (t) => t('nav.storesReturns'), permission: STORES_RETURN_VIEW, module: 'stores' },
+      { to: '/stores/ledger', icon: 'movements', label: (t) => t('nav.storesLedger'), permission: STORES_LEDGER_VIEW, module: 'stores' },
+      { to: '/stores/stock', icon: 'stock', label: (t) => t('nav.storesStock'), permission: STORES_LEDGER_VIEW, module: 'stores' },
+      { to: '/stores/consumption', icon: 'chart', label: (t) => t('nav.storesConsumption'), permission: STORES_REPORT_VIEW, module: 'stores' },
     ],
   },
   {
