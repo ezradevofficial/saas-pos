@@ -432,3 +432,11 @@ fields.
   still runs `permissions:sync` after the migration, so a host that skips
   the hook is covered too. A module's new permissions therefore never need a
   manual step, locally or on a server.
+- **Subscriptions reach new modules.** A module installed after a tenant
+  subscribed stays off until something syncs the plan. The deploy runs
+  `php artisan billing:sync-modules` after the catalogue steps: for every
+  active tenant (found through `DueTenants`, never the owner connection)
+  whose subscription is not suspended or cancelled, each installed module
+  the plan or its bundle covers (for example `accounting_essentials` for
+  Accounting) is switched on. It never switches a module off and is safe to
+  run again. Run it by hand after installing a module outside a deploy.

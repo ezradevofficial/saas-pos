@@ -6,6 +6,7 @@ use App\Core\Billing\Console\BackfillSubscriptions;
 use App\Core\Billing\Console\CreateOperator;
 use App\Core\Billing\Console\ModulePurgeReport;
 use App\Core\Billing\Console\RunBillingCycleCommand;
+use App\Core\Billing\Console\SyncSubscriptionModules;
 use App\Core\Billing\Dunning\BillingNotices;
 use App\Core\Billing\Invoicing\BillingFiscalSource;
 use App\Core\Billing\Invoicing\Invoicing;
@@ -62,7 +63,7 @@ class BillingServiceProvider extends ServiceProvider
         Event::listen(PaymentIntentSettled::class, [SettleBillingPayment::class, 'handle']);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([BackfillSubscriptions::class, CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class]);
+            $this->commands([BackfillSubscriptions::class, CreateOperator::class, RunBillingCycleCommand::class, ModulePurgeReport::class, SyncSubscriptionModules::class]);
         }
     }
 }

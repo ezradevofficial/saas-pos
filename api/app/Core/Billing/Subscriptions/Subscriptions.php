@@ -315,9 +315,16 @@ class Subscriptions
      * SUB-07, RBAC-08: the registry follows the plan. Registered modules the
      * catalogue sells are switched on when in the plan (or its bundle) and
      * off otherwise, their data kept (re-subscribing restores it).
+     *
+     * With $switchOff false (the deploy's `billing:sync-modules`), modules
+     * are only switched on: a module installed after the subscription was
+     * made reaches the tenants whose plan covers it. Idempotent.
+     *
+     * @return list<string> the modules switched on
      */
-    public function syncModules(Subscription $subscription): void
+    public function syncModules(Subscription $subscription, bool $switchOff = true): array
     {
+        $switchedOn = [];
         $subscribed = $subscription->modules ?? [];
 
         if ($subscription->bundle !== null) {
@@ -340,10 +347,13 @@ class Subscriptions
 
             if ($wanted && ! $active) {
                 $this->modules->activate($module);
-            } elseif (! $wanted && $active) {
+                $switchedOn[] = $module;
+            } elseif (! $wanted && $active && $switchOff) {
                 $this->modules->deactivate($module);
             }
         }
+
+        return $switchedOn;
     }
 
     /**
