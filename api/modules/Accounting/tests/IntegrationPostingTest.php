@@ -399,4 +399,17 @@ class IntegrationPostingTest extends TestCase
         $this->assertCount(1, $this->journalsOf('pos.sale_summary'));
         $this->assertSame(-100000, $this->balance('4100'));
     }
+
+    /** Review #5: Stores issues post from Stores' own event (StoreConsumptionValued, later), never from StockMoved, and never as an exception. */
+    public function test_stores_stock_movements_post_nothing_and_keep_no_exception(): void
+    {
+        $this->setUpIntegrations();
+        $event = new \Modules\Inventory\Events\StockMoved($this->owner->tenant_id, $this->acme->id, 'KES', 'stores.issue', $this->id(), [[
+            'id' => $this->id(), 'kind' => 'adjustment_out', 'item_id' => $this->soap->id, 'location_id' => $this->locationA->id, 'branch_id' => $this->branchA->id,
+            'source_line_id' => $this->id(), 'qty' => '-1', 'value_minor' => '-30000', 'cost_variance_minor' => '0',
+        ]], now()->toIso8601String(), $this->branchA->id);
+
+        $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($event)));
+        $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()));
+    }
 }

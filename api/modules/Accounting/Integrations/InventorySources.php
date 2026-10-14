@@ -23,6 +23,7 @@ use Modules\Inventory\Events\StockMoved;
  * | inventory.adjustment        | inventory.adjustment       | adjustment                 |
  * | inventory.count             | inventory.count            | adjustment                 |
  * | inventory.transfer          | inventory.transfer_loss    | loss                       |
+ * | stores.* (Stores issues)    | nothing: Stores posts them | (StoreConsumptionValued)   |
  * | anything else               | inventory.other            | offset                     |
  *
  * Transfers between a company's locations do not change its cost
@@ -52,7 +53,9 @@ class InventorySources
     /** The posting source, or null when the posting changed no value. */
     public function stockMoved(StockMoved $event): ?SourceDocument
     {
-        if ($event->movements === []) {
+        // Review #5: Stores issues and returns post from Stores' own event (per-line department, cost centre,
+        // value and cost variance: StoreConsumptionValued, once feat/stores lands), never from their stock moves.
+        if ($event->movements === [] || str_starts_with($event->sourceType, 'stores.')) {
             return null;
         }
 
