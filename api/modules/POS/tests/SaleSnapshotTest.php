@@ -3,6 +3,7 @@
 namespace Modules\POS\Tests;
 
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Event;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
@@ -109,7 +110,7 @@ class SaleSnapshotTest extends TestCase
         ]]], $this->tillHeaders())->assertOk();
 
         Event::assertDispatched(SaleVoided::class, fn (SaleVoided $e) => $e->saleId === $second['id']
-            && substr((string) $e->voidedAt, 0, 19) === \Carbon\CarbonImmutable::parse($voidedAt)->utc()->format('Y-m-d\TH:i:s')
+            && substr((string) $e->voidedAt, 0, 19) === CarbonImmutable::parse($voidedAt)->utc()->format('Y-m-d\TH:i:s')
             && $e->sale['status'] === 'voided');
 
         // Half the line back: KES 512.50 of KES 1,025.00, its share of tax and discount.

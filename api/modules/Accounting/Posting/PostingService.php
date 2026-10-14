@@ -2,12 +2,15 @@
 
 namespace Modules\Accounting\Posting;
 
+use App\Core\Currency\FxSnapshot;
+use App\Core\Currency\Money;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
+use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +19,6 @@ use Modules\Accounting\AccountingServiceProvider;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\LedgerError;
 use Modules\Accounting\Ledger\LineInput;
-use Brick\Math\BigInteger;
-use App\Core\Currency\Money;
 use Modules\Accounting\Models\AccountingSettings;
 use Modules\Accounting\Models\BankAccount;
 use Modules\Accounting\Models\Journal;
@@ -154,7 +155,7 @@ class PostingService
     private function foreignLine(Company $company, string $account, string $side, Money $amount, array $foreign, SourceDocument $source, array $dimensions): LineInput
     {
         $sign = $amount->isNegative() ? '-' : '';
-        $fx = is_array($foreign['fx'] ?? null) ? new \App\Core\Currency\FxSnapshot((string) $foreign['fx']['rate'], (string) $foreign['fx']['base'], (string) $foreign['fx']['quote'], $foreign['fx']['kind'] ?? null, null) : null;
+        $fx = is_array($foreign['fx'] ?? null) ? new FxSnapshot((string) $foreign['fx']['rate'], (string) $foreign['fx']['base'], (string) $foreign['fx']['quote'], $foreign['fx']['kind'] ?? null, null) : null;
 
         return LineInput::signed($account, $side, Money::ofMinor($sign.ltrim((string) $foreign['amount_minor'], '-'), (string) $foreign['currency']), $fx,
             $source->reference, $dimensions, Money::ofMinor($sign.ltrim((string) $foreign['base_minor'], '-'), (string) $company->base_currency));

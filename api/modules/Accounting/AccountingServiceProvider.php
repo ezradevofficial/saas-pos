@@ -50,6 +50,7 @@ use Modules\Loyalty\Events\PointsRedeemed;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
  * The Accounting module (docs/modules/accounting.md). Registered for every
@@ -85,7 +86,7 @@ class AccountingServiceProvider extends ServiceProvider
         SaleCompleted::class, SaleVoided::class, SaleRefunded::class,
         StockMoved::class,
         // ACC-31: Stores' valued issues and returns (its stock moves post nothing: the same movement).
-        \Modules\Stores\Events\StoreConsumptionValued::class,
+        StoreConsumptionValued::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */

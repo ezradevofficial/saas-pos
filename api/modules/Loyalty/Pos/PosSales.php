@@ -9,6 +9,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
+use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
@@ -688,7 +689,7 @@ class PosSales
             $taken = BigInteger::of((string) GiftCardEntry::query()->where('gift_card_id', $card->id)->where('sale_id', $sale->id)
                 ->where('kind', 'adjust')->where('source_type', 'pos_refund')->sum('amount_minor'))->negated();
             $share = BigInteger::of((string) $load->amount_minor)->multipliedBy((string) $line['total_minor'])
-                ->dividedBy((string) $saleLine['total_minor'], \Brick\Math\RoundingMode::HalfUp);
+                ->dividedBy((string) $saleLine['total_minor'], RoundingMode::HalfUp);
             $amount = BigInteger::min($share, BigInteger::of((string) $load->amount_minor)->minus($taken));
 
             if (! $amount->isPositive()) {

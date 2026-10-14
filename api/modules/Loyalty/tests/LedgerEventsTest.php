@@ -12,8 +12,11 @@ use Modules\Loyalty\Events\GiftCardSold;
 use Modules\Loyalty\Events\PointsEarned;
 use Modules\Loyalty\Events\PointsRedeemed;
 use Modules\Loyalty\GiftCards\GiftCards;
+use Modules\Loyalty\Ledgers\LedgerEvents;
+use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\GiftCard;
 use Modules\Loyalty\Models\GiftCardEntry;
+use Modules\Loyalty\Models\PointsEntry;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -106,7 +109,7 @@ class LedgerEventsTest extends TestCase
 
         $replayed = $this->inTenant(function () {
             $events = [];
-            app(\Modules\Loyalty\Ledgers\LedgerEvents::class)->replay(now()->subDay()->toImmutable(), now()->addDay()->toImmutable(), function (object $e) use (&$events) {
+            app(LedgerEvents::class)->replay(now()->subDay()->toImmutable(), now()->addDay()->toImmutable(), function (object $e) use (&$events) {
                 $events[] = $e;
             });
 
@@ -116,7 +119,7 @@ class LedgerEventsTest extends TestCase
 
         // 11 points earned at KES 1.00 each: KES 11.00, whatever a point is worth today.
         $this->assertSame(['11', '1100'], [$earned->points, $earned->amountMinor]);
-        $this->assertSame('100', $this->inTenant(fn () => (string) \Modules\Loyalty\Models\PointsEntry::query()->where('kind', 'earn')->value('point_value_minor')));
+        $this->assertSame('100', $this->inTenant(fn () => (string) PointsEntry::query()->where('kind', 'earn')->value('point_value_minor')));
     }
 
     /** Review #10: a card whose expiry was extended, and that has value again, expires again on its new date. */
@@ -129,8 +132,8 @@ class LedgerEventsTest extends TestCase
 
         // Value comes back (a voided sale's redemption put back) and the card is given until March.
         $this->inTenant(function () use ($card) {
-            $card = app(\Modules\Loyalty\Ledgers\Ledgers::class)->lockCard($card->id);
-            app(\Modules\Loyalty\Ledgers\Ledgers::class)->giftCard($card, 'reverse_redeem', '10000', ['source_type' => 'manual']);
+            $card = app(Ledgers::class)->lockCard($card->id);
+            app(Ledgers::class)->giftCard($card, 'reverse_redeem', '10000', ['source_type' => 'manual']);
             $card->forceFill(['expires_on' => '2026-03-31'])->save();
         });
         CarbonImmutable::setTestNow('2026-04-01T03:00:00Z');

@@ -2,19 +2,29 @@
 
 namespace Modules\Accounting\Tests;
 
+use App\Core\MasterData\Dimensions\Department;
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Rbac\ModuleRegistry;
 use Carbon\CarbonImmutable;
+use Illuminate\Events\CallQueuedListener;
+use Illuminate\Support\Facades\Queue;
 use Modules\Accounting\Chart\Charts;
 use Modules\Accounting\Integrations\Integrations;
+use Modules\Accounting\Listeners\PostModuleEvent;
+use Modules\Accounting\Models\Account;
+use Modules\Accounting\Models\BankAccount;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Models\PostingRule;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Tests\Concerns\BuildsIntegrations;
+use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\GiftCards\GiftCards;
+use Modules\Loyalty\Models\LoyaltySale;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleSnapshot;
 use Modules\POS\Models\Sale;
+use Modules\Stores\Events\StoreConsumptionValued;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -256,11 +266,11 @@ class IntegrationPostingTest extends TestCase
         $this->setUpIntegrations();
         $this->rate('USD', 'KES', '129.50', at: '-1 day');
         $this->inTenant(function () {
-            $account = \Modules\Accounting\Models\Account::query()->create([
+            $account = Account::query()->create([
                 'company_id' => $this->acme->id, 'code' => '1115', 'name' => 'Cash on hand USD', 'type' => 'asset', 'subtype' => 'cash',
-                'parent_id' => \Modules\Accounting\Models\Account::query()->where('code', '1100')->value('id'), 'currency' => 'USD', 'cash_flow' => 'cash',
+                'parent_id' => Account::query()->where('code', '1100')->value('id'), 'currency' => 'USD', 'cash_flow' => 'cash',
             ]);
-            \Modules\Accounting\Models\BankAccount::query()->create(['company_id' => $this->acme->id, 'name' => 'Till USD', 'kind' => 'cash', 'account_id' => $account->id,
+            BankAccount::query()->create(['company_id' => $this->acme->id, 'name' => 'Till USD', 'kind' => 'cash', 'account_id' => $account->id,
                 'currency' => 'USD', 'payment_method_id' => $this->methods['cash_usd']->id]);
         });
         $shift = $this->openShift();
@@ -288,7 +298,7 @@ class IntegrationPostingTest extends TestCase
     {
         $this->setUpIntegrations(congo: true);
         $this->rate('USD', 'CDF', '2850', at: '-1 day');
-        $cdf = $this->inTenant(fn () => \App\Core\MasterData\PaymentMethods\PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash CDF', 'currency' => 'CDF', 'active' => true, 'position' => 9]));
+        $cdf = $this->inTenant(fn () => PaymentMethod::create(['company_id' => $this->acme->id, 'type' => 'cash', 'name' => 'Cash CDF', 'currency' => 'CDF', 'active' => true, 'position' => 9]));
         $shift = $this->openShift();
         $tillRate = ['rate' => '2900', 'base' => 'USD', 'quote' => 'CDF', 'kind' => 'shop', 'effective_at' => now()->subDay()->toIso8601String()];
         $sale = $this->saleBody($shift, 1, [
@@ -404,7 +414,7 @@ class IntegrationPostingTest extends TestCase
     public function test_stores_stock_movements_post_nothing_and_keep_no_exception(): void
     {
         $this->setUpIntegrations();
-        $event = new \Modules\Inventory\Events\StockMoved($this->owner->tenant_id, $this->acme->id, 'KES', 'stores.issue', $this->id(), [[
+        $event = new StockMoved($this->owner->tenant_id, $this->acme->id, 'KES', 'stores.issue', $this->id(), [[
             'id' => $this->id(), 'kind' => 'adjustment_out', 'item_id' => $this->soap->id, 'location_id' => $this->locationA->id, 'branch_id' => $this->branchA->id,
             'source_line_id' => $this->id(), 'qty' => '-1', 'value_minor' => '-30000', 'cost_variance_minor' => '0',
         ]], now()->toIso8601String(), $this->branchA->id);
@@ -434,7 +444,7 @@ class IntegrationPostingTest extends TestCase
 
         $this->inTenant(function () use ($card, $sale) {
             $this->assertSame('-56250', (string) $card->refresh()->balance_minor);
-            $this->assertContains('gift_card_refunded_after_use', array_column(\Modules\Loyalty\Models\LoyaltySale::query()->findOrFail($sale['id'])->flags ?? [], 'code'));
+            $this->assertContains('gift_card_refunded_after_use', array_column(LoyaltySale::query()->findOrFail($sale['id'])->flags ?? [], 'code'));
         });
         $reversal = collect($this->journalsOf('loyalty.gift_card_sold'))->first(fn (Journal $j) => ($this->linesOf($j)['2310'][0] ?? 0) > 0);
         $this->assertSame(['2310' => [112500, 0], '4100' => [0, 112500]], $this->linesOf($reversal));
@@ -448,10 +458,10 @@ class IntegrationPostingTest extends TestCase
     {
         $this->setUpIntegrations(accounting: false);
         $shift = $this->openShift();
-        $queued = fn () => collect(\Illuminate\Support\Facades\Queue::pushedJobs()[\Illuminate\Events\CallQueuedListener::class] ?? [])
-            ->filter(fn (array $pushed) => $pushed['job']->class === \Modules\Accounting\Listeners\PostModuleEvent::class)->count();
+        $queued = fn () => collect(Queue::pushedJobs()[CallQueuedListener::class] ?? [])
+            ->filter(fn (array $pushed) => $pushed['job']->class === PostModuleEvent::class)->count();
 
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
         $this->upload([$this->saleBody($shift, 1)])->assertOk();
         $this->assertSame(0, $queued());
 
@@ -468,19 +478,19 @@ class IntegrationPostingTest extends TestCase
     {
         $this->setUpIntegrations();
         $this->inTenant(function () {
-            $account = fn (string $code) => \Modules\Accounting\Models\Account::query()->where('company_id', $this->acme->id)->where('code', $code)->firstOrFail();
+            $account = fn (string $code) => Account::query()->where('company_id', $this->acme->id)->where('code', $code)->firstOrFail();
             // The gift card liability renumbered by the tenant; 4910 now the tenant's own account, not the template's.
             $account('2310')->forceFill(['code' => '2399'])->save();
             $account('4910')->forceFill(['template_code' => null])->save();
             PostingRule::query()->whereIn('event_type', ['loyalty.gift_card_sold', 'loyalty.gift_card_expired'])->get()->each->archive();
         });
-        $before = $this->inTenant(fn () => \Modules\Accounting\Models\Account::query()->count());
+        $before = $this->inTenant(fn () => Account::query()->count());
 
         $result = $this->postJson("/api/v1/companies/{$this->acme->id}/accounting/posting-rules/defaults", [], $this->headersFor())->assertOk()->json('data');
 
         $this->assertSame([0, 1], [$result['accounts'], $result['rules']]);
         $this->assertSame([['event_type' => 'loyalty.gift_card_expired', 'account' => '4910']], $result['unresolved']);
-        $this->assertSame($before, $this->inTenant(fn () => \Modules\Accounting\Models\Account::query()->count()));
+        $this->assertSame($before, $this->inTenant(fn () => Account::query()->count()));
         $this->inTenant(function () {
             $sold = PostingRule::query()->where('event_type', 'loyalty.gift_card_sold')->whereNull('archived_at')->sole();
             $this->assertSame($this->accountId('2399'), $sold->lines[0]['account_id']);
@@ -495,8 +505,8 @@ class IntegrationPostingTest extends TestCase
     public function test_store_consumption_posts_department_expense_against_stock_once(): void
     {
         $this->setUpIntegrations();
-        $department = $this->inTenant(fn () => \App\Core\MasterData\Dimensions\Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen']));
-        $valued = fn (string $direction, string $id, string $value, string $variance) => new \Modules\Stores\Events\StoreConsumptionValued(
+        $department = $this->inTenant(fn () => Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen']));
+        $valued = fn (string $direction, string $id, string $value, string $variance) => new StoreConsumptionValued(
             $this->owner->tenant_id, $direction, $id, 'SI-1', $this->acme->id, $this->branchA->id, $this->locationA->id, $department->id, null,
             now()->toIso8601String(), 'KES', $value, [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => $value, 'cost_variance_minor' => $variance]],
         );
