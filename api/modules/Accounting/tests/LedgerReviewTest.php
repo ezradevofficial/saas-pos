@@ -270,4 +270,22 @@ class LedgerReviewTest extends TestCase
         $this->artisan('accounting:backfill', ['--from' => '2026-10-14', '--to' => '2026-10-31'])->assertSuccessful();
         $this->assertSame($journals, $this->inTenant(fn () => Journal::query()->count()));
     }
+
+    /** ACC-17 (stage 7B closing review): journals name their document and say what they are, never a raw source key. */
+    public function test_journals_name_their_document_and_describe_it(): void
+    {
+        $this->setUpBooks();
+        [$order, $receipt] = $this->receiveWithLandedCosts();
+
+        $journals = $this->inTenant(fn () => Journal::query()->whereIn('source_type', ['inventory.receipt', 'inventory.landed_cost', 'procurement.landed_cost'])->get()->keyBy('source_type'));
+        $this->assertSame($receipt['number'], $journals['inventory.receipt']->reference);
+        $this->assertSame("Goods received {$receipt['number']}", $journals['inventory.receipt']->memo);
+        $this->assertMatchesRegularExpression('/^Landed cost \S+/', (string) $journals['inventory.landed_cost']->memo);
+        $this->assertStringNotContainsString('procurement.', (string) $journals['inventory.landed_cost']->reference);
+        $this->assertStringStartsWith('Landed cost expensed ', (string) $journals['procurement.landed_cost']->memo);
+
+        foreach ($this->inTenant(fn () => Journal::query()->whereNotNull('source_type')->get()) as $journal) {
+            $this->assertDoesNotMatchRegularExpression('/^[a-z_]+\.[a-z_.]+$/', (string) $journal->reference, "{$journal->source_type} names its document");
+        }
+    }
 }

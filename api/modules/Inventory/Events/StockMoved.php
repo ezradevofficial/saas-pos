@@ -47,6 +47,8 @@ class StockMoved implements ShouldDispatchAfterCommit
         public readonly array $movements,
         public readonly ?string $occurredAt = null,
         public readonly ?string $branchId = null,
+        // ACC-17 (stage 7B closing review): the source document's number (a GRN, a receipt, an adjustment...).
+        public readonly ?string $reference = null,
     ) {}
 
     /**
@@ -66,6 +68,7 @@ class StockMoved implements ShouldDispatchAfterCommit
         ], $movements);
 
         return new self($tenantId, $companyId, $currency, $sourceType, $sourceId, $rows,
-            $occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), collect($rows)->pluck('branch_id')->filter()->first());
+            $occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), collect($rows)->pluck('branch_id')->filter()->first(),
+            collect($movements)->map(fn (Movement $m) => $m->reference)->filter()->first());
     }
 }

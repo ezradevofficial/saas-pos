@@ -81,6 +81,19 @@ class Integrations
         };
     }
 
+    /**
+     * ACC-17 (stage 7B closing review): a posted source's description from
+     * the en/fr text of its source type, naming its document; null when the
+     * type has none.
+     */
+    public static function memo(string $sourceType, ?string $reference): ?string
+    {
+        $key = 'accounting.integrations.memos.'.str_replace('.', '_', $sourceType);
+        $text = __($key, ['reference' => (string) $reference]);
+
+        return $text === $key ? null : trim($text);
+    }
+
     /** CUR-04: a rate snapshot as an event carried it. */
     public static function fx(array $fx): FxSnapshot
     {

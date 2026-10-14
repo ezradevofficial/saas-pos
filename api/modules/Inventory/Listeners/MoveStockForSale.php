@@ -125,7 +125,7 @@ class MoveStockForSale
                 );
             }
 
-            $this->ledger->post(new Posting($sale['company_id'], 'pos.sale', $saleId, CarbonImmutable::parse($sale['occurred_at']), null, $lines, manual: false));
+            $this->ledger->post(new Posting($sale['company_id'], 'pos.sale', $saleId, CarbonImmutable::parse($sale['occurred_at']), null, $lines, manual: false, reference: $sale['receipt_number'] ?? null));
 
             // Refunds applied before this event was handled come back now.
             foreach ($sale['refund_ids'] as $refundId) {
@@ -209,6 +209,6 @@ class MoveStockForSale
             }
         }
 
-        $this->ledger->post(new Posting($source['company_id'], $sourceType, $sourceId, CarbonImmutable::parse($source['occurred_at']), null, $lines, manual: false));
+        $this->ledger->post(new Posting($source['company_id'], $sourceType, $sourceId, CarbonImmutable::parse($source['occurred_at']), null, $lines, manual: false, reference: $source['receipt_number'] ?? null));
     }
 }

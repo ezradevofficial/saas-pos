@@ -63,11 +63,11 @@ class MoveStockForStores
         $event instanceof StoreIssued
             ? MoveStoreStock::dispatch($event->tenantId, self::ISSUE, [
                 'id' => $event->issueId, 'issue_id' => $event->issueId, 'company_id' => $event->companyId, 'location_id' => $event->locationId,
-                'at' => $event->issuedAt, 'user_id' => $event->userId, 'lines' => $event->lines,
+                'at' => $event->issuedAt, 'user_id' => $event->userId, 'lines' => $event->lines, 'number' => $event->number,
             ])
             : MoveStoreStock::dispatch($event->tenantId, self::RETURN, [
                 'id' => $event->returnId, 'issue_id' => $event->issueId, 'company_id' => $event->companyId, 'location_id' => $event->locationId,
-                'at' => $event->returnedAt, 'user_id' => $event->userId, 'lines' => $event->lines,
+                'at' => $event->returnedAt, 'user_id' => $event->userId, 'lines' => $event->lines, 'number' => $event->number,
             ]);
     }
 
@@ -111,7 +111,7 @@ class MoveStockForStores
             );
         }
 
-        $this->post(new Posting($document['company_id'], 'stores.issue', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
+        $this->post(new Posting($document['company_id'], 'stores.issue', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false, reference: $document['number'] ?? null));
     }
 
     /**
@@ -181,6 +181,6 @@ class MoveStockForStores
             }
         }
 
-        $this->post(new Posting($document['company_id'], 'stores.return', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false));
+        $this->post(new Posting($document['company_id'], 'stores.return', $document['id'], CarbonImmutable::parse($document['at']), $document['user_id'], $lines, manual: false, reference: $document['number'] ?? null));
     }
 }

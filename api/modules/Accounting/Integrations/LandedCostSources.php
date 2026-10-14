@@ -83,6 +83,7 @@ class LandedCostSources
             amounts: ['expense' => (string) $minor, 'landed_cost' => (string) $minor->negated()],
             dimensions: $dimensions,
             reference: mb_substr($reference, 0, 80),
+            memo: Integrations::memo(self::SOURCE, $reference),
             link: $link,
         ));
     }

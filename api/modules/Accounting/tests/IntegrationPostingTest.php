@@ -73,6 +73,10 @@ class IntegrationPostingTest extends TestCase
         $this->assertSame(['2320' => [0, 800], '6910' => [800, 0]], $this->linesOf($this->journalsOf('loyalty.points_earned')[0]));
         // Cost of sales per sale line: two soaps at KES 300.00.
         $this->assertSame(['1300' => [0, 60000], '5100' => [60000, 0]], $this->linesOf($this->journalsOf('inventory.cost_of_sales')[0]));
+        // ACC-17 (stage 7B closing review): the stock and gift card journals name the receipt, never a source key.
+        $this->assertSame([$sale['receipt_number'], "Cost of sales {$sale['receipt_number']}"],
+            [$this->journalsOf('inventory.cost_of_sales')[0]->reference, $this->journalsOf('inventory.cost_of_sales')[0]->memo]);
+        $this->assertSame($sale['receipt_number'], $this->journalsOf('loyalty.gift_card_redeemed')[0]->reference);
 
         // A partial refund: one soap back, KES 421.88 in cash (its share of tax and of the promotion).
         $this->refundSale($sale, $shift, '1', '42188', 1)->assertOk()->assertJsonPath('results.0.status', 'stored');

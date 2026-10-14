@@ -126,7 +126,7 @@ class RecordGoodsReceived implements ShouldQueue
                     );
                 }
 
-                $this->ledger->post(new Posting($event->companyId, 'procurement.goods_receipt', $event->receiptId, $at, $event->userId, $lines, manual: false));
+                $this->ledger->post(new Posting($event->companyId, 'procurement.goods_receipt', $event->receiptId, $at, $event->userId, $lines, manual: false, reference: $event->reference));
 
                 // Stage 7B closing review: what could not be received shows on the sender's document.
                 if ($exceptions !== []) {

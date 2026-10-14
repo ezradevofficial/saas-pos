@@ -109,7 +109,9 @@ class InventorySources
             currency: $event->currency,
             amounts: $amounts,
             dimensions: array_filter(['branch_id' => $event->branchId]),
-            reference: mb_substr($event->sourceType, 0, 80),
+            // ACC-17: the document's number, never the raw source key; a readable description.
+            reference: $event->reference === null ? null : mb_substr($event->reference, 0, 80),
+            memo: Integrations::memo($type, $event->reference),
             link: ['kind' => 'inventory.movements', 'id' => $event->sourceId, 'source_type' => $event->sourceType],
         );
     }

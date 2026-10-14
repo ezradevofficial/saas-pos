@@ -159,7 +159,7 @@ class Transfers
                 );
             }
 
-            $this->ledger->post(new Posting($transfer->company_id, 'inventory.transfer', $transfer->id, $now, $by->id, $lines));
+            $this->ledger->post(new Posting($transfer->company_id, 'inventory.transfer', $transfer->id, $now, $by->id, $lines, reference: $transfer->number));
 
             return $transfer->refresh();
         });
@@ -205,7 +205,7 @@ class Transfers
                 }
             }
 
-            $movements = $this->ledger->post(new Posting($transfer->company_id, 'inventory.transfer', $transfer->id, $now, $by->id, $posting));
+            $movements = $this->ledger->post(new Posting($transfer->company_id, 'inventory.transfer', $transfer->id, $now, $by->id, $posting, reference: $transfer->number));
             $value = fn (string $kind) => array_reduce($movements, fn (BigInteger $sum, Movement $m) => $m->kind === $kind ? $sum->plus(BigInteger::of((string) $m->value_minor)->abs()) : $sum, BigInteger::zero());
 
             return [$transfer->refresh(), $movements === [] ? null : $movements[0]->currency, $value(Movement::TRANSFER_IN), $value(Movement::TRANSFER_LOSS)];

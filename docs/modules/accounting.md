@@ -167,6 +167,16 @@ never posted into closed periods: the closed-period refusal (ACC-08) keeps
 the source as an exception (`period_closed`); once the period reopens, a
 retry posts it on its own date.
 
+**References and descriptions (stage 7B closing review, ACC-17).** Every
+posted source names its document in `reference` (a GRN, receipt, refund,
+adjustment, count, transfer, issue, landed cost or invoice number; a gift
+card or points entry without its own reference names its sale's receipt),
+never a source key such as `procurement.goods_receipt`, and carries a
+description from en/fr text by source type
+(`accounting.integrations.memos.*`: "Goods received GRN-…", "Cost of sales
+R-…"). Inventory keeps the number on every movement (`reference`) and
+StockMoved carries it, so replays name it too.
+
 **Event payloads (extended in their raising modules, generic):**
 
 - POS `SaleSnapshot::sale`: status, `voided_at`, `totals.paid_minor` and

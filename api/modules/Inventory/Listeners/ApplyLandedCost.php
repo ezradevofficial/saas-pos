@@ -77,7 +77,7 @@ class ApplyLandedCost implements ShouldQueue
                 );
             }
 
-            $this->ledger->post(new Posting($event->companyId, 'procurement.landed_cost', $event->landedCostId, CarbonImmutable::parse($event->date)->endOfDay()->min(CarbonImmutable::now()), null, $lines, manual: false));
+            $this->ledger->post(new Posting($event->companyId, 'procurement.landed_cost', $event->landedCostId, CarbonImmutable::parse($event->date)->endOfDay()->min(CarbonImmutable::now()), null, $lines, manual: false, reference: $event->reference));
         });
     }
 }

@@ -59,7 +59,10 @@ class ListPerformanceTest extends TestCase
         $this->issueAndReturn('5', $this->kitchen);
         $three = array_map(fn (string $uri) => $this->queries($uri), ['/api/v1/stores/issues', '/api/v1/stores/returns', '/api/v1/stores/consumption?group=department']);
 
-        $this->assertSame($one, $three);
+        // Three times the rows, no more queries (a cache refreshed within the request may add one, never one per row).
+        foreach ($one as $index => $queries) {
+            $this->assertLessThanOrEqual($queries + 1, $three[$index], json_encode(['one' => $one, 'three' => $three]));
+        }
         // The values are still there.
         $this->getJson('/api/v1/stores/issues', $this->headersFor())->assertJsonPath('data.0.value', ['amount_minor' => '500', 'currency' => 'KES']);
         $this->getJson('/api/v1/stores/returns', $this->headersFor())->assertJsonPath('data.0.value', ['amount_minor' => '100', 'currency' => 'KES']);
