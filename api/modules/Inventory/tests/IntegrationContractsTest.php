@@ -56,6 +56,9 @@ class IntegrationContractsTest extends TestCase
         $this->assertSame(2, $this->inTenant(fn () => Serial::query()->where('status', 'in_stock')->count()));
         $this->assertSame(3, $this->inTenant(fn () => Movement::query()->where('source_type', 'procurement.goods_receipt')->count()));
         Event::assertDispatched(StockMoved::class, fn (StockMoved $e) => $e->sourceId === $id && count($e->movements) === 3 && $e->movements[0]['value_minor'] === '48000');
+        // Stage 7B: the posting date, the branch, and each movement's source line for Accounting.
+        Event::assertDispatched(StockMoved::class, fn (StockMoved $e) => $e->branchId === $this->branchA->id
+            && $e->occurredAt !== null && $e->movements[0]['source_line_id'] === $event->lines[0]['line_id'] && $e->movements[0]['branch_id'] === $this->branchA->id);
     }
 
     public function test_a_cost_in_another_currency_is_converted_at_the_company_rate(): void

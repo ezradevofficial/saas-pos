@@ -38,7 +38,7 @@ reference `pos_sales`.
 | POS-10 | **Fiscal (KRA eTIMS, DRC DGI).** Every sale and refund is queued for the authority on the server and retried until accepted; the device shows "pending" while offline. (Phase 4 Task 3 builds the queue and adapters; this module raises the events it listens to.) | Must |
 | POS-11 | **Tax at sale.** Tax per line from the item's tax category → the company's tax code, rate effective at the sale time in the company's time zone, inclusive or exclusive per price list (MD-03). A taxable item whose rate is "Rate needed" cannot be sold: the till blocks it (`sellable: false, reason: rate_needed`) and the API refuses the sale. Rates are never invented. | Must |
 | POS-12 | **Back-office lists.** Sales and shifts lists with search, sort and export (EXP-01), scoped by company, branch and location (RBAC-04), and their detail. | Must |
-| POS-13 | **Events.** `SaleCompleted`, `SaleVoided`, `SaleRefunded`, `ShiftOpened`, `ShiftClosed`, dispatched after commit, for the fiscal queue, Accounting, Inventory and Loyalty when those are active. | Must |
+| POS-13 | **Events.** `SaleCompleted`, `SaleVoided`, `SaleRefunded`, `ShiftOpened`, `ShiftClosed`, dispatched after commit, for the fiscal queue, Accounting, Inventory and Loyalty when those are active. The sale and refund snapshots carry what a journal needs (per line tax code, inclusive flag, net, tax and discount by source; rounding, change and its share of the sale currency; base currency, rate and base amounts; customer and location); `SaleVoided` carries the void's date (stage 7B, docs/modules/accounting.md). | Must |
 
 ## Permissions
 

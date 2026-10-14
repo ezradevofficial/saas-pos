@@ -23,12 +23,17 @@
         {"code": "4", "type": "liability", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "40", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "401", "type": "liability", "subtype": "payable", "parent": "40", "postable": true, "cash_flow": "operating", "control": true},
+        {"code": "408", "type": "liability", "subtype": "payable", "parent": "40", "postable": true, "cash_flow": "operating"},
         {"code": "41", "type": "asset", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "411", "type": "asset", "subtype": "receivable", "parent": "41", "postable": true, "cash_flow": "operating", "control": true},
+        {"code": "4118", "type": "asset", "subtype": "receivable", "parent": "41", "postable": true, "cash_flow": "operating", "control": true},
         {"code": "42", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "422", "type": "liability", "subtype": "current_liability", "parent": "42", "postable": true, "cash_flow": "operating"},
         {"code": "43", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "431", "type": "liability", "subtype": "current_liability", "parent": "43", "postable": true, "cash_flow": "operating"},
+        {"code": "419", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
+        {"code": "4191", "type": "liability", "subtype": "current_liability", "parent": "419", "postable": true, "cash_flow": "operating"},
+        {"code": "4198", "type": "liability", "subtype": "current_liability", "parent": "419", "postable": true, "cash_flow": "operating"},
         {"code": "44", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "441", "type": "liability", "subtype": "tax", "parent": "44", "postable": true, "cash_flow": "operating"},
         {"code": "443", "type": "liability", "subtype": "tax", "parent": "44", "postable": true, "cash_flow": "operating"},
@@ -36,6 +41,7 @@
         {"code": "447", "type": "liability", "subtype": "tax", "parent": "44", "postable": true, "cash_flow": "operating"},
         {"code": "47", "type": "asset", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "471", "type": "asset", "subtype": "suspense", "parent": "47", "postable": true, "cash_flow": "operating"},
+        {"code": "4711", "type": "asset", "subtype": "current_asset", "parent": "47", "postable": true, "cash_flow": "operating"},
         {"code": "5", "type": "asset", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "52", "type": "asset", "subtype": "header", "parent": "5", "postable": false, "cash_flow": null},
         {"code": "521", "type": "asset", "subtype": "bank", "parent": "52", "postable": true, "cash_flow": "cash"},
@@ -47,10 +53,13 @@
         {"code": "60", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
         {"code": "601", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
         {"code": "603", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
+        {"code": "6038", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
+        {"code": "6033", "type": "expense", "subtype": "expense", "parent": "60", "postable": true, "cash_flow": null},
         {"code": "61", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
         {"code": "618", "type": "expense", "subtype": "expense", "parent": "61", "postable": true, "cash_flow": null},
         {"code": "62", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
         {"code": "622", "type": "expense", "subtype": "expense", "parent": "62", "postable": true, "cash_flow": null},
+        {"code": "627", "type": "expense", "subtype": "expense", "parent": "62", "postable": true, "cash_flow": null},
         {"code": "63", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
         {"code": "631", "type": "expense", "subtype": "expense", "parent": "63", "postable": true, "cash_flow": null},
         {"code": "64", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
@@ -68,7 +77,10 @@
         {"code": "7", "type": "income", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "70", "type": "income", "subtype": "header", "parent": "7", "postable": false, "cash_flow": null},
         {"code": "701", "type": "income", "subtype": "revenue", "parent": "70", "postable": true, "cash_flow": null},
+        {"code": "7019", "type": "income", "subtype": "revenue", "parent": "70", "postable": true, "cash_flow": null},
         {"code": "706", "type": "income", "subtype": "revenue", "parent": "70", "postable": true, "cash_flow": null},
+        {"code": "75", "type": "income", "subtype": "header", "parent": "7", "postable": false, "cash_flow": null},
+        {"code": "758", "type": "income", "subtype": "other_income", "parent": "75", "postable": true, "cash_flow": null},
         {"code": "77", "type": "income", "subtype": "header", "parent": "7", "postable": false, "cash_flow": null},
         {"code": "776", "type": "income", "subtype": "fx", "parent": "77", "postable": true, "cash_flow": null},
         {"code": "8", "type": "income", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
@@ -87,5 +99,350 @@
         "rounding": "658",
         "retained_earnings": "131",
         "suspense": "471"
+    },
+    "posting_rules": {
+        "pos.sale": [
+            {
+                "field": "tender.*",
+                "side": "debit",
+                "by": "payment_method",
+                "accounts": {
+                    "type:cash": "571",
+                    "type:mobile_money": "551",
+                    "type:card": "521",
+                    "type:bank_transfer": "521",
+                    "type:voucher": "4711",
+                    "type:points": "4711",
+                    "type:credit": "4711"
+                }
+            },
+            {
+                "field": "change",
+                "side": "credit",
+                "account": "571"
+            },
+            {
+                "field": "rounding",
+                "side": "credit",
+                "account": "658"
+            },
+            {
+                "field": "revenue.*",
+                "side": "credit",
+                "account": "701"
+            },
+            {
+                "field": "promotion",
+                "side": "debit",
+                "account": "7019"
+            },
+            {
+                "field": "tax.*",
+                "side": "credit",
+                "account": "443"
+            }
+        ],
+        "inventory.cost_of_sales": [
+            {
+                "field": "stock.*",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "cost_of_sales.*",
+                "side": "debit",
+                "account": "603"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "inventory.receipt": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "grni",
+                "side": "debit",
+                "account": "408"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "inventory.opening": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "opening",
+                "side": "debit",
+                "account": "471"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "inventory.adjustment": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "adjustment",
+                "side": "debit",
+                "account": "6038"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "inventory.count": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "adjustment",
+                "side": "debit",
+                "account": "6038"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "inventory.transfer_loss": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "loss",
+                "side": "debit",
+                "account": "6038"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "loyalty.gift_card_sold": [
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4191"
+            },
+            {
+                "field": "pos",
+                "side": "debit",
+                "account": "701"
+            },
+            {
+                "field": "direct",
+                "side": "debit",
+                "account": "571"
+            },
+            {
+                "field": "issued",
+                "side": "debit",
+                "account": "627"
+            }
+        ],
+        "loyalty.gift_card_redeemed": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4191"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4711"
+            }
+        ],
+        "loyalty.gift_card_expired": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4191"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "758"
+            }
+        ],
+        "loyalty.points_earned": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "627"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4198"
+            }
+        ],
+        "loyalty.points_redeemed": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4198"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4711"
+            }
+        ],
+        "loyalty.points_expired": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4198"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "758"
+            }
+        ],
+        "loyalty.points_adjusted": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "627"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4198"
+            }
+        ],
+        "loyalty.credit_charged": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4118",
+                "party": true
+            },
+            {
+                "field": "pos",
+                "side": "credit",
+                "account": "4711"
+            },
+            {
+                "field": "direct",
+                "side": "credit",
+                "account": "701"
+            }
+        ],
+        "loyalty.credit_payment_received": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "571"
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "4118",
+                "party": true
+            }
+        ],
+        "loyalty.credit_adjusted": [
+            {
+                "field": "amount",
+                "side": "debit",
+                "account": "4118",
+                "party": true
+            },
+            {
+                "field": "amount",
+                "side": "credit",
+                "account": "658"
+            }
+        ],
+        "stores.consumption": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "consumption.*",
+                "side": "debit",
+                "account": "6033"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "procurement.supplier_invoice": [
+            {
+                "field": "grni",
+                "side": "debit",
+                "account": "408"
+            },
+            {
+                "field": "price_variance",
+                "side": "debit",
+                "account": "603"
+            },
+            {
+                "field": "expense",
+                "side": "debit",
+                "account": "601"
+            },
+            {
+                "field": "tax",
+                "side": "debit",
+                "account": "445"
+            },
+            {
+                "field": "total",
+                "side": "credit",
+                "account": "401",
+                "party": true
+            }
+        ],
+        "inventory.landed_cost": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "landed_cost",
+                "side": "debit",
+                "account": "408"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ]
     }
 }

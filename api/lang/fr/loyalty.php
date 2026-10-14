@@ -162,6 +162,7 @@ return [
         'gift_card_inactive' => 'Carte cadeau non vendue',
         'gift_card_blocked' => 'Carte cadeau bloquée',
         'gift_card_expired' => 'Carte cadeau expirée',
+        'gift_card_refunded_after_use' => 'Carte cadeau remboursée après avoir été utilisée',
         'gift_card_overdrawn' => 'Carte cadeau à découvert',
         'gift_card_already_active' => 'Carte cadeau vendue deux fois',
         'gift_card_sale_mismatch' => 'Vente de carte cadeau incohérente',

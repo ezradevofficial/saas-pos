@@ -57,9 +57,42 @@ export function today() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
+/**
+ * Where a record of another module opens, through that module's own
+ * route (ACC-17 drill-down; the link the posting source gave, stage 7B).
+ */
+export function moduleLink(link) {
+  if (!link?.id) return null
+  const id = encodeURIComponent(link.id)
+  switch (link.kind) {
+    case 'pos.sale':
+      return `/pos/sales/${id}`
+    case 'pos.sales':
+      return `/pos/sales?location=${id}&from=${link.date}&to=${link.date}`
+    case 'inventory.movements':
+      return `/inventory/movements?source=${id}`
+    case 'loyalty.gift_card':
+      return `/loyalty/gift-cards/${id}`
+    case 'loyalty.credit_account':
+      return `/loyalty/credit/${id}`
+    case 'stores.issue':
+      return `/stores/issues/${id}`
+    case 'stores.return':
+      return `/stores/returns/${id}`
+    // ACC-32: a Procurement supplier invoice's journal opens the Procurement invoice.
+    case 'procurement.invoice':
+      return `/procurement/invoices/${id}`
+    case 'loyalty.customer':
+      return `/contacts/customers/${id}?tab=loyalty`
+    default:
+      return null
+  }
+}
+
 /** Where a journal's source opens (ACC-17 drill-down), or null. */
 export function sourceLink(source) {
   if (!source) return null
+  if (source.link) return moduleLink(source.link)
   switch (source.type) {
     case 'accounting.document':
       return `/accounting/documents/${source.id}`

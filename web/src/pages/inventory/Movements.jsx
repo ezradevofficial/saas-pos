@@ -74,7 +74,8 @@ export function MovementList({ endpoint, withItem = true, withPlaces = true }) {
     id: 'inventory-movements',
     endpoint,
     queryKey: [...inventoryKey, 'movements', endpoint],
-    filters: { location: '', kind: '', from: '', to: '' },
+    // `source`: one document's movements (Accounting's drill-down from a stock journal), set from the URL.
+    filters: { location: '', kind: '', from: '', to: '', source: '' },
     defaultSort: '-occurred_at',
     columns,
   })

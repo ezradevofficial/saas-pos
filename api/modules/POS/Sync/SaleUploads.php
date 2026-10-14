@@ -383,7 +383,7 @@ class SaleUploads
         }
 
         // LOY-27: the part of the discount a module vouches for (a promotion) is not a manual discount.
-        $vouched = $this->vouched($line['adjustments'] ?? null, $discount, $field, (string) $line['id']);
+        [$vouched, $vouchedBySource] = $this->vouched($line['adjustments'] ?? null, $discount, $field, (string) $line['id']);
         $manual = $discount->minus($vouched);
         $amount = $gross->minus($discount);
         $tax = BigDecimal::of((string) $line['tax_minor']);
@@ -489,6 +489,8 @@ class SaleUploads
                 'price_override_by' => $priceApproval?->approverId(),
                 'discount_override_by' => $discountApproval?->approverId(),
                 'adjustments' => ($line['adjustments'] ?? null) ?: null,
+                // Stage 7B: what each source's verifier confirmed of its claim (the till's claims stay in `adjustments`).
+                'verified_discounts' => $vouchedBySource === [] ? null : $vouchedBySource,
             ],
             'gross' => $gross,
             'discount' => $discount,
@@ -509,8 +511,9 @@ class SaleUploads
      * line's discount (`adjustments_above_discount`).
      *
      * @param  list<array{source: string, reference?: ?string, amount_minor: string|int}>|null  $adjustments
+     * @return array{0: BigDecimal, 1: array<string, string>} the vouched total and, per source, what was vouched
      */
-    private function vouched(?array $adjustments, BigDecimal $discount, string $field, string $lineId): BigDecimal
+    private function vouched(?array $adjustments, BigDecimal $discount, string $field, string $lineId): array
     {
         $all = BigDecimal::zero();
         $claimed = [];
@@ -527,13 +530,16 @@ class SaleUploads
 
         // H2: per source, only what its verifier confirms for this line; the rest is a manual discount.
         $vouched = BigDecimal::zero();
+        $bySource = [];
 
         foreach ($claimed as $source => $amount) {
             $verified = BigDecimal::of($this->verified[$source][$lineId] ?? '0');
-            $vouched = $vouched->plus($amount->isGreaterThan($verified) ? $verified : $amount);
+            $taken = $amount->isGreaterThan($verified) ? $verified : $amount;
+            $vouched = $vouched->plus($taken);
+            $bySource[$source] = (string) $taken->toScale(0);
         }
 
-        return $vouched;
+        return [$vouched, $bySource];
     }
 
     /** @var array<string, array<string, string>> source => line id => minor units, for the sale being stored */

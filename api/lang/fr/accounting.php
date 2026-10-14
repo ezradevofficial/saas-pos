@@ -51,6 +51,9 @@ return [
         'period_open' => 'Cette période est déjà ouverte.',
         'period_reopen_order' => 'Rouvrez d’abord les périodes clôturées plus récentes.',
         'posting_conflict' => 'La source a été comptabilisée au même moment. Actualisez pour voir son écriture.',
+        'chart_missing' => 'Cette société n’a pas encore de plan comptable. Créez-le d’abord depuis son plan type.',
+        'posting_account_missing' => 'La règle de comptabilisation ne nomme aucun compte pour :field. Choisissez-en un dans la règle, puis réessayez.',
+        'summary_superseded' => 'Ce récapitulatif a été remplacé par un autre des mêmes ventes, ou certaines de ses ventes sont dans un autre récapitulatif. Rien à réessayer.',
         'posting_rule_missing' => 'Il n’y a pas de règle de comptabilisation pour :type. Ajoutez-en une, puis réessayez.',
         'range_invalid' => 'La date de début est après la date de fin. Modifiez les dates.',
         'rate_unavailable' => 'Il n’y a pas de taux :pair pour le :date. Saisissez un taux, puis réessayez.',
@@ -267,5 +270,17 @@ return [
         'account_exists' => 'Le compte :code existe déjà. Choisissez le mode mise à jour pour le modifier.',
         'control_account' => 'Le compte :code est tenu par les factures, encaissements et paiements. Importez plutôt les factures ouvertes comme documents.',
         'opening_memo' => 'Solde d’ouverture',
+    ],
+
+    // Étape 7B : les intégrations avec le point de vente, les stocks et la fidélité (ACC-24 à ACC-29).
+    'rules' => [
+        'default_description' => 'Règle par défaut du plan type',
+    ],
+
+    'integrations' => [
+        'procurement_invoice' => 'Facture fournisseur des achats :number',
+        'fx_difference' => 'Écart de change sur les paiements',
+        'summary_memo' => 'Récapitulatif journalier de :count ventes du point de vente du :date',
+        'backfill_from' => 'Indiquez le premier jour à comptabiliser avec --from=AAAA-MM-JJ.',
     ],
 ];

@@ -70,6 +70,7 @@ class JournalPoster
                 'status' => $header['status'] ?? Journal::DRAFT,
                 'source_type' => $header['source_type'] ?? null,
                 'source_id' => $header['source_id'] ?? null,
+                'source_link' => $header['source_link'] ?? null,
                 'reference' => $header['reference'] ?? null,
                 'memo' => $header['memo'] ?? null,
                 'base_currency' => $base,

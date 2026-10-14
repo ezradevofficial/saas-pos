@@ -14,6 +14,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
@@ -29,6 +30,7 @@ use Modules\Inventory\Documents\AdjustmentType;
 use Modules\Inventory\Documents\CountType;
 use Modules\Inventory\Documents\DocumentNumbers;
 use Modules\Inventory\Documents\TransferType;
+use Modules\Inventory\Events\StockEventReplay;
 use Modules\Inventory\Events\StockLow;
 use Modules\Inventory\Imports\OpeningStockImporter;
 use Modules\Inventory\Labels\LabelSource;
@@ -101,6 +103,9 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+
+        // Stage 7B: the module's events raised again for a period (a later module's backfill).
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(StockEventReplay::class)($from, $to, $emit));
 
         // WF-01, WF-02: transfers, adjustments and count variances run through flows.
         $documents = $this->app->make(DocumentTypeRegistry::class);

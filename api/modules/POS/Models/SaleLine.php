@@ -25,6 +25,7 @@ class SaleLine extends Model
             'line_no' => 'integer',
             'tax_inclusive' => 'boolean',
             'adjustments' => 'array',
+            'verified_discounts' => 'array',
         ];
     }
 

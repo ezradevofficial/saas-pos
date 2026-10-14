@@ -71,6 +71,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // ACC-07: posting rules and exceptions.
     Route::get('companies/{company}/accounting/posting-rules', [PostingRuleController::class, 'index']);
     Route::post('companies/{company}/accounting/posting-rules', [PostingRuleController::class, 'store']);
+    Route::post('companies/{company}/accounting/posting-rules/defaults', [PostingRuleController::class, 'defaults']);
     Route::post('accounting/posting-rules/{acc_posting_rule}/archive', [PostingRuleController::class, 'archive']);
     Route::get('companies/{company}/accounting/posting-exceptions', [PostingRuleController::class, 'exceptions']);
     Route::post('accounting/posting-exceptions/{acc_posting_exception}/retry', [PostingRuleController::class, 'retry']);

@@ -247,18 +247,17 @@ en/fr.
   `GoodsReceived` for its accepted stock lines at base cost including
   landed costs allocated before posting. **Landed costs after receipt**:
   `LandedCostAllocated` carries each stock line's extra base cost
-  (item, location, receipt line). Inventory should consume it as a
-  value-only cost adjustment (`receipt_cost_adjustment` movement of zero
-  quantity on the receipt's cost layer, or the weighted average's value),
-  which needs a change to Inventory's ledger (its movement quantity is
-  non-zero by constraint). **That listener is not built here**: it changes
-  another module's schema, so it waits for the owner's go-ahead (open
-  question 1); until then Inventory's cost excludes landed costs allocated
-  after posting, and Procurement keeps them on the GRN lines.
+  (item, location, receipt line). Inventory consumes it as a value-only
+  `cost_adjustment` movement of zero quantity on the receipt's cost layer
+  or the weighted average (INV-25, approved by the owner on 2026-10-14;
+  Inventory's `ApplyLandedCost`, once per allocation line).
 - **Procurement → Accounting** (both active): `GoodsReceiptPosted`,
   `LandedCostAllocated` and `SupplierInvoiceApproved` with the payloads
-  above. The listeners belong to Accounting and are built by the
-  Accounting integrations work (decision 3).
+  above. Accounting posts the invoice (ACC-32: an Accounting supplier
+  invoice, Dr GRNI and the price variance, purchases and input tax, Cr
+  the payable); the GRN posts once, from Inventory's `StockMoved`
+  (`inventory.receipt`), so `GoodsReceiptPosted` and the GRN side of
+  `LandedCostAllocated` post nothing in Accounting.
 - **Alone**: without Inventory, GRNs still post (no stock moves); without
   Accounting, invoices still match and approve (no journal). Nothing in
   Procurement checks the other modules except to avoid raising events
@@ -288,7 +287,7 @@ en/fr.
    stay in Accounting; Procurement keeps its invoice for matching and
    performance. The `amounts` (`net`, `tax`, `total`, `grni`,
    `price_variance`) allow a posting rule instead. Procurement never
-   writes Accounting tables; the listener is built later by Accounting.
+   writes Accounting tables. Built by Accounting as ACC-32 (accounting.md).
 4. **Receipts are valued at the receipt date's rate** (stock and GRNI in
    base currency); the invoice at its own rate; the difference is the
    invoice's `price_variance` (it includes exchange differences).
@@ -347,7 +346,7 @@ en/fr.
 | --- | --- |
 | PRC-01 to PRC-25 | Built and tested (modules/Procurement/tests, the isolation suite) |
 | PRC-17 (Inventory side) | Built: Inventory's `ApplyLandedCost` listener posts a `cost_adjustment` movement per allocated GRN line (INV-25) |
-| PRC-25 (Accounting side) | Events and payloads raised; the Accounting listeners are built by the Accounting integrations work (decision 3) |
+| PRC-25 (Accounting side) | Built: Accounting's `SupplierInvoices` posts approved invoices as Accounting supplier invoices (ACC-32, ProcurementPostingTest) |
 
 ## Deferred
 
