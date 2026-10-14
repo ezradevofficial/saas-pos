@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
 import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -70,7 +71,7 @@ describe('Accounting screens', () => {
     const gl = {
       currency: 'KES', from: '2026-01-01', to: '2026-10-31', opening: 0, closing: -112500, truncated: false,
       account: { id: 'a-4100', code: '4100', name: 'Sales', type: 'income' },
-      lines: [{ id: 'l-1', journal: { id: 'j-9', number: 'JV-2026-00009', kind: 'system', source_type: 'accounting.document', source_id: 'd-1' }, date: '2026-10-10', reference: 'INV-2026-00001',
+      lines: [{ id: 'l-1', journal: { id: 'j-9', number: 'JV-2026-00009', kind: 'system', source_type: 'accounting.document', source_id: 'd-1', source_number: 'INV-2026-00001' }, date: '2026-10-10', reference: 'INV-2026-00001',
         description: 'Goods', party: { id: 'p-1', name: 'Baraka Traders' }, currency: 'KES', debit: 0, credit: 112500, base_debit: 0, base_credit: 112500, balance: -112500 }],
     }
     setup([
@@ -83,7 +84,8 @@ describe('Accounting screens', () => {
     fireEvent.click(screen.getByText('Sales').closest('tr'))
     await waitFor(() => expect(router.state.location.pathname).toBe('/accounting/reports/ledger'))
     expect(await screen.findByRole('link', { name: 'JV-2026-00009' })).toHaveAttribute('href', '/accounting/journals/j-9')
-    expect(screen.getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/accounting/documents/d-1')
+    // The source is named by its document number.
+    expect(screen.getByRole('link', { name: 'INV-2026-00001' })).toHaveAttribute('href', '/accounting/documents/d-1')
     expect(screen.getByText('Goods · Baraka Traders')).toBeInTheDocument()
   })
 
@@ -158,5 +160,32 @@ describe('Accounting screens', () => {
     expect(screen.getByText('9 Nov 2026')).toBeInTheDocument()
     expect(screen.queryByText('2026-10-10')).not.toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Lines' })).getByText('Rate needed').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning')
+  })
+
+  it('names a new document by the chosen kind (ACC-09)', async () => {
+    setup([
+      [/^parties\?/, { data: [] }],
+      [/^companies\/c-1\/tax-codes/, { data: [] }],
+      [/^companies\/c-1\/accounting\/documents\?/, { data: [] }],
+      [/^companies\/c-1\/accounting\/accounts/, { data: [], meta: { total: 0 } }],
+    ])
+    renderApp('/accounting/documents/new?side=customer')
+    expect(await screen.findByRole('heading', { name: 'New invoice' })).toBeInTheDocument()
+    chooseOption(screen.getByLabelText('Kind'), 'Credit note')
+    expect(await screen.findByRole('heading', { name: 'New credit note' })).toBeInTheDocument()
+  })
+
+  it('shows no empty untitled table in the cash flow (ACC-17)', async () => {
+    const row = { account: { id: 'a-1200', code: '1200', name: 'Trade receivables', type: 'asset' }, amount: -112500 }
+    const cashFlow = {
+      currency: 'KES', from: '2026-01-01', to: '2026-10-31', net_profit: 112500, operating: 0, net_change: 0, opening_cash: 0, closing_cash: 0, reconciles: true,
+      non_cash: { rows: [] }, working_capital: { rows: [row] }, investing: { rows: [], total: 0 }, financing: { rows: [], total: 0 },
+    }
+    setup([[/^companies\/c-1\/accounting\/reports\/cash-flow/, { data: cashFlow }]])
+    renderApp('/accounting/reports?report=cash-flow')
+    expect(await screen.findByText('Trade receivables')).toBeInTheDocument()
+    // Only the working capital part has lines: one table, under its heading.
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Working capital' })).toBeInTheDocument()
   })
 })

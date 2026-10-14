@@ -3,16 +3,20 @@
 namespace Modules\Accounting\Reports;
 
 use App\Core\Tenancy\Models\Company;
+use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Modules\Accounting\Documents\Documents;
+use Modules\Accounting\Ledger\Reversals;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\Allocation;
 use Modules\Accounting\Models\Budget;
 use Modules\Accounting\Models\BudgetLine;
 use Modules\Accounting\Models\Document;
 use Modules\Accounting\Models\Payment;
+use Modules\Accounting\Payments\Payments;
 
 /**
  * ACC-11, ACC-16, ACC-17: the general ledger detail of an account (with
@@ -46,12 +50,14 @@ class LedgerReports
             ]);
         $balance = (int) $opening;
         $lines = [];
+        $sources = $this->sourceNumbers($rows->take(self::MAX_LINES));
 
         foreach ($rows->take(self::MAX_LINES) as $row) {
             $balance += (int) $row->base_debit_minor - (int) $row->base_credit_minor;
             $lines[] = [
                 'id' => $row->id,
-                'journal' => ['id' => $row->journal_id, 'number' => $row->number, 'kind' => $row->kind, 'source_type' => $row->source_type, 'source_id' => $row->source_id],
+                'journal' => ['id' => $row->journal_id, 'number' => $row->number, 'kind' => $row->kind, 'source_type' => $row->source_type, 'source_id' => $row->source_id,
+                    'source_number' => $sources[$row->source_type.':'.$row->source_id] ?? null],
                 'date' => $row->date, 'reference' => $row->reference, 'description' => $row->description ?? $row->memo,
                 'party' => $row->party_id === null ? null : ['id' => $row->party_id, 'name' => $row->party_name],
                 'currency' => $row->currency, 'debit' => (int) $row->debit_minor, 'credit' => (int) $row->credit_minor,
@@ -64,6 +70,40 @@ class LedgerReports
             'account' => ['id' => $account->id, 'code' => $account->code, 'name' => $account->name, 'type' => $account->type],
             'opening' => (int) $opening, 'closing' => $balance, 'lines' => $lines, 'truncated' => $rows->count() > self::MAX_LINES,
         ];
+    }
+
+    /**
+     * ACC-17: the number of each line's source (the invoice, payment or
+     * reversed journal), from this module's own tables, keyed `type:id`.
+     *
+     * @param  iterable<object>  $rows
+     * @return array<string, string>
+     */
+    private function sourceNumbers(iterable $rows): array
+    {
+        $ids = [];
+
+        foreach ($rows as $row) {
+            if ($row->source_type !== null && $row->source_id !== null) {
+                $ids[$row->source_type][] = $row->source_id;
+            }
+        }
+
+        $numbers = [];
+
+        foreach ([Documents::SOURCE => 'acc_documents', Payments::SOURCE => 'acc_payments', Reversals::SOURCE => 'acc_journals'] as $type => $table) {
+            if (($ids[$type] ?? []) === []) {
+                continue;
+            }
+
+            foreach (DB::connection(TenantContext::CONNECTION)->table($table)->whereIn('id', array_values(array_unique($ids[$type])))->pluck('number', 'id') as $id => $number) {
+                if ($number !== null) {
+                    $numbers[$type.':'.$id] = (string) $number;
+                }
+            }
+        }
+
+        return $numbers;
     }
 
     /**

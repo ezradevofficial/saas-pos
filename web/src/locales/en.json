@@ -6977,6 +6977,12 @@
       "new": {
         "customer": "New invoice",
         "supplier": "New bill"
+      },
+      "newKind": {
+        "customer_invoice": "New invoice",
+        "customer_credit": "New credit note",
+        "supplier_invoice": "New bill",
+        "supplier_credit": "New supplier credit"
       }
     },
     "documentForm": {

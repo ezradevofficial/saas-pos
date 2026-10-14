@@ -6977,6 +6977,12 @@
       "new": {
         "customer": "Nouvelle facture",
         "supplier": "Nouvelle facture fournisseur"
+      },
+      "newKind": {
+        "customer_invoice": "Nouvelle facture",
+        "customer_credit": "Nouvel avoir",
+        "supplier_invoice": "Nouvelle facture fournisseur",
+        "supplier_credit": "Nouvel avoir fournisseur"
       }
     },
     "documentForm": {

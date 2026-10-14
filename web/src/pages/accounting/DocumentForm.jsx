@@ -78,7 +78,7 @@ export default function DocumentForm() {
 
   return (
     <>
-      <PageHeader title={t(`accounting.documents.new.${side}`)} description={t('accounting.documentForm.description')} />
+      <PageHeader title={t(`accounting.documents.newKind.${kind}`)} description={t('accounting.documentForm.description')} />
       {save.isError ? <Alert tone="danger" title={errorMessage(save.error)} /> : null}
       <Card>
         <div className="grid gap-4 sm:grid-cols-3">

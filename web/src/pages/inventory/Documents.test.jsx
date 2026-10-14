@@ -110,6 +110,8 @@ describe('Stock counts (INV-09)', () => {
     api.post.mockResolvedValue({ data: { ...COUNT, status: 'pending', can: { count: false, cancel: true } } })
     renderApp('/inventory/counts/k-1')
     const table = await screen.findByRole('table', { name: 'Count entry' })
+    // WF-10: no flow is asked for before the count is submitted (no 404 in the console).
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/^document-workflows\//))
     const milk = within(table).getByText('Milk 1 l').closest('tr')
     fireEvent.change(within(milk).getByLabelText('Counted quantity of Milk 1 l'), { target: { value: '8' } })
     expect(within(milk).getByText('-2')).toBeInTheDocument()
