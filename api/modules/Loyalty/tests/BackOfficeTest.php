@@ -3,10 +3,12 @@
 namespace Modules\Loyalty\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\DocumentTemplates\DataSources;
 use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Modules\Loyalty\Documents\StatementSource;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
@@ -246,6 +248,12 @@ class BackOfficeTest extends TestCase
         $pdf = $this->get("/api/v1/loyalty/statements/{$statement->json('data.id')}/pdf", $this->headersFor())->assertOk();
         $this->assertSame('application/pdf', $pdf->headers->get('Content-Type'));
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
+        // RBAC-08: the statement's live source prints nothing while the module is off.
+        $source = app(DataSources::class)->get(StatementSource::TYPE);
+        $this->assertNotNull($this->inTenant(fn () => $source->load($statement->json('data.id'))));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
+        $this->assertNull($this->inTenant(fn () => $source->load($statement->json('data.id'))));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('loyalty'));
 
         $this->postJson("/api/v1/loyalty/accounts/{$id}/close", [], $this->headersFor())->assertJsonPath('code', 'credit_balance_not_zero');
         $this->postJson("/api/v1/loyalty/accounts/{$id}/adjustments", ['amount_minor' => '-110000', 'reason' => 'Written off'], $this->headersFor())->assertCreated();

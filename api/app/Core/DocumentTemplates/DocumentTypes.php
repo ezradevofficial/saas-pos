@@ -2,6 +2,8 @@
 
 namespace App\Core\DocumentTemplates;
 
+use App\Core\Rbac\ModuleRegistry;
+
 /**
  * TPL-01: the document types a template can be designed for; each is the
  * `key` of a `template` configuration document. `fiscal` types may carry
@@ -26,7 +28,8 @@ final class DocumentTypes
         'procurement.po' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
         'stores.delivery_note' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
         'payroll.payslip' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'payroll'],
-        'party.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
+        // LOY-17: the Loyalty module's customer credit statements.
+        'party.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'loyalty'],
         // ACC-09, ACC-11, ACC-19: the Accounting module's invoices, credit notes and party statements.
         'accounting.invoice' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'accounting'],
         'accounting.credit_note' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'accounting'],
@@ -61,6 +64,24 @@ final class DocumentTypes
     public static function module(string $type): string
     {
         return self::TYPES[$type]['module'] ?? 'core';
+    }
+
+    /**
+     * RBAC-08: the types the designer offers the current tenant: core types,
+     * types of modules not installed yet (sample data, for when they come),
+     * and types of installed modules only while the tenant has them active.
+     *
+     * @return list<string>
+     */
+    public static function offered(ModuleRegistry $modules): array
+    {
+        $installed = $modules->registered();
+
+        return array_values(array_filter(self::keys(), function (string $type) use ($modules, $installed) {
+            $module = self::module($type);
+
+            return ! in_array($module, $installed, true) || $modules->isActive($module);
+        }));
     }
 
     public static function label(string $type): string

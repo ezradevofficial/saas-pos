@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\DocumentTemplates\TemplateResolver;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Testing\TestResponse;
@@ -185,7 +186,18 @@ class TemplateApiTest extends TestCase
         // CF-01 hook: one line adds an entity's custom fields to the merge fields.
         app(DataSources::class)->customFields('customer', fn () => [['key' => 'loyalty_no', 'label' => 'Loyalty no.', 'type' => 'text']]);
 
-        $types = $this->getJson('/api/v1/templates/types?scope_type=company&scope_id='.$this->acme->id, $this->headersFor())->assertOk()->json();
+        $uri = '/api/v1/templates/types?scope_type=company&scope_id='.$this->acme->id;
+
+        // RBAC-08: an installed module's types are offered only while it is active; types of modules
+        // not installed yet keep their sample data.
+        $this->assertSame(['sales.invoice', 'sales.quote', 'procurement.po', 'stores.delivery_note', 'payroll.payslip', 'letter'], array_column($this->getJson($uri, $this->headersFor())->assertOk()->json('data'), 'key'));
+
+        $this->inTenant(function () {
+            foreach (['pos', 'loyalty', 'accounting', 'inventory'] as $module) {
+                app(ModuleRegistry::class)->activate($module);
+            }
+        });
+        $types = $this->getJson($uri, $this->headersFor())->assertOk()->json();
         $receipt = collect($types['data'])->firstWhere('key', 'pos.receipt');
         $quote = collect($types['data'])->firstWhere('key', 'sales.quote');
 
