@@ -44,7 +44,8 @@ class StoreTenderRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'kind' => ['sometimes', 'string', Rule::in([Tender::OPEN, Tender::INVITED])],
             'currency' => ['sometimes', 'string', 'size:3'],
-            'deadline_at' => ['sometimes', 'date', 'after:now'],
+            // A draft's deadline may have passed; publishing refuses it (deadline_in_past).
+            'deadline_at' => ['sometimes', 'date'],
             'opening_at' => ['sometimes', 'date'],
             'technical_weight' => ['sometimes', 'integer', 'between:0,100'],
             'pass_mark' => ['sometimes', 'numeric', 'between:0,100'],

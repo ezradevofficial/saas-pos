@@ -4,6 +4,7 @@ namespace Modules\Procurement\Models;
 
 use App\Core\Audit\Audited;
 use App\Core\MasterData\Parties\Party;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -20,8 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $email
  * @property string $source
  * @property ?string $token_hash
- * @property ?\Carbon\CarbonImmutable $token_expires_at
- * @property ?\Carbon\CarbonImmutable $removed_at
+ * @property ?CarbonImmutable $token_expires_at
+ * @property ?CarbonImmutable $removed_at
  */
 class Bidder extends ProcurementModel
 {

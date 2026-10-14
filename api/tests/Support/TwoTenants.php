@@ -44,6 +44,9 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\Procurement\Models\Bidder;
+use Modules\Procurement\Models\Tender;
+use Modules\Procurement\Tenders\Bidders;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -540,6 +543,10 @@ final class TwoTenants
         // opening stock, a reorder level, a pending transfer and adjustment and
         // a running count.
         $inventory = self::inventory($test, $owner, $upper, $branch, $location, $company, $item, $uoms['EA']);
+        // Procurement (docs/modules/procurement.md): every procurement_* table in both tenants,
+        // through the back office and the supplier portal.
+        $procurement = self::procurement($test, $owner, $managerToken, $tenantId, $ownerId, $managerId, $company, $branch, $location,
+            $party, $item, $uoms['BOX'], $taxCode, $dimensions, $upper);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -619,6 +626,7 @@ final class TwoTenants
                 ...$dimensions,
                 ...$pos,
                 ...$inventory,
+                ...$procurement,
                 ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
@@ -863,6 +871,117 @@ final class TwoTenants
             'total_minor' => '56250',
             'lines' => [['id' => $id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
             'payments' => [['id' => $id(), 'payment_method_id' => $paymentMethod, 'currency' => 'KES', 'amount_minor' => '56250', 'amount_in_sale_minor' => '56250', 'provider_reference' => 'RF'.$seq]],
+        ];
+    }
+
+    /**
+     * The Procurement fixture of one tenant (docs/modules/procurement.md),
+     * made through its API and portal as the owner, the branch manager (the
+     * default approver and second opener) and the supplier: the company's
+     * tolerances; a draft requisition and an approved one; a draft RFQ and
+     * an issued one with a quote; a draft tender, an opened one (a sealed
+     * bid with a file, opened by two openers) and an awarded one (scored,
+     * awarded, its draft PO); a draft PO and an approved one with a posted
+     * GRN and a draft GRN; a matched invoice; a draft landed cost and a
+     * posted one (allocations). Tender times are moved into the past through
+     * the model, as the clock would.
+     *
+     * @return array<string, string>
+     */
+    private static function procurement(TestCase $test, array $owner, array $manager, string $tenantId, string $ownerId, string $managerId, string $company, string $branch, string $location,
+        string $supplier, string $item, string $box, string $taxCode, array $dimensions, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('procurement'));
+        self::ok($test->putJson("/api/v1/procurement/companies/{$company}/settings", ['price_tolerance_percent' => '1', 'qty_tolerance_percent' => '0', 'over_receipt_percent' => '5'], $owner));
+
+        $lines = [['item_id' => $item, 'uom_id' => $box, 'qty' => '2', 'estimated_unit_price_minor' => '120000',
+            'cost_centre_id' => $dimensions['cost_centre'], 'project_id' => $dimensions['project']]];
+        $requisitionBody = ['branch_id' => $branch, 'location_id' => $location, 'department_id' => $dimensions['department'], 'purpose' => "Restock {$upper}", 'lines' => $lines];
+        $requisition = self::ok($test->postJson('/api/v1/procurement/requisitions', $requisitionBody, $owner), 201)->json('data.id');
+        $approvedRequisition = self::ok($test->postJson('/api/v1/procurement/requisitions', $requisitionBody, $owner), 201)->json('data');
+        self::ok($test->postJson("/api/v1/procurement/requisitions/{$approvedRequisition['id']}/submit", [], $owner));
+        $approve = function (string $documentId) use ($test, $tenantId, $manager) {
+            $approval = app(TenantContext::class)->run($tenantId, fn () => ApprovalRequest::query()->where('document_id', $documentId)->sole()->id);
+            self::ok($test->postJson("/api/v1/approvals/{$approval}/approve", [], $manager));
+        };
+        $approve($approvedRequisition['id']);
+
+        $rfqBody = ['branch_id' => $branch, 'title' => "Soap RFQ {$upper}", 'deadline_at' => now()->addDays(5)->toIso8601String(),
+            'lines' => [['item_id' => $item, 'uom_id' => $box, 'qty' => '2']], 'supplier_ids' => [$supplier]];
+        $rfq = self::ok($test->postJson('/api/v1/procurement/rfqs', $rfqBody, $owner), 201)->json('data.id');
+        $issued = self::ok($test->postJson('/api/v1/procurement/rfqs', $rfqBody, $owner), 201)->json('data');
+        self::ok($test->postJson("/api/v1/procurement/rfqs/{$issued['id']}/issue", [], $owner));
+        self::ok($test->postJson('/api/v1/procurement/quotes', ['rfq_id' => $issued['id'], 'party_id' => $supplier, 'quote_date' => now()->toDateString(), 'currency' => 'KES',
+            'reference' => "Q-{$upper}", 'lines' => [['rfq_line_id' => $issued['lines'][0]['id'], 'unit_price_minor' => '118000', 'lead_time_days' => 4]]], $owner), 201);
+
+        // Tenders: a draft, then two published ones whose bids are opened.
+        $tenderBody = fn (string $title) => [
+            'branch_id' => $branch, 'title' => $title, 'kind' => 'invited', 'deadline_at' => now()->addHour()->toIso8601String(), 'opening_at' => now()->addHour()->toIso8601String(),
+            'technical_weight' => 50, 'lines' => [['item_id' => $item, 'uom_id' => $box, 'qty' => '2']], 'criteria' => [['name' => "Quality {$upper}", 'weight' => 100, 'max_score' => 10]],
+            'openers' => [$ownerId, $managerId], 'evaluators' => [$ownerId],
+        ];
+        $tender = self::ok($test->postJson('/api/v1/procurement/tenders', $tenderBody("Draft tender {$upper}"), $owner), 201)->json('data.id');
+        $openedTender = function (string $title, string $email) use ($test, $owner, $manager, $tenantId, $tenderBody, $supplier, $upper) {
+            $tender = self::ok($test->postJson('/api/v1/procurement/tenders', $tenderBody($title), $owner), 201)->json('data');
+            self::ok($test->postJson("/api/v1/procurement/tenders/{$tender['id']}/bidders", ['party_id' => $supplier, 'email' => $email], $owner), 201);
+            $bidder = self::ok($test->postJson("/api/v1/procurement/tenders/{$tender['id']}/publish", [], $owner))->json('data.bidders.0.id');
+            $link = app(TenantContext::class)->run($tenantId, fn () => app(Bidders::class)->issueLinkForTesting(Bidder::query()->findOrFail($bidder)));
+            $portal = ['Authorization' => 'Bearer '.self::ok($test->postJson('/api/v1/supplier-portal/sessions', ['token' => $link]), 201)->json('data.session_token')];
+            $file = self::ok($test->post('/api/v1/supplier-portal/bid/files', ['file' => UploadedFile::fake()->createWithContent("plan-{$upper}.txt", "Plan {$upper}")], [...$portal, 'Accept' => 'application/json']), 201)->json('data.id');
+            self::ok($test->putJson('/api/v1/supplier-portal/bid', ['currency' => 'KES', 'lines' => [['tender_line_id' => $tender['lines'][0]['id'], 'unit_price_minor' => '115000']],
+                'technical_response' => "Response {$upper}", 'file_ids' => [$file]], $portal));
+            app(TenantContext::class)->run($tenantId, fn () => Tender::query()->findOrFail($tender['id'])->fill(['deadline_at' => now()->subMinute(), 'opening_at' => now()->subMinute()])->save());
+            self::ok($test->postJson("/api/v1/procurement/tenders/{$tender['id']}/open", [], $owner));
+            $opened = self::ok($test->postJson("/api/v1/procurement/tenders/{$tender['id']}/open", [], $manager))->json('data');
+
+            return [$opened, $bidder, $file];
+        };
+        [$opened, $bidder, $bidFile] = $openedTender("Opened tender {$upper}", "bids-{$upper}@supplier.example.com");
+        [$awarded] = $openedTender("Awarded tender {$upper}", "award-{$upper}@supplier.example.com");
+        self::ok($test->putJson("/api/v1/procurement/bids/{$awarded['bids'][0]['id']}/scores", ['scores' => [['criterion_id' => $awarded['criteria'][0]['id'], 'score' => 8]]], $owner));
+        self::ok($test->postJson("/api/v1/procurement/bids/{$awarded['bids'][0]['id']}/award", [], $owner));
+
+        // POs, GRNs, an invoice and landed costs.
+        $orderBody = ['branch_id' => $branch, 'party_id' => $supplier, 'location_id' => $location, 'expected_on' => now()->addDays(3)->toDateString(), 'terms' => "Terms {$upper}",
+            'lines' => [['item_id' => $item, 'uom_id' => $box, 'qty' => '4', 'unit_price_minor' => '118000', 'tax_code_id' => $taxCode,
+                'cost_centre_id' => $dimensions['cost_centre'], 'project_id' => $dimensions['project']]]];
+        $order = self::ok($test->postJson('/api/v1/procurement/orders', $orderBody, $owner), 201)->json('data.id');
+        $approvedOrder = self::ok($test->postJson('/api/v1/procurement/orders', $orderBody, $owner), 201)->json('data');
+        self::ok($test->postJson("/api/v1/procurement/orders/{$approvedOrder['id']}/submit", [], $owner));
+        $approve($approvedOrder['id']);
+        $orderLine = $approvedOrder['lines'][0]['id'];
+        $posted = self::ok($test->postJson('/api/v1/procurement/receipts', ['order_id' => $approvedOrder['id'], 'delivery_note' => "DN-{$upper}",
+            'lines' => [['order_line_id' => $orderLine, 'received_qty' => '2', 'weight' => '3']]], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/procurement/receipts/{$posted}/post", [], $owner));
+        $receipt = self::ok($test->postJson('/api/v1/procurement/receipts', ['order_id' => $approvedOrder['id'],
+            'lines' => [['order_line_id' => $orderLine, 'received_qty' => '1']]], $owner), 201)->json('data.id');
+        $invoice = self::ok($test->postJson('/api/v1/procurement/invoices', ['order_id' => $approvedOrder['id'], 'supplier_reference' => "SINV-{$upper}", 'invoice_date' => now()->toDateString(),
+            'lines' => [['order_line_id' => $orderLine, 'qty' => '2']]], $owner), 201)->json('data.id');
+        $landedBody = ['branch_id' => $branch, 'cost_date' => now()->toDateString(), 'method' => 'value', 'description' => "Freight {$upper}",
+            'charges' => [['description' => "Freight {$upper}", 'party_id' => $supplier, 'currency' => 'KES', 'amount_minor' => '30000']], 'receipt_ids' => [$posted]];
+        $landedCost = self::ok($test->postJson('/api/v1/procurement/landed-costs', $landedBody, $owner), 201)->json('data.id');
+        $postedLanded = self::ok($test->postJson('/api/v1/procurement/landed-costs', $landedBody, $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/procurement/landed-costs/{$postedLanded}/post", [], $owner));
+
+        return [
+            'procurement_requisition' => $requisition,
+            'procurement_requisition_approved' => $approvedRequisition['id'],
+            'procurement_requisition_line' => $approvedRequisition['lines'][0]['id'],
+            'procurement_rfq' => $rfq,
+            'procurement_rfq_issued' => $issued['id'],
+            'procurement_rfq_line' => $issued['lines'][0]['id'],
+            'procurement_tender' => $tender,
+            'procurement_bidder' => $bidder,
+            'procurement_bid' => $opened['bids'][0]['id'],
+            'procurement_bid_file' => $bidFile,
+            'procurement_criterion' => $opened['criteria'][0]['id'],
+            'procurement_decided_bid' => $awarded['bids'][0]['id'],
+            'procurement_order' => $order,
+            'procurement_order_approved' => $approvedOrder['id'],
+            'procurement_order_line' => $orderLine,
+            'procurement_receipt' => $receipt,
+            'procurement_invoice' => $invoice,
+            'procurement_landed_cost' => $landedCost,
         ];
     }
 

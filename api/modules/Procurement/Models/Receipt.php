@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Location;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $location_id
  * @property string $order_id
  * @property string $party_id
- * @property \Carbon\CarbonImmutable $received_at
+ * @property CarbonImmutable $received_at
  * @property string $currency
  * @property ?FxSnapshot $fx
  * @property ?string $base_currency

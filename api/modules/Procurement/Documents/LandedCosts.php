@@ -279,7 +279,7 @@ class LandedCosts
             $bases[$line->id] = match ($landedCost->method) {
                 'value' => (string) $this->value($company, $landedCost, $line),
                 'quantity' => $this->baseQty($line),
-                'weight' => $line->weight === null ? throw ProcurementError::make('weight_missing', ['line' => $line->line_no], "receipt_ids") : (string) $line->weight,
+                'weight' => $line->weight === null ? throw ProcurementError::make('weight_missing', ['line' => $line->line_no], 'receipt_ids') : (string) $line->weight,
             };
         }
 

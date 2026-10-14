@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -11,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $bidder_id
  * @property string $tender_id
  * @property string $token_hash
- * @property \Carbon\CarbonImmutable $expires_at
- * @property ?\Carbon\CarbonImmutable $revoked_at
+ * @property CarbonImmutable $expires_at
+ * @property ?CarbonImmutable $revoked_at
  */
 class PortalSession extends ProcurementModel
 {

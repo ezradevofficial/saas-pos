@@ -4,6 +4,7 @@ namespace Modules\Procurement\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Procurement\Models\Order;
 use Modules\Procurement\Models\Quote;
 use Modules\Procurement\Models\QuoteLine;
 use Modules\Procurement\Models\Rfq;
@@ -60,6 +61,9 @@ class RfqResource extends JsonResource
                 ])->all(),
                 'suppliers' => $rfq->suppliers->map(fn (RfqSupplier $supplier) => Refs::named($supplier->party))->all(),
                 'quotes' => $rfq->quotes->map(fn (Quote $quote) => self::quote($quote))->all(),
+                // PRC-05: the draft POs the award made.
+                'orders' => Order::query()->whereIn('quote_id', $rfq->quotes->pluck('id'))->orderBy('created_at')->get(['id', 'number', 'status', 'party_id'])
+                    ->map(fn (Order $order) => ['id' => $order->id, 'number' => $order->number, 'status' => $order->status, 'party_id' => $order->party_id])->all(),
                 'can' => [
                     'edit' => $rfq->status === Rfq::DRAFT && $at('create'),
                     'issue' => $rfq->status === Rfq::DRAFT && $at('create'),

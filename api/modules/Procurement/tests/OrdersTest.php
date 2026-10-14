@@ -2,10 +2,13 @@
 
 namespace Modules\Procurement\Tests;
 
+use App\Core\Currency\TenantCurrencies;
+use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
 use Illuminate\Support\Facades\Event;
 use Modules\Procurement\Events\PurchaseOrderApproved;
 use Modules\Procurement\Models\Order;
@@ -65,7 +68,7 @@ class OrdersTest extends TestCase
 
     public function test_a_missing_rate_and_a_rate_needed_tax_code_refuse_submission(): void
     {
-        $this->inTenant(fn () => app(\App\Core\Currency\TenantCurrencies::class)->activate('EUR'));
+        $this->inTenant(fn () => app(TenantCurrencies::class)->activate('EUR'));
         $eur = $this->draftOrder(['currency' => 'EUR'], [['item_id' => $this->soap->id, 'qty' => '1', 'unit_price_minor' => '100']]);
         $this->api('POST', "procurement/orders/{$eur['id']}/submit", [], $this->buyer)->assertUnprocessable()->assertJsonPath('code', 'rate_unavailable');
 
@@ -89,7 +92,7 @@ class OrdersTest extends TestCase
 
         $this->api('POST', 'procurement/orders', [
             'branch_id' => $this->branchA->id, 'party_id' => $this->supplier->id,
-            'lines' => [['item_id' => $this->soap->id, 'uom_id' => $this->inTenant(fn () => \App\Core\MasterData\Items\Uom::where('code', 'KG')->value('id')), 'qty' => '1', 'unit_price_minor' => '100']],
+            'lines' => [['item_id' => $this->soap->id, 'uom_id' => $this->inTenant(fn () => Uom::where('code', 'KG')->value('id')), 'qty' => '1', 'unit_price_minor' => '100']],
         ], $this->buyer)->assertUnprocessable()->assertJsonPath('code', 'uom_not_on_item');
     }
 
@@ -110,7 +113,7 @@ class OrdersTest extends TestCase
             'lines' => [['item_id' => $this->soap->id, 'qty' => '1', 'unit_price_minor' => '100']],
         ], $buyerB)->assertForbidden();
         // Buyers do not approve POs (RBAC-03).
-        $this->assertFalse($this->inTenant(fn () => app(\App\Core\Rbac\ScopeResolver::class)->can($this->buyer, 'procurement.po.approve', Scope::branch($this->branchA->id))));
+        $this->assertFalse($this->inTenant(fn () => app(ScopeResolver::class)->can($this->buyer, 'procurement.po.approve', Scope::branch($this->branchA->id))));
 
         // RBAC-08: with the module off, every route is closed.
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('procurement'));

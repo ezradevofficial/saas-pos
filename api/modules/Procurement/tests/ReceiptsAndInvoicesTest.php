@@ -2,8 +2,13 @@
 
 namespace Modules\Procurement\Tests;
 
+use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
 use Modules\Inventory\Contracts\GoodsReceived;
+use Modules\Inventory\Models\Balance;
+use Modules\Inventory\Models\Movement;
+use Modules\Inventory\Stock\Qty;
 use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Procurement\Models\Settings;
@@ -72,14 +77,14 @@ class ReceiptsAndInvoicesTest extends TestCase
 
     public function test_with_inventory_active_the_grn_moves_stock_at_its_base_cost(): void
     {
-        $this->inTenant(fn () => app(\App\Core\Rbac\ModuleRegistry::class)->activate('inventory'));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
         $order = $this->approvedOrder(['currency' => 'USD'], [['item_id' => $this->soap->id, 'uom_id' => $this->box->id, 'qty' => '2', 'unit_price_minor' => '1200']]);
         $this->rate('USD', 'KES', '131', at: '2026-10-15T08:00:00Z');
         $this->postedReceipt($order);
 
         // 2 boxes of 12 = 24 soaps at USD 24.00 = KES 3,144.00 (the receipt date's rate, 131).
-        $this->assertSame('24', $this->inTenant(fn () => \Modules\Inventory\Stock\Qty::show((string) \Modules\Inventory\Models\Balance::query()->where('item_id', $this->soap->id)->value('qty'))));
-        $movement = $this->inTenant(fn () => \Modules\Inventory\Models\Movement::query()->where('source_type', 'procurement.goods_receipt')->sole());
+        $this->assertSame('24', $this->inTenant(fn () => Qty::show((string) Balance::query()->where('item_id', $this->soap->id)->value('qty'))));
+        $movement = $this->inTenant(fn () => Movement::query()->where('source_type', 'procurement.goods_receipt')->sole());
         $this->assertSame(314400, (int) $movement->value_minor);
         $this->assertSame('KES', $movement->currency);
     }
@@ -114,7 +119,7 @@ class ReceiptsAndInvoicesTest extends TestCase
             'lines' => [['order_line_id' => $delivery['id'], 'qty' => '1']]])->assertUnprocessable()->assertJsonPath('code', 'duplicate_reference');
 
         // Buyers do not approve; the accountant does.
-        $accountant = $this->userWith('accountant', \App\Core\Rbac\Scope::company($this->acme->id));
+        $accountant = $this->userWith('accountant', Scope::company($this->acme->id));
         $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", [], $this->buyer)->assertForbidden();
         $approved = $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", [], $accountant)->assertOk()->json('data');
         $this->assertSame('approved', $approved['status']);
@@ -144,7 +149,7 @@ class ReceiptsAndInvoicesTest extends TestCase
         // The delivery was never received.
         $this->assertSame('not_received', $invoice['lines'][1]['match_status']);
 
-        $approver = $this->userWith('approver', \App\Core\Rbac\Scope::company($this->acme->id));
+        $approver = $this->userWith('approver', Scope::company($this->acme->id));
         $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", [], $approver)->assertForbidden()->assertJsonPath('code', 'match_exception');
         $this->api('POST', "procurement/invoices/{$invoice['id']}/approve")->assertUnprocessable()->assertJsonPath('code', 'override_reason_required');
         $approved = $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", ['override_reason' => 'Agreed price rise; delivery billed in advance'])->assertOk()->json('data');

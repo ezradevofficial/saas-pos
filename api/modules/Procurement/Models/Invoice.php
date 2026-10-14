@@ -5,6 +5,7 @@ namespace Modules\Procurement\Models;
 use App\Core\Currency\FxSnapshot;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -15,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $supplier_reference
  * @property string $party_id
  * @property string $order_id
- * @property \Carbon\CarbonImmutable $invoice_date
- * @property ?\Carbon\CarbonImmutable $due_date
+ * @property CarbonImmutable $invoice_date
+ * @property ?CarbonImmutable $due_date
  * @property string $currency
  * @property ?FxSnapshot $fx
  * @property ?string $base_currency

@@ -103,7 +103,7 @@ and values only):
 | `PurchaseOrderApproved` | A PO's flow approved it | tenant, PO id, company, branch, supplier, currency, total, base total |
 | `GoodsReceiptPosted` | A GRN posted | the Accounting payload `procurement.goods_receipt` below |
 | `SupplierInvoiceApproved` | An invoice approved | the Accounting payload `procurement.supplier_invoice` below |
-| `LandedCostAllocated` | A landed cost posted over posted GRNs | the payload `procurement.landed_cost` below |
+| `LandedCostAllocated` | A landed cost posted | the payload `procurement.landed_cost` below |
 | `TenderOpened`, `TenderAwarded` | Opening, award | tender id, company, bids count; awarded bid and party |
 
 And Inventory's **`Modules\Inventory\Contracts\GoodsReceived`** (INV-15)
@@ -124,7 +124,7 @@ need no conversion:
 | Source type | Amount fields | Dimensions | Journal it stands for |
 | --- | --- | --- | --- |
 | `procurement.goods_receipt` | `stock_value` (stock lines, goods + landed), `expense` (non-stock and service lines), `grni` (goods value received, = stock goods + expense), `landed_cost` (landed part included above) | branch, party (supplier), cost centre and project when every line shares one | Dr stock / Dr expense — Cr GRNI, Cr landed cost clearing |
-| `procurement.landed_cost` | `stock_value` (allocated to stock lines), `expense` (to other lines), `landed_cost` (total) | branch | Dr stock / Dr expense — Cr landed cost clearing |
+| `procurement.landed_cost` | `stock_value` (allocated to posted stock lines), `expense` (to posted other lines), `landed_cost` (= their sum) | branch | Dr stock / Dr expense — Cr landed cost clearing |
 | `procurement.supplier_invoice` | `net` (invoice net, base at the invoice rate), `tax`, `total` (= the payable), `grni` (the received value the invoice clears, at the GRN rates), `price_variance` (= net − grni) | party (supplier), branch, cost centre, project | Dr GRNI, Dr price variance, Dr input tax — Cr AP |
 
 `SupplierInvoiceApproved` also carries the AP document an Accounting
@@ -139,7 +139,12 @@ strings in the invoice currency unless named `base_`.
 `LandedCostAllocated` carries `{landed_cost_id, number, company_id,
 branch_id, date, base_currency, charges: [{id, description, party_id,
 currency, amount_minor, fx, base_amount_minor}], allocations: [{receipt_id,
-receipt_line_id, item_id, location_id, stock: bool, base_amount_minor}]}`.
+receipt_line_id, item_id, location_id, stock: bool, after_receipt: bool,
+base_amount_minor}]}`. It is raised for every posted landed cost (its
+charges are what the charges' suppliers bill, Dr landed cost clearing / Cr
+AP); its `amounts` cover only the allocations to GRNs already posted
+(`after_receipt`): what went to draft GRNs reaches Accounting and Inventory
+with those GRNs' own events.
 
 **Consumed:** `WorkflowCompleted`, `WorkflowCancelled` (core) settle
 requisitions and POs.
@@ -160,8 +165,8 @@ requisitions and POs.
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `procurement.settings.edit` and the views; **Branch Manager** the views,
-`procurement.requisition.*` and `procurement.po.approve` (the default
-approver); **Procurement Officer** `procurement.*` except the `approve`,
+`procurement.requisition.*`, `procurement.po.approve` (the default
+approver) and `procurement.tender.open` and `.evaluate` (committees); **Procurement Officer** `procurement.*` except the `approve`,
 `override`, `award` and `settings.edit` permissions; **Storekeeper** the
 requisition and PO views, `procurement.requisition.create` and
 `procurement.receipt.*`; **Accountant** the views, `procurement.invoice.*`
@@ -182,14 +187,15 @@ currency (`unit_price_minor`, `amount_minor`); quantities decimal strings.
 | --- | --- | --- |
 | `GET/PUT procurement/companies/{company}/settings` | `po.view`; `settings.edit` | PRC-01 |
 | `GET/POST procurement/requisitions`, `GET/PATCH …/{id}`, `POST …/{id}/submit\|cancel` | requisition.* | PRC-02 |
-| `GET/POST procurement/rfqs`, `GET/PATCH …/{id}`, `POST …/{id}/issue\|cancel\|award`, `POST …/{id}/quotes`, `GET …/{id}/comparison` | rfq.* | PRC-03 to PRC-05 |
-| `GET/POST procurement/tenders`, `GET/PATCH …/{id}`, `POST …/{id}/publish\|cancel\|open\|award`, `POST …/{id}/bidders`, `PUT …/{id}/scores` | tender.* | PRC-06 to PRC-11 |
+| `GET/POST procurement/rfqs`, `GET/PATCH …/{id}`, `POST …/{id}/issue\|cancel\|award` (`{selections?: {rfq line id: quote line id}}`), `GET …/{id}/comparison`, `POST procurement/quotes` (`{rfq_id, party_id, …}`) | rfq.* | PRC-03 to PRC-05 |
+| `GET/POST procurement/tenders`, `GET/PATCH …/{id}`, `POST …/{id}/publish\|cancel\|open`, `POST …/{id}/bidders`, `POST procurement/tender-bidders/{id}/resend\|remove` | tender.create, .open, .cancel | PRC-06 to PRC-10 |
+| `PUT procurement/bids/{id}/scores`, `POST procurement/bids/{id}/award` (`{reason?}`) | tender.evaluate (committee evaluators); tender.award | PRC-11 |
 | `GET procurement/bids/{id}/files/{file}`, `GET procurement/bids/{id}/letter`, `POST procurement/bids/{id}/letter/email` | tender.view after opening; tender.award | PRC-09, PRC-12 |
 | `GET/POST procurement/orders`, `GET/PATCH …/{id}`, `POST …/{id}/submit\|cancel\|send`, `GET …/{id}/pdf` | po.* | PRC-13 |
 | `GET/POST procurement/receipts`, `GET/PATCH …/{id}`, `POST …/{id}/post\|cancel` | receipt.* at the location | PRC-14 |
 | `GET/POST procurement/invoices`, `GET/PATCH …/{id}`, `POST …/{id}/approve\|cancel` | invoice.* | PRC-15 |
 | `GET/POST procurement/landed-costs`, `GET/PATCH …/{id}`, `POST …/{id}/post\|cancel` | landed_cost.* | PRC-17 |
-| `GET procurement/supplier-performance` | performance.view | PRC-18 |
+| `GET procurement/supplier-performance` | performance.view | PRC-18; `?format=csv` |
 
 **Supplier portal** (no user token; `Authorization: Bearer <portal
 session>`; rate-limited, PRC-23):
@@ -198,7 +204,7 @@ session>`; rate-limited, PRC-23):
 | --- | --- |
 | `POST supplier-portal/sessions` | `{token}` (the link) → `{session_token, expires_at}` |
 | `DELETE supplier-portal/sessions/current` | Sign out |
-| `GET supplier-portal/tender` | The session's tender (title, branch, lines, criteria, times, currency), the bidder, its own bid (status, version, fingerprint, submitted at, its own content while sealed: the bidder's own copy, decrypted for it only) |
+| `GET supplier-portal/tender` | The session's tender (title, branch, lines, criteria, times, currency), the bidder, its own bid's receipt (status, version, fingerprint, submitted at; never its content: nothing decrypts a sealed bid before the opening, not even for its bidder) and its uploaded files |
 | `PUT supplier-portal/bid` | `{currency, lines: [{tender_line_id, unit_price_minor}], technical_response, file_ids?}` before the deadline; replaces the previous version |
 | `POST supplier-portal/bid/files` | Upload one file (sealed) |
 | `POST supplier-portal/bid/withdraw` | Before the deadline |
@@ -303,6 +309,20 @@ en/fr.
    data and opening balances).
 10. **Over-receipt is refused**, not flagged: a GRN is typed in the back
     office, unlike a till sale.
+11. **Nothing decrypts a sealed bid before the opening**, not even for its
+    bidder: the portal shows the bidder its receipt (version, time,
+    fingerprint), and a change is a new full submission.
+12. **`closed` is derived**: a published tender past its deadline shows
+    as closed until it is opened (no stored status, so no scheduler).
+13. **Committee members** must hold `procurement.tender.open` (openers)
+    or `.evaluate` (evaluators) at the tender's branch when chosen; the
+    opening needs two different openers, whatever the number chosen.
+14. **Supplier performance** is a computed report; its export is CSV
+    (audited, rate-limited like list exports), not the list export
+    framework, which exports stored rows.
+15. **Branch managers sit on committees** by default (open and evaluate),
+    so a tenant has two openers without extra roles; buyers (Procurement
+    Officer) run tenders but never award them.
 
 ## Open questions
 
@@ -314,11 +334,13 @@ en/fr.
 4. Should invoices of non-PO purchases (rent, utilities) live in
    Procurement or stay in Accounting (ACC-09)? Today: Accounting.
 
-## Status
+## Status (stage 7B)
 
 | ID | Status |
 | --- | --- |
-| PRC-01 to PRC-25 | See the build report below |
+| PRC-01 to PRC-25 | Built and tested (modules/Procurement/tests, the isolation suite) |
+| PRC-17 (Inventory side) | `LandedCostAllocated` raised; Inventory's cost adjustment after receipt waits for open question 1 |
+| PRC-25 (Accounting side) | Events and payloads raised; the Accounting listeners are built by the Accounting integrations work (decision 3) |
 
 ## Deferred
 

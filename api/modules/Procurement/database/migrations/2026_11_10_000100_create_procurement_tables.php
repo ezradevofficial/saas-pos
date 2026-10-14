@@ -339,7 +339,7 @@ return new class extends Migration
 
         // PRC-09: sealed bids. Before opening only `sealed_payload` (ciphertext)
         // and its `fingerprint` hold the content; the plain columns stay null.
-        Schema::create('procurement_bids', function (Blueprint $table) use ($currency) {
+        Schema::create('procurement_bids', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->foreignUuid('tender_id')->constrained('procurement_tenders')->restrictOnDelete();

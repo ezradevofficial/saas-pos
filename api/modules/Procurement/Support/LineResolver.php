@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Support;
 
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\MasterData\Dimensions\CostCentre;
 use App\Core\MasterData\Dimensions\Department;
 use App\Core\MasterData\Dimensions\Project;
@@ -10,7 +11,6 @@ use App\Core\MasterData\Items\ItemUom;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Taxes\TaxCode;
-use App\Core\Currency\Models\TenantCurrency;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 

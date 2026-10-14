@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Tests;
 
+use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\Rbac\Scope;
 use Modules\Procurement\Documents\RequisitionType;
 use Modules\Procurement\Models\Order;
@@ -44,7 +45,7 @@ class RequisitionsAndRfqsTest extends TestCase
 
     public function test_a_requisition_is_approved_through_its_flow_and_takes_custom_fields(): void
     {
-        $this->inTenant(fn () => \App\Core\CustomFields\CustomFieldDefinition::query()->create([
+        $this->inTenant(fn () => CustomFieldDefinition::query()->create([
             'entity' => 'procurement_requisition', 'key' => 'urgency', 'label' => 'Urgency', 'type' => 'text',
         ]));
         $created = $this->api('POST', 'procurement/requisitions', [

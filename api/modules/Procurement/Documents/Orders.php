@@ -5,6 +5,7 @@ namespace Modules\Procurement\Documents;
 use App\Core\Currency\BaseCurrencyLock;
 use App\Core\CustomFields\CustomFieldWriter;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
@@ -348,6 +349,6 @@ class Orders
     public static function rateNeeded(OrderLine $line): bool
     {
         return $line->tax_code_id !== null && $line->tax_rate === null
-            && ! \App\Core\MasterData\Taxes\TaxCode::query()->whereKey($line->tax_code_id)->where('kind', 'exempt')->exists();
+            && ! TaxCode::query()->whereKey($line->tax_code_id)->where('kind', 'exempt')->exists();
     }
 }

@@ -6,8 +6,8 @@ use App\Core\Currency\Money;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
 use Modules\Procurement\CustomFields\OrderEntity;
-use Modules\Procurement\Models\ProcurementDocument;
 use Modules\Procurement\Models\Order;
+use Modules\Procurement\Models\ProcurementDocument;
 
 /**
  * WF-01, PRC-13: `procurement.po`, a purchase order approved through its

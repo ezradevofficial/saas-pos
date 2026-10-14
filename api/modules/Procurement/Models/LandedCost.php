@@ -3,6 +3,7 @@
 namespace Modules\Procurement\Models;
 
 use App\Core\Identity\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * PRC-17: charges (freight, duty, insurance) spread over GRN lines by
  * value, quantity or weight, in integer minor units of the base currency.
  *
- * @property \Carbon\CarbonImmutable $cost_date
+ * @property CarbonImmutable $cost_date
  * @property string $method
  * @property ?string $description
  * @property ?string $base_currency

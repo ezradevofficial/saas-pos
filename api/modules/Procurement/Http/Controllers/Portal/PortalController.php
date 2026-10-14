@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Http\Controllers\Portal;
 
+use App\Core\Http\ApiException;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
@@ -146,7 +147,7 @@ class PortalController
     private function assertModule(): void
     {
         if (! $this->modules->isActive('procurement')) {
-            throw new \App\Core\Http\ApiException(403, 'module_inactive', __('rbac.errors.module_inactive'));
+            throw new ApiException(403, 'module_inactive', __('rbac.errors.module_inactive'));
         }
     }
 

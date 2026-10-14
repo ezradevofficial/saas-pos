@@ -5,10 +5,12 @@ namespace Modules\Procurement\Http\Resources;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Collection;
 use Modules\Procurement\Models\Bid;
+use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\BidFile;
 use Modules\Procurement\Models\BidScore;
-use Modules\Procurement\Models\Bidder;
+use Modules\Procurement\Models\Order;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Models\TenderCriterion;
 use Modules\Procurement\Models\TenderLine;
@@ -102,7 +104,13 @@ class TenderResource extends JsonResource
                 'removed_at' => Refs::at($bidder->removed_at),
             ])->all(),
             'bids' => $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->get()->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect())))->all(),
+            // PRC-11: the draft PO the award made.
+            'order' => $tender->awarded_bid_id === null ? null : (($order = Order::query()->where('bid_id', $tender->awarded_bid_id)->first(['id', 'number', 'status'])) === null ? null
+                : ['id' => $order->id, 'number' => $order->number, 'status' => $order->status]),
             'can' => [
+                // PRC-12: award and regret letters, once awarded.
+                'letter' => $tender->status === Tender::AWARDED,
+                'email_letter' => $tender->status === Tender::AWARDED && $at('award'),
                 'edit' => $tender->status === Tender::DRAFT && $at('create'),
                 'publish' => $tender->status === Tender::DRAFT && $at('create'),
                 'invite' => in_array($tender->status, [Tender::DRAFT, Tender::PUBLISHED], true) && ! ($tender->status === Tender::PUBLISHED && $tender->closedForBids()) && $at('create'),
@@ -119,7 +127,7 @@ class TenderResource extends JsonResource
      * PRC-09: a bid as buyers see it: sealed (who, when, version,
      * fingerprint) until opened, its content and scores after.
      *
-     * @param  \Illuminate\Support\Collection<int, BidScore>  $scores
+     * @param  Collection<int, BidScore>  $scores
      * @return array<string, mixed>
      */
     public static function bid(Bid $bid, $scores): array

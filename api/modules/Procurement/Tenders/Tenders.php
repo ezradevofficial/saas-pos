@@ -16,6 +16,7 @@ use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Models\TenderCriterion;
 use Modules\Procurement\Models\TenderLine;
 use Modules\Procurement\Models\TenderMember;
+use Modules\Procurement\Portal\PortalAuth;
 use Modules\Procurement\Support\LineResolver;
 use Modules\Procurement\Support\ProcurementError;
 use Modules\Procurement\Support\Tx;
@@ -174,7 +175,7 @@ class Tenders
             }
 
             $tender->fill(['status' => Tender::CANCELLED, 'cancelled_by' => $by->id, 'cancelled_at' => CarbonImmutable::now(), 'cancel_reason' => $reason])->save();
-            app(\Modules\Procurement\Portal\PortalAuth::class)->revokeTender($tender);
+            app(PortalAuth::class)->revokeTender($tender);
 
             return $tender->refresh();
         });

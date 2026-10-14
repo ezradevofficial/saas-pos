@@ -2,7 +2,9 @@
 
 namespace Modules\Procurement\Http\Middleware;
 
+use App\Core\Http\ApiException;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -40,7 +42,7 @@ class PortalSessionMiddleware
 
         try {
             if (! $this->modules->isActive(ProcurementServiceProvider::MODULE)) {
-                throw new \App\Core\Http\ApiException(403, 'module_inactive', __('rbac.errors.module_inactive'));
+                throw new ApiException(403, 'module_inactive', __('rbac.errors.module_inactive'));
             }
 
             $request->attributes->set(self::ATTRIBUTE, $session);
@@ -55,7 +57,7 @@ class PortalSessionMiddleware
     private function applyLocale(Request $request): void
     {
         $preferred = $request->getPreferredLanguage(['en', 'fr']);
-        $tenant = \App\Core\Tenancy\Models\Tenant::query()->find($this->tenants->id());
+        $tenant = Tenant::query()->find($this->tenants->id());
         $header = $request->headers->get('Accept-Language');
         app()->setLocale($header !== null && $header !== '' ? ($preferred ?? 'en') : ($tenant?->default_locale ?: 'en'));
     }

@@ -3,10 +3,16 @@
 namespace Modules\Procurement\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Currency\TenantCurrencies;
+use App\Core\MasterData\Parties\Party;
+use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Modules\Procurement\Models\Bid;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\PortalSession;
 use Modules\Procurement\Tenders\Bidders;
@@ -64,7 +70,7 @@ class PortalTest extends TestCase
     public function test_the_link_is_emailed_and_exchanged_for_a_session_of_one_tender_and_bidder(): void
     {
         // NOT-02, ADR 009: a system message to the supplier's address, the token only in the link.
-        $this->inTenant(fn () => $this->assertSame(2, \App\Core\Notifications\Models\NotificationDelivery::query()->where('event_type', 'procurement.portal.invited')->count()));
+        $this->inTenant(fn () => $this->assertSame(2, NotificationDelivery::query()->where('event_type', 'procurement.portal.invited')->count()));
         $upesi = $this->portal($this->linkFor($this->bidderIds['sales@upesi.example.com']));
         $view = $this->getJson('/api/v1/supplier-portal/tender', $upesi)->assertOk();
 
@@ -120,13 +126,13 @@ class PortalTest extends TestCase
         $other = $this->otherTenant();
         $theirs = $this->asTenant($other['user']->tenant_id, function () use ($other) {
             app(ModuleRegistry::class)->activate('procurement');
-            app(\App\Core\Currency\TenantCurrencies::class)->provisionFor($other['company']);
+            app(TenantCurrencies::class)->provisionFor($other['company']);
 
             $second = $this->colleague($other['user']);
-            $this->assign($second, \App\Core\Rbac\Models\Role::query()->where('template_key', 'branch_manager')->sole(), \App\Core\Rbac\Scope::branch($other['branch']->id));
+            $this->assign($second, Role::query()->where('template_key', 'branch_manager')->sole(), Scope::branch($other['branch']->id));
             $this->otherOpener = $second->id;
 
-            return \App\Core\MasterData\Parties\Party::create(['kind' => 'organisation', 'name' => 'Other tenant supplier', 'roles' => ['supplier'],
+            return Party::create(['kind' => 'organisation', 'name' => 'Other tenant supplier', 'roles' => ['supplier'],
                 'emails' => [['address' => 'other@supplier.example.com', 'label' => null]]]);
         });
         $theirTender = $this->tenderAt($other['user'], $other['branch']->id, [$theirs], tenant: $this->otherOpener);
@@ -144,7 +150,7 @@ class PortalTest extends TestCase
             'currency' => 'KES', 'lines' => [['tender_line_id' => $this->tender['lines'][0]['id'], 'unit_price_minor' => '1']],
         ], $theirs)->assertUnprocessable()->assertJsonPath('code', 'line_unknown');
         // And tenant A's tender gets no bid from it.
-        $this->assertSame(0, $this->inTenant(fn () => \Modules\Procurement\Models\Bid::query()->count()));
+        $this->assertSame(0, $this->inTenant(fn () => Bid::query()->count()));
     }
 
     public function test_a_removed_bidder_and_an_inactive_module_end_the_session(): void

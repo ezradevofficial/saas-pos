@@ -6,6 +6,7 @@ use App\Core\Currency\FxSnapshot;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\Models\Location;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -20,8 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ?FxSnapshot $fx
  * @property ?string $base_currency
  * @property bool $tax_inclusive
- * @property \Carbon\CarbonImmutable $order_date
- * @property ?\Carbon\CarbonImmutable $expected_on
+ * @property CarbonImmutable $order_date
+ * @property ?CarbonImmutable $expected_on
  * @property int $subtotal_minor
  * @property int $tax_minor
  * @property int $total_minor
