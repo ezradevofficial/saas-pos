@@ -81,10 +81,24 @@ class PosIntegrationTest extends TestCase
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
         $sale = $this->loyaltySale($this->shift, 1, $this->amina->id, [$this->pay('points', '112500', ['points' => '1125'])]);
 
-        // The tender is stored as sent, unchecked; nothing is posted.
-        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored')->assertJsonPath('results.0.flags', []);
+        // The tender is stored as sent, unchecked, and flagged for review (device wins); nothing is posted.
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored')
+            ->assertJsonPath('results.0.flags', [['code' => 'tender_flagged', 'detail' => ['payment' => 1, 'code' => 'module_inactive']]]);
         $this->assertSame(0, $this->inTenant(fn () => LoyaltySale::query()->count()));
         $this->assertSame(['points' => '1125'], $this->inTenant(fn () => Sale::query()->findOrFail($sale['id'])->payments()->first()->tender));
+    }
+
+    public function test_rbac_08_a_refund_to_a_loyalty_tender_after_the_module_is_switched_off_is_flagged(): void
+    {
+        [, $code] = $this->giftCard('200000');
+        $sale = $this->loyaltySale($this->shift, 1, null);
+        $this->upload([$sale])->assertOk();
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
+
+        $refund = $this->refundSale($sale, $this->shift, '1', '56250', 1, [$this->pay('voucher', '56250', ['code_hash' => GiftCards::proof($code)])]);
+
+        $refund->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->assertContains(['code' => 'tender_flagged', 'detail' => ['payment' => 1, 'code' => 'module_inactive']], $refund->json('results.0.flags'));
     }
 
     public function test_a_void_reverses_points_earned_and_redeemed(): void

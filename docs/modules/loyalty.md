@@ -189,7 +189,9 @@ Recorded here as the brief asked; the owner may revisit them.
   short keys; otherwise a 422, as any malformed field) and asks the
   provider for review flags (`check()`), which POS adds to the sale's or
   refund's flags as `tender_flagged` with the provider's code. Providers of an
-  inactive module are not used: the tender is stored as sent.
+  inactive module are not used: the tender is stored as sent and flagged
+  `tender_flagged` with code `module_inactive` (`TenderProviders::registered()`
+  still names a switched-off module's provider; device wins).
 - **Core `App\Core\MasterData\Prices\DiscountSources`.** A module
   registers a source key (`loyalty.promotion`) with a synchronous verifier
   (H2): given the sale (company, branch, customer, currency, time, lines,
