@@ -287,6 +287,8 @@ class PosSales
             $this->refundTender($sale, $payment, $index, $attributes, $flags);
         }
 
+        $this->refundGiftCardLines($sale, $refund, $flags);
+
         $sale->forceFill([
             'refunded_minor' => (string) $refunded,
             'points_reversed' => (string) BigInteger::of((string) $sale->points_reversed)->plus($reverse),
@@ -660,6 +662,45 @@ class PosSales
             'expires_at' => $programme->expiry_months === null ? null : $sale->sold_at->addMonthsNoOverflow($programme->expiry_months),
         ]);
         $sale->points_earned = $points;
+    }
+
+    /**
+     * Review #6 (stage 7B): a refunded line that sold a gift card takes the
+     * card's load back in proportion (`adjust`, raised as a negative
+     * GiftCardSold), cumulatively so the parts never exceed the load. A card
+     * spent meanwhile goes below zero and the sale is flagged
+     * `gift_card_refunded_after_use` (device wins: the refund happened).
+     */
+    private function refundGiftCardLines(LoyaltySale $sale, array $refund, array &$flags): void
+    {
+        $saleLines = collect((array) (($sale->snapshot)['lines'] ?? []))->keyBy('id');
+        $loads = GiftCardEntry::query()->where('sale_id', $sale->id)->where('kind', 'load')->where('source_type', 'pos_sale')->get()->keyBy('source_id');
+
+        foreach ($refund['lines'] ?? [] as $line) {
+            $load = $loads->get($line['sale_line_id'] ?? '');
+            $saleLine = $saleLines->get($line['sale_line_id'] ?? '');
+
+            if ($load === null || $saleLine === null || ! isset($line['id']) || BigInteger::of((string) $saleLine['total_minor'])->isZero()) {
+                continue;
+            }
+
+            $card = $this->ledgers->lockCard($load->gift_card_id);
+            $taken = BigInteger::of((string) GiftCardEntry::query()->where('gift_card_id', $card->id)->where('sale_id', $sale->id)
+                ->where('kind', 'adjust')->where('source_type', 'pos_refund')->sum('amount_minor'))->negated();
+            $share = BigInteger::of((string) $load->amount_minor)->multipliedBy((string) $line['total_minor'])
+                ->dividedBy((string) $saleLine['total_minor'], \Brick\Math\RoundingMode::HalfUp);
+            $amount = BigInteger::min($share, BigInteger::of((string) $load->amount_minor)->minus($taken));
+
+            if (! $amount->isPositive()) {
+                continue;
+            }
+
+            $entry = $this->ledgers->giftCard($card, 'adjust', (string) $amount->negated(), ['source_type' => 'pos_refund', 'source_id' => $line['id'], 'sale_id' => $sale->id]);
+
+            if ($entry !== null && BigInteger::of((string) $card->balance_minor)->isNegative()) {
+                $flags[] = ['code' => 'gift_card_refunded_after_use', 'detail' => ['card' => $card->last4, 'balance' => (string) $card->balance_minor]];
+            }
+        }
     }
 
     /** LOY-25: money given back as points, onto a card or off a credit account. */

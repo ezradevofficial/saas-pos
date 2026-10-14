@@ -6302,7 +6302,8 @@
         "gift_card_unknown": "Carte cadeau introuvable",
         "processing_failed": "Traitement impossible après plusieurs essais",
         "voided_before_processing": "Annulée avant traitement",
-        "other": "À vérifier"
+        "other": "À vérifier",
+        "gift_card_refunded_after_use": "Carte cadeau remboursée après avoir été utilisée"
       }
     }
   },

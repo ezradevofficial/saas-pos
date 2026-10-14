@@ -163,6 +163,7 @@ return [
         'gift_card_inactive' => 'Gift card not sold',
         'gift_card_blocked' => 'Gift card blocked',
         'gift_card_expired' => 'Gift card expired',
+        'gift_card_refunded_after_use' => 'Gift card refunded after it was spent',
         'gift_card_overdrawn' => 'Gift card overdrawn',
         'gift_card_already_active' => 'Gift card sold twice',
         'gift_card_sale_mismatch' => 'Gift card sale does not match',

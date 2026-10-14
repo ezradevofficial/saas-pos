@@ -412,4 +412,34 @@ class IntegrationPostingTest extends TestCase
         $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($event)));
         $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()));
     }
+
+    /**
+     * Review #6: a gift card line refunded takes the card's load back (raised as a negative
+     * GiftCardSold), so revenue and the card liability end at zero; a card already spent is flagged.
+     */
+    public function test_a_refunded_gift_card_line_reverses_the_cards_load(): void
+    {
+        $this->setUpIntegrations();
+        $this->inTenant(fn () => $this->programme->forceFill(['gift_card_item_id' => $this->soap->id])->save());
+        [$card, $code] = $this->giftCard('100000', active: false);
+        $shift = $this->openShift();
+        $sale = $this->saleBody($shift, 1);
+        $sale['extensions'] = ['loyalty' => ['gift_cards' => [['line_id' => $sale['lines'][0]['id'], 'code_hash' => GiftCards::proof($code), 'amount_minor' => '112500']]]];
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+        // KES 500.00 of the card spent before the card's sale is refunded.
+        $this->upload([$this->saleBody($shift, 2, ['lines' => [$this->line(['qty' => '1', 'tax_minor' => '6250', 'total_minor' => '56250'])],
+            'payments' => [$this->pay('voucher', '56250', ['code_hash' => GiftCards::proof($code)])]])])->assertOk();
+
+        $this->refundSale($sale, $shift, '2', '112500', 1)->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->inTenant(function () use ($card, $sale) {
+            $this->assertSame('-56250', (string) $card->refresh()->balance_minor);
+            $this->assertContains('gift_card_refunded_after_use', array_column(\Modules\Loyalty\Models\LoyaltySale::query()->findOrFail($sale['id'])->flags ?? [], 'code'));
+        });
+        $reversal = collect($this->journalsOf('loyalty.gift_card_sold'))->first(fn (Journal $j) => ($this->linesOf($j)['2310'][0] ?? 0) > 0);
+        $this->assertSame(['2310' => [112500, 0], '4100' => [0, 112500]], $this->linesOf($reversal));
+        // The card's own sale nets to nothing; what is left is the second sale (KES 500.00 net) and the KES 562.50 spent on a card now refunded.
+        $this->assertSame(-50000, $this->balance('4100'));
+        $this->assertSame(56250, $this->balance('2310'));
+    }
 }

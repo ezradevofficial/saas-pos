@@ -6302,7 +6302,8 @@
         "gift_card_unknown": "Gift card not found",
         "processing_failed": "Could not be processed after several tries",
         "voided_before_processing": "Voided before it was processed",
-        "other": "To check"
+        "other": "To check",
+        "gift_card_refunded_after_use": "Gift card refunded after it was spent"
       }
     }
   },
