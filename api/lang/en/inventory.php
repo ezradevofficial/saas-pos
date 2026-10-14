@@ -68,6 +68,8 @@ return [
         'sale' => 'Sale',
         'sale_return' => 'Sale return',
         'sale_void' => 'Sale voided',
+        'store_issue' => 'Store issue',
+        'store_return' => 'Return to store',
     ],
     'flags' => [
         'negative_stock' => 'Stock went below zero',

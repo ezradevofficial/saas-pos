@@ -71,9 +71,15 @@ class Movement extends Model implements HasScope
 
     public const SALE_VOID = 'sale_void';
 
+    /** STR-08: goods issued from a store to a department (Stores). */
+    public const STORE_ISSUE = 'store_issue';
+
+    /** STR-08: goods returned to a store, at the cost their issue went out at. */
+    public const STORE_RETURN = 'store_return';
+
     public const KINDS = [
         self::OPENING, self::OPENING_REVERSAL, self::RECEIPT, self::ADJUSTMENT_IN, self::ADJUSTMENT_OUT, self::COUNT_GAIN, self::COUNT_LOSS,
-        self::TRANSFER_OUT, self::TRANSFER_IN, self::TRANSFER_LOSS, self::SALE, self::SALE_RETURN, self::SALE_VOID,
+        self::TRANSFER_OUT, self::TRANSFER_IN, self::TRANSFER_LOSS, self::SALE, self::SALE_RETURN, self::SALE_VOID, self::STORE_ISSUE, self::STORE_RETURN,
     ];
 
     /** Moves between locations of one company: the company's cost does not change. */

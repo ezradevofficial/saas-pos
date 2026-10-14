@@ -556,7 +556,14 @@
           "ageing_0_30": "0 à 30 jours",
           "ageing_31_60": "31 à 60 jours",
           "ageing_61_90": "61 à 90 jours",
-          "ageing_90_plus": "Plus de 90 jours"
+          "ageing_90_plus": "Plus de 90 jours",
+          "requisition": "Demande",
+          "store": "Magasin",
+          "department": "Service",
+          "cost_centre": "Centre de coût",
+          "issued_by": "Sorti par",
+          "received_by": "Reçu par",
+          "total_value": "Valeur totale"
         },
         "customer": {
           "name": "Client",
@@ -587,6 +594,7 @@
         "sales_quote": "Devis",
         "procurement_po": "Bon de commande",
         "stores_delivery_note": "Bon de livraison",
+        "stores_issue_voucher": "Bon de sortie",
         "payroll_payslip": "Bulletin de paie",
         "party_statement": "Relevé",
         "letter": "Référence",
@@ -607,7 +615,9 @@
         "date": "Date",
         "debit": "Débit",
         "credit": "Crédit",
-        "balance": "Solde"
+        "balance": "Solde",
+        "unit_cost": "Coût unitaire",
+        "value": "Valeur"
       },
       "totals": {
         "subtotal": "Sous-total",

@@ -33,6 +33,7 @@ use Modules\Accounting\AccountingServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Loyalty\LoyaltyServiceProvider;
 use Modules\POS\PosServiceProvider;
+use Modules\Stores\StoresServiceProvider;
 
 return [
     AppServiceProvider::class,
@@ -67,5 +68,6 @@ return [
     LoyaltyServiceProvider::class,
     InventoryServiceProvider::class,
     AccountingServiceProvider::class,
+    StoresServiceProvider::class,
     HorizonServiceProvider::class,
 ];
