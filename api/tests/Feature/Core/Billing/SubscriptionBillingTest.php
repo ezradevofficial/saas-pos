@@ -284,7 +284,8 @@ class SubscriptionBillingTest extends TestCase
         $this->travelToDay('2027-11-02');
         $this->artisan('billing:purge-report')->assertSuccessful();
         $this->assertNotNull($this->inTenant(fn () => TenantModule::query()->where('module', 'pos')->value('purge_flagged_at')));
-        $this->assertSame([['module' => 'pos']], array_map(fn ($r) => ['module' => $r['module']], $this->inOperator(fn () => OperatorAccount::query()->sole()->purge_due)));
+        // Loyalty, installed and in the plan, is switched off with POS.
+        $this->assertSame([['module' => 'loyalty'], ['module' => 'pos']], array_map(fn ($r) => ['module' => $r['module']], $this->inOperator(fn () => OperatorAccount::query()->sole()->purge_due)));
 
         $this->travelToDay('2026-11-03');
         $this->postJson('/api/v1/subscription/change', [...self::STARTER, 'expected_charge' => 0], $this->headersFor())->assertOk();
