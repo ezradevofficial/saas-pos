@@ -283,6 +283,10 @@ class BackOfficeTest extends TestCase
         // LOY-23: the till checks a card of its company by hash.
         $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::proof($code)], $this->tillHeaders())->assertOk()->assertJsonPath('data.balance_minor', '250000');
         $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => str_repeat('b', 64)], $this->tillHeaders())->assertNotFound();
+
+        // RBAC-08: the till's lookup needs the POS module too.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('pos'));
+        $this->postJson('/api/v1/loyalty/device/gift-cards/lookup', ['code_hash' => GiftCards::proof($code)], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'module_inactive');
     }
 
     public function test_the_customer_tab_shows_accounts_and_takes_adjustments(): void

@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
+use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Models\PointsEntry;
 use Modules\Loyalty\Points\PointsExpiry;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
@@ -136,5 +137,19 @@ class SyncAndExpiryTest extends TestCase
         $this->assertContains('loyalty.credit.limit_near', $types);
         $this->assertContains('loyalty.gift_card.low', $types);
         $this->assertSame('85000', (string) $this->inTenant(fn () => Account::query()->findOrFail($account->id)->balance));
+    }
+
+    public function test_notices_show_numbers_in_the_recipients_language(): void
+    {
+        $this->inTenant(fn () => $this->owner->forceFill(['locale' => 'fr'])->saveQuietly());
+        $account = $this->creditAccount('100000');
+        $this->postJson("/api/v1/loyalty/accounts/{$account->id}/charges", ['amount_minor' => '85000'], $this->headersFor())->assertCreated();
+
+        $notice = $this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->owner->id)->where('event_type', 'loyalty.credit.limit_near')->sole());
+        $text = $notice->subject.' '.$notice->body;
+        $this->assertStringContainsString("KES 850,00", $text);
+        $this->assertStringContainsString("KES 1\u{202F}000,00", $text);
+        $this->assertSame("1\u{202F}250", LoyaltyNotices::number('1250', 'fr'));
+        $this->assertSame('1,250', LoyaltyNotices::number('1250', 'en'));
     }
 }

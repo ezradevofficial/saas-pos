@@ -35,8 +35,8 @@ Route::model('loyalty_account', Account::class);
 Route::model('loyalty_statement', Statement::class);
 Route::model('loyalty_gift_card', GiftCard::class);
 
-// LOY-23: a till's live gift card balance check (device token only).
-Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:loyalty'])->group(function () {
+// LOY-23: a till's live gift card balance check (device token only; tills belong to POS, RBAC-08).
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:pos', 'module:loyalty'])->group(function () {
     // Guessing codes is throttled (loyalty-lookup).
     Route::post('loyalty/device/gift-cards/lookup', GiftCardLookupController::class)->middleware('throttle:'.LoyaltyServiceProvider::LOOKUP_LIMITER);
 });
