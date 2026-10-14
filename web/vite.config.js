@@ -30,5 +30,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.js',
+    // Screen tests that walk several steps (designers, wizards) need more than
+    // the 5 s default on a loaded CI runner; waits stay at 4 s (setup.js).
+    testTimeout: 15000,
   },
 })

@@ -6520,15 +6520,15 @@
       "off": "Non transmise"
     },
     "sources": {
-      "accounting.document": "Facture ou avoir",
-      "accounting.payment": "Encaissement ou paiement",
-      "accounting.reversal": "Écriture contre-passée",
-      "accounting.allocation": "Lettrage",
-      "accounting.bank_line": "Ligne de relevé",
-      "accounting.revaluation": "Réévaluation",
-      "accounting.closing": "Clôture de l’exercice",
-      "accounting.opening": "Solde d’ouverture",
-      "pos.sale": "Vente"
+      "accounting_document": "Facture ou avoir",
+      "accounting_payment": "Encaissement ou paiement",
+      "accounting_reversal": "Écriture contre-passée",
+      "accounting_allocation": "Lettrage",
+      "accounting_bank_line": "Ligne de relevé",
+      "accounting_revaluation": "Réévaluation",
+      "accounting_closing": "Clôture de l’exercice",
+      "accounting_opening": "Solde d’ouverture",
+      "pos_sale": "Vente"
     },
     "columns": {
       "account": "Compte",

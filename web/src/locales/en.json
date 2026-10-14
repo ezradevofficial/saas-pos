@@ -6520,15 +6520,15 @@
       "off": "Not sent"
     },
     "sources": {
-      "accounting.document": "Invoice or credit note",
-      "accounting.payment": "Receipt or payment",
-      "accounting.reversal": "Reversed journal",
-      "accounting.allocation": "Settlement",
-      "accounting.bank_line": "Bank statement line",
-      "accounting.revaluation": "Revaluation",
-      "accounting.closing": "Year-end close",
-      "accounting.opening": "Opening balance",
-      "pos.sale": "Sale"
+      "accounting_document": "Invoice or credit note",
+      "accounting_payment": "Receipt or payment",
+      "accounting_reversal": "Reversed journal",
+      "accounting_allocation": "Settlement",
+      "accounting_bank_line": "Bank statement line",
+      "accounting_revaluation": "Revaluation",
+      "accounting_closing": "Year-end close",
+      "accounting_opening": "Opening balance",
+      "pos_sale": "Sale"
     },
     "columns": {
       "account": "Account",
