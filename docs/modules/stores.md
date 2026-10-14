@@ -161,7 +161,7 @@ decimal strings; money is `{amount_minor, currency}`.
 | `GET stores/stock` | `ledger.view` | Own ledger balances; `?item` |
 | `POST stores/stock-entries` | `stock.adjust` at the store | `{location_id, kind: opening\|adjustment, reason?, note?, lines: [{item_id, uom_id?, qty (signed for adjustments)}]}`; 409 `inventory_active` |
 | `GET stores/consumption` | `report.view` | `?group`, `?department`, `?cost_centre`, `?item` |
-| `GET stores/status` | any `stores.*.view` | `{inventory_active}`: which ledger holds quantities now |
+| `GET stores/status` | any `stores.*.view` | `{ledger: stores\|inventory, inventory_active}`: which ledger holds quantities now |
 
 Errors: `not_a_store`, `location_archived`, `department_other_company`,
 `cost_centre_other_company`, `uom_not_on_item`, `not_a_stock_item`,
