@@ -56,6 +56,7 @@ later; their payloads are fixed below.
 | ACC-27 | **Inventory → Accounting (7B).** Every stock posting (`StockMoved`) changes the stock account by what it changed the valuation by (value less cost variance), its counterpart by the opposite of its value, and the cost variance to cost of sales: cost of sales per sale line (`inventory.cost_of_sales`), goods received against GRNI (`inventory.receipt`, for Procurement), opening stock (`inventory.opening`), adjustments and count variances to stock adjustment expense (`inventory.adjustment`, `inventory.count`), transfer losses (`inventory.transfer_loss`). Transfers within a company post nothing else. The stock account equals the valuation report. | Must |
 | ACC-28 | **Loyalty → Accounting (7B).** One journal per Loyalty ledger entry: gift cards (sold: a liability, never revenue; redeemed: liability to the tender; expired: breakage income), points (when the programme gives a point a value: earned Dr loyalty cost / Cr points liability; redeemed into the tender; expired to breakage income; adjusted), customer credit (charged: Dr the store credit receivable control account; payments; adjustments). | Must |
 | ACC-29 | **Backfill (7B).** `accounting:backfill --from=YYYY-MM-DD [--to=] [--tenant=]` posts what POS, Inventory and Loyalty recorded from an owner-chosen day, in each active tenant with Accounting (DueTenants, TenantContext): each module raises its events again (core `EventReplays`), and they post exactly as live ones, idempotently. | Must |
+| ACC-31 | **Stores → Accounting (7B).** `StoreConsumptionValued` posts `stores.consumption`, one journal per issue or return: Dr the department's consumption (`consumption.{department}`, mapped per department, with the department and cost centre as dimensions) / Cr stock for an issue, the reverse for a return, each line's cost variance to cost of sales. Stores' own `StockMoved` (`stores.*`) posts nothing: it is the same movement. | Must |
 | ACC-30 | **Integration screens (7B).** The posting rules screen lists every source type with its own rule, its fallback or none, edits rules (maps kept) and adds the defaults; the exceptions list filters by status, retries, and opens the source record; journals drill down to the sale, the movements or the Loyalty record through each module's own route. | Must |
 
 ## Data model
@@ -125,30 +126,30 @@ field the source does not carry is zero and adds no line; a negative
 amount posts on the other side. The same company, source type and id
 posts once: a repeat returns the first journal (`created: false`).
 
-**Event payloads the integrations need (stage 7B and later).** Each
-module raises its own event after commit; Accounting listens only when
-both modules are active and builds a `SourceDocument` from the event and
-the module's public read model, never its tables.
+**Which module posts what.** Each module raises its own event after
+commit; Accounting listens only when both modules are active and builds a
+`SourceDocument` from the event alone, never from the module's tables.
+The source types, their fields and default rules of POS, Inventory,
+Loyalty and Stores are in the stage 7B section below. Later modules:
 
 | Source type | Raised by | Amount fields | Dimensions |
 | --- | --- | --- | --- |
-| `pos.sale` | POS `SaleCompleted` | `total`, `net`, `tax`, `discount`, `rounding`, `tender.cash`, `tender.mobile_money`, `tender.card`, `tender.credit`, `tender.other`, `tax.{TAX_CODE}` | branch, party (customer) |
-| `pos.refund` | POS `SaleRefunded` | as `pos.sale`, positive amounts refunded | branch, party |
-| `pos.void` | POS `SaleVoided` | as `pos.sale` of the voided sale | branch, party |
-| `pos.shift_variance` | POS `ShiftClosed` | `variance.{CURRENCY}` | branch |
-| `inventory.receipt` | Inventory `GoodsReceived` valuation | `stock_value`, `grni` | branch, party (supplier) |
-| `inventory.issue` | Inventory sale or issue costing | `cost_of_sales`, `stock_value` | branch, cost centre |
-| `inventory.adjustment` | Inventory adjustment approved | `gain`, `loss`, `stock_value` | branch, cost centre |
 | `procurement.supplier_invoice` | Procurement invoice matched | `total`, `net`, `tax`, `grni` | party, cost centre, project |
 | `payroll.run` | Payroll `PayrollApproved` | `gross`, `net_pay`, `paye`, `employer.{CODE}`, `employee.{CODE}`, `deduction.{CODE}` | department, cost centre |
-| `loyalty.points` | Loyalty points earned or redeemed | `liability`, `expense` | branch, party |
 
-### Stage 7B: the integrations (ACC-24 to ACC-30)
+**Procurement posts only the supplier invoice** (Dr GRNI, Dr input tax,
+Cr the supplier's payable). The goods received note posts from
+Inventory's `StockMoved` for `procurement.goods_receipt`
+(`inventory.receipt`: Dr stock, Cr GRNI, cost variance to cost of
+sales), so receipt and invoice meet in GRNI and nothing posts twice.
+
+### Stage 7B: the integrations (ACC-24 to ACC-31)
 
 Accounting listens to other modules' events with one queued listener
 (`PostModuleEvent`, after commit, in the event's tenant, retried), and
 acts only while Accounting **and** the raising module are active
-(RBAC-08); with Accounting off nothing is posted and nothing is kept.
+(RBAC-08); with Accounting off nothing is posted, nothing is kept and no
+job is queued.
 Every source goes through `PostingService` and the company's rules,
 idempotent per (company, source type, source id); a source that cannot
 post is a posting exception, listed and retried, never lost. Journals are
@@ -200,10 +201,11 @@ retry posts it on its own date.
 | `loyalty.credit_charged` | `amount`, and `pos` or `direct` | Dr customer store credit receivable 1220 (party), Cr 1230 (POS) or sales 4100 (back office) |
 | `loyalty.credit_payment_received` | `amount` | Dr 1110, Cr 1220 (party) |
 | `loyalty.credit_adjusted` | `amount` | Dr 1220 (party), Cr other expenses 6900 |
+| `stores.consumption` | `stock`, `consumption.{department}`, `cost_variance` | stock 1300, stores consumption 6920, cost of goods sold 5100 (all debit, signed) |
 
 The CD (SYSCOHADA) template maps the same roles to 571, 551, 521, 4711,
-658, 701, 7019, 443, 311, 603, 408, 471, 6038, 4191, 4198, 758, 627 and
-4118. Loyalty tender clearing nets to zero when both POS and Loyalty post
+658, 701, 7019, 443, 311, 603, 408, 471, 6038, 4191, 4198, 758, 627,
+4118 and 6033. Loyalty tender clearing nets to zero when both POS and Loyalty post
 (the POS tender debits it, the Loyalty entry credits it); a balance left
 there is a tender Loyalty did not post (module off, unknown card), for
 review.
@@ -405,11 +407,40 @@ holds everything. Admin and Branch Manager hold none.
     owner's choice on the command line. Records in closed periods become
     exceptions.
 
+26. **Review fixes (stage 7B review, owner's reviewer):**
+    - *Tenders in their own currency.* A tender paid in another currency
+      than the sale posts that amount in that currency (so a cash account
+      kept in USD takes USD), its base amount at the payment's own rate;
+      what the payments' rates make the base amounts differ by against
+      the sale's total goes to exchange gains or losses, beyond a minor
+      unit per line (rounding).
+    - *A daily summary posts once.* Summaries run under a per-company
+      lock; a summary covering sales of a failed one supersedes its
+      exception (`superseded`, listed, never retried); retrying a summary
+      rebuilds it from its own sales and is refused once any of them is
+      in another summary.
+    - *A sale posts one way only.* One posted on its own (or waiting as an
+      exception) is never queued for a summary; one queued is never
+      posted on its own, whatever the mode when it comes again.
+    - *Only verified promotions.* POS stores what each discount source
+      verified at upload (`pos_sale_lines.verified_discounts`); the
+      snapshot counts only that as a promotion, the rest as manual.
+    - *Partial refunds* take cumulative shares of a line's discount, as of
+      its total and tax.
+    - *A refunded gift card line* takes the card's load back (a negative
+      `GiftCardSold`), flagged when the card was spent meanwhile.
+    - *Points keep their value*: each entry stores the point value it was
+      written with; live and replayed events use it.
+    - *Breakage* is once per card and expiry date.
+    - *No idle jobs*: nothing is queued for a tenant without Accounting.
+    - *Default rules* match template accounts by template code and report
+      (`unresolved`) a rule whose account they cannot resolve.
+
 ## Status (stage 7B)
 
 | ID | Status |
 | --- | --- |
-| ACC-24 to ACC-30 | Built and tested (IntegrationPostingTest, LedgerEventsTest, SaleSnapshotTest, PostingRules.test.jsx) |
+| ACC-24 to ACC-31 | Built and tested (IntegrationPostingTest, LedgerEventsTest, SaleSnapshotTest, PostingRules.test.jsx) |
 
 ## Status (stage 7A)
 
