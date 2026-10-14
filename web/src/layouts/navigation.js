@@ -57,6 +57,15 @@ export const STORES_ISSUE_VIEW = 'stores.issue.view'
 export const STORES_RETURN_VIEW = 'stores.return.view'
 export const STORES_LEDGER_VIEW = 'stores.ledger.view'
 export const STORES_REPORT_VIEW = 'stores.report.view'
+// HR module (docs/modules/hr.md, Screens; RBAC-09): who may open each page (the API checks again at the employee's place).
+export const HR_EMPLOYEE_VIEW = 'hr.employee.view'
+export const HR_POSITION_VIEW = ['hr.position.view', 'hr.position.manage']
+export const HR_LEAVE_VIEW = 'hr.leave.view'
+export const HR_ROSTER_VIEW = ['hr.roster.view', 'hr.roster.manage']
+export const HR_ATTENDANCE_VIEW = ['hr.attendance.view', 'hr.device.manage']
+export const HR_CHECKLIST_VIEW = 'hr.checklist.view'
+export const HR_DISCIPLINARY_VIEW = 'hr.disciplinary.view'
+export const HR_APPRAISAL_VIEW = 'hr.appraisal.view'
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -135,6 +144,34 @@ export const NAV_GROUPS = [
       { to: '/stores/ledger', icon: 'movements', label: (t) => t('nav.storesLedger'), permission: STORES_LEDGER_VIEW, module: 'stores' },
       { to: '/stores/stock', icon: 'stock', label: (t) => t('nav.storesStock'), permission: STORES_LEDGER_VIEW, module: 'stores' },
       { to: '/stores/consumption', icon: 'chart', label: (t) => t('nav.storesConsumption'), permission: STORES_REPORT_VIEW, module: 'stores' },
+    ],
+  },
+  {
+    // HR (docs/modules/hr.md, Screens): only while the HR module is active (RBAC-08).
+    id: 'people',
+    label: (t) => t('nav.groups.people'),
+    items: [
+      { to: '/hr/employees', icon: 'users', label: (t) => t('nav.hrEmployees'), permission: HR_EMPLOYEE_VIEW, module: 'hr' },
+      { to: '/hr/positions', icon: 'organisation', label: (t) => t('nav.hrPositions'), permission: HR_POSITION_VIEW, module: 'hr' },
+      { to: '/hr/leave', icon: 'held', label: (t) => t('nav.hrLeave'), permission: HR_LEAVE_VIEW, module: 'hr' },
+      { to: '/hr/rosters', icon: 'shifts', label: (t) => t('nav.hrRosters'), permission: HR_ROSTER_VIEW, module: 'hr' },
+      { to: '/hr/attendance', icon: 'clock', label: (t) => t('nav.hrAttendance'), permission: HR_ATTENDANCE_VIEW, module: 'hr' },
+      { to: '/hr/onboarding', icon: 'templates', label: (t) => t('nav.hrOnboarding'), permission: HR_CHECKLIST_VIEW, module: 'hr' },
+      { to: '/hr/disciplinary', icon: 'alert', label: (t) => t('nav.hrDisciplinary'), permission: HR_DISCIPLINARY_VIEW, module: 'hr' },
+      { to: '/hr/appraisals', icon: 'chart', label: (t) => t('nav.hrAppraisals'), permission: HR_APPRAISAL_VIEW, module: 'hr' },
+    ],
+  },
+  {
+    // HR-31, AUTH-12: self-service, for a user linked to an employee (no permission needed); `employee` items need the link.
+    id: 'myHr',
+    label: (t) => t('nav.groups.myHr'),
+    items: [
+      { to: '/hr/me/profile', icon: 'users', label: (t) => t('nav.myProfile'), module: 'hr', employee: true },
+      { to: '/hr/me/leave', icon: 'held', label: (t) => t('nav.myLeave'), module: 'hr', employee: true },
+      { to: '/hr/me/roster', icon: 'shifts', label: (t) => t('nav.myRoster'), module: 'hr', employee: true },
+      { to: '/hr/me/attendance', icon: 'clock', label: (t) => t('nav.myAttendance'), module: 'hr', employee: true },
+      { to: '/hr/me/swaps', icon: 'transfers', label: (t) => t('nav.mySwaps'), module: 'hr', employee: true },
+      { to: '/hr/me/appraisals', icon: 'chart', label: (t) => t('nav.myAppraisals'), module: 'hr', employee: true },
     ],
   },
   {
@@ -255,10 +292,14 @@ export const NAV_GROUPS = [
   },
 ]
 
-/** The groups and items the user may see; empty groups are dropped. */
-export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCompany = true, isOwner = false }) {
+/**
+ * The groups and items the user may see; empty groups are dropped. Items
+ * with `employee` show only to a user linked to an employee (`isEmployee`, HR-31).
+ */
+export function visibleGroups(groups, { can, hasModule, tenantWide = can, hasCompany = true, isOwner = false, isEmployee = false }) {
   const allowed = (item) => {
     if (item.needsCompany && !hasCompany) return false
+    if (item.employee && !isEmployee) return false
     if (item.owner) return isOwner
     if (!item.permission) return true
     if (!item.tenantWide) return can(item.permission)

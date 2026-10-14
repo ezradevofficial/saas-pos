@@ -36,6 +36,9 @@ export function useNavigation() {
   const { layout, isLoading } = useNavigationLayout()
   // CF-04: the user's custom forms, as a group of their own.
   const { types } = useCustomFormTypes()
-  const groups = permissions.isLoading ? [] : withFormsGroup(visibleGroups(applyNavigationLayout(NAV_GROUPS, layout), { ...permissions, hasCompany: ready && companies.length > 0 }), types)
+  // HR-31: My HR shows while HR is active and the user is linked to an employee (GET hr/me answers).
+  const hrSelf = useQuery({ queryKey: ['hr', 'me'], queryFn: () => api.get('hr/me'), enabled: !permissions.isLoading && permissions.hasModule('hr'), retry: false, staleTime: 60_000 })
+  const isEmployee = permissions.hasModule('hr') && hrSelf.isSuccess
+  const groups = permissions.isLoading ? [] : withFormsGroup(visibleGroups(applyNavigationLayout(NAV_GROUPS, layout), { ...permissions, hasCompany: ready && companies.length > 0, isEmployee }), types)
   return { groups, home: homeOf(layout, groups), isLoading: isLoading || permissions.isLoading }
 }

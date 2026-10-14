@@ -25,6 +25,13 @@ import {
   STORES_REPORT_VIEW,
   STORES_REQUISITION_VIEW,
   STORES_RETURN_VIEW,
+  HR_APPRAISAL_VIEW,
+  HR_CHECKLIST_VIEW,
+  HR_DISCIPLINARY_VIEW,
+  HR_EMPLOYEE_VIEW,
+  HR_LEAVE_VIEW,
+  HR_POSITION_VIEW,
+  HR_ROSTER_VIEW,
   ITEM_VIEW,
   NOTIFICATION_DELIVERY_VIEW,
   NOTIFICATION_TEMPLATE_VIEW,
@@ -102,6 +109,15 @@ import ReturnDetail from './pages/stores/ReturnDetail'
 import Returns from './pages/stores/Returns'
 import StoreLedger from './pages/stores/StoreLedger'
 import StoreStock from './pages/stores/StoreStock'
+import Timesheets, { Devices as HrDevices, Periods as HrPeriods, Punches as HrPunches, TimeRules as HrTimeRules } from './pages/hr/Attendance'
+import EmployeeProfile from './pages/hr/EmployeeProfile'
+import Employees, { EmployeeForm } from './pages/hr/Employees'
+import { SectionIndex } from './pages/hr/HrParts'
+import LeaveRequests, { LeaveBalances, LeaveCalendar, LeaveTypes } from './pages/hr/Leave'
+import { MyAppraisals, MyAttendance, MyLeave, MyProfile, MyRoster, MySwaps } from './pages/hr/MyHr'
+import Positions from './pages/hr/Positions'
+import { AppraisalReview, Appraisals as HrAppraisals, CaseDetail, DisciplinaryCases, Onboarding } from './pages/hr/Records'
+import RosterWeek, { RosterDetail, RosterList, RosterSetup, Swaps as HrSwaps } from './pages/hr/Rosters'
 import NotFound from './pages/NotFound'
 import Ageing from './pages/loyalty/Ageing'
 import CreditAccountDetail from './pages/loyalty/CreditAccountDetail'
@@ -330,6 +346,45 @@ export const routes = [
         ['/stores/stock', STORES_LEDGER_VIEW, <StoreStock key="stores-stock" />],
         ['/stores/consumption', STORES_REPORT_VIEW, <Consumption key="stores-consumption" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // HR (docs/modules/hr.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/hr/employees', HR_EMPLOYEE_VIEW, <Employees key="hr-employees" />],
+        ['/hr/employees/new', 'hr.employee.create', <EmployeeForm key="hr-employee-new" />],
+        ['/hr/employees/:employeeId', HR_EMPLOYEE_VIEW, <EmployeeProfile key="hr-employee" />],
+        ['/hr/positions', HR_POSITION_VIEW, <Positions key="hr-positions" />],
+        ['/hr/leave/requests', HR_LEAVE_VIEW, <LeaveRequests key="hr-leave-requests" />],
+        ['/hr/leave/balances', HR_LEAVE_VIEW, <LeaveBalances key="hr-leave-balances" />],
+        ['/hr/leave/calendar', HR_LEAVE_VIEW, <LeaveCalendar key="hr-leave-calendar" />],
+        ['/hr/leave/types', HR_LEAVE_VIEW, <LeaveTypes key="hr-leave-types" />],
+        ['/hr/rosters/week', HR_ROSTER_VIEW, <RosterWeek key="hr-roster-week" />],
+        ['/hr/rosters/list', HR_ROSTER_VIEW, <RosterList key="hr-rosters" />],
+        ['/hr/rosters/list/:rosterId', HR_ROSTER_VIEW, <RosterDetail key="hr-roster" />],
+        ['/hr/rosters/setup', HR_ROSTER_VIEW, <RosterSetup key="hr-roster-setup" />],
+        ['/hr/rosters/swaps', HR_ROSTER_VIEW, <HrSwaps key="hr-swaps" />],
+        ['/hr/attendance/timesheets', 'hr.attendance.view', <Timesheets key="hr-timesheets" />],
+        ['/hr/attendance/punches', 'hr.attendance.view', <HrPunches key="hr-punches" />],
+        ['/hr/attendance/periods', 'hr.attendance.view', <HrPeriods key="hr-periods" />],
+        ['/hr/attendance/rules', 'hr.attendance.view', <HrTimeRules key="hr-time-rules" />],
+        ['/hr/attendance/devices', 'hr.device.manage', <HrDevices key="hr-devices" />],
+        ['/hr/onboarding', HR_CHECKLIST_VIEW, <Onboarding key="hr-onboarding" />],
+        ['/hr/disciplinary', HR_DISCIPLINARY_VIEW, <DisciplinaryCases key="hr-cases" />],
+        ['/hr/disciplinary/:caseId', HR_DISCIPLINARY_VIEW, <CaseDetail key="hr-case" />],
+        ['/hr/appraisals', HR_APPRAISAL_VIEW, <HrAppraisals key="hr-appraisals" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // A section's own path opens its first page the user may see.
+      { path: '/hr/leave', element: <SectionIndex section="leave" /> },
+      { path: '/hr/rosters', element: <SectionIndex section="rosters" /> },
+      { path: '/hr/attendance', element: <SectionIndex section="attendance" /> },
+      // HR-30: an appraisal's review; its reviewer may hold no HR role (the API decides).
+      { path: '/hr/appraisals/:appraisalId', element: <AppraisalReview /> },
+      // HR-31: self-service; being the linked employee is the authorisation (the API decides).
+      { path: '/hr/me', element: <Navigate to="/hr/me/profile" replace /> },
+      { path: '/hr/me/profile', element: <MyProfile /> },
+      { path: '/hr/me/leave', element: <MyLeave /> },
+      { path: '/hr/me/roster', element: <MyRoster /> },
+      { path: '/hr/me/attendance', element: <MyAttendance /> },
+      { path: '/hr/me/swaps', element: <MySwaps /> },
+      { path: '/hr/me/appraisals', element: <MyAppraisals /> },
       // Accounting (docs/modules/accounting.md): the API answers 403 module_inactive without the module.
       ...[
         ['/accounting/chart', ACCOUNT_VIEW, <ChartOfAccounts key="acc-chart" />],
