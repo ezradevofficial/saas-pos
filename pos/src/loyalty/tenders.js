@@ -47,8 +47,14 @@ export function codeHash(code) {
 
 const one = async (database, table, ...conditions) => (await database.get(table).query(...conditions).fetch())[0]?.data ?? null;
 
-/** H3: the Loyalty module's tenders apply only while its data is on the till. */
+/**
+ * H3: the Loyalty module's tenders apply only while its data is on the till
+ * (the server always sends a `module` row while the module is on). Gift
+ * cards, vouchers and credit need nothing more; points need an active
+ * programme.
+ */
 const loyaltyOn = (catalogue) => Boolean(catalogue?.ext?.loyalty);
+const pointsOn = (catalogue) => loyaltyOn(catalogue) && Boolean(catalogue.ext.loyalty.programme?.active);
 
 /**
  * M4: the ids of this till's sales the server may not have counted in
@@ -100,7 +106,7 @@ function programmeOf(catalogue) {
 /** LOY-05: points, in the programme currency, `points × point value`. */
 export const pointsTender = {
   input: 'points',
-  active: loyaltyOn,
+  active: pointsOn,
   currencies: (method, catalogue) => [catalogue.ext?.loyalty?.programme?.currency ?? method.currency ?? catalogue.saleCurrency],
   async available({ database, customerId, cart = null }) {
     const member = await one(database, 'loyalty_members', Q.where('customer_id', customerId), Q.where('kind', 'points'));

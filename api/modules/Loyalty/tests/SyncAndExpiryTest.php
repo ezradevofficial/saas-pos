@@ -42,7 +42,8 @@ class SyncAndExpiryTest extends TestCase
 
         $entities = $this->pull(['loyalty_settings', 'loyalty_promotions', 'loyalty_members', 'loyalty_gift_cards']);
 
-        $this->assertSame('100', $entities['loyalty_settings']['upserts'][0]['point_value_minor']);
+        $this->assertSame(['id' => 'module', 'active' => true], $entities['loyalty_settings']['upserts'][0]);
+        $this->assertSame('100', collect($entities['loyalty_settings']['upserts'])->firstWhere('id', 'programme')['point_value_minor']);
         $promotions = collect($entities['loyalty_promotions']['upserts']);
         $this->assertSame(['VIP'], $promotions->where('kind', 'promotion')->pluck('name')->all(), 'the other branch\'s promotion is not sent');
         $this->assertSame([], $promotions->firstWhere('kind', 'promotion')['coupon_codes']);
@@ -51,6 +52,13 @@ class SyncAndExpiryTest extends TestCase
         $cards = $entities['loyalty_gift_cards']['upserts'];
         $this->assertSame($card->code_hash, $cards[0]['code_hash']);
         $this->assertStringNotContainsString(str_replace('-', '', $code), json_encode($entities));
+    }
+
+    public function test_without_a_points_programme_the_till_still_gets_the_module_row(): void
+    {
+        $this->inTenant(fn () => $this->programme->delete());
+
+        $this->assertSame([['id' => 'module', 'active' => true]], $this->pull(['loyalty_settings'])['loyalty_settings']['upserts']);
     }
 
     public function test_rbac_08_entities_are_not_served_while_the_module_is_off(): void

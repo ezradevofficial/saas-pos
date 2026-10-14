@@ -305,7 +305,7 @@ throttled, 30 a minute per device).
 
 | Entity | Mode | Rows |
 | --- | --- | --- |
-| `loyalty_settings` | snapshot | the till's company programme |
+| `loyalty_settings` | snapshot | a `module` row (always: gift cards, vouchers and credit need no programme) and the till's company programme (`programme`, when set up) |
 | `loyalty_promotions` | snapshot | active promotions of the till's branch (current versions), with their coupon codes and uses left, and the customer tags they name with the customers holding them |
 | `loyalty_members` | incremental (`loyalty_accounts`) | per customer of the company: points balance; credit account currency, balance, limit, status |
 | `loyalty_gift_cards` | incremental | the company's cards: hash, last four, kind, currency, balance, status, expiry |
