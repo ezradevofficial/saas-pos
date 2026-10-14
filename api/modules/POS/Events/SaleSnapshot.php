@@ -94,7 +94,7 @@ final class SaleSnapshot
                 'net_minor' => (string) $line->net_minor,
                 'tax_minor' => (string) $line->tax_minor,
                 'total_minor' => (string) $line->total_minor,
-                'discount' => self::discount((string) $line->discount_minor, $line->adjustments),
+                'discount' => self::discount((string) $line->discount_minor, $line->adjustments, $line->verified_discounts),
                 'adjustments' => $line->adjustments,
             ])->values()->all(),
             'payments' => $sale->payments->map(fn (SalePayment $payment) => self::payment($payment))->values()->all(),
@@ -142,7 +142,7 @@ final class SaleSnapshot
         $share = fn (string $amount) => $saleLine === null || BigInteger::of((string) $saleLine->total_minor)->isZero()
             ? '0'
             : (string) BigInteger::of($amount)->multipliedBy($total)->dividedBy((string) $saleLine->total_minor, RoundingMode::HalfUp);
-        $discount = $saleLine === null ? self::discount('0', null) : self::discount((string) $saleLine->discount_minor, $saleLine->adjustments);
+        $discount = $saleLine === null ? self::discount('0', null, null) : self::discount((string) $saleLine->discount_minor, $saleLine->adjustments, $saleLine->verified_discounts);
         $sources = array_map($share, $discount['sources']);
         $discountShare = $share($discount['total_minor']);
         $vouched = array_reduce($sources, fn (BigInteger $sum, string $amount) => $sum->plus($amount), BigInteger::zero());
@@ -169,12 +169,15 @@ final class SaleSnapshot
     /**
      * A line's discount by where it came from: each source's amounts from the
      * line's adjustments (positive, capped so they never exceed the
-     * discount), and the rest as manual.
+     * discount, nor what the source's verifier confirmed at upload,
+     * `verified_discounts`), and the rest as manual: an unverified claim is
+     * a manual discount.
      *
      * @return array{total_minor: string, sources: array<string, string>, manual_minor: string}
      */
-    private static function discount(string $discount, mixed $adjustments): array
+    private static function discount(string $discount, mixed $adjustments, mixed $verified): array
     {
+        $verified = is_array($verified) ? $verified : [];
         $left = BigInteger::of($discount);
         $sources = [];
 
@@ -186,7 +189,13 @@ final class SaleSnapshot
                 continue;
             }
 
-            $take = BigInteger::min(BigInteger::of($amount), $left);
+            $cap = BigInteger::of((string) ($verified[$source] ?? '0'))->minus($sources[$source] ?? '0');
+            $take = BigInteger::min(BigInteger::of($amount), $left, BigInteger::max($cap, BigInteger::zero()));
+
+            if (! $take->isPositive()) {
+                continue;
+            }
+
             $sources[$source] = (string) BigInteger::of($sources[$source] ?? '0')->plus($take);
             $left = $left->minus($take);
         }

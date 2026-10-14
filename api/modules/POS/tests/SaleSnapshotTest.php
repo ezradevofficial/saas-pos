@@ -57,7 +57,8 @@ class SaleSnapshotTest extends TestCase
             $this->assertSame(['KES', '102500', '11389'], [$s['base']['currency'], $s['base']['total_minor'], $s['base']['tax_minor']]);
             $this->assertSame('1.00000000', $s['base']['fx']['rate']);
             $this->assertSame([$this->vat->id, true, '91111', '11389', '102500'], [$l['tax_code_id'], $l['tax_inclusive'], $l['net_minor'], $l['tax_minor'], $l['total_minor']]);
-            $this->assertSame(['total_minor' => '10000', 'sources' => ['loyalty.promotion' => '6000'], 'manual_minor' => '4000'], $l['discount']);
+            // Review #4: no module vouches for `loyalty.promotion` here, so the till's claim is a manual discount.
+            $this->assertSame(['total_minor' => '10000', 'sources' => [], 'manual_minor' => '10000'], $l['discount']);
 
             return $event->saleId === $sale['id'];
         });
@@ -124,7 +125,7 @@ class SaleSnapshotTest extends TestCase
             $line = $e->refund['lines'][0];
             $this->assertSame([$this->soap->id, $this->vat->id, true], [$line['item_id'], $line['tax_code_id'], $line['tax_inclusive']]);
             $this->assertSame(['51250', '5695', '45555'], [$line['total_minor'], $line['tax_minor'], $line['net_minor']]);
-            $this->assertSame(['total_minor' => '5000', 'sources' => ['loyalty.promotion' => '5000'], 'manual_minor' => '0'], $line['discount']);
+            $this->assertSame(['total_minor' => '5000', 'sources' => [], 'manual_minor' => '5000'], $line['discount']);
             $this->assertSame(['0', $this->locationA->id, 'KES'], [$e->refund['rounding_minor'], $e->refund['location_id'], $e->refund['base']['currency']]);
 
             return true;
