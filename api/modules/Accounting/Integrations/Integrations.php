@@ -20,9 +20,10 @@ use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
- * ACC-25 to ACC-28 (stage 7B): what other modules' events post, in the
+ * ACC-25 to ACC-28, ACC-31 (stage 7B): what other modules' events post, in the
  * current tenant. Nothing happens unless Accounting and the raising
  * module are both active (RBAC-08). Every source goes through
  * PostingService and the company's posting rules, idempotently by
@@ -46,6 +47,7 @@ class Integrations
         private readonly PosSources $pos,
         private readonly InventorySources $inventory,
         private readonly LoyaltySources $loyalty,
+        private readonly StoresSources $stores,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -61,6 +63,7 @@ class Integrations
             $event instanceof SaleRefunded => $this->active('pos') && $event->refund !== [] ? $this->posting->post($this->pos->refund($event->refund)) : null,
             $event instanceof StockMoved => $this->active('inventory') ? $this->post($this->inventory->stockMoved($event)) : null,
             $event instanceof LoyaltyLedgerEvent => $this->active('loyalty') ? $this->post($this->loyalty->entry($event)) : null,
+            $event instanceof StoreConsumptionValued => $this->active('stores') ? $this->post($this->stores->consumption($event)) : null,
             default => null,
         };
     }

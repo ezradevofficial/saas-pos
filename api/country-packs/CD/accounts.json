@@ -54,6 +54,7 @@
         {"code": "601", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
         {"code": "603", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
         {"code": "6038", "type": "expense", "subtype": "cost_of_sales", "parent": "60", "postable": true, "cash_flow": null},
+        {"code": "6033", "type": "expense", "subtype": "expense", "parent": "60", "postable": true, "cash_flow": null},
         {"code": "61", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
         {"code": "618", "type": "expense", "subtype": "expense", "parent": "61", "postable": true, "cash_flow": null},
         {"code": "62", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
@@ -379,6 +380,23 @@
                 "field": "amount",
                 "side": "credit",
                 "account": "658"
+            }
+        ],
+        "stores.consumption": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "consumption.*",
+                "side": "debit",
+                "account": "6033"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
             }
         ]
     }

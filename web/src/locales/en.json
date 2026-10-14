@@ -6928,7 +6928,8 @@
       "loyalty_credit_payment_received": "Payment on account",
       "loyalty_credit_adjusted": "Credit adjusted",
       "procurement_supplier_invoice": "Supplier invoice",
-      "payroll_run": "Payroll"
+      "payroll_run": "Payroll",
+      "stores_consumption": "Stores consumption"
     },
     "columns": {
       "account": "Account",

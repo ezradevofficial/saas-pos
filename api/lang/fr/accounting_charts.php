@@ -68,6 +68,7 @@ return [
         '4910' => 'Produits des soldes non utilisés',
         '5300' => 'Ajustements et pertes de stock',
         '6910' => 'Coûts du programme de fidélité',
+        '6920' => 'Consommations des magasins par département',
     ],
     'CD' => [
         'name' => 'RD Congo (OHADA SYSCOHADA)',
@@ -156,5 +157,6 @@ return [
         '7019' => 'Rabais, remises et promotions accordés',
         '75' => 'Autres produits',
         '758' => 'Produits divers (soldes non utilisés)',
+        '6033' => 'Variations des stocks d’autres approvisionnements (consommations des magasins)',
     ],
 ];

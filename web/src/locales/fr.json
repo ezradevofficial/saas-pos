@@ -6928,7 +6928,8 @@
       "loyalty_credit_payment_received": "Paiement sur compte",
       "loyalty_credit_adjusted": "Crédit ajusté",
       "procurement_supplier_invoice": "Facture fournisseur",
-      "payroll_run": "Paie"
+      "payroll_run": "Paie",
+      "stores_consumption": "Consommation des magasins"
     },
     "columns": {
       "account": "Compte",

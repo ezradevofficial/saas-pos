@@ -84,6 +84,8 @@ class AccountingServiceProvider extends ServiceProvider
     private const INTEGRATION_EVENTS = [
         SaleCompleted::class, SaleVoided::class, SaleRefunded::class,
         StockMoved::class,
+        // ACC-31: Stores' valued issues and returns (its stock moves post nothing: the same movement).
+        \Modules\Stores\Events\StoreConsumptionValued::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */

@@ -68,6 +68,7 @@ return [
         '4910' => 'Breakage income',
         '5300' => 'Stock adjustments and losses',
         '6910' => 'Loyalty programme costs',
+        '6920' => 'Stores consumption by department',
     ],
     'CD' => [
         'name' => 'DR Congo (OHADA SYSCOHADA)',
@@ -156,5 +157,6 @@ return [
         '7019' => 'Discounts and promotions granted',
         '75' => 'Other income',
         '758' => 'Sundry income (breakage)',
+        '6033' => 'Change in stocks of other supplies (stores consumption)',
     ],
 ];

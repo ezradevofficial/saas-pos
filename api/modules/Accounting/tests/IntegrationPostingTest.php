@@ -487,4 +487,33 @@ class IntegrationPostingTest extends TestCase
             $this->assertFalse(PostingRule::query()->where('event_type', 'loyalty.gift_card_expired')->whereNull('archived_at')->exists());
         });
     }
+
+    /**
+     * Stores (STR-16): an issue posts department consumption against stock, a return reverses it,
+     * the cost variance goes to cost of sales, once per document; nothing with Stores off.
+     */
+    public function test_store_consumption_posts_department_expense_against_stock_once(): void
+    {
+        $this->setUpIntegrations();
+        $department = $this->inTenant(fn () => \App\Core\MasterData\Dimensions\Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen']));
+        $valued = fn (string $direction, string $id, string $value, string $variance) => new \Modules\Stores\Events\StoreConsumptionValued(
+            $this->owner->tenant_id, $direction, $id, 'SI-1', $this->acme->id, $this->branchA->id, $this->locationA->id, $department->id, null,
+            now()->toIso8601String(), 'KES', $value, [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => $value, 'cost_variance_minor' => $variance]],
+        );
+        $issue = $valued('issue', $this->id(), '30000', '0');
+        $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($issue)), 'Stores off: nothing posts');
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('stores'));
+        $this->inTenant(fn () => app(Integrations::class)->handle($issue));
+        $this->inTenant(fn () => app(Integrations::class)->handle($issue));
+        // A return of KES 120.00 that covered a shortfall: KES 20.00 of it corrects cost of sales.
+        $this->inTenant(fn () => app(Integrations::class)->handle($valued('return', $this->id(), '12000', '2000')));
+
+        [$issued, $returned] = $this->journalsOf('stores.consumption');
+        $this->assertCount(2, $this->journalsOf('stores.consumption'));
+        $this->assertSame(['1300' => [0, 30000], '6920' => [30000, 0]], $this->linesOf($issued));
+        $this->assertSame(['1300' => [10000, 0], '5100' => [2000, 0], '6920' => [0, 12000]], $this->linesOf($returned));
+        $this->assertSame($department->id, $this->inTenant(fn () => $issued->lines()->whereNotNull('department_id')->value('department_id')));
+        $this->assertEquals(['kind' => 'stores.issue', 'id' => $issue->documentId], $issued->source_link);
+    }
 }

@@ -75,6 +75,10 @@ export function moduleLink(link) {
       return `/loyalty/gift-cards/${id}`
     case 'loyalty.credit_account':
       return `/loyalty/credit/${id}`
+    case 'stores.issue':
+      return `/stores/issues/${id}`
+    case 'stores.return':
+      return `/stores/returns/${id}`
     case 'loyalty.customer':
       return `/contacts/customers/${id}?tab=loyalty`
     default:
