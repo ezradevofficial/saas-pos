@@ -394,7 +394,8 @@
     "loyaltyGiftCards": "Gift cards",
     "loyaltyCredit": "Credit accounts",
     "loyaltyAgeing": "Debt ageing",
-    "loyaltyProgramme": "Programme"
+    "loyaltyProgramme": "Programme",
+    "loyaltyReview": "Sales to review"
   },
   "shell": {
     "account": "Account menu",
@@ -6253,6 +6254,34 @@
         "refund_credit": "Refund",
         "expire": "Expired",
         "adjust": "Adjustment"
+      }
+    },
+    "sales": {
+      "title": "Sales to review",
+      "description": "Till sales kept with something to check: balances spent offline, coupons, promotions, credit and gift cards.",
+      "search": "Search by receipt",
+      "allFlags": "All reasons",
+      "empty": "No sales to review.",
+      "noCustomer": "No customer",
+      "voided": "Voided",
+      "columns": {
+        "receipt": "Receipt",
+        "soldAt": "Sold at",
+        "customer": "Customer",
+        "total": "Total",
+        "flags": "To review"
+      },
+      "flags": {
+        "points_overdrawn": "Points overdrawn",
+        "gift_card_overdrawn": "Gift card overdrawn",
+        "coupon_overused": "Coupon used too often",
+        "promotion_differs": "Promotion discount differs",
+        "credit_not_permitted": "Credit sold without the permission",
+        "credit_limit_exceeded": "Over the credit limit",
+        "gift_card_sale_mismatch": "Gift card sale does not match",
+        "gift_card_unknown": "Gift card not found",
+        "voided_before_processing": "Voided before it was processed",
+        "other": "To check"
       }
     }
   }

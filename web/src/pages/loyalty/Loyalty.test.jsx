@@ -1,5 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { chooseOption } from '@/test/combobox'
+import { closeFilters, openFilters } from '@/test/filters'
 import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -114,6 +116,30 @@ describe('Loyalty back office', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save programme' }))
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('companies/c-1/loyalty-programme', expect.objectContaining({ earn_points: 2, expiry_months: 12 })))
     expect(await screen.findByText('Programme saved.')).toBeInTheDocument()
+  })
+
+  it('lists flagged sales to review with each reason, filtered by reason, only with loyalty.sale.view (LOY-12, H2)', async () => {
+    const SALE = { id: 's-9', company_id: 'c-1', receipt_number: 'R-WL2-000042', sold_at: '2026-10-13T14:30:00Z', party: { id: 'pt-1', name: 'Duka Moja' }, total: money('82500'), status: 'processed', points_earned: '8', voided: false,
+      flags: [{ code: 'promotion_differs', detail: null }, { code: 'points_overdrawn', detail: null }] }
+    setup([[/^loyalty\/sales\?/, page([SALE])]], [...ALL, 'loyalty.sale.view'])
+    renderApp('/loyalty/review')
+    const row = (await screen.findByText('R-WL2-000042')).closest('tr')
+    expect(within(row).getByText('Promotion discount differs').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning')
+    expect(within(row).getByText('Points overdrawn')).toBeInTheDocument()
+    expect(within(row).getByText('Duka Moja')).toBeInTheDocument()
+    expect(screen.getAllByText('Sales to review').length).toBeGreaterThan(0)
+
+    openFilters()
+    chooseOption('To review', 'Coupon used too often')
+    await closeFilters()
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('loyalty/sales?flag=coupon_overused&sort=-sold_at&per_page=25&page=1'))
+  })
+
+  it('hides the review list without loyalty.sale.view (LOY-12)', async () => {
+    setup()
+    renderApp('/loyalty/gift-cards')
+    expect(await screen.findByText('•••• PQRS')).toBeInTheDocument()
+    expect(screen.queryByText('Sales to review')).not.toBeInTheDocument()
   })
 
   it('hides the Loyalty menu without the module (RBAC-08)', async () => {

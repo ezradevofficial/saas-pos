@@ -47,7 +47,7 @@ export function LoyaltyCartPanel() {
 
   if (!data || (!data.programme && !data.promotions.length)) return null;
 
-  const setCoupons = (next) => actions.setExtension('loyalty', { ...(cart.ext?.loyalty ?? {}), coupons: next });
+  const setCoupons = (next) => actions.setExtension('loyalty', { ...cart.ext?.loyalty, coupons: next });
   const add = () => {
     const normalised = normaliseCode(code);
     if (normalised && !coupons.includes(normalised)) setCoupons([...coupons, normalised]);

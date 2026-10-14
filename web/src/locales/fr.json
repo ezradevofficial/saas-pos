@@ -394,7 +394,8 @@
     "loyaltyGiftCards": "Cartes cadeaux",
     "loyaltyCredit": "Comptes crédit",
     "loyaltyAgeing": "Balance âgée",
-    "loyaltyProgramme": "Programme de fidélité"
+    "loyaltyProgramme": "Programme de fidélité",
+    "loyaltyReview": "Ventes à vérifier"
   },
   "shell": {
     "account": "Menu du compte",
@@ -6253,6 +6254,34 @@
         "refund_credit": "Remboursement",
         "expire": "Expirés",
         "adjust": "Ajustement"
+      }
+    },
+    "sales": {
+      "title": "Ventes à vérifier",
+      "description": "Ventes de caisse conservées avec un point à vérifier : soldes dépensés hors ligne, coupons, promotions, crédit et cartes cadeaux.",
+      "search": "Rechercher par reçu",
+      "allFlags": "Tous les motifs",
+      "empty": "Aucune vente à vérifier.",
+      "noCustomer": "Sans client",
+      "voided": "Annulée",
+      "columns": {
+        "receipt": "Reçu",
+        "soldAt": "Vendu le",
+        "customer": "Client",
+        "total": "Total",
+        "flags": "À vérifier"
+      },
+      "flags": {
+        "points_overdrawn": "Points à découvert",
+        "gift_card_overdrawn": "Carte cadeau à découvert",
+        "coupon_overused": "Coupon trop utilisé",
+        "promotion_differs": "Remise de promotion différente",
+        "credit_not_permitted": "Crédit accordé sans autorisation",
+        "credit_limit_exceeded": "Limite de crédit dépassée",
+        "gift_card_sale_mismatch": "Vente de carte cadeau incohérente",
+        "gift_card_unknown": "Carte cadeau introuvable",
+        "voided_before_processing": "Annulée avant traitement",
+        "other": "À vérifier"
       }
     }
   }

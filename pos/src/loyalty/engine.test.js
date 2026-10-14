@@ -6,7 +6,7 @@ import { evaluatePromotions, normaliseCode, pointsEarned, pointsToReverse, redee
 const contextOf = (overrides = {}) => ({
   ...fixture.context,
   ...overrides,
-  local: { ...fixture.context.local, ...(overrides.local ?? {}) },
+  local: { ...fixture.context.local, ...overrides.local },
 });
 
 describe('promotions engine (shared cases)', () => {

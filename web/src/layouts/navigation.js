@@ -87,6 +87,7 @@ export const NAV_GROUPS = [
       { to: '/loyalty/gift-cards', icon: 'giftCards', label: (t) => t('nav.loyaltyGiftCards'), permission: 'loyalty.gift_card.view', module: 'loyalty' },
       { to: '/loyalty/credit', icon: 'creditLimits', label: (t) => t('nav.loyaltyCredit'), permission: 'loyalty.credit.view', module: 'loyalty' },
       { to: '/loyalty/ageing', icon: 'chart', label: (t) => t('nav.loyaltyAgeing'), permission: 'loyalty.credit.view', module: 'loyalty' },
+      { to: '/loyalty/review', icon: 'alert', label: (t) => t('nav.loyaltyReview'), permission: 'loyalty.sale.view', module: 'loyalty' },
       { to: '/loyalty/programme', icon: 'loyalty', label: (t) => t('nav.loyaltyProgramme'), permission: ['loyalty.programme.view', 'loyalty.programme.edit'], module: 'loyalty' },
     ],
   },

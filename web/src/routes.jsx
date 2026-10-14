@@ -69,7 +69,8 @@ import CreditAccountDetail from './pages/loyalty/CreditAccountDetail'
 import CreditAccounts from './pages/loyalty/CreditAccounts'
 import GiftCardDetail from './pages/loyalty/GiftCardDetail'
 import GiftCards from './pages/loyalty/GiftCards'
-import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW } from './pages/loyalty/loyaltyData'
+import FlaggedSales from './pages/loyalty/FlaggedSales'
+import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW, SALE_VIEW } from './pages/loyalty/loyaltyData'
 import LoyaltyProgramme from './pages/loyalty/Programme'
 import PromotionEditor from './pages/loyalty/PromotionEditor'
 import Promotions from './pages/loyalty/Promotions'
@@ -243,6 +244,7 @@ export const routes = [
         ['/loyalty/ageing', CREDIT_VIEW, <Ageing key="loyalty-ageing" />],
         ['/loyalty/gift-cards', GIFT_CARD_VIEW, <GiftCards key="loyalty-gift-cards" />],
         ['/loyalty/gift-cards/:cardId', GIFT_CARD_VIEW, <GiftCardDetail key="loyalty-gift-card" />],
+        ['/loyalty/review', SALE_VIEW, <FlaggedSales key="loyalty-review" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },
