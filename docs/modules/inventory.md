@@ -79,7 +79,8 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 | `inventory_serials` | Item, `serial_number` (unique per item), `status`, current `location_id` |
 | `inventory_balances` | Company, location, item, `qty`; unique per location and item; stamped for sync (`sync_xid`, `sync_seq`) |
 | `inventory_batch_balances` | Location, item, batch, `qty` |
-| `inventory_movements` | Append-only ledger: company, location (null while in transit), item, batch, kind, `qty` (signed), entered unit and quantity, `value_minor` (signed), `currency`, `cost_variance_minor`, `source_type`, `source_id`, `source_line_id`, `occurred_at`, `flags`, `created_by`; unique per source line and kind |
+| `inventory_movements` | Append-only ledger: company, location (null while in transit), item, batch, kind, `qty` (signed), entered unit and quantity, `value_minor` (signed), `currency`, `cost_variance_minor`, `source_type`, `source_id`, `source_line_id`, `occurred_at`, `flags`, `created_by`, `landed_minor` (a receipt's landed cost part); unique per source line and kind; `kind` references `inventory_movement_kinds` |
+| `inventory_movement_kinds` | Stage 7B closing review (decision, owner may change): the movement kinds, a global lookup the runtime only reads. The base migration seeds Inventory's kinds; Stores' (`store_issue`, `store_return`) and landed costs' (`cost_adjustment`) migrations insert and, on rollback, delete only their own rows; databases migrated before move from the old check constraint to it (2026_11_12_000200) |
 | `inventory_movement_serials` | The serials a movement carried |
 | `inventory_cost_states` | Per company and item: `qty`, `value_minor`, last receipt `last_cost_minor` and `last_cost_qty` |
 | `inventory_cost_layers` | FIFO layers: company, item, the receiving movement, `qty`, `cost_minor`, `remaining_qty`, `remaining_cost_minor` |

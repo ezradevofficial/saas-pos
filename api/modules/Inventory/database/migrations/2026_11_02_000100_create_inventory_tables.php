@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Schema;
 // (TEN-06): documents end cancelled or rejected, reorder rules are archived.
 return new class extends Migration
 {
+    /** INV-04: Inventory's own movement kinds (other modules' kinds come with their migrations). */
+    private const KINDS = ['opening', 'opening_reversal', 'receipt', 'adjustment_in', 'adjustment_out', 'count_gain', 'count_loss', 'transfer_out', 'transfer_in', 'transfer_loss', 'sale', 'sale_return', 'sale_void'];
+
     public function up(): void
     {
         $userRef = function (Blueprint $table, string $column, bool $nullable = true): void {
@@ -143,6 +146,16 @@ return new class extends Migration
         });
         Rls::enable('inventory_batch_balances');
 
+        // INV-04 (stage 7B closing review): the movement kinds, a global lookup the runtime only reads. This
+        // migration seeds Inventory's own kinds; a module that adds kinds inserts (and on rollback deletes)
+        // only its own rows, so no migration rewrites another's list.
+        Schema::create('inventory_movement_kinds', function (Blueprint $table) {
+            $table->string('kind', 20)->primary();
+        });
+        DB::table('inventory_movement_kinds')->insert(array_map(fn (string $kind) => ['kind' => $kind], self::KINDS));
+        $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
+        DB::statement("revoke insert, update, delete, truncate on inventory_movement_kinds from {$runtimeRole}");
+
         // INV-04: the append-only stock ledger.
         Schema::create('inventory_movements', function (Blueprint $table) use ($qty, $userRef) {
             $table->uuid('id')->primary();
@@ -172,11 +185,11 @@ return new class extends Migration
             $table->timestampTz('created_at', 6)->useCurrent();
 
             $table->foreign('currency')->references('code')->on('currencies')->restrictOnDelete();
+            $table->foreign('kind')->references('kind')->on('inventory_movement_kinds')->restrictOnDelete();
             $table->index(['tenant_id', 'item_id', 'occurred_at']);
             $table->index(['tenant_id', 'location_id', 'occurred_at']);
             $table->index(['tenant_id', 'source_type', 'source_id']);
         });
-        DB::statement("alter table inventory_movements add constraint inventory_movements_kind_check check (kind in ('opening', 'opening_reversal', 'receipt', 'adjustment_in', 'adjustment_out', 'count_gain', 'count_loss', 'transfer_out', 'transfer_in', 'transfer_loss', 'sale', 'sale_return', 'sale_void'))");
         DB::statement("alter table inventory_movements add constraint inventory_movements_flags_check check (jsonb_typeof(flags) = 'array' and qty <> 0)");
         // Idempotency: one movement per source line, kind and batch.
         DB::statement('create unique index inventory_movements_once on inventory_movements (tenant_id, source_type, source_id, source_line_id, kind, batch_id) nulls not distinct');
@@ -444,7 +457,7 @@ return new class extends Migration
             'inventory_transfer_lines', 'inventory_transfers', 'inventory_reorder_rules', 'inventory_cost_layers',
             'inventory_cost_states', 'inventory_movement_serials', 'inventory_movements', 'inventory_batch_balances',
             'inventory_balances', 'inventory_serials', 'inventory_batches', 'inventory_variants', 'inventory_item_settings',
-            'inventory_settings',
+            'inventory_settings', 'inventory_movement_kinds',
         ] as $table) {
             Schema::dropIfExists($table);
         }
