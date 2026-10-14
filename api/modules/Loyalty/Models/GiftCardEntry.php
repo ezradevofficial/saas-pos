@@ -15,7 +15,7 @@ class GiftCardEntry extends Model
 
     public const UPDATED_AT = null;
 
-    public const KINDS = ['load', 'redeem', 'reverse_redeem', 'refund_credit', 'adjust'];
+    public const KINDS = ['load', 'redeem', 'reverse_redeem', 'refund_credit', 'adjust', 'expire'];
 
     protected $table = 'loyalty_gift_card_entries';
 

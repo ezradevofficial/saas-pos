@@ -6245,7 +6245,8 @@
         "redeem": "Dépensée",
         "reverse_redeem": "Vente annulée",
         "refund_credit": "Remboursement",
-        "adjust": "Ajustement"
+        "adjust": "Ajustement",
+        "expire": "Expirée"
       }
     },
     "customer": {

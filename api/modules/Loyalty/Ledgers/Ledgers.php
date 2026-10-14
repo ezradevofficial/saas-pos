@@ -20,10 +20,15 @@ use Modules\Loyalty\Models\PointsEntry;
  * tills spending one card) are serialised and no update is lost (LOY-22).
  * A posting names its source (`pos_sale` and the payment, `manual`, …);
  * the same source posted again is ignored, so retries are harmless.
+ * Every entry written raises its ledger event after commit (LedgerEvents,
+ * stage 7B), so Accounting can journal it without reading these tables.
  */
 class Ledgers
 {
-    public function __construct(private readonly TenantContext $tenants) {}
+    public function __construct(
+        private readonly TenantContext $tenants,
+        private readonly LedgerEvents $events,
+    ) {}
 
     /** LOY-02: the customer's points account at the company, locked; opened when missing. */
     public function pointsAccount(string $companyId, string $partyId, ?string $userId = null): Account
@@ -85,6 +90,7 @@ class Ledgers
         ]);
 
         $account->forceFill(['balance' => (string) BigInteger::of((string) $account->balance)->plus($points)])->save();
+        $this->events->points($entry, $account);
 
         return $entry;
     }
@@ -114,6 +120,7 @@ class Ledgers
         ]);
 
         $account->forceFill(['balance' => (string) BigInteger::of((string) $account->balance)->plus($amount)])->save();
+        $this->events->credit($entry, $account);
 
         return $entry;
     }
@@ -142,6 +149,7 @@ class Ledgers
         ]);
 
         $card->forceFill(['balance_minor' => (string) BigInteger::of((string) $card->balance_minor)->plus($amount)])->save();
+        $this->events->giftCard($entry, $card);
 
         return $entry;
     }

@@ -167,6 +167,38 @@ class GiftCards
         });
     }
 
+    /**
+     * Stage 7B: what is left on cards past their expiry date (the day
+     * before $at's, in the tenant's calendar as the card stores it) is
+     * written off by an `expire` entry, once per card (GiftCardExpired,
+     * breakage for Accounting). Returns the number of cards expired.
+     */
+    public function expire(CarbonImmutable $at): int
+    {
+        $today = $at->format('Y-m-d');
+        $ids = GiftCard::query()->whereNotNull('expires_on')->where('expires_on', '<', $today)->where('balance_minor', '>', 0)
+            ->where('status', '<>', GiftCard::INACTIVE)->orderBy('id')->pluck('id');
+        $expired = 0;
+
+        foreach ($ids as $id) {
+            $expired += DB::connection(TenantContext::CONNECTION)->transaction(function () use ($id, $at, $today) {
+                $card = $this->ledgers->lockCard($id);
+
+                if (! $card->isExpired($today) || (int) $card->balance_minor <= 0) {
+                    return 0;
+                }
+
+                $entry = $this->ledgers->giftCard($card, 'expire', '-'.$card->balance_minor, [
+                    'source_type' => 'expiry', 'source_id' => $card->id, 'occurred_at' => $at, 'reference' => $card->expires_on?->format('Y-m-d'),
+                ]);
+
+                return $entry === null ? 0 : 1;
+            });
+        }
+
+        return $expired;
+    }
+
     /** LOY-23: the card a code names in the tenant (by hash), or null. */
     public function find(string $code): ?GiftCard
     {

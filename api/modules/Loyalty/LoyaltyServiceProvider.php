@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Loyalty\Console\ExpireGiftCardsCommand;
 use Modules\Loyalty\Console\ExpirePointsCommand;
 use Modules\Loyalty\Console\ReprocessSalesCommand;
 use Modules\Loyalty\Documents\StatementSource;
@@ -128,12 +129,14 @@ class LoyaltyServiceProvider extends ServiceProvider
         }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ExpirePointsCommand::class, ReprocessSalesCommand::class]);
+            $this->commands([ExpirePointsCommand::class, ExpireGiftCardsCommand::class, ReprocessSalesCommand::class]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             // LOY-06: expire due points and warn about points expiring soon.
             $schedule->command('loyalty:expire-points')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+            // Stage 7B: write off what is left on expired gift cards (breakage).
+            $schedule->command('loyalty:expire-gift-cards')->dailyAt('02:40')->withoutOverlapping()->onOneServer();
             // LOY-03: process again POS sales Loyalty kept but could not process (with backoff).
             $schedule->command('loyalty:reprocess')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
         });
