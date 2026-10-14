@@ -379,6 +379,46 @@ class SyncPullTest extends TestCase
         $this->pull($this->till, ['pos_test_ranges'])->assertOk()->assertJsonPath('entities.pos_test_ranges.upserts.0.to', 100);
     }
 
+    public function test_every_pull_carries_the_fingerprint_of_the_offered_entities_so_a_module_switched_on_mid_session_reaches_the_till(): void
+    {
+        app(ModuleRegistry::class)->register('pos_test');
+        app(SyncSources::class)->register(new class implements SnapshotSource
+        {
+            public function key(): string
+            {
+                return 'pos_test_ranges';
+            }
+
+            public function module(): string
+            {
+                return 'pos_test';
+            }
+
+            public function version(): int
+            {
+                return 1;
+            }
+
+            public function rows(DeviceScope $scope): array
+            {
+                return [];
+            }
+        });
+
+        $before = $this->getJson('/api/v1/sync/bootstrap', $this->deviceHeaders($this->till))->assertOk()->json('entities_fingerprint');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $before);
+        $this->pull($this->till, ['items'])->assertOk()->assertJsonPath('entities_fingerprint', $before);
+
+        // The module is switched on while the till is selling: its next pull says the list changed.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('pos_test'));
+        $after = $this->pull($this->till, ['items'])->assertOk()->json('entities_fingerprint');
+        $this->assertNotSame($before, $after);
+
+        $bootstrap = $this->getJson('/api/v1/sync/bootstrap', $this->deviceHeaders($this->till))->assertOk();
+        $bootstrap->assertJsonPath('entities_fingerprint', $after);
+        $this->assertContains('pos_test_ranges', array_column($bootstrap->json('entities'), 'key'));
+    }
+
     public function test_a_pull_records_the_sync_time_shown_in_the_devices_api(): void
     {
         $this->pull($this->till, ['settings'])->assertOk();

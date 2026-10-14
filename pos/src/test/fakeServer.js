@@ -32,6 +32,10 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     seq: 0,
   };
 
+  // NFR-04: the entities offered, and their fingerprint (bootstrap and every pull carry it).
+  const offered = () => Object.entries(state.entities).map(([key, entity]) => ({ key, mode: entity.mode, module: entity.module, version: entity.version }));
+  const fingerprint = () => createHash('sha256').update(JSON.stringify(offered())).digest('hex');
+
   const server = {
     state,
     define(key, { mode = 'incremental', version = 1, module = 'core', rows = [] } = {}) {
@@ -94,7 +98,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
             device: { id: 'device-1', name: 'Till 1', location_id: 'loc-1', status: 'active' },
             device_secret_kid: state.secretIssued ? 'k1' : null,
             settings: state.settings,
-            entities: Object.entries(state.entities).map(([key, entity]) => ({ key, mode: entity.mode, module: entity.module, version: entity.version })),
+            entities: offered(),
+            entities_fingerprint: fingerprint(),
             page_size: state.pageSizeDefault,
             max_page_size: 1000,
             pin: { scheme: 'pbkdf2-sha256+hmac-sha256/v1', max_attempts: 5 },
@@ -149,7 +154,7 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
             };
           }
         }
-        return { status: 200, body: { server_time: time, entities: out, subscription: state.subscription } };
+        return { status: 200, body: { server_time: time, entities: out, entities_fingerprint: fingerprint(), subscription: state.subscription } };
       }
 
       if (method === 'POST' && path === 'pos/pin/attempts') {

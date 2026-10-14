@@ -126,6 +126,26 @@ describe('sync engine: pull', () => {
     expect(await rows(database, 'items')).toEqual([]);
   });
 
+  it('bootstraps again when a pull says the offered entities changed (a module switched on mid-session)', async () => {
+    const { server, engine, database, store } = setup();
+    server.define('items', { rows: [item('a')] });
+    await engine.sync();
+    expect(server.requestsTo('sync/bootstrap')).toHaveLength(1);
+
+    // Loyalty is switched on while the till is selling: the next pull's fingerprint differs.
+    server.define('staff', { mode: 'snapshot', module: 'loyalty', rows: [{ id: 'u1', name: 'Amina', locked: false }] });
+    const counts = await engine.pull();
+
+    expect(server.requestsTo('sync/bootstrap')).toHaveLength(2);
+    expect((await store.meta()).entities.map((entity) => entity.key)).toEqual(['items', 'staff']);
+    expect(counts.staff.upserts).toBe(1);
+    expect(await rows(database, 'staff')).toEqual(['u1']);
+
+    // Unchanged since: no further bootstrap.
+    await engine.pull();
+    expect(server.requestsTo('sync/bootstrap')).toHaveLength(2);
+  });
+
   it('flags a device with no current secret (unpair and pair again)', async () => {
     const { server, engine, store } = setup();
     server.state.secretIssued = false;

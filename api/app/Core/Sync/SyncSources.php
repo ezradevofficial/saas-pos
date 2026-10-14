@@ -82,6 +82,32 @@ class SyncSources
         return array_filter($this->sources, fn (SyncSource $source) => isset($active[$source->module()]));
     }
 
+    /**
+     * The entities offered to the current tenant, as bootstrap lists them.
+     *
+     * @return list<array{key: string, mode: string, module: string, version: int|string}>
+     */
+    public function offered(): array
+    {
+        $entities = [];
+
+        foreach ($this->available() as $key => $source) {
+            $entities[] = ['key' => $key, 'mode' => $this->mode($source), 'module' => $source->module(), 'version' => $source->version()];
+        }
+
+        return $entities;
+    }
+
+    /**
+     * NFR-04: a fingerprint of offered(), carried by bootstrap and every
+     * pull, so a till bootstraps again when a module is switched on or off
+     * (or an entity's version changes) mid-session.
+     */
+    public function fingerprint(): string
+    {
+        return hash('sha256', json_encode($this->offered(), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
     public function mode(SyncSource $source): string
     {
         return $source instanceof IncrementalSource ? SyncSource::INCREMENTAL : SyncSource::SNAPSHOT;
