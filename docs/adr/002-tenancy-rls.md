@@ -130,6 +130,44 @@ Two more functions answer for hosts, before any tenant is known:
 
 **Only migrations and deploy commands need the owner's credentials.** Those are `migrate --database=pgsql_owner`, `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, `uoms:seed-defaults`, `payment-methods:seed-defaults` and `app:preflight`, all run by the deploy on the API host. Web requests, queue workers (Horizon) and the scheduler never open the owner connection. Their `.env` can, and in production should, leave `DB_OWNER_*` out. The command tests prove it by making the owner connection unusable before running each command.
 
+### Every security-definer function (stage 7B closing review)
+
+Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid` (the one documented exception: `app_public_branding`, public fields of a sign-in page, above).
+
+| Function | Returns | Used for |
+| --- | --- | --- |
+| `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
+| `auth_tenant_for_invitation(p_token_hash text)` | `uuid` | an invitation link |
+| `auth_tenant_for_pairing(p_code_hash text)` | `uuid` | device pairing |
+| `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
+| `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
+| `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
+| `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
+| `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
+| `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
+| `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
+| `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
+| `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |
+| `app_tenants_awaiting_handover(p_before timestamptz)` | `setof uuid` | assisted onboarding handovers |
+| `app_tenants_pending_verification(p_before timestamptz)` | `setof uuid` | sign-ups waiting for verification |
+| `app_tenants_with_billing_due(p_at timestamptz)` | `setof uuid` | `billing:cycle` |
+| `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
+| `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
+| `app_tenants_with_due_automation(p_kind text, p_at timestamptz)` | `setof uuid` | `automation:scan` |
+| `app_tenants_with_due_exports(p_at timestamptz, p_running_before timestamptz, p_queued_before timestamptz)` | `setof uuid` | `exports:expire` (ADR 015) |
+| `app_tenants_with_due_fiscal_submissions(p_at timestamptz, p_stale_before timestamptz)` | `setof uuid` | fiscal submissions (KRA eTIMS, DGI) |
+| `app_tenants_with_due_payment_intents(p_at timestamptz)` | `setof uuid` | payment status checks |
+| `app_tenants_with_due_recurring_journals(p_on date)` | `setof uuid` | `accounting:recurring` |
+| `app_tenants_with_due_stage_timers(p_at timestamptz)` | `setof uuid` | `workflow:process-stage-timers` |
+| `app_tenants_with_expired_trials(p_at timestamptz)` | `setof uuid` | trial expiry |
+| `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `setof uuid` | `loyalty:reprocess` |
+| `app_tenants_with_modules_to_purge(p_before timestamptz)` | `setof uuid` | `billing:purge-report` |
+| `app_tenants_with_pending_digests()` | `setof uuid` | `notifications:send-digests` |
+| `app_tenants_with_pending_domains()` | `setof uuid` | domains waiting for their TXT record |
+| `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `setof uuid` | `automation:scan reap` |
+| `app_tenants_with_tenders()` | `setof uuid` | `procurement:rewrap-keys`, every tenant with a tender, suspended and closed ones included (ADR 019) |
+| `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `setof uuid` | `credit-limits:reconcile` |
+
 ### Nobody but the owner creates objects in `public`
 
 Migration `2026_10_08_000050_harden_public_schema` revokes `CREATE` on schema `public` from `PUBLIC` and from the runtime role. `app` therefore cannot plant a table or function that a security-definer function or a `search_path` lookup might pick up. `HealthTest` asserts it.
