@@ -14,6 +14,7 @@ use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Tenders\TenderProviders;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
@@ -27,6 +28,7 @@ use Modules\Loyalty\Console\ExpireGiftCardsCommand;
 use Modules\Loyalty\Console\ExpirePointsCommand;
 use Modules\Loyalty\Console\ReprocessSalesCommand;
 use Modules\Loyalty\Documents\StatementSource;
+use Modules\Loyalty\Ledgers\LedgerEvents;
 use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Pos\HandlePosEvents;
 use Modules\Loyalty\Pos\PosSales;
@@ -78,6 +80,9 @@ class LoyaltyServiceProvider extends ServiceProvider
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         RateLimiter::for(self::LOOKUP_LIMITER, fn (Request $request) => Limit::perMinute(30)->by(self::LOOKUP_LIMITER.'|'.($request->user()?->getKey() ?? $request->ip())));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+
+        // Stage 7B: the module's ledger events raised again for a period (a later module's backfill).
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(LedgerEvents::class)->replay($from, $to, $emit));
 
         // NUM-01, LOY-17: statements are numbered per company.
         $this->app->make(DocumentNumberTypes::class)->register(new DocumentNumberType(

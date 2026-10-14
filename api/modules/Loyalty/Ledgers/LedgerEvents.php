@@ -28,7 +28,8 @@ use Modules\Loyalty\Programmes;
  * Stage 7B: which event each ledger entry raises, and its amounts in the
  * event's own direction (LoyaltyLedgerEvent). Raised by Ledgers for every
  * entry it writes, so no posting path can miss one; dispatched after the
- * entry's transaction commits.
+ * entry's transaction commits. replay() builds them again for a period
+ * (core EventReplays, the Accounting backfill).
  *
  * | Ledger    | Entry kinds                              | Event                 | Sign  |
  * | points    | earn, reverse_earn                       | PointsEarned          | as is |
@@ -52,7 +53,7 @@ class LedgerEvents
         private readonly Programmes $programmes,
     ) {}
 
-    public function points(PointsEntry $entry, Account $account): void
+    public function points(PointsEntry $entry, Account $account, bool $dispatch = true): LoyaltyLedgerEvent
     {
         [$class, $sign] = match ($entry->kind) {
             'earn', 'reverse_earn' => [PointsEarned::class, 1],
@@ -67,11 +68,11 @@ class LedgerEvents
             : (string) BigInteger::of($points)->multipliedBy((string) $programme->point_value_minor);
         $currency = $programme?->currency ?? '';
 
-        $this->raise($class, 'points', $entry->id, $entry->kind, $account->id, $account->company_id, $account->party_id, $entry->sale_id,
+        return $this->raise($dispatch, $class, 'points', $entry->id, $entry->kind, $account->id, $account->company_id, $account->party_id, $entry->sale_id,
             (string) $entry->source_type, $entry->occurred_at, $currency, $value, $points, null);
     }
 
-    public function giftCard(GiftCardEntry $entry, GiftCard $card): void
+    public function giftCard(GiftCardEntry $entry, GiftCard $card, bool $dispatch = true): LoyaltyLedgerEvent
     {
         [$class, $sign] = match ($entry->kind) {
             'redeem', 'reverse_redeem', 'refund_credit' => [GiftCardRedeemed::class, -1],
@@ -79,11 +80,11 @@ class LedgerEvents
             default => [GiftCardSold::class, 1],
         };
 
-        $this->raise($class, 'gift_card', $entry->id, $entry->kind, $card->id, $card->company_id, null, $entry->sale_id,
+        return $this->raise($dispatch, $class, 'gift_card', $entry->id, $entry->kind, $card->id, $card->company_id, null, $entry->sale_id,
             (string) $entry->source_type, $entry->occurred_at, (string) $entry->currency, self::signed((string) $entry->amount_minor, $sign), null, $entry->reference);
     }
 
-    public function credit(CreditEntry $entry, Account $account): void
+    public function credit(CreditEntry $entry, Account $account, bool $dispatch = true): LoyaltyLedgerEvent
     {
         [$class, $sign] = match ($entry->kind) {
             'payment' => [CreditPaymentReceived::class, -1],
@@ -91,20 +92,26 @@ class LedgerEvents
             default => [CreditCharged::class, 1],
         };
 
-        $this->raise($class, 'credit', $entry->id, $entry->kind, $account->id, $account->company_id, $account->party_id, $entry->sale_id,
+        return $this->raise($dispatch, $class, 'credit', $entry->id, $entry->kind, $account->id, $account->company_id, $account->party_id, $entry->sale_id,
             (string) $entry->source_type, $entry->occurred_at, (string) $entry->currency, self::signed((string) $entry->amount_minor, $sign), null, $entry->reference);
     }
 
     /** @param class-string<LoyaltyLedgerEvent> $class */
-    private function raise(string $class, string $ledger, string $entryId, string $kind, string $recordId, string $companyId, ?string $partyId, ?string $saleId,
-        string $sourceType, mixed $occurredAt, string $currency, ?string $amount, ?string $points, ?string $reference): void
+    private function raise(bool $dispatch, string $class, string $ledger, string $entryId, string $kind, string $recordId, string $companyId, ?string $partyId, ?string $saleId,
+        string $sourceType, mixed $occurredAt, string $currency, ?string $amount, ?string $points, ?string $reference): LoyaltyLedgerEvent
     {
         [$branchId, $sale] = $saleId === null ? [null, null] : $this->sale($saleId);
         $fx = $sale !== null && ($sale['currency'] ?? null) === $currency ? ($sale['fx'] ?? null) : null;
         $at = CarbonImmutable::parse($occurredAt ?? 'now')->utc()->format('Y-m-d\TH:i:s.u\Z');
 
-        $class::dispatch($this->tenants->require(), $companyId, $ledger, $entryId, $kind, $recordId, $partyId, $branchId, $saleId,
+        $event = new $class($this->tenants->require(), $companyId, $ledger, $entryId, $kind, $recordId, $partyId, $branchId, $saleId,
             self::channel($sourceType), $at, $currency, $amount, $points, is_array($fx) ? $fx : null, $reference);
+
+        if ($dispatch) {
+            event($event);
+        }
+
+        return $event;
     }
 
     /** Where an entry came from, by its ledger source type. */
@@ -132,5 +139,25 @@ class LedgerEvents
     private static function signed(string $amount, int $sign): string
     {
         return $sign === 1 ? $amount : (string) BigInteger::of($amount)->negated();
+    }
+
+    /**
+     * The events of the entries of [$from, $to], built again (not dispatched).
+     *
+     * @param  \Closure(object): void  $emit
+     */
+    public function replay(CarbonImmutable $from, CarbonImmutable $to, \Closure $emit): void
+    {
+        foreach (PointsEntry::query()->whereBetween('occurred_at', [$from, $to])->lazyById(200) as $entry) {
+            $emit($this->points($entry, Account::query()->findOrFail($entry->account_id), false));
+        }
+
+        foreach (GiftCardEntry::query()->whereBetween('occurred_at', [$from, $to])->lazyById(200) as $entry) {
+            $emit($this->giftCard($entry, GiftCard::query()->findOrFail($entry->gift_card_id), false));
+        }
+
+        foreach (CreditEntry::query()->whereBetween('occurred_at', [$from, $to])->lazyById(200) as $entry) {
+            $emit($this->credit($entry, Account::query()->findOrFail($entry->account_id), false));
+        }
     }
 }
