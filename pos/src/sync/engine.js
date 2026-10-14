@@ -28,7 +28,8 @@ import { OUTBOX } from './store';
  *       with the reason, kept for review (a batch refused as a whole is
  *       split to find the record at fault); the queue goes on;
  *     5xx, 429, 408 → retried later (Retry-After honoured), the run stops;
- *     anything else (400, 404, non-JSON, 403 module_inactive) → retried later.
+ *     anything else (400, 404, non-JSON, 403 module_inactive) → retried later
+ *       (a module other than the POS: its rows only, the run goes on).
  *   Retries use exponential backoff with jitter. A forced run ignores the
  *   backoff, and so does a retry time beyond the longest backoff (the
  *   clock was corrected).
@@ -379,7 +380,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     }
 
     const response = await call('POST', kind.path, { body: { [kind.bodyKey]: batch.map((entry) => entry.payload) } });
-    const results = Array.isArray(response.body?.results) ? response.body.results : null;
+    const results = kind.readResults ? kind.readResults(response.body) : Array.isArray(response.body?.results) ? response.body.results : null;
 
     if ((response.status === 200 || response.status === 422) && results) {
       const byId = new Map(results.map((result) => [String(result.id), result]));
@@ -409,10 +410,12 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     }
 
     if (response.status === 403 && error.code === 'module_inactive') {
-      // RBAC-08: the tenant has no POS module now. Keep everything; try later.
-      update({ moduleInactive: true });
+      // RBAC-08: the tenant does not have this module now. Keep everything; try later.
       summary.retried += batch.length;
       await retryLater(batch, error);
+      // Another module's rows (HR punches) wait on their own; the POS keeps uploading.
+      if (kind.module !== 'pos') return null;
+      update({ moduleInactive: true });
       return 'module_inactive';
     }
 

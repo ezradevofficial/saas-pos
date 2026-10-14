@@ -8,11 +8,17 @@
  * Rows go up in the order they were enqueued, a run of one kind per
  * request, so causes precede effects (a shift before its sales, a sale
  * before its void, the shift's close after its sales).
+ *
+ * `module` names the module that serves the endpoint (default `pos`): a
+ * 403 `module_inactive` from another module's endpoint keeps its rows for
+ * later without stopping the run or saying the POS is off. `readResults`
+ * turns an endpoint's own answer into the results above, for endpoints
+ * that answer in another shape.
  */
 const kinds = new Map();
 
-export function registerPushKind(kind, { path, bodyKey, batchSize = 50 }) {
-  kinds.set(kind, { kind, path, bodyKey, batchSize });
+export function registerPushKind(kind, { path, bodyKey, batchSize = 50, module = 'pos', readResults = null }) {
+  kinds.set(kind, { kind, path, bodyKey, batchSize, module, readResults });
 }
 
 export function pushKind(kind) {
@@ -25,3 +31,20 @@ registerPushKind('pos.sales', { path: 'pos/sales', bodyKey: 'sales' });
 registerPushKind('pos.cash_movements', { path: 'pos/cash-movements', bodyKey: 'movements' });
 registerPushKind('pos.voids', { path: 'pos/voids', bodyKey: 'voids' });
 registerPushKind('pos.refunds', { path: 'pos/refunds', bodyKey: 'refunds' });
+
+/**
+ * HR-22, HR-23: clock-ins made on this till (POST hr/till/punches, up to
+ * 500 a request). The endpoint answers `{ data: [{ id, status, code?,
+ * message? }] }`; a rejected punch can never succeed (`not_at_device`,
+ * `period_closed`, ...), so it is kept with its code and never sent again.
+ */
+export function readHrPunchResults(body) {
+  if (!Array.isArray(body?.data)) return null;
+  return body.data.map((result) =>
+    result?.status === 'rejected'
+      ? { id: result.id, status: 'rejected', error: { code: result.code ?? 'rejected', message: result.message ?? null, retryable: false } }
+      : result,
+  );
+}
+
+registerPushKind('hr.punches', { path: 'hr/till/punches', bodyKey: 'punches', batchSize: 100, module: 'hr', readResults: readHrPunchResults });

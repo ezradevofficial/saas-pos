@@ -116,5 +116,28 @@ export const migrations = schemaMigrations({
         createTable({ name: 'loyalty_gift_cards', columns: [{ name: 'code_hash', type: 'string', isIndexed: true }, data, seenAt] }),
       ],
     },
+    {
+      // HR module (HR-22, HR-23): clock-in staff, punches made here and wrong clock-in PINs.
+      toVersion: 9,
+      steps: [
+        createTable({ name: 'hr_clock_staff', columns: [{ name: 'name', type: 'string' }, { name: 'number', type: 'string' }, { name: 'version', type: 'number' }, data, seenAt] }),
+        createTable({
+          name: 'hr_punches',
+          columns: [
+            { name: 'employee_id', type: 'string', isIndexed: true },
+            { name: 'kind', type: 'string' },
+            { name: 'occurred_at', type: 'number', isIndexed: true },
+          ],
+        }),
+        createTable({
+          name: 'hr_clock_attempts',
+          columns: [
+            { name: 'failed_attempts', type: 'number' },
+            { name: 'locked', type: 'boolean' },
+            { name: 'pin_stamp', type: 'string' },
+          ],
+        }),
+      ],
+    },
   ],
 });

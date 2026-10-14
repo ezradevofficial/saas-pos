@@ -13,6 +13,7 @@ import { cn } from '../lib/cn';
 import { FOCUS_RING } from '../lib/focus';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { AppHeader } from './AppHeader';
+import { ClockInScreen, useClockOffered } from './ClockInScreen';
 
 const PIN_MIN = 4;
 
@@ -60,6 +61,9 @@ export function StaffSignInScreen({ location }) {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // HR-23: clocking in or out, offered only while the tenant has the HR module.
+  const clockOffered = useClockOffered();
+  const [clocking, setClocking] = useState(false);
 
   function choose(member) {
     setSelected(member);
@@ -99,6 +103,8 @@ export function StaffSignInScreen({ location }) {
       ? t('signIn.errors.incorrect', { count: problem.attemptsLeft })
       : t(`signIn.errors.${problem.reason}`, { defaultValue: t('signIn.errors.failed') });
 
+  if (clocking && clockOffered) return <ClockInScreen location={location} onClose={() => setClocking(false)} />;
+
   return (
     <SafeAreaView className="flex-1">
       <AppHeader location={location} brand />
@@ -124,6 +130,11 @@ export function StaffSignInScreen({ location }) {
                   className="flex-grow-0 rounded-lg border border-border bg-surface-200"
                 />
               )}
+              {clockOffered ? (
+                <Button variant="ghost" block onPress={() => setClocking(true)}>
+                  {t('clockIn.entry')}
+                </Button>
+              ) : null}
             </>
           ) : (
             <View className="gap-4 rounded-lg border border-border bg-surface-200 p-5">
