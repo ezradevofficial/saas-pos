@@ -68,6 +68,7 @@ return [
         'sale' => 'Sale',
         'sale_return' => 'Sale return',
         'sale_void' => 'Sale voided',
+        'cost_adjustment' => 'Landed cost added',
     ],
     'flags' => [
         'negative_stock' => 'Stock went below zero',
@@ -81,6 +82,8 @@ return [
         'serials_missing' => 'Serials missing',
         'serial_exists' => 'Serial already in stock',
         'batch_missing' => 'Batch missing',
+        'partly_sold' => 'Partly sold before the cost was added',
+        'nothing_on_hand' => 'Nothing left on hand',
     ],
     'reasons' => [
         'damage' => 'Damaged',

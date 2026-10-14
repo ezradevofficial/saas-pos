@@ -25,4 +25,5 @@ Route::middleware(['throttle:'.ProcurementServiceProvider::PORTAL_LIMITER, Porta
     Route::put('supplier-portal/bid', [PortalController::class, 'submit']);
     Route::post('supplier-portal/bid/files', [PortalController::class, 'upload']);
     Route::post('supplier-portal/bid/withdraw', [PortalController::class, 'withdraw']);
+    Route::delete('supplier-portal/bid/files/{file}', [PortalController::class, 'removeFile'])->whereUuid('file');
 });

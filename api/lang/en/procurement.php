@@ -73,6 +73,8 @@ return [
         'bid_sealed' => 'This bid is sealed until the tender is opened.',
         'bid_tampered' => 'This bid’s content does not match its fingerprint, so it was not opened.',
         'not_awarded' => 'This tender has not been awarded yet.',
+        'seal_key_unavailable' => 'The tender\'s sealing key cannot be read with the application key, so nothing was opened. Ask the platform team to restore the previous key, then try again.',
+        'conflict_of_interest' => 'This person is both a bidder and a member of the tender\'s committee. Choose someone else.',
         'too_many_registrations' => 'Too many registrations for this email address. Try again in an hour.',
     ],
     'statuses' => [

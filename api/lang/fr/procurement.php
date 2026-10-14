@@ -74,6 +74,8 @@ return [
         'bid_sealed' => 'Cette offre est scellée jusqu’à l’ouverture de l’appel d’offres.',
         'bid_tampered' => 'Le contenu de cette offre ne correspond pas à son empreinte : elle n’a pas été ouverte.',
         'not_awarded' => 'Cet appel d’offres n’a pas encore été attribué.',
+        'seal_key_unavailable' => 'La clé de scellement de l\'appel d\'offres est illisible avec la clé de l\'application : rien n\'a été ouvert. Demandez à l\'équipe de la plateforme de rétablir l\'ancienne clé, puis réessayez.',
+        'conflict_of_interest' => 'Cette personne est à la fois soumissionnaire et membre de la commission de l\'appel d\'offres. Choisissez quelqu\'un d\'autre.',
         'too_many_registrations' => 'Trop d’inscriptions pour cette adresse e-mail. Réessayez dans une heure.',
     ],
     'statuses' => [

@@ -91,9 +91,20 @@ class StockLedger
                 $flags = $line->flags;
                 $variance = BigInteger::zero();
 
-                $this->checkFreeze($posting, $line, $flags);
+                $adjustment = $line->kind === Movement::COST_ADJUSTMENT;
 
-                if ($line->kind === Movement::OPENING_REVERSAL && $line->reversesMovementId !== null) {
+                if (! $adjustment) {
+                    $this->checkFreeze($posting, $line, $flags);
+                }
+
+                if ($adjustment) {
+                    // PRC-17: value only, on the receipt it adjusts; the share of units already sold is the variance.
+                    $receipt = Movement::query()->findOrFail($line->reversesMovementId);
+                    $result = $this->costs->adjust($state, $method, $line->cost ?? BigInteger::zero(), $receipt->id, BigDecimal::of((string) $receipt->qty));
+                    $value = $result['cost'];
+                    $variance = $result['variance'];
+                    $flags = [...$flags, ...$result['flags']];
+                } elseif ($line->kind === Movement::OPENING_REVERSAL && $line->reversesMovementId !== null) {
                     $original = Movement::query()->findOrFail($line->reversesMovementId);
                     // M2: checked again under the item's cost lock, so nothing can move it in between.
                     self::assertReversible($original);
@@ -127,7 +138,7 @@ class StockLedger
 
                 $after = null;
 
-                if ($line->locationId !== null) {
+                if ($line->locationId !== null && ! $adjustment) {
                     $after = $this->moveBalance($posting->companyId, $line->locationId, $line->itemId, $line->qty);
 
                     $batchAfter = $line->batchId === null ? null : $this->moveBatchBalance($line->locationId, $line->itemId, $line->batchId, $line->qty);

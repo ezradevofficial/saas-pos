@@ -22,6 +22,7 @@ use Modules\Procurement\Models\OrderLine;
 use Modules\Procurement\Models\Receipt;
 use Modules\Procurement\Models\ReceiptLine;
 use Modules\Procurement\Support\LineResolver;
+use Modules\Procurement\Support\Places;
 use Modules\Procurement\Support\Pricing;
 use Modules\Procurement\Support\ProcurementError;
 use Modules\Procurement\Support\Tx;
@@ -67,16 +68,16 @@ class LandedCosts
                 'created_by' => $by->id,
             ]);
             $this->writeCharges($landedCost, $data['charges']);
-            $this->writeReceipts($landedCost, $data['receipt_ids']);
+            $this->writeReceipts($landedCost, $data['receipt_ids'], $by);
 
             return $landedCost->refresh();
         });
     }
 
     /** @param array<string, mixed> $data */
-    public function update(LandedCost $landedCost, array $data): LandedCost
+    public function update(LandedCost $landedCost, array $data, User $by): LandedCost
     {
-        return Tx::run(function () use ($landedCost, $data) {
+        return Tx::run(function () use ($landedCost, $data, $by) {
             $landedCost = LandedCost::query()->whereKey($landedCost->id)->lockForUpdate()->firstOrFail();
 
             if ($landedCost->status !== LandedCost::DRAFT) {
@@ -98,7 +99,7 @@ class LandedCosts
 
             if (isset($data['receipt_ids'])) {
                 LandedCostReceipt::query()->where('landed_cost_id', $landedCost->id)->delete();
-                $this->writeReceipts($landedCost, $data['receipt_ids']);
+                $this->writeReceipts($landedCost, $data['receipt_ids'], $by);
             }
 
             return $landedCost->refresh();
@@ -120,6 +121,7 @@ class LandedCosts
                 'total_minor' => $landedCost->base_total_minor,
                 'lines' => $allocations->map(fn (LandedCostAllocation $a) => ['receipt_line' => $a->receiptLine, 'basis' => (string) $a->basis, 'amount_minor' => $a->base_amount_minor])->all(),
                 'error' => null,
+                'message' => null,
             ];
         }
 
@@ -128,9 +130,9 @@ class LandedCosts
             [$total] = $this->charges($company, $landedCost, persist: false);
             $plan = $this->plan($company, $landedCost, $total);
 
-            return ['base_currency' => $company->base_currency, 'total_minor' => $total, 'lines' => $plan, 'error' => null];
+            return ['base_currency' => $company->base_currency, 'total_minor' => $total, 'lines' => $plan, 'error' => null, 'message' => null];
         } catch (ApiException $e) {
-            return ['base_currency' => null, 'total_minor' => null, 'lines' => [], 'error' => $e->errorCode];
+            return ['base_currency' => null, 'total_minor' => null, 'lines' => [], 'error' => $e->errorCode, 'message' => $e->getMessage()];
         }
     }
 
@@ -279,7 +281,7 @@ class LandedCosts
             $bases[$line->id] = match ($landedCost->method) {
                 'value' => (string) $this->value($company, $landedCost, $line),
                 'quantity' => $this->baseQty($line),
-                'weight' => $line->weight === null ? throw ProcurementError::make('weight_missing', ['line' => $line->line_no], 'receipt_ids') : (string) $line->weight,
+                'weight' => $line->weight === null ? throw ProcurementError::make('weight_missing', ['line' => $line->receipt->number ? "{$line->receipt->number} / {$line->line_no}" : $line->line_no], 'receipt_ids') : (string) $line->weight,
             };
         }
 
@@ -341,12 +343,23 @@ class LandedCosts
         }
     }
 
-    /** @param list<string> $receiptIds */
-    private function writeReceipts(LandedCost $landedCost, array $receiptIds): void
+    /**
+     * PRC-22: GRNs of the company the user reaches: `procurement.receipt.view`
+     * or `procurement.landed_cost.create` at the GRN's location.
+     *
+     * @param  list<string>  $receiptIds
+     */
+    private function writeReceipts(LandedCost $landedCost, array $receiptIds, User $by): void
     {
+        $places = app(Places::class);
+
         foreach (array_values(array_unique($receiptIds)) as $index => $receiptId) {
-            $receipt = Receipt::query()->where('company_id', $landedCost->company_id)->whereKey($receiptId)->where('status', '<>', Receipt::CANCELLED)->first()
-                ?? throw ProcurementError::make('receipt_unknown', field: "receipt_ids.{$index}");
+            $receipt = Receipt::query()->where('company_id', $landedCost->company_id)->whereKey($receiptId)->where('status', '<>', Receipt::CANCELLED)->first();
+
+            if ($receipt === null || (! $places->atLocation($by, 'procurement.receipt.view', $receipt->location_id) && ! $places->atLocation($by, 'procurement.landed_cost.create', $receipt->location_id))) {
+                throw ProcurementError::make('receipt_unknown', field: "receipt_ids.{$index}");
+            }
+
             LandedCostReceipt::query()->create(['landed_cost_id' => $landedCost->id, 'receipt_id' => $receipt->id]);
         }
     }

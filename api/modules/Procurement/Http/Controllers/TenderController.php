@@ -3,10 +3,15 @@
 namespace Modules\Procurement\Http\Controllers;
 
 use App\Core\Exports\ListExport;
+use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
+use App\Core\Tenancy\Models\Branch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Procurement\Http\Lists\TenderList;
 use Modules\Procurement\Http\Requests\AddBidderRequest;
+use Modules\Procurement\Http\Requests\CommitteeCandidatesRequest;
 use Modules\Procurement\Http\Requests\DocumentActionRequest;
 use Modules\Procurement\Http\Requests\ListTendersRequest;
 use Modules\Procurement\Http\Requests\ShowDocumentRequest;
@@ -92,6 +97,20 @@ class TenderController
         $this->bidders->remove($procurementBidder);
 
         return $this->detail(Tender::query()->findOrFail($procurementBidder->tender_id));
+    }
+
+    /** PRC-06: who may sit on the committee at the branch (openers hold `procurement.tender.open`, evaluators `.evaluate`). */
+    public function candidates(CommitteeCandidatesRequest $request, Branch $branch, ScopeResolver $scopes): JsonResponse
+    {
+        $roles = $request->validated('role') === null ? ['opener', 'evaluator'] : [$request->validated('role')];
+        $users = User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->orderBy('id')->get()
+            ->map(function (User $user) use ($roles, $scopes, $branch) {
+                $can = array_values(array_filter($roles, fn (string $role) => $scopes->can($user, $role === 'opener' ? 'procurement.tender.open' : 'procurement.tender.evaluate', Scope::branch($branch->id))));
+
+                return $can === [] ? null : ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'roles' => $can];
+            })->filter()->values()->all();
+
+        return response()->json(['data' => $users]);
     }
 
     private function detail(Tender $tender): TenderResource

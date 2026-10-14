@@ -88,7 +88,7 @@ class TenderResource extends JsonResource
         $isEvaluator = $members->contains(fn (TenderMember $m) => $m->user_id === $user->id && $m->role === TenderMember::EVALUATOR);
 
         return [
-            'notice_url' => $tender->kind === Tender::OPEN && $tender->status !== Tender::DRAFT
+            'notice_url' => $tender->kind === Tender::OPEN && Tenders::noticeToken($tender) !== null
                 ? rtrim((string) config('app.frontend_url'), '/').'/supplier-portal/notices/'.Tenders::noticeToken($tender) : null,
             'lines' => $tender->lines()->with(['item', 'uom'])->get()->map(fn (TenderLine $line) => [
                 'id' => $line->id, 'line_no' => $line->line_no, 'item' => Refs::item($line->item), 'description' => $line->description,
@@ -98,10 +98,12 @@ class TenderResource extends JsonResource
             'openers' => $members->where('role', TenderMember::OPENER)->map(fn (TenderMember $m) => Refs::user($m->user))->values()->all(),
             'evaluators' => $members->where('role', TenderMember::EVALUATOR)->map(fn (TenderMember $m) => Refs::user($m->user))->values()->all(),
             'openings' => $openings->map(fn (TenderOpening $o) => ['user' => Refs::user($o->user), 'confirmed_at' => Refs::at($o->confirmed_at)])->all(),
-            'bidders' => $tender->bidders()->with('party')->orderBy('created_at')->get()->map(fn (Bidder $bidder) => [
+            'bidders' => $tender->bidders()->with('party')->orderBy('created_at')->orderBy('id')->get()->map(fn (Bidder $bidder) => [
                 'id' => $bidder->id, 'name' => $bidder->name, 'email' => $bidder->email, 'tax_id' => $bidder->tax_id, 'source' => $bidder->source,
                 'party' => Refs::named($bidder->party), 'link_sent_at' => Refs::at($bidder->link_sent_at), 'last_seen_at' => Refs::at($bidder->last_seen_at),
                 'removed_at' => Refs::at($bidder->removed_at),
+                'can' => ['resend' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids() && $bidder->removed_at === null,
+                    'remove' => in_array($tender->status, [Tender::DRAFT, Tender::PUBLISHED], true) && ! $tender->closedForBids() && $bidder->removed_at === null],
             ])->all(),
             'bids' => $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->get()->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect())))->all(),
             // PRC-11: the draft PO the award made.

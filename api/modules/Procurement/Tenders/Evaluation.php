@@ -25,13 +25,14 @@ use Modules\Procurement\Support\Tx;
  *   replaces their score. Allowed until the award.
  * - rank(): per bid, an evaluator's technical score is Σ (score ÷ max ×
  *   weight) over the criteria (out of 100); the bid's technical score is the
- *   mean over the evaluators who scored every criterion. A bid under the
+ *   mean over every committee evaluator, the same set for every bid, and
+ *   exists only once each of them scored each criterion. A bid under the
  *   pass mark is disqualified. Financial = lowest passing base total ÷ the
  *   bid's base total × 100. Combined = technical × technical weight +
  *   financial × financial weight (÷ 100). Ranked by combined score (then
- *   the lower price, then the earlier bid). The tender is `evaluated` once
- *   every opened bid has a technical score (or the tender scores price
- *   only).
+ *   the lower price, then the earlier bid). The tender is `evaluated` only
+ *   when every committee evaluator has scored every criterion of every
+ *   opened bid (or the tender scores price only).
  */
 class Evaluation
 {
@@ -84,10 +85,11 @@ class Evaluation
         $bids = Bid::query()->where('tender_id', $tender->id)->where('status', Bid::OPENED)->orderBy('submitted_at')->get();
         $scores = BidScore::query()->whereIn('bid_id', $bids->pluck('id'))->get()->groupBy('bid_id');
         $priceOnly = $tender->technical_weight === 0 || $criteria->isEmpty();
+        $evaluators = TenderMember::query()->where('tender_id', $tender->id)->where('role', TenderMember::EVALUATOR)->pluck('user_id')->all();
         $technical = [];
 
         foreach ($bids as $bid) {
-            $technical[$bid->id] = $priceOnly ? self::FULL : self::technical($criteria, $scores->get($bid->id, collect()));
+            $technical[$bid->id] = $priceOnly ? self::FULL : self::technical($criteria, $scores->get($bid->id, collect()), $evaluators);
         }
 
         $passMark = BigDecimal::of((string) $tender->pass_mark)->multipliedBy(100)->toScale(0, RoundingMode::HalfUp)->toInt();
@@ -128,35 +130,40 @@ class Evaluation
     }
 
     /**
-     * A bid's technical score in basis points: the mean over evaluators who
-     * scored every criterion of Σ score ÷ max × weight; null when none did.
+     * A bid's technical score in basis points: the mean over $evaluators of
+     * Σ score ÷ max × weight; null until every one of them scored every
+     * criterion (no evaluator: null).
      *
      * @param  Collection<int, TenderCriterion>  $criteria
      * @param  Collection<int, BidScore>  $scores
+     * @param  list<string>  $evaluators
      */
-    public static function technical(Collection $criteria, Collection $scores): ?int
+    public static function technical(Collection $criteria, Collection $scores, array $evaluators): ?int
     {
-        $byEvaluator = $scores->groupBy('evaluator_id');
+        if ($evaluators === []) {
+            return null;
+        }
+
         $sum = BigDecimal::zero();
-        $evaluators = 0;
 
-        foreach ($byEvaluator as $rows) {
-            if ($rows->pluck('criterion_id')->unique()->count() < $criteria->count()) {
-                continue;
-            }
-
+        foreach ($evaluators as $evaluator) {
+            $rows = $scores->where('evaluator_id', $evaluator);
             $points = BigDecimal::zero();
 
             foreach ($criteria as $criterion) {
                 $score = $rows->firstWhere('criterion_id', $criterion->id);
+
+                if ($score === null) {
+                    return null;
+                }
+
                 // score ÷ max × weight × 100 basis points per point of weight.
                 $points = $points->plus(BigDecimal::of((string) $score->score)->multipliedBy($criterion->weight)->multipliedBy(100)->dividedBy($criterion->max_score, 8, RoundingMode::HalfUp));
             }
 
             $sum = $sum->plus($points);
-            $evaluators++;
         }
 
-        return $evaluators === 0 ? null : $sum->dividedBy($evaluators, 0, RoundingMode::HalfUp)->toInt();
+        return $sum->dividedBy(count($evaluators), 0, RoundingMode::HalfUp)->toInt();
     }
 }

@@ -50,6 +50,7 @@ final class ExportColumns
         'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
         // PRC-07, PRC-09: the supplier portal's credentials and the sealing of bids.
         'procurement_tenders.seal_secret' => 'a tender\'s own bid-sealing key (PRC-09, encrypted with the application key)',
+        'procurement_tenders.public_token_secret' => 'an open tender\'s public notice token, encrypted (PRC-08, ADR 019)',
         'procurement_tenders.public_token_hash' => 'an open tender\'s public notice token hash (PRC-08)',
         'procurement_tender_bidders.token_hash' => 'a bidder\'s portal link token hash (PRC-07)',
         'procurement_portal_sessions.token_hash' => 'a supplier portal session token hash (PRC-07)',
@@ -63,6 +64,10 @@ final class ExportColumns
      * host and path, no query or fragment) and `has_url`.
      */
     public const TRANSFORMS = [
+        // PRC-09: a bid file's name, type and size may say what a sealed bid holds: exported once its tender is opened.
+        'procurement_bid_files.name' => 'case when exists (select 1 from procurement_tenders x where x.id = t."tender_id" and x.opened_at is not null) then t."name" end',
+        'procurement_bid_files.mime' => 'case when exists (select 1 from procurement_tenders x where x.id = t."tender_id" and x.opened_at is not null) then t."mime" end',
+        'procurement_bid_files.size' => 'case when exists (select 1 from procurement_tenders x where x.id = t."tender_id" and x.opened_at is not null) then t."size" end',
         'automation_rules.actions' => <<<'SQL'
             case when jsonb_typeof(t."actions") = 'array' then (
                 select coalesce(jsonb_agg(case

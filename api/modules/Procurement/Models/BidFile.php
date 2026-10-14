@@ -28,6 +28,9 @@ class BidFile extends ProcurementModel
 
     protected string $auditResource = 'bid_file';
 
+    /** PRC-09: a file's name may say what the bid holds: never audited (exported only once the tender is opened, ExportColumns). */
+    protected array $auditHidden = ['name'];
+
     protected function casts(): array
     {
         return ['size' => 'integer', 'removed_at' => 'immutable_datetime'];

@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Http\Controllers\Portal;
 
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Http\ApiException;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
@@ -82,6 +83,14 @@ class PortalController
         return response()->json(['data' => ['id' => $file->id, 'name' => $file->name, 'mime' => $file->mime, 'size' => $file->size]], 201);
     }
 
+    /** PRC-09: remove an upload not yet in a submitted bid. */
+    public function removeFile(PortalRequest $request, string $file): JsonResponse
+    {
+        $this->bids->removeFile($request->session(), $file, $request->ip());
+
+        return response()->json(['data' => $this->view($request->session())]);
+    }
+
     public function withdraw(PortalRequest $request): JsonResponse
     {
         $this->bids->withdraw($request->session(), $request->ip());
@@ -117,6 +126,7 @@ class PortalController
 
         try {
             $tender = $this->noticeTender($notice);
+            // PRC-08: the same answer whatever happened, so nobody learns which emails bid.
             $bidders->register($tender, $request->validated(), $request->ip());
 
             return response()->json(['data' => ['sent' => true]], 202);
@@ -164,6 +174,8 @@ class PortalController
             'company' => $company?->name,
             'branch' => Branch::query()->whereKey($tender->branch_id)->value('name'),
             'currency' => $tender->currency,
+            // L10N-03: times shown in the branch's (else the company's) time zone.
+            'timezone' => Branch::query()->whereKey($tender->branch_id)->value('timezone') ?: ($company?->timezone ?: 'UTC'),
             'deadline_at' => Refs::at($tender->deadline_at),
             'opening_at' => Refs::at($tender->opening_at),
             'technical_weight' => $tender->technical_weight,
@@ -194,6 +206,8 @@ class PortalController
                 'fingerprint' => $bid->fingerprint,
                 'outcome' => $tender->status === Tender::AWARDED ? $bid->outcome : null,
             ],
+            // The currencies a bid may be in: the tenant's active ones (a rate is checked when it is submitted).
+            'currencies' => TenantCurrency::query()->where('active', true)->orderBy('code')->pluck('code')->all(),
             'files' => $files->map(fn (BidFile $file) => ['id' => $file->id, 'name' => $file->name, 'mime' => $file->mime, 'size' => $file->size, 'attached' => $file->bid_id !== null])->all(),
             'session' => ['expires_at' => Refs::at($session->expires_at)],
         ];

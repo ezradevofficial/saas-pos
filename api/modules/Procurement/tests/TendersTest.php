@@ -253,7 +253,8 @@ class TendersTest extends TestCase
         $this->assertStringNotContainsString('upesi', $public->getContent());
 
         $this->postJson("/api/v1/supplier-portal/notices/{$notice}/register", ['name' => 'Newco Ltd', 'email' => 'tenders@newco.example.com', 'tax_id' => 'P051234567X'])->assertStatus(202);
-        $this->postJson("/api/v1/supplier-portal/notices/{$notice}/register", ['name' => 'Newco Ltd', 'email' => 'TENDERS@newco.example.com'])->assertUnprocessable()->assertJsonPath('code', 'already_invited');
+        // PRC-08: the same answer for a known email (its link is sent again).
+        $this->postJson("/api/v1/supplier-portal/notices/{$notice}/register", ['name' => 'Newco Ltd', 'email' => 'TENDERS@newco.example.com'])->assertStatus(202)->assertJsonPath('data.sent', true);
         $this->getJson('/api/v1/supplier-portal/notices/'.str_repeat('a', 48))->assertNotFound();
         $bidders = $this->api('GET', "procurement/tenders/{$tender['id']}")->json('data.bidders');
         $this->assertSame('registered', collect($bidders)->firstWhere('email', 'tenders@newco.example.com')['source']);
@@ -271,13 +272,14 @@ class TendersTest extends TestCase
         ]);
         $score = fn (string $evaluator, string $criterion, string $value) => (object) ['evaluator_id' => $evaluator, 'criterion_id' => $criterion, 'score' => $value];
 
-        // e1: 7/10 × 60 + 3/5 × 40 = 66; e2: 9/10 × 60 + 5/5 × 40 = 94; e3 scored only one criterion (left out).
-        $this->assertSame(8000, Evaluation::technical($criteria, collect([
-            $score('e1', 'c1', '7'), $score('e1', 'c2', '3'), $score('e2', 'c1', '9'), $score('e2', 'c2', '5'), $score('e3', 'c1', '1'),
-        ])));
-        $this->assertNull(Evaluation::technical($criteria, collect([$score('e1', 'c1', '7')])));
+        $all = collect([$score('e1', 'c1', '7'), $score('e1', 'c2', '3'), $score('e2', 'c1', '9'), $score('e2', 'c2', '5'), $score('e3', 'c1', '1')]);
+        // e1: 7/10 × 60 + 3/5 × 40 = 66; e2: 9/10 × 60 + 5/5 × 40 = 94: the mean of the committee's two evaluators.
+        $this->assertSame(8000, Evaluation::technical($criteria, $all, ['e1', 'e2']));
+        // The same set for every bid: while a committee evaluator (e3) has not scored every criterion, there is no score.
+        $this->assertNull(Evaluation::technical($criteria, $all, ['e1', 'e2', 'e3']));
+        $this->assertNull(Evaluation::technical($criteria, $all, []));
         // A third of a point rounds half up once: 1/3 × 100 = 33.33.
-        $this->assertSame(3333, Evaluation::technical(collect([(object) ['id' => 'c', 'weight' => 100, 'max_score' => 3]]), collect([$score('e', 'c', '1')])));
+        $this->assertSame(3333, Evaluation::technical(collect([(object) ['id' => 'c', 'weight' => 100, 'max_score' => 3]]), collect([$score('e', 'c', '1')]), ['e']));
     }
 
     public function test_cancelling_a_tender_ends_its_portal_sessions(): void

@@ -68,6 +68,7 @@ return [
         'sale' => 'Vente',
         'sale_return' => 'Retour de vente',
         'sale_void' => 'Vente annulée',
+        'cost_adjustment' => 'Frais d’approche ajoutés',
     ],
     'flags' => [
         'negative_stock' => 'Stock passé sous zéro',
@@ -81,6 +82,8 @@ return [
         'serials_missing' => 'Numéros de série manquants',
         'serial_exists' => 'Numéro de série déjà en stock',
         'batch_missing' => 'Lot manquant',
+        'partly_sold' => 'Vendu en partie avant l’ajout du coût',
+        'nothing_on_hand' => 'Plus rien en stock',
     ],
     'reasons' => [
         'damage' => 'Endommagé',

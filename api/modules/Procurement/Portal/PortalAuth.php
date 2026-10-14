@@ -16,11 +16,14 @@ use Modules\Procurement\Support\ProcurementError;
  * PRC-07: the supplier portal's identity, separate from tenant users.
  *
  * - A bidder's **link token**: 48 letters and digits, kept as its sha256,
- *   valid until the tender's submission deadline; a new one replaces the
- *   old (resend).
+ *   valid until 90 days after the tender's deadline (after the deadline
+ *   the portal is read-only, so the bidder sees the outcome); a new one
+ *   replaces the old (resend).
  * - A **portal session**: `pts_` + 48 letters and digits, kept as its
- *   sha256, for 8 hours (config `procurement.portal.session_hours`), bound
- *   to one tenant (the row lives under its RLS), one tender and one bidder.
+ *   sha256, bound to one tenant (the row lives under its RLS), one tender
+ *   and one bidder. It slides: each use moves its end to 8 hours later
+ *   (`procurement.portal.session_hours`), never beyond 7 days after it
+ *   started (`session_max_days`).
  * - The tenant of a token is found through the security-definer function
  *   `procurement_portal_tenant` (ADR 002), which returns nothing but the id;
  *   everything after runs in that tenant's context.
@@ -42,7 +45,11 @@ class PortalAuth
     public function issueLink(Bidder $bidder, Tender $tender): string
     {
         $token = Str::random(self::LINK_LENGTH);
-        $bidder->forceFill(['token_hash' => hash('sha256', $token), 'token_expires_at' => $tender->deadline_at, 'link_sent_at' => CarbonImmutable::now()])->save();
+        $bidder->forceFill([
+            'token_hash' => hash('sha256', $token),
+            'token_expires_at' => $tender->deadline_at->addDays((int) config('procurement.portal.link_days_after_deadline', 90)),
+            'link_sent_at' => CarbonImmutable::now(),
+        ])->save();
 
         return $token;
     }
@@ -111,8 +118,12 @@ class PortalAuth
             return null;
         }
 
+        // PRC-07: sliding expiry (refreshed at most once a minute), capped from the session's start.
         if ($session->last_used_at === null || $session->last_used_at->lt(CarbonImmutable::now()->subMinute())) {
-            $session->forceFill(['last_used_at' => CarbonImmutable::now()])->save();
+            $now = CarbonImmutable::now();
+            $end = $now->addHours((int) config('procurement.portal.session_hours', 8));
+            $cap = CarbonImmutable::instance($session->created_at)->addDays((int) config('procurement.portal.session_max_days', 7));
+            $session->forceFill(['last_used_at' => $now, 'expires_at' => $end->min($cap)])->save();
         }
 
         return $session;

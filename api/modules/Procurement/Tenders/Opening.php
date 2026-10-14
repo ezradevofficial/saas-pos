@@ -26,8 +26,10 @@ use Modules\Procurement\Support\Tx;
  * same transaction: its ciphertext is checked against its fingerprint and
  * decrypted (Seal), amounts are computed per tender line (round half up),
  * converted to base at the company's rate at the opening (CUR-04), and the
- * plain columns filled; a bid that fails the check is `tampered` and stays
- * sealed. The tender is `opened`; the opening is audited with both
+ * plain columns filled; a bid whose fingerprint or MAC fails, or whose
+ * payload names another tender, bidder or version, is `tampered` and stays
+ * sealed. The tender key is unwrapped before any bid: when it cannot be,
+ * the opening refuses (`seal_key_unavailable`) and nothing changes. The tender is `opened`; the opening is audited with both
  * openers, the bid count and every fingerprint, then TenderOpened.
  */
 class Opening
@@ -72,15 +74,19 @@ class Opening
             }
 
             $company = Company::query()->findOrFail($tender->company_id);
+            // The key first: when it cannot be unwrapped the opening stops and rolls back (ADR 019).
+            $key = Seal::key($tender);
             $quantities = TenderLine::query()->where('tender_id', $tender->id)->pluck('qty', 'id');
             $fingerprints = [];
             $count = 0;
 
             foreach (Bid::query()->where('tender_id', $tender->id)->where('status', Bid::SUBMITTED)->orderBy('submitted_at')->lockForUpdate()->get() as $bid) {
                 $fingerprints[$bid->id] = $bid->fingerprint;
-                $payload = Seal::open($tender, $bid->sealed_payload, $bid->fingerprint);
+                $payload = Seal::open($key, $bid->sealed_payload, $bid->fingerprint);
 
-                if ($payload === null) {
+                // Tampered: the fingerprint or MAC fails, or the payload names another tender, bidder or version.
+                if ($payload === null || ($payload['tender_id'] ?? null) !== $tender->id || ($payload['bidder_id'] ?? null) !== $bid->bidder_id
+                    || (int) ($payload['version'] ?? 0) !== $bid->version) {
                     $bid->fill(['status' => Bid::TAMPERED])->save();
 
                     continue;

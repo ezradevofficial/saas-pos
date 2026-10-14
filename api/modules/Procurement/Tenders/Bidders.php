@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Modules\Procurement\Models\Bid;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
+use Modules\Procurement\Models\TenderMember;
 use Modules\Procurement\Portal\PortalAuth;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Support\LineResolver;
@@ -49,6 +50,11 @@ class Bidders
                 throw ProcurementError::make('bidder_email_required', field: 'email');
             }
 
+            // PRC-08: nobody on the tender's committee may bid on it.
+            if ($this->isCommitteeEmail($tender, $email)) {
+                throw ProcurementError::make('conflict_of_interest', field: 'email');
+            }
+
             $name = trim((string) ($data['name'] ?? $party?->name ?? ''));
 
             if ($name === '') {
@@ -72,24 +78,46 @@ class Bidders
         });
     }
 
-    /** @param array{name: string, email: string, tax_id?: ?string} $data */
+    /**
+     * PRC-08: an outsider registers on an open tender. The answer never
+     * says whether the email is known (PortalController always answers
+     * 202): a known email gets its link sent again, a refused one
+     * (tender not open, a committee member's email) gets nothing; every
+     * request is audited on the tender.
+     *
+     * @param  array{name: string, email: string, tax_id?: ?string}  $data
+     */
     public function register(Tender $tender, array $data, ?string $ip): void
     {
         Tx::run(function () use ($tender, $data, $ip) {
             $tender = Tender::query()->whereKey($tender->id)->lockForUpdate()->firstOrFail();
+            $email = strtolower(trim($data['email']));
+            $audit = fn (string $outcome) => $this->auditor->record('procurement.portal.registration', $tender, null, ['email' => $email, 'outcome' => $outcome, 'ip' => $ip], ['ip' => $ip]);
 
             if ($tender->kind !== Tender::OPEN || $tender->status !== Tender::PUBLISHED || $tender->closedForBids()) {
-                throw ProcurementError::make('tender_not_open_for_bids', status: 409);
+                $audit('not_open');
+
+                return;
             }
 
-            $bidder = $this->create($tender, [
-                'name' => trim($data['name']),
-                'tax_id' => $data['tax_id'] ?? null,
-                'email' => strtolower(trim($data['email'])),
-                'source' => Bidder::REGISTERED,
-            ]);
-            $this->auditor->record('procurement.portal.registered', $bidder, null, ['tender' => $tender->id, 'email' => $bidder->email, 'ip' => $ip], ['ip' => $ip]);
+            if ($this->isCommitteeEmail($tender, $email)) {
+                $audit('conflict_of_interest');
+
+                return;
+            }
+
+            $existing = Bidder::query()->where('tender_id', $tender->id)->whereNull('removed_at')->whereRaw('lower(email) = ?', [$email])->lockForUpdate()->first();
+
+            if ($existing !== null) {
+                $this->send($existing, $tender);
+                $audit('link_resent');
+
+                return;
+            }
+
+            $bidder = $this->create($tender, ['name' => trim($data['name']), 'tax_id' => $data['tax_id'] ?? null, 'email' => $email, 'source' => Bidder::REGISTERED]);
             $this->send($bidder, $tender);
+            $audit('registered');
         });
     }
 
@@ -153,6 +181,13 @@ class Bidders
         }
 
         return Bidder::query()->create(['tender_id' => $tender->id, ...$values]);
+    }
+
+    /** Whether $email is a committee member's (an opener's or an evaluator's) on the tender. */
+    public function isCommitteeEmail(Tender $tender, string $email): bool
+    {
+        return User::query()->whereIn('id', TenderMember::query()->where('tender_id', $tender->id)->select('user_id'))
+            ->whereRaw('lower(email) = ?', [strtolower($email)])->exists();
     }
 
     private function assertOpenForBidders(Tender $tender): void

@@ -4,17 +4,20 @@ namespace Modules\Procurement\Portal;
 
 use App\Core\Audit\Auditor;
 use App\Core\CustomFields\CustomFieldFiles;
+use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Procurement\Models\Bid;
+use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\BidFile;
 use Modules\Procurement\Models\PortalSession;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Models\TenderLine;
 use Modules\Procurement\Support\LineResolver;
+use Modules\Procurement\Support\Pricing;
 use Modules\Procurement\Support\ProcurementError;
 use Modules\Procurement\Support\Tx;
 use Modules\Procurement\Tenders\Seal;
@@ -24,17 +27,22 @@ use Throwable;
  * PRC-09, PRC-23: what a bidder does in the portal, always for its own
  * session's tender and bid only.
  *
- * - submit(): before the deadline, a bid in an active currency with a unit
- *   price per tender line (lines left out are not offered), a technical
- *   response and the bidder's own uploaded files; sealed with the tender's
- *   key (Seal). A new submission replaces the previous version (one bid
- *   row per bidder, its version counted); nothing is decrypted again
- *   before the opening, not even for the bidder, who keeps the
- *   fingerprint as its receipt.
- * - upload(): one file (the core types, 10 MB, 10 per bid), its bytes
- *   sealed before they reach the `media` disk.
+ * - submit(): before the deadline, a bid in an active currency that has a
+ *   rate to the company's base currency now (422 `rate_unavailable`
+ *   otherwise, so the opening can always convert it), a unit price per
+ *   tender line (lines left out are not offered), a technical response and
+ *   the bidder's own uploaded files; sealed with the tender's key (Seal),
+ *   the payload naming the tender, the bidder and the version (checked at
+ *   the opening). A new submission replaces the previous version; nothing
+ *   is decrypted again before the opening, not even for the bidder, who
+ *   keeps the fingerprint as its receipt.
+ * - upload(): one file (the core types, 10 MB, at most 10 per bidder,
+ *   counted under the bidder's row lock), its bytes sealed before they
+ *   reach the `media` disk; removeFile(): an upload not yet in a bid.
  * - withdraw(): before the deadline.
  * Every action is audited with the bidder and IP, never the content.
+ * Uploads are not scanned for malware: a platform-wide gap (spec, open
+ * question 5).
  */
 class PortalBids
 {
@@ -42,6 +50,7 @@ class PortalBids
 
     public function __construct(
         private readonly LineResolver $resolver,
+        private readonly Pricing $pricing,
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
     ) {}
@@ -52,6 +61,7 @@ class PortalBids
         return Tx::run(function () use ($session, $data, $ip) {
             $tender = $this->openTender($session);
             $currency = $this->resolver->currency($data['currency']);
+            $this->pricing->fx(Company::query()->findOrFail($tender->company_id), $currency, CarbonImmutable::now());
             $lineIds = TenderLine::query()->where('tender_id', $tender->id)->pluck('id')->all();
             $lines = [];
 
@@ -74,17 +84,21 @@ class PortalBids
                 throw ProcurementError::make('file_unknown', field: 'file_ids');
             }
 
-            [$sealed, $fingerprint] = Seal::seal($tender, [
+            $bid = Bid::query()->where('tender_id', $tender->id)->where('bidder_id', $session->bidder_id)->lockForUpdate()->first();
+            $bid ??= new Bid(['tender_id' => $tender->id, 'bidder_id' => $session->bidder_id, 'version' => 0]);
+            $version = $bid->version + 1;
+            [$sealed, $fingerprint] = Seal::seal(Seal::key($tender), [
+                'tender_id' => $tender->id,
+                'bidder_id' => $session->bidder_id,
+                'version' => $version,
                 'currency' => $currency,
                 'lines' => array_values($lines),
                 'technical_response' => $data['technical_response'] ?? null,
                 'file_ids' => $files,
             ]);
-            $bid = Bid::query()->where('tender_id', $tender->id)->where('bidder_id', $session->bidder_id)->lockForUpdate()->first();
-            $bid ??= new Bid(['tender_id' => $tender->id, 'bidder_id' => $session->bidder_id, 'version' => 0]);
             $bid->fill([
                 'status' => Bid::SUBMITTED,
-                'version' => $bid->version + 1,
+                'version' => $version,
                 'submitted_at' => CarbonImmutable::now(),
                 'withdrawn_at' => null,
                 'fingerprint' => $fingerprint,
@@ -119,27 +133,31 @@ class PortalBids
 
     public function upload(PortalSession $session, UploadedFile $file, ?string $ip): BidFile
     {
-        $tender = $this->openTender($session);
         $mime = (string) $file->getMimeType();
-        $extension = CustomFieldFiles::MIMES[$mime] ?? null;
 
-        if ($extension === null) {
+        if ((CustomFieldFiles::MIMES[$mime] ?? null) === null) {
             throw ProcurementError::make('file_type', field: 'file');
         }
 
-        if (BidFile::query()->where('bidder_id', $session->bidder_id)->where('tender_id', $tender->id)->whereNull('removed_at')->count() >= self::MAX_FILES) {
-            throw ProcurementError::make('too_many_files', ['max' => self::MAX_FILES], 'file');
-        }
-
-        $path = sprintf('tenants/%s/procurement/bids/%s/%s.sealed', $this->tenants->require(), $tender->id, Str::uuid7());
         $disk = Storage::disk(CustomFieldFiles::DISK);
-
-        if (! $disk->put($path, Seal::sealBytes($tender, (string) file_get_contents($file->getRealPath())))) {
-            throw ProcurementError::make('file_not_stored', status: 500);
-        }
+        $path = null;
 
         try {
-            return Tx::run(function () use ($session, $tender, $path, $file, $mime, $ip) {
+            return Tx::run(function () use ($session, $file, $mime, $ip, $disk, &$path) {
+                $tender = $this->openTender($session);
+                // PRC-23: the cap is counted under the bidder's lock, so parallel uploads cannot pass it.
+                Bidder::query()->whereKey($session->bidder_id)->lockForUpdate()->firstOrFail();
+
+                if (BidFile::query()->where('bidder_id', $session->bidder_id)->where('tender_id', $tender->id)->whereNull('removed_at')->count() >= self::MAX_FILES) {
+                    throw ProcurementError::make('too_many_files', ['max' => self::MAX_FILES], 'file');
+                }
+
+                $path = sprintf('tenants/%s/procurement/bids/%s/%s.sealed', $this->tenants->require(), $tender->id, Str::uuid7());
+
+                if (! $disk->put($path, Seal::sealBytes(Seal::key($tender), (string) file_get_contents($file->getRealPath())))) {
+                    throw ProcurementError::make('file_not_stored', status: 500);
+                }
+
                 $stored = BidFile::query()->create([
                     'tender_id' => $tender->id,
                     'bidder_id' => $session->bidder_id,
@@ -154,10 +172,24 @@ class PortalBids
                 return $stored;
             });
         } catch (Throwable $e) {
-            $disk->delete($path);
+            if ($path !== null) {
+                $disk->delete($path);
+            }
 
             throw $e;
         }
+    }
+
+    /** PRC-09: an upload of the bidder's not yet in a submitted bid is removed (kept as a removed row, TEN-06). */
+    public function removeFile(PortalSession $session, string $fileId, ?string $ip): void
+    {
+        Tx::run(function () use ($session, $fileId, $ip) {
+            $tender = $this->openTender($session);
+            $file = BidFile::query()->where('bidder_id', $session->bidder_id)->where('tender_id', $tender->id)->whereNull('removed_at')
+                ->whereNull('bid_id')->whereKey($fileId)->lockForUpdate()->first() ?? throw ProcurementError::make('file_unknown', status: 404);
+            $file->fill(['removed_at' => CarbonImmutable::now()])->save();
+            $this->auditor->record('procurement.portal.file_removed', $file, null, ['tender' => $tender->id, 'bidder' => $session->bidder_id, 'ip' => $ip], ['ip' => $ip]);
+        });
     }
 
     /** The session's tender, published and before its deadline (PRC-09: no change after it). */

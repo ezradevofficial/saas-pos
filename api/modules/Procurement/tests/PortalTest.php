@@ -168,7 +168,7 @@ class PortalTest extends TestCase
         $this->getJson('/api/v1/supplier-portal/tender', $baraka)->assertForbidden()->assertJsonPath('code', 'module_inactive');
     }
 
-    public function test_bids_cannot_change_after_the_deadline(): void
+    public function test_after_the_deadline_the_portal_is_read_only(): void
     {
         $short = $this->tenderAt($this->owner, $this->branchA->id, [$this->supplier], deadline: '2026-10-15T10:00:00Z');
         $bidder = $this->api('GET', "procurement/tenders/{$short['id']}")->json('data.bidders.0.id');
@@ -179,8 +179,9 @@ class PortalTest extends TestCase
             'currency' => 'KES', 'lines' => [['tender_line_id' => $short['lines'][0]['id'], 'unit_price_minor' => '1']],
         ], $headers)->assertStatus(409)->assertJsonPath('code', 'deadline_passed');
         $this->postJson('/api/v1/supplier-portal/bid/files', ['file' => UploadedFile::fake()->createWithContent('late.txt', 'late')], $headers)->assertStatus(409);
-        // The link no longer opens a session.
-        $this->postJson('/api/v1/supplier-portal/sessions', ['token' => $this->linkFor($bidder)])->assertUnauthorized();
+        // PRC-07: the link still opens a session, to read the tender and, later, its outcome.
+        $later = $this->portal($this->linkFor($bidder));
+        $this->getJson('/api/v1/supplier-portal/tender', $later)->assertOk()->assertJsonPath('data.tender.open_for_bids', false);
     }
 
     public function test_uploads_are_typed_and_limited_and_sign_in_is_rate_limited(): void

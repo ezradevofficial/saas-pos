@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Procurement\Console\RewrapKeys;
 use Modules\Procurement\CustomFields\OrderEntity;
 use Modules\Procurement\CustomFields\RequisitionEntity;
 use Modules\Procurement\Documents\DocumentNumbers;
@@ -136,10 +137,17 @@ class ProcurementServiceProvider extends ServiceProvider
         $usage->register('item', 'procurement_requisition', fn (array $ids) => DB::table('procurement_requisition_lines')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
 
         // PRC-23: the portal's rate limits, per session token (or IP) and per IP for sign-in and registration.
-        RateLimiter::for(self::PORTAL_LIMITER, fn (Request $request) => Limit::perMinute((int) config('procurement.portal.per_minute', 30))
-            ->by(self::PORTAL_LIMITER.'|'.hash('sha256', (string) ($request->bearerToken() ?? $request->ip()))));
+        RateLimiter::for(self::PORTAL_LIMITER, fn (Request $request) => [
+            Limit::perMinute((int) config('procurement.portal.per_minute', 30))->by(self::PORTAL_LIMITER.'|token|'.hash('sha256', (string) $request->bearerToken())),
+            Limit::perMinute((int) config('procurement.portal.per_ip_per_minute', 120))->by(self::PORTAL_LIMITER.'|ip|'.$request->ip()),
+        ]);
         RateLimiter::for(self::PORTAL_AUTH_LIMITER, fn (Request $request) => Limit::perMinute((int) config('procurement.portal.auth_per_minute', 10))
             ->by(self::PORTAL_AUTH_LIMITER.'|'.$request->ip()));
+
+        // ADR 019: re-encrypt the tenders' keys after an APP_KEY rotation.
+        if ($this->app->runningInConsole()) {
+            $this->commands([RewrapKeys::class]);
+        }
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

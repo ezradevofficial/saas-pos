@@ -58,7 +58,7 @@ class BidController
         }
 
         $tender = Tender::query()->findOrFail($procurementBid->tender_id);
-        $bytes = Seal::openBytes($tender, (string) Storage::disk($procurementBidFile->disk)->get($procurementBidFile->path));
+        $bytes = Seal::openBytes(Seal::key($tender), (string) Storage::disk($procurementBidFile->disk)->get($procurementBidFile->path));
 
         if ($bytes === null) {
             throw ProcurementError::make('bid_tampered', status: 409);

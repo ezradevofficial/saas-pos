@@ -50,14 +50,18 @@ class LandedCostResource extends JsonResource
             'cancelled_at' => Refs::at($landedCost->cancelled_at),
             'cancel_reason' => $landedCost->cancel_reason,
             'created_at' => Refs::at($landedCost->created_at),
-            ...($this->detail ? $this->detailOf($landedCost, $at) : []),
+            ...($this->detail ? $this->detailOf($landedCost, $at, $request) : []),
         ];
     }
 
     /** @return array<string, mixed> */
-    private function detailOf(LandedCost $landedCost, \Closure $at): array
+    private function detailOf(LandedCost $landedCost, \Closure $at, Request $request): array
     {
         $preview = app(LandedCosts::class)->preview($landedCost);
+        // PRC-22: GRNs (and their allocation lines) only where the reader sees receipts or landed costs.
+        $places = app(Places::class);
+        $sees = fn (?string $locationId) => $locationId !== null && ($places->atLocation($request->user(), 'procurement.receipt.view', $locationId)
+            || $places->atLocation($request->user(), 'procurement.landed_cost.view', $locationId));
 
         return [
             'charges' => $landedCost->charges()->with('party')->get()->map(fn (LandedCostCharge $charge) => [
@@ -65,13 +69,13 @@ class LandedCostResource extends JsonResource
                 'amount' => Refs::money($charge->amount_minor, $charge->currency), 'fx' => Refs::fx($charge->fx),
                 'base_amount' => $charge->base_amount_minor === null ? null : Refs::money($charge->base_amount_minor, $landedCost->base_currency),
             ])->all(),
-            'receipts' => $landedCost->receiptLinks()->with('receipt')->get()->map(fn (LandedCostReceipt $link) => [
+            'receipts' => $landedCost->receiptLinks()->with('receipt')->get()->filter(fn (LandedCostReceipt $link) => $sees($link->receipt->location_id))->values()->map(fn (LandedCostReceipt $link) => [
                 'id' => $link->receipt->id, 'number' => $link->receipt->number, 'status' => $link->receipt->status,
             ])->all(),
             'allocation' => [
                 'base_currency' => $preview['base_currency'],
                 'total' => $preview['total_minor'] === null ? null : Refs::money($preview['total_minor'], $preview['base_currency']),
-                'error' => $preview['error'] === null ? null : ['code' => $preview['error'], 'message' => __('procurement.errors.'.$preview['error'], ['line' => '', 'pair' => '', 'date' => ''])],
+                'error' => $preview['error'] === null ? null : ['code' => $preview['error'], 'message' => $preview['message']],
                 'lines' => array_map(fn (array $part) => [
                     'receipt_line_id' => $part['receipt_line']->id,
                     'receipt' => ['id' => $part['receipt_line']->receipt?->id, 'number' => $part['receipt_line']->receipt?->number],
@@ -79,7 +83,7 @@ class LandedCostResource extends JsonResource
                     'accepted_qty' => Refs::qty($part['receipt_line']->accepted_qty),
                     'basis' => Refs::qty($part['basis']),
                     'amount' => Refs::money($part['amount_minor'], $preview['base_currency']),
-                ], $preview['lines']),
+                ], array_values(array_filter($preview['lines'], fn (array $part) => $sees($part['receipt_line']->receipt?->location_id)))),
             ],
             'can' => [
                 'edit' => $landedCost->status === LandedCost::DRAFT && $at('create'),

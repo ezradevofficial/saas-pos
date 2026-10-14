@@ -8,8 +8,11 @@ use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Branch;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 use Modules\Procurement\Documents\DocumentNumbers;
 use Modules\Procurement\Documents\Requisitions;
+use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Requisition;
 use Modules\Procurement\Models\RequisitionLine;
 use Modules\Procurement\Models\Tender;
@@ -36,9 +39,9 @@ use Modules\Procurement\Support\Tx;
  *   (when scored technically), a deadline in the future. Published tenders
  *   keep their lines, criteria and times.
  * - cancel(): any tender not awarded; every portal session ends.
- * - noticeToken(): an open tender's public notice token, derived from the
- *   application key and the tender (so the buyer can always share the
- *   link; its sha256 is what the portal looks up).
+ * - noticeToken(): an open tender's public notice token: random at
+ *   publication, its sha256 looked up by the portal, the token kept
+ *   encrypted so staff can share the link again (ADR 019).
  */
 class Tenders
 {
@@ -147,11 +150,14 @@ class Tenders
                 throw ProcurementError::make('deadline_in_past', field: 'deadline_at');
             }
 
+            $notice = $tender->kind === Tender::OPEN ? Str::random(48) : null;
             $tender->fill([
                 'number' => $tender->number ?? $this->numbers->next(DocumentNumbers::TENDER, $tender->company_id, $tender->branch_id),
                 'status' => Tender::PUBLISHED,
                 'published_at' => CarbonImmutable::now(),
-                'public_token_hash' => $tender->kind === Tender::OPEN ? hash('sha256', self::noticeToken($tender)) : null,
+                // PRC-08, ADR 019: a random notice token; its hash is looked up, the token kept encrypted for staff.
+                'public_token_hash' => $notice === null ? null : hash('sha256', $notice),
+                'public_token_secret' => $notice === null ? null : Crypt::encryptString($notice),
             ])->save();
 
             if ($tender->requisition_id !== null) {
@@ -181,13 +187,10 @@ class Tenders
         });
     }
 
-    /** PRC-08: the public notice token of an open tender (48 letters and digits). */
-    public static function noticeToken(Tender $tender): string
+    /** PRC-08: an open tender's public notice token (random, kept encrypted), or null. */
+    public static function noticeToken(Tender $tender): ?string
     {
-        $key = (string) config('app.key');
-        $raw = hash_hmac('sha256', 'procurement-tender-notice:'.$tender->tenant_id.':'.$tender->id, $key, true);
-
-        return substr(strtr(rtrim(base64_encode($raw.hash_hmac('sha256', 'more:'.$tender->id, $key, true)), '='), ['+' => '0', '/' => '1']), 0, 48);
+        return $tender->public_token_secret === null ? null : Crypt::decryptString($tender->public_token_secret);
     }
 
     /** @param array<string, mixed> $data */
@@ -260,6 +263,11 @@ class Tenders
 
                 if ($user === null || ! $this->scopes->can($user, $permission, Scope::branch($tender->branch_id))) {
                     throw ProcurementError::make('member_not_allowed', field: "{$field}.{$index}");
+                }
+
+                // PRC-08: a bidder never sits on the committee.
+                if ($user->email !== null && Bidder::query()->where('tender_id', $tender->id)->whereNull('removed_at')->whereRaw('lower(email) = ?', [strtolower($user->email)])->exists()) {
+                    throw ProcurementError::make('conflict_of_interest', field: "{$field}.{$index}");
                 }
 
                 TenderMember::query()->create(['tender_id' => $tender->id, 'user_id' => $user->id, 'role' => $role]);

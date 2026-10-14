@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('procurement/tenders/{procurement_tender}/cancel', [TenderController::class, 'cancel']);
     Route::post('procurement/tenders/{procurement_tender}/bidders', [TenderController::class, 'addBidder']);
     Route::post('procurement/tenders/{procurement_tender}/open', [TenderController::class, 'open']);
+    Route::get('procurement/branches/{branch}/committee-candidates', [TenderController::class, 'candidates']);
     Route::post('procurement/tender-bidders/{procurement_bidder}/resend', [TenderController::class, 'resend']);
     Route::post('procurement/tender-bidders/{procurement_bidder}/remove', [TenderController::class, 'removeBidder']);
     Route::put('procurement/bids/{procurement_bid}/scores', [BidController::class, 'scores']);

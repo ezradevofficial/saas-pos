@@ -46,7 +46,7 @@ class LandedCostController
 
     public function update(UpdateLandedCostRequest $request, LandedCost $procurementLandedCost): LandedCostResource
     {
-        return $this->detail($this->landedCosts->update($procurementLandedCost, $request->validated()));
+        return $this->detail($this->landedCosts->update($procurementLandedCost, $request->validated(), $request->user()));
     }
 
     public function post(DocumentActionRequest $request, LandedCost $procurementLandedCost): LandedCostResource

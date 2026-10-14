@@ -54,9 +54,9 @@ class Tender extends ProcurementDocument
 
     protected string $auditResource = 'tender';
 
-    protected $hidden = ['seal_secret', 'public_token_hash'];
+    protected $hidden = ['seal_secret', 'public_token_hash', 'public_token_secret'];
 
-    protected array $auditHidden = ['seal_secret', 'public_token_hash'];
+    protected array $auditHidden = ['seal_secret', 'public_token_hash', 'public_token_secret'];
 
     protected function casts(): array
     {

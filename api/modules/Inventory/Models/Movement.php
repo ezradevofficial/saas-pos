@@ -71,9 +71,15 @@ class Movement extends Model implements HasScope
 
     public const SALE_VOID = 'sale_void';
 
+    /**
+     * A value-only change of a receipt's cost (landed costs allocated after
+     * it, PRC-17): zero quantity, owner-approved on 2026-10-14.
+     */
+    public const COST_ADJUSTMENT = 'cost_adjustment';
+
     public const KINDS = [
         self::OPENING, self::OPENING_REVERSAL, self::RECEIPT, self::ADJUSTMENT_IN, self::ADJUSTMENT_OUT, self::COUNT_GAIN, self::COUNT_LOSS,
-        self::TRANSFER_OUT, self::TRANSFER_IN, self::TRANSFER_LOSS, self::SALE, self::SALE_RETURN, self::SALE_VOID,
+        self::TRANSFER_OUT, self::TRANSFER_IN, self::TRANSFER_LOSS, self::SALE, self::SALE_RETURN, self::SALE_VOID, self::COST_ADJUSTMENT,
     ];
 
     /** Moves between locations of one company: the company's cost does not change. */
