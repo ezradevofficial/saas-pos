@@ -370,6 +370,12 @@ en/fr.
     (`amounts.expense`, each allocation's `tracked`) and from
     `GoodsReceiptPosted` before (`amounts.untracked_landed`). The clearing
     account nets to zero once the bills post.
+20. **Lines Inventory or Stores cannot receive are visible.** A line they
+    skip (an unknown or non-stock item, a unit the item does not have, no
+    quantity) or a serial already in stock comes back as Inventory's
+    `GoodsReceiptExceptions` contract event; Procurement keeps each module
+    and code on the GRN line (`receive_exceptions`) and the GRN view flags
+    the lines, so someone adjusts the stock by hand.
 
 ## Open questions
 

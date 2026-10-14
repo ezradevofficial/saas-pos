@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
-import { Button, Card, DataTable, StatusBadge } from '@/components/ds'
+import { Alert, Button, Card, DataTable, StatusBadge } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Amount, Back, CalendarDate, CancelDialog, Detail, DetailState, LineName, Qty, Status, When } from './ProcurementParts'
 import { useDocumentAction } from './procurementHelpers'
@@ -77,7 +77,26 @@ export default function ReceiptDetail() {
       render: (line) =>
         line.on_time === null || line.on_time === undefined ? <span className="text-ink-muted">—</span> : <StatusBadge tone={line.on_time ? 'success' : 'warning'}>{t(line.on_time ? 'procurement.receipt.onTime' : 'procurement.receipt.late')}</StatusBadge>,
     },
+    // INV-15 (stage 7B closing review): what Inventory or Stores could not receive of the line.
+    {
+      key: 'receive_exceptions',
+      label: t('procurement.columns.stock'),
+      wrap: true,
+      render: (line) =>
+        line.receive_exceptions?.length ? (
+          <span className="flex flex-col gap-1">
+            {line.receive_exceptions.map((exception) => (
+              <StatusBadge key={`${exception.module}-${exception.code}`} tone="warning">
+                {t(`procurement.receipt.exceptions.${exception.code}`, { defaultValue: t('procurement.receipt.exceptions.other') })}
+              </StatusBadge>
+            ))}
+          </span>
+        ) : (
+          ''
+        ),
+    },
   ]
+  const exceptionLines = (receipt.lines ?? []).filter((line) => line.receive_exceptions?.length).length
 
   return (
     <>
@@ -102,6 +121,7 @@ export default function ReceiptDetail() {
         }
       />
       <div className="flex flex-col gap-5">
+        {exceptionLines ? <Alert tone="warning" title={t('procurement.receipt.exceptionsTitle', { count: exceptionLines })}>{t('procurement.receipt.exceptionsBody')}</Alert> : null}
         <Card title={t('procurement.summary')}>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Detail label={t('procurement.fields.order')}>

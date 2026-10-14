@@ -13,6 +13,7 @@ use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
+use Modules\Inventory\Contracts\GoodsReceiptExceptions;
 use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Inventory\Models\Batch;
@@ -32,8 +33,9 @@ use Modules\Inventory\Stock\Units;
  * currency (a cost in another currency converted at the company's rate on
  * the receipt date, CUR-04), with their batches and serials. Never refused
  * (the goods are there): a line naming an unknown or non-stock item or a
- * unit the item does not have is skipped and logged; a serial already in
- * stock is left out of the line and flagged. Once per receipt (the ledger).
+ * unit the item does not have is skipped; a serial already in stock is
+ * left out of the line and flagged; both are reported back to the sender
+ * (GoodsReceiptExceptions), which shows them on its document. Once per receipt (the ledger).
  */
 class RecordGoodsReceived implements ShouldQueue
 {
@@ -78,6 +80,7 @@ class RecordGoodsReceived implements ShouldQueue
 
             StockInput::transaction(function () use ($event, $company, $at) {
                 $lines = [];
+                $exceptions = [];
 
                 foreach ($event->lines as $line) {
                     $item = Item::query()->whereKey($line['item_id'])->where('type', 'stock')->first();
@@ -85,6 +88,7 @@ class RecordGoodsReceived implements ShouldQueue
 
                     if ($item === null || $factor === null || ! BigDecimal::of($line['qty'])->isPositive()) {
                         Log::warning('inventory: goods received line skipped', ['receipt' => $event->receiptId, 'line' => $line['line_id']]);
+                        $exceptions[] = ['line_id' => (string) $line['line_id'], 'code' => GoodsReceiptExceptions::skipped($item, $factor)];
 
                         continue;
                     }
@@ -99,6 +103,7 @@ class RecordGoodsReceived implements ShouldQueue
                                 array_push($serialIds, ...$this->input->serialIds($item->id, [(string) $serial], true, $event->locationId));
                             } catch (\Throwable) {
                                 $flags[] = ['code' => 'serial_exists'];
+                                $exceptions[] = ['line_id' => (string) $line['line_id'], 'code' => GoodsReceiptExceptions::SERIAL_EXISTS];
                             }
                         }
 
@@ -122,6 +127,11 @@ class RecordGoodsReceived implements ShouldQueue
                 }
 
                 $this->ledger->post(new Posting($event->companyId, 'procurement.goods_receipt', $event->receiptId, $at, $event->userId, $lines, manual: false));
+
+                // Stage 7B closing review: what could not be received shows on the sender's document.
+                if ($exceptions !== []) {
+                    event(new GoodsReceiptExceptions($event->tenantId, InventoryServiceProvider::MODULE, $event->receiptId, array_values(array_unique($exceptions, SORT_REGULAR))));
+                }
             });
         });
     }

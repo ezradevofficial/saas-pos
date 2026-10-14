@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Tests;
 
+use App\Core\MasterData\Items\ItemUom;
 use App\Core\Rbac\ModuleRegistry;
 use Modules\Procurement\Models\InvoiceLine;
 use Modules\Procurement\Models\ReceiptLine;
@@ -126,5 +127,36 @@ class LedgerReviewTest extends TestCase
 
         $this->assertSame('0', $approved['base_grni']['amount_minor']);
         $this->assertSame([0, 0], $this->inTenant(fn () => InvoiceLine::query()->orderBy('line_no')->pluck('base_stock_net_minor')->map(fn ($v) => (int) $v)->all()));
+    }
+
+    /** INV-15: a line Inventory cannot receive (here: a unit the item no longer has) is flagged on the GRN line. */
+    public function test_a_line_inventory_cannot_receive_is_flagged_on_the_grn(): void
+    {
+        $this->assertFlagged('inventory');
+    }
+
+    /** STR-07: the same with Inventory off, at a store. */
+    public function test_a_line_stores_cannot_receive_is_flagged_on_the_grn(): void
+    {
+        $this->assertFlagged('stores');
+    }
+
+    private function assertFlagged(string $module): void
+    {
+        $this->setUpProcurement(inventory: $module === 'inventory');
+        $store = $this->inTenant(function () use ($module) {
+            if ($module === 'stores') {
+                app(ModuleRegistry::class)->activate('stores');
+            }
+
+            return $this->branchA->locations()->create(['name' => 'Main store', 'type' => 'store']);
+        });
+        $order = $this->approvedOrder(lines: [['item_id' => $this->soap->id, 'uom_id' => $this->box->id, 'qty' => '2', 'unit_price_minor' => '120000']]);
+        // The box is no longer a unit of soap when the goods arrive.
+        $this->inTenant(fn () => ItemUom::query()->where('item_id', $this->soap->id)->where('uom_id', $this->box->id)->delete());
+        $receipt = $this->postedReceipt($order, extra: ['location_id' => $store->id]);
+
+        $this->api('GET', "procurement/receipts/{$receipt['id']}")->assertOk()
+            ->assertJsonPath('data.lines.0.receive_exceptions', [['code' => 'unit_unknown', 'module' => $module]]);
     }
 }

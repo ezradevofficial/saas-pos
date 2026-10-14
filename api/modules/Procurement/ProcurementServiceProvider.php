@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Contracts\GoodsReceiptExceptions;
 use Modules\Procurement\Console\RewrapKeys;
 use Modules\Procurement\CustomFields\OrderEntity;
 use Modules\Procurement\CustomFields\RequisitionEntity;
@@ -29,6 +30,7 @@ use Modules\Procurement\Documents\DocumentNumbers;
 use Modules\Procurement\Documents\OrderType;
 use Modules\Procurement\Documents\RequisitionType;
 use Modules\Procurement\Events\ProcurementEventReplay;
+use Modules\Procurement\Listeners\RecordReceiptExceptions;
 use Modules\Procurement\Listeners\SettleProcurementDocument;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Printing\ProcurementSource;
@@ -97,6 +99,11 @@ class ProcurementServiceProvider extends ServiceProvider
         $documents->register(OrderType::class);
         Event::listen(WorkflowCompleted::class, SettleProcurementDocument::class);
         Event::listen(WorkflowCancelled::class, SettleProcurementDocument::class);
+
+        // INV-15 (stage 7B closing review): what Inventory or Stores could not receive shows on the GRN.
+        if (class_exists(GoodsReceiptExceptions::class)) {
+            Event::listen(GoodsReceiptExceptions::class, RecordReceiptExceptions::class);
+        }
 
         // NUM-01, PRC-19: their numbers.
         $numbers = $this->app->make(DocumentNumberTypes::class);

@@ -76,6 +76,8 @@ class ReceiptResource extends JsonResource
                     'base_value' => Refs::money($line->base_value_minor, $receipt->base_currency),
                     'landed' => Refs::money($line->landed_minor, $receipt->base_currency),
                     'on_time' => $line->on_time,
+                    // Stage 7B closing review: what Inventory or Stores could not receive of the line.
+                    'receive_exceptions' => $line->receive_exceptions ?? [],
                 ])->all(),
                 'can' => [
                     'edit' => $receipt->status === Receipt::DRAFT && $at('create'),

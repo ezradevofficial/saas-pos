@@ -7428,6 +7428,7 @@
       "weight": "Selon le poids"
     },
     "columns": {
+      "stock": "Stock",
       "number": "Numéro",
       "createdAt": "Créé le",
       "status": "Statut",
@@ -7870,7 +7871,17 @@
       "cancelHelp": "Le brouillon s’arrête ici. Il est conservé, marqué annulé.",
       "cancelled": "Réception annulée.",
       "onTime": "À l’heure",
-      "late": "En retard"
+      "late": "En retard",
+      "exceptionsTitle_one": "{{count}} ligne n’est pas entrée en stock",
+      "exceptionsTitle_other": "{{count}} lignes ne sont pas entrées en stock",
+      "exceptionsBody": "Le stock ou le magasin n’a pas pu prendre ces lignes. Vérifiez l’article, son unité ou ses numéros de série, puis ajustez le stock à la main.",
+      "exceptions": {
+        "item_unknown": "Pas un article stocké",
+        "unit_unknown": "Unité non définie pour l’article",
+        "qty_not_positive": "Aucune quantité",
+        "serial_exists": "Numéro de série déjà en stock",
+        "other": "Non reçue"
+      }
     },
     "invoice": {
       "newTitle": "Saisir la facture de {{number}}",

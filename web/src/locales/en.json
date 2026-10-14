@@ -7428,6 +7428,7 @@
       "weight": "By weight"
     },
     "columns": {
+      "stock": "Stock",
       "number": "Number",
       "createdAt": "Created",
       "status": "Status",
@@ -7870,7 +7871,17 @@
       "cancelHelp": "The draft stops here. It is kept, marked cancelled.",
       "cancelled": "Goods received cancelled.",
       "onTime": "On time",
-      "late": "Late"
+      "late": "Late",
+      "exceptionsTitle_one": "{{count}} line was not received into stock",
+      "exceptionsTitle_other": "{{count}} lines were not received into stock",
+      "exceptionsBody": "Inventory or Stores could not take these lines. Check the item, its unit or its serial numbers, then adjust the stock by hand.",
+      "exceptions": {
+        "item_unknown": "Not a stock item",
+        "unit_unknown": "Unit not set up for the item",
+        "qty_not_positive": "No quantity",
+        "serial_exists": "Serial already in stock",
+        "other": "Not received"
+      }
     },
     "invoice": {
       "newTitle": "Enter invoice for {{number}}",
