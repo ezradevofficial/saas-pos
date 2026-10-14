@@ -69,7 +69,7 @@ class IssueController
     {
         $return = $this->returns->create($storesIssue, $request->validated(), $request->user());
 
-        return ReturnResource::make($return->load(ReturnController::DETAIL)->loadCount('lines'))->detail()->response()->setStatusCode(201);
+        return ReturnResource::make($return->refresh()->load(ReturnController::DETAIL)->loadCount('lines'))->detail()->response()->setStatusCode(201);
     }
 
     /** STR-14: the delivery note or issue voucher, as HTML to print or a PDF. */

@@ -79,6 +79,6 @@ class RequisitionController
     {
         $issue = $this->issues->issue($storesRequisition, $request->validated(), $request->user());
 
-        return IssueResource::make($issue->load(IssueController::DETAIL)->loadCount('lines'))->detail()->response()->setStatusCode(201);
+        return IssueResource::make($issue->refresh()->load(IssueController::DETAIL)->loadCount('lines'))->detail()->response()->setStatusCode(201);
     }
 }
