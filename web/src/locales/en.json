@@ -7183,7 +7183,8 @@
       "none": "No rule",
       "defaults": "Add default rules",
       "defaultsAdded": "Default rules added: {{rules}}. Accounts added: {{accounts}}.",
-      "retried": "Posted."
+      "retried": "Posted.",
+      "unresolved": "Not added, an account could not be found by its template code: {{list}}. Add these rules by hand."
     },
     "budgets": {
       "title": "Budgets",

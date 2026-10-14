@@ -22,13 +22,16 @@ use Modules\Accounting\Models\PostingRule;
  * made before the integrations existed), then a rule for every event type
  * without an active rule. A rule the tenant archived on purpose is not
  * brought back by the chart creation (rules are only seeded then and when
- * a person asks for the defaults again).
+ * a person asks for the defaults again). Template accounts are matched by
+ * their template code; a rule naming one the chart cannot resolve (its
+ * code taken by an account of the tenant's own) is reported in
+ * `unresolved`, not saved.
  */
 class PostingDefaults
 {
     public function __construct(private readonly ChartTemplates $templates) {}
 
-    /** @return array{accounts: int, rules: int} what was added */
+    /** @return array{accounts: int, rules: int, unresolved: list<array{event_type: string, account: string}>} what was added, and what could not be */
     public function seed(Company $company, ?User $by = null): array
     {
         $template = AccountingSettings::query()->where('company_id', $company->id)->value('template') ?: (string) $company->country;
@@ -45,16 +48,19 @@ class PostingDefaults
             }
 
             $data = $this->templates->get($template);
-            $ids = Account::query()->where('company_id', $company->id)->pluck('id', 'code')->all();
+            // Review #11: template accounts are known by their template code (a code the tenant renumbered is the same account).
+            $ids = Account::query()->where('company_id', $company->id)->whereNotNull('template_code')->pluck('id', 'template_code')->all();
+            $codes = Account::query()->where('company_id', $company->id)->pluck('id', 'code')->all();
             $locale = Tenant::query()->whereKey($company->tenant_id)->value('default_locale') ?: 'en';
             $accounts = 0;
 
             foreach ($data['accounts'] as $row) {
-                if (isset($ids[$row['code']]) || ($row['parent'] !== null && ! isset($ids[$row['parent']]))) {
+                // Present already, its parent missing, or its code taken by an account of the tenant's own: not created.
+                if (isset($ids[$row['code']]) || isset($codes[$row['code']]) || ($row['parent'] !== null && ! isset($ids[$row['parent']]))) {
                     continue;
                 }
 
-                $ids[$row['code']] = Account::query()->create([
+                $ids[$row['code']] = $codes[$row['code']] = Account::query()->create([
                     'company_id' => $company->id,
                     'code' => $row['code'],
                     'name' => $this->templates->name($template, $row['code'], $locale),
@@ -70,20 +76,38 @@ class PostingDefaults
             }
 
             $rules = 0;
+            $unresolved = [];
 
             foreach ($data['posting_rules'] ?? [] as $type => $lines) {
                 if (PostingRule::query()->where('company_id', $company->id)->where('event_type', $type)->whereNull('archived_at')->exists()) {
                     continue;
                 }
 
+                $missing = [];
+                $resolve = function (string $code) use ($ids, &$missing): ?string {
+                    if (! isset($ids[$code])) {
+                        $missing[] = $code;
+                    }
+
+                    return $ids[$code] ?? null;
+                };
                 $resolved = array_map(fn (array $line) => array_filter([
                     'field' => $line['field'],
                     'side' => $line['side'],
-                    'account_id' => isset($line['account']) ? ($ids[$line['account']] ?? null) : null,
+                    'account_id' => isset($line['account']) ? $resolve($line['account']) : null,
                     'party' => (bool) ($line['party'] ?? false),
                     'by' => $line['by'] ?? null,
-                    'accounts' => isset($line['accounts']) ? array_filter(array_map(fn (string $code) => $ids[$code] ?? null, $line['accounts'])) : null,
+                    'accounts' => isset($line['accounts']) ? array_map($resolve, $line['accounts']) : null,
                 ], fn ($value) => $value !== null), $lines);
+
+                // A rule naming an account the chart cannot resolve is reported, never saved without it.
+                if ($missing !== []) {
+                    foreach (array_values(array_unique($missing)) as $code) {
+                        $unresolved[] = ['event_type' => $type, 'account' => $code];
+                    }
+
+                    continue;
+                }
 
                 PostingRule::query()->create([
                     'company_id' => $company->id,
@@ -95,7 +119,7 @@ class PostingDefaults
                 $rules++;
             }
 
-            return ['accounts' => $accounts, 'rules' => $rules];
+            return ['accounts' => $accounts, 'rules' => $rules, 'unresolved' => $unresolved];
         });
     }
 }

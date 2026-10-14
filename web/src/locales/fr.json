@@ -7183,7 +7183,8 @@
       "none": "Aucune règle",
       "defaults": "Ajouter les règles par défaut",
       "defaultsAdded": "Règles par défaut ajoutées : {{rules}}. Comptes ajoutés : {{accounts}}.",
-      "retried": "Comptabilisée."
+      "retried": "Comptabilisée.",
+      "unresolved": "Non ajoutées, un compte est introuvable par son code du plan type : {{list}}. Ajoutez ces règles à la main."
     },
     "budgets": {
       "title": "Budgets",

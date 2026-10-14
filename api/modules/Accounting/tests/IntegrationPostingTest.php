@@ -459,4 +459,32 @@ class IntegrationPostingTest extends TestCase
         $this->upload([$this->saleBody($shift, 2)])->assertOk();
         $this->assertSame(1, $queued());
     }
+
+    /**
+     * Review #11: the defaults find template accounts by their template code (a renamed code is the
+     * same account), and report an account they cannot resolve instead of saving a line without one.
+     */
+    public function test_default_rules_match_template_codes_and_report_what_they_cannot_resolve(): void
+    {
+        $this->setUpIntegrations();
+        $this->inTenant(function () {
+            $account = fn (string $code) => \Modules\Accounting\Models\Account::query()->where('company_id', $this->acme->id)->where('code', $code)->firstOrFail();
+            // The gift card liability renumbered by the tenant; 4910 now the tenant's own account, not the template's.
+            $account('2310')->forceFill(['code' => '2399'])->save();
+            $account('4910')->forceFill(['template_code' => null])->save();
+            PostingRule::query()->whereIn('event_type', ['loyalty.gift_card_sold', 'loyalty.gift_card_expired'])->get()->each->archive();
+        });
+        $before = $this->inTenant(fn () => \Modules\Accounting\Models\Account::query()->count());
+
+        $result = $this->postJson("/api/v1/companies/{$this->acme->id}/accounting/posting-rules/defaults", [], $this->headersFor())->assertOk()->json('data');
+
+        $this->assertSame([0, 1], [$result['accounts'], $result['rules']]);
+        $this->assertSame([['event_type' => 'loyalty.gift_card_expired', 'account' => '4910']], $result['unresolved']);
+        $this->assertSame($before, $this->inTenant(fn () => \Modules\Accounting\Models\Account::query()->count()));
+        $this->inTenant(function () {
+            $sold = PostingRule::query()->where('event_type', 'loyalty.gift_card_sold')->whereNull('archived_at')->sole();
+            $this->assertSame($this->accountId('2399'), $sold->lines[0]['account_id']);
+            $this->assertFalse(PostingRule::query()->where('event_type', 'loyalty.gift_card_expired')->whereNull('archived_at')->exists());
+        });
+    }
 }

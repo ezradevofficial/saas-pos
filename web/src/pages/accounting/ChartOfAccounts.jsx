@@ -301,6 +301,9 @@ function RulesTab({ company }) {
       ) : null}
       {defaults.isError ? <Alert tone="danger" title={errorMessage(defaults.error)} /> : null}
       {defaults.isSuccess ? <Alert tone="success" title={t('accounting.rules.defaultsAdded', { rules: defaults.data.data.rules, accounts: defaults.data.data.accounts })} /> : null}
+      {defaults.isSuccess && defaults.data.data.unresolved?.length ? (
+        <Alert tone="warning" title={t('accounting.rules.unresolved', { list: defaults.data.data.unresolved.map((entry) => `${sourceName(t, entry.event_type)} (${entry.account})`).join(', ') })} />
+      ) : null}
       <DataTable
         caption={t('accounting.rules.title')}
         emptyText={t('accounting.rules.empty')}
