@@ -9,7 +9,7 @@ import { Alert, Button, Card, Select, Switch, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { todayIn } from '@/lib/dates'
 import { Back, DetailState, LinesEditor, TextAreaField } from './ProcurementParts'
-import { blankLine, lineBody, lineFieldNames, lineFromRecord, lineFromRequisition, lineReady } from './procurementHelpers'
+import { blankLine, clearPrices, lineBody, lineFieldNames, lineFromRecord, lineFromRequisition, lineReady } from './procurementHelpers'
 import { companyById, companyOfBranch, locationsOf, namedOptions, procurementKey, useCurrencies, usePlaces, useSourceRequisition, useSuppliers } from './procurementData'
 
 const FIELDS = ['branch_id', 'requisition_id', 'party_id', 'location_id', 'currency', 'tax_inclusive', 'order_date', 'expected_on', 'terms', 'lines']
@@ -105,7 +105,11 @@ function Form({ order, requisition }) {
             error={errors.fields.location_id}
             onChange={(event) => setLocation(event.target.value)}
           />
-          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => setCurrency(event.target.value)} />
+          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => {
+              if (event.target.value !== shownCurrency) setLines(clearPrices)
+              setCurrency(event.target.value)
+            }}
+          />
           <TextField type="date" label={t('procurement.fields.orderDate')} value={shownDate} error={errors.fields.order_date} onChange={(event) => setOrderDate(event.target.value)} />
           <TextField type="date" label={t('procurement.fields.expectedOn')} value={expectedOn} error={errors.fields.expected_on} onChange={(event) => setExpectedOn(event.target.value)} />
           <div className="flex flex-col gap-1 sm:col-span-2">

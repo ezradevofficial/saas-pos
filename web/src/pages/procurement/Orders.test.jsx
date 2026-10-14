@@ -110,6 +110,30 @@ describe('Purchase orders (PRC-13)', () => {
     )
   })
 
+  it('clears the unit prices when the currency changes, so KES 240.00 never becomes CDF 24,000 (review)', async () => {
+    mockProcurement(api)
+    api.post.mockResolvedValue({ data: { ...ORDER, status: 'draft' } })
+    renderApp('/procurement/orders/new')
+    await waitForOption(await screen.findByLabelText(/^Branch/), BRANCH.name)
+    chooseOption(screen.getByLabelText(/^Branch/), BRANCH.name)
+    await waitForOption(screen.getByLabelText(/^Supplier/), 'Mombasa Millers')
+    chooseOption(screen.getByLabelText(/^Supplier/), 'Mombasa Millers')
+    await waitForOption(screen.getByLabelText('Item'), 'Maize flour 2 kg · FLOUR')
+    chooseOption(screen.getByLabelText('Item'), 'Maize flour 2 kg · FLOUR')
+    fireEvent.change(screen.getByLabelText(/^Quantity/), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText(/^Unit price/), { target: { value: '240' } })
+    await waitForOption(screen.getByLabelText('Currency'), 'CDF')
+    chooseOption(screen.getByLabelText('Currency'), 'CDF')
+    expect(screen.getByLabelText(/^Unit price/)).toHaveValue('')
+    fireEvent.change(screen.getByLabelText(/^Unit price/), { target: { value: '5400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save purchase order' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const [, body] = api.post.mock.calls[0]
+    expect(body.currency).toBe('CDF')
+    // CDF has no minor unit: 5,400 francs are 5400.
+    expect(body.lines[0].unit_price_minor).toBe('5400')
+  })
+
   it('shows "Rate needed" on a line whose tax code has no rate and holds the submission', async () => {
     const draft = { ...ORDER, number: null, status: 'draft', lines: [line({ tax_rate: null, rate_needed: true, received_qty: '0', rejected_qty: '0' })], can: { edit: true, submit: true, cancel: true, print: true } }
     mockProcurement(api, [['procurement/orders/po-1', { data: draft }]])

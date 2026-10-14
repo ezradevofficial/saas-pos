@@ -8,7 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Back, DetailState, LinesEditor } from './ProcurementParts'
-import { blankLine, lineBody, lineFieldNames, lineFromRecord, lineReady } from './procurementHelpers'
+import { blankLine, clearPrices, lineBody, lineFieldNames, lineFromRecord, lineReady } from './procurementHelpers'
 import { companyOfBranch, locationsOf, namedOptions, procurementKey, useCurrencies, useDimension, usePlaces } from './procurementData'
 
 const FIELDS = ['branch_id', 'location_id', 'department_id', 'purpose', 'needed_by', 'currency', 'lines']
@@ -94,7 +94,11 @@ function Form({ requisition }) {
             onChange={(event) => setDepartment(event.target.value)}
           />
           <TextField type="date" label={t('procurement.fields.neededBy')} value={neededBy} error={errors.fields.needed_by} onChange={(event) => setNeededBy(event.target.value)} />
-          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => setCurrency(event.target.value)} />
+          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => {
+              if (event.target.value !== shownCurrency) setLines(clearPrices)
+              setCurrency(event.target.value)
+            }}
+          />
           <TextField label={t('procurement.fields.purpose')} value={purpose} maxLength={1000} error={errors.fields.purpose} onChange={(event) => setPurpose(event.target.value)} className="sm:col-span-2" />
         </div>
       </Card>

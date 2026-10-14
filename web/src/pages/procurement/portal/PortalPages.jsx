@@ -162,7 +162,13 @@ function BidForm({ view }) {
       <Card title={t(view.bid?.status === 'submitted' ? 'procurement.portal.replaceTitle' : 'procurement.portal.bidTitle')} subtitle={t('procurement.portal.bidHelp')}>
         <div className="flex flex-col gap-4">
           {errors.form ? <Alert tone="danger" title={errors.form} /> : null}
-          <Select label={t('procurement.fields.currency')} options={currencies} value={currency} error={errors.fields.currency} onChange={(event) => setCurrency(event.target.value)} className="max-w-field" />
+          <Select label={t('procurement.fields.currency')} options={currencies} value={currency} error={errors.fields.currency} onChange={(event) => {
+              // Prices are minor units of the currency: another currency clears them (stage 7B review).
+              if (event.target.value !== currency) setPrices({})
+              setCurrency(event.target.value)
+            }}
+            className="max-w-field"
+          />
           {errors.fields.lines || (submitted && !offered.length) ? <Alert tone="danger" title={errors.fields.lines ?? t('procurement.portal.noPrices')} /> : null}
           <ul aria-label={t('procurement.portal.prices')} className="flex flex-col gap-3">
             {(tender.lines ?? []).map((line) => (
