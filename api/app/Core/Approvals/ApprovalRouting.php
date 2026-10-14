@@ -85,9 +85,12 @@ class ApprovalRouting
         }
 
         if ($users === []) {
-            $request->blocked_reason = ApprovalRequest::BLOCKED_NO_APPROVER;
-            $request->save();
-            $this->log->action($request, 'blocked', null, null, ['step' => $request->step, 'reason' => ApprovalRequest::BLOCKED_NO_APPROVER]);
+            // Logged once: routing a blocked step again (ApprovalUnblocker) records nothing new.
+            if ($request->blocked_reason !== ApprovalRequest::BLOCKED_NO_APPROVER) {
+                $request->blocked_reason = ApprovalRequest::BLOCKED_NO_APPROVER;
+                $request->save();
+                $this->log->action($request, 'blocked', null, null, ['step' => $request->step, 'reason' => ApprovalRequest::BLOCKED_NO_APPROVER]);
+            }
 
             return [];
         }

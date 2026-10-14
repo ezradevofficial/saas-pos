@@ -14,9 +14,12 @@ use App\Core\Approvals\Resolvers\UserResolver;
 use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Rbac\Models\RoleAssignment;
+use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Handlers\ApprovalHandler;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -69,6 +72,10 @@ class ApprovalsServiceProvider extends ServiceProvider
         foreach (ApprovalNotices::ACTIONABLE as $event) {
             $mail->register($event, fn (NotificationDelivery $delivery) => $this->app->make(EmailApprovals::class)->links($delivery));
         }
+
+        // APR-07: a role assignment added may give a blocked step its approver (after it commits).
+        RoleAssignment::created(fn (RoleAssignment $assignment) => DB::connection(TenantContext::CONNECTION)
+            ->afterCommit(fn () => $this->app->make(ApprovalUnblocker::class)->afterAssignment($assignment)));
 
         if ($this->app->runningInConsole()) {
             $this->commands([ProcessApprovalTimersCommand::class]);
