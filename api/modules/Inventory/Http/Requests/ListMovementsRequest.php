@@ -34,7 +34,8 @@ class ListMovementsRequest extends FormRequest
             'kind' => ['sometimes', 'string', Rule::in(Movement::KINDS)],
             'item' => ['sometimes', 'uuid', Rule::exists('items', 'id')],
             // Stage 7B: the movements of one source document (Accounting's drill-down from a stock journal).
-            'source' => ['sometimes', 'uuid'],
+            // A source of the tenant's own ledger (row-level security): another tenant's id is refused, never echoed.
+            'source' => ['sometimes', 'uuid', Rule::exists('inventory_movements', 'source_id')],
         ];
     }
 }
