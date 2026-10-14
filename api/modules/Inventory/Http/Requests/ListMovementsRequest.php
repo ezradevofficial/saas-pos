@@ -12,7 +12,7 @@ use Modules\Inventory\Models\Movement;
  * GET inventory/movements and inventory/items/{item}/movements (INV-04,
  * INV-19): `inventory.stock.view`; movements at the reader's locations;
  * `?kind=`, `?item=` (the ledger route only), `?from=`, `?to=`,
- * `?search=` (item code or name, batch number).
+ * `?search=` (item code or name, batch number), `?source=` (a source document's id).
  */
 class ListMovementsRequest extends FormRequest
 {
@@ -33,6 +33,8 @@ class ListMovementsRequest extends FormRequest
         return [
             'kind' => ['sometimes', 'string', Rule::in(Movement::KINDS)],
             'item' => ['sometimes', 'uuid', Rule::exists('items', 'id')],
+            // Stage 7B: the movements of one source document (Accounting's drill-down from a stock journal).
+            'source' => ['sometimes', 'uuid'],
         ];
     }
 }

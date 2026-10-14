@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Accounting\Console\BackfillPostings;
+use Modules\Accounting\Console\PostSalesSummaries;
 use Modules\Accounting\Console\RunRecurringJournals;
 use Modules\Accounting\Documents\AccountingDocumentSource;
 use Modules\Accounting\Documents\Documents;
@@ -30,9 +32,24 @@ use Modules\Accounting\Imports\ChartOfAccountsImporter;
 use Modules\Accounting\Imports\OpeningBalancesImporter;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\JournalType;
+use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Payments\Payments;
+use Modules\Inventory\Events\StockMoved;
+use Modules\Loyalty\Events\CreditAdjusted;
+use Modules\Loyalty\Events\CreditCharged;
+use Modules\Loyalty\Events\CreditPaymentReceived;
+use Modules\Loyalty\Events\GiftCardExpired;
+use Modules\Loyalty\Events\GiftCardRedeemed;
+use Modules\Loyalty\Events\GiftCardSold;
+use Modules\Loyalty\Events\PointsAdjusted;
+use Modules\Loyalty\Events\PointsEarned;
+use Modules\Loyalty\Events\PointsExpired;
+use Modules\Loyalty\Events\PointsRedeemed;
+use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Events\SaleRefunded;
+use Modules\POS\Events\SaleVoided;
 
 /**
  * The Accounting module (docs/modules/accounting.md). Registered for every
@@ -61,6 +78,20 @@ class AccountingServiceProvider extends ServiceProvider
         'budget' => ['view', 'manage'],
         'period' => ['view', 'close', 'reopen'],
         'report' => ['view', 'consolidate'],
+    ];
+
+    /** ACC-25, ACC-27: the POS and Inventory events Accounting posts. */
+    private const INTEGRATION_EVENTS = [
+        SaleCompleted::class, SaleVoided::class, SaleRefunded::class,
+        StockMoved::class,
+    ];
+
+    /** ACC-28: the Loyalty ledger events Accounting posts. */
+    private const LOYALTY_EVENTS = [
+        GiftCardSold::class, GiftCardRedeemed::class, GiftCardExpired::class,
+        PointsEarned::class, PointsRedeemed::class, PointsExpired::class,
+        PointsAdjusted::class, CreditCharged::class, CreditPaymentReceived::class,
+        CreditAdjusted::class,
     ];
 
     public function register(): void
@@ -124,12 +155,23 @@ class AccountingServiceProvider extends ServiceProvider
         $imports->register($this->app->make(ChartOfAccountsImporter::class));
         $imports->register($this->app->make(OpeningBalancesImporter::class));
 
-        if ($this->app->runningInConsole()) {
-            $this->commands([RunRecurringJournals::class]);
+        // ACC-25 to ACC-28: other modules' events post through the posting rules, queued, when both modules are active.
+        foreach ([...self::INTEGRATION_EVENTS, ...self::LOYALTY_EVENTS] as $event) {
+            if (class_exists($event)) {
+                Event::listen($event, PostModuleEvent::class);
+            }
         }
 
-        // ACC-06: recurring journals due today, every morning.
-        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('accounting:recurring')->dailyAt('05:00')->withoutOverlapping()->onOneServer());
+        if ($this->app->runningInConsole()) {
+            $this->commands([RunRecurringJournals::class, PostSalesSummaries::class, BackfillPostings::class]);
+        }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // ACC-06: recurring journals due today, every morning.
+            $schedule->command('accounting:recurring')->dailyAt('05:00')->withoutOverlapping()->onOneServer();
+            // ACC-26: the daily summaries of POS sales for days that have ended.
+            $schedule->command('accounting:post-sales-summaries')->hourlyAt(15)->withoutOverlapping()->onOneServer();
+        });
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

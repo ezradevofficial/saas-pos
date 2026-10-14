@@ -51,6 +51,8 @@ return [
         'period_open' => 'This period is already open.',
         'period_reopen_order' => 'Reopen the later closed periods first.',
         'posting_conflict' => 'The source was posted at the same moment. Refresh to see its journal.',
+        'chart_missing' => 'This company has no chart of accounts yet. Create it from its template first.',
+        'posting_account_missing' => 'The posting rule names no account for :field. Choose one in the rule, then retry.',
         'posting_rule_missing' => 'There is no posting rule for :type. Add one, then retry.',
         'range_invalid' => 'The start date is after the end date. Change the dates.',
         'rate_unavailable' => 'There is no :pair rate for :date. Enter a rate, then try again.',
@@ -267,5 +269,15 @@ return [
         'account_exists' => 'Account :code already exists. Choose update mode to change it.',
         'control_account' => 'Account :code is kept by invoices, receipts and payments. Import open invoices as documents instead.',
         'opening_memo' => 'Opening balance',
+    ],
+
+    // Stage 7B: the integrations with POS, Inventory and Loyalty (ACC-24 to ACC-29).
+    'rules' => [
+        'default_description' => 'Default rule from the chart template',
+    ],
+
+    'integrations' => [
+        'summary_memo' => 'Daily summary of :count POS sales on :date',
+        'backfill_from' => 'Give the first day to post with --from=YYYY-MM-DD.',
     ],
 ];

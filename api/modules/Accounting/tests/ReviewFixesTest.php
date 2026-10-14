@@ -81,10 +81,10 @@ class ReviewFixesTest extends TestCase
         $invoice = $this->postedDocument('customer_invoice', [['account' => '4100', 'price' => '100.00']]);
         $this->api('POST', "accounting/journals/{$invoice['journal_id']}/reverse")->assertUnprocessable()->assertJsonPath('code', 'journal_not_reversible');
 
-        $this->inTenant(fn () => PostingRule::create(['company_id' => $this->acme->id, 'event_type' => 'pos.sale', 'lines' => [
+        $this->inTenant(fn () => PostingRule::create(['company_id' => $this->acme->id, 'event_type' => 'test.sale', 'lines' => [
             ['field' => 'total', 'side' => 'debit', 'account_id' => $this->account('1110')->id], ['field' => 'total', 'side' => 'credit', 'account_id' => $this->account('4100')->id],
         ]]));
-        $journal = $this->inTenant(fn () => app(PostingService::class)->post(new SourceDocument($this->acme->id, 'pos.sale', (string) Str::uuid7(), CarbonImmutable::parse('2026-10-12T08:00:00Z'), 'KES', ['total' => '1000']))->journal);
+        $journal = $this->inTenant(fn () => app(PostingService::class)->post(new SourceDocument($this->acme->id, 'test.sale', (string) Str::uuid7(), CarbonImmutable::parse('2026-10-12T08:00:00Z'), 'KES', ['total' => '1000']))->journal);
         $this->api('POST', "accounting/journals/{$journal->id}/reverse")->assertCreated();
     }
 

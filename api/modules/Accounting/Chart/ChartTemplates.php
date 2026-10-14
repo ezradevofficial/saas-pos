@@ -40,7 +40,7 @@ class ChartTemplates
     }
 
     /**
-     * @return array{code: string, accounts: list<array{code: string, type: string, subtype: string, parent: ?string, postable: bool, cash_flow: ?string, control?: bool}>, roles: array<string, string>}
+     * @return array{code: string, accounts: list<array{code: string, type: string, subtype: string, parent: ?string, postable: bool, cash_flow: ?string, control?: bool}>, roles: array<string, string>, posting_rules?: array<string, list<array<string, mixed>>>}
      */
     public function get(string $code): array
     {
@@ -97,6 +97,28 @@ class ChartTemplates
 
             if ($target === null || ! isset($seen[$target]) || ! $seen[$target]['postable']) {
                 $fail("role {$role} must name a postable account.");
+            }
+        }
+
+        // ACC-24: default posting rules name accounts of the template by code (structure only).
+        foreach ($data['posting_rules'] ?? [] as $type => $lines) {
+            if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/', (string) $type) !== 1 || ! is_array($lines) || count($lines) < 2) {
+                $fail("posting rule {$type}: a type and at least two lines are required.");
+            }
+
+            foreach ($lines as $line) {
+                $codes = [...(isset($line['account']) ? [$line['account']] : []), ...array_values((array) ($line['accounts'] ?? []))];
+
+                if (! in_array($line['side'] ?? null, ['debit', 'credit'], true) || preg_match('/^[A-Za-z0-9_.\-]+(\.\*)?\z/', (string) ($line['field'] ?? '')) !== 1
+                    || ($codes === [] && ! str_ends_with((string) $line['field'], '.*'))) {
+                    $fail("posting rule {$type}: bad line.");
+                }
+
+                foreach ($codes as $target) {
+                    if (! isset($seen[$target]) || ! $seen[$target]['postable']) {
+                        $fail("posting rule {$type}: {$target} must be a postable account.");
+                    }
+                }
             }
         }
 

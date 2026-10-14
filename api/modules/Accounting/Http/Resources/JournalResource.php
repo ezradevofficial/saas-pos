@@ -34,7 +34,7 @@ class JournalResource extends JsonResource
             'reference' => $this->reference,
             'memo' => $this->memo,
             'total' => Shapes::money($this->total_base_minor, $this->base_currency),
-            'source' => Shapes::source($this->source_type, $this->source_id),
+            'source' => Shapes::source($this->source_type, $this->source_id, $this->source_link),
             'reverses_journal_id' => $this->reverses_journal_id,
             'reversed_by_journal_id' => $this->reversed_by_journal_id,
             'post_error' => $this->post_error,

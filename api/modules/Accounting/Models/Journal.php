@@ -54,6 +54,7 @@ class Journal extends Model implements HasScope
             'posted_at' => 'immutable_datetime',
             'decided_at' => 'immutable_datetime',
             'total_base_minor' => 'integer',
+            'source_link' => 'array',
         ];
     }
 

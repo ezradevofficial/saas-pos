@@ -28,7 +28,9 @@ use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -42,6 +44,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
 use PHPUnit\Framework\Assert;
@@ -765,6 +768,12 @@ final class TwoTenants
         $exception = app(TenantContext::class)->run($tenantId, fn () => app(PostingService::class)->post(new SourceDocument(
             $company, 'test.missing', (string) Str::uuid7(), CarbonImmutable::parse('2026-10-05T10:00:00Z'), 'KES', ['total' => '1000'],
         ))->exception->id);
+        // ACC-26: a sale waiting for its location's daily summary (acc_source_queue).
+        self::ok($test->putJson("{$base}/settings", ['sales_posting' => 'daily_summary'], $owner));
+        app(TenantContext::class)->run($tenantId, fn () => QueuedSource::query()->create([
+            'company_id' => $company, 'source_type' => 'pos.sale', 'source_id' => (string) Str::uuid7(), 'location_id' => Location::query()->whereIn('branch_id', Branch::query()->where('company_id', $company)->select('id'))->value('id'),
+            'local_date' => '2026-10-05', 'currency' => 'KES', 'payload' => ['amounts' => ['tender.x' => '1000'], 'memo' => "Queued {$upper}"],
+        ]));
 
         $journalBody = ['date' => '2026-10-05', 'memo' => "Rent {$upper}", 'lines' => [
             [...$line('6200', '100.00', null), 'cost_centre_id' => $dimensions['cost_centre'], 'department_id' => $dimensions['department'], 'project_id' => $dimensions['project']],
