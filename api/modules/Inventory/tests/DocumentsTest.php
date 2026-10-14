@@ -184,7 +184,8 @@ class DocumentsTest extends TestCase
             ->assertJsonPath('data.status', 'posted')
             ->assertJsonPath('data.lines.0.value', ['amount_minor' => '-300', 'currency' => 'KES']);
         $this->assertSame(['97', '10'], [$this->onHand($this->soap), $this->onHand($this->milk)]);
-        Event::assertDispatched(StockAdjusted::class, fn (StockAdjusted $e) => $e->valueOutMinor === '300' && $e->valueInMinor === '2500' && $e->reason === 'damage');
+        Event::assertDispatched(StockAdjusted::class, fn (StockAdjusted $e) => $e->valueOutMinor === '300' && $e->valueInMinor === '2500' && $e->reason === 'damage'
+            && $e->branchId === $this->branchA->id && $e->occurredAt !== null);
     }
 
     public function test_adr_003_a_unit_cost_needs_its_currency_and_the_companys_base_currency(): void

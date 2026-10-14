@@ -6,6 +6,7 @@ use App\Core\Currency\BaseCurrencyLock;
 use App\Core\Http\ApiException;
 use App\Core\MasterData\Items\Item;
 use App\Core\Tenancy\Models\Company;
+use App\Core\Tenancy\Models\Location;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
@@ -176,13 +177,21 @@ class StockLedger
 
             $this->reorder->check(array_values($places));
 
-            StockMoved::dispatch($this->tenants->require(), $posting->companyId, $currency, $posting->sourceType, $posting->sourceId, array_map(
+            // INV-16: each movement's branch (core locations), for the stock journal's dimensions.
+            $branches = Location::query()->whereKey(array_values(array_unique(array_filter(array_map(fn (Movement $m) => $m->location_id, $movements)))))->pluck('branch_id', 'id');
+            $rows = array_map(
                 fn (Movement $m) => [
                     'id' => $m->id, 'kind' => $m->kind, 'item_id' => $m->item_id, 'location_id' => $m->location_id,
+                    'branch_id' => $m->location_id === null ? null : $branches->get($m->location_id),
+                    'source_line_id' => $m->source_line_id,
                     'qty' => Qty::show($m->qty), 'value_minor' => (string) $m->value_minor, 'cost_variance_minor' => (string) $m->cost_variance_minor,
                 ],
                 $movements,
-            ));
+            );
+            StockMoved::dispatch(
+                $this->tenants->require(), $posting->companyId, $currency, $posting->sourceType, $posting->sourceId, $rows,
+                $posting->occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), collect($rows)->pluck('branch_id')->filter()->first(),
+            );
 
             return $movements;
         });
