@@ -6,6 +6,8 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\Lang;
+use Modules\Loyalty\Documents\StatementSource;
 use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Ledgers\Ledgers;
 use Modules\Loyalty\Models\Account;
@@ -240,9 +242,9 @@ class BackOfficeTest extends TestCase
     /** LOY-17, TPL-01, L10N-02: every statement field prints a label in both languages, never its key. */
     public function test_statement_fields_have_labels_in_english_and_french(): void
     {
-        foreach (array_keys(\Modules\Loyalty\Documents\StatementSource::FIELDS) as $path) {
+        foreach (array_keys(StatementSource::FIELDS) as $path) {
             foreach (['en', 'fr'] as $locale) {
-                $this->assertTrue(\Illuminate\Support\Facades\Lang::has("templates.print.fields.{$path}", $locale, false), "templates.print.fields.{$path} is missing in {$locale}");
+                $this->assertTrue(Lang::has("templates.print.fields.{$path}", $locale, false), "templates.print.fields.{$path} is missing in {$locale}");
             }
         }
     }
