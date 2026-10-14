@@ -86,6 +86,10 @@ class RequisitionsAndRfqsTest extends TestCase
             'lines' => [['rfq_line_id' => $soap['id'], 'unit_price_minor' => '1']]], $this->buyer)->assertUnprocessable()->assertJsonPath('code', 'supplier_not_invited');
 
         $grid = $this->api('GET', "procurement/rfqs/{$rfq['id']}/comparison")->assertOk()->json('data');
+        // CUR-04: a USD quote's base total is in KES (the company's base currency), never USD.
+        $quotes = collect($this->api('GET', "procurement/rfqs/{$rfq['id']}")->assertOk()->json('data.quotes'))->keyBy('currency');
+        $this->assertSame('KES', $quotes['USD']['base_total']['currency']);
+        $this->assertSame('KES', $quotes['KES']['base_total']['currency']);
         $this->assertSame('KES', $grid['base_currency']);
         $lowest = fn (array $line) => collect($line['offers'])->firstWhere('lowest', true);
         $this->assertSame('9100', $lowest($grid['lines'][0])['base_unit_price']['amount_minor']);

@@ -54,7 +54,15 @@ export default function LandedCostDetail() {
     },
     { key: 'item', label: t('procurement.columns.item'), wrap: true, render: (line) => (line.item ? <LineName line={line} /> : '') },
     { key: 'accepted', label: t('procurement.columns.accepted'), align: 'end', render: (line) => <Qty value={line.accepted_qty} /> },
-    { key: 'basis', label: t('procurement.columns.basis', { method: t(`procurement.methods.${landedCost.method}`) }), align: 'end', render: (line) => <Qty value={line.basis} /> },
+    { key: 'basis', label: t('procurement.columns.basis', { method: t(`procurement.methods.${landedCost.method}`) }), align: 'end',
+      // PRC-17: by value the basis is the goods' base value in minor units, shown as money; otherwise a quantity or weight.
+      render: (line) =>
+        landedCost.method === 'value' && allocation.base_currency ? (
+          <Amount value={{ amount_minor: String(line.basis).split('.')[0], currency: allocation.base_currency }} />
+        ) : (
+          <Qty value={line.basis} />
+        ),
+    },
     { key: 'amount', label: t('procurement.columns.allocated'), align: 'end', render: (line) => <Amount value={line.amount} /> },
   ]
 
