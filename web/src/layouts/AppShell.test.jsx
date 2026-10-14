@@ -172,6 +172,21 @@ describe('app shell navigation', () => {
     expect(screen.queryByRole('option', { name: 'All companies' })).not.toBeInTheDocument()
   })
 
+  it('offers a branch accountant their company without core.company.view and chooses it (RBAC-04)', async () => {
+    mockApi(api, {
+      companies: [COMPANIES[0]],
+      modules: ['core', 'accounting'],
+      permissions: [{ name: 'accounting.account.view', scopes: [{ type: 'branch', id: 'b-1' }] }],
+    })
+    renderApp('/')
+    const trigger = await within((await mainNav()).parentElement).findByRole('combobox', { name: 'Company' })
+    await waitFor(() => expect(trigger).toHaveTextContent('Amani Retail'))
+    // The only company is chosen: company-scoped screens have one to show.
+    await waitFor(() => expect(getCompanyId()).toBe('c-1'))
+    expect(api.get).toHaveBeenCalledWith('me/companies')
+    expect(api.get).not.toHaveBeenCalledWith('companies?per_page=200')
+  })
+
   it('changes the language from the account menu and saves it to the profile', async () => {
     mockApi(api)
     api.patch.mockResolvedValue({ data: { ...OWNER, locale: 'fr' } })
