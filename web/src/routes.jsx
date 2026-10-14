@@ -31,6 +31,15 @@ import {
   PAYMENT_METHOD_VIEW,
   PAYMENT_VIEW,
   POS_HELD_VIEW,
+  PROCUREMENT_INVOICE_VIEW,
+  PROCUREMENT_LANDED_COST_VIEW,
+  PROCUREMENT_PERFORMANCE_VIEW,
+  PROCUREMENT_PO_VIEW,
+  PROCUREMENT_RECEIPT_VIEW,
+  PROCUREMENT_REQUISITION_VIEW,
+  PROCUREMENT_RFQ_VIEW,
+  PROCUREMENT_SETTINGS_VIEW,
+  PROCUREMENT_TENDER_VIEW,
   POS_SALE_VIEW,
   POS_SHIFT_VIEW,
   TAX_VIEW,
@@ -88,6 +97,25 @@ import TransferForm from './pages/inventory/TransferForm'
 import Transfers from './pages/inventory/Transfers'
 import Valuation from './pages/inventory/Valuation'
 import NotFound from './pages/NotFound'
+import InvoiceDetail from './pages/procurement/InvoiceDetail'
+import InvoiceForm from './pages/procurement/InvoiceForm'
+import LandedCostDetail from './pages/procurement/LandedCostDetail'
+import LandedCostForm from './pages/procurement/LandedCostForm'
+import OrderDetail from './pages/procurement/OrderDetail'
+import OrderForm from './pages/procurement/OrderForm'
+import { Invoices as ProcurementInvoices, LandedCosts, Orders, Receipts, Requisitions, Rfqs, Tenders } from './pages/procurement/ProcurementLists'
+import ProcurementSettings from './pages/procurement/ProcurementSettings'
+import ReceiptDetail from './pages/procurement/ReceiptDetail'
+import ReceiptForm from './pages/procurement/ReceiptForm'
+import RequisitionDetail from './pages/procurement/RequisitionDetail'
+import RequisitionForm from './pages/procurement/RequisitionForm'
+import RfqDetail from './pages/procurement/RfqDetail'
+import RfqForm from './pages/procurement/RfqForm'
+import SupplierPerformance from './pages/procurement/SupplierPerformance'
+import TenderDetail from './pages/procurement/TenderDetail'
+import TenderForm from './pages/procurement/TenderForm'
+import { PortalLayout } from './pages/procurement/portal/PortalLayout'
+import { PortalNotice, PortalSignIn, PortalTender } from './pages/procurement/portal/PortalPages'
 import Ageing from './pages/loyalty/Ageing'
 import CreditAccountDetail from './pages/loyalty/CreditAccountDetail'
 import CreditAccounts from './pages/loyalty/CreditAccounts'
@@ -206,6 +234,15 @@ export const routes = [
       { path: '/approvals/email/:token', element: <EmailApproval /> },
     ],
   },
+  // PRC-07, PRC-08: the supplier portal, open to everyone; it never uses a tenant user's sign-in.
+  {
+    element: <PortalLayout />,
+    children: [
+      { path: '/supplier-portal/tender', element: <PortalTender /> },
+      { path: '/supplier-portal/notices/:notice', element: <PortalNotice /> },
+      { path: '/supplier-portal/:token', element: <PortalSignIn /> },
+    ],
+  },
   {
     element: (
       <RequireAuth allowEnrolment>
@@ -301,6 +338,37 @@ export const routes = [
         ['/inventory/valuation', INVENTORY_VALUATION_VIEW, <Valuation key="inventory-valuation" />],
         ['/inventory/labels', INVENTORY_LABEL_PRINT, <Labels key="inventory-labels" />],
         ['/inventory/settings', INVENTORY_SETTINGS_VIEW, <InventorySettings key="inventory-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Procurement (docs/modules/procurement.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/procurement/requisitions', PROCUREMENT_REQUISITION_VIEW, <Requisitions key="prc-requisitions" />],
+        ['/procurement/requisitions/new', 'procurement.requisition.create', <RequisitionForm key="prc-requisition-new" />],
+        ['/procurement/requisitions/:requisitionId', PROCUREMENT_REQUISITION_VIEW, <RequisitionDetail key="prc-requisition" />],
+        ['/procurement/requisitions/:requisitionId/edit', 'procurement.requisition.create', <RequisitionForm key="prc-requisition-edit" />],
+        ['/procurement/rfqs', PROCUREMENT_RFQ_VIEW, <Rfqs key="prc-rfqs" />],
+        ['/procurement/rfqs/new', 'procurement.rfq.create', <RfqForm key="prc-rfq-new" />],
+        ['/procurement/rfqs/:rfqId', PROCUREMENT_RFQ_VIEW, <RfqDetail key="prc-rfq" />],
+        ['/procurement/rfqs/:rfqId/edit', 'procurement.rfq.create', <RfqForm key="prc-rfq-edit" />],
+        ['/procurement/tenders', PROCUREMENT_TENDER_VIEW, <Tenders key="prc-tenders" />],
+        ['/procurement/tenders/new', 'procurement.tender.create', <TenderForm key="prc-tender-new" />],
+        ['/procurement/tenders/:tenderId', PROCUREMENT_TENDER_VIEW, <TenderDetail key="prc-tender" />],
+        ['/procurement/tenders/:tenderId/edit', 'procurement.tender.create', <TenderForm key="prc-tender-edit" />],
+        ['/procurement/orders', PROCUREMENT_PO_VIEW, <Orders key="prc-orders" />],
+        ['/procurement/orders/new', 'procurement.po.create', <OrderForm key="prc-order-new" />],
+        ['/procurement/orders/:orderId', PROCUREMENT_PO_VIEW, <OrderDetail key="prc-order" />],
+        ['/procurement/orders/:orderId/edit', 'procurement.po.create', <OrderForm key="prc-order-edit" />],
+        ['/procurement/receipts', PROCUREMENT_RECEIPT_VIEW, <Receipts key="prc-receipts" />],
+        ['/procurement/receipts/new', 'procurement.receipt.create', <ReceiptForm key="prc-receipt-new" />],
+        ['/procurement/receipts/:receiptId', PROCUREMENT_RECEIPT_VIEW, <ReceiptDetail key="prc-receipt" />],
+        ['/procurement/invoices', PROCUREMENT_INVOICE_VIEW, <ProcurementInvoices key="prc-invoices" />],
+        ['/procurement/invoices/new', 'procurement.invoice.create', <InvoiceForm key="prc-invoice-new" />],
+        ['/procurement/invoices/:invoiceId', PROCUREMENT_INVOICE_VIEW, <InvoiceDetail key="prc-invoice" />],
+        ['/procurement/landed-costs', PROCUREMENT_LANDED_COST_VIEW, <LandedCosts key="prc-landed-costs" />],
+        ['/procurement/landed-costs/new', 'procurement.landed_cost.create', <LandedCostForm key="prc-landed-cost-new" />],
+        ['/procurement/landed-costs/:landedCostId', PROCUREMENT_LANDED_COST_VIEW, <LandedCostDetail key="prc-landed-cost" />],
+        ['/procurement/landed-costs/:landedCostId/edit', 'procurement.landed_cost.create', <LandedCostForm key="prc-landed-cost-edit" />],
+        ['/procurement/supplier-performance', PROCUREMENT_PERFORMANCE_VIEW, <SupplierPerformance key="prc-performance" />],
+        ['/procurement/settings', PROCUREMENT_SETTINGS_VIEW, <ProcurementSettings key="prc-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // Accounting (docs/modules/accounting.md): the API answers 403 module_inactive without the module.
       ...[
