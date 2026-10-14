@@ -237,6 +237,16 @@ class BackOfficeTest extends TestCase
         $this->postJson("/api/v1/loyalty/accounts/{$id}/close", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'closed');
     }
 
+    /** LOY-17, TPL-01, L10N-02: every statement field prints a label in both languages, never its key. */
+    public function test_statement_fields_have_labels_in_english_and_french(): void
+    {
+        foreach (array_keys(\Modules\Loyalty\Documents\StatementSource::FIELDS) as $path) {
+            foreach (['en', 'fr'] as $locale) {
+                $this->assertTrue(\Illuminate\Support\Facades\Lang::has("templates.print.fields.{$path}", $locale, false), "templates.print.fields.{$path} is missing in {$locale}");
+            }
+        }
+    }
+
     public function test_gift_cards_issue_once_sell_block_and_look_up(): void
     {
         $issued = $this->postJson('/api/v1/loyalty/gift-cards', ['company_id' => $this->acme->id, 'kind' => 'gift_card', 'currency' => 'KES', 'amount_minor' => '250000', 'count' => 2], $this->headersFor())
