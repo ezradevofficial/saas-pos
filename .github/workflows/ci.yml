@@ -24,7 +24,7 @@ jobs:
   api:
     name: api (${{ matrix.suite.name }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -40,9 +40,19 @@ jobs:
           - name: modules
             pint: false
             command: php artisan test --testsuite=ShardModules --exclude-group=slow
-          - name: isolation
+          # TEN-01 in three shards: the two export tests and the two ID-probe
+          # tests each build the full two-tenant fixture and walk every table or
+          # route, so together they outgrow one job's time limit. The third
+          # shard is every other isolation test (14 in total across the three).
+          - name: isolation exports
             pint: false
-            command: php artisan test --testsuite=Isolation
+            command: php artisan test --testsuite=Isolation --filter='full_export|list_exports'
+          - name: isolation ids
+            pint: false
+            command: php artisan test --testsuite=Isolation --filter='every_route_with_ids|ids_of_tenant_b_in_request_bodies'
+          - name: isolation rest
+            pint: false
+            command: php artisan test --testsuite=Isolation --filter='/^(?!.*(full_export|list_exports|every_route_with_ids|ids_of_tenant_b_in_request_bodies)).*$/'
           # IMP-03: tests that take minutes (50,000 imported rows) run beside
           # the main job, so a PR still waits for them but not in series.
           - name: slow
