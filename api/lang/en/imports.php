@@ -179,6 +179,9 @@ return [
         'document' => 'Used in a document',
         'changed' => 'Changed since the import',
         'stock_moved' => 'Stock moved since',
+        'loyalty_account' => 'Has a loyalty or credit account',
+        'accounting_document' => 'Used in an invoice or bill',
+        'accounting_payment' => 'Used in a payment',
     ],
     'report' => [
         'sheet' => 'Rows',

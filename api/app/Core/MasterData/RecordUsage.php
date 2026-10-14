@@ -23,6 +23,20 @@ class RecordUsage
         $this->checks[$entity][] = ['reason' => $reason, 'check' => $check];
     }
 
+    /** @return list<string> every registered reason (each needs `imports.usage.<reason>` in en and fr) */
+    public function reasons(): array
+    {
+        $reasons = [];
+
+        foreach ($this->checks as $checks) {
+            foreach ($checks as $check) {
+                $reasons[$check['reason']] = true;
+            }
+        }
+
+        return array_keys($reasons);
+    }
+
     /**
      * The given records that are used, with the first reason found.
      *
