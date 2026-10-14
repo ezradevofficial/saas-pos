@@ -3,6 +3,7 @@
 namespace Modules\Procurement\Http\Requests;
 
 use App\Core\Rbac\ModuleRegistry;
+use Modules\Procurement\Support\Places;
 
 /**
  * The actions on one Procurement document (POST …/{id}/submit|issue|
@@ -23,6 +24,11 @@ class DocumentActionRequest extends ShowDocumentRequest
     public function authorize(): bool
     {
         abort_unless($this->sees(), 404);
+
+        // Decision 27: a printed PO carries its prices, so printing also needs procurement.value.view there.
+        if ($this->action() === 'pdf' && ! $this->seesValues()) {
+            return false;
+        }
 
         return $this->mayAt($this->permissionAction());
     }
@@ -56,6 +62,13 @@ class DocumentActionRequest extends ShowDocumentRequest
             'send', 'emailLetter' => ['email' => ['sometimes', 'nullable', 'email:rfc', 'max:254'], 'locale' => ['sometimes', 'string', 'in:en,fr']],
             default => [],
         };
+    }
+
+    private function seesValues(): bool
+    {
+        $place = $this->placed();
+
+        return app(Places::class)->sees($this->user(), 'procurement.value.view', $place->branch_id, $place->getAttribute('location_id'));
     }
 
     /** Whether the user may approve an invoice whose match failed (PRC-15). */

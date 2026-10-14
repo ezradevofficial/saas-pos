@@ -219,4 +219,31 @@ class SecurityReviewTest extends TestCase
         $this->assertSame(__('rbac.forbidden'), $response->json('message'));
         $this->assertStringNotContainsString('rbac.', (string) $response->json('message'));
     }
+
+    /** RBAC-05 (decision 27): a storekeeper receives goods by quantity and never sees prices, values or landed costs. */
+    public function test_a_storekeeper_sees_quantities_but_no_values(): void
+    {
+        $order = $this->approvedOrder();
+        $location = $order['location']['id'];
+        $storekeeper = $this->userWith('storekeeper', Scope::location($location));
+        $receipt = $this->postedReceipt($order);
+
+        // The buyer sees the money.
+        $this->api('GET', "procurement/orders/{$order['id']}", [], $this->buyer)->assertJsonPath('data.lines.0.unit_price.amount_minor', '10000');
+
+        $po = $this->api('GET', "procurement/orders/{$order['id']}", [], $storekeeper)->assertOk()->json('data');
+        $this->assertSame('10', $po['lines'][0]['qty']);
+        $this->assertNull($po['lines'][0]['unit_price']);
+        $this->assertNull($po['total']);
+        $grn = $this->api('GET', "procurement/receipts/{$receipt['id']}", [], $storekeeper)->assertOk()->json('data');
+        $this->assertSame('10', $grn['lines'][0]['accepted_qty']);
+        $this->assertSame([null, null, null], [$grn['value'], $grn['lines'][0]['base_value'], $grn['lines'][0]['landed']]);
+        $this->assertStringNotContainsString('100000', (string) $this->api('GET', 'procurement/receipts', [], $storekeeper)->getContent());
+
+        // Nor in an export, nor on the printed PO.
+        $csv = $this->get('/api/v1/procurement/receipts?format=csv', $this->headersFor($storekeeper))->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('1,000.00', $csv);
+        $this->assertStringNotContainsString('1000.00', $csv);
+        $this->get("/api/v1/procurement/orders/{$order['id']}/pdf", $this->headersFor($storekeeper))->assertForbidden();
+    }
 }

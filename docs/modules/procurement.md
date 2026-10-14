@@ -168,6 +168,7 @@ requisitions and POs.
 | `procurement.landed_cost.view`, `.create`, `.cancel` | Read; draft and post; cancel a draft |
 | `procurement.performance.view` | Supplier performance |
 | `procurement.settings.edit` | A company's tolerances |
+| `procurement.value.view` | Prices, values and landed costs (RBAC-05, decision 27): without it, money fields are null in resources, exports and prints, and a PO cannot be printed |
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `procurement.settings.edit` and the views; **Branch Manager** the views,
@@ -175,10 +176,15 @@ Role templates (RBAC-03): **Owner** everything; **Admin**
 approver) and `procurement.tender.open` and `.evaluate` (committees); **Procurement Officer** `procurement.*` except the `approve`,
 `override`, `award` and `settings.edit` permissions; **Storekeeper** the
 requisition and PO views, `procurement.requisition.create` and
-`procurement.receipt.*`; **Accountant** the views, `procurement.invoice.*`
-and `procurement.landed_cost.*`; **Approver** `*.approve` and the views of
-what it approves (requisitions, POs, invoices); **Read-only Auditor** the
-views. The templates' old `purchasing.*` placeholders are replaced.
+`procurement.receipt.*`, never `procurement.value.view` (quantities
+only); **Accountant** the views (with `procurement.value.view`),
+`procurement.invoice.*` and `procurement.landed_cost.*`; **Approver**
+`*.approve`, the views of what it approves (requisitions, POs, invoices)
+and `procurement.value.view`; **Read-only Auditor** the views. Owner,
+Admin, Branch Manager, Procurement Officer and Accountant hold
+`procurement.value.view` through their `procurement.*` or
+`procurement.*.view` grants (32 Procurement permissions in all; the
+Storekeeper holds 6, the Approver 7). The templates' old `purchasing.*` placeholders are replaced.
 
 ## API
 
@@ -406,6 +412,14 @@ en/fr.
 26. **Supplier performance CSV** passes every cell, the header included,
     through `SpreadsheetCell::safe()` (no formula) and is written without
     an escape character, like list exports (EXP-01).
+27. **Storekeepers see quantities only (RBAC-05).** A new permission
+    `procurement.value.view` guards prices, values and landed costs: the
+    PO, requisition, GRN, invoice and landed cost resources return money
+    fields as null without it at the document's branch or location (lists,
+    details and exports, which are built from the same resources), and a
+    PO cannot be printed without it. Granted to Owner, Admin, Branch
+    Manager, Procurement Officer, Accountant, Approver and the Read-only
+    Auditor (their view grants); not to the Storekeeper.
 
 ## Open questions
 

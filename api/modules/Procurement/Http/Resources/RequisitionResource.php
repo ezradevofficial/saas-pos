@@ -18,6 +18,8 @@ use Modules\Procurement\Support\Places;
  */
 class RequisitionResource extends JsonResource
 {
+    use HidesValues;
+
     private bool $detail = false;
 
     public function detail(): self
@@ -31,6 +33,8 @@ class RequisitionResource extends JsonResource
     {
         /** @var Requisition $requisition */
         $requisition = $this->resource;
+        // RBAC-05, decision 27: money only for holders of procurement.value.view.
+        $this->seeValues($request, $requisition->branch_id, $requisition->location_id);
         $places = app(Places::class);
         $at = fn (string $permission) => $places->at($request->user(), "procurement.requisition.{$permission}", $requisition->branch_id);
 
@@ -45,7 +49,7 @@ class RequisitionResource extends JsonResource
             'location' => Refs::named($requisition->location),
             'department' => Refs::named($requisition->department),
             'requested_by' => Refs::user($requisition->requester),
-            'estimated_total' => Refs::money($requisition->estimated_total_minor, $requisition->currency),
+            'estimated_total' => $this->money($requisition->estimated_total_minor, $requisition->currency),
             'currency' => $requisition->currency,
             'submitted_at' => Refs::at($requisition->submitted_at),
             'decided_at' => Refs::at($requisition->decided_at),
@@ -61,7 +65,7 @@ class RequisitionResource extends JsonResource
                     'description' => $line->description,
                     'uom' => Refs::uom($line->uom),
                     'qty' => Refs::qty($line->qty),
-                    'estimated_unit_price' => Refs::money($line->estimated_unit_price_minor, $requisition->currency),
+                    'estimated_unit_price' => $this->money($line->estimated_unit_price_minor, $requisition->currency),
                     'cost_centre' => Refs::named($line->costCentre),
                     'project' => Refs::named($line->project),
                     'needed_by' => Refs::date($line->needed_by),

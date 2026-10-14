@@ -88,7 +88,7 @@ class PerformanceAndRolesTest extends TestCase
         $this->assertSame(collect([...$views, 'procurement.invoice.create', 'procurement.invoice.approve', 'procurement.invoice.override', 'procurement.invoice.cancel',
             'procurement.landed_cost.create', 'procurement.landed_cost.cancel'])->unique()->sort()->values()->all(), $held('accountant'));
         $this->assertSame(['procurement.invoice.approve', 'procurement.invoice.view', 'procurement.po.approve', 'procurement.po.view',
-            'procurement.requisition.approve', 'procurement.requisition.view'], $held('approver'));
+            'procurement.requisition.approve', 'procurement.requisition.view', 'procurement.value.view'], $held('approver'));
         $this->assertSame($views, $held('read_only_auditor'));
         $this->assertSame([], $held('cashier'));
 

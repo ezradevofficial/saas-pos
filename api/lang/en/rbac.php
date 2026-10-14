@@ -82,6 +82,7 @@ return [
                 'invoice' => 'Supplier invoices',
                 'landed_cost' => 'Landed costs',
                 'performance' => 'Supplier performance',
+                'value' => 'Prices and values',
                 'settings' => 'Procurement settings',
             ],
         ],

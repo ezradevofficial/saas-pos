@@ -73,6 +73,8 @@ class ProcurementServiceProvider extends ServiceProvider
         'performance' => ['view'],
         // PRC-01.
         'settings' => ['edit'],
+        // RBAC-05 (decision 27): prices, values and landed costs; quantities need nothing more.
+        'value' => ['view'],
     ];
 
     /** LAY-04: the module's lists that may have saved views (the web list ids). */

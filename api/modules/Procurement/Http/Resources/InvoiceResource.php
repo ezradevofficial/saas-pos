@@ -19,6 +19,8 @@ use Modules\Procurement\Support\Places;
  */
 class InvoiceResource extends JsonResource
 {
+    use HidesValues;
+
     private bool $detail = false;
 
     public function detail(): self
@@ -32,6 +34,8 @@ class InvoiceResource extends JsonResource
     {
         /** @var Invoice $invoice */
         $invoice = $this->resource;
+        // RBAC-05, decision 27: money only for holders of procurement.value.view.
+        $this->seeValues($request, $invoice->branch_id);
         $places = app(Places::class);
         $at = fn (string $permission) => $places->at($request->user(), "procurement.invoice.{$permission}", $invoice->branch_id);
         $open = in_array($invoice->status, [Invoice::DRAFT, Invoice::MATCHED, Invoice::EXCEPTION], true);
@@ -50,11 +54,11 @@ class InvoiceResource extends JsonResource
             'currency' => $invoice->currency,
             'fx' => Refs::fx($invoice->fx),
             'tax_inclusive' => (bool) $invoice->tax_inclusive,
-            'subtotal' => Refs::money($invoice->subtotal_minor, $invoice->currency),
-            'tax' => Refs::money($invoice->tax_minor, $invoice->currency),
-            'total' => Refs::money($invoice->total_minor, $invoice->currency),
-            'base_total' => Refs::money($invoice->base_total_minor, $invoice->base_currency),
-            'base_grni' => Refs::money($invoice->base_grni_minor, $invoice->base_currency),
+            'subtotal' => $this->money($invoice->subtotal_minor, $invoice->currency),
+            'tax' => $this->money($invoice->tax_minor, $invoice->currency),
+            'total' => $this->money($invoice->total_minor, $invoice->currency),
+            'base_total' => $this->money($invoice->base_total_minor, $invoice->base_currency),
+            'base_grni' => $this->money($invoice->base_grni_minor, $invoice->base_currency),
             'override_reason' => $invoice->override_reason,
             'created_by' => Refs::user($invoice->creator),
             'approved_by' => Refs::user($invoice->approver),
@@ -77,19 +81,19 @@ class InvoiceResource extends JsonResource
                         'order_line_id' => $line->order_line_id,
                         'description' => $orderLine->description,
                         'ordered_qty' => Refs::qty($orderLine->qty),
-                        'ordered_unit_price' => Refs::money($orderLine->unit_price_minor, $invoice->currency),
+                        'ordered_unit_price' => $this->money($orderLine->unit_price_minor, $invoice->currency),
                         'received_qty' => Refs::qty($orderLine->received_qty),
                         'accepted_qty' => Refs::qty((string) BigDecimal::of((string) $orderLine->received_qty)->minus((string) $orderLine->rejected_qty)),
                         'invoiced_before_qty' => Refs::qty((string) $invoicedBefore),
                         'qty' => Refs::qty($line->qty),
-                        'unit_price' => Refs::money($line->unit_price_minor, $invoice->currency),
+                        'unit_price' => $this->money($line->unit_price_minor, $invoice->currency),
                         'tax_code' => $line->taxCode === null ? null : ['id' => $line->taxCode->id, 'code' => $line->taxCode->code, 'name' => $line->taxCode->name],
                         'tax_rate' => Refs::qty($line->tax_rate),
-                        'net' => Refs::money($line->net_minor, $invoice->currency),
-                        'tax' => Refs::money($line->tax_minor, $invoice->currency),
-                        'total' => Refs::money($line->total_minor, $invoice->currency),
+                        'net' => $this->money($line->net_minor, $invoice->currency),
+                        'tax' => $this->money($line->tax_minor, $invoice->currency),
+                        'total' => $this->money($line->total_minor, $invoice->currency),
                         'match_status' => $line->match_status,
-                        'price_variance' => Refs::money($line->price_variance_minor, $invoice->currency),
+                        'price_variance' => $this->money($line->price_variance_minor, $invoice->currency),
                         'qty_variance' => Refs::qty($line->qty_variance),
                     ];
                 })->all(),
