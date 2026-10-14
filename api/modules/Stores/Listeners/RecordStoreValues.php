@@ -7,14 +7,13 @@ use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Inventory\Events\StockMoved;
-use Modules\Stores\Events\StoreConsumptionValued;
+use Modules\Stores\Events\ConsumptionEvents;
 use Modules\Stores\Models\Issue;
 use Modules\Stores\Models\IssueLine;
 use Modules\Stores\Models\Movement;
 use Modules\Stores\Models\ReturnLine;
 use Modules\Stores\Models\StoreReturn;
 use Modules\Stores\Stock\Errors;
-use Modules\Stores\Stock\Qty;
 use Modules\Stores\Stock\StoreLedger;
 
 /**
@@ -41,6 +40,7 @@ class RecordStoreValues implements ShouldQueue
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly StoreLedger $ledger,
+        private readonly ConsumptionEvents $events,
     ) {}
 
     public function viaQueue(): string
@@ -82,30 +82,17 @@ class RecordStoreValues implements ShouldQueue
 
             $this->ledger->value($event->sourceType, $event->sourceId, array_map('strval', $values), $event->currency);
             $lines = ($issue ? IssueLine::query()->where('issue_id', $document->id) : ReturnLine::query()->where('return_id', $document->id))->orderBy('line_no')->get();
-            $total = BigInteger::zero();
-            $payload = [];
 
             foreach ($lines as $line) {
-                if (! isset($values[$line->id])) {
-                    continue;
+                if (isset($values[$line->id])) {
+                    // ACC-29: the cost variance is kept too, so the backfill raises the same event again.
+                    $line->update(['value_minor' => (string) $values[$line->id]->abs(), 'cost_variance_minor' => (string) $variances[$line->id]]);
                 }
-
-                $value = $values[$line->id]->abs();
-                $line->update(['value_minor' => (string) $value]);
-                $total = $total->plus($value);
-                $payload[] = ['line_id' => $line->id, 'item_id' => $line->item_id, 'qty_base' => Qty::show($line->qty_base), 'value_minor' => (string) $value, 'cost_variance_minor' => (string) $variances[$line->id]];
             }
 
             $document->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency])->save();
 
-            StoreConsumptionValued::dispatch(
-                $event->tenantId,
-                $issue ? StoreConsumptionValued::ISSUE : StoreConsumptionValued::RETURN,
-                $document->id, $document->number, $document->company_id, $document->branch_id, $document->location_id,
-                $document->department_id, $document->cost_centre_id,
-                ($issue ? $document->issued_at : $document->returned_at)->toIso8601String(),
-                $event->currency, (string) $total, $payload,
-            );
+            event($this->events->of($document));
         }));
     }
 }

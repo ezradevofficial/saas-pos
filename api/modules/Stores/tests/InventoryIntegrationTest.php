@@ -13,6 +13,7 @@ use Modules\Inventory\Listeners\MoveStockForStores;
 use Modules\Inventory\Listeners\MoveStoreStock;
 use Modules\Inventory\Models\Balance;
 use Modules\Inventory\Models\Movement as InventoryMovement;
+use Modules\Stores\Events\ConsumptionEvents;
 use Modules\Stores\Events\StoreConsumptionValued;
 use Modules\Stores\Events\StoreIssued;
 use Modules\Stores\Events\StoreReturned;
@@ -171,7 +172,7 @@ class InventoryIntegrationTest extends TestCase
     {
         $listener = new \ReflectionClass(RecordStoreValues::class);
         $this->assertTrue($listener->implementsInterface(ShouldQueue::class));
-        $this->assertTrue((new RecordStoreValues(app(TenantContext::class), app(StoreLedger::class)))->afterCommit);
+        $this->assertTrue(app(RecordStoreValues::class)->afterCommit);
 
         // The queued listener fails once (its first attempt), then the retry values the document.
         $queue = Queue::getFacadeRoot();
@@ -183,7 +184,7 @@ class InventoryIntegrationTest extends TestCase
         $failing = $this->createMock(StoreLedger::class);
         $failing->method('value')->willThrowException(new \RuntimeException('database went away'));
         try {
-            (new RecordStoreValues(app(TenantContext::class), $failing))->handle($queued->data[0]);
+            (new RecordStoreValues(app(TenantContext::class), $failing, app(ConsumptionEvents::class)))->handle($queued->data[0]);
             $this->fail('the first attempt should fail');
         } catch (\RuntimeException) {
         }

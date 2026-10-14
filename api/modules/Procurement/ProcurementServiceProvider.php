@@ -11,6 +11,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -27,6 +28,7 @@ use Modules\Procurement\CustomFields\RequisitionEntity;
 use Modules\Procurement\Documents\DocumentNumbers;
 use Modules\Procurement\Documents\OrderType;
 use Modules\Procurement\Documents\RequisitionType;
+use Modules\Procurement\Events\ProcurementEventReplay;
 use Modules\Procurement\Listeners\SettleProcurementDocument;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Printing\ProcurementSource;
@@ -85,6 +87,8 @@ class ProcurementServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
+        // ACC-29: GRNs, landed costs and approved invoices raised again for the Accounting backfill.
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(ProcurementEventReplay::class)($from, $to, $emit));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // WF-01, WF-02: requisitions and POs run through flows.

@@ -9,6 +9,7 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -20,6 +21,7 @@ use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Stores\Documents\DocumentNumbers;
 use Modules\Stores\Documents\RequisitionType;
+use Modules\Stores\Events\ConsumptionEvents;
 use Modules\Stores\Listeners\ReceiveGoodsIntoStore;
 use Modules\Stores\Listeners\RecordStoreValues;
 use Modules\Stores\Listeners\SettleRequisition;
@@ -69,6 +71,8 @@ class StoresServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
+        // ACC-29: valued issues and returns raised again for the Accounting backfill.
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(ConsumptionEvents::class)->replay($from, $to, $emit));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // WF-01, WF-02, STR-03: requisitions run through a flow.

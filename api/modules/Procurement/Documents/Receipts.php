@@ -258,14 +258,19 @@ class Receipts
         $lines = ReceiptLine::query()->where('receipt_id', $receipt->id)->orderBy('line_no')->get();
         $orderLines = OrderLine::query()->whereKey($lines->pluck('order_line_id')->all())->get()->keyBy('id');
         $items = Item::query()->whereKey($lines->pluck('item_id')->filter()->unique()->all())->get()->keyBy('id');
+        // What the GRN took when it posted: landed costs allocated before it (later ones are LandedCostAllocated's).
+        $before = LandedCostAllocation::query()->where('receipt_id', $receipt->id)->where('after_receipt', false)
+            ->whereIn('landed_cost_id', fn ($q) => $q->select('id')->from('procurement_landed_costs')->where('status', 'posted'))
+            ->get()->groupBy('receipt_line_id')->map(fn ($allocations) => (int) $allocations->sum('base_amount_minor'));
         $amounts = ['stock_value' => 0, 'expense' => 0, 'grni' => 0, 'landed_cost' => 0, 'untracked_landed' => 0];
 
         foreach ($lines as $line) {
             $stock = $line->item_id !== null && $items->get($line->item_id)?->type === 'stock';
-            $amounts[$stock ? 'stock_value' : 'expense'] += (int) $line->base_value_minor + (int) $line->landed_minor;
+            $landed = (int) ($before->get($line->id) ?? 0);
+            $amounts[$stock ? 'stock_value' : 'expense'] += (int) $line->base_value_minor + $landed;
             $amounts['grni'] += (int) $line->base_value_minor;
-            $amounts['landed_cost'] += (int) $line->landed_minor;
-            $amounts['untracked_landed'] += $line->stock_tracked ? 0 : (int) $line->landed_minor;
+            $amounts['landed_cost'] += $landed;
+            $amounts['untracked_landed'] += $line->stock_tracked ? 0 : $landed;
         }
 
         $dimensions = ['branch_id' => $receipt->branch_id, 'party_id' => $receipt->party_id];

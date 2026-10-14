@@ -2,12 +2,15 @@
 
 namespace Modules\Accounting\Tests;
 
+use App\Core\MasterData\Dimensions\Department;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
 use Modules\Accounting\Chart\Charts;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\Document;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\JournalLine;
+use Modules\Inventory\Models\CostState;
 use Modules\Procurement\Models\Settings;
 use Modules\Procurement\Tests\Concerns\BuildsProcurement;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -209,5 +212,62 @@ class LedgerReviewTest extends TestCase
 
             return $lines;
         });
+    }
+
+    /**
+     * ACC-29: Accounting switched on after a GRN into a store, a landed cost, the supplier's invoice and a
+     * Stores issue: the backfill replays every module that registered its events (not a fixed list), so
+     * GRNI and the landed cost clearing account net to zero, the payables are Accounting documents, and the
+     * stock account equals Inventory's valuation.
+     */
+    public function test_the_backfill_replays_stores_and_procurement_too(): void
+    {
+        $this->setUpProcurement(inventory: true);
+        [$store, $kitchen, $storekeeper] = $this->inTenant(function () {
+            app(ModuleRegistry::class)->activate('stores');
+            Settings::query()->create(['company_id' => $this->acme->id, 'price_tolerance_percent' => '5']);
+            $store = $this->branchA->locations()->create(['name' => 'Main store', 'type' => 'store']);
+            $kitchen = Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen', 'owner_user_id' => $this->manager->id]);
+
+            return [$store, $kitchen, null];
+        });
+        $storekeeper = $this->userWith('storekeeper', Scope::location($store->id));
+
+        $order = $this->approvedOrder();
+        $receipt = $this->postedReceipt($order, extra: ['location_id' => $store->id]);
+        $landed = $this->api('POST', 'procurement/landed-costs', ['branch_id' => $this->branchA->id, 'cost_date' => '2026-10-15', 'method' => 'value',
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FR-9', 'currency' => 'KES', 'amount_minor' => '15000']],
+            'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
+        $this->api('POST', "procurement/landed-costs/{$landed['id']}/post")->assertOk();
+        $this->invoice($order, array_map(fn (array $l) => ['order_line_id' => $l['id'], 'qty' => $l['qty']], $order['lines']), 'BF-1');
+
+        // The kitchen takes 4 soaps from the store.
+        $requisition = $this->api('POST', 'stores/requisitions', ['location_id' => $store->id, 'department_id' => $kitchen->id,
+            'lines' => [['item_id' => $this->soap->id, 'qty' => '4']]], $storekeeper)->assertCreated()->json('data');
+        $this->approveFlow('stores.requisition', $requisition['id']);
+        $requisition = $this->api('GET', "stores/requisitions/{$requisition['id']}")->assertOk()->json('data');
+        $this->api('POST', "stores/requisitions/{$requisition['id']}/issues", ['lines' => [['requisition_line_id' => $requisition['lines'][0]['id'], 'qty' => '4']]], $storekeeper)
+            ->assertCreated()->assertJsonPath('data.valued', true);
+
+        $this->inTenant(function () {
+            app(ModuleRegistry::class)->activate('accounting');
+            app(Charts::class)->fromTemplate($this->acme);
+        });
+        $this->assertSame(0, $this->inTenant(fn () => Journal::query()->count()));
+
+        $this->artisan('accounting:backfill', ['--from' => '2026-10-14', '--to' => '2026-10-31'])->assertSuccessful();
+
+        $this->assertSame(0, $this->balance('2130'), 'GRNI nets');
+        $this->assertSame(0, $this->balance('2140'), 'landed cost clearing nets');
+        $this->assertSame(2, $this->inTenant(fn () => Document::query()->where('kind', 'supplier_invoice')->count()), 'the invoice and the freight bill are payables');
+        $this->assertSame(1, $this->inTenant(fn () => Journal::query()->where('source_type', 'stores.consumption')->count()));
+        $valuation = $this->inTenant(fn () => (int) CostState::query()->where('company_id', $this->acme->id)->sum('value_minor'));
+        $this->assertGreaterThan(0, $valuation);
+        $this->assertSame($valuation, $this->balance('1300'), 'stock equals the valuation');
+
+        // Again: nothing posts twice.
+        $journals = $this->inTenant(fn () => Journal::query()->count());
+        $this->artisan('accounting:backfill', ['--from' => '2026-10-14', '--to' => '2026-10-31'])->assertSuccessful();
+        $this->assertSame($journals, $this->inTenant(fn () => Journal::query()->count()));
     }
 }
