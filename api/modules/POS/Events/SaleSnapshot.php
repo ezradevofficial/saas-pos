@@ -3,6 +3,7 @@
 namespace Modules\POS\Events;
 
 use App\Core\Currency\FxSnapshot;
+use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -12,6 +13,7 @@ use Modules\POS\Models\RefundPayment;
 use Modules\POS\Models\Sale;
 use Modules\POS\Models\SaleLine;
 use Modules\POS\Models\SalePayment;
+use Modules\POS\Sync\Records;
 
 /**
  * POS-13, LOY-27: what a stored sale or refund was, as plain data for the
@@ -128,20 +130,24 @@ final class SaleSnapshot
                 'total_minor' => (string) $refund->base_total_minor,
                 'fx' => $refund->fx?->jsonSerialize(),
             ],
-            'lines' => $refund->lines->map(fn (RefundLine $line) => self::refundLine($line, $saleLines->get($line->sale_line_id)))->values()->all(),
+            'lines' => $refund->lines->map(fn (RefundLine $line) => self::refundLine($refund, $line, $saleLines->get($line->sale_line_id)))->values()->all(),
             'payments' => $refund->payments->map(fn (RefundPayment $payment) => self::payment($payment))->values()->all(),
         ];
     }
 
     /** @return array<string, mixed> */
-    private static function refundLine(RefundLine $line, ?SaleLine $saleLine): array
+    private static function refundLine(Refund $refund, RefundLine $line, ?SaleLine $saleLine): array
     {
         $total = (string) $line->total_minor;
         $tax = (string) $line->tax_minor;
-        // The refunded share of the sale line's discount, as the line's total share (half up).
-        $share = fn (string $amount) => $saleLine === null || BigInteger::of((string) $saleLine->total_minor)->isZero()
-            ? '0'
-            : (string) BigInteger::of($amount)->multipliedBy($total)->dividedBy((string) $saleLine->total_minor, RoundingMode::HalfUp);
+        // Review #8: the refunded share of the sale line's discount, cumulative by quantity as the
+        // refund's total and tax are (RefundUploads): share(after) − share(before), half up, so the
+        // parts of a line refunded in several refunds add up to its discount exactly.
+        $sold = $saleLine === null ? BigDecimal::zero() : BigDecimal::of((string) $saleLine->qty);
+        $before = $saleLine === null ? BigDecimal::zero() : self::refundedBefore($refund, $line);
+        $after = $before->plus((string) $line->qty);
+        $part = fn (string $amount, BigDecimal $qty) => BigDecimal::of($amount)->multipliedBy($qty)->dividedBy($sold, 0, RoundingMode::HalfUp);
+        $share = fn (string $amount) => $sold->isZero() ? '0' : (string) $part($amount, $after)->minus($part($amount, $before))->toBigInteger();
         $discount = $saleLine === null ? self::discount('0', null, null) : self::discount((string) $saleLine->discount_minor, $saleLine->adjustments, $saleLine->verified_discounts);
         $sources = array_map($share, $discount['sources']);
         $discountShare = $share($discount['total_minor']);
@@ -164,6 +170,17 @@ final class SaleSnapshot
                 'manual_minor' => (string) BigInteger::max(BigInteger::zero(), BigInteger::of($discountShare)->minus($vouched)),
             ],
         ];
+    }
+
+    /** The quantity of the sale line given back by refunds (not rejected) stored before this one. */
+    private static function refundedBefore(Refund $refund, RefundLine $line): BigDecimal
+    {
+        $earlier = Refund::query()->where('sale_id', $refund->sale_id)->where('status', '<>', Records::REJECTED)
+            ->where(fn ($q) => $q->where('received_at', '<', $refund->received_at)
+                ->orWhere(fn ($q) => $q->where('received_at', $refund->received_at)->where('id', '<', $refund->id)))
+            ->select('id');
+
+        return BigDecimal::of((string) RefundLine::query()->where('sale_line_id', $line->sale_line_id)->whereIn('refund_id', $earlier)->sum('qty'));
     }
 
     /**

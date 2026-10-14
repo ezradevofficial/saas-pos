@@ -109,7 +109,7 @@ class SaleSnapshotTest extends TestCase
         ]]], $this->tillHeaders())->assertOk();
 
         Event::assertDispatched(SaleVoided::class, fn (SaleVoided $e) => $e->saleId === $second['id']
-            && substr((string) $e->voidedAt, 0, 19) === now()->subMinute()->utc()->format('Y-m-d\TH:i:s')
+            && substr((string) $e->voidedAt, 0, 19) === \Carbon\CarbonImmutable::parse($voidedAt)->utc()->format('Y-m-d\TH:i:s')
             && $e->sale['status'] === 'voided');
 
         // Half the line back: KES 512.50 of KES 1,025.00, its share of tax and discount.
@@ -130,5 +130,30 @@ class SaleSnapshotTest extends TestCase
 
             return true;
         });
+    }
+
+    /** Review #8: refunds of one line in parts take cumulative shares of its discount, which add up to it exactly. */
+    public function test_partial_refunds_take_cumulative_shares_of_the_discount(): void
+    {
+        // Three soaps, KES 100.00 off: KES 1,587.50.
+        $line = $this->line(['qty' => '3', 'discount_minor' => '10000', 'tax_minor' => '17639', 'total_minor' => '158750']);
+        $sale = $this->saleBody($this->shift, 1, ['lines' => [$line]]);
+        $this->upload([$sale])->assertOk();
+        $shares = [];
+        Event::listen(SaleRefunded::class, function (SaleRefunded $e) use (&$shares) {
+            $shares[] = $e->refund['lines'][0]['discount']['total_minor'];
+        });
+
+        foreach ([['52917', 1], ['52916', 2], ['52917', 3]] as [$total, $seq]) {
+            $this->postJson('/api/v1/pos/refunds', ['refunds' => [[
+                'id' => $this->id(), 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->owner->id,
+                'receipt_seq' => $seq, 'receipt_number' => sprintf('RF-L01-%06d', $seq), 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged', 'total_minor' => $total,
+                'lines' => [['id' => $this->id(), 'sale_line_id' => $sale['lines'][0]['id'], 'qty' => '1']],
+                'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => $total, 'amount_in_sale_minor' => $total, 'status' => 'confirmed']],
+                'override' => $this->override($this->owner->id),
+            ]]], $this->tillHeaders())->assertOk()->assertJsonPath('results.0.status', 'stored');
+        }
+
+        $this->assertSame(['3333', '3334', '3333'], $shares);
     }
 }
