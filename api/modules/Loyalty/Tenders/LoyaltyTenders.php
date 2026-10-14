@@ -7,6 +7,7 @@ use App\Core\Payments\Tenders\TenderProvider;
 use App\Core\Payments\Tenders\TenderUse;
 use App\Core\Rbac\Scope;
 use Brick\Math\BigInteger;
+use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\LoyaltyServiceProvider;
 use Modules\Loyalty\Models\Account;
 use Modules\Loyalty\Models\GiftCard;
@@ -84,7 +85,7 @@ final class LoyaltyTenders implements TenderProvider
             return ['gift_card_invalid'];
         }
 
-        $card = GiftCard::query()->where('code_hash', $hash)->where('company_id', $use->companyId)->first();
+        $card = GiftCard::query()->where('code_hash', GiftCards::hashProof($hash))->where('company_id', $use->companyId)->first();
 
         if ($card === null) {
             return ['gift_card_unknown'];

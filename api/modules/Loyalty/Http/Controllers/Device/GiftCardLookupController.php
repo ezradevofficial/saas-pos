@@ -4,6 +4,7 @@ namespace Modules\Loyalty\Http\Controllers\Device;
 
 use App\Core\Tenancy\Models\Location;
 use Illuminate\Http\JsonResponse;
+use Modules\Loyalty\GiftCards\GiftCards;
 use Modules\Loyalty\Http\Requests\DeviceGiftCardRequest;
 use Modules\Loyalty\Models\GiftCard;
 
@@ -17,7 +18,7 @@ class GiftCardLookupController
     {
         // The device's company (its location's branch's), from core tenancy, never the body.
         $companyId = Location::query()->with('branch')->findOrFail($request->user()->location_id)->branch->company_id;
-        $card = GiftCard::query()->where('code_hash', $request->validated('code_hash'))->where('company_id', $companyId)->first();
+        $card = GiftCard::query()->where('code_hash', GiftCards::hashProof($request->validated('code_hash')))->where('company_id', $companyId)->first();
 
         abort_if($card === null, 404);
 

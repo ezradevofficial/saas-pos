@@ -99,14 +99,30 @@ class PosSales
 
                 $flags = [];
                 $snapshot = $sale->snapshot;
-                $programme = $this->programmes->active($sale->company_id);
 
-                $this->promotionsOf($sale, $snapshot, $flags);
-                $this->tenders($sale, $snapshot, $programme, $flags);
-                $this->giftCardSales($sale, $snapshot, $flags);
-                $this->earn($sale, $snapshot, $programme, $flags);
+                if ($sale->voided_at !== null) {
+                    // H1: voided before it could be processed: nothing is posted (nothing to reverse).
+                    $flags[] = ['code' => 'voided_before_processing'];
+                } else {
+                    $programme = $this->programmes->active($sale->company_id);
+                    $this->promotionsOf($sale, $snapshot, $flags);
+                    $this->tenders($sale, $snapshot, $programme, $flags);
+                    $this->giftCardSales($sale, $snapshot, $programme, $flags);
+                    $this->earn($sale, $snapshot, $programme, $flags);
+                }
 
                 $sale->forceFill(['status' => LoyaltySale::PROCESSED, 'flags' => $flags, 'processed_at' => now(), 'error' => null])->save();
+
+                // H1: refunds that arrived before the sale was processed, applied in order now.
+                $pending = (array) ($sale->pending_refunds ?? []);
+
+                if ($pending !== []) {
+                    $sale->forceFill(['pending_refunds' => []])->save();
+
+                    foreach ($pending as $refund) {
+                        $this->applyRefund($sale, (array) $refund);
+                    }
+                }
             });
 
             return true;
@@ -124,7 +140,14 @@ class PosSales
         $this->guard($saleId, function () use ($saleId, $voidId) {
             $sale = LoyaltySale::query()->whereKey($saleId)->lockForUpdate()->first();
 
-            if ($sale === null || $sale->voided_at !== null || $sale->status !== LoyaltySale::PROCESSED) {
+            if ($sale === null || $sale->voided_at !== null) {
+                return;
+            }
+
+            // H1: a void before processing is kept on the sale; processing then posts nothing.
+            if ($sale->status !== LoyaltySale::PROCESSED) {
+                $sale->forceFill(['voided_at' => now(), 'void_id' => $voidId])->save();
+
                 return;
             }
 
@@ -166,7 +189,7 @@ class PosSales
                 Coupon::query()->where('company_id', $sale->company_id)->where('code', $application->coupon)->where('uses', '>', 0)->decrement('uses');
             }
 
-            $sale->forceFill(['voided_at' => now(), 'points_reversed' => $sale->points_earned])->save();
+            $sale->forceFill(['voided_at' => now(), 'void_id' => $voidId, 'points_reversed' => $sale->points_earned])->save();
         });
     }
 
@@ -182,36 +205,59 @@ class PosSales
         $this->guard($saleId, function () use ($refund, $saleId) {
             $sale = LoyaltySale::query()->whereKey($saleId)->lockForUpdate()->first();
 
-            if ($sale === null || $sale->status !== LoyaltySale::PROCESSED || $sale->voided_at !== null) {
+            // A replayed SaleRefunded changes nothing (refund_ids, or already queued).
+            if ($sale === null || ! isset($refund['id']) || in_array($refund['id'], (array) ($sale->refund_ids ?? []), true)
+                || in_array($refund['id'], array_column((array) ($sale->pending_refunds ?? []), 'id'), true)) {
                 return;
             }
 
-            if (PointsEntry::query()->where('source_type', 'pos_refund')->where('source_id', $refund['id'])->exists()
-                || GiftCardEntry::query()->where('source_type', 'pos_refund')->where('source_id', $refund['id'])->exists()
-                || CreditEntry::query()->where('source_type', 'pos_refund')->where('source_id', $refund['id'])->exists()) {
+            // H1: a refund before processing waits on the sale and is applied after the sale's postings.
+            if ($sale->status !== LoyaltySale::PROCESSED) {
+                $sale->forceFill(['pending_refunds' => [...(array) ($sale->pending_refunds ?? []), $refund]])->save();
+
                 return;
             }
 
-            $flags = $sale->flags ?? [];
-            $attributes = ['source_type' => 'pos_refund', 'source_id' => $refund['id'], 'sale_id' => $saleId];
-            $refunded = BigInteger::of((string) $sale->refunded_minor)->plus((string) $refund['total_minor']);
-            $reverse = PromotionEngine::pointsToReverse((string) $sale->points_earned, (string) $sale->total_minor, (string) $refunded, (string) $sale->points_reversed);
-
-            if ($reverse !== '0' && $sale->party_id !== null) {
-                $account = $this->ledgers->pointsAccount($sale->company_id, $sale->party_id);
-                $this->ledgers->points($account, 'reverse_earn', '-'.$reverse, $attributes);
-            }
-
-            foreach ($refund['payments'] ?? [] as $index => $payment) {
-                $this->refundTender($sale, $payment, $index, $attributes, $flags);
-            }
-
-            $sale->forceFill([
-                'refunded_minor' => (string) $refunded,
-                'points_reversed' => (string) BigInteger::of((string) $sale->points_reversed)->plus($reverse),
-                'flags' => $flags,
-            ])->save();
+            $this->applyRefund($sale, $refund);
         });
+    }
+
+    /** Post one refund on a processed sale (once: its id joins refund_ids). A voided sale has nothing left to give back. */
+    private function applyRefund(LoyaltySale $sale, array $refund): void
+    {
+        $saleId = $sale->id;
+
+        if (in_array($refund['id'], (array) ($sale->refund_ids ?? []), true)) {
+            return;
+        }
+
+        if ($sale->voided_at !== null) {
+            $sale->forceFill(['refund_ids' => [...(array) ($sale->refund_ids ?? []), $refund['id']]])->save();
+
+            return;
+        }
+
+        $flags = $sale->flags ?? [];
+        $attributes = ['source_type' => 'pos_refund', 'source_id' => $refund['id'], 'sale_id' => $saleId];
+        $refunded = BigInteger::of((string) $sale->refunded_minor)->plus((string) $refund['total_minor']);
+        $reverse = PromotionEngine::pointsToReverse((string) $sale->points_earned, (string) $sale->total_minor, (string) $refunded, (string) $sale->points_reversed);
+
+        if ($reverse !== '0' && $sale->party_id !== null) {
+            $account = $this->ledgers->pointsAccount($sale->company_id, $sale->party_id);
+            $this->ledgers->points($account, 'reverse_earn', '-'.$reverse, $attributes);
+        }
+
+        foreach ($refund['payments'] ?? [] as $index => $payment) {
+            $this->refundTender($sale, $payment, $index, $attributes, $flags);
+        }
+
+        $sale->forceFill([
+            'refunded_minor' => (string) $refunded,
+            'points_reversed' => (string) BigInteger::of((string) $sale->points_reversed)->plus($reverse),
+            'flags' => $flags,
+            'refund_ids' => [...(array) ($sale->refund_ids ?? []), $refund['id']],
+        ])->save();
+
     }
 
     /** LOY-12: re-evaluate the promotions the till applied, compare, and count coupon uses. */
@@ -228,14 +274,10 @@ class PosSales
             }
         }
 
-        $loyalty = $snapshot['extensions']['loyalty'] ?? [];
-        $coupons = array_values(array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), (array) ($loyalty['coupons'] ?? []))));
-        $soldAt = CarbonImmutable::parse($snapshot['sold_at']);
-        $result = PromotionEngine::evaluate(
-            Promotions::engineLines(array_map(fn (array $l) => ['id' => $l['id'], 'item_id' => $l['item_id'], 'qty' => $l['qty'], 'unit_price_minor' => $l['unit_price_minor']], $snapshot['lines'] ?? [])),
-            ['currency' => $sale->currency, 'branch_id' => $sale->branch_id, 'customer_tags' => $this->tags($sale->party_id), 'coupons' => $coupons, 'local' => Promotions::localTime($sale->branch_id, $soldAt)],
-            $this->promotions->inForce($sale->company_id, $soldAt),
-        );
+        $loyalty = is_array($snapshot['extensions']['loyalty'] ?? null) ? $snapshot['extensions']['loyalty'] : [];
+        $coupons = array_values(array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), array_filter((array) ($loyalty['coupons'] ?? []), 'is_string'))));
+        $result = $this->promotions->evaluateSale($sale->company_id, $sale->branch_id, $sale->party_id, $sale->currency, CarbonImmutable::parse($snapshot['sold_at']),
+            array_map(fn (array $l) => ['id' => $l['id'], 'item_id' => $l['item_id'], 'qty' => $l['qty'], 'unit_price_minor' => $l['unit_price_minor']], $snapshot['lines'] ?? []), $coupons);
         $expected = collect($result['promotions'])->keyBy('promotion_id');
         $versions = collect((array) ($loyalty['promotions'] ?? []))->keyBy('id');
         $known = Promotion::query()->where('company_id', $sale->company_id)->whereIn('id', array_filter(array_keys($applied), fn ($id) => preg_match('/^[0-9a-f-]{36}$/i', (string) $id) === 1))->pluck('id')->all();
@@ -335,7 +377,7 @@ class PosSales
 
     private function redeemCard(LoyaltySale $sale, array $payment, array $tender, array $attributes, \Closure $note): void
     {
-        $card = isset($tender['code_hash']) ? GiftCard::query()->where('code_hash', strtolower((string) $tender['code_hash']))->where('company_id', $sale->company_id)->first() : null;
+        $card = isset($tender['code_hash']) ? GiftCard::query()->where('code_hash', GiftCards::hashProof((string) $tender['code_hash']))->where('company_id', $sale->company_id)->first() : null;
 
         if ($card === null) {
             $note('gift_card_unknown');
@@ -420,15 +462,68 @@ class PosSales
     }
 
     /** LOY-21: cards sold on the sale (extensions.loyalty.gift_cards) are loaded and activated. */
-    private function giftCardSales(LoyaltySale $sale, array $snapshot, array &$flags): void
+    /**
+     * LOY-21, M2: cards sold on the sale (`extensions.loyalty.gift_cards`,
+     * `[{line_id, code_hash, amount_minor}]`, `code_hash` the code's proof,
+     * H(code)). Each must name a line of the sale whose item is the
+     * programme's gift card item; the card is loaded with the smaller of
+     * the amount and the line's total, in the card's currency (the sale's).
+     * Anything else is flagged `gift_card_sale_mismatch`, never a failure.
+     */
+    private function giftCardSales(LoyaltySale $sale, array $snapshot, ?Programme $programme, array &$flags): void
     {
-        foreach ((array) ($snapshot['extensions']['loyalty']['gift_cards'] ?? []) as $index => $sold) {
-            $card = isset($sold['code_hash']) ? GiftCard::query()->where('code_hash', strtolower((string) $sold['code_hash']))->where('company_id', $sale->company_id)->first() : null;
+        $sold = $snapshot['extensions']['loyalty']['gift_cards'] ?? [];
+        $lines = collect(is_array($snapshot['lines'] ?? null) ? $snapshot['lines'] : [])->keyBy('id');
+        $mismatch = function (int $index, string $reason) use (&$flags): void {
+            $flags[] = ['code' => 'gift_card_sale_mismatch', 'detail' => ['sold' => $index + 1, 'reason' => $reason]];
+        };
+
+        if (! is_array($sold)) {
+            $mismatch(0, 'malformed');
+
+            return;
+        }
+
+        foreach (array_values($sold) as $index => $entry) {
+            if (! is_array($entry) || ! is_string($entry['line_id'] ?? null) || ! is_string($entry['code_hash'] ?? null)
+                || preg_match('/^\d{1,18}$/', (string) ($entry['amount_minor'] ?? '')) !== 1) {
+                $mismatch($index, 'malformed');
+
+                continue;
+            }
+
+            $line = $lines->get($entry['line_id']);
+
+            if ($line === null || $programme?->gift_card_item_id === null || ($line['item_id'] ?? null) !== $programme->gift_card_item_id) {
+                $mismatch($index, 'line');
+
+                continue;
+            }
+
+            $card = GiftCard::query()->where('code_hash', GiftCards::hashProof($entry['code_hash']))->where('company_id', $sale->company_id)->first();
 
             if ($card === null) {
                 $flags[] = ['code' => 'gift_card_unknown', 'detail' => ['sold' => $index + 1]];
 
                 continue;
+            }
+
+            if ($card->currency !== $sale->currency) {
+                $mismatch($index, 'currency');
+
+                continue;
+            }
+
+            $amount = BigInteger::min(BigInteger::of($entry['amount_minor']), BigInteger::of((string) ($line['total_minor'] ?? '0')));
+
+            if (! $amount->isPositive()) {
+                $mismatch($index, 'amount');
+
+                continue;
+            }
+
+            if (! $amount->isEqualTo($entry['amount_minor'])) {
+                $mismatch($index, 'amount');
             }
 
             $card = $this->ledgers->lockCard($card->id);
@@ -439,7 +534,7 @@ class PosSales
                 $flags[] = ['code' => 'gift_card_already_active', 'detail' => ['card' => $card->last4]];
             }
 
-            $this->giftCards->load($card, (string) $sold['amount_minor'], 'pos_sale', $sold['line_id'] ?? $sale->id, $sale->receipt_number, null, $sale->id, $soldFlags);
+            $this->giftCards->load($card, (string) $amount, 'pos_sale', $entry['line_id'], $sale->receipt_number, null, $sale->id, $soldFlags);
         }
     }
 
@@ -502,7 +597,7 @@ class PosSales
         };
 
         if ($payment['method_type'] === 'voucher') {
-            $card = isset($tender['code_hash']) ? GiftCard::query()->where('code_hash', strtolower((string) $tender['code_hash']))->where('company_id', $sale->company_id)->first() : null;
+            $card = isset($tender['code_hash']) ? GiftCard::query()->where('code_hash', GiftCards::hashProof((string) $tender['code_hash']))->where('company_id', $sale->company_id)->first() : null;
 
             if ($card === null) {
                 $note('gift_card_unknown');
@@ -603,18 +698,6 @@ class PosSales
         ]);
 
         return $this->ledgers->lock($sale->company_id, $party->id, Account::CREDIT);
-    }
-
-    /** @return list<string> the customer's tags (core party tags), the promotions' customer groups */
-    private function tags(?string $partyId): array
-    {
-        if ($partyId === null) {
-            return [];
-        }
-
-        $party = Party::query()->find($partyId);
-
-        return array_values(array_map('strval', (array) ($party?->tags ?? [])));
     }
 
     /** Run a reversal in a transaction; a failure is logged and kept on the sale, never thrown. */

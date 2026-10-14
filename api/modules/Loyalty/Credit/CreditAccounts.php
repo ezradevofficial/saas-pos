@@ -9,6 +9,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\LimitRules;
 use App\Core\Rbac\Models\Role;
+use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -103,10 +104,18 @@ class CreditAccounts
      * `credit_limit_override` (major units of the account's currency)
      * covers the excess; an Owner has no limit.
      */
-    public function charge(Account $account, string $amountMinor, ?string $reference, ?string $note, User $by): CreditEntry
+    public function charge(Account $account, string $amountMinor, ?string $reference, ?string $note, User $by, ?string $key = null): CreditEntry
     {
-        return $this->transaction(function () use ($account, $amountMinor, $reference, $note, $by) {
+        return $this->transaction(function () use ($account, $amountMinor, $reference, $note, $by, $key) {
             $account = $this->openLocked($account);
+
+            // An idempotency key sent again answers the charge it made, unchanged.
+            $existing = $key === null ? null : CreditEntry::query()->where('account_id', $account->id)->where('kind', 'charge')->where('source_type', 'manual')->where('source_id', $key)->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+
             $after = BigInteger::of((string) $account->balance)->plus($amountMinor);
             $excess = $this->excess($account, $after);
 
@@ -115,7 +124,7 @@ class CreditAccounts
             }
 
             $entry = $this->ledgers->credit($account, 'charge', $amountMinor, [
-                'source_type' => 'manual', 'reference' => $reference, 'note' => $note, 'created_by' => $by->id,
+                'source_type' => 'manual', 'source_id' => $key, 'reference' => $reference, 'note' => $note, 'created_by' => $by->id,
                 'flags' => $excess !== null && $excess->isPositive() ? [['code' => 'credit_limit_overridden', 'detail' => ['excess_minor' => (string) $excess]]] : [],
             ]);
             $this->audit('loyalty.credit.charge', $account, $entry, $by);
@@ -165,8 +174,8 @@ class CreditAccounts
 
     private function mayExceed(User $user, Account $account, BigInteger $excess): bool
     {
-        // Accounts are company-wide (LoyaltyAccess): the user's roles anywhere they reach it count.
-        $scope = null;
+        // M7: RBAC-06 limits resolve at the account's company (a role there or above it).
+        $scope = Scope::company($account->company_id);
         $roles = $this->resolver->roleIds($user, $scope);
 
         if ($roles !== [] && Role::query()->whereKey($roles)->where('is_owner', true)->exists()) {

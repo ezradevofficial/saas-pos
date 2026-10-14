@@ -95,7 +95,7 @@ class AccountController
 
     public function charge(AccountRequest $request, Account $loyaltyAccount): JsonResponse
     {
-        $entry = $this->accounts->charge($loyaltyAccount, $request->validated('amount_minor'), $request->validated('reference'), $request->validated('note'), $request->user());
+        $entry = $this->accounts->charge($loyaltyAccount, $request->validated('amount_minor'), $request->validated('reference'), $request->validated('note'), $request->user(), $request->validated('id'));
 
         return EntryResource::make($entry)->response()->setStatusCode(201);
     }

@@ -12,7 +12,9 @@ use Modules\Loyalty\Http\Controllers\Device\GiftCardLookupController;
 use Modules\Loyalty\Http\Controllers\GiftCardController;
 use Modules\Loyalty\Http\Controllers\ProgrammeController;
 use Modules\Loyalty\Http\Controllers\PromotionController;
+use Modules\Loyalty\Http\Controllers\SaleController;
 use Modules\Loyalty\Http\Controllers\StatementController;
+use Modules\Loyalty\LoyaltyServiceProvider;
 use Modules\Loyalty\Models\Account;
 use Modules\Loyalty\Models\Coupon;
 use Modules\Loyalty\Models\GiftCard;
@@ -35,7 +37,8 @@ Route::model('loyalty_gift_card', GiftCard::class);
 
 // LOY-23: a till's live gift card balance check (device token only).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:loyalty'])->group(function () {
-    Route::post('loyalty/device/gift-cards/lookup', GiftCardLookupController::class);
+    // Guessing codes is throttled (loyalty-lookup).
+    Route::post('loyalty/device/gift-cards/lookup', GiftCardLookupController::class)->middleware('throttle:'.LoyaltyServiceProvider::LOOKUP_LIMITER);
 });
 
 // The back office (people's tokens only).
@@ -55,6 +58,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('loyalty/promotions/{loyalty_promotion}/coupons', [CouponController::class, 'index']);
     Route::post('loyalty/promotions/{loyalty_promotion}/coupons', [CouponController::class, 'store']);
     Route::post('loyalty/coupons/{loyalty_coupon}/archive', [CouponController::class, 'archive']);
+
+    // LOY-12, H2: flagged sales to review.
+    Route::get('loyalty/sales', [SaleController::class, 'index']);
 
     // LOY-02, LOY-07, LOY-14: the customer page's Loyalty tab.
     Route::get('loyalty/customers/{party}', [CustomerController::class, 'show']);
@@ -76,7 +82,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // LOY-20..LOY-23
     Route::get('loyalty/gift-cards', [GiftCardController::class, 'index']);
     Route::post('loyalty/gift-cards', [GiftCardController::class, 'store']);
-    Route::post('loyalty/gift-cards/lookup', [GiftCardController::class, 'lookup']);
+    Route::post('loyalty/gift-cards/lookup', [GiftCardController::class, 'lookup'])->middleware('throttle:'.LoyaltyServiceProvider::LOOKUP_LIMITER);
     Route::get('loyalty/gift-cards/{loyalty_gift_card}', [GiftCardController::class, 'show']);
     Route::post('loyalty/gift-cards/{loyalty_gift_card}/sell', [GiftCardController::class, 'sell']);
     Route::post('loyalty/gift-cards/{loyalty_gift_card}/block', [GiftCardController::class, 'block']);

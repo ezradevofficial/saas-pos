@@ -39,6 +39,8 @@ class LoyaltySale extends Model implements HasScope
         return [
             'flags' => 'array',
             'snapshot' => 'array',
+            'pending_refunds' => 'array',
+            'refund_ids' => 'array',
             'sold_at' => 'immutable_datetime',
             'processed_at' => 'immutable_datetime',
             'voided_at' => 'immutable_datetime',

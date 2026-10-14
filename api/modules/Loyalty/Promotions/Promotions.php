@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\ItemCategory;
+use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -109,6 +110,46 @@ class Promotions
         return $versions->filter(fn (PromotionVersion $v) => $v->status === Promotion::ACTIVE)
             ->map(fn (PromotionVersion $v) => self::engineShape($v->promotion_id, $v->version, $v->definition, $codes->get($v->promotion_id)))
             ->values()->all();
+    }
+
+    /**
+     * LOY-12, H2: a sale evaluated as the till should have: the promotion
+     * versions in force at its time, its customer's groups (party tags) now,
+     * its coupons and the branch's local time.
+     *
+     * @param  list<array{id: string, item_id: string, qty: string, unit_price_minor: string}>  $lines
+     * @param  list<string>  $coupons
+     */
+    public function evaluateSale(string $companyId, string $branchId, ?string $partyId, string $currency, CarbonImmutable $soldAt, array $lines, array $coupons): array
+    {
+        $party = $partyId === null ? null : Party::query()->find($partyId);
+
+        return PromotionEngine::evaluate(
+            self::engineLines($lines),
+            [
+                'currency' => $currency, 'branch_id' => $branchId, 'customer_tags' => array_values(array_map('strval', (array) ($party?->tags ?? []))),
+                'coupons' => array_values(array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), $coupons))),
+                'local' => self::localTime($branchId, $soldAt),
+            ],
+            $this->inForce($companyId, $soldAt),
+        );
+    }
+
+    /**
+     * H2: the POS discount verifier of `loyalty.promotion`: per line, the
+     * discount the promotions give (core DiscountSources).
+     *
+     * @param  array<string, mixed>  $sale
+     * @return array<string, string>
+     */
+    public function verify(array $sale): array
+    {
+        $lines = array_values(array_filter((array) ($sale['lines'] ?? []), fn ($line) => is_array($line) && isset($line['id'], $line['item_id'], $line['qty'], $line['unit_price_minor'])));
+        $coupons = $sale['extensions']['loyalty']['coupons'] ?? [];
+        $result = $this->evaluateSale((string) $sale['company_id'], (string) $sale['branch_id'], $sale['customer_id'] ?? null, (string) $sale['currency'],
+            CarbonImmutable::parse((string) $sale['sold_at']), $lines, is_array($coupons) ? array_filter($coupons, 'is_string') : []);
+
+        return array_column($result['lines'], 'discount_minor', 'line_id');
     }
 
     /**

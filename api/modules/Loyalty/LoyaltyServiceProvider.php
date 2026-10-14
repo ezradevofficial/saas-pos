@@ -15,8 +15,11 @@ use App\Core\Payments\Tenders\TenderProviders;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Sync\SyncSources;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Loyalty\Console\ExpirePointsCommand;
@@ -25,6 +28,7 @@ use Modules\Loyalty\Documents\StatementSource;
 use Modules\Loyalty\Notifications\LoyaltyNotices;
 use Modules\Loyalty\Pos\HandlePosEvents;
 use Modules\Loyalty\Pos\PosSales;
+use Modules\Loyalty\Promotions\Promotions;
 use Modules\Loyalty\Sync\GiftCardSource;
 use Modules\Loyalty\Sync\MemberSource;
 use Modules\Loyalty\Sync\PromotionSource;
@@ -46,6 +50,9 @@ class LoyaltyServiceProvider extends ServiceProvider
 {
     public const MODULE = 'loyalty';
 
+    /** LOY-23: gift card balance checks, per user or device, so codes cannot be guessed. */
+    public const LOOKUP_LIMITER = 'loyalty-lookup';
+
     /** RBAC-01: the module's permission catalogue (`loyalty.resource.action`). */
     public const PERMISSIONS = [
         'programme' => ['view', 'edit'],
@@ -53,6 +60,8 @@ class LoyaltyServiceProvider extends ServiceProvider
         'points' => ['view', 'adjust'],
         'credit' => ['view', 'manage', 'receive', 'charge', 'adjust', 'sell'],
         'gift_card' => ['view', 'issue', 'sell', 'block'],
+        // H2: the review list of flagged POS sales.
+        'sale' => ['view'],
     ];
 
     public function register(): void
@@ -63,6 +72,7 @@ class LoyaltyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
+        RateLimiter::for(self::LOOKUP_LIMITER, fn (Request $request) => Limit::perMinute(30)->by(self::LOOKUP_LIMITER.'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // NUM-01, LOY-17: statements are numbered per company.
@@ -75,7 +85,8 @@ class LoyaltyServiceProvider extends ServiceProvider
         foreach (['points', 'voucher', 'credit'] as $type) {
             $tenders->register(new LoyaltyTenders($type));
         }
-        $this->app->make(DiscountSources::class)->register(PosSales::PROMOTION_SOURCE, self::MODULE);
+        // H2: only what the promotions engine confirms for a line is vouched for.
+        $this->app->make(DiscountSources::class)->register(PosSales::PROMOTION_SOURCE, self::MODULE, fn (array $sale) => $this->app->make(Promotions::class)->verify($sale));
 
         // NFR-04: what the till pulls (served only while the module is active).
         $sources = $this->app->make(SyncSources::class);
@@ -94,7 +105,7 @@ class LoyaltyServiceProvider extends ServiceProvider
 
         // LAY-04: lists that may have saved views.
         $lists = $this->app->make(ListViewCatalogue::class);
-        foreach (['loyalty-promotions', 'loyalty-gift-cards', 'loyalty-accounts', 'loyalty-ageing'] as $list) {
+        foreach (['loyalty-promotions', 'loyalty-gift-cards', 'loyalty-accounts', 'loyalty-ageing', 'loyalty-sales'] as $list) {
             $lists->register($list);
         }
 

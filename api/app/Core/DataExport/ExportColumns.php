@@ -72,7 +72,7 @@ final class ExportColumns
 
     /** `table.column` => why it is not a secret although its name looks like one. */
     public const ALLOWED = [
-        'loyalty_gift_cards.code_hash' => 'SHA-256 of a 16-character random gift card code (about 79 bits): not reversible, and every till of the company holds it to find cards offline (LOY-20, LOY-22)',
+        'loyalty_gift_cards.code_hash' => 'H(H(code)) of a 16-character random gift card code (about 79 bits): not reversible, and not the H(code) proof a till must present to redeem; every till of the company holds it to find cards offline (LOY-20, LOY-22, M8)',
         'approval_requests.token_id' => 'the id of a workflow token row, not a credential',
         'audit_chain_heads.hash' => 'audit chain integrity hash (AUD-03), needed to verify the exported log',
         'audit_logs.hash' => 'audit chain integrity hash (AUD-03)',

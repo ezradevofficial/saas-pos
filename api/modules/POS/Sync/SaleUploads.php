@@ -181,6 +181,8 @@ class SaleUploads
 
         $saleList = $this->priceList($place, $data['price_list_id'] ?? null, $currency, 'price_list_id');
         $lines = [];
+        // H2: what each discount source verifies, per line, before any line is checked.
+        $this->verified = $this->verifiedDiscounts($place, $data, $at);
 
         foreach ($data['lines'] as $index => $line) {
             // AUTH-07: a line without its own attestation is covered by the sale's (same cashier, same sign-in).
@@ -381,7 +383,7 @@ class SaleUploads
         }
 
         // LOY-27: the part of the discount a module vouches for (a promotion) is not a manual discount.
-        $vouched = $this->vouched($line['adjustments'] ?? null, $discount, $field);
+        $vouched = $this->vouched($line['adjustments'] ?? null, $discount, $field, (string) $line['id']);
         $manual = $discount->minus($vouched);
         $amount = $gross->minus($discount);
         $tax = BigDecimal::of((string) $line['tax_minor']);
@@ -508,25 +510,71 @@ class SaleUploads
      *
      * @param  list<array{source: string, reference?: ?string, amount_minor: string|int}>|null  $adjustments
      */
-    private function vouched(?array $adjustments, BigDecimal $discount, string $field): BigDecimal
+    private function vouched(?array $adjustments, BigDecimal $discount, string $field, string $lineId): BigDecimal
     {
         $all = BigDecimal::zero();
-        $vouched = BigDecimal::zero();
+        $claimed = [];
 
         foreach ($adjustments ?? [] as $adjustment) {
             $amount = BigDecimal::of((string) $adjustment['amount_minor']);
             $all = $all->plus($amount);
-
-            if ($this->discountSources->vouches($adjustment['source'])) {
-                $vouched = $vouched->plus($amount);
-            }
+            $claimed[$adjustment['source']] = ($claimed[$adjustment['source']] ?? BigDecimal::zero())->plus($amount);
         }
 
         if ($all->isGreaterThan($discount)) {
             throw new Rejection('adjustments_above_discount', "{$field}.adjustments");
         }
 
+        // H2: per source, only what its verifier confirms for this line; the rest is a manual discount.
+        $vouched = BigDecimal::zero();
+
+        foreach ($claimed as $source => $amount) {
+            $verified = BigDecimal::of($this->verified[$source][$lineId] ?? '0');
+            $vouched = $vouched->plus($amount->isGreaterThan($verified) ? $verified : $amount);
+        }
+
         return $vouched;
+    }
+
+    /** @var array<string, array<string, string>> source => line id => minor units, for the sale being stored */
+    private array $verified = [];
+
+    /**
+     * H2: each discount source named on the sale verifies its lines
+     * (core DiscountSources), from what the till sent.
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function verifiedDiscounts(DevicePlace $place, array $data, CarbonImmutable $at): array
+    {
+        $sources = [];
+
+        foreach ($data['lines'] as $line) {
+            foreach ($line['adjustments'] ?? [] as $adjustment) {
+                $sources[$adjustment['source']] = true;
+            }
+        }
+
+        if ($sources === []) {
+            return [];
+        }
+
+        $sale = [
+            'company_id' => $place->company->id,
+            'branch_id' => $place->branch->id,
+            'customer_id' => $data['customer_id'] ?? null,
+            'currency' => $data['currency'],
+            'sold_at' => $at->format('Y-m-d\TH:i:s.u\Z'),
+            'lines' => array_map(fn (array $line) => ['id' => (string) $line['id'], 'item_id' => $line['item_id'], 'qty' => (string) $line['qty'], 'unit_price_minor' => (string) $line['unit_price_minor']], $data['lines']),
+            'extensions' => $data['extensions'] ?? [],
+        ];
+        $verified = [];
+
+        foreach (array_keys($sources) as $source) {
+            $verified[$source] = $this->discountSources->verify($source, $sale);
+        }
+
+        return $verified;
     }
 
     /**
@@ -800,7 +848,7 @@ class SaleUploads
                 $this->auditor->record('pos.sale.discount', $sale, null, [
                     'line' => $line['row']['line_no'],
                     'discount_minor' => $line['row']['discount_minor'],
-                    // LOY-27: the part a module vouched for (a promotion), not checked against the limit.
+                    // LOY-27, H2: the part a module's verifier confirmed (a promotion), not checked against the limit.
                     'vouched_minor' => (string) $line['vouched'],
                     'percent' => (string) $line['percent'],
                     'approved_by' => $line['override']?->approverId(),

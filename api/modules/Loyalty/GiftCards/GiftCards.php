@@ -37,9 +37,25 @@ class GiftCards
         return strtoupper((string) preg_replace('/[\s-]+/', '', $code));
     }
 
-    public static function hash(string $code): string
+    /**
+     * M8: the code's proof, H(code): what a till uploads with a tender or a
+     * sale, and sends to the live lookup. Never stored.
+     */
+    public static function proof(string $code): string
     {
         return hash('sha256', self::normalise($code));
+    }
+
+    /** The stored and synced hash, H(H(code)), from a proof (hex, any case). */
+    public static function hashProof(string $proof): string
+    {
+        return hash('sha256', strtolower($proof));
+    }
+
+    /** The stored and synced hash of a code, H(H(code)). */
+    public static function hash(string $code): string
+    {
+        return self::hashProof(self::proof($code));
     }
 
     public static function generate(): string

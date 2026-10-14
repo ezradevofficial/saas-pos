@@ -12,7 +12,7 @@ use Modules\Loyalty\Models\Account;
  *
  * - POST loyalty/accounts `{party_id, company_id}` opens one (`loyalty.credit.manage` at the company);
  * - POST loyalty/accounts/{loyalty_account}/payments `{amount_minor, reference?, note?, occurred_at?}`
- *   (`loyalty.credit.receive`), /charges `{amount_minor, reference?, note?}` (`loyalty.credit.charge`),
+ *   (`loyalty.credit.receive`), /charges `{id?, amount_minor, reference?, note?}` (`loyalty.credit.charge`; `id` an idempotency key),
  *   /adjustments `{amount_minor: "-1250", reason}` (`loyalty.credit.adjust`);
  * - POST loyalty/accounts/{loyalty_account}/statements `{from, to}` (`loyalty.credit.view`), at most a year.
  *
@@ -62,6 +62,8 @@ class AccountRequest extends LoyaltyRequest
                 'occurred_at' => ['sometimes', 'nullable', 'date', 'before_or_equal:now'],
             ],
             'charges' => [
+                // An idempotency key: the same charge sent again is answered, not repeated.
+                'id' => ['sometimes', 'nullable', 'uuid'],
                 'amount_minor' => self::minor(),
                 'reference' => ['sometimes', 'nullable', 'string', 'max:100'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:500'],

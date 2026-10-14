@@ -223,6 +223,12 @@ return new class extends Migration
             $table->text('error')->nullable();
             $table->timestampTz('processed_at')->nullable();
             $table->timestampTz('voided_at')->nullable();
+            // The POS void's id (by id only), also when it arrived before processing (H1).
+            $table->uuid('void_id')->nullable();
+            // Refund snapshots that arrived before processing, applied after it (H1).
+            $table->jsonb('pending_refunds')->default('[]');
+            // Refunds applied, so a replayed SaleRefunded changes nothing.
+            $table->jsonb('refund_ids')->default('[]');
             $table->timestampsTz();
 
             $table->foreign('currency')->references('code')->on('currencies')->restrictOnDelete();

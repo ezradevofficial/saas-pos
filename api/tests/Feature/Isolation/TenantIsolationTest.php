@@ -355,6 +355,7 @@ class TenantIsolationTest extends TestCase
         // NFR-04: the suite calls the device routes far more than a till would.
         RateLimiter::for('device-sync', fn () => Limit::none());
         RateLimiter::for('device-secret', fn () => Limit::none());
+        RateLimiter::for('loyalty-lookup', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------

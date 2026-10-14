@@ -107,8 +107,8 @@ class RoleTemplatesTest extends TestCase
         // BR-02, BR-05: core.theme.view|edit|publish and core.domain.manage; LAY: core.layout.*; TPL: core.template.*;
         // CF-04: core.custom_form.view|create|edit|approve and core.custom_form_type.manage.
         // LAY-05: pos.layout.view|edit|publish. EXP-02: core.tenant.export. IMP-01: core.import.run. ONB-02..ONB-07: core.onboarding.view|edit|modules. SUB-02: core.subscription.view|manage.
-        // Loyalty (docs/modules/loyalty.md): 18 loyalty.* permissions. Sum with other modules' counts when merging.
-        $this->assertSame(113 + 18 + 18, count($names));
+        // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions. Sum with other modules' counts when merging.
+        $this->assertSame(113 + 18 + 19, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
