@@ -46,6 +46,8 @@ class UploadSalesRequest extends FormRequest
             ...$this->overrideRules('sales.*.lines.*.override'),
             ...$this->overrideRules('sales.*.lines.*.price_override'),
             ...$this->actorProof('sales.*.lines.*.actor_proof'),
+            ...$this->adjustmentRules('sales.*.lines.*.adjustments'),
+            ...$this->extensionRules('sales.*.extensions'),
 
             'sales.*.totals' => ['required', 'array'],
             'sales.*.totals.subtotal_minor' => $this->minor(),

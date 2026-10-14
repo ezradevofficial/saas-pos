@@ -1,5 +1,6 @@
 import { uuidv7 } from '../lib/random';
-import { lineAmounts, saleTotals } from './tax';
+import { runCartAdjusters } from './extensions';
+import { extend, lineAmounts, saleTotals } from './tax';
 
 /**
  * POS-01, POS-02, POS-07, POS-08: the current sale on the till, as a pure
@@ -25,7 +26,7 @@ import { lineAmounts, saleTotals } from './tax';
  * is made when the cart starts, so a held and resumed sale keeps it.
  */
 export function emptyCart(now = Date.now()) {
-  return { id: uuidv7(now), lines: [], customer: null, priceListId: null, startedAt: now, tenders: [] };
+  return { id: uuidv7(now), lines: [], customer: null, priceListId: null, startedAt: now, tenders: [], ext: {} };
 }
 
 export const isWholeQty = (qty) => /^\d+$/.test(String(qty));
@@ -52,7 +53,7 @@ const isConfirmedMobile = (tender) => tender?.method?.type === 'mobile_money' &&
  */
 export const hasConfirmedMobilePayment = (cart) => (cart?.tenders ?? []).some(isConfirmedMobile);
 
-const SALE_CHANGES = new Set(['add', 'edit', 'remove', 'customer']);
+const SALE_CHANGES = new Set(['add', 'edit', 'remove', 'customer', 'ext']);
 // `clear` with `completed: true` follows a completed sale and always applies.
 const SALE_ENDS = new Set(['clear', 'load']);
 
@@ -88,6 +89,9 @@ export function cartReducer(state, action) {
       return { ...state, lines: state.lines.map((line) => (line.id === action.id ? { ...line, ...action.patch } : line)), tenders: [] };
     case 'remove':
       return { ...state, lines: state.lines.filter((line) => line.id !== action.id), tenders: [] };
+    // LOY-27: a module's data on the sale (coupons typed); a change drops the tenders, as any change does.
+    case 'ext':
+      return { ...state, ext: { ...state.ext, [action.key]: action.value }, tenders: [] };
     case 'customer':
       return { ...state, customer: action.customer ?? null, priceListId: action.priceListId ?? null, lines: action.lines ?? state.lines, tenders: [] };
     // Payments in progress are kept with the cart (they survive a restart); any change to the sale drops them.
@@ -116,12 +120,23 @@ export function cartReducer(state, action) {
  */
 export function computeCart(cart, ctx) {
   const blocked = [];
+  // LOY-11, LOY-27: discounts modules vouch for (promotions), when the catalogue is given (extensions.js).
+  const { adjustments, extensions } = runCartAdjusters({ lines: cart.lines, cart, catalogue: ctx.catalogue, at: ctx.at ?? Date.now() });
   const lines = cart.lines.map((line) => {
-    const amounts = lineAmounts(line, ctx);
+    const manual = BigInt(String(line.discountMinor ?? '0'));
+    // A vouched discount never takes the line below zero with the manual one.
+    let room = extend(line.unitPriceMinor, line.qty) - manual;
+    const vouched = (adjustments.get(line.id) ?? []).map((adjustment) => {
+      const amount = BigInt(adjustment.amount_minor) < room ? BigInt(adjustment.amount_minor) : room > 0n ? room : 0n;
+      room -= amount;
+      return { ...adjustment, amount_minor: String(amount) };
+    }).filter((adjustment) => adjustment.amount_minor !== '0');
+    const extra = vouched.reduce((sum, adjustment) => sum + BigInt(adjustment.amount_minor), 0n);
+    const amounts = lineAmounts(extra ? { ...line, discountMinor: String(manual + extra) } : line, ctx);
     if (amounts.blocked) blocked.push({ lineId: line.id, reason: amounts.blocked, name: line.name });
-    return { ...line, amounts };
+    return { ...line, amounts: vouched.length ? { ...amounts, adjustments: vouched, manualDiscountMinor: String(manual) } : amounts };
   });
   const totals = saleTotals(lines.filter((line) => !line.amounts.blocked).map((line) => line.amounts));
   const itemCount = Number(lines.reduce((count, line) => count + (isWholeQty(line.qty) ? BigInt(line.qty) : 1n), 0n));
-  return { lines, totals, itemCount, blocked };
+  return { lines, totals, itemCount, blocked, extensions };
 }

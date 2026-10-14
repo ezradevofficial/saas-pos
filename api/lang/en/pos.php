@@ -10,6 +10,8 @@ return [
     'validation' => [
         'minor_units' => 'Send the amount in minor units as a whole number, for example "125000" for KES 1,250.00.',
         'quantity' => 'Send the quantity as a number above zero with up to 6 decimals, for example "1.5".',
+        'tender' => 'Send the tender as an object of short names and plain values.',
+        'extensions' => 'Send module data as an object of objects keyed by module, at most 16 KB.',
     ],
 
     // POS-09: why an uploaded record was refused. The till shows the message;
@@ -47,6 +49,7 @@ return [
         'uom_unknown' => 'The unit is not one of the item\'s units. Refresh the till\'s data.',
         'discount_above_price' => 'The discount is larger than the line\'s price. Lower the discount.',
         'line_totals_inconsistent' => 'The line\'s amounts do not add up. Update the till and send the sale again.',
+        'adjustments_above_discount' => 'The line\'s discount is smaller than the discounts it names. Update the till and send the sale again.',
         'sale_totals_inconsistent' => 'The sale\'s totals are not the sum of its lines. Update the till and send the sale again.',
         'tax_code_missing' => ':item has no tax code for this company. Ask an administrator to set the item\'s tax category.',
         'rate_needed' => ':item can\'t be sold: its tax rate is marked "Rate needed". Ask an administrator to enter the rate.',

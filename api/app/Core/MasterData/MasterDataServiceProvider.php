@@ -31,6 +31,7 @@ use App\Core\MasterData\PaymentMethods\Http\Resources\PaymentMethodResource;
 use App\Core\MasterData\PaymentMethods\Listeners\SeedDefaultPaymentMethods;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentProviders;
+use App\Core\MasterData\Prices\DiscountSources;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Prices\PriceAccess;
 use App\Core\MasterData\Sharing\MasterDataSharing;
@@ -64,6 +65,8 @@ class MasterDataServiceProvider extends ServiceProvider
         $this->app->singleton(HistoryTypes::class);
         $this->app->singleton(DuplicateFinder::class);
         $this->app->singleton(PaymentProviders::class);
+        // POS-07, LOY-11: modules vouching for part of a line's discount (promotions).
+        $this->app->singleton(DiscountSources::class);
         $this->app->singleton(DefaultPaymentMethods::class);
     }
 

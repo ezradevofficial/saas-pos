@@ -1,5 +1,8 @@
 import {
   Brush,
+  Gift,
+  Star,
+  Tag,
   Globe,
   Archive,
   ArchiveRestore,
@@ -178,6 +181,9 @@ const ICONS = {
   whatsapp: MessageCircle,
   link: Link2,
   brand: Brush,
+  promotions: Tag,
+  giftCards: Gift,
+  loyalty: Star,
   domains: Globe,
   // LAY-01, LAY-02, LAY-04: designers.
   drag: GripVertical,

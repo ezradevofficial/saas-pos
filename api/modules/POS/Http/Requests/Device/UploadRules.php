@@ -84,7 +84,60 @@ trait UploadRules
             ...$this->rateRules("{$prefix}.*.rate"),
             "{$prefix}.*.provider_reference" => ['nullable', 'string', 'max:100'],
             "{$prefix}.*.status" => ['sometimes', 'string', 'in:'.implode(',', SalePayment::STATUSES)],
+            // LOY-27: the tender provider's reference (core TenderProviders), flat and small.
+            "{$prefix}.*.tender" => ['nullable', 'array', 'max:10', $this->flatObject()],
         ];
+    }
+
+    /**
+     * LOY-27: a line's discount provenance, `[{source, reference,
+     * amount_minor}]` (core DiscountSources).
+     *
+     * @return array<string, list<mixed>>
+     */
+    protected function adjustmentRules(string $prefix): array
+    {
+        return [
+            $prefix => ['nullable', 'array', 'max:5'],
+            "{$prefix}.*.source" => ['required', 'string', 'max:60', 'regex:/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/'],
+            "{$prefix}.*.reference" => ['nullable', 'string', 'max:100'],
+            "{$prefix}.*.amount_minor" => $this->minor(),
+        ];
+    }
+
+    /**
+     * LOY-27: other modules' data on a record, `{module: {...}}`, kept as
+     * sent (at most 16 KB as JSON).
+     */
+    protected function extensionRules(string $field): array
+    {
+        return [$field => ['nullable', 'array', function (string $attribute, mixed $value, Closure $fail) {
+            if (! is_array($value) || ($value !== [] && array_is_list($value)) || strlen((string) json_encode($value)) > 16384
+                || array_filter(array_keys($value), fn ($key) => ! is_string($key) || preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) !== 1) !== []
+                || array_filter($value, fn ($part) => ! is_array($part)) !== []) {
+                $fail(__('pos.validation.extensions'));
+            }
+        }]];
+    }
+
+    /** An object of scalar values with short keys (a tender reference). */
+    private function flatObject(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) {
+            if (! is_array($value) || ($value !== [] && array_is_list($value))) {
+                $fail(__('pos.validation.tender'));
+
+                return;
+            }
+
+            foreach ($value as $key => $part) {
+                if (! is_string($key) || preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) !== 1 || ! (is_string($part) || is_int($part) || $part === null) || strlen((string) $part) > 200) {
+                    $fail(__('pos.validation.tender'));
+
+                    return;
+                }
+            }
+        };
     }
 
     /**

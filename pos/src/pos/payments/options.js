@@ -1,5 +1,6 @@
 import { convertExact } from '../currency';
 import { exact, round, ROUND } from '../exact';
+import { tenderProvider, tenderUnavailable } from '../extensions';
 
 /**
  * POS-03, CUR-06: the payment choices on the payment screen, from the
@@ -13,7 +14,11 @@ export function paymentOptions(catalogue, at = Date.now()) {
   const sale = catalogue.saleCurrency;
   const convertible = (currency) => currency === sale || Boolean(catalogue.money.rateFor(currency, sale, at));
   for (const method of catalogue.paymentMethods) {
-    const currencies = method.currency ? [method.currency] : method.type === 'cash' ? catalogue.cashCurrencies : [sale];
+    // LOY-27: a module's tender says which currencies it pays in (points: the programme's).
+    // H3: a module's method shows only while the module's data is on the till.
+    if (tenderUnavailable(method.type, catalogue)) continue;
+    const provider = tenderProvider(method.type, catalogue);
+    const currencies = provider?.currencies ? provider.currencies(method, catalogue) : method.currency ? [method.currency] : method.type === 'cash' ? catalogue.cashCurrencies : [sale];
     for (const currency of currencies) {
       if (!convertible(currency)) continue;
       options.push({ key: `${method.id}:${currency}`, method, currency });

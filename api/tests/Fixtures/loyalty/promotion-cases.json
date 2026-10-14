@@ -1,0 +1,337 @@
+{
+  "about": "LOY-10: promotion engine cases shared by api/modules/Loyalty/tests/PromotionEngineFixturesTest.php and pos/src/loyalty/engine.test.js. Amounts are minor units (strings), quantities decimal strings, percentages decimal strings. A promotion lists only the fields that differ from the engine's defaults (no targets: every item; no conditions; no coupon). `context.local` is the sale's time in the branch's time zone (weekday 1 = Monday).",
+  "context": { "currency": "KES", "branch_id": "b1", "customer_tags": [], "coupons": [], "local": { "date": "2026-10-13", "weekday": 2, "time": "12:00" } },
+  "cases": [
+    {
+      "name": "percent off every item, half up per line",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": ["c1"], "qty": "2", "unit_price_minor": "50000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "33333" }
+      ],
+      "promotions": [{ "id": "p1", "version": 3, "type": "percent", "percent": "10" }],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p1", "version": 3, "discount_minor": "10000" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 3, "discount_minor": "3333" }
+        ],
+        "promotions": [{ "promotion_id": "p1", "version": 3, "discount_minor": "13333", "coupon": null }],
+        "total_discount_minor": "13333"
+      }
+    },
+    {
+      "name": "percent on a weighed line: gross and discount each rounded half up once",
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1.5", "unit_price_minor": "333" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "12.5" }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "63" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "63", "coupon": null }],
+        "total_discount_minor": "63"
+      }
+    },
+    {
+      "name": "amount off shared by largest remainder, earlier line first on a tie",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "1000" },
+        { "id": "l3", "item_id": "i3", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "amount_off", "currency": "KES", "amount_minor": "100" }],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "34" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "33" },
+          { "line_id": "l3", "promotion_id": "p1", "version": 1, "discount_minor": "33" }
+        ],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "100", "coupon": null }],
+        "total_discount_minor": "100"
+      }
+    },
+    {
+      "name": "amount off never exceeds the eligible subtotal",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "10000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "5000" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "amount_off", "currency": "KES", "amount_minor": "20000" }],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "10000" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "5000" }
+        ],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "15000", "coupon": null }],
+        "total_discount_minor": "15000"
+      }
+    },
+    {
+      "name": "minimum spend not reached: nothing applies",
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "3", "unit_price_minor": "5000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "amount_off", "currency": "KES", "amount_minor": "5000", "min_spend_minor": "20000" }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
+      "name": "a promotion with an amount applies only in its currency; a percent applies in any",
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "10000" }],
+      "promotions": [
+        { "id": "p1", "version": 1, "type": "amount_off", "priority": 9, "currency": "USD", "amount_minor": "500" },
+        { "id": "p2", "version": 1, "type": "percent", "percent": "5" }
+      ],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p2", "version": 1, "discount_minor": "500" }],
+        "promotions": [{ "promotion_id": "p2", "version": 1, "discount_minor": "500", "coupon": null }],
+        "total_discount_minor": "500"
+      }
+    },
+    {
+      "name": "higher priority first; a line gets one promotion; equal priority by id",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "10000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "10000" },
+        { "id": "l3", "item_id": "i3", "category_ids": [], "qty": "1", "unit_price_minor": "10000" }
+      ],
+      "promotions": [
+        { "id": "p9", "version": 1, "type": "percent", "priority": 1, "percent": "10" },
+        { "id": "p2", "version": 1, "type": "percent", "priority": 5, "percent": "20", "targets": { "items": ["i1"], "categories": [] } },
+        { "id": "p1", "version": 2, "type": "percent", "priority": 5, "percent": "30", "targets": { "items": ["i2"], "categories": [] } }
+      ],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p2", "version": 1, "discount_minor": "2000" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 2, "discount_minor": "3000" },
+          { "line_id": "l3", "promotion_id": "p9", "version": 1, "discount_minor": "1000" }
+        ],
+        "promotions": [
+          { "promotion_id": "p1", "version": 2, "discount_minor": "3000", "coupon": null },
+          { "promotion_id": "p2", "version": 1, "discount_minor": "2000", "coupon": null },
+          { "promotion_id": "p9", "version": 1, "discount_minor": "1000", "coupon": null }
+        ],
+        "total_discount_minor": "6000"
+      }
+    },
+    {
+      "name": "category targets match any of the line's categories",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": ["c1"], "qty": "1", "unit_price_minor": "4000" },
+        { "id": "l2", "item_id": "i2", "category_ids": ["c9", "c2"], "qty": "1", "unit_price_minor": "4000" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "50", "targets": { "items": [], "categories": ["c2"] } }],
+      "expected": {
+        "lines": [{ "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "2000" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "2000", "coupon": null }],
+        "total_discount_minor": "2000"
+      }
+    },
+    {
+      "name": "buy 2 get 1 free in one set: whole units only, the cheapest unit is free",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "2", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "800" },
+        { "id": "l3", "item_id": "i1", "category_ids": [], "qty": "1.5", "unit_price_minor": "1200" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "buy_x_get_y", "buy_qty": 2, "get_qty": 1, "percent": "100", "targets": { "items": ["i1"], "categories": [] } }],
+      "expected": {
+        "lines": [{ "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "800" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "800", "coupon": null }],
+        "total_discount_minor": "800"
+      }
+    },
+    {
+      "name": "buy 1 get 1 half price: equal prices, the later line's unit is discounted",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "2", "unit_price_minor": "500" },
+        { "id": "l2", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "500" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "buy_x_get_y", "buy_qty": 1, "get_qty": 1, "percent": "50" }],
+      "expected": {
+        "lines": [{ "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "250" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "250", "coupon": null }],
+        "total_discount_minor": "250"
+      }
+    },
+    {
+      "name": "buy 2 of one item, get 1 of another free",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "3", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "2", "unit_price_minor": "600" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "buy_x_get_y", "buy_qty": 2, "get_qty": 1, "percent": "100", "targets": { "items": ["i1"], "categories": [] }, "get_targets": { "items": ["i2"], "categories": [] } }],
+      "expected": {
+        "lines": [{ "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "600" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "600", "coupon": null }],
+        "total_discount_minor": "600"
+      }
+    },
+    {
+      "name": "bundle: as many bundles as complete, discount shared by largest remainder",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "3", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "4", "unit_price_minor": "800" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "bundle", "currency": "KES", "amount_minor": "2500", "components": [{ "item_id": "i1", "qty": 1 }, { "item_id": "i2", "qty": 2 }] }],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "77" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "123" }
+        ],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "200", "coupon": null }],
+        "total_discount_minor": "200"
+      }
+    },
+    {
+      "name": "bundle priced above its items gives nothing",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "800" }
+      ],
+      "promotions": [{ "id": "p1", "version": 1, "type": "bundle", "currency": "KES", "amount_minor": "2000", "components": [{ "item_id": "i1", "qty": 1 }, { "item_id": "i2", "qty": 1 }] }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
+      "name": "happy hour inside its window on a weekday",
+      "context": { "local": { "date": "2026-10-13", "weekday": 2, "time": "17:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "2", "unit_price_minor": "300" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "25", "schedule": { "days": [1, 2, 3, 4, 5], "time_from": "17:00", "time_to": "19:00" } }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "150" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "150", "coupon": null }],
+        "total_discount_minor": "150"
+      }
+    },
+    {
+      "name": "happy hour ends at its end time",
+      "context": { "local": { "date": "2026-10-13", "weekday": 2, "time": "19:00" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "2", "unit_price_minor": "300" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "25", "schedule": { "days": [1, 2, 3, 4, 5], "time_from": "17:00", "time_to": "19:00" } }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
+      "name": "happy hour not on its days",
+      "context": { "local": { "date": "2026-10-18", "weekday": 7, "time": "17:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "2", "unit_price_minor": "300" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "25", "schedule": { "days": [1, 2, 3, 4, 5], "time_from": "17:00", "time_to": "19:00" } }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
+      "name": "a window past midnight",
+      "context": { "local": { "date": "2026-10-14", "weekday": 3, "time": "01:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "time_from": "22:00", "time_to": "02:00" } }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "100" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "100", "coupon": null }],
+        "total_discount_minor": "100"
+      }
+    },
+    {
+      "name": "a Friday night window still applies at 01:30 on Saturday (it started on Friday)",
+      "context": { "local": { "date": "2026-10-17", "weekday": 6, "time": "01:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "days": [5], "time_from": "22:00", "time_to": "02:00" } }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "100" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "100", "coupon": null }],
+        "total_discount_minor": "100"
+      }
+    },
+    {
+      "name": "a Friday night window does not apply at 01:30 on Friday (that part started on Thursday)",
+      "context": { "local": { "date": "2026-10-16", "weekday": 5, "time": "01:30" } },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "days": [5], "time_from": "22:00", "time_to": "02:00" } }],
+      "expected": { "lines": [], "promotions": [], "total_discount_minor": "0" }
+    },
+    {
+      "name": "dates are inclusive: not before the start",
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [
+        { "id": "p1", "version": 1, "type": "percent", "percent": "10", "schedule": { "starts_on": "2026-10-14" } },
+        { "id": "p2", "version": 1, "type": "percent", "percent": "5", "schedule": { "starts_on": "2026-10-01", "ends_on": "2026-10-13" } }
+      ],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p2", "version": 1, "discount_minor": "50" }],
+        "promotions": [{ "promotion_id": "p2", "version": 1, "discount_minor": "50", "coupon": null }],
+        "total_discount_minor": "50"
+      }
+    },
+    {
+      "name": "per branch and per customer group",
+      "context": { "customer_tags": ["vip", "wholesale"] },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }],
+      "promotions": [
+        { "id": "p1", "version": 1, "type": "percent", "priority": 9, "percent": "50", "branch_ids": ["b2"] },
+        { "id": "p2", "version": 1, "type": "percent", "priority": 8, "percent": "40", "customer_tags": ["staff"] },
+        { "id": "p3", "version": 1, "type": "percent", "priority": 7, "percent": "15", "branch_ids": ["b1", "b2"], "customer_tags": ["vip"] }
+      ],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p3", "version": 1, "discount_minor": "150" }],
+        "promotions": [{ "promotion_id": "p3", "version": 1, "discount_minor": "150", "coupon": null }],
+        "total_discount_minor": "150"
+      }
+    },
+    {
+      "name": "a coupon promotion needs one of its codes (any case)",
+      "context": { "coupons": ["save10"] },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "2000" }],
+      "promotions": [
+        { "id": "p1", "version": 1, "type": "percent", "priority": 9, "percent": "50", "coupon_codes": ["HALF"] },
+        { "id": "p2", "version": 4, "type": "percent", "priority": 1, "percent": "10", "coupon_codes": ["SAVE10", "SAVE-10"] }
+      ],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p2", "version": 4, "discount_minor": "200" }],
+        "promotions": [{ "promotion_id": "p2", "version": 4, "discount_minor": "200", "coupon": "SAVE10" }],
+        "total_discount_minor": "200"
+      }
+    },
+    {
+      "name": "lines a bundle took are not offered to a later promotion; the rest are",
+      "lines": [
+        { "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1", "unit_price_minor": "1000" },
+        { "id": "l2", "item_id": "i2", "category_ids": [], "qty": "1", "unit_price_minor": "1000" },
+        { "id": "l3", "item_id": "i3", "category_ids": [], "qty": "1", "unit_price_minor": "1000" }
+      ],
+      "promotions": [
+        { "id": "p1", "version": 1, "type": "bundle", "priority": 5, "currency": "KES", "amount_minor": "1500", "components": [{ "item_id": "i1", "qty": 1 }, { "item_id": "i2", "qty": 1 }] },
+        { "id": "p2", "version": 1, "type": "percent", "priority": 1, "percent": "10" }
+      ],
+      "expected": {
+        "lines": [
+          { "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "250" },
+          { "line_id": "l2", "promotion_id": "p1", "version": 1, "discount_minor": "250" },
+          { "line_id": "l3", "promotion_id": "p2", "version": 1, "discount_minor": "100" }
+        ],
+        "promotions": [
+          { "promotion_id": "p1", "version": 1, "discount_minor": "500", "coupon": null },
+          { "promotion_id": "p2", "version": 1, "discount_minor": "100", "coupon": null }
+        ],
+        "total_discount_minor": "600"
+      }
+    },
+    {
+      "name": "large CDF amounts stay exact",
+      "context": { "currency": "CDF" },
+      "lines": [{ "id": "l1", "item_id": "i1", "category_ids": [], "qty": "1000000", "unit_price_minor": "9000000000" }],
+      "promotions": [{ "id": "p1", "version": 1, "type": "percent", "percent": "0.0001" }],
+      "expected": {
+        "lines": [{ "line_id": "l1", "promotion_id": "p1", "version": 1, "discount_minor": "9000000000" }],
+        "promotions": [{ "promotion_id": "p1", "version": 1, "discount_minor": "9000000000", "coupon": null }],
+        "total_discount_minor": "9000000000"
+      }
+    }
+  ],
+  "points": {
+    "earn": [
+      { "name": "one point per KES 100", "eligible_minor": "112500", "earn_points": 1, "earn_spend_minor": "10000", "expected": "11" },
+      { "name": "below one step earns nothing", "eligible_minor": "99", "earn_points": 1, "earn_spend_minor": "100", "expected": "0" },
+      { "name": "three points per step", "eligible_minor": "250000", "earn_points": 3, "earn_spend_minor": "10000", "expected": "75" },
+      { "name": "nothing eligible", "eligible_minor": "0", "earn_points": 1, "earn_spend_minor": "100", "expected": "0" }
+    ],
+    "reverse": [
+      { "name": "half refunded reverses half, floored", "earned": "11", "sale_total_minor": "112500", "refunded_minor": "56250", "already_reversed": "0", "expected": "5" },
+      { "name": "the rest refunded reverses the rest", "earned": "11", "sale_total_minor": "112500", "refunded_minor": "112500", "already_reversed": "5", "expected": "6" },
+      { "name": "never more than is left", "earned": "11", "sale_total_minor": "112500", "refunded_minor": "200000", "already_reversed": "5", "expected": "6" }
+    ],
+    "redeem": [
+      { "name": "points times the value of a point", "points": "500", "point_value_minor": "100", "expected": "50000" },
+      { "name": "CDF points", "points": "37", "point_value_minor": "250", "expected": "9250" }
+    ]
+  }
+}

@@ -17,6 +17,7 @@ return [
         'modules' => [
             'core' => 'Socle',
             'pos' => 'Point de vente',
+            'loyalty' => 'Fidélité, promotions et crédit',
         ],
         'resources' => [
             'core' => [
@@ -63,6 +64,14 @@ return [
                 'discount' => 'Remises',
                 'layout' => 'Disposition de l’écran de caisse',
             ],
+            'loyalty' => [
+                'programme' => 'Programme de fidélité',
+                'promotion' => 'Promotions',
+                'points' => 'Points',
+                'credit' => 'Crédit client',
+                'gift_card' => 'Cartes cadeaux et bons',
+                'sale' => 'Ventes fidélité à vérifier',
+            ],
         ],
         'actions' => [
             'view' => 'Voir',
@@ -91,6 +100,12 @@ return [
             'manage' => 'Gérer',
             'move' => 'Entrée ou sortie d’espèces',
             'give' => 'Accorder',
+            'adjust' => 'Ajuster',
+            'receive' => 'Encaisser des paiements',
+            'charge' => 'Débiter',
+            'sell' => 'Vendre',
+            'issue' => 'Émettre',
+            'block' => 'Bloquer',
         ],
     ],
 

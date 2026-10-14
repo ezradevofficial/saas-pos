@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Modules\POS\Events\SaleRefunded;
+use Modules\POS\Events\SaleSnapshot;
 use Modules\POS\Events\SaleVoided;
 use Modules\POS\Models\CashMovement;
 use Modules\POS\Models\Refund;
@@ -56,7 +57,7 @@ class HeldRecords
             'decided_by' => $decider?->id,
         ], $this->actors($void->voided_by, $decider?->id ?? $void->approved_by, $decider === null ? $void->voided_at : null));
         $this->cash->recountIfClosed($sale->shift_id, 'void', $void->id);
-        SaleVoided::dispatch($this->tenants->require(), $sale->id, $void->id);
+        SaleVoided::dispatch($this->tenants->require(), $sale->id, $void->id, SaleSnapshot::sale($sale));
     }
 
     public function applyRefund(Refund $refund, ?User $decider = null): void
@@ -93,7 +94,7 @@ class HeldRecords
             'decided_by' => $decider?->id,
         ], $this->actors($refund->cashier_id, $decider?->id ?? $refund->approved_by, $decider === null ? $refund->refunded_at : null));
         $this->cash->recountIfClosed($refund->shift_id, 'refund', $refund->id);
-        SaleRefunded::dispatch($this->tenants->require(), $sale->id, $refund->id);
+        SaleRefunded::dispatch($this->tenants->require(), $sale->id, $refund->id, SaleSnapshot::refund($refund));
     }
 
     public function applyMovement(CashMovement $movement, User $decider): void

@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createServices, ServicesContext, useServices } from './src/services/services';
 import { SessionProvider, useSession } from './src/auth/session';
 import './src/i18n';
+// LOY-27: the Loyalty module through the till's generic seams (served only while the tenant has it).
+import './src/loyalty/register';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { PosScreen } from './src/screens/pos/PosScreen';

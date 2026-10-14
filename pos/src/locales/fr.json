@@ -182,7 +182,9 @@
       "discountCleared": "La remise a été retirée : elle dépasse ce que vous pouvez accorder pour cette quantité. Demandez à un responsable de l’accorder à nouveau.",
       "paymentLocked": "Un paiement mobile money a été envoyé pour cette vente : ses articles et son client ne peuvent plus changer. Terminez la vente, ou remboursez d’abord le paiement.",
       "mobilePaid": "Le client a déjà payé par mobile money. Terminez la vente ; tout montant à rendre passe ensuite par un remboursement.",
-      "sellingPaused": "La vente est suspendue jusqu’au paiement de l’abonnement. Demandez au propriétaire de régler la facture."
+      "sellingPaused": "La vente est suspendue jusqu’au paiement de l’abonnement. Demandez au propriétaire de régler la facture.",
+      "lineAdjustment": "{{name}} : {{amount}} de remise",
+      "lineAdjustmentUnnamed": "Promotion : {{amount}} de remise"
     },
     "phone": {
       "items_one": "{{count}} article",
@@ -469,6 +471,44 @@
       "system": "Comme l’appareil",
       "light": "Clair",
       "dark": "Sombre"
+    },
+    "loyalty": {
+      "points": "Solde : {{points}} points",
+      "credit": "Doit {{owed}}",
+      "creditOf": "Doit {{owed}} sur {{limit}}",
+      "coupon": "Code de coupon",
+      "applyCoupon": "Appliquer",
+      "couponApplied": "Coupon appliqué : {{code}}",
+      "removeCoupon": "Retirer le coupon {{code}}",
+      "remove": "Retirer",
+      "input": {
+        "points": "Points à utiliser",
+        "code": "Code de la carte cadeau"
+      },
+      "tenderLabel": {
+        "points": "{{label}} pts",
+        "voucher": "Carte {{label}}"
+      },
+      "errors": {
+        "failed": "Ce paiement n’a pas pu être ajouté. Vérifiez-le et réessayez.",
+        "loyalty_inactive": "Le programme de fidélité est désactivé. Choisissez un autre moyen de paiement.",
+        "customer_required": "Ajoutez d’abord le client à la vente.",
+        "points_currency": "Les points se paient en {{currency}}. Choisissez cette devise.",
+        "points_invalid": "Saisissez le nombre de points à utiliser.",
+        "points_below_minimum": "Il faut utiliser au moins {{minimum}} points à la fois.",
+        "points_insufficient": "Il reste {{available}} points au client. Utilisez moins de points.",
+        "gift_card_unknown": "Cette carte cadeau n’est pas connue ici. Vérifiez le code.",
+        "gift_card_inactive": "Cette carte cadeau n’a pas encore été vendue. Vendez-la avant de l’utiliser.",
+        "gift_card_blocked": "Cette carte cadeau est bloquée. Choisissez un autre moyen de paiement.",
+        "gift_card_expired": "Cette carte cadeau a expiré. Choisissez un autre moyen de paiement.",
+        "gift_card_currency": "Cette carte se paie en {{currency}}. Choisissez cette devise.",
+        "gift_card_empty": "Il ne reste rien sur cette carte cadeau.",
+        "credit_not_permitted": "Vous n’êtes pas autorisé à vendre à crédit. Demandez à un responsable.",
+        "credit_no_account": "Ce client n’a pas de compte crédit ouvert. Choisissez un autre moyen de paiement.",
+        "credit_currency": "Le crédit de ce client est en {{currency}}. Choisissez cette devise.",
+        "credit_limit_exceeded": "Le client dépasserait sa limite de crédit. Il y reste {{amount}}.",
+        "amount": "Saisissez un montant supérieur à zéro."
+      }
     }
   },
   "templates": {

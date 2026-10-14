@@ -42,6 +42,7 @@ class Sale extends Model implements HasScope
         return [
             'receipt_seq' => 'integer',
             'flags' => 'array',
+            'extensions' => 'array',
             'offline' => 'boolean',
             'fx' => FxSnapshot::class.':fx',
             'sold_at' => 'immutable_datetime',

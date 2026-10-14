@@ -159,6 +159,12 @@ class TenantIsolationTest extends TestCase
         'acc_period' => 'acc_period',
         'record' => 'party', // GET history/{type}/{record}, with type = party
         'import' => 'import', // IMP-01..IMP-03: imports/{import}[/preview|dry-run|run|undo], a completed customers import
+        // Loyalty (docs/modules/loyalty.md): a promotion, its coupon, a credit account, its statement, a gift card.
+        'loyalty_promotion' => 'loyalty_promotion',
+        'loyalty_coupon' => 'loyalty_coupon',
+        'loyalty_account' => 'loyalty_account',
+        'loyalty_statement' => 'loyalty_statement',
+        'loyalty_gift_card' => 'loyalty_gift_card',
         // Inventory (docs/modules/inventory.md): a pending transfer and adjustment, a running count.
         'inventory_transfer' => 'inventory_transfer',
         'inventory_adjustment' => 'inventory_adjustment',
@@ -239,6 +245,7 @@ class TenantIsolationTest extends TestCase
         'voided_by_id' => 'user',
         'number_range_id' => 'pos_number_range', // NUM-02, M1: the range the till numbered from
         'customer_id' => 'customer',
+        'gift_card_item_id' => 'item', // LOY-01: the item a till sells gift cards as
         'item_id' => 'item',
         // Accounting: accounts, banks, dimensions, the intercompany counterparty and the invoice a credit note names.
         'account_id' => 'acc_account',
@@ -353,6 +360,8 @@ class TenantIsolationTest extends TestCase
         ['importer' => 'customers'],
         // IMP-01: a template in French.
         ['locale' => 'fr'],
+        // LOY-18: the ageing report at a date (both tenants charged a customer on account).
+        ['as_of' => '2100-01-01'],
         // ACC-08: a fiscal year's periods (both tenants have 2026).
         ['year' => '2026'],
     ];
@@ -365,7 +374,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of'];
 
     private TwoTenants $tenants;
 
@@ -386,6 +395,7 @@ class TenantIsolationTest extends TestCase
         // NFR-04: the suite calls the device routes far more than a till would.
         RateLimiter::for('device-sync', fn () => Limit::none());
         RateLimiter::for('device-secret', fn () => Limit::none());
+        RateLimiter::for('loyalty-lookup', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -1321,6 +1331,23 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
+            'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('item')],
+            // LOY-13: a preview of a draft bundle for the customer at the branch.
+            'POST api/v1/loyalty/promotions/preview' => [
+                'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'party_id' => $tenant->id('customer'), 'currency' => 'KES',
+                'promotion' => ['type' => 'bundle', 'currency' => 'KES', 'amount_minor' => '1000', 'components' => [['item_id' => $tenant->id('item'), 'qty' => 2]]],
+                'lines' => [['item_id' => $tenant->id('item'), 'qty' => '2', 'unit_price_minor' => '56250']],
+            ],
+            'PATCH api/v1/loyalty/promotions/{loyalty_promotion}' => ['components' => [['item_id' => $tenant->id('item'), 'qty' => 2]]],
+            'POST api/v1/loyalty/customers/{party}/points/adjust' => ['company_id' => $tenant->id('company'), 'points' => '5', 'reason' => 'Hijack check'],
+            'POST api/v1/loyalty/accounts' => ['party_id' => $tenant->id('loyalty_customer'), 'company_id' => $tenant->id('company')],
+            'POST api/v1/loyalty/gift-cards' => ['company_id' => $tenant->id('company'), 'party_id' => $tenant->id('customer'), 'kind' => 'voucher', 'currency' => 'KES', 'amount_minor' => '1000'],
+            // LOY-08: a bundle of the company's (shared) item.
+            'POST api/v1/loyalty/promotions' => [
+                'company_id' => $tenant->id('company'), 'name' => 'Hijack bundle', 'type' => 'bundle', 'currency' => 'KES', 'amount_minor' => '1000',
+                'components' => [['item_id' => $tenant->id('item'), 'qty' => 2]],
+            ],
             'POST api/v1/subscription/invoices/{billing_invoice}/pay' => ['payment_method_id' => $tenant->id('billing_payment_method')],
             // MD-03: a shared category (items are shared, TEN-08) mapping the company's tax code.
             'POST api/v1/tax-categories' => [

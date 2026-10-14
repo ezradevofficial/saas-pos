@@ -17,6 +17,7 @@ return [
         'modules' => [
             'core' => 'Core',
             'pos' => 'Point of sale',
+            'loyalty' => 'Loyalty, promotions and credit',
         ],
         'resources' => [
             'core' => [
@@ -63,6 +64,14 @@ return [
                 'discount' => 'Discounts',
                 'layout' => 'Till screen layout',
             ],
+            'loyalty' => [
+                'programme' => 'Loyalty programme',
+                'promotion' => 'Promotions',
+                'points' => 'Points',
+                'credit' => 'Customer credit',
+                'gift_card' => 'Gift cards and vouchers',
+                'sale' => 'Loyalty sales to review',
+            ],
         ],
         'actions' => [
             'view' => 'View',
@@ -91,6 +100,12 @@ return [
             'manage' => 'Manage',
             'move' => 'Pay in or out',
             'give' => 'Give',
+            'adjust' => 'Adjust',
+            'receive' => 'Receive payments',
+            'charge' => 'Charge',
+            'sell' => 'Sell',
+            'issue' => 'Issue',
+            'block' => 'Block',
         ],
     ],
 

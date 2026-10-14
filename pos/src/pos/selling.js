@@ -3,6 +3,7 @@ import { NetworkError } from '../sync/api';
 import { computeCart } from './cart';
 import { DOCUMENT_TYPES, drawNumber, needsNextPeriod, needsTopUp, nextToReport } from './numbering';
 import { cashMovementPayload, refundAmounts, refundBaseMajor, refundedQuantities, toBaseMinor, refundPayload, refundTender, salePayload, shiftPayload, voidPayload } from './payloads';
+import { runAfterSale, tenderProvider } from './extensions';
 import { amountDueIn, calculateTender } from './tender';
 
 /**
@@ -184,7 +185,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         if (await posStore.sale(cart.id)) throw new SellingError('sale_exists', { id: cart.id });
         const at = serverNow();
         // POS-11: tax by the day the sale completes, in the company's zone (the server's tax day).
-        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day });
+        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day, catalogue, at });
         if (!computed.lines.length) throw new SellingError('empty_sale');
         if (computed.blocked.length) throw new SellingError('lines_blocked', { blocked: computed.blocked });
         const currency = catalogue.saleCurrency;
@@ -208,6 +209,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           rate: line.rate,
           reference: line.tender.reference,
           status: line.tender.status,
+          tender: line.tender.tender,
         }));
         // AUTH-07: a line changed on someone's own right carries that person's proof (users switch
         // mid-sale; the server checks the giver's right); other lines use the sale's proof.
@@ -228,6 +230,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           payments,
           change: result.change,
           changeRate: result.changeRate,
+          extensions: computed.extensions,
         });
         const sale = {
           ...payload,
@@ -236,6 +239,9 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
             cashier_name: user.name,
             customer_name: cart.customer?.name ?? null,
             methods: Object.fromEntries(tenders.map((tender) => [tender.id, { name: tender.method.name, type: tender.method.type }])),
+            // LOY-05, LOY-22: what tenders of a module spent, so the till's offline balance rule counts it until the next pull.
+            spent: tenders.filter((tender) => tenderProvider(tender.method.type, catalogue)).map((tender) => ({ type: tender.method.type, tender: tender.tender ?? null, amountMinor: String(tender.amountMinor), currency: tender.currency })),
+            customer_id: cart.customer?.id ?? null,
             rate_ids: [...new Set([...result.lines.map((line) => line.rate?.id), result.changeRate?.id].filter(Boolean))],
             rounding_minor: result.roundingMinor,
             // CUR-04, RBAC-06: the base currency, the rate the till used and each line in base minor units,
@@ -253,6 +259,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           prepare: async () => [await posStore.prepareSale(sale), await posStore.prepareCounters(DOCUMENT_TYPES.receipt, number.used), await posStore.prepareClearOpenCart()].filter(Boolean),
         });
         afterDraw(number, DOCUMENT_TYPES.receipt, catalogue.timeZone);
+        runAfterSale({ sale, catalogue });
         return sale;
       }),
 

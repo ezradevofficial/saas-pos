@@ -11,6 +11,7 @@ import { FOCUS_RING } from '../../lib/focus';
 import { uuidv7 } from '../../lib/random';
 import { useLocale } from '../../lib/useLocale';
 import { parseAmount } from '../../pos/input';
+import { tenderProvider } from '../../pos/extensions';
 import { inSaleCurrency, paymentOptions, quickAmounts } from '../../pos/payments/options';
 import { canPush, intentState, isMpesaCode, pollIntent, registerTypedCode, startStkPush } from '../../pos/payments/stkPush';
 import { useSession } from '../../auth/session';
@@ -35,7 +36,7 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const locale = useLocale();
   const money = useMoneyText();
   const { catalogue, nextReceipt } = usePosData();
-  const { api } = useServices();
+  const { api, database } = useServices();
   const { user } = useSession();
   const sync = useSyncStatus();
   const online = sync.network !== 'offline';
@@ -51,6 +52,8 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
   const [activeKey, setActiveKey] = useState(options[0]?.key ?? null);
   const [amountText, setAmountText] = useState('');
   const [reference, setReference] = useState('');
+  // LOY-27: what a module's tender asks for (points to redeem, a gift card code).
+  const [tenderInput, setTenderInput] = useState('');
   const [changeCurrency, setChangeCurrency] = useState(currency);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +84,8 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
 
   async function add(amountMinor) {
     setError(null);
-    if (!active || !amountMinor || BigInt(amountMinor) <= 0n) {
+    const provided = active ? tenderProvider(active.method.type, catalogue) : null;
+    if (!active || ((!provided || provided.input !== 'points') && (!amountMinor || BigInt(amountMinor) <= 0n))) {
       setError(t('pos.pay.errors.amount'));
       return;
     }
@@ -91,6 +95,19 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
     }
     const id = uuidv7();
     const saleId = cart.id;
+    const provider = tenderProvider(active.method.type, catalogue);
+    if (provider) {
+      // LOY-05, LOY-15, LOY-22: the module checks the tender (offline rules) and gives its reference.
+      try {
+        const prepared = await provider.prepare({ input: tenderInput, amountMinor: amountText ? amountMinor : remainingActive, currency: active.currency, cart, catalogue, database, api, online, user });
+        actions.addTender(saleId, { id, method: active.method, currency: active.currency, amountMinor: String(prepared.amountMinor), tender: prepared.tender ?? undefined, label: prepared.label ?? undefined });
+        setAmountText('');
+        setTenderInput('');
+      } catch (refusal) {
+        setError(t(`pos.loyalty.errors.${refusal?.code ?? 'failed'}`, { ...refusal, amount: refusal?.available ? money(refusal.available, active.currency) : '', defaultValue: t('pos.loyalty.errors.failed') }));
+      }
+      return;
+    }
     const code = reference.trim().toUpperCase() || undefined;
     if (isMobile(active.method)) {
       // Online, the typed code is registered so the server verifies it (a code already used is refused now).
@@ -204,7 +221,9 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
             <View key={tender.id} className="flex-row items-center gap-3 border-b border-border px-4 py-3">
               <View className="min-w-0 flex-1">
                 <Text className="font-sans text-body font-medium text-ink">{tender.method.name}</Text>
-                <Text className="font-sans text-caption text-ink-muted">{tender.reference ? t('pos.pay.reference', { reference: tender.reference }) : t(`pos.pay.detail.${tender.method.type}`, { defaultValue: '' })}</Text>
+                <Text className="font-sans text-caption text-ink-muted">
+                  {tender.reference ? t('pos.pay.reference', { reference: tender.reference }) : tender.label ? t(`pos.loyalty.tenderLabel.${tender.method.type}`, { label: tender.label, defaultValue: tender.label }) : t(`pos.pay.detail.${tender.method.type}`, { defaultValue: '' })}
+                </Text>
               </View>
               <View className="items-end">
                 <Text className="font-sans text-body font-medium tabular-nums text-ink">{money(tender.amountMinor, tender.currency)}</Text>
@@ -313,6 +332,17 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
               onSubmitEditing={() => add(amountText ? parseAmount(amountText, decimalsOf(active.currency)) : remainingActive)}
               placeholder={remainingActive ? money(remainingActive, active.currency).replace(`${active.currency} `, '') : undefined}
             />
+            {tenderProvider(active.method.type, catalogue)?.input ? (
+              <TextField
+                className="min-w-0 grow basis-1/3"
+                label={t(`pos.loyalty.input.${tenderProvider(active.method.type, catalogue).input}`)}
+                keyboardType={tenderProvider(active.method.type, catalogue).input === 'points' ? 'number-pad' : 'default'}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                value={tenderInput}
+                onChangeText={setTenderInput}
+              />
+            ) : null}
             {isMobile(active.method) || active.method.type === 'card' ? (
               <TextField
                 className="min-w-0 grow basis-1/3"

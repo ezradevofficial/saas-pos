@@ -182,7 +182,9 @@
       "discountCleared": "The discount was removed: it is above what you may give at this quantity. Ask a manager to give it again.",
       "paymentLocked": "Mobile money was sent for this sale, so its items and customer cannot change. Complete the sale, or refund the payment first.",
       "mobilePaid": "The customer has already paid by mobile money. Complete the sale; any money owed goes back through a refund afterwards.",
-      "sellingPaused": "Selling is paused until the subscription is paid. Ask the Owner to pay the invoice."
+      "sellingPaused": "Selling is paused until the subscription is paid. Ask the Owner to pay the invoice.",
+      "lineAdjustment": "{{name}} {{amount}} off",
+      "lineAdjustmentUnnamed": "Promotion {{amount}} off"
     },
     "phone": {
       "items_one": "{{count}} item",
@@ -469,6 +471,44 @@
       "system": "As the device",
       "light": "Light",
       "dark": "Dark"
+    },
+    "loyalty": {
+      "points": "Points {{points}}",
+      "credit": "Owes {{owed}}",
+      "creditOf": "Owes {{owed}} of {{limit}}",
+      "coupon": "Coupon code",
+      "applyCoupon": "Apply",
+      "couponApplied": "Coupon {{code}}",
+      "removeCoupon": "Remove coupon {{code}}",
+      "remove": "Remove",
+      "input": {
+        "points": "Points to redeem",
+        "code": "Gift card code"
+      },
+      "tenderLabel": {
+        "points": "{{label}} points",
+        "voucher": "Card {{label}}"
+      },
+      "errors": {
+        "failed": "This payment could not be added. Check it and try again.",
+        "loyalty_inactive": "The loyalty programme is off. Choose another payment method.",
+        "customer_required": "Add the customer to the sale first.",
+        "points_currency": "Points pay in {{currency}}. Choose that currency.",
+        "points_invalid": "Type the number of points to redeem.",
+        "points_below_minimum": "At least {{minimum}} points must be redeemed at once.",
+        "points_insufficient": "The customer has {{available}} points left. Redeem fewer points.",
+        "gift_card_unknown": "This gift card is not known here. Check the code.",
+        "gift_card_inactive": "This gift card has not been sold yet. Sell it before using it.",
+        "gift_card_blocked": "This gift card is blocked. Choose another payment method.",
+        "gift_card_expired": "This gift card has expired. Choose another payment method.",
+        "gift_card_currency": "This card pays in {{currency}}. Choose that currency.",
+        "gift_card_empty": "This gift card has nothing left on it.",
+        "credit_not_permitted": "You are not allowed to sell on credit. Ask a manager.",
+        "credit_no_account": "This customer has no open credit account. Choose another payment method.",
+        "credit_currency": "This customer’s credit is in {{currency}}. Choose that currency.",
+        "credit_limit_exceeded": "This takes the customer over their credit limit. {{amount}} is left on it.",
+        "amount": "Type an amount above zero."
+      }
     }
   },
   "templates": {

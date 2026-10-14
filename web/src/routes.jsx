@@ -88,6 +88,17 @@ import TransferForm from './pages/inventory/TransferForm'
 import Transfers from './pages/inventory/Transfers'
 import Valuation from './pages/inventory/Valuation'
 import NotFound from './pages/NotFound'
+import Ageing from './pages/loyalty/Ageing'
+import CreditAccountDetail from './pages/loyalty/CreditAccountDetail'
+import CreditAccounts from './pages/loyalty/CreditAccounts'
+import GiftCardDetail from './pages/loyalty/GiftCardDetail'
+import GiftCards from './pages/loyalty/GiftCards'
+import FlaggedSales from './pages/loyalty/FlaggedSales'
+import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW, SALE_VIEW } from './pages/loyalty/loyaltyData'
+import LoyaltyProgramme from './pages/loyalty/Programme'
+import PromotionEditor from './pages/loyalty/PromotionEditor'
+import Promotions from './pages/loyalty/Promotions'
+import './pages/loyalty/register'
 import Held from './pages/pos/Held'
 import SaleDetail from './pages/pos/SaleDetail'
 import Sales from './pages/pos/Sales'
@@ -258,6 +269,19 @@ export const routes = [
         ['/pos/shifts', POS_SHIFT_VIEW, <Shifts key="pos-shifts" />],
         ['/pos/shifts/:shiftId', POS_SHIFT_VIEW, <ShiftDetail key="pos-shift" />],
         ['/pos/held', POS_HELD_VIEW, <Held key="pos-held" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Loyalty (docs/modules/loyalty.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/loyalty/programme', PROGRAMME_VIEW, <LoyaltyProgramme key="loyalty-programme" />],
+        ['/loyalty/promotions', PROMOTION_VIEW, <Promotions key="loyalty-promotions" />],
+        ['/loyalty/promotions/new', 'loyalty.promotion.create', <PromotionEditor key="loyalty-promotion-new" />],
+        ['/loyalty/promotions/:promotionId', PROMOTION_VIEW, <PromotionEditor key="loyalty-promotion" />],
+        ['/loyalty/credit', CREDIT_VIEW, <CreditAccounts key="loyalty-credit" />],
+        ['/loyalty/credit/:accountId', CREDIT_VIEW, <CreditAccountDetail key="loyalty-account" />],
+        ['/loyalty/ageing', CREDIT_VIEW, <Ageing key="loyalty-ageing" />],
+        ['/loyalty/gift-cards', GIFT_CARD_VIEW, <GiftCards key="loyalty-gift-cards" />],
+        ['/loyalty/gift-cards/:cardId', GIFT_CARD_VIEW, <GiftCardDetail key="loyalty-gift-card" />],
+        ['/loyalty/review', SALE_VIEW, <FlaggedSales key="loyalty-review" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // INV-19, docs/modules/inventory.md (Screens): the Inventory back office (the API answers 403 module_inactive without the module).
       ...[

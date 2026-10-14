@@ -105,6 +105,11 @@ registerEntity('pos_layout', { table: 'pos_layout' });
 // TPL-01, TPL-05: the receipt templates of the till's branch (snapshot).
 registerEntity('templates', { table: 'templates' });
 
+// The Loyalty module's entities (served only while the tenant has Loyalty, RBAC-08).
+registerEntity('loyalty_settings', { table: 'loyalty_settings' });
+registerEntity('loyalty_promotions', { table: 'loyalty_promotions' });
+registerEntity('loyalty_members', { table: 'loyalty_members', columns: (row) => ({ customer_id: row.customer_id ?? '', kind: row.kind ?? '' }) });
+registerEntity('loyalty_gift_cards', { table: 'loyalty_gift_cards', columns: (row) => ({ code_hash: row.code_hash ?? '' }) });
 // The Inventory module's stock on hand at this till's location (INV-17,
 // served only while the tenant has Inventory): shown on the tiles, never
 // used to refuse a sale.

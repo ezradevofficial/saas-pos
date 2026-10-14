@@ -24,6 +24,7 @@ class SaleLine extends Model
         return [
             'line_no' => 'integer',
             'tax_inclusive' => 'boolean',
+            'adjustments' => 'array',
         ];
     }
 

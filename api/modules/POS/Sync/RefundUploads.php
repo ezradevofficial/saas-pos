@@ -10,6 +10,8 @@ use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Currency\Money;
 use App\Core\Currency\RateUnavailable;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Payments\Tenders\TenderProviders;
+use App\Core\Payments\Tenders\TenderUse;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -57,6 +59,7 @@ class RefundUploads
         private readonly ExchangeRates $rates,
         private readonly HeldRecords $records,
         private readonly Auditor $auditor,
+        private readonly TenderProviders $tenders,
     ) {}
 
     /** @return list<array<string, mixed>> */
@@ -130,6 +133,16 @@ class RefundUploads
 
         $this->authority->checkNamed($data['override'] ?? null, 'override');
         $payments = $this->payments($place, $data['payments'], $sale, $total, $at, $flags);
+
+        // LOY-25, LOY-27: money given back as points, a gift card or store credit is checked by its provider.
+        foreach ($payments as $index => $payment) {
+            foreach ($this->tenders->for($payment['method_type'])?->check(new TenderUse(
+                TenderUse::REFUND, $place->company->id, $place->branch->id, $place->location->id, $sale->customer_id, $cashier->id,
+                $payment['currency'], (string) $payment['amount_minor'], $sale->currency, (string) $payment['amount_in_sale_minor'], (array) ($payment['tender'] ?? []),
+            )) ?? [] as $code) {
+                $flags->add('tender_flagged', null, ['payment' => $index + 1, 'code' => $code]);
+            }
+        }
         $approval = $this->authority->approve($cashier, $data['override'] ?? null, $data['actor_proof'] ?? null, 'pos.sale.refund', $place->scope(),
             fn ($user) => $this->authority->within($user, 'max_refund_amount', $place->scope(), $baseMajor),
             $place->device, $data['id'], 'override', moneyOut: true);
@@ -293,6 +306,7 @@ class RefundUploads
                 'fx' => $snapshot,
                 'provider_reference' => $payment['provider_reference'] ?? null,
                 'status' => $payment['status'] ?? SalePayment::CONFIRMED,
+                'tender' => ($payment['tender'] ?? null) ?: null,
             ];
         }
 
