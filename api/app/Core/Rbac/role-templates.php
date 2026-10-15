@@ -159,6 +159,8 @@ return [
         'key' => 'hr_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
+            // CUR-01, HR-04, HR-07: the tenant's currencies, for contract pay and pay accounts.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // IMP-01, HR-34: imports employees (hr.employee.create|edit).
@@ -172,6 +174,8 @@ return [
         'key' => 'payroll_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.user.view',
+            // CUR-01: the tenant's currencies, for pay currency, pay items and loans.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // PAY-01 to PAY-28 (docs/modules/payroll.md); maker-checker: APR-07 keeps the preparer off their own run's approval.

@@ -289,6 +289,20 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame([], $granted('storekeeper'));
     }
 
+    public function test_hr_and_payroll_officers_read_the_tenant_currencies(): void
+    {
+        // CUR-01, HR-04, HR-07, PAY-01: contract pay, pay accounts, pay
+        // currency, pay items and loans are entered in one of the tenant's
+        // currencies, so both officers read the list (never edit it).
+        $this->enter($this->signUp()->json('challenge_id'));
+        $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.currency.%')->pluck('name')->sort()->values()->all();
+
+        foreach (['hr_officer', 'payroll_officer'] as $key) {
+            $this->assertSame(['core.currency.view'], $granted($key), $key);
+        }
+    }
+
     public function test_templates_grant_workflow_permissions_to_owner_and_admin(): void
     {
         // WF-02, spec 6.4: only Owner and Admin edit and publish flows; the
