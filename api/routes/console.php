@@ -65,3 +65,6 @@ Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverla
 
 // HR-13, HR-25: leave accrual and yesterday's timesheet days (absences), daily.
 Schedule::command('hr:daily')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+
+// FA-19: maintenance falling due, reminded once a day.
+Schedule::command('fixed-assets:maintenance-reminders')->dailyAt('06:30')->withoutOverlapping()->onOneServer();

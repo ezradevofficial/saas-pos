@@ -15,6 +15,7 @@ use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingResult;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\FixedAssets\Events\FixedAssetPosting;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
@@ -54,6 +55,7 @@ class Integrations
         private readonly StoresSources $stores,
         private readonly SupplierInvoices $supplierInvoices,
         private readonly LandedCostSources $landedCosts,
+        private readonly FixedAssetSources $fixedAssets,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -77,6 +79,8 @@ class Integrations
             // Stage 7B closing review: landed costs clear through their bills (procurement.md decision 19).
             $event instanceof LandedCostAllocated => $this->landedCosts->allocated($event),
             $event instanceof GoodsReceiptPosted => $this->landedCosts->received($event),
+            // ACC-33: Fixed assets' capitalisations, depreciation, revaluations, impairments and disposals.
+            $event instanceof FixedAssetPosting => $this->post($this->fixedAssets->source($event)),
             default => null,
         };
     }

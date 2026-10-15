@@ -66,7 +66,13 @@
         {"code": "7100", "type": "income", "subtype": "fx", "parent": "7000", "postable": true, "cash_flow": null},
         {"code": "7110", "type": "expense", "subtype": "fx", "parent": "7000", "postable": true, "cash_flow": null},
         {"code": "7200", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null},
-        {"code": "7300", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null}
+        {"code": "7300", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null},
+        {"code": "1240", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "investing"},
+        {"code": "2150", "type": "liability", "subtype": "current_liability", "parent": "2100", "postable": true, "cash_flow": "investing"},
+        {"code": "3400", "type": "equity", "subtype": "equity", "parent": "3000", "postable": true, "cash_flow": "non_cash"},
+        {"code": "4920", "type": "income", "subtype": "other_income", "parent": "4000", "postable": true, "cash_flow": null},
+        {"code": "6510", "type": "expense", "subtype": "expense", "parent": "6000", "postable": true, "cash_flow": null},
+        {"code": "7400", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null}
     ],
     "roles": {
         "receivable": "1200",
@@ -451,6 +457,116 @@
                 "side": "credit",
                 "account": "2110",
                 "party": true
+            }
+        ],
+        "fixed_assets.capitalisation": [
+            {
+                "field": "cost.*",
+                "side": "debit",
+                "account": "1510"
+            },
+            {
+                "field": "procurement",
+                "side": "credit",
+                "account": "5200"
+            },
+            {
+                "field": "manual",
+                "side": "credit",
+                "account": "2150"
+            }
+        ],
+        "fixed_assets.depreciation": [
+            {
+                "field": "depreciation.*",
+                "side": "debit",
+                "account": "6500"
+            },
+            {
+                "field": "accumulated.*",
+                "side": "credit",
+                "account": "1520"
+            }
+        ],
+        "fixed_assets.revaluation": [
+            {
+                "field": "accumulated.*",
+                "side": "debit",
+                "account": "1520"
+            },
+            {
+                "field": "cost.*",
+                "side": "debit",
+                "account": "1510"
+            },
+            {
+                "field": "loss",
+                "side": "debit",
+                "account": "6510"
+            },
+            {
+                "field": "surplus",
+                "side": "credit",
+                "account": "3400"
+            },
+            {
+                "field": "gain",
+                "side": "credit",
+                "account": "4900"
+            }
+        ],
+        "fixed_assets.impairment": [
+            {
+                "field": "impairment",
+                "side": "debit",
+                "account": "6510"
+            },
+            {
+                "field": "surplus",
+                "side": "debit",
+                "account": "3400"
+            },
+            {
+                "field": "accumulated.*",
+                "side": "credit",
+                "account": "1520"
+            }
+        ],
+        "fixed_assets.disposal": [
+            {
+                "field": "accumulated.*",
+                "side": "debit",
+                "account": "1520"
+            },
+            {
+                "field": "proceeds",
+                "side": "debit",
+                "account": "1240"
+            },
+            {
+                "field": "loss",
+                "side": "debit",
+                "account": "7400"
+            },
+            {
+                "field": "cost.*",
+                "side": "credit",
+                "account": "1510"
+            },
+            {
+                "field": "gain",
+                "side": "credit",
+                "account": "4920"
+            },
+            {
+                "field": "surplus",
+                "side": "debit",
+                "account": "3400"
+            },
+            {
+                "field": "surplus",
+                "side": "credit",
+                "account": "3200"
             }
         ]
     }

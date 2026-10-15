@@ -1,0 +1,28 @@
+{
+    "code": "KE",
+    "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
+    "sources": [],
+    "todo": [
+        "Income Tax Act, Second Schedule: confirm the official wear and tear classes and which assets fall in each.",
+        "buildings: method (straight line or reducing balance), annual rate and effective date, with the legal reference.",
+        "machinery: method, annual rate and effective date (including any split between heavy and other machinery).",
+        "motor_vehicles: method, annual rate and effective date.",
+        "computers: method, annual rate and effective date (computers, peripherals, calculators, copiers).",
+        "software: method, annual rate and effective date.",
+        "furniture: method, annual rate and effective date (furniture and fittings).",
+        "telecommunication: method, annual rate and effective date.",
+        "other: any other class (farm works, intangibles), its method and rate.",
+        "Investment deduction: whether it applies in the first year, for which assets and at what rate.",
+        "The year of acquisition (full year or pro rata) and disposals (balancing allowance or charge)."
+    ],
+    "classes": [
+        {"key": "buildings", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "machinery", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "motor_vehicles", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "computers", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "software", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "furniture", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "telecommunication", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "other", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+    ]
+}

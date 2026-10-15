@@ -88,7 +88,13 @@
         {"code": "81", "type": "expense", "subtype": "header", "parent": "8", "postable": false, "cash_flow": null},
         {"code": "811", "type": "expense", "subtype": "expense", "parent": "81", "postable": true, "cash_flow": null},
         {"code": "82", "type": "income", "subtype": "header", "parent": "8", "postable": false, "cash_flow": null},
-        {"code": "821", "type": "income", "subtype": "other_income", "parent": "82", "postable": true, "cash_flow": null}
+        {"code": "821", "type": "income", "subtype": "other_income", "parent": "82", "postable": true, "cash_flow": null},
+        {"code": "106", "type": "equity", "subtype": "equity", "parent": "10", "postable": true, "cash_flow": "non_cash"},
+        {"code": "48", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
+        {"code": "481", "type": "liability", "subtype": "current_liability", "parent": "48", "postable": true, "cash_flow": "investing"},
+        {"code": "485", "type": "asset", "subtype": "current_asset", "parent": "47", "postable": true, "cash_flow": "investing"},
+        {"code": "69", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
+        {"code": "691", "type": "expense", "subtype": "expense", "parent": "69", "postable": true, "cash_flow": null}
     ],
     "roles": {
         "receivable": "411",
@@ -473,6 +479,116 @@
                 "side": "credit",
                 "account": "401",
                 "party": true
+            }
+        ],
+        "fixed_assets.capitalisation": [
+            {
+                "field": "cost.*",
+                "side": "debit",
+                "account": "244"
+            },
+            {
+                "field": "procurement",
+                "side": "credit",
+                "account": "601"
+            },
+            {
+                "field": "manual",
+                "side": "credit",
+                "account": "481"
+            }
+        ],
+        "fixed_assets.depreciation": [
+            {
+                "field": "depreciation.*",
+                "side": "debit",
+                "account": "681"
+            },
+            {
+                "field": "accumulated.*",
+                "side": "credit",
+                "account": "284"
+            }
+        ],
+        "fixed_assets.revaluation": [
+            {
+                "field": "accumulated.*",
+                "side": "debit",
+                "account": "284"
+            },
+            {
+                "field": "cost.*",
+                "side": "debit",
+                "account": "244"
+            },
+            {
+                "field": "loss",
+                "side": "debit",
+                "account": "691"
+            },
+            {
+                "field": "surplus",
+                "side": "credit",
+                "account": "106"
+            },
+            {
+                "field": "gain",
+                "side": "credit",
+                "account": "758"
+            }
+        ],
+        "fixed_assets.impairment": [
+            {
+                "field": "impairment",
+                "side": "debit",
+                "account": "691"
+            },
+            {
+                "field": "surplus",
+                "side": "debit",
+                "account": "106"
+            },
+            {
+                "field": "accumulated.*",
+                "side": "credit",
+                "account": "284"
+            }
+        ],
+        "fixed_assets.disposal": [
+            {
+                "field": "accumulated.*",
+                "side": "debit",
+                "account": "284"
+            },
+            {
+                "field": "book_value",
+                "side": "debit",
+                "account": "811"
+            },
+            {
+                "field": "cost.*",
+                "side": "credit",
+                "account": "244"
+            },
+            {
+                "field": "proceeds",
+                "side": "debit",
+                "account": "485"
+            },
+            {
+                "field": "proceeds",
+                "side": "credit",
+                "account": "821"
+            },
+            {
+                "field": "surplus",
+                "side": "debit",
+                "account": "106"
+            },
+            {
+                "field": "surplus",
+                "side": "credit",
+                "account": "121"
             }
         ]
     }

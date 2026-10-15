@@ -50,7 +50,8 @@
             "Modules\\Loyalty\\Tests\\": "modules/Loyalty/tests/",
             "Modules\\Procurement\\Tests\\": "modules/Procurement/tests/",
             "Modules\\Stores\\Tests\\": "modules/Stores/tests/",
-            "Modules\\HR\\Tests\\": "modules/HR/tests/"
+            "Modules\\HR\\Tests\\": "modules/HR/tests/",
+            "Modules\\FixedAssets\\Tests\\": "modules/FixedAssets/tests/"
         }
     },
     "scripts": {

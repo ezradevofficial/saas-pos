@@ -12,7 +12,8 @@ use Illuminate\Foundation\Events\Dispatchable;
  * `expense`, `grni`, `landed_cost`), with stock_value + expense = grni +
  * landed_cost, and `untracked_landed` (the landed cost on lines no stock
  * journal carries: services and untracked stock); `fx` the receipt's rate snapshot (CUR-04); `dimensions`
- * {branch_id, party_id, cost_centre_id?, project_id?}.
+ * {branch_id, party_id, cost_centre_id?, project_id?}; `lines` the accepted
+ * lines (docs/modules/fixed-assets.md FA-21).
  */
 class GoodsReceiptPosted implements ShouldDispatchAfterCommit
 {
@@ -36,5 +37,7 @@ class GoodsReceiptPosted implements ShouldDispatchAfterCommit
         public readonly array $dimensions,
         public readonly string $reference,
         public readonly string $orderId,
+        /** Fixed assets (FA-21): the accepted lines {line_id, order_line_id, item_id, description, qty, base_value_minor, landed_minor, serials, location_id}. */
+        public readonly array $lines = [],
     ) {}
 }
