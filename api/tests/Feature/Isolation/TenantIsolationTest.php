@@ -1821,7 +1821,7 @@ class TenantIsolationTest extends TestCase
                 'owner_id' => $tenant->id('user'), 'lead_id' => $tenant->id('crm_lead'), 'opportunity_id' => $tenant->id('crm_opportunity'), 'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
             'PATCH api/v1/crm/activities/{crm_activity}' => ['owner_id' => $tenant->id('user'), 'lead_id' => $tenant->id('crm_lead'), 'opportunity_id' => $tenant->id('crm_opportunity'),
                 'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
-            'POST api/v1/crm/emails' => ['to' => 'hijack@example.com', 'subject' => 'Hijack check', 'body' => 'Check', 'branch_id' => $tenant->id('branch'), 'lead_id' => $tenant->id('crm_lead'),
+            'POST api/v1/crm/emails' => ['to' => 'buyer-A@example.com', 'subject' => 'Hijack check', 'body' => 'Check', 'branch_id' => $tenant->id('branch'), 'lead_id' => $tenant->id('crm_lead'),
                 'opportunity_id' => $tenant->id('crm_opportunity'), 'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
             'POST api/v1/crm/targets' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'subject_type' => 'user', 'subject_id' => $tenant->id('user'),
                 'metric' => 'won_value', 'period_start' => '2026-01-01', 'period_end' => '2026-12-31', 'amount_minor' => '1000'],
