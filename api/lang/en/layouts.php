@@ -3,6 +3,8 @@
 // LAY-01: dashboard data sources, as the designer lists them.
 return [
     'sources' => [
+        'crm_pipeline_value' => 'Pipeline value',
+        'crm_targets' => 'My sales targets',
         'approvals_waiting' => 'Approvals waiting for me',
         'approvals_mine' => 'My approvals',
         'workflows_overdue' => 'Overdue documents in workflows',

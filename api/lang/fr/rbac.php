@@ -15,6 +15,7 @@ return [
     // RBAC-01 : libellés du catalogue des permissions (GET permissions).
     'catalogue' => [
         'modules' => [
+            'crm' => 'CRM et ventes',
             'core' => 'Socle',
             'pos' => 'Point de vente',
             'loyalty' => 'Fidélité, promotions et crédit',
@@ -22,6 +23,15 @@ return [
             'procurement' => 'Achats',
         ],
         'resources' => [
+            'crm' => [
+                'lead' => 'Prospects',
+                'opportunity' => 'Opportunités',
+                'quote' => 'Devis',
+                'activity' => 'Activités',
+                'target' => 'Objectifs de vente',
+                'settings' => 'Paramètres des ventes',
+                'scope' => 'Fiches des autres',
+            ],
             'core' => [
                 'company' => 'Sociétés',
                 'branch' => 'Succursales',
@@ -106,6 +116,12 @@ return [
             ],
         ],
         'actions' => [
+            'convert' => 'Convertir',
+            'discount' => 'Accorder des remises',
+            'price' => 'Modifier les prix',
+            'send' => 'Envoyer',
+            'team' => 'Leurs équipes',
+            'branch' => 'Leur agence',
             'view' => 'Voir',
             'create' => 'Créer',
             'edit' => 'Modifier',
