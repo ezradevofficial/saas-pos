@@ -143,7 +143,8 @@ describe('Items', () => {
     catalogue(api, { mode: 'per_company' })
     api.post.mockResolvedValue({ data: { ...ITEM, id: 'i-9', company_id: 'c-1' }, meta: { possible_duplicates: [] } })
     renderApp('/catalogue/items/new')
-    const company = await screen.findByLabelText(/^Company/)
+    // The sidebar's company switcher shows for every user now (RBAC-04): the form's own picker is the one in the form.
+    const company = (await screen.findAllByLabelText(/^Company/)).find((element) => element.closest('form'))
     // The only company is chosen already.
     await waitFor(() => expect(company).toHaveValue('c-1'))
     fireEvent.change(screen.getByLabelText(/^Code/), { target: { value: 'RICE-5' } })
