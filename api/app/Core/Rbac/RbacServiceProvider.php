@@ -48,8 +48,9 @@ class RbacServiceProvider extends ServiceProvider
         $this->app->singleton(PermissionRegistrar::class, TenantPermissionRegistrar::class);
         $this->keyPermissionCacheByTenant();
 
-        // Stage 7B performance review: module flags are memoised per request; a queue worker starts each job afresh.
+        // Stage 7B performance review: module flags are memoised per request; each request (also in tests and Octane) and each queued job starts afresh.
         Event::listen(JobProcessing::class, fn () => $this->app->make(ModuleRegistry::class)->flush());
+        $this->app->rebinding('request', fn () => $this->app->make(ModuleRegistry::class)->flush());
 
         // RBAC-09: `$user->can('module.resource.action', $target)` is answered
         // by ScopeResolver when the target has a scope (a HasScope model or a
