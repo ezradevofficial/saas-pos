@@ -190,10 +190,11 @@ class TemplateApiTest extends TestCase
 
         // RBAC-08: an installed module's types are offered only while it is active; types of modules
         // not installed yet keep their sample data.
-        $this->assertSame(['sales.invoice', 'sales.quote', 'payroll.payslip', 'letter'], array_column($this->getJson($uri, $this->headersFor())->assertOk()->json('data'), 'key'));
+        // Payroll's payslip is installed (PAY-19): offered only once Payroll is active.
+        $this->assertSame(['sales.invoice', 'sales.quote', 'letter'], array_column($this->getJson($uri, $this->headersFor())->assertOk()->json('data'), 'key'));
 
         $this->inTenant(function () {
-            foreach (['pos', 'loyalty', 'accounting', 'inventory', 'procurement', 'stores'] as $module) {
+            foreach (['pos', 'loyalty', 'accounting', 'inventory', 'procurement', 'stores', 'payroll'] as $module) {
                 app(ModuleRegistry::class)->activate($module);
             }
         });
