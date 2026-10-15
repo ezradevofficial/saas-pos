@@ -252,6 +252,27 @@ describe('HR screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/me/clock', { kind: 'in' }))
   })
 
+  it('preselects the contract currency in the pay account dialog once the currencies load (HR-04)', async () => {
+    const bank = { bank: { view: true, edit: true } }
+    setup(
+      [
+        ['hr/employees/e-1', { data: { ...EMPLOYEE, pay: { amount_minor: '6000000', currency: 'USD', basis: 'monthly' }, pay_accounts: [], has_clock_pin: false, access: bank }, meta: { identifier_types: [] } }],
+        ['hr/employees/e-1/pay-accounts', { data: [] }],
+        ['tenant/currencies', { data: [{ code: 'KES', active: true }, { code: 'USD', active: true }] }],
+      ],
+      ['hr.employee.view', 'hr.bank.view', 'hr.bank.edit'],
+    )
+    api.post.mockResolvedValue({ data: { id: 'pa-2' } })
+    renderApp('/hr/employees/e-1?tab=payAccounts')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add account' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(within(dialog).getByLabelText(/^Currency/)).toHaveValue('USD'))
+    fireEvent.change(within(dialog).getByLabelText(/^Bank or wallet/), { target: { value: 'Equity' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Account number/), { target: { value: '0123456789' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/employees/e-1/pay-accounts', expect.objectContaining({ currency: 'USD', provider: 'Equity' })))
+  })
+
   it('tells an employee without web clock-in what to do (HR-31)', async () => {
     setup(
       [

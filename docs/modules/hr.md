@@ -415,6 +415,10 @@ Decisions taken while building (no owner input asked, per instructions):
     still answer 404 `not_an_employee`. An employee without the `web`
     clock method is told to ask HR to turn on web clock-in, or to clock in
     on a till or attendance device.
+31. **Pay account currency (decision, owner may change).** The pay
+    account dialog preselects, once the currency list loads, the
+    employee's contract currency, else the company's base currency (when
+    active), else the first active currency; the user may change it.
 
 Owner decisions (2026-10-14):
 
