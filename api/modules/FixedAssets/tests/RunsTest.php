@@ -2,6 +2,7 @@
 
 namespace Modules\FixedAssets\Tests;
 
+use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
 use Modules\FixedAssets\Events\DepreciationPosted;
@@ -26,7 +27,7 @@ class RunsTest extends TestCase
         $this->setUpFixedAssets(accounting: true);
     }
 
-    private function postRun(string $month, ?\App\Core\Identity\Models\User $as = null)
+    private function postRun(string $month, ?User $as = null)
     {
         return $this->api('POST', 'runs', ['company_id' => $this->acme->id, 'period' => $month], $as ?? $this->accountant);
     }

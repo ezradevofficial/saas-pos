@@ -2,6 +2,7 @@
 
 namespace Modules\FixedAssets\Http\Controllers;
 
+use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Modules\FixedAssets\Http\Requests\ReportRequest;
@@ -35,7 +36,7 @@ class ReportController
         return $this->answer($request, $this->reports->netBookValue($request->company()), null, null);
     }
 
-    /** @return array{0: \App\Core\Tenancy\Models\Company, 1: string, 2: string} */
+    /** @return array{0: Company, 1: string, 2: string} */
     private function period(ReportRequest $request): array
     {
         $company = $request->company();

@@ -3,6 +3,7 @@
 namespace Modules\FixedAssets\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
+use Modules\Accounting\Chart\ChartTemplates;
 use Modules\Accounting\Integrations\Integrations;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\PostingException;
@@ -74,7 +75,7 @@ class AccountingPostingTest extends TestCase
         ];
 
         foreach (['KE', 'CD'] as $country) {
-            $rules = app(\Modules\Accounting\Chart\ChartTemplates::class)->get($country)['posting_rules'];
+            $rules = app(ChartTemplates::class)->get($country)['posting_rules'];
 
             foreach ($sources as $type => $examples) {
                 $this->assertArrayHasKey($type, $rules, "{$country} has a default rule for {$type}");

@@ -4,6 +4,7 @@ namespace Modules\FixedAssets\Http\Controllers;
 
 use App\Core\Exports\ListExport;
 use App\Core\Identity\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -128,7 +129,7 @@ class AssetController
         return response()->json(['data' => [...$users, ...$employees], 'hr' => $custodians->hrActive()]);
     }
 
-    public static function page(\Illuminate\Contracts\Pagination\LengthAwarePaginator $paginator, callable $shape): AnonymousResourceCollection
+    public static function page(LengthAwarePaginator $paginator, callable $shape): AnonymousResourceCollection
     {
         return JsonResource::collection($paginator->through($shape));
     }

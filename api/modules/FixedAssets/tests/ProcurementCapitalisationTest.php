@@ -4,6 +4,8 @@ namespace Modules\FixedAssets\Tests;
 
 use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
+use Illuminate\Testing\TestResponse;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\Category;
 use Modules\Procurement\Tests\Concerns\BuildsProcurement;
@@ -33,7 +35,7 @@ class ProcurementCapitalisationTest extends TestCase
         });
     }
 
-    private function flag(Item $item): \Illuminate\Testing\TestResponse
+    private function flag(Item $item): TestResponse
     {
         return $this->api('POST', 'fixed-assets/item-categories', ['company_id' => $this->acme->id, 'item_id' => $item->id, 'category_id' => $this->computers->id]);
     }
@@ -75,7 +77,7 @@ class ProcurementCapitalisationTest extends TestCase
             'order_id' => $order['id'], 'supplier_reference' => 'INV-77', 'invoice_date' => '2026-10-15',
             'lines' => [['order_line_id' => $order['lines'][0]['id'], 'qty' => '2', 'unit_price_minor' => '150000']],
         ])->assertCreated()->json('data');
-        $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", [], $this->userWith('accountant', \App\Core\Rbac\Scope::company($this->acme->id)))->assertOk();
+        $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", [], $this->userWith('accountant', Scope::company($this->acme->id)))->assertOk();
 
         // The GRN made both drafts; the invoice adds none.
         $this->assertCount(2, $this->drafts());

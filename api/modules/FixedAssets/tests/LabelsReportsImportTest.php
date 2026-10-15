@@ -59,7 +59,7 @@ class LabelsReportsImportTest extends TestCase
     public function test_the_register_exports_and_offers_custom_fields(): void
     {
         $this->active();
-        $csv = $this->get("/api/v1/fixed-assets/assets?format=csv", $this->headersFor())->assertOk()->streamedContent();
+        $csv = $this->get('/api/v1/fixed-assets/assets?format=csv', $this->headersFor())->assertOk()->streamedContent();
         $this->assertStringContainsString('Delivery van', $csv);
         $this->json('POST', '/api/v1/custom-fields', ['entity' => 'fixed_assets_asset', 'key' => 'insurer', 'label' => 'Insurer', 'type' => 'text'], $this->headersFor())->assertCreated();
         $asset = $this->active(['name' => 'Insured van', 'custom' => ['insurer' => 'Jubilee']]);

@@ -89,6 +89,7 @@ class FixedAssetsServiceProvider extends ServiceProvider
         'fixed-assets-disposals' => null,
         'fixed-assets-runs' => null,
         'fixed-assets-work-orders' => null,
+        'fixed-assets-revaluations' => null,
     ];
 
     public function register(): void

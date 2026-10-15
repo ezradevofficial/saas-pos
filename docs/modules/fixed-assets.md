@@ -209,14 +209,14 @@ in bodies is minor units as digit strings with a currency.
 | `GET/POST …/{id}/readings` | `asset.view`; `asset.manage` | FA-18 |
 | `POST …/{id}/revaluations` | `revaluation.post` | FA-15, FA-16 |
 | `GET fixed-assets/revaluations` | `asset.view` | |
-| `GET fixed-assets/runs`, `GET …/{id}`, `POST fixed-assets/runs/preview`, `POST fixed-assets/runs`, `POST …/{id}/reverse` | `depreciation.*` | FA-12, FA-13 |
-| `GET/POST fixed-assets/transfers`, `GET …/{id}`, `POST …/{id}/cancel` | `asset.view`; `transfer.request` | FA-14 |
-| `GET/POST fixed-assets/disposals`, `GET …/{id}`, `POST …/{id}/cancel\|post` | `asset.view`; `disposal.request` | FA-17 |
-| `GET/POST fixed-assets/schedules`, `PATCH …/{id}`, `POST …/{id}/archive` | `maintenance.*` | FA-19 |
-| `GET/POST fixed-assets/work-orders`, `GET/PATCH …/{id}` | `maintenance.*` | FA-19 |
+| `GET fixed-assets/runs`, `GET …/{id}`, `GET fixed-assets/runs/preview?company=&period=`, `POST fixed-assets/runs`, `POST …/{id}/reverse` | `depreciation.*` | FA-12, FA-13 |
+| `POST fixed-assets/assets/{id}/transfers`, `GET fixed-assets/transfers`, `GET …/{id}`, `POST …/{id}/cancel` | `transfer.request`; `asset.view` | FA-14 |
+| `POST fixed-assets/assets/{id}/disposals`, `GET fixed-assets/disposals`, `GET …/{id}`, `POST …/{id}/cancel\|post` | `disposal.request`; `asset.view` | FA-17 |
+| `POST fixed-assets/assets/{id}/schedules`, `GET fixed-assets/schedules`, `PATCH …/{id}`, `POST …/{id}/archive` | `maintenance.*` | FA-19 |
+| `POST fixed-assets/assets/{id}/work-orders`, `GET fixed-assets/work-orders`, `GET/PATCH …/{id}` | `maintenance.*` | FA-19 |
 | `POST fixed-assets/labels` | `label.print` | FA-25 |
 | `GET fixed-assets/reports/{depreciation\|movements\|net-book-value}` | `report.view` | FA-26 |
-| `GET fixed-assets/companies/{company}/tax-book` | `tax.view` | FA-20 |
+| `GET fixed-assets/companies/{company}/tax-book` | `tax.view` | FA-20; `?year=`; while unconfirmed it answers `status: unconfirmed` with the classes, never figures |
 | `GET fixed-assets/custodians` | `asset.manage` | Users and (HR active) employees of a company |
 
 Errors: `asset_not_draft`, `asset_not_active`, `category_archived`,
@@ -325,6 +325,8 @@ effective dates:
 10. **Accounting's closed periods are read through a contract**
     (`Modules\Accounting\Contracts\ClosedPeriods`), only while Accounting is
     active; Accounting still refuses any journal in a closed period.
+11. **The net book value report is as of now**; the depreciation and movements reports take a period. A value at a past date is left for later.
+12. **A disposal dated on the last charged day** takes no extra depreciation; by days the disposal day itself is depreciated.
 
 ## Open questions
 
@@ -341,7 +343,8 @@ effective dates:
 
 | ID | Status |
 | --- | --- |
-| FA-01 to FA-30 | Being built on `feat/fixed-assets` |
+| FA-01 to FA-30 | Built and tested on `feat/fixed-assets` (modules/FixedAssets/tests: DepreciationMath, Assets, Runs, Movements, AccountingPosting, ProcurementCapitalisation, TaxBook, Maintenance, LabelsReportsImport, RoleTemplates; the isolation suite; web FixedAssets.test.jsx) |
+| FA-20 | Built; computes nothing until the owner confirms the KE and CD classes (list above) |
 
 ## Deferred
 

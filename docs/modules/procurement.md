@@ -421,6 +421,10 @@ en/fr.
     Manager, Procurement Officer, Accountant, Approver and the Read-only
     Auditor (their view grants); not to the Storekeeper.
 
+### Stage 7D (Fixed assets)
+
+28. **Payloads for Fixed assets (additive).** `GoodsReceiptPosted` also carries `lines` (the accepted lines: line and PO line ids, item, description, quantity, base value, landed cost, serials, location) and `SupplierInvoiceApproved`'s document carries each line's `line_id` and `order_line_id` and the PO's delivery `location_id`, so Fixed assets turns items flagged as assets into draft assets (fixed-assets.md FA-21). Nothing in Procurement reads Fixed assets.
+
 ## Open questions
 
 1. ~~May Inventory's ledger take value-only cost adjustments?~~ Answered

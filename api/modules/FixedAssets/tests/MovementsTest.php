@@ -2,6 +2,7 @@
 
 namespace Modules\FixedAssets\Tests;
 
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
 use Modules\FixedAssets\Events\AssetDisposed;
@@ -98,7 +99,7 @@ class MovementsTest extends TestCase
         $disposal = $this->api('POST', "assets/{$asset['id']}/disposals", ['kind' => 'scrap', 'disposal_date' => '2026-10-01', 'reason' => 'Crashed'], $this->manager)->assertCreated()->json('data');
 
         // APR-07: the requesting manager cannot approve their own disposal; another manager of the branch can.
-        $approval = $this->inTenant(fn () => \App\Core\Approvals\Models\ApprovalRequest::query()->where('document_id', $disposal['id'])->sole()->id);
+        $approval = $this->inTenant(fn () => ApprovalRequest::query()->where('document_id', $disposal['id'])->sole()->id);
         $this->json('POST', "/api/v1/approvals/{$approval}/approve", [], $this->headersFor($this->manager))->assertStatus(403);
         $this->approve($disposal['id'], $this->userWith('branch_manager', Scope::branch($this->branchA->id)));
 
