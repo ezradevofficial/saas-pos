@@ -3,12 +3,16 @@
 namespace Modules\HR\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Tenancy\Models\Tenant;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Modules\HR\Models\AttendanceDay;
 use Modules\HR\Models\Employee;
+use Modules\HR\Models\EmployeeIdentifier;
+use Modules\HR\Support\Digest;
 use Modules\HR\Tests\Concerns\BuildsHr;
 use Tests\Concerns\BuildsTill;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -95,5 +99,40 @@ class ClosingFixesTest extends TestCase
         $days = $this->inTenant(fn () => AttendanceDay::query()->get());
         $this->assertCount(50, $days);
         $this->assertSame([450], $days->pluck('worked_minutes')->unique()->values()->all());
+    }
+
+    public function test_rekeying_digests_reaches_suspended_tenants(): void
+    {
+        // HR-10, decision 24: a suspended tenant's digests must move to the new key too.
+        config(['hr.digest_key' => 'base64:'.base64_encode(str_repeat('k', 32))]);
+        $this->putJson("/api/v1/hr/employees/{$this->amina->id}/identifiers", ['identifiers' => [['type' => 'national_id', 'value' => '12345678']]], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->inTenant(fn () => Tenant::query()->firstOrFail()->forceFill(['status' => 'suspended'])->save());
+
+        config(['hr.digest_key' => 'base64:'.base64_encode(str_repeat('n', 32))]);
+        $this->assertSame(0, Artisan::call('hr:rekey-digests'));
+        $this->assertSame(Digest::of('national_id', '12345678'), $this->inTenant(fn () => EmployeeIdentifier::query()->sole()->value_digest));
+    }
+
+    public function test_personal_contact_details_never_reach_the_audit_log(): void
+    {
+        // HR-11, HR-37, decision 27: the change is recorded by name, never its value.
+        $contacts = [
+            'personal_email' => 'amina.home@example.com', 'personal_phone' => '+254700000009',
+            'address' => ['line1' => '12 Moi Avenue', 'city' => 'Nairobi'], 'emergency_contacts' => [['name' => 'Peter Otieno', 'relationship' => 'Brother', 'phone' => '+254700000002']],
+        ];
+        $hired = $this->employee(['first_name' => 'Grace', ...$contacts]);
+        $this->patchJson("/api/v1/hr/employees/{$this->amina->id}", [...$contacts, 'work_phone' => '+254711000000'], $this->headersFor($this->hrOfficer))->assertOk();
+
+        $entries = $this->inTenant(fn () => AuditEntry::query()->where('action', 'like', 'hr.employee.%')->get());
+        $logged = $entries->map(fn (AuditEntry $entry) => json_encode([$entry->before, $entry->after]))->implode("\n");
+
+        foreach (['amina.home@example.com', '+254700000009', 'Moi Avenue', 'Peter Otieno'] as $value) {
+            $this->assertStringNotContainsString($value, $logged);
+        }
+
+        $this->assertStringContainsString('+254711000000', $logged);
+        $named = fn (string $id) => $entries->where('action', 'hr.employee.sensitive_update')->where('auditable_id', $id)->flatMap(fn (AuditEntry $entry) => $entry->after['fields'])->sort()->values()->all();
+        $this->assertSame(['address', 'emergency_contacts', 'personal_email', 'personal_phone'], $named($this->amina->id));
+        $this->assertSame(['address', 'emergency_contacts', 'personal_email', 'personal_phone'], $named($hired->id));
     }
 }

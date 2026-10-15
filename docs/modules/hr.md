@@ -389,6 +389,18 @@ Decisions taken while building (no owner input asked, per instructions):
     (weekly overtime) once, in date order, instead of once per punch
     (HR-22, HR-25). A test holds a 500-punch upload under a fixed query
     budget.
+27. **Personal contact details stay out of the audit log (decision, owner
+    may change).** Personal email, personal phone, address and emergency
+    contacts are left out of the audit values like the sensitive fields
+    (decision 7): a change to one is recorded by name in
+    `hr.employee.sensitive_update`, so audit readers and the record
+    history never see the values. Work email and work phone stay audited.
+28. **`hr:rekey-digests` reaches every tenant (decision, owner may
+    change)** holding an identifier, suspended and closed ones included
+    (`app_tenants_with_hr_identifiers`, ids only, ADR 002), and a
+    malformed `HR_DIGEST_KEY` (`base64:` that is not valid base64, or
+    under 32 bytes either way) fails the boot check (EnvironmentGuard) and
+    is never used to digest.
 
 Owner decisions (2026-10-14):
 
