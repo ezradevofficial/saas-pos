@@ -9562,7 +9562,13 @@
       "cancelledAt": "Cancelled",
       "corrects": "Corrects",
       "openCorrected": "Open the corrected run",
-      "payslips": "View payslips"
+      "payslips": "View payslips",
+      "pack": "Statutory pack",
+      "packSources": {
+        "shipped": "Country pack",
+        "override": "Test pack (staging)",
+        "test": "Test fixture"
+      }
     },
     "kpi": {
       "employees": "Employees",

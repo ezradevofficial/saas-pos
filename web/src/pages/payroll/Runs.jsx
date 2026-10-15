@@ -274,6 +274,7 @@ export function RunDetail() {
             </Detail>
             <Detail label={t('payroll.fields.kind')}>{enumLabel(t, 'kinds', run.kind)}</Detail>
             {run.kind === 'correction' ? <Detail label={t('payroll.fields.correctionMode')}>{enumLabel(t, 'correctionModes', run.correction_mode)}</Detail> : null}
+            {run.pack ? <Detail label={t('payroll.run.pack')}>{[t(`payroll.run.packSources.${run.pack.source}`), run.pack.sha256 ? run.pack.sha256.slice(0, 12) : null].filter(Boolean).join(' · ')}</Detail> : null}
             {run.prepared_by ? <Detail label={t('payroll.run.preparedBy')}>{[run.prepared_by.name, when(run.calculated_at, run.company_id)].filter(Boolean).join(' · ')}</Detail> : null}
             {run.submitted_by ? <Detail label={t('payroll.run.submittedBy')}>{[run.submitted_by.name, when(run.submitted_at, run.company_id)].filter(Boolean).join(' · ')}</Detail> : null}
             {run.approved_at ? <Detail label={t('payroll.run.approvedAt')}>{when(run.approved_at, run.company_id)}</Detail> : null}

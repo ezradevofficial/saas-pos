@@ -9562,7 +9562,13 @@
       "cancelledAt": "Annulée le",
       "corrects": "Rectifie",
       "openCorrected": "Ouvrir la paie rectifiée",
-      "payslips": "Voir les bulletins"
+      "payslips": "Voir les bulletins",
+      "pack": "Pack légal",
+      "packSources": {
+        "shipped": "Pack pays",
+        "override": "Pack de test (préproduction)",
+        "test": "Jeu de test"
+      }
     },
     "kpi": {
       "employees": "Employés",
