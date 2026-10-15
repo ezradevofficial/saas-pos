@@ -17,6 +17,7 @@ use Modules\FixedAssets\Models\Revaluation;
 use Modules\FixedAssets\Models\Transfer;
 use Modules\FixedAssets\Models\WorkOrder;
 use Modules\FixedAssets\Support\Access;
+use Modules\FixedAssets\Support\Decimals;
 
 /**
  * FA-26: how the module's records other than assets are shown. Money is
@@ -86,7 +87,7 @@ final class RecordResources
             'cost_centre' => Refs::of($line->costCentre),
             'from' => $line->from_date->toDateString(),
             'to' => $line->to_date->toDateString(),
-            'units' => $line->units === null ? null : (string) $line->units,
+            'units' => $line->units === null ? null : Decimals::show((string) $line->units),
             'amount' => Values::money($values, $line->amount_minor, $currency),
             'accumulated' => Values::money($values, $line->accumulated_after_minor, $currency),
             'book_value' => Values::money($values, $line->book_value_after_minor, $currency),
