@@ -79,7 +79,7 @@ fixed below.
 | HR-23 | **Clock-in on the till with a PIN.** HR keeps a clock-in PIN per employee (4 to 6 digits; set by `hr.attendance.manage`), stored as the core PIN scheme does (AUTH-06: an Argon2id hash and an encrypted PBKDF2 key, never the PIN). A paired POS device of the tenant receives the employees who clock in at its location (sync entity `hr_clock_staff`, a snapshot: id, name, number, and a verifier under the device's current secret), so clocking in works offline for days; five wrong PINs lock the employee on that device until a new PIN is synced. Punches are queued on the device and uploaded (`POST hr/till/punches`, device token) idempotently. | Must |
 | HR-24 | **Biometric device interface.** An attendance device is registered per location (name, an optional vendor label) and gets a bearer token once (shown once, stored hashed, rotatable; suspended or retired devices are refused). The device (or the vendor's bridge) pushes punches (`POST hr/device/punches`: its own event id, the employee's enrolment reference, `in`, `out` or `auto`, the instant): idempotent per device and event id; unknown references are answered `rejected`. No vendor driver is built. `auto` is `out` when the employee's latest punch within the last 16 hours is an `in`, else `in` (see decision 16). Only active employees match an enrolment reference. | Must |
 | HR-25 | **Timesheets, lateness and absence.** One day per employee and work date (the date the shift starts, else the punch's local date): first in, last out, worked minutes (paired in and out punches, minus the shift's unpaid break), regular and overtime minutes (daily, then weekly threshold), night minutes (inside the night window), holiday minutes, rest-day minutes, late and early-leave minutes against the planned shift (beyond the grace), and the day's status (`present`, `absent`, `leave`, `holiday`, `incomplete`; a rest day without punches has no day row, and time worked on a rest day counts as rest-day minutes) with exceptions (`late`, `early_leave`, `missing_in`, `missing_out`, `absent`, `unplanned`, `no_time_rule`). The shift's unpaid break is deducted when the time worked is longer than it. Recomputed whenever its punches, shift or leave change, unless approved or in a closed period. Days are approved by `hr.attendance.manage`; an approved day can be reopened until its period closes. | Must |
-| HR-26 | **Attendance periods and close.** Per company, non-overlapping periods. Closing needs `hr.attendance.close`, a time rule in force (HR-20) and every day with planned shifts or punches approved (`days_unapproved`, with the count). It freezes the period's days and raises `AttendancePeriodClosed` with the totals per employee (HR-33). A closed period is never reopened by HR (Payroll may have used it); corrections are punches in the next period. | Must |
+| HR-26 | **Attendance periods and close.** Per company, non-overlapping periods. Closing needs `hr.attendance.close`, a time rule in force (HR-20), every day with planned shifts or punches approved (`days_unapproved`, with the count) and the tills' offline window over: 7 days after the end date in the company's time zone (`period_offline_window`), unless forced with a reason (decision 25). It freezes the period's days and raises `AttendancePeriodClosed` with the totals per employee (HR-33). A closed period is never reopened by HR (Payroll may have used it); corrections are punches in the next period. | Must |
 | HR-27 | **Documents with restricted access.** Files on an employee (category `contract`, `identity`, `certificate`, `medical`, `disciplinary`, `other`, a title, an optional expiry date), stored through the core file storage (the `media` disk, never public, the custom field file types and size). Category decides who sees it: `contract` needs `hr.pay.view`, `identity` `hr.identity.view`, `medical` `hr.medical.view`, `disciplinary` `hr.disciplinary.view`, others `hr.document.view`. Downloads go through a temporary signed URL bound to the reader, checked again on download and audited (HR-11). Archived, never deleted. | Must |
 | HR-28 | **Onboarding and offboarding checklists.** Templates per company and kind (`onboarding`, `offboarding`) with ordered items (title, days after the start, optional responsible role key). A checklist starts from a template on an employee (and automatically on hire or termination when the company has a default template of that kind); items are completed (who, when, note) or reopened; the checklist completes when every item is done. | Must |
 | HR-29 | **Disciplinary records.** Cases on an employee: number, category (`verbal_warning`, `written_warning`, `final_warning`, `suspension`, `dismissal`, `other`), incident date, description, action taken, status (`open`, `closed`), outcome, closed by and at. Seen and changed only with `hr.disciplinary.view` / `hr.disciplinary.manage` at the employee's place (and not hidden by field rules, field `disciplinary`). | Must |
@@ -248,7 +248,7 @@ Errors: `place_other_company`, `department_other_company`,
 `contract_overlap`, `leave_days_needed`, `leave_balance_short`,
 `leave_overlap`, `leave_outside_employment`, `document_not_open`,
 `shift_clash`, `swap_stale`, `time_rules_missing`, `time_rule_overlap`,
-`period_overlap`, `period_closed`, `days_unapproved`, `clock_method_off`,
+`period_overlap`, `period_closed`, `period_offline_window`, `days_unapproved`, `clock_method_off`,
 `not_an_employee`, `device_inactive`, `field_readonly`.
 
 ## Screens (web)
@@ -373,6 +373,15 @@ Decisions taken while building (no owner input asked, per instructions):
     maintenance window. Losing the key loses nothing (the values are
     encrypted under the application key); rerun the command with a new
     one.
+25. **Offline punches before a period closes (decision, owner may
+    change).** Till and device punches may arrive up to 7 days late
+    (decision 15, NFR-04), so a period cannot close until 7 days after its
+    end date in the company's time zone (`period_offline_window`, 422,
+    with `window_ends`). HR may force the close sooner with `force: true`
+    and a `reason` (required), audited as
+    `hr.attendance_period.force_close` with the reason; punches arriving
+    later are flagged `period_closed` as usual. The web close dialog
+    offers the forced close with a reason when that error comes back.
 
 Owner decisions (2026-10-14):
 

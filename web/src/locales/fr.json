@@ -8315,7 +8315,11 @@
         "holiday_minutes": "Jour férié",
         "rest_day_minutes": "Jour de repos",
         "late_minutes": "Retard"
-      }
+      },
+      "forceClose": "Clôturer la période maintenant",
+      "offlineTitle": "Des pointages hors ligne peuvent encore arriver",
+      "offlineHelp": "Les caisses et les terminaux peuvent encore envoyer des pointages pour cette période. Indiquez un motif pour la clôturer maintenant.",
+      "forceReason": "Motif de la clôture anticipée"
     },
     "rules": {
       "description": "Comment {{company}} classe le temps travaillé. La paie applique les taux.",

@@ -8315,7 +8315,11 @@
         "holiday_minutes": "Public holiday",
         "rest_day_minutes": "Rest day",
         "late_minutes": "Late"
-      }
+      },
+      "forceClose": "Close period now",
+      "offlineTitle": "Offline punches may still arrive",
+      "offlineHelp": "Tills and devices can still upload punches for this period. Give a reason to close it now.",
+      "forceReason": "Reason for closing now"
     },
     "rules": {
       "description": "How {{company}} classifies worked time. Payroll applies the rates.",
