@@ -10,14 +10,15 @@ use Modules\CRM\Models\Quote;
  * The actions on one CRM record (POST crm/leads/{id}/assign|convert|
  * disqualify|archive|restore, crm/opportunities/{id}/win|lose|reopen|
  * archive|restore, crm/quotes/{id}/submit|accept|decline|convert|cancel|
- * send|share, its shares and PDF, crm/activities/{id}/complete|cancel|
+ * send|share, a share's revoke, crm/activities/{id}/complete|cancel|
  * reopen): not found unless the user sees the record (ShowRecordRequest);
  * then the action's permission at its branch (403):
  *
  * - leads: assign → `assign`, convert → `convert`, the rest → `archive`;
  * - opportunities: win, lose, reopen → `close`; archive, restore → `archive`;
  * - quotes: submit, accept, decline → `create`; cancel → `cancel`;
- *   convert → `convert`; send, share, shares, revoke and pdf → `send`;
+ *   convert → `convert`; send, share and revoke → `send` (the PDF and
+ *   the shares list: QuoteOutputRequest);
  * - activities: `manage`.
  */
 class RecordActionRequest extends ShowRecordRequest
@@ -46,7 +47,7 @@ class RecordActionRequest extends ShowRecordRequest
             'quote' => match ($this->action()) {
                 'cancel' => 'cancel',
                 'convert' => 'convert',
-                'send', 'share', 'shares', 'revokeShare', 'pdf' => 'send',
+                'send', 'share', 'revokeShare' => 'send',
                 default => 'create',
             },
             default => 'manage',

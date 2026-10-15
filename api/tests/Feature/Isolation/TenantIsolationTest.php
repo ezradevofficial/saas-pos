@@ -93,6 +93,8 @@ class TenantIsolationTest extends TestCase
         'PUT api/v1/supplier-portal/bid' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
         'POST api/v1/supplier-portal/bid/files' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
         'POST api/v1/supplier-portal/bid/withdraw' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        // CRM (docs/modules/crm.md): the public lead form, tested by modules/CRM/tests/LeadsTest.php.
+        'POST api/v1/crm/forms/{token}' => 'CRM-06: a public web form posting a lead; the 40-character form token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; answers only {received: true} (or 404); rate-limited per IP and per form',
         'DELETE api/v1/supplier-portal/bid/files/{file}' => 'PRC-09: removes one of the session bidder\'s own unsubmitted uploads; the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
     ];
 
@@ -219,6 +221,19 @@ class TenantIsolationTest extends TestCase
         'hr_disciplinary_case' => 'hr_disciplinary_case',
         'hr_appraisal_cycle' => 'hr_appraisal_cycle',
         'hr_appraisal' => 'hr_appraisal',
+        // CRM (docs/modules/crm.md): the default pipeline and a stage, a source, a team, a rule, a lead form,
+        // an open lead and opportunity, a draft quote, an activity and a target.
+        'crm_pipeline' => 'crm_pipeline',
+        'crm_stage' => 'crm_stage',
+        'crm_option' => 'crm_source',
+        'crm_team' => 'crm_team',
+        'crm_assignment_rule' => 'crm_assignment_rule',
+        'crm_lead_form' => 'crm_lead_form',
+        'crm_lead' => 'crm_lead',
+        'crm_opportunity' => 'crm_opportunity',
+        'crm_quote' => 'crm_quote',
+        'crm_activity' => 'crm_activity',
+        'crm_target' => 'crm_target',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -326,6 +341,19 @@ class TenantIsolationTest extends TestCase
         'peer_roster_shift_id' => 'hr_roster_shift_peer',
         'template_id' => 'hr_checklist_template',
         'reviewer_id' => 'user',
+        // CRM: owners and leaders (users), teams, sources and reasons, pipelines and stages, linked records, a target's subject.
+        'owner_id' => 'user',
+        'leader_id' => 'user',
+        'team_id' => 'crm_team',
+        'default_team_id' => 'crm_team',
+        'source_id' => 'crm_source',
+        'reason_id' => 'crm_lost_reason',
+        'pipeline_id' => 'crm_pipeline',
+        'stage_id' => 'crm_stage',
+        'lead_id' => 'crm_lead',
+        'opportunity_id' => 'crm_opportunity',
+        'quote_id' => 'crm_quote',
+        'subject_id' => 'user',
         'scope_id' => null,
     ];
 
@@ -335,6 +363,7 @@ class TenantIsolationTest extends TestCase
      * ("METHOD uri" => [error code, why]).
      */
     public const CONTROL_REFUSALS = [
+        'POST api/v1/crm/opportunities/{crm_opportunity}/lose' => ['opportunity_closed', 'CRM-15: the win route, called before it with A\'s ids, won the fixture opportunity, so losing it is refused after validation'],
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
     ];
 
@@ -362,6 +391,8 @@ class TenantIsolationTest extends TestCase
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
         // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
+        // CRM-15: winning takes a won reason (REFERENCE_FIELDS' reason_id is a lost reason).
+        'POST api/v1/crm/opportunities/{crm_opportunity}/win' => ['reason_id' => 'crm_won_reason'],
     ];
 
     /**
@@ -461,10 +492,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'owner' => 'user', 'pipeline' => 'crm_pipeline'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'owner', 'pipeline'];
 
     private TwoTenants $tenants;
 
@@ -1078,6 +1109,11 @@ class TenantIsolationTest extends TestCase
             'procurement/receipts?status=all' => ['Supplier A', 'Outlet A'],
             'procurement/invoices?status=all' => ['Supplier A', 'SINV-A'],
             'procurement/landed-costs?status=all' => ['Freight A'],
+            // CRM (CRM-32): its lists.
+            'crm/leads?status=all' => ['Lead A', 'Prospect A'],
+            'crm/opportunities?status=all' => ['Deal A', 'Customer A'],
+            'crm/quotes?status=all' => ['Customer A'],
+            'crm/activities' => ['Call A', 'Hello A'],
         ];
     }
 
@@ -1452,6 +1488,8 @@ class TenantIsolationTest extends TestCase
             'tax_code_id' => $tenant->id('tax_code'), 'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'project_id' => $tenant->id('project')]];
         $assignment = ['role_id' => $tenant->id('role'), 'scope_type' => 'location', 'scope_id' => $tenant->id('location')];
         $procurementLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'cost_centre_id' => $tenant->id('cost_centre'), 'project_id' => $tenant->id('project')]];
+        // CRM-18: a quote line of the shared item's box (its list price), tax from core.
+        $crmLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'tax_code_id' => $tenant->id('tax_code')]];
         $procurementOrderLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'unit_price_minor' => '118000', 'tax_code_id' => $tenant->id('tax_code'),
             'cost_centre_id' => $tenant->id('cost_centre'), 'project_id' => $tenant->id('project'), 'requisition_line_id' => null]];
 
@@ -1723,6 +1761,44 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/procurement/landed-costs' => ['branch_id' => $tenant->id('branch'), 'cost_date' => now()->toDateString(), 'method' => 'value',
                 'charges' => [['description' => 'Hijack check', 'party_id' => $tenant->id('party'), 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$tenant->id('procurement_receipt')]],
             'PATCH api/v1/procurement/landed-costs/{procurement_landed_cost}' => ['charges' => [['description' => 'Hijack check', 'party_id' => $tenant->id('party'), 'currency' => 'KES', 'amount_minor' => '1000']]],
+            // CRM (docs/modules/crm.md): the company's settings and configuration, records and their links.
+            'PUT api/v1/crm/companies/{company}/settings' => ['default_team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/pipelines' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack pipeline'],
+            'POST api/v1/crm/options' => ['company_id' => $tenant->id('company'), 'kind' => 'source', 'name' => 'Hijack source'],
+            'POST api/v1/crm/teams' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'name' => 'Hijack team', 'leader_id' => $tenant->id('user'),
+                'members' => [['user_id' => $tenant->id('user')]]],
+            'PATCH api/v1/crm/teams/{crm_team}' => ['branch_id' => $tenant->id('branch'), 'leader_id' => $tenant->id('user'), 'members' => [['user_id' => $tenant->id('user')]]],
+            'POST api/v1/crm/assignment-rules' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack rule', 'branch_id' => $tenant->id('branch'), 'assignee_type' => 'user',
+                'user_id' => $tenant->id('user'), 'source_ids' => [$tenant->id('crm_source')]],
+            'PATCH api/v1/crm/assignment-rules/{crm_assignment_rule}' => ['branch_id' => $tenant->id('branch'), 'assignee_type' => 'team', 'team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/lead-forms' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'name' => 'Hijack form',
+                'source_id' => $tenant->id('crm_source'), 'team_id' => $tenant->id('crm_team')],
+            'PATCH api/v1/crm/lead-forms/{crm_lead_form}' => ['branch_id' => $tenant->id('branch'), 'source_id' => $tenant->id('crm_source'), 'team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/leads' => ['branch_id' => $tenant->id('branch'), 'name' => 'Hijack lead', 'source_id' => $tenant->id('crm_source'), 'owner_id' => $tenant->id('user'),
+                'team_id' => $tenant->id('crm_team'), 'channel' => 'manual'],
+            'PATCH api/v1/crm/leads/{crm_lead}' => ['source_id' => $tenant->id('crm_source'), 'owner_id' => $tenant->id('user'), 'team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/leads/{crm_lead}/assign' => ['owner_id' => $tenant->id('user'), 'team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/leads/{crm_lead}/convert' => ['party_id' => $tenant->id('customer'), 'party' => ['company_id' => $tenant->id('company')],
+                'opportunity' => ['pipeline_id' => $tenant->id('crm_pipeline'), 'stage_id' => $tenant->id('crm_stage')]],
+            'POST api/v1/crm/opportunities' => ['branch_id' => $tenant->id('branch'), 'party_id' => $tenant->id('customer'), 'name' => 'Hijack deal', 'pipeline_id' => $tenant->id('crm_pipeline'),
+                'stage_id' => $tenant->id('crm_stage'), 'owner_id' => $tenant->id('user'), 'team_id' => $tenant->id('crm_team'), 'value_minor' => '1000', 'currency' => 'KES'],
+            'PATCH api/v1/crm/opportunities/{crm_opportunity}' => ['party_id' => $tenant->id('customer'), 'pipeline_id' => $tenant->id('crm_pipeline'), 'stage_id' => $tenant->id('crm_stage'),
+                'owner_id' => $tenant->id('user'), 'team_id' => $tenant->id('crm_team')],
+            'POST api/v1/crm/opportunities/{crm_opportunity}/win' => ['reason_id' => $tenant->id('crm_won_reason')],
+            'POST api/v1/crm/opportunities/{crm_opportunity}/lose' => ['reason_id' => $tenant->id('crm_lost_reason')],
+            'POST api/v1/crm/quotes', 'POST api/v1/crm/quotes/preview' => ['branch_id' => $tenant->id('branch'), 'party_id' => $tenant->id('customer'), 'opportunity_id' => $tenant->id('crm_opportunity'),
+                'owner_id' => $tenant->id('user'), 'team_id' => $tenant->id('crm_team'), 'lines' => $crmLines],
+            'PATCH api/v1/crm/quotes/{crm_quote}' => ['party_id' => $tenant->id('customer'), 'opportunity_id' => $tenant->id('crm_opportunity'), 'owner_id' => $tenant->id('user'),
+                'team_id' => $tenant->id('crm_team'), 'lines' => $crmLines],
+            'POST api/v1/crm/activities' => ['branch_id' => $tenant->id('branch'), 'kind' => 'task', 'subject' => 'Hijack check', 'starts_at' => '2026-12-02T08:00:00Z',
+                'owner_id' => $tenant->id('user'), 'lead_id' => $tenant->id('crm_lead'), 'opportunity_id' => $tenant->id('crm_opportunity'), 'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
+            'PATCH api/v1/crm/activities/{crm_activity}' => ['owner_id' => $tenant->id('user'), 'lead_id' => $tenant->id('crm_lead'), 'opportunity_id' => $tenant->id('crm_opportunity'),
+                'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
+            'POST api/v1/crm/emails' => ['to' => 'hijack@example.com', 'subject' => 'Hijack check', 'body' => 'Check', 'branch_id' => $tenant->id('branch'), 'lead_id' => $tenant->id('crm_lead'),
+                'opportunity_id' => $tenant->id('crm_opportunity'), 'quote_id' => $tenant->id('crm_quote'), 'party_id' => $tenant->id('customer')],
+            'POST api/v1/crm/targets' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'subject_type' => 'user', 'subject_id' => $tenant->id('user'),
+                'metric' => 'won_value', 'period_start' => '2026-01-01', 'period_end' => '2026-12-31', 'amount_minor' => '1000'],
+            'PATCH api/v1/crm/targets/{crm_target}' => ['branch_id' => $tenant->id('branch'), 'subject_id' => $tenant->id('user')],
             default => null,
         };
     }

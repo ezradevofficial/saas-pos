@@ -9909,9 +9909,8 @@
       "noInvoices": "Aucune facture pour l'instant",
       "draftInvoice": "Brouillon",
       "invoiceKinds": {
-        "invoice": "Facture",
-        "credit_note": "Avoir",
-        "debit_note": "Note de débit"
+        "customer_invoice": "Facture",
+        "customer_credit": "Avoir"
       },
       "columns": {
         "receipt": "Reçu",

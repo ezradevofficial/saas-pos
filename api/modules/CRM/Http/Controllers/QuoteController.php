@@ -8,11 +8,13 @@ use App\Core\DocumentTemplates\DocumentShares;
 use App\Core\DocumentTemplates\Models\DocumentShare;
 use App\Core\Exports\ListExport;
 use App\Core\Http\ApiException;
+use App\Core\MasterData\Taxes\TaxCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Modules\CRM\Activities\Activities;
 use Modules\CRM\Http\Requests\ListQuotesRequest;
+use Modules\CRM\Http\Requests\QuoteOutputRequest;
 use Modules\CRM\Http\Requests\QuoteRequest;
 use Modules\CRM\Http\Requests\RecordActionRequest;
 use Modules\CRM\Http\Requests\ShowRecordRequest;
@@ -68,7 +70,13 @@ class QuoteController
                 $line = collect($result['lines'])->firstWhere('line_no', $index + 1);
 
                 return [
-                    ...($line === null ? ['line_no' => $index + 1] : array_map(fn ($value) => is_int($value) ? (string) $value : $value, $line)),
+                    ...($line === null ? ['line_no' => $index + 1] : [
+                        ...array_map(fn ($value) => is_int($value) ? (string) $value : $value, $line),
+                        'tax_code' => Refs::taxCode($line['tax_code_id'] === null ? null : TaxCode::query()->find($line['tax_code_id'])),
+                        'tax_rate' => Refs::decimal($line['tax_rate']),
+                        'discount_percent' => Refs::decimal($line['discount_percent']),
+                        'qty' => Refs::decimal($line['qty']),
+                    ]),
                     'problems' => $problems->get($index, collect())->map(fn (array $problem) => ['code' => $problem['code'], 'field' => $problem['field'], 'message' => $problem['message']])->values()->all(),
                 ];
             })->values()->all(),
@@ -113,7 +121,7 @@ class QuoteController
     }
 
     /** TPL-01: the quote printed from its template (a draft without a number). */
-    public function pdf(RecordActionRequest $request, Quote $crmQuote, DocumentOutput $output): Response
+    public function pdf(QuoteOutputRequest $request, Quote $crmQuote, DocumentOutput $output): Response
     {
         if ($crmQuote->status === Quote::CANCELLED) {
             throw CrmError::make('quote_not_open', status: 409);
@@ -166,7 +174,7 @@ class QuoteController
         return new JsonResponse(['data' => [...self::presentShare($share), 'url' => $url, 'whatsapp_url' => 'https://wa.me/?text='.rawurlencode($url)]], 201);
     }
 
-    public function shares(RecordActionRequest $request, Quote $crmQuote): JsonResponse
+    public function shares(QuoteOutputRequest $request, Quote $crmQuote): JsonResponse
     {
         $shares = DocumentShare::query()->where('document_type', QuoteSource::TYPE)->where('record_id', $crmQuote->id)->orderByDesc('created_at')->limit(50)->get();
 

@@ -269,6 +269,28 @@ value and my targets. Tokens only; en and fr.
 3. Should invoice actuals for a **user** follow the quote's owner instead
    of the invoice's creator? Accounting keeps no link back to the quote.
 
+## Status (stage 7D, branch `feat/crm`)
+
+Built: CRM-01 to CRM-08, CRM-10 to CRM-35 (API, web, tests). CRM-09
+(field rules, Should) is wired for `crm_lead` and `crm_opportunity` on
+resources, lists and writes (GuardsFieldRules) but has no test of its own.
+
+### Decisions taken while building
+
+9. **A converted lead's new customer follows the customers' sharing
+   mode** (TEN-08): shared by default, the lead's company when customers
+   are kept per company.
+10. **Leads typed in by a person are theirs**; leads arriving by form,
+    import or the API without an owner go through the rules (CRM-11).
+11. **Owners of activities other than oneself** need `crm.scope.team` or
+    `crm.scope.branch` at the branch (a lead or manager hands out work).
+12. **A rejected quote edited becomes a draft again** and keeps its
+    number when submitted again.
+13. **Sending or sharing an approved quote marks it `sent`**; sending is
+    logged as a done email activity.
+14. **The public lead form's token hash is never exported** (EXP-02,
+    `ExportColumns::DENIED`).
+
 ## Deferred
 
 - Conversion to POS orders and e-commerce orders (their modules).

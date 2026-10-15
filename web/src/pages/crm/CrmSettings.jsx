@@ -602,7 +602,7 @@ function LeadForms({ company, canManage }) {
 export default function CrmSettings() {
   const { t } = useTranslation()
   const { canWithin } = usePermissions()
-  const { company, companies, choose } = useCrmCompany()
+  const { company, companies, choose, ready } = useCrmCompany()
   const [tab, setTab] = useState('general')
   const canManage = Boolean(company) && canWithin(SETTINGS_MANAGE, [{ type: 'company', id: company.id }])
   return (
@@ -610,7 +610,7 @@ export default function CrmSettings() {
       <PageHeader title={t('crm.settings.title')} description={t('crm.settings.description')} />
       <div className="flex flex-col gap-5">
         {companies.length > 1 ? <Select label={t('crm.fields.company')} options={namedOptions(companies)} value={company?.id ?? ''} onChange={(event) => choose(event.target.value)} className="max-w-field" /> : null}
-        {!company ? <p className="text-ink-muted">{t('crm.settings.noCompany')}</p> : null}
+        {!company ? <p className="text-ink-muted">{ready ? t('crm.settings.noCompany') : t('common.loading')}</p> : null}
         {company ? (
           <>
             <Tabs items={TABS.map((value) => ({ value, label: t(`crm.settings.tabs.${value}`) }))} value={tab} onChange={setTab} />

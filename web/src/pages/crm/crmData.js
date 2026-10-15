@@ -102,10 +102,11 @@ export const companyById = (places, companyId) => places.companies.find((company
  */
 export function useCrmCompany() {
   const { company: switcher } = useCompanySelection()
-  const active = useCompanies().companies.filter((entry) => !entry.archived_at)
+  const { companies, ready } = useCompanies()
+  const active = companies.filter((entry) => !entry.archived_at)
   const [chosen, setChosen] = useState('')
   const company = active.find((entry) => entry.id === chosen) ?? switcher ?? active[0] ?? null
-  return { company, companies: active, choose: setChosen }
+  return { company, companies: active, choose: setChosen, ready }
 }
 
 const lookup = (key, path, enabled) => ({ queryKey: [...crmKey, ...key], queryFn: () => api.get(path), enabled, staleTime: 30_000, retry: false })

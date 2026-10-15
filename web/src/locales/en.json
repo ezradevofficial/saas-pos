@@ -9909,9 +9909,8 @@
       "noInvoices": "No invoices yet",
       "draftInvoice": "Draft",
       "invoiceKinds": {
-        "invoice": "Invoice",
-        "credit_note": "Credit note",
-        "debit_note": "Debit note"
+        "customer_invoice": "Invoice",
+        "customer_credit": "Credit note"
       },
       "columns": {
         "receipt": "Receipt",

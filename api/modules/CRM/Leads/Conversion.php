@@ -109,8 +109,8 @@ class Conversion
         $body = array_filter([
             'kind' => $input['kind'] ?? ($lead->organisation ? 'organisation' : 'person'),
             'name' => $input['name'] ?? ($lead->organisation ?: $lead->name),
-            // TEN-08: customers kept per company belong to the lead's company; shared ones to none.
-            'company_id' => $input['company_id'] ?? (PartyRoles::perCompany(['customer'], app(MasterDataSharing::class)) ? $lead->company_id : null),
+            // TEN-08: customers kept per company belong to the one given (the lead's by default); shared ones to none.
+            'company_id' => PartyRoles::perCompany(['customer'], app(MasterDataSharing::class)) ? ($input['company_id'] ?? $lead->company_id) : null,
             'phones' => $input['phones'] ?? ($lead->phone ? [['number' => $lead->phone]] : null),
             'emails' => $input['emails'] ?? ($lead->email ? [['address' => $lead->email]] : null),
             'tax_id' => $input['tax_id'] ?? null,
