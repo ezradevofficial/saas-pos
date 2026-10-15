@@ -2,7 +2,7 @@
 
 namespace Modules\FixedAssets\Http\Requests;
 
-/** GET fixed-assets/companies/{company}/tax-book (FA-20): `fixed_assets.tax.view` at the company; `?year=`. */
+/** GET fixed-assets/companies/{company}/tax-book (FA-20): `fixed_assets.tax.view` at the company; `?year=` (this year by default). */
 class TaxBookRequest extends CompanyRequest
 {
     protected function permission(): string
@@ -12,6 +12,6 @@ class TaxBookRequest extends CompanyRequest
 
     public function rules(): array
     {
-        return ['year' => ['required', 'integer', 'between:2000,2100']];
+        return ['year' => ['sometimes', 'integer', 'between:2000,2100']];
     }
 }

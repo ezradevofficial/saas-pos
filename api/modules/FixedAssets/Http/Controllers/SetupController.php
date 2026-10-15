@@ -148,14 +148,26 @@ class SetupController
         return response()->json(['data' => RecordResources::itemCategory($faItemCategory->load(['company', 'item', 'category']))]);
     }
 
-    /** FA-20: the tax book of a year, refused while its rates are unconfirmed. */
+    /**
+     * FA-20: the tax book of a year (this year by default). While its rates
+     * are unconfirmed nothing is computed: the answer says so
+     * (`status: unconfirmed`, the categories and classes in question).
+     */
     public function taxBook(TaxBookRequest $request, Company $company): JsonResponse
     {
-        $rows = $this->taxBook->year($company, (int) $request->validated('year'));
+        $unconfirmed = $this->taxBook->unconfirmed($company);
+
+        if ($unconfirmed !== [] || Category::query()->where('company_id', $company->id)->whereNull('archived_at')->doesntExist()) {
+            return response()->json(['status' => 'unconfirmed', 'code' => 'tax_rates_unconfirmed', 'unconfirmed' => $unconfirmed,
+                'message' => __('fixed_assets.errors.tax_rates_unconfirmed', ['classes' => implode(', ', array_map(fn (array $row) => $row['tax_class'] ?? $row['category'], $unconfirmed)) ?: '-']),
+                'data' => []]);
+        }
+
+        $rows = $this->taxBook->year($company, (int) $request->validated('year', now()->year));
         $values = Values::atCompany($request, $company->id);
         $money = fn (int $minor) => Values::money($values, $minor, (string) $company->base_currency);
 
-        return response()->json(['data' => array_map(fn (array $row) => [
+        return response()->json(['status' => 'confirmed', 'data' => array_map(fn (array $row) => [
             ...$row, 'opening' => $money($row['opening']), 'allowance' => $money($row['allowance']), 'closing' => $money($row['closing']),
         ], $rows)]);
     }

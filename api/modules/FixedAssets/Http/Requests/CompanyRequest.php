@@ -43,7 +43,8 @@ abstract class CompanyRequest extends FormRequest
             return $route->id;
         }
 
-        $id = $this->input('company_id') ?? $this->query('company');
+        // A body names it `company_id`, a query `company`.
+        $id = $this->all()['company_id'] ?? $this->all()['company'] ?? null;
 
         return is_string($id) && Str::isUuid($id) ? $id : null;
     }

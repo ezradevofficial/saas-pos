@@ -219,6 +219,16 @@ class TenantIsolationTest extends TestCase
         'hr_disciplinary_case' => 'hr_disciplinary_case',
         'hr_appraisal_cycle' => 'hr_appraisal_cycle',
         'hr_appraisal' => 'hr_appraisal',
+        // Fixed assets (docs/modules/fixed-assets.md).
+        'fa_asset' => 'fa_asset',
+        'fa_category' => 'fa_category',
+        'fa_item_category' => 'fa_item_category',
+        'fa_document' => 'fa_document',
+        'fa_run' => 'fa_run',
+        'fa_transfer' => 'fa_transfer',
+        'fa_disposal' => 'fa_disposal',
+        'fa_schedule' => 'fa_schedule',
+        'fa_work_order' => 'fa_work_order',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -326,6 +336,16 @@ class TenantIsolationTest extends TestCase
         'peer_roster_shift_id' => 'hr_roster_shift_peer',
         'template_id' => 'hr_checklist_template',
         'reviewer_id' => 'user',
+        // Fixed assets: custodians (users, HR employees), suppliers and vendors, transfers' targets, schedules, labels.
+        'custodian_user_id' => 'user',
+        'custodian_employee_id' => 'hr_employee',
+        'supplier_id' => 'party',
+        'to_custodian_user_id' => 'user',
+        'to_custodian_employee_id' => 'hr_employee',
+        'to_cost_centre_id' => 'cost_centre',
+        'schedule_id' => 'fa_schedule',
+        'vendor_id' => 'party',
+        'asset_id' => 'fa_asset',
         'scope_id' => null,
     ];
 
@@ -336,6 +356,8 @@ class TenantIsolationTest extends TestCase
      */
     public const CONTROL_REFUSALS = [
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
+        'POST api/v1/fixed-assets/assets/{fa_asset}/transfers' => ['transfer_pending', 'FA-14: the fixture\'s asset already has a transfer waiting for approval, so another is refused after validation'],
+        'POST api/v1/fixed-assets/assets/{fa_asset}/disposals' => ['transfer_pending', 'FA-17: the fixture\'s asset has a transfer waiting for approval, so a disposal is refused after validation'],
     ];
 
     /**
@@ -362,6 +384,10 @@ class TenantIsolationTest extends TestCase
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
         // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
+        // Fixed assets: `category_id` names an asset category (FA-02), not an item category.
+        'POST api/v1/fixed-assets/assets' => ['category_id' => 'fa_category'],
+        'PATCH api/v1/fixed-assets/assets/{fa_asset}' => ['category_id' => 'fa_category'],
+        'POST api/v1/fixed-assets/item-categories' => ['category_id' => 'fa_category'],
     ];
 
     /**
@@ -454,6 +480,8 @@ class TenantIsolationTest extends TestCase
         ['year' => '2026'],
         // STR-12, STR-14: consumption by cost centre (both tenants issued to theirs), the issue voucher.
         ['group' => 'cost_centre', 'document' => 'issue_voucher'],
+        // FA-12: a month of depreciation (both tenants posted January 2026).
+        ['period' => '2026-01'],
     ];
 
     /**
@@ -461,10 +489,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'asset' => 'fa_asset', 'custodian' => 'user'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'asset', 'custodian', 'period'];
 
     private TwoTenants $tenants;
 
@@ -1672,6 +1700,26 @@ class TenantIsolationTest extends TestCase
             // HR-31: the Owner is linked to A's employee.
             'POST api/v1/hr/me/leave-requests' => ['leave_type_id' => $tenant->id('hr_leave_type'), 'start_date' => '2027-01-11', 'end_date' => '2027-01-12'],
             'POST api/v1/hr/me/swaps' => ['roster_shift_id' => $tenant->id('hr_roster_shift'), 'peer_employee_id' => $tenant->id('hr_employee_peer'), 'peer_roster_shift_id' => $tenant->id('hr_roster_shift_peer')],
+            // Fixed assets (docs/modules/fixed-assets.md): bodies naming A's own places, categories, people, parties, schedules and assets.
+            'POST api/v1/fixed-assets/categories' => ['company_id' => $tenant->id('company'), 'code' => 'HIJACK', 'name' => 'Hijack', 'method' => 'none'],
+            'POST api/v1/fixed-assets/item-categories' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('fa_item_spare'), 'category_id' => $tenant->id('fa_category')],
+            'POST api/v1/fixed-assets/assets' => [
+                'location_id' => $tenant->id('location'), 'name' => 'Hijack', 'category_id' => $tenant->id('fa_category'), 'custodian_user_id' => $tenant->id('user'),
+                'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'supplier_id' => $tenant->id('party'),
+            ],
+            'PATCH api/v1/fixed-assets/assets/{fa_asset}' => [
+                'location_id' => $tenant->id('location'), 'category_id' => $tenant->id('fa_category'), 'custodian_user_id' => $tenant->id('user'),
+                'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'supplier_id' => $tenant->id('party'),
+            ],
+            'POST api/v1/fixed-assets/assets/{fa_asset}/transfers' => [
+                'to_location_id' => $tenant->id('location'), 'to_custodian_user_id' => $tenant->id('manager'), 'to_cost_centre_id' => $tenant->id('cost_centre'),
+                'transfer_date' => '2026-03-01', 'reason' => 'Check',
+            ],
+            'POST api/v1/fixed-assets/assets/{fa_asset}/disposals' => ['kind' => 'sale', 'disposal_date' => '2026-03-01', 'proceeds_minor' => 100, 'party_id' => $tenant->id('party'), 'reason' => 'Check'],
+            'POST api/v1/fixed-assets/assets/{fa_asset}/work-orders' => ['title' => 'Check', 'schedule_id' => $tenant->id('fa_schedule'), 'vendor_id' => $tenant->id('party')],
+            'PATCH api/v1/fixed-assets/work-orders/{fa_work_order}' => ['schedule_id' => $tenant->id('fa_schedule'), 'vendor_id' => $tenant->id('party')],
+            'POST api/v1/fixed-assets/runs' => ['company_id' => $tenant->id('company'), 'period' => '2026-02'],
+            'POST api/v1/fixed-assets/labels' => ['labels' => [['asset_id' => $tenant->id('fa_asset'), 'copies' => 1]]],
             'POST api/v1/inventory/labels' => [
                 'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
                 'price_list_id' => $tenant->id('price_list'),
