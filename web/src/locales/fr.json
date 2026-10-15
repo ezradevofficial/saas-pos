@@ -9314,7 +9314,8 @@
       "component": "Composant",
       "by_product": "Sous-produit",
       "consume": "Consommé",
-      "return": "Rendu"
+      "return": "Rendu",
+      "product": "Produit"
     },
     "statuses": {
       "planned": "Planifié",

@@ -9314,7 +9314,8 @@
       "component": "Component",
       "by_product": "By-product",
       "consume": "Consumed",
-      "return": "Given back"
+      "return": "Given back",
+      "product": "Product"
     },
     "statuses": {
       "planned": "Planned",
