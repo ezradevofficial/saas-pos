@@ -133,10 +133,10 @@ class AssetsTest extends TestCase
     public function test_custodians_are_users_or_hr_employees_never_both(): void
     {
         $this->api('POST', 'assets', ['location_id' => $this->locationA->id, 'name' => 'Laptop', 'custodian_user_id' => $this->manager->id, 'custodian_employee_id' => $this->manager->id])
-            ->assertStatus(422)->assertJsonPath('code', 'custodian_both');
-        // HR is off: an employee id is not known.
+            ->assertStatus(422)->assertJsonValidationErrors('custodian_employee_id');
+        // HR is off: an employee id is not known (with HR on, naming both answers custodian_both).
         $this->api('POST', 'assets', ['location_id' => $this->locationA->id, 'name' => 'Laptop', 'custodian_employee_id' => $this->manager->id])
-            ->assertStatus(422)->assertJsonPath('code', 'custodian_unknown');
+            ->assertStatus(422)->assertJsonValidationErrors(['custodian_employee_id' => 'Choose a custodian who exists in this company.']);
         $this->api('GET', "custodians?company={$this->acme->id}&search=")->assertOk()->assertJsonPath('hr', false);
     }
 

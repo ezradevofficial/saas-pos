@@ -12,7 +12,7 @@ class StoreTransferRequest extends AssetRequest
         return [
             'to_location_id' => ['sometimes', 'uuid', Rule::exists('locations', 'id')],
             'to_custodian_user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
-            'to_custodian_employee_id' => ['sometimes', 'nullable', 'uuid'],
+            'to_custodian_employee_id' => ['sometimes', 'nullable', 'uuid', StoreAssetRequest::employee()],
             'to_cost_centre_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('cost_centres', 'id')],
             'transfer_date' => ['required', 'date_format:Y-m-d'],
             'reason' => ['required', 'string', 'max:1000'],

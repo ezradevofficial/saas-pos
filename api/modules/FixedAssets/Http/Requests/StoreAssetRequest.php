@@ -4,12 +4,15 @@ namespace Modules\FixedAssets\Http\Requests;
 
 use App\Core\CustomFields\CustomFieldValidator;
 use App\Core\Rbac\ScopeResolver;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Modules\FixedAssets\Assets\Custodians;
 use Modules\FixedAssets\CustomFields\AssetEntity;
 use Modules\FixedAssets\Depreciation\AssetBook;
 use Modules\FixedAssets\Support\Access;
+use Modules\HR\Contracts\EmployeeDirectory;
 
 /**
  * POST fixed-assets/assets (FA-04): `fixed_assets.asset.manage` at the
@@ -43,7 +46,8 @@ class StoreAssetRequest extends FormRequest
             'category_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('fa_categories', 'id')],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'custodian_user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
-            'custodian_employee_id' => ['sometimes', 'nullable', 'uuid'],
+            // FA-04: an HR employee, known only through HR's read contract while HR is active.
+            'custodian_employee_id' => ['sometimes', 'nullable', 'uuid', self::employee()],
             'cost_centre_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('cost_centres', 'id')],
             'department_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('departments', 'id')],
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:120'],
@@ -63,6 +67,18 @@ class StoreAssetRequest extends FormRequest
             'meter_start' => ['sometimes', 'decimal:0,6', 'min:0', 'max:99999999999999'],
             ...CustomFieldValidator::rules(),
         ];
+    }
+
+    /** A rule: the value names an employee HR knows in this tenant (RLS), or `custodian_unknown`. */
+    public static function employee(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) {
+            $custodians = app(Custodians::class);
+
+            if ($value !== null && (! $custodians->hrActive() || app(EmployeeDirectory::class)->find((string) $value) === null)) {
+                $fail(__('fixed_assets.errors.custodian_unknown'));
+            }
+        };
     }
 
     public function after(): array
