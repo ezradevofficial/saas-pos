@@ -62,6 +62,8 @@ class StoreEmployeeRequest extends HrRequest
                     $this->forbid();
                 }
             }
+
+            $this->guardLink($scope, null);
         });
     }
 }

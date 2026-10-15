@@ -126,6 +126,7 @@ return [
             'issue' => 'Issue',
             'block' => 'Block',
             'terminate' => 'Terminate or rehire',
+            'link' => 'Link a user',
         ],
     ],
 

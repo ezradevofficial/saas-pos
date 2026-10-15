@@ -361,9 +361,16 @@ function Identity({ employee, types }) {
 
 function EditIdentifiers({ employee, types, onClose }) {
   const { t } = useTranslation()
-  const [values, setValues] = useState(() => Object.fromEntries(types.map((type) => [type.type, type.value ?? ''])))
+  const initial = Object.fromEntries(types.map((type) => [type.type, type.value ?? '']))
+  const [values, setValues] = useState(initial)
+  // HR-03: only what the person changed is sent; clearing a held value removes it explicitly.
+  const changes = types
+    .filter((type) => values[type.type] !== initial[type.type])
+    .map((type) => (values[type.type].trim() === '' ? { type: type.type, remove: true } : { type: type.type, value: values[type.type].trim() }))
   const save = useHrMutation((body) => api.put(`hr/employees/${employee.id}/identifiers`, body), { success: t('hr.identity.saved'), onDone: onClose })
-  const errors = save.errors(types.map((_, index) => `identifiers.${index}.value`))
+  const sent = changes.map((change) => change.type)
+  const raw = save.errors(sent.map((_, index) => `identifiers.${index}.value`))
+  const errors = { ...raw, fields: Object.fromEntries(types.map((type, index) => [`identifiers.${index}.value`, raw.fields[`identifiers.${sent.indexOf(type.type)}.value`]])) }
   return (
     <FormDialog
       open
@@ -372,7 +379,7 @@ function EditIdentifiers({ employee, types, onClose }) {
       submitLabel={t('hr.actions.saveChanges')}
       pending={save.isPending}
       errors={errors}
-      onSubmit={() => save.mutate({ identifiers: types.map((type) => ({ type: type.type, value: values[type.type].trim() || null })) })}
+      onSubmit={() => (changes.length === 0 ? onClose() : save.mutate({ identifiers: changes }))}
     >
       <p>{t('hr.identity.editHelp')}</p>
       {types.map((type, index) => (

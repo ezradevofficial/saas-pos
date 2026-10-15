@@ -28,6 +28,8 @@ class RosterShifts
             throw Errors::make(409, 'employee_terminated');
         }
 
+        $this->assertOpen($employee->company_id, $data['date']);
+
         $planned = Errors::transaction(function () use ($employee, $shift, $data, $by) {
             [$start, $end] = $this->schedules->window($shift, $data['date'], $this->schedules->timezoneOf($employee));
 
@@ -62,6 +64,8 @@ class RosterShifts
             }
 
             $date = $data['date'] ?? $planned->date->toDateString();
+            $this->assertOpen($planned->company_id, $planned->date->toDateString());
+            $this->assertOpen($planned->company_id, $date);
             [$start, $end] = $this->schedules->window($shift, $date, $this->schedules->timezoneOf($employee));
 
             try {
@@ -88,6 +92,7 @@ class RosterShifts
                 throw Errors::make(409, 'document_not_open');
             }
 
+            $this->assertOpen($planned->company_id, $planned->date->toDateString());
             $planned->fill(['status' => RosterShift::CANCELLED])->save();
 
             return $planned->refresh();
@@ -96,6 +101,14 @@ class RosterShifts
         $this->timesheets->touch($planned->employee_id, $planned->date->toDateString());
 
         return $planned;
+    }
+
+    /** HR-26: a closed attendance period is final: its planned shifts do not change. */
+    private function assertOpen(string $companyId, string $date): void
+    {
+        if ($this->timesheets->closedPeriod($companyId, $date) !== null) {
+            throw Errors::make(409, 'period_closed', field: 'date');
+        }
     }
 
     private function shiftOf(Employee $employee, string $shiftId): Shift

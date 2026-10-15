@@ -7,6 +7,7 @@ use App\Core\Rbac\Scope;
 use Illuminate\Foundation\Http\FormRequest;
 use Modules\HR\Models\Employee;
 use Modules\HR\Support\Access;
+use Modules\HR\Support\Errors;
 use Modules\HR\Support\Sensitive;
 
 /**
@@ -17,6 +18,9 @@ use Modules\HR\Support\Sensitive;
  */
 abstract class HrRequest extends FormRequest
 {
+    /** HR-22: an instant with an explicit offset (`2026-10-05T08:00:00+03:00` or `…Z`). */
+    public const INSTANT = 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,6})?)?(Z|[+-]\\d{2}:\\d{2})$/';
+
     public function rules(): array
     {
         return [];
@@ -52,6 +56,25 @@ abstract class HrRequest extends FormRequest
         abort_unless($this->access()->readsCompany($this->user(), $view, $companyId) || $this->access()->at($this->user(), $permission, Scope::company($companyId)), 404);
 
         return $this->access()->at($this->user(), $permission, Scope::company($companyId));
+    }
+
+    /**
+     * AUTH-12: linking or unlinking a user needs `hr.employee.link` at the
+     * employee's place, and nobody links themselves.
+     */
+    protected function guardLink(Scope $scope, ?string $current): void
+    {
+        if (! $this->has('user_id') || $this->input('user_id') === $current) {
+            return;
+        }
+
+        if (! $this->access()->at($this->user(), 'hr.employee.link', $scope)) {
+            $this->forbid();
+        }
+
+        if ($this->input('user_id') === $this->user()->id) {
+            throw Errors::make(422, 'link_self', field: 'user_id');
+        }
     }
 
     /** 403 with HR's wording. */

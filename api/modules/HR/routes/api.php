@@ -57,6 +57,7 @@ Route::get('hr-files/{path}', [DocumentController::class, 'download'])->where('p
 // HR-23: a paired POS device's clock-ins (device token).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:hr'])->group(function () {
     Route::post('hr/till/punches', [AttendanceController::class, 'tillPunches'])->middleware('throttle:device-sync');
+    Route::post('hr/till/clock-attempts', [AttendanceController::class, 'clockAttempts'])->middleware('throttle:device-sync');
 });
 
 // HR-24: a biometric attendance device's punches (its own token).
@@ -64,8 +65,11 @@ Route::middleware(['auth:sanctum', 'tenant', EnsureAttendanceDeviceToken::class,
     Route::post('hr/device/punches', [AttendanceController::class, 'devicePunches'])->middleware('throttle:device-sync');
 });
 
-Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:hr'])->group(function () {
-    // HR-02 to HR-07, HR-23, HR-27, HR-28: employees and what hangs off them.
+// Owner decision B (docs/modules/hr.md): HR's employee records (employees,
+// identifiers, pay accounts, contracts, positions and the employee's own
+// profile) are open with HR or with Payroll sold alone; everything else
+// needs HR.
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:hr,payroll'])->group(function () {
     Route::get('hr/employees', [EmployeeController::class, 'index']);
     Route::post('hr/employees', [EmployeeController::class, 'store']);
     Route::get('hr/employees/{hr_employee}', [EmployeeController::class, 'show']);
@@ -73,8 +77,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('hr/employees/{hr_employee}/terminate', [EmployeeController::class, 'terminate']);
     Route::post('hr/employees/{hr_employee}/rehire', [EmployeeController::class, 'rehire']);
     Route::put('hr/employees/{hr_employee}/identifiers', [EmployeeController::class, 'identifiers']);
-    Route::put('hr/employees/{hr_employee}/clock-pin', [EmployeeController::class, 'setClockPin']);
-    Route::post('hr/employees/{hr_employee}/clock-pin/clear', [EmployeeController::class, 'clearClockPin']);
     Route::get('hr/employees/{hr_employee}/pay-accounts', [PayAccountController::class, 'index']);
     Route::post('hr/employees/{hr_employee}/pay-accounts', [PayAccountController::class, 'store']);
     Route::patch('hr/pay-accounts/{hr_pay_account}', [PayAccountController::class, 'update']);
@@ -83,6 +85,19 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('hr/employees/{hr_employee}/contracts', [ContractController::class, 'store']);
     Route::patch('hr/contracts/{hr_contract}', [ContractController::class, 'update']);
     Route::post('hr/contracts/{hr_contract}/end', [ContractController::class, 'end']);
+    Route::get('hr/positions', [PositionController::class, 'index']);
+    Route::post('hr/positions', [PositionController::class, 'store']);
+    Route::patch('hr/positions/{hr_position}', [PositionController::class, 'update']);
+    Route::post('hr/positions/{hr_position}/archive', [PositionController::class, 'archive']);
+    Route::post('hr/positions/{hr_position}/restore', [PositionController::class, 'restore']);
+    Route::get('hr/me', [SelfServiceController::class, 'show']);
+    Route::patch('hr/me', [SelfServiceController::class, 'update']);
+});
+
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:hr'])->group(function () {
+    // HR-02 to HR-07, HR-23, HR-27, HR-28: employees and what hangs off them.
+    Route::put('hr/employees/{hr_employee}/clock-pin', [EmployeeController::class, 'setClockPin']);
+    Route::post('hr/employees/{hr_employee}/clock-pin/clear', [EmployeeController::class, 'clearClockPin']);
     Route::get('hr/employees/{hr_employee}/documents', [DocumentController::class, 'index']);
     Route::post('hr/employees/{hr_employee}/documents', [DocumentController::class, 'store'])->middleware('throttle:custom-field-files');
     Route::get('hr/documents/{hr_document}/link', [DocumentController::class, 'link']);
@@ -90,11 +105,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('hr/employees/{hr_employee}/checklists', [RecordsController::class, 'startChecklist']);
 
     // HR-08: positions.
-    Route::get('hr/positions', [PositionController::class, 'index']);
-    Route::post('hr/positions', [PositionController::class, 'store']);
-    Route::patch('hr/positions/{hr_position}', [PositionController::class, 'update']);
-    Route::post('hr/positions/{hr_position}/archive', [PositionController::class, 'archive']);
-    Route::post('hr/positions/{hr_position}/restore', [PositionController::class, 'restore']);
 
     // HR-12 to HR-15: leave.
     Route::get('hr/leave-types', [LeaveController::class, 'types']);
@@ -184,8 +194,6 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('hr/appraisals/{hr_appraisal}/complete', [RecordsController::class, 'completeAppraisal']);
 
     // HR-31: employee self-service.
-    Route::get('hr/me', [SelfServiceController::class, 'show']);
-    Route::patch('hr/me', [SelfServiceController::class, 'update']);
     Route::get('hr/me/leave', [SelfServiceController::class, 'leave']);
     Route::post('hr/me/leave-requests', [SelfServiceController::class, 'requestLeave']);
     Route::post('hr/me/leave-requests/{hr_leave_request}/cancel', [SelfServiceController::class, 'cancelLeave']);

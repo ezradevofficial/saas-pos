@@ -3,6 +3,7 @@
 namespace Modules\HR\Http\Controllers;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\HR\Attendance\Punches;
@@ -179,7 +180,7 @@ class SelfServiceController
     /** @return array{0: string, 1: string} */
     private function range(SelfRangeRequest $request): array
     {
-        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now()->startOfWeek()->toDateString()));
+        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString()));
         $to = CarbonImmutable::parse($request->validated('to', $from->addDays(6)->toDateString()));
 
         if ($to->lessThan($from) || $from->diffInDays($to) > 62) {

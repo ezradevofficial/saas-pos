@@ -32,9 +32,11 @@ class Identifiers
     }
 
     /**
-     * Set the given types (a null or empty value removes that type's value).
+     * Set the given types. A type left out keeps its value, and so does an
+     * empty value: only `remove: true` deletes one (clients send only what
+     * the person changed).
      *
-     * @param  list<array{type: string, value: ?string}>  $identifiers
+     * @param  list<array{type: string, value?: ?string, remove?: bool}>  $identifiers
      */
     public function put(Employee $employee, array $identifiers): void
     {
@@ -44,7 +46,7 @@ class Identifiers
             $type = $types[$identifier['type']] ?? throw Errors::make(422, 'identifier_type_unknown', ['type' => $identifier['type']], "identifiers.{$index}.type");
             $value = trim((string) ($identifier['value'] ?? ''));
 
-            if ($value !== '' && $type['pattern'] !== null && preg_match('/'.$type['pattern'].'/u', Digest::normalise($value)) !== 1) {
+            if (($identifier['remove'] ?? false) !== true && $value !== '' && $type['pattern'] !== null && preg_match('/'.$type['pattern'].'/u', Digest::normalise($value)) !== 1) {
                 throw Errors::make(422, 'identifier_format', ['type' => HrPack::label('identifiers', $type['key'])], "identifiers.{$index}.value");
             }
         }
@@ -56,13 +58,18 @@ class Identifiers
                 $value = trim((string) ($identifier['value'] ?? ''));
                 $current = EmployeeIdentifier::query()->where('employee_id', $employee->id)->where('type', $identifier['type'])->lockForUpdate()->first();
 
-                if ($value === '') {
+                if (($identifier['remove'] ?? false) === true) {
                     if ($current !== null) {
                         // Personal data, not a business record: a cleared identifier is gone (NFR-08).
                         $current->delete();
                         $changed[] = $identifier['type'];
                     }
 
+                    continue;
+                }
+
+                if ($value === '') {
+                    // Nothing typed: the value is kept.
                     continue;
                 }
 

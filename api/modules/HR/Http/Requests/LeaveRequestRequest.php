@@ -20,7 +20,7 @@ class LeaveRequestRequest extends HrRequest
 
     private function isOwn(): bool
     {
-        $userId = Employee::query()->whereKey($this->leaveRequest()->employee_id)->value('user_id');
+        $userId = Employee::query()->whereKey($this->leaveRequest()->employee_id)->where('status', Employee::ACTIVE)->value('user_id');
 
         return $userId !== null && $userId === $this->user()->id;
     }

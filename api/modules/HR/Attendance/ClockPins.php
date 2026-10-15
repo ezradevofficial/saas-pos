@@ -5,6 +5,7 @@ namespace Modules\HR\Attendance;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Pin\Pins;
+use App\Core\Identity\Pin\UserPin;
 use App\Core\Sync\DeviceSecret;
 use App\Core\Sync\DeviceSecrets;
 use App\Core\Sync\SnapshotCache;
@@ -37,6 +38,13 @@ class ClockPins
     {
         if (preg_match('/^\d{4,6}\z/', $pin) !== 1) {
             throw Errors::make(422, 'clock_pin_format', field: 'pin');
+        }
+
+        // HR-23: never the employee's till sign-in PIN (one leaked code must not open both).
+        $tillHash = $employee->user_id === null ? null : UserPin::query()->where('user_id', $employee->user_id)->value('pin_hash');
+
+        if ($tillHash !== null && Hash::driver('argon2id')->check($pin, $tillHash)) {
+            throw Errors::make(422, 'clock_pin_same_as_till', field: 'pin');
         }
 
         return Errors::transaction(function () use ($employee, $pin, $by) {

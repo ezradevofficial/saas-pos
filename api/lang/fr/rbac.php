@@ -126,6 +126,7 @@ return [
             'issue' => 'Émettre',
             'block' => 'Bloquer',
             'terminate' => 'Faire partir ou réembaucher',
+            'link' => 'Lier un utilisateur',
         ],
     ],
 

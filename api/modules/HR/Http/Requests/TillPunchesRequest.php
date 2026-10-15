@@ -24,7 +24,7 @@ class TillPunchesRequest extends FormRequest
             'punches.*.id' => ['required', 'uuid', 'distinct'],
             'punches.*.employee_id' => ['required', 'uuid', Rule::exists('hr_employees', 'id')],
             'punches.*.kind' => ['required', Rule::in(['in', 'out'])],
-            'punches.*.occurred_at' => ['required', 'date'],
+            'punches.*.occurred_at' => ['required', 'date', HrRequest::INSTANT],
         ];
     }
 }

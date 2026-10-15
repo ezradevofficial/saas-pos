@@ -70,7 +70,21 @@ class Punches
             ]);
             $punch->id = $id;
 
-            // A punch id is unique across tenants: one of another tenant is refused, never confirmed.
+            // HR-22: the work date is fixed when the punch is recorded; outside the employment it is refused.
+            $date = $this->timesheets->workDateOf($punch, $employee);
+
+            if ($date < $employee->hire_date->toDateString() || ($employee->termination_date !== null && $date > $employee->termination_date->toDateString())) {
+                throw Errors::make(422, 'punch_outside_employment', field: 'occurred_at');
+            }
+
+            $punch->work_date = $date;
+
+            if ($this->timesheets->closedPeriod($employee->company_id, $date) !== null) {
+                $punch->flags = ['period_closed'];
+            }
+
+            // A punch id is unique across tenants: one of another tenant is refused, never confirmed;
+            // the same punch sent twice at once is answered as stored.
             $inserted = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($punch) {
                 try {
                     $punch->save();
@@ -82,13 +96,14 @@ class Punches
             });
 
             if (! $inserted) {
+                $concurrent = Punch::query()->whereKey($id)->first()
+                    ?? (($data['external_id'] ?? null) !== null ? Punch::query()->where('attendance_device_id', $data['attendance_device_id'])->where('external_id', $data['external_id'])->first() : null);
+
+                if ($concurrent !== null) {
+                    return [$concurrent, false];
+                }
+
                 throw Errors::make(409, 'punch_id_taken');
-            }
-
-            $date = $this->timesheets->workDateOf($punch, $employee);
-
-            if ($this->timesheets->closedPeriod($employee->company_id, $date) !== null) {
-                $punch->fill(['flags' => ['period_closed']])->save();
             }
 
             if ($data['source'] === 'manual') {
@@ -99,7 +114,7 @@ class Punches
         });
 
         if ($created) {
-            $this->timesheets->touch($employee->id, $this->timesheets->workDateOf($punch, $employee));
+            $this->timesheets->touch($employee->id, $punch->work_date->toDateString());
         }
 
         return [$punch->refresh(), $created];
@@ -114,7 +129,7 @@ class Punches
                 throw Errors::make(409, 'document_not_open');
             }
 
-            if ($this->timesheets->closedPeriod($punch->company_id, $this->timesheets->workDateOf($punch)) !== null) {
+            if ($this->timesheets->closedPeriod($punch->company_id, $punch->work_date?->toDateString() ?? $this->timesheets->workDateOf($punch)) !== null) {
                 throw Errors::make(409, 'period_closed');
             }
 
@@ -124,17 +139,22 @@ class Punches
             return $punch->refresh();
         });
 
-        $this->timesheets->touch($punch->employee_id, $this->timesheets->workDateOf($punch));
+        $this->timesheets->touch($punch->employee_id, $punch->work_date?->toDateString() ?? $this->timesheets->workDateOf($punch));
 
         return $punch;
     }
 
-    /** HR-24: `auto`: the opposite of the employee's last punch of that local day (an `in` first). */
-    public function nextKind(Employee $employee, CarbonImmutable $at, string $timezone): string
+    /**
+     * HR-22, HR-24: the next punch of an employee: the opposite of their
+     * latest punch within the overnight window (16 hours before $at), an
+     * `in` when there is none, so a night shift's `out` after midnight
+     * closes the `in` before it. The same rule runs on the till, for a
+     * device's `auto` and on the web.
+     */
+    public function nextKind(Employee $employee, CarbonImmutable $at, ?string $timezone = null): string
     {
-        $local = $at->setTimezone($timezone);
         $last = Punch::query()->where('employee_id', $employee->id)->whereNull('voided_at')
-            ->whereBetween('occurred_at', [$local->startOfDay()->utc(), $at])
+            ->whereBetween('occurred_at', [$at->subHours(Timesheets::OVERNIGHT_HOURS), $at])
             // Times are stored to the second: within one, the later id (UUID v7) is the later punch.
             ->orderByDesc('occurred_at')->orderByDesc('id')->first();
 

@@ -7,7 +7,8 @@ use Modules\HR\Support\Sensitive;
 /**
  * PUT hr/employees/{hr_employee}/identifiers (HR-03): `hr.identity.edit`
  * at the place, `identifiers` neither hidden nor locked by field rules.
- * `{identifiers: [{type, value}]}`; an empty value clears that type.
+ * `{identifiers: [{type, value?, remove?}]}`: types left out, or sent
+ * without a value, keep theirs; `remove: true` deletes one.
  */
 class PutIdentifiersRequest extends HrRequest
 {
@@ -21,7 +22,8 @@ class PutIdentifiersRequest extends HrRequest
         return [
             'identifiers' => ['required', 'array', 'min:1', 'max:10'],
             'identifiers.*.type' => ['required', 'string', 'max:40', 'distinct'],
-            'identifiers.*.value' => ['present', 'nullable', 'string', 'max:64'],
+            'identifiers.*.value' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'identifiers.*.remove' => ['sometimes', 'boolean'],
         ];
     }
 }

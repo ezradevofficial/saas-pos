@@ -39,7 +39,15 @@ class RosterShift extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['date' => 'immutable_date', 'start_at' => 'immutable_datetime', 'end_at' => 'immutable_datetime', 'break_minutes' => 'integer'];
+        return ['date' => 'immutable_date', 'start_at' => 'immutable_datetime', 'end_at' => 'immutable_datetime', 'break_minutes' => 'integer', 'version' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        // HR-19: every change of a planned shift raises its version (a swap asked on an older one is stale).
+        static::updating(function (self $shift) {
+            $shift->version = (int) $shift->getOriginal('version') + 1;
+        });
     }
 
     public function scope(): Scope

@@ -52,6 +52,13 @@ class Periods
 
         $start = $period->start_date->toDateString();
         $end = $period->end_date->toDateString();
+        $zone = Company::query()->whereKey($period->company_id)->value('timezone') ?: 'UTC';
+
+        // HR-26: a period closes once its last day is over in the company's time zone.
+        if (CarbonImmutable::now($zone)->toDateString() <= $end) {
+            throw Errors::make(422, 'period_not_ended', ['date' => $end]);
+        }
+
         $this->assertRules($period->company_id, $start, $end);
         $this->timesheets->recomputeRange($period->company_id, $start, $end);
 

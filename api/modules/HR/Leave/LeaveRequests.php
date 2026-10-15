@@ -62,7 +62,7 @@ class LeaveRequests
 
         $startHalf = (bool) ($data['start_half'] ?? false);
         $endHalf = (bool) ($data['end_half'] ?? false);
-        $dates = $this->days->dates($type, $employee->company_id, $data['start_date'], $data['end_date'], $startHalf, $endHalf);
+        $dates = $this->days->dates($type, $employee, $data['start_date'], $data['end_date'], $startHalf, $endHalf);
         $total = LeaveDays::total($dates);
 
         if (BigDecimal::of($total)->isZero()) {
@@ -70,8 +70,12 @@ class LeaveRequests
         }
 
         return Errors::transaction(function () use ($employee, $type, $data, $by, $dates, $total, $startHalf, $endHalf) {
-            // One request at a time per employee: overlaps and balances are checked under this lock.
-            Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
+            // One request at a time per employee: status, overlaps and balances are checked under this lock.
+            $locked = Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
+
+            if (! $locked->isActive()) {
+                throw Errors::make(409, 'employee_terminated');
+            }
 
             $overlap = LeaveRequest::query()->where('employee_id', $employee->id)->whereIn('status', [LeaveRequest::PENDING, LeaveRequest::APPROVED])
                 ->where('start_date', '<=', $data['end_date'])->where('end_date', '>=', $data['start_date'])->exists();
@@ -173,15 +177,69 @@ class LeaveRequests
         });
     }
 
-    /** HR-05: on termination, pending requests and approved leave starting after $date are cancelled. */
+    /**
+     * HR-05: on termination at $date, leave after it goes: requests that
+     * start after the date are cancelled (approved ones whatever their end,
+     * a backdated termination included) and requests spanning it are
+     * trimmed to end on it (the days after it posted back). Requests wholly
+     * before the date are left as they are.
+     */
     public function cancelAfter(Employee $employee, CarbonImmutable $date, User $by): void
     {
-        $requests = LeaveRequest::query()->where('employee_id', $employee->id)
-            ->where(fn ($q) => $q->where('status', LeaveRequest::PENDING)->orWhere(fn ($w) => $w->where('status', LeaveRequest::APPROVED)->where('start_date', '>', $date->toDateString())))
-            ->get();
+        $day = $date->toDateString();
+        $requests = LeaveRequest::query()->where('employee_id', $employee->id)->whereIn('status', [LeaveRequest::PENDING, LeaveRequest::APPROVED])
+            ->where('end_date', '>', $day)->orderBy('start_date')->get();
 
         foreach ($requests as $request) {
-            $this->cancel($request, $by, __('hr.leave.cancelled_on_termination'));
+            Errors::transaction(function () use ($request, $day, $by) {
+                $request = LeaveRequest::query()->whereKey($request->id)->lockForUpdate()->firstOrFail();
+                $kept = array_values(array_filter($request->dates, fn (array $d) => $d['date'] <= $day));
+
+                if ($request->start_date->toDateString() > $day || BigDecimal::of(LeaveDays::total($kept))->isZero()) {
+                    $this->withdraw($request, $by, __('hr.leave.cancelled_on_termination'));
+                } else {
+                    $this->trim($request, $day, $kept, $by);
+                }
+            });
+        }
+    }
+
+    /** Cancel a pending or approved request whatever its dates (the days of an approved one posted back). */
+    private function withdraw(LeaveRequest $request, User $by, string $reason): void
+    {
+        $wasApproved = $request->status === LeaveRequest::APPROVED;
+
+        if (! $wasApproved) {
+            $workflow = $this->engine->current(LeaveRequestType::KEY, $request->id);
+
+            if ($workflow !== null && $workflow->status === DocumentWorkflow::RUNNING) {
+                $this->engine->cancel($workflow, null, $reason);
+            }
+        }
+
+        $request->fill(['status' => LeaveRequest::CANCELLED, 'cancelled_by' => $by->id, 'cancelled_at' => CarbonImmutable::now(), 'cancel_reason' => $reason])->save();
+
+        if ($wasApproved) {
+            $this->ledger->post($request->employee_id, $request->leave_type_id, 'reversal', (string) $request->days, $request->start_date->toDateString(), "reversal:{$request->id}", $request->id, $reason, $by->id);
+            LeaveCancelled::dispatch($this->tenants->require(), $request->id, $request->employee_id, $request->company_id, $request->leave_type_id, (string) $request->days, $request->dates);
+        }
+    }
+
+    /**
+     * End a request on $day: the dates after it are dropped (posted back
+     * when approved, with LeaveCancelled for them).
+     *
+     * @param  list<array{date: string, fraction: string}>  $kept
+     */
+    private function trim(LeaveRequest $request, string $day, array $kept, User $by): void
+    {
+        $removed = array_values(array_filter($request->dates, fn (array $d) => $d['date'] > $day));
+        $removedDays = LeaveDays::total($removed);
+        $request->fill(['end_date' => $day, 'end_half' => false, 'dates' => $kept, 'days' => LeaveDays::total($kept)])->save();
+
+        if ($request->status === LeaveRequest::APPROVED && ! BigDecimal::of($removedDays)->isZero()) {
+            $this->ledger->post($request->employee_id, $request->leave_type_id, 'reversal', $removedDays, $request->start_date->toDateString(), "trim:{$request->id}", $request->id, __('hr.leave.cancelled_on_termination'), $by->id);
+            LeaveCancelled::dispatch($this->tenants->require(), $request->id, $request->employee_id, $request->company_id, $request->leave_type_id, $removedDays, $removed);
         }
     }
 
@@ -202,7 +260,7 @@ class LeaveRequests
             return;
         }
 
-        $available = BigDecimal::of($this->ledger->balance($employee->id, $type->id, CarbonImmutable::parse($endDate)))->minus(BigDecimal::of($this->ledger->pending($employee->id, $type->id)));
+        $available = BigDecimal::of($this->ledger->available($employee->id, $type->id, CarbonImmutable::parse($endDate)));
 
         if ($needed->isGreaterThan($available)) {
             throw Errors::make(422, 'leave_balance_short', ['available' => (string) $available->toScale(2)], 'end_date');

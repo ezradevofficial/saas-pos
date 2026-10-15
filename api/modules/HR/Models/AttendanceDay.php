@@ -22,7 +22,7 @@ class AttendanceDay extends Model implements HasScope
 {
     use BelongsToTenant, HasUuids;
 
-    public const STATUSES = ['present', 'absent', 'leave', 'holiday', 'rest', 'incomplete'];
+    public const STATUSES = ['present', 'absent', 'leave', 'holiday', 'incomplete'];
 
     public const MINUTES = ['worked', 'regular', 'overtime', 'night', 'holiday', 'rest_day', 'late', 'early_leave'];
 

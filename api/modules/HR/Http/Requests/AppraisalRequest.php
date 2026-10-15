@@ -3,8 +3,10 @@
 namespace Modules\HR\Http\Requests;
 
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Modules\HR\Models\Appraisal;
 use Modules\HR\Models\Employee;
+use Modules\HR\Support\Errors;
 
 /**
  * GET/PATCH hr/appraisals/{hr_appraisal}, POST …/complete (HR-30): seen
@@ -24,7 +26,30 @@ class AppraisalRequest extends HrRequest
         $reviewer = $this->appraisal()->reviewer_id === $this->user()->id;
         abort_unless($reviewer || $this->access()->can($this->user(), 'hr.appraisal.view', $employee) || $this->access()->can($this->user(), 'hr.appraisal.manage', $employee), 404);
 
-        return $this->isMethod('GET') || $reviewer || $this->access()->can($this->user(), 'hr.appraisal.manage', $employee);
+        if ($this->isMethod('GET')) {
+            return true;
+        }
+
+        $manages = $this->access()->can($this->user(), 'hr.appraisal.manage', $employee);
+
+        // HR-30: only HR (hr.appraisal.manage) chooses the reviewer.
+        if ($this->has('reviewer_id') && $this->input('reviewer_id') !== $this->appraisal()->reviewer_id) {
+            return $manages;
+        }
+
+        return $reviewer || $manages;
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator) {
+            // The reviewer is never the appraised employee's own user.
+            $own = Employee::query()->whereKey($this->appraisal()->employee_id)->value('user_id');
+
+            if ($validator->errors()->isEmpty() && $this->filled('reviewer_id') && $own !== null && $this->input('reviewer_id') === $own) {
+                throw Errors::make(422, 'reviewer_is_employee', field: 'reviewer_id');
+            }
+        }];
     }
 
     public function rules(): array

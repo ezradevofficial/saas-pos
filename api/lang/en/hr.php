@@ -4,6 +4,14 @@
 // are the tenant's own text and are never translated here.
 return [
     'errors' => [
+        'clock_pin_same_as_till' => 'A clock-in PIN can’t be the same as this person’s till PIN. Choose a different PIN.',
+        'punch_outside_employment' => 'This time is outside the employee’s employment. Check the date.',
+        'punch_out_of_window' => 'This punch is more than 7 days old or in the future. Enter it by hand with a note.',
+        'period_not_ended' => 'This period runs until :date. Close it after its last day.',
+        'reviewer_is_employee' => 'The reviewer can’t be the person being appraised. Choose another reviewer.',
+        'link_self' => 'You can’t link your own account to an employee. Ask another HR officer.',
+        'roster_busy' => 'This roster is being generated right now. Try again in a moment.',
+        'time_rule_invalid' => 'Check the dates and times of this rule: the end can’t be before the start.',
         'place_forbidden' => 'You don’t have permission to do this for this employee or place.',
         'place_other_company' => 'Choose a branch or location of the employee’s company.',
         'department_other_company' => 'Choose a department of the employee’s company.',
@@ -56,6 +64,13 @@ return [
         'unknown_ref' => 'No employee of this company has this enrolment reference.',
         'template_other_company' => 'Choose an active template of the employee’s company.',
         'rating_required' => 'Give a rating before completing the appraisal.',
+    ],
+    'notifications' => [
+        'clock_pin_locked' => [
+            'label' => 'Clock-in PIN locked',
+            'subject' => 'Clock-in PIN locked for {employee}',
+            'body' => "Hello {recipient_name},\n\n{employee} typed a wrong clock-in PIN {attempts} times on {device}, which is now locked for them. If this was not them, check the device. Set a new clock-in PIN on their profile to unlock it.",
+        ],
     ],
     'statuses' => [
         'active' => 'Active',

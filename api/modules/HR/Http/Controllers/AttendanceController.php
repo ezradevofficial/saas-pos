@@ -7,11 +7,13 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\HR\Attendance\AttendanceDevices;
+use Modules\HR\Attendance\ClockAttempts;
 use Modules\HR\Attendance\Periods;
 use Modules\HR\Attendance\Punches;
 use Modules\HR\Attendance\PunchUploads;
 use Modules\HR\Attendance\TimeRules;
 use Modules\HR\Attendance\Timesheets;
+use Modules\HR\Http\Requests\ClockAttemptsRequest;
 use Modules\HR\Http\Requests\DevicePunchesRequest;
 use Modules\HR\Http\Requests\DeviceRequest;
 use Modules\HR\Http\Requests\ListDevicesRequest;
@@ -183,6 +185,12 @@ class AttendanceController
     public function tillPunches(TillPunchesRequest $request, PunchUploads $uploads): JsonResponse
     {
         return new JsonResponse(['data' => $uploads->fromTill($request->user(), $request->validated('punches'))]);
+    }
+
+    /** HR-23: wrong clock-in PINs and lockouts a till counted. */
+    public function clockAttempts(ClockAttemptsRequest $request, ClockAttempts $attempts): JsonResponse
+    {
+        return new JsonResponse(['data' => $attempts->report($request->user(), $request->validated('reports'))]);
     }
 
     /** HR-24: a biometric device's punches. */

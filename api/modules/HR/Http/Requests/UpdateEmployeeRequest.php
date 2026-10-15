@@ -52,6 +52,8 @@ class UpdateEmployeeRequest extends HrRequest
                 }
             }
 
+            $this->guardLink($employee->scope(), $employee->user_id);
+
             if ($this->has('location_id') || $this->has('branch_id')) {
                 $location = $this->has('location_id') ? $this->input('location_id') : $employee->location_id;
                 $branch = $location !== null ? Location::query()->whereKey($location)->value('branch_id') : ($this->has('branch_id') ? $this->input('branch_id') : $employee->branch_id);

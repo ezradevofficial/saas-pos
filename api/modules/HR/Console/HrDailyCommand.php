@@ -30,25 +30,41 @@ class HrDailyCommand extends Command
         $today = CarbonImmutable::parse($this->option('at') ?? 'today');
         $count = 0;
 
+        $failed = 0;
+
         foreach ($due->active() as $tenantId) {
-            $tenants->run($tenantId, function () use ($modules, $accruals, $timesheets, $today, &$count) {
-                if (! $modules->isActive(HrServiceProvider::MODULE)) {
-                    return;
-                }
-
-                $accruals->run($today);
-                $yesterday = $today->subDay()->toDateString();
-
-                foreach (Employee::query()->distinct()->pluck('company_id') as $companyId) {
-                    $timesheets->recomputeRange((string) $companyId, $yesterday, $yesterday);
-                }
-
-                $count++;
-            });
+            // One tenant's failure is reported and never stops the others.
+            try {
+                $this->runTenant($tenants, $tenantId, $modules, $accruals, $timesheets, $today, $count);
+            } catch (\Throwable $e) {
+                report($e);
+                $failed++;
+                $this->components->error("Tenant {$tenantId}: {$e->getMessage()}");
+            }
         }
 
-        $this->components->info("{$count} tenants processed.");
+        $this->components->info("{$count} tenants processed, {$failed} failed.");
 
-        return self::SUCCESS;
+        return $failed === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    private function runTenant(TenantContext $tenants, string $tenantId, ModuleRegistry $modules, Accruals $accruals, Timesheets $timesheets, CarbonImmutable $today, int &$count): void
+    {
+
+        $tenants->run($tenantId, function () use ($modules, $accruals, $timesheets, $today, &$count) {
+            if (! $modules->isActive(HrServiceProvider::MODULE)) {
+                return;
+            }
+
+            $accruals->run($today);
+            $yesterday = $today->subDay()->toDateString();
+
+            foreach (Employee::query()->distinct()->pluck('company_id') as $companyId) {
+                $timesheets->recomputeRange((string) $companyId, $yesterday, $yesterday);
+            }
+
+            $count++;
+        });
+
     }
 }

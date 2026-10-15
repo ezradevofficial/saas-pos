@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Calendar\BusinessCalendar;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Modules\HR\Models\AttendanceDay;
 use Modules\HR\Models\AttendancePeriod;
@@ -33,7 +34,7 @@ class Timesheets
 {
     private const SHIFT_MARGIN_HOURS = 6;
 
-    private const OVERNIGHT_HOURS = 16;
+    public const OVERNIGHT_HOURS = 16;
 
     public function __construct(
         private readonly Schedules $schedules,
@@ -41,13 +42,29 @@ class Timesheets
         private readonly Auditor $auditor,
     ) {}
 
-    /** The work date $punch belongs to (HR-25). */
+    /**
+     * The work date $punch belongs to (HR-25): an `out` closing an `in`
+     * (the latest punch within 16 hours is an `in`) belongs to that in's
+     * day; else the planned shift whose window (6 hours either side) holds
+     * the punch, nearest start first; else its local date.
+     */
     public function workDateOf(Punch $punch, ?Employee $employee = null): string
     {
         $employee ??= Employee::query()->findOrFail($punch->employee_id);
         $zone = $this->schedules->timezoneOf($employee);
         $local = $punch->occurred_at->setTimezone($zone);
         $margin = self::SHIFT_MARGIN_HOURS * 3600;
+
+        if ($punch->kind === Punch::OUT) {
+            $previous = Punch::query()->where('employee_id', $employee->id)->whereNull('voided_at')
+                ->when($punch->exists, fn ($q) => $q->whereKeyNot($punch->id))
+                ->where('occurred_at', '<=', $punch->occurred_at)->where('occurred_at', '>=', $punch->occurred_at->subHours(self::OVERNIGHT_HOURS))
+                ->orderByDesc('occurred_at')->orderByDesc('id')->first();
+
+            if ($previous !== null && $previous->kind === Punch::IN) {
+                return $previous->work_date?->toDateString() ?? $this->workDateOf($previous, $employee);
+            }
+        }
 
         $planned = RosterShift::query()->where('employee_id', $employee->id)->where('status', RosterShift::PLANNED)
             ->whereBetween('date', [$local->subDay()->toDateString(), $local->addDay()->toDateString()])->get();
@@ -65,21 +82,7 @@ class Timesheets
             }
         }
 
-        if ($best !== null) {
-            return $best[1];
-        }
-
-        if ($punch->kind === Punch::OUT) {
-            $previous = Punch::query()->where('employee_id', $employee->id)->whereNull('voided_at')
-                ->where('occurred_at', '<', $punch->occurred_at)->where('occurred_at', '>=', $punch->occurred_at->subHours(self::OVERNIGHT_HOURS))
-                ->orderByDesc('occurred_at')->orderByDesc('id')->first();
-
-            if ($previous !== null && $previous->kind === Punch::IN) {
-                return $previous->occurred_at->setTimezone($zone)->toDateString();
-            }
-        }
-
-        return $local->toDateString();
+        return $best !== null ? $best[1] : $local->toDateString();
     }
 
     /** Recompute the day of $employeeId on $date and the later days of its week (unless approved or closed). */
@@ -95,7 +98,7 @@ class Timesheets
         $this->recompute($employee, $date);
 
         $later = AttendanceDay::query()->where('employee_id', $employeeId)
-            ->where('work_date', '>', $date)->where('work_date', '<=', $day->endOfWeek()->toDateString())
+            ->where('work_date', '>', $date)->where('work_date', '<=', $day->endOfWeek(CarbonInterface::SUNDAY)->toDateString())
             ->orderBy('work_date')->pluck('work_date');
 
         foreach ($later as $next) {
@@ -113,7 +116,8 @@ class Timesheets
                 return $existing;
             }
 
-            if ($this->closedPeriod($employee->company_id, $date) !== null) {
+            // HR-26: the covering period is locked, so a close cannot slip in between.
+            if ($this->coveringPeriod($employee->company_id, $date, lock: true)?->status === AttendancePeriod::CLOSED) {
                 return $existing;
             }
 
@@ -140,16 +144,18 @@ class Timesheets
         $local = CarbonImmutable::parse($date, $zone);
         $planned = RosterShift::query()->where('employee_id', $employee->id)->where('status', RosterShift::PLANNED)->where('date', $date)->first();
 
+        // HR-22: a punch's work date is fixed when it is recorded (older punches without one are placed now).
         $punches = Punch::query()->where('employee_id', $employee->id)->whereNull('voided_at')
-            ->whereBetween('occurred_at', [$local->subHours(30)->utc(), $local->addHours(54)->utc()])
+            ->where(fn ($q) => $q->where('work_date', $date)
+                ->orWhere(fn ($w) => $w->whereNull('work_date')->whereBetween('occurred_at', [$local->subHours(30)->utc(), $local->addHours(54)->utc()])))
             ->orderBy('occurred_at')->orderBy('id')->get()
-            ->filter(fn (Punch $punch) => $this->workDateOf($punch, $employee) === $date)
+            ->filter(fn (Punch $punch) => ($punch->work_date?->toDateString() ?? $this->workDateOf($punch, $employee)) === $date)
             ->map(fn (Punch $punch) => ['kind' => $punch->kind, 'at' => $punch->occurred_at])
             ->values()->all();
 
         $rule = $this->ruleOn($employee->company_id, $date);
         $country = Company::query()->whereKey($employee->company_id)->value('country');
-        $weekStart = CarbonImmutable::parse($date)->startOfWeek()->toDateString();
+        $weekStart = CarbonImmutable::parse($date)->startOfWeek(CarbonInterface::MONDAY)->toDateString();
         $weekBefore = (int) AttendanceDay::query()->where('employee_id', $employee->id)
             ->where('work_date', '>=', $weekStart)->where('work_date', '<', $date)->sum('regular_minutes');
 
@@ -221,7 +227,7 @@ class Timesheets
         $employees = Employee::query()->whereKey($punches->pluck('employee_id')->unique()->all())->get()->keyBy('id');
 
         foreach ($punches as $punch) {
-            $date = $this->workDateOf($punch, $employees[$punch->employee_id]);
+            $date = $punch->work_date?->toDateString() ?? $this->workDateOf($punch, $employees[$punch->employee_id]);
 
             if ($date >= $from && $date <= $to) {
                 $pairs[$punch->employee_id][$date] = true;
@@ -244,7 +250,7 @@ class Timesheets
             foreach ($days as $day) {
                 $day = AttendanceDay::query()->whereKey($day->id)->lockForUpdate()->firstOrFail();
 
-                if ($day->period_id !== null) {
+                if ($day->period_id !== null || $this->coveringPeriod($day->company_id, $day->work_date->toDateString(), lock: true)?->status === AttendancePeriod::CLOSED) {
                     throw Errors::make(409, 'period_closed');
                 }
 
@@ -294,6 +300,13 @@ class Timesheets
         return TimeRule::query()->where('company_id', $companyId)->where('effective_from', '<=', $date)
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date))
             ->first();
+    }
+
+    /** The period covering $date (locked for the transaction when $lock). */
+    public function coveringPeriod(string $companyId, string $date, bool $lock = false): ?AttendancePeriod
+    {
+        return AttendancePeriod::query()->where('company_id', $companyId)->where('start_date', '<=', $date)->where('end_date', '>=', $date)
+            ->when($lock, fn ($q) => $q->lockForUpdate())->first();
     }
 
     public function closedPeriod(string $companyId, string $date): ?AttendancePeriod

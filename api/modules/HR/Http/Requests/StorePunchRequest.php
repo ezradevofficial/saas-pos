@@ -17,7 +17,7 @@ class StorePunchRequest extends EmployeeBodyRequest
         return [
             'employee_id' => ['required', 'uuid', Rule::exists('hr_employees', 'id')],
             'kind' => ['required', Rule::in(['in', 'out'])],
-            'occurred_at' => ['required', 'date', 'before_or_equal:'.now()->addMinutes(5)->toIso8601String()],
+            'occurred_at' => ['required', 'date', self::INSTANT, 'before_or_equal:'.now()->addHour()->toIso8601String()],
             'note' => ['required', 'string', 'max:500'],
         ];
     }

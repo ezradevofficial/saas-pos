@@ -59,8 +59,8 @@ class RoleManager
             // Permissions of inactive modules are not offered to clients
             // (GET permissions), so a client cannot keep them: they stay.
             $current = $role->permissionNames();
-            $active = array_flip($this->modules->active());
-            $hidden = array_filter($current, fn (string $name) => ! isset($active[PermissionRegistry::moduleOf($name)]));
+            $active = $this->modules->active();
+            $hidden = array_filter($current, fn (string $name) => ! $this->modules->permissionActive($name, $active));
             $data['permissions'] = array_values(array_unique([...$data['permissions'], ...$hidden]));
 
             $added = array_values(array_diff($data['permissions'], $current));

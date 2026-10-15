@@ -12,6 +12,7 @@ class RunAccrualsRequest extends CompanyActionRequest
 
     protected function fields(): array
     {
-        return ['as_of' => ['sometimes', 'date_format:Y-m-d']];
+        // HR-13: never ahead of today (a future run would grant leave not yet earned).
+        return ['as_of' => ['sometimes', 'date_format:Y-m-d', 'before_or_equal:today']];
     }
 }

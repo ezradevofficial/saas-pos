@@ -4,6 +4,14 @@
 // intitulés, notes) sont saisies une fois et ne sont jamais traduites ici.
 return [
     'errors' => [
+        'clock_pin_same_as_till' => 'Un code de pointage ne peut pas être identique au code de caisse de cette personne. Choisissez un autre code.',
+        'punch_outside_employment' => 'Cette heure est en dehors de la période d’emploi de l’employé. Vérifiez la date.',
+        'punch_out_of_window' => 'Ce pointage date de plus de 7 jours ou est dans le futur. Saisissez-le à la main avec une note.',
+        'period_not_ended' => 'Cette période court jusqu’au :date. Clôturez-la après son dernier jour.',
+        'reviewer_is_employee' => 'L’évaluateur ne peut pas être la personne évaluée. Choisissez un autre évaluateur.',
+        'link_self' => 'Vous ne pouvez pas lier votre propre compte à un employé. Demandez à un autre responsable RH.',
+        'roster_busy' => 'Ce planning est en cours de génération. Réessayez dans un instant.',
+        'time_rule_invalid' => 'Vérifiez les dates et heures de cette règle : la fin ne peut pas précéder le début.',
         'place_forbidden' => 'Vous n’avez pas l’autorisation de faire cela pour cet employé ou ce lieu.',
         'place_other_company' => 'Choisissez une agence ou un site de la société de l’employé.',
         'department_other_company' => 'Choisissez un département de la société de l’employé.',
@@ -56,6 +64,13 @@ return [
         'unknown_ref' => 'Aucun employé de cette société n’a cette référence d’enrôlement.',
         'template_other_company' => 'Choisissez un modèle actif de la société de l’employé.',
         'rating_required' => 'Donnez une note avant de terminer l’évaluation.',
+    ],
+    'notifications' => [
+        'clock_pin_locked' => [
+            'label' => 'Code de pointage bloqué',
+            'subject' => 'Code de pointage bloqué pour {employee}',
+            'body' => "Bonjour {recipient_name},\n\n{employee} a saisi un mauvais code de pointage {attempts} fois sur {device}, où il est maintenant bloqué. Si ce n’était pas cette personne, vérifiez l’appareil. Définissez un nouveau code de pointage sur sa fiche pour le débloquer.",
+        ],
     ],
     'statuses' => [
         'active' => 'Actif',

@@ -67,6 +67,12 @@ class Documents
         }
     }
 
+    /** HR-11: a download happened, for $user (the reader the link was signed for). */
+    public function downloaded(Document $document, User $user): void
+    {
+        $this->auditor->record('hr.document.download', $document, null, ['employee_id' => $document->employee_id, 'category' => $document->category], ['user_id' => $user->id]);
+    }
+
     /** Whether $user may see $document (its category's permission at the employee's place, not hidden by field rules). */
     public function sees(User $user, Document $document, ?Employee $employee = null): bool
     {
@@ -91,13 +97,18 @@ class Documents
         }));
     }
 
-    /** A temporary download link for $user, audited (HR-11). */
+    /** HR-27: a download link lives this long (each download is audited when it happens). */
+    public const LINK_MINUTES = 5;
+
+    /** A short-lived download link for $user (the download itself is audited, HR-11). */
     public function link(Document $document, User $user): string
     {
-        $this->auditor->record('hr.document.download', $document, null, ['employee_id' => $document->employee_id, 'category' => $document->category]);
-        $expires = now()->addMinutes(CustomFieldFiles::URL_MINUTES);
+        $expires = now()->addMinutes(self::LINK_MINUTES);
 
         if (config("filesystems.disks.{$document->disk}.driver") === 's3') {
+            // The object store serves the file itself: the link is audited as the download.
+            $this->downloaded($document, $user);
+
             return Storage::disk($document->disk)->temporaryUrl($document->path, $expires, [
                 'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($document->file_name, '"\\').'"',
             ]);

@@ -3,6 +3,7 @@
 namespace Modules\HR\Rosters;
 
 use App\Core\Audit\Auditor;
+use App\Core\Identity\Models\User;
 use App\Core\MasterData\Dimensions\Department;
 use App\Core\Tenancy\Models\Branch;
 use Modules\HR\Models\Employee;
@@ -10,6 +11,7 @@ use Modules\HR\Models\Roster;
 use Modules\HR\Models\RosterMember;
 use Modules\HR\Models\Rotation;
 use Modules\HR\Models\Shift;
+use Modules\HR\Support\Access;
 use Modules\HR\Support\Errors;
 
 /**
@@ -62,15 +64,15 @@ class RosterSetup
     }
 
     /** @param array<string, mixed> $data validated */
-    public function createRoster(array $data): Roster
+    public function createRoster(array $data, User $by): Roster
     {
         $this->assertRosterRefs($data['company_id'], $data);
 
-        return Errors::transaction(function () use ($data) {
+        return Errors::transaction(function () use ($data, $by) {
             $roster = Roster::create(array_intersect_key($data, array_flip(['company_id', 'branch_id', 'department_id', 'name', 'rotation_id', 'anchor_date'])));
 
             if (isset($data['members'])) {
-                $this->putMembers($roster, $data['members']);
+                $this->putMembers($roster, $data['members'], $by);
             }
 
             return $roster->refresh();
@@ -91,14 +93,21 @@ class RosterSetup
      *
      * @param  list<array{employee_id: string, offset_days?: int, from_date?: ?string, to_date?: ?string}>  $members
      */
-    public function putMembers(Roster $roster, array $members): void
+    public function putMembers(Roster $roster, array $members, User $by): void
     {
         $ids = array_column($members, 'employee_id');
-        $valid = Employee::query()->whereKey($ids)->where('company_id', $roster->company_id)->where('status', Employee::ACTIVE)->pluck('id')->all();
+        $valid = Employee::query()->whereKey($ids)->where('company_id', $roster->company_id)->where('status', Employee::ACTIVE)->get()->keyBy('id');
 
         foreach ($members as $index => $member) {
-            if (! in_array($member['employee_id'], $valid, true)) {
+            $employee = $valid->get($member['employee_id']);
+
+            if ($employee === null) {
                 throw Errors::make(422, 'employee_other_company', field: "members.{$index}.employee_id");
+            }
+
+            // HR-38: a member from outside the roster's branch needs hr.roster.manage at their own place.
+            if ($roster->branch_id !== null && $employee->branch_id !== $roster->branch_id && ! app(Access::class)->can($by, 'hr.roster.manage', $employee)) {
+                throw Errors::make(403, 'place_forbidden', field: "members.{$index}.employee_id");
             }
         }
 

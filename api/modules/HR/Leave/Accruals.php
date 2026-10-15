@@ -6,6 +6,7 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Modules\HR\Models\Employee;
+use Modules\HR\Models\LeaveEntry;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Support\Errors;
 
@@ -63,6 +64,8 @@ class Accruals
     /** The entries due for one employee and type up to $asOf; returns how many were posted now. */
     public function employee(Employee $employee, LeaveType $type, CarbonImmutable $asOf): int
     {
+        // One run at a time per employee: the checks below see every entry posted before.
+        $employee = Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
         $from = $employee->hire_date;
         $accruesFrom = $type->accrues_from ?? $type->created_at->toImmutable()->startOfDay();
 
@@ -83,13 +86,10 @@ class Accruals
             $yearStart = CarbonImmutable::create($year, 1, 1);
             $yearEnd = $yearStart->endOfYear()->startOfDay();
 
-            // Expiry of last year's balance above the cap, before this year's credits.
+            // Expiry of last year's balance above the cap, before this year's credits; corrected
+            // on every run, so a December entry posted late (leave approved in January) still counts.
             if ($year > $from->year && $type->carry_over_max_days !== null && $yearStart->lessThanOrEqualTo($asOf)) {
-                $excess = BigDecimal::of($this->ledger->balance($employee->id, $type->id, $yearStart->subDay()))->minus(BigDecimal::of((string) $type->carry_over_max_days));
-
-                if ($excess->isPositive()) {
-                    $posted += $this->ledger->post($employee->id, $type->id, 'expiry', (string) $excess->negated(), $yearStart->toDateString(), "expiry:{$year}") === null ? 0 : 1;
-                }
+                $posted += $this->expire($employee, $type, $year, $yearStart);
             }
 
             $start = $from->greaterThan($yearStart) ? $from : $yearStart;
@@ -102,6 +102,11 @@ class Accruals
             }
 
             if ($type->accrual === 'annual') {
+                // Whatever the mode was before: a year credited monthly is never granted again.
+                if ($this->hasKey($employee, $type, "accrual:{$year}-%")) {
+                    continue;
+                }
+
                 $daysInYear = $yearStart->daysInYear;
                 $employed = (int) $start->diffInDays($end) + 1;
                 $amount = $employed >= $daysInYear ? $entitlement : $entitlement->multipliedBy($employed)->dividedBy($daysInYear, 10, RoundingMode::HalfUp);
@@ -110,7 +115,11 @@ class Accruals
                 continue;
             }
 
-            // Monthly: each month that ended on or before the run date.
+            // Monthly: each month that ended on or before the run date (none of a year already granted whole).
+            if ($this->hasKey($employee, $type, "accrual:{$year}")) {
+                continue;
+            }
+
             for ($month = $start->startOfMonth(); $month->lessThanOrEqualTo($end); $month = $month->addMonth()) {
                 $monthEnd = $month->endOfMonth()->startOfDay();
 
@@ -134,5 +143,29 @@ class Accruals
         }
 
         return $posted;
+    }
+
+    /** HR-13: the expiry of $year's carried balance, corrected to what the cap leaves now. */
+    private function expire(Employee $employee, LeaveType $type, int $year, CarbonImmutable $yearStart): int
+    {
+        $excess = BigDecimal::of($this->ledger->balance($employee->id, $type->id, $yearStart->subDay()))->minus(BigDecimal::of((string) $type->carry_over_max_days));
+        $desired = $excess->isPositive() ? $excess->negated() : BigDecimal::zero();
+        $entries = LeaveEntry::query()->where('employee_id', $employee->id)->where('leave_type_id', $type->id)->where('kind', 'expiry')
+            ->where(fn ($q) => $q->where('key', "expiry:{$year}")->orWhere('key', 'like', "expiry:{$year}:%"))->get(['days']);
+        $done = $entries->reduce(fn (BigDecimal $sum, LeaveEntry $e) => $sum->plus(BigDecimal::of((string) $e->days)), BigDecimal::zero());
+        $difference = $desired->minus($done);
+
+        if ($difference->isZero()) {
+            return 0;
+        }
+
+        $key = $entries->isEmpty() ? "expiry:{$year}" : "expiry:{$year}:".($entries->count() + 1);
+
+        return $this->ledger->post($employee->id, $type->id, 'expiry', (string) $difference->toScale(2), $yearStart->toDateString(), $key) === null ? 0 : 1;
+    }
+
+    private function hasKey(Employee $employee, LeaveType $type, string $pattern): bool
+    {
+        return LeaveEntry::query()->where('employee_id', $employee->id)->where('leave_type_id', $type->id)->where('key', 'like', $pattern)->exists();
     }
 }

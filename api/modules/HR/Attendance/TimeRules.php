@@ -42,6 +42,10 @@ class TimeRules
                 throw Errors::make(422, 'time_rule_overlap', field: 'effective_from');
             }
 
+            if (($e->errorInfo[0] ?? null) === '23514') {
+                throw Errors::make(422, 'time_rule_invalid', field: 'effective_to');
+            }
+
             throw $e;
         }
     }

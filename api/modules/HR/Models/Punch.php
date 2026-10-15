@@ -39,7 +39,7 @@ class Punch extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['occurred_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'voided_at' => 'immutable_datetime', 'flags' => 'array'];
+        return ['occurred_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'voided_at' => 'immutable_datetime', 'flags' => 'array', 'work_date' => 'immutable_date'];
     }
 
     public function scope(): Scope

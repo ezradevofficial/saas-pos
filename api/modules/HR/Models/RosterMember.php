@@ -21,6 +21,11 @@ class RosterMember extends Model
         return ['offset_days' => 'integer', 'from_date' => 'immutable_date', 'to_date' => 'immutable_date'];
     }
 
+    public function roster(): BelongsTo
+    {
+        return $this->belongsTo(Roster::class);
+    }
+
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);

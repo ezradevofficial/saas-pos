@@ -6,6 +6,7 @@ use App\Core\Exports\ListExport;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Calendar\BusinessCalendar;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\HR\Http\Lists\RosterShiftList;
@@ -101,7 +102,7 @@ class RosterController
 
     public function storeRoster(StoreRosterRequest $request): JsonResponse
     {
-        return SetupResource::make($this->setup->createRoster($request->validated())->load(['branch', 'department', 'members.employee']))->response()->setStatusCode(201);
+        return SetupResource::make($this->setup->createRoster($request->validated(), $request->user())->load(['branch', 'department', 'members.employee']))->response()->setStatusCode(201);
     }
 
     public function showRoster(RosterRequest $request, Roster $hrRoster): SetupResource
@@ -116,7 +117,7 @@ class RosterController
 
     public function members(RosterRequest $request, Roster $hrRoster): SetupResource
     {
-        $this->setup->putMembers($hrRoster, $request->validated('members'));
+        $this->setup->putMembers($hrRoster, $request->validated('members'), $request->user());
 
         return SetupResource::make($hrRoster->refresh()->load(['branch', 'department', 'members.employee']));
     }
@@ -139,7 +140,7 @@ class RosterController
 
     public function plannedShifts(ListRosterShiftsRequest $request, ListExport $export, BusinessCalendar $calendar): AnonymousResourceCollection|StreamedResponse
     {
-        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now()->startOfWeek()->toDateString()));
+        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString()));
         $to = CarbonImmutable::parse($request->validated('to', $from->addDays(6)->toDateString()));
 
         if ($to->lessThan($from) || $from->diffInDays($to) > 31) {

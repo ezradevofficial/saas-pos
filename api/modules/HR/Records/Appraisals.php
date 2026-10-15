@@ -31,11 +31,12 @@ class Appraisals
             $employees = Employee::query()->where('company_id', $cycle->company_id)->where('status', Employee::ACTIVE)
                 ->where('hire_date', '<=', $cycle->period_end->toDateString())->get(['id', 'reports_to_id']);
             $managers = Employee::query()->whereKey($employees->pluck('reports_to_id')->filter()->unique()->all())->pluck('user_id', 'id');
+            $own = Employee::query()->whereKey($employees->pluck('id')->all())->pluck('user_id', 'id');
 
             foreach ($employees as $employee) {
                 Appraisal::query()->firstOrCreate(
                     ['cycle_id' => $cycle->id, 'employee_id' => $employee->id],
-                    ['company_id' => $cycle->company_id, 'reviewer_id' => $employee->reports_to_id === null ? null : ($managers[$employee->reports_to_id] ?? null), 'goals' => [], 'status' => 'self_review'],
+                    ['company_id' => $cycle->company_id, 'reviewer_id' => self::reviewer($managers[$employee->reports_to_id] ?? null, $own[$employee->id] ?? null), 'goals' => [], 'status' => 'self_review'],
                 );
             }
 
@@ -43,6 +44,12 @@ class Appraisals
 
             return $cycle->refresh();
         });
+    }
+
+    /** The line manager's user, never the employee's own. */
+    private static function reviewer(?string $manager, ?string $own): ?string
+    {
+        return $manager !== null && $manager !== $own ? $manager : null;
     }
 
     public function close(AppraisalCycle $cycle): AppraisalCycle

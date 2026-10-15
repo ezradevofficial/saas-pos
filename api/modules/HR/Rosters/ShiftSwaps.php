@@ -12,6 +12,7 @@ use Modules\HR\Attendance\Timesheets;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\RosterShift;
 use Modules\HR\Models\ShiftSwap;
+use Modules\HR\Support\Access;
 use Modules\HR\Support\Errors;
 
 /**
@@ -53,12 +54,20 @@ class ShiftSwaps
             }
         }
 
+        // HR-38: a peer from outside the shift's branch needs hr.roster.manage at the peer's place.
+        if ($peer->branch_id !== $shift->branch_id && ! app(Access::class)->can($by, 'hr.roster.manage', $peer)) {
+            throw Errors::make(403, 'place_forbidden', field: 'peer_employee_id');
+        }
+
         $this->assertNoClash($employee, $shift, $peer, $peerShift);
 
+        // The swap belongs where its shift is planned.
         return Errors::transaction(fn () => ShiftSwap::create([
-            'company_id' => $employee->company_id, 'branch_id' => $employee->branch_id, 'location_id' => $employee->location_id,
+            'company_id' => $shift->company_id, 'branch_id' => $shift->branch_id, 'location_id' => $shift->location_id,
             'employee_id' => $employee->id, 'roster_shift_id' => $shift->id, 'peer_employee_id' => $peer->id, 'peer_roster_shift_id' => $peerShift?->id,
             'reason' => $data['reason'] ?? null, 'status' => ShiftSwap::AWAITING_PEER, 'requested_by' => $by->id,
+            // HR-19: the shifts as they were when asked; any change since makes the swap stale.
+            'shift_version' => $shift->version, 'peer_shift_version' => $peerShift?->version,
         ]))->refresh();
     }
 
@@ -70,6 +79,10 @@ class ShiftSwaps
 
             if ($swap->status !== ShiftSwap::AWAITING_PEER) {
                 throw Errors::make(409, 'document_not_open');
+            }
+
+            if ($this->stale($swap)) {
+                throw Errors::make(409, 'swap_stale');
             }
 
             $swap->fill(['status' => ShiftSwap::PENDING, 'answered_by' => $by->id, 'answered_at' => CarbonImmutable::now()])->save();
@@ -135,8 +148,7 @@ class ShiftSwaps
             $peerShift = $swap->peer_roster_shift_id === null ? null : RosterShift::query()->whereKey($swap->peer_roster_shift_id)->lockForUpdate()->first();
             $employee = Employee::query()->findOrFail($swap->employee_id);
             $peer = Employee::query()->findOrFail($swap->peer_employee_id);
-            $stale = $shift->status !== RosterShift::PLANNED || $shift->employee_id !== $employee->id
-                || ($peerShift !== null && ($peerShift->status !== RosterShift::PLANNED || $peerShift->employee_id !== $peer->id));
+            $stale = $this->stale($swap);
 
             try {
                 if (! $stale) {
@@ -181,6 +193,29 @@ class ShiftSwaps
                 $swap->fill(['status' => ShiftSwap::CANCELLED])->save();
             }
         });
+    }
+
+    /**
+     * HR-19, HR-26: a swap is stale once either shift changed since it was
+     * asked (its version), started, left its employee, or lies in a closed
+     * attendance period.
+     */
+    private function stale(ShiftSwap $swap): bool
+    {
+        foreach ([[$swap->roster_shift_id, $swap->shift_version, $swap->employee_id], [$swap->peer_roster_shift_id, $swap->peer_shift_version, $swap->peer_employee_id]] as [$id, $version, $owner]) {
+            if ($id === null) {
+                continue;
+            }
+
+            $shift = RosterShift::query()->find($id);
+
+            if ($shift === null || $shift->status !== RosterShift::PLANNED || $shift->employee_id !== $owner || ($version !== null && $shift->version !== (int) $version)
+                || $shift->start_at->lessThanOrEqualTo(CarbonImmutable::now()) || $this->timesheets->closedPeriod($shift->company_id, $shift->date->toDateString()) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function replan(RosterShift $from, Employee $to, ?string $userId): void

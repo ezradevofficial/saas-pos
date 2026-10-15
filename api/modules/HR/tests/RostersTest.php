@@ -64,7 +64,7 @@ class RostersTest extends TestCase
 
         $first = $this->postJson("/api/v1/hr/rosters/{$roster}/generate", ['from' => '2026-11-02', 'to' => '2026-11-07'], $this->headersFor($this->managerA))->assertOk()->json('data');
         // Amina: D D N(leave) N - -; Baraka (offset 2): N N - - D D.
-        $this->assertSame(['created' => 7, 'kept' => 0, 'leave' => 1], $first);
+        $this->assertSame(['created' => 7, 'kept' => 0, 'leave' => 1, 'closed' => 0], $first);
         $this->assertSame(['2026-11-02' => 'D', '2026-11-03' => 'D', '2026-11-05' => 'N'], $this->planned($this->amina));
         $this->assertSame(['2026-11-02' => 'N', '2026-11-03' => 'N', '2026-11-06' => 'D', '2026-11-07' => 'D'], $this->planned($this->baraka));
 
@@ -75,7 +75,7 @@ class RostersTest extends TestCase
         // Generating again changes nothing; a hand-placed shift is kept.
         $this->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $this->amina->id, 'date' => '2026-11-08', 'shift_id' => $this->night], $this->headersFor($this->managerA))->assertCreated();
         $again = $this->postJson("/api/v1/hr/rosters/{$roster}/generate", ['from' => '2026-11-02', 'to' => '2026-11-08'], $this->headersFor($this->managerA))->assertOk()->json('data');
-        $this->assertSame(['created' => 1, 'kept' => 8, 'leave' => 1], $again);
+        $this->assertSame(['created' => 1, 'kept' => 8, 'leave' => 1, 'closed' => 0], $again);
 
         // The range is limited.
         $this->postJson("/api/v1/hr/rosters/{$roster}/generate", ['from' => '2026-01-01', 'to' => '2026-12-31'], $this->headersFor($this->managerA))->assertUnprocessable()->assertJsonPath('code', 'range_too_long');

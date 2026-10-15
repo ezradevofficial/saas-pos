@@ -2,7 +2,9 @@
 
 namespace Modules\HR\Http\Requests;
 
+use App\Core\Rbac\Scope;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * GET/PATCH hr/rosters/{hr_roster}, PUT …/members, POST …/generate,
@@ -54,6 +56,17 @@ class RosterRequest extends SetupRowRequest
     protected function fields(): array
     {
         return $this->isMethod('PUT') ? self::MEMBERS() : self::rulesFor(false);
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator) {
+            // HR-38: moving a roster to another branch needs hr.roster.manage there too.
+            if ($validator->errors()->isEmpty() && $this->isMethod('PATCH') && $this->filled('branch_id') && $this->input('branch_id') !== $this->row()->branch_id
+                && ! $this->access()->at($this->user(), 'hr.roster.manage', Scope::branch((string) $this->input('branch_id')))) {
+                $this->forbid();
+            }
+        }];
     }
 
     protected function actionFields(): array

@@ -8,6 +8,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
 use App\Core\MasterData\Dimensions\Department;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
@@ -15,11 +16,16 @@ use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Modules\HR\Events\EmployeeHired;
 use Modules\HR\Events\EmployeeTerminated;
+use Modules\HR\HrServiceProvider;
 use Modules\HR\Leave\LeaveRequests;
 use Modules\HR\Leave\LeaveTypes;
 use Modules\HR\Models\Contract;
 use Modules\HR\Models\Employee;
+use Modules\HR\Models\EmployeePlace;
+use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\Position;
+use Modules\HR\Models\RosterShift;
+use Modules\HR\Models\ShiftSwap;
 use Modules\HR\Records\Checklists;
 use Modules\HR\Support\Errors;
 use Modules\HR\Support\Numbers;
@@ -82,11 +88,14 @@ class Employees
             $employee->save();
             $this->customFields->saved(EmployeeEntity::KEY, $employee);
             $this->recordSensitive($employee, array_keys(array_intersect_key($fields, array_flip(Employee::SENSITIVE_COLUMNS))));
+            $this->placeFrom($employee, $employee->hire_date->toDateString());
 
-            // HR-12: a company's first hire brings its statutory leave types.
-            $this->leaveTypes->applyPack($company);
-            // HR-28: the default onboarding checklist.
-            $this->checklists->startDefault($employee, 'onboarding', $by);
+            if ($this->hrActive()) {
+                // HR-12: a company's first hire brings its statutory leave types.
+                $this->leaveTypes->applyPack($company);
+                // HR-28: the default onboarding checklist.
+                $this->checklists->startDefault($employee, 'onboarding', $by);
+            }
 
             $this->hired($employee, false);
 
@@ -110,9 +119,14 @@ class Employees
             }
 
             $sensitive = array_values(array_filter(Employee::SENSITIVE_COLUMNS, fn (string $column) => $employee->isDirty($column)));
+            $moved = $employee->isDirty('branch_id') || $employee->isDirty('location_id');
             $employee->save();
             $this->customFields->saved(EmployeeEntity::KEY, $employee);
             $this->recordSensitive($employee, $sensitive);
+
+            if ($moved) {
+                $this->transfer($employee);
+            }
 
             return $employee->refresh();
         });
@@ -140,16 +154,18 @@ class Employees
                 'termination_reason' => $data['reason'],
                 'termination_note' => $data['note'] ?? null,
             ])->save();
+            $this->closePlace($employee, $date->toDateString());
 
             // HR-07: the contract in force ends on the termination date.
             foreach (Contract::query()->where('employee_id', $employee->id)->where('status', Contract::ACTIVE)->get() as $contract) {
                 app(Contracts::class)->endOnTermination($contract, $date, $by);
             }
 
-            // HR-05: approved leave after the date is cancelled.
-            app(LeaveRequests::class)->cancelAfter($employee, $date, $by);
-
-            $this->checklists->startDefault($employee, 'offboarding', $by);
+            if ($this->hrActive()) {
+                // HR-05: leave after the date is cancelled (or trimmed).
+                app(LeaveRequests::class)->cancelAfter($employee, $date, $by);
+                $this->checklists->startDefault($employee, 'offboarding', $by);
+            }
 
             EmployeeTerminated::dispatch($this->tenants->require(), $employee->id, $employee->number, $employee->company_id, $date->toDateString(), $data['reason']);
 
@@ -181,8 +197,12 @@ class Employees
                 'termination_reason' => null,
                 'termination_note' => null,
             ])->save();
+            $this->placeFrom($employee, $hireDate);
 
-            $this->checklists->startDefault($employee, 'onboarding', $by);
+            if ($this->hrActive()) {
+                $this->checklists->startDefault($employee, 'onboarding', $by);
+            }
+
             $this->hired($employee, true);
 
             return $employee->refresh();
@@ -294,6 +314,72 @@ class Employees
         if ($columns !== []) {
             $this->auditor->record('hr.employee.sensitive_update', $employee, null, ['fields' => array_values($columns)]);
         }
+    }
+
+    /**
+     * HR-02: a move to another branch or location takes the employee's
+     * pending leave, future planned shifts and open swaps of those shifts
+     * along (they are scoped by the employee's place), and starts a new
+     * place from today (queued offline punches of the old place still
+     * count, HR-23).
+     */
+    private function transfer(Employee $employee): void
+    {
+        $today = CarbonImmutable::now()->toDateString();
+        $place = ['branch_id' => $employee->branch_id, 'location_id' => $employee->location_id];
+
+        foreach (LeaveRequest::query()->where('employee_id', $employee->id)->where('status', LeaveRequest::PENDING)->get() as $request) {
+            $request->fill($place)->save();
+        }
+
+        $shifts = RosterShift::query()->where('employee_id', $employee->id)->where('status', RosterShift::PLANNED)->where('date', '>=', $today)->get();
+
+        foreach ($shifts as $shift) {
+            $shift->fill($place)->save();
+        }
+
+        $swaps = ShiftSwap::query()->whereIn('roster_shift_id', $shifts->pluck('id')->all())
+            ->whereIn('status', [ShiftSwap::AWAITING_PEER, ShiftSwap::PENDING])->get();
+
+        foreach ($swaps as $swap) {
+            $shift = $shifts->firstWhere('id', $swap->roster_shift_id);
+            $swap->fill(['branch_id' => $shift->branch_id, 'location_id' => $shift->location_id, 'shift_version' => $shift->version])->save();
+        }
+
+        $this->placeFrom($employee, $today);
+    }
+
+    /** HR-23: the employee's place from $from (the open one before it ends the day before). */
+    private function placeFrom(Employee $employee, string $from): void
+    {
+        $open = EmployeePlace::query()->where('employee_id', $employee->id)->whereNull('effective_to')->lockForUpdate()->first();
+
+        if ($open !== null) {
+            if ($open->effective_from->toDateString() >= $from) {
+                $open->fill(['company_id' => $employee->company_id, 'branch_id' => $employee->branch_id, 'location_id' => $employee->location_id, 'effective_from' => $from])->save();
+
+                return;
+            }
+
+            $open->fill(['effective_to' => CarbonImmutable::parse($from)->subDay()->toDateString()])->save();
+        }
+
+        EmployeePlace::create([
+            'employee_id' => $employee->id, 'company_id' => $employee->company_id, 'branch_id' => $employee->branch_id,
+            'location_id' => $employee->location_id, 'effective_from' => $from,
+        ]);
+    }
+
+    private function closePlace(Employee $employee, string $on): void
+    {
+        $open = EmployeePlace::query()->where('employee_id', $employee->id)->whereNull('effective_to')->first();
+        $open?->fill(['effective_to' => max($on, $open->effective_from->toDateString())])->save();
+    }
+
+    /** Owner decision B: with Payroll alone, HR's leave and checklists are off. */
+    private function hrActive(): bool
+    {
+        return app(ModuleRegistry::class)->isActive(HrServiceProvider::MODULE);
     }
 
     private function hired(Employee $employee, bool $rehired): void

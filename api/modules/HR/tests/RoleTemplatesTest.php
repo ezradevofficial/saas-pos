@@ -37,9 +37,9 @@ class RoleTemplatesTest extends TestCase
             ->values()->all());
     }
 
-    public function test_the_catalogue_has_thirty_five_permissions(): void
+    public function test_the_catalogue_has_thirty_six_permissions(): void
     {
-        $this->assertCount(35, self::all());
+        $this->assertCount(36, self::all());
     }
 
     public function test_roles_by_job_once_the_module_is_active(): void

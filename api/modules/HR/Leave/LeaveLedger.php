@@ -54,6 +54,25 @@ class LeaveLedger
         return (string) BigDecimal::of((string) $sum)->toScale(2, RoundingMode::HalfUp);
     }
 
+    /**
+     * HR-13: what may still be taken at $asOf: credits (and expiries)
+     * effective by then, less every debit of leave taken or adjusted away
+     * whatever its date (leave already taken later in the year included),
+     * less pending requests. A type that may not go
+     * negative then stays at or above zero at every date.
+     */
+    public function available(string $employeeId, string $leaveTypeId, CarbonImmutable $asOf): string
+    {
+        $row = LeaveEntry::query()->where('employee_id', $employeeId)->where('leave_type_id', $leaveTypeId)
+            ->selectRaw("coalesce(sum(case when (days > 0 or kind = 'expiry') and effective_on <= ? then days else 0 end), 0) as credits", [$asOf->toDateString()])
+            // Leave taken (and negative adjustments) count whatever their date; expiry only once it applies.
+            ->selectRaw("coalesce(sum(case when days < 0 and kind <> 'expiry' then days else 0 end), 0) as debits")
+            ->toBase()->first();
+
+        return (string) BigDecimal::of((string) $row->credits)->plus(BigDecimal::of((string) $row->debits))
+            ->minus(BigDecimal::of($this->pending($employeeId, $leaveTypeId)))->toScale(2, RoundingMode::HalfUp);
+    }
+
     public function pending(string $employeeId, string $leaveTypeId, ?string $exceptRequestId = null): string
     {
         $sum = LeaveRequest::query()->where('employee_id', $employeeId)->where('leave_type_id', $leaveTypeId)->where('status', LeaveRequest::PENDING)
@@ -106,7 +125,7 @@ class LeaveLedger
             'taken' => (string) $taken->toScale(2),
             'balance' => (string) $balance->toScale(2),
             'pending' => (string) $pending->toScale(2),
-            'available' => (string) $balance->minus($pending)->toScale(2),
+            'available' => $this->available($employeeId, $type->id, $asOf),
         ];
     }
 }

@@ -24,7 +24,7 @@ class DevicePunchesRequest extends FormRequest
             'punches.*.external_id' => ['required', 'string', 'max:100', 'distinct'],
             'punches.*.ref' => ['required', 'string', 'max:64'],
             'punches.*.kind' => ['required', Rule::in(['in', 'out', 'auto'])],
-            'punches.*.occurred_at' => ['required', 'date'],
+            'punches.*.occurred_at' => ['required', 'date', HrRequest::INSTANT],
         ];
     }
 }

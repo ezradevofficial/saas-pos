@@ -77,6 +77,7 @@ class DocumentController
 
             $disk = Storage::disk($document->disk);
             abort_unless($disk->exists($document->path), 404);
+            $this->documents->downloaded($document, $user);
 
             return $disk->download($document->path, $document->file_name, [
                 'Content-Type' => $document->mime,
