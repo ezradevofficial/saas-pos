@@ -65,7 +65,7 @@ class ReportListRequest extends FormRequest
         return match ($this->listName()) {
             'manufacturing-backflushes' => ['kind' => ['sometimes', 'string', Rule::in([Backflush::CONSUME, Backflush::RETURN])]],
             'manufacturing-recipe-costing' => ['kind' => ['sometimes', 'string', Rule::in(Bom::KINDS)]],
-            default => ['order' => ['sometimes', 'uuid']],
+            default => ['order' => ['sometimes', 'uuid', Rule::exists('mfg_orders', 'id')]],
         };
     }
 }
