@@ -105,6 +105,17 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
+      # The isolation fixture touches every tenant table in one transaction, which
+      # needs more lock slots than Postgres's default (64 per transaction).
+      - name: Raise Postgres lock slots
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -c "ALTER SYSTEM SET max_locks_per_transaction = 256"
+          docker restart "$(docker ps -q --filter ancestor=postgres:16)"
+          until pg_isready -h 127.0.0.1 -U postgres; do sleep 1; done
+          psql -h 127.0.0.1 -U postgres -tAc "SHOW max_locks_per_transaction"
+
       # Roles (app_owner, app, app_platform) as the postgres superuser, then the app and
       # app_test databases owned by app_owner (ADR 002).
       - name: Create roles and databases
