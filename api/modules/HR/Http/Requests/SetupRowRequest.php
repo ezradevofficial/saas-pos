@@ -40,7 +40,12 @@ abstract class SetupRowRequest extends HrRequest
 
     public function rules(): array
     {
-        return $this->isMethod('PATCH') || $this->isMethod('PUT') ? $this->fields() : $this->actionFields();
+        return match (true) {
+            $this->isMethod('PATCH') || $this->isMethod('PUT') => $this->fields(),
+            // A read takes no action fields (TEN-01: no query parameter the isolation suite does not send).
+            $this->isMethod('GET') || $this->isMethod('HEAD') => [],
+            default => $this->actionFields(),
+        };
     }
 
     /** @return array<string, mixed> the body of a POST action */

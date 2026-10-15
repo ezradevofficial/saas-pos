@@ -140,7 +140,8 @@ class ReviewAttendanceTest extends TestCase
     {
         $created = $this->postJson('/api/v1/hr/attendance-devices', ['location_id' => $this->locationA->id, 'name' => 'Gate'], $this->headersFor($this->hrOfficer))->assertCreated()->json();
         $device = ['Authorization' => 'Bearer '.$created['meta']['token'], 'Accept' => 'application/json'];
-        $in = CarbonImmutable::now()->subDay()->setTimezone('Africa/Nairobi')->setTime(22, 0);
+        // Two nights ago, so the out (06:00) is never later than now plus 1 hour, whatever the time of day.
+        $in = CarbonImmutable::now()->subDays(2)->setTimezone('Africa/Nairobi')->setTime(22, 0);
         $out = $in->addHours(8);
 
         $kinds = array_column($this->postJson('/api/v1/hr/device/punches', ['punches' => [

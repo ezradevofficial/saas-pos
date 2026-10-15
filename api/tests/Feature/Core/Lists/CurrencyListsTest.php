@@ -111,7 +111,8 @@ class CurrencyListsTest extends TestCase
     public function test_an_export_needs_the_lists_view_permission_and_never_shows_another_tenant(): void
     {
         $this->rate('USD', 'CDF', '2850', 'shop', '-1 hour');
-        $hr = $this->headersFor($this->userWith('hr_officer', Scope::company($this->acme->id)));
+        // The Approver template reads no currencies (HR and Payroll Officers do, CUR-01).
+        $hr = $this->headersFor($this->userWith('approver', Scope::company($this->acme->id)));
 
         foreach (['csv', 'xlsx', 'pdf'] as $format) {
             $this->refusedExport($this->url("?format={$format}"), $hr)->assertForbidden();
