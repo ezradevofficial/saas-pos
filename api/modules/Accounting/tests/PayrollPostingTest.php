@@ -13,6 +13,7 @@ use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Models\PostingException;
+use Modules\Accounting\Models\PostingRule;
 use Modules\Payroll\Tests\Concerns\BuildsPayroll;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -135,5 +136,17 @@ class PayrollPostingTest extends TestCase
 
         $this->assertSame([], $this->journals());
         $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()));
+    }
+
+    public function test_posting_exceptions_of_a_run_name_their_department(): void
+    {
+        // ACC-33: one source per department; with no rule, each fails on its own and the list says which department.
+        $this->inTenant(fn () => PostingRule::query()->where('event_type', 'payroll.run')->update(['archived_at' => now()]));
+        $this->payrollEmployee('5000000');
+        $this->payrollEmployee('3000000', ['first_name' => 'Juma', 'department_id' => $this->kitchen->id]);
+        $this->postedRun();
+
+        $rows = $this->getJson("/api/v1/companies/{$this->acme->id}/accounting/posting-exceptions", $this->headersFor($this->owner))->assertOk()->json('data');
+        $this->assertSame(['Kitchen', 'Sales'], collect($rows)->pluck('department.name')->sort()->values()->all());
     }
 }
