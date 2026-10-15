@@ -18,6 +18,7 @@ use Modules\Accounting\Posting\SourceDocument;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\Manufacturing\Events\ProductionValued;
+use Modules\Payroll\Events\PayrollPosted;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -56,6 +57,7 @@ class Integrations
         private readonly SupplierInvoices $supplierInvoices,
         private readonly LandedCostSources $landedCosts,
         private readonly ManufacturingSources $manufacturing,
+        private readonly PayrollSources $payroll,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -81,6 +83,8 @@ class Integrations
             // Stage 7B closing review: landed costs clear through their bills (procurement.md decision 19).
             $event instanceof LandedCostAllocated => $this->landedCosts->allocated($event),
             $event instanceof GoodsReceiptPosted => $this->landedCosts->received($event),
+            // PAY-22: a posted payroll run, one journal per department and pay currency.
+            $event instanceof PayrollPosted => $this->payrollRun($event),
             default => null,
         };
     }
@@ -139,6 +143,18 @@ class Integrations
         ]);
 
         return null;
+    }
+
+    /** PAY-22: each group of a posted run through the posting rules; the last result (each journal is idempotent by its group). */
+    private function payrollRun(PayrollPosted $event): ?PostingResult
+    {
+        $result = null;
+
+        foreach ($this->payroll->posted($event) as $source) {
+            $result = $this->post($source) ?? $result;
+        }
+
+        return $result;
     }
 
     /** A sale already posted on its own, or kept as an open exception to post on its own. */

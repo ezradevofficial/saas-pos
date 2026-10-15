@@ -20,6 +20,7 @@ return [
             'loyalty' => 'Fidélité, promotions et crédit',
             'hr' => 'RH, horaires et présences',
             'procurement' => 'Achats',
+            'payroll' => 'Paie',
         ],
         'resources' => [
             'core' => [
@@ -92,6 +93,15 @@ return [
                 'disciplinary' => 'Dossiers disciplinaires',
                 'appraisal' => 'Évaluations',
             ],
+            'payroll' => [
+                'settings' => 'Réglages de paie, groupes et rubriques',
+                'employee' => 'Paramétrage de paie',
+                'loan' => 'Prêts et avances',
+                'run' => 'Paies',
+                'payslip' => 'Bulletins de paie',
+                'payment' => 'Fichiers de paiement',
+                'return' => 'Déclarations sociales et fiscales',
+            ],
             'procurement' => [
                 'requisition' => 'Demandes d’achat',
                 'rfq' => 'Demandes de prix',
@@ -143,6 +153,9 @@ return [
             'evaluate' => 'Évaluer',
             'award' => 'Attribuer',
             'cancel' => 'Annuler',
+            'prepare' => 'Préparer',
+            'post' => 'Comptabiliser',
+            'generate' => 'Générer',
         ],
     ],
 

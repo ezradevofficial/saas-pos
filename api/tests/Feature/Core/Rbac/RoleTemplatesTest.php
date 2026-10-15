@@ -114,7 +114,8 @@ class RoleTemplatesTest extends TestCase
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
         // HR (docs/modules/hr.md): 36 hr.* permissions.
         // Manufacturing (docs/modules/manufacturing.md): 14 manufacturing.* permissions.
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 14, count($names));
+        // Payroll (docs/modules/payroll.md): 14 payroll.* permissions.
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 14 + 14, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void

@@ -48,6 +48,7 @@ use Modules\Loyalty\Events\PointsEarned;
 use Modules\Loyalty\Events\PointsExpired;
 use Modules\Loyalty\Events\PointsRedeemed;
 use Modules\Manufacturing\Events\ProductionValued;
+use Modules\Payroll\Events\PayrollPosted;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -97,6 +98,8 @@ class AccountingServiceProvider extends ServiceProvider
         LandedCostAllocated::class, GoodsReceiptPosted::class,
         // ACC-33: Manufacturing's valued documents (its stock moves post nothing: the same movement).
         ProductionValued::class,
+        // PAY-22: posted payroll runs (journals per department and pay currency).
+        PayrollPosted::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */

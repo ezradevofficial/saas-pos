@@ -74,6 +74,8 @@ return [
         '5420' => 'Frais généraux de production incorporés',
         '6910' => 'Coûts du programme de fidélité',
         '6920' => 'Consommations des magasins par département',
+        '1240' => 'Prêts et avances au personnel',
+        '2250' => 'Retenues sur salaires à reverser',
     ],
     'CD' => [
         'name' => 'RD Congo (OHADA SYSCOHADA)',
@@ -168,5 +170,8 @@ return [
         '75' => 'Autres produits',
         '758' => 'Produits divers (soldes non utilisés)',
         '6033' => 'Variations des stocks d’autres approvisionnements (consommations des magasins)',
+        '421' => 'Personnel, avances et acomptes',
+        '428' => 'Personnel, autres retenues à reverser',
+        '438' => 'Autres organismes sociaux',
     ],
 ];

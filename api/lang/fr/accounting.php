@@ -310,6 +310,7 @@ return [
             'manufacturing_variance' => 'Écart de fabrication :reference',
             'manufacturing_backflush' => 'Ingrédients des recettes :reference',
             'procurement_landed_cost' => 'Frais d’approche en charges :reference',
+            'payroll_run' => 'Paie :reference',
         ],
         'summary_memo' => 'Récapitulatif journalier de :count ventes du point de vente du :date',
         'backfill_from' => 'Indiquez le premier jour à comptabiliser avec --from=AAAA-MM-JJ.',

@@ -74,6 +74,8 @@ return [
         '5420' => 'Production overhead absorbed',
         '6910' => 'Loyalty programme costs',
         '6920' => 'Stores consumption by department',
+        '1240' => 'Staff loans and advances',
+        '2250' => 'Payroll deductions payable',
     ],
     'CD' => [
         'name' => 'DR Congo (OHADA SYSCOHADA)',
@@ -168,5 +170,8 @@ return [
         '75' => 'Other income',
         '758' => 'Sundry income (breakage)',
         '6033' => 'Change in stocks of other supplies (stores consumption)',
+        '421' => 'Staff, advances and loans',
+        '428' => 'Staff, other deductions payable',
+        '438' => 'Other social bodies',
     ],
 ];

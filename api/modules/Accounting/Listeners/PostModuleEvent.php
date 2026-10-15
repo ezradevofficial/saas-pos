@@ -95,6 +95,7 @@ class PostModuleEvent implements ShouldQueue
             // after Manufacturing was switched off; the stock moved, so the ledger follows on Accounting alone.
             // Manufacturing's API (closed while it is off) raises the rest.
             $event instanceof ProductionValued => null,
+            str_starts_with($event::class, 'Modules\\Payroll\\') => 'payroll',
             str_starts_with($event::class, 'Modules\\Procurement\\') => 'procurement',
             default => null,
         };

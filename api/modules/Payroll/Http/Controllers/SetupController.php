@@ -1,0 +1,176 @@
+<?php
+
+namespace Modules\Payroll\Http\Controllers;
+
+use App\Core\Tenancy\Models\Company;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Modules\Payroll\Http\Requests\ItemRequest;
+use Modules\Payroll\Http\Requests\PayGroupRequest;
+use Modules\Payroll\Http\Requests\SettingsRequest;
+use Modules\Payroll\Http\Requests\SetupListRequest;
+use Modules\Payroll\Http\Requests\StoreSetupRequest;
+use Modules\Payroll\Http\Resources\SetupResource;
+use Modules\Payroll\Models\Item;
+use Modules\Payroll\Models\PayGroup;
+use Modules\Payroll\Models\Run;
+use Modules\Payroll\Models\Settings;
+use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\PayrollPack;
+use Modules\Payroll\Support\Errors;
+
+/** PAY-02 to PAY-04, PAY-08: company settings, pay groups, pay items and the statutory pack in force. */
+class SetupController
+{
+    public function settings(SettingsRequest $request, Company $company): SetupResource
+    {
+        return SetupResource::make(Settings::query()->where('company_id', $company->id)->first()
+            ?? new Settings(['company_id' => $company->id, 'premiums_taxable' => true, 'premiums_contributory' => true]));
+    }
+
+    public function updateSettings(SettingsRequest $request, Company $company): JsonResponse
+    {
+        $settings = Settings::query()->firstOrNew(['company_id' => $company->id], ['premiums_taxable' => true, 'premiums_contributory' => true]);
+        $settings->fill($request->validated())->save();
+
+        return SetupResource::make($settings->refresh())->response()->setStatusCode(200);
+    }
+
+    /** PAY-08: the company's pack in force today: its components with labels, what is missing, and the pack's own list of values to confirm. */
+    public function statutory(SettingsRequest $request, Company $company, PayrollPack $packs): JsonResponse
+    {
+        $pack = $packs->of($company->country);
+
+        if ($pack === null) {
+            return response()->json(['data' => ['country' => $company->country, 'available' => false]]);
+        }
+
+        $today = CarbonImmutable::now($company->timezone ?: 'UTC')->startOfDay();
+        $missing = MissingValues::check($pack, $today, 'monthly', ['insurance_premiums' => true, 'dependants' => true, 'children' => true]);
+        $byCode = array_column($missing, 'fields', 'component');
+
+        return response()->json(['data' => [
+            'country' => $company->country,
+            'available' => true,
+            'currency' => $pack['currency'] ?? null,
+            'non_monthly' => $pack['non_monthly'] ?? null,
+            'components' => array_map(fn (array $c) => [
+                'code' => $c['code'], 'name' => PayrollPack::label('components', $c['code']), 'kind' => $c['kind'], 'method' => $c['method'],
+                'required' => $c['required'], 'when' => $c['when'], 'in_force' => $c['values'] !== null,
+                'effective_from' => $c['values']['effective_from'] ?? null,
+                'missing' => array_map(fn (string $f) => ['field' => $f, 'name' => PayrollPack::label('fields', $f)], $byCode[$c['code']] ?? []),
+            ], PayrollPack::inForce($pack, $today)),
+            'missing' => $missing === [] ? null : MissingValues::describe($missing),
+            'ready' => $missing === [],
+            'todo' => $pack['todo'] ?? [],
+            'returns' => array_map(fn (array $r) => ['key' => $r['key'], 'name' => PayrollPack::label('returns', $r['key']), 'needs_confirmation' => (bool) ($r['needs_confirmation'] ?? true) || ($r['layout'] ?? null) === null], $pack['returns'] ?? []),
+        ]]);
+    }
+
+    public function payGroups(SetupListRequest $request): AnonymousResourceCollection
+    {
+        $query = $request->applyFilters(PayGroup::query()->with('company'), ['code', 'name'])->orderBy('code')->orderBy('id');
+
+        return SetupResource::collection($query->paginate($request->perPage())->withQueryString());
+    }
+
+    public function storePayGroup(StoreSetupRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        if ($data['frequency'] === PayGroup::MONTHLY) {
+            $data['anchor_date'] = null;
+        } elseif (isset($data['pay_day'])) {
+            $data['pay_day'] = null;
+        }
+
+        return SetupResource::make($this->unique(fn () => PayGroup::query()->create($data))->load('company'))->response()->setStatusCode(201);
+    }
+
+    public function updatePayGroup(PayGroupRequest $request, PayGroup $payrollPayGroup): SetupResource
+    {
+        $data = $request->validated();
+
+        if (array_key_exists('anchor_date', $data)) {
+            $anchor = $data['anchor_date'];
+
+            // Review fix 3: a weekly or bi-weekly group keeps an anchor; once it has runs its periods never move.
+            if ($payrollPayGroup->frequency !== PayGroup::MONTHLY && $anchor === null) {
+                throw Errors::make(422, 'anchor_required', field: 'anchor_date');
+            }
+
+            if ($anchor !== $payrollPayGroup->anchor_date?->toDateString() && Run::query()->where('pay_group_id', $payrollPayGroup->id)->exists()) {
+                throw Errors::make(422, 'pay_group_has_runs', field: 'anchor_date');
+            }
+        }
+
+        $this->unique(fn () => $payrollPayGroup->fill($data)->save());
+
+        return SetupResource::make($payrollPayGroup->refresh()->load('company'));
+    }
+
+    public function archivePayGroup(PayGroupRequest $request, PayGroup $payrollPayGroup): SetupResource
+    {
+        if (! $payrollPayGroup->isArchived()) {
+            $payrollPayGroup->archive();
+        }
+
+        return SetupResource::make($payrollPayGroup->refresh()->load('company'));
+    }
+
+    public function items(SetupListRequest $request): AnonymousResourceCollection
+    {
+        $query = $request->applyFilters(Item::query()->with('company'), ['code', 'name'])->orderBy('kind')->orderBy('code')->orderBy('id');
+
+        return SetupResource::collection($query->paginate($request->perPage())->withQueryString());
+    }
+
+    public function storeItem(StoreSetupRequest $request): JsonResponse
+    {
+        $data = self::flags($request->validated(), $request->validated('kind'));
+
+        return SetupResource::make($this->unique(fn () => Item::query()->create($data))->load('company'))->response()->setStatusCode(201);
+    }
+
+    public function updateItem(ItemRequest $request, Item $payrollItem): SetupResource
+    {
+        $this->unique(fn () => $payrollItem->fill(self::flags($request->validated(), $payrollItem->kind))->save());
+
+        return SetupResource::make($payrollItem->refresh()->load('company'));
+    }
+
+    public function archiveItem(ItemRequest $request, Item $payrollItem): SetupResource
+    {
+        if (! $payrollItem->isArchived()) {
+            $payrollItem->archive();
+        }
+
+        return SetupResource::make($payrollItem->refresh()->load('company'));
+    }
+
+    /** PAY-04: an earning has no deduction flags and a deduction no earning flags (`item_flag_kind`). */
+    private static function flags(array $data, string $kind): array
+    {
+        $other = $kind === Item::EARNING ? ['pre_tax', 'insurance_premium'] : ['taxable', 'contributory'];
+
+        foreach ($other as $flag) {
+            if (($data[$flag] ?? false) === true) {
+                throw Errors::make(422, 'item_flag_kind', ['flag' => $flag], $flag);
+            }
+        }
+
+        return $data;
+    }
+
+    /** A code taken by another active row of the company: `code_taken`. */
+    private function unique(callable $fn): mixed
+    {
+        try {
+            return Errors::transaction($fn);
+        } catch (UniqueConstraintViolationException) {
+            throw Errors::make(422, 'code_taken', field: 'code');
+        }
+    }
+}
