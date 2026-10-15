@@ -1,0 +1,112 @@
+{
+    "code": "CD",
+    "notes": "Payroll statutory structure for companies in the DR Congo (docs/modules/payroll.md, PAY-07, PAY-08, PAY-21). Structure only: no figure is entered until it is confirmed from an official source with its legal reference and effective date. A value that is null is 'rate needed' and blocks payroll runs; a value that is absent does not apply (remove a value, e.g. a ceiling, to say it does not exist). Every money figure is per month in minor units of the pack currency (CDF, no decimals) as a digit string; rates are percentages as strings ('12.5' = 12.5 %). Salaries paid in another currency (e.g. USD) are converted to CDF at the company's rate on the pay date before these figures apply. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. Labels live in lang/{locale}/payroll.php (pack.*).",
+    "sources": [],
+    "todo": [
+        "ipr: the IPR bands as monthly CDF amounts (each band's upper limit and rate), with the legal reference (Code des impôts) and effective date.",
+        "ipr: the maximum IPR as a percentage of taxable pay (max_rate), or remove it if there is none, and the rounding rule of IPR.",
+        "ipr_dependants: the IPR reduction per dependant (rate of the tax) and the maximum number of dependants; used only when an employee has dependants.",
+        "cnss: the CNSS employee and employer pension rates, whether a ceiling applies to the base (base_cap_minor, or remove it), whether the employee's CNSS reduces taxable pay, and its rounding rule.",
+        "cnss_risks: the CNSS employer rate for occupational risks, and its rounding rule.",
+        "cnss_family: the CNSS employer rate for family benefits, and its rounding rule.",
+        "inpp: the INPP employer rates by headcount bracket (upper headcount of each bracket and its rate), and its rounding rule.",
+        "onem: the ONEM employer rate, and its rounding rule.",
+        "family_allowance: the statutory family allowance per child per month (allocations familiales), whether it is taxable and subject to contributions, and its rounding rule; used only when an employee has children.",
+        "Bases: confirm that CNSS is on contributory gross pay (the earnings the company marks contributory) and that INPP and ONEM are on gross pay.",
+        "Other statutory items not modelled yet (e.g. a minimum wage check, housing and transport allowance exemptions, an exceptional tax on expatriates' pay): confirm which apply.",
+        "non_monthly: how the monthly figures apply to weekly and bi-weekly pay ('pro_rata' or another method); until then only monthly runs are calculated.",
+        "returns: the IPR (DGI), CNSS, INPP and ONEM declaration layouts; until then return files are placeholders."
+    ],
+    "currency": "CDF",
+    "non_monthly": null,
+    "components": [
+        {
+            "code": "ipr",
+            "kind": "income_tax",
+            "method": "bands",
+            "base": "taxable_pay",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "bands": null, "max_rate": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "ipr_dependants",
+            "kind": "relief",
+            "method": "reduction_per_dependant",
+            "applies_to": "ipr",
+            "when": "dependants",
+            "required": false,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "rate": null, "max_dependants": null}
+            ]
+        },
+        {
+            "code": "cnss",
+            "kind": "contribution",
+            "method": "rate",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employee_rate": null, "employer_rate": null, "base_cap_minor": null, "reduces_taxable": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "cnss_risks",
+            "kind": "contribution",
+            "method": "rate",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employer_rate": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "cnss_family",
+            "kind": "contribution",
+            "method": "rate",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employer_rate": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "inpp",
+            "kind": "levy",
+            "method": "headcount_rate",
+            "base": "gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "brackets": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "onem",
+            "kind": "levy",
+            "method": "rate",
+            "base": "gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employer_rate": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "family_allowance",
+            "kind": "allowance",
+            "method": "allowance_per_child",
+            "when": "children",
+            "required": false,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "amount_minor": null, "taxable": null, "contributory": null, "rounding": null}
+            ]
+        }
+    ],
+    "returns": [
+        {"key": "ipr", "period": "month", "components": ["ipr", "ipr_dependants"], "identifiers": ["national_id"], "layout": null, "needs_confirmation": true},
+        {"key": "cnss", "period": "month", "components": ["cnss", "cnss_risks", "cnss_family"], "identifiers": ["cnss_number"], "layout": null, "needs_confirmation": true},
+        {"key": "inpp", "period": "month", "components": ["inpp"], "identifiers": [], "layout": null, "needs_confirmation": true},
+        {"key": "onem", "period": "month", "components": ["onem"], "identifiers": [], "layout": null, "needs_confirmation": true}
+    ],
+    "payment_formats": {}
+}
