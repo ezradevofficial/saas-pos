@@ -53,6 +53,7 @@ class BackflushResource extends JsonResource
                 'value' => $costs ? Costs::money($line->value_minor, $backflush->currency) : null,
             ])->all(),
             'skipped' => $backflush->skipped ?? [],
+            'flags' => $backflush->flags ?? [],
         ];
     }
 }

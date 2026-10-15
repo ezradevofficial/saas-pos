@@ -122,7 +122,7 @@ class Costing
     }
 
     /** The costed product and by-products into stock (Inventory), or received at once when there is nothing to receive. */
-    private function receive(Order $order, Report $report): void
+    public function receive(Order $order, Report $report): void
     {
         $lines = ReportLine::query()->where('report_id', $report->id)->whereIn('kind', [ReportLine::PRODUCT, ReportLine::BY_PRODUCT])->orderBy('line_no')->get();
 

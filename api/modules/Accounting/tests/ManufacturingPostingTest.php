@@ -5,11 +5,14 @@ namespace Modules\Accounting\Tests;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\Uom;
 use App\Core\Rbac\ModuleRegistry;
+use Illuminate\Support\Facades\Event;
 use Modules\Accounting\Integrations\Integrations;
 use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Tests\Concerns\BuildsIntegrations;
+use Modules\Inventory\Listeners\MoveStockForManufacturing;
+use Modules\Manufacturing\Events\MaterialsMoved;
 use Modules\Manufacturing\Events\ProductionValued;
 use Modules\Manufacturing\Models\Setting;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -107,9 +110,30 @@ class ManufacturingPostingTest extends TestCase
         $this->assertCount(2, $this->journalsOf('manufacturing.backflush'));
         $this->assertBalanced();
 
-        // With Manufacturing off nothing more is queued for it.
+        // Review fix 6 (the stage 7B decision): Manufacturing switched off still posts what it
+        // valued (Inventory moved it); only Accounting being off stops the posting.
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('manufacturing'));
+        $this->assertTrue($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($consumed)));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('accounting'));
         $this->assertFalse($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($consumed)));
+    }
+
+    public function test_a_document_in_flight_posts_after_manufacturing_is_switched_off(): void
+    {
+        // Review fix 6: the issue is made while Manufacturing is on; Inventory moves it after
+        // Manufacturing is switched off. Stock left, so the ledger follows while Accounting is on.
+        $order = $this->postJson('/api/v1/manufacturing/orders', ['location_id' => $this->locationA->id, 'item_id' => $this->bread->id, 'qty' => '10'], $this->headersFor())->assertCreated()->json('data');
+        $this->postJson("/api/v1/manufacturing/orders/{$order['id']}/release", [], $this->headersFor())->assertOk();
+        Event::fake([MaterialsMoved::class]);
+        $this->postJson("/api/v1/manufacturing/orders/{$order['id']}/issues", ['lines' => [['material_id' => $order['materials'][0]['id'], 'qty' => '5']]], $this->headersFor())->assertCreated();
+        $issued = Event::dispatched(MaterialsMoved::class)->map(fn ($call) => $call[0])->first();
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('manufacturing'));
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($issued));
+
+        $this->assertSame(['1300' => [0, 25000], '1310' => [25000, 0]], $this->linesOf($this->journalsOf('manufacturing.materials')[0]));
+        $this->assertSame($this->valuation(), $this->balance('1300'));
+        $this->assertBalanced();
     }
 
     public function test_the_ke_and_cd_templates_map_every_manufacturing_field_to_a_postable_account(): void

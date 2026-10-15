@@ -162,11 +162,14 @@ listener is unchanged: it never moved non-stock items.
 | `manufacturing.production.report` | Report production (good, scrap, by-products, labour) |
 | `manufacturing.report.view` | Consumption, yield and variance reports, backflushes, recipe costing |
 | `manufacturing.cost.view` | Costs and values everywhere in Manufacturing (RBAC-05) |
-| `manufacturing.settings.edit` | A company's rates and release approval |
+| `manufacturing.settings.edit` | A company's rates and release approval; move and value a stuck document again |
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `manufacturing.*.view`, `manufacturing.settings.edit` and
-`manufacturing.bom.manage`; **Branch Manager** `manufacturing.*`;
+`manufacturing.bom.manage`; **Branch Manager** `manufacturing.*` except
+`manufacturing.bom.manage` and `manufacturing.settings.edit` (they view
+and explode BOMs; changing them is company data, held at company scope:
+least privilege, review fix 3);
 **Storekeeper** issues, returns and the views of BOMs and orders (no
 costs); **Accountant** `manufacturing.*.view` (with costs); **Approver**
 `manufacturing.order.approve` and `manufacturing.order.view`;
@@ -184,15 +187,16 @@ currency}`; percentages are decimal strings.
 | Route | Permission | Notes |
 | --- | --- | --- |
 | `GET manufacturing/status` | any `manufacturing.*.view` | `{inventory_active, pos_active, backflush_active}` |
-| `GET manufacturing/companies/{company}/settings`, `PUT …` | `bom.view` or `order.view`; `settings.edit` at the company | `{labour_rate_minor, overhead_rate_minor, currency, release_approval}` |
+| `GET manufacturing/companies/{company}/settings`, `PUT …` | `bom.view` or `order.view`; `settings.edit` at the company | `{labour_rate_minor, overhead_rate_minor, currency, release_approval}`; the rates are null unless the reader holds `cost.view` or `settings.edit` in the company |
+| `POST manufacturing/revalue` | `settings.edit` at the document's company | `{kind: issue\|return\|report\|backflush, document_id}` raises the stuck document's stock move again (202); 409 `nothing_to_revalue` when it is valued; audited `manufacturing.document.revalue` |
 | `GET manufacturing/boms`, `GET …/{mfg_bom}` | `bom.view` | `?kind`, `?item`, `?status=active\|archived\|all`; detail has versions and the version in force |
 | `POST manufacturing/boms` | `bom.manage` at the company | `{company_id, item_id, kind, name?, custom?, version: {output_qty, output_uom_id?, labour_minutes?, note?, lines: [...]}}` makes the BOM and its draft version 1 |
 | `PUT manufacturing/boms/{mfg_bom}` | `bom.manage` | `{name?, custom?}` |
-| `POST manufacturing/boms/{mfg_bom}/archive` | `bom.manage` | |
-| `POST manufacturing/boms/{mfg_bom}/versions` | `bom.manage` | `{copy_from_id?}` a new draft (409 `draft_exists`) |
+| `POST manufacturing/boms/{mfg_bom}/archive` | `bom.manage` at the company | |
+| `POST manufacturing/boms/{mfg_bom}/versions` | `bom.manage` at the company | `{copy_from_id?}` a new draft (409 `draft_exists`) |
 | `GET manufacturing/bom-versions/{mfg_bom_version}` | `bom.view` | lines |
 | `PUT manufacturing/bom-versions/{mfg_bom_version}` | `bom.manage` | draft only (409 `version_published`): `{output_qty, output_uom_id?, labour_minutes?, note?, lines: [{kind, item_id, uom_id?, qty, yield_percent?, wastage_percent?, explode?, cost_share_percent?, note?}]}` |
-| `POST manufacturing/bom-versions/{mfg_bom_version}/publish` | `bom.manage` | `{effective_from?}` |
+| `POST manufacturing/bom-versions/{mfg_bom_version}/publish` | `bom.manage` at the company | `{effective_from?}` |
 | `GET manufacturing/bom-versions/{mfg_bom_version}/explode` | `bom.view` | `?qty`, `?uom_id`, `?at`: `{tree, leaves, cost?}` |
 | `GET manufacturing/orders`, `GET …/{mfg_order}` | `order.view` | `?item`; detail has materials, outputs, issues, returns, reports, costs (with the permission), the flow and what the reader may do |
 | `POST manufacturing/orders` | `order.create` at the location | `{location_id, item_id, bom_version_id?, qty, uom_id?, planned_start?, planned_end?, note?, custom?}` |
@@ -277,10 +281,17 @@ Decisions taken while building (no owner input asked, per instructions):
 8. **Backflush applies the recipe in force when the sale happened** (its
    `sold_at`), so offline sales uploaded days later use the recipe of their
    day; a refund or void gives back what the sale took, whatever the recipe
-   is now.
+   is now. The version is looked up across every BOM of the item and kind
+   that was active then (`effective_from` at or before the sale, and not
+   archived or archived after it), phantoms too: a recipe archived or
+   replaced after the sale still applies to it (review fix 2).
 9. **Accounting posts Manufacturing's documents from `ProductionValued`**
    and skips `StockMoved` for `manufacturing.*` sources, as for Stores: one
    journal per document, with work in progress between issue and receipt.
+   `ProductionValued` is queued on Accounting alone (the stage 7B
+   decision): a document made while Manufacturing was on is valued when
+   Inventory moves it, possibly after Manufacturing is switched off, and the
+   ledger follows the stock (review fix 6).
 10. **Components may be over-issued** (actual beyond standard is shown as
     a variance, not refused): the goods have physically left the store.
 
@@ -299,7 +310,16 @@ Decisions taken while building (no owner input asked, per instructions):
 15. **Nothing moved is nothing valued.** When Inventory moves none of a
     document's lines (an item no longer a stock item), it still raises an
     empty `StockMoved`, so the document is valued at nothing and its order
-    can close.
+    can close. A redelivered document that already moved raises its own
+    movements again, never nothing (review fix 1).
+16. **A return never waits forever.** A return whose origin is not posted
+    yet is retried for 24 hours (`retryUntil`). When the origin posted but
+    holds nothing for a stock line, that line comes back at nothing and is
+    flagged `nothing_to_return` on the return or backflush return. A
+    document whose job gave up anyway is moved and valued again by a
+    holder of `manufacturing.settings.edit` (`POST manufacturing/revalue`);
+    Inventory posts once and Manufacturing values once, so nothing counts
+    twice (review fix 5).
 
 Open for the owner:
 

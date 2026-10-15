@@ -300,7 +300,7 @@ class Backflushes
         }
 
         MaterialsMoved::dispatch($this->tenants->require(), MaterialsMoved::BACKFLUSH_RETURN, $backflush->id, $backflush->reference, $backflush->company_id,
-            $backflush->branch_id, $backflush->location_id, $backflush->occurred_at->toIso8601String(), null, $event, $consumed->id);
+            $backflush->branch_id, $backflush->location_id, $backflush->occurred_at->toIso8601String(), null, $event, $consumed->id, $consumed->valued_at !== null);
     }
 
     private function exists(string $sourceType, string $sourceId): bool

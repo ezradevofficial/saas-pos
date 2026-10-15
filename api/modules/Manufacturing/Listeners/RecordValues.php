@@ -2,6 +2,7 @@
 
 namespace Modules\Manufacturing\Listeners;
 
+use App\Core\MasterData\Items\Item;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
@@ -128,12 +129,33 @@ class RecordValues implements ShouldQueue
             $material->update([$column => (string) BigInteger::of((string) $material->{$column})->plus($value)]);
         }
 
-        $document->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency])->save();
+        $document->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency, ...($issue ? [] : ['flags' => self::nothingBack($lines, $values)])])->save();
         $cost = BigInteger::of((string) $order->material_cost_minor);
         $order->fill(['material_cost_minor' => (string) ($issue ? $cost->plus($total) : $cost->minus($total))])->save();
 
         event($this->events->materials($document->refresh()));
         $this->costing->costPending($order->id);
+    }
+
+    /**
+     * Review fix 5: the stock lines of a return Inventory moved nothing for (their origin held
+     * nothing for them): valued at nothing, and said so.
+     *
+     * @return list<array{code: string, line_id: string}>|null
+     */
+    private static function nothingBack(iterable $lines, array $values): ?array
+    {
+        $flags = [];
+        $lines = collect($lines);
+        $stock = Item::query()->whereKey($lines->pluck('item_id')->unique()->all())->where('type', 'stock')->pluck('id')->all();
+
+        foreach ($lines as $line) {
+            if (! isset($values[$line->id]) && in_array($line->item_id, $stock, true)) {
+                $flags[] = ['code' => 'nothing_to_return', 'line_id' => (string) $line->id];
+            }
+        }
+
+        return $flags === [] ? null : $flags;
     }
 
     private function receipt(StockMoved $event, array $variances): void
@@ -177,7 +199,9 @@ class RecordValues implements ShouldQueue
             ]);
         }
 
-        $backflush->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency])->save();
+        $lines = BackflushLine::query()->where('backflush_id', $backflush->id)->get();
+        $flags = $backflush->kind === Backflush::RETURN ? self::nothingBack($lines, $values) : null;
+        $backflush->fill(['valued_at' => CarbonImmutable::now(), 'currency' => $event->currency, 'flags' => $flags])->save();
 
         event($this->events->backflush($backflush->refresh()));
     }

@@ -30,6 +30,8 @@ return [
         'cost_share_total' => 'By-products together take less than 100% of the cost. Lower their shares.',
         'document_not_open' => 'This order can no longer be changed in this way. Refresh the page to see where it is.',
         'line_unknown' => 'This line is not part of the order.',
+        'document_unknown' => 'This document was not found. Check the document and try again.',
+        'nothing_to_revalue' => 'This document is already valued. Nothing needs to be done.',
         'output_unknown' => 'This by-product is not expected from the order.',
         'over_return' => 'This is more :item than was issued and not yet returned. At most :open can come back.',
         'scrap_reason_required' => 'Say why the scrap was lost.',

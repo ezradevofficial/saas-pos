@@ -14,6 +14,7 @@ use Modules\Manufacturing\Http\Lists\ConsumptionList;
 use Modules\Manufacturing\Http\Lists\RecipeCostingList;
 use Modules\Manufacturing\Http\Lists\YieldList;
 use Modules\Manufacturing\Http\Requests\ReportListRequest;
+use Modules\Manufacturing\Http\Requests\RevalueRequest;
 use Modules\Manufacturing\Http\Requests\SettingsRequest;
 use Modules\Manufacturing\Http\Requests\StatusRequest;
 use Modules\Manufacturing\Http\Requests\UpdateSettingsRequest;
@@ -27,6 +28,7 @@ use Modules\Manufacturing\Models\Bom;
 use Modules\Manufacturing\Models\Order;
 use Modules\Manufacturing\Models\OrderMaterial;
 use Modules\Manufacturing\Models\Setting;
+use Modules\Manufacturing\Orders\Revalue;
 use Modules\Manufacturing\Support\Errors;
 use Modules\Manufacturing\Support\Places;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -123,6 +125,14 @@ class ReportController
         });
 
         return $this->presentSettings($request, $company, $settings);
+    }
+
+    /** Review fix 5: a document whose value never came back from Inventory, moved and valued again (202: the value follows). */
+    public function revalue(RevalueRequest $request, Revalue $revalue): JsonResponse
+    {
+        $revalue->run((string) $request->validated('kind'), $request->document(), $request->user());
+
+        return new JsonResponse(['data' => ['kind' => $request->validated('kind'), 'document_id' => $request->validated('document_id'), 'requested' => true]], 202);
     }
 
     private function presentSettings(Request $request, Company $company, ?Setting $settings): JsonResponse

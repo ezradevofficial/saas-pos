@@ -2,6 +2,7 @@
 
 namespace Modules\Manufacturing\Tests;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
 use Modules\Inventory\Listeners\MoveStockForManufacturing;
@@ -137,5 +138,75 @@ class CostingTest extends TestCase
         $this->assertNull($seen['material_cost']);
         $this->assertNull($seen['materials'][0]['value']);
         $this->assertNotNull($this->api('GET', "manufacturing/orders/{$order['id']}")->json('data.material_cost'));
+    }
+
+    /** @return list<MaterialsMoved> */
+    private function moved(string $kind): array
+    {
+        return Event::dispatched(MaterialsMoved::class)->map(fn ($call) => $call[0])->filter(fn (MaterialsMoved $e) => $e->kind === $kind)->values()->all();
+    }
+
+    public function test_a_return_whose_issue_moved_nothing_comes_back_at_nothing_flagged(): void
+    {
+        // Review fix 5: the issue posted while flour was not a stock item (nothing left stock);
+        // flour is a stock item again when the return comes: it is valued at nothing and
+        // flagged, never stuck retrying.
+        $order = $this->released($this->bread, '100');
+        Event::fake([MaterialsMoved::class]);
+        $order = $this->issueAll($order, [$this->flour->id => '10'])->assertCreated()->json('data');
+        $this->inTenant(fn () => $this->flour->update(['type' => 'non_stock']));
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($this->moved(MaterialsMoved::ISSUE)[0]));
+        $this->inTenant(fn () => $this->flour->update(['type' => 'stock']));
+
+        $issue = $this->api('GET', "manufacturing/orders/{$order['id']}")->assertOk()->json('data.issues.0');
+        $this->assertTrue($issue['valued']);
+        $order = $this->api('POST', "manufacturing/orders/{$order['id']}/returns", ['issue_id' => $issue['id'], 'reason' => 'unused', 'lines' => [
+            ['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '2'],
+        ]])->assertCreated()->json('data');
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($this->moved(MaterialsMoved::RETURN)[0]));
+
+        $return = $this->api('GET', "manufacturing/orders/{$order['id']}")->assertOk()->json('data.returns.0');
+        $this->assertTrue($return['valued']);
+        $this->assertSame('0', $this->money($return['lines'][0]['value']));
+        $this->assertSame([['code' => 'nothing_to_return', 'line_id' => $return['lines'][0]['id']]], $return['flags']);
+        $this->assertSame('200', $this->onHand($this->flour));
+    }
+
+    public function test_a_stuck_document_is_moved_and_valued_again_by_an_administrator(): void
+    {
+        $order = $this->released($this->bread, '100');
+        Event::fake([MaterialsMoved::class]);
+        // Inventory's job for the issue gave up: the report waits for it.
+        $order = $this->issueAll($order, [$this->flour->id => '51'])->assertCreated()->json('data');
+        $order = $this->api('POST', "manufacturing/orders/{$order['id']}/reports", ['qty_good' => '100'])->assertCreated()->json('data');
+        $issue = $order['issues'][0];
+        $report = $order['reports'][0];
+        $this->assertSame('pending', $report['status']);
+
+        // manufacturing.settings.edit at the company: a branch manager is refused; unknown documents are not found.
+        $this->api('POST', 'manufacturing/revalue', ['kind' => 'issue', 'document_id' => $issue['id']], $this->planner)->assertForbidden();
+        $this->api('POST', 'manufacturing/revalue', ['kind' => 'return', 'document_id' => $issue['id']])->assertUnprocessable()->assertJsonValidationErrors('document_id');
+        $this->api('POST', 'manufacturing/revalue', ['kind' => 'issue', 'document_id' => $issue['id']])->assertAccepted();
+
+        $again = $this->moved(MaterialsMoved::ISSUE);
+        $this->assertCount(2, $again);
+        $this->assertSame($again[0]->lines, $again[1]->lines);
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($again[1]));
+
+        $order = $this->api('GET', "manufacturing/orders/{$order['id']}")->assertOk()->json('data');
+        $this->assertSame('255000', $this->money($order['material_cost']));
+        $this->assertSame('costed', $order['reports'][0]['status']);
+        $this->api('POST', 'manufacturing/revalue', ['kind' => 'issue', 'document_id' => $issue['id']])->assertConflict()->assertJsonPath('code', 'nothing_to_revalue');
+
+        // The report's receipt never came back either: raised again, then received once.
+        $this->api('POST', 'manufacturing/revalue', ['kind' => 'report', 'document_id' => $report['id']])->assertAccepted();
+        $receipts = $this->moved(MaterialsMoved::RECEIPT);
+        $this->assertCount(2, $receipts);
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($receipts[1]));
+        $this->inTenant(fn () => app(MoveStockForManufacturing::class)->handle($receipts[0]));
+        $this->assertSame('received', $this->api('GET', "manufacturing/orders/{$order['id']}")->json('data.reports.0.status'));
+        $this->assertSame('100', $this->onHand($this->bread));
+        $this->assertCount(1, $this->movements('manufacturing.receipt'));
+        $this->assertSame(2, $this->inTenant(fn () => AuditEntry::query()->where('action', 'manufacturing.document.revalue')->count()));
     }
 }

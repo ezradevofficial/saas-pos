@@ -52,7 +52,7 @@ class Backflush extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['skipped' => 'array', 'occurred_at' => 'immutable_datetime', 'valued_at' => 'immutable_datetime'];
+        return ['skipped' => 'array', 'flags' => 'array', 'occurred_at' => 'immutable_datetime', 'valued_at' => 'immutable_datetime'];
     }
 
     public function scope(): Scope

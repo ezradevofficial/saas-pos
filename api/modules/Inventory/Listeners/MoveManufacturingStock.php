@@ -19,8 +19,6 @@ class MoveManufacturingStock implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public int $tries = 5;
-
     /** @var list<int> */
     public array $backoff = [10, 60, 300];
 
@@ -31,6 +29,12 @@ class MoveManufacturingStock implements ShouldQueue
     ) {
         $this->afterCommit();
         $this->onQueue('default');
+    }
+
+    /** Review fix 5: a return waits for its origin's posting for up to a day, then fails (Manufacturing's revalue re-raises it). */
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addDay();
     }
 
     /** @return list<object> */

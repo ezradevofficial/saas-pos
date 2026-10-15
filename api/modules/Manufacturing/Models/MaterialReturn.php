@@ -47,7 +47,7 @@ class MaterialReturn extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['returned_at' => 'immutable_datetime', 'valued_at' => 'immutable_datetime'];
+        return ['returned_at' => 'immutable_datetime', 'flags' => 'array', 'valued_at' => 'immutable_datetime'];
     }
 
     public function scope(): Scope

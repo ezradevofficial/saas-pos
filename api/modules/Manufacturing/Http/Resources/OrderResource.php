@@ -158,6 +158,7 @@ class OrderResource extends JsonResource
                     'id' => $line->id, 'issue_line_id' => $line->issue_line_id, 'item' => Refs::item($line->item), 'uom' => Refs::uom($line->uom),
                     'qty' => Qty::show($line->qty), 'value' => $money($line->value_minor),
                 ])->all(),
+                'flags' => $return->flags ?? [],
             ])->all(),
             'reports' => $reports->map(fn (Report $report) => [
                 'id' => $report->id,

@@ -350,6 +350,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
         'POST api/v1/manufacturing/boms/{mfg_bom}/versions' => ['draft_exists', 'MFG-03: the fixture BOM has its draft open (one draft per BOM); the version copied from is checked first'],
         'PUT api/v1/manufacturing/orders/{mfg_order}' => ['document_not_open', 'MFG-10: the fixture order is running, so it no longer changes; its unit is checked first'],
+        'POST api/v1/manufacturing/revalue' => ['nothing_to_revalue', 'MFG-15 (review fix 5): the fixture issue is not stuck (valued, or its order keeps no stock), so there is nothing to move again'],
     ];
 
     /**
@@ -378,6 +379,8 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
         // Manufacturing: a return gives back lines of an order's issue (REFERENCE_FIELDS' issue_line_id is Stores').
         'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_line_id' => 'mfg_issue_line'],
+        // Manufacturing: the stuck document moved and valued again (an issue of the fixture).
+        'POST api/v1/manufacturing/revalue' => ['document_id' => 'mfg_issue'],
     ];
 
     /**
@@ -1660,6 +1663,7 @@ class TenantIsolationTest extends TestCase
             'PUT api/v1/manufacturing/orders/{mfg_order}' => ['uom_id' => $tenant->id('uom'), 'qty' => '4'],
             'POST api/v1/manufacturing/orders/{mfg_order}/issues' => ['lines' => [['material_id' => $tenant->id('mfg_material'), 'uom_id' => $tenant->id('uom'), 'qty' => '1']]],
             'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_id' => $tenant->id('mfg_issue'), 'reason' => 'unused', 'lines' => [['issue_line_id' => $tenant->id('mfg_issue_line'), 'qty' => '1']]],
+            'POST api/v1/manufacturing/revalue' => ['kind' => 'issue', 'document_id' => $tenant->id('mfg_issue')],
             'POST api/v1/manufacturing/orders/{mfg_order}/reports' => ['qty_good' => '1', 'by_products' => [['output_id' => $tenant->id('mfg_output'), 'qty' => '1']]],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [

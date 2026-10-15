@@ -62,6 +62,8 @@ class MaterialsMoved implements ShouldDispatchAfterCommit
         public readonly ?string $userId,
         public readonly array $lines,
         public readonly ?string $originId = null,
+        // Review fix 5: a return's origin was already posted (valued): when it holds nothing for a line, that line comes back at nothing.
+        public readonly bool $originPosted = false,
     ) {}
 
     public function sourceType(): string

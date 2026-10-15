@@ -284,6 +284,8 @@ return new class extends Migration
             $table->string('ledger', 10);
             $table->string('reason', 20);
             $table->text('note')->nullable();
+            // Review fix 5: lines valued at nothing because their issue held nothing for them: [{code, line_id}].
+            $table->jsonb('flags')->nullable();
             $userRef($table, 'returned_by', nullable: false);
             $table->timestampTz('returned_at', 6);
             $table->timestampTz('valued_at')->nullable();
@@ -382,6 +384,8 @@ return new class extends Migration
             $table->timestampTz('occurred_at', 6);
             // Sale lines not backflushed and why: [{sale_line_id, item_id, code}].
             $table->jsonb('skipped')->nullable();
+            // Review fix 5: lines valued at nothing because the consumption held nothing for them: [{code, line_id}].
+            $table->jsonb('flags')->nullable();
             $table->timestampTz('valued_at')->nullable();
             $currency($table);
             $table->timestampsTz();

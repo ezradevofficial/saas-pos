@@ -32,6 +32,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('manufacturing/companies/{company}/settings', [ReportController::class, 'settings']);
     Route::put('manufacturing/companies/{company}/settings', [ReportController::class, 'updateSettings']);
 
+    // MFG-15, MFG-20 (review fix 5): a stuck document moved and valued again.
+    Route::post('manufacturing/revalue', [ReportController::class, 'revalue']);
+
     // MFG-02 to MFG-05: BOMs and recipes, versions, explosions.
     Route::get('manufacturing/boms', [BomController::class, 'index']);
     Route::post('manufacturing/boms', [BomController::class, 'store']);

@@ -102,4 +102,26 @@ class ManufacturingIntegrationTest extends TestCase
         Event::assertDispatched(StockMoved::class, fn (StockMoved $e) => $e->sourceType === 'manufacturing.receipt' && $e->movements[0]['value_minor'] === '10001');
         $this->assertSame(1, $this->inTenant(fn () => Movement::query()->where('source_type', 'manufacturing.receipt')->count()));
     }
+
+    public function test_a_redelivered_full_return_raises_what_it_came_back_at(): void
+    {
+        // Review fix 1: everything issued came back; the return's event comes again (its value was
+        // missed). Nothing is left to take, yet the values raised are the ones it posted, not nothing.
+        $this->move($this->soap, 'receipt', '10', 10000);
+        $issueId = (string) Str::uuid7();
+        $soap = $this->line($this->soap->id, '4');
+        app(MoveStockForManufacturing::class)->handle($this->event(MaterialsMoved::ISSUE, $issueId, [$soap]));
+        $return = $this->event(MaterialsMoved::RETURN, (string) Str::uuid7(), [$this->line($this->soap->id, '4', ['origin_line_id' => $soap['line_id']])], $issueId);
+        app(MoveStockForManufacturing::class)->handle($return);
+        $back = $this->inTenant(fn () => Movement::query()->where('source_type', 'manufacturing.return')->sole());
+        $this->assertSame('4000', (string) $back->value_minor);
+
+        Event::fake([StockMoved::class]);
+        app(MoveStockForManufacturing::class)->handle($return);
+
+        Event::assertDispatched(StockMoved::class, fn (StockMoved $e) => $e->sourceType === 'manufacturing.return' && count($e->movements) === 1
+            && $e->movements[0]['value_minor'] === '4000' && $e->movements[0]['source_line_id'] === $return->lines[0]['line_id']);
+        $this->assertSame(1, $this->inTenant(fn () => Movement::query()->where('source_type', 'manufacturing.return')->count()));
+        $this->assertSame('10', $this->onHand($this->soap));
+    }
 }

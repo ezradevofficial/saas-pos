@@ -30,6 +30,8 @@ return [
         'cost_share_total' => 'Les sous-produits prennent ensemble moins de 100 % du coût. Réduisez leurs parts.',
         'document_not_open' => 'Cet ordre ne peut plus être modifié de cette façon. Actualisez la page pour voir où il en est.',
         'line_unknown' => 'Cette ligne ne fait pas partie de l’ordre.',
+        'document_unknown' => 'Ce document est introuvable. Vérifiez le document et réessayez.',
+        'nothing_to_revalue' => 'Ce document est déjà valorisé. Il n’y a rien à faire.',
         'output_unknown' => 'Ce sous-produit n’est pas attendu de l’ordre.',
         'over_return' => 'C’est plus de :item que ce qui a été sorti et pas encore retourné. Au plus :open peut revenir.',
         'scrap_reason_required' => 'Indiquez pourquoi le rebut a été perdu.',

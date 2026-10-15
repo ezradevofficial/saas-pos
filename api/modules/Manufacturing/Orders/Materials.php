@@ -152,7 +152,7 @@ class Materials
 
             if ($issue->ledger === Order::LEDGER_INVENTORY) {
                 MaterialsMoved::dispatch($this->tenants->require(), MaterialsMoved::RETURN, $return->id, $return->number, $order->company_id, $order->branch_id,
-                    $order->location_id, $now->toIso8601String(), $by->id, $event, $issue->id);
+                    $order->location_id, $now->toIso8601String(), $by->id, $event, $issue->id, $issue->valued_at !== null);
             }
 
             return $return->refresh();

@@ -71,7 +71,7 @@ class MoveStockForManufacturing
         MoveManufacturingStock::dispatch($event->tenantId, [
             'kind' => $event->kind, 'id' => $event->documentId, 'number' => $event->number, 'company_id' => $event->companyId,
             'location_id' => $event->locationId, 'at' => $event->occurredAt, 'user_id' => $event->userId, 'lines' => $event->lines,
-            'origin_id' => $event->originId,
+            'origin_id' => $event->originId, 'origin_posted' => $event->originPosted,
         ]);
     }
 
@@ -159,7 +159,15 @@ class MoveStockForManufacturing
             ->orderBy('created_at')->orderBy('id')->get()->groupBy('source_line_id');
 
         if ($out->isEmpty() && Movement::query()->where('source_type', $sourceType)->where('source_id', $document['id'])->doesntExist()) {
-            // Its origin is not posted yet (jobs out of order): the job tries again.
+            if (! empty($document['origin_posted'])) {
+                // Review fix 5: the origin posted but holds nothing for these lines: they come back at nothing
+                // (Manufacturing flags them), never stuck.
+                $this->post($document, []);
+
+                return;
+            }
+
+            // Its origin is not posted yet (jobs out of order): the job tries again (MoveManufacturingStock::retryUntil).
             throw new RuntimeException('inventory: the origin of this manufacturing return is not posted yet');
         }
 
