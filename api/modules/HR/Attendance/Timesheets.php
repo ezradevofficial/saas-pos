@@ -28,7 +28,8 @@ use Modules\HR\Support\Errors;
  * (6 hours either side) holds it; else an `out` belongs to the day of the
  * `in` it closes (within 16 hours); else to its local date. Approved days
  * and days of closed periods are never recomputed. Recomputing a day also
- * recomputes the later days of its ISO week (weekly overtime).
+ * recomputes the later days of its ISO week (weekly overtime); an upload
+ * of many punches recomputes each touched day and week once (touchMany).
  */
 class Timesheets
 {
@@ -88,21 +89,45 @@ class Timesheets
     /** Recompute the day of $employeeId on $date and the later days of its week (unless approved or closed). */
     public function touch(string $employeeId, string $date): void
     {
-        $employee = Employee::query()->find($employeeId);
+        $this->touchMany([$employeeId => [$date => true]]);
+    }
 
-        if ($employee === null) {
-            return;
-        }
+    /**
+     * HR-25: recompute many days at once (a punch upload): each employee's
+     * touched days and the later days of each touched ISO week (weekly
+     * overtime), every day once, in date order.
+     *
+     * @param  array<string, array<string, true>>  $days  employee id => set of work dates
+     */
+    public function touchMany(array $days): void
+    {
+        foreach ($days as $employeeId => $dates) {
+            $employee = Employee::query()->find($employeeId);
 
-        $day = CarbonImmutable::parse($date);
-        $this->recompute($employee, $date);
+            if ($employee === null || $dates === []) {
+                continue;
+            }
 
-        $later = AttendanceDay::query()->where('employee_id', $employeeId)
-            ->where('work_date', '>', $date)->where('work_date', '<=', $day->endOfWeek(CarbonInterface::SUNDAY)->toDateString())
-            ->orderBy('work_date')->pluck('work_date');
+            $weeks = [];
 
-        foreach ($later as $next) {
-            $this->recompute($employee, CarbonImmutable::parse($next)->toDateString());
+            foreach (array_keys($dates) as $date) {
+                $weeks[CarbonImmutable::parse($date)->startOfWeek(CarbonInterface::MONDAY)->toDateString()][] = $date;
+            }
+
+            ksort($weeks);
+
+            foreach ($weeks as $monday => $touched) {
+                sort($touched);
+                $later = AttendanceDay::query()->where('employee_id', $employeeId)
+                    ->where('work_date', '>', $touched[0])->where('work_date', '<=', CarbonImmutable::parse($monday)->endOfWeek(CarbonInterface::SUNDAY)->toDateString())
+                    ->pluck('work_date')->map(fn ($date) => CarbonImmutable::parse($date)->toDateString())->all();
+                $all = array_values(array_unique([...$touched, ...$later]));
+                sort($all);
+
+                foreach ($all as $date) {
+                    $this->recompute($employee, $date);
+                }
+            }
         }
     }
 

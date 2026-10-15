@@ -382,6 +382,13 @@ Decisions taken while building (no owner input asked, per instructions):
     `hr.attendance_period.force_close` with the reason; punches arriving
     later are flagged `period_closed` as usual. The web close dialog
     offers the forced close with a reason when that error comes back.
+26. **Punch uploads recompute once (decision, owner may change).** A till
+    or device upload (`hr/till/punches`, `hr/device/punches`, up to 500
+    punches) stores every punch first, then recomputes each touched
+    (employee, work date) day and the later days of each touched ISO week
+    (weekly overtime) once, in date order, instead of once per punch
+    (HR-22, HR-25). A test holds a 500-punch upload under a fixed query
+    budget.
 
 Owner decisions (2026-10-14):
 

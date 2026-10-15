@@ -17,7 +17,8 @@ use Modules\HR\Sync\ClockStaffSource;
  * HR-23, HR-24, NFR-04: punches uploaded by tills (clock-in with a PIN,
  * verified on the till) and by biometric devices. One result per punch,
  * the same however often it is sent: `stored` (with the punch's flags) or
- * `rejected` with a code.
+ * `rejected` with a code. The touched timesheet days are recomputed once
+ * per upload (HR-25).
  */
 class PunchUploads
 {
@@ -35,8 +36,18 @@ class PunchUploads
      */
     public function fromTill(Device $device, array $uploads): array
     {
+        return $this->punches->batch(fn () => $this->tillPunches($device, $uploads));
+    }
+
+    /**
+     * @param  list<array{id: string, employee_id: string, kind: string, occurred_at: string}>  $uploads
+     * @return list<array<string, mixed>>
+     */
+    private function tillPunches(Device $device, array $uploads): array
+    {
         $scope = DeviceScope::of($device);
         $allowed = ClockStaffSource::atDevice($scope)->pluck('id')->flip()->all();
+        $employees = Employee::query()->whereKey(array_values(array_unique(array_column($uploads, 'employee_id'))))->get()->keyBy('id');
         $results = [];
 
         foreach ($uploads as $upload) {
@@ -56,7 +67,7 @@ class PunchUploads
                 continue;
             }
 
-            $employee = Employee::query()->find($upload['employee_id']);
+            $employee = $employees[$upload['employee_id']] ?? null;
 
             // Offline punches of someone who has since moved or left still count where they worked that day.
             if ($employee === null || (! isset($allowed[$employee->id]) && ! $this->wasHere($employee, $scope, $at))) {
@@ -79,6 +90,15 @@ class PunchUploads
      * @return list<array<string, mixed>>
      */
     public function fromDevice(AttendanceDevice $device, array $uploads): array
+    {
+        return $this->punches->batch(fn () => $this->devicePunches($device, $uploads));
+    }
+
+    /**
+     * @param  list<array{external_id: string, ref: string, kind: string, occurred_at: string}>  $uploads
+     * @return list<array<string, mixed>>
+     */
+    private function devicePunches(AttendanceDevice $device, array $uploads): array
     {
         $results = [];
 

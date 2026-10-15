@@ -4,7 +4,10 @@ namespace Modules\HR\Tests;
 
 use App\Core\Audit\AuditEntry;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Modules\HR\Models\AttendanceDay;
 use Modules\HR\Models\Employee;
 use Modules\HR\Tests\Concerns\BuildsHr;
 use Tests\Concerns\BuildsTill;
@@ -51,5 +54,46 @@ class ClosingFixesTest extends TestCase
         // A period whose window is over closes without forcing (the last day was 8 days ago).
         $this->postJson("/api/v1/hr/attendance-periods/{$older}/close", [], $headers)->assertOk()->assertJsonPath('data.status', 'closed');
         $this->assertSame(1, $this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.attendance_period.force_close')->count()));
+    }
+
+    public function test_a_till_upload_of_500_punches_recomputes_each_day_once_within_a_query_budget(): void
+    {
+        // HR-22, HR-25: ten employees, five days each of five in-and-out pairs, in one upload (the request's maximum).
+        $employees = [$this->amina];
+
+        for ($i = 1; $i < 10; $i++) {
+            $employees[] = $this->employee(['first_name' => "Staff {$i}", 'location_id' => $this->locationA->id, 'clock_methods' => ['till']]);
+        }
+
+        $till = $this->pairTill($this->locationA);
+        $today = CarbonImmutable::now('Africa/Nairobi')->startOfDay();
+        $punches = [];
+
+        foreach ($employees as $employee) {
+            for ($back = 5; $back >= 1; $back--) {
+                for ($pair = 0; $pair < 5; $pair++) {
+                    $in = $today->subDays($back)->setTime(7 + 2 * $pair, 0);
+                    $punches[] = ['id' => (string) Str::uuid7(), 'employee_id' => $employee->id, 'kind' => 'in', 'occurred_at' => $in->toIso8601String()];
+                    $punches[] = ['id' => (string) Str::uuid7(), 'employee_id' => $employee->id, 'kind' => 'out', 'occurred_at' => $in->addMinutes(90)->toIso8601String()];
+                }
+            }
+        }
+
+        $this->assertCount(500, $punches);
+        $queries = 0;
+        DB::listen(function () use (&$queries) {
+            $queries++;
+        });
+
+        $results = $this->postJson('/api/v1/hr/till/punches', ['punches' => $punches], $this->deviceHeaders($till))->assertOk()->json('data');
+
+        $this->assertSame(['stored'], array_values(array_unique(array_column($results, 'status'))));
+        // Measured: 4,045 queries with the days recomputed once per upload; 10,014 when every punch
+        // recomputed its day and the rest of its week (the code before this fix), well over the budget.
+        $this->assertLessThan(4800, $queries);
+        // Each day: five pairs of 90 minutes.
+        $days = $this->inTenant(fn () => AttendanceDay::query()->get());
+        $this->assertCount(50, $days);
+        $this->assertSame([450], $days->pluck('worked_minutes')->unique()->values()->all());
     }
 }
