@@ -112,8 +112,12 @@ receipt time, the GRN number, and per accepted stock line `{line_id,
 item_id, uom_id, qty (accepted), cost_minor (goods base value + landed base
 value), currency (the base currency), batch_number, expires_on, serials}`.
 Costs are already in base currency, so Inventory does not convert them
-again. Raised only while Inventory is active for the tenant (Inventory
-checks again).
+again. Raised while Inventory or Stores is active for the tenant (each
+listener decides what it receives: Inventory when it is active, Stores'
+own ledger at a store when Inventory is off; decision 17). Each receipt
+line records whether its stock was tracked (`stock_tracked`: the event
+was raised for it with Inventory active), which is what its invoice
+later clears GRNI over (decision 16).
 
 **Accounting payloads** (`SourceDocument` of ACC-07: `company_id`,
 `source_type`, `source_id`, `date`, `currency` = the company's base
@@ -137,10 +141,12 @@ totals {net, tax, total} and base totals}`, all money as minor digit
 strings in the invoice currency unless named `base_`.
 
 `LandedCostAllocated` carries `{landed_cost_id, number, company_id,
-branch_id, date, base_currency, charges: [{id, description, party_id,
-currency, amount_minor, fx, base_amount_minor}], allocations: [{receipt_id,
-receipt_line_id, item_id, location_id, stock: bool, after_receipt: bool,
-base_amount_minor}]}`. It is raised for every posted landed cost (its
+branch_id, date, base_currency, charges: [{id, line_no, description,
+party_id, bill_reference, currency, amount_minor, fx, base_amount_minor}],
+allocations: [{receipt_id, receipt_line_id, item_id, location_id, stock:
+bool, after_receipt: bool, tracked: bool, base_amount_minor}]}`; its
+`stock_value` covers only tracked stock lines, `expense` the rest
+(decision 19). It is raised for every posted landed cost (its
 charges are what the charges' suppliers bill, Dr landed cost clearing / Cr
 AP); its `amounts` cover only the allocations to GRNs already posted
 (`after_receipt`): what went to draft GRNs reaches Accounting and Inventory
@@ -162,6 +168,7 @@ requisitions and POs.
 | `procurement.landed_cost.view`, `.create`, `.cancel` | Read; draft and post; cancel a draft |
 | `procurement.performance.view` | Supplier performance |
 | `procurement.settings.edit` | A company's tolerances |
+| `procurement.value.view` | Prices, values and landed costs (RBAC-05, decision 27): without it, money fields are null in resources, exports and prints, and a PO cannot be printed |
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `procurement.settings.edit` and the views; **Branch Manager** the views,
@@ -169,10 +176,15 @@ Role templates (RBAC-03): **Owner** everything; **Admin**
 approver) and `procurement.tender.open` and `.evaluate` (committees); **Procurement Officer** `procurement.*` except the `approve`,
 `override`, `award` and `settings.edit` permissions; **Storekeeper** the
 requisition and PO views, `procurement.requisition.create` and
-`procurement.receipt.*`; **Accountant** the views, `procurement.invoice.*`
-and `procurement.landed_cost.*`; **Approver** `*.approve` and the views of
-what it approves (requisitions, POs, invoices); **Read-only Auditor** the
-views. The templates' old `purchasing.*` placeholders are replaced.
+`procurement.receipt.*`, never `procurement.value.view` (quantities
+only); **Accountant** the views (with `procurement.value.view`),
+`procurement.invoice.*` and `procurement.landed_cost.*`; **Approver**
+`*.approve`, the views of what it approves (requisitions, POs, invoices)
+and `procurement.value.view`; **Read-only Auditor** the views. Owner,
+Admin, Branch Manager, Procurement Officer and Accountant hold
+`procurement.value.view` through their `procurement.*` or
+`procurement.*.view` grants (32 Procurement permissions in all; the
+Storekeeper holds 6, the Approver 7). The templates' old `purchasing.*` placeholders are replaced.
 
 ## API
 
@@ -326,6 +338,88 @@ en/fr.
 15. **Branch managers sit on committees** by default (open and evaluate),
     so a tenant has two openers without extra roles; buyers (Procurement
     Officer) run tenders but never award them.
+
+### Stage 7B closing review (decisions, owner may change)
+
+16. **GRNI follows what was tracked at receipt, not the modules at
+    invoice time.** Each receipt line records `stock_tracked` (a stock
+    line whose `GoodsReceived` was raised with Inventory active, so a
+    receipt journal credited GRNI). An invoice line clears GRNI only over
+    the tracked receipts of its PO line and keeps its tracked share of the
+    base net (`base_stock_net_minor`, net × tracked qty ÷ received qty);
+    the rest of its net is purchases (`expense`). Switching Inventory off
+    or on between a GRN and its invoice leaves GRNI at zero.
+17. **A GRN reaches Stores when Inventory is off.** `GoodsReceived` is
+    raised whenever Inventory or Stores is active; Inventory's and
+    Stores' own listeners decide what to receive.
+18. **No invoice before receipt for stock.** The `not_received` override
+    is refused for stock lines (422 `stock_line_not_received`); service
+    lines may still be approved in advance with the override. GRNI is
+    cleared cumulatively per PO line: round(V × min(invoiced so far, R) ÷
+    R) less what approved invoices already cleared (V the tracked receipts'
+    base value, R the accepted quantity), so the invoice that reaches the
+    received quantity clears the exact remainder, whatever the rates of
+    the receipts.
+19. **Landed costs clear through their bills.** A landed cost document's
+    charges name the charge supplier and the supplier's bill reference
+    (both required to post: `charge_supplier_required`,
+    `charge_bill_required`). `GoodsReceived` carries each line's
+    `landed_minor` and Inventory keeps it on the receipt movement, so the
+    receipt journal credits GRNI with the goods and the landed cost
+    clearing account with the charges, whether they were allocated before
+    or after receipt. With Accounting active, its listener posts each
+    supplier's bill (charges grouped by supplier, bill reference and
+    currency) as a posted Accounting supplier invoice, Dr landed cost
+    clearing / Cr AP with the party, and the share of services, expense
+    lines and stock Inventory did not track (Inventory off) Dr purchases /
+    Cr clearing: from `LandedCostAllocated` after receipt
+    (`amounts.expense`, each allocation's `tracked`) and from
+    `GoodsReceiptPosted` before (`amounts.untracked_landed`). The clearing
+    account nets to zero once the bills post.
+20. **Lines Inventory or Stores cannot receive are visible.** A line they
+    skip (an unknown or non-stock item, a unit the item does not have, no
+    quantity) or a serial already in stock comes back as Inventory's
+    `GoodsReceiptExceptions` contract event; Procurement keeps each module
+    and code on the GRN line (`receive_exceptions`) and the GRN view flags
+    the lines, so someone adjusts the stock by hand.
+21. **The portal and billing (owner decision 2026-10-14).** A read-only
+    (overdue) business keeps its supplier portal open. A suspended or
+    cancelled business shows "Tender unavailable" (en/fr): the tender view
+    says `unavailable`, and bids, withdrawals and file uploads or removals
+    answer 409 `tender_unavailable`.
+22. **Bidder confidentiality (owner decision 2026-10-14).** Before the
+    opening, the tender resource shows staff only the number of bids and
+    the invited suppliers' names: no emails, tax IDs or `last_seen_at`, no
+    sealed bid list, and open-notice registrants not at all. They appear
+    once the tender is opened. The audit log never holds a bidder's name,
+    email or tax ID (`Bidder::$auditHidden`; a registration is audited with
+    a keyed hash of the email), nor a bid file's name, type, size or path
+    (`BidFile::$auditHidden`); tender exports and notifications carry no
+    bidder detail. Bids list in the order submitted, then by id.
+23. **Separation of duties on supplier invoices.** Whoever entered an
+    invoice never approves it, with or without the override (403
+    `invoice_approver_is_creator`); the resource's `can.approve` and
+    `can.override` say so.
+24. **Requisitions of another branch (RBAC-04).** A PO, RFQ or tender
+    takes on only an approved requisition of its own branch that the user
+    sees there (`procurement.requisition.view`); an unknown requisition,
+    one of another branch and one the user cannot see all answer the same
+    `requisition_not_approved`.
+25. **The portal's origin (owner decision 2026-10-14).** The portal stays on
+    the back office's origin; its pages send no referrer and carry a strict
+    Content-Security-Policy, its API responses `Referrer-Policy:
+    no-referrer`. What mitigates the shared origin is in ADR 019.
+26. **Supplier performance CSV** passes every cell, the header included,
+    through `SpreadsheetCell::safe()` (no formula) and is written without
+    an escape character, like list exports (EXP-01).
+27. **Storekeepers see quantities only (RBAC-05).** A new permission
+    `procurement.value.view` guards prices, values and landed costs: the
+    PO, requisition, GRN, invoice and landed cost resources return money
+    fields as null without it at the document's branch or location (lists,
+    details and exports, which are built from the same resources), and a
+    PO cannot be printed without it. Granted to Owner, Admin, Branch
+    Manager, Procurement Officer, Accountant, Approver and the Read-only
+    Auditor (their view grants); not to the Storekeeper.
 
 ## Open questions
 

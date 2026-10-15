@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $qty_variance
  * @property ?int $base_net_minor
  * @property ?int $base_grni_minor
+ * @property ?int $base_stock_net_minor
  */
 class InvoiceLine extends ProcurementModel
 {
@@ -39,7 +40,7 @@ class InvoiceLine extends ProcurementModel
     {
         return [
             'line_no' => 'integer', 'unit_price_minor' => 'integer', 'net_minor' => 'integer', 'tax_minor' => 'integer', 'total_minor' => 'integer',
-            'price_variance_minor' => 'integer', 'base_net_minor' => 'integer', 'base_grni_minor' => 'integer',
+            'price_variance_minor' => 'integer', 'base_net_minor' => 'integer', 'base_grni_minor' => 'integer', 'base_stock_net_minor' => 'integer',
         ];
     }
 

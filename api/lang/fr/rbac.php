@@ -82,6 +82,7 @@ return [
                 'invoice' => 'Factures fournisseurs',
                 'landed_cost' => 'Frais d’approche',
                 'performance' => 'Performance des fournisseurs',
+                'value' => 'Prix et valeurs',
                 'settings' => 'Paramètres des achats',
             ],
         ],

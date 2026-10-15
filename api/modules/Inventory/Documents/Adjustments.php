@@ -217,7 +217,7 @@ class Adjustments
             );
         }
 
-        $movements = $this->ledger->post(new Posting($adjustment->company_id, 'inventory.adjustment', $adjustment->id, $now, $userId, $posting));
+        $movements = $this->ledger->post(new Posting($adjustment->company_id, 'inventory.adjustment', $adjustment->id, $now, $userId, $posting, reference: $adjustment->number));
         $in = BigInteger::zero();
         $out = BigInteger::zero();
 

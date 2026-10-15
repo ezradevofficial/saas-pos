@@ -50,7 +50,7 @@ final class ProcurementRules
     public static function atBranch(User $user, string $permission, string $branchId): void
     {
         if (! app(Places::class)->at($user, $permission, $branchId)) {
-            throw new AuthorizationException(__('rbac.errors.forbidden'));
+            throw new AuthorizationException(__('rbac.forbidden'));
         }
     }
 
@@ -58,7 +58,7 @@ final class ProcurementRules
     public static function atLocation(User $user, string $permission, string $locationId): void
     {
         if (! app(Places::class)->atLocation($user, $permission, $locationId)) {
-            throw new AuthorizationException(__('rbac.errors.forbidden'));
+            throw new AuthorizationException(__('rbac.forbidden'));
         }
     }
 }

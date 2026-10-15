@@ -12,8 +12,9 @@ use Modules\Accounting\AccountingServiceProvider;
 use Modules\Accounting\Integrations\Integrations;
 
 /**
- * ACC-29: posts what POS, Inventory and Loyalty recorded before
- * Accounting was switched on, from a start date the owner chooses. Each
+ * ACC-29: posts what every module that registered its events (core
+ * EventReplays: POS, Inventory, Loyalty, Stores, Procurement and any
+ * later one) recorded before Accounting was switched on, from a start date the owner chooses. Each
  * module raises its events again for the period (core EventReplays, so
  * Accounting never reads their tables) and they post exactly as live
  * ones do: idempotently by source, so running it again, or over a period
@@ -27,7 +28,7 @@ class BackfillPostings extends Command
         {--to= : The last day (Y-m-d, UTC), today by default}
         {--tenant=* : Only these tenants (ids); every active tenant with Accounting by default}';
 
-    protected $description = 'Post the POS, Inventory and Loyalty records made before Accounting was active';
+    protected $description = 'Post the records other modules made before Accounting was active';
 
     public function handle(TenantContext $tenants, DueTenants $due, ModuleRegistry $modules, EventReplays $replays, Integrations $integrations): int
     {
@@ -50,7 +51,7 @@ class BackfillPostings extends Command
             }
 
             $count = $tenants->run($tenantId, fn () => $modules->isActive(AccountingServiceProvider::MODULE)
-                ? $replays->replay(['pos', 'inventory', 'loyalty'], $start, $end, fn (object $event) => $integrations->handle($event))
+                ? $replays->replay($replays->modules(), $start, $end, fn (object $event) => $integrations->handle($event))
                 : 0);
             $total += $count;
             $this->line("{$tenantId}: {$count} records replayed");

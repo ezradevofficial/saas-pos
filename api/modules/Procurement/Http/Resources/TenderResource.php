@@ -21,10 +21,11 @@ use Modules\Procurement\Tenders\Tenders;
 
 /**
  * PRC-06 to PRC-11: a tender; in the detail its lines, criteria, committee,
- * openings, bidders and bids. PRC-09: before the opening a bid shows only
- * that it exists, who sent it, when, its version and fingerprint; its
- * content (amounts, lines, technical response, files) appears only once
- * the tender is opened.
+ * openings, bidders and bids. PRC-09 and decision 22: before the opening
+ * staff see only the number of bids and the invited suppliers' names;
+ * bids (who, when, version, fingerprint, then their content), open-notice
+ * registrants and bidders' contact details appear once the tender is
+ * opened.
  *
  * @mixin Tender
  */
@@ -88,6 +89,8 @@ class TenderResource extends JsonResource
         $isEvaluator = $members->contains(fn (TenderMember $m) => $m->user_id === $user->id && $m->role === TenderMember::EVALUATOR);
 
         return [
+            // Stage 7B walkthrough: how long a bidder's link works after the deadline (the invite dialog says so).
+            'link_days_after_deadline' => (int) config('procurement.portal.link_days_after_deadline', 90),
             'notice_url' => $tender->kind === Tender::OPEN && Tenders::noticeToken($tender) !== null
                 ? rtrim((string) config('app.frontend_url'), '/').'/supplier-portal/notices/'.Tenders::noticeToken($tender) : null,
             'lines' => $tender->lines()->with(['item', 'uom'])->get()->map(fn (TenderLine $line) => [
@@ -98,14 +101,21 @@ class TenderResource extends JsonResource
             'openers' => $members->where('role', TenderMember::OPENER)->map(fn (TenderMember $m) => Refs::user($m->user))->values()->all(),
             'evaluators' => $members->where('role', TenderMember::EVALUATOR)->map(fn (TenderMember $m) => Refs::user($m->user))->values()->all(),
             'openings' => $openings->map(fn (TenderOpening $o) => ['user' => Refs::user($o->user), 'confirmed_at' => Refs::at($o->confirmed_at)])->all(),
-            'bidders' => $tender->bidders()->with('party')->orderBy('created_at')->orderBy('id')->get()->map(fn (Bidder $bidder) => [
-                'id' => $bidder->id, 'name' => $bidder->name, 'email' => $bidder->email, 'tax_id' => $bidder->tax_id, 'source' => $bidder->source,
-                'party' => Refs::named($bidder->party), 'link_sent_at' => Refs::at($bidder->link_sent_at), 'last_seen_at' => Refs::at($bidder->last_seen_at),
-                'removed_at' => Refs::at($bidder->removed_at),
-                'can' => ['resend' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids() && $bidder->removed_at === null,
-                    'remove' => in_array($tender->status, [Tender::DRAFT, Tender::PUBLISHED], true) && ! $tender->closedForBids() && $bidder->removed_at === null],
-            ])->all(),
-            'bids' => $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->get()->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect()), (string) $tender->company->base_currency))->all(),
+            // Decision 22 (owner, 2026-10-14): before the opening, staff see only the invited suppliers' names
+            // (no email, tax ID or last visit) and the number of bids; registrants and bids appear once opened.
+            'bidders' => $tender->bidders()->with('party')
+                ->when(! $opened, fn ($q) => $q->where('source', Bidder::INVITED))
+                ->orderBy('created_at')->orderBy('id')->get()->map(fn (Bidder $bidder) => [
+                    'id' => $bidder->id, 'name' => $bidder->name, 'source' => $bidder->source, 'party' => Refs::named($bidder->party),
+                    ...($opened ? ['email' => $bidder->email, 'tax_id' => $bidder->tax_id, 'last_seen_at' => Refs::at($bidder->last_seen_at)] : []),
+                    'link_sent_at' => Refs::at($bidder->link_sent_at),
+                    'removed_at' => Refs::at($bidder->removed_at),
+                    'can' => ['resend' => $tender->status === Tender::PUBLISHED && ! $tender->closedForBids() && $bidder->removed_at === null,
+                        'remove' => in_array($tender->status, [Tender::DRAFT, Tender::PUBLISHED], true) && ! $tender->closedForBids() && $bidder->removed_at === null],
+                ])->all(),
+            // Review: bids in the order they were submitted, then by id (a stable order).
+            'bids' => ! $opened ? [] : $tender->bids()->with(['bidder', 'files'])->orderBy('submitted_at')->orderBy('id')->get()
+                ->map(fn (Bid $bid) => self::bid($bid, $scores->get($bid->id, collect()), (string) $tender->company->base_currency))->all(),
             // PRC-11: the draft PO the award made.
             'order' => $tender->awarded_bid_id === null ? null : (($order = Order::query()->where('bid_id', $tender->awarded_bid_id)->first(['id', 'number', 'status'])) === null ? null
                 : ['id' => $order->id, 'number' => $order->number, 'status' => $order->status]),

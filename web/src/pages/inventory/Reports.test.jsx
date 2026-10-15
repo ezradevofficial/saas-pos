@@ -54,7 +54,7 @@ function setup(permissions, extra = []) {
         },
       ])],
       [/^inventory\/reorder-rules\?/, page([RULE])],
-      [/^inventory\/valuation\?/, page([{ id: 'v-1', company: named('c-1', 'Amani Retail'), item: { id: 'i-1', code: 'SOAP-1', name: 'Soap 1 kg' }, base_uom: PCS, qty: '34.000000', value: { amount_minor: '408000', currency: 'KES' }, unit_cost_minor: '12000', currency: 'KES' }], { totals: [{ amount_minor: '408000', currency: 'KES' }, { amount_minor: '135000', currency: 'CDF' }] })],
+      [/^inventory\/valuation\?/, page([{ id: 'v-1', company: named('c-1', 'Amani Retail'), item: { id: 'i-1', code: 'SOAP-1', name: 'Soap 1 kg' }, base_uom: PCS, qty: '34.000000', value: { amount_minor: '408000', currency: 'KES' }, unit_cost_minor: '74930', currency: 'KES' }], { totals: [{ amount_minor: '408000', currency: 'KES' }, { amount_minor: '135000', currency: 'CDF' }] })],
       ['inventory/companies/c-1/settings', { data: SETTINGS }],
       [/^companies\/c-1\/price-lists\?/, { data: [{ id: 'pl-1', name: 'Retail prices', archived_at: null }] }],
       ['inventory/items/i-1', { data: { item: { ...ITEM, base_uom: PCS }, settings: { tracking: 'none', track_expiry: false }, variant: null, variants: [], balances: [], on_hand: '0', batches: [], serials: [], reorder_rules: [], costs: [], has_movements: true } }],
@@ -124,7 +124,8 @@ describe('Inventory reports and settings', () => {
     expect(within(totals).getByText('KES 4,080.00')).toBeInTheDocument()
     expect(within(totals).getByText('CDF 135,000')).toBeInTheDocument()
     const row = (await screen.findByText('Soap 1 kg')).closest('tr')
-    expect(within(row).getByText('120')).toBeInTheDocument()
+    // The unit cost with the currency's full decimals: KES 749.30, not 749.3 (stage 7B walkthrough).
+    expect(within(row).getByText('749.30')).toBeInTheDocument()
     expect(api.get).toHaveBeenCalledWith('inventory/valuation?sort=-value&per_page=25&page=1')
   })
 

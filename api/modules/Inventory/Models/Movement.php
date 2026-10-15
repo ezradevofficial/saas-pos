@@ -31,6 +31,8 @@ use LogicException;
  * @property string $qty
  * @property int|string $value_minor
  * @property int|string $cost_variance_minor
+ * @property int|string $landed_minor
+ * @property ?string $reference
  * @property string $currency
  * @property string $source_type
  * @property string $source_id

@@ -22,14 +22,17 @@ use Illuminate\Foundation\Events\Dispatchable;
  *   string in `uom_id` (the item's base unit when null), `cost_minor` the
  *   line's total landed cost as a digit string in `currency` (converted to
  *   the company's base currency at the company's rate on `receivedAt`,
- *   CUR-04, when it is another currency).
+ *   CUR-04, when it is another currency); `landed_minor` the part of
+ *   `cost_minor` that is landed cost allocated before the receipt posted
+ *   (same currency; 0 when absent), kept on the receipt movement so
+ *   Accounting splits GRNI from the landed cost clearing account.
  */
 class GoodsReceived implements ShouldDispatchAfterCommit
 {
     use Dispatchable;
 
     /**
-     * @param  list<array{line_id: string, item_id: string, uom_id?: ?string, qty: string, cost_minor: string, currency: string, batch_number?: ?string, expires_on?: ?string, serials?: list<string>}>  $lines
+     * @param  list<array{line_id: string, item_id: string, uom_id?: ?string, qty: string, cost_minor: string, currency: string, batch_number?: ?string, expires_on?: ?string, serials?: list<string>, landed_minor?: string}>  $lines
      */
     public function __construct(
         public readonly string $tenantId,

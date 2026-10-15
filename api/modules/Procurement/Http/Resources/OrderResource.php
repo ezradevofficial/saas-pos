@@ -21,6 +21,8 @@ use Modules\Procurement\Support\Places;
  */
 class OrderResource extends JsonResource
 {
+    use HidesValues;
+
     private bool $detail = false;
 
     public function detail(): self
@@ -34,6 +36,8 @@ class OrderResource extends JsonResource
     {
         /** @var Order $order */
         $order = $this->resource;
+        // RBAC-05, decision 27: money only for holders of procurement.value.view.
+        $this->seeValues($request, $order->branch_id, $order->location_id);
         $places = app(Places::class);
         $at = fn (string $permission) => $places->at($request->user(), "procurement.po.{$permission}", $order->branch_id);
 
@@ -51,10 +55,10 @@ class OrderResource extends JsonResource
             'order_date' => Refs::date($order->order_date),
             'expected_on' => Refs::date($order->expected_on),
             'terms' => $order->terms,
-            'subtotal' => Refs::money($order->subtotal_minor, $order->currency),
-            'tax' => Refs::money($order->tax_minor, $order->currency),
-            'total' => Refs::money($order->total_minor, $order->currency),
-            'base_total' => Refs::money($order->base_total_minor, $order->base_currency),
+            'subtotal' => $this->money($order->subtotal_minor, $order->currency),
+            'tax' => $this->money($order->tax_minor, $order->currency),
+            'total' => $this->money($order->total_minor, $order->currency),
+            'base_total' => $this->money($order->base_total_minor, $order->base_currency),
             'requested_by' => Refs::user($order->requester),
             'requisition_id' => $order->requisition_id,
             'quote_id' => $order->quote_id,
@@ -75,13 +79,13 @@ class OrderResource extends JsonResource
                     'description' => $line->description,
                     'uom' => Refs::uom($line->uom),
                     'qty' => Refs::qty($line->qty),
-                    'unit_price' => Refs::money($line->unit_price_minor, $order->currency),
+                    'unit_price' => $this->money($line->unit_price_minor, $order->currency),
                     'tax_code' => $line->taxCode === null ? null : ['id' => $line->taxCode->id, 'code' => $line->taxCode->code, 'name' => $line->taxCode->name],
                     'tax_rate' => Refs::qty($line->tax_rate),
                     'rate_needed' => Orders::rateNeeded($line),
-                    'net' => Refs::money($line->net_minor, $order->currency),
-                    'tax' => Refs::money($line->tax_minor, $order->currency),
-                    'total' => Refs::money($line->total_minor, $order->currency),
+                    'net' => $this->money($line->net_minor, $order->currency),
+                    'tax' => $this->money($line->tax_minor, $order->currency),
+                    'total' => $this->money($line->total_minor, $order->currency),
                     'received_qty' => Refs::qty($line->received_qty),
                     'rejected_qty' => Refs::qty($line->rejected_qty),
                     'invoiced_qty' => Refs::qty($line->invoiced_qty),

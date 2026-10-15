@@ -62,6 +62,7 @@ describe('Landed costs (PRC-17)', () => {
     fireEvent.change(screen.getByLabelText(/^Charge$|^Charge \*/), { target: { value: 'Freight' } })
     chooseOption(screen.getByLabelText('Currency'), 'USD')
     fireEvent.change(screen.getByLabelText(/^Amount/), { target: { value: '1000' } })
+    fireEvent.change(screen.getByLabelText(/^Supplier bill number/), { target: { value: ' FR-77 ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save landed cost' }))
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('procurement/landed-costs', {
@@ -69,7 +70,7 @@ describe('Landed costs (PRC-17)', () => {
         cost_date: '2026-10-12',
         method: 'value',
         description: 'Container MSKU-1',
-        charges: [{ description: 'Freight', currency: 'USD', amount_minor: '100000' }],
+        charges: [{ description: 'Freight', bill_reference: 'FR-77', currency: 'USD', amount_minor: '100000' }],
         receipt_ids: ['grn-1'],
       }),
     )

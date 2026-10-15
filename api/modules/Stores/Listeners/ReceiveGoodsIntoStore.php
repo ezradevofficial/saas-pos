@@ -9,6 +9,7 @@ use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
+use Modules\Inventory\Contracts\GoodsReceiptExceptions;
 use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Stores\Models\Movement;
 use Modules\Stores\Stock\Lines;
@@ -22,7 +23,8 @@ use Modules\Stores\Stock\StoreLedger;
  * ledger as `receipt` movements, only while Stores is active and Inventory
  * is not (with Inventory on, Inventory receives them). Never refused (the
  * goods are there): a line naming an unknown or non-stock item, or a unit
- * the item does not have, is skipped and logged. Once per receipt.
+ * the item does not have, is skipped and reported back to the sender
+ * (GoodsReceiptExceptions). Once per receipt.
  */
 class ReceiveGoodsIntoStore implements ShouldQueue
 {
@@ -59,6 +61,7 @@ class ReceiveGoodsIntoStore implements ShouldQueue
             }
 
             $lines = [];
+            $exceptions = [];
 
             foreach ($event->lines as $line) {
                 $item = Item::query()->whereKey($line['item_id'])->where('type', 'stock')->first();
@@ -66,6 +69,7 @@ class ReceiveGoodsIntoStore implements ShouldQueue
 
                 if ($item === null || $factor === null || ! BigDecimal::of($line['qty'])->isPositive()) {
                     Log::warning('stores: goods received line skipped', ['receipt' => $event->receiptId, 'line' => $line['line_id']]);
+                    $exceptions[] = ['line_id' => (string) $line['line_id'], 'code' => GoodsReceiptExceptions::skipped($item, $factor)];
 
                     continue;
                 }
@@ -79,6 +83,11 @@ class ReceiveGoodsIntoStore implements ShouldQueue
 
             $this->ledger->post(Movement::LEDGER_STORES, $event->companyId, Movement::SOURCE_GOODS_RECEIPT, $event->receiptId,
                 CarbonImmutable::parse($event->receivedAt), $event->userId, $lines, ['reference' => $event->reference], refuseNegative: false);
+
+            // Stage 7B closing review: what could not be received shows on the sender's document.
+            if ($exceptions !== []) {
+                event(new GoodsReceiptExceptions($event->tenantId, 'stores', $event->receiptId, $exceptions));
+            }
         });
     }
 }

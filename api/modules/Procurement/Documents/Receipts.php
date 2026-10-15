@@ -38,8 +38,11 @@ use Modules\Procurement\Support\Tx;
  *   (CUR-04), plus the landed cost already allocated to it (PRC-17);
  *   on time when received by the PO's expected date (the company's time
  *   zone); numbered; the PO's quantities and status follow. Then, after
- *   commit, GoodsReceived (stock lines, Inventory active) and
- *   GoodsReceiptPosted (Accounting's payload).
+ *   commit, GoodsReceived (stock lines, while Inventory or Stores is
+ *   active: each decides what to receive) and GoodsReceiptPosted
+ *   (Accounting's payload). Each line records whether its stock was
+ *   tracked (`stock_tracked`: GoodsReceived raised with Inventory active),
+ *   what the invoice later clears GRNI over (decision 16).
  * - cancel(): a draft.
  */
 class Receipts
@@ -153,11 +156,13 @@ class Receipts
             $landed = LandedCostAllocation::query()->where('receipt_id', $receipt->id)
                 ->whereIn('landed_cost_id', fn ($q) => $q->select('id')->from('procurement_landed_costs')->where('status', 'posted'))
                 ->get()->groupBy('receipt_line_id');
-            $amounts = ['stock_value' => 0, 'expense' => 0, 'grni' => 0, 'landed_cost' => 0];
             $stockLines = [];
             $value = 0;
             $baseValue = 0;
             $landedTotal = 0;
+            // Decision 16: a stock line is tracked when its GoodsReceived reaches an active Inventory (a receipt journal credits GRNI).
+            $inventory = $this->modules->isActive('inventory');
+            $receiving = $inventory || $this->modules->isActive('stores');
 
             foreach ($lines as $index => $line) {
                 /** @var OrderLine $orderLine */
@@ -173,7 +178,10 @@ class Receipts
                     ->dividedBy((string) $orderLine->qty, 0, RoundingMode::HalfUp);
                 $lineBase = Pricing::convert($fx, $lineValue, $receipt->currency);
                 $lineLanded = (int) ($landed->get($line->id)?->sum('base_amount_minor') ?? 0);
+                $stock = $line->item_id !== null && ($items->get($line->item_id)?->type === 'stock');
+                $sent = $stock && $receiving && BigDecimal::of((string) $line->accepted_qty)->isPositive();
                 $line->fill([
+                    'stock_tracked' => $sent && $inventory,
                     'value_minor' => $lineValue,
                     'base_value_minor' => $lineBase,
                     'landed_minor' => $lineLanded,
@@ -184,21 +192,18 @@ class Receipts
                     'rejected_qty' => (string) BigDecimal::of((string) $orderLine->rejected_qty)->plus((string) $line->rejected_qty),
                 ])->save();
 
-                $stock = $line->item_id !== null && ($items->get($line->item_id)?->type === 'stock');
-                $amounts[$stock ? 'stock_value' : 'expense'] += $lineBase + $lineLanded;
-                $amounts['grni'] += $lineBase;
-                $amounts['landed_cost'] += $lineLanded;
                 $value += $lineValue;
                 $baseValue += $lineBase;
                 $landedTotal += $lineLanded;
 
-                if ($stock && BigDecimal::of((string) $line->accepted_qty)->isPositive()) {
+                if ($sent) {
                     $stockLines[] = [
                         'line_id' => $line->id,
                         'item_id' => $line->item_id,
                         'uom_id' => $line->uom_id,
                         'qty' => self::decimal((string) $line->accepted_qty),
                         'cost_minor' => (string) ($lineBase + $lineLanded),
+                        'landed_minor' => (string) $lineLanded,
                         'currency' => $base,
                         'batch_number' => $line->batch_number,
                         'expires_on' => $line->expires_on?->toDateString(),
@@ -220,20 +225,10 @@ class Receipts
             ])->save();
             $this->orders->received($order);
 
-            $dimensions = ['branch_id' => $receipt->branch_id, 'party_id' => $receipt->party_id];
-
-            foreach (['cost_centre_id', 'project_id'] as $dimension) {
-                $values = $orderLines->only($lines->pluck('order_line_id')->all())->pluck($dimension)->unique();
-                $dimensions[$dimension] = $values->count() === 1 ? $values->first() : null;
-            }
-
-            $tenant = (string) $receipt->tenant_id;
-
             return [
-                $stockLines === [] || ! $this->modules->isActive('inventory') ? null : new GoodsReceived($tenant, $receipt->id, $receipt->company_id, $receipt->location_id,
+                $stockLines === [] ? null : new GoodsReceived((string) $receipt->tenant_id, $receipt->id, $receipt->company_id, $receipt->location_id,
                     $receipt->received_at->toIso8601String(), $receipt->number, $stockLines, $by->id),
-                new GoodsReceiptPosted($tenant, $receipt->id, $receipt->company_id, $receipt->received_at->toIso8601String(), $base,
-                    array_map(fn (int $amount) => (string) $amount, $amounts), $fx->jsonSerialize(), $dimensions, (string) $receipt->number, $order->id),
+                $this->postedEvent($receipt),
                 $receipt,
             ];
         });
@@ -247,6 +242,46 @@ class Receipts
         event($posted);
 
         return $posted_receipt->refresh();
+    }
+
+    /**
+     * PRC-14, PRC-25: GoodsReceiptPosted of a posted GRN, from what it
+     * stored (also replayed for the Accounting backfill, ACC-29). Since the
+     * stage 7B closing review its `amounts` also carry
+     * `untracked_landed`: the landed cost allocated before posting to lines
+     * whose value no stock journal carries (services, and stock Inventory
+     * did not track), which Accounting expenses against the landed cost
+     * clearing account.
+     */
+    public function postedEvent(Receipt $receipt): GoodsReceiptPosted
+    {
+        $lines = ReceiptLine::query()->where('receipt_id', $receipt->id)->orderBy('line_no')->get();
+        $orderLines = OrderLine::query()->whereKey($lines->pluck('order_line_id')->all())->get()->keyBy('id');
+        $items = Item::query()->whereKey($lines->pluck('item_id')->filter()->unique()->all())->get()->keyBy('id');
+        // What the GRN took when it posted: landed costs allocated before it (later ones are LandedCostAllocated's).
+        $before = LandedCostAllocation::query()->where('receipt_id', $receipt->id)->where('after_receipt', false)
+            ->whereIn('landed_cost_id', fn ($q) => $q->select('id')->from('procurement_landed_costs')->where('status', 'posted'))
+            ->get()->groupBy('receipt_line_id')->map(fn ($allocations) => (int) $allocations->sum('base_amount_minor'));
+        $amounts = ['stock_value' => 0, 'expense' => 0, 'grni' => 0, 'landed_cost' => 0, 'untracked_landed' => 0];
+
+        foreach ($lines as $line) {
+            $stock = $line->item_id !== null && $items->get($line->item_id)?->type === 'stock';
+            $landed = (int) ($before->get($line->id) ?? 0);
+            $amounts[$stock ? 'stock_value' : 'expense'] += (int) $line->base_value_minor + $landed;
+            $amounts['grni'] += (int) $line->base_value_minor;
+            $amounts['landed_cost'] += $landed;
+            $amounts['untracked_landed'] += $line->stock_tracked ? 0 : $landed;
+        }
+
+        $dimensions = ['branch_id' => $receipt->branch_id, 'party_id' => $receipt->party_id];
+
+        foreach (['cost_centre_id', 'project_id'] as $dimension) {
+            $values = $orderLines->pluck($dimension)->unique();
+            $dimensions[$dimension] = $values->count() === 1 ? $values->first() : null;
+        }
+
+        return new GoodsReceiptPosted((string) $receipt->tenant_id, $receipt->id, $receipt->company_id, $receipt->received_at->toIso8601String(), (string) $receipt->base_currency,
+            array_map(fn (int $amount) => (string) $amount, $amounts), $receipt->fx->jsonSerialize(), $dimensions, (string) $receipt->number, $receipt->order_id);
     }
 
     public function cancel(Receipt $receipt, User $by, string $reason): Receipt

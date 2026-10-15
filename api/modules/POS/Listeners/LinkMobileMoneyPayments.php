@@ -35,6 +35,22 @@ use Modules\POS\PosServiceProvider;
  */
 class LinkMobileMoneyPayments implements ShouldQueue
 {
+    /**
+     * Stage 7B performance review: a job only for a sale or refund with a
+     * mobile money payment (as its snapshot says; an event without one is
+     * queued as before).
+     */
+    public function shouldQueue(SaleCompleted|SaleRefunded $event): bool
+    {
+        $snapshot = $event instanceof SaleCompleted ? $event->sale : $event->refund;
+
+        if ($snapshot === [] || ! isset($snapshot['payments'])) {
+            return true;
+        }
+
+        return collect($snapshot['payments'])->contains(fn (array $payment) => ($payment['method_type'] ?? null) === 'mobile_money');
+    }
+
     public function viaQueue(): string
     {
         return (string) config('payments.queue');

@@ -237,7 +237,7 @@ class Counts
                 }
             }
 
-            $movements = $this->ledger->post(new Posting($count->company_id, 'inventory.count', $count->id, $now, $userId, $posting, manual: false));
+            $movements = $this->ledger->post(new Posting($count->company_id, 'inventory.count', $count->id, $now, $userId, $posting, manual: false, reference: $count->number));
             $gain = BigInteger::zero();
             $loss = BigInteger::zero();
 

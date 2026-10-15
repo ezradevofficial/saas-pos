@@ -47,6 +47,7 @@ class LoyaltySources
             fx: $event->fx === null || $event->fx['base'] === $event->fx['quote'] ? null : Integrations::fx($event->fx),
             dimensions: array_filter(['branch_id' => $event->branchId, 'party_id' => $event->partyId]),
             reference: $event->reference === null ? null : mb_substr($event->reference, 0, 80),
+            memo: Integrations::memo($event::sourceType(), $event->reference),
             link: match ($event->ledger) {
                 'gift_card' => ['kind' => 'loyalty.gift_card', 'id' => $event->recordId],
                 'credit' => ['kind' => 'loyalty.credit_account', 'id' => $event->recordId],

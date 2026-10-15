@@ -55,7 +55,8 @@ class IssueResource extends JsonResource
             'acknowledged_at' => Refs::at($issue->acknowledged_at),
             'acknowledge_note' => $issue->acknowledge_note,
             'valued' => $issue->valued_at !== null,
-            'value' => $values && $issue->valued_at !== null ? Values::money((string) $issue->lines()->sum('value_minor'), $issue->currency) : null,
+            'value' => $values && $issue->valued_at !== null ? Values::money((string) (array_key_exists('lines_sum_value_minor', $issue->getAttributes())
+                ? ($issue->lines_sum_value_minor ?? 0) : $issue->lines()->sum('value_minor')), $issue->currency) : null,
             'lines_count' => $issue->lines_count ?? $issue->lines()->count(),
             ...($this->detail ? $this->details($issue, $request, $values) : []),
         ];

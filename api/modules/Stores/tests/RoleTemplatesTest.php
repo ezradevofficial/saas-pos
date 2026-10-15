@@ -19,7 +19,7 @@ class RoleTemplatesTest extends TestCase
     private const ALL = [
         'stores.issue.acknowledge', 'stores.issue.create', 'stores.issue.view', 'stores.ledger.view', 'stores.report.view',
         'stores.requisition.approve', 'stores.requisition.cancel', 'stores.requisition.create', 'stores.requisition.view',
-        'stores.return.create', 'stores.return.view', 'stores.stock.adjust', 'stores.value.view',
+        'stores.return.create', 'stores.return.view', 'stores.stock.adjust', 'stores.stock.approve', 'stores.value.view',
     ];
 
     private const VIEWS = ['stores.issue.view', 'stores.ledger.view', 'stores.report.view', 'stores.requisition.view', 'stores.return.view', 'stores.value.view'];
@@ -46,13 +46,14 @@ class RoleTemplatesTest extends TestCase
         $this->setUpStores();
 
         $this->assertSame(self::ALL, $this->held('branch_manager'));
-        $this->assertSame(array_values(array_diff(self::ALL, ['stores.issue.acknowledge', 'stores.requisition.approve', 'stores.value.view'])), $this->held('storekeeper'));
+        // Stores decision 12: a storekeeper adds stock but takes none out alone (stores.stock.approve).
+        $this->assertSame(array_values(array_diff(self::ALL, ['stores.issue.acknowledge', 'stores.requisition.approve', 'stores.stock.approve', 'stores.value.view'])), $this->held('storekeeper'));
         $this->assertSame(self::VIEWS, $this->held('admin'));
         $this->assertSame(self::VIEWS, $this->held('accountant'));
         $this->assertSame(self::VIEWS, $this->held('read_only_auditor'));
         // RBAC-05: buyers see what departments ask for and consume, never values.
         $this->assertSame(['stores.ledger.view', 'stores.report.view', 'stores.requisition.view'], $this->held('procurement_officer'));
-        $this->assertSame(['stores.requisition.approve', 'stores.requisition.view'], $this->held('approver'));
+        $this->assertSame(['stores.requisition.approve', 'stores.requisition.view', 'stores.stock.approve'], $this->held('approver'));
         $this->assertSame([], $this->held('cashier'));
 
         // RBAC-08: with the module off, the same roles grant nothing of it and its routes are closed.

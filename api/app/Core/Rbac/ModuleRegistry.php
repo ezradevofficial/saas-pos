@@ -22,6 +22,18 @@ class ModuleRegistry
     /** @var array<string, list<string>> registry module => the catalogue keys that switch it on (default: its own name) */
     private array $soldAs = [];
 
+    /**
+     * Stage 7B performance review: whether each module is active, memoised
+     * per tenant for the request or queued job (flushed when a tenant's
+     * modules change, and before every job: RbacServiceProvider).
+     *
+     * @var array<string, array<string, bool>> tenant id => module => active
+     */
+    private array $memo = [];
+
+    /** @var array<string, list<string>> tenant id => its active optional modules (active()) */
+    private array $activeLists = [];
+
     public function __construct(private readonly TenantContext $tenants) {}
 
     public function register(string $module): void
@@ -73,17 +85,32 @@ class ModuleRegistry
             return true;
         }
 
-        if (! isset($this->modules[$module]) || $this->tenants->id() === null) {
+        $tenantId = $this->tenants->id();
+
+        if (! isset($this->modules[$module]) || $tenantId === null) {
             return false;
         }
 
-        return TenantModule::where('module', $module)->where('status', TenantModule::ACTIVE)->exists();
+        return $this->memo[$tenantId][$module] ??= TenantModule::where('module', $module)->where('status', TenantModule::ACTIVE)->exists();
+    }
+
+    /** Forget what was memoised (a tenant's modules changed, or a new request or job starts). */
+    public function flush(): void
+    {
+        $this->memo = [];
+        $this->activeLists = [];
     }
 
     /** @return list<string> core first, then the tenant's active modules */
     public function active(): array
     {
-        $optional = $this->tenants->id() === null ? [] : TenantModule::where('status', TenantModule::ACTIVE)
+        $tenantId = $this->tenants->id();
+
+        if ($tenantId === null) {
+            return [self::CORE];
+        }
+
+        $optional = $this->activeLists[$tenantId] ??= TenantModule::where('status', TenantModule::ACTIVE)
             ->whereIn('module', array_diff($this->registered(), [self::CORE]))
             ->orderBy('module')
             ->pluck('module')
@@ -111,6 +138,7 @@ class ModuleRegistry
                 'purge_flagged_at' => null,
             ])->save();
 
+            $this->flush();
             app(RoleTemplates::class)->refresh();
 
             return $row;
@@ -124,6 +152,7 @@ class ModuleRegistry
         $row = TenantModule::firstOrNew(['module' => $module]);
         // SUB-07: hidden (RBAC-08) with its data kept; due for purge 12 months after it was switched off.
         $row->fill(['status' => TenantModule::INACTIVE, 'deactivated_at' => now(), 'switched_off_at' => $row->switched_off_at ?? now()])->save();
+        $this->flush();
 
         return $row;
     }

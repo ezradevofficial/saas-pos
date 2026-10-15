@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $landed_cost_id
  * @property string $description
  * @property ?string $party_id
+ * @property ?string $bill_reference
  * @property string $currency
  * @property int $amount_minor
  * @property ?FxSnapshot $fx

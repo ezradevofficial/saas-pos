@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Card, Dialog, Icon, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { formatCalendarDate } from '@/lib/dates'
-import { formatDecimal } from '@/lib/money'
+import { decimalsOf, formatDecimal } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { flagLabel, itemLabel, STATUS_TONES, statusLabel } from './inventoryData'
@@ -37,7 +37,8 @@ export function UnitCost({ value, currency }) {
   return (
     <span className="whitespace-nowrap tabular-nums">
       {currency ? <span className="text-ink-muted">{`${currency} `}</span> : null}
-      {formatDecimal(value, locale)}
+      {/* Stage 7B walkthrough: at least the currency's decimals (KES 749.30), more when the average has them. */}
+      {formatDecimal(value, locale, { minDecimals: currency ? decimalsOf(currency) : 0 })}
     </span>
   )
 }

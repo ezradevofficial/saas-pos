@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Exports\ExportValues;
 use App\Core\Exports\ListExport;
+use App\Core\Exports\SpreadsheetCell;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -39,10 +40,12 @@ class PerformanceController
 
         return response()->streamDownload(function () use ($rows, $values, $percent) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, array_map(fn (string $key) => __("procurement.performance.{$key}"), ['supplier', 'company', 'orders', 'receipts', 'on_time', 'quality', 'lead_time', 'price_variance', 'price_variance_percent']));
+            // EXP-01 (review): every cell, the header too, is spreadsheet-safe (no formula), written without an escape character.
+            $write = fn (array $cells) => fputcsv($out, array_map(fn ($cell) => SpreadsheetCell::safe($cell === null ? null : (string) $cell), $cells), escape: '');
+            $write(array_map(fn (string $key) => __("procurement.performance.{$key}"), ['supplier', 'company', 'orders', 'receipts', 'on_time', 'quality', 'lead_time', 'price_variance', 'price_variance_percent']));
 
             foreach ($rows as $row) {
-                fputcsv($out, [
+                $write([
                     $row['party']['name'], $row['company']['name'], $row['orders'], $row['receipts'],
                     $percent($row['on_time_bp']), $percent($row['quality_bp']), $row['lead_time_days'],
                     $values->money($row['price_variance']), $percent($row['price_variance_bp']),

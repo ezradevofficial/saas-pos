@@ -62,7 +62,7 @@ class ReceiptsAndInvoicesTest extends TestCase
         $this->assertSame('6', $after['lines'][0]['received_qty']);
         $this->assertSame('1', $after['lines'][0]['rejected_qty']);
 
-        Event::assertDispatched(GoodsReceiptPosted::class, fn (GoodsReceiptPosted $e) => $e->amounts === ['stock_value' => '50000', 'expense' => '50000', 'grni' => '100000', 'landed_cost' => '0']
+        Event::assertDispatched(GoodsReceiptPosted::class, fn (GoodsReceiptPosted $e) => $e->amounts === ['stock_value' => '50000', 'expense' => '50000', 'grni' => '100000', 'landed_cost' => '0', 'untracked_landed' => '0']
             && $e->currency === 'KES' && $e->dimensions['party_id'] === $this->supplier->id);
         // Inventory is not active here: no GoodsReceived.
         Event::assertNotDispatched(GoodsReceived::class);
@@ -127,13 +127,13 @@ class ReceiptsAndInvoicesTest extends TestCase
         // 8 × 105.00 + 16 % VAT and the 500.00 delivery: net 1,340.00, tax 134.40.
         $this->assertSame('134000', $approved['subtotal']['amount_minor']);
         $this->assertSame('13440', $approved['tax']['amount_minor']);
-        // GRNI cleared: the received value of 8 soaps (800.00) and the delivery (500.00).
-        $this->assertSame('130000', $approved['base_grni']['amount_minor']);
+        // Decision 16: Inventory is off, so no receipt journal credited GRNI: the invoice clears none, all of it is purchases.
+        $this->assertSame('0', $approved['base_grni']['amount_minor']);
         $this->assertSame('8', $this->api('GET', "procurement/orders/{$order['id']}")->json('data.lines.0.invoiced_qty'));
 
         Event::assertDispatched(SupplierInvoiceApproved::class, function (SupplierInvoiceApproved $e) {
-            return $e->amounts === ['net' => '134000', 'tax' => '13440', 'total' => '147440', 'grni' => '130000', 'price_variance' => '4000']
-                && $e->document['supplier_reference'] === 'INV-5501' && $e->document['lines'][0]['kind'] === 'stock' && $e->document['lines'][1]['kind'] === 'expense';
+            return $e->amounts === ['net' => '134000', 'tax' => '13440', 'total' => '147440', 'grni' => '0', 'price_variance' => '0']
+                && $e->document['supplier_reference'] === 'INV-5501' && $e->document['lines'][0]['kind'] === 'expense' && $e->document['lines'][1]['kind'] === 'expense';
         });
     }
 
@@ -144,7 +144,7 @@ class ReceiptsAndInvoicesTest extends TestCase
         $invoice = $this->api('POST', 'procurement/invoices', [
             'order_id' => $order['id'], 'supplier_reference' => 'X-1', 'invoice_date' => '2026-10-16',
             'lines' => [['order_line_id' => $order['lines'][0]['id'], 'qty' => '10', 'unit_price_minor' => '11000'], ['order_line_id' => $order['lines'][1]['id'], 'qty' => '1']],
-        ])->assertCreated()->json('data');
+        ], $this->buyer)->assertCreated()->json('data');
         $this->assertSame('exception', $invoice['status']);
         // The delivery was never received.
         $this->assertSame('not_received', $invoice['lines'][1]['match_status']);

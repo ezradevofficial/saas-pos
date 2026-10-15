@@ -65,8 +65,8 @@ class LandedCostsTest extends TestCase
 
         // Freight USD 10.00 (KES 1,300.00) and duty KES 700.00: KES 2,000.00 in all.
         $body = ['branch_id' => $this->branchA->id, 'cost_date' => '2026-10-15', 'method' => 'value', 'description' => 'Container 7',
-            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'currency' => 'USD', 'amount_minor' => '1000'],
-                ['description' => 'Duty', 'currency' => 'KES', 'amount_minor' => '70000']],
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FR-1', 'currency' => 'USD', 'amount_minor' => '1000'],
+                ['description' => 'Duty', 'party_id' => $this->supplier->id, 'bill_reference' => 'DU-1', 'currency' => 'KES', 'amount_minor' => '70000']],
             'receipt_ids' => [$posted['id'], $draft['id']]];
         $landed = $this->api('POST', 'procurement/landed-costs', $body)->assertCreated()->json('data');
         // By value: 600.00, 300.00 and 400.00 (the draft at the PO price) share 2,000.00.
@@ -85,13 +85,14 @@ class LandedCostsTest extends TestCase
         $this->assertSame('200000', $done['base_total']['amount_minor']);
         // The posted GRN's lines carry their share at once; the draft takes its own when posted.
         $this->assertSame(['100000', '33333'], array_map(fn ($l) => $l['landed']['amount_minor'], $this->api('GET', "procurement/receipts/{$posted['id']}")->json('data.lines')));
-        Event::assertDispatched(LandedCostAllocated::class, fn (LandedCostAllocated $e) => $e->amounts === ['stock_value' => '100000', 'expense' => '33333', 'landed_cost' => '133333']
-            && count($e->charges) === 2 && $e->charges[0]['base_amount_minor'] === '130000' && count($e->allocations) === 3);
+        // Inventory is off: no stock was tracked, so the whole posted share is expense (decision 16, 19).
+        Event::assertDispatched(LandedCostAllocated::class, fn (LandedCostAllocated $e) => $e->amounts === ['stock_value' => '0', 'expense' => '133333', 'landed_cost' => '133333']
+            && count($e->charges) === 2 && $e->charges[0]['base_amount_minor'] === '130000' && $e->charges[0]['bill_reference'] === 'FR-1' && count($e->allocations) === 3);
 
         $this->api('POST', "procurement/receipts/{$draft['id']}/post")->assertOk();
         $this->assertSame('66667', $this->api('GET', "procurement/receipts/{$draft['id']}")->json('data.lines.0.landed.amount_minor'));
         Event::assertDispatched(GoodsReceiptPosted::class, fn (GoodsReceiptPosted $e) => $e->receiptId === $draft['id']
-            && $e->amounts === ['stock_value' => '106667', 'expense' => '0', 'grni' => '40000', 'landed_cost' => '66667']);
+            && $e->amounts === ['stock_value' => '106667', 'expense' => '0', 'grni' => '40000', 'landed_cost' => '66667', 'untracked_landed' => '66667']);
         // A posted landed cost is final.
         $this->api('PATCH', "procurement/landed-costs/{$landed['id']}", ['method' => 'value'])->assertStatus(409);
     }
@@ -102,7 +103,7 @@ class LandedCostsTest extends TestCase
         $order = $this->approvedOrder();
         $receipt = $this->postedReceipt($order);
         $landed = $this->api('POST', 'procurement/landed-costs', ['branch_id' => $this->branchA->id, 'cost_date' => '2026-10-15', 'method' => 'weight',
-            'charges' => [['description' => 'Freight', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FR-2', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
 
         $this->assertSame('weight_missing', $landed['allocation']['error']['code']);
         $this->api('POST', "procurement/landed-costs/{$landed['id']}/post")->assertUnprocessable()->assertJsonPath('code', 'weight_missing');

@@ -94,7 +94,11 @@ class LedgerController
             return $export->download($request, $query);
         }
 
-        return ConsumptionResource::collection($query->paginate($request->perPage())->withQueryString())
+        $page = $query->paginate($request->perPage())->withQueryString();
+        // The resources read the application request (a form request is another instance).
+        ConsumptionResource::preload(request(), $page->items());
+
+        return ConsumptionResource::collection($page)
             ->additional(['meta' => ['group' => $request->group(), 'totals' => $this->totals($request)]]);
     }
 

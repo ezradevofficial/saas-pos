@@ -81,7 +81,12 @@ function QuoteDialog({ rfq, open, onClose, onDone }) {
           <TextField label={t('procurement.fields.reference')} value={reference} maxLength={100} error={errors.fields.reference} onChange={(event) => setReference(event.target.value)} />
           <TextField type="date" label={t('procurement.fields.quoteDate')} value={quoteDate} required error={errors.fields.quote_date} onChange={(event) => setQuoteDate(event.target.value)} />
           <TextField type="date" label={t('procurement.fields.validUntil')} value={validUntil} error={errors.fields.valid_until} onChange={(event) => setValidUntil(event.target.value)} />
-          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => setCurrency(event.target.value)} />
+          <Select label={t('procurement.fields.currency')} options={currencies.options} value={shownCurrency} error={errors.fields.currency} onChange={(event) => {
+              // Prices are minor units of the currency: another currency clears them (stage 7B review).
+              if (event.target.value !== shownCurrency) setPrices({})
+              setCurrency(event.target.value)
+            }}
+          />
         </div>
         {errors.fields.lines || (submitted && offered.length === 0) ? <Alert tone="danger" title={errors.fields.lines ?? t('procurement.quote.noPrices')} /> : null}
         <ul aria-label={t('procurement.quote.prices')} className="flex flex-col gap-3">

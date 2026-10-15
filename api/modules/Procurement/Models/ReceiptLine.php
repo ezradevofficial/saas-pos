@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?int $base_value_minor
  * @property int $landed_minor
  * @property ?bool $on_time
+ * @property bool $stock_tracked
+ * @property list<array{module: string, code: string}> $receive_exceptions
  */
 class ReceiptLine extends ProcurementModel
 {
@@ -35,6 +37,7 @@ class ReceiptLine extends ProcurementModel
         return [
             'line_no' => 'integer', 'serials' => 'array', 'expires_on' => 'immutable_date', 'value_minor' => 'integer',
             'base_value_minor' => 'integer', 'landed_minor' => 'integer', 'on_time' => 'boolean',
+            'stock_tracked' => 'boolean', 'receive_exceptions' => 'array',
         ];
     }
 

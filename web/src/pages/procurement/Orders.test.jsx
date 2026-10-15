@@ -110,6 +110,30 @@ describe('Purchase orders (PRC-13)', () => {
     )
   })
 
+  it('clears the unit prices when the currency changes, so KES 240.00 never becomes CDF 24,000 (review)', async () => {
+    mockProcurement(api)
+    api.post.mockResolvedValue({ data: { ...ORDER, status: 'draft' } })
+    renderApp('/procurement/orders/new')
+    await waitForOption(await screen.findByLabelText(/^Branch/), BRANCH.name)
+    chooseOption(screen.getByLabelText(/^Branch/), BRANCH.name)
+    await waitForOption(screen.getByLabelText(/^Supplier/), 'Mombasa Millers')
+    chooseOption(screen.getByLabelText(/^Supplier/), 'Mombasa Millers')
+    await waitForOption(screen.getByLabelText('Item'), 'Maize flour 2 kg · FLOUR')
+    chooseOption(screen.getByLabelText('Item'), 'Maize flour 2 kg · FLOUR')
+    fireEvent.change(screen.getByLabelText(/^Quantity/), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText(/^Unit price/), { target: { value: '240' } })
+    await waitForOption(screen.getByLabelText('Currency'), 'CDF')
+    chooseOption(screen.getByLabelText('Currency'), 'CDF')
+    expect(screen.getByLabelText(/^Unit price/)).toHaveValue('')
+    fireEvent.change(screen.getByLabelText(/^Unit price/), { target: { value: '5400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save purchase order' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const [, body] = api.post.mock.calls[0]
+    expect(body.currency).toBe('CDF')
+    // CDF has no minor unit: 5,400 francs are 5400.
+    expect(body.lines[0].unit_price_minor).toBe('5400')
+  })
+
   it('shows "Rate needed" on a line whose tax code has no rate and holds the submission', async () => {
     const draft = { ...ORDER, number: null, status: 'draft', lines: [line({ tax_rate: null, rate_needed: true, received_qty: '0', rejected_qty: '0' })], can: { edit: true, submit: true, cancel: true, print: true } }
     mockProcurement(api, [['procurement/orders/po-1', { data: draft }]])
@@ -212,5 +236,28 @@ describe('Goods received (PRC-14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Post goods received' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('procurement/receipts/grn-1/post', {}))
     expect(await screen.findByText('Goods received posted.')).toBeInTheDocument()
+  })
+
+  it('flags lines Inventory or Stores could not receive (INV-15)', async () => {
+    const receipt = {
+      id: 'grn-2',
+      number: 'GRN-WL-2026-00002',
+      status: 'posted',
+      order: { id: 'po-1', number: 'PO-WL-2026-00001' },
+      party: named('p-1', 'Mombasa Millers'),
+      location: named('l-1', 'Main store'),
+      received_at: '2026-10-12T08:00:00Z',
+      currency: 'KES',
+      value: money('696000'),
+      base_value: money('696000'),
+      landed: money('0'),
+      lines: [{ id: 'rl-2', line_no: 1, order_line_id: 'ol-1', item: FLOUR, uom: PCS, ordered_qty: '50', received_qty: '30', rejected_qty: '0', accepted_qty: '30', serials: [], value: money('696000'), base_value: money('696000'), landed: money('0'), on_time: true, receive_exceptions: [{ module: 'inventory', code: 'unit_unknown' }] }],
+      can: {},
+    }
+    mockProcurement(api, [['procurement/receipts/grn-2', { data: receipt }]])
+    renderApp('/procurement/receipts/grn-2')
+    expect(await screen.findByText('1 line was not received into stock')).toBeInTheDocument()
+    const lines = screen.getByRole('table', { name: 'Lines' })
+    expect(within(lines).getByText('Unit not set up for the item')).toBeInTheDocument()
   })
 })

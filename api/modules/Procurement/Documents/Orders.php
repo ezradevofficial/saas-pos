@@ -61,7 +61,7 @@ class Orders
 
             // PRC-02: a PO typed from an approved requisition takes it on.
             if (! empty($data['requisition_id'])) {
-                $requisition = app(Requisitions::class)->approved($company->id, $data['requisition_id']);
+                $requisition = app(Requisitions::class)->approved($branch, $data['requisition_id'], $by);
                 app(Requisitions::class)->markOrdered($requisition);
                 $sources['requisition_id'] = $requisition->id;
             }

@@ -20,6 +20,11 @@ use Modules\Inventory\Stock\Qty;
  * source line (`source_line_id`: the sale line for a POS sale, so cost of
  * sales matches the sale line by line) and branch.
  *
+ * A receipt's movement says how much of its value is landed cost
+ * (`landed_minor`: charges allocated to the GRN line before it posted), so
+ * Accounting credits the goods to GRNI and the charges to the landed cost
+ * clearing account (stage 7B closing review).
+ *
  * Accounting skips it for `stores.issue` and `stores.return` sources: it
  * posts Stores' StoreConsumptionValued for them instead (one journal per
  * movement; docs/modules/stores.md, STR-16). For those sources it may be
@@ -31,7 +36,7 @@ class StockMoved implements ShouldDispatchAfterCommit
     use Dispatchable;
 
     /**
-     * @param  list<array{id: string, kind: string, item_id: string, location_id: ?string, branch_id: ?string, source_line_id: ?string, qty: string, value_minor: string, cost_variance_minor: string}>  $movements
+     * @param  list<array{id: string, kind: string, item_id: string, location_id: ?string, branch_id: ?string, source_line_id: ?string, qty: string, value_minor: string, cost_variance_minor: string, landed_minor?: string}>  $movements
      */
     public function __construct(
         public readonly string $tenantId,
@@ -42,6 +47,8 @@ class StockMoved implements ShouldDispatchAfterCommit
         public readonly array $movements,
         public readonly ?string $occurredAt = null,
         public readonly ?string $branchId = null,
+        // ACC-17 (stage 7B closing review): the source document's number (a GRN, a receipt, an adjustment...).
+        public readonly ?string $reference = null,
     ) {}
 
     /**
@@ -57,9 +64,11 @@ class StockMoved implements ShouldDispatchAfterCommit
             'branch_id' => $m->location_id === null ? null : $branches->get($m->location_id),
             'source_line_id' => $m->source_line_id,
             'qty' => Qty::show($m->qty), 'value_minor' => (string) $m->value_minor, 'cost_variance_minor' => (string) $m->cost_variance_minor,
+            'landed_minor' => (string) ($m->landed_minor ?? '0'),
         ], $movements);
 
         return new self($tenantId, $companyId, $currency, $sourceType, $sourceId, $rows,
-            $occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), collect($rows)->pluck('branch_id')->filter()->first());
+            $occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), collect($rows)->pluck('branch_id')->filter()->first(),
+            collect($movements)->map(fn (Movement $m) => $m->reference)->filter()->first());
     }
 }

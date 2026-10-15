@@ -80,7 +80,7 @@ class AccessReviewController
             // gone: read the rows in the tenant's own context (RLS).
             $this->tenants->run($tenantId, function () use ($visible) {
                 $out = fopen('php://output', 'w');
-                fputcsv($out, self::COLUMNS, escape: '');
+                fputcsv($out, array_map(SpreadsheetCell::safe(...), self::COLUMNS), escape: '');
 
                 $this->query($visible)->chunk(self::CHUNK, function ($rows) use ($out) {
                     $this->scopeNames->attach($rows);

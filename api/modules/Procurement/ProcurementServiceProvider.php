@@ -11,6 +11,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Support\EventReplays;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -21,12 +22,15 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Contracts\GoodsReceiptExceptions;
 use Modules\Procurement\Console\RewrapKeys;
 use Modules\Procurement\CustomFields\OrderEntity;
 use Modules\Procurement\CustomFields\RequisitionEntity;
 use Modules\Procurement\Documents\DocumentNumbers;
 use Modules\Procurement\Documents\OrderType;
 use Modules\Procurement\Documents\RequisitionType;
+use Modules\Procurement\Events\ProcurementEventReplay;
+use Modules\Procurement\Listeners\RecordReceiptExceptions;
 use Modules\Procurement\Listeners\SettleProcurementDocument;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Printing\ProcurementSource;
@@ -69,6 +73,8 @@ class ProcurementServiceProvider extends ServiceProvider
         'performance' => ['view'],
         // PRC-01.
         'settings' => ['edit'],
+        // RBAC-05 (decision 27): prices, values and landed costs; quantities need nothing more.
+        'value' => ['view'],
     ];
 
     /** LAY-04: the module's lists that may have saved views (the web list ids). */
@@ -85,6 +91,8 @@ class ProcurementServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
+        // ACC-29: GRNs, landed costs and approved invoices raised again for the Accounting backfill.
+        $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(ProcurementEventReplay::class)($from, $to, $emit));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // WF-01, WF-02: requisitions and POs run through flows.
@@ -93,6 +101,11 @@ class ProcurementServiceProvider extends ServiceProvider
         $documents->register(OrderType::class);
         Event::listen(WorkflowCompleted::class, SettleProcurementDocument::class);
         Event::listen(WorkflowCancelled::class, SettleProcurementDocument::class);
+
+        // INV-15 (stage 7B closing review): what Inventory or Stores could not receive shows on the GRN.
+        if (class_exists(GoodsReceiptExceptions::class)) {
+            Event::listen(GoodsReceiptExceptions::class, RecordReceiptExceptions::class);
+        }
 
         // NUM-01, PRC-19: their numbers.
         $numbers = $this->app->make(DocumentNumberTypes::class);

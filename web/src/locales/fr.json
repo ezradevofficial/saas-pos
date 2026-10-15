@@ -6943,7 +6943,9 @@
       "procurement_supplier_invoice": "Facture fournisseur",
       "payroll_run": "Paie",
       "stores_consumption": "Consommation des magasins",
-      "inventory_landed_cost": "Frais d’approche"
+      "inventory_landed_cost": "Frais d’approche",
+      "procurement_landed_cost": "Frais d’approche en charges",
+      "procurement_landed_cost_bill": "Facture de frais d’approche"
     },
     "columns": {
       "account": "Compte",
@@ -7426,6 +7428,7 @@
       "weight": "Selon le poids"
     },
     "columns": {
+      "stock": "Stock",
       "number": "Numéro",
       "createdAt": "Créé le",
       "status": "Statut",
@@ -7550,6 +7553,7 @@
       "method": "Méthode de répartition",
       "receipts": "Réceptions concernées",
       "chargeDescription": "Frais",
+      "billReference": "Numéro de facture du fournisseur",
       "chargeSupplier": "Facturé par",
       "amount": "Montant",
       "email": "E-mail",
@@ -7733,7 +7737,7 @@
       "invitedHelp": "Seuls ces soumissionnaires peuvent soumissionner.",
       "invite": "Inviter un soumissionnaire",
       "inviteTitle": "Inviter un soumissionnaire",
-      "inviteHelp": "Le soumissionnaire reçoit un lien personnel par e-mail. Il fonctionne jusqu’à la date limite de dépôt.",
+      "inviteHelp": "Le soumissionnaire reçoit un lien personnel par e-mail. Il fonctionne jusqu’à {{days}} jours après la date limite de dépôt, pour suivre le résultat.",
       "who": "Qui",
       "whoParty": "Un fournisseur de vos contacts",
       "whoOutsider": "Une autre entreprise",
@@ -7756,8 +7760,10 @@
     "bids": {
       "title": "Offres",
       "sealedTitle": "Les offres sont scellées",
-      "sealedHelp": "Leurs prix, réponses techniques et fichiers restent chiffrés jusqu’à ce que deux membres d’ouverture les ouvrent à l’heure d’ouverture. Vous voyez seulement qui a déposé une offre, quand, sa version et son empreinte.",
+      "sealedHelp": "Leurs auteurs, prix, réponses techniques et fichiers restent scellés jusqu’à ce que deux membres ouvreurs du comité les ouvrent à l’heure d’ouverture. D’ici là, vous voyez seulement combien d’offres sont arrivées.",
       "sealedCaption": "Offres scellées",
+      "received_one": "{{count}} offre reçue",
+      "received_other": "{{count}} offres reçues",
       "empty": "Aucune offre pour l’instant.",
       "openedTitle": "Offres ouvertes",
       "openedAt": "Ouvertes le",
@@ -7867,7 +7873,17 @@
       "cancelHelp": "Le brouillon s’arrête ici. Il est conservé, marqué annulé.",
       "cancelled": "Réception annulée.",
       "onTime": "À l’heure",
-      "late": "En retard"
+      "late": "En retard",
+      "exceptionsTitle_one": "{{count}} ligne n’est pas entrée en stock",
+      "exceptionsTitle_other": "{{count}} lignes ne sont pas entrées en stock",
+      "exceptionsBody": "Le stock ou le magasin n’a pas pu prendre ces lignes. Vérifiez l’article, son unité ou ses numéros de série, puis ajustez le stock à la main.",
+      "exceptions": {
+        "item_unknown": "Pas un article stocké",
+        "unit_unknown": "Unité non définie pour l’article",
+        "qty_not_positive": "Aucune quantité",
+        "serial_exists": "Numéro de série déjà en stock",
+        "other": "Non reçue"
+      }
     },
     "invoice": {
       "newTitle": "Saisir la facture de {{number}}",
@@ -7911,6 +7927,7 @@
       },
       "charges": "Frais",
       "charge": "Frais {{number}}",
+      "billReferenceHelp": "Le numéro de la facture du fournisseur pour ce frais. Nécessaire pour valider : la facture est comptabilisée en dettes fournisseurs.",
       "chargeExamples": "Fret, droits, assurance ou dédouanement.",
       "addCharge": "Ajouter des frais",
       "removeCharge": "Retirer les frais {{number}}",
@@ -7967,6 +7984,8 @@
       "noCompany": "Il n’y a pas encore de société à paramétrer."
     },
     "portal": {
+      "unavailable": "Appel d’offres indisponible",
+      "unavailableHelp": "Cet appel d’offres n’est pas disponible pour le moment. Contactez l’acheteur.",
       "title": "Portail fournisseurs",
       "signingIn": "Ouverture de votre lien",
       "linkInvalid": "Ce lien ne fonctionne pas",

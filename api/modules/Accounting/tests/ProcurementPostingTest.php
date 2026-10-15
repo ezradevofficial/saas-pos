@@ -153,11 +153,16 @@ class ProcurementPostingTest extends TestCase
         $this->setUpBooks();
         $receipt = $this->postedReceipt($this->approvedOrder());
         $landed = $this->api('POST', 'procurement/landed-costs', ['branch_id' => $this->branchA->id, 'cost_date' => '2026-10-16', 'method' => 'value',
-            'charges' => [['description' => 'Freight', 'currency' => 'KES', 'amount_minor' => '20000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FRT-77', 'currency' => 'KES', 'amount_minor' => '20000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
         $this->api('POST', "procurement/landed-costs/{$landed['id']}/post")->assertOk();
 
-        // INV-25: the soaps (all still on hand) take the stock share of KES 200.00 by value (1,000 of 1,500); the freight bill clears GRNI.
-        $this->assertSame(['1300' => [13333, 0], '2130' => [0, 13333]], $this->linesOf($this->journal('inventory.landed_cost')));
+        // INV-25: the soaps (all still on hand) take the stock share of KES 200.00 by value (1,000 of 1,500) against landed cost clearing.
+        $this->assertSame(['1300' => [13333, 0], '2140' => [0, 13333]], $this->linesOf($this->journal('inventory.landed_cost')));
+        // The delivery's share is expensed against clearing; the freight bill credits the carrier and clears it to zero.
+        $this->assertSame(['2140' => [0, 6667], '5200' => [6667, 0]], $this->linesOf($this->journal('procurement.landed_cost')));
+        $this->assertSame(['2110' => [0, 20000], '2140' => [20000, 0]], $this->linesOf($this->journal('procurement.landed_cost_bill')));
+        $this->assertSame(0, $this->balance('2140'));
+        $this->assertSame(0, $this->balance('2130') + 100000, 'GRNI still holds only the goods received');
     }
 
     public function test_with_accounting_off_nothing_posts(): void

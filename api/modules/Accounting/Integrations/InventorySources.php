@@ -18,7 +18,7 @@ use Modules\Inventory\Events\StockMoved;
  *
  * | Inventory source            | Source type                | Counter field              |
  * | pos.sale, pos.refund, void  | inventory.cost_of_sales    | cost_of_sales.{sale line}  |
- * | procurement.goods_receipt   | inventory.receipt          | grni                       |
+ * | procurement.goods_receipt   | inventory.receipt          | grni, landed_cost          |
  * | procurement.landed_cost     | inventory.landed_cost      | landed_cost                |
  * | inventory.opening, .import  | inventory.opening          | opening                    |
  * | inventory.adjustment        | inventory.adjustment       | adjustment                 |
@@ -26,6 +26,12 @@ use Modules\Inventory\Events\StockMoved;
  * | inventory.transfer          | inventory.transfer_loss    | loss                       |
  * | stores.* (Stores issues)    | nothing: Stores posts them | (StoreConsumptionValued)   |
  * | anything else               | inventory.other            | offset                     |
+ *
+ * A receipt credits GRNI with its goods value and `landed_cost` (the
+ * landed cost clearing account) with the landed cost allocated to it
+ * before it posted (`landed_minor`); a cost adjustment for landed costs
+ * allocated after it (`inventory.landed_cost`) credits the same clearing
+ * account, which the charges' own bills debit (LandedCostBills).
  *
  * Transfers between a company's locations do not change its cost
  * (INV-12): `transfer_out` and `transfer_in` post nothing; only what was
@@ -77,8 +83,12 @@ class InventorySources
             $value = BigInteger::of((string) $movement['value_minor']);
             $variance = BigInteger::of((string) ($movement['cost_variance_minor'] ?? '0'));
             $line = $perLine ? '.'.($movement['source_line_id'] ?? $movement['id']) : '';
+            // Stage 7B closing review: a receipt's landed part (charges allocated before it posted) is
+            // credited to the landed cost clearing account, its goods to GRNI (what the invoice clears).
+            $landed = $type === 'inventory.receipt' ? BigInteger::of((string) ($movement['landed_minor'] ?? '0')) : BigInteger::zero();
             $add("stock{$line}", $value->minus($variance));
-            $add("{$counter}{$line}", $value->negated());
+            $add("{$counter}{$line}", $value->minus($landed)->negated());
+            $add('landed_cost', $landed->negated());
             $add('cost_variance', $variance);
         }
 
@@ -99,7 +109,9 @@ class InventorySources
             currency: $event->currency,
             amounts: $amounts,
             dimensions: array_filter(['branch_id' => $event->branchId]),
-            reference: mb_substr($event->sourceType, 0, 80),
+            // ACC-17: the document's number, never the raw source key; a readable description.
+            reference: $event->reference === null ? null : mb_substr($event->reference, 0, 80),
+            memo: Integrations::memo($type, $event->reference),
             link: ['kind' => 'inventory.movements', 'id' => $event->sourceId, 'source_type' => $event->sourceType],
         );
     }

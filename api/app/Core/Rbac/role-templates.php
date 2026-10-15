@@ -109,6 +109,7 @@ return [
             'core.item_category.view', 'core.item_category.create', 'core.item_category.edit', 'core.uom.view',
             'inventory.*',
             // PRC-14: receives goods against POs and asks for what the store needs (PRC-02).
+            // RBAC-05 (procurement.md decision 27): quantities only, never procurement.value.view.
             'procurement.receipt.*', 'procurement.po.view', 'procurement.requisition.view', 'procurement.requisition.create',
             // STR-02 to STR-12: requisitions, issues, returns, the store ledger and consumption.
             'stores.*',
@@ -117,7 +118,7 @@ return [
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
         // STR-03, STR-05: departments approve and acknowledge what the store issues, not the storekeeper.
         'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view',
-            'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view'],
+            'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view', 'stores.stock.approve'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -202,8 +203,8 @@ return [
             'approvals.*', '*.approve',
             // What they approve, they can read: journals (ACC-04) and stock documents (INV-08..INV-10); never stock values.
             'accounting.journal.view', 'inventory.transfer.view', 'inventory.adjustment.view', 'inventory.count.view',
-            // PRC-02, PRC-13, PRC-15: the requisitions, POs and supplier invoices they approve.
-            'procurement.requisition.view', 'procurement.po.view', 'procurement.invoice.view',
+            // PRC-02, PRC-13, PRC-15: the requisitions, POs and supplier invoices they approve, with their values (RBAC-05).
+            'procurement.requisition.view', 'procurement.po.view', 'procurement.invoice.view', 'procurement.value.view',
             // STR-03: the requisitions they approve.
             'stores.requisition.view',
         ],

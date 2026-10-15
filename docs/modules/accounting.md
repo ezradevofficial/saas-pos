@@ -55,10 +55,10 @@ later; their payloads are fixed below.
 | ACC-26 | **Daily summary (7B).** A company setting (`sales_posting`: `per_sale`, default, or `daily_summary`). In summary mode, base-currency sales wait in `acc_source_queue` and `accounting:post-sales-summaries` (hourly) posts one `pos.sale_summary` journal per location, day (company time zone) and currency once the day has ended; a sale that arrives later forms another summary for its day. Sales in another currency, refunds and voids still post on their own. | Must |
 | ACC-27 | **Inventory → Accounting (7B).** Every stock posting (`StockMoved`) changes the stock account by what it changed the valuation by (value less cost variance), its counterpart by the opposite of its value, and the cost variance to cost of sales: cost of sales per sale line (`inventory.cost_of_sales`), goods received against GRNI (`inventory.receipt`, for Procurement), opening stock (`inventory.opening`), adjustments and count variances to stock adjustment expense (`inventory.adjustment`, `inventory.count`), transfer losses (`inventory.transfer_loss`). Transfers within a company post nothing else. The stock account equals the valuation report. | Must |
 | ACC-28 | **Loyalty → Accounting (7B).** One journal per Loyalty ledger entry: gift cards (sold: a liability, never revenue; redeemed: liability to the tender; expired: breakage income), points (when the programme gives a point a value: earned Dr loyalty cost / Cr points liability; redeemed into the tender; expired to breakage income; adjusted), customer credit (charged: Dr the store credit receivable control account; payments; adjustments). | Must |
-| ACC-29 | **Backfill (7B).** `accounting:backfill --from=YYYY-MM-DD [--to=] [--tenant=]` posts what POS, Inventory and Loyalty recorded from an owner-chosen day, in each active tenant with Accounting (DueTenants, TenantContext): each module raises its events again (core `EventReplays`), and they post exactly as live ones, idempotently. | Must |
+| ACC-29 | **Backfill (7B).** `accounting:backfill --from=YYYY-MM-DD [--to=] [--tenant=]` posts what every module that registered its events recorded from an owner-chosen day, in each active tenant with Accounting (DueTenants, TenantContext): each registered module (core `EventReplays`, not a fixed list: POS, Inventory, Loyalty; Stores' `StoreConsumptionValued` from valued issues and returns; Procurement's `GoodsReceiptPosted`, `LandedCostAllocated` and `SupplierInvoiceApproved` rebuilt from posted GRNs, posted landed costs and approved invoices) raises its events again, and they post exactly as live ones, idempotently (stage 7B closing review). | Must |
 | ACC-31 | **Stores → Accounting (7B).** `StoreConsumptionValued` posts `stores.consumption`, one journal per issue or return: Dr the department's consumption (`consumption.{department}`, mapped per department, with the department and cost centre as dimensions) / Cr stock for an issue, the reverse for a return, each line's cost variance to cost of sales. Stores' own `StockMoved` (`stores.*`) posts nothing: it is the same movement. | Must |
 | ACC-30 | **Integration screens (7B).** The posting rules screen lists every source type with its own rule, its fallback or none, edits rules (maps kept) and adds the defaults; the exceptions list filters by status, retries, and opens the source record; journals drill down to the sale, the movements or the Loyalty record through each module's own route. | Must |
-| ACC-32 | **Procurement → Accounting (7B).** An approved Procurement supplier invoice (`SupplierInvoiceApproved`) posts `procurement.supplier_invoice` in base currency through the company's rule: Dr GRNI (`grni`, the GRN value of its stock lines, cleared against what Inventory's receipt journal credited), Dr the price variance (`price_variance`, their invoiced net less that value), Dr purchases (`expense`, service lines, and stock lines when Inventory is off), Dr input tax (`tax`) / Cr the supplier's payable (`total`, with the party, in the invoice currency at its rate). Its journal is then the journal of a posted Accounting supplier invoice (ACC-09, numbered BILL, open for the total), so payments, allocation, ageing and statements work as for any bill. Once per invoice (the journal is unique per source, the document per journal); an invoice that cannot post is a posting exception whose retry also writes the document. Procurement's `GoodsReceiptPosted` posts nothing: the GRN posts from `StockMoved` (`inventory.receipt`). Landed costs allocated after a receipt (INV-25) post `inventory.landed_cost`: Dr stock / Cr GRNI, where the charges' own bills, entered in Accounting, clear it. Only while Accounting and Procurement are both active. | Must |
+| ACC-32 | **Procurement → Accounting (7B).** An approved Procurement supplier invoice (`SupplierInvoiceApproved`) posts `procurement.supplier_invoice` in base currency through the company's rule: Dr GRNI (`grni`, the GRN value of its stock lines, cleared against what Inventory's receipt journal credited), Dr the price variance (`price_variance`, their invoiced net less that value), Dr purchases (`expense`, service lines, and stock Inventory did not track when it was received: Procurement says per line, `base_stock_net_minor`, procurement.md decision 16; decision, owner may change), Dr input tax (`tax`) / Cr the supplier's payable (`total`, with the party, in the invoice currency at its rate). Its journal is then the journal of a posted Accounting supplier invoice (ACC-09, numbered BILL, open for the total), so payments, allocation, ageing and statements work as for any bill. Once per invoice (the journal is unique per source, the document per journal); an invoice that cannot post is a posting exception whose retry also writes the document. Procurement's `GoodsReceiptPosted` posts nothing: the GRN posts from `StockMoved` (`inventory.receipt`). Landed costs meet in a landed cost clearing account (KE 2140, CD 4081; stage 7B closing review, procurement.md decision 19; decision, owner may change): the receipt journal credits GRNI with the goods and clearing with the landed cost allocated before it posted (`inventory.receipt` `landed_cost`, from the movement's `landed_minor`); landed costs allocated after a receipt post `inventory.landed_cost`: Dr stock / Cr clearing; the share of services, expense lines and stock Inventory did not track posts `procurement.landed_cost` (Dr purchases `expense` / Cr clearing `landed_cost`, from `LandedCostAllocated` and, for what a GRN took when it posted, `GoodsReceiptPosted`); and each supplier's bill named on the landed cost document (its charges grouped by supplier, bill reference and currency) becomes a posted Accounting supplier invoice through `procurement.landed_cost_bill` (Dr clearing / Cr AP with the party, in the charge currency at its rate), so the clearing account nets to zero. A company whose rules predate this adds the clearing account and the `landed_cost` line of its `inventory.receipt` rule itself (the defaults add missing rules and accounts, never change a rule); until then a receipt carrying landed cost waits as a posting exception. Only while Accounting and Procurement are both active. | Must |
 
 ## Data model
 
@@ -138,8 +138,10 @@ Loyalty and Stores are in the stage 7B section below. Later modules:
 | `procurement.supplier_invoice` | Procurement `SupplierInvoiceApproved` (ACC-32) | `grni`, `price_variance`, `expense`, `tax`, `total` | party, branch, cost centre, project |
 | `payroll.run` | Payroll `PayrollApproved` | `gross`, `net_pay`, `paye`, `employer.{CODE}`, `employee.{CODE}`, `deduction.{CODE}` | department, cost centre |
 
-**Procurement posts only the supplier invoice** (Dr GRNI, Dr input tax,
-Cr the supplier's payable). The goods received note posts from
+**Procurement posts the supplier invoice** (Dr GRNI, Dr input tax,
+Cr the supplier's payable), **and its landed costs' bills and untracked
+landed costs** (`procurement.landed_cost_bill`, `procurement.landed_cost`;
+stage 7B closing review). The goods received note posts from
 Inventory's `StockMoved` for `procurement.goods_receipt`
 (`inventory.receipt`: Dr stock, Cr GRNI, cost variance to cost of
 sales), so receipt and invoice meet in GRNI and nothing posts twice.
@@ -147,16 +149,33 @@ sales), so receipt and invoice meet in GRNI and nothing posts twice.
 ### Stage 7B: the integrations (ACC-24 to ACC-32)
 
 Accounting listens to other modules' events with one queued listener
-(`PostModuleEvent`, after commit, in the event's tenant, retried), and
-acts only while Accounting **and** the raising module are active
-(RBAC-08); with Accounting off nothing is posted, nothing is kept and no
-job is queued.
+(`PostModuleEvent`, after commit, in the event's tenant, retried). A job
+is queued only while Accounting **and** the raising module are active
+(RBAC-08), and never for a stock posting that posts nothing (Stores' own
+`stores.*` moves, transfers within the company, no movements); with
+Accounting off nothing is posted, nothing is kept and no job is queued.
+Once queued, the job posts on Accounting alone: the event proves the
+raising module was on when it happened, so a module switched off in
+between still has its event posted (stage 7B closing review; decision,
+owner may change). Module flags are memoised per request and tenant
+(`ModuleRegistry`, flushed when a tenant's modules change and before each
+queued job), so deciding what to queue costs no query per sale.
 Every source goes through `PostingService` and the company's rules,
 idempotent per (company, source type, source id); a source that cannot
 post is a posting exception, listed and retried, never lost. Journals are
 never posted into closed periods: the closed-period refusal (ACC-08) keeps
 the source as an exception (`period_closed`); once the period reopens, a
 retry posts it on its own date.
+
+**References and descriptions (stage 7B closing review, ACC-17).** Every
+posted source names its document in `reference` (a GRN, receipt, refund,
+adjustment, count, transfer, issue, landed cost or invoice number; a gift
+card or points entry without its own reference names its sale's receipt),
+never a source key such as `procurement.goods_receipt`, and carries a
+description from en/fr text by source type
+(`accounting.integrations.memos.*`: "Goods received GRN-…", "Cost of sales
+R-…"). Inventory keeps the number on every movement (`reference`) and
+StockMoved carries it, so replays name it too.
 
 **Event payloads (extended in their raising modules, generic):**
 
@@ -189,8 +208,10 @@ retry posts it on its own date.
 | `pos.refund`, `pos.void` | as `pos.sale`, for what is given back or voided | the `pos.sale` rule, sides swapped |
 | `pos.sale_summary` | the sum of a location's day | the `pos.sale` rule |
 | `inventory.cost_of_sales` | `stock.{sale line}`, `cost_of_sales.{sale line}`, `cost_variance` | stock 1300, cost of goods sold 5100 (all debit, signed) |
-| `inventory.receipt` | `stock`, `grni`, `cost_variance` | 1300, GRNI 2130, 5100 |
-| `inventory.landed_cost` | `stock`, `landed_cost`, `cost_variance` | 1300, GRNI 2130, 5100 (CD: 311, 408, 603) |
+| `inventory.receipt` | `stock`, `grni`, `landed_cost`, `cost_variance` | 1300, GRNI 2130, landed cost clearing 2140, 5100 (CD: 311, 408, 4081, 603) |
+| `inventory.landed_cost` | `stock`, `landed_cost`, `cost_variance` | 1300, landed cost clearing 2140, 5100 (CD: 311, 4081, 603) |
+| `procurement.landed_cost` | `expense`, `landed_cost` | purchases 5200, landed cost clearing 2140 (all debit, signed; CD: 601, 4081) |
+| `procurement.landed_cost_bill` | `landed_cost`, `total` | Dr landed cost clearing 2140, Cr payables 2110 with the party (CD: 4081; 401) |
 | `procurement.supplier_invoice` | `grni`, `price_variance`, `expense`, `tax`, `total` | Dr GRNI 2130, cost of goods sold 5100, purchases 5200, VAT recoverable 1400; Cr payables 2110 with the party (CD: 408, 603, 601, 445; 401) |
 | `inventory.opening` | `stock`, `opening`, `cost_variance` | 1300, suspense 1900, 5100 |
 | `inventory.adjustment`, `inventory.count` | `stock`, `adjustment`, `cost_variance` | 1300, stock adjustments and losses 5300, 5100 |

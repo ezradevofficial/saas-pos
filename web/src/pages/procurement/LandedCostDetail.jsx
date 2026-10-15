@@ -35,6 +35,7 @@ export default function LandedCostDetail() {
   const chargeColumns = [
     { key: 'description', label: t('procurement.fields.chargeDescription'), wrap: true, render: (charge) => charge.description },
     { key: 'party', label: t('procurement.fields.chargeSupplier'), render: (charge) => charge.party?.name ?? '' },
+    { key: 'bill_reference', label: t('procurement.fields.billReference'), render: (charge) => charge.bill_reference ?? '' },
     { key: 'amount', label: t('procurement.fields.amount'), align: 'end', render: (charge) => <Amount value={charge.amount} /> },
     { key: 'base_amount', label: t('procurement.columns.baseAmount'), align: 'end', render: (charge) => <Amount value={charge.base_amount} /> },
   ]

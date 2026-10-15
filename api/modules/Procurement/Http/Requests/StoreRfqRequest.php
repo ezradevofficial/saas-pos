@@ -24,7 +24,8 @@ class StoreRfqRequest extends FormRequest
         return [
             ...self::fields(),
             'branch_id' => ProcurementRules::id('branches', required: true),
-            'requisition_id' => ProcurementRules::id('procurement_requisitions'),
+            // RBAC-04 (review): Requisitions::approved checks it, one answer whether unknown, of another branch or not approved.
+            'requisition_id' => ['sometimes', 'nullable', 'uuid'],
             'title' => ['required', 'string', 'max:200'],
         ];
     }

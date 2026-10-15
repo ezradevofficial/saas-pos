@@ -103,6 +103,7 @@ use App\Core\Payments\Models\PaymentReceipt;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Rbac\Http\Controllers\AccessReviewController;
 use App\Core\Rbac\Http\Controllers\AssignmentController;
+use App\Core\Rbac\Http\Controllers\MyCompaniesController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
@@ -307,6 +308,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
+    // RBAC-04 (stage 7B walkthrough): the companies the user holds a role in, for the company switcher.
+    Route::get('me/companies', MyCompaniesController::class);
 
     // TEN-02..TEN-06: the organisation. Lists show only what the user's
     // scopes reach (RBAC-04); records are archived, never deleted.

@@ -166,7 +166,7 @@ class ReviewFixesTest extends TestCase
         $receipt = $this->postedReceipt($order);
         $buyerB = $this->userWith('procurement_officer', Scope::branch($this->branchB->id));
         $body = ['branch_id' => $this->branchB->id, 'cost_date' => '2026-10-15', 'method' => 'value',
-            'charges' => [['description' => 'Freight', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]];
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FR-1', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]];
 
         $this->api('POST', 'procurement/landed-costs', $body, $buyerB)->assertUnprocessable()->assertJsonPath('code', 'receipt_unknown');
 
@@ -182,7 +182,7 @@ class ReviewFixesTest extends TestCase
     {
         $receipt = $this->postedReceipt($this->approvedOrder());
         $landed = $this->api('POST', 'procurement/landed-costs', ['branch_id' => $this->branchA->id, 'cost_date' => '2026-10-15', 'method' => 'weight',
-            'charges' => [['description' => 'Freight', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
+            'charges' => [['description' => 'Freight', 'party_id' => $this->otherSupplier->id, 'bill_reference' => 'FR-2', 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$receipt['id']]])->assertCreated()->json('data');
 
         $this->assertStringContainsString($receipt['number'].' / 1', $landed['allocation']['error']['message']);
     }

@@ -15,6 +15,7 @@ use Modules\Procurement\CustomFields\RequisitionEntity;
 use Modules\Procurement\Models\Requisition;
 use Modules\Procurement\Models\RequisitionLine;
 use Modules\Procurement\Support\LineResolver;
+use Modules\Procurement\Support\Places;
 use Modules\Procurement\Support\ProcurementError;
 use Modules\Procurement\Support\Tx;
 
@@ -167,11 +168,17 @@ class Requisitions
     }
 
     /** An approved requisition, locked, that an RFQ, a tender or a PO takes on; refused otherwise. */
-    public function approved(string $companyId, string $requisitionId, string $field = 'requisition_id'): Requisition
+    /**
+     * An approved requisition a PO, RFQ or tender at $branch may take on:
+     * of that branch, and seen by $by there (RBAC-04,
+     * `procurement.requisition.view`). Anything else answers the same
+     * error, so another branch's requisitions cannot be probed.
+     */
+    public function approved(Branch $branch, string $requisitionId, User $by, string $field = 'requisition_id'): Requisition
     {
-        $requisition = Requisition::query()->where('company_id', $companyId)->whereKey($requisitionId)->lockForUpdate()->first();
+        $requisition = Requisition::query()->where('company_id', $branch->company_id)->where('branch_id', $branch->id)->whereKey($requisitionId)->lockForUpdate()->first();
 
-        if ($requisition === null || $requisition->status !== Requisition::APPROVED) {
+        if ($requisition === null || $requisition->status !== Requisition::APPROVED || ! app(Places::class)->at($by, 'procurement.requisition.view', $requisition->branch_id)) {
             throw ProcurementError::make('requisition_not_approved', field: $field);
         }
 

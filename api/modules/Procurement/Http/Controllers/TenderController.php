@@ -18,6 +18,7 @@ use Modules\Procurement\Http\Requests\ShowDocumentRequest;
 use Modules\Procurement\Http\Requests\StoreTenderRequest;
 use Modules\Procurement\Http\Requests\UpdateTenderRequest;
 use Modules\Procurement\Http\Resources\TenderResource;
+use Modules\Procurement\Models\Bid;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
@@ -36,7 +37,8 @@ class TenderController
 
     public function index(ListTendersRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = Tender::query()->with(TenderList::RELATIONS);
+        // Stage 7B performance review: the bid count in the list query, not one count per tender.
+        $query = Tender::query()->with(TenderList::RELATIONS)->withCount(['bids' => fn ($q) => $q->whereIn('status', [Bid::SUBMITTED, Bid::OPENED, Bid::TAMPERED])]);
         $request->applyFilters($query);
         $request->applySort($query);
 
@@ -103,12 +105,17 @@ class TenderController
     public function candidates(CommitteeCandidatesRequest $request, Branch $branch, ScopeResolver $scopes): JsonResponse
     {
         $roles = $request->validated('role') === null ? ['opener', 'evaluator'] : [$request->validated('role')];
-        $users = User::query()->where('status', User::STATUS_ACTIVE)->orderBy('name')->orderBy('id')->get()
-            ->map(function (User $user) use ($roles, $scopes, $branch) {
-                $can = array_values(array_filter($roles, fn (string $role) => $scopes->can($user, $role === 'opener' ? 'procurement.tender.open' : 'procurement.tender.evaluate', Scope::branch($branch->id))));
+        // Stage 7B performance review: who holds each permission at the branch in one query each, not can() per user.
+        $holders = [];
 
-                return $can === [] ? null : ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'roles' => $can];
-            })->filter()->values()->all();
+        foreach ($roles as $role) {
+            foreach ($scopes->holders($role === 'opener' ? 'procurement.tender.open' : 'procurement.tender.evaluate', Scope::branch($branch->id)) as $userId) {
+                $holders[$userId][] = $role;
+            }
+        }
+
+        $users = User::query()->whereKey(array_keys($holders))->orderBy('name')->orderBy('id')->get()
+            ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'roles' => $holders[$user->id]])->values()->all();
 
         return response()->json(['data' => $users]);
     }

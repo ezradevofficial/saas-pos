@@ -110,6 +110,7 @@ final class SaleSnapshot
         $refund->loadMissing(['lines', 'payments', 'sale']);
         $saleLines = SaleLine::query()->whereKey($refund->lines->pluck('sale_line_id')->all())->get()->keyBy('id');
         $paid = $refund->payments->reduce(fn (BigInteger $sum, RefundPayment $p) => $sum->plus((string) $p->amount_in_sale_minor), BigInteger::zero());
+        $before = self::refundedBefore($refund, $refund->lines->pluck('sale_line_id')->filter()->unique()->values()->all());
 
         return [
             'id' => $refund->id,
@@ -130,13 +131,13 @@ final class SaleSnapshot
                 'total_minor' => (string) $refund->base_total_minor,
                 'fx' => $refund->fx?->jsonSerialize(),
             ],
-            'lines' => $refund->lines->map(fn (RefundLine $line) => self::refundLine($refund, $line, $saleLines->get($line->sale_line_id)))->values()->all(),
+            'lines' => $refund->lines->map(fn (RefundLine $line) => self::refundLine($line, $saleLines->get($line->sale_line_id), BigDecimal::of($before[$line->sale_line_id] ?? '0')))->values()->all(),
             'payments' => $refund->payments->map(fn (RefundPayment $payment) => self::payment($payment))->values()->all(),
         ];
     }
 
     /** @return array<string, mixed> */
-    private static function refundLine(Refund $refund, RefundLine $line, ?SaleLine $saleLine): array
+    private static function refundLine(RefundLine $line, ?SaleLine $saleLine, BigDecimal $refundedBefore): array
     {
         $total = (string) $line->total_minor;
         $tax = (string) $line->tax_minor;
@@ -144,7 +145,7 @@ final class SaleSnapshot
         // refund's total and tax are (RefundUploads): share(after) − share(before), half up, so the
         // parts of a line refunded in several refunds add up to its discount exactly.
         $sold = $saleLine === null ? BigDecimal::zero() : BigDecimal::of((string) $saleLine->qty);
-        $before = $saleLine === null ? BigDecimal::zero() : self::refundedBefore($refund, $line);
+        $before = $saleLine === null ? BigDecimal::zero() : $refundedBefore;
         $after = $before->plus((string) $line->qty);
         $part = fn (string $amount, BigDecimal $qty) => BigDecimal::of($amount)->multipliedBy($qty)->dividedBy($sold, 0, RoundingMode::HalfUp);
         $share = fn (string $amount) => $sold->isZero() ? '0' : (string) $part($amount, $after)->minus($part($amount, $before))->toBigInteger();
@@ -172,15 +173,28 @@ final class SaleSnapshot
         ];
     }
 
-    /** The quantity of the sale line given back by refunds (not rejected) stored before this one. */
-    private static function refundedBefore(Refund $refund, RefundLine $line): BigDecimal
+    /**
+     * Review (stage 7B performance): the quantity of each sale line given
+     * back by refunds (not rejected) stored before this one, in one grouped
+     * query for all the refund's lines.
+     *
+     * @param  list<string>  $saleLineIds
+     * @return array<string, string> sale line id => quantity
+     */
+    private static function refundedBefore(Refund $refund, array $saleLineIds): array
     {
+        if ($saleLineIds === []) {
+            return [];
+        }
+
         $earlier = Refund::query()->where('sale_id', $refund->sale_id)->where('status', '<>', Records::REJECTED)
             ->where(fn ($q) => $q->where('received_at', '<', $refund->received_at)
                 ->orWhere(fn ($q) => $q->where('received_at', $refund->received_at)->where('id', '<', $refund->id)))
             ->select('id');
 
-        return BigDecimal::of((string) RefundLine::query()->where('sale_line_id', $line->sale_line_id)->whereIn('refund_id', $earlier)->sum('qty'));
+        return RefundLine::query()->whereIn('sale_line_id', $saleLineIds)->whereIn('refund_id', $earlier)
+            ->groupBy('sale_line_id')->selectRaw('sale_line_id, sum(qty) as qty')->pluck('qty', 'sale_line_id')
+            ->map(fn ($qty) => (string) $qty)->all();
     }
 
     /**

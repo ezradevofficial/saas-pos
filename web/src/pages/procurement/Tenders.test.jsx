@@ -157,12 +157,10 @@ describe('Tenders (PRC-06 to PRC-12)', () => {
     renderApp('/procurement/tenders/t-1')
     expect(await screen.findByRole('heading', { name: 'TND-WL-2026-00001' })).toBeInTheDocument()
     expect(screen.getByText('Bids are sealed')).toBeInTheDocument()
-    const sealed = screen.getByRole('table', { name: 'Sealed bids' })
-    const row = within(sealed).getByText('Oven Masters Ltd').closest('tr')
-    expect(within(row).getByText(FINGERPRINT)).toBeInTheDocument()
-    expect(within(row).getByText('2')).toBeInTheDocument()
+    // Decision 22: only how many bids arrived, not who sent them.
+    expect(screen.getByText('2 bids received')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Sealed bids' })).not.toBeInTheDocument()
     // PRC-09: nothing of the content: no prices, no technical response, no files.
-    expect(within(sealed).queryByText(/KES/)).not.toBeInTheDocument()
     expect(screen.queryByText('Technical response')).not.toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Ranking' })).not.toBeInTheDocument()
 
@@ -215,6 +213,9 @@ describe('Tenders (PRC-06 to PRC-12)', () => {
     const bidders = await screen.findByRole('table', { name: 'Bidders' })
     expect(within(bidders).queryByRole('button', { name: 'Resend link to Oven Masters Ltd' })).not.toBeInTheDocument()
     expect(within(bidders).getByRole('button', { name: 'Remove Oven Masters Ltd' })).toBeInTheDocument()
+    // Stage 7B walkthrough: the invite says how long the link works after the deadline.
+    fireEvent.click(screen.getByRole('button', { name: 'Invite bidder' }))
+    expect(await screen.findByText(/It works until 90 days after the submission deadline/)).toBeInTheDocument()
     unmount()
 
     const awarded = { ...OPENED, status: 'awarded', bids: OPENED.bids.map((bid, index) => ({ ...bid, outcome: index === 0 ? 'awarded' : 'regretted' })), order: { id: 'po-9', number: null, status: 'draft' },

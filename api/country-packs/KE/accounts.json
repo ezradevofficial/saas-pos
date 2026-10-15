@@ -24,6 +24,7 @@
         {"code": "2110", "type": "liability", "subtype": "payable", "parent": "2100", "postable": true, "cash_flow": "operating", "control": true},
         {"code": "2120", "type": "liability", "subtype": "current_liability", "parent": "2100", "postable": true, "cash_flow": "operating"},
         {"code": "2130", "type": "liability", "subtype": "current_liability", "parent": "2100", "postable": true, "cash_flow": "operating"},
+        {"code": "2140", "type": "liability", "subtype": "current_liability", "parent": "2100", "postable": true, "cash_flow": "operating"},
         {"code": "2200", "type": "liability", "subtype": "tax", "parent": "2100", "postable": true, "cash_flow": "operating"},
         {"code": "2210", "type": "liability", "subtype": "tax", "parent": "2100", "postable": true, "cash_flow": "operating"},
         {"code": "2220", "type": "liability", "subtype": "current_liability", "parent": "2100", "postable": true, "cash_flow": "operating"},
@@ -147,6 +148,11 @@
                 "field": "grni",
                 "side": "debit",
                 "account": "2130"
+            },
+            {
+                "field": "landed_cost",
+                "side": "debit",
+                "account": "2140"
             },
             {
                 "field": "cost_variance",
@@ -414,12 +420,37 @@
             {
                 "field": "landed_cost",
                 "side": "debit",
-                "account": "2130"
+                "account": "2140"
             },
             {
                 "field": "cost_variance",
                 "side": "debit",
                 "account": "5100"
+            }
+        ],
+        "procurement.landed_cost": [
+            {
+                "field": "expense",
+                "side": "debit",
+                "account": "5200"
+            },
+            {
+                "field": "landed_cost",
+                "side": "debit",
+                "account": "2140"
+            }
+        ],
+        "procurement.landed_cost_bill": [
+            {
+                "field": "landed_cost",
+                "side": "debit",
+                "account": "2140"
+            },
+            {
+                "field": "total",
+                "side": "credit",
+                "account": "2110",
+                "party": true
             }
         ]
     }

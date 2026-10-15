@@ -48,7 +48,7 @@ function InviteDialog({ tender, open, onClose, onDone }) {
       }
     >
       <div className="flex flex-col gap-4 pt-1">
-        <p>{t('procurement.bidders.inviteHelp')}</p>
+        <p>{t('procurement.bidders.inviteHelp', { days: tender.link_days_after_deadline ?? 90 })}</p>
         {errors.form ? <Alert tone="danger" title={errors.form} /> : null}
         <Select
           label={t('procurement.bidders.who')}
@@ -153,24 +153,16 @@ function Bidders({ tender, actionKey }) {
   )
 }
 
-/** PRC-09: before the opening, each bid shows only who sent it, when, its version and fingerprint. */
+/** PRC-09, decision 22: before the opening, staff see only how many bids arrived (not who sent them). */
 function SealedBids({ tender }) {
   const { t } = useTranslation()
-  const company = tender.company?.id
-  const columns = [
-    { key: 'bidder', label: t('procurement.columns.bidder'), render: (bid) => bid.bidder?.name },
-    { key: 'submitted_at', label: t('procurement.columns.submittedAt'), render: (bid) => <When value={bid.submitted_at} companyId={company} /> },
-    { key: 'version', label: t('procurement.columns.version'), align: 'end', numeric: true, render: (bid) => bid.version },
-    { key: 'fingerprint', label: t('procurement.columns.fingerprint'), wrap: true, render: (bid) => <span className="font-mono text-caption break-all text-ink-muted">{bid.fingerprint}</span> },
-    { key: 'status', label: t('procurement.columns.status'), render: (bid) => <Status status={bid.status} /> },
-  ]
   return (
     <Card title={t('procurement.bids.title')}>
       <div className="flex flex-col gap-4">
         <Alert tone="info" title={t('procurement.bids.sealedTitle')}>
           {t('procurement.bids.sealedHelp')}
         </Alert>
-        <DataTable caption={t('procurement.bids.sealedCaption')} columns={columns} rows={tender.bids ?? []} emptyText={t('procurement.bids.empty')} />
+        <p className="text-body text-ink">{tender.bids_count ? t('procurement.bids.received', { count: tender.bids_count }) : t('procurement.bids.empty')}</p>
       </div>
     </Card>
   )

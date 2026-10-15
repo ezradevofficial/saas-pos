@@ -17,6 +17,8 @@ use Modules\Procurement\Support\Places;
  */
 class ReceiptResource extends JsonResource
 {
+    use HidesValues;
+
     private bool $detail = false;
 
     public function detail(): self
@@ -30,6 +32,8 @@ class ReceiptResource extends JsonResource
     {
         /** @var Receipt $receipt */
         $receipt = $this->resource;
+        // RBAC-05, decision 27: money only for holders of procurement.value.view.
+        $this->seeValues($request, $receipt->branch_id, $receipt->location_id);
         $places = app(Places::class);
         $at = fn (string $permission) => $places->atLocation($request->user(), "procurement.receipt.{$permission}", $receipt->location_id);
 
@@ -47,9 +51,9 @@ class ReceiptResource extends JsonResource
             'note' => $receipt->note,
             'currency' => $receipt->currency,
             'fx' => Refs::fx($receipt->fx),
-            'value' => Refs::money($receipt->value_minor, $receipt->currency),
-            'base_value' => Refs::money($receipt->base_value_minor, $receipt->base_currency),
-            'landed' => Refs::money($receipt->landed_minor, $receipt->base_currency),
+            'value' => $this->money($receipt->value_minor, $receipt->currency),
+            'base_value' => $this->money($receipt->base_value_minor, $receipt->base_currency),
+            'landed' => $this->money($receipt->landed_minor, $receipt->base_currency),
             'created_by' => Refs::user($receipt->creator),
             'posted_at' => Refs::at($receipt->posted_at),
             'cancelled_at' => Refs::at($receipt->cancelled_at),
@@ -72,10 +76,12 @@ class ReceiptResource extends JsonResource
                     'expires_on' => Refs::date($line->expires_on),
                     'serials' => $line->serials ?? [],
                     'weight' => Refs::qty($line->weight),
-                    'value' => Refs::money($line->value_minor, $receipt->currency),
-                    'base_value' => Refs::money($line->base_value_minor, $receipt->base_currency),
-                    'landed' => Refs::money($line->landed_minor, $receipt->base_currency),
+                    'value' => $this->money($line->value_minor, $receipt->currency),
+                    'base_value' => $this->money($line->base_value_minor, $receipt->base_currency),
+                    'landed' => $this->money($line->landed_minor, $receipt->base_currency),
                     'on_time' => $line->on_time,
+                    // Stage 7B closing review: what Inventory or Stores could not receive of the line.
+                    'receive_exceptions' => $line->receive_exceptions ?? [],
                 ])->all(),
                 'can' => [
                     'edit' => $receipt->status === Receipt::DRAFT && $at('create'),

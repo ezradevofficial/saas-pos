@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Procurement\Http\Controllers\Portal\PortalController;
+use Modules\Procurement\Http\Middleware\PortalSecurityHeaders;
 use Modules\Procurement\Http\Middleware\PortalSessionMiddleware;
 use Modules\Procurement\ProcurementServiceProvider;
 
@@ -11,15 +12,16 @@ use Modules\Procurement\ProcurementServiceProvider;
 // tender's public notice) and every other route takes only the portal
 // session's bearer token (PortalSessionMiddleware), which enters the
 // token's tenant and binds the request to its tender and bidder. Every
-// route is rate-limited (PRC-23).
+// route is rate-limited (PRC-23) and answers `Referrer-Policy: no-referrer`
+// (PortalSecurityHeaders).
 
-Route::middleware(['throttle:'.ProcurementServiceProvider::PORTAL_AUTH_LIMITER])->group(function () {
+Route::middleware([PortalSecurityHeaders::class, 'throttle:'.ProcurementServiceProvider::PORTAL_AUTH_LIMITER])->group(function () {
     Route::post('supplier-portal/sessions', [PortalController::class, 'start']);
     Route::get('supplier-portal/notices/{notice}', [PortalController::class, 'notice'])->where('notice', '[A-Za-z0-9]{48}');
     Route::post('supplier-portal/notices/{notice}/register', [PortalController::class, 'register'])->where('notice', '[A-Za-z0-9]{48}');
 });
 
-Route::middleware(['throttle:'.ProcurementServiceProvider::PORTAL_LIMITER, PortalSessionMiddleware::class])->group(function () {
+Route::middleware([PortalSecurityHeaders::class, 'throttle:'.ProcurementServiceProvider::PORTAL_LIMITER, PortalSessionMiddleware::class])->group(function () {
     Route::delete('supplier-portal/sessions/current', [PortalController::class, 'end']);
     Route::get('supplier-portal/tender', [PortalController::class, 'tender']);
     Route::put('supplier-portal/bid', [PortalController::class, 'submit']);

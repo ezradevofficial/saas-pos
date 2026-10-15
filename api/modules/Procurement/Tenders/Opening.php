@@ -55,7 +55,11 @@ class Opening
             $now = CarbonImmutable::now();
 
             if ($now->lessThan($tender->opening_at)) {
-                throw ProcurementError::make('opening_not_due', ['time' => $tender->opening_at->toIso8601String()], status: 409);
+                // Stage 7B walkthrough: the time as people read it, in the tender company's time zone.
+                $zone = Company::query()->whereKey($tender->company_id)->value('timezone') ?: 'UTC';
+                $time = CarbonImmutable::instance($tender->opening_at)->setTimezone($zone)->locale(app()->getLocale())->isoFormat('LLL').' ('.$zone.')';
+
+                throw ProcurementError::make('opening_not_due', ['time' => $time], status: 409);
             }
 
             if (! TenderMember::query()->where('tender_id', $tender->id)->where('user_id', $by->id)->where('role', TenderMember::OPENER)->exists()) {

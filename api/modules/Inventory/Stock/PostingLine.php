@@ -11,7 +11,8 @@ use Brick\Math\BigInteger;
  * cost in the company's base currency (null: estimated, INV-12); a return
  * names the movement whose cost it takes back. `fefo`: an outbound line of
  * a batch item without a batch is split over the location's batches,
- * earliest expiry first (INV-06).
+ * earliest expiry first (INV-06). A receipt may say how much of its cost
+ * is landed cost (`landed`, base minor units, INV-15).
  */
 final class PostingLine
 {
@@ -34,6 +35,7 @@ final class PostingLine
         public readonly array $flags = [],
         public readonly bool $fefo = false,
         public readonly bool $setsLastCost = false,
+        public readonly ?BigInteger $landed = null,
     ) {}
 
     /** @param array<string, mixed> $changes */

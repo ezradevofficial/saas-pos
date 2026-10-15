@@ -85,7 +85,7 @@ class LandedCostAdjustmentTest extends TestCase
         $this->assertSame(20000, (int) $this->inTenant(fn () => Movement::query()->where('kind', Movement::COST_ADJUSTMENT)->value('cost_variance_minor')));
     }
 
-    /** After every migration the kind check allows Stores' kinds and cost adjustments together, whichever migration ran last. */
+    /** After every migration the kinds lookup holds Stores' kinds and cost adjustments together, whichever migration ran last. */
     public function test_the_migrated_ledger_takes_store_issues_store_returns_and_cost_adjustments(): void
     {
         $this->inTenant(function () {
@@ -106,9 +106,8 @@ class LandedCostAdjustmentTest extends TestCase
     /** @return list<string> */
     private function allowedKinds(): array
     {
-        preg_match_all("/'([a-z_]+)'/", (string) DB::scalar("select pg_get_constraintdef(oid) from pg_constraint where conname = 'inventory_movements_kind_check'"), $matches);
-
-        return $matches[1];
+        // Stage 7B closing review: the kinds are rows of the lookup the ledger's foreign key names.
+        return DB::table('inventory_movement_kinds')->pluck('kind')->all();
     }
 
     public function test_only_cost_adjustments_may_carry_no_quantity(): void

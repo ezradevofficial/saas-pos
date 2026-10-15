@@ -17,6 +17,13 @@ export const fieldError = (error, field) => {
 
 let nextKey = 0
 /** A blank document line (a key keeps React's rows apart). */
+/**
+ * Prices are minor units of the document's currency, so another currency
+ * (2 decimals to none, or back) would read them 100 times off: a currency
+ * change clears them, as the landed cost form does (stage 7B review).
+ */
+export const clearPrices = (lines) => lines.map((line) => ({ ...line, price_minor: '' }))
+
 export const blankLine = (extra = {}) => ({
   key: `line-${(nextKey += 1)}`,
   item: null,

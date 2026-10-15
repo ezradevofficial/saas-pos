@@ -12,7 +12,7 @@ import { Back, DetailState } from './ProcurementParts'
 import { companyById, companyOfBranch, LANDED_COST_METHODS, namedOptions, procurementKey, statusLabel, useCurrencies, usePlaces, useSuppliers } from './procurementData'
 
 let nextCharge = 0
-const blankCharge = (extra = {}) => ({ key: `charge-${(nextCharge += 1)}`, description: '', party_id: '', currency: '', amount_minor: '', ...extra })
+const blankCharge = (extra = {}) => ({ key: `charge-${(nextCharge += 1)}`, description: '', party_id: '', bill_reference: '', currency: '', amount_minor: '', ...extra })
 
 /** PRC-17: the draft or posted GRNs of a company a landed cost may apply to. */
 function useReceiptsOf(companyId) {
@@ -40,7 +40,7 @@ function Form({ landedCost }) {
   const [description, setDescription] = useState(landedCost?.description ?? '')
   const [charges, setCharges] = useState(() =>
     landedCost?.charges?.length
-      ? landedCost.charges.map((charge) => blankCharge({ description: charge.description, party_id: charge.party?.id ?? '', currency: charge.amount?.currency ?? '', amount_minor: charge.amount?.amount_minor ?? '' }))
+      ? landedCost.charges.map((charge) => blankCharge({ description: charge.description, party_id: charge.party?.id ?? '', bill_reference: charge.bill_reference ?? '', currency: charge.amount?.currency ?? '', amount_minor: charge.amount?.amount_minor ?? '' }))
       : [blankCharge()],
   )
   const [receiptIds, setReceiptIds] = useState(() => (landedCost?.receipts ?? []).map((receipt) => receipt.id))
@@ -57,6 +57,7 @@ function Form({ landedCost }) {
         charges: charges.map((charge) => ({
           description: charge.description.trim(),
           ...(charge.party_id ? { party_id: charge.party_id } : {}),
+          ...(charge.bill_reference.trim() ? { bill_reference: charge.bill_reference.trim() } : {}),
           currency: charge.currency || currencies.base,
           amount_minor: charge.amount_minor,
         })),
@@ -70,7 +71,7 @@ function Form({ landedCost }) {
       navigate(`/procurement/landed-costs/${response.data.id}`)
     },
   })
-  const chargeFields = charges.flatMap((_, index) => ['description', 'party_id', 'currency', 'amount_minor'].map((name) => `charges.${index}.${name}`))
+  const chargeFields = charges.flatMap((_, index) => ['description', 'party_id', 'bill_reference', 'currency', 'amount_minor'].map((name) => `charges.${index}.${name}`))
   const errors = formErrors(save.error, ['branch_id', 'cost_date', 'method', 'description', 'charges', 'receipt_ids', ...chargeFields])
   const chargesReady = charges.every((charge) => charge.description.trim() && charge.amount_minor && charge.amount_minor !== '0')
   const ready = branch && chargesReady && receiptIds.length > 0
@@ -148,6 +149,14 @@ function Form({ landedCost }) {
                 value={charge.party_id}
                 error={errors.fields[`charges.${index}.party_id`]}
                 onChange={(event) => updateCharge(charge.key, { party_id: event.target.value })}
+              />
+              <TextField
+                label={t('procurement.fields.billReference')}
+                help={t('procurement.landedCost.billReferenceHelp')}
+                value={charge.bill_reference}
+                maxLength={100}
+                error={errors.fields[`charges.${index}.bill_reference`]}
+                onChange={(event) => updateCharge(charge.key, { bill_reference: event.target.value })}
               />
               <Select label={t('procurement.fields.currency')} options={currencies.options} value={currency} error={errors.fields[`charges.${index}.currency`]} onChange={(event) => updateCharge(charge.key, { currency: event.target.value, amount_minor: '' })} />
               <MoneyInput

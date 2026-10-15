@@ -36,6 +36,11 @@ return [
         'line_repeated' => 'Chaque ligne du bon de commande ne peut figurer qu’une fois. Regroupez les quantités.',
         'rejected_exceeds_received' => 'La quantité refusée ne peut pas dépasser la quantité reçue.',
         'match_exception' => 'Cette facture ne correspond pas au bon de commande et aux réceptions. Une personne autorisée à approuver les écarts doit l’approuver.',
+        'stock_line_not_received' => 'La ligne :line est un article stocké qui n’a pas été reçu. Validez sa réception avant d’approuver la facture.',
+        'charge_supplier_required' => 'Le frais :line doit indiquer son fournisseur avant de valider les frais d’approche.',
+        'charge_bill_required' => 'Le frais :line doit indiquer le numéro de facture du fournisseur avant de valider les frais d’approche.',
+        'tender_unavailable' => 'Cet appel d’offres n’est pas disponible pour le moment. Contactez l’acheteur.',
+        'invoice_approver_is_creator' => 'Vous avez saisi cette facture : une autre personne doit l’approuver.',
         'override_reason_required' => 'Indiquez pourquoi vous approuvez une facture qui ne correspond pas.',
         'duplicate_reference' => 'Ce fournisseur a déjà une facture portant ce numéro. Vérifiez le numéro.',
         'receipt_cancelled' => 'L’un des bons de réception a été annulé. Retirez-le, puis réessayez.',
@@ -203,8 +208,8 @@ return [
         'award_subject' => 'Attribution de l’appel d’offres : :title',
         'regret_subject' => 'Résultat de l’appel d’offres : :title',
         'sample_title' => 'Fourniture de mobilier de bureau',
-        'award_body' => "Madame, Monsieur {{document.bidder}},\n\nNous avons le plaisir de vous informer que votre offre pour {{document.tender_title}} ({{document.reference}}) a été retenue, pour un total de {{document.awarded_total}}. Un bon de commande suivra.\n\nNous vous remercions de votre participation.",
-        'regret_body' => "Madame, Monsieur {{document.bidder}},\n\nNous vous remercions de votre offre pour {{document.tender_title}} ({{document.reference}}). Nous avons le regret de vous informer qu’elle n’a pas été retenue cette fois.\n\nNous espérons vous compter parmi les participants de nos prochains appels d’offres.",
+        'award_body' => "Madame, Monsieur {{document.bidder}},\n\nNous avons le plaisir de vous informer que votre offre pour {{document.tender_title}} ({{document.tender_ref}}) a été retenue, pour un total de {{document.awarded_total}}. Un bon de commande suivra.\n\nNous vous remercions de votre participation.",
+        'regret_body' => "Madame, Monsieur {{document.bidder}},\n\nNous vous remercions de votre offre pour {{document.tender_title}} ({{document.tender_ref}}). Nous avons le regret de vous informer qu’elle n’a pas été retenue cette fois.\n\nNous espérons vous compter parmi les participants de nos prochains appels d’offres.",
     ],
     'notifications' => [
         'portal_invited' => [

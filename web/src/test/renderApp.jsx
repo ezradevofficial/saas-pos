@@ -44,6 +44,8 @@ export function mockApi(api, { user = OWNER, permissions = ALL_CORE, modules = [
     // The approvals badge in the sidebar (APR-04).
     if (path === 'approvals?status=waiting&per_page=1&page=1') return { data: [], meta: { total: 0 } }
     if (path.startsWith('companies')) return { data: companies, meta: { total: companies.length } }
+    // The switcher's companies for a user without core.company.view (RBAC-04).
+    if (path === 'me/companies') return { data: companies }
     throw apiError(404, 'not_found', 'Not found.')
   })
 }

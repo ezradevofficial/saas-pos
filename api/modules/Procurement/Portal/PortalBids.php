@@ -3,6 +3,7 @@
 namespace Modules\Procurement\Portal;
 
 use App\Core\Audit\Auditor;
+use App\Core\Billing\Models\Subscription;
 use App\Core\CustomFields\CustomFieldFiles;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -167,7 +168,7 @@ class PortalBids
                     'mime' => $mime,
                     'size' => (int) $file->getSize(),
                 ]);
-                $this->auditor->record('procurement.portal.file_uploaded', $stored, null, ['tender' => $tender->id, 'bidder' => $session->bidder_id, 'size' => $stored->size, 'ip' => $ip], ['ip' => $ip]);
+                $this->auditor->record('procurement.portal.file_uploaded', $stored, null, ['tender' => $tender->id, 'bidder' => $session->bidder_id, 'ip' => $ip], ['ip' => $ip]);
 
                 return $stored;
             });
@@ -193,8 +194,23 @@ class PortalBids
     }
 
     /** The session's tender, published and before its deadline (PRC-09: no change after it). */
+    /**
+     * Decision 21 (owner, 2026-10-14): whether the current tenant's tenders
+     * are unavailable to suppliers: its subscription is suspended or
+     * cancelled. A read-only (overdue) business keeps its portal open.
+     */
+    public static function unavailable(): bool
+    {
+        return in_array(Subscription::query()->value('status'), [Subscription::SUSPENDED, Subscription::CANCELLED], true);
+    }
+
     private function openTender(PortalSession $session): Tender
     {
+        // Decision 21 (owner, 2026-10-14): a suspended or cancelled business takes no bids or files.
+        if (self::unavailable()) {
+            throw ProcurementError::make('tender_unavailable', status: 409);
+        }
+
         $tender = Tender::query()->whereKey($session->tender_id)->lockForUpdate()->firstOrFail();
 
         if ($tender->status !== Tender::PUBLISHED) {
