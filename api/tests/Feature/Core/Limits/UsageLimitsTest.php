@@ -72,7 +72,10 @@ class UsageLimitsTest extends TestCase
             // Not outlets: a warehouse, and an archived outlet.
             $this->branchA->locations()->create(['name' => 'Back store', 'type' => 'warehouse']);
             $this->branchA->locations()->create(['name' => 'Closed outlet', 'type' => 'outlet'])->forceFill(['archived_at' => now()])->save();
-            // Users: the owner and one active colleague count; pending and deactivated do not.
+            // Users: the owner and one active colleague with a back-office role count; pending,
+            // deactivated and self-service-only users (owner decision A, docs/modules/hr.md) do not.
+            $this->assign($this->colleague($this->owner), $this->roles->get('cashier'), Scope::location($this->locationA->id));
+            $this->assign($this->colleague($this->owner), $this->roles->get('employee_self_service'), Scope::company($this->acme->id));
             $this->colleague($this->owner);
             $this->colleague($this->owner, ['status' => User::STATUS_PENDING]);
             $this->colleague($this->owner, ['status' => User::STATUS_DEACTIVATED]);
@@ -262,7 +265,8 @@ class UsageLimitsTest extends TestCase
             $closed = $this->branchA->locations()->create(['name' => 'Closed outlet', 'type' => 'outlet']);
             $closed->forceFill(['archived_at' => now()])->save();
             $former = $this->colleague($this->owner, ['status' => User::STATUS_DEACTIVATED]);
-            $this->colleague($this->owner);
+            $this->assign($former, $this->roles->get('cashier'), Scope::location($this->locationA->id));
+            $this->assign($this->colleague($this->owner), $this->roles->get('cashier'), Scope::location($this->locationA->id));
 
             return [$office, $closed, $former];
         });

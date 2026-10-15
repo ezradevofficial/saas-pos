@@ -11,7 +11,10 @@ use InvalidArgumentException;
  * LIM-01: the current tenant's active units, under row-level security:
  * - outlets: locations of type `outlet` that are not archived;
  * - devices: paired devices that are active (not pending, suspended or unpaired);
- * - users: active users (not pending invitations or deactivated);
+ * - users: active users holding a back-office role (an active role with at
+ *   least one permission, at any scope); self-service sign-ins (employees
+ *   linked to a user with no such role) do not count (owner decision
+ *   2026-10-14, docs/modules/hr.md);
  * - employees: from HR (EmployeeCount; none until HR exists).
  */
 class UsageCounter
@@ -29,7 +32,13 @@ class UsageCounter
         return match ($unit) {
             Units::OUTLET => Location::query()->where('type', 'outlet')->whereNull('archived_at')->count(),
             Units::DEVICE => Device::query()->where('status', Device::STATUS_ACTIVE)->count(),
-            Units::USER => User::query()->where('status', User::STATUS_ACTIVE)->count(),
+            Units::USER => User::query()->where('status', User::STATUS_ACTIVE)
+                ->whereExists(fn ($q) => $q->selectRaw('1')->from('role_assignments')
+                    ->join('roles', 'roles.id', '=', 'role_assignments.role_id')
+                    ->whereColumn('role_assignments.user_id', 'users.id')
+                    ->whereNull('roles.archived_at')
+                    ->whereExists(fn ($p) => $p->selectRaw('1')->from('role_has_permissions')->whereColumn('role_has_permissions.role_id', 'roles.id')))
+                ->count(),
             Units::EMPLOYEE => $this->employees->count(),
             default => throw new InvalidArgumentException("Unknown unit [{$unit}]."),
         };

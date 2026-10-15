@@ -114,3 +114,10 @@ registerEntity('loyalty_gift_cards', { table: 'loyalty_gift_cards', columns: (ro
 // served only while the tenant has Inventory): shown on the tiles, never
 // used to refuse a sale.
 registerEntity('inventory_stock', { table: 'inventory_stock', columns: (row) => ({ item_id: row.item_id }) });
+// The HR module's clock-in staff at this till's place (HR-23, served only
+// while the tenant has HR): name, number, PIN version and the material to
+// check a clock-in PIN offline. A snapshot.
+registerEntity('hr_clock_staff', {
+  table: 'hr_clock_staff',
+  columns: (row) => ({ name: row.name ?? '', number: row.number ?? '', version: Number(row.version ?? 0) }),
+});

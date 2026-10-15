@@ -1,0 +1,23 @@
+{
+    "code": "CD",
+    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12). Structure only: identifier types and statutory leave types. No figure is entered until it is confirmed from an official source: a null pattern enforces no format, and a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Labels live in lang/{locale}/hr.php (pack.*).",
+    "sources": [],
+    "todo": [
+        "national_id: confirm the national identity document accepted for employees and its number format.",
+        "cnss_number: confirm the CNSS affiliation number format before enforcing a pattern.",
+        "annual: statutory annual leave (congé annuel) days, how they grow with service and age (Code du travail, 2002, as amended), with the effective date.",
+        "maternity: statutory maternity leave (congé de maternité) weeks and pay, with the effective date.",
+        "sick: statutory sick leave (incapacité de travail) rules and pay.",
+        "circumstantial: the congé de circonstance events and days (marriage, birth, death), with legal references."
+    ],
+    "identifier_types": [
+        {"key": "national_id", "required": false, "pattern": null},
+        {"key": "cnss_number", "required": false, "pattern": null}
+    ],
+    "statutory_leave_types": [
+        {"key": "annual", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "maternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "sick", "accrual": "none", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "circumstantial", "accrual": "none", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+    ]
+}

@@ -79,7 +79,7 @@ class ScopeResolver
         $tenantId = $this->tenants->id();
         $chain = $this->chain($target);
 
-        if ($tenantId === null || $chain === null || ! $this->modules->isActive(PermissionRegistry::moduleOf($permission))) {
+        if ($tenantId === null || $chain === null || ! $this->modules->permissionActive($permission)) {
             return [];
         }
 
@@ -180,11 +180,11 @@ class ScopeResolver
             return [];
         }
 
-        $active = array_flip($this->modules->active());
+        $active = $this->modules->active();
         $result = [];
 
         foreach ($this->registrar->getPermissions(['guard_name' => Permission::GUARD]) as $permission) {
-            if (! isset($active[PermissionRegistry::moduleOf($permission->name)])) {
+            if (! $this->modules->permissionActive($permission->name, $active)) {
                 continue;
             }
 
@@ -215,7 +215,7 @@ class ScopeResolver
      */
     private function assignmentsWith(User $user, string $permission): Collection
     {
-        if (! $this->eligible($user) || ! $this->modules->isActive(PermissionRegistry::moduleOf($permission))) {
+        if (! $this->eligible($user) || ! $this->modules->permissionActive($permission)) {
             return collect();
         }
 

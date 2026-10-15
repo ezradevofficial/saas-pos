@@ -21,13 +21,13 @@ class PermissionCatalogueController
     {
         abort_unless($request->user()->can('viewAny', Role::class), 403);
 
-        $active = array_flip($modules->active());
+        $active = $modules->active();
         $data = [];
 
         foreach ($registry->all() as $permission) {
             ['name' => $name, 'module' => $module, 'resource' => $resource, 'action' => $action] = $permission;
 
-            if (! isset($active[$module])) {
+            if (! $modules->permissionActive($name, $active)) {
                 continue;
             }
 

@@ -103,6 +103,37 @@
       "failed": "Sign-in did not work. Try again."
     }
   },
+  "clockIn": {
+    "entry": "Clock in or out",
+    "title": "Clock in or out",
+    "subtitle": "Choose your name, then enter your clock-in PIN.",
+    "search": "Search by name or number",
+    "noMatch": "No one matches this search.",
+    "empty": "No one clocks in at this till yet. Ask HR to set clock-in PINs for staff at this location, then sync.",
+    "pinFor": "Clock-in PIN for {{name}}",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "checking": "Checking",
+    "otherPerson": "Choose someone else",
+    "back": "Back to sign-in",
+    "next": "Back to the list",
+    "clockedIn": "Clocked in at {{time}}",
+    "clockedOut": "Clocked out at {{time}}",
+    "inSince": "In since {{time}}",
+    "outAt": "Out at {{time}}",
+    "locked": "Locked",
+    "notAccepted": "Not accepted",
+    "errors": {
+      "incorrect_one": "Wrong PIN. {{count}} try left before clock-in locks for you on this till.",
+      "incorrect_other": "Wrong PIN. {{count}} tries left before clock-in locks for you on this till.",
+      "locked": "Clock-in is locked for you on this till after 5 wrong PINs. Ask HR to set a new clock-in PIN, then sync the till.",
+      "not_set": "You have no clock-in PIN on this till. Ask HR to set one, then sync the till.",
+      "unsupported": "This till cannot check your clock-in PIN. Update the app, then try again.",
+      "no_secret": "This till cannot check clock-in PINs until it syncs. Connect it, then sync.",
+      "not_found": "You are no longer on this till's clock-in list. Ask HR to check your clock-in settings.",
+      "failed": "Clock-in did not work. Try again."
+    }
+  },
   "changePin": {
     "title": "Choose a new PIN",
     "intro": "Your PIN was reset. Choose a new one before you sell.",

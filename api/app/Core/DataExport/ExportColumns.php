@@ -48,6 +48,15 @@ final class ExportColumns
         'billing_payment_methods.token' => 'a card provider\'s token for charging the subscription (SUB-04, encrypted)',
         'billing_payments.redirect_url' => 'a hosted card checkout link for a subscription payment, which may carry a session token (SUB-04)',
         'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
+        // HR-10: employees' personal data stored encrypted; the masked hints are exported.
+        'hr_employee_identifiers.value' => 'an employee\'s ID number (national ID, KRA PIN, CNSS number), shown in full only to identity readers (encrypted)',
+        'hr_employee_identifiers.value_digest' => 'a keyed digest of an employee\'s ID number, for uniqueness: attackable offline with the key',
+        'hr_pay_accounts.account_number' => 'an employee\'s bank or mobile-money account number, shown in full only to bank readers (encrypted)',
+        'hr_employees.medical_notes' => 'an employee\'s medical notes, shown only to medical readers (encrypted)',
+        // HR-23: clock-in PINs, kept as POS PINs are.
+        'hr_clock_pins.pin_hash' => 'clock-in PIN hash (HR-23)',
+        'hr_clock_pins.pin_salt' => 'clock-in PIN salt (HR-23)',
+        'hr_clock_pins.pin_key' => 'clock-in PIN verification key sent to tills (HR-23, encrypted)',
         // PRC-07, PRC-09: the supplier portal's credentials and the sealing of bids.
         'procurement_tenders.seal_secret' => 'a tender\'s own bid-sealing key (PRC-09, encrypted with the application key)',
         'procurement_tenders.public_token_secret' => 'an open tender\'s public notice token, encrypted (PRC-08, ADR 019)',
@@ -102,6 +111,8 @@ final class ExportColumns
         'user_pins.pin_iterations' => 'a hashing parameter, not the PIN',
         'user_pins.pin_digits' => 'the PIN\'s length',
         'user_pins.pin_set_at' => 'when the PIN was set',
+        'hr_clock_pins.pin_iterations' => 'a hashing parameter, not the PIN',
+        'hr_clock_pins.pin_digits' => 'the clock-in PIN\'s length',
         'users.two_factor_confirmed_at' => 'when two-step sign-in was turned on',
         'users.two_factor_method' => 'which two-step method the user chose',
     ];

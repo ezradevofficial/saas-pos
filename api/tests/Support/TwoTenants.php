@@ -47,6 +47,7 @@ use Illuminate\Testing\TestResponse;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\HR\Models\Employee;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
@@ -555,6 +556,13 @@ final class TwoTenants
         // manager (the department head is its requester), partly issued and
         // partly returned through Inventory.
         $stores = self::stores($test, $owner, ['Authorization' => 'Bearer '.$accepted->json('token'), 'Accept' => 'application/json'], $tenantId, $inventory['inventory_location'], $item, $dimensions);
+        // HR (docs/modules/hr.md): the module switched on; a position, a default
+        // onboarding template, an employee linked to the Owner (self-service)
+        // and a peer reporting to them, with identifiers, a pay account, a
+        // contract, a clock-in PIN, leave, shifts, a roster and a swap, a
+        // punch, a period, an attendance device, a document, a disciplinary
+        // case and an open appraisal cycle.
+        $hr = self::hr($test, [...$owner, 'Accept' => 'application/json'], $tenantId, $ownerId, $company, $branch, $location, $dimensions, $upper);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -636,6 +644,7 @@ final class TwoTenants
                 ...$inventory,
                 ...$procurement,
                 ...$stores,
+                ...$hr,
                 ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
@@ -1073,6 +1082,105 @@ final class TwoTenants
             'stores_issue' => $issue['id'],
             'stores_issue_line' => $issue['lines'][0]['id'],
             'stores_return' => $return,
+        ];
+    }
+
+    /**
+     * The HR fixture of one tenant, made through its API as the Owner.
+     *
+     * @param  array<string, string>  $dimensions
+     * @return array<string, string>
+     */
+    private static function hr(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $branch, string $location, array $dimensions, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('hr'));
+
+        $position = self::ok($test->postJson('/api/v1/hr/positions', ['company_id' => $company, 'code' => "POS-{$upper}", 'title' => "Cashier {$upper}", 'department_id' => $dimensions['department']], $owner), 201)->json('data.id');
+        $template = self::ok($test->postJson('/api/v1/hr/checklist-templates', [
+            'company_id' => $company, 'kind' => 'onboarding', 'name' => "Starter {$upper}", 'is_default' => true, 'items' => [['title' => "Sign contract {$upper}", 'due_days' => 0]],
+        ], $owner), 201)->json('data.id');
+        $employee = self::ok($test->postJson('/api/v1/hr/employees', [
+            'company_id' => $company, 'first_name' => 'Worker', 'last_name' => $upper, 'hire_date' => '2026-01-05', 'branch_id' => $branch, 'location_id' => $location,
+            'department_id' => $dimensions['department'], 'position_id' => $position, 'clock_methods' => ['till', 'web', 'device'],
+            'biometric_ref' => "BIO-{$upper}", 'date_of_birth' => '1990-04-12',
+        ], $owner), 201)->json('data.id');
+        // Linked to the Owner for self-service. Nobody links themselves through the API
+        // (hr.employee.link, link_self), so the fixture links in the database.
+        app(TenantContext::class)->run($tenantId, fn () => Employee::query()->whereKey($employee)->update(['user_id' => $ownerId]));
+        $peer = self::ok($test->postJson('/api/v1/hr/employees', [
+            'company_id' => $company, 'first_name' => 'Peer', 'last_name' => $upper, 'hire_date' => '2026-01-05', 'branch_id' => $branch, 'location_id' => $location, 'reports_to_id' => $employee,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/hr/employees/{$employee}/identifiers", ['identifiers' => [['type' => 'national_id', 'value' => "NID{$upper}12345"]]], $owner));
+        $payAccount = self::ok($test->postJson("/api/v1/hr/employees/{$employee}/pay-accounts", [
+            'kind' => 'bank', 'provider' => "Bank {$upper}", 'account_name' => "Worker {$upper}", 'account_number' => "ACC{$upper}00110022", 'currency' => 'KES',
+        ], $owner), 201)->json('data.id');
+        $contract = self::ok($test->postJson("/api/v1/hr/employees/{$employee}/contracts", [
+            'type' => 'permanent', 'start_date' => '2026-01-05', 'pay_basis' => 'monthly', 'pay_amount' => '45000', 'currency' => 'KES', 'position_id' => $position,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/hr/employees/{$employee}/clock-pin", ['pin' => '4321'], $owner));
+
+        $leaveType = self::ok($test->postJson('/api/v1/hr/leave-types', [
+            'company_id' => $company, 'code' => "AL-{$upper}", 'name' => "Annual {$upper}", 'accrual' => 'none', 'count_basis' => 'working_days', 'allow_negative' => true,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/hr/leave-adjustments', ['employee_id' => $peer, 'leave_type_id' => $leaveType, 'days' => '5', 'reason' => "Opening {$upper}"], $owner), 201);
+        $leaveRequest = self::ok($test->postJson('/api/v1/hr/leave-requests', [
+            'employee_id' => $peer, 'leave_type_id' => $leaveType, 'start_date' => '2026-12-14', 'end_date' => '2026-12-15', 'reason' => "Family {$upper}",
+        ], $owner), 201)->json('data.id');
+
+        $shift = self::ok($test->postJson('/api/v1/hr/shifts', ['company_id' => $company, 'code' => "DAY-{$upper}", 'name' => "Day {$upper}", 'start_time' => '08:00', 'end_time' => '16:00'], $owner), 201)->json('data.id');
+        $rotation = self::ok($test->postJson('/api/v1/hr/rotations', ['company_id' => $company, 'name' => "Rota {$upper}", 'days' => [$shift, null]], $owner), 201)->json('data.id');
+        $roster = self::ok($test->postJson('/api/v1/hr/rosters', [
+            'company_id' => $company, 'branch_id' => $branch, 'name' => "Roster {$upper}", 'rotation_id' => $rotation, 'anchor_date' => '2026-12-07',
+            'members' => [['employee_id' => $employee, 'offset_days' => 0], ['employee_id' => $peer, 'offset_days' => 1]],
+        ], $owner), 201)->json('data.id');
+        $rosterShift = self::ok($test->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $employee, 'date' => '2026-12-01', 'shift_id' => $shift], $owner), 201)->json('data.id');
+        $peerShift = self::ok($test->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $peer, 'date' => '2026-12-02', 'shift_id' => $shift], $owner), 201)->json('data.id');
+        $swap = self::ok($test->postJson('/api/v1/hr/shift-swaps', [
+            'employee_id' => $employee, 'roster_shift_id' => $rosterShift, 'peer_employee_id' => $peer, 'peer_roster_shift_id' => $peerShift, 'reason' => "Exam {$upper}",
+        ], $owner), 201)->json('data.id');
+
+        $timeRule = self::ok($test->postJson('/api/v1/hr/time-rules', [
+            'company_id' => $company, 'effective_from' => '2026-01-01', 'effective_to' => '2026-12-31', 'daily_overtime_after_minutes' => 480, 'night_start' => '22:00', 'night_end' => '06:00',
+        ], $owner), 201)->json('data.id');
+        $punch = self::ok($test->postJson('/api/v1/hr/punches', ['employee_id' => $employee, 'kind' => 'in', 'occurred_at' => '2026-10-05T08:00:00+03:00', 'note' => "Gate {$upper}"], $owner), 201)->json('data.id');
+        $period = self::ok($test->postJson('/api/v1/hr/attendance-periods', ['company_id' => $company, 'start_date' => '2026-01-01', 'end_date' => '2026-01-31'], $owner), 201)->json('data.id');
+        $attendanceDevice = self::ok($test->postJson('/api/v1/hr/attendance-devices', ['location_id' => $location, 'name' => "Gate reader {$upper}"], $owner), 201)->json('data.id');
+
+        $checklistItem = self::ok($test->getJson("/api/v1/hr/checklists?employee={$employee}", $owner))->json('data.0.items.0.id');
+        $case = self::ok($test->postJson('/api/v1/hr/disciplinary-cases', [
+            'employee_id' => $employee, 'category' => 'verbal_warning', 'incident_date' => '2026-10-01', 'description' => "Late {$upper}",
+        ], $owner), 201)->json('data.id');
+        $cycle = self::ok($test->postJson('/api/v1/hr/appraisal-cycles', ['company_id' => $company, 'name' => "Review {$upper}", 'period_start' => '2026-01-01', 'period_end' => '2026-12-31'], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/hr/appraisal-cycles/{$cycle}/open", [], $owner));
+        $appraisal = self::ok($test->getJson("/api/v1/hr/appraisals?employee={$employee}", $owner))->json('data.0.id');
+        $document = self::ok($test->post("/api/v1/hr/employees/{$employee}/documents", [
+            'category' => 'other', 'title' => "Letter {$upper}", 'file' => UploadedFile::fake()->create("letter-{$upper}.pdf", 4, 'application/pdf'),
+        ], $owner), 201)->json('data.id');
+
+        return [
+            'hr_employee' => $employee,
+            'hr_employee_peer' => $peer,
+            'hr_position' => $position,
+            'hr_pay_account' => $payAccount,
+            'hr_contract' => $contract,
+            'hr_leave_type' => $leaveType,
+            'hr_leave_request' => $leaveRequest,
+            'hr_shift' => $shift,
+            'hr_rotation' => $rotation,
+            'hr_roster' => $roster,
+            'hr_roster_shift' => $rosterShift,
+            'hr_roster_shift_peer' => $peerShift,
+            'hr_shift_swap' => $swap,
+            'hr_time_rule' => $timeRule,
+            'hr_punch' => $punch,
+            'hr_attendance_period' => $period,
+            'hr_attendance_device' => $attendanceDevice,
+            'hr_checklist_template' => $template,
+            'hr_checklist_item' => $checklistItem,
+            'hr_disciplinary_case' => $case,
+            'hr_appraisal_cycle' => $cycle,
+            'hr_appraisal' => $appraisal,
+            'hr_document' => $document,
         ];
     }
 

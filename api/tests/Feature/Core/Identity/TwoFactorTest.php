@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
+use Modules\HR\Http\Middleware\EnsureAttendanceDeviceToken;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -518,6 +519,11 @@ class TwoFactorTest extends TestCase
 
             // TEN-05: device routes (devices/me, sync, POS PINs) take device tokens only; user tokens are refused there.
             if (in_array(EnsureDeviceToken::class, $route->gatherMiddleware(), true)) {
+                continue;
+            }
+
+            // HR-24: attendance device routes take that device's own token only (never a user's).
+            if (in_array(EnsureAttendanceDeviceToken::class, $route->gatherMiddleware(), true)) {
                 continue;
             }
 

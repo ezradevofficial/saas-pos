@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity;
 
+use App\Core\Identity\Contracts\ServiceTokenable;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\LoginThrottle;
@@ -49,6 +50,8 @@ class IdentityServiceProvider extends ServiceProvider
                 $tokenable instanceof User => $tokenable->isActive()
                     && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id)),
                 $tokenable instanceof Device => $tokenable->isActive(),
+                // HR-24: a module's own machine (biometric terminals), while it accepts tokens.
+                $tokenable instanceof ServiceTokenable => $tokenable->acceptsTokens(),
                 default => false,
             };
 

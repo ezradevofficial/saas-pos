@@ -11,8 +11,9 @@ import { concatBytes, constantTimeEqual, fromBase64Url, toBase64Url, utf8 } from
  *   key      = PBKDF2-HMAC-SHA256(PIN as UTF-8, salt, iterations, 32 bytes)
  *   verifier = HMAC-SHA256(device secret, "pin:v1:{user_id}:" || key)
  *
- * (card: "card:v1:", the card code in upper case). The device secret is
- * the one named by the material's `kid`.
+ * (card: "card:v1:", the card code in upper case; HR clock-in PINs, HR-23:
+ * "hr-clock:v1:{employee_id}:", api/modules/HR/Attendance/ClockPins.php).
+ * The device secret is the one named by the material's `kid`.
  *
  * PBKDF2 runs, in order of preference, on the local AppCrypto native module
  * (modules/app-crypto: Android javax.crypto, iOS CommonCrypto; in the
@@ -88,12 +89,16 @@ export function normaliseSecret(kind, input) {
   return kind === 'card' ? String(input).toUpperCase() : String(input);
 }
 
-/** The verifier for a typed PIN or card (base64url), as the server computes it. */
-export async function computeVerifier({ kind = 'pin', userId, input, salt, iterations, deviceSecret, engine }) {
+/**
+ * The verifier for a typed PIN or card, as the server computes it. `prefix`
+ * names the message (default: the kind, "pin" or "card"; "hr-clock" for an
+ * HR clock-in PIN, whose `userId` is the employee id).
+ */
+export async function computeVerifier({ kind = 'pin', prefix = kind, userId, input, salt, iterations, deviceSecret, engine }) {
   const saltBytes = typeof salt === 'string' ? fromBase64Url(salt) : salt;
   const secretBytes = typeof deviceSecret === 'string' ? fromBase64Url(deviceSecret) : deviceSecret;
   const key = await pbkdf2Sha256(utf8(normaliseSecret(kind, input)), saltBytes, iterations, 32, { engine });
-  return hmacSha256(secretBytes, concatBytes(utf8(`${kind}:v1:${userId}:`), key));
+  return hmacSha256(secretBytes, concatBytes(utf8(`${prefix}:v1:${userId}:`), key));
 }
 
 /**
@@ -103,7 +108,7 @@ export async function computeVerifier({ kind = 'pin', userId, input, salt, itera
  * 'no_secret' (no device secret, or not the one the material names),
  * 'incorrect'.
  */
-export async function verifyOffline({ material, kind = 'pin', userId, input, deviceSecret, engine }) {
+export async function verifyOffline({ material, kind = 'pin', prefix = kind, userId, input, deviceSecret, engine }) {
   if (!material?.salt || !material?.verifier) return { ok: false, reason: 'not_set' };
   const iterations = Number(material.iterations);
   if (material.scheme !== PIN_SCHEME || !Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
@@ -117,7 +122,7 @@ export async function verifyOffline({ material, kind = 'pin', userId, input, dev
   const secret = fromBase64Url(deviceSecret.secret);
   if (!salt || !expected || !secret) return { ok: false, reason: 'unsupported' };
 
-  const actual = await computeVerifier({ kind, userId, input, salt, iterations, deviceSecret: secret, engine });
+  const actual = await computeVerifier({ kind, prefix, userId, input, salt, iterations, deviceSecret: secret, engine });
   return constantTimeEqual(actual, expected) ? { ok: true } : { ok: false, reason: 'incorrect' };
 }
 

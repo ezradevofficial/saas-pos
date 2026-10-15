@@ -35,9 +35,15 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `loyalty_promotions` (snapshots), `loyalty_members` (balances by
  * customer) and `loyalty_gift_cards` (by code hash, never the code).
  *
+ * v9 (HR module, HR-22, HR-23): the synced `hr_clock_staff` (who clocks in
+ * on this till, with their clock-in PIN material; a snapshot), and local
+ * `hr_punches` (clock-ins and clock-outs made here; uploads go through the
+ * outbox) and `hr_clock_attempts` (wrong clock-in PINs counted per
+ * employee on this till).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -147,6 +153,8 @@ export const schema = appSchema({
     tableSchema({ name: 'loyalty_gift_cards', columns: [{ name: 'code_hash', type: 'string', isIndexed: true }, data, seenAt] }),
     // v7: stock on hand at this till's location (Inventory, INV-17), read-only.
     tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+    // v9: the HR module's clock-in staff (HR-23), a snapshot.
+    tableSchema({ name: 'hr_clock_staff', columns: [{ name: 'name', type: 'string' }, { name: 'number', type: 'string' }, { name: 'version', type: 'number' }, data, seenAt] }),
     // v6: images by server path (data URIs), local only.
     tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 
@@ -180,6 +188,26 @@ export const schema = appSchema({
     tableSchema({ name: 'pos_counters', columns: [data] }),
     // The sale being rung up (and its payments in progress), so it survives an app restart.
     tableSchema({ name: 'pos_state', columns: [data] }),
+
+    // v9: clock-ins and clock-outs made on this till (HR-22, HR-23), local only (uploads go through the outbox).
+    tableSchema({
+      name: 'hr_punches',
+      columns: [
+        { name: 'employee_id', type: 'string', isIndexed: true },
+        // in | out
+        { name: 'kind', type: 'string' },
+        { name: 'occurred_at', type: 'number', isIndexed: true },
+      ],
+    }),
+    // v9: wrong clock-in PINs per employee on this till; `pin_stamp` names the PIN they were counted against.
+    tableSchema({
+      name: 'hr_clock_attempts',
+      columns: [
+        { name: 'failed_attempts', type: 'number' },
+        { name: 'locked', type: 'boolean' },
+        { name: 'pin_stamp', type: 'string' },
+      ],
+    }),
 
     // Local.
     tableSchema({

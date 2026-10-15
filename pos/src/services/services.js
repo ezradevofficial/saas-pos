@@ -1,6 +1,8 @@
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useContext } from 'react';
 import { createPinGate } from '../auth/pinGate';
+import { createClockGate } from '../hr/clockGate';
+import { createClockStore } from '../hr/clockStore';
 import { apiUrl } from '../config';
 import { createDatabase } from '../db';
 import { createCredentials } from '../device/credentials';
@@ -21,6 +23,9 @@ import { createSelling } from '../pos/selling';
  * Selling (POS-01..POS-06): services.selling records shifts, sales,
  * voids, refunds and cash movements locally and in the outbox;
  * services.posStore reads them back.
+ *
+ * Clock-in (HR-22, HR-23): services.clockGate checks clock-in PINs and
+ * records punches; services.clockStore reads them back.
  */
 export function createServices({ database, fetchImpl, credentialsBackend, netInfo = NetInfo, baseUrl = apiUrl, api: apiOverride } = {}) {
   const db = database ?? createDatabase();
@@ -41,7 +46,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   });
   const posStore = createPosStore(db);
   const selling = createSelling({ engine, posStore, api });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling };
+  const clockStore = createClockStore(db);
+  const clockGate = createClockGate({ clockStore, engine, credentials });
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, clockStore, clockGate };
 }
 
 export const ServicesContext = createContext(null);

@@ -22,6 +22,9 @@ class ModuleRegistry
     /** @var array<string, list<string>> registry module => the catalogue keys that switch it on (default: its own name) */
     private array $soldAs = [];
 
+    /** @var array<string, array<string, list<string>>> module => providing module => the module's resources it makes available */
+    private array $provided = [];
+
     /**
      * Stage 7B performance review: whether each module is active, memoised
      * per tenant for the request or queued job (flushed when a tenant's
@@ -71,6 +74,56 @@ class ModuleRegistry
             array_diff($this->registered(), [self::CORE]),
             fn (string $module) => array_intersect($this->catalogueKeys($module), $catalogueKeys) !== [],
         ));
+    }
+
+    /**
+     * Part of a module available while another is active: $module's
+     * $resources (their permissions and routes) are on whenever $by is
+     * active, even with $module off. HR's employee records come with
+     * Payroll sold alone (docs/modules/hr.md, owner decision B).
+     *
+     * @param  list<string>  $resources
+     */
+    public function provide(string $module, string $by, array $resources): void
+    {
+        $this->provided[$module][$by] = array_values(array_unique([...($this->provided[$module][$by] ?? []), ...$resources]));
+    }
+
+    /**
+     * RBAC-08: whether `module.resource.action` is on for the current
+     * tenant: its module is active, or a module providing that resource is.
+     * $active (the active modules, from active()) saves queries in loops.
+     *
+     * @param  list<string>|null  $active
+     */
+    public function permissionActive(string $permission, ?array $active = null): bool
+    {
+        [$module, $resource] = array_pad(explode('.', $permission, 3), 2, '');
+        $isActive = fn (string $name) => $active === null ? $this->isActive($name) : in_array($name, $active, true);
+
+        if ($isActive($module)) {
+            return true;
+        }
+
+        foreach ($this->provided[$module] ?? [] as $by => $resources) {
+            if (in_array($resource, $resources, true) && $isActive($by)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether any of $modules is active (a route open to several, `module:hr,payroll`). */
+    public function anyActive(array $modules): bool
+    {
+        foreach ($modules as $module) {
+            if ($this->isActive($module)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return list<string> */

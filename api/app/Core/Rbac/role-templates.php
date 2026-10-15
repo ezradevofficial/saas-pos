@@ -34,10 +34,12 @@ return [
             // PRC-01: a company's procurement tolerances, and the procurement views.
             'procurement.settings.edit', 'procurement.*.view',
             // STR-10, STR-12: reads Stores' documents, ledger, consumption and values.
-            'stores.*.view'],
+            'stores.*.view',
+            // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
+            'hr.*.view'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
-        'except' => ['core.tenant.export', 'core.onboarding.modules'],
+        'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -69,6 +71,10 @@ return [
             'loyalty.*',
             // Stores (docs/modules/stores.md): requisitions, issues, returns and reports at their branch.
             'stores.*',
+            // HR (docs/modules/hr.md): their staff's records (never the sensitive groups), leave approvals,
+            // rosters and swaps, attendance, checklists and appraisals at their branch.
+            'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
+            'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -155,6 +161,8 @@ return [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
+            // IMP-01, HR-34: imports employees (hr.employee.create|edit).
+            'core.import.run',
             'hr.*',
         ],
         'is_owner' => false,
@@ -167,6 +175,8 @@ return [
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             'payroll.*', 'hr.employee.view',
+            // HR-33: what payroll pays from: contracts and pay, pay accounts and identifiers, leave and attendance.
+            'hr.contract.view', 'hr.pay.view', 'hr.bank.view', 'hr.identity.view', 'hr.leave.view', 'hr.attendance.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -207,6 +217,8 @@ return [
             'procurement.requisition.view', 'procurement.po.view', 'procurement.invoice.view', 'procurement.value.view',
             // STR-03: the requisitions they approve.
             'stores.requisition.view',
+            // HR-14, HR-19: the leave and shift swaps they approve.
+            'hr.leave.view', 'hr.roster.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -220,6 +232,8 @@ return [
     [
         'key' => 'read_only_auditor',
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
+        // HR-09: personal data is not an auditor's to read.
+        'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

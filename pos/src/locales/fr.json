@@ -103,6 +103,37 @@
       "failed": "La connexion a échoué. Réessayez."
     }
   },
+  "clockIn": {
+    "entry": "Pointer l’arrivée ou le départ",
+    "title": "Pointer l’arrivée ou le départ",
+    "subtitle": "Choisissez votre nom, puis saisissez votre code de pointage.",
+    "search": "Rechercher par nom ou matricule",
+    "noMatch": "Personne ne correspond à cette recherche.",
+    "empty": "Personne ne pointe encore sur cette caisse. Demandez aux RH de définir les codes de pointage du personnel de ce site, puis synchronisez.",
+    "pinFor": "Code de pointage de {{name}}",
+    "clockIn": "Pointer l’arrivée",
+    "clockOut": "Pointer le départ",
+    "checking": "Vérification",
+    "otherPerson": "Choisir quelqu’un d’autre",
+    "back": "Retour à la connexion",
+    "next": "Retour à la liste",
+    "clockedIn": "Arrivée pointée à {{time}}",
+    "clockedOut": "Départ pointé à {{time}}",
+    "inSince": "Présent depuis {{time}}",
+    "outAt": "Parti à {{time}}",
+    "locked": "Bloqué",
+    "notAccepted": "Non accepté",
+    "errors": {
+      "incorrect_one": "Code incorrect. Encore {{count}} essai avant le blocage du pointage pour vous sur cette caisse.",
+      "incorrect_other": "Code incorrect. Encore {{count}} essais avant le blocage du pointage pour vous sur cette caisse.",
+      "locked": "Le pointage est bloqué pour vous sur cette caisse après 5 codes incorrects. Demandez aux RH un nouveau code de pointage, puis synchronisez la caisse.",
+      "not_set": "Vous n’avez pas de code de pointage sur cette caisse. Demandez aux RH d’en définir un, puis synchronisez la caisse.",
+      "unsupported": "Cette caisse ne peut pas vérifier votre code de pointage. Mettez l’application à jour, puis réessayez.",
+      "no_secret": "Cette caisse ne peut pas vérifier les codes de pointage avant de se synchroniser. Connectez-la, puis synchronisez.",
+      "not_found": "Vous n’êtes plus sur la liste de pointage de cette caisse. Demandez aux RH de vérifier vos paramètres de pointage.",
+      "failed": "Le pointage n’a pas fonctionné. Réessayez."
+    }
+  },
   "changePin": {
     "title": "Choisir un nouveau code PIN",
     "intro": "Votre code PIN a été réinitialisé. Choisissez-en un nouveau avant de vendre.",
