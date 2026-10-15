@@ -15,6 +15,7 @@ use Modules\Payroll\Http\Requests\StoreSetupRequest;
 use Modules\Payroll\Http\Resources\SetupResource;
 use Modules\Payroll\Models\Item;
 use Modules\Payroll\Models\PayGroup;
+use Modules\Payroll\Models\Run;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
 use Modules\Payroll\Statutory\PayrollPack;
@@ -90,7 +91,22 @@ class SetupController
 
     public function updatePayGroup(PayGroupRequest $request, PayGroup $payrollPayGroup): SetupResource
     {
-        $this->unique(fn () => $payrollPayGroup->fill($request->validated())->save());
+        $data = $request->validated();
+
+        if (array_key_exists('anchor_date', $data)) {
+            $anchor = $data['anchor_date'];
+
+            // Review fix 3: a weekly or bi-weekly group keeps an anchor; once it has runs its periods never move.
+            if ($payrollPayGroup->frequency !== PayGroup::MONTHLY && $anchor === null) {
+                throw Errors::make(422, 'anchor_required', field: 'anchor_date');
+            }
+
+            if ($anchor !== $payrollPayGroup->anchor_date?->toDateString() && Run::query()->where('pay_group_id', $payrollPayGroup->id)->exists()) {
+                throw Errors::make(422, 'pay_group_has_runs', field: 'anchor_date');
+            }
+        }
+
+        $this->unique(fn () => $payrollPayGroup->fill($data)->save());
 
         return SetupResource::make($payrollPayGroup->refresh()->load('company'));
     }

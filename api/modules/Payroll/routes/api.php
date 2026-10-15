@@ -78,17 +78,17 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('runs/{payroll_run}/post', [RunController::class, 'post'])->name('runs.post');
     Route::post('runs/{payroll_run}/corrections', [RunController::class, 'correction'])->name('runs.corrections');
     Route::get('runs/{payroll_run}/payment-file', [RunController::class, 'paymentFile'])->middleware('throttle:payroll-files')->name('runs.payment-file');
-    Route::get('runs/{payroll_run}/payment-summary', [RunController::class, 'paymentSummary'])->name('runs.payment-summary');
+    Route::get('runs/{payroll_run}/payment-summary', [RunController::class, 'paymentSummary'])->middleware('throttle:payroll-files')->name('runs.payment-summary');
 
     // PAY-19.
     Route::get('payslips', [PayslipController::class, 'index'])->name('payslips.index');
     Route::get('payslips/{payroll_payslip}', [PayslipController::class, 'show'])->name('payslips.show');
-    Route::get('payslips/{payroll_payslip}/pdf', [PayslipController::class, 'pdf'])->name('payslips.pdf');
+    Route::get('payslips/{payroll_payslip}/pdf', [PayslipController::class, 'pdf'])->middleware('throttle:payroll-files')->name('payslips.pdf');
 
     // PAY-24: "My payslips" (the linked employee, no permission needed).
     Route::get('me/payslips', [PayslipController::class, 'index'])->name('me.payslips.index');
     Route::get('me/payslips/{payroll_payslip}', [PayslipController::class, 'show'])->name('me.payslips.show');
-    Route::get('me/payslips/{payroll_payslip}/pdf', [PayslipController::class, 'pdf'])->name('me.payslips.pdf');
+    Route::get('me/payslips/{payroll_payslip}/pdf', [PayslipController::class, 'pdf'])->middleware('throttle:payroll-files')->name('me.payslips.pdf');
 
     // PAY-21.
     Route::get('returns/types', [ReturnController::class, 'types'])->name('returns.types');

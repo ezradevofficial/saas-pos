@@ -107,6 +107,8 @@ class PaymentFiles
     {
         $format = $this->format($formatKey);
         $built = $this->rows($run, $format, $user);
+        // Review fix 11: reading who is paid where (accounts read through HR) is audited too.
+        $this->auditor->record('payroll.payment_file.summary', $run, null, ['format' => $format->key(), 'employees' => count($built['rows']), 'left_out' => count($built['missing'])]);
 
         return ['format' => $format->key(), 'employees' => count($built['rows']), 'totals' => $built['totals'], 'missing' => $built['missing'], 'cash' => $built['cash']];
     }

@@ -36,6 +36,8 @@ class LoanController
             return $export->download($request, $query);
         }
 
+        app(PayFields::class)->recordList('loans');
+
         return LoanResource::collection($query->paginate($request->perPage())->withQueryString());
     }
 

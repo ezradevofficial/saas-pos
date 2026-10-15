@@ -29,6 +29,12 @@ return [
         'code_taken' => 'This code is already in use. Enter another code.',
         'return_no_runs' => 'No posted run was paid in this period. Choose another period.',
         'return_type_unknown' => 'Choose one of the return types of the company’s country.',
+        'loan_changed' => 'A loan this run deducts has changed since it was calculated. Calculate the run again.',
+        'loan_on_run' => 'A run waiting for approval deducts this loan. Wait until it is posted, or reject it first.',
+        'correction_open' => 'This period already has an open correction. Finish or cancel it first.',
+        'correction_stale' => 'Another correction of this period was posted since this one was calculated. Calculate it again.',
+        'anchor_required' => 'A weekly or bi-weekly pay group needs its first period start date.',
+        'pay_group_has_runs' => 'This pay group has runs, so its periods can no longer move. Create a new pay group instead.',
         'return_period' => 'Enter the period as YYYY-MM (or YYYY for a yearly return).',
     ],
 
@@ -37,6 +43,7 @@ return [
         'monthly_hours_missing' => 'Overtime needs the contract’s weekly hours or the standard monthly hours in payroll settings.',
         'currency_mismatch' => 'An item or loan isn’t in the employee’s pay currency.',
         'rate_missing' => 'An exchange rate for the pay date is missing. Add it in exchange rates.',
+        'paid_in_other_run' => 'Already in another pay group’s run for these days. Take them out of one pay group.',
         'net_negative' => 'Net pay is below zero. Reduce a deduction or a loan instalment.',
     ],
 
@@ -140,6 +147,7 @@ return [
         ],
         'fields' => [
             'period' => 'no period in force',
+            'periods_overlap' => 'periods that overlap',
             'needs_confirmation' => 'needs confirmation',
             'method' => 'unknown method',
             'non_monthly' => 'rule for weekly and bi-weekly pay',

@@ -8,6 +8,8 @@ use Carbon\CarbonImmutable;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\LoanEntry;
 use Modules\Payroll\Models\PayrollEmployee;
+use Modules\Payroll\Models\Run;
+use Modules\Payroll\Models\RunLine;
 use Modules\Payroll\Support\Errors;
 
 /**
@@ -85,6 +87,8 @@ class Loans
                 throw Errors::make(422, 'loan_settled');
             }
 
+            $this->assertNotInFlow($loan);
+
             if ($method === 'next_run') {
                 $loan->fill(['settle_next_run' => true])->save();
                 $this->auditor->record('payroll.loan.settle_next_run', $loan);
@@ -104,6 +108,22 @@ class Loans
         });
     }
 
+    /**
+     * Review fix 1: a loan a run in approval (pending or approved) deducts
+     * cannot change under it (409 `loan_on_run`). On a draft or calculated
+     * run it may: that run is then refused at submission and posting
+     * (`loan_changed`) until it is calculated again.
+     */
+    private function assertNotInFlow(Loan $loan): void
+    {
+        $inFlow = RunLine::query()->whereJsonContains('loans', [['loan_id' => $loan->id]])
+            ->whereIn('run_id', Run::query()->whereIn('status', [Run::PENDING, Run::APPROVED])->select('id'))->exists();
+
+        if ($inFlow) {
+            throw Errors::make(409, 'loan_on_run');
+        }
+    }
+
     public function cancel(Loan $loan, ?string $reason, User $by): Loan
     {
         return Errors::transaction(function () use ($loan, $reason, $by) {
@@ -112,6 +132,8 @@ class Loans
             if ($loan->status !== Loan::ACTIVE || LoanEntry::query()->where('loan_id', $loan->id)->where('kind', '<>', LoanEntry::DISBURSEMENT)->exists()) {
                 throw Errors::make(422, 'loan_started');
             }
+
+            $this->assertNotInFlow($loan);
 
             LoanEntry::query()->create([
                 'loan_id' => $loan->id, 'kind' => LoanEntry::REVERSAL, 'amount_minor' => -$loan->balance(),

@@ -17,7 +17,16 @@ use Carbon\CarbonImmutable;
  */
 class PayrollPack
 {
-    /** @var array<string, ?array<string, mixed>> */
+    /** Review fix 5: environments where PAYROLL_PACK_DIR (uncommitted test packs) is honoured. */
+    public const OVERRIDE_ENVIRONMENTS = ['local', 'testing', 'staging'];
+
+    /**
+     * Review fix 11: parsed packs, kept while their file is unchanged (its
+     * path, modification time and size), so a long-running worker picks up
+     * a pack update without a restart.
+     *
+     * @var array<string, array{key: string, pack: ?array<string, mixed>, source: array<string, ?string>}>
+     */
     private array $packs = [];
 
     /** @var array<string, ?array<string, mixed>> country => a test's pack */
@@ -26,21 +35,52 @@ class PayrollPack
     /** The pack of $country, or null when the country has none. */
     public function of(?string $country): ?array
     {
+        return $this->load($country)['pack'];
+    }
+
+    /**
+     * Review fix 5: where $country's pack was read from (`shipped`,
+     * `override` or `test`), its file and the sha256 of its content, stamped
+     * on each run it calculates.
+     *
+     * @return array{country: string, source: string, file: ?string, sha256: ?string}
+     */
+    public function source(?string $country): array
+    {
+        return $this->load($country)['source'];
+    }
+
+    /** @return array{pack: ?array<string, mixed>, source: array<string, ?string>} */
+    private function load(?string $country): array
+    {
         $code = strtoupper((string) $country);
 
         if (array_key_exists($code, $this->fakes)) {
-            return $this->fakes[$code];
+            $pack = $this->fakes[$code];
+
+            return ['pack' => $pack, 'source' => ['country' => $code, 'source' => 'test', 'file' => null, 'sha256' => $pack === null ? null : hash('sha256', json_encode($pack))]];
         }
 
-        if (array_key_exists($code, $this->packs)) {
+        $override = config('payroll.pack_dir');
+        $overridden = is_string($override) && $override !== '' && app()->environment(self::OVERRIDE_ENVIRONMENTS);
+        $dir = $overridden ? rtrim($override, '/') : base_path('country-packs');
+        $file = preg_match('/^[A-Z]{2}\z/', $code) === 1 ? "{$dir}/{$code}/payroll.json" : null;
+
+        clearstatcache(true, (string) $file);
+        $exists = $file !== null && is_file($file);
+        $key = $exists ? $file.'|'.filemtime($file).'|'.filesize($file) : 'none|'.$file;
+
+        if (($this->packs[$code]['key'] ?? null) === $key) {
             return $this->packs[$code];
         }
 
-        $file = rtrim((string) (config('payroll.pack_dir') ?: base_path('country-packs')), '/')."/{$code}/payroll.json";
+        $content = $exists ? (string) file_get_contents($file) : null;
 
-        return $this->packs[$code] = preg_match('/^[A-Z]{2}\z/', $code) === 1 && is_file($file)
-            ? json_decode((string) file_get_contents($file), true, 32, JSON_THROW_ON_ERROR)
-            : null;
+        return $this->packs[$code] = [
+            'key' => $key,
+            'pack' => $content === null ? null : json_decode($content, true, 32, JSON_THROW_ON_ERROR),
+            'source' => ['country' => $code, 'source' => $overridden ? 'override' : 'shipped', 'file' => $exists ? $file : null, 'sha256' => $content === null ? null : hash('sha256', $content)],
+        ];
     }
 
     /** Tests only: use $pack for $country (null: the country has no pack). */
@@ -68,10 +108,25 @@ class PayrollPack
 
         foreach ($pack['components'] ?? [] as $component) {
             $values = null;
+            $periods = array_values($component['periods'] ?? []);
 
-            foreach ($component['periods'] ?? [] as $period) {
+            foreach ($periods as $period) {
                 if (($period['effective_from'] ?? '9999-12-31') <= $date && (($period['effective_to'] ?? null) === null || $period['effective_to'] >= $date)) {
                     $values = $period;
+                }
+            }
+
+            // Review fix 11: two periods of one component covering the same day are an error of the pack.
+            $overlapping = false;
+
+            foreach ($periods as $i => $a) {
+                foreach (array_slice($periods, $i + 1) as $b) {
+                    $aEnd = $a['effective_to'] ?? '9999-12-31';
+                    $bEnd = $b['effective_to'] ?? '9999-12-31';
+
+                    if (($a['effective_from'] ?? '') <= $bEnd && ($b['effective_from'] ?? '') <= $aEnd) {
+                        $overlapping = true;
+                    }
                 }
             }
 
@@ -84,6 +139,7 @@ class PayrollPack
                 'when' => $component['when'] ?? null,
                 'required' => (bool) ($component['required'] ?? true),
                 'values' => $values,
+                'overlapping' => $overlapping,
             ];
         }
 

@@ -16,6 +16,7 @@ use Modules\Payroll\Http\Resources\PayEmployeeResource;
 use Modules\Payroll\Models\EmployeeItem;
 use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Payroll\Support\Errors;
+use Modules\Payroll\Support\PayFields;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** PAY-05, PAY-06: employees' pay setup and their items, at the reader's places. */
@@ -46,7 +47,7 @@ class EmployeeController
 
     public function sync(SyncEmployeesRequest $request, EmployeeCopy $copy): JsonResponse
     {
-        $count = Errors::transaction(fn () => $copy->syncCompany($request->validated('company_id')));
+        $count = Errors::transaction(fn () => $copy->syncCompany($request->validated('company_id'), user: $request->user()));
 
         return response()->json(['data' => ['employees' => $count]]);
     }
@@ -63,8 +64,10 @@ class EmployeeController
         return PayEmployeeResource::make($payrollEmployee->refresh()->load(PayEmployeeList::RELATIONS))->detail();
     }
 
-    public function items(PayEmployeeRequest $request, PayrollEmployee $payrollEmployee): AnonymousResourceCollection
+    public function items(PayEmployeeRequest $request, PayrollEmployee $payrollEmployee, PayFields $fields): AnonymousResourceCollection
     {
+        $fields->recordList('employee_items', ['payroll_employee_id' => $payrollEmployee->id]);
+
         return EmployeeItemResource::collection(EmployeeItem::query()->with('item')->where('payroll_employee_id', $payrollEmployee->id)
             ->orderByRaw('archived_at is not null')->orderByDesc('created_at')->get());
     }

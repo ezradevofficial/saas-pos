@@ -54,6 +54,21 @@ class PayFields
         }
     }
 
+    /**
+     * Review fix 6: a list showing pay amounts (payslips, loans, an
+     * employee's items) is audited once per request and list, when the
+     * reader sees the amounts.
+     */
+    public function recordList(string $context, array $extra = []): void
+    {
+        if ($this->hides(self::AMOUNTS) || isset($this->audited['list|'.$context])) {
+            return;
+        }
+
+        $this->audited['list|'.$context] = true;
+        $this->auditor->record('payroll.pay.view', null, null, ['context' => $context, ...$extra]);
+    }
+
     /** PAY-23: record that $what of $subject was shown (once per subject and context in this request). */
     public function recordView(Model $subject, string $context, array $extra = []): void
     {

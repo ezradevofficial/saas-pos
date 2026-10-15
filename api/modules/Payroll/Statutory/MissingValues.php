@@ -67,6 +67,10 @@ final class MissingValues
     {
         $values = $component['values'];
 
+        if ($component['overlapping'] ?? false) {
+            return ['periods_overlap'];
+        }
+
         if ($values === null) {
             return ['period'];
         }

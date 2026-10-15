@@ -10,6 +10,7 @@ use Modules\Payroll\Http\Resources\PayslipResource;
 use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Payslips\Payslips;
 use Modules\Payroll\Payslips\PayslipSource;
+use Modules\Payroll\Support\PayFields;
 
 /**
  * PAY-19, PAY-24: payslips for payroll readers (`payroll/payslips`) and
@@ -20,7 +21,7 @@ class PayslipController
 {
     public function __construct(private readonly Payslips $payslips) {}
 
-    public function index(PayslipRequest $request): AnonymousResourceCollection
+    public function index(PayslipRequest $request, PayFields $fields): AnonymousResourceCollection
     {
         $query = Payslip::query()->with(['run', 'line']);
 
@@ -42,6 +43,8 @@ class PayslipController
                 $query->whereIn('run_line_id', fn ($q) => $q->select('id')->from('payroll_run_lines')->where(fn ($w) => $w->where('number', 'ilike', $like)->orWhere('name', 'ilike', $like)));
             }
         }
+
+        $fields->recordList($request->own() ? 'my_payslips' : 'payslips');
 
         return PayslipResource::collection($query->orderByDesc('issued_at')->orderBy('number')->paginate($request->perPage())->withQueryString());
     }

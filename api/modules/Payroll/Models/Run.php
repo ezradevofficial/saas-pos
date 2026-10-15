@@ -73,7 +73,7 @@ class Run extends Model implements HasScope
     {
         return [
             'period_start' => 'immutable_date', 'period_end' => 'immutable_date', 'pay_date' => 'immutable_date',
-            'totals' => 'array', 'missing' => 'array', 'correction_employee_ids' => 'array',
+            'totals' => 'array', 'missing' => 'array', 'inputs' => 'array', 'correction_employee_ids' => 'array',
             'calculated_at' => 'immutable_datetime', 'submitted_at' => 'immutable_datetime', 'approved_at' => 'immutable_datetime',
             'rejected_at' => 'immutable_datetime', 'posted_at' => 'immutable_datetime', 'cancelled_at' => 'immutable_datetime',
         ];

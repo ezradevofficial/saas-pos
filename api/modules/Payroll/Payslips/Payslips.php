@@ -6,8 +6,8 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\HR\Contracts\Employees;
-use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Payroll\Models\Payslip;
+use Modules\Payroll\Models\RunLine;
 use Modules\Payroll\Support\Access;
 use Modules\Payroll\Support\PayFields;
 
@@ -40,12 +40,16 @@ class Payslips
         return in_array($payslip->employee_id, $this->ownEmployeeIds($user), true);
     }
 
-    /** As a payroll reader: the permission at the employee's place and amounts not hidden. */
+    /**
+     * As a payroll reader: the permission at the place the employee had on
+     * the payslip (its run line's branch and location, review fix 10, not
+     * where they work now) and amounts not hidden.
+     */
     public function readsAsPayroll(User $user, Payslip $payslip): bool
     {
-        $employee = PayrollEmployee::query()->find($payslip->payroll_employee_id);
+        $line = RunLine::query()->find($payslip->run_line_id);
 
-        return $employee !== null && $this->access->can($user, self::VIEW, $employee) && ! $this->fields->hides(PayFields::AMOUNTS);
+        return $line !== null && $this->access->can($user, self::VIEW, $line) && ! $this->fields->hides(PayFields::AMOUNTS);
     }
 
     public function sees(User $user, Payslip $payslip): bool
@@ -56,7 +60,7 @@ class Payslips
     /** Payslips a payroll reader may list. */
     public function limit(Builder $query, User $user): Builder
     {
-        return $this->access->limitPlaces($query, $user, self::VIEW, 'payroll_employee_id');
+        return $this->access->limitPlaces($query, $user, self::VIEW, 'run_line_id', 'payroll_run_lines');
     }
 
     public function recordView(Payslip $payslip, string $context): void

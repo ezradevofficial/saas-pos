@@ -2,9 +2,13 @@
 
 namespace Modules\Payroll\Employees;
 
+use App\Core\Identity\Models\User;
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
+use Modules\HR\Contracts\AttendanceRecords;
 use Modules\HR\Contracts\Employees;
 use Modules\HR\Contracts\EmploymentContracts;
+use Modules\HR\Contracts\LeaveRecords;
 use Modules\HR\Events\AttendancePeriodClosed;
 use Modules\HR\Events\ContractChanged;
 use Modules\HR\Events\EmployeeHired;
@@ -29,6 +33,8 @@ class EmployeeCopy
     public function __construct(
         private readonly Employees $employees,
         private readonly EmploymentContracts $contracts,
+        private readonly LeaveRecords $leave,
+        private readonly AttendanceRecords $attendance,
     ) {}
 
     public function hired(EmployeeHired $event): void
@@ -78,26 +84,60 @@ class EmployeeCopy
             return;
         }
 
-        foreach ($event->dates as $day) {
-            $row = LeaveDay::query()->firstOrNew(['request_id' => $event->requestId, 'date' => $day['date']]);
-            $row->fill(['employee_id' => $event->employeeId, 'company_id' => $event->companyId, 'fraction' => $day['fraction'], 'cancelled_at' => null])->save();
+        $this->approveDays($event->requestId, $event->employeeId, $event->companyId, $event->dates);
+    }
+
+    /**
+     * Review fix 8: order-safe. A cancelled day is a tombstone: a
+     * LeaveApproved arriving after its LeaveCancelled (queued listeners,
+     * retries) never brings it back; HR never approves a cancelled
+     * request again (a new request has a new id).
+     */
+    public function leaveCancelled(LeaveCancelled $event): void
+    {
+        $this->cancelDays($event->requestId, $event->employeeId, $event->companyId, array_column($event->dates, 'date'));
+    }
+
+    /** @param list<array{date: string, fraction: string}> $dates */
+    private function approveDays(string $requestId, string $employeeId, string $companyId, array $dates): void
+    {
+        foreach ($dates as $day) {
+            $row = LeaveDay::query()->firstOrNew(['request_id' => $requestId, 'date' => $day['date']]);
+
+            if ($row->exists && $row->cancelled_at !== null) {
+                continue;
+            }
+
+            $row->fill(['employee_id' => $employeeId, 'company_id' => $companyId, 'fraction' => $day['fraction']])->save();
         }
     }
 
-    public function leaveCancelled(LeaveCancelled $event): void
+    /** @param list<string> $dates */
+    private function cancelDays(string $requestId, string $employeeId, string $companyId, array $dates): void
     {
-        LeaveDay::query()->where('request_id', $event->requestId)->whereIn('date', array_column($event->dates, 'date'))->whereNull('cancelled_at')
-            ->update(['cancelled_at' => now(), 'updated_at' => now()]);
+        foreach ($dates as $date) {
+            $row = LeaveDay::query()->firstOrNew(['request_id' => $requestId, 'date' => $date], ['fraction' => '0']);
+
+            if ($row->cancelled_at === null) {
+                $row->fill(['employee_id' => $employeeId, 'company_id' => $companyId, 'cancelled_at' => now()])->save();
+            }
+        }
     }
 
     /** PAY-12: each employee's minutes of a closed period (a period is closed once in HR). */
     public function attendanceClosed(AttendancePeriodClosed $event): void
     {
-        foreach ($event->employees as $row) {
-            Attendance::query()->firstOrCreate(['period_id' => $event->periodId, 'employee_id' => $row['employee_id']], [
-                'company_id' => $event->companyId,
-                'start_date' => $event->startDate,
-                'end_date' => $event->endDate,
+        $this->copyPeriod($event->periodId, $event->companyId, $event->startDate, $event->endDate, $event->employees);
+    }
+
+    /** @param list<array<string, mixed>> $employees */
+    private function copyPeriod(string $periodId, string $companyId, string $startDate, string $endDate, array $employees): void
+    {
+        foreach ($employees as $row) {
+            Attendance::query()->firstOrCreate(['period_id' => $periodId, 'employee_id' => $row['employee_id']], [
+                'company_id' => $companyId,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'worked_minutes' => (int) $row['worked_minutes'],
                 'regular_minutes' => (int) $row['regular_minutes'],
                 'overtime_minutes' => (int) $row['overtime_minutes'],
@@ -110,20 +150,46 @@ class EmployeeCopy
     }
 
     /**
-     * PAY-05: refresh the copy of a company's employees and contracts from
-     * HR (before a run is calculated, and on demand); returns how many
-     * employees were copied.
+     * PAY-05: refresh the copy of a company's employees, contracts, unpaid
+     * leave and closed attendance periods from HR's read contracts (before
+     * a run is calculated, inside it; and on demand, for a user with
+     * `hr.pay.view`), so Payroll switched on after HR gets the history
+     * (review fix 8); returns how many employees were copied.
      */
-    public function syncCompany(string $companyId, ?string $runId = null): int
+    public function syncCompany(string $companyId, ?string $runId = null, ?User $user = null): int
     {
+        if ($runId === null && $user === null) {
+            throw new InvalidArgumentException('A payroll run or a user reads the contracts (review fix 9).');
+        }
+
         $basics = $this->employees->ofCompany($companyId);
 
         foreach ($basics as $employee) {
             $this->upsert($employee);
         }
 
-        foreach ($this->contracts->forPayrollRun($companyId, $runId) as $contract) {
+        $contracts = $runId !== null ? $this->contracts->forPayrollRun($companyId, $runId) : $this->contracts->forUser($companyId, $user);
+
+        foreach ($contracts as $contract) {
             $this->upsertContract($contract);
+        }
+
+        foreach ($this->leave->unpaidOfCompany($companyId) as $request) {
+            $request['status'] === 'approved'
+                ? $this->approveDays($request['request_id'], $request['employee_id'], $request['company_id'], $request['dates'])
+                : $this->cancelDays($request['request_id'], $request['employee_id'], $request['company_id'], array_column($request['dates'], 'date'));
+
+            // A request trimmed in HR (a backdated termination) keeps only its current days.
+            if ($request['status'] === 'approved') {
+                $kept = array_column($request['dates'], 'date');
+                $gone = LeaveDay::query()->where('request_id', $request['request_id'])->whereNull('cancelled_at')->get()
+                    ->filter(fn (LeaveDay $d) => ! in_array($d->date->toDateString(), $kept, true))->map(fn (LeaveDay $d) => $d->date->toDateString())->values()->all();
+                $this->cancelDays($request['request_id'], $request['employee_id'], $request['company_id'], $gone);
+            }
+        }
+
+        foreach ($this->attendance->closedOfCompany($companyId) as $period) {
+            $this->copyPeriod($period['period_id'], $period['company_id'], $period['start_date'], $period['end_date'], $period['employees']);
         }
 
         return count($basics);

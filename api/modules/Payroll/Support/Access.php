@@ -41,7 +41,7 @@ class Access
     }
 
     /** Keep $query (with company, branch and location columns, or through `$via` to payroll_employees) to the places $user holds $permission at. */
-    public function limitPlaces(Builder $query, User $user, string $permission, ?string $via = null): Builder
+    public function limitPlaces(Builder $query, User $user, string $permission, ?string $via = null, string $table = 'payroll_employees'): Builder
     {
         $visible = $this->visible($user, $permission);
 
@@ -50,7 +50,7 @@ class Access
         }
 
         if ($via !== null) {
-            return $query->whereIn($query->qualifyColumn($via), fn ($q) => self::placeFilter($q->select('id')->from('payroll_employees'), $visible, 'payroll_employees'));
+            return $query->whereIn($query->qualifyColumn($via), fn ($q) => self::placeFilter($q->select('id')->from($table), $visible, $table));
         }
 
         return self::placeFilter($query, $visible, null);

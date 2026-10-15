@@ -134,7 +134,8 @@ class RunCalculator
             RunLine::query()->create($line);
         }
 
-        $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees)])->save();
+        // Review fix 5: what the run was calculated from (the pack's source and hash).
+        $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees), 'inputs' => ['pack' => $this->packs->source($company->country)]])->save();
     }
 
     /** @return Collection<string, PayrollEmployee> by id */
@@ -180,6 +181,13 @@ class RunCalculator
 
         if ($contracts->isEmpty()) {
             $warnings[] = 'no_contract';
+        }
+
+        // Review fix 3: never paid twice for the same days by two pay groups' regular runs.
+        if ($run->kind === Run::REGULAR && RunLine::query()->where('payroll_employee_id', $employee->id)
+            ->whereIn('run_id', Run::query()->where('kind', Run::REGULAR)->where('status', '<>', Run::CANCELLED)->whereKeyNot($run->id)
+                ->whereDate('period_start', '<=', $run->period_end)->whereDate('period_end', '>=', $run->period_start)->select('id'))->exists()) {
+            $errors[] = 'paid_in_other_run';
         }
 
         // Converts a contract amount into the pay currency at the run's rate (CUR-04).

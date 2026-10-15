@@ -88,7 +88,17 @@ class Runs
 
         $original = $run->kind === Run::CORRECTION ? Run::query()->findOrFail($run->corrects_run_id) : $run;
 
-        return Errors::transaction(fn () => Run::query()->create([
+        try {
+            return Errors::transaction(fn () => $this->createCorrection($run, $original, $data, $by));
+        } catch (UniqueConstraintViolationException) {
+            // Review fix 2: one open correction per pay group and period.
+            throw Errors::make(422, 'correction_open');
+        }
+    }
+
+    private function createCorrection(Run $run, Run $original, array $data, User $by): Run
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(fn () => Run::query()->create([
             'number' => $this->numbers->next($run->company_id),
             'company_id' => $run->company_id,
             'pay_group_id' => $run->pay_group_id,
@@ -107,13 +117,13 @@ class Runs
 
     public function calculate(Run $run, User $by): Run
     {
-        $run = $this->locked($run, [Run::DRAFT, Run::CALCULATED]);
         // PAY-08: a refused calculation keeps what is missing on the run (so the screen can show it).
         $missing = null;
 
         try {
             Errors::transaction(function () use ($run, $by) {
-                $run = Run::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
+                // Review fix 7: the status is read under the lock, inside the transaction.
+                $run = $this->locked($run, [Run::DRAFT, Run::CALCULATED]);
                 $this->calculator->calculate($run);
                 $run->fill(['status' => Run::CALCULATED, 'calculated_by' => $by->id, 'calculated_at' => CarbonImmutable::now(), 'rejected_at' => null])->save();
                 $this->auditor->record('payroll.run.calculate', $run, null, ['employees' => $run->lines()->count()]);
@@ -145,6 +155,9 @@ class Runs
                 throw Errors::make(422, 'run_has_errors', ['count' => $lines->filter(fn (RunLine $l) => $l->errors !== [])->count()]);
             }
 
+            // Review fixes 1 and 2: what the run was calculated from still holds.
+            $this->assertCurrent($run);
+
             $run->fill(['status' => Run::PENDING, 'submitted_by' => $by->id, 'submitted_at' => CarbonImmutable::now()])->save();
             $this->engine->start(RunType::KEY, $run->id, $by);
 
@@ -155,7 +168,8 @@ class Runs
     public function cancel(Run $run, User $by, ?string $reason): Run
     {
         return Errors::transaction(function () use ($run, $by, $reason) {
-            $run = $this->locked($run, [Run::DRAFT, Run::CALCULATED, Run::PENDING]);
+            // An approved run whose post is refused (a loan changed meanwhile) can be cancelled and prepared again.
+            $run = $this->locked($run, [Run::DRAFT, Run::CALCULATED, Run::PENDING, Run::APPROVED]);
 
             if ($run->status === Run::PENDING && ($flow = $this->engine->current(RunType::KEY, $run->id)) !== null && $flow->status === 'running') {
                 $this->engine->cancel($flow, null, (string) $reason);
@@ -207,6 +221,8 @@ class Runs
     {
         $run = Errors::transaction(function () use ($run, $by) {
             $run = $this->locked($run, [Run::APPROVED]);
+            // Review fixes 1 and 2: loans and the corrected runs are as they were when it was calculated.
+            $this->assertCurrent($run);
             $lines = RunLine::query()->where('run_id', $run->id)->orderBy('number')->get();
             $now = CarbonImmutable::now();
 
@@ -238,6 +254,50 @@ class Runs
         });
 
         return $run->refresh();
+    }
+
+    /**
+     * Review fixes 1 and 2: 409 `loan_changed` when a loan the run deducts is
+     * no longer active or its balance is below the deduction (settled,
+     * cancelled or repaid by another run since), and 409
+     * `correction_stale` when the posted runs a correction was calculated
+     * against have changed. Recalculating the run clears both. Loans are
+     * locked for the rest of the transaction.
+     */
+    private function assertCurrent(Run $run): void
+    {
+        $lines = RunLine::query()->where('run_id', $run->id)->get(['id', 'payroll_employee_id', 'loans', 'inputs']);
+
+        foreach ($lines as $line) {
+            foreach ($line->loans as $deduction) {
+                $amount = (int) $deduction['amount_minor'];
+
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $loan = Loan::query()->whereKey($deduction['loan_id'])->lockForUpdate()->first();
+
+                if ($loan === null || $loan->status !== Loan::ACTIVE || $loan->balance() < $amount) {
+                    throw Errors::make(409, 'loan_changed');
+                }
+            }
+        }
+
+        if ($run->kind !== Run::CORRECTION) {
+            return;
+        }
+
+        $posted = Run::query()->where('pay_group_id', $run->pay_group_id)->whereDate('period_start', $run->period_start)->where('status', Run::POSTED)->pluck('id')->all();
+
+        foreach ($lines as $line) {
+            $now = RunLine::query()->whereIn('run_id', $posted)->where('payroll_employee_id', $line->payroll_employee_id)->pluck('run_id')->unique()->sort()->values()->all();
+            $then = collect($line->inputs['corrects'] ?? [])->unique()->sort()->values()->all();
+
+            if ($now !== $then) {
+                throw Errors::make(409, 'correction_stale');
+            }
+        }
     }
 
     /** PAY-13: the line's loan deductions as ledger entries; a loan paid off is settled, one given back is active again. */

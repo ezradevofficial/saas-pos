@@ -45,6 +45,8 @@ class RunResource extends JsonResource
                 'items' => $run->missing,
                 'message' => MissingValues::describe($run->missing),
             ],
+            // Review fix 5: the statutory pack the run was calculated from.
+            'pack' => $run->inputs['pack'] ?? null,
             'note' => $run->note,
             'prepared_by' => $user($run->calculated_by),
             'calculated_at' => $run->calculated_at?->toIso8601String(),

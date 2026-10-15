@@ -30,6 +30,12 @@ return [
         'code_taken' => 'Ce code est déjà utilisé. Saisissez un autre code.',
         'return_no_runs' => 'Aucune paie comptabilisée n’a été versée sur cette période. Choisissez une autre période.',
         'return_type_unknown' => 'Choisissez l’une des déclarations du pays de la société.',
+        'loan_changed' => 'Un prêt retenu par cette paie a changé depuis son calcul. Recalculez la paie.',
+        'loan_on_run' => 'Une paie en attente d’approbation retient ce prêt. Attendez sa comptabilisation, ou rejetez-la d’abord.',
+        'correction_open' => 'Cette période a déjà une correction en cours. Terminez-la ou annulez-la d’abord.',
+        'correction_stale' => 'Une autre correction de cette période a été comptabilisée depuis le calcul de celle-ci. Recalculez-la.',
+        'anchor_required' => 'Un groupe de paie hebdomadaire ou bimensuel a besoin de la date de début de sa première période.',
+        'pay_group_has_runs' => 'Ce groupe de paie a des paies : ses périodes ne peuvent plus bouger. Créez plutôt un nouveau groupe.',
         'return_period' => 'Saisissez la période au format AAAA-MM (ou AAAA pour une déclaration annuelle).',
     ],
 
@@ -38,6 +44,7 @@ return [
         'monthly_hours_missing' => 'Les heures supplémentaires nécessitent les heures hebdomadaires du contrat ou les heures mensuelles standard dans les réglages de paie.',
         'currency_mismatch' => 'Une rubrique ou un prêt n’est pas dans la devise de paie de l’employé.',
         'rate_missing' => 'Il manque un taux de change pour la date de paie. Ajoutez-le dans les taux de change.',
+        'paid_in_other_run' => 'Déjà dans la paie d’un autre groupe pour ces jours. Retirez l’employé de l’un des groupes.',
         'net_negative' => 'Le net à payer est négatif. Réduisez une retenue ou une mensualité de prêt.',
     ],
 
@@ -141,6 +148,7 @@ return [
         ],
         'fields' => [
             'period' => 'aucune période en vigueur',
+            'periods_overlap' => 'périodes qui se chevauchent',
             'needs_confirmation' => 'à confirmer',
             'method' => 'méthode inconnue',
             'non_monthly' => 'règle pour la paie hebdomadaire et bimensuelle',
