@@ -77,6 +77,13 @@ export const HR_ATTENDANCE_VIEW = ['hr.attendance.view', 'hr.device.manage']
 export const HR_CHECKLIST_VIEW = 'hr.checklist.view'
 export const HR_DISCIPLINARY_VIEW = 'hr.disciplinary.view'
 export const HR_APPRAISAL_VIEW = 'hr.appraisal.view'
+// Fixed assets module (docs/modules/fixed-assets.md, Screens; RBAC-09): who may open each page (the API checks again at each asset's place).
+export const FA_ASSET_VIEW = 'fixed_assets.asset.view'
+export const FA_DEPRECIATION_VIEW = ['fixed_assets.depreciation.view', 'fixed_assets.depreciation.post']
+export const FA_MAINTENANCE_VIEW = 'fixed_assets.maintenance.view'
+export const FA_LABEL_PRINT = 'fixed_assets.label.print'
+export const FA_REPORT_VIEW = ['fixed_assets.report.view', 'fixed_assets.tax.view']
+export const FA_SETTINGS_VIEW = ['fixed_assets.asset.view', 'fixed_assets.settings.edit']
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -186,6 +193,23 @@ export const NAV_GROUPS = [
       { to: '/hr/onboarding', icon: 'templates', label: (t) => t('nav.hrOnboarding'), permission: HR_CHECKLIST_VIEW, module: 'hr' },
       { to: '/hr/disciplinary', icon: 'alert', label: (t) => t('nav.hrDisciplinary'), permission: HR_DISCIPLINARY_VIEW, module: 'hr' },
       { to: '/hr/appraisals', icon: 'chart', label: (t) => t('nav.hrAppraisals'), permission: HR_APPRAISAL_VIEW, module: 'hr' },
+    ],
+  },
+  {
+    // Fixed assets (docs/modules/fixed-assets.md, Screens): only while the module is active (RBAC-08).
+    id: 'fixedAssets',
+    label: (t) => t('nav.groups.fixedAssets'),
+    items: [
+      { to: '/fixed-assets/assets', icon: 'items', label: (t) => t('nav.faAssets'), permission: FA_ASSET_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/categories', icon: 'categories', label: (t) => t('nav.faCategories'), permission: FA_ASSET_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/runs', icon: 'valuation', label: (t) => t('nav.faRuns'), permission: FA_DEPRECIATION_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/transfers', icon: 'transfers', label: (t) => t('nav.faTransfers'), permission: FA_ASSET_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/disposals', icon: 'archive', label: (t) => t('nav.faDisposals'), permission: FA_ASSET_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/revaluations', icon: 'adjustments', label: (t) => t('nav.faRevaluations'), permission: FA_ASSET_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/maintenance', icon: 'settings', label: (t) => t('nav.faMaintenance'), permission: FA_MAINTENANCE_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/labels', icon: 'labels', label: (t) => t('nav.faLabels'), permission: FA_LABEL_PRINT, module: 'fixed_assets' },
+      { to: '/fixed-assets/reports', icon: 'chart', label: (t) => t('nav.faReports'), permission: FA_REPORT_VIEW, module: 'fixed_assets' },
+      { to: '/fixed-assets/settings', icon: 'numbering', label: (t) => t('nav.faSettings'), permission: FA_SETTINGS_VIEW, module: 'fixed_assets' },
     ],
   },
   {

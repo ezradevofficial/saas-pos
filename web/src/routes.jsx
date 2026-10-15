@@ -23,6 +23,12 @@ import {
   STORES_ISSUE_VIEW,
   STORES_LEDGER_VIEW,
   STORES_REPORT_VIEW,
+  FA_ASSET_VIEW,
+  FA_DEPRECIATION_VIEW,
+  FA_LABEL_PRINT,
+  FA_MAINTENANCE_VIEW,
+  FA_REPORT_VIEW,
+  FA_SETTINGS_VIEW,
   STORES_REQUISITION_VIEW,
   STORES_RETURN_VIEW,
   HR_APPRAISAL_VIEW,
@@ -108,6 +114,16 @@ import TransferDetail from './pages/inventory/TransferDetail'
 import TransferForm from './pages/inventory/TransferForm'
 import Transfers from './pages/inventory/Transfers'
 import Valuation from './pages/inventory/Valuation'
+import FaAssetDetail from './pages/fixedAssets/AssetDetail'
+import FaAssetForm from './pages/fixedAssets/AssetForm'
+import FaAssets from './pages/fixedAssets/Assets'
+import FaCategories from './pages/fixedAssets/Categories'
+import FaLabels from './pages/fixedAssets/Labels'
+import FaMaintenance from './pages/fixedAssets/Maintenance'
+import { DisposalDetail as FaDisposalDetail, Disposals as FaDisposals, Revaluations as FaRevaluations, TransferDetail as FaTransferDetail, Transfers as FaTransfers } from './pages/fixedAssets/Movements'
+import FaReports from './pages/fixedAssets/Reports'
+import FaRuns, { RunDetail as FaRunDetail } from './pages/fixedAssets/Runs'
+import FaSettings from './pages/fixedAssets/Settings'
 import Consumption from './pages/stores/Consumption'
 import IssueDetail from './pages/stores/IssueDetail'
 import Issues from './pages/stores/Issues'
@@ -400,6 +416,25 @@ export const routes = [
         ['/procurement/landed-costs/:landedCostId/edit', 'procurement.landed_cost.create', <LandedCostForm key="prc-landed-cost-edit" />],
         ['/procurement/supplier-performance', PROCUREMENT_PERFORMANCE_VIEW, <SupplierPerformance key="prc-performance" />],
         ['/procurement/settings', PROCUREMENT_SETTINGS_VIEW, <ProcurementSettings key="prc-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Fixed assets (docs/modules/fixed-assets.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/fixed-assets/assets', FA_ASSET_VIEW, <FaAssets key="fa-assets" />],
+        ['/fixed-assets/assets/new', 'fixed_assets.asset.manage', <FaAssetForm key="fa-asset-new" />],
+        ['/fixed-assets/assets/:assetId', FA_ASSET_VIEW, <FaAssetDetail key="fa-asset" />],
+        ['/fixed-assets/assets/:assetId/edit', 'fixed_assets.asset.manage', <FaAssetForm key="fa-asset-edit" />],
+        ['/fixed-assets/categories', FA_ASSET_VIEW, <FaCategories key="fa-categories" />],
+        ['/fixed-assets/runs', FA_DEPRECIATION_VIEW, <FaRuns key="fa-runs" />],
+        ['/fixed-assets/runs/:runId', FA_DEPRECIATION_VIEW, <FaRunDetail key="fa-run" />],
+        ['/fixed-assets/transfers', FA_ASSET_VIEW, <FaTransfers key="fa-transfers" />],
+        ['/fixed-assets/transfers/:transferId', FA_ASSET_VIEW, <FaTransferDetail key="fa-transfer" />],
+        ['/fixed-assets/disposals', FA_ASSET_VIEW, <FaDisposals key="fa-disposals" />],
+        ['/fixed-assets/disposals/:disposalId', FA_ASSET_VIEW, <FaDisposalDetail key="fa-disposal" />],
+        ['/fixed-assets/revaluations', FA_ASSET_VIEW, <FaRevaluations key="fa-revaluations" />],
+        ['/fixed-assets/maintenance', FA_MAINTENANCE_VIEW, <FaMaintenance key="fa-maintenance" />],
+        ['/fixed-assets/labels', FA_LABEL_PRINT, <FaLabels key="fa-labels" />],
+        ['/fixed-assets/reports', FA_REPORT_VIEW, <FaReports key="fa-reports" />],
+        ['/fixed-assets/settings', FA_SETTINGS_VIEW, <FaSettings key="fa-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // Stores (docs/modules/stores.md, Screens): the API answers 403 module_inactive without the module.
       ...[
