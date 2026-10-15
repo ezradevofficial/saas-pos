@@ -8,8 +8,8 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, DecimalInput, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { usePlaces } from '@/pages/inventory/inventoryData'
-import { Back, DetailState, useLineUnits } from './ManufacturingParts'
-import { itemText, manufacturingKey } from './manufacturingData'
+import { Back, DetailState } from './ManufacturingParts'
+import { itemText, manufacturingKey, useLineUnits } from './manufacturingData'
 
 /** "Bakery · Westlands": a location with its branch, for pickers. */
 const locationLabel = (location) => (location.branch?.name ? `${location.name} · ${location.branch.name}` : location.name)

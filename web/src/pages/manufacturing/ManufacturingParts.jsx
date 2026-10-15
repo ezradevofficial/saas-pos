@@ -6,8 +6,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Card, StatusBadge } from '@/components/ds'
 import { saveFile } from '@/lib/files'
 import { Amount } from '@/pages/inventory/InventoryParts'
-import { useUnitOptions } from '@/pages/inventory/inventoryHelpers'
-import { STATUS_TONES, statusLabel, useItemUnits, useManufacturingStatus } from './manufacturingData'
+import { STATUS_TONES, statusLabel, useManufacturingStatus } from './manufacturingData'
 
 // The presentational pieces Manufacturing shares with the Inventory screens
 // (an amount, a quantity, a detail row, the way back, a detail's loading
@@ -27,18 +26,6 @@ export function InventoryOffNote() {
   const status = useManufacturingStatus()
   if (!status || status.inventory_active) return null
   return <Alert tone="info" title={t('manufacturing.inventoryOff')} />
-}
-
-/**
- * INV-03: the units a line's quantity may be typed in (the item's base
- * unit first, then its others), keeping the unit the line already has
- * when the item's units cannot be read.
- */
-export function useLineUnits(item, current) {
-  const full = useItemUnits(item)
-  const options = useUnitOptions(full)
-  if (current?.id && !options.some((option) => option.value === current.id)) return [{ value: current.id, label: current.code || current.name || current.id }, ...options]
-  return options
 }
 
 /** The print frame's sandbox (TPL-04): never allow-same-origin. */

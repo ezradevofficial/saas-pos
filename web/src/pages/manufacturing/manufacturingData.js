@@ -3,6 +3,7 @@
 // status (which integrations are on) and the query keys of its lists.
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { useUnitOptions } from '@/pages/inventory/inventoryHelpers'
 
 /** RBAC-09: who may open each page (any one is enough; the API checks again at each place). */
 export const BOM_VIEW = 'manufacturing.bom.view'
@@ -87,3 +88,15 @@ export function kindFilter(t, kinds) {
 
 /** Query keys of the module, so a change refreshes every list. */
 export const manufacturingKey = ['manufacturing']
+
+/**
+ * INV-03: the units a line's quantity may be typed in (the item's base
+ * unit first, then its others), keeping the unit the line already has
+ * when the item's units cannot be read.
+ */
+export function useLineUnits(item, current) {
+  const full = useItemUnits(item)
+  const options = useUnitOptions(full)
+  if (current?.id && !options.some((option) => option.value === current.id)) return [{ value: current.id, label: current.code || current.name || current.id }, ...options]
+  return options
+}

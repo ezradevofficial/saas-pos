@@ -13,9 +13,10 @@ import { zonedToUtc } from '@/lib/dates'
 import { useDebounced } from '@/lib/useDebounced'
 import { useLocale } from '@/lib/useLocale'
 import { useTimeZone } from '@/lib/useTimeZone'
-import { LineEditor, lineFieldNames, lineFromApi, linesReady, VersionFields, versionBody } from './BomLines'
-import { Amount, Back, Detail, DetailState, MfgStatus, Qty, useLineUnits } from './ManufacturingParts'
-import { isPositive, kindLabel, manufacturingKey } from './manufacturingData'
+import { LineEditor, VersionFields } from './BomLines'
+import { lineFieldNames, lineFromApi, linesReady, versionBody } from './bomLinesData'
+import { Amount, Back, Detail, DetailState, MfgStatus, Qty } from './ManufacturingParts'
+import { isPositive, kindLabel, manufacturingKey, useLineUnits } from './manufacturingData'
 
 const valuesOf = (version) => ({
   output_qty: version.output_qty ?? '',

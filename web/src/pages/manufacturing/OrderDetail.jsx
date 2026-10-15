@@ -73,7 +73,6 @@ export default function OrderDetail() {
   const unit = order.uom?.code ?? ''
   const when = (value) => (value ? formatCompanyTime(value, locale, companyOf(order.company?.id)) : '')
   const { stage, blocked } = stageOf(order)
-  const running = order.status === 'released' || order.status === 'in_progress'
   const done = (message) => async () => {
     setDialog(null)
     toast.success(message)
