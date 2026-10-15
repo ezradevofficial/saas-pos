@@ -97,6 +97,15 @@ return [
                 'issued_by' => 'Issued by',
                 'received_by' => 'Received by',
                 'total_value' => 'Total value',
+                // PAY-19: the payslip's fields (PayslipSource).
+                'employee_number' => 'Employee number',
+                'pay_date' => 'Pay date',
+                'run' => 'Payroll run',
+                'gross' => 'Gross pay',
+                'net' => 'Net pay',
+                'employer_contributions' => 'Employer contributions',
+                'taxable_pay' => 'Taxable pay',
+                'rates' => 'Statutory rates',
             ],
             'customer' => [
                 'name' => 'Customer',
