@@ -299,6 +299,33 @@ Decisions taken while building (no owner input asked):
 20. **Read-only billing mode** still lets a run be calculated, submitted
     and posted (PAY-28, as approvals).
 
+Review fixes (stage 7C review):
+
+21. **Loans checked at submit and post.** A deducted loan no longer
+    active, or whose balance is below the deduction, refuses the run (409
+    `loan_changed`) until it is calculated again; a loan on a run in
+    approval cannot be settled or cancelled (409 `loan_on_run`); an
+    approved run refused at posting can be cancelled.
+22. **One open correction per pay group and period** (`correction_open`);
+    a correction whose corrected runs changed since it was calculated is
+    refused (409 `correction_stale`).
+23. **Never paid twice:** a line in another pay group's regular run for
+    overlapping days is a line error (`paid_in_other_run`); a group's
+    anchor date is required when weekly or bi-weekly and never moves once
+    it has runs; its frequency never changes.
+24. **Creating and correcting runs** stay allowed in read-only billing.
+25. **`PAYROLL_PACK_DIR`** (test packs) is honoured only in local, testing
+    and staging, refused by the environment guard elsewhere; each run
+    records the pack's source and sha256 (`inputs.pack`).
+26. **Leave events are order-safe** (a cancelled day is a tombstone), and a
+    company's sync also copies unpaid leave and closed attendance through
+    HR's `LeaveRecords` and `AttendanceRecords` read contracts.
+27. **Contract reads** need a run or a user with `hr.pay.view` and are
+    always audited; payslip readers are checked at the run line's place.
+28. **Packs are re-read when their file changes**; overlapping pack periods
+    are reported (`periods_overlap`); lists showing pay, payment summaries
+    and payslip PDFs are audited, and summaries and PDFs are throttled.
+
 ## Status (stage 7C)
 
 | ID | Status |
