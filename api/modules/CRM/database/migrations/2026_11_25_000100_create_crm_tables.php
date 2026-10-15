@@ -286,6 +286,9 @@ return new class extends Migration
             $table->bigInteger('base_total_minor')->nullable();
             $table->decimal('max_discount_percent', 5, 2)->default(0);
             $table->boolean('needs_approval')->default(false);
+            // Owner decision A (2026-10-15): a discount above the saver's RBAC-06 limit is kept and sends the quote for approval.
+            $table->boolean('discount_over_limit')->default(false);
+            $table->string('approval_reason', 30)->nullable();
             $userRef($table, 'requested_by', nullable: false);
             $table->timestampTz('submitted_at')->nullable();
             $userRef($table, 'decided_by');
@@ -311,6 +314,7 @@ return new class extends Migration
         });
         $check('crm_quotes', 'status', $in('status', ['draft', 'pending', 'approved', 'rejected', 'sent', 'accepted', 'declined', 'converted', 'cancelled']));
         $check('crm_quotes', 'amounts', 'subtotal_minor >= 0 and discount_minor >= 0 and tax_minor >= 0 and total_minor >= 0 and valid_until >= quote_date and max_discount_percent between 0 and 100');
+        $check('crm_quotes', 'approval_reason', $in('approval_reason', ['amount_above_threshold', 'discount_above_limit']).' or approval_reason is null');
         $check('crm_quotes', 'converted', $in('converted_to', ['invoice', 'pos_order', 'ecommerce_order']).' or converted_to is null');
         DB::statement('create unique index crm_quotes_number_unique on crm_quotes (company_id, number) where number is not null');
         Rls::enable('crm_quotes');
@@ -417,13 +421,29 @@ return new class extends Migration
             revoke all on function public.crm_lead_form_tenant(text) from public;
             SQL);
 
+        // CRM-27: the tenants with an activity reminder due at p_at, for `crm:remind` (ADR 002: tenant ids only).
+        DB::unprepared(<<<'SQL'
+            create or replace function public.app_tenants_with_due_crm_reminders(p_at timestamptz) returns setof uuid
+            language sql stable security definer
+            set search_path = pg_catalog, public
+            as $fn$
+                select distinct a.tenant_id from public.crm_activities a
+                where a.status = 'open' and a.reminded_at is null and a.remind_at is not null and a.remind_at <= p_at
+                order by 1
+            $fn$;
+
+            revoke all on function public.app_tenants_with_due_crm_reminders(timestamptz) from public;
+            SQL);
+
         $runtimeRole = '"'.str_replace('"', '""', config('database.connections.pgsql.username') ?: 'app').'"';
         DB::statement("grant execute on function public.crm_lead_form_tenant(text) to {$runtimeRole}");
+        DB::statement("grant execute on function public.app_tenants_with_due_crm_reminders(timestamptz) to {$runtimeRole}");
     }
 
     public function down(): void
     {
         DB::statement('drop function if exists public.crm_lead_form_tenant(text)');
+        DB::statement('drop function if exists public.app_tenants_with_due_crm_reminders(timestamptz)');
         DB::statement('alter table if exists crm_leads drop constraint if exists crm_leads_opportunity_fk');
 
         foreach (['crm_targets', 'crm_activities', 'crm_quote_lines', 'crm_quotes', 'crm_opportunities', 'crm_leads', 'crm_lead_forms',

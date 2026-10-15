@@ -3,6 +3,8 @@
 // Module CRM et ventes (docs/modules/crm.md).
 return [
     'errors' => [
+        'email_not_of_recipient' => 'Envoyez-le à une adresse du prospect ou du client, ou ajoutez d’abord l’adresse à sa fiche.',
+        'discount_needs_approval' => 'Cette remise dépasse votre plafond de :limit %. Vous pouvez enregistrer le devis ; un responsable l’approuve avant son envoi.',
         'activity_closed' => 'Cette activité est déjà terminée ou annulée. Rouvrez-la d’abord.',
         'assign_forbidden' => 'Vous ne pouvez pas confier cette fiche à quelqu’un d’autre ici. Demandez à un responsable de l’attribuer.',
         'branch_not_of_company' => 'Choisissez une agence de cette société.',
@@ -190,12 +192,19 @@ return [
             'base_total' => 'Total en devise de base',
             'total' => 'Total TTC',
             'max_discount_percent' => 'Plus forte remise de ligne (%)',
+            'discount_over_limit' => 'Remise au-delà du plafond de l’auteur',
+            'approval_reason' => 'Motif de l’approbation',
             'needs_approval' => 'Au-dessus du seuil d’approbation',
             'customer' => 'Client',
             'company' => 'Société',
             'branch' => 'Agence',
             'currency' => 'Devise',
         ],
+    ],
+
+    'approval_reasons' => [
+        'amount_above_threshold' => 'Total au-dessus du seuil d’approbation',
+        'discount_above_limit' => 'Remise au-delà du plafond',
     ],
 
     'quotes' => [

@@ -4,10 +4,14 @@ namespace Modules\CRM\Activities;
 
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\CRM\Models\Activity;
+use Modules\CRM\Models\Lead;
+use Modules\CRM\Support\CrmAccess;
+use Modules\CRM\Support\CrmError;
 use Modules\CRM\Support\Tx;
 
 /**
@@ -26,11 +30,43 @@ class Emails
     public function __construct(
         private readonly Activities $activities,
         private readonly TenantContext $tenants,
+        private readonly CrmAccess $access,
     ) {}
+
+    /**
+     * CRM-29 (review): an email goes only to an address of the linked lead
+     * (seen by the sender) or customer, never to any address typed.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function assertRecipient(array $data, User $by): void
+    {
+        $addresses = [];
+
+        if (($data['lead_id'] ?? null) !== null) {
+            $lead = Lead::query()->find($data['lead_id']);
+
+            if ($lead === null || ! $this->access->sees($by, $lead, 'lead')) {
+                throw CrmError::make('link_unknown', field: 'lead_id');
+            }
+
+            $addresses[] = (string) $lead->email;
+        }
+
+        if (($data['party_id'] ?? null) !== null) {
+            $party = Party::query()->find($data['party_id']);
+            $addresses = [...$addresses, ...array_map(fn ($email) => (string) ($email['address'] ?? ''), (array) ($party?->emails ?? []))];
+        }
+
+        if (! in_array(mb_strtolower((string) $data['to']), array_map('mb_strtolower', array_filter($addresses)), true)) {
+            throw CrmError::make('email_not_of_recipient', field: 'to');
+        }
+    }
 
     /** @param array<string, mixed> $data validated input */
     public function send(array $data, User $by): Activity
     {
+        $this->assertRecipient($data, $by);
         $minute = 'crm-email:m:'.$by->id;
         $day = 'crm-email:d:'.$by->id;
 

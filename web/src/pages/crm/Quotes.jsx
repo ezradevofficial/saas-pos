@@ -597,7 +597,8 @@ export function QuoteDetail() {
       <div className="flex flex-col gap-5">
         {convertError ? <Alert tone="danger" title={convertError} /> : null}
         {rateNeeded && quote.status === 'draft' ? <Alert tone="warning" title={t('crm.quote.rateNeededTitle')}>{t('crm.quote.rateNeededHelp')}</Alert> : null}
-        {quote.status === 'draft' && quote.needs_approval ? <Alert tone="info" title={t('crm.quote.needsApproval')} /> : null}
+        {quote.status === 'draft' && quote.discount_over_limit ? <Alert tone="info" title={t('crm.quote.discountNeedsApproval')} /> : null}
+        {quote.status === 'draft' && quote.needs_approval && !quote.discount_over_limit ? <Alert tone="info" title={t('crm.quote.needsApproval')} /> : null}
         <Card title={t('crm.summary')}>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Detail label={t('crm.fields.customer')}>

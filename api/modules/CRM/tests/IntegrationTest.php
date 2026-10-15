@@ -2,6 +2,7 @@
 
 namespace Modules\CRM\Tests;
 
+use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Modules\Accounting\Chart\Charts;
@@ -69,6 +70,30 @@ class IntegrationTest extends TestCase
 
         // Once only.
         $this->api('POST', "crm/quotes/{$quote['id']}/convert", ['target' => 'invoice'])->assertStatus(409)->assertJsonPath('code', 'quote_converted');
+    }
+
+    public function test_a_quantity_finer_than_the_invoice_keeps_is_one_unit_at_its_amount_and_the_totals_match(): void
+    {
+        $this->withAccounting();
+        // 1.23456 × KES 333.33 = 411.5163... → 41152 minor; the invoice keeps 4 decimals, so the line is 1 × 411.52.
+        $quote = $this->acceptedQuote(lines: [['description' => 'Cable (m)', 'qty' => '1.23456', 'unit_price_minor' => '33333', 'tax_code_id' => $this->vat->id]]);
+        $this->api('POST', "crm/quotes/{$quote['id']}/convert", ['target' => 'invoice'])->assertOk();
+
+        [$document, $line] = $this->inTenant(fn () => [Document::query()->sole(), DocumentLine::query()->sole()]);
+        $this->assertSame(['1.0000', (int) $quote['lines'][0]['net_minor']], [(string) $line->qty, $line->unit_price_minor]);
+        $this->assertSame([(int) $quote['totals']['tax_minor'], (int) $quote['totals']['total_minor']], [$document->tax_minor, $document->total_minor]);
+    }
+
+    public function test_an_invoice_whose_tax_would_differ_from_the_quote_is_refused(): void
+    {
+        $this->withAccounting();
+        $quote = $this->acceptedQuote();
+        // The test VAT code's rate changes after the quote date: the invoice (dated today) would not match the quote.
+        $this->inTenant(fn () => TaxRate::create(['tax_code_id' => $this->vat->id, 'rate' => '18', 'effective_from' => '2026-10-16']));
+        $this->clockTo('2026-10-17T09:00:00Z');
+
+        $this->api('POST', "crm/quotes/{$quote['id']}/convert", ['target' => 'invoice'])->assertUnprocessable()->assertJsonPath('code', 'quote_invoice_mismatch');
+        $this->assertSame(['accepted', 0], [$this->inTenant(fn () => Quote::query()->findOrFail($quote['id'])->status), $this->inTenant(fn () => Document::query()->count())]);
     }
 
     public function test_conversion_needs_accounting_invoice_create_and_the_revenue_rule(): void

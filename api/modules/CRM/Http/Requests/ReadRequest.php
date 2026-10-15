@@ -5,6 +5,7 @@ namespace Modules\CRM\Http\Requests;
 use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
+use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\CRM\Support\CrmAccess;
@@ -44,6 +45,8 @@ class ReadRequest extends FormRequest
             default => [
                 'company' => ['sometimes', 'uuid', Rule::exists('companies', 'id')],
                 'status' => ['sometimes', 'string', Rule::in(['active', 'all'])],
+                'per_page' => ['sometimes', 'integer', 'between:1,'.ListRequest::MAX_PER_PAGE],
+                'page' => ['sometimes', 'integer', 'min:1'],
             ],
         };
     }

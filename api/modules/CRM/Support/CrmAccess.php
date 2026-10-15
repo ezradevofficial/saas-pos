@@ -3,6 +3,7 @@
 namespace Modules\CRM\Support;
 
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\FieldRules;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Rbac\VisibleScope;
@@ -37,6 +38,9 @@ class CrmAccess
 
     /** @var array<string, list<string>> per request, the teams of a user */
     private array $teams = [];
+
+    /** @var array<string, list<string>> per request, a user's hidden fields by resource (RBAC-05) */
+    private array $hidden = [];
 
     public function __construct(private readonly ScopeResolver $resolver) {}
 
@@ -166,6 +170,29 @@ class CrmAccess
     public function scopeOf(User $user, string $permission): VisibleScope
     {
         return $this->resolver->visibleIds($user, $permission);
+    }
+
+    /**
+     * RBAC-05, CRM-09: the fields $resource (`crm_lead`, `crm_opportunity`)
+     * hides from $user, read once per request.
+     *
+     * @return list<string>
+     */
+    public function hiddenFields(User $user, string $resource): array
+    {
+        return $this->hidden[$user->id.'|'.$resource] ??= app(FieldRules::class)->for($user, $resource)['hidden'];
+    }
+
+    /** CRM-09: opportunity values are hidden from $user (resources, lists, exports and every aggregate). */
+    public function hidesValues(User $user): bool
+    {
+        return in_array('value_minor', $this->hiddenFields($user, 'crm_opportunity'), true);
+    }
+
+    /** CRM-09: lead estimated values are hidden from $user. */
+    public function hidesEstimates(User $user): bool
+    {
+        return in_array('estimated_value_minor', $this->hiddenFields($user, 'crm_lead'), true);
     }
 
     /** The active teams $user is in, as a member or the leader. @return list<string> */

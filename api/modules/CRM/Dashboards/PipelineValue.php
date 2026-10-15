@@ -58,6 +58,13 @@ class PipelineValue extends DashboardSource
         $currency = strtoupper((string) ($params['currency'] ?? $company?->base_currency ?? ''));
         $open = fn () => $access->visible(Opportunity::query(), $user, 'opportunity')->where('status', Opportunity::OPEN)->whereNull('archived_at')->where('currency', $currency);
 
+        // CRM-09: no amounts for a reader whose field rules hide opportunity values.
+        if ($access->hidesValues($user)) {
+            return ($params['widget'] ?? 'kpi') === 'chart'
+                ? ['kind' => 'money', 'currency' => $currency, 'points' => []]
+                : ['kind' => 'number', 'value' => (string) $open()->count(), 'complete' => true, 'to' => '/crm/opportunities'];
+        }
+
         if (($params['widget'] ?? 'kpi') === 'chart') {
             $pipeline = isset($params['pipeline'])
                 ? Pipeline::query()->find($params['pipeline'])

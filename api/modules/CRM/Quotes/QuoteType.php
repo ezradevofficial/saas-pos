@@ -20,7 +20,9 @@ use Modules\CRM\Support\CrmAccess;
  * largest line discount, `needs_approval` (base total above the
  * company's threshold, CRM-01), the customer, the company and the branch.
  *
- * The default flow approves at once unless `needs_approval`; then one
+ * The default flow approves at once unless `needs_approval` (the base
+ * total above the threshold, or a line discount above the saver's
+ * RBAC-06 limit, owner decision A, `approval_reason`); then one
  * Branch Manager at the branch approves (any one of them), escalated to
  * the Admins after two business days. The creator never approves their
  * own quote (APR-07). Who sees a quote's flow follows CRM-08.
@@ -46,6 +48,8 @@ class QuoteType extends DocumentType
             FieldDefinition::money('total', 'crm.workflow.fields.total'),
             FieldDefinition::number('max_discount_percent', 'crm.workflow.fields.max_discount_percent'),
             FieldDefinition::boolean('needs_approval', 'crm.workflow.fields.needs_approval'),
+            FieldDefinition::boolean('discount_over_limit', 'crm.workflow.fields.discount_over_limit'),
+            FieldDefinition::enum('approval_reason', 'crm.workflow.fields.approval_reason', ['amount_above_threshold', 'discount_above_limit']),
             FieldDefinition::reference('customer', 'crm.workflow.fields.customer', 'core.party'),
             FieldDefinition::reference('company', 'crm.workflow.fields.company', 'core.company'),
             FieldDefinition::reference('branch', 'crm.workflow.fields.branch', 'core.branch'),
@@ -66,6 +70,8 @@ class QuoteType extends DocumentType
             'total' => Money::ofMinor((string) $quote->total_minor, $quote->currency),
             'max_discount_percent' => (string) $quote->max_discount_percent,
             'needs_approval' => (bool) $quote->needs_approval,
+            'discount_over_limit' => (bool) $quote->discount_over_limit,
+            'approval_reason' => $quote->approval_reason,
             'customer' => $quote->party_id,
             'company' => $quote->company_id,
             'branch' => $quote->branch_id,

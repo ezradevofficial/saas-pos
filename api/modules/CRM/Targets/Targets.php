@@ -3,11 +3,14 @@
 namespace Modules\CRM\Targets;
 
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\VisibleScope;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Illuminate\Support\Collection;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Modules\Accounting\Contracts\InvoiceTotals;
 use Modules\CRM\Models\Opportunity;
@@ -25,18 +28,25 @@ use Modules\POS\Contracts\SalesTotals;
  *
  * - `won_value`: won opportunities' base value by close date, of the
  *   user (as owner), of the team's members and leader, or at the branch;
+ *   none for a reader whose field rules hide opportunity values (CRM-09);
  * - `pos_sales`: POS sales less refunds by those cashiers or at the
- *   branch (`POS\Contracts\SalesTotals`, only with POS active);
+ *   branch (`POS\Contracts\SalesTotals`, only with POS active and for a
+ *   reader holding `pos.sale.view` at the target's place);
  * - `invoiced`: posted customer invoices less credit notes created by
  *   those users or at the branch (`Accounting\Contracts\InvoiceTotals`,
- *   only with Accounting active).
+ *   only with Accounting active and for a reader holding
+ *   `accounting.invoice.view` at the target's company).
  *
- * A metric whose module is off has no actual (`available: false`).
- * A user sees the targets of companies where they hold
- * `crm.target.view`: their own, their teams' (`crm.scope.team`), the
- * branch's and everyone's at a branch where they hold `crm.scope.branch`
- * (company-wide targets: at the company), and all with
- * `crm.target.manage` there.
+ * Without one, the actual is null and `unavailable` says why
+ * (`module_inactive`, `not_permitted`, `field_hidden`).
+ *
+ * A user sees, in companies where they hold `crm.target.view` or
+ * `crm.target.manage`: their own targets; those at a place (the branch,
+ * or the company for a company-wide target) where they hold
+ * `crm.target.manage` or `crm.scope.branch` with a target permission;
+ * and their teams' at a place where they hold `crm.scope.team` with a
+ * target permission. Filtered in SQL. Saving needs `crm.target.manage`
+ * at the target's place before and after the change.
  */
 class Targets
 {
@@ -77,21 +87,44 @@ class Targets
                 throw CrmError::make('period_invalid', field: 'period_end');
             }
 
+            // CRM-30 (review): the place the target ends up at needs the right too.
+            if (! $this->mayManage($by, $target)) {
+                throw new AuthorizationException(__('rbac.forbidden'));
+            }
+
             $target->save();
 
             return $target->refresh();
         });
     }
 
-    /** @return Collection<int, Target> the targets $user sees, newest periods first */
-    public function visible(User $user, ?string $companyId = null, bool $archived = false): Collection
+    /** The targets $user sees, newest periods first (CRM-30), as a query. */
+    public function visibleQuery(User $user, ?string $companyId = null, bool $archived = false): Builder
     {
+        $view = $this->access->scopeOf($user, 'crm.target.view');
+        $manage = $this->access->scopeOf($user, 'crm.target.manage');
+        $branchScope = $this->access->scopeOf($user, CrmAccess::SCOPE_BRANCH);
+        $teamScope = $this->access->scopeOf($user, CrmAccess::SCOPE_TEAM);
         $companies = $this->access->companies($user, 'crm.target.view', 'crm.target.manage');
-        $query = Target::query()->with(['company', 'branch'])->orderByDesc('period_start')->orderBy('created_at');
+        $teams = $this->access->teamIds($user);
+
+        $query = Target::query()->with(['company', 'branch'])->orderByDesc('period_start')->orderBy('created_at')->orderBy('id');
 
         if ($companies !== null) {
             $query->whereIn('company_id', $companies);
         }
+
+        $query->where(function (Builder $q) use ($user, $view, $manage, $branchScope, $teamScope, $teams) {
+            $q->where(fn (Builder $q) => $q->where('subject_type', 'user')->where('subject_id', $user->id));
+            $q->orWhere(fn (Builder $q) => $this->atPlace($q, $manage));
+            $q->orWhere(fn (Builder $q) => $this->atPlace($q, $branchScope)->where(fn (Builder $q) => $this->atPlace($q, $view)->orWhere(fn (Builder $q) => $this->atPlace($q, $manage))));
+
+            if ($teams !== []) {
+                $q->orWhere(fn (Builder $q) => $q->where('subject_type', 'team')->whereIn('subject_id', $teams)
+                    ->where(fn (Builder $q) => $this->atPlace($q, $teamScope))
+                    ->where(fn (Builder $q) => $this->atPlace($q, $view)->orWhere(fn (Builder $q) => $this->atPlace($q, $manage))));
+            }
+        });
 
         if ($companyId !== null) {
             $query->where('company_id', $companyId);
@@ -101,54 +134,73 @@ class Targets
             $query->whereNull('archived_at');
         }
 
-        return $query->get()->filter(fn (Target $target) => $this->sees($user, $target))->values();
+        return $query;
+    }
+
+    /** $q limited to targets whose place (branch, or company when company-wide) is in $scope. */
+    private function atPlace(Builder $q, VisibleScope $scope): Builder
+    {
+        if ($scope->all) {
+            return $q->whereRaw('true');
+        }
+
+        return $q->where(function (Builder $q) use ($scope) {
+            $q->whereIn('branch_id', $scope->branchIds === [] ? ['00000000-0000-0000-0000-000000000000'] : $scope->branchIds)
+                ->orWhere(fn (Builder $q) => $q->whereNull('branch_id')->whereIn('company_id', $scope->companyIds === [] ? ['00000000-0000-0000-0000-000000000000'] : $scope->companyIds));
+        });
     }
 
     public function sees(User $user, Target $target): bool
     {
-        $place = fn (string $permission) => $target->branch_id !== null
-            ? $this->access->canAt($user, $permission, $target->branch_id)
-            : $this->access->canAtCompany($user, $permission, $target->company_id);
-
-        // One's own target, wherever in its company one may view targets.
-        if ($target->subject_type === 'user' && $target->subject_id === $user->id) {
-            $companies = $this->access->companies($user, 'crm.target.view');
-
-            return $companies === null || in_array($target->company_id, $companies, true);
-        }
-
-        if (! $place('crm.target.view') && ! $place('crm.target.manage')) {
-            return false;
-        }
-
-        return $place('crm.target.manage') || $place(CrmAccess::SCOPE_BRANCH)
-            || ($target->subject_type === 'team' && in_array($target->subject_id, $this->access->teamIds($user), true) && $place(CrmAccess::SCOPE_TEAM));
+        return $this->visibleQuery($user, archived: true)->whereKey($target->id)->exists();
     }
 
     public function mayManage(User $user, Target $target): bool
     {
+        return $this->at($user, 'crm.target.manage', $target);
+    }
+
+    /** Whether $user holds $permission at the target's place. */
+    private function at(User $user, string $permission, Target $target): bool
+    {
         return $target->branch_id !== null
-            ? $this->access->canAt($user, 'crm.target.manage', $target->branch_id)
-            : $this->access->canAtCompany($user, 'crm.target.manage', $target->company_id);
+            ? $this->access->canAt($user, $permission, $target->branch_id)
+            : $this->access->canAtCompany($user, $permission, $target->company_id);
     }
 
     /**
      * The target's actual in its currency (minor units) and the share of the
-     * amount reached (a percent with one decimal), or nulls when the metric
-     * is not available.
+     * amount reached (a percent with one decimal), for $reader; nulls with
+     * the reason when there is none for them.
      *
-     * @return array{actual_minor: ?string, percent: ?string, available: bool}
+     * @param  array<string, list<string>>  $members  team id => member ids, already read (batched)
+     * @return array{actual_minor: ?string, percent: ?string, available: bool, unavailable: ?string}
      */
-    public function actual(Target $target): array
+    public function actual(Target $target, ?User $reader = null, array $members = []): array
     {
+        $none = fn (string $reason) => ['actual_minor' => null, 'percent' => null, 'available' => false, 'unavailable' => $reason];
         $from = $target->period_start->toDateString();
         $to = $target->period_end->toDateString();
         $users = match ($target->subject_type) {
             'user' => [$target->subject_id],
-            'team' => $this->members($target->subject_id),
+            'team' => $members[$target->subject_id] ?? $this->members([$target->subject_id])[$target->subject_id] ?? [],
             default => null,
         };
         $branch = $target->subject_type === 'branch' ? $target->subject_id : null;
+
+        if ($target->metric === Target::WON_VALUE && $reader !== null && $this->access->hidesValues($reader)) {
+            return $none('field_hidden');
+        }
+
+        if ($target->metric === Target::POS_SALES && $reader !== null && class_exists(SalesTotals::class)
+            && ! $this->at($reader, 'pos.sale.view', $target)) {
+            return $none('not_permitted');
+        }
+
+        if ($target->metric === Target::INVOICED && $reader !== null && class_exists(InvoiceTotals::class)
+            && ! $reader->can('accounting.invoice.view', Scope::company($target->company_id))) {
+            return $none('not_permitted');
+        }
 
         $actual = match ($target->metric) {
             Target::WON_VALUE => (string) Opportunity::query()->where('company_id', $target->company_id)->where('status', Opportunity::WON)
@@ -161,22 +213,38 @@ class Targets
         };
 
         if ($actual === null) {
-            return ['actual_minor' => null, 'percent' => null, 'available' => false];
+            return $none('module_inactive');
         }
 
         $percent = $target->amount_minor === 0 ? null
             : (string) BigDecimal::of($actual)->multipliedBy(100)->dividedBy($target->amount_minor, 1, RoundingMode::HalfUp);
 
-        return ['actual_minor' => $actual, 'percent' => $percent, 'available' => true];
+        return ['actual_minor' => $actual, 'percent' => $percent, 'available' => true, 'unavailable' => null];
     }
 
-    /** @return list<string> the team's members and leader */
-    private function members(string $teamId): array
+    /**
+     * Each team's members and leader, in two queries.
+     *
+     * @param  list<string>  $teamIds
+     * @return array<string, list<string>>
+     */
+    public function members(array $teamIds): array
     {
-        return array_values(array_unique(array_filter([
-            ...TeamMember::query()->where('team_id', $teamId)->pluck('user_id')->all(),
-            Team::query()->whereKey($teamId)->value('leader_id'),
-        ])));
+        if ($teamIds === []) {
+            return [];
+        }
+
+        $members = array_fill_keys($teamIds, []);
+
+        foreach (TeamMember::query()->whereIn('team_id', $teamIds)->get(['team_id', 'user_id']) as $row) {
+            $members[$row->team_id][] = $row->user_id;
+        }
+
+        foreach (Team::query()->whereKey($teamIds)->whereNotNull('leader_id')->get(['id', 'leader_id']) as $team) {
+            $members[$team->id][] = $team->leader_id;
+        }
+
+        return array_map(fn (array $ids) => array_values(array_unique($ids)), $members);
     }
 
     private function branch(string $companyId, string $branchId): Branch

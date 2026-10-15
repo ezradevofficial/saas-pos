@@ -77,6 +77,8 @@ class QuoteResource extends JsonResource
             'fx' => $quote->fx?->jsonSerialize(),
             'max_discount_percent' => Refs::decimal($quote->max_discount_percent),
             'needs_approval' => (bool) $quote->needs_approval,
+            'discount_over_limit' => (bool) $quote->discount_over_limit,
+            'approval_reason' => $quote->approval_reason,
             'submitted_at' => Refs::at($quote->submitted_at),
             'decided_at' => Refs::at($quote->decided_at),
             'sent_at' => Refs::at($quote->sent_at),

@@ -86,6 +86,24 @@ return [
         'requires_two_factor' => false,
     ],
     [
+        // Owner decision B (2026-10-15, docs/modules/crm.md): a sales rep works their own leads, opportunities,
+        // quotes and activities (no team or branch scope, CRM-08). Quote discounts stay within the role's
+        // max_discount_percent, seeded at 0 % for the tenant to raise; above it the quote goes for approval.
+        // Sales managers use the Branch Manager role (crm.scope.branch).
+        'key' => 'sales_rep',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.currency.view', 'core.exchange_rate.view', 'core.tax.view', 'core.price_list.view', 'core.price.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view',
+            'crm.lead.view', 'crm.lead.create', 'crm.lead.edit', 'crm.lead.convert', 'crm.lead.archive',
+            'crm.opportunity.view', 'crm.opportunity.create', 'crm.opportunity.edit', 'crm.opportunity.close',
+            'crm.quote.view', 'crm.quote.create', 'crm.quote.discount', 'crm.quote.send', 'crm.quote.cancel',
+            'crm.activity.view', 'crm.activity.manage', 'crm.target.view',
+        ],
+        'limits' => ['max_discount_percent' => '0'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
         'key' => 'cashier',
         'permissions' => [
             'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',

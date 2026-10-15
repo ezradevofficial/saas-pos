@@ -33,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ?int $base_total_minor
  * @property string $max_discount_percent
  * @property bool $needs_approval
+ * @property bool $discount_over_limit
+ * @property ?string $approval_reason
  * @property string $requested_by
  * @property ?string $converted_to
  * @property ?array $converted_ref
@@ -70,7 +72,7 @@ class Quote extends ScopedRecord
     protected function casts(): array
     {
         return [
-            'fx' => FxSnapshot::class.':fx', 'tax_inclusive' => 'boolean', 'needs_approval' => 'boolean', 'converted_ref' => 'array',
+            'fx' => FxSnapshot::class.':fx', 'tax_inclusive' => 'boolean', 'needs_approval' => 'boolean', 'discount_over_limit' => 'boolean', 'converted_ref' => 'array',
             'quote_date' => 'immutable_date', 'valid_until' => 'immutable_date',
             'submitted_at' => 'immutable_datetime', 'decided_at' => 'immutable_datetime', 'sent_at' => 'immutable_datetime',
             'accepted_at' => 'immutable_datetime', 'declined_at' => 'immutable_datetime', 'converted_at' => 'immutable_datetime', 'cancelled_at' => 'immutable_datetime',

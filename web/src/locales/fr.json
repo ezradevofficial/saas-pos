@@ -9673,7 +9673,8 @@
       "confirmCancel": "Annuler le devis",
       "cancelled": "Devis annulé.",
       "cancelledAt": "Annulé le",
-      "expired": "Expiré"
+      "expired": "Expiré",
+      "discountNeedsApproval": "Une remise dépasse votre limite. Le soumettre envoie le devis à un responsable pour approbation avant qu'il puisse être envoyé."
     },
     "activity": {
       "title": "Activités",
@@ -9734,6 +9735,11 @@
         "won_value": "Opportunités gagnées",
         "pos_sales": "Ventes en caisse",
         "invoiced": "Facturé"
+      },
+      "unavailable": {
+        "field_hidden": "Masqué",
+        "not_permitted": "Non visible pour vous",
+        "module_inactive": "Module non actif"
       }
     },
     "settings": {

@@ -32,9 +32,11 @@ class DueTenantsTest extends TestCase
             'app_tenants_pending_verification',
             'app_tenants_awaiting_handover',
             'app_assisted_tenant_for_contact',
-            // The modules' own (ACC-06, LOY-03).
+            // The modules' own (ACC-06, LOY-03, CRM-27).
             'app_tenants_with_due_recurring_journals',
             'app_tenants_with_loyalty_sales_to_reprocess',
+            // CRM-27.
+            'app_tenants_with_due_crm_reminders',
         ];
         $runtime = DB::selectOne('select current_user as name')->name;
         $owner = config('database.connections.pgsql_owner.username');

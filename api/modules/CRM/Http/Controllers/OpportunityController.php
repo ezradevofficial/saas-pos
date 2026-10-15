@@ -53,7 +53,7 @@ class OpportunityController
 
     public function update(OpportunityRequest $request, Opportunity $crmOpportunity): OpportunityResource
     {
-        return $this->detail($request, $this->opportunities->update($crmOpportunity, $request->validated()));
+        return $this->detail($request, $this->opportunities->update($crmOpportunity, $request->validated(), $request->user()));
     }
 
     public function win(RecordActionRequest $request, Opportunity $crmOpportunity): OpportunityResource

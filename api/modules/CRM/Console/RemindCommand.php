@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 use Modules\CRM\Activities\Reminders;
 use Modules\CRM\CrmServiceProvider;
 
-/** CRM-27: send the activity reminders that are due, in every active tenant with the module. */
+/** CRM-27: send the activity reminders that are due, in each tenant with one due and the module active. */
 class RemindCommand extends Command
 {
     protected $signature = 'crm:remind';
@@ -21,7 +21,8 @@ class RemindCommand extends Command
     {
         $at = CarbonImmutable::now();
 
-        foreach ($tenants->active() as $tenantId) {
+        // ADR 002: only the tenants with a reminder due (a narrow security-definer function).
+        foreach ($tenants->withDueCrmReminders($at) as $tenantId) {
             $context->run($tenantId, function () use ($modules, $reminders, $at, $tenantId) {
                 if ($modules->isActive(CrmServiceProvider::MODULE)) {
                     $sent = $reminders->run($at);

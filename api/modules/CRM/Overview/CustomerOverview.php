@@ -44,7 +44,8 @@ class CustomerOverview
         return [
             'party' => ['id' => $party->id, 'name' => $party->name],
             'crm' => [
-                'open_value' => $openValues,
+                // CRM-09: none for a reader whose field rules hide opportunity values.
+                'open_value' => $this->access->hidesValues($user) ? null : $openValues,
                 'opportunities' => OpportunityResource::collection((clone $open)->with(OpportunityResource::RELATIONS)->orderByRaw("status = 'open' desc")->orderByDesc('created_at')->limit(self::RECENT)->get())->resolve($request),
                 'quotes' => QuoteResource::collection($this->access->visible(Quote::query(), $user, 'quote')->where('party_id', $party->id)->with(QuoteResource::RELATIONS)
                     ->orderByDesc('created_at')->limit(self::RECENT)->get())->resolve($request),

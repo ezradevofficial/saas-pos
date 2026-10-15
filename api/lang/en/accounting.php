@@ -7,6 +7,7 @@ return [
 
     'errors' => [
         // CRM-24: an accepted CRM quote made into a draft invoice.
+        'quote_invoice_mismatch' => 'The invoice would differ from the quote (a tax rate changed since the quote date). Make a new quote at today\'s rates.',
         'quote_revenue_missing' => 'Choose the revenue account of the posting rule for quotes invoiced (crm.quote_invoice), then convert the quote again.',
         'quote_invoice_forbidden' => 'You can’t create invoices at this company. Ask an accountant to convert the quote.',
         'party_not_customer' => 'Choose a customer of this company. The contact must have the customer role.',

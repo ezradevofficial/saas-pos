@@ -167,13 +167,17 @@ class Quotes
             }
 
             $quote->fill(['status' => Quote::DRAFT, 'decided_at' => null, 'decided_by' => null])->save();
-            $lines = $data['lines'] ?? $quote->lines()->get()->map(fn (QuoteLine $line) => [
+            // The kept lines when the body has none (a currency, price list or date change): an item line at its
+            // list price takes the list price again; a typed price stays typed. Priced for the person saving,
+            // so their price and discount rights apply (CRM-18, CRM-20).
+            $lines = $data['lines'] ?? $quote->lines()->get()->map(fn (QuoteLine $line) => array_filter([
                 'item_id' => $line->item_id, 'uom_id' => $line->uom_id, 'description' => $line->description,
-                'qty' => (string) $line->qty, 'unit_price_minor' => (string) $line->unit_price_minor, 'discount_percent' => (string) $line->discount_percent, 'tax_code_id' => $line->tax_code_id,
-            ])->all();
-            // Lines priced again: from the body for the person saving, else the kept ones (a currency or date change) without their checks.
+                'qty' => (string) $line->qty,
+                'unit_price_minor' => $line->item_id !== null && $line->list_price_minor !== null && $line->unit_price_minor === $line->list_price_minor ? null : (string) $line->unit_price_minor,
+                'discount_percent' => (string) $line->discount_percent, 'tax_code_id' => $line->tax_code_id,
+            ], fn ($value) => $value !== null))->all();
             QuoteLine::query()->where('quote_id', $quote->id)->delete();
-            $this->writeLines($quote, $header, $lines, isset($data['lines']) ? $by : null);
+            $this->writeLines($quote, $header, $lines, $by);
 
             return $quote->refresh();
         });
@@ -211,6 +215,11 @@ class Quotes
             }
 
             $threshold = Settings::query()->where('company_id', $company->id)->value('quote_approval_minor');
+            $reason = match (true) {
+                (bool) $quote->discount_over_limit => 'discount_above_limit',
+                $threshold !== null && $baseAmounts['total'] > (int) $threshold => 'amount_above_threshold',
+                default => null,
+            };
             $quote->fill([
                 'number' => $quote->number ?? $this->numbering->next(self::NUMBER_TYPE, new NumberContext($company, Branch::query()->find($quote->branch_id), at: $quote->quote_date->setTime(12, 0)))->number,
                 'status' => Quote::PENDING,
@@ -221,7 +230,9 @@ class Quotes
                 'base_discount_minor' => $baseAmounts['discount'],
                 'base_tax_minor' => $baseAmounts['tax'],
                 'base_total_minor' => $baseAmounts['total'],
-                'needs_approval' => $threshold !== null && $baseAmounts['total'] > (int) $threshold,
+                // CRM-21 and owner decision A: above the threshold, or a discount above the saver's limit.
+                'needs_approval' => $reason !== null,
+                'approval_reason' => $reason,
             ])->save();
             $this->engine->start(QuoteType::KEY, $quote->id, $by);
 
@@ -434,6 +445,8 @@ class Quotes
     {
         $priced = $this->pricing->price($header['company'], $quote->branch_id, $quote->currency, $header['list'], $quote->tax_inclusive, $quote->quote_date, $inputs, $by, strict: false);
         $this->saveLines($quote, $priced['lines']);
+        // Owner decision A: a discount above the saver's limit sends the quote for approval.
+        $quote->fill(['discount_over_limit' => $priced['over_limit']])->save();
     }
 
     /** @param list<array<string, mixed>> $lines */

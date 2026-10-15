@@ -3,7 +3,6 @@
 namespace Modules\CRM\Http\Resources;
 
 use App\Core\CustomFields\CustomFieldPresenter;
-use App\Core\Rbac\FieldRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\CRM\CustomFields\OpportunityEntity;
@@ -78,7 +77,7 @@ class OpportunityResource extends JsonResource
         ];
 
         if ($user !== null) {
-            $hidden = app(FieldRules::class)->for($user, OpportunityEntity::KEY)['hidden'];
+            $hidden = $access->hiddenFields($user, OpportunityEntity::KEY);
 
             if (in_array('value_minor', $hidden, true)) {
                 array_push($hidden, 'value', 'weighted_minor', 'base_value');

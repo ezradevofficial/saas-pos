@@ -167,6 +167,7 @@ return [
         'owner' => 'Owner',
         'admin' => 'Admin',
         'branch_manager' => 'Branch Manager',
+        'sales_rep' => 'Sales Rep',
         'cashier' => 'Cashier',
         'waiter' => 'Waiter',
         'storekeeper' => 'Storekeeper',

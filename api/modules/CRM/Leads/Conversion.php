@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\CRM\Events\LeadConverted;
 use Modules\CRM\Models\Lead;
 use Modules\CRM\Opportunities\Opportunities;
+use Modules\CRM\Support\CrmAccess;
 use Modules\CRM\Support\CrmError;
 use Modules\CRM\Support\Records;
 use Modules\CRM\Support\Tx;
@@ -61,6 +62,11 @@ class Conversion
             $opportunityId = null;
 
             if (is_array($data['opportunity'] ?? null)) {
+                // CRM-12 (review): the opportunity needs crm.opportunity.create at the lead's branch.
+                if (! app(CrmAccess::class)->canAt($by, 'crm.opportunity.create', $lead->branch_id)) {
+                    throw new AuthorizationException(__('rbac.forbidden'));
+                }
+
                 $input = $data['opportunity'];
                 $opportunity = $this->opportunities->create([
                     'branch_id' => $lead->branch_id,
@@ -74,7 +80,7 @@ class Conversion
                     'owner_id' => $lead->owner_id,
                     'team_id' => $lead->team_id,
                     'notes' => $lead->notes,
-                ], $by, $lead->id);
+                ], $by, $lead->id, checkAssign: false);
                 $opportunityId = $opportunity->id;
             }
 

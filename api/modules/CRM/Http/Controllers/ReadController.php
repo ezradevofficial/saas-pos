@@ -31,6 +31,13 @@ class ReadController
      */
     public function assignees(ReadRequest $request, ScopeResolver $resolver): JsonResponse
     {
+        // A branch the caller doesn't reach is not found (review): no list of who works there.
+        if ($request->filled('branch')) {
+            $branch = (string) $request->validated('branch');
+            abort_unless(collect(['crm.lead.assign', CrmAccess::SCOPE_TEAM, CrmAccess::SCOPE_BRANCH, 'crm.target.manage'])
+                ->contains(fn (string $permission) => $this->access->canAt($request->user(), $permission, $branch)), 404);
+        }
+
         $branches = $request->filled('branch')
             ? [$request->validated('branch')]
             : Branch::query()->whereNull('archived_at')
@@ -58,6 +65,8 @@ class ReadController
         $open = $base()->where('status', Opportunity::OPEN)->groupBy('stage_id', 'currency')
             ->selectRaw('stage_id, currency, count(*) as count, sum(value_minor) as amount, sum(round(value_minor::numeric * probability / 100)) as weighted')->get();
         $won = $base()->where('status', Opportunity::WON)->groupBy('currency')->selectRaw('currency, count(*) as count, sum(value_minor) as amount')->get();
+        // CRM-09: counts only for a reader whose field rules hide opportunity values.
+        $hidden = $this->access->hidesValues($request->user());
 
         return response()->json(['data' => [
             'pipeline' => ['id' => $pipeline->id, 'name' => $pipeline->name],
@@ -66,11 +75,11 @@ class ReadController
                 'name' => $stage->name,
                 'probability' => $stage->probability,
                 'count' => (int) $open->where('stage_id', $stage->id)->sum('count'),
-                'values' => $open->where('stage_id', $stage->id)->sortBy('currency')->map(fn ($row) => [
+                'values' => $hidden ? null : $open->where('stage_id', $stage->id)->sortBy('currency')->map(fn ($row) => [
                     'currency' => $row->currency, 'amount_minor' => (string) $row->amount, 'weighted_minor' => (string) $row->weighted,
                 ])->values()->all(),
             ])->values()->all(),
-            'won' => ['count' => (int) $won->sum('count'), 'values' => $won->sortBy('currency')->map(fn ($row) => ['currency' => $row->currency, 'amount_minor' => (string) $row->amount])->values()->all()],
+            'won' => ['count' => (int) $won->sum('count'), 'values' => $hidden ? null : $won->sortBy('currency')->map(fn ($row) => ['currency' => $row->currency, 'amount_minor' => (string) $row->amount])->values()->all()],
             'lost' => ['count' => $base()->where('status', Opportunity::LOST)->count()],
         ]]);
     }

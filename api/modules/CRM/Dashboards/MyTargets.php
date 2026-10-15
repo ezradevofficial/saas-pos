@@ -43,15 +43,15 @@ class MyTargets extends DashboardSource
     {
         $targets = app(Targets::class);
         $zones = Company::query()->pluck('timezone', 'id');
-        $current = $targets->visible($user)->filter(function (Target $target) use ($zones) {
+        $current = $targets->visibleQuery($user)->get()->filter(function (Target $target) use ($zones) {
             $today = CarbonImmutable::now($zones[$target->company_id] ?? 'UTC')->toDateString();
 
             return $target->period_start->toDateString() <= $today && $target->period_end->toDateString() >= $today;
         })->values();
 
         return [
-            'rows' => $current->take(20)->map(function (Target $target) use ($targets) {
-                $actual = $targets->actual($target);
+            'rows' => $current->take(20)->map(function (Target $target) use ($targets, $user) {
+                $actual = $targets->actual($target, $user);
 
                 return [
                     'id' => $target->id,

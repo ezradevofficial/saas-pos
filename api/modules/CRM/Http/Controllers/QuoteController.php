@@ -82,6 +82,7 @@ class QuoteController
             })->values()->all(),
             'totals' => array_map(fn (int $value) => (string) $value, $result['totals']),
             'max_discount_percent' => Refs::decimal($result['max_discount_percent']),
+            'discount_over_limit' => $result['over_limit'],
         ]]);
     }
 
@@ -152,7 +153,7 @@ class QuoteController
             $activity = $activities->create([
                 'branch_id' => $quote->branch_id, 'quote_id' => $quote->id, 'kind' => 'email', 'starts_at' => now()->toIso8601String(),
                 'subject' => __('crm.quotes.email_subject', ['number' => $quote->number]), 'email' => ['to' => $to, 'subject' => __('crm.quotes.email_subject', ['number' => $quote->number])],
-            ], $request->user());
+            ], $request->user(), system: true); // the send was allowed by crm.quote.send alone
             $activity->forceFill(['status' => 'done', 'done_at' => now()])->save();
 
             return $quote;

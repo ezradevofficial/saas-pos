@@ -7,6 +7,7 @@ return [
 
     'errors' => [
         // CRM-24 : un devis CRM accepté transformé en facture brouillon.
+        'quote_invoice_mismatch' => 'La facture différerait du devis (un taux de taxe a changé depuis la date du devis). Établissez un nouveau devis aux taux du jour.',
         'quote_revenue_missing' => 'Choisissez le compte de produits de la règle de comptabilisation des devis facturés (crm.quote_invoice), puis convertissez de nouveau le devis.',
         'quote_invoice_forbidden' => 'Vous ne pouvez pas créer de factures dans cette société. Demandez à un comptable de convertir le devis.',
         'party_not_customer' => 'Choisissez un client de cette société. Le contact doit avoir le rôle client.',

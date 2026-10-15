@@ -17,12 +17,12 @@ use Illuminate\Support\Str;
  */
 class RoleTemplates
 {
-    /** @var list<array{key: string, permissions: list<string>, except?: list<string>, is_owner: bool, requires_two_factor: bool}>|null */
+    /** @var list<array{key: string, permissions: list<string>, except?: list<string>, limits?: array<string, string>, is_owner: bool, requires_two_factor: bool}>|null */
     private ?array $templates = null;
 
     public function __construct(private readonly TenantContext $tenants) {}
 
-    /** @return list<array{key: string, permissions: list<string>, except?: list<string>, is_owner: bool, requires_two_factor: bool}> */
+    /** @return list<array{key: string, permissions: list<string>, except?: list<string>, limits?: array<string, string>, is_owner: bool, requires_two_factor: bool}> */
     public function all(): array
     {
         return $this->templates ??= require __DIR__.'/role-templates.php';
@@ -86,6 +86,11 @@ class RoleTemplates
         ])->save();
 
         $role->syncPermissions($this->expand($template['permissions'], $template['except'] ?? []));
+
+        // RBAC-06: a template's default limits (e.g. the sales rep's 0 % discount, docs/modules/crm.md), seeded once.
+        foreach ($template['limits'] ?? [] as $key => $value) {
+            $role->limitRules()->create(['key' => $key, 'value' => $value]);
+        }
 
         return $role;
     }

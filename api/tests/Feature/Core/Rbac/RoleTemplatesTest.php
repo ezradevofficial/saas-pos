@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -27,7 +28,7 @@ class RoleTemplatesTest extends TestCase
     use BuildsRbac, RefreshTenantDatabase;
 
     private const TEMPLATE_KEYS = [
-        'owner', 'admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper', 'accountant',
+        'owner', 'admin', 'branch_manager', 'sales_rep', 'cashier', 'waiter', 'storekeeper', 'accountant',
         'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'employee_self_service',
         'read_only_auditor',
     ];
@@ -113,16 +114,16 @@ class RoleTemplatesTest extends TestCase
         // Procurement (docs/modules/procurement.md): 32 procurement.* permissions (procurement.value.view, decision 27).
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
         // HR (docs/modules/hr.md): 36 hr.* permissions.
-        // CRM (docs/modules/crm.md): 26 crm.* permissions (crm.scope.team|branch among them, CRM-08).
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 26, count($names));
+        // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27, count($names));
     }
 
-    public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
+    public function test_sign_up_provisions_fourteen_system_roles_and_an_owner_assignment(): void
     {
         $tenantId = $this->enter($this->signUp()->json('challenge_id'));
 
         $roles = Role::orderBy('template_key')->get();
-        $this->assertCount(13, $roles);
+        $this->assertCount(14, $roles);
         $this->assertEqualsCanonicalizing(self::TEMPLATE_KEYS, $roles->pluck('template_key')->all());
         $this->assertTrue($roles->every(fn (Role $r) => $r->is_system && $r->tenant_id === $tenantId));
 
@@ -169,8 +170,26 @@ class RoleTemplatesTest extends TestCase
             $assignment->user_id, $assignment->role_id, $assignment->scope_type, $assignment->scope_id,
         ]);
 
-        $this->assertSame(13, AuditEntry::where('action', 'rbac.role.create')->count());
+        $this->assertSame(14, AuditEntry::where('action', 'rbac.role.create')->count());
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
+    }
+
+    public function test_the_sales_rep_template_works_its_own_records_with_a_zero_discount_limit(): void
+    {
+        // Owner decision B (docs/modules/crm.md): own leads, opportunities, quotes and activities; no team or
+        // branch scope, no assigning; quote discounts within a limit rule the tenant edits, 0 % by default.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $rep = Role::where('template_key', 'sales_rep')->sole();
+        $crm = $rep->permissions()->where('module', 'crm')->orderBy('name')->pluck('name')->all();
+
+        $this->assertSame('Sales Rep', $rep->name);
+        $this->assertContains('crm.quote.discount', $crm);
+        $this->assertContains('crm.opportunity.create', $crm);
+        foreach (['crm.scope.team', 'crm.scope.branch', 'crm.lead.assign', 'crm.opportunity.assign', 'crm.quote.approve', 'crm.quote.price', 'crm.target.manage', 'crm.settings.manage'] as $name) {
+            $this->assertNotContains($name, $crm, $name);
+        }
+        $this->assertSame([['max_discount_percent', 0.0]], LimitRule::where('role_id', $rep->id)->get()->map(fn (LimitRule $rule) => [$rule->key, (float) $rule->value])->all());
+        $this->assertSame(0, LimitRule::where('role_id', '!=', $rep->id)->count(), 'other templates seed no limits');
     }
 
     public function test_templates_grant_party_permissions_by_job(): void

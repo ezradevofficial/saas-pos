@@ -167,6 +167,7 @@ return [
         'owner' => 'Propriétaire',
         'admin' => 'Administrateur',
         'branch_manager' => 'Responsable d’agence',
+        'sales_rep' => 'Commercial',
         'cashier' => 'Caissier',
         'waiter' => 'Serveur',
         'storekeeper' => 'Magasinier',

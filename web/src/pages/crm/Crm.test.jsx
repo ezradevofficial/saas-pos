@@ -286,9 +286,9 @@ describe('Calendar and targets (CRM-26..CRM-30)', () => {
   it('lists targets with progress and "Not available" when the metric cannot be read, and creates one (CRM-30)', async () => {
     const targets = [
       { id: 't-1', company: named('c-1', 'Amani Retail'), branch: null, subject_type: 'user', subject: named('u-1', 'Amina Otieno'), metric: 'won_value', period_start: '2026-10-01', period_end: '2026-12-31', currency: 'KES', amount_minor: '50000000', actual_minor: '12500000', percent: '25', available: true, archived_at: null, can: { manage: true } },
-      { id: 't-2', company: named('c-1', 'Amani Retail'), branch: named('br-1', 'Westlands'), subject_type: 'branch', subject: named('br-1', 'Westlands'), metric: 'pos_sales', period_start: '2026-10-01', period_end: '2026-10-31', currency: 'KES', amount_minor: '100000000', actual_minor: null, percent: null, available: false, archived_at: null, can: { manage: true } },
+      { id: 't-2', company: named('c-1', 'Amani Retail'), branch: named('br-1', 'Westlands'), subject_type: 'branch', subject: named('br-1', 'Westlands'), metric: 'pos_sales', period_start: '2026-10-01', period_end: '2026-10-31', currency: 'KES', amount_minor: '100000000', actual_minor: null, percent: null, available: false, unavailable: 'not_permitted', archived_at: null, can: { manage: true } },
     ]
-    mockCrm(api, [['crm/targets?company=c-1', { data: targets }]])
+    mockCrm(api, [['crm/targets?company=c-1&per_page=200', { data: targets }]])
     api.post.mockResolvedValue({ data: targets[0] })
     renderApp('/crm/targets')
     const row = (await screen.findByText('Won opportunities')).closest('tr')

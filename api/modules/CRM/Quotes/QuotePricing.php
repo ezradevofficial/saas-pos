@@ -36,9 +36,10 @@ use Modules\CRM\Support\Limits;
  *   (`price_override_not_allowed`); no list price needs a typed price
  *   (`price_required`);
  * - gross = round_half_up(qty × unit price); discount =
- *   round_half_up(gross × percent ÷ 100) with `crm.quote.discount` and
- *   within the user's `max_discount_percent` (RBAC-06,
- *   `discount_not_allowed`, `discount_over_limit`); amount = gross −
+ *   round_half_up(gross × percent ÷ 100) with `crm.quote.discount`
+ *   (`discount_not_allowed`); above the user's `max_discount_percent`
+ *   (RBAC-06; no rule: 0 %) it is kept and `over_limit` sends the quote
+ *   for approval (owner decision A); amount = gross −
  *   discount;
  * - the tax code: the company's code for the item's tax category
  *   (ItemTaxStatus; an item without one is refused with the reason), or
@@ -66,7 +67,7 @@ class QuotePricing
 
     /**
      * @param  list<array<string, mixed>>  $inputs
-     * @return array{lines: list<array<string, mixed>>, totals: array{subtotal_minor: int, discount_minor: int, tax_minor: int, total_minor: int}, problems: list<array{line: int, field: string, code: string, message: string}>, max_discount_percent: string}
+     * @return array{lines: list<array<string, mixed>>, totals: array{subtotal_minor: int, discount_minor: int, tax_minor: int, total_minor: int}, problems: list<array{line: int, field: string, code: string, message: string}>, max_discount_percent: string, over_limit: bool}
      *
      * @throws ApiException the first problem, unless $collect
      */
@@ -78,6 +79,7 @@ class QuotePricing
         $lines = [];
         $problems = [];
         $maxDiscount = BigDecimal::zero();
+        $overLimit = false;
         $totals = ['subtotal_minor' => 0, 'discount_minor' => 0, 'tax_minor' => 0, 'total_minor' => 0];
         $mayPrice = $actor === null || $this->access->canAt($actor, 'crm.quote.price', $branchId);
         $mayDiscount = $actor === null || $this->access->canAt($actor, 'crm.quote.discount', $branchId);
@@ -111,9 +113,15 @@ class QuotePricing
 
             $percent = BigDecimal::of($line['discount_percent']);
 
+            // Owner decision A: above the saver's limit (no rule: 0 %) the quote is kept and goes for approval.
             if ($percent->isPositive() && $actor !== null && $mayDiscount && ! $this->limits->withinDiscount($actor, $branchId, $percent)) {
-                $max = $this->limits->maxDiscount($actor, $branchId);
-                $problem('discount_percent', $max === null ? 'discount_not_allowed' : 'discount_over_limit', ['limit' => $max === null ? '0' : (string) BigDecimal::of($max)->strippedOfTrailingZeros()]);
+                $overLimit = true;
+
+                if ($collect) {
+                    $max = $this->limits->maxDiscount($actor, $branchId);
+                    $notice = __('crm.errors.discount_needs_approval', ['limit' => $max === null ? '0' : (string) BigDecimal::of($max)->strippedOfTrailingZeros()]);
+                    $problems[] = ['line' => $index, 'field' => 'discount_percent', 'code' => 'discount_needs_approval', 'message' => $notice];
+                }
             }
 
             $maxDiscount = $percent->isGreaterThan($maxDiscount) ? $percent : $maxDiscount;
@@ -124,7 +132,7 @@ class QuotePricing
             }
         }
 
-        return ['lines' => $lines, 'totals' => $totals, 'problems' => $problems, 'max_discount_percent' => (string) $maxDiscount->toScale(2)];
+        return ['lines' => $lines, 'totals' => $totals, 'problems' => $problems, 'max_discount_percent' => (string) $maxDiscount->toScale(2), 'over_limit' => $overLimit];
     }
 
     /**

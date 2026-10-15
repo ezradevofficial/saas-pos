@@ -28,11 +28,13 @@ use Modules\CRM\Events\QuoteConverted;
  * - Each line's account is the `revenue` line of the company's posting rule
  *   `crm.quote_invoice` (ACC-07, seeded from the country chart); without
  *   it the conversion is refused (`quote_revenue_missing`).
- * - Lines map one to one. A discounted line is written as quantity 1 at
- *   its discounted amount (Accounting's lines have no discount column),
+ * - Lines map one to one. A discounted line, or one whose quantity has
+ *   more than 4 decimals (Accounting keeps 4), is written as quantity 1 at
+ *   its amount (Accounting's lines have no discount column),
  *   its quantity, price and discount in the description, so its amount and
  *   tax are the quote's. Tax is computed by Documents at the invoice's
- *   issue date (the conversion day).
+ *   issue date (the conversion day); an invoice whose net or tax differs
+ *   from the quote's is refused (`quote_invoice_mismatch`), never written.
  * - The invoice is dated the conversion day, in the quote's currency and
  *   tax treatment, at the quote's branch, for its customer.
  */
@@ -68,7 +70,8 @@ class QuoteInvoices
 
         $major = fn (string $minor) => Money::ofMinor($minor, $event->currency)->toDecimalString($this->decimals);
         $lines = array_map(function (array $line) use ($account, $major) {
-            $discounted = $line['discount_minor'] !== '0';
+            // A discount, or a quantity Accounting's 4 decimals cannot hold: one unit at the line's amount.
+            $discounted = $line['discount_minor'] !== '0' || self::finerThanFour($line['qty']);
 
             return [
                 'description' => mb_substr($discounted
@@ -95,7 +98,24 @@ class QuoteInvoices
             'lines' => $lines,
         ], $user);
 
+        // The invoice says what the quote said: its net and tax equal the quote's, or nothing is written
+        // (a rate changed since the quote date: a new quote is made at today's rate).
+        $quoteTax = array_sum(array_map(fn (array $line) => (int) $line['tax_minor'], $event->lines));
+        $quoteNet = array_sum(array_map(fn (array $line) => (int) $line['total_minor'] - (int) $line['tax_minor'], $event->lines));
+
+        if ($document->tax_minor !== $quoteTax || $document->subtotal_minor !== $quoteNet) {
+            throw LedgerError::make('quote_invoice_mismatch', field: 'target');
+        }
+
         $event->result = ['type' => 'accounting.invoice', 'id' => $document->id, 'label' => null];
+    }
+
+    /** Whether a decimal quantity has a non-zero digit past the 4th decimal ("1.23456"). */
+    private static function finerThanFour(string $qty): bool
+    {
+        $fraction = str_contains($qty, '.') ? rtrim(substr($qty, strpos($qty, '.') + 1), '0') : '';
+
+        return strlen($fraction) > 4;
     }
 
     /** A decimal string without trailing zeros ("2.500000" → "2.5"). */

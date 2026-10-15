@@ -3,6 +3,8 @@
 // CRM and sales module (docs/modules/crm.md).
 return [
     'errors' => [
+        'email_not_of_recipient' => 'Send it to an address of the lead or customer, or add the address to their record first.',
+        'discount_needs_approval' => 'This discount is above your limit of :limit%. You can save the quote; a manager approves it before it is sent.',
         'activity_closed' => 'This activity is already done or cancelled. Reopen it first.',
         'assign_forbidden' => 'You can’t give this record to someone else here. Ask a manager to assign it.',
         'branch_not_of_company' => 'Choose a branch of this company.',
@@ -190,12 +192,19 @@ return [
             'base_total' => 'Total in base currency',
             'total' => 'Total',
             'max_discount_percent' => 'Largest line discount (%)',
+            'discount_over_limit' => 'Discount above the saver\'s limit',
+            'approval_reason' => 'Why approval is needed',
             'needs_approval' => 'Above the approval threshold',
             'customer' => 'Customer',
             'company' => 'Company',
             'branch' => 'Branch',
             'currency' => 'Currency',
         ],
+    ],
+
+    'approval_reasons' => [
+        'amount_above_threshold' => 'Total above the approval threshold',
+        'discount_above_limit' => 'Discount above limit',
     ],
 
     'quotes' => [

@@ -38,14 +38,22 @@ class Activities
         private readonly CrmAccess $access,
     ) {}
 
-    /** @param array<string, mixed> $data */
-    public function create(array $data, User $by): Activity
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  bool  $system  a record the platform writes for an action $by
+     *                        was allowed to take (a quote's send email): no
+     *                        `crm.activity.manage` check
+     */
+    public function create(array $data, User $by, bool $system = false): Activity
     {
-        return Tx::run(function () use ($data, $by) {
+        return Tx::run(function () use ($data, $by, $system) {
             $linked = $this->linked($data, $by);
             $branchId = $data['branch_id'] ?? collect($linked)->filter()->first()?->branch_id ?? throw CrmError::make('branch_required', field: 'branch_id');
             $branch = $this->records->branch((string) $branchId);
-            $this->access->assertAt($by, 'crm.activity.manage', $branch->id);
+
+            if (! $system) {
+                $this->access->assertAt($by, 'crm.activity.manage', $branch->id);
+            }
 
             foreach ($linked as $record) {
                 if ($record !== null && $record->company_id !== $branch->company_id) {
@@ -86,6 +94,9 @@ class Activities
 
             if (array_key_exists('owner_id', $data) && $data['owner_id'] !== $activity->owner_id) {
                 $activity->owner_id = $this->owner($activity, (string) $data['owner_id'], $by);
+                // The new owner's team: the linked record's, else their only one at the branch.
+                $activity->team_id = collect(self::LINKS)->map(fn ($link, $key) => $activity->{$key} === null ? null : $link[0]::query()->whereKey($activity->{$key})->value('team_id'))->filter()->first()
+                    ?? $this->records->soleTeam($activity->company_id, $activity->branch_id, $activity->owner_id);
             }
 
             $activity->save();

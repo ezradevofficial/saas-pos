@@ -2,7 +2,9 @@
 
 namespace Modules\CRM\Http\Controllers;
 
+use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\CRM\Http\Requests\ReadRequest;
 use Modules\CRM\Http\Requests\TargetRequest;
 use Modules\CRM\Http\Resources\TargetResource;
@@ -14,11 +16,18 @@ class TargetController
 {
     public function __construct(private readonly Targets $targets) {}
 
-    public function index(ReadRequest $request): JsonResponse
+    /** CRM-30: the targets the reader sees, filtered in SQL and paged; subjects and teams read at once. */
+    public function index(ReadRequest $request): AnonymousResourceCollection
     {
-        $targets = $this->targets->visible($request->user(), $request->validated('company'), $request->validated('status') === 'all');
+        $page = $this->targets->visibleQuery($request->user(), $request->validated('company'), $request->validated('status') === 'all')
+            ->paginate((int) $request->validated('per_page', ListRequest::PER_PAGE))->withQueryString();
+        TargetResource::prepare(collect($page->items()));
 
-        return response()->json(['data' => TargetResource::collection($targets)->resolve($request)]);
+        try {
+            return TargetResource::collection($page);
+        } finally {
+            TargetResource::$batch = null;
+        }
     }
 
     public function store(TargetRequest $request): JsonResponse

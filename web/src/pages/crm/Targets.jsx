@@ -125,7 +125,7 @@ export default function Targets() {
   const { company, companies, choose } = useCrmCompany()
   const [dialog, setDialog] = useState(null)
   const key = [...crmKey, 'targets', company?.id]
-  const query = useQuery({ queryKey: key, queryFn: () => api.get(`crm/targets?company=${company.id}`), enabled: Boolean(company) })
+  const query = useQuery({ queryKey: key, queryFn: () => api.get(`crm/targets?company=${company.id}&per_page=200`), enabled: Boolean(company) })
   const action = useCrmAction(null)
   const rows = (query.data?.data ?? []).filter((target) => !target.archived_at)
   const manage = can(TARGET_MANAGE)
@@ -151,7 +151,7 @@ export default function Targets() {
       ),
     },
     { key: 'amount', label: t('crm.columns.target'), align: 'end', render: (row) => <Money amount={row.amount_minor} currency={row.currency} /> },
-    { key: 'actual', label: t('crm.columns.actual'), align: 'end', render: (row) => (row.available && row.actual_minor !== null && row.actual_minor !== undefined ? <Money amount={row.actual_minor} currency={row.currency} /> : <span className="text-ink-muted">—</span>) },
+    { key: 'actual', label: t('crm.columns.actual'), align: 'end', render: (row) => (row.available && row.actual_minor !== null && row.actual_minor !== undefined ? <Money amount={row.actual_minor} currency={row.currency} /> : <span className="text-ink-muted">{row.unavailable ? t(`crm.targets.unavailable.${row.unavailable}`) : '—'}</span>) },
     { key: 'percent', label: t('crm.columns.achieved'), render: (row) => <Progress target={row} /> },
     ...(manage
       ? [

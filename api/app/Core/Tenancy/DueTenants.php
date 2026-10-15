@@ -137,6 +137,12 @@ class DueTenants
         return $this->ids('app_tenants_with_due_recurring_journals(?::date)', [$on->toDateString()]);
     }
 
+    /** @return list<string> CRM-27: an open CRM activity whose reminder is due at $at. */
+    public function withDueCrmReminders(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_due_crm_reminders(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {

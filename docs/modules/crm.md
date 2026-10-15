@@ -62,10 +62,10 @@ Six parts:
 | CRM-06 | **Lead capture by web form.** A lead form (company, branch, source, optional team, the fields it shows and requires) has a public link with a random 40-character token (stored as its sha256). `POST /api/v1/crm/forms/{token}` creates a `form` lead, rate-limited per IP and per form, answers only `{received: true}`, and refuses silently when a hidden honeypot field is filled. The tenant of a token is found by a security-definer function (ADR 002). A rotated token stops the old one. A form of a tenant without the module, or archived, answers 404. | Must |
 | CRM-07 | **Lead capture by import and API.** The `crm_leads` importer (IMP-01..IMP-03) with company, branch, name, organisation, email, phone, source (by name), owner (by email), estimated value and currency, notes and custom fields; undo archives what it created. `POST crm/leads` is the API (people's tokens; channel `api` unless the client says `manual`). | Must |
 | CRM-08 | **Record scope (RBAC-04, RBAC-07).** Leads, opportunities, quotes and activities live at a branch and have an owner and an optional team. A user holding the resource's view permission at the branch (or above) sees the records they own; holding `crm.scope.team` there, also those of their teams (as member or leader); holding `crm.scope.branch` there, every record at the branch, unassigned ones included. Out of scope is not found (404), in lists, search, exports, the 360 view, the calendar, targets and dashboards. Changes need the resource's permission and the same visibility. | Must |
-| CRM-09 | **Field rules (RBAC-05).** `crm_lead` and `crm_opportunity` field rules hide or lock fields per role (e.g. `estimated_value_minor`, `value_minor`), applied to resources, lists, exports and writes (GuardsFieldRules). | Should |
-| CRM-10 | **Owner assignment.** A new lead belongs to its creator unless an owner is given; giving or changing an owner needs `crm.lead.assign` at the branch. An owner must be an active user who may view leads at the branch (`owner_not_eligible`). | Must |
+| CRM-09 | **Field rules (RBAC-05).** `crm_lead` and `crm_opportunity` field rules hide or lock fields per role (e.g. `estimated_value_minor`, `value_minor`), applied to resources, lists, exports and writes (GuardsFieldRules), and to every aggregate: a reader whose rules hide `value_minor` gets counts without amounts in the pipeline summary and the `crm.pipeline_value` widget, no `open_value` in the 360 view and no `won_value` target actuals (`unavailable: field_hidden`); hidden `estimated_value_minor` is never summed or sorted on. | Should |
+| CRM-10 | **Owner assignment.** A new lead belongs to its creator unless an owner is given; giving or changing an owner needs `crm.lead.assign` at the branch; for an opportunity, `crm.opportunity.assign` (a converted lead's opportunity keeps the lead's owner). When the owner changes and no team is given, the team becomes the new owner's (the linked record's for an activity, else the owner's only team at the branch). An owner must be an active user who may view leads at the branch (`owner_not_eligible`). | Must |
 | CRM-11 | **Assignment rules and round-robin.** Leads that arrive without an owner (form, import, API) are dealt by the company's rules, in order: a rule matches on branch, source and channel (any when empty) and gives the lead to a user or to a team; a team deals round-robin among its eligible members (active, may view leads at the branch), the turn kept on the team under a row lock so two leads at once never go to the same person by mistake. No rule matched: the settings' default team; else unassigned. The outcome is audited on the lead. | Must |
-| CRM-12 | **Lead conversion.** A qualified (or new, contacted) lead converts to a customer: an existing customer party the user reaches (MD-01; one without the customer role is refused, `party_not_customer`), or a new one created through the core party API's own rules (`core.party.create`, sharing mode, duplicate checks). Optionally an opportunity is created with the lead's owner, team, branch and estimated value in the chosen pipeline (its first stage by default). The lead becomes `converted` with links to both, once (`lead_converted`); `LeadConverted` is raised. | Must |
+| CRM-12 | **Lead conversion.** A qualified (or new, contacted) lead converts to a customer: an existing customer party the user reaches (MD-01; one without the customer role is refused, `party_not_customer`), or a new one created through the core party API's own rules (`core.party.create`, sharing mode, duplicate checks). Optionally an opportunity is created with the lead's owner, team, branch and estimated value in the chosen pipeline (its first stage by default; needs `crm.opportunity.create` at the lead's branch). The lead becomes `converted` with links to both, once (`lead_converted`); `LeadConverted` is raised. | Must |
 | CRM-13 | **Lead kanban and list.** Leads by status (new, contacted, qualified) as columns; moving a card changes the status. A list with search, filters (status, owner, branch, source), sort, saved views (LAY-04) and export (EXP-01). | Must |
 | CRM-14 | **Opportunities.** A name, customer (core party with the customer role), pipeline and stage, value in minor units and an ISO 4217 currency (CUR-01, an active one), expected close date, probability (the stage's by default, overridable 0 to 100), owner, team, branch, source lead, notes, custom fields (CF-01). Status `open`, `won`, `lost`. Archived, never deleted. Audited. | Must |
 | CRM-15 | **Stage moves and closing.** Moving to another open stage of the same pipeline sets the stage's probability unless one is given. Winning records the won reason (optional), the close date and the rate and base value at that date (CUR-04; `rate_unavailable` refuses); losing needs a lost reason when the settings say so (`reason_required`) and sets probability to 0. A closed opportunity can be reopened (`crm.opportunity.close`). `OpportunityWon` and `OpportunityLost` are raised. | Must |
@@ -73,17 +73,17 @@ Six parts:
 | CRM-17 | **Quotes.** A quote for a customer, optionally from an opportunity, at a branch: currency (the party's, else the company's base), price list (the party's in that currency, else the company's default in that currency), tax inclusive per the price list, quote date, valid until (date + validity days), terms, notes, lines, owner, team. Numbered at submission with `crm.quote` (`QT-{BRANCH}-{YYYY}-{00001}`, yearly, NUM-01). Audited; cancelled, never deleted. | Must |
 | CRM-18 | **Quote lines and maths (ADR 003).** A line names an item and unit (or a description), a quantity (decimal string, up to 6 places), a unit price and a discount percent (0 to 100, up to 2 places). For an item the price comes from the quote's price list (PriceResolver: quantity breaks, unit factors); a typed price other than the list price needs `crm.quote.price` (`price_override_not_allowed`); a line without a list price needs a typed price (`price_required`). gross = round_half_up(qty × unit price); discount = round_half_up(gross × percent ÷ 100); amount = gross − discount; tax on the amount from the core tax calculator, inclusive or exclusive (MD-03). Totals: subtotal = Σ gross, discount = Σ discount, tax = Σ tax, total = Σ line totals. All in minor units of the quote currency; never floats. | Must |
 | CRM-19 | **Tax from core, never invented.** An item line's tax code is the company's code for the item's tax category (ItemTaxStatus); a description line takes a tax code of the company (required). An item whose category has no code (`tax_category_missing`, `tax_code_missing`) is refused on the line. A code without a confirmed rate on the quote date is kept in a draft without tax and shown as "Rate needed"; submitting refuses it (`tax_rate_missing`, naming the code). | Must |
-| CRM-20 | **Discount limits (RBAC-06).** A line discount needs `crm.quote.discount` and must be within the user's `max_discount_percent` at the quote's branch (`discount_over_limit`, naming the limit). No limit rule means no discount; the Owner has no limit. Checked on every save by the person saving. | Must |
-| CRM-21 | **Quote approval (WF-01, APR-01..APR-07).** Submitting freezes the base amounts at the company's rate on the quote date (CUR-04), numbers the quote and starts the `crm.quote` flow. The default flow (WF-02) asks a Branch Manager at the branch (escalated to the Admins after two business days) when the base total is above the company's threshold (`needs_approval`), else approves at once. Tenants may route on the totals, the largest discount, the customer, the branch and custom fields. The creator never approves their own quote (APR-07). Approved → `approved`; rejected → `rejected` (editable again as a new draft by copying). `QuoteApproved` is raised. | Must |
-| CRM-22 | **Quote output (TPL-01, TPL-04).** The PDF prints from the `sales.quote` template (CRM is its live data source): lines with discount and tax rate, totals, valid until, terms. Approved quotes can be emailed with the PDF (core DocumentEmails: queued, rate-limited, audited) and shared by a public link for WhatsApp (core DocumentShares: 7 days, revocable, opens audited). Sending marks the quote `sent` and logs an email activity. | Must |
+| CRM-20 | **Discount limits (RBAC-06).** A line discount needs `crm.quote.discount` (`discount_not_allowed`). A discount above the saver's `max_discount_percent` at the quote's branch (no rule: 0 %) is saved but marks the quote `discount_over_limit`; submitting then routes it through the `crm.quote` flow whatever the threshold, with the reason `discount_above_limit`, so a manager approves it before it can be sent (owner decision A). The preview names the limit (`discount_needs_approval`). The Owner has no limit. Checked on every save by the person saving; an edit reads list prices again (date, currency or price list changed) for lines whose price was the list price. | Must |
+| CRM-21 | **Quote approval (WF-01, APR-01..APR-07).** Submitting freezes the base amounts at the company's rate on the quote date (CUR-04), numbers the quote and starts the `crm.quote` flow. The default flow (WF-02) asks a Branch Manager at the branch (escalated to the Admins after two business days) when the base total is above the company's threshold or a discount is above the saver's limit (`needs_approval`, with `approval_reason` `amount_above_threshold` or `discount_above_limit`), else approves at once. Tenants may route on the totals, the largest discount, the customer, the branch and custom fields. The creator never approves their own quote (APR-07). Approved → `approved`; rejected → `rejected` (editable again as a new draft by copying). `QuoteApproved` is raised. | Must |
+| CRM-22 | **Quote output (TPL-01, TPL-04).** The PDF prints from the `sales.quote` template (CRM is its live data source): lines with discount and tax rate, totals, valid until, terms. Approved quotes can be emailed with the PDF (core DocumentEmails: queued, rate-limited, audited) and shared by a public link for WhatsApp (core DocumentShares: 7 days, revocable, opens audited). Sending marks the quote `sent` and logs an email activity as a system action (`crm.quote.send` alone suffices). | Must |
 | CRM-23 | **Acceptance.** A sent (or approved) quote is accepted or declined (with a reason) as the customer answered; an expired one (valid until passed) cannot be accepted (`quote_expired`). Accepting can win its opportunity in the same step. `QuoteAccepted` is raised. | Must |
 | CRM-24 | **Conversion (integration).** An accepted quote converts once to `invoice` when Accounting is active (`QuoteConverted`; Accounting's listener writes a draft customer invoice with the quote's lines in the same transaction, for a user holding `accounting.invoice.create` at the company; Accounting off: `target_inactive`). `pos_order` and `ecommerce_order` are reserved targets answered `target_unavailable` until those modules build them. The quote keeps what it became (`converted_to`, `converted_ref`). | Must |
 | CRM-25 | **Customer 360 view.** A tab on the customer page (the web party-tab registry) and `GET crm/customers/{party}/overview`: the customer's CRM activities (recent and upcoming), open and closed opportunities, quotes and converted leads, within the user's CRM scope (CRM-08); with POS active and `pos.sale.view`, sales count, totals per currency and recent sales; with Loyalty active and its view permissions, points and credit balances; with Accounting active and `accounting.invoice.view`, open receivables per currency and recent invoices. Each part is read only through the owning module's read contract and is absent (null) otherwise. | Must |
 | CRM-26 | **Activities.** Call, meeting, email or task: subject, notes, start (due) and optional end, optional reminder time, owner (assignee), links to a lead, opportunity, quote and/or customer, status `open`, `done` (with outcome), `cancelled`. At a branch; scope as CRM-08. Audited. | Must |
 | CRM-27 | **Reminders (NOT-01, NOT-02).** `crm:remind` (every minute) sends `crm.activity.reminder` to the owner through the core notification service when the reminder time arrives, once per activity. Overdue open activities show on the calendar and the 360 view. | Must |
 | CRM-28 | **Calendar.** Activities in a date range (month and week views), filtered by owner within scope. | Must |
-| CRM-29 | **Email logging (NOT-02).** `POST crm/emails` sends a plain email to a customer or lead address through the core mailer (the tenant's verified sender when set, BR-06; queued, rate-limited) and logs it as a done `email` activity with the recipient and subject; an email sent elsewhere is logged as an email activity by hand. | Must |
-| CRM-30 | **Sales targets.** A target is for a user, a team or a branch, for a period (start and end dates), a metric and an amount in the company's base currency: `won_value` (won opportunities' base value by close date: the owner; a team's members; the branch), `pos_sales` (POS sales less refunds, base currency, by cashier or branch, through `POS\Contracts\SalesTotals`, only with POS active) and `invoiced` (posted customer invoices less credit notes, base currency, by creator or branch, through `Accounting\Contracts\InvoiceTotals`, only with Accounting active). Actuals and percent achieved are computed when read, in the company's time zone. Managed with `crm.target.manage`; a user sees their own, their teams' (`crm.scope.team`) and their branch's (`crm.scope.branch`). | Must |
+| CRM-29 | **Email logging (NOT-02).** `POST crm/emails` sends a plain email to an address of the linked lead (seen by the sender) or customer (one of them is required; any other address is refused, `email_not_of_recipient`) through the core mailer (the tenant's verified sender when set, BR-06; queued, rate-limited) and logs it as a done `email` activity with the recipient and subject; an email sent elsewhere is logged as an email activity by hand. | Must |
+| CRM-30 | **Sales targets.** A target is for a user, a team or a branch, for a period (start and end dates), a metric and an amount in the company's base currency: `won_value` (won opportunities' base value by close date: the owner; a team's members; the branch), `pos_sales` (POS sales less refunds, base currency, by cashier or branch, through `POS\Contracts\SalesTotals`, only with POS active) and `invoiced` (posted customer invoices less credit notes, base currency, by creator or branch, through `Accounting\Contracts\InvoiceTotals`, only with Accounting active). Actuals and percent achieved are computed when read, in the company's time zone. Managed with `crm.target.manage` at the target's place, before and after a change; a user sees their own, their teams' (`crm.scope.team`) and their branch's (`crm.scope.branch`), filtered in SQL and paged. `pos_sales` and `invoiced` actuals show only to a reader holding `pos.sale.view` or `accounting.invoice.view` at the target's place; otherwise the actual is null with `unavailable` (`not_permitted`, `module_inactive`, `field_hidden`). | Must |
 | CRM-31 | **Dashboard widgets (LAY-01).** `crm.pipeline_value` (KPI and chart: open value and weighted value by stage, in one currency) and `crm.targets` (list: the reader's current targets with actual and percent), within scope. | Must |
 | CRM-32 | **Lists and exports (EXP-01, LAY-04).** Leads, opportunities, quotes and activities lists with search, filters, sort, saved views and CSV, Excel and PDF export within scope. | Must |
 | CRM-33 | **Custom fields (CF-01, CF-03).** Leads and opportunities carry custom fields (entities `crm_lead`, `crm_opportunity`, offered only while CRM is active), in forms, lists, imports, workflow conditions and the quote's opportunity. | Must |
@@ -92,24 +92,34 @@ Six parts:
 
 ## Decisions
 
-1. **Scope permissions, not a sales-rep template.** RBAC-07's "own records"
-   is the default: a view permission shows a user what they own;
-   `crm.scope.team` and `crm.scope.branch` widen it. RBAC-03's template
-   list has no sales rep; tenants make one (copy a template, keep
-   `crm.lead.*`, `crm.opportunity.*`, `crm.quote.view|create|send`,
-   `crm.activity.*`). Open question 1 asks whether to ship one.
+1. **Scope permissions and a Sales Rep template.** RBAC-07's "own
+   records" is the default: a view permission shows a user what they own;
+   `crm.scope.team` and `crm.scope.branch` widen it. Owner decision B
+   (2026-10-15): a **Sales Rep** system template works its own leads,
+   opportunities, quotes and activities (no team or branch scope, no
+   assigning, no approving), with quote discounts within a
+   `max_discount_percent` limit rule seeded at 0 % that the tenant edits.
+   Sales managers use **Branch Manager** (`crm.scope.branch`). RBAC-03's
+   list in the platform core spec does not name a sales rep: flagged for
+   the spec.
 2. **Won and lost are outcomes**, not stages, so every pipeline closes the
    same way and targets read one status.
-3. **Discounts over the limit are refused**, not routed for approval: the
-   RBAC-06 limit is per person, the approval threshold is per quote total.
-   The flow may also route on `max_discount_percent` (configuration).
+3. **Discounts over the limit go for approval** (owner decision A,
+   2026-10-15; replaces "refused"): the quote is saved, marked
+   `discount_over_limit`, and its submission runs the `crm.quote` flow's
+   approval step whatever the threshold, with the reason
+   `discount_above_limit`; it can be sent only once approved.
 4. **Quote to invoice is a draft in Accounting.** The accountant posts it
    (numbering, journal, fiscal submission stay in Accounting, ACC-09,
    ACC-19). Lines map one to one; a discounted line is written as quantity
    1 at its discounted amount with the quantity, price and discount in its
    description, because Accounting's lines have no discount column: the
-   amount and its tax are then exactly the quote's. Tax is computed again
-   at the invoice's issue date (a rate change in between is the law's).
+   amount and its tax are then exactly the quote's. A line whose quantity
+   has more than 4 decimals (the invoice keeps 4) is written the same way.
+   Tax is computed again at the invoice's issue date; when the invoice's
+   net or tax would differ from the quote's (a rate changed in between),
+   the conversion is refused (`quote_invoice_mismatch`) and a new quote is
+   made at today's rate.
    The revenue account is the company's posting rule `crm.quote_invoice`
    (field `revenue`), seeded from the country chart (KE 4100, CD 701);
    without it the conversion is refused (`setting_missing`).
@@ -175,7 +185,7 @@ Consumed: `WorkflowCompleted`, `WorkflowCancelled` (the quote's flow).
 | Permission | What it allows |
 | --- | --- |
 | `crm.lead.view`, `.create`, `.edit`, `.assign`, `.convert`, `.archive` | Read; capture; change (status, details); give to another owner or team; convert; disqualify, archive and restore |
-| `crm.opportunity.view`, `.create`, `.edit`, `.close`, `.archive` | Read; create; change and move stages; win, lose and reopen; archive and restore |
+| `crm.opportunity.view`, `.create`, `.edit`, `.assign`, `.close`, `.archive` | Read; create; change and move stages; give to another owner or team; win, lose and reopen; archive and restore |
 | `crm.quote.view`, `.create`, `.discount`, `.price`, `.approve`, `.send`, `.convert`, `.cancel` | Read; draft, edit, submit, accept and decline; give line discounts (within `max_discount_percent`); change a list price; act on the quote flow (WF-08); PDF, email and share; convert; cancel |
 | `crm.activity.view`, `.manage` | Read; create, change, complete and cancel activities, send and log emails |
 | `crm.target.view`, `.manage` | Read targets; set them |
@@ -184,7 +194,12 @@ Consumed: `WorkflowCompleted`, `WorkflowCancelled` (the quote's flow).
 
 Role templates (RBAC-03): **Owner** everything; **Admin** `crm.*.view`,
 `crm.settings.manage`, `crm.scope.branch`; **Branch Manager** `crm.*`
-except `crm.settings.manage` (the default quote approver); **Accountant**
+except `crm.settings.manage` (the default quote approver, and the sales
+manager's role); **Sales Rep** `crm.lead.view|create|edit|convert|archive`,
+`crm.opportunity.view|create|edit|close`,
+`crm.quote.view|create|discount|send|cancel`, `crm.activity.*`,
+`crm.target.view`, the core reads a quote needs and customer create, with
+a 0 % `max_discount_percent` limit rule (decision 1); **Accountant**
 `crm.quote.view`, `crm.quote.convert`, `crm.scope.branch`; **Read-only
 Auditor** `crm.*.view` and `crm.scope.branch`.
 
@@ -246,8 +261,9 @@ value and my targets. Tokens only; en and fr.
    decimals, CDF with none), inclusive and exclusive, with discounts; an
    item whose tax rate is "Rate needed" saves as a draft and refuses to
    submit (`tax_rate_missing`).
-3. A discount above the user's `max_discount_percent` is refused; without
-   a rule no discount is allowed; the Owner is not limited.
+3. A discount above the user's `max_discount_percent` (0 % without a
+   rule) is saved and the quote waits for a manager's approval before it
+   can be sent; the Owner is not limited.
 4. A quote above the threshold waits for a Branch Manager; below it is
    approved at once; the creator cannot approve their own.
 5. Converting an accepted quote with Accounting on writes one draft
@@ -262,18 +278,27 @@ value and my targets. Tokens only; en and fr.
 
 ## Open questions
 
-1. Ship a **Sales Rep** role template (RBAC-03 lists none)? Built without
-   one (decision 1).
-2. Should a discount over the limit be **routed to approval** instead of
-   refused (decision 3)?
+1. Answered 2026-10-15: a Sales Rep template ships (decision 1).
+2. Answered 2026-10-15: a discount over the limit goes for approval
+   (decision 3).
 3. Should invoice actuals for a **user** follow the quote's owner instead
    of the invoice's creator? Accounting keeps no link back to the quote.
 
 ## Status (stage 7D, branch `feat/crm`)
 
-Built: CRM-01 to CRM-08, CRM-10 to CRM-35 (API, web, tests). CRM-09
-(field rules, Should) is wired for `crm_lead` and `crm_opportunity` on
-resources, lists and writes (GuardsFieldRules) but has no test of its own.
+Built: CRM-01 to CRM-35 (API, web, tests). CRM-09 has its own test
+(resources, lists, exports, aggregates and writes).
+
+Review (2026-10-15), fixed with a test each: the lead form and reminder
+lookups are listed in ADR 002 (`crm_lead_form_tenant`,
+`app_tenants_with_due_crm_reminders`); quote-to-invoice quantities and
+the totals check (decision 4); repricing on edit with the editor's own
+checks (CRM-20); field rules on aggregates (CRM-09); target place and
+actual permissions (CRM-30); email recipients (CRM-29); owner changes and
+teams (CRM-10); field rules read once per request; targets filtered in
+SQL, paged and batched; the quote's send activity as a system action
+(CRM-22); assignees only of a reachable branch; lead conversion needs
+`crm.opportunity.create` (CRM-12); owner decisions A and B.
 
 ### Decisions taken while building
 

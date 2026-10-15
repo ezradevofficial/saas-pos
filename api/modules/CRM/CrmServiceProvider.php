@@ -66,7 +66,8 @@ class CrmServiceProvider extends ServiceProvider
     /** RBAC-01: the module's permission catalogue (`crm.resource.action`). */
     public const PERMISSIONS = [
         'lead' => ['view', 'create', 'edit', 'assign', 'convert', 'archive'],
-        'opportunity' => ['view', 'create', 'edit', 'close', 'archive'],
+        // CRM-10: `assign` gives an opportunity to another owner, as for leads.
+        'opportunity' => ['view', 'create', 'edit', 'assign', 'close', 'archive'],
         // CRM-20: `discount` within max_discount_percent; `price` changes a list price; `approve` acts on the flow (WF-08).
         'quote' => ['view', 'create', 'discount', 'price', 'approve', 'send', 'convert', 'cancel'],
         'activity' => ['view', 'manage'],

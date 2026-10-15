@@ -10,6 +10,7 @@ use App\Core\CustomFields\CustomFieldWriter;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Modules\CRM\CustomFields\OpportunityEntity;
 use Modules\CRM\Events\OpportunityLost;
 use Modules\CRM\Events\OpportunityWon;
@@ -20,6 +21,7 @@ use Modules\CRM\Models\Settings;
 use Modules\CRM\Models\Stage;
 use Modules\CRM\Setup\CompanySetup;
 use Modules\CRM\Setup\Configuration;
+use Modules\CRM\Support\CrmAccess;
 use Modules\CRM\Support\CrmError;
 use Modules\CRM\Support\Records;
 use Modules\CRM\Support\Tx;
@@ -45,9 +47,9 @@ class Opportunities
     ) {}
 
     /** @param array<string, mixed> $data */
-    public function create(array $data, User $by, ?string $leadId = null): Opportunity
+    public function create(array $data, User $by, ?string $leadId = null, bool $checkAssign = true): Opportunity
     {
-        return Tx::run(function () use ($data, $by, $leadId) {
+        return Tx::run(function () use ($data, $by, $leadId, $checkAssign) {
             $branch = $this->records->branch((string) $data['branch_id']);
             $company = $branch->company;
             $this->setup->ensure($company);
@@ -71,6 +73,12 @@ class Opportunities
                 'created_by' => $by->id,
             ]);
             $ownerId = array_key_exists('owner_id', $data) ? $data['owner_id'] : ($this->records->eligible($by, $branch->id, 'opportunity') ? $by->id : null);
+
+            // CRM-10: giving it to someone else needs crm.opportunity.assign (a lead's conversion keeps the lead's owner).
+            if ($checkAssign && $ownerId !== null && $ownerId !== $by->id) {
+                $this->assertAssign($by, $branch->id);
+            }
+
             $opportunity->owner_id = $ownerId === null ? null : $this->records->owner($ownerId, $branch->id, 'opportunity')->id;
             if (array_key_exists('team_id', $data)) {
                 $opportunity->team_id = $data['team_id'] === null ? null : $this->records->team($company->id, $branch->id, $data['team_id'])->id;
@@ -86,9 +94,9 @@ class Opportunities
     }
 
     /** @param array<string, mixed> $data */
-    public function update(Opportunity $opportunity, array $data): Opportunity
+    public function update(Opportunity $opportunity, array $data, User $by): Opportunity
     {
-        return Tx::run(function () use ($opportunity, $data) {
+        return Tx::run(function () use ($opportunity, $data, $by) {
             $opportunity = Opportunity::query()->whereKey($opportunity->id)->lockForUpdate()->firstOrFail();
             $closedFields = array_diff(array_keys($data), ['notes', 'custom']);
 
@@ -129,12 +137,22 @@ class Opportunities
                 $opportunity->currency = $this->records->currency((string) $data['currency']);
             }
 
-            if (array_key_exists('owner_id', $data)) {
+            $ownerChanged = array_key_exists('owner_id', $data) && $data['owner_id'] !== $opportunity->owner_id;
+
+            // CRM-10: another owner (or team) needs crm.opportunity.assign, as for leads.
+            if ($ownerChanged || (array_key_exists('team_id', $data) && $data['team_id'] !== $opportunity->team_id)) {
+                $this->assertAssign($by, $opportunity->branch_id);
+            }
+
+            if ($ownerChanged) {
                 $opportunity->owner_id = $data['owner_id'] === null ? null : $this->records->owner($data['owner_id'], $opportunity->branch_id, 'opportunity')->id;
             }
 
             if (array_key_exists('team_id', $data)) {
                 $opportunity->team_id = $data['team_id'] === null ? null : $this->records->team($company->id, $opportunity->branch_id, $data['team_id'])->id;
+            } elseif ($ownerChanged) {
+                // The new owner's team (their only one at the branch), never the previous owner's.
+                $opportunity->team_id = $opportunity->owner_id === null ? null : $this->records->soleTeam($company->id, $opportunity->branch_id, $opportunity->owner_id);
             }
 
             $this->customFields->fill(OpportunityEntity::KEY, $opportunity, $data['custom'] ?? null, creating: false);
@@ -256,6 +274,13 @@ class Opportunities
         }
 
         return [$pipeline, $stage];
+    }
+
+    private function assertAssign(User $by, string $branchId): void
+    {
+        if (! app(CrmAccess::class)->canAt($by, 'crm.opportunity.assign', $branchId)) {
+            throw new AuthorizationException(__('crm.errors.assign_forbidden'));
+        }
     }
 
     private function open(Opportunity $opportunity): Opportunity

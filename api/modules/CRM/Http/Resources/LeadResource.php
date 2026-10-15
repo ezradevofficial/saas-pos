@@ -3,7 +3,6 @@
 namespace Modules\CRM\Http\Resources;
 
 use App\Core\CustomFields\CustomFieldPresenter;
-use App\Core\Rbac\FieldRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\CRM\CustomFields\LeadEntity;
@@ -62,7 +61,7 @@ class LeadResource extends JsonResource
         ];
 
         if ($user !== null) {
-            $hidden = app(FieldRules::class)->for($user, LeadEntity::KEY)['hidden'];
+            $hidden = $access->hiddenFields($user, LeadEntity::KEY);
 
             if (in_array('estimated_value_minor', $hidden, true)) {
                 $hidden[] = 'estimated_value';

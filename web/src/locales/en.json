@@ -9673,7 +9673,8 @@
       "confirmCancel": "Cancel quote",
       "cancelled": "Quote cancelled.",
       "cancelledAt": "Cancelled",
-      "expired": "Expired"
+      "expired": "Expired",
+      "discountNeedsApproval": "A discount is above your limit. Submitting sends the quote to a manager for approval before it can be sent."
     },
     "activity": {
       "title": "Activities",
@@ -9734,6 +9735,11 @@
         "won_value": "Won opportunities",
         "pos_sales": "Point of sale sales",
         "invoiced": "Invoiced"
+      },
+      "unavailable": {
+        "field_hidden": "Hidden",
+        "not_permitted": "Not shown to you",
+        "module_inactive": "Module not active"
       }
     },
     "settings": {
