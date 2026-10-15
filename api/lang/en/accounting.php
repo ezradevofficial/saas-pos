@@ -312,6 +312,7 @@ return [
             'fixed_assets_revaluation' => 'Asset revalued :reference',
             'fixed_assets_impairment' => 'Asset impaired :reference',
             'fixed_assets_disposal' => 'Asset disposed :reference',
+            'payroll_run' => 'Payroll :reference',
         ],
         'summary_memo' => 'Daily summary of :count POS sales on :date',
         'backfill_from' => 'Give the first day to post with --from=YYYY-MM-DD.',

@@ -7,7 +7,7 @@ use Modules\Accounting\Posting\SourceDocument;
 use Modules\FixedAssets\Events\FixedAssetPosting;
 
 /**
- * ACC-33 (docs/modules/fixed-assets.md FA-22): a Fixed assets posting as
+ * ACC-34 (docs/modules/fixed-assets.md FA-22): a Fixed assets posting as
  * the ledger's source document: its posting id is the source id (so it
  * posts once), in base currency, with the branch, cost centre and party;
  * the company's rule for its source type maps each field (`cost.{category}`,

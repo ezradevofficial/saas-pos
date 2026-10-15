@@ -13,7 +13,7 @@ use Modules\FixedAssets\Tests\Concerns\BuildsFixedAssets;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
-// FA-22, ACC-33: with Accounting active, every fixed-asset fact posts a
+// FA-22, ACC-34: with Accounting active, every fixed-asset fact posts a
 // balanced journal through the KE default rules, once (idempotent by
 // posting); a closed period keeps the source as an exception; with
 // Accounting off nothing posts and every figure is still kept.
@@ -41,7 +41,7 @@ class AccountingPostingTest extends TestCase
 
         $this->assertSame(['1520' => [0, $accumulated], '6500' => [$accumulated, 0]], $this->ledger('fixed_assets.depreciation'));
         $this->assertSame([
-            '1240' => [118000000, 0], '1510' => [0, 120000000], '1520' => [$accumulated, 0], '4920' => [0, $gain],
+            '1260' => [118000000, 0], '1510' => [0, 120000000], '1520' => [$accumulated, 0], '4920' => [0, $gain],
         ], $this->ledger('fixed_assets.disposal'));
         $this->assertSame(118000000 - (120000000 - $accumulated), $gain);
         $this->assertGreaterThan(0, $gain);

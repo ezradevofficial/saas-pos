@@ -141,6 +141,13 @@ import { SectionIndex } from './pages/hr/HrParts'
 import LeaveRequests, { LeaveBalances, LeaveCalendar, LeaveTypes } from './pages/hr/Leave'
 import { MyAppraisals, MyAttendance, MyLeave, MyProfile, MyRoster, MySwaps } from './pages/hr/MyHr'
 import Positions from './pages/hr/Positions'
+import PayEmployees, { PayEmployeeDetail } from './pages/payroll/Employees'
+import Loans, { LoanDetail } from './pages/payroll/Loans'
+import { PAYROLL_EMPLOYEE_VIEW, PAYROLL_LOAN_VIEW, PAYROLL_PAYSLIP_VIEW, PAYROLL_RETURN_VIEW, PAYROLL_RUN_VIEW, PAYROLL_SETTINGS_VIEW } from './layouts/navigation'
+import Payslips, { MyPayslipDetail, MyPayslips, PayslipDetail } from './pages/payroll/Payslips'
+import PayrollReturns from './pages/payroll/Returns'
+import PayrollRuns, { RunDetail as PayrollRunDetail } from './pages/payroll/Runs'
+import PayrollSettings from './pages/payroll/Settings'
 import { AppraisalReview, Appraisals as HrAppraisals, CaseDetail, DisciplinaryCases, Onboarding } from './pages/hr/Records'
 import RosterWeek, { RosterDetail, RosterList, RosterSetup, Swaps as HrSwaps } from './pages/hr/Rosters'
 import NotFound from './pages/NotFound'
@@ -488,6 +495,23 @@ export const routes = [
       { path: '/hr/me/attendance', element: <MyAttendance /> },
       { path: '/hr/me/swaps', element: <MySwaps /> },
       { path: '/hr/me/appraisals', element: <MyAppraisals /> },
+      // Payroll (docs/modules/payroll.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/payroll/runs', PAYROLL_RUN_VIEW, <PayrollRuns key="pay-runs" />],
+        ['/payroll/runs/:runId', PAYROLL_RUN_VIEW, <PayrollRunDetail key="pay-run" />],
+        ['/payroll/employees', PAYROLL_EMPLOYEE_VIEW, <PayEmployees key="pay-employees" />],
+        ['/payroll/employees/:employeeId', PAYROLL_EMPLOYEE_VIEW, <PayEmployeeDetail key="pay-employee" />],
+        ['/payroll/loans', PAYROLL_LOAN_VIEW, <Loans key="pay-loans" />],
+        ['/payroll/loans/:loanId', PAYROLL_LOAN_VIEW, <LoanDetail key="pay-loan" />],
+        ['/payroll/payslips', PAYROLL_PAYSLIP_VIEW, <Payslips key="pay-payslips" />],
+        ['/payroll/payslips/:payslipId', PAYROLL_PAYSLIP_VIEW, <PayslipDetail key="pay-payslip" />],
+        ['/payroll/returns', PAYROLL_RETURN_VIEW, <PayrollReturns key="pay-returns" />],
+        ['/payroll/settings', PAYROLL_SETTINGS_VIEW, <PayrollSettings key="pay-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      { path: '/payroll', element: <Navigate to="/payroll/runs" replace /> },
+      // PAY-24: "My payslips"; being the linked employee is the authorisation (the API decides).
+      { path: '/payroll/me/payslips', element: <MyPayslips /> },
+      { path: '/payroll/me/payslips/:payslipId', element: <MyPayslipDetail /> },
       // Accounting (docs/modules/accounting.md): the API answers 403 module_inactive without the module.
       ...[
         ['/accounting/chart', ACCOUNT_VIEW, <ChartOfAccounts key="acc-chart" />],

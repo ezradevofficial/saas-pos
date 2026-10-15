@@ -13,6 +13,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * Point of sale (POS module): dashboard, sales, shifts and held records.
  * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
  * Procurement (Procurement module): requisitions, RFQs, tenders, POs, goods received, supplier invoices, landed costs, supplier performance and settings.
+ * Payroll (Payroll module): runs, employees' pay setup, loans, payslips, statutory returns and settings; My payslips in self-service.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -84,6 +85,13 @@ export const FA_MAINTENANCE_VIEW = 'fixed_assets.maintenance.view'
 export const FA_LABEL_PRINT = 'fixed_assets.label.print'
 export const FA_REPORT_VIEW = ['fixed_assets.report.view', 'fixed_assets.tax.view']
 export const FA_SETTINGS_VIEW = ['fixed_assets.asset.view', 'fixed_assets.settings.edit']
+// Payroll module (docs/modules/payroll.md, Screens; RBAC-09): who may open each page (the API checks again, PAY-27).
+export const PAYROLL_RUN_VIEW = 'payroll.run.view'
+export const PAYROLL_EMPLOYEE_VIEW = 'payroll.employee.view'
+export const PAYROLL_LOAN_VIEW = 'payroll.loan.view'
+export const PAYROLL_PAYSLIP_VIEW = 'payroll.payslip.view'
+export const PAYROLL_RETURN_VIEW = ['payroll.return.view', 'payroll.return.generate']
+export const PAYROLL_SETTINGS_VIEW = ['payroll.settings.view', 'payroll.settings.manage']
 // Concept note 7.1, 7.2: payments received and the tax authority (the API checks again at the company).
 export const PAYMENT_VIEW = ['core.payment.view', 'core.payment.match']
 export const FISCAL_VIEW = ['core.fiscal.view', 'core.fiscal.edit', 'core.fiscal.configure']
@@ -213,6 +221,19 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Payroll (docs/modules/payroll.md, Screens): only while the Payroll module is active (RBAC-08).
+    id: 'payroll',
+    label: (t) => t('nav.groups.payroll'),
+    items: [
+      { to: '/payroll/runs', icon: 'payments', label: (t) => t('nav.payrollRuns'), permission: PAYROLL_RUN_VIEW, module: 'payroll' },
+      { to: '/payroll/employees', icon: 'users', label: (t) => t('nav.payrollEmployees'), permission: PAYROLL_EMPLOYEE_VIEW, module: 'payroll' },
+      { to: '/payroll/loans', icon: 'currencies', label: (t) => t('nav.payrollLoans'), permission: PAYROLL_LOAN_VIEW, module: 'payroll' },
+      { to: '/payroll/payslips', icon: 'templates', label: (t) => t('nav.payrollPayslips'), permission: PAYROLL_PAYSLIP_VIEW, module: 'payroll' },
+      { to: '/payroll/returns', icon: 'fiscal', label: (t) => t('nav.payrollReturns'), permission: PAYROLL_RETURN_VIEW, module: 'payroll' },
+      { to: '/payroll/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.payrollSettings'), permission: PAYROLL_SETTINGS_VIEW, module: 'payroll' },
+    ],
+  },
+  {
     // HR-31, AUTH-12: self-service, for a user linked to an employee (no permission needed); `employee` items need the link.
     id: 'myHr',
     label: (t) => t('nav.groups.myHr'),
@@ -223,6 +244,8 @@ export const NAV_GROUPS = [
       { to: '/hr/me/attendance', icon: 'clock', label: (t) => t('nav.myAttendance'), module: 'hr', employee: true },
       { to: '/hr/me/swaps', icon: 'transfers', label: (t) => t('nav.mySwaps'), module: 'hr', employee: true },
       { to: '/hr/me/appraisals', icon: 'chart', label: (t) => t('nav.myAppraisals'), module: 'hr', employee: true },
+      // PAY-24: My payslips, while Payroll is active.
+      { to: '/payroll/me/payslips', icon: 'payments', label: (t) => t('nav.myPayslips'), module: 'payroll', employee: true },
     ],
   },
   {

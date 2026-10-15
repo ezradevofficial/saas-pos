@@ -312,6 +312,7 @@ return [
             'fixed_assets_revaluation' => 'Immobilisation réévaluée :reference',
             'fixed_assets_impairment' => 'Immobilisation dépréciée :reference',
             'fixed_assets_disposal' => 'Immobilisation cédée :reference',
+            'payroll_run' => 'Paie :reference',
         ],
         'summary_memo' => 'Récapitulatif journalier de :count ventes du point de vente du :date',
         'backfill_from' => 'Indiquez le premier jour à comptabiliser avec --from=AAAA-MM-JJ.',

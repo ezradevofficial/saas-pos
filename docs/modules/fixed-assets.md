@@ -253,7 +253,7 @@ tokens only, en/fr.
   KE: PPE 1510, accumulated depreciation 1520, depreciation 6500, purchases
   5200 (where Procurement's invoice puts non-stock lines), fixed asset
   purchases clearing 2150, revaluation surplus 3400, impairment losses 6510,
-  disposal receivable 1240, gain on disposal 4920, loss on disposal 7400,
+  disposal receivable 1260, gain on disposal 4920, loss on disposal 7400,
   other income 4900, retained earnings 3200. CD (SYSCOHADA): equipment
   244, depreciation 284, depreciation charges 681, purchases 601, suppliers
   of fixed assets 481, revaluation surplus 106, impairment charges 691,

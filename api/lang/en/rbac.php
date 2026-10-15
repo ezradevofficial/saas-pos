@@ -20,6 +20,7 @@ return [
             'loyalty' => 'Loyalty, promotions and credit',
             'hr' => 'HR, shifts and attendance',
             'procurement' => 'Procurement',
+            'payroll' => 'Payroll',
         ],
         'resources' => [
             'core' => [
@@ -92,6 +93,15 @@ return [
                 'disciplinary' => 'Disciplinary records',
                 'appraisal' => 'Appraisals',
             ],
+            'payroll' => [
+                'settings' => 'Payroll settings, pay groups and items',
+                'employee' => 'Pay setup',
+                'loan' => 'Loans and advances',
+                'run' => 'Payroll runs',
+                'payslip' => 'Payslips',
+                'payment' => 'Payment files',
+                'return' => 'Statutory returns',
+            ],
             'procurement' => [
                 'requisition' => 'Purchase requisitions',
                 'rfq' => 'Requests for quotation',
@@ -143,6 +153,9 @@ return [
             'evaluate' => 'Evaluate',
             'award' => 'Award',
             'cancel' => 'Cancel',
+            'prepare' => 'Prepare',
+            'post' => 'Post',
+            'generate' => 'Generate',
         ],
     ],
 

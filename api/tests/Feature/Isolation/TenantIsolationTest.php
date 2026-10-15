@@ -229,6 +229,15 @@ class TenantIsolationTest extends TestCase
         'fa_disposal' => 'fa_disposal',
         'fa_schedule' => 'fa_schedule',
         'fa_work_order' => 'fa_work_order',
+        // Payroll (docs/modules/payroll.md): setup, an employee's pay setup and item, a loan, a posted run, its payslip and a return.
+        'payroll_pay_group' => 'payroll_pay_group',
+        'payroll_item' => 'payroll_item',
+        'payroll_employee' => 'payroll_employee',
+        'payroll_employee_item' => 'payroll_employee_item',
+        'payroll_loan' => 'payroll_loan',
+        'payroll_run' => 'payroll_run',
+        'payroll_payslip' => 'payroll_payslip',
+        'payroll_return' => 'payroll_return',
         'id' => 'session', // DELETE auth/sessions/{id}
     ];
 
@@ -346,6 +355,9 @@ class TenantIsolationTest extends TestCase
         'schedule_id' => 'fa_schedule',
         'vendor_id' => 'party',
         'asset_id' => 'fa_asset',
+        // Payroll: an employee's pay setup and a pay group.
+        'payroll_employee_id' => 'payroll_employee',
+        'pay_group_id' => 'payroll_pay_group',
         'scope_id' => null,
     ];
 
@@ -382,6 +394,8 @@ class TenantIsolationTest extends TestCase
         // HR-18: a planned shift names an HR shift (POS uploads' shift_id is the till's).
         'POST api/v1/hr/roster-shifts' => ['shift_id' => 'hr_shift'],
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
+        // PAY-06: an employee's item names a payroll item (REFERENCE_FIELDS' item_id is a core item).
+        'POST api/v1/payroll/employees/{payroll_employee}/items' => ['item_id' => 'payroll_item'],
         // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
         // Fixed assets: `category_id` names an asset category (FA-02), not an item category.
@@ -482,6 +496,8 @@ class TenantIsolationTest extends TestCase
         ['group' => 'cost_centre', 'document' => 'issue_voucher'],
         // FA-12: a month of depreciation (both tenants posted January 2026).
         ['period' => '2026-01'],
+        // PAY-05, PAY-14: employees not in a pay group, run lines with errors.
+        ['unassigned' => '1', 'errors' => '1'],
     ];
 
     /**
@@ -489,10 +505,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'asset' => 'fa_asset', 'custodian' => 'user'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'asset' => 'fa_asset', 'custodian' => 'user'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'asset', 'custodian', 'period'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'pay_group', 'unassigned', 'errors', 'run', 'asset', 'custodian', 'period'];
 
     private TwoTenants $tenants;
 
@@ -514,6 +530,8 @@ class TenantIsolationTest extends TestCase
         RateLimiter::for('device-sync', fn () => Limit::none());
         RateLimiter::for('device-secret', fn () => Limit::none());
         RateLimiter::for('loyalty-lookup', fn () => Limit::none());
+        // PAY-20, PAY-21: the suite builds payment and return files far more often than a person would.
+        RateLimiter::for('payroll-files', fn () => Limit::none());
     }
 
     // ---- Database ---------------------------------------------------------
@@ -1720,6 +1738,15 @@ class TenantIsolationTest extends TestCase
             'PATCH api/v1/fixed-assets/work-orders/{fa_work_order}' => ['schedule_id' => $tenant->id('fa_schedule'), 'vendor_id' => $tenant->id('party')],
             'POST api/v1/fixed-assets/runs' => ['company_id' => $tenant->id('company'), 'period' => '2026-02'],
             'POST api/v1/fixed-assets/labels' => ['labels' => [['asset_id' => $tenant->id('fa_asset'), 'copies' => 1]]],
+            // Payroll (docs/modules/payroll.md): bodies naming A's own company, pay group, items and employees.
+            'POST api/v1/payroll/pay-groups' => ['company_id' => $tenant->id('company'), 'code' => 'PG-HIJACK', 'name' => 'Hijack', 'frequency' => 'monthly'],
+            'POST api/v1/payroll/items' => ['company_id' => $tenant->id('company'), 'code' => 'IT-HIJACK', 'name' => 'Hijack', 'kind' => 'earning'],
+            'POST api/v1/payroll/employees/sync' => ['company_id' => $tenant->id('company')],
+            'PATCH api/v1/payroll/employees/{payroll_employee}' => ['pay_group_id' => $tenant->id('payroll_pay_group')],
+            'POST api/v1/payroll/employees/{payroll_employee}/items' => ['item_id' => $tenant->id('payroll_item'), 'amount_minor' => '100', 'currency' => 'KES', 'recurrence' => 'once', 'period_date' => '2027-02-10'],
+            'POST api/v1/payroll/loans' => ['payroll_employee_id' => $tenant->id('payroll_employee'), 'kind' => 'advance', 'principal_minor' => '1000', 'instalment_minor' => '1000', 'currency' => 'KES', 'disbursed_on' => '2027-01-02'],
+            'POST api/v1/payroll/runs' => ['pay_group_id' => $tenant->id('payroll_pay_group'), 'period_date' => '2027-03-15'],
+            'POST api/v1/payroll/returns' => ['company_id' => $tenant->id('company'), 'type' => 'paye', 'period' => '2026-09'],
             'POST api/v1/inventory/labels' => [
                 'labels' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'batch_id' => $tenant->id('inventory_batch'), 'copies' => 1]],
                 'price_list_id' => $tenant->id('price_list'),
