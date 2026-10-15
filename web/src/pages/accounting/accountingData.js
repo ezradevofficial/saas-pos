@@ -79,6 +79,15 @@ export function moduleLink(link) {
       return `/stores/issues/${id}`
     case 'stores.return':
       return `/stores/returns/${id}`
+    // MFG-20: a production journal opens its order (the link names it); a recipe consumption, the backflush report.
+    case 'manufacturing.issue':
+    case 'manufacturing.return':
+    case 'manufacturing.report':
+      return link.order_id ? `/manufacturing/orders/${encodeURIComponent(link.order_id)}` : null
+    case 'manufacturing.order':
+      return `/manufacturing/orders/${encodeURIComponent(link.order_id ?? link.id)}`
+    case 'manufacturing.backflush':
+      return '/manufacturing/backflushes'
     // ACC-32: a Procurement supplier invoice's journal opens the Procurement invoice.
     case 'procurement.invoice':
       return `/procurement/invoices/${id}`

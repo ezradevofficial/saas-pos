@@ -56,6 +56,11 @@ export const MOVEMENT_KINDS = [
   'opening_reversal',
   'store_issue',
   'store_return',
+  'production_issue',
+  'production_return',
+  'production_receipt',
+  'recipe_consumption',
+  'recipe_return',
 ]
 
 /** INV-10: the fixed, translated list of adjustment reasons (Adjustment::REASONS). */

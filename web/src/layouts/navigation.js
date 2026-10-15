@@ -13,6 +13,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * Point of sale (POS module): dashboard, sales, shifts and held records.
  * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
  * Procurement (Procurement module): requisitions, RFQs, tenders, POs, goods received, supplier invoices, landed costs, supplier performance and settings.
+ * Manufacturing (Manufacturing module): BOMs and recipes, production orders, consumption, yield, backflushes, recipe costing and settings.
  */
 // A user who sees any level of the organisation (a cashier sees their
 // location) gets the Organisation page, filtered to their scope (RBAC-04).
@@ -68,6 +69,11 @@ export const STORES_ISSUE_VIEW = 'stores.issue.view'
 export const STORES_RETURN_VIEW = 'stores.return.view'
 export const STORES_LEDGER_VIEW = 'stores.ledger.view'
 export const STORES_REPORT_VIEW = 'stores.report.view'
+// Manufacturing module (docs/modules/manufacturing.md, Screens; RBAC-09): who may open each page (the API checks again at each place).
+export const MANUFACTURING_BOM_VIEW = 'manufacturing.bom.view'
+export const MANUFACTURING_ORDER_VIEW = 'manufacturing.order.view'
+export const MANUFACTURING_REPORT_VIEW = 'manufacturing.report.view'
+export const MANUFACTURING_SETTINGS_VIEW = ['manufacturing.settings.edit', 'manufacturing.bom.view', 'manufacturing.order.view']
 // HR module (docs/modules/hr.md, Screens; RBAC-09): who may open each page (the API checks again at the employee's place).
 export const HR_EMPLOYEE_VIEW = 'hr.employee.view'
 export const HR_POSITION_VIEW = ['hr.position.view', 'hr.position.manage']
@@ -171,6 +177,20 @@ export const NAV_GROUPS = [
       { to: '/stores/ledger', icon: 'movements', label: (t) => t('nav.storesLedger'), permission: STORES_LEDGER_VIEW, module: 'stores' },
       { to: '/stores/stock', icon: 'stock', label: (t) => t('nav.storesStock'), permission: STORES_LEDGER_VIEW, module: 'stores' },
       { to: '/stores/consumption', icon: 'chart', label: (t) => t('nav.storesConsumption'), permission: STORES_REPORT_VIEW, module: 'stores' },
+    ],
+  },
+  {
+    // Manufacturing (docs/modules/manufacturing.md, Screens): only while the Manufacturing module is active (RBAC-08).
+    id: 'manufacturing',
+    label: (t) => t('nav.groups.manufacturing'),
+    items: [
+      { to: '/manufacturing/boms', icon: 'templates', label: (t) => t('nav.manufacturingBoms'), permission: MANUFACTURING_BOM_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/orders', icon: 'orders', label: (t) => t('nav.manufacturingOrders'), permission: MANUFACTURING_ORDER_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/consumption', icon: 'chart', label: (t) => t('nav.manufacturingConsumption'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/yield', icon: 'performance', label: (t) => t('nav.manufacturingYield'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/backflushes', icon: 'movements', label: (t) => t('nav.manufacturingBackflushes'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/recipe-costing', icon: 'valuation', label: (t) => t('nav.manufacturingRecipeCosting'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
+      { to: '/manufacturing/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.manufacturingSettings'), permission: MANUFACTURING_SETTINGS_VIEW, module: 'manufacturing' },
     ],
   },
   {
