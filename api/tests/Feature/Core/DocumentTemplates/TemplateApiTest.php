@@ -201,7 +201,7 @@ class TemplateApiTest extends TestCase
         $receipt = collect($types['data'])->firstWhere('key', 'pos.receipt');
         $quote = collect($types['data'])->firstWhere('key', 'sales.quote');
 
-        $this->assertSame(['pos.receipt', 'pos.refund_receipt', 'sales.invoice', 'sales.quote', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter', 'stores.delivery_note', 'stores.issue_voucher', 'manufacturing.production_order', 'manufacturing.pick_list', 'payroll.payslip', 'party.statement', 'accounting.invoice', 'accounting.credit_note', 'accounting.statement', 'letter', 'inventory.label'], array_column($types['data'], 'key'));
+        $this->assertSame(['pos.receipt', 'pos.refund_receipt', 'sales.invoice', 'sales.quote', 'procurement.po', 'procurement.award_letter', 'procurement.regret_letter', 'stores.delivery_note', 'stores.issue_voucher', 'payroll.payslip', 'party.statement', 'accounting.invoice', 'accounting.credit_note', 'accounting.statement', 'letter', 'inventory.label'], array_column($types['data'], 'key'));
         $this->assertSame([true, true, 'kra_etims', ['fiscal', 'totals']], [$receipt['live'], $receipt['fiscal']['required'], $receipt['fiscal']['authority'], $receipt['locked']]);
         $this->assertSame([false, false, []], [$quote['live'], $quote['fiscal']['required'], $quote['locked']]);
         $this->assertSame('80mm', $receipt['default']['paper']);

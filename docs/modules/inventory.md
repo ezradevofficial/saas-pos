@@ -92,11 +92,14 @@ Quantities `numeric(20,6)` (base unit), costs `bigint` minor units with a
 Movement kinds: `opening`, `receipt`, `adjustment_in`, `adjustment_out`,
 `count_gain`, `count_loss`, `transfer_out`, `transfer_in`, `transfer_loss`,
 `sale`, `sale_return`, `sale_void`, `opening_reversal`, `store_issue`,
-`store_return` (Stores, STR-08), `cost_adjustment` (zero quantity, INV-25).
+`store_return` (Stores, STR-08), `cost_adjustment` (zero quantity, INV-25),
+`production_issue`, `production_return`, `production_receipt`,
+`recipe_consumption`, `recipe_return` (Manufacturing, MFG-15).
 Sources: `inventory.opening`, `inventory.import`, `inventory.adjustment`,
 `inventory.transfer`, `inventory.count`, `pos.sale`, `pos.refund`,
 `pos.void`, `procurement.goods_receipt`, `procurement.landed_cost`,
-`stores.issue`, `stores.return`.
+`stores.issue`, `stores.return`, `manufacturing.issue`, `manufacturing.return`,
+`manufacturing.receipt`, `manufacturing.backflush`, `manufacturing.backflush_return`.
 
 ## Events
 
@@ -122,6 +125,7 @@ values only):
 | `LandedCostAllocated` | Procurement | `ApplyLandedCost`: a `cost_adjustment` per stock line allocated after receipt (INV-25), idempotent per allocation line |
 | `StoreIssued` | Stores (`ledger = inventory`) | `store_issue` movements out of the store, never refused (flagged `negative_stock`), batches FEFO (docs/modules/stores.md, STR-08) |
 | `StoreReturned` | Stores (`ledger = inventory`) | `store_return` movements back at the cost the issue went out at |
+| `MaterialsMoved` | Manufacturing (Inventory-ledger documents only) | `MoveStockForManufacturing`: `production_issue` and `recipe_consumption` out (never refused, batches FEFO), `production_return` and `recipe_return` back from the origin's movements at their cost, `production_receipt` in at the costed value; once per document (docs/modules/manufacturing.md, MFG-15) |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | settle transfers, adjustments and counts |
 
 The POS events carry ids; the POS module provides their stock lines
@@ -224,6 +228,14 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
   the module state when the job runs; `StockMoved` (sources `stores.*`)
   carries the values back to Stores, and is raised again when a posting
   is delivered twice (docs/modules/stores.md, STR-08, STR-09).
+- **Manufacturing → Inventory**: `MaterialsMoved` (MFG-15) moves a
+  production order's materials and output and a POS sale's recipe
+  ingredients; `StockMoved` (sources `manufacturing.*`) carries the
+  values back, and Accounting posts Manufacturing's `ProductionValued`
+  instead (ACC-33). Recipe costing reads current unit costs through the
+  read contract `Contracts\StockCosts`. Made-to-order menu items are
+  `kit` or `non_stock` items, which the POS listener never moves: their
+  ingredients move through their recipe (MFG-09).
 - **Inventory → Accounting, exclusion**: for `stores.issue` and
   `stores.return` sources Accounting does not post `StockMoved`; it posts
   Stores' `StoreConsumptionValued` (department expense against stock)

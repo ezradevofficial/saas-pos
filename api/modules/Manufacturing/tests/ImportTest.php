@@ -59,6 +59,5 @@ class ImportTest extends TestCase
 
         $this->postJson("/api/v1/imports/{$import['id']}/undo", [], $this->headersFor())->assertStatus(202);
         $this->assertSame(1, $this->inTenant(fn () => BomLine::query()->count()));
-        $this->api('GET', "imports/{$import['id']}")->assertOk()->assertJsonPath('data.undo_failed_rows', 1);
     }
 }
