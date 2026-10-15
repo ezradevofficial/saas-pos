@@ -281,6 +281,13 @@ return [
         'procurement_invoice' => 'Procurement supplier invoice :number',
         'landed_cost_bill' => 'Landed cost :number',
         'fx_difference' => 'Exchange difference on tenders',
+        // ACC-33: payroll journal line descriptions (component names come from Payroll).
+        'payroll' => [
+            'gross' => 'Gross pay',
+            'net_pay' => 'Net pay payable',
+            'loans' => 'Staff loan repayments',
+            'employer' => ':name employer share',
+        ],
         // ACC-17 (stage 7B closing review): a posted source's description, by source type.
         'memos' => [
             'pos_sale' => 'POS sale :reference',

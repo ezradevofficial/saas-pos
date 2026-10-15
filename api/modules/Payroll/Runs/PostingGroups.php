@@ -13,7 +13,9 @@ use Modules\Payroll\Models\RunLine;
  * `statutory.{code}` (employee shares, income tax included),
  * `employer.{code}`, `deduction.{code}` and `loans`. Statutory allowances
  * are pay (in `gross`), not liabilities. Built from the run's own lines,
- * so a replay raises the same event.
+ * so a replay raises the same event. `labels` names each component
+ * (`{code: name}`, the pack's component label or the item's name) for the
+ * journal lines (ACC-33).
  */
 final class PostingGroups
 {
@@ -47,6 +49,7 @@ final class PostingGroups
                 'fx' => $line->fx[$line->pay_currency.'/'.$line->base_currency] ?? null,
                 'employees' => 0,
                 'amounts' => [],
+                'labels' => [],
             ];
             $g = &$groups[$key];
             $g['employees']++;
@@ -66,10 +69,12 @@ final class PostingGroups
                 }
 
                 self::add($g['amounts'], 'employer.'.$component['code'], $component['employer_minor']);
+                $g['labels'][$component['code']] ??= (string) ($component['name'] ?? $component['code']);
             }
 
             foreach ($line->deductions as $deduction) {
                 self::add($g['amounts'], 'deduction.'.$deduction['code'], $deduction['amount_minor']);
+                $g['labels'][$deduction['code']] ??= (string) ($deduction['name'] ?? $deduction['code']);
             }
 
             unset($g);
@@ -78,6 +83,7 @@ final class PostingGroups
         return array_values(array_map(function (array $g) {
             $g['amounts'] = array_filter($g['amounts'], fn (string $minor) => $minor !== '0');
             ksort($g['amounts']);
+            ksort($g['labels']);
 
             return $g;
         }, $groups));

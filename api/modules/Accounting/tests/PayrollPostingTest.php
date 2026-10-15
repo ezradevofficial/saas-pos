@@ -82,6 +82,14 @@ class PayrollPostingTest extends TestCase
             '6100' => [5000000, 0],
             '6110' => [155000, 0],
         ], $this->linesOf($sales));
+        // ACC-33: each line names its component (the pack's label, or the run's own words).
+        $descriptions = $this->inTenant(fn () => JournalLine::query()->where('journal_id', $sales->id)->get()
+            ->map(fn (JournalLine $line) => Account::query()->whereKey($line->account_id)->value('code').' '.($line->debit_minor > 0 ? 'Dr' : 'Cr').' '.$line->description)->sort()->values()->all());
+        $this->assertSame([
+            '2220 Cr PAYE', '2230 Cr Affordable Housing Levy', '2230 Cr Affordable Housing Levy employer share', '2230 Cr NITA levy employer share',
+            '2230 Cr NSSF', '2230 Cr NSSF employer share', '2230 Cr SHIF', '2240 Cr Net pay payable', '6100 Dr Gross pay',
+            '6110 Dr Affordable Housing Levy employer share', '6110 Dr NITA levy employer share', '6110 Dr NSSF employer share',
+        ], $descriptions);
 
         foreach ($journals as $journal) {
             $lines = $this->linesOf($journal);

@@ -470,12 +470,28 @@ holds everything. Admin and Branch Manager hold none.
     with INPP and ONEM expensed to 641. The CD choices (428, 438, 641) need
     a DRC accountant's confirmation; the tenant can point the rule's maps
     elsewhere. Existing charts get them with "Add the defaults".
+28. **Payroll journal lines name their component (decision, owner may
+    change).** Each `payroll.run` line's description names what it is:
+    "Gross pay", "Net pay payable", "Staff loan repayments", a statutory
+    or deduction component by its name ("PAYE", "NSSF", the item's name)
+    and an employer contribution as "NSSF employer share" (en, fr). The
+    names travel in `PayrollPosted` (`labels` per group: the pack's
+    component label or the item's name, as on the run's lines), so
+    Accounting never reads Payroll's tables; a source posted before this
+    falls back to the component code. A source may carry `labels` for any
+    field (`SourceDocument::labels`); other lines keep the source's
+    reference.
+29. **Posting exceptions name their department (decision, owner may
+    change).** A posting exception shows the department of its source
+    (`department`, from the source's dimensions), and the web's
+    exceptions list shows it after the reference, so a payroll run's
+    per-department failures can be told apart.
 
 ## Status (stage 7C)
 
 | ID | Status |
 | --- | --- |
-| ACC-33 | Built and tested (PayrollPostingTest: balanced journals per department, the KE rule's lines, replay adds nothing, a reversal correction posts the sides swapped, nothing without Accounting) |
+| ACC-33 | Built and tested (PayrollPostingTest: balanced journals per department, the KE rule's lines and their component names, replay adds nothing, a reversal correction posts the sides swapped, nothing without Accounting) |
 
 ## Status (stage 7B)
 
