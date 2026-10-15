@@ -66,7 +66,13 @@ class Employee extends Model implements HasScope
 
     protected string $auditResource = 'employee';
 
-    protected array $auditHidden = self::SENSITIVE_COLUMNS;
+    /** HR-11, decision 27: personal contact details, also kept out of the audit log (recorded by name). */
+    public const CONTACT_COLUMNS = ['personal_email', 'personal_phone', 'address', 'emergency_contacts'];
+
+    /** Columns whose values never reach the audit log; a change to one is recorded by name (`hr.employee.sensitive_update`). */
+    public const AUDIT_HIDDEN_COLUMNS = [...self::SENSITIVE_COLUMNS, ...self::CONTACT_COLUMNS];
+
+    protected array $auditHidden = self::AUDIT_HIDDEN_COLUMNS;
 
     protected $guarded = [];
 
