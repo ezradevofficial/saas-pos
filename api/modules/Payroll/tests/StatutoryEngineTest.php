@@ -2,6 +2,8 @@
 
 namespace Modules\Payroll\Tests;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Modules\Payroll\Statutory\MissingValues;
 use Modules\Payroll\Statutory\PayrollPack;
@@ -110,7 +112,7 @@ class StatutoryEngineTest extends TestCase
     public function test_pro_rata_scale_for_weekly_pay(): void
     {
         // Weekly: monthly figures × 12 ÷ 52. Fixed NITA 5 000 → 1 153.846… → 1 154.
-        $r = $this->compute(FixturePacks::ke(), new StatutoryInput(gross: '1000000', taxableGross: '1000000', contributoryGross: '1000000', basic: '1000000', scale: (string) \Brick\Math\BigDecimal::of(12)->dividedBy(52, 12, \Brick\Math\RoundingMode::HalfUp)));
+        $r = $this->compute(FixturePacks::ke(), new StatutoryInput(gross: '1000000', taxableGross: '1000000', contributoryGross: '1000000', basic: '1000000', scale: (string) BigDecimal::of(12)->dividedBy(52, 12, RoundingMode::HalfUp)));
         $this->assertSame('1154', $r['by']['nita']['employer_minor']);
     }
 
