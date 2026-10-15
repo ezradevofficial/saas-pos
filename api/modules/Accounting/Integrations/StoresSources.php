@@ -60,6 +60,7 @@ class StoresSources
             amounts: $amounts,
             dimensions: array_filter(['branch_id' => $event->branchId, 'department_id' => $event->departmentId, 'cost_centre_id' => $event->costCentreId]),
             reference: mb_substr($event->number, 0, 80),
+            memo: Integrations::memo('stores.consumption', $event->number),
             link: ['kind' => $out ? 'stores.issue' : 'stores.return', 'id' => $event->documentId],
         );
     }

@@ -5,6 +5,7 @@
 // departments) are shown as entered.
 return [
     'errors' => [
+        'stock_decrease_needs_approval' => 'Taking stock out of the store needs a manager’s approval. Ask someone who may approve stock adjustments to enter it.',
         'location_unknown' => 'Choose a store that exists.',
         'location_archived' => 'This store is archived. Choose an active store.',
         'not_a_store' => 'This location is not a store. Choose a location of type store or warehouse.',

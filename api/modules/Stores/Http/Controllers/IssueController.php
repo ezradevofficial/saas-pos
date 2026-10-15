@@ -35,7 +35,8 @@ class IssueController
 
     public function index(ListIssuesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = Issue::query()->with(IssueList::RELATIONS)->withCount('lines');
+        // Stage 7B performance review: each issue's value in the list query, not one sum per row.
+        $query = Issue::query()->with(IssueList::RELATIONS)->withCount('lines')->withSum('lines', 'value_minor');
         $request->applyFilters($query, dateColumn: 'issued_at');
         $search = trim((string) $request->validated('search', ''));
 

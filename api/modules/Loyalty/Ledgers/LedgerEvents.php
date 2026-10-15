@@ -100,6 +100,8 @@ class LedgerEvents
         string $sourceType, mixed $occurredAt, string $currency, ?string $amount, ?string $points, ?string $reference): LoyaltyLedgerEvent
     {
         [$branchId, $sale] = $saleId === null ? [null, null] : $this->sale($saleId);
+        // ACC-17 (stage 7B closing review): an entry without its own reference (a till redemption) names its sale's receipt.
+        $reference ??= $sale['receipt_number'] ?? null;
         $fx = $sale !== null && ($sale['currency'] ?? null) === $currency ? ($sale['fx'] ?? null) : null;
         $at = CarbonImmutable::parse($occurredAt ?? 'now')->utc()->format('Y-m-d\TH:i:s.u\Z');
 
@@ -124,12 +126,13 @@ class LedgerEvents
         };
     }
 
-    /** @return array{0: ?string, 1: ?array{currency: ?string, fx: mixed}} the sale's branch and its currency and rate */
+    /** @return array{0: ?string, 1: ?array{currency: ?string, fx: mixed, receipt_number: ?string}} the sale's branch, its currency and rate, and its receipt number */
     private function sale(string $saleId): array
     {
         if (! array_key_exists($saleId, $this->sales)) {
-            $row = LoyaltySale::query()->whereKey($saleId)->selectRaw("branch_id, currency, snapshot->'base'->'fx' as fx")->first();
-            $this->sales[$saleId] = $row === null ? [null, null] : [$row->branch_id, ['currency' => $row->currency, 'fx' => is_string($row->fx) ? json_decode($row->fx, true) : null]];
+            $row = LoyaltySale::query()->whereKey($saleId)->selectRaw("branch_id, currency, snapshot->'base'->'fx' as fx, snapshot->>'receipt_number' as receipt_number")->first();
+            $this->sales[$saleId] = $row === null ? [null, null] : [$row->branch_id, ['currency' => $row->currency, 'fx' => is_string($row->fx) ? json_decode($row->fx, true) : null,
+                'receipt_number' => $row->receipt_number]];
         }
 
         return $this->sales[$saleId];

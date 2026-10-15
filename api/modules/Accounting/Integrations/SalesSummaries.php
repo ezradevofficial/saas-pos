@@ -43,6 +43,9 @@ class SalesSummaries
 
     public function __construct(private readonly PostingService $posting) {}
 
+    /** Stage 7B performance review: hours a group whose summary failed waits before the next automatic try, doubling per attempt up to a day. */
+    private const BACKOFF_HOURS = [1, 2, 4, 8, 16, 24];
+
     /** @return int the summaries posted */
     public function run(CarbonImmutable $now): int
     {
@@ -50,23 +53,59 @@ class SalesSummaries
         $companies = QueuedSource::query()->whereNull('summarised_at')->distinct()->pluck('company_id');
 
         foreach (Company::query()->whereKey($companies)->get() as $company) {
-            $posted += $this->locked($company->id, function () use ($company, $now) {
-                $today = $now->setTimezone($company->timezone ?: 'UTC')->toDateString();
-                $groups = QueuedSource::query()->where('company_id', $company->id)->whereNull('summarised_at')->where('local_date', '<', $today)
-                    ->orderBy('local_date')->orderBy('source_id')->get()
-                    ->groupBy(fn (QueuedSource $row) => $row->location_id.'|'.$row->local_date->toDateString().'|'.$row->currency);
-                $count = 0;
+            $today = $now->setTimezone($company->timezone ?: 'UTC')->toDateString();
+            // Stage 7B performance review: the groups first (one light query), then one group's sales at a time.
+            $groups = QueuedSource::query()->where('company_id', $company->id)->whereNull('summarised_at')->where('local_date', '<', $today)
+                ->groupBy('location_id', 'local_date', 'currency')->orderBy('local_date')->orderBy('location_id')->orderBy('currency')
+                ->toBase()->get(['location_id', 'local_date', 'currency']);
 
-                foreach ($groups as $rows) {
+            foreach ($groups as $group) {
+                $posted += $this->locked($company->id, function () use ($company, $group, $now) {
+                    $rows = QueuedSource::query()->where('company_id', $company->id)->whereNull('summarised_at')
+                        ->where('location_id', $group->location_id)->where('local_date', $group->local_date)->where('currency', $group->currency)
+                        ->orderBy('source_id')->get();
+
+                    if ($rows->isEmpty() || $this->backingOff($company, $rows->all(), $now)) {
+                        return 0;
+                    }
+
                     $result = $this->summarise($company, $rows->all());
-                    $count += $result->posted() && $result->created ? 1 : 0;
-                }
 
-                return $count;
-            });
+                    return $result->posted() && $result->created ? 1 : 0;
+                });
+            }
         }
 
         return $posted;
+    }
+
+    /**
+     * Stage 7B performance review: a group whose summary already failed
+     * (every sale in it carries that summary, still an open exception) is
+     * not tried again on every run: it waits 1, 2, 4, 8, 16 then 24 hours
+     * after its last attempt. A sale added to the group makes a new summary
+     * at once, and a retry from the exceptions screen is never held back.
+     *
+     * @param  list<QueuedSource>  $rows
+     */
+    private function backingOff(Company $company, array $rows, CarbonImmutable $now): bool
+    {
+        $summaries = array_values(array_unique(array_map(fn (QueuedSource $row) => (string) $row->summary_source_id, $rows)));
+
+        if (count($summaries) !== 1 || $summaries[0] === '') {
+            return false;
+        }
+
+        $exception = PostingException::query()->where('company_id', $company->id)->where('source_type', 'pos.sale_summary')
+            ->where('source_id', $summaries[0])->where('status', PostingException::OPEN)->first();
+
+        if ($exception === null) {
+            return false;
+        }
+
+        $hours = self::BACKOFF_HOURS[min(max((int) $exception->attempts, 1), count(self::BACKOFF_HOURS)) - 1];
+
+        return CarbonImmutable::instance($exception->last_attempt_at)->addHours($hours)->greaterThan($now);
     }
 
     /** Review #2: retry a failed summary from its own sales, refused once it is superseded. */

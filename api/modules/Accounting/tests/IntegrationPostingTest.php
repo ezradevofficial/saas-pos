@@ -73,6 +73,10 @@ class IntegrationPostingTest extends TestCase
         $this->assertSame(['2320' => [0, 800], '6910' => [800, 0]], $this->linesOf($this->journalsOf('loyalty.points_earned')[0]));
         // Cost of sales per sale line: two soaps at KES 300.00.
         $this->assertSame(['1300' => [0, 60000], '5100' => [60000, 0]], $this->linesOf($this->journalsOf('inventory.cost_of_sales')[0]));
+        // ACC-17 (stage 7B closing review): the stock and gift card journals name the receipt, never a source key.
+        $this->assertSame([$sale['receipt_number'], "Cost of sales {$sale['receipt_number']}"],
+            [$this->journalsOf('inventory.cost_of_sales')[0]->reference, $this->journalsOf('inventory.cost_of_sales')[0]->memo]);
+        $this->assertSame($sale['receipt_number'], $this->journalsOf('loyalty.gift_card_redeemed')[0]->reference);
 
         // A partial refund: one soap back, KES 421.88 in cash (its share of tax and of the promotion).
         $this->refundSale($sale, $shift, '1', '42188', 1)->assertOk()->assertJsonPath('results.0.status', 'stored');
@@ -349,6 +353,35 @@ class IntegrationPostingTest extends TestCase
         return [$failed->id];
     }
 
+    /** Stage 7B performance review: a summary that failed is not tried on every run; it waits, longer each time. */
+    public function test_a_failed_summary_backs_off_between_runs(): void
+    {
+        $this->setUpIntegrations();
+        $this->putJson("/api/v1/companies/{$this->acme->id}/accounting/settings", ['sales_posting' => 'daily_summary'], $this->headersFor())->assertOk();
+        $this->upload([$this->saleBody($this->openShift(), 1)])->assertOk();
+        $rule = $this->inTenant(fn () => PostingRule::query()->where('event_type', 'pos.sale')->value('id'));
+        $this->postJson("/api/v1/accounting/posting-rules/{$rule}/archive", [], $this->headersFor())->assertOk();
+        $start = CarbonImmutable::now()->addDays(2);
+        $run = function (string $later) use ($start) {
+            $this->travelTo($start->add($later));
+            $this->artisan('accounting:post-sales-summaries')->assertSuccessful();
+            $this->travelBack();
+        };
+        $attempts = fn () => $this->inTenant(fn () => (int) PostingException::query()->where('source_type', 'pos.sale_summary')->sole()->attempts);
+
+        $run('0 minutes');
+        $this->assertSame(1, $attempts());
+        // The hourly run 30 minutes later leaves it alone; after an hour it is tried again, then after two more.
+        $run('30 minutes');
+        $this->assertSame(1, $attempts());
+        $run('61 minutes');
+        $this->assertSame(2, $attempts());
+        $run('150 minutes');
+        $this->assertSame(2, $attempts());
+        $run('182 minutes');
+        $this->assertSame(3, $attempts());
+    }
+
     /** Review #2: the run that covers a failed summary supersedes it; retrying the old one is refused. */
     public function test_a_later_summary_supersedes_a_failed_one_and_its_retry_is_refused(): void
     {
@@ -421,6 +454,36 @@ class IntegrationPostingTest extends TestCase
 
         $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($event)));
         $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()));
+    }
+
+    /**
+     * Stage 7B closing review: a queued job posts on Accounting alone (the event proves the raising
+     * module was on when it happened): Stores switched off after an issue was valued still posts it.
+     * Stock postings that post nothing are never queued (Stores' own moves, transfers, no movements).
+     */
+    public function test_a_queued_event_posts_after_its_module_is_switched_off_and_dead_jobs_are_not_queued(): void
+    {
+        $this->setUpIntegrations();
+        $department = $this->inTenant(fn () => Department::create(['company_id' => $this->acme->id, 'code' => 'KIT', 'name' => 'Kitchen']));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('stores'));
+        $issue = new StoreConsumptionValued($this->owner->tenant_id, 'issue', $this->id(), 'SI-9', $this->acme->id, $this->branchA->id, $this->locationA->id, $department->id, null,
+            now()->toIso8601String(), 'KES', '30000', [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => '30000', 'cost_variance_minor' => '0']]);
+        $this->assertTrue($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)));
+
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('stores'));
+        app(PostModuleEvent::class)->handle($issue);
+
+        $this->assertSame(['1300' => [0, 30000], '6920' => [30000, 0]], $this->linesOf($this->journalsOf('stores.consumption')[0]));
+
+        $moved = fn (string $source, array $movements) => new StockMoved($this->owner->tenant_id, $this->acme->id, 'KES', $source, $this->id(), $movements, now()->toIso8601String(), $this->branchA->id);
+        $movement = fn (string $kind, string $qty, string $value) => ['id' => $this->id(), 'kind' => $kind, 'item_id' => $this->soap->id, 'location_id' => $this->locationA->id,
+            'branch_id' => $this->branchA->id, 'source_line_id' => null, 'qty' => $qty, 'value_minor' => $value, 'cost_variance_minor' => '0'];
+        $queues = fn (StockMoved $event) => $this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($event));
+
+        $this->assertFalse($queues($moved('stores.issue', [$movement('adjustment_out', '-1', '-30000')])));
+        $this->assertFalse($queues($moved('inventory.transfer', [$movement('transfer_out', '-1', '-30000'), $movement('transfer_in', '1', '30000')])));
+        $this->assertFalse($queues($moved('inventory.adjustment', [])));
+        $this->assertTrue($queues($moved('inventory.adjustment', [$movement('adjustment_out', '-1', '-30000')])));
     }
 
     /**
@@ -511,9 +574,10 @@ class IntegrationPostingTest extends TestCase
             now()->toIso8601String(), 'KES', $value, [['line_id' => $this->id(), 'item_id' => $this->soap->id, 'qty_base' => '1', 'value_minor' => $value, 'cost_variance_minor' => $variance]],
         );
         $issue = $valued('issue', $this->id(), '30000', '0');
-        $this->assertNull($this->inTenant(fn () => app(Integrations::class)->handle($issue)), 'Stores off: nothing posts');
+        $this->assertFalse($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)), 'Stores off: nothing is queued');
 
         $this->inTenant(fn () => app(ModuleRegistry::class)->activate('stores'));
+        $this->assertTrue($this->inTenant(fn () => app(PostModuleEvent::class)->shouldQueue($issue)));
         $this->inTenant(fn () => app(Integrations::class)->handle($issue));
         $this->inTenant(fn () => app(Integrations::class)->handle($issue));
         // A return of KES 120.00 that covered a shortfall: KES 20.00 of it corrects cost of sales.

@@ -149,6 +149,44 @@ class CostEngine
         return ['cost' => $cost, 'flags' => []];
     }
 
+    /**
+     * A value-only adjustment of a receipt (landed costs allocated after it,
+     * PRC-17): $amount spread over the units of that receipt still on hand,
+     * the rest (units already sold) returned as the variance for Accounting
+     * to expense. FIFO: the receipt's own layer takes its share of what it
+     * still holds (remaining ÷ received). Weighted average: the units the
+     * company still holds, up to the receipt's quantity, take their share
+     * and the average rises. Integer arithmetic, rounded half up once.
+     *
+     * @return array{cost: BigInteger, variance: BigInteger, flags: list<array{code: string}>}
+     */
+    public function adjust(CostState $state, string $method, BigInteger $amount, string $receiptMovementId, BigDecimal $receivedQty): array
+    {
+        if (! $receivedQty->isPositive()) {
+            return ['cost' => BigInteger::zero(), 'variance' => $amount, 'flags' => [['code' => 'nothing_on_hand']]];
+        }
+
+        if ($method === InventorySetting::FIFO) {
+            $layer = CostLayer::query()->where('movement_id', $receiptMovementId)->lockForUpdate()->first();
+            $remaining = $layer === null ? Qty::zero() : BigDecimal::of((string) $layer->remaining_qty);
+            $onHand = $remaining->isPositive() ? Qty::share($amount, Qty::min($remaining, $receivedQty), $receivedQty) : BigInteger::zero();
+
+            if ($layer !== null && $onHand->isPositive()) {
+                $layer->cost_minor = (string) BigInteger::of((string) $layer->cost_minor)->plus($onHand);
+                $layer->remaining_cost_minor = (string) BigInteger::of((string) $layer->remaining_cost_minor)->plus($onHand);
+                $layer->save();
+            }
+        } else {
+            $held = BigDecimal::of((string) $state->qty);
+            $onHand = $held->isPositive() ? Qty::share($amount, Qty::min($held, $receivedQty), $receivedQty) : BigInteger::zero();
+        }
+
+        $state->value_minor = (string) BigInteger::of((string) $state->value_minor)->plus($onHand);
+        $variance = $amount->minus($onHand);
+
+        return ['cost' => $onHand, 'variance' => $variance, 'flags' => $variance->isZero() ? [] : [['code' => 'partly_sold']]];
+    }
+
     /** The unit cost a move between locations is shown at (no cost changes hands). */
     public function displayUnit(CostState $state): ?BigDecimal
     {

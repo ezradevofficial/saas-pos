@@ -34,6 +34,7 @@ use Modules\Inventory\Events\StockEventReplay;
 use Modules\Inventory\Events\StockLow;
 use Modules\Inventory\Imports\OpeningStockImporter;
 use Modules\Inventory\Labels\LabelSource;
+use Modules\Inventory\Listeners\ApplyLandedCost;
 use Modules\Inventory\Listeners\MoveStockForSale;
 use Modules\Inventory\Listeners\MoveStockForStores;
 use Modules\Inventory\Listeners\NotifyLowStock;
@@ -47,6 +48,7 @@ use Modules\Inventory\Sync\StockSource;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\LandedCostAllocated;
 use Modules\Stores\Events\StoreIssued;
 use Modules\Stores\Events\StoreReturned;
 
@@ -132,6 +134,8 @@ class InventoryServiceProvider extends ServiceProvider
 
         // INV-15: goods received by Procurement (the contract defined here).
         Event::listen(GoodsReceived::class, [RecordGoodsReceived::class, 'handle']);
+        // INV-25: landed costs allocated after a receipt adjust its cost (owner decision 2026-10-14).
+        Event::listen(LandedCostAllocated::class, [ApplyLandedCost::class, 'handle']);
 
         // INV-11, NOT-02: low-stock alerts.
         Event::listen(StockLow::class, [NotifyLowStock::class, 'handle']);

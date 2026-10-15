@@ -3,11 +3,15 @@
 namespace Modules\POS\Tests;
 
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
+use Modules\POS\Events\SaleSnapshot;
 use Modules\POS\Events\SaleVoided;
+use Modules\POS\Models\Refund;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Tests\Concerns\BuildsExchangeRates;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -156,5 +160,35 @@ class SaleSnapshotTest extends TestCase
         }
 
         $this->assertSame(['3333', '3334', '3333'], $shares);
+    }
+
+    /** Stage 7B performance review: a refund's snapshot reads what was refunded before in one grouped query, whatever its lines. */
+    public function test_a_refund_snapshot_reads_earlier_refunds_in_one_query(): void
+    {
+        $lines = [$this->line(), $this->line(), $this->line()];
+        $sale = $this->saleBody($this->shift, 1, ['lines' => $lines]);
+        $this->upload([$sale])->assertOk();
+        $refundId = $this->id();
+        $this->postJson('/api/v1/pos/refunds', ['refunds' => [[
+            'id' => $refundId, 'sale_id' => $sale['id'], 'shift_id' => $this->shift, 'cashier_id' => $this->owner->id,
+            'receipt_seq' => 1, 'receipt_number' => 'RF-L01-000001', 'refunded_at' => now()->toIso8601String(), 'reason' => 'Damaged', 'total_minor' => '168750',
+            'lines' => array_map(fn (array $l) => ['id' => $this->id(), 'sale_line_id' => $l['id'], 'qty' => '1'], $lines),
+            'payments' => [['id' => $this->id(), 'payment_method_id' => $this->methods['cash_kes']->id, 'currency' => 'KES', 'amount_minor' => '168750', 'amount_in_sale_minor' => '168750', 'status' => 'confirmed']],
+            'override' => $this->override($this->owner->id),
+        ]]], $this->tillHeaders())->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $queries = $this->inTenant(function () use ($refundId) {
+            $refund = Refund::query()->findOrFail($refundId);
+            $connection = DB::connection(TenantContext::CONNECTION);
+            $connection->flushQueryLog();
+            $connection->enableQueryLog();
+            $snapshot = SaleSnapshot::refund($refund);
+            $connection->disableQueryLog();
+            $this->assertCount(3, $snapshot['lines']);
+
+            return collect($connection->getQueryLog())->filter(fn (array $q) => str_contains($q['query'], 'from "pos_refund_lines"') && str_contains($q['query'], 'sum('))->count();
+        });
+
+        $this->assertSame(1, $queries);
     }
 }

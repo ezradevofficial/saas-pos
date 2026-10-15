@@ -101,6 +101,7 @@ class PosSources
             fx: ($record['base']['currency'] ?? $record['currency']) === $record['currency'] || ! is_array($fx) ? null : Integrations::fx($fx),
             dimensions: array_filter(['branch_id' => $record['branch_id'] ?? null, 'party_id' => $record['customer_id'] ?? null]),
             reference: $reference,
+            memo: Integrations::memo($type, $reference),
             link: ['kind' => 'pos.sale', 'id' => $record['id']],
             foreign: $foreign,
         );

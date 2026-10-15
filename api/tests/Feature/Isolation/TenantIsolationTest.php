@@ -84,6 +84,16 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/platform/auth/two-factor' => 'ADR 013: needs the encrypted sign-in challenge and a TOTP code',
         'GET api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential; answers only the staff member\'s name and email',
         'POST api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential',
+        // Procurement (docs/modules/procurement.md): the supplier portal, tested by modules/Procurement/tests/PortalTest.php.
+        'POST api/v1/supplier-portal/sessions' => 'PRC-07: the 48-character single-bidder link token (stored as sha256, valid until the tender deadline) is the credential; its tenant is found by a security-definer function that returns only the id; rate-limited',
+        'GET api/v1/supplier-portal/notices/{notice}' => 'PRC-08: an open tender\'s public notice, found by the hash of its 48-character token through a security-definer function; answers only the tender\'s public terms (never bidders); rate-limited',
+        'POST api/v1/supplier-portal/notices/{notice}/register' => 'PRC-08: registers an outsider on that open tender only; the link goes to the email typed; rate-limited per IP and per email',
+        'DELETE api/v1/supplier-portal/sessions/current' => 'PRC-07: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        'GET api/v1/supplier-portal/tender' => 'PRC-07: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        'PUT api/v1/supplier-portal/bid' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        'POST api/v1/supplier-portal/bid/files' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        'POST api/v1/supplier-portal/bid/withdraw' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        'DELETE api/v1/supplier-portal/bid/files/{file}' => 'PRC-09: removes one of the session bidder\'s own unsubmitted uploads; the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
     ];
 
     /**
@@ -170,6 +180,19 @@ class TenantIsolationTest extends TestCase
         'inventory_transfer' => 'inventory_transfer',
         'inventory_adjustment' => 'inventory_adjustment',
         'inventory_count' => 'inventory_count',
+        // Procurement (docs/modules/procurement.md): drafts of each document, a bidder, an opened bid and its file,
+        // an awarded tender's bid (its letter), a draft GRN, a matched invoice and a draft landed cost.
+        'procurement_requisition' => 'procurement_requisition',
+        'procurement_rfq' => 'procurement_rfq',
+        'procurement_tender' => 'procurement_tender',
+        'procurement_bidder' => 'procurement_bidder',
+        'procurement_bid' => 'procurement_bid',
+        'procurement_bid_file' => 'procurement_bid_file',
+        'procurement_decided_bid' => 'procurement_decided_bid',
+        'procurement_order' => 'procurement_order',
+        'procurement_receipt' => 'procurement_receipt',
+        'procurement_invoice' => 'procurement_invoice',
+        'procurement_landed_cost' => 'procurement_landed_cost',
         // Stores (docs/modules/stores.md): a partly issued requisition, its issue (partly returned), the return.
         'stores_requisition' => 'stores_requisition',
         'stores_issue' => 'stores_issue',
@@ -282,8 +305,15 @@ class TenantIsolationTest extends TestCase
         'project_id' => 'project',
         'counterparty_company_id' => 'company',
         'credits_document_id' => 'acc_invoice',
-        // Stores: the requisition line an issue takes from, the issue line a return gives back to.
-        'requisition_line_id' => 'stores_requisition_line',
+        // Procurement: an approved requisition and its line, an issued RFQ and its line, a tender criterion, an approved PO and its line.
+        'requisition_id' => 'procurement_requisition_approved',
+        'requisition_line_id' => 'procurement_requisition_line',
+        'rfq_id' => 'procurement_rfq_issued',
+        'rfq_line_id' => 'procurement_rfq_line',
+        'criterion_id' => 'procurement_criterion',
+        'order_id' => 'procurement_order_approved',
+        'order_line_id' => 'procurement_order_line',
+        // Stores: the issue line a return gives back to (an issue's requisition_line_id: ROUTE_REFERENCE_FIELDS).
         'issue_line_id' => 'stores_issue_line',
         // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
         'employee_id' => 'hr_employee',
@@ -330,6 +360,8 @@ class TenantIsolationTest extends TestCase
         // HR-18: a planned shift names an HR shift (POS uploads' shift_id is the till's).
         'POST api/v1/hr/roster-shifts' => ['shift_id' => 'hr_shift'],
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
+        // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
+        'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
     ];
 
     /**
@@ -1038,6 +1070,14 @@ class TenantIsolationTest extends TestCase
             'loyalty/ageing' => ['Customer A'],
             'loyalty/gift-cards' => ['KES'],
             'loyalty/sales' => ['Customer A'],
+            // Procurement (PRC-21): its lists.
+            'procurement/requisitions?status=all' => ['Branch A', 'Restock A'],
+            'procurement/rfqs?status=all' => ['Soap RFQ A'],
+            'procurement/tenders?status=all' => ['Opened tender A', 'Awarded tender A'],
+            'procurement/orders?status=all' => ['Supplier A'],
+            'procurement/receipts?status=all' => ['Supplier A', 'Outlet A'],
+            'procurement/invoices?status=all' => ['Supplier A', 'SINV-A'],
+            'procurement/landed-costs?status=all' => ['Freight A'],
         ];
     }
 
@@ -1411,6 +1451,9 @@ class TenantIsolationTest extends TestCase
         $documentLines = [['description' => 'Hijack', 'item_id' => $tenant->id('item'), 'account_id' => $tenant->id('acc_account'), 'qty' => '1', 'unit_price' => '10.00',
             'tax_code_id' => $tenant->id('tax_code'), 'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'project_id' => $tenant->id('project')]];
         $assignment = ['role_id' => $tenant->id('role'), 'scope_type' => 'location', 'scope_id' => $tenant->id('location')];
+        $procurementLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'cost_centre_id' => $tenant->id('cost_centre'), 'project_id' => $tenant->id('project')]];
+        $procurementOrderLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'unit_price_minor' => '118000', 'tax_code_id' => $tenant->id('tax_code'),
+            'cost_centre_id' => $tenant->id('cost_centre'), 'project_id' => $tenant->id('project'), 'requisition_line_id' => null]];
 
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
@@ -1656,6 +1699,30 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/accounting/bank-statement-lines/{acc_bank_statement_line}/post' => ['account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre')],
             'POST api/v1/companies/{company}/accounting/bank-rules' => ['name' => 'Hijack', 'contains' => 'Hijack', 'account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre'), 'bank_account_id' => $tenant->id('acc_bank_account')],
             'PUT api/v1/accounting/budgets/{acc_budget}/cells' => ['cells' => [['account_id' => $tenant->id('acc_account'), 'cost_centre_id' => $tenant->id('cost_centre'), 'month' => 11, 'amount' => '10.00']]],
+            // Procurement (docs/modules/procurement.md): bodies naming A's own branch, location, dimensions, supplier, items and documents.
+            'POST api/v1/procurement/requisitions' => ['branch_id' => $tenant->id('branch'), 'location_id' => $tenant->id('location'), 'department_id' => $tenant->id('department'), 'lines' => $procurementLines],
+            'PATCH api/v1/procurement/requisitions/{procurement_requisition}' => ['location_id' => $tenant->id('location'), 'department_id' => $tenant->id('department'), 'lines' => $procurementLines],
+            'POST api/v1/procurement/rfqs' => ['branch_id' => $tenant->id('branch'), 'requisition_id' => $tenant->id('procurement_requisition_approved'), 'title' => 'Hijack check',
+                'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'requisition_line_id' => $tenant->id('procurement_requisition_line')]]],
+            'PATCH api/v1/procurement/rfqs/{procurement_rfq}' => ['lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']]],
+            'POST api/v1/procurement/quotes' => ['rfq_id' => $tenant->id('procurement_rfq_issued'), 'party_id' => $tenant->id('party'), 'quote_date' => now()->toDateString(), 'currency' => 'KES',
+                'lines' => [['rfq_line_id' => $tenant->id('procurement_rfq_line'), 'unit_price_minor' => '117000']]],
+            'POST api/v1/procurement/tenders' => ['branch_id' => $tenant->id('branch'), 'requisition_id' => $tenant->id('procurement_requisition_approved'), 'title' => 'Hijack check', 'kind' => 'invited',
+                'deadline_at' => now()->addDay()->toIso8601String(), 'opening_at' => now()->addDay()->toIso8601String(), 'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']]],
+            'PATCH api/v1/procurement/tenders/{procurement_tender}' => ['lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']]],
+            'POST api/v1/procurement/tenders/{procurement_tender}/bidders' => ['party_id' => $tenant->id('party'), 'email' => 'hijack-check@supplier.example.com'],
+            'PUT api/v1/procurement/bids/{procurement_bid}/scores' => ['scores' => [['criterion_id' => $tenant->id('procurement_criterion'), 'score' => 5]]],
+            'POST api/v1/procurement/orders' => ['branch_id' => $tenant->id('branch'), 'party_id' => $tenant->id('party'), 'location_id' => $tenant->id('location'), 'lines' => $procurementOrderLines],
+            'PATCH api/v1/procurement/orders/{procurement_order}' => ['party_id' => $tenant->id('party'), 'location_id' => $tenant->id('location'), 'lines' => $procurementOrderLines],
+            'POST api/v1/procurement/receipts' => ['order_id' => $tenant->id('procurement_order_approved'), 'location_id' => $tenant->id('location'),
+                'lines' => [['order_line_id' => $tenant->id('procurement_order_line'), 'received_qty' => '1']]],
+            'PATCH api/v1/procurement/receipts/{procurement_receipt}' => ['location_id' => $tenant->id('location'), 'lines' => [['order_line_id' => $tenant->id('procurement_order_line'), 'received_qty' => '1']]],
+            'POST api/v1/procurement/invoices' => ['order_id' => $tenant->id('procurement_order_approved'), 'supplier_reference' => 'HIJACK-CHECK', 'invoice_date' => now()->toDateString(),
+                'lines' => [['order_line_id' => $tenant->id('procurement_order_line'), 'qty' => '1', 'tax_code_id' => $tenant->id('tax_code')]]],
+            'PATCH api/v1/procurement/invoices/{procurement_invoice}' => ['lines' => [['order_line_id' => $tenant->id('procurement_order_line'), 'qty' => '1', 'tax_code_id' => $tenant->id('tax_code')]]],
+            'POST api/v1/procurement/landed-costs' => ['branch_id' => $tenant->id('branch'), 'cost_date' => now()->toDateString(), 'method' => 'value',
+                'charges' => [['description' => 'Hijack check', 'party_id' => $tenant->id('party'), 'currency' => 'KES', 'amount_minor' => '1000']], 'receipt_ids' => [$tenant->id('procurement_receipt')]],
+            'PATCH api/v1/procurement/landed-costs/{procurement_landed_cost}' => ['charges' => [['description' => 'Hijack check', 'party_id' => $tenant->id('party'), 'currency' => 'KES', 'amount_minor' => '1000']]],
             default => null,
         };
     }

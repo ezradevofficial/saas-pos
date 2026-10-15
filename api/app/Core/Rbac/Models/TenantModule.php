@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,14 @@ class TenantModule extends Model
     protected string $auditResource = 'module';
 
     protected $fillable = ['module', 'status', 'activated_at', 'deactivated_at', 'switched_off_at', 'purge_flagged_at'];
+
+    protected static function booted(): void
+    {
+        // Stage 7B performance review: ModuleRegistry memoises isActive; any change forgets it.
+        $flush = fn () => app(ModuleRegistry::class)->flush();
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     protected function casts(): array
     {

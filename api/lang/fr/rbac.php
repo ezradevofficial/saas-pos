@@ -19,6 +19,7 @@ return [
             'pos' => 'Point de vente',
             'loyalty' => 'Fidélité, promotions et crédit',
             'hr' => 'RH, horaires et présences',
+            'procurement' => 'Achats',
         ],
         'resources' => [
             'core' => [
@@ -91,6 +92,18 @@ return [
                 'disciplinary' => 'Dossiers disciplinaires',
                 'appraisal' => 'Évaluations',
             ],
+            'procurement' => [
+                'requisition' => 'Demandes d’achat',
+                'rfq' => 'Demandes de prix',
+                'tender' => 'Appels d’offres',
+                'po' => 'Bons de commande',
+                'receipt' => 'Réceptions',
+                'invoice' => 'Factures fournisseurs',
+                'landed_cost' => 'Frais d’approche',
+                'performance' => 'Performance des fournisseurs',
+                'value' => 'Prix et valeurs',
+                'settings' => 'Paramètres des achats',
+            ],
         ],
         'actions' => [
             'view' => 'Voir',
@@ -127,6 +140,9 @@ return [
             'block' => 'Bloquer',
             'terminate' => 'Faire partir ou réembaucher',
             'link' => 'Lier un utilisateur',
+            'evaluate' => 'Évaluer',
+            'award' => 'Attribuer',
+            'cancel' => 'Annuler',
         ],
     ],
 

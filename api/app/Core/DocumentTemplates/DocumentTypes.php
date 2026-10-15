@@ -26,6 +26,9 @@ final class DocumentTypes
         'sales.invoice' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'sales'],
         'sales.quote' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'sales'],
         'procurement.po' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
+        // PRC-12: the Procurement module's award and regret letters to bidders.
+        'procurement.award_letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
+        'procurement.regret_letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
         // STR-14: the Stores module's delivery notes and issue vouchers (an issue to a department).
         'stores.delivery_note' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
         'stores.issue_voucher' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],

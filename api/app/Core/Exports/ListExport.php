@@ -117,7 +117,11 @@ class ListExport
         $filename = $list->name().'-'.now()->setTimezone($values->timezone)->format('Y-m-d').'.'.$format;
 
         return response()->streamDownload(function () use ($tenantId, $locale, $format, $query, $list, $request, $columns, $values, $headers, $title, $summary) {
-            set_time_limit(self::TIME_LIMIT_SECONDS);
+            // EXP-01: a long export gets its own time limit; never inside the test runner, where it would
+            // bound the rest of the process (stage 7B closing review).
+            if (! app()->runningUnitTests()) {
+                set_time_limit(self::TIME_LIMIT_SECONDS);
+            }
 
             // The body is sent after the request's tenant context may be
             // gone: read the rows in the tenant's own context (RLS).

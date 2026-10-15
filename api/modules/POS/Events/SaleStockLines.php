@@ -70,12 +70,14 @@ final class SaleStockLines
         return self::of($sale, $refund->refunded_at->toIso8601String(), RefundLine::query()->where('refund_id', $refund->id)->orderBy('id')->get()
             ->filter(fn (RefundLine $line) => $saleLines->has($line->sale_line_id))
             ->map(fn (RefundLine $line) => [...self::line($line->id, $saleLines[$line->sale_line_id]), 'qty' => (string) $line->qty])
-            ->values()->all());
+            ->values()->all(), $refund->receipt_number);
     }
 
-    private static function of(Sale $sale, string $at, array $lines): array
+    private static function of(Sale $sale, string $at, array $lines, ?string $receiptNumber = null): array
     {
-        return ['sale_id' => $sale->id, 'company_id' => $sale->company_id, 'location_id' => $sale->location_id, 'occurred_at' => $at, 'lines' => $lines];
+        // ACC-17 (stage 7B closing review): the printed number the stock journal names (the refund's own for a refund).
+        return ['sale_id' => $sale->id, 'company_id' => $sale->company_id, 'location_id' => $sale->location_id, 'occurred_at' => $at, 'lines' => $lines,
+            'receipt_number' => $receiptNumber ?? $sale->receipt_number];
     }
 
     private static function line(string $id, SaleLine $line): array

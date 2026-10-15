@@ -19,6 +19,7 @@ return [
             'pos' => 'Point of sale',
             'loyalty' => 'Loyalty, promotions and credit',
             'hr' => 'HR, shifts and attendance',
+            'procurement' => 'Procurement',
         ],
         'resources' => [
             'core' => [
@@ -91,6 +92,18 @@ return [
                 'disciplinary' => 'Disciplinary records',
                 'appraisal' => 'Appraisals',
             ],
+            'procurement' => [
+                'requisition' => 'Purchase requisitions',
+                'rfq' => 'Requests for quotation',
+                'tender' => 'Tenders',
+                'po' => 'Purchase orders',
+                'receipt' => 'Goods received',
+                'invoice' => 'Supplier invoices',
+                'landed_cost' => 'Landed costs',
+                'performance' => 'Supplier performance',
+                'value' => 'Prices and values',
+                'settings' => 'Procurement settings',
+            ],
         ],
         'actions' => [
             'view' => 'View',
@@ -127,6 +140,9 @@ return [
             'block' => 'Block',
             'terminate' => 'Terminate or rehire',
             'link' => 'Link a user',
+            'evaluate' => 'Evaluate',
+            'award' => 'Award',
+            'cancel' => 'Cancel',
         ],
     ],
 

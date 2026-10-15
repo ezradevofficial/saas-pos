@@ -22,5 +22,7 @@ final class Posting
         public readonly ?string $userId,
         public readonly array $lines,
         public readonly bool $manual = true,
+        // ACC-17 (stage 7B closing review): the source document's number, kept on every movement.
+        public readonly ?string $reference = null,
     ) {}
 }

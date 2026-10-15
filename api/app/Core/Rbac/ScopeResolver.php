@@ -66,6 +66,49 @@ class ScopeResolver
     }
 
     /**
+     * Stage 7B performance review: the ids of the tenant's active users who
+     * may do $permission at $target, in one query (what can() answers user by
+     * user): an active role carrying the permission, assigned at the tenant
+     * or at a scope covering $target. Empty when the permission's module is
+     * off or the target is not the tenant's.
+     *
+     * @return list<string>
+     */
+    public function holders(string $permission, Scope $target): array
+    {
+        $tenantId = $this->tenants->id();
+        $chain = $this->chain($target);
+
+        if ($tenantId === null || $chain === null || ! $this->modules->permissionActive($permission)) {
+            return [];
+        }
+
+        $roleIds = $this->rolesWith($permission);
+
+        if ($roleIds === []) {
+            return [];
+        }
+
+        $scopes = array_map(fn (string $scope) => explode(':', $scope, 2), $chain);
+
+        return RoleAssignment::query()
+            ->join('roles', 'roles.id', '=', 'role_assignments.role_id')
+            ->join('users', 'users.id', '=', 'role_assignments.user_id')
+            ->whereNull('roles.archived_at')
+            ->where('users.status', User::STATUS_ACTIVE)
+            ->where('users.tenant_id', $tenantId)
+            ->whereIn('role_assignments.role_id', $roleIds)
+            ->where(function ($q) use ($scopes) {
+                $q->where('role_assignments.scope_type', Scope::TENANT);
+
+                foreach ($scopes as [$type, $id]) {
+                    $q->orWhere(fn ($q) => $q->where('role_assignments.scope_type', $type)->where('role_assignments.scope_id', $id));
+                }
+            })
+            ->distinct()->pluck('role_assignments.user_id')->map(fn ($id) => (string) $id)->all();
+    }
+
+    /**
      * Ids of the active roles $user holds at a scope covering $target (any
      * scope when null), whatever their permissions. Used by field and limit
      * rules (RBAC-05, RBAC-06).

@@ -207,6 +207,9 @@ return [
         'loyalty_account' => 'A un compte de fidélité ou de crédit',
         'accounting_document' => 'Utilisé dans une facture',
         'accounting_payment' => 'Utilisé dans un paiement',
+        'procurement_order' => 'Utilisé dans un bon de commande',
+        'procurement_rfq' => 'Invité à une demande de prix',
+        'procurement_requisition' => 'Utilisé dans une demande d’achat',
     ],
     'report' => [
         'sheet' => 'Lignes',

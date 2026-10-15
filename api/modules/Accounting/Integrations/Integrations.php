@@ -20,12 +20,16 @@ use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\Procurement\Events\GoodsReceiptPosted;
+use Modules\Procurement\Events\LandedCostAllocated;
+use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
- * ACC-25 to ACC-28, ACC-31 (stage 7B): what other modules' events post, in the
- * current tenant. Nothing happens unless Accounting and the raising
- * module are both active (RBAC-08). Every source goes through
+ * ACC-25 to ACC-32 (stage 7B): what other modules' events post, in the
+ * current tenant. Nothing happens unless Accounting is active (RBAC-08);
+ * the raising module was active when the event happened (PostModuleEvent
+ * queues only then), whatever it is now. Every source goes through
  * PostingService and the company's posting rules, idempotently by
  * source; one that cannot post (no rule, no account, a closed period,
  * Essentials with a foreign currency) is kept as a posting exception,
@@ -48,6 +52,8 @@ class Integrations
         private readonly InventorySources $inventory,
         private readonly LoyaltySources $loyalty,
         private readonly StoresSources $stores,
+        private readonly SupplierInvoices $supplierInvoices,
+        private readonly LandedCostSources $landedCosts,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -57,15 +63,35 @@ class Integrations
             return null;
         }
 
+        // Stage 7B closing review: the raising module was on when the event happened (PostModuleEvent queues
+        // only then, the backfill replays what modules recorded); it may be off by now (decision, owner may change).
         return match (true) {
-            $event instanceof SaleCompleted => $this->active('pos') && $event->sale !== [] ? $this->sale($event->sale) : null,
-            $event instanceof SaleVoided => $this->active('pos') && $event->sale !== [] ? $this->posting->post($this->pos->void($event->sale, $event->voidId, $event->voidedAt)) : null,
-            $event instanceof SaleRefunded => $this->active('pos') && $event->refund !== [] ? $this->posting->post($this->pos->refund($event->refund)) : null,
-            $event instanceof StockMoved => $this->active('inventory') ? $this->post($this->inventory->stockMoved($event)) : null,
-            $event instanceof LoyaltyLedgerEvent => $this->active('loyalty') ? $this->post($this->loyalty->entry($event)) : null,
-            $event instanceof StoreConsumptionValued => $this->active('stores') ? $this->post($this->stores->consumption($event)) : null,
+            $event instanceof SaleCompleted => $event->sale !== [] ? $this->sale($event->sale) : null,
+            $event instanceof SaleVoided => $event->sale !== [] ? $this->posting->post($this->pos->void($event->sale, $event->voidId, $event->voidedAt)) : null,
+            $event instanceof SaleRefunded => $event->refund !== [] ? $this->posting->post($this->pos->refund($event->refund)) : null,
+            $event instanceof StockMoved => $this->post($this->inventory->stockMoved($event)),
+            $event instanceof LoyaltyLedgerEvent => $this->post($this->loyalty->entry($event)),
+            $event instanceof StoreConsumptionValued => $this->post($this->stores->consumption($event)),
+            // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
+            $event instanceof SupplierInvoiceApproved => $this->supplierInvoices->approved($event),
+            // Stage 7B closing review: landed costs clear through their bills (procurement.md decision 19).
+            $event instanceof LandedCostAllocated => $this->landedCosts->allocated($event),
+            $event instanceof GoodsReceiptPosted => $this->landedCosts->received($event),
             default => null,
         };
+    }
+
+    /**
+     * ACC-17 (stage 7B closing review): a posted source's description from
+     * the en/fr text of its source type, naming its document; null when the
+     * type has none.
+     */
+    public static function memo(string $sourceType, ?string $reference): ?string
+    {
+        $key = 'accounting.integrations.memos.'.str_replace('.', '_', $sourceType);
+        $text = __($key, ['reference' => (string) $reference]);
+
+        return $text === $key ? null : trim($text);
     }
 
     /** CUR-04: a rate snapshot as an event carried it. */
@@ -122,10 +148,5 @@ class Integrations
     private function post(?SourceDocument $source): ?PostingResult
     {
         return $source === null || $source->isEmpty() ? null : $this->posting->post($source);
-    }
-
-    private function active(string $module): bool
-    {
-        return $this->modules->isActive($module);
     }
 }

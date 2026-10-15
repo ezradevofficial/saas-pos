@@ -18,16 +18,21 @@ export function chooseCompany(id) {
   for (const listener of listeners) listener()
 }
 
-/** Companies the user can view (core.company.view), visible ones only. */
+/**
+ * Companies for the switcher: those the user can view (core.company.view),
+ * else (a branch Accountant or Branch Manager) those the user holds any
+ * role in (`me/companies`, RBAC-04; stage 7B walkthrough), so a
+ * company-scoped screen always has one to show.
+ */
 export function useCompanies() {
   const { can, isLoading } = usePermissions()
-  const allowed = !isLoading && can('core.company.view')
+  const viewer = !isLoading && can('core.company.view')
   const query = useQuery({
-    queryKey: ['companies', 'switcher'],
-    queryFn: () => api.get('companies?per_page=200'),
-    enabled: allowed,
+    queryKey: ['companies', 'switcher', viewer ? 'all' : 'mine'],
+    queryFn: () => api.get(viewer ? 'companies?per_page=200' : 'me/companies'),
+    enabled: !isLoading,
   })
-  return { allowed, ready: !isLoading && (!allowed || query.isSuccess), companies: query.data?.data ?? [] }
+  return { allowed: !isLoading, ready: !isLoading && query.isSuccess, companies: query.data?.data ?? [] }
 }
 
 /**
@@ -43,7 +48,8 @@ export function useCompanySelection() {
   const canSeeAll = tenantWide('core.company.view')
 
   const match = companies.find((company) => company.id === stored)
-  const value = match ? match.id : canSeeAll ? ALL_COMPANIES : (companies[0]?.id ?? ALL_COMPANIES)
+  // Only one company: it is chosen, whoever the user is (stage 7B walkthrough).
+  const value = match ? match.id : companies.length === 1 ? companies[0].id : canSeeAll ? ALL_COMPANIES : (companies[0]?.id ?? ALL_COMPANIES)
   const resolved = value === ALL_COMPANIES ? null : value
 
   // X-Company-Id always matches what the switcher shows: a stored company

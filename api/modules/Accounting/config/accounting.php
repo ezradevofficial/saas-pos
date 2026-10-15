@@ -6,11 +6,11 @@ return [
     // a rule may name any other `module.event` type a module raises.
     'event_types' => [
         'pos.sale', 'pos.refund', 'pos.void', 'pos.sale_summary',
-        'inventory.cost_of_sales', 'inventory.receipt', 'inventory.opening', 'inventory.adjustment', 'inventory.count', 'inventory.transfer_loss', 'stores.consumption',
+        'inventory.cost_of_sales', 'inventory.receipt', 'inventory.opening', 'inventory.adjustment', 'inventory.count', 'inventory.transfer_loss', 'inventory.landed_cost', 'stores.consumption',
         'loyalty.gift_card_sold', 'loyalty.gift_card_redeemed', 'loyalty.gift_card_expired',
         'loyalty.points_earned', 'loyalty.points_redeemed', 'loyalty.points_expired', 'loyalty.points_adjusted',
         'loyalty.credit_charged', 'loyalty.credit_payment_received', 'loyalty.credit_adjusted',
-        'procurement.supplier_invoice', 'payroll.run',
+        'procurement.supplier_invoice', 'procurement.landed_cost', 'procurement.landed_cost_bill', 'payroll.run',
     ],
 
     // ACC-24: a source type without a rule of its own posts with another type's rule,

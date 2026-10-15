@@ -15,7 +15,6 @@ use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Stores\Events\StoreIssued;
 use Modules\Stores\Events\StoreReturned;
 use Modules\Stores\Models\Movement;
-use Modules\Stores\Models\RequisitionLine;
 use Modules\Stores\Tests\Concerns\BuildsStores;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -138,7 +137,9 @@ class IssuesAndReturnsTest extends TestCase
         $this->assertSame(['SRN'], array_unique(array_map(fn ($r) => substr($r['number'], 0, 3), $this->getJson('/api/v1/stores/returns', $this->headersFor())->assertOk()->json('data'))));
 
         // A line of another issue is refused; the reason is required.
-        $other = $this->issue($this->approved([['item_id' => $this->soap->id, 'qty' => '1']])['id'], [[$this->inTenant(fn () => RequisitionLine::query()->latest('created_at')->value('id')), '1']])->assertCreated()->json('data');
+        // (The new requisition's own line: lines made at the same frozen instant have no latest one.)
+        $another = $this->approved([['item_id' => $this->soap->id, 'qty' => '1']]);
+        $other = $this->issue($another['id'], [[$another['lines'][0]['id'], '1']])->assertCreated()->json('data');
         $this->postJson("/api/v1/stores/issues/{$issue['id']}/returns", ['reason' => 'unused', 'lines' => [['issue_line_id' => $other['lines'][0]['id'], 'qty' => '1']]], $this->headersFor())->assertUnprocessable();
         $this->postJson("/api/v1/stores/issues/{$issue['id']}/returns", ['lines' => [['issue_line_id' => $sugarLine, 'qty' => '1']]], $this->headersFor())->assertUnprocessable();
 
@@ -151,7 +152,8 @@ class IssuesAndReturnsTest extends TestCase
         $this->postJson('/api/v1/stores/stock-entries', [
             'location_id' => $this->store->id, 'kind' => 'adjustment', 'reason' => 'count',
             'lines' => [['item_id' => $this->soap->id, 'qty' => '-5'], ['item_id' => $this->sugar->id, 'qty' => '0.5']],
-        ], $this->headersFor($this->storekeeper))->assertCreated()->assertJsonPath('data.0.kind', 'adjustment_out')->assertJsonPath('data.1.kind', 'adjustment_in');
+            // A decrease needs stores.stock.approve (decision 12): entered by the owner here, StockApprovalTest covers the storekeeper.
+        ], $this->headersFor())->assertCreated()->assertJsonPath('data.0.kind', 'adjustment_out')->assertJsonPath('data.1.kind', 'adjustment_in');
         $this->assertSame(['25', '11'], [$this->onHand($this->soap), $this->onHand($this->sugar)]);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'stores.stock.adjust')->exists()));
 

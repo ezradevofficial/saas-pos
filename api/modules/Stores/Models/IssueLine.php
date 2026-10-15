@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $qty_base
  * @property string $qty_returned_base
  * @property int|string|null $value_minor
+ * @property int|string $cost_variance_minor
  */
 class IssueLine extends Model
 {
