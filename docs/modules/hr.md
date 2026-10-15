@@ -419,6 +419,13 @@ Decisions taken while building (no owner input asked, per instructions):
     account dialog preselects, once the currency list loads, the
     employee's contract currency, else the company's base currency (when
     active), else the first active currency; the user may change it.
+32. **Dates in approval titles (decision, owner may change).** An
+    approval keeps the document title its type's `summary()` gave when it
+    was raised (a payroll run's "Monthly staff 2026-10-01 – 2026-10-31").
+    The web shows every ISO calendar date inside such a title in the
+    user's locale ("1 Oct 2026", "1 oct. 2026") in the inbox, the approval
+    page and the email approval page, for every document type; titles
+    without dates are unchanged. Approval emails keep the stored title.
 
 Owner decisions (2026-10-14):
 

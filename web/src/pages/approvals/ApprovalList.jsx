@@ -5,6 +5,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Checkbox, ExportMenu, FilterChips, FilterDrawer, Icon, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { useCompanies } from '@/layouts/companySelection'
 import { approvalStatus, useBulkApprove } from '@/lib/approvals'
+import { formatDatesIn } from '@/lib/dates'
 import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
@@ -52,7 +53,7 @@ function ApprovalItem({ item, selected, checked, onCheck, onOpen }) {
               {item.document?.type_label}
               {item.document?.number ? ` · ${item.document.number}` : ''}
             </span>
-            <span className="text-h3 text-ink">{item.document?.title || item.document?.number}</span>
+            <span className="text-h3 text-ink">{formatDatesIn(item.document?.title, locale) || item.document?.number}</span>
           </span>
           {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : null}
         </span>

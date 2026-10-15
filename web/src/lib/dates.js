@@ -31,6 +31,16 @@ export function formatCalendarDate(value, locale) {
   return formatDate(`${String(value).slice(0, 10)}T12:00:00Z`, locale)
 }
 
+/**
+ * A server-written title with calendar dates in it ("Monthly staff
+ * 2026-10-01 – 2026-10-31", an approval's document title) with each
+ * ISO date shown in the user's locale ("1 Oct 2026"). Other text is kept.
+ */
+export function formatDatesIn(text, locale) {
+  if (!text) return text
+  return String(text).replace(/\b(\d{4}-\d{2}-\d{2})(?![\d:T])/g, (date) => formatCalendarDate(date, locale))
+}
+
 function zonedParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
