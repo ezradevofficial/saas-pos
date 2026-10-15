@@ -36,7 +36,9 @@ return [
             // STR-10, STR-12: reads Stores' documents, ledger, consumption and values.
             'stores.*.view',
             // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
-            'hr.*.view'],
+            'hr.*.view',
+            // MFG-02, MFG-29: keeps BOMs and recipes and a company's production rates; reads orders, reports and costs.
+            'manufacturing.*.view', 'manufacturing.bom.manage', 'manufacturing.settings.edit'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
@@ -75,6 +77,8 @@ return [
             // rosters and swaps, attendance, checklists and appraisals at their branch.
             'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
             'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
+            // Manufacturing (docs/modules/manufacturing.md): BOMs, production orders, reports and costs at their branch.
+            'manufacturing.*',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -119,6 +123,8 @@ return [
             'procurement.receipt.*', 'procurement.po.view', 'procurement.requisition.view', 'procurement.requisition.create',
             // STR-02 to STR-12: requisitions, issues, returns, the store ledger and consumption.
             'stores.*',
+            // MFG-12: issues materials to production orders and takes back what is unused; quantities only (RBAC-05).
+            'manufacturing.bom.view', 'manufacturing.order.view', 'manufacturing.material.*',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
@@ -151,6 +157,8 @@ return [
             'inventory.*.view',
             // STR-12: Stores' documents, ledger, consumption and values.
             'stores.*.view',
+            // MFG-16, MFG-18, MFG-19: production orders, their costs and the consumption and variance reports.
+            'manufacturing.*.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -219,6 +227,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
+            // MFG-11: the production orders whose release they approve.
+            'manufacturing.order.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

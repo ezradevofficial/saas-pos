@@ -32,6 +32,9 @@ final class DocumentTypes
         // STR-14: the Stores module's delivery notes and issue vouchers (an issue to a department).
         'stores.delivery_note' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
         'stores.issue_voucher' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'stores'],
+        // MFG-24: the Manufacturing module's production orders and pick lists.
+        'manufacturing.production_order' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'manufacturing'],
+        'manufacturing.pick_list' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'manufacturing'],
         'payroll.payslip' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'payroll'],
         // LOY-17: the Loyalty module's customer credit statements.
         'party.statement' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'loyalty'],

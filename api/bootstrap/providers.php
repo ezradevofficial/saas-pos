@@ -33,6 +33,7 @@ use Modules\Accounting\AccountingServiceProvider;
 use Modules\HR\HrServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Loyalty\LoyaltyServiceProvider;
+use Modules\Manufacturing\ManufacturingServiceProvider;
 use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
 use Modules\Stores\StoresServiceProvider;
@@ -73,5 +74,6 @@ return [
     ProcurementServiceProvider::class,
     StoresServiceProvider::class,
     HrServiceProvider::class,
+    ManufacturingServiceProvider::class,
     HorizonServiceProvider::class,
 ];
