@@ -165,6 +165,14 @@ import LoyaltyProgramme from './pages/loyalty/Programme'
 import PromotionEditor from './pages/loyalty/PromotionEditor'
 import Promotions from './pages/loyalty/Promotions'
 import './pages/loyalty/register'
+import CrmCalendar from './pages/crm/Calendar'
+import CrmSettings from './pages/crm/CrmSettings'
+import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
+import Leads, { LeadDetail, LeadForm } from './pages/crm/Leads'
+import Opportunities, { OpportunityDetail, OpportunityForm } from './pages/crm/Opportunities'
+import Quotes, { QuoteDetail, QuoteEditor } from './pages/crm/Quotes'
+import CrmTargets from './pages/crm/Targets'
+import './pages/crm/register'
 import Held from './pages/pos/Held'
 import SaleDetail from './pages/pos/SaleDetail'
 import Sales from './pages/pos/Sales'
@@ -357,6 +365,24 @@ export const routes = [
         ['/loyalty/gift-cards', GIFT_CARD_VIEW, <GiftCards key="loyalty-gift-cards" />],
         ['/loyalty/gift-cards/:cardId', GIFT_CARD_VIEW, <GiftCardDetail key="loyalty-gift-card" />],
         ['/loyalty/review', SALE_VIEW, <FlaggedSales key="loyalty-review" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // CRM and sales (docs/modules/crm.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/crm/leads', CRM_LEAD_VIEW, <Leads key="crm-leads" />],
+        ['/crm/leads/new', 'crm.lead.create', <LeadForm key="crm-lead-new" />],
+        ['/crm/leads/:leadId', CRM_LEAD_VIEW, <LeadDetail key="crm-lead" />],
+        ['/crm/leads/:leadId/edit', 'crm.lead.edit', <LeadForm key="crm-lead-edit" />],
+        ['/crm/opportunities', CRM_OPPORTUNITY_VIEW, <Opportunities key="crm-opportunities" />],
+        ['/crm/opportunities/new', 'crm.opportunity.create', <OpportunityForm key="crm-opportunity-new" />],
+        ['/crm/opportunities/:opportunityId', CRM_OPPORTUNITY_VIEW, <OpportunityDetail key="crm-opportunity" />],
+        ['/crm/opportunities/:opportunityId/edit', 'crm.opportunity.edit', <OpportunityForm key="crm-opportunity-edit" />],
+        ['/crm/quotes', CRM_QUOTE_VIEW, <Quotes key="crm-quotes" />],
+        ['/crm/quotes/new', 'crm.quote.create', <QuoteEditor key="crm-quote-new" />],
+        ['/crm/quotes/:quoteId', CRM_QUOTE_VIEW, <QuoteDetail key="crm-quote" />],
+        ['/crm/quotes/:quoteId/edit', 'crm.quote.create', <QuoteEditor key="crm-quote-edit" />],
+        ['/crm/calendar', CRM_ACTIVITY_VIEW, <CrmCalendar key="crm-calendar" />],
+        ['/crm/targets', CRM_TARGET_VIEW, <CrmTargets key="crm-targets" />],
+        ['/crm/settings', CRM_SETTINGS_VIEW, <CrmSettings key="crm-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // INV-19, docs/modules/inventory.md (Screens): the Inventory back office (the API answers 403 module_inactive without the module).
       ...[

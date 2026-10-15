@@ -61,6 +61,7 @@ final class ExportColumns
         'procurement_tenders.seal_secret' => 'a tender\'s own bid-sealing key (PRC-09, encrypted with the application key)',
         'procurement_tenders.public_token_secret' => 'an open tender\'s public notice token, encrypted (PRC-08, ADR 019)',
         'procurement_tenders.public_token_hash' => 'an open tender\'s public notice token hash (PRC-08)',
+        'crm_lead_forms.token_hash' => 'a public lead form\'s link token hash (CRM-06)',
         'procurement_tender_bidders.token_hash' => 'a bidder\'s portal link token hash (PRC-07)',
         'procurement_portal_sessions.token_hash' => 'a supplier portal session token hash (PRC-07)',
         'procurement_bids.sealed_payload' => 'a sealed bid\'s ciphertext (PRC-09): its content is exported in plain columns once the tender is opened',

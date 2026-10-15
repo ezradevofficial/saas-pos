@@ -571,6 +571,10 @@ final class TwoTenants
         // punch, a period, an attendance device, a document, a disciplinary
         // case and an open appraisal cycle.
         $hr = self::hr($test, [...$owner, 'Accept' => 'application/json'], $tenantId, $ownerId, $company, $branch, $location, $dimensions, $upper);
+        // CRM (docs/modules/crm.md): the module switched on; settings, a team, a rule, a public
+        // lead form and its lead, leads (one converted), opportunities, a draft quote, an activity,
+        // a logged email and a target.
+        $crm = self::crm($test, $owner, $tenantId, $ownerId, $managerId, $company, $branch, $customer, $item, $uoms['BOX'], $upper);
         // Payroll (docs/modules/payroll.md): the module switched on with the fictional
         // test pack (never the shipped one), settings, a pay group, items, the HR
         // employees copied with their pay setup, an item, a loan, unpaid leave and a
@@ -660,6 +664,7 @@ final class TwoTenants
                 ...$procurement,
                 ...$stores,
                 ...$hr,
+                ...$crm,
                 ...$payroll,
                 ...$accounting,
                 ...$loyalty,
@@ -1197,6 +1202,65 @@ final class TwoTenants
             'hr_appraisal_cycle' => $cycle,
             'hr_appraisal' => $appraisal,
             'hr_document' => $document,
+        ];
+    }
+
+    /**
+     * The CRM fixture of one tenant (docs/modules/crm.md): the module
+     * switched on; the company's settings (its default pipeline, stages and
+     * lists seeded), a team with the owner and the manager, an assignment
+     * rule, a public lead form and a lead it captured, an open lead, a
+     * converted lead with its opportunity, an open opportunity, a draft
+     * quote with a line, an activity with a reminder, a logged email and a
+     * target (so every crm_* table has rows).
+     *
+     * @return array<string, string> crm_pipeline, crm_stage, crm_source, crm_won_reason, crm_lost_reason, crm_team, crm_assignment_rule, crm_lead_form, crm_lead, crm_opportunity, crm_quote, crm_activity, crm_target
+     */
+    private static function crm(TestCase $test, array $owner, string $tenantId, string $ownerId, string $managerId, string $company, string $branch, string $customer, string $item, string $box, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('crm'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+
+        self::ok($test->getJson("/api/v1/crm/companies/{$company}/settings", $owner));
+        $pipeline = self::ok($test->getJson("/api/v1/crm/pipelines?company={$company}", $owner))->json('data.0');
+        $options = collect(self::ok($test->getJson("/api/v1/crm/options?company={$company}", $owner))->json('data'));
+        $team = self::ok($test->postJson('/api/v1/crm/teams', ['company_id' => $company, 'branch_id' => $branch, 'name' => "Team {$upper}", 'leader_id' => $ownerId,
+            'members' => [['user_id' => $ownerId], ['user_id' => $managerId]]], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/crm/companies/{$company}/settings", ['default_team_id' => $team, 'quote_validity_days' => 20], $owner));
+        $rule = self::ok($test->postJson('/api/v1/crm/assignment-rules', ['company_id' => $company, 'name' => "Rule {$upper}", 'channels' => ['form'],
+            'assignee_type' => 'team', 'team_id' => $team], $owner), 201)->json('data.id');
+        $form = self::ok($test->postJson('/api/v1/crm/lead-forms', ['company_id' => $company, 'branch_id' => $branch, 'name' => "Form {$upper}",
+            'fields' => ['shown' => ['email'], 'required' => ['email']]], $owner), 201)->json('data');
+        self::ok($test->postJson((string) parse_url($form['url'], PHP_URL_PATH), ['name' => "Web lead {$upper}", 'email' => "web-{$upper}@example.com"]), 202);
+
+        $lead = self::ok($test->postJson('/api/v1/crm/leads', ['branch_id' => $branch, 'name' => "Lead {$upper}", 'organisation' => "Prospect {$upper}", 'email' => "buyer-{$upper}@example.com",
+            'source_id' => $options->firstWhere('kind', 'source')['id'], 'estimated_value_minor' => '500000', 'channel' => 'manual'], $owner), 201)->json('data.id');
+        $converting = self::ok($test->postJson('/api/v1/crm/leads', ['branch_id' => $branch, 'name' => "Converted {$upper}", 'channel' => 'manual'], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/crm/leads/{$converting}/convert", ['party_id' => $customer, 'opportunity' => ['name' => "Won deal {$upper}", 'value_minor' => '300000']], $owner));
+        $opportunity = self::ok($test->postJson('/api/v1/crm/opportunities', ['branch_id' => $branch, 'party_id' => $customer, 'name' => "Deal {$upper}",
+            'value_minor' => '900000', 'currency' => 'KES', 'expected_close_on' => '2026-12-31'], $owner), 201)->json('data.id');
+        $quote = self::ok($test->postJson('/api/v1/crm/quotes', ['branch_id' => $branch, 'party_id' => $customer, 'opportunity_id' => $opportunity,
+            'terms' => "Terms {$upper}", 'lines' => [['item_id' => $item, 'uom_id' => $box, 'qty' => '2']]], $owner), 201)->json('data.id');
+        $activity = self::ok($test->postJson('/api/v1/crm/activities', ['kind' => 'call', 'subject' => "Call {$upper}", 'starts_at' => '2026-12-01T08:00:00Z',
+            'remind_at' => '2026-12-01T07:30:00Z', 'opportunity_id' => $opportunity], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/crm/emails', ['to' => "buyer-{$upper}@example.com", 'subject' => "Hello {$upper}", 'body' => 'Following up.', 'quote_id' => $quote, 'lead_id' => $lead], $owner), 201);
+        $target = self::ok($test->postJson('/api/v1/crm/targets', ['company_id' => $company, 'subject_type' => 'user', 'subject_id' => $ownerId, 'metric' => 'won_value',
+            'period_start' => '2026-01-01', 'period_end' => '2026-12-31', 'amount_minor' => '10000000'], $owner), 201)->json('data.id');
+
+        return [
+            'crm_pipeline' => $pipeline['id'],
+            'crm_stage' => $pipeline['stages'][1]['id'],
+            'crm_source' => $options->firstWhere('kind', 'source')['id'],
+            'crm_won_reason' => $options->firstWhere('kind', 'won_reason')['id'],
+            'crm_lost_reason' => $options->firstWhere('kind', 'lost_reason')['id'],
+            'crm_team' => $team,
+            'crm_assignment_rule' => $rule,
+            'crm_lead_form' => $form['id'],
+            'crm_lead' => $lead,
+            'crm_opportunity' => $opportunity,
+            'crm_quote' => $quote,
+            'crm_activity' => $activity,
+            'crm_target' => $target,
         ];
     }
 

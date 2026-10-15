@@ -4,6 +4,7 @@
 return [
     'list_title' => 'Imports',
     'importers' => [
+        'crm_leads' => 'Prospects',
         'employees' => 'Employés',
         'items' => 'Articles',
         'customers' => 'Clients',
@@ -41,6 +42,14 @@ return [
         'user' => 'Téléversé par',
     ],
     'columns' => [
+        'organisation' => 'Organisation',
+        'job_title' => 'Fonction',
+        'email' => 'E-mail',
+        'phone' => 'Téléphone',
+        'source' => 'Origine',
+        'owner_email' => 'E-mail du responsable',
+        'estimated_value' => 'Valeur estimée',
+        'notes' => 'Remarques',
         'number' => 'Matricule',
         'first_name' => 'Prénom',
         'middle_name' => 'Deuxième prénom',
@@ -198,6 +207,8 @@ return [
         'not_open' => 'Cet import a déjà commencé. Téléversez à nouveau le fichier pour le modifier.',
     ],
     'usage' => [
+        'crm_opportunity' => 'Utilisé dans une opportunité',
+        'crm_quote' => 'Utilisé dans un devis',
         'hr_record' => 'A des données RH',
         'sale' => 'Utilisé dans une vente',
         'price' => 'A un prix',

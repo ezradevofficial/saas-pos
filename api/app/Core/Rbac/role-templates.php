@@ -36,7 +36,9 @@ return [
             // STR-10, STR-12: reads Stores' documents, ledger, consumption and values.
             'stores.*.view',
             // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
-            'hr.*.view'],
+            'hr.*.view',
+            // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
+            'crm.*.view', 'crm.settings.manage', 'crm.scope.branch'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
@@ -75,7 +77,29 @@ return [
             // rosters and swaps, attendance, checklists and appraisals at their branch.
             'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
             'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
+            // CRM (docs/modules/crm.md): the branch's leads, opportunities, quotes (the default quote approver, CRM-21),
+            // activities and targets, with the branch scope (CRM-08); the module's settings are the Admin's.
+            'crm.*',
         ],
+        'except' => ['crm.settings.manage'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // Owner decision B (2026-10-15, docs/modules/crm.md): a sales rep works their own leads, opportunities,
+        // quotes and activities (no team or branch scope, CRM-08). Quote discounts stay within the role's
+        // max_discount_percent, seeded at 0 % for the tenant to raise; above it the quote goes for approval.
+        // Sales managers use the Branch Manager role (crm.scope.branch).
+        'key' => 'sales_rep',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.currency.view', 'core.exchange_rate.view', 'core.tax.view', 'core.price_list.view', 'core.price.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view',
+            'crm.lead.view', 'crm.lead.create', 'crm.lead.edit', 'crm.lead.convert', 'crm.lead.archive',
+            'crm.opportunity.view', 'crm.opportunity.create', 'crm.opportunity.edit', 'crm.opportunity.close',
+            'crm.quote.view', 'crm.quote.create', 'crm.quote.discount', 'crm.quote.send', 'crm.quote.cancel',
+            'crm.activity.view', 'crm.activity.manage', 'crm.target.view',
+        ],
+        'limits' => ['max_discount_percent' => '0'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -145,6 +169,8 @@ return [
             'accounting.*', 'sales.*.view', 'pos.*.view', 'reports.*',
             // PRC-15, PRC-17: supplier invoices (match, approval, exceptions) and landed costs; reads procurement.
             'procurement.*.view', 'procurement.invoice.*', 'procurement.landed_cost.*',
+            // CRM-24: reads quotes and turns accepted ones into draft invoices.
+            'crm.quote.view', 'crm.quote.convert', 'crm.scope.branch',
             // LOY-14..LOY-18: customer credit (accounts, payments, adjustments, statements, ageing).
             'loyalty.credit.view', 'loyalty.credit.manage', 'loyalty.credit.receive', 'loyalty.credit.adjust', 'loyalty.*.view',
             // INV-20: stock, its value and the valuation report.
@@ -239,7 +265,8 @@ return [
     ],
     [
         'key' => 'read_only_auditor',
-        'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
+        // CRM-08: an auditor reads every CRM record, not only their own.
+        'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*', 'crm.scope.branch'],
         // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
         'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
             'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view'],
