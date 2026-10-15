@@ -84,6 +84,7 @@ describe('Posting rules and exceptions (ACC-24)', () => {
     expect(moduleLink({ kind: 'inventory.movements', id: 'm-1', source_type: 'pos.sale' })).toBe('/inventory/movements?source=m-1')
     expect(moduleLink({ kind: 'loyalty.credit_account', id: 'a-1' })).toBe('/loyalty/credit/a-1')
     expect(moduleLink({ kind: 'loyalty.customer', id: 'p-1' })).toBe('/contacts/customers/p-1?tab=loyalty')
+    expect(moduleLink({ kind: 'payroll.run', id: 'r-1' })).toBe('/payroll/runs/r-1')
     expect(sourceLink({ type: 'pos.refund', id: 'r-1', link: { kind: 'pos.sale', id: 's-1' } })).toBe('/pos/sales/s-1')
     expect(sourceLink({ type: 'accounting.document', id: 'd-1', link: null })).toBe('/accounting/documents/d-1')
   })
