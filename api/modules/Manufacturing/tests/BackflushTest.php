@@ -12,6 +12,8 @@ use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+use Modules\Inventory\Events\StockMoved;
+use Modules\Inventory\Listeners\MoveStockForManufacturing;
 use Modules\Inventory\Models\Balance;
 use Modules\Inventory\Models\Movement;
 use Modules\Inventory\Stock\Posting;
@@ -19,6 +21,7 @@ use Modules\Inventory\Stock\PostingLine;
 use Modules\Inventory\Stock\Qty;
 use Modules\Inventory\Stock\StockLedger;
 use Modules\Manufacturing\Backflush\BackflushSales;
+use Modules\Manufacturing\Events\MaterialsMoved;
 use Modules\Manufacturing\Models\Backflush;
 use Modules\Manufacturing\Models\BackflushLine;
 use Modules\POS\Events\SaleCompleted;
@@ -243,5 +246,89 @@ class BackflushTest extends TestCase
         $this->assertSame(['PATTY' => '50', 'BURGER' => '-2'], ['PATTY' => $this->stock()['PATTY'], 'BURGER' => $this->stock()['BURGER']]);
         $backflush = $this->inTenant(fn () => Backflush::query()->where('source_id', $sale['id'])->sole());
         $this->assertEquals([['sale_line_id' => $sale['lines'][0]['id'], 'item_id' => $this->burger->id, 'code' => 'item_stocked']], $backflush->skipped);
+    }
+
+    /** Review fix 1: a void's stock moved but its values were lost once; the redelivered void records them, never zero. */
+    public function test_a_redelivered_void_records_the_values_it_missed(): void
+    {
+        $sale = $this->sell(1, '3');
+        $dispatcher = Event::getFacadeRoot();
+        Event::fake([StockMoved::class, MaterialsMoved::class]);
+        $this->voidSale($sale);
+        $void = Event::dispatched(MaterialsMoved::class)->map(fn ($call) => $call[0])->first(fn (MaterialsMoved $e) => $e->kind === MaterialsMoved::BACKFLUSH_RETURN);
+        // Inventory moves the stock back; Manufacturing's recording of the values fails (the event is lost).
+        app(MoveStockForManufacturing::class)->handle($void);
+        Event::swap($dispatcher);
+        $this->assertSame('50', $this->stock()['PATTY']);
+        $this->assertNull($this->inTenant(fn () => Backflush::query()->where('kind', Backflush::RETURN)->value('valued_at')));
+
+        // The job is delivered again: nothing is left to move, and the values come back with the movements.
+        app(MoveStockForManufacturing::class)->handle($void);
+
+        $values = $this->inTenant(fn () => Backflush::query()->get()->groupBy('kind')->map(fn ($group) => (int) BackflushLine::query()->whereIn('backflush_id', $group->pluck('id'))->sum('value_minor')));
+        $this->assertSame(54285, $values['return']);
+        $this->assertSame($values['consume'], $values['return']);
+        $this->assertSame('50', $this->stock()['PATTY']);
+    }
+
+    /** MFG-08: a void handled before its sale: the sale consumes nothing and nothing comes back. */
+    public function test_a_void_handled_before_its_sale_moves_nothing(): void
+    {
+        Event::fake([SaleCompleted::class]);
+        $sale = $this->sell(1, '3');
+        $this->voidSale($sale);
+
+        $event = new SaleCompleted($this->owner->tenant_id, $sale['id'], $this->acme->id, $this->locationA->id);
+        app(BackflushSales::class)->handle($event);
+
+        $this->assertSame(['PATTY' => '50', 'BUN' => '50', 'MAYO' => '10', 'CHILLI' => '2'], array_slice($this->stock(), 0, 4));
+        $this->assertSame(0, $this->inTenant(fn () => Backflush::query()->count()));
+    }
+
+    /** MFG-07, INV-13: a sale is never refused for stock: ingredients go below zero, flagged. */
+    public function test_consumption_beyond_the_stock_goes_negative_and_is_flagged(): void
+    {
+        $this->sell(1, '60');
+
+        $this->assertSame('-10', $this->stock()['PATTY']);
+        $patty = $this->inTenant(fn () => Movement::query()->where('source_type', 'manufacturing.backflush')->where('item_id', $this->patty->id)->sole());
+        $this->assertContains('negative_stock', $patty->flagCodes());
+    }
+
+    /** Review fix 2: an offline sale uploaded after a newer recipe version uses the version in force when it was sold. */
+    public function test_an_offline_sale_uses_the_version_in_force_when_it_was_sold(): void
+    {
+        $bom = $this->getJson('/api/v1/manufacturing/boms?kind=recipe&item='.$this->burger->id, $this->headersFor())->assertOk()->json('data.0');
+        $draft = $this->postJson("/api/v1/manufacturing/boms/{$bom['id']}/versions", [], $this->headersFor())->assertCreated()->json('data');
+        $this->putJson("/api/v1/manufacturing/bom-versions/{$draft['id']}", ['output_qty' => '1', 'lines' => [
+            ['item_id' => $this->patty->id, 'qty' => '2'], ['item_id' => $this->bun->id, 'qty' => '1'],
+        ]], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/manufacturing/bom-versions/{$draft['id']}/publish", ['effective_from' => now()->subMinutes(7)->toIso8601String()], $this->headersFor())->assertOk();
+
+        // Sold ten minutes ago (offline): version 1, one patty each.
+        $sale = $this->saleBody($this->shift, 1, ['sold_at' => now()->subMinutes(10)->toIso8601String(), 'offline' => true, 'lines' => [
+            $this->line(['item_id' => $this->burger->id, 'qty' => '1', 'tax_minor' => '6250', 'total_minor' => '56250']),
+        ]]);
+        $this->upload([$sale])->assertOk();
+        $this->assertSame('49', $this->stock()['PATTY']);
+
+        // Sold now: version 2, two patties.
+        $this->sell(2, '1');
+        $this->assertSame('47', $this->stock()['PATTY']);
+    }
+
+    /** Review fix 2: a recipe archived after a sale still applies to that sale, uploaded later. */
+    public function test_a_recipe_archived_after_the_sale_still_applies_to_it(): void
+    {
+        $bom = $this->getJson('/api/v1/manufacturing/boms?kind=recipe&item='.$this->burger->id, $this->headersFor())->assertOk()->json('data.0');
+        $this->travel(1)->minutes();
+        $this->postJson("/api/v1/manufacturing/boms/{$bom['id']}/archive", [], $this->headersFor())->assertOk();
+
+        $sale = $this->saleBody($this->shift, 1, ['sold_at' => now()->subMinutes(10)->toIso8601String(), 'offline' => true, 'lines' => [
+            $this->line(['item_id' => $this->burger->id, 'qty' => '2', 'tax_minor' => '12500', 'total_minor' => '112500']),
+        ]]);
+        $this->upload([$sale])->assertOk();
+
+        $this->assertSame(['PATTY' => '48', 'BUN' => '48'], array_slice($this->stock(), 0, 2));
     }
 }

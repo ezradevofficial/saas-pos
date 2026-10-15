@@ -212,7 +212,19 @@ class MoveStockForManufacturing
         $posting = new Posting($document['company_id'], MaterialsMoved::SOURCES[$document['kind']], $document['id'], CarbonImmutable::parse($document['at']),
             $document['user_id'], $lines, manual: false, reference: $document['number'] ?? null);
         if ($lines === []) {
-            // Nothing Inventory tracks (an item no longer a stock item): the document is valued at nothing.
+            // Review fix 1: a redelivered document whose stock already moved (a full return or void
+            // posted before: nothing is left to take now) raises its own movements again, so a value
+            // Manufacturing missed is recorded at what it really was.
+            $posted = Movement::query()->where('source_type', $posting->sourceType)->where('source_id', $posting->sourceId)
+                ->orderBy('created_at')->orderBy('id')->get()->all();
+
+            if ($posted !== []) {
+                event(StockMoved::of($this->tenants->require(), $posting->companyId, $posted[0]->currency, $posting->sourceType, $posting->sourceId, $posted, $posting->occurredAt));
+
+                return;
+            }
+
+            // Nothing Inventory tracks (an item no longer a stock item) and never posted: the document is valued at nothing.
             event(new StockMoved($this->tenants->require(), $posting->companyId, $this->ledger->baseCurrency($posting->companyId), $posting->sourceType,
                 $posting->sourceId, [], $posting->occurredAt->utc()->format('Y-m-d\TH:i:s.u\Z'), null, $posting->reference));
 

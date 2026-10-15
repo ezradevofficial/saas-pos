@@ -24,9 +24,15 @@ class Versions
             return $this->memo[$key];
         }
 
-        $bomId = Bom::query()->where('company_id', $companyId)->where('item_id', $itemId)->where('kind', $kind)->whereNull('archived_at')->value('id');
+        // Review fix 2: every BOM of the item and kind that was active at the moment (not archived
+        // then), so an offline sale uploaded after a recipe was archived or replaced uses what was
+        // in force when it was sold.
+        $stamp = $at->format('Y-m-d H:i:s.uP');
+        $boms = Bom::query()->select('id')->where('company_id', $companyId)->where('item_id', $itemId)->where('kind', $kind)
+            ->where(fn ($q) => $q->whereNull('archived_at')->orWhere('archived_at', '>', $stamp));
 
-        return $this->memo[$key] = $bomId === null ? null : $this->ofBom((string) $bomId, $at);
+        return $this->memo[$key] = BomVersion::query()->whereIn('bom_id', $boms)->where('status', BomVersion::PUBLISHED)
+            ->where('effective_from', '<=', $stamp)->orderByDesc('effective_from')->orderByDesc('version_no')->with('bom')->first();
     }
 
     /** The version of $bomId in force at $at. */
