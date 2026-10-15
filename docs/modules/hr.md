@@ -401,6 +401,13 @@ Decisions taken while building (no owner input asked, per instructions):
     malformed `HR_DIGEST_KEY` (`base64:` that is not valid base64, or
     under 32 bytes either way) fails the boot check (EnvironmentGuard) and
     is never used to digest.
+29. **Time rules and approvals recompute (decision, owner may change).**
+    Saving a time rule (create or update) recomputes the timesheet days of
+    its dates, before and after the change, up to today, that are not
+    approved and not in a closed period. Approving days recomputes each
+    open one first (with the later days of its week, in date order), so an
+    approval never freezes stale minutes; a day left with nothing to show
+    is removed and not approved.
 
 Owner decisions (2026-10-14):
 

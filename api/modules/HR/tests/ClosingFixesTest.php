@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Modules\HR\Models\AttendanceDay;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\EmployeeIdentifier;
+use Modules\HR\Models\TimeRule;
 use Modules\HR\Support\Digest;
 use Modules\HR\Tests\Concerns\BuildsHr;
 use Tests\Concerns\BuildsTill;
@@ -134,5 +135,53 @@ class ClosingFixesTest extends TestCase
         $named = fn (string $id) => $entries->where('action', 'hr.employee.sensitive_update')->where('auditable_id', $id)->flatMap(fn (AuditEntry $entry) => $entry->after['fields'])->sort()->values()->all();
         $this->assertSame(['address', 'emergency_contacts', 'personal_email', 'personal_phone'], $named($this->amina->id));
         $this->assertSame(['address', 'emergency_contacts', 'personal_email', 'personal_phone'], $named($hired->id));
+    }
+
+    public function test_saving_a_time_rule_recomputes_the_open_days_of_its_dates(): void
+    {
+        // HR-20, HR-25, decision 29: two days of nine hours; one approved, one open.
+        $headers = $this->headersFor($this->hrOfficer);
+        $monday = CarbonImmutable::now('Africa/Nairobi')->startOfWeek()->subWeek();
+
+        foreach ([$monday, $monday->addDay()] as $date) {
+            foreach ([['in', $date->setTime(8, 0)], ['out', $date->setTime(17, 0)]] as [$kind, $at]) {
+                $this->postJson('/api/v1/hr/punches', ['employee_id' => $this->amina->id, 'kind' => $kind, 'occurred_at' => $at->toIso8601String(), 'note' => 'Reader down'], $headers)->assertCreated();
+            }
+        }
+
+        $days = $this->inTenant(fn () => AttendanceDay::query()->orderBy('work_date')->get());
+        $this->assertSame([60, 60], $days->pluck('overtime_minutes')->all());
+        $this->postJson('/api/v1/hr/timesheets/approve', ['day_ids' => [$days[0]->id]], $headers)->assertOk();
+
+        // The rule in force from 1 January now counts overtime after 7 hours.
+        $rule = $this->inTenant(fn () => TimeRule::query()->sole()->id);
+        $this->patchJson("/api/v1/hr/time-rules/{$rule}", ['daily_overtime_after_minutes' => 420], $headers)->assertOk();
+        $this->assertSame([60, 120], $this->inTenant(fn () => AttendanceDay::query()->orderBy('work_date')->pluck('overtime_minutes')->all()));
+
+        // A new rule from the open day on (the old one ends the day before) recomputes it too.
+        $this->patchJson("/api/v1/hr/time-rules/{$rule}", ['effective_to' => $monday->toDateString()], $headers)->assertOk();
+        $this->assertContains('no_time_rule', $this->inTenant(fn () => AttendanceDay::query()->orderBy('work_date')->get()[1]->exceptions));
+        $this->postJson('/api/v1/hr/time-rules', ['company_id' => $this->acme->id, 'effective_from' => $monday->addDay()->toDateString(), 'daily_overtime_after_minutes' => 480], $headers)->assertCreated();
+        $this->assertSame([60, 60], $this->inTenant(fn () => AttendanceDay::query()->orderBy('work_date')->pluck('overtime_minutes')->all()));
+    }
+
+    public function test_approving_days_recomputes_them_first(): void
+    {
+        // HR-25, decision 29: an approval never freezes stale minutes.
+        $headers = $this->headersFor($this->hrOfficer);
+        $date = CarbonImmutable::now('Africa/Nairobi')->startOfWeek()->subWeek()->addDays(2);
+
+        foreach ([['in', $date->setTime(8, 0)], ['out', $date->setTime(16, 0)]] as [$kind, $at]) {
+            $this->postJson('/api/v1/hr/punches', ['employee_id' => $this->amina->id, 'kind' => $kind, 'occurred_at' => $at->toIso8601String(), 'note' => 'Reader down'], $headers)->assertCreated();
+        }
+
+        $day = $this->inTenant(fn () => AttendanceDay::query()->sole());
+        // Stale values (as if a change had not been recomputed yet).
+        $this->assertSame(1, $this->inTenant(fn () => AttendanceDay::query()->whereKey($day->id)->update(['worked_minutes' => 10, 'regular_minutes' => 10, 'overtime_minutes' => 0])));
+
+        $this->postJson('/api/v1/hr/timesheets/approve', ['day_ids' => [$day->id]], $headers)->assertOk()->assertJsonPath('data.approved', 1);
+        $approved = $this->inTenant(fn () => AttendanceDay::query()->sole());
+        $this->assertSame([480, 480], [$approved->worked_minutes, $approved->regular_minutes]);
+        $this->assertNotNull($approved->approved_at);
     }
 }

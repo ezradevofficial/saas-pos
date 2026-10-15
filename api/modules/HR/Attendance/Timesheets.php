@@ -222,6 +222,8 @@ class Timesheets
 
         foreach ($pairs as $employeeId => $dates) {
             $employee = Employee::query()->find($employeeId);
+            // In date order: weekly overtime reads the earlier days of the week.
+            ksort($dates);
 
             foreach (array_keys($dates) as $date) {
                 $count += $employee !== null && $this->recompute($employee, $date) !== null ? 1 : 0;
@@ -263,17 +265,34 @@ class Timesheets
     }
 
     /**
-     * Approve days (frozen until reopened). Days of closed periods are refused.
+     * Approve days (frozen until reopened). Days of closed periods are
+     * refused. Each open day is recomputed first (with the later days of
+     * its week), so an approval never freezes stale minutes (decision 29);
+     * a day left with nothing to show is gone and not approved.
      *
      * @param  Collection<int, AttendanceDay>  $days
      */
     public function approve(Collection $days, User $by): int
     {
+        $touched = [];
+
+        foreach ($days as $day) {
+            if ($day->approved_at === null && $day->period_id === null) {
+                $touched[$day->employee_id][$day->work_date->toDateString()] = true;
+            }
+        }
+
+        $this->touchMany($touched);
+
         return Errors::transaction(function () use ($days, $by) {
             $count = 0;
 
             foreach ($days as $day) {
-                $day = AttendanceDay::query()->whereKey($day->id)->lockForUpdate()->firstOrFail();
+                $day = AttendanceDay::query()->whereKey($day->id)->lockForUpdate()->first();
+
+                if ($day === null) {
+                    continue;
+                }
 
                 if ($day->period_id !== null || $this->coveringPeriod($day->company_id, $day->work_date->toDateString(), lock: true)?->status === AttendancePeriod::CLOSED) {
                     throw Errors::make(409, 'period_closed');
