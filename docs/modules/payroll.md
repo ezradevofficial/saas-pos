@@ -208,7 +208,7 @@ currency}`.
 | `GET/POST payroll/runs`, `GET payroll/runs/{payroll_run}`, `GET …/lines`, `POST …/calculate`, `/submit`, `/cancel` | `run.view` / `prepare` |
 | `POST payroll/runs/{payroll_run}/post` | `run.post` |
 | `POST payroll/runs/{payroll_run}/corrections` | `run.prepare` |
-| `GET payroll/runs/{payroll_run}/payment-file?format=` | `payment.export` |
+| `GET payroll/runs/{payroll_run}/payment-file?format=`, `GET …/payment-summary?format=` (who is paid, who is left out, no account numbers) | `payment.export` (and `hr.bank.view`) |
 | `GET payroll/payment-formats` | `run.view` |
 | `GET payroll/payslips`, `GET payroll/payslips/{payroll_payslip}`, `GET …/pdf` | `payslip.view` |
 | `GET payroll/returns/types`, `GET/POST payroll/returns`, `GET payroll/returns/{payroll_return}/file` | `return.view` / `generate` |
@@ -217,9 +217,14 @@ currency}`.
 
 Errors: `statutory_rates_missing`, `payroll_pack_missing`, `run_exists`,
 `run_status`, `run_has_errors`, `run_not_posted`, `run_empty`,
-`pay_group_other_company`, `item_other_company`, `currency_mismatch`,
-`loan_settled`, `loan_balance_short`, `employee_not_in_run`,
-`not_an_employee`, `format_unknown`, `field_readonly`, `rate_missing`.
+`pay_group_other_company`, `pay_group_archived`, `item_other_company`,
+`item_flag_kind`, `item_paid`, `code_taken`, `currency_mismatch`,
+`instalment_above_principal`, `loan_settled`, `loan_started`,
+`not_an_employee`, `format_unknown`, `format_needs_confirmation`,
+`field_readonly`, `return_no_runs`, `return_type_unknown`,
+`return_period`. Line errors (block submission): `rate_missing`,
+`currency_mismatch`, `monthly_days_missing`, `monthly_hours_missing`,
+`net_negative`.
 
 ## Screens (web)
 
@@ -264,8 +269,91 @@ self-service. Design-system components and tokens only, en/fr.
 10. **Daily and hourly pay need attendance**; without it the basic is zero
     with a warning, and a one-off item pays the days.
 
+Decisions taken while building (no owner input asked):
+
+11. **Two new HR read contracts.** `Employees` (non-sensitive basics and
+    the user link) and `EmploymentContracts` (pay, audited as
+    `hr.contract.payroll_read`) let Payroll refresh its copy before each
+    calculation and find "My payslips" without reading HR's tables.
+12. **Lines of a run not yet posted are recomputed** (replaced on each
+    calculation); a posted run and its lines are frozen by a trigger.
+13. **The default approver is the Owner at the company**, escalating to
+    the Approvers after two business days; the Approver template reads
+    runs (`payroll.run.view`) and the Read-only Auditor reads no pay.
+14. **Payment and return files are built on demand.** The M-Pesa file is
+    refused while the pack has no column layout and flagged while the
+    layout is unconfirmed; return files are placeholders (`draft-…`)
+    until the pack names their layout.
+15. **Weekly and bi-weekly runs** need the pack's `non_monthly` rule
+    (`pro_rata`); every pack ships it null, so only monthly runs calculate.
+16. **Statutory allowances are pay**: a family allowance joins the
+    earnings (gross) with the pack's taxable and contributory flags, not a
+    liability.
+17. **Corrections and loans**: a recalculation keeps the instalments as
+    posted; a reversal gives them back to the loan.
+18. **An employee always sees their own payslip in full**, whatever field
+    rules their roles carry; payroll readers whose rules hide amounts see
+    no payslip at all.
+19. **Reading pay is audited** (`payroll.pay.view`: run lines, a loan, an
+    employee's pay setup; `payroll.payslip.view` and `.download`).
+20. **Read-only billing mode** still lets a run be calculated, submitted
+    and posted (PAY-28, as approvals).
+
+## Status (stage 7C)
+
+| ID | Status |
+| --- | --- |
+| PAY-01 | Built and tested (SetupAndEmployeesTest: Payroll alone and with HR; RunsTest: module gating) |
+| PAY-02 to PAY-06 | Built and tested (SetupAndEmployeesTest, PayCalculationTest) |
+| PAY-07, PAY-08 | Built and tested (StatutoryEngineTest on fictional fixture packs, both countries; RunsTest: refused with the list, en and fr) |
+| PAY-09 to PAY-12 | Built and tested (PayCalculationTest: pro-rating, unpaid leave, overtime and premiums from HR, USD with CDF statutory figures) |
+| PAY-13 | Built and tested (LoansAndCorrectionsTest) |
+| PAY-14 to PAY-17 | Built and tested (RunsTest: maker-checker, rejection, errors block submission, posting locks) |
+| PAY-18 | Built and tested (LoansAndCorrectionsTest: reversal and recalculation) |
+| PAY-19, PAY-24 | Built and tested (PayslipsAndFilesTest: employee, colleague, payroll reader, field rules, PDF, audit) |
+| PAY-20, PAY-21 | Built and tested (PayslipsAndFilesTest) |
+| PAY-22 | Built and tested (PayrollPostingTest in the Accounting module) |
+| PAY-23, PAY-25 to PAY-27 | Built and tested (field rules, lists and exports, audit, scope across the tests; the tenant isolation suite covers every payroll table and route) |
+| PAY-28 | Built (EnforceSubscription allows calculate, submit and post) |
+
+## Statutory values the owner must confirm
+
+Nothing below is shipped; each is null in the pack until confirmed with
+its legal reference and effective date (the packs' `todo`).
+
+Kenya (`api/country-packs/KE/payroll.json`, KES):
+
+1. PAYE: the monthly bands (each upper limit and rate) and the rounding rule.
+2. Personal relief: the monthly amount.
+3. Insurance relief: the rate and the monthly cap.
+4. NSSF: the tiers (lower and upper earnings limits) with employee and employer rates, for the phase in force; whether the employee's NSSF reduces taxable pay; the rounding rule.
+5. SHIF: the employee rate, the monthly minimum, whether there is a maximum or an employer share; whether it reduces taxable pay; the rounding rule.
+6. Affordable Housing Levy: the employee and employer rates; whether the employee's levy reduces taxable pay (or gives a relief); the rounding rule.
+7. NITA: the employer levy per employee per month; the rounding rule.
+8. The bases: NSSF, SHIF and the levy on contributory gross pay; NITA per employee.
+9. How monthly figures apply to weekly and bi-weekly pay.
+10. Other items not modelled: pension relief limits, mortgage interest relief, the disability exemption.
+11. Layouts: iTax P10 (PAYE), NSSF, SHIF (SHA), housing levy and NITA returns, the P9 card, and the M-Pesa B2C bulk file.
+
+DR Congo (`api/country-packs/CD/payroll.json`, CDF):
+
+1. IPR: the monthly bands in CDF (each upper limit and rate), the maximum as a share of taxable pay, and the rounding rule.
+2. IPR reduction for dependants: the rate per dependant and the maximum number.
+3. CNSS pension: employee and employer rates, whether a ceiling applies, whether the employee's share reduces taxable pay, the rounding rule.
+4. CNSS occupational risks: the employer rate and rounding.
+5. CNSS family benefits: the employer rate and rounding.
+6. INPP: the employer rate per headcount bracket and rounding.
+7. ONEM: the employer rate and rounding.
+8. Family allowances: the amount per child per month, whether taxable and subject to contributions, the rounding rule.
+9. The bases: CNSS on contributory gross pay; INPP and ONEM on gross pay.
+10. How monthly figures apply to weekly and bi-weekly pay.
+11. Other items not modelled: a minimum wage check, allowance exemptions, a tax on expatriates' pay.
+12. Layouts: the IPR (DGI), CNSS, INPP and ONEM declarations.
+
 ## Open for the owner
 
-- Every statutory value listed in the packs' `todo`.
-- The CD liability accounts for INPP and ONEM and for other deductions.
-- The M-Pesa B2C bulk file layout and each statutory return layout.
+- Every statutory value above.
+- The CD liability accounts for INPP and ONEM (438) and other deductions
+  (428), and INPP and ONEM expensed to 641 (accounting.md decision 27).
+- The engine's fixed order (decision 2), and whether premiums stack
+  (decision 5).

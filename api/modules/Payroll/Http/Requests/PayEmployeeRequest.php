@@ -65,21 +65,23 @@ class PayEmployeeRequest extends PayrollRequest
             }
 
             $employee = $this->employee();
+            // The body as sent (the GET routes of this request read no query: the isolation suite checks it).
+            $body = $this->all();
 
-            if ($this->filled('pay_group_id') && PayGroup::query()->whereKey($this->input('pay_group_id'))->value('company_id') !== $employee->company_id) {
+            if (($body['pay_group_id'] ?? null) !== null && PayGroup::query()->whereKey($body['pay_group_id'])->value('company_id') !== $employee->company_id) {
                 $validator->errors()->add('pay_group_id', __('payroll.errors.pay_group_other_company'));
             }
 
-            if ($this->filled('item_id') && Item::query()->whereKey($this->input('item_id'))->value('company_id') !== $employee->company_id) {
+            if (($body['item_id'] ?? null) !== null && Item::query()->whereKey($body['item_id'])->value('company_id') !== $employee->company_id) {
                 $validator->errors()->add('item_id', __('payroll.errors.item_other_company'));
             }
 
             // PAY-06: an item is in the employee's pay currency.
-            if ($this->isMethod('POST') && $this->input('currency') !== $employee->effectivePayCurrency()) {
+            if ($this->isMethod('POST') && ($body['currency'] ?? null) !== $employee->effectivePayCurrency()) {
                 $validator->errors()->add('currency', __('payroll.errors.currency_mismatch'));
             }
 
-            if ($this->isMethod('POST') || $this->has('pay_currency')) {
+            if ($this->isMethod('POST') || array_key_exists('pay_currency', $body)) {
                 $this->payFields()->assertEditable($this->user());
             }
         }];

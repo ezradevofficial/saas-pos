@@ -113,7 +113,7 @@ class RunController
     /** PAY-20: the payment file, built now and never stored. */
     public function paymentFile(RunRequest $request, Run $payrollRun, PaymentFiles $files): Response
     {
-        $file = $files->build($payrollRun, $request->validated('format'), $request->user());
+        $file = $files->build($payrollRun, $request->validated('format', 'generic_csv'), $request->user());
 
         return new Response($file['content'], 200, [
             'Content-Type' => $file['content_type'],
@@ -126,7 +126,7 @@ class RunController
     /** PAY-20: who a file would pay and who is left out, without account numbers. */
     public function paymentSummary(RunRequest $request, Run $payrollRun, PaymentFiles $files): JsonResponse
     {
-        $summary = $files->summary($payrollRun, $request->validated('format'), $request->user());
+        $summary = $files->summary($payrollRun, $request->validated('format', 'generic_csv'), $request->user());
         $summary['missing'] = array_map(fn (array $m) => [...$m, 'message' => __('payroll.payments.missing.'.$m['reason'])], $summary['missing']);
 
         return response()->json(['data' => $summary]);

@@ -48,7 +48,7 @@ class RunRequest extends PayrollRequest
                 'pay_date' => ['sometimes', 'date_format:Y-m-d'],
                 'note' => ['sometimes', 'nullable', 'string', 'max:500'],
             ],
-            'payroll.runs.payment-file', 'payroll.runs.payment-summary' => ['format' => ['required', 'string', 'max:40']],
+            'payroll.runs.payment-file', 'payroll.runs.payment-summary' => ['format' => ['sometimes', 'string', 'max:40']],
             default => [],
         };
     }
