@@ -13,6 +13,18 @@ final class Refs
         return $minor === null || $currency === null ? null : ['amount_minor' => (string) $minor, 'currency' => $currency];
     }
 
+    /** A decimal without trailing zeros ("1.5000" → "1.5"), or null. */
+    public static function decimal(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = (string) $value;
+
+        return str_contains($value, '.') ? rtrim(rtrim($value, '0'), '.') : $value;
+    }
+
     public static function named(?Model $model, string $label = 'name'): ?array
     {
         return $model === null ? null : ['id' => $model->getKey(), $label => $model->{$label}, ...(isset($model->code) ? ['code' => $model->code] : [])];

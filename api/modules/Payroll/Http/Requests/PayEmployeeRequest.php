@@ -75,7 +75,7 @@ class PayEmployeeRequest extends PayrollRequest
             }
 
             // PAY-06: an item is in the employee's pay currency.
-            if ($this->isMethod('POST') && $employee->pay_currency !== null && $this->input('currency') !== $employee->pay_currency) {
+            if ($this->isMethod('POST') && $this->input('currency') !== $employee->effectivePayCurrency()) {
                 $validator->errors()->add('currency', __('payroll.errors.currency_mismatch'));
             }
 

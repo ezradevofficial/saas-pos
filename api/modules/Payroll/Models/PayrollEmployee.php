@@ -109,6 +109,14 @@ class PayrollEmployee extends Model implements HasScope
         return $this->hasMany(EmployeeItem::class);
     }
 
+    /** PAY-05: the currency they are paid in: their own setting, else their latest contract's, else the company's base. */
+    public function effectivePayCurrency(): string
+    {
+        return $this->pay_currency
+            ?? PayrollContract::query()->where('employee_id', $this->employee_id)->orderByDesc('start_date')->value('currency')
+            ?? Company::query()->whereKey($this->company_id)->value('base_currency');
+    }
+
     /** Employed on any day of [$from, $to]. */
     public function employedDuring(CarbonImmutable $from, CarbonImmutable $to): bool
     {

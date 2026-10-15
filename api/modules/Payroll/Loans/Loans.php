@@ -24,7 +24,7 @@ class Loans
 
     public function create(PayrollEmployee $employee, array $data, User $by): Loan
     {
-        $currency = $employee->pay_currency ?? $data['currency'];
+        $currency = $employee->effectivePayCurrency();
 
         if ($data['currency'] !== $currency) {
             throw Errors::make(422, 'currency_mismatch', field: 'currency');

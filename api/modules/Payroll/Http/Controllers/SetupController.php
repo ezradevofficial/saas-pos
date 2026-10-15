@@ -29,12 +29,12 @@ class SetupController
             ?? new Settings(['company_id' => $company->id, 'premiums_taxable' => true, 'premiums_contributory' => true]));
     }
 
-    public function updateSettings(SettingsRequest $request, Company $company): SetupResource
+    public function updateSettings(SettingsRequest $request, Company $company): JsonResponse
     {
         $settings = Settings::query()->firstOrNew(['company_id' => $company->id], ['premiums_taxable' => true, 'premiums_contributory' => true]);
         $settings->fill($request->validated())->save();
 
-        return SetupResource::make($settings->refresh());
+        return SetupResource::make($settings->refresh())->response()->setStatusCode(200);
     }
 
     /** PAY-08: the company's pack in force today: its components with labels, what is missing, and the pack's own list of values to confirm. */

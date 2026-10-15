@@ -284,7 +284,7 @@ class RunCalculator
             $earnings[] = [
                 'code' => $code, 'name' => __("payroll.lines.{$code}"), 'source' => 'attendance', 'amount_minor' => self::minor($amount),
                 'taxable' => (bool) ($context->settings->premiums_taxable ?? true), 'contributory' => (bool) ($context->settings->premiums_contributory ?? true),
-                'quantity' => (string) BigDecimal::of($count)->dividedBy(60, 2, RoundingMode::HalfUp), 'multiplier' => (string) $multiplier,
+                'quantity' => (string) BigDecimal::of($count)->dividedBy(60, 2, RoundingMode::HalfUp), 'multiplier' => rtrim(rtrim((string) $multiplier, '0'), '.'),
             ];
         }
 
