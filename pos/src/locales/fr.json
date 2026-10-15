@@ -602,7 +602,12 @@
           "cost_centre": "Centre de coût",
           "issued_by": "Sorti par",
           "received_by": "Reçu par",
-          "total_value": "Valeur totale"
+          "total_value": "Valeur totale",
+          "asset_name": "Immobilisation",
+          "tag": "Numéro d’inventaire",
+          "serial_number": "Numéro de série",
+          "category": "Catégorie",
+          "location": "Emplacement"
         },
         "customer": {
           "name": "Client",
@@ -639,7 +644,8 @@
         "payroll_payslip": "Bulletin de paie",
         "party_statement": "Relevé",
         "letter": "Référence",
-        "inventory_label": "Étiquette"
+        "inventory_label": "Étiquette",
+        "fixed_assets_label": "Immobilisation"
       },
       "columns": {
         "item_name": "Article",
