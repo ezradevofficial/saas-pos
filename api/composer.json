@@ -51,7 +51,8 @@
             "Modules\\Procurement\\Tests\\": "modules/Procurement/tests/",
             "Modules\\Stores\\Tests\\": "modules/Stores/tests/",
             "Modules\\HR\\Tests\\": "modules/HR/tests/",
-            "Modules\\CRM\\Tests\\": "modules/CRM/tests/"
+            "Modules\\CRM\\Tests\\": "modules/CRM/tests/",
+            "Modules\\Payroll\\Tests\\": "modules/Payroll/tests/"
         }
     },
     "scripts": {

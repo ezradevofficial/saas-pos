@@ -1,0 +1,109 @@
+{
+    "code": "KE",
+    "notes": "Payroll statutory structure for Kenyan companies (docs/modules/payroll.md, PAY-07, PAY-08, PAY-20, PAY-21). Structure only: no figure is entered until it is confirmed from an official source with its legal reference and effective date. A value that is null is 'rate needed' and blocks payroll runs; a value that is absent does not apply (remove a value, e.g. a ceiling, to say it does not exist). Every money figure is per month in minor units of the pack currency (KES cents) as a digit string; rates are percentages as strings ('12.5' = 12.5 %). effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. Labels live in lang/{locale}/payroll.php (pack.*).",
+    "sources": [],
+    "todo": [
+        "paye: the monthly PAYE bands (each band's upper limit in KES and its rate), with the Income Tax Act reference and effective date.",
+        "paye: the rounding rule of PAYE (mode and unit).",
+        "personal_relief: the monthly personal relief amount, with its reference and effective date.",
+        "insurance_relief: the insurance relief rate and its monthly cap; used only when an employee has insurance premium deductions.",
+        "nssf: the NSSF tiers (lower and upper earnings limits) with the employee and employer rates of each tier, under the NSSF Act 2013 and the phase in force on the pay date.",
+        "nssf: whether the employee's NSSF contribution reduces taxable pay, and its rounding rule.",
+        "shif: the SHIF employee rate, the minimum monthly contribution, whether there is a maximum (add employee_max_minor) and whether there is an employer share (add employer_rate).",
+        "shif: whether SHIF reduces taxable pay, and its rounding rule.",
+        "ahl: the Affordable Housing Levy employee and employer rates, whether the employee's levy reduces taxable pay (or gives a relief instead), and its rounding rule.",
+        "nita: the NITA employer levy per employee per month, and its rounding rule.",
+        "Bases: confirm that NSSF, SHIF and the housing levy are on contributory gross pay (the earnings the company marks contributory), and NITA per employee.",
+        "non_monthly: how the monthly figures apply to weekly and bi-weekly pay ('pro_rata' or another method); until then only monthly runs are calculated.",
+        "Other statutory deductions not modelled yet (e.g. pension relief limits, mortgage interest relief, disability exemption): confirm which apply.",
+        "returns: the iTax P10 (PAYE), NSSF, SHIF (SHA), housing levy and NITA return layouts and the P9 certificate layout; until then return files are placeholders.",
+        "payment_formats.mpesa_b2c_bulk: the current Safaricom bulk payment file layout (columns and their order)."
+    ],
+    "currency": "KES",
+    "non_monthly": null,
+    "components": [
+        {
+            "code": "paye",
+            "kind": "income_tax",
+            "method": "bands",
+            "base": "taxable_pay",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "bands": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "personal_relief",
+            "kind": "relief",
+            "method": "relief_fixed",
+            "applies_to": "paye",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "amount_minor": null}
+            ]
+        },
+        {
+            "code": "insurance_relief",
+            "kind": "relief",
+            "method": "relief_rate",
+            "base": "insurance_premiums",
+            "applies_to": "paye",
+            "when": "insurance_premiums",
+            "required": false,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "rate": null, "cap_minor": null}
+            ]
+        },
+        {
+            "code": "nssf",
+            "kind": "contribution",
+            "method": "tiers",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "tiers": null, "reduces_taxable": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "shif",
+            "kind": "contribution",
+            "method": "rate",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employee_rate": null, "employee_min_minor": null, "reduces_taxable": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "ahl",
+            "kind": "levy",
+            "method": "rate",
+            "base": "contributory_gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employee_rate": null, "employer_rate": null, "reduces_taxable": null, "rounding": null}
+            ]
+        },
+        {
+            "code": "nita",
+            "kind": "levy",
+            "method": "fixed",
+            "base": "gross",
+            "required": true,
+            "periods": [
+                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employer_minor": null, "rounding": null}
+            ]
+        }
+    ],
+    "returns": [
+        {"key": "paye", "period": "month", "components": ["paye"], "identifiers": ["kra_pin"], "layout": null, "needs_confirmation": true},
+        {"key": "nssf", "period": "month", "components": ["nssf"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
+        {"key": "shif", "period": "month", "components": ["shif"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
+        {"key": "ahl", "period": "month", "components": ["ahl"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
+        {"key": "nita", "period": "month", "components": ["nita"], "identifiers": [], "layout": null, "needs_confirmation": true},
+        {"key": "p9", "period": "year", "components": ["paye", "personal_relief", "insurance_relief", "nssf", "shif", "ahl"], "identifiers": ["kra_pin"], "layout": null, "needs_confirmation": true}
+    ],
+    "payment_formats": {
+        "mpesa_b2c_bulk": {"columns": null, "needs_confirmation": true}
+    }
+}

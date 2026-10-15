@@ -27,6 +27,8 @@ use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
+use App\Core\Rbac\Models\Role;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
@@ -47,7 +49,13 @@ use Illuminate\Testing\TestResponse;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\HR\Events\AttendancePeriodClosed;
+use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Models\Employee;
+use Modules\Payroll\Models\PayrollEmployee;
+use Modules\Payroll\Models\Payslip;
+use Modules\Payroll\Statutory\PayrollPack;
+use Modules\Payroll\Tests\Concerns\FixturePacks;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
@@ -567,6 +575,13 @@ final class TwoTenants
         // lead form and its lead, leads (one converted), opportunities, a draft quote, an activity,
         // a logged email and a target.
         $crm = self::crm($test, $owner, $tenantId, $ownerId, $managerId, $company, $branch, $customer, $item, $uoms['BOX'], $upper);
+        // Payroll (docs/modules/payroll.md): the module switched on with the fictional
+        // test pack (never the shipped one), settings, a pay group, items, the HR
+        // employees copied with their pay setup, an item, a loan, unpaid leave and a
+        // closed attendance period from HR, a run prepared by the manager (made a
+        // Payroll Officer), approved by the Owner and posted (lines, payslips, loan
+        // repayment), and a PAYE return.
+        $payroll = self::payroll($test, [...$owner, 'Accept' => 'application/json'], [...$managerToken, 'Accept' => 'application/json'], $tenantId, $managerId, $company, $hr, $upper);
         // IMP-01..IMP-03: one customer imported from a file (an import, its
         // row and the remembered mapping), with its result file.
         $csv = tempnam(sys_get_temp_dir(), 'two-tenants-import-');
@@ -650,6 +665,7 @@ final class TwoTenants
                 ...$stores,
                 ...$hr,
                 ...$crm,
+                ...$payroll,
                 ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
@@ -1217,7 +1233,7 @@ final class TwoTenants
             'fields' => ['shown' => ['email'], 'required' => ['email']]], $owner), 201)->json('data');
         self::ok($test->postJson((string) parse_url($form['url'], PHP_URL_PATH), ['name' => "Web lead {$upper}", 'email' => "web-{$upper}@example.com"]), 202);
 
-        $lead = self::ok($test->postJson('/api/v1/crm/leads', ['branch_id' => $branch, 'name' => "Lead {$upper}", 'organisation' => "Prospect {$upper}",
+        $lead = self::ok($test->postJson('/api/v1/crm/leads', ['branch_id' => $branch, 'name' => "Lead {$upper}", 'organisation' => "Prospect {$upper}", 'email' => "buyer-{$upper}@example.com",
             'source_id' => $options->firstWhere('kind', 'source')['id'], 'estimated_value_minor' => '500000', 'channel' => 'manual'], $owner), 201)->json('data.id');
         $converting = self::ok($test->postJson('/api/v1/crm/leads', ['branch_id' => $branch, 'name' => "Converted {$upper}", 'channel' => 'manual'], $owner), 201)->json('data.id');
         self::ok($test->postJson("/api/v1/crm/leads/{$converting}/convert", ['party_id' => $customer, 'opportunity' => ['name' => "Won deal {$upper}", 'value_minor' => '300000']], $owner));
@@ -1227,7 +1243,7 @@ final class TwoTenants
             'terms' => "Terms {$upper}", 'lines' => [['item_id' => $item, 'uom_id' => $box, 'qty' => '2']]], $owner), 201)->json('data.id');
         $activity = self::ok($test->postJson('/api/v1/crm/activities', ['kind' => 'call', 'subject' => "Call {$upper}", 'starts_at' => '2026-12-01T08:00:00Z',
             'remind_at' => '2026-12-01T07:30:00Z', 'opportunity_id' => $opportunity], $owner), 201)->json('data.id');
-        self::ok($test->postJson('/api/v1/crm/emails', ['to' => "buyer-{$upper}@example.com", 'subject' => "Hello {$upper}", 'body' => 'Following up.', 'quote_id' => $quote], $owner), 201);
+        self::ok($test->postJson('/api/v1/crm/emails', ['to' => "buyer-{$upper}@example.com", 'subject' => "Hello {$upper}", 'body' => 'Following up.', 'quote_id' => $quote, 'lead_id' => $lead], $owner), 201);
         $target = self::ok($test->postJson('/api/v1/crm/targets', ['company_id' => $company, 'subject_type' => 'user', 'subject_id' => $ownerId, 'metric' => 'won_value',
             'period_start' => '2026-01-01', 'period_end' => '2026-12-31', 'amount_minor' => '10000000'], $owner), 201)->json('data.id');
 
@@ -1245,6 +1261,70 @@ final class TwoTenants
             'crm_quote' => $quote,
             'crm_activity' => $activity,
             'crm_target' => $target,
+        ];
+    }
+
+    /**
+     * The Payroll fixture of one tenant (docs/modules/payroll.md), made through the API
+     * with the fictional test pack (FixturePacks; the shipped packs have no figures).
+     *
+     * @return array<string, string>
+     */
+    private static function payroll(TestCase $test, array $owner, array $manager, string $tenantId, string $managerId, string $company, array $hr, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, function () use ($managerId, $company) {
+            app(ModuleRegistry::class)->activate('payroll');
+            // The manager prepares runs (maker); the Owner approves them (checker, APR-07).
+            RoleAssignment::create(['user_id' => $managerId, 'role_id' => Role::query()->where('template_key', 'payroll_officer')->value('id'), 'scope_type' => 'company', 'scope_id' => $company]);
+        });
+        app(PayrollPack::class)->fake('KE', FixturePacks::ke());
+
+        self::ok($test->putJson("/api/v1/payroll/settings/{$company}", ['overtime_multiplier' => '1.5', 'monthly_hours' => '200', 'monthly_days' => '25'], $owner));
+        $group = self::ok($test->postJson('/api/v1/payroll/pay-groups', ['company_id' => $company, 'code' => "PG-{$upper}", 'name' => "Monthly {$upper}", 'frequency' => 'monthly', 'pay_day' => 28], $owner), 201)->json('data.id');
+        $earning = self::ok($test->postJson('/api/v1/payroll/items', ['company_id' => $company, 'code' => "BON-{$upper}", 'name' => "Bonus {$upper}", 'kind' => 'earning', 'taxable' => true, 'contributory' => true], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/payroll/items', ['company_id' => $company, 'code' => "UNI-{$upper}", 'name' => "Union {$upper}", 'kind' => 'deduction'], $owner), 201);
+        self::ok($test->postJson('/api/v1/payroll/employees/sync', ['company_id' => $company], $owner));
+
+        [$employee, $peer] = app(TenantContext::class)->run($tenantId, fn () => [
+            PayrollEmployee::query()->where('employee_id', $hr['hr_employee'])->value('id'),
+            PayrollEmployee::query()->where('employee_id', $hr['hr_employee_peer'])->value('id'),
+        ]);
+        self::ok($test->patchJson("/api/v1/payroll/employees/{$employee}", ['pay_group_id' => $group, 'payment_method' => 'bank'], $owner));
+        self::ok($test->patchJson("/api/v1/payroll/employees/{$peer}", ['pay_group_id' => $group, 'payment_method' => 'cash'], $owner));
+        $employeeItem = self::ok($test->postJson("/api/v1/payroll/employees/{$employee}/items", [
+            'item_id' => $earning, 'amount_minor' => '100000', 'currency' => 'KES', 'recurrence' => 'once', 'period_date' => '2026-09-10', 'note' => "Bonus {$upper}",
+        ], $owner), 201)->json('data.id');
+        $loan = self::ok($test->postJson('/api/v1/payroll/loans', [
+            'payroll_employee_id' => $employee, 'kind' => 'loan', 'reference' => "LN-{$upper}", 'principal_minor' => '1000000', 'instalment_minor' => '100000', 'currency' => 'KES', 'disbursed_on' => '2026-09-01',
+        ], $owner), 201)->json('data.id');
+
+        // HR's events (HR-33): an unpaid leave day and a closed attendance period with overtime.
+        app(TenantContext::class)->run($tenantId, function () use ($tenantId, $company, $hr) {
+            event(new LeaveApproved($tenantId, (string) Str::uuid7(), 'LV-FIXTURE', $hr['hr_employee'], $company, $hr['hr_leave_type'], 'UNPAID', false, '2026-09-14', '2026-09-14', false, false, '1.00', [['date' => '2026-09-14', 'fraction' => '1.00']]));
+            event(new AttendancePeriodClosed($tenantId, (string) Str::uuid7(), $company, '2026-09-01', '2026-09-30', 'Africa/Nairobi', null, [[
+                'employee_id' => $hr['hr_employee'], 'days_present' => 20, 'days_absent' => 0, 'days_leave' => 1, 'worked_minutes' => 9660, 'regular_minutes' => 9600, 'overtime_minutes' => 60,
+                'night_minutes' => 0, 'holiday_minutes' => 0, 'rest_day_minutes' => 0, 'late_minutes' => 0, 'early_leave_minutes' => 0,
+            ]]));
+        });
+
+        $run = self::ok($test->postJson('/api/v1/payroll/runs', ['pay_group_id' => $group, 'period_date' => '2026-09-15'], $manager), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/payroll/runs/{$run}/calculate", [], $manager));
+        self::ok($test->postJson("/api/v1/payroll/runs/{$run}/submit", [], $manager));
+        $approval = app(TenantContext::class)->run($tenantId, fn () => ApprovalRequest::query()->where('document_id', $run)->where('status', 'pending')->value('id'));
+        self::ok($test->postJson("/api/v1/approvals/{$approval}/approve", [], $owner));
+        self::ok($test->postJson("/api/v1/payroll/runs/{$run}/post", [], $manager));
+        $payslip = app(TenantContext::class)->run($tenantId, fn () => Payslip::query()->where('run_id', $run)->where('payroll_employee_id', $employee)->value('id'));
+        $return = self::ok($test->postJson('/api/v1/payroll/returns', ['company_id' => $company, 'type' => 'paye', 'period' => '2026-09'], $owner), 201)->json('data.id');
+
+        return [
+            'payroll_pay_group' => $group,
+            'payroll_item' => $earning,
+            'payroll_employee' => $employee,
+            'payroll_employee_item' => $employeeItem,
+            'payroll_loan' => $loan,
+            'payroll_run' => $run,
+            'payroll_payslip' => $payslip,
+            'payroll_return' => $return,
         ];
     }
 

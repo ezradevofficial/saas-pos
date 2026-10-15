@@ -30,8 +30,11 @@
         {"code": "4118", "type": "asset", "subtype": "receivable", "parent": "41", "postable": true, "cash_flow": "operating", "control": true},
         {"code": "42", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "422", "type": "liability", "subtype": "current_liability", "parent": "42", "postable": true, "cash_flow": "operating"},
+        {"code": "421", "type": "asset", "subtype": "current_asset", "parent": "42", "postable": true, "cash_flow": "operating"},
+        {"code": "428", "type": "liability", "subtype": "current_liability", "parent": "42", "postable": true, "cash_flow": "operating"},
         {"code": "43", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "431", "type": "liability", "subtype": "current_liability", "parent": "43", "postable": true, "cash_flow": "operating"},
+        {"code": "438", "type": "liability", "subtype": "current_liability", "parent": "43", "postable": true, "cash_flow": "operating"},
         {"code": "419", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "4191", "type": "liability", "subtype": "current_liability", "parent": "419", "postable": true, "cash_flow": "operating"},
         {"code": "4198", "type": "liability", "subtype": "current_liability", "parent": "419", "postable": true, "cash_flow": "operating"},
@@ -486,6 +489,54 @@
                 "field": "revenue",
                 "side": "credit",
                 "account": "701"
+            }
+        ],
+        "payroll.run": [
+            {
+                "field": "gross",
+                "side": "debit",
+                "account": "661"
+            },
+            {
+                "field": "employer.*",
+                "side": "debit",
+                "account": "664",
+                "accounts": {
+                    "inpp": "641",
+                    "onem": "641"
+                }
+            },
+            {
+                "field": "employer.*",
+                "side": "credit",
+                "account": "431",
+                "accounts": {
+                    "inpp": "438",
+                    "onem": "438"
+                }
+            },
+            {
+                "field": "statutory.*",
+                "side": "credit",
+                "account": "431",
+                "accounts": {
+                    "ipr": "447"
+                }
+            },
+            {
+                "field": "deduction.*",
+                "side": "credit",
+                "account": "428"
+            },
+            {
+                "field": "loans",
+                "side": "credit",
+                "account": "421"
+            },
+            {
+                "field": "net_pay",
+                "side": "credit",
+                "account": "422"
             }
         ]
     }

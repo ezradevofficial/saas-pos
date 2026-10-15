@@ -115,7 +115,8 @@ class RoleTemplatesTest extends TestCase
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
         // HR (docs/modules/hr.md): 36 hr.* permissions.
         // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27, count($names));
+        // Payroll (docs/modules/payroll.md): 14 payroll.* permissions.
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 14, count($names));
     }
 
     public function test_sign_up_provisions_fourteen_system_roles_and_an_owner_assignment(): void

@@ -243,6 +243,12 @@ class DunningTest extends TestCase
             'POST approvals/{approval}/reject' => 'approval',
             'POST approvals/{approval}/request-info' => 'approval',
             'POST approvals/{approval}/return' => 'approval',
+            // PAY-28: payroll runs are never blocked.
+            'POST payroll/runs' => 'approval',
+            'POST payroll/runs/{payroll_run}/calculate' => 'approval',
+            'POST payroll/runs/{payroll_run}/corrections' => 'approval',
+            'POST payroll/runs/{payroll_run}/post' => 'approval',
+            'POST payroll/runs/{payroll_run}/submit' => 'approval',
             'POST pos/cash-movements/{pos_cash_movement}/approve' => 'approval',
             'POST pos/cash-movements/{pos_cash_movement}/reject' => 'approval',
             'POST pos/refunds/{pos_refund}/approve' => 'approval',

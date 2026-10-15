@@ -129,6 +129,10 @@ final class EnvironmentGuard
             'Fiscal drivers' => $config->get('fiscal.allow_fake')
                 ? 'the fake fiscal driver is allowed (unset FISCAL_ALLOW_FAKE)'
                 : null,
+            // Payroll review fix 5: test packs (PAYROLL_PACK_DIR) are for staging only, never a real environment.
+            'Payroll pack directory' => (string) $config->get('payroll.pack_dir') !== '' && $config->get('app.env') !== 'staging'
+                ? 'PAYROLL_PACK_DIR is set (test statutory packs, docs/modules/payroll.md); unset it'
+                : null,
             // HR-10: identifier digests need their own key (the HR module's config).
             'HR digest key' => $config->has('hr') && (string) $config->get('hr.digest_key') === ''
                 ? 'HR_DIGEST_KEY is not set (identifier digests, docs/modules/hr.md)'

@@ -200,6 +200,7 @@ return [
             'core.company.view', 'core.branch.view', 'core.user.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
+            // PAY-01 to PAY-28 (docs/modules/payroll.md); maker-checker: APR-07 keeps the preparer off their own run's approval.
             'payroll.*', 'hr.employee.view',
             // HR-33: what payroll pays from: contracts and pay, pay accounts and identifiers, leave and attendance.
             'hr.contract.view', 'hr.pay.view', 'hr.bank.view', 'hr.identity.view', 'hr.leave.view', 'hr.attendance.view',
@@ -245,6 +246,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
+            // PAY-16: the payroll runs they approve (field rules may hide the amounts, PAY-23).
+            'payroll.run.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -259,8 +262,9 @@ return [
         'key' => 'read_only_auditor',
         // CRM-08: an auditor reads every CRM record, not only their own.
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*', 'crm.scope.branch'],
-        // HR-09: personal data is not an auditor's to read.
-        'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
+        // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
+        'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
+            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.payslip.view', 'payroll.return.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

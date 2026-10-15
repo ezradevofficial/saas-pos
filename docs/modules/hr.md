@@ -153,7 +153,16 @@ rates (statutory or contractual, Payroll's country-pack data). Payroll
 reads pay accounts and identifiers through `Modules\HR\Contracts\PayAccounts`
 and `Modules\HR\Contracts\Identifiers` (decrypted, for the payment file
 and statutory returns), which check `hr.bank.view` / `hr.identity.view` of
-the acting user or run as the system inside a payroll run.
+the acting user or run as the system inside a payroll run. Stage 7C adds two
+read contracts for Payroll's copy: `Modules\HR\Contracts\Employees`
+(non-sensitive basics: number, name, company, place, department, position,
+the linked user, hire and termination dates, status; and the employees
+linked to a user, for "My payslips") and
+`Modules\HR\Contracts\EmploymentContracts` (a company's contracts with
+their pay, read inside a payroll run and audited as
+`hr.contract.payroll_read`), so a Payroll switched on after HR's records
+exist, or a change HR raises no event for (a name, a department), still
+reaches Payroll without it reading HR's tables.
 
 **Consumed:**
 
