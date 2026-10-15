@@ -82,6 +82,7 @@ class PayrollServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__.'/config/payroll.php', 'payroll');
         $this->app->singleton(PayrollPack::class);
         $this->app->scoped(PayFields::class);
         $this->app->singleton(PaymentFormats::class, function () {

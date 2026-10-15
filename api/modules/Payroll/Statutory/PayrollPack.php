@@ -36,7 +36,7 @@ class PayrollPack
             return $this->packs[$code];
         }
 
-        $file = base_path("country-packs/{$code}/payroll.json");
+        $file = rtrim((string) (config('payroll.pack_dir') ?: base_path('country-packs')), '/')."/{$code}/payroll.json";
 
         return $this->packs[$code] = preg_match('/^[A-Z]{2}\z/', $code) === 1 && is_file($file)
             ? json_decode((string) file_get_contents($file), true, 32, JSON_THROW_ON_ERROR)
