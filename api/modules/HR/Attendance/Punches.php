@@ -85,15 +85,13 @@ class Punches
 
             // A punch id is unique across tenants: one of another tenant is refused, never confirmed;
             // the same punch sent twice at once is answered as stored.
-            $inserted = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($punch) {
-                try {
-                    $punch->save();
-
-                    return true;
-                } catch (UniqueConstraintViolationException) {
-                    return false;
-                }
-            });
+            // Its own savepoint, rolled back on a clash so the outer transaction goes on.
+            try {
+                DB::connection(TenantContext::CONNECTION)->transaction(fn () => $punch->save());
+                $inserted = true;
+            } catch (UniqueConstraintViolationException) {
+                $inserted = false;
+            }
 
             if (! $inserted) {
                 $concurrent = Punch::query()->whereKey($id)->first()

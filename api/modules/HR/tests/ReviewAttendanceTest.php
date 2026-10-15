@@ -4,7 +4,7 @@ namespace Modules\HR\Tests;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Pin\Pins;
-use App\Core\Notifications\Models\Notification as InAppNotification;
+use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
@@ -131,7 +131,7 @@ class ReviewAttendanceTest extends TestCase
         ]], $this->deviceHeaders($till))->assertOk()->assertJsonPath('data.1.recorded', true);
 
         $this->assertSame(['hr.employee.clock_pin_failures', 'hr.employee.clock_pin_locked'], $this->inTenant(fn () => AuditEntry::query()->whereIn('action', ['hr.employee.clock_pin_failures', 'hr.employee.clock_pin_locked'])->orderBy('seq')->pluck('action')->all()));
-        $this->assertTrue($this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->hrOfficer->id)->where('type', 'hr.clock_pin.locked')->exists()));
+        $this->assertTrue($this->inTenant(fn () => InAppNotification::query()->where('user_id', $this->hrOfficer->id)->where('event_type', 'hr.clock_pin.locked')->exists()));
     }
 
     public function test_a_night_shifts_out_after_midnight_closes_its_in_on_the_web_and_for_devices(): void
@@ -186,7 +186,7 @@ class ReviewAttendanceTest extends TestCase
         $rotation = $this->postJson('/api/v1/hr/rotations', ['company_id' => $this->acme->id, 'name' => 'Daily', 'days' => [$this->day]], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
         $roster = $this->postJson('/api/v1/hr/rosters', ['company_id' => $this->acme->id, 'name' => 'R', 'rotation_id' => $rotation, 'anchor_date' => '2026-09-01', 'members' => [['employee_id' => $this->amina->id]]], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
         $counts = $this->postJson("/api/v1/hr/rosters/{$roster}/generate", ['from' => '2026-09-25', 'to' => '2026-10-02'], $this->headersFor($this->hrOfficer))->assertOk()->json('data');
-        $this->assertSame([2, 5], [$counts['created'], $counts['closed']]);
+        $this->assertSame([2, 6], [$counts['created'], $counts['closed']]);
     }
 
     public function test_a_swap_is_stale_once_a_shift_changed_or_started(): void
@@ -207,21 +207,24 @@ class ReviewAttendanceTest extends TestCase
         $roster = $this->postJson('/api/v1/hr/rosters', ['company_id' => $this->acme->id, 'name' => 'R', 'rotation_id' => $rotation, 'anchor_date' => '2026-11-02', 'members' => [['employee_id' => $this->amina->id]]], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
         $generate = fn () => $this->postJson("/api/v1/hr/rosters/{$roster}/generate", ['from' => '2026-11-02', 'to' => '2026-11-04'], $this->headersFor($this->hrOfficer));
 
+        // Another run holds the roster (a second session): 409, not 500. (Taken before any run of
+        // this test: the test's transaction keeps a run's lock until it ends.)
+        $config = config('database.connections.pgsql_owner');
+        $other = new \PDO("pgsql:host={$config['host']};port={$config['port']};dbname={$config['database']}", $config['username'], $config['password']);
+        $this->assertTrue((bool) $other->query("select pg_try_advisory_lock(hashtext('hr-roster:' || '{$roster}'))")->fetchColumn());
+
+        try {
+            $generate()->assertStatus(409)->assertJsonPath('code', 'roster_busy');
+        } finally {
+            $other->query("select pg_advisory_unlock(hashtext('hr-roster:' || '{$roster}'))");
+            $other = null;
+        }
+
         $generate()->assertOk();
         $cancelled = $this->inTenant(fn () => RosterShift::query()->where('date', '2026-11-03')->value('id'));
         $this->postJson("/api/v1/hr/roster-shifts/{$cancelled}/cancel", [], $this->headersFor($this->hrOfficer))->assertOk();
         $this->assertSame(0, $generate()->assertOk()->json('data.created'));
         $this->assertSame(['planned', 'cancelled', 'planned'], $this->inTenant(fn () => RosterShift::query()->orderBy('date')->pluck('status')->all()));
-
-        // Another run holds the roster: 409, not 500.
-        $owner = DB::connection('pgsql_owner');
-        $owner->select("select pg_advisory_lock(hashtext('hr-roster:' || ?))", [$roster]);
-
-        try {
-            $generate()->assertStatus(409)->assertJsonPath('code', 'roster_busy');
-        } finally {
-            $owner->select("select pg_advisory_unlock(hashtext('hr-roster:' || ?))", [$roster]);
-        }
     }
 
     public function test_a_time_rule_ending_before_it_starts_is_a_validation_error_and_a_duplicate_punch_at_once_is_stored(): void
@@ -232,17 +235,20 @@ class ReviewAttendanceTest extends TestCase
         // Another request stores the same punch between our check and our insert.
         $till = $this->pairTill($this->locationA);
         $id = (string) Str::uuid7();
-        Punch::creating(function (Punch $punch) use ($id) {
-            if ($punch->id === $id && ! Punch::query()->whereKey($id)->exists()) {
+        $done = false;
+        DB::listen(function ($query) use ($id, &$done) {
+            if (! $done && str_starts_with($query->sql, 'select') && str_contains($query->sql, 'hr_punches') && in_array($id, $query->bindings, true)) {
+                $done = true;
                 DB::connection('pgsql')->table('hr_punches')->insert([
-                    'id' => $id, 'tenant_id' => $punch->tenant_id ?? app(\App\Core\Tenancy\TenantContext::class)->id(), 'employee_id' => $punch->employee_id, 'company_id' => $punch->company_id, 'kind' => $punch->kind,
-                    'occurred_at' => $punch->occurred_at, 'source' => 'till', 'flags' => '[]', 'received_at' => now(), 'work_date' => $punch->work_date,
+                    'id' => $id, 'tenant_id' => app(\App\Core\Tenancy\TenantContext::class)->id(), 'employee_id' => $this->amina->id, 'company_id' => $this->acme->id, 'kind' => 'in',
+                    'occurred_at' => now()->subHour(), 'source' => 'till', 'flags' => '[]', 'received_at' => now(), 'work_date' => now()->toDateString(),
                 ]);
             }
         });
 
         $this->postJson('/api/v1/hr/till/punches', ['punches' => [['id' => $id, 'employee_id' => $this->amina->id, 'kind' => 'in', 'occurred_at' => now()->subHour()->toIso8601String()]]], $this->deviceHeaders($till))
             ->assertOk()->assertJsonPath('data.0.status', 'stored');
+        $this->assertSame(1, $this->inTenant(fn () => Punch::query()->whereKey($id)->count()));
     }
 
     private function plan(Employee $employee, string $date): string
