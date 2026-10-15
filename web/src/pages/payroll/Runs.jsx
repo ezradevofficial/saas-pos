@@ -318,7 +318,17 @@ export function RunDetail() {
         onConfirm={() => post.mutate()}
         onClose={() => setDialog(null)}
       />
-      {dialog === 'correct' ? <CorrectionDialog run={run} onClose={() => setDialog(null)} onDone={(created) => navigate(`/payroll/runs/${created.id}`)} /> : null}
+      {dialog === 'correct' ? (
+        <CorrectionDialog
+          run={run}
+          onClose={() => setDialog(null)}
+          // PAY-18: the dialog closes before the new correction run opens on the same screen.
+          onDone={(created) => {
+            setDialog(null)
+            navigate(`/payroll/runs/${created.id}`)
+          }}
+        />
+      ) : null}
     </>
   )
 }

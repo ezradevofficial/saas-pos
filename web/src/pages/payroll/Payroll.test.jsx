@@ -143,6 +143,20 @@ describe('Payroll screens', () => {
     expect(within(dialog).getByText('An exchange rate for the pay date is missing. Add it in exchange rates.')).toBeInTheDocument()
   })
 
+  it('closes the correction dialog once the correction run opens (PAY-18)', async () => {
+    const posted = { ...RUN, status: 'posted', totals: { currencies: [], base: null, previous_run_id: null, gone: [] } }
+    const correction = { ...RUN, id: 'r-2', number: 'PR-2026-00004', kind: 'correction', corrects_run_id: 'r-1', correction_mode: 'reversal' }
+    setup([['payroll/runs/r-1', { data: posted }], ['payroll/runs/r-2', { data: correction }]], [PERM.runView, PERM.runPrepare])
+    api.post.mockResolvedValue({ data: correction })
+    renderApp('/payroll/runs/r-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct run' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Correct run PR-2026-00003' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create correction run' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'PR-2026-00004' })).toBeInTheDocument()
+    expect(api.post).toHaveBeenCalledWith('payroll/runs/r-1/corrections', expect.any(Object))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('lists the statutory values the pack lacks and says runs are refused (PAY-08)', async () => {
     const pack = {
       country: 'KE',
