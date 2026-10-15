@@ -6,6 +6,7 @@ use App\Core\Exports\ListExport;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Manufacturing\Backflush\Backflushes;
 use Modules\Manufacturing\Http\Lists\BackflushList;
@@ -18,6 +19,7 @@ use Modules\Manufacturing\Http\Requests\StatusRequest;
 use Modules\Manufacturing\Http\Requests\UpdateSettingsRequest;
 use Modules\Manufacturing\Http\Resources\BackflushResource;
 use Modules\Manufacturing\Http\Resources\ConsumptionResource;
+use Modules\Manufacturing\Http\Resources\Costs;
 use Modules\Manufacturing\Http\Resources\RecipeCostingResource;
 use Modules\Manufacturing\Http\Resources\YieldResource;
 use Modules\Manufacturing\Models\Backflush;
@@ -26,6 +28,7 @@ use Modules\Manufacturing\Models\Order;
 use Modules\Manufacturing\Models\OrderMaterial;
 use Modules\Manufacturing\Models\Setting;
 use Modules\Manufacturing\Support\Errors;
+use Modules\Manufacturing\Support\Places;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** MFG-06, MFG-07, MFG-17 to MFG-19, MFG-29: reports, status and a company's settings. */
@@ -102,7 +105,7 @@ class ReportController
 
     public function settings(SettingsRequest $request, Company $company): JsonResponse
     {
-        return $this->presentSettings($company, Setting::query()->where('company_id', $company->id)->first());
+        return $this->presentSettings($request, $company, Setting::query()->where('company_id', $company->id)->first());
     }
 
     public function updateSettings(UpdateSettingsRequest $request, Company $company): JsonResponse
@@ -119,15 +122,19 @@ class ReportController
             return $settings->refresh();
         });
 
-        return $this->presentSettings($company, $settings);
+        return $this->presentSettings($request, $company, $settings);
     }
 
-    private function presentSettings(Company $company, ?Setting $settings): JsonResponse
+    private function presentSettings(Request $request, Company $company, ?Setting $settings): JsonResponse
     {
+        // Review fix 4, RBAC-05: the rates are costs: only for holders of cost.view or settings.edit in the company.
+        $places = app(Places::class);
+        $rates = $places->inCompany($request->user(), Costs::PERMISSION, $company->id) || $places->inCompany($request->user(), 'manufacturing.settings.edit', $company->id);
+
         return new JsonResponse(['data' => [
             'company' => ['id' => $company->id, 'name' => $company->name, 'base_currency' => $company->base_currency],
-            'labour_rate_minor' => (string) ($settings?->labour_rate_minor ?? '0'),
-            'overhead_rate_minor' => (string) ($settings?->overhead_rate_minor ?? '0'),
+            'labour_rate_minor' => $rates ? (string) ($settings?->labour_rate_minor ?? '0') : null,
+            'overhead_rate_minor' => $rates ? (string) ($settings?->overhead_rate_minor ?? '0') : null,
             'currency' => $settings?->currency ?? $company->base_currency,
             'release_approval' => (bool) ($settings?->release_approval ?? false),
         ]]);

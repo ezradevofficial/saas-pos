@@ -12,7 +12,7 @@ use Modules\Manufacturing\Support\Places;
  * (MFG-21): a BOM (or version) for a holder of `manufacturing.bom.view`
  * anywhere in its company (RBAC-04); anything else is not found, so ids
  * out of scope are never confirmed. Also the base of the BOM actions,
- * which need `manufacturing.bom.manage` in the company (403).
+ * which need `manufacturing.bom.manage` at the company (company scope, review fix 3) (403).
  */
 class ShowBomRequest extends FormRequest
 {
@@ -42,6 +42,6 @@ class ShowBomRequest extends FormRequest
 
     protected function manages(): bool
     {
-        return app(Places::class)->inCompany($this->user(), 'manufacturing.bom.manage', $this->bom()->company_id);
+        return app(Places::class)->atCompany($this->user(), 'manufacturing.bom.manage', $this->bom()->company_id);
     }
 }

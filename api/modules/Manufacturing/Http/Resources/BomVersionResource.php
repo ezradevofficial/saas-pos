@@ -25,7 +25,7 @@ class BomVersionResource extends JsonResource
         $version = $this->resource;
         /** @var Bom $bom */
         $bom = $version->bom;
-        $manage = $version->isDraft() && $bom->archived_at === null && app(Places::class)->inCompany($request->user(), 'manufacturing.bom.manage', $bom->company_id);
+        $manage = $version->isDraft() && $bom->archived_at === null && app(Places::class)->atCompany($request->user(), 'manufacturing.bom.manage', $bom->company_id);
 
         return [
             ...BomResource::version($version),

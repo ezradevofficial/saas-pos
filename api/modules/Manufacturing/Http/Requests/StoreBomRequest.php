@@ -41,7 +41,7 @@ class StoreBomRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
-                if ($validator->errors()->isEmpty() && ! app(Places::class)->inCompany($this->user(), 'manufacturing.bom.manage', (string) $this->input('company_id'))) {
+                if ($validator->errors()->isEmpty() && ! app(Places::class)->atCompany($this->user(), 'manufacturing.bom.manage', (string) $this->input('company_id'))) {
                     throw new AuthorizationException(__('rbac.forbidden'));
                 }
             },

@@ -96,6 +96,11 @@ class ReportsTest extends TestCase
         $this->api('PUT', "manufacturing/companies/{$this->acme->id}/settings", ['labour_rate_minor' => '120000', 'overhead_rate_minor' => '60000', 'release_approval' => true])
             ->assertOk()->assertJsonPath('data.labour_rate_minor', '120000')->assertJsonPath('data.currency', 'KES');
         $this->api('PUT', "manufacturing/companies/{$this->acme->id}/settings", ['labour_rate_minor' => '1', 'overhead_rate_minor' => '1', 'release_approval' => false], $this->planner)->assertForbidden();
+        // Review fix 4: the rates are costs: hidden from a reader without cost.view or settings.edit.
+        $storekeeper = $this->userWith('storekeeper', Scope::location($this->locationA->id));
+        $this->api('GET', "manufacturing/companies/{$this->acme->id}/settings", [], $storekeeper)->assertOk()
+            ->assertJsonPath('data.labour_rate_minor', null)->assertJsonPath('data.overhead_rate_minor', null)->assertJsonPath('data.release_approval', true);
+        $this->api('GET', "manufacturing/companies/{$this->acme->id}/settings", [], $this->planner)->assertOk()->assertJsonPath('data.labour_rate_minor', '120000');
         $this->api('GET', 'manufacturing/status')->assertOk()->assertJsonPath('data.inventory_active', true)->assertJsonPath('data.backflush_active', false);
     }
 

@@ -6,7 +6,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * POST manufacturing/bom-versions/{id}/publish (MFG-03): not found unless
- * the user sees the BOM; `manufacturing.bom.manage` in its company (403);
+ * the user sees the BOM; `manufacturing.bom.manage` at its company (company scope, review fix 3) (403);
  * `{effective_from?}` (ISO 8601; default now).
  */
 class PublishVersionRequest extends ShowBomRequest

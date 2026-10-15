@@ -58,6 +58,12 @@ class Places
         return $this->resolver->can($user, $permission, Scope::location($locationId));
     }
 
+    /** Whether $user holds $permission at $companyId itself (or tenant-wide): changing company data (review fix 3). */
+    public function atCompany(User $user, string $permission, string $companyId): bool
+    {
+        return $this->resolver->can($user, $permission, Scope::company($companyId));
+    }
+
     /** Whether $user holds $permission anywhere in $companyId (at the company, a branch or a location of it). */
     public function inCompany(User $user, string $permission, string $companyId): bool
     {

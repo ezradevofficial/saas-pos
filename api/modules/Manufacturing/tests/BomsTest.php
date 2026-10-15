@@ -170,6 +170,31 @@ class BomsTest extends TestCase
         $this->getJson('/api/v1/manufacturing/boms', $this->headersFor($other['user']))->assertOk()->assertJsonCount(0, 'data');
     }
 
+    /** Review fix 3: BOMs are changed only by a holder of manufacturing.bom.manage at the company; a branch manager reads and explodes them. */
+    public function test_bom_writes_need_the_permission_at_the_company(): void
+    {
+        $made = $this->breadBom();
+        $draft = $this->api('POST', "manufacturing/boms/{$made['bom']['id']}/versions")->assertCreated()->json('data');
+        $branchAdmin = $this->userWith('admin', Scope::branch($this->branchA->id));
+        $companyAdmin = $this->userWith('admin', Scope::company($this->acme->id));
+        $body = ['company_id' => $this->acme->id, 'item_id' => $this->burger->id, 'kind' => 'recipe', 'version' => ['output_qty' => '1', 'lines' => []]];
+
+        // The planner (branch manager at branch A) reads and explodes, but changes nothing.
+        $this->api('GET', "manufacturing/boms/{$made['bom']['id']}", [], $this->planner)->assertOk()->assertJsonPath('data.can.manage', false);
+        $this->api('GET', "manufacturing/bom-versions/{$made['version']['id']}/explode?qty=10", [], $this->planner)->assertOk();
+        $this->api('POST', 'manufacturing/boms', $body, $this->planner)->assertForbidden();
+        // A manage permission held at a branch is not enough either.
+        $this->api('POST', 'manufacturing/boms', $body, $branchAdmin)->assertForbidden();
+        $this->api('PUT', "manufacturing/bom-versions/{$draft['id']}", ['output_qty' => '1', 'lines' => []], $branchAdmin)->assertForbidden();
+        $this->api('POST', "manufacturing/bom-versions/{$draft['id']}/publish", [], $branchAdmin)->assertForbidden();
+        $this->api('POST', "manufacturing/boms/{$made['bom']['id']}/archive", [], $branchAdmin)->assertForbidden();
+        $this->api('PUT', "manufacturing/boms/{$made['bom']['id']}", ['name' => 'Renamed'], $branchAdmin)->assertForbidden();
+
+        // At the company it is.
+        $this->api('POST', 'manufacturing/boms', $body, $companyAdmin)->assertCreated();
+        $this->api('PUT', "manufacturing/boms/{$made['bom']['id']}", ['name' => 'Renamed'], $companyAdmin)->assertOk();
+    }
+
     public function test_the_routes_are_closed_without_the_module(): void
     {
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('manufacturing'));

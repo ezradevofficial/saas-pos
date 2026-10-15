@@ -77,8 +77,11 @@ return [
             // rosters and swaps, attendance, checklists and appraisals at their branch.
             'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
             'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
-            // Manufacturing (docs/modules/manufacturing.md): BOMs, production orders, reports and costs at their branch.
-            'manufacturing.*',
+            // Manufacturing (docs/modules/manufacturing.md, review fix 3, least privilege): production orders,
+            // materials, reports and costs at their branch; BOMs read and exploded only (keeping BOMs and the
+            // company's rates is company-level: Admin, Owner).
+            'manufacturing.bom.view', 'manufacturing.order.*', 'manufacturing.material.*', 'manufacturing.production.*',
+            'manufacturing.report.view', 'manufacturing.cost.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

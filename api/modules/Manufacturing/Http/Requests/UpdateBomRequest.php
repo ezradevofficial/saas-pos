@@ -8,7 +8,7 @@ use Modules\Manufacturing\CustomFields\BomEntity;
 
 /**
  * PUT manufacturing/boms/{id} (MFG-02, MFG-22): not found unless the user
- * sees the BOM; `manufacturing.bom.manage` in its company (403);
+ * sees the BOM; `manufacturing.bom.manage` at its company (company scope, review fix 3) (403);
  * `{name?, custom?}`.
  */
 class UpdateBomRequest extends ShowBomRequest

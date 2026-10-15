@@ -30,7 +30,7 @@ use Throwable;
  * (component or by-product), component item code, quantity and unit,
  * yield, wastage, explode, cost share. Each row goes into the draft
  * version of that item's BOM (made when missing) and passes the same
- * checks as the BOM editor (`manufacturing.bom.manage` in the company);
+ * checks as the BOM editor (`manufacturing.bom.manage` at the company (company scope, review fix 3));
  * publishing stays a person's act. Create mode only.
  *
  * Undo (IMP-02) removes the line while its version is still a draft
@@ -174,7 +174,7 @@ class BomLinesImporter extends Importer
 
     public function validate(PreparedRow $row, ImportContext $context): void
     {
-        if (! app(Places::class)->inCompany($context->user, 'manufacturing.bom.manage', (string) $row->input['company_id'])) {
+        if (! app(Places::class)->atCompany($context->user, 'manufacturing.bom.manage', (string) $row->input['company_id'])) {
             throw RowRejected::row(__('imports.errors.forbidden'));
         }
 
@@ -200,7 +200,7 @@ class BomLinesImporter extends Importer
 
         $companyId = (string) Bom::query()->whereKey(BomVersion::query()->whereKey($line->bom_version_id)->value('bom_id'))->value('company_id');
 
-        if (! app(Places::class)->inCompany($context->user, 'manufacturing.bom.manage', $companyId)) {
+        if (! app(Places::class)->atCompany($context->user, 'manufacturing.bom.manage', $companyId)) {
             throw RowRejected::row(__('imports.errors.forbidden'));
         }
 

@@ -67,7 +67,7 @@ class BomResource extends JsonResource
 
     private function details(Bom $bom, Request $request): array
     {
-        $manage = $bom->archived_at === null && app(Places::class)->inCompany($request->user(), 'manufacturing.bom.manage', $bom->company_id);
+        $manage = $bom->archived_at === null && app(Places::class)->atCompany($request->user(), 'manufacturing.bom.manage', $bom->company_id);
 
         return [
             'versions' => $bom->versions->map(fn (BomVersion $version) => self::version($version))->all(),
