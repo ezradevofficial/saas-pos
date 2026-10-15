@@ -125,13 +125,13 @@ class Boms
                 throw Errors::make(409, 'bom_archived');
             }
 
-            if (BomVersion::query()->where('bom_id', $bom->id)->where('status', BomVersion::DRAFT)->exists()) {
-                throw Errors::make(409, 'draft_exists');
-            }
-
             $source = $copyFrom === null
                 ? BomVersion::query()->where('bom_id', $bom->id)->orderByDesc('version_no')->first()
                 : BomVersion::query()->where('bom_id', $bom->id)->whereKey($copyFrom)->first() ?? throw Errors::make(422, 'version_other_bom', field: 'copy_from_id');
+
+            if (BomVersion::query()->where('bom_id', $bom->id)->where('status', BomVersion::DRAFT)->exists()) {
+                throw Errors::make(409, 'draft_exists');
+            }
 
             $draft = BomVersion::create([
                 'bom_id' => $bom->id,

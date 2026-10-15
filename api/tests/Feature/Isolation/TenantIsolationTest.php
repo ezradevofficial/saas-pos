@@ -197,6 +197,10 @@ class TenantIsolationTest extends TestCase
         'stores_requisition' => 'stores_requisition',
         'stores_issue' => 'stores_issue',
         'stores_return' => 'stores_return',
+        // Manufacturing (docs/modules/manufacturing.md): a BOM (its draft version), a running order.
+        'mfg_bom' => 'mfg_bom',
+        'mfg_bom_version' => 'mfg_bom_version',
+        'mfg_order' => 'mfg_order',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
         'hr_employee' => 'hr_employee',
         'hr_pay_account' => 'hr_pay_account',
@@ -315,6 +319,14 @@ class TenantIsolationTest extends TestCase
         'order_line_id' => 'procurement_order_line',
         // Stores: the issue line a return gives back to (an issue's requisition_line_id: ROUTE_REFERENCE_FIELDS).
         'issue_line_id' => 'stores_issue_line',
+        // Manufacturing: a BOM version's output unit, a published version an order takes, an order's material,
+        // by-product and issue (an issue line: ROUTE_REFERENCE_FIELDS).
+        'output_uom_id' => 'uom',
+        'bom_version_id' => 'mfg_bom_version_published',
+        'copy_from_id' => 'mfg_bom_version_published',
+        'material_id' => 'mfg_material',
+        'output_id' => 'mfg_output',
+        'issue_id' => 'mfg_issue',
         // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
         'employee_id' => 'hr_employee',
         'reports_to_id' => 'hr_employee',
@@ -336,6 +348,8 @@ class TenantIsolationTest extends TestCase
      */
     public const CONTROL_REFUSALS = [
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
+        'POST api/v1/manufacturing/boms/{mfg_bom}/versions' => ['draft_exists', 'MFG-03: the fixture BOM has its draft open (one draft per BOM); the version copied from is checked first'],
+        'PUT api/v1/manufacturing/orders/{mfg_order}' => ['document_not_open', 'MFG-10: the fixture order is running, so it no longer changes; its unit is checked first'],
     ];
 
     /**
@@ -362,6 +376,8 @@ class TenantIsolationTest extends TestCase
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
         // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
+        // Manufacturing: a return gives back lines of an order's issue (REFERENCE_FIELDS' issue_line_id is Stores').
+        'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_line_id' => 'mfg_issue_line'],
     ];
 
     /**
@@ -1051,6 +1067,13 @@ class TenantIsolationTest extends TestCase
             'stores/ledger' => ['ITEM-A', 'Store A'],
             'stores/stock' => [],
             'stores/consumption?group=cost_centre' => ['ITEM-A', 'Unit A renamed'],
+            // Manufacturing (MFG-27): its lists.
+            'manufacturing/boms' => ['MFG-PRODUCT-A', 'MFG-MENU-A'],
+            'manufacturing/orders' => ['MFG-PRODUCT-A', 'Outlet A'],
+            'manufacturing/consumption' => ['ITEM-A'],
+            'manufacturing/yield' => ['MFG-PRODUCT-A'],
+            'manufacturing/backflushes' => ['Outlet A'],
+            'manufacturing/recipe-costing' => ['MFG-MENU-A'],
             // HR (HR-35): its lists.
             'hr/employees' => ['Worker A', 'Peer A', 'Cashier A'],
             'hr/leave-requests' => ['Peer A', 'Annual A'],
@@ -1621,6 +1644,21 @@ class TenantIsolationTest extends TestCase
                 'location_id' => $tenant->id('inventory_location'), 'kind' => 'opening',
                 'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']],
             ],
+            // Manufacturing (MFG-02 to MFG-13): a BOM of the serial item from the batch item, the draft's lines,
+            // a new version, an order of the product, its update, issue, return and report.
+            'POST api/v1/manufacturing/boms' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('inventory_serial_item'), 'kind' => 'production', 'version' => [
+                'output_qty' => '1', 'output_uom_id' => $tenant->id('uom'), 'lines' => [['item_id' => $tenant->id('inventory_item'), 'uom_id' => $tenant->id('uom'), 'qty' => '1']],
+            ]],
+            'POST api/v1/manufacturing/boms/{mfg_bom}/versions' => ['copy_from_id' => $tenant->id('mfg_bom_version_published')],
+            'PUT api/v1/manufacturing/bom-versions/{mfg_bom_version}' => ['output_qty' => '1', 'output_uom_id' => $tenant->id('uom'), 'lines' => [
+                ['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom'), 'qty' => '1'],
+            ]],
+            'POST api/v1/manufacturing/orders' => ['location_id' => $tenant->id('location'), 'item_id' => $tenant->id('mfg_product'), 'bom_version_id' => $tenant->id('mfg_bom_version_published'),
+                'uom_id' => $tenant->id('uom'), 'qty' => '1'],
+            'PUT api/v1/manufacturing/orders/{mfg_order}' => ['uom_id' => $tenant->id('uom'), 'qty' => '4'],
+            'POST api/v1/manufacturing/orders/{mfg_order}/issues' => ['lines' => [['material_id' => $tenant->id('mfg_material'), 'uom_id' => $tenant->id('uom'), 'qty' => '1']]],
+            'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_id' => $tenant->id('mfg_issue'), 'reason' => 'unused', 'lines' => [['issue_line_id' => $tenant->id('mfg_issue_line'), 'qty' => '1']]],
+            'POST api/v1/manufacturing/orders/{mfg_order}/reports' => ['qty_good' => '1', 'by_products' => [['output_id' => $tenant->id('mfg_output'), 'qty' => '1']]],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [
                 'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),

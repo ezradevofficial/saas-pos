@@ -15,6 +15,7 @@ use Modules\Manufacturing\Http\Lists\BomList;
 use Modules\Manufacturing\Http\Requests\BomActionRequest;
 use Modules\Manufacturing\Http\Requests\ExplodeRequest;
 use Modules\Manufacturing\Http\Requests\ListBomsRequest;
+use Modules\Manufacturing\Http\Requests\NewVersionRequest;
 use Modules\Manufacturing\Http\Requests\PublishVersionRequest;
 use Modules\Manufacturing\Http\Requests\SaveVersionRequest;
 use Modules\Manufacturing\Http\Requests\ShowBomRequest;
@@ -91,7 +92,7 @@ class BomController
         return BomResource::make($this->boms->archive($mfgBom)->load(['company', 'item', 'versions']))->detail();
     }
 
-    public function newVersion(BomActionRequest $request, Bom $mfgBom): JsonResponse
+    public function newVersion(NewVersionRequest $request, Bom $mfgBom): JsonResponse
     {
         $version = $this->boms->newVersion($mfgBom, $request->validated('copy_from_id'), $request->user());
 

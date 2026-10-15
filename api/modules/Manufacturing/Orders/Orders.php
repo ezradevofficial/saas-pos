@@ -110,17 +110,21 @@ class Orders
     /** @param array<string, mixed> $data */
     public function update(Order $order, array $data, User $by): Order
     {
-        return Errors::transaction(function () use ($order, $data) {
+        // The quantity and unit are checked first: a unit the item does not have is refused whatever the status.
+        $item = Item::query()->findOrFail($order->item_id);
+        $quantity = array_key_exists('qty', $data) || array_key_exists('uom_id', $data)
+            ? $this->quantity($item, $data['qty'] ?? $order->qty, $data['uom_id'] ?? $order->uom_id)
+            : null;
+
+        return Errors::transaction(function () use ($order, $data, $item, $quantity) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
             if ($order->status !== Order::PLANNED) {
                 throw Errors::make(409, 'document_not_open');
             }
 
-            $item = Item::query()->findOrFail($order->item_id);
-
-            if (array_key_exists('qty', $data) || array_key_exists('uom_id', $data)) {
-                [$qty, $uomId, $qtyBase] = $this->quantity($item, $data['qty'] ?? $order->qty, $data['uom_id'] ?? $order->uom_id);
+            if ($quantity !== null) {
+                [$qty, $uomId, $qtyBase] = $quantity;
                 $order->fill(['qty' => (string) $qty, 'uom_id' => $uomId, 'qty_base' => (string) $qtyBase]);
             }
 
