@@ -22,8 +22,12 @@ class MovementKindsMigrationTest extends TestCase
 
     private const OWNER = 'pgsql_owner';
 
-    private const ALL = ['adjustment_in', 'adjustment_out', 'cost_adjustment', 'count_gain', 'count_loss', 'opening', 'opening_reversal', 'receipt',
+    private const ALL = ['adjustment_in', 'adjustment_out', 'cost_adjustment', 'count_gain', 'count_loss', 'opening', 'opening_reversal',
+        'production_issue', 'production_receipt', 'production_return', 'receipt', 'recipe_consumption', 'recipe_return',
         'sale', 'sale_return', 'sale_void', 'store_issue', 'store_return', 'transfer_in', 'transfer_loss', 'transfer_out'];
+
+    /** MFG-15: Manufacturing's kinds, inserted by its own migration. */
+    private const MANUFACTURING = ['production_issue', 'production_return', 'production_receipt', 'recipe_consumption', 'recipe_return'];
 
     private function kinds(): array
     {
@@ -76,6 +80,13 @@ class MovementKindsMigrationTest extends TestCase
             $stores->down();
             $this->assertSame(array_values(array_diff(self::ALL, ['store_issue', 'store_return'])), $this->kinds());
             $stores->up();
+            $this->assertSame(self::ALL, $this->kinds());
+
+            /** @var Migration $manufacturing */
+            $manufacturing = require base_path('modules/Manufacturing/database/migrations/2026_11_25_000100_create_manufacturing_tables.php');
+            $manufacturing->down();
+            $this->assertSame(array_values(array_diff(self::ALL, self::MANUFACTURING)), $this->kinds());
+            $manufacturing->up();
             $this->assertSame(self::ALL, $this->kinds());
         });
     }

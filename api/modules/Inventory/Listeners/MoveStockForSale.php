@@ -30,6 +30,10 @@ use Modules\POS\Events\SaleVoided;
  * - SaleCompleted: each stock item's quantity (in its base unit) leaves
  *   the sale's location (`sale`), batches taken earliest expiry first; a
  *   serial item is flagged `serial_not_captured` (no serial at the till).
+ *   Only stock items move: a made-to-order menu item (a `kit` or
+ *   `non_stock` item with a recipe) is never moved here; Manufacturing
+ *   consumes its recipe's ingredients instead (MFG-09, its MaterialsMoved
+ *   `backflush`), so the sold item and its ingredients never both move.
  * - SaleVoided: what the sale took comes back (`sale_void`), at its cost.
  * - SaleRefunded: the refunded quantities come back (`sale_return`) from
  *   the sale line's movements, in order, at their cost and into their

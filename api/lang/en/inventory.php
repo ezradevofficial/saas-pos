@@ -71,6 +71,11 @@ return [
         'cost_adjustment' => 'Landed cost added',
         'store_issue' => 'Store issue',
         'store_return' => 'Return to store',
+        'production_issue' => 'Issued to production',
+        'production_return' => 'Returned from production',
+        'production_receipt' => 'Produced',
+        'recipe_consumption' => 'Used by a recipe',
+        'recipe_return' => 'Recipe returned',
     ],
     'flags' => [
         'negative_stock' => 'Stock went below zero',
