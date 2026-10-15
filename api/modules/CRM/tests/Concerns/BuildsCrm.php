@@ -126,6 +126,13 @@ trait BuildsCrm
         });
     }
 
+    /** Move the clock; people sign in again (their sessions time out, AUTH-09). */
+    protected function clockTo(string $at): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse($at));
+        $this->organisationTokens = [];
+    }
+
     protected function rep(Scope $scope, string $name): User
     {
         return $this->inTenant(function () use ($scope, $name) {

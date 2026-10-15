@@ -9,7 +9,9 @@ use App\Core\MasterData\CompanyReach;
 use App\Core\MasterData\Parties\Http\Requests\StorePartyRequest;
 use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\Parties\PartyPolicy;
+use App\Core\MasterData\Parties\PartyRoles;
 use App\Core\MasterData\Parties\PartyWriter;
+use App\Core\MasterData\Sharing\MasterDataSharing;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
@@ -107,7 +109,8 @@ class Conversion
         $body = array_filter([
             'kind' => $input['kind'] ?? ($lead->organisation ? 'organisation' : 'person'),
             'name' => $input['name'] ?? ($lead->organisation ?: $lead->name),
-            'company_id' => $input['company_id'] ?? $lead->company_id,
+            // TEN-08: customers kept per company belong to the lead's company; shared ones to none.
+            'company_id' => $input['company_id'] ?? (PartyRoles::perCompany(['customer'], app(MasterDataSharing::class)) ? $lead->company_id : null),
             'phones' => $input['phones'] ?? ($lead->phone ? [['number' => $lead->phone]] : null),
             'emails' => $input['emails'] ?? ($lead->email ? [['address' => $lead->email]] : null),
             'tax_id' => $input['tax_id'] ?? null,

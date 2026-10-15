@@ -43,7 +43,7 @@ class Activities
     {
         return Tx::run(function () use ($data, $by) {
             $linked = $this->linked($data, $by);
-            $branchId = $data['branch_id'] ?? $linked[0]?->branch_id ?? throw CrmError::make('branch_required', field: 'branch_id');
+            $branchId = $data['branch_id'] ?? collect($linked)->filter()->first()?->branch_id ?? throw CrmError::make('branch_required', field: 'branch_id');
             $branch = $this->records->branch((string) $branchId);
             $this->access->assertAt($by, 'crm.activity.manage', $branch->id);
 
