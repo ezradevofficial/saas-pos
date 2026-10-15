@@ -84,8 +84,9 @@ describe('Payroll screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('payroll/runs/r-1/calculate', {}))
     const alert = await screen.findByRole('alert')
     expect(within(alert).getByText('Statutory values are missing')).toBeInTheDocument()
-    expect(within(alert).getByText(message)).toBeInTheDocument()
-    expect(within(alert).getByText('shif: employee_min_minor')).toBeInTheDocument()
+    // The missing values in words, never the pack's codes.
+    expect(within(alert).getByText('SHIF: minimum')).toBeInTheDocument()
+    expect(within(alert).queryByText(/employee_min_minor/)).not.toBeInTheDocument()
     // Without the post permission and before approval there is nothing to post.
     expect(screen.queryByRole('button', { name: 'Post run' })).not.toBeInTheDocument()
   })

@@ -426,6 +426,19 @@ Decisions taken while building (no owner input asked, per instructions):
     user's locale ("1 Oct 2026", "1 oct. 2026") in the inbox, the approval
     page and the email approval page, for every document type; titles
     without dates are unchanged. Approval emails keep the stored title.
+33. **Missing statutory values in words (decision, owner may change;
+    Payroll's run page, recorded here to keep payroll.md for the Payroll
+    fixes).** The run page's missing-values alert lists each component
+    and its missing values with the web's en/fr labels (the same words as
+    the API's `payroll.pack.components` and `payroll.pack.fields`), never
+    the stored codes (`paye`, `bands`); an unknown code shows as itself.
+    The API's worded message shows only when there is no list.
+34. **First paint in the remembered language (decision, owner may
+    change).** The web remembers the language last set (the profile's, or
+    the one chosen) in the browser under `app.locale` and starts in it, so
+    "Loading" before the profile arrives is already in the user's
+    language; then the profile wins as before (L10N-01). The page's `lang`
+    attribute follows.
 
 Owner decisions (2026-10-14):
 
