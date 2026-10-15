@@ -48,8 +48,6 @@ function Form({ asset }) {
     mutationFn: () => {
       const body = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '' && value !== null))
       if (body.useful_life_months) body.useful_life_months = Number.parseInt(body.useful_life_months, 10)
-      if (body.cost_minor) body.cost_minor = Number.parseInt(body.cost_minor, 10)
-      if (body.residual_minor) body.residual_minor = Number.parseInt(body.residual_minor, 10)
       // A category's terms apply unless the form names its own method.
       if (!values.method) {
         delete body.useful_life_months

@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\FixedAssets\Assets\Assets;
+use Modules\FixedAssets\Categories\Categories;
+use Modules\FixedAssets\Depreciation\Calculator;
 use Modules\FixedAssets\FixedAssetsServiceProvider;
 use Modules\FixedAssets\Http\Requests\StoreAssetRequest;
 use Modules\FixedAssets\Models\Asset;
@@ -151,6 +153,14 @@ class AssetsImporter extends Importer
 
         if ($accumulated > 0 && ($values['depreciated_to'] ?? '') === '') {
             throw new RowRejected(['depreciated_to' => [__('fixed_assets.imports.depreciated_to')]]);
+        }
+
+        // Review #8: half months only count whole months, so a mid_month book is depreciated to a month end.
+        $to = (string) ($values['depreciated_to'] ?? '');
+
+        if ($to !== '' && (string) Categories::settings($company->id)->convention === Calculator::MID_MONTH
+            && CarbonImmutable::parse($to)->endOfMonth()->toDateString() !== $to) {
+            throw new RowRejected(['depreciated_to' => [__('fixed_assets.imports.depreciated_to_month_end')]]);
         }
 
         return new PreparedRow($number, array_filter([

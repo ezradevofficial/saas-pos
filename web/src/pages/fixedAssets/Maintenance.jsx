@@ -89,7 +89,7 @@ export default function Maintenance() {
             status: values.status,
             ...(values.status === 'done' && values.completed_on ? { completed_on: values.completed_on } : {}),
             ...(values.status === 'done' && values.reading ? { reading: values.reading } : {}),
-            ...(values.cost_minor !== '' ? { cost_minor: Number(values.cost_minor), currency: values.currency } : {}),
+            ...(values.cost_minor !== '' ? { cost_minor: String(values.cost_minor), currency: values.currency } : {}),
           })}
           onClose={() => setOrder(null)}
           onDone={async () => {

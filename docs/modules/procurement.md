@@ -102,6 +102,7 @@ and values only):
 | --- | --- | --- |
 | `PurchaseOrderApproved` | A PO's flow approved it | tenant, PO id, company, branch, supplier, currency, total, base total |
 | `GoodsReceiptPosted` | A GRN posted | the Accounting payload `procurement.goods_receipt` below |
+| `GoodsReceiptCancelled` | A draft GRN cancelled | `{tenant_id, receipt_id, company_id, order_id, reference}`; not an Accounting source (Fixed assets archives drafts made from the receipt, FA-21) |
 | `SupplierInvoiceApproved` | An invoice approved | the Accounting payload `procurement.supplier_invoice` below |
 | `LandedCostAllocated` | A landed cost posted | the payload `procurement.landed_cost` below |
 | `TenderOpened`, `TenderAwarded` | Opening, award | tender id, company, bids count; awarded bid and party |

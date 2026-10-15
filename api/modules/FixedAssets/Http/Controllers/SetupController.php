@@ -159,7 +159,7 @@ class SetupController
 
         if ($unconfirmed !== [] || Category::query()->where('company_id', $company->id)->whereNull('archived_at')->doesntExist()) {
             return response()->json(['status' => 'unconfirmed', 'code' => 'tax_rates_unconfirmed', 'unconfirmed' => $unconfirmed,
-                'message' => __('fixed_assets.errors.tax_rates_unconfirmed', ['classes' => implode(', ', array_map(fn (array $row) => $row['tax_class'] ?? $row['category'], $unconfirmed)) ?: '-']),
+                'message' => __('fixed_assets.errors.tax_rates_unconfirmed', ['classes' => TaxBook::names($unconfirmed)]),
                 'data' => []]);
         }
 
@@ -169,6 +169,7 @@ class SetupController
 
         return response()->json(['status' => 'confirmed', 'data' => array_map(fn (array $row) => [
             ...$row, 'opening' => $money($row['opening']), 'allowance' => $money($row['allowance']), 'closing' => $money($row['closing']),
+            'proceeds' => $row['proceeds'] === null ? null : $money($row['proceeds']),
         ], $rows)]);
     }
 

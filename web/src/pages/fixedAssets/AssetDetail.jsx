@@ -371,7 +371,7 @@ export default function AssetDetail() {
           method: values.method,
           reason: values.reason,
           ...(values.useful_life_months ? { useful_life_months: Number(values.useful_life_months) } : {}),
-          ...(values.residual_minor !== '' ? { residual_minor: Number(values.residual_minor) } : {}),
+          ...(values.residual_minor !== '' ? { residual_minor: String(values.residual_minor) } : {}),
           ...(values.method === 'declining_balance' && values.declining_rate ? { declining_rate: values.declining_rate } : {}),
         })}
         onClose={() => setDialog(null)}
@@ -419,7 +419,7 @@ export default function AssetDetail() {
           { name: 'value_minor', label: t('fixedAssets.revaluations.value'), help: t('fixedAssets.revaluations.valueHelp'), type: 'money', currencyCode: base, required: true },
           { name: 'reason', label: t('fixedAssets.fields.reason'), required: true },
         ]}
-        toBody={(values) => ({ ...values, value_minor: Number(values.value_minor) })}
+        toBody={(values) => ({ ...values, value_minor: String(values.value_minor) })}
         onClose={() => setDialog(null)}
         onDone={() => refresh(t('fixedAssets.revaluations.posted'))}
       />
@@ -441,7 +441,7 @@ export default function AssetDetail() {
           kind: values.kind,
           disposal_date: values.disposal_date,
           reason: values.reason,
-          ...(values.kind === 'sale' ? { proceeds_minor: Number(values.proceeds_minor), currency: values.currency } : {}),
+          ...(values.kind === 'sale' ? { proceeds_minor: String(values.proceeds_minor), currency: values.currency } : {}),
         })}
         onClose={() => setDialog(null)}
         onDone={(response) => {

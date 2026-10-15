@@ -2,12 +2,11 @@
 
 namespace Modules\FixedAssets\Depreciation;
 
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
-use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Support\Facades\DB;
 use Modules\FixedAssets\Categories\Categories;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\DepreciationLine;
@@ -18,6 +17,7 @@ use Modules\FixedAssets\Models\Revaluation;
 use Modules\FixedAssets\Postings\Postings;
 use Modules\FixedAssets\Support\ClosedBooks;
 use Modules\FixedAssets\Support\FaError;
+use Modules\FixedAssets\Support\RunLock;
 
 /**
  * FA-12, FA-13: monthly depreciation runs of a company.
@@ -91,7 +91,7 @@ class Runs
 
         try {
             return FaError::transaction(function () use ($company, $month, $period, $end, $by) {
-                DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['fa_runs:'.$company->id]);
+                RunLock::take($company->id);
 
                 if (DepreciationRun::query()->where('company_id', $company->id)->where('period', $period->toDateString())->where('status', 'posted')->exists()) {
                     throw FaError::make('run_exists', ['month' => $month], 'period', 409);
@@ -104,25 +104,52 @@ class Runs
                 }
 
                 $this->books->assertOpen($company->id, $end, 'period');
-                $preview = $this->preview($company, $month);
+                $this->assertNotFuture($company, $period);
+
+                // Review #5: disposals dated in the month or before charge their own last depreciation; they settle first.
+                $open = Disposal::query()->where('company_id', $company->id)->whereIn('status', ['pending', 'approved'])
+                    ->where('disposal_date', '<=', $end->toDateString())->orderBy('number')->pluck('number')->all();
+
+                if ($open !== []) {
+                    $error = FaError::make('disposals_open', ['disposals' => implode(', ', $open)], 'period');
+
+                    throw new ApiException(422, $error->errorCode, $error->getMessage(), $error->errors, ['disposals' => $open]);
+                }
+
+                $convention = (string) Categories::settings($company->id)->convention;
+                $lines = [];
+
+                // Review #3: each charge is worked out again once its asset's row is locked; an asset no longer in use is left out.
+                foreach ($this->preview($company, $month)['lines'] as $line) {
+                    $asset = Asset::query()->whereKey($line['asset']->id)->lockForUpdate()->firstOrFail();
+                    $span = $asset->status === Asset::ACTIVE && $asset->archived_at === null ? $this->spans->next($asset, $end, $convention) : null;
+
+                    if ($span === null || $span['charge']->amount <= 0) {
+                        continue;
+                    }
+
+                    $amount = $span['charge']->amount;
+                    $lines[] = ['asset' => $asset, 'from' => $span['from']->toDateString(), 'to' => $span['to']->toDateString(), 'amount' => $amount,
+                        'units' => $span['charge']->units, 'accumulated_after' => (int) $asset->accumulated_minor + $amount, 'book_value_after' => $asset->bookValue() - $amount];
+                }
 
                 $run = DepreciationRun::query()->create([
                     'company_id' => $company->id,
                     'period' => $period->toDateString(),
                     'period_end' => $end->toDateString(),
                     'status' => 'posted',
-                    'convention' => $preview['convention'],
+                    'convention' => $convention,
                     'base_currency' => (string) $company->base_currency,
-                    'total_minor' => $preview['total'],
-                    'assets_count' => count($preview['lines']),
+                    'total_minor' => array_sum(array_column($lines, 'amount')),
+                    'assets_count' => count($lines),
                     'posted_by' => $by->id,
                     'posted_at' => CarbonImmutable::now(),
                 ]);
                 $groups = [];
 
-                foreach ($preview['lines'] as $line) {
+                foreach ($lines as $line) {
                     /** @var Asset $asset */
-                    $asset = Asset::query()->whereKey($line['asset']->id)->lockForUpdate()->firstOrFail();
+                    $asset = $line['asset'];
                     DepreciationLine::query()->create([
                         'run_id' => $run->id,
                         'asset_id' => $asset->id,
@@ -163,7 +190,8 @@ class Runs
     public function reverse(DepreciationRun $run, User $by, string $reason): DepreciationRun
     {
         return FaError::transaction(function () use ($run, $by, $reason) {
-            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['fa_runs:'.$run->company_id]);
+            RunLock::take($run->company_id);
+            // Review #3: the run's status is read again under the lock.
             $run = DepreciationRun::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
             $latest = DepreciationRun::query()->where('company_id', $run->company_id)->where('status', 'posted')->orderByDesc('period')->first();
 
@@ -201,6 +229,16 @@ class Runs
 
             return $run->refresh();
         });
+    }
+
+    /** Review #6: a month that has not started in the company's time zone is refused (`period_future`). */
+    public function assertNotFuture(Company $company, CarbonImmutable $period): void
+    {
+        $current = CarbonImmutable::now($company->timezone ?: 'UTC')->startOfMonth()->toDateString();
+
+        if ($period->toDateString() > $current) {
+            throw FaError::make('period_future', ['month' => $period->format('Y-m')], 'period');
+        }
     }
 
     /** The month after the company's latest posted run (Y-m-d), or null before its first run. */

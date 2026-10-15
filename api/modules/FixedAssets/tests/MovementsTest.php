@@ -156,10 +156,10 @@ class MovementsTest extends TestCase
         $this->assertSame(['125000000', '0', '125000000'], [$revalued['book_cost']['amount_minor'], $revalued['accumulated']['amount_minor'], $revalued['book_value']['amount_minor']]);
 
         $surplus = 125000000 - (120000000 - $charged);
-        // Impaired to 100 000 000: the surplus first, the rest a loss.
-        $this->api('POST', "assets/{$asset['id']}/revaluations", ['kind' => 'impairment', 'revalued_on' => '2026-02-01', 'value_minor' => 100000000, 'reason' => 'Damage'])
+        // Impaired to 100 000 000 the same day (no depreciation in between): the surplus first, the rest a loss.
+        $this->api('POST', "assets/{$asset['id']}/revaluations", ['kind' => 'impairment', 'revalued_on' => '2026-01-31', 'value_minor' => 100000000, 'reason' => 'Damage'])
             ->assertCreated()->assertJsonPath('data.surplus_change.amount_minor', (string) -$surplus)->assertJsonPath('data.pnl_change.amount_minor', (string) -(25000000 - $surplus));
-        $this->api('POST', "assets/{$asset['id']}/revaluations", ['kind' => 'impairment', 'revalued_on' => '2026-02-01', 'value_minor' => 100000000, 'reason' => 'Again'])
+        $this->api('POST', "assets/{$asset['id']}/revaluations", ['kind' => 'impairment', 'revalued_on' => '2026-01-31', 'value_minor' => 100000000, 'reason' => 'Again'])
             ->assertStatus(422)->assertJsonPath('code', 'value_not_lower');
         $category = $this->vehicles->id;
         Event::assertDispatched(AssetImpaired::class, fn (AssetImpaired $e) => $e->amounts === [

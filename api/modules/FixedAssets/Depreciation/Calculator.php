@@ -55,6 +55,21 @@ final class Calculator
             return new Charge(0);
         }
 
+        // FA-08 (review #13): a declining-balance span across years compounds year by year, each on its own length.
+        if ($book->method === AssetBook::DECLINING_BALANCE && $from->year !== $to->year) {
+            $total = 0;
+            $units = 0;
+
+            for ($start = $from; $start <= $to; $start = $start->endOfYear()->startOfDay()->addDay()) {
+                $end = $start->endOfYear()->startOfDay() < $to ? $start->endOfYear()->startOfDay() : $to;
+                $part = $this->charge($book->after($total), $start, $end, $convention, $disposal && $end == $to);
+                $total += $part->amount;
+                $units += (int) $part->units;
+            }
+
+            return new Charge($total, (string) $units);
+        }
+
         [$span, $left] = $convention === self::MID_MONTH
             ? $this->halves($book, $from, $to, $disposal)
             : $this->days($book, $from, $to);

@@ -14,7 +14,7 @@ use Modules\FixedAssets\Support\FaError;
 /**
  * FA-25: asset labels, one document per copy, printed through the
  * template that applies at the asset's company (TPL-05). Only assets the
- * person sees (`asset_unknown` otherwise). Audited as
+ * person sees and may label at their location (`asset_unknown` otherwise). Audited as
  * `fixed_assets.label.print` with what was printed.
  */
 class Labels
@@ -35,7 +35,8 @@ class Labels
         foreach (array_values($labels) as $index => $label) {
             $asset = Asset::query()->with(['location', 'category', 'company'])->find($label['asset_id']);
 
-            if ($asset === null || ! $this->access->at($by, 'fixed_assets.asset.view', $asset)) {
+            // Review #12: seen and printable at the asset's own place.
+            if ($asset === null || ! $this->access->at($by, 'fixed_assets.asset.view', $asset) || ! $this->access->at($by, 'fixed_assets.label.print', $asset)) {
                 throw FaError::make('asset_unknown', field: "labels.{$index}.asset_id");
             }
 

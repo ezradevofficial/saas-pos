@@ -13,8 +13,10 @@
         "telecommunication: method, annual rate and effective date.",
         "other: any other class (farm works, intangibles), its method and rate.",
         "Investment deduction: whether it applies in the first year, for which assets and at what rate.",
-        "The year of acquisition (full year or pro rata) and disposals (balancing allowance or charge)."
+        "acquisition_rule: whether the year of acquisition counts as a full year (full_year) or pro rata by months in service (pro_rata_months), with the legal reference.",
+        "Disposals: the balancing allowance or charge in the year of disposal (until confirmed the tax book gives no allowance that year and computes no balancing adjustment)."
     ],
+    "acquisition_rule": {"value": null, "needs_confirmation": true},
     "classes": [
         {"key": "buildings", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
         {"key": "machinery", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},

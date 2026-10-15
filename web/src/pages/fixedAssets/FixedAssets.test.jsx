@@ -115,6 +115,21 @@ describe('Fixed assets (FA-04, FA-05, FA-12, FA-17, FA-20)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('fixed-assets/assets/a-1/disposals', { kind: 'scrap', disposal_date: '2026-10-01', reason: 'Crashed' }))
   })
 
+  it('sends sale proceeds as a digit string of minor units', async () => {
+    // Review #16: never through a JavaScript number, which loses digits past 2^53.
+    setup(ACTIVE)
+    api.post.mockResolvedValue({ data: { id: 'd-1', number: 'FAD-WL-2026-00001' } })
+    renderApp('/fixed-assets/assets/a-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Dispose' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/^Disposal date/), { target: { value: '2026-10-01' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Proceeds/), { target: { value: '90,071,992,547,409.93' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Reason/), { target: { value: 'Sold' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Request disposal' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('fixed-assets/assets/a-1/disposals',
+      expect.objectContaining({ kind: 'sale', proceeds_minor: '9007199254740993' })))
+  })
+
   it('previews a month of depreciation before posting it', async () => {
     setup(ACTIVE)
     api.post.mockResolvedValue({ data: { id: 'r-1', period: '2026-01' } })

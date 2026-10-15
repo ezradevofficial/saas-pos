@@ -37,7 +37,9 @@ class TaxBookTest extends TestCase
             ->assertJsonPath('code', 'tax_rates_unconfirmed')->assertJsonPath('data', []);
         $settings = $this->api('GET', "companies/{$this->acme->id}/settings")->assertOk()->json('data');
         $this->assertFalse($settings['tax_book']);
-        $this->assertCount(4, $settings['tax_unconfirmed']);
+        // The four categories without a confirmed class, then the year-of-acquisition rule.
+        $this->assertCount(5, $settings['tax_unconfirmed']);
+        $this->assertSame('acquisition_rule', end($settings['tax_unconfirmed'])['tax_class']);
     }
 
     public function test_a_confirmed_pack_computes_the_allowances(): void
@@ -46,7 +48,7 @@ class TaxBookTest extends TestCase
         app(TaxClasses::class)->override('KE', ['classes' => [
             ['key' => 'machinery', 'method' => 'reducing_balance', 'rate' => '25', 'needs_confirmation' => false],
             ['key' => 'buildings', 'method' => 'straight_line', 'rate' => '10', 'needs_confirmation' => false],
-        ]]);
+        ], 'acquisition_rule' => ['value' => 'full_year', 'needs_confirmation' => false]]);
 
         foreach ([$this->vehicles, $this->computers, $this->plant] as $category) {
             $this->api('PATCH', "categories/{$category->id}", ['tax_class' => 'machinery'])->assertOk();

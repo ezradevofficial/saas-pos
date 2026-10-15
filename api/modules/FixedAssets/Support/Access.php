@@ -29,6 +29,14 @@ class Access
         return $this->scopes->can($user, $permission, Scope::company($companyId));
     }
 
+    /** Review #7: $permission held at $companyId or at any of its branches or locations. */
+    public function inCompany(User $user, string $permission, string $companyId): bool
+    {
+        $touched = $this->scopes->visibleIds($user, $permission)->companiesTouched();
+
+        return $touched === null || in_array($companyId, $touched, true);
+    }
+
     public function anywhere(User $user, string $permission): bool
     {
         return $this->scopes->can($user, $permission);

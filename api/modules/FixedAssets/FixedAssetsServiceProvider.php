@@ -30,12 +30,14 @@ use Modules\FixedAssets\Documents\TransferType;
 use Modules\FixedAssets\Http\Lists\AssetList;
 use Modules\FixedAssets\Imports\AssetsImporter;
 use Modules\FixedAssets\Labels\LabelSource;
+use Modules\FixedAssets\Listeners\CancelDraftsOfReceipt;
 use Modules\FixedAssets\Listeners\CapitaliseFromProcurement;
 use Modules\FixedAssets\Listeners\SettleFixedAssetDocument;
 use Modules\FixedAssets\Maintenance\Reminders;
 use Modules\FixedAssets\Postings\Postings;
 use Modules\FixedAssets\Support\Numbers;
 use Modules\FixedAssets\TaxBook\TaxClasses;
+use Modules\Procurement\Events\GoodsReceiptCancelled;
 use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Events\SupplierInvoiceApproved;
 
@@ -116,6 +118,10 @@ class FixedAssetsServiceProvider extends ServiceProvider
             if (class_exists($event)) {
                 Event::listen($event, CapitaliseFromProcurement::class);
             }
+        }
+
+        if (class_exists(GoodsReceiptCancelled::class)) {
+            Event::listen(GoodsReceiptCancelled::class, CancelDraftsOfReceipt::class);
         }
 
         // NUM-01, FA-27.

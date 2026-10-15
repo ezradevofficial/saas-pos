@@ -4,12 +4,16 @@ namespace Modules\FixedAssets\Documents;
 
 use App\Core\Identity\Models\User;
 use Carbon\CarbonImmutable;
+use Modules\FixedAssets\Categories\Categories;
+use Modules\FixedAssets\Depreciation\Calculator;
+use Modules\FixedAssets\Depreciation\Spans;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\Revaluation;
 use Modules\FixedAssets\Postings\Postings;
 use Modules\FixedAssets\Support\ClosedBooks;
 use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\History;
+use Modules\FixedAssets\Support\RunLock;
 
 /**
  * FA-15, FA-16: revaluations (elimination method, decision 6) and
@@ -23,7 +27,13 @@ use Modules\FixedAssets\Support\History;
  *   surplus; a decrease first uses its surplus, the rest is a `loss`.
  * - impairment to a recoverable amount R below the book value: the loss
  *   is added to impairment, first against the surplus, the rest in profit
- *   or loss.
+ *   or loss, and that part is remembered as a revaluation loss, so a later
+ *   upward revaluation reverses it through profit or loss first.
+ *
+ * Both first charge the depreciation not yet charged up to the date (by
+ * days; under `mid_month` up to the end of the month before), posted as its
+ * own depreciation source, the way a disposal does; both hold the company's
+ * run lock (review #3, #4, #10).
  */
 class Revaluations
 {
@@ -33,12 +43,14 @@ class Revaluations
         private readonly ClosedBooks $books,
         private readonly Postings $postings,
         private readonly History $history,
+        private readonly Spans $spans,
     ) {}
 
     /** @param array{kind: string, revalued_on: string, value_minor: int|string, reason: string} $data */
     public function post(Asset $asset, array $data, User $by): Revaluation
     {
         return FaError::transaction(function () use ($asset, $data, $by) {
+            RunLock::take($asset->company_id);
             $asset = Asset::query()->whereKey($asset->id)->lockForUpdate()->firstOrFail();
             $date = CarbonImmutable::parse($data['revalued_on']);
 
@@ -51,6 +63,8 @@ class Revaluations
             }
 
             $this->books->assertOpen($asset->company_id, $date, 'revalued_on');
+            $id = (new Revaluation)->newUniqueId();
+            $this->catchUp($asset, $date, $id);
             $value = (int) $data['value_minor'];
             $before = History::book($asset);
             $cost = (int) $asset->book_cost_minor;
@@ -69,7 +83,7 @@ class Revaluations
                 $loss = $bookValue - $value;
                 $used = min($loss, $surplus);
                 $pnl = $loss - $used;
-                $asset->fill(['impairment_minor' => $impairment + $loss, 'surplus_minor' => $surplus - $used])->save();
+                $asset->fill(['impairment_minor' => $impairment + $loss, 'surplus_minor' => $surplus - $used, 'revaluation_loss_minor' => $losses + $pnl])->save();
                 $amounts = ['impairment' => $pnl, 'surplus' => $used, "accumulated.{$category}" => $loss];
                 [$surplusChange, $pnlChange, $source] = [-$used, -$pnl, Postings::IMPAIRMENT];
             } else {
@@ -106,6 +120,7 @@ class Revaluations
             }
 
             $revaluation = Revaluation::query()->create([
+                'id' => $id,
                 'company_id' => $asset->company_id,
                 'asset_id' => $asset->id,
                 'kind' => $data['kind'],
@@ -125,5 +140,22 @@ class Revaluations
 
             return $revaluation;
         });
+    }
+
+    /** Review #4: depreciation up to $date (under `mid_month`, to the end of the month before), charged and posted first. */
+    private function catchUp(Asset $asset, CarbonImmutable $date, string $id): void
+    {
+        $convention = (string) Categories::settings($asset->company_id)->convention;
+        $to = $convention === Calculator::MID_MONTH ? $date->startOfMonth()->subDay() : $date;
+        $span = $this->spans->next($asset, $to, $convention);
+
+        if ($span === null || $span['charge']->amount <= 0) {
+            return;
+        }
+
+        $charge = $span['charge']->amount;
+        $asset->fill(['accumulated_minor' => (int) $asset->accumulated_minor + $charge, 'depreciated_to' => $to->toDateString()])->save();
+        $this->postings->raise(Postings::DEPRECIATION, 'revaluation', $id, $asset->company_id, $asset->branch_id, $asset->cost_centre_id, null, $to,
+            (string) $asset->base_currency, ["depreciation.{$asset->category_id}" => $charge, "accumulated.{$asset->category_id}" => $charge], $asset->number, null);
     }
 }

@@ -60,7 +60,7 @@ export default function Settings() {
                     { key: 'method', label: t('fixedAssets.fields.method'), render: (row) => (row.method ? t(`fixedAssets.taxMethods.${row.method}`) : t('fixedAssets.settings.needsConfirmation')) },
                     { key: 'rate', label: t('fixedAssets.settings.rate'), align: 'end', render: (row) => (row.rate ? `${row.rate}%` : t('fixedAssets.settings.needsConfirmation')) },
                   ]}
-                  rows={(settings.tax_classes ?? []).map((row) => ({ ...row, id: row.key }))}
+                  rows={(settings.tax_classes ?? []).map((row) => ({ ...row, id: `${row.key}:${row.effective_from ?? ''}` }))}
                   emptyText={t('fixedAssets.settings.noClasses')}
                 />
                 {settings.tax_todo?.length ? (

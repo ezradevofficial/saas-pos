@@ -12,11 +12,13 @@ use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Modules\FixedAssets\Assets\Assets;
 use Modules\FixedAssets\FixedAssetsServiceProvider;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\ItemCategory;
 use Modules\FixedAssets\Support\Decimals;
+use Modules\FixedAssets\Support\FaError;
 use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Events\SupplierInvoiceApproved;
 
@@ -28,8 +30,11 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
  * (at most 50 a line; otherwise one for the line), the line's base value
  * (with its landed cost) split by largest remainder, its serials one per
  * draft. A line makes drafts once (a unique index on the source line):
- * a retried or replayed event creates nothing new. An invoice line whose
- * PO line already gave drafts from a GRN is skipped.
+ * a retried or replayed event creates nothing new. A PO line is
+ * capitalised from one side only, whichever comes first (review #2): a GRN
+ * line whose PO line already gave drafts from an invoice is skipped, and
+ * the other way round, each line under a transaction-scoped advisory lock
+ * on its PO line so a GRN and an invoice never capitalise it side by side.
  */
 class CapitaliseFromProcurement implements ShouldQueue
 {
@@ -83,7 +88,7 @@ class CapitaliseFromProcurement implements ShouldQueue
 
             if ($event instanceof GoodsReceiptPosted) {
                 foreach ($event->lines as $line) {
-                    $this->line($company, $flagged, $line, (int) $line['base_value_minor'] + (int) ($line['landed_minor'] ?? 0), (string) $line['location_id'],
+                    $this->guarded($company, $flagged, $line, (int) $line['base_value_minor'] + (int) ($line['landed_minor'] ?? 0), (string) $line['location_id'],
                         Asset::FROM_RECEIPT, $event->receiptId, $date, $event->dimensions['party_id'] ?? null, $event->reference);
                 }
 
@@ -93,14 +98,43 @@ class CapitaliseFromProcurement implements ShouldQueue
             $location = $event->document['location_id'] ?? null;
 
             foreach ((array) ($event->document['lines'] ?? []) as $line) {
-                if (! isset($line['line_id'], $line['order_line_id']) || $location === null
-                    || Asset::query()->where('order_line_id', $line['order_line_id'])->where('source', Asset::FROM_RECEIPT)->exists()) {
+                if (! isset($line['line_id'], $line['order_line_id']) || $location === null) {
                     continue;
                 }
 
-                $this->line($company, $flagged, $line, (int) $line['base_net_minor'], (string) $location, Asset::FROM_INVOICE, $event->invoiceId, $date,
+                $this->guarded($company, $flagged, $line, (int) $line['base_net_minor'], (string) $location, Asset::FROM_INVOICE, $event->invoiceId, $date,
                     $event->document['party_id'] ?? null, (string) ($event->document['supplier_reference'] ?? $event->reference));
             }
+        });
+    }
+
+    /**
+     * One line, under its PO line's lock, unless the other side already
+     * capitalised that PO line.
+     *
+     * @param  array<string, string>  $flagged  item id => category id
+     * @param  array<string, mixed>  $line
+     */
+    private function guarded(Company $company, array $flagged, array $line, int $baseValue, string $locationId, string $source, string $sourceId,
+        string $date, ?string $partyId, ?string $reference): void
+    {
+        $orderLine = $line['order_line_id'] ?? null;
+
+        if ($orderLine === null) {
+            $this->line($company, $flagged, $line, $baseValue, $locationId, $source, $sourceId, $date, $partyId, $reference);
+
+            return;
+        }
+
+        FaError::transaction(function () use ($company, $flagged, $line, $baseValue, $locationId, $source, $sourceId, $date, $partyId, $reference, $orderLine) {
+            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['fa_order_line:'.$orderLine]);
+            $other = $source === Asset::FROM_RECEIPT ? Asset::FROM_INVOICE : Asset::FROM_RECEIPT;
+
+            if (Asset::query()->where('order_line_id', $orderLine)->where('source', $other)->exists()) {
+                return;
+            }
+
+            $this->line($company, $flagged, $line, $baseValue, $locationId, $source, $sourceId, $date, $partyId, $reference);
         });
     }
 

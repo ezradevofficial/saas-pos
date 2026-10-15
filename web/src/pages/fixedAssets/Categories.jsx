@@ -40,7 +40,7 @@ export default function Categories() {
     },
   })
   const unflag = useMutation({ mutationFn: (id) => api.post(`fixed-assets/item-categories/${id}/archive`), onSuccess: refresh })
-  const taxClasses = (settings?.tax_classes ?? []).map((row) => ({ value: row.key, label: t(`fixedAssets.taxClasses.${row.key}`, { defaultValue: row.key }) }))
+  const taxClasses = [...new Set((settings?.tax_classes ?? []).map((row) => row.key))].map((key) => ({ value: key, label: t(`fixedAssets.taxClasses.${key}`, { defaultValue: key }) }))
   const rows = categories.data?.data ?? []
 
   const columns = [

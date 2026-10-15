@@ -186,6 +186,20 @@ class DepreciationMathTest extends TestCase
         $this->assertSame(70_000, $this->calculator->charge($book, self::d('2026-01-01'), self::d('2026-01-31'), Calculator::DAYS)->amount);
     }
 
+    public function test_a_declining_balance_catch_up_across_years_compounds_with_each_years_length(): void
+    {
+        // Review #13: 40 % a year over 120 months; a catch-up from 2027-11-01 to 2028-02-29 is 2027's part
+        // on 365 days, then 2028's part on 366 days from the reduced book value.
+        $book = new AssetBook(AssetBook::DECLINING_BALANCE, self::d('2027-01-01'), 120, 10_000_000, rate: '40');
+        $book = $book->after(3_000_000);
+        $late2027 = $this->calculator->charge($book, self::d('2027-11-01'), self::d('2027-12-31'), Calculator::DAYS)->amount;
+        $early2028 = $this->calculator->charge($book->after($late2027), self::d('2028-01-01'), self::d('2028-02-29'), Calculator::DAYS)->amount;
+
+        $this->assertSame(intdiv(7_000_000 * 40 * 61 * 2 + 36_500, 36_500 * 2), $late2027);
+        $this->assertSame(intdiv((7_000_000 - $late2027) * 40 * 60 * 2 + 36_600, 36_600 * 2), $early2028);
+        $this->assertSame($late2027 + $early2028, $this->calculator->charge($book, self::d('2027-11-01'), self::d('2028-02-29'), Calculator::DAYS)->amount);
+    }
+
     public function test_a_span_over_several_months_catches_up(): void
     {
         // Activated in March, first charged in the May run: March 15 to May 31 at 1 000 a day.

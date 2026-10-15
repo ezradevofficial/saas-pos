@@ -5,10 +5,19 @@ namespace Modules\FixedAssets\Tests;
 use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Modules\FixedAssets\Listeners\CancelDraftsOfReceipt;
+use Modules\FixedAssets\Listeners\CapitaliseFromProcurement;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\Category;
+use Modules\Procurement\Events\GoodsReceiptCancelled;
+use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Tests\Concerns\BuildsProcurement;
+use PDO;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -81,6 +90,69 @@ class ProcurementCapitalisationTest extends TestCase
 
         // The GRN made both drafts; the invoice adds none.
         $this->assertCount(2, $this->drafts());
+    }
+
+    public function test_a_grn_after_an_invoice_adds_no_drafts_for_the_same_order_line(): void
+    {
+        // Review #2: invoiced (and approved over the match exception) before the goods came in.
+        $this->flag($this->laptop)->assertCreated();
+        $order = $this->approvedOrder([], [['item_id' => $this->laptop->id, 'qty' => '2', 'unit_price_minor' => '150000']]);
+        $invoice = $this->api('POST', 'procurement/invoices', [
+            'order_id' => $order['id'], 'supplier_reference' => 'INV-78', 'invoice_date' => '2026-10-15',
+            'lines' => [['order_line_id' => $order['lines'][0]['id'], 'qty' => '2', 'unit_price_minor' => '150000']],
+        ], $this->buyer)->assertCreated()->json('data');
+        $this->api('POST', "procurement/invoices/{$invoice['id']}/approve", ['override_reason' => 'Billed before delivery'])->assertOk();
+        $this->assertSame(['procurement_invoice', 'procurement_invoice'], array_map(fn (Asset $a) => $a->source, $this->drafts()));
+
+        $this->postedReceipt($order);
+        $this->assertCount(2, $this->drafts());
+    }
+
+    public function test_capitalising_a_line_waits_for_its_order_line_lock(): void
+    {
+        // Review #2: a GRN and an invoice of one order line never capitalise it side by side.
+        $this->flag($this->laptop)->assertCreated();
+        $order = $this->approvedOrder([], [['item_id' => $this->laptop->id, 'qty' => '1', 'unit_price_minor' => '150000']]);
+        $lineId = $order['lines'][0]['id'];
+        $event = new GoodsReceiptPosted($this->owner->tenant_id, (string) Str::uuid(), $this->acme->id, '2026-10-15', 'KES', [], [], ['party_id' => null], 'GRN-X', $order['id'],
+            [['line_id' => (string) Str::uuid(), 'order_line_id' => $lineId, 'item_id' => $this->laptop->id, 'description' => 'Laptop', 'qty' => '1',
+                'base_value_minor' => '150000', 'landed_minor' => '0', 'serials' => [], 'location_id' => $this->locationA->id]]);
+
+        $config = config('database.connections.pgsql');
+        $other = new PDO("pgsql:host={$config['host']};port={$config['port']};dbname={$config['database']}", $config['username'], $config['password']);
+        $other->prepare('select pg_advisory_lock(hashtextextended(?, 0))')->execute(['fa_order_line:'.$lineId]);
+        DB::statement("set lock_timeout = '300ms'");
+
+        try {
+            $this->expectException(QueryException::class);
+            app(CapitaliseFromProcurement::class)->handle($event);
+        } finally {
+            $other->prepare('select pg_advisory_unlock(hashtextextended(?, 0))')->execute(['fa_order_line:'.$lineId]);
+        }
+    }
+
+    public function test_a_cancelled_grn_cancels_its_draft_assets(): void
+    {
+        // Review #14: Procurement says so (GoodsReceiptCancelled); drafts made from that GRN are archived.
+        Event::fake([GoodsReceiptCancelled::class]);
+        $order = $this->approvedOrder([], [['item_id' => $this->laptop->id, 'qty' => '1', 'unit_price_minor' => '150000']]);
+        $receipt = $this->api('POST', 'procurement/receipts', ['order_id' => $order['id'],
+            'lines' => [['order_line_id' => $order['lines'][0]['id'], 'received_qty' => '1']]])->assertCreated()->json('data');
+        $this->api('POST', "procurement/receipts/{$receipt['id']}/cancel", ['reason' => 'Wrong order'])->assertOk();
+        Event::assertDispatched(GoodsReceiptCancelled::class, fn (GoodsReceiptCancelled $e) => $e->receiptId === $receipt['id'] && $e->tenantId === $this->owner->tenant_id);
+
+        // Only drafts of a posted GRN can exist in practice; the listener still archives any it finds, and leaves others alone.
+        [$fromIt, $other] = $this->inTenant(fn () => [
+            Asset::query()->create(['company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'location_id' => $this->locationA->id, 'number' => 'FA-T-1', 'name' => 'Laptop',
+                'category_id' => $this->computers->id, 'status' => Asset::DRAFT, 'currency' => 'KES', 'base_currency' => 'KES', 'source' => Asset::FROM_RECEIPT, 'source_id' => $receipt['id']])->id,
+            Asset::query()->create(['company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'location_id' => $this->locationA->id, 'number' => 'FA-T-2', 'name' => 'Laptop',
+                'category_id' => $this->computers->id, 'status' => Asset::DRAFT, 'currency' => 'KES', 'base_currency' => 'KES', 'source' => Asset::FROM_RECEIPT, 'source_id' => (string) Str::uuid()])->id,
+        ]);
+        app(CancelDraftsOfReceipt::class)->handle(new GoodsReceiptCancelled($this->owner->tenant_id, $receipt['id'], $this->acme->id, $order['id'], (string) $receipt['number']));
+
+        $archived = $this->inTenant(fn () => Asset::query()->whereKey([$fromIt, $other])->pluck('archived_at', 'id')->all());
+        $this->assertNotNull($archived[$fromIt]);
+        $this->assertNull($archived[$other]);
     }
 
     public function test_nothing_happens_while_fixed_assets_is_off(): void

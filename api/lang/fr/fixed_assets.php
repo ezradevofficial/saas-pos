@@ -36,6 +36,9 @@ return [
         'period_depreciated' => 'Cette immobilisation est déjà amortie jusqu’au :date. Choisissez cette date ou une date ultérieure, ou annulez d’abord le calcul.',
         'run_exists' => 'Les amortissements de :month sont déjà comptabilisés. Actualisez la page pour les voir.',
         'run_out_of_order' => 'Les calculs se comptabilisent mois après mois. Comptabilisez d’abord :month.',
+        'disposals_open' => 'Des cessions datées de ce mois ou d’avant sont encore ouvertes : :disposals. Comptabilisez-les ou annulez-les d’abord.',
+        'period_future' => ':month n’a pas encore commencé. Choisissez ce mois-ci ou un mois antérieur.',
+        'reading_depreciated' => 'Cette immobilisation est déjà amortie jusqu’au :date. Saisissez un relevé daté après.',
         'run_not_latest' => 'Seul le dernier calcul comptabilisé peut être annulé.',
         'run_has_later_entries' => 'Une immobilisation de ce calcul a depuis été réévaluée, dépréciée ou cédée, le calcul ne peut donc pas être annulé. Annulez d’abord ces opérations.',
         'transfer_pending' => 'Cette immobilisation a déjà un transfert en attente d’approbation. Terminez-le ou annulez-le d’abord.',
@@ -137,9 +140,13 @@ return [
     'imports' => [
         'amount' => 'Saisissez un montant avec au plus :decimals décimales.',
         'depreciated_to' => 'Saisissez la date jusqu’à laquelle courent les amortissements cumulés.',
+        'depreciated_to_month_end' => 'Avec la convention de mi-mois, l’amortissement court jusqu’à une fin de mois. Saisissez le dernier jour d’un mois.',
         'accumulated_above_cost' => 'Les amortissements cumulés ne peuvent pas dépasser le coût.',
         'used' => 'Cette immobilisation a été utilisée depuis son import, elle est conservée.',
         'undone' => 'Import annulé',
+    ],
+    'sources' => [
+        'receipt_cancelled' => 'Le bon de réception :number a été annulé.',
     ],
     'tax_classes' => [
         'buildings' => 'Constructions',
@@ -150,5 +157,6 @@ return [
         'furniture' => 'Mobilier et agencements',
         'telecommunication' => 'Matériel de télécommunication',
         'other' => 'Autres immobilisations',
+        'acquisition_rule' => 'la règle de l’année d’acquisition',
     ],
 ];

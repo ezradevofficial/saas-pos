@@ -9,7 +9,8 @@ use Modules\HR\Contracts\EmployeeDirectory;
 
 /**
  * FA-04: an asset's custodian is a user of the tenant, or an employee of
- * its company through HR's read contract while HR is active (never both).
+ * its company still at work (status active), through HR's read contract
+ * while the HR module itself is active (review #15), never both.
  */
 class Custodians
 {
@@ -17,7 +18,7 @@ class Custodians
 
     public function hrActive(): bool
     {
-        return class_exists(EmployeeDirectory::class) && $this->modules->anyActive(['hr', 'payroll']);
+        return class_exists(EmployeeDirectory::class) && $this->modules->isActive('hr');
     }
 
     /**
@@ -44,7 +45,7 @@ class Custodians
         if ($employee !== null) {
             $found = $this->hrActive() ? app(EmployeeDirectory::class)->find((string) $employee) : null;
 
-            if ($found === null || $found['company_id'] !== $companyId) {
+            if ($found === null || $found['company_id'] !== $companyId || $found['status'] !== 'active') {
                 throw FaError::make('custodian_unknown', field: "{$prefix}_employee_id");
             }
         }

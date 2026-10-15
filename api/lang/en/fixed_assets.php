@@ -35,6 +35,9 @@ return [
         'period_depreciated' => 'This asset is already depreciated up to :date. Choose that date or a later one, or reverse the run first.',
         'run_exists' => 'Depreciation for :month is already posted. Refresh the page to see it.',
         'run_out_of_order' => 'Runs post month by month. Post :month first.',
+        'disposals_open' => 'Disposals dated in this month or before are still open: :disposals. Post or cancel them first.',
+        'period_future' => ':month has not started yet. Choose this month or an earlier one.',
+        'reading_depreciated' => 'This asset is already depreciated up to :date. Enter a reading dated after it.',
         'run_not_latest' => 'Only the latest posted run can be reversed.',
         'run_has_later_entries' => 'An asset of this run was revalued, impaired or disposed of since, so the run cannot be reversed. Undo those first.',
         'transfer_pending' => 'This asset already has a transfer waiting for approval. Finish or cancel it first.',
@@ -136,9 +139,13 @@ return [
     'imports' => [
         'amount' => 'Enter an amount with at most :decimals decimals.',
         'depreciated_to' => 'Enter the date the accumulated depreciation runs to.',
+        'depreciated_to_month_end' => 'Under the mid-month convention depreciation runs to a month end. Enter the last day of a month.',
         'accumulated_above_cost' => 'The accumulated depreciation cannot be more than the cost.',
         'used' => 'This asset has been used since it was imported, so it stays.',
         'undone' => 'Import undone',
+    ],
+    'sources' => [
+        'receipt_cancelled' => 'The goods receipt :number was cancelled.',
     ],
     'tax_classes' => [
         'buildings' => 'Buildings',
@@ -149,5 +156,6 @@ return [
         'furniture' => 'Furniture and fittings',
         'telecommunication' => 'Telecommunication equipment',
         'other' => 'Other assets',
+        'acquisition_rule' => 'the year-of-acquisition rule',
     ],
 ];

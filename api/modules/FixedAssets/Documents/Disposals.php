@@ -21,6 +21,7 @@ use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\History;
 use Modules\FixedAssets\Support\Numbers;
 use Modules\FixedAssets\Support\Rates;
+use Modules\FixedAssets\Support\RunLock;
 
 /**
  * FA-17: disposals (sale, scrap, write-off) through the
@@ -169,6 +170,8 @@ class Disposals
     public function post(Disposal $disposal, ?User $by): Disposal
     {
         return FaError::transaction(function () use ($disposal, $by) {
+            // Review #3: a run of the company waits, or is waited for.
+            RunLock::take($disposal->company_id);
             $disposal = Disposal::query()->whereKey($disposal->id)->lockForUpdate()->firstOrFail();
 
             if ($disposal->status !== 'approved') {

@@ -22,6 +22,7 @@ use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\History;
 use Modules\FixedAssets\Support\Numbers;
 use Modules\FixedAssets\Support\Rates;
+use Modules\FixedAssets\Support\RunLock;
 
 /**
  * FA-04 to FA-05, FA-11, FA-18: the register.
@@ -217,6 +218,7 @@ class Assets
     public function estimates(Asset $asset, array $data, User $by): Asset
     {
         return FaError::transaction(function () use ($asset, $data, $by) {
+            RunLock::take($asset->company_id);
             $asset = Asset::query()->whereKey($asset->id)->lockForUpdate()->firstOrFail();
 
             if ($asset->status !== Asset::ACTIVE) {
@@ -238,7 +240,7 @@ class Assets
         });
     }
 
-    /** FA-18: a meter reading; never below an earlier one nor above a later one. */
+    /** FA-18: a meter reading; never below an earlier one nor above a later one, and never on or before the last charge. */
     public function read(Asset $asset, string $on, string $value, ?string $note, User $by): Reading
     {
         return FaError::transaction(function () use ($asset, $on, $value, $note, $by) {
@@ -246,6 +248,11 @@ class Assets
 
             if ($asset->status === Asset::DISPOSED || $asset->archived_at !== null) {
                 throw FaError::make('asset_not_open', status: 409);
+            }
+
+            // Review #9: a reading inside a span already charged would change the meter that charge used.
+            if ($asset->depreciated_to !== null && $on <= $asset->depreciated_to->toDateString()) {
+                throw FaError::make('reading_depreciated', ['date' => $asset->depreciated_to->toDateString()], 'read_on');
             }
 
             $reading = BigDecimal::of($value);

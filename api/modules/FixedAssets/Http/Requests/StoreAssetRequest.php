@@ -69,13 +69,13 @@ class StoreAssetRequest extends FormRequest
         ];
     }
 
-    /** A rule: the value names an employee HR knows in this tenant (RLS), or `custodian_unknown`. */
+    /** A rule: the value names an active employee HR knows in this tenant (RLS, review #15), or `custodian_unknown`. */
     public static function employee(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) {
             $custodians = app(Custodians::class);
 
-            if ($value !== null && (! $custodians->hrActive() || app(EmployeeDirectory::class)->find((string) $value) === null)) {
+            if ($value !== null && (! $custodians->hrActive() || (app(EmployeeDirectory::class)->find((string) $value)['status'] ?? null) !== 'active')) {
                 $fail(__('fixed_assets.errors.custodian_unknown'));
             }
         };

@@ -12,6 +12,7 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Modules\Inventory\Contracts\GoodsReceived;
+use Modules\Procurement\Events\GoodsReceiptCancelled;
 use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Models\LandedCostAllocation;
 use Modules\Procurement\Models\Order;
@@ -312,6 +313,8 @@ class Receipts
             }
 
             $receipt->fill(['status' => Receipt::CANCELLED, 'cancelled_by' => $by->id, 'cancelled_at' => CarbonImmutable::now(), 'cancel_reason' => $reason])->save();
+            // PRC-14: for whatever another module made from this receipt (Fixed assets, FA-21); after the commit.
+            event(new GoodsReceiptCancelled((string) $receipt->tenant_id, (string) $receipt->id, (string) $receipt->company_id, (string) $receipt->order_id, $receipt->number));
 
             return $receipt->refresh();
         });
