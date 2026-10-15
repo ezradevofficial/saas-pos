@@ -9582,7 +9582,10 @@
       "againstPrevious": "Comparés à la dernière paie comptabilisée du groupe.",
       "noPrevious": "Aucune paie comptabilisée antérieure de ce groupe à comparer.",
       "gone_one": "{{count}} employé payé la dernière fois n’est pas dans cette paie",
-      "gone_other": "{{count}} employés payés la dernière fois ne sont pas dans cette paie"
+      "gone_other": "{{count}} employés payés la dernière fois ne sont pas dans cette paie",
+      "byDepartment": "Totaux par département",
+      "companyLevel": "Niveau société",
+      "varianceSummary": "Par rapport à la dernière paie comptabilisée : {{new}} nouveaux, {{gone}} partis, {{changed}} avec un net différent (dont {{large}} de plus de 10 %)."
     },
     "lines": {
       "title": "Lignes",
@@ -9594,7 +9597,8 @@
       "errors_one": "{{count}} erreur",
       "errors_other": "{{count}} erreurs",
       "warnings_one": "{{count}} avertissement",
-      "warnings_other": "{{count}} avertissements"
+      "warnings_other": "{{count}} avertissements",
+      "payViewNeeded": "La paie de chaque employé n’est visible que des personnes autorisées à voir la paie. Jugez cette paie sur ses totaux ci-dessus."
     },
     "line": {
       "errorsTitle": "Cette ligne comporte des erreurs",
@@ -9871,6 +9875,14 @@
       "todo": "Valeurs à confirmer",
       "todoHelp": "La liste propre au pack pays, pour l’équipe de la plateforme.",
       "returns": "Formats des déclarations"
+    },
+    "review": {
+      "attendanceOpen_one": "Une période de présence qui chevauche cette paie est encore ouverte. Son temps sera payé par une paie suivante, en rappel, une fois clôturée.",
+      "attendanceOpen_other": "{{count}} périodes de présence qui chevauchent cette paie sont encore ouvertes. Leur temps sera payé par une paie suivante, en rappel, une fois clôturées.",
+      "lateChanges_one": "Les RH ont modifié des congés ou des dates d’emploi de {{count}} employé après la comptabilisation de la paie {{run}}. Vérifiez sa paie et faites une correction si elle était fausse.",
+      "lateChanges_other": "Les RH ont modifié des congés ou des dates d’emploi de {{count}} employés après la comptabilisation de la paie {{run}}. Vérifiez leur paie et faites une correction si elle était fausse.",
+      "noPayGroup_one": "{{count}} employé en poste sur cette période n’a pas de groupe de paie, donc aucune paie ne le paie. Indiquez son groupe de paie dans les employés de la paie.",
+      "noPayGroup_other": "{{count}} employés en poste sur cette période n’ont pas de groupe de paie, donc aucune paie ne les paie. Indiquez leur groupe de paie dans les employés de la paie."
     }
   }
 }

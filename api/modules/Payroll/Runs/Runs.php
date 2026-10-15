@@ -11,6 +11,7 @@ use App\Core\Workflow\Runtime\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Modules\Payroll\Employees\EmployeeCopy;
 use Modules\Payroll\Events\PayrollApproved;
 use Modules\Payroll\Models\Attendance;
 use Modules\Payroll\Models\EmployeeItem;
@@ -39,6 +40,7 @@ class Runs
         private readonly WorkflowEngine $engine,
         private readonly Numbers $numbers,
         private readonly Auditor $auditor,
+        private readonly EmployeeCopy $copy,
     ) {}
 
     /** A regular run of a pay group for the period containing `period_date` (default: today in the company's time zone). */
@@ -119,6 +121,7 @@ class Runs
     {
         // PAY-08: a refused calculation keeps what is missing on the run (so the screen can show it).
         $missing = null;
+        $this->refresh($run, [Run::DRAFT, Run::CALCULATED]);
 
         try {
             Errors::transaction(function () use ($run, $by) {
@@ -140,9 +143,25 @@ class Runs
         return $run->refresh();
     }
 
+    /**
+     * Decision 30: Payroll's copy of HR refreshed (PAY-05), with the audit
+     * rows of HR's contract read, in a short transaction of its own, so the
+     * audit chain's lock is not held through a whole calculation; only for
+     * a run in one of $statuses (422 `run_status` otherwise).
+     */
+    private function refresh(Run $run, array $statuses): void
+    {
+        Errors::transaction(function () use ($run, $statuses) {
+            $run = $this->locked($run, $statuses);
+            $this->copy->syncCompany($run->company_id, $run->id);
+        });
+    }
+
     /** PAY-16: the run's flow starts; its requester is the preparer (APR-07). */
     public function submit(Run $run, User $by): Run
     {
+        $this->refresh($run, [Run::CALCULATED]);
+
         return Errors::transaction(function () use ($run, $by) {
             $run = $this->locked($run, [Run::CALCULATED]);
             $lines = RunLine::query()->where('run_id', $run->id)->get(['id', 'errors']);
@@ -219,6 +238,7 @@ class Runs
     /** PAY-17: lock and post an approved run. */
     public function post(Run $run, User $by): Run
     {
+        $this->refresh($run, [Run::APPROVED]);
         $run = Errors::transaction(function () use ($run, $by) {
             $run = $this->locked($run, [Run::APPROVED]);
             // Review fixes 1 and 2: loans and the corrected runs are as they were when it was calculated.
@@ -281,6 +301,18 @@ class Runs
                 if ($loan === null || $loan->status !== Loan::ACTIVE || $loan->balance() < $amount) {
                     throw Errors::make(409, 'loan_changed');
                 }
+            }
+        }
+
+        // Decision 33: the leave, attendance, hire and termination inputs it was calculated from still hold.
+        $then = $lines->mapWithKeys(fn (RunLine $l) => [$l->payroll_employee_id => $l->inputs['fingerprint'] ?? null])->all();
+        $now = $this->calculator->fingerprints($run);
+
+        if ($now !== [] || $run->correction_mode !== Run::REVERSE) {
+            ksort($then);
+
+            if ($now !== $then) {
+                throw Errors::make(409, 'run_stale');
             }
         }
 

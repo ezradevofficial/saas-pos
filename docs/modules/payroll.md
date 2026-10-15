@@ -60,15 +60,15 @@ Accounting turns into journals when both modules are active.
 | PAY-09 | **Gross pay.** Basic from the contract(s) in force: monthly pay pro-rated by calendar days employed in the period (hire, termination, a contract changing mid-period); daily and hourly pay from closed attendance days and hours (none: zero and a warning). Earnings and deductions from PAY-06, unpaid leave (PAY-11), overtime and premiums (PAY-12), loans (PAY-13). | Must |
 | PAY-10 | **Multi-currency pay (CUR-04).** A contract in one currency may be paid in another, and statutory figures are in the pack currency (e.g. a USD salary, CDF tax). Conversions use the company's core rate (shop, else reference) in force at the end of the pay date in the company's time zone; each line stores the rates used (contract to pay, pay to statutory, pay to base) and base-currency amounts. A missing rate is a line error (`rate_missing`). | Must |
 | PAY-11 | **Unpaid leave from HR.** `LeaveApproved` of an unpaid type records the days (with their fractions); `LeaveCancelled` removes them. A monthly-paid employee's unpaid days in the period are deducted at the daily rate (monthly pay ÷ standard monthly days). Daily and hourly pay already follow attendance. | Must |
-| PAY-12 | **Overtime and premiums from HR.** `AttendancePeriodClosed` records each employee's minutes. A run takes the closed periods ending inside its period not yet paid: overtime hours × hourly rate × the overtime multiplier, and night, holiday and rest-day hours × hourly rate × (multiplier − 1) on top of the basic; daily and hourly pay from the period's present days and regular hours. A posted run marks the periods it paid. | Must |
+| PAY-12 | **Overtime and premiums from HR.** `AttendancePeriodClosed` records each employee's minutes. A run takes the closed periods ending inside its period not yet paid, and earlier ones closed after their own run (as arrears lines, decision 29): overtime hours × hourly rate × the overtime multiplier, and night, holiday and rest-day hours × hourly rate × (multiplier − 1) on top of the basic; daily and hourly pay from the period's present days and regular hours. A posted run marks the periods it paid. A period overlapping the run still open in HR is shown on the run's review. | Must |
 | PAY-13 | **Loans and advances.** Per employee: kind (`loan`, `advance`), principal, currency (the pay currency), disbursed on, instalment, first deduction date. A ledger (append-only: disbursement, repayment, settlement, reversal) gives the balance. A run deducts min(instalment, balance) of each active loan; early settlement is either paid outside payroll (a settlement entry) or taken in full by the next run. A loan with a zero balance is settled. Interest is not computed. | Must |
 | PAY-14 | **The run.** Number (`PR-{YYYY}-{00001}`), company, pay group, period, pay date, kind (`regular`, `correction`), status `draft` → `calculated` → `pending` → `approved` → `posted` (or `cancelled` before submission). One regular run per pay group and period. Calculating (again) replaces its lines. A line with an error or a negative net pay blocks submission. | Must |
-| PAY-15 | **Review with variances.** Per employee and in total: gross and net against the last posted regular run of the pay group, the difference and percentage, and new and gone employees. | Must |
+| PAY-15 | **Review with variances.** Per employee and in total: gross and net against the last posted regular run of the pay group, the difference and percentage, and new and gone employees; totals per department and a variance summary (decision 36); what to review: open attendance periods, HR changes after the last posted run, employees without a pay group (decisions 29, 33, 40). | Must |
 | PAY-16 | **Maker-checker approval (WF-01, APR-07).** Submitting starts the run's flow (`payroll.run`); the preparer (who calculated it last) and the submitter never approve it. Default flow (WF-02): one approval by an Owner at the company, escalating to the Approvers after two business days; an `approved` end is reachable only through an approval. Rejected: back to `calculated`. Approved: `PayrollApproved`. | Must |
 | PAY-17 | **Lock and post.** Posting an approved run (`payroll.run.post`) locks it for good: loans repaid, one-offs and attendance marked paid, payslips issued, `PayrollPosted` raised. Posted runs and their lines are never changed (database trigger). | Must |
 | PAY-18 | **Corrections (no editing posted runs).** An off-cycle correction run on a posted run's pay group and period, for chosen employees: `reverse` (minus what was posted) or `recalculate` (what the employee should have had, with today's inputs, minus what was posted). It is calculated, approved and posted as any run; its lines, payslips and journals carry the signed differences. | Must |
 | PAY-19 | **Payslips.** One per employee and posted run, printed from the `payroll.payslip` document template (TPL-01) as a PDF: earnings, deductions, statutory lines, loans, net pay, employer contributions, rates used. Seen only by the employee (self-service, "My payslips") and holders of `payroll.payslip.view` at the employee's place; every view and download is audited. | Must |
-| PAY-20 | **Payment files.** From a posted run: a generic CSV (all methods) and pluggable formats (`PaymentFormat`), among them an M-Pesa B2C bulk file (mobile money only, layout as pack data, flagged until confirmed); no provider API is called. Accounts come from HR's `PayAccounts` (the reader needs `hr.bank.view`, audited); files are built on demand and never stored. Employees without a fitting account are listed. `PaymentFileGenerated` is raised for future dispatchers. | Must |
+| PAY-20 | **Payment files.** From a posted run: a generic CSV (all methods) and pluggable formats (`PaymentFormat`), among them an M-Pesa B2C bulk file (mobile money only, layout as pack data, flagged until confirmed); no provider API is called. Accounts come from HR's `PayAccounts` in one read per file (the reader needs `hr.bank.view`, audited once with the employees read); files are built on demand and never stored. Employees without a fitting account, or out of the reader's `hr.bank.view` places, are listed (decision 38). `PaymentFileGenerated` is raised for future dispatchers. | Must |
 | PAY-21 | **Statutory returns.** From posted runs of a month (or a year): the return types of the pack (KE: PAYE, NSSF, SHIF, housing levy, NITA, P9; CD: IPR, CNSS, INPP, ONEM), each a CSV per employee with the identifiers HR holds (`Identifiers`, needs `hr.identity.view`, audited) and the component amounts. A layout the pack does not confirm is a placeholder, flagged `needs_confirmation` in the record and the file name. Files are built on demand; only the return's record (period, totals, who, when) is kept. | Must |
 | PAY-22 | **Accounting (when both are active).** `PayrollPosted` carries, per department and currency, `gross`, `net_pay`, `statutory.{code}`, `employer.{code}`, `deduction.{code}` and `loans`; Accounting posts one `payroll.run` journal per group (gross pay expense with the department as dimension, statutory and other liabilities, net pay payable, employer contributions as expense and liability). Default rules in the KE and CD chart templates. Balanced by construction; posting is idempotent. | Must |
 | PAY-23 | **Data protection.** Field rules (RBAC-05, resource `payroll`): `amounts` hides per-employee amounts (pay setup, items, loans, run lines, payslips) and `totals` the run totals; hidden fields are left out of responses and exports, and read-only `amounts` refuses edits (`field_readonly`). Pay reads (run lines, payslips, employee pay) are audited (`payroll.pay.view`). Bank accounts and identifiers are read only through HR's contracts. | Must |
@@ -76,7 +76,7 @@ Accounting turns into journals when both modules are active.
 | PAY-25 | **Lists and exports** (EXP-01): pay groups, items, employees' pay setup, loans, runs and run lines with search, filters and export, field rules applied. | Must |
 | PAY-26 | **Audit** (AUD-01): settings, pay groups, items, pay setup, employee items, loans and their entries, runs (calculate, submit, approve, post, cancel, corrections), payslip views and downloads, payment files and returns. | Must |
 | PAY-27 | **Scope** (RBAC-04): employee data at the employee's place (location, else branch, else company); pay groups, runs, returns and settings at their company. Out of scope is not found. | Must |
-| PAY-28 | **Never blocked by limits or dunning** (LIM-04): payroll runs are not usage-limited, and calculating, submitting and posting a run stay allowed in read-only mode, as approvals do. | Must |
+| PAY-28 | **Never blocked by limits or dunning** (LIM-04): payroll runs are not usage-limited, and creating, calculating, submitting, posting, correcting and cancelling a run and generating statutory returns stay allowed in read-only mode, as approvals do (decision 43). | Must |
 
 ## Statutory engine
 
@@ -135,7 +135,8 @@ Money is `bigint` minor units with `currency char(3)`; rates `numeric(18,8)`.
 | `payroll_pay_groups` | company, code, name, frequency, `anchor_date`, `pay_day`, `archived_at` |
 | `payroll_items` | company, code, name, kind, `taxable`, `contributory`, `pre_tax`, `insurance_premium`, `archived_at` |
 | `payroll_employees` | Payroll's copy of an HR employee (`employee_id`, unique) with number, name, company, branch, location, department, position, `user_id`, hire and termination dates, status, `synced_at`; and the pay setup: `pay_group_id`, `pay_currency`, `payment_method`, `dependants`, `children`, `on_hold` |
-| `payroll_contracts` | Copy of HR contracts (`contract_id`, unique): employee, type, start, end, pay basis, `pay_minor`, currency, hours per week, status |
+| `payroll_contracts` | Copy of HR contracts (`contract_id`, unique): employee, type, start, end, pay basis, `pay_minor`, currency, hours per week, status, `source_version` (HR's contract version it was copied from, decision 31) |
+| `payroll_sync_cursors` | Per company and source (`employees`, `contracts`, `leave`, `attendance`): the latest HR `updated_at` copied (decision 32) |
 | `payroll_employee_items` | employee, item, `amount_minor`, currency, recurrence (`recurring`, `once`), `from_date`, `to_date`, `period_date`, `consumed_run_id`, `archived_at` |
 | `payroll_leave_days` | employee, HR request id, date, fraction, `cancelled_at` |
 | `payroll_attendance` | HR period id, employee, company, start and end date, minutes (worked, regular, overtime, night, holiday, rest day), days present, `paid_run_id` |
@@ -164,7 +165,7 @@ Database rules: posted runs and their lines are immutable
 | Event | From | Effect |
 | --- | --- | --- |
 | `EmployeeHired`, `EmployeeTerminated` | HR | Payroll's employee copy (with HR's `Employees` contract for names and links) |
-| `ContractChanged` | HR | Payroll's contract copy |
+| `ContractChanged` | HR | Payroll's contract copy (only a version at least as new as the copy's, decision 31) |
 | `LeaveApproved`, `LeaveCancelled` | HR | Unpaid leave days |
 | `AttendancePeriodClosed` | HR | Minutes per employee and period |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | Settle runs |
@@ -172,8 +173,12 @@ Database rules: posted runs and their lines are immutable
 **HR read contracts used:** `Employees` (new, non-sensitive basics and the
 user link, for the copy and self-service), `PayAccounts` (payment files)
 and `Identifiers` (returns). Payroll refreshes its copy for a company
-through `Employees` and `EmploymentContracts` before each calculation, so a
-module switched on after HR's records exist pays from them.
+through `Employees`, `EmploymentContracts`, `LeaveRecords` and
+`AttendanceRecords` before each calculation, submission and posting, so a
+module switched on after HR's records exist pays from them; it reads only
+what changed since its cursor per source (decision 32). `AttendanceRecords`
+also lists a company's periods still open over a date range (the run's
+review, decision 29).
 
 ## Permissions
 
@@ -182,15 +187,18 @@ module switched on after HR's records exist pays from them.
 | `payroll.settings.view`, `manage` | Company settings, pay groups and pay items |
 | `payroll.employee.view`, `manage` | Employees' pay setup and their items |
 | `payroll.loan.view`, `manage` | Loans and advances |
-| `payroll.run.view`, `prepare`, `approve`, `post` | Runs and lines; create, calculate, submit, cancel, corrections; act on the flow (WF-08); lock and post |
+| `payroll.run.view`, `prepare`, `approve`, `post` | Runs, their totals, department totals and variances; create, calculate, submit, cancel, corrections; act on the flow (WF-08); lock and post |
+| `payroll.pay.view` | Each employee's pay in a run (its lines, decision 36) |
 | `payroll.payslip.view` | Payslips of others |
 | `payroll.payment.export` | Payment files (and `hr.bank.view`) |
 | `payroll.return.view`, `generate` | Statutory returns (generating needs `hr.identity.view`) |
 
 Role templates: **Owner** everything; **Payroll Officer** `payroll.*` (and
 HR's employee core views it already holds); **Approver** `*.approve` and
-`payroll.run.view`; **Read-only Auditor** `payroll.settings.view` only (pay
-is not an auditor's to read). Admin, Accountant and HR Officer hold none.
+`payroll.run.view` (run totals, department totals and variances, not
+per-employee lines: no `payroll.pay.view`, decision 36); **Read-only
+Auditor** `payroll.settings.view` only (pay is not an auditor's to read).
+Admin, Accountant and HR Officer hold none. 15 permissions.
 
 ## API
 
@@ -205,7 +213,8 @@ currency}`.
 | `GET payroll/employees`, `POST payroll/employees/sync`, `GET/PATCH payroll/employees/{payroll_employee}` | `employee.view` / `manage` |
 | `GET/POST payroll/employees/{payroll_employee}/items`, `PATCH payroll/employee-items/{payroll_employee_item}`, `POST …/archive` | `employee.view` / `manage` |
 | `GET/POST payroll/loans`, `GET payroll/loans/{payroll_loan}`, `POST …/settle`, `POST …/cancel` | `loan.view` / `manage` |
-| `GET/POST payroll/runs`, `GET payroll/runs/{payroll_run}`, `GET …/lines`, `POST …/calculate`, `/submit`, `/cancel` | `run.view` / `prepare` |
+| `GET/POST payroll/runs`, `GET payroll/runs/{payroll_run}`, `POST …/calculate`, `/submit`, `/cancel` | `run.view` / `prepare` |
+| `GET payroll/runs/{payroll_run}/lines` | `pay.view` (decision 36) |
 | `POST payroll/runs/{payroll_run}/post` | `run.post` |
 | `POST payroll/runs/{payroll_run}/corrections` | `run.prepare` |
 | `GET payroll/runs/{payroll_run}/payment-file?format=`, `GET …/payment-summary?format=` (who is paid, who is left out, no account numbers) | `payment.export` (and `hr.bank.view`) |
@@ -222,9 +231,10 @@ Errors: `statutory_rates_missing`, `payroll_pack_missing`, `run_exists`,
 `instalment_above_principal`, `loan_settled`, `loan_started`,
 `not_an_employee`, `format_unknown`, `format_needs_confirmation`,
 `field_readonly`, `return_no_runs`, `return_type_unknown`,
-`return_period`. Line errors (block submission): `rate_missing`,
-`currency_mismatch`, `monthly_days_missing`, `monthly_hours_missing`,
-`net_negative`.
+`return_period`, `run_stale` (409, decision 33). Line errors (block submission): `rate_missing`,
+`currency_mismatch` (an item, a loan, or a recalculation in another
+currency than the posted pay, decision 35), `monthly_days_missing`,
+`monthly_hours_missing`, `net_negative`, `paid_in_other_run`.
 
 ## Screens (web)
 
@@ -326,6 +336,86 @@ Review fixes (stage 7C review):
     are reported (`periods_overlap`); lists showing pay, payment summaries
     and payslip PDFs are audited, and summaries and PDFs are throttled.
 
+Stage 7C closing review (decisions taken without owner input; each is a
+decision the owner may change):
+
+29. **Attendance closed after its run is paid as arrears** (decision, owner
+    may change). A regular run takes every closed attendance period ending
+    on or before its period's end not paid yet, back to the first period
+    its pay group paid (history from before Payroll is never paid as
+    arrears). Periods ending before the run's period are paid as separate
+    `*_arrears` earnings ("Overtime (arrears)"), listed on the line
+    (`inputs.arrears`) and marked paid when the run posts. A period
+    overlapping the run that is still open in HR is a warning on the run's
+    review (`review.attendance_open`).
+30. **The HR sync runs in its own short transaction** before a run is
+    calculated, submitted or posted, with the audit row of HR's contract
+    read, so the audit chain's lock is not held through the calculation.
+31. **Copies are bulk upserts** (`insert … on conflict`), safe when two syncs
+    or events race; HR's contracts carry a `version` (one more on every
+    save) and a copy changes only for a version at least as new as its own,
+    so a late `ContractChanged` never overwrites a newer one. Copy rows are
+    not audited one by one (HR audits its records); a sync that copied
+    employees or contracts records one `payroll.employee.sync` entry.
+32. **Incremental sync** (decision, owner may change). Each company keeps a
+    cursor per HR source (the latest `updated_at` copied); a sync reads
+    from the cursor less 5 minutes (a row saved in a transaction that
+    committed late is not missed; re-reading is harmless).
+33. **What a run was calculated from** (decision, owner may change). Each
+    line keeps a fingerprint of its HR inputs: hire and termination dates
+    that touch the period, its unpaid leave days and the attendance periods
+    it takes. Submitting and posting refresh the copy and refuse a run whose
+    inputs changed (409 `run_stale`: calculate it again), including an
+    employee who joined or left the run. After posting, a change is shown on
+    the next regular run's review (`review.late_changes`: the employee and
+    the run) so a correction can be made; posted runs never change.
+34. **A correction charges what the posted line charged**: its department,
+    branch and location (and so its journal's dimensions) come from the
+    posted line, not the employee's current place.
+35. **Corrections never mix currencies** (decision, owner may change). A
+    recalculation for an employee now paid in another currency than the
+    posted pay is a line error (`currency_mismatch`): reverse the posted
+    pay, then pay in the new currency.
+36. **Approvers judge runs by their totals** (decision, owner may change).
+    New permission `payroll.pay.view` (Payroll Officer and Owner hold it)
+    reads a run's per-employee lines; `payroll.run.view` alone (the Approver
+    template) reads the run, its totals per currency and per department and
+    a variance summary (new, gone, changed, changed by more than 10%).
+37. **A rehire in the period pays both stretches.** A contract that ended
+    before the current hire date belongs to an earlier stretch of
+    employment and is paid for its own days in the period.
+38. **Payment files read accounts once** per file (one audited
+    `hr.employee.sensitive_read` naming the employees). A reader who holds
+    `hr.bank.view` at some places only gets the file for those; the others
+    are left out and listed (`out_of_scope`), not a 403 for the file; a
+    reader without `hr.bank.view` anywhere is refused.
+39. **A calculation reads its inputs once** for all employees (contracts,
+    attendance, leave, items, loans and balances, other runs, posted
+    lines), caches rates per currency pair and writes its lines in bulk.
+40. **Employees without a pay group** employed in the period are listed on
+    the run's review (`review.no_pay_group`): no run pays them.
+41. **Small departments post at company level** (decision, owner may
+    change). A department paid to fewer than 3 employees in a run
+    (`payroll.department_min_employees`) posts its payroll journal without
+    a department, so no journal shows one or two people's pay; a correction
+    counts the departments of the run it corrects.
+42. **Contract pay in Payroll follows HR's rules**: an employee's contract
+    pay is shown in their pay setup only to a reader holding `hr.pay.view`
+    at the employee's place whose field rules do not hide `hr_employee.pay`
+    (and do not hide Payroll `amounts`).
+43. **Read-only billing** (decision, owner may change): besides PAY-28,
+    cancelling a run and generating statutory returns stay allowed (staff
+    are paid and returns filed); HR's attendance close, timesheet approval
+    and web clock-in too (hr.md), and till and device punches upload as POS
+    uploads during the POS window.
+
+## Status (stage 7C closing review)
+
+| Finding | Status |
+| --- | --- |
+| Decisions 29 to 42 | Built and tested (ClosingReviewTest: arrears, open periods, stale runs, the sync's transaction, a 200-employee query budget, correction department and currency, late changes, no pay group, rehire, approver totals, payment files, contract versions, concurrent leave copies, contract pay view; PayrollPostingTest: small departments at company level; Payroll.test.jsx: the approver's run page) |
+| Decision 43 | Built and tested (DunningTest: the read-only allow list; engine.test.js: a 402 on an HR upload never pauses selling) |
+
 ## Status (stage 7C)
 
 | ID | Status |
@@ -384,3 +474,8 @@ DR Congo (`api/country-packs/CD/payroll.json`, CDF):
   (428), and INPP and ONEM expensed to 641 (accounting.md decision 27).
 - The engine's fixed order (decision 2), and whether premiums stack
   (decision 5).
+- The stage 7C closing review's choices: arrears from the first period a
+  pay group paid (29), the 5-minute sync overlap (32), refusing stale runs
+  and flagging late changes (33), no corrections across currencies (35),
+  approvers without per-employee lines (36), the 3-employee department
+  threshold for journals (41) and what read-only billing still allows (43).

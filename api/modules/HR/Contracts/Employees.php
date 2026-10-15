@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Contracts;
 
+use DateTimeInterface;
 use Modules\HR\Models\Employee;
 
 /**
@@ -15,11 +16,18 @@ use Modules\HR\Models\Employee;
  */
 final class Employees
 {
-    /** @return list<array<string, mixed>> the employees of $companyId (or only $ids), as basics() */
-    public function ofCompany(string $companyId, ?array $ids = null): array
+    /**
+     * The employees of $companyId (or only $ids), as basics(); with $since,
+     * only those changed at or after it (stage 7C closing review: Payroll
+     * reads incrementally, by its own `updated_at` cursor).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function ofCompany(string $companyId, ?array $ids = null, ?DateTimeInterface $since = null): array
     {
         return Employee::query()->where('company_id', $companyId)
             ->when($ids !== null, fn ($q) => $q->whereIn('id', $ids))
+            ->when($since !== null, fn ($q) => $q->where('updated_at', '>=', $since))
             ->orderBy('number')->get()
             ->map(fn (Employee $e) => self::basics($e))->all();
     }
@@ -54,6 +62,7 @@ final class Employees
             'hire_date' => $e->hire_date->toDateString(),
             'termination_date' => $e->termination_date?->toDateString(),
             'status' => $e->status,
+            'updated_at' => $e->updated_at?->toIso8601String(),
         ];
     }
 }

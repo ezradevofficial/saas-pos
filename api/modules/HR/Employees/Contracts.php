@@ -166,6 +166,7 @@ class Contracts
             $contract->start_date->toDateString(), $contract->end_date?->toDateString(), $contract->probation_end_date?->toDateString(),
             $contract->pay_basis, (string) $contract->pay_minor, $contract->currency,
             $contract->hours_per_week === null ? null : (string) $contract->hours_per_week, $contract->position_id, $contract->department_id,
+            (int) ($contract->version ?? 1),
         );
     }
 }

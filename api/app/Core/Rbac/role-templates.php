@@ -224,7 +224,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
-            // PAY-16: the payroll runs they approve (field rules may hide the amounts, PAY-23).
+            // PAY-16: the payroll runs they approve, by their totals, department totals and variances
+            // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',
         ],
         'is_owner' => false,
@@ -241,7 +242,7 @@ return [
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
         // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
         'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
-            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.payslip.view', 'payroll.return.view'],
+            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

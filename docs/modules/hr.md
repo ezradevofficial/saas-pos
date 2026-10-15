@@ -398,3 +398,29 @@ Open for the owner:
 - Identifier formats (KRA PIN, Kenyan national ID, DRC national ID, CNSS
   number): the packs enforce none until confirmed.
 - Decision 16 (next punch kind within 16 hours) against HR-24.
+
+## Stage 7C closing review: Payroll-facing changes
+
+Decisions taken without owner input (each one the owner may change):
+
+- **Incremental read contracts.** `Employees::ofCompany`,
+  `EmploymentContracts` (`forPayrollRun`, `forUser`),
+  `LeaveRecords::unpaidOfCompany` and `AttendanceRecords::closedOfCompany`
+  take an optional `since` and return each row's `updated_at`, so Payroll
+  reads only what changed since its cursor (payroll.md decision 32); the
+  four tables are indexed by company and `updated_at`.
+- **Contract versions.** `hr_contracts.version` is one more on every save
+  and `ContractChanged` carries it, so Payroll never lets a late event
+  overwrite a newer contract (payroll.md decision 31).
+- **Open periods.** `AttendanceRecords::openOverlapping` lists a company's
+  periods still open over a date range, shown on a payroll run's review
+  (payroll.md decision 29).
+- **Batch sensitive reads.** `PayAccounts` and `Identifiers` gain
+  `manyForUser`: the employees whose group the reader sees at their place
+  are read in one audited entry naming them; the others are returned as
+  refused (payroll.md decision 38).
+- **Read-only billing** (SUB-05): closing an attendance period, approving
+  timesheets and clocking in on the web stay allowed; till and device
+  punches and clock-in attempt reports are POS uploads (allowed during the
+  POS window). On the till, a 402 on an HR upload keeps its rows for later
+  and never pauses selling.

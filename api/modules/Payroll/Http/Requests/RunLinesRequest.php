@@ -10,8 +10,10 @@ use Modules\Payroll\Models\Run;
 
 /**
  * GET payroll/runs/{payroll_run}/lines (PAY-14, PAY-15, PAY-25): the run's
- * lines for holders of `payroll.run.view` at its company; `?errors=1`
- * keeps lines with errors. Reading them is audited (PAY-23).
+ * lines for holders of `payroll.pay.view` at its company (decision 36: an
+ * approver with `payroll.run.view` alone reads the run's totals, not each
+ * employee's pay); `?errors=1` keeps lines with errors. Reading them is
+ * audited (PAY-23).
  */
 class RunLinesRequest extends PayrollRequest
 {
@@ -29,7 +31,7 @@ class RunLinesRequest extends PayrollRequest
 
     public function authorize(): bool
     {
-        return $this->onCompany($this->run()->company_id, 'payroll.run.view', 'payroll.run.view');
+        return $this->onCompany($this->run()->company_id, 'payroll.pay.view', 'payroll.run.view');
     }
 
     public function rules(): array

@@ -2,6 +2,8 @@
 
 namespace Modules\Payroll\Http\Resources;
 
+use App\Core\MasterData\Items\Http\Resources\HidesFields;
+use App\Core\Rbac\ScopeResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -12,7 +14,7 @@ use Modules\Payroll\Support\PayFields;
 /**
  * PAY-05: an employee's pay setup. The contract pay in force is shown in
  * the detail only, and only when the reader's field rules do not hide
- * amounts (PAY-23).
+ * amounts (PAY-23) and the reader sees HR's contract pay (decision 42).
  *
  * @property PayrollEmployee $resource
  */
@@ -51,7 +53,7 @@ class PayEmployeeResource extends JsonResource
             'synced_at' => $e->synced_at?->toIso8601String(),
         ];
 
-        if ($this->detail && ! app(PayFields::class)->hides(PayFields::AMOUNTS, $request)) {
+        if ($this->detail && ! app(PayFields::class)->hides(PayFields::AMOUNTS, $request) && $this->seesContractPay($request)) {
             $today = CarbonImmutable::now()->toDateString();
             $contract = PayrollContract::query()->where('employee_id', $e->employee_id)->whereDate('start_date', '<=', $today)
                 ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $today))->orderByDesc('start_date')->first()
@@ -68,5 +70,19 @@ class PayEmployeeResource extends JsonResource
         }
 
         return $data;
+    }
+
+    /**
+     * Decision 42: contract pay is HR's `pay` group (HR-09): shown here only
+     * to a reader holding `hr.pay.view` at the employee's place whose field
+     * rules do not hide `hr_employee.pay`, as in HR itself.
+     */
+    private function seesContractPay(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user !== null
+            && app(ScopeResolver::class)->can($user, 'hr.pay.view', $this->resource->scope())
+            && ! in_array('pay', HidesFields::hidden($request, 'hr_employee'), true);
     }
 }

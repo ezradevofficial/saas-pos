@@ -67,21 +67,28 @@ class PayrollPostingTest extends TestCase
 
     public function test_a_posted_run_posts_balanced_journals_per_department(): void
     {
-        $this->payrollEmployee('5000000');
+        foreach (['Amina', 'Baraka', 'Chao'] as $name) {
+            $this->payrollEmployee('5000000', ['first_name' => $name]);
+        }
+
         $this->payrollEmployee('3000000', ['first_name' => 'Juma', 'department_id' => $this->kitchen->id]);
         $id = $this->postedRun();
 
         $journals = $this->journals();
         $this->assertCount(2, $journals);
-        $sales = collect($journals)->first(fn (Journal $j) => $this->inTenant(fn () => JournalLine::query()->where('journal_id', $j->id)->value('department_id')) === $this->sales->id);
+        $department = fn (Journal $j) => $this->inTenant(fn () => JournalLine::query()->where('journal_id', $j->id)->whereNotNull('department_id')->value('department_id'));
+        $sales = collect($journals)->first(fn (Journal $j) => $department($j) === $this->sales->id);
 
         $this->assertSame([
-            '2220' => [0, 940000],
-            '2230' => [0, 405000],
-            '2240' => [0, 3810000],
-            '6100' => [5000000, 0],
-            '6110' => [155000, 0],
+            '2220' => [0, 2820000],
+            '2230' => [0, 1215000],
+            '2240' => [0, 11430000],
+            '6100' => [15000000, 0],
+            '6110' => [465000, 0],
         ], $this->linesOf($sales));
+
+        // payroll.md decision 41: Kitchen pays one employee, so its journal is at company level (no department).
+        $this->assertNotNull(collect($journals)->first(fn (Journal $j) => $department($j) === null));
 
         foreach ($journals as $journal) {
             $lines = $this->linesOf($journal);

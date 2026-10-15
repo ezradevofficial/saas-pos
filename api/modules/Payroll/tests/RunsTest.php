@@ -120,7 +120,9 @@ class RunsTest extends TestCase
 
         $this->postJson("/api/v1/payroll/runs/{$id}/post", [], $this->headersFor($this->officer))->assertOk()->assertJsonPath('data.status', 'posted');
         Event::assertDispatched(PayrollPosted::class, fn (PayrollPosted $e) => $e->runId === $id && $e->groups[0]['amounts']['net_pay'] === '3810000'
-            && $e->groups[0]['amounts']['statutory.paye'] === '940000' && $e->groups[0]['amounts']['employer.nita'] === '5000' && $e->groups[0]['department_id'] === $this->sales->id);
+            && $e->groups[0]['amounts']['statutory.paye'] === '940000' && $e->groups[0]['amounts']['employer.nita'] === '5000'
+            // Decision 41: a department of fewer than three employees posts at company level.
+            && $e->groups[0]['department_id'] === null);
         $this->assertSame(1, $this->inTenant(fn () => Payslip::query()->where('run_id', $id)->count()));
 
         // Posted is final: no recalculation, no cancel, and the database refuses any change.

@@ -9582,7 +9582,10 @@
       "againstPrevious": "Compared with the last posted run of the pay group.",
       "noPrevious": "No earlier posted run of this pay group to compare with.",
       "gone_one": "{{count}} employee paid last time is not in this run",
-      "gone_other": "{{count}} employees paid last time are not in this run"
+      "gone_other": "{{count}} employees paid last time are not in this run",
+      "byDepartment": "Totals by department",
+      "companyLevel": "Company level",
+      "varianceSummary": "Against the last posted run: {{new}} new, {{gone}} gone, {{changed}} with a different net pay ({{large}} by more than 10%)."
     },
     "lines": {
       "title": "Lines",
@@ -9594,7 +9597,8 @@
       "errors_one": "{{count}} error",
       "errors_other": "{{count}} errors",
       "warnings_one": "{{count}} warning",
-      "warnings_other": "{{count}} warnings"
+      "warnings_other": "{{count}} warnings",
+      "payViewNeeded": "Each employee’s pay is shown only to people who can view pay. Judge this run by its totals above."
     },
     "line": {
       "errorsTitle": "This line has errors",
@@ -9871,6 +9875,14 @@
       "todo": "Values to confirm",
       "todoHelp": "The country pack’s own list, for the platform team.",
       "returns": "Return layouts"
+    },
+    "review": {
+      "attendanceOpen_one": "An attendance period overlapping this run is still open. Its time is paid by a later run, as arrears, once it closes.",
+      "attendanceOpen_other": "{{count}} attendance periods overlapping this run are still open. Their time is paid by a later run, as arrears, once they close.",
+      "lateChanges_one": "HR changed leave or employment dates of {{count}} employee after run {{run}} was posted. Check their pay and make a correction if it was wrong.",
+      "lateChanges_other": "HR changed leave or employment dates of {{count}} employees after run {{run}} was posted. Check their pay and make a correction if it was wrong.",
+      "noPayGroup_one": "{{count}} employee employed in this period has no pay group, so no run pays them. Set their pay group in Payroll employees.",
+      "noPayGroup_other": "{{count}} employees employed in this period have no pay group, so no run pays them. Set their pay group in Payroll employees."
     }
   }
 }

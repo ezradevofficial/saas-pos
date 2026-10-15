@@ -32,16 +32,31 @@ final class PostingGroups
         );
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Decision 41: a department paid to fewer than `payroll.department_min_employees`
+     * (3) employees posts at company level (no department), so a journal
+     * never shows one or two people's pay. A correction follows the run it
+     * corrects: its departments are counted there, so differences post where
+     * the original pay did.
+     *
+     * @return list<array<string, mixed>>
+     */
     public static function of(Run $run): array
     {
         $groups = [];
+        $lines = RunLine::query()->where('run_id', $run->id)->orderBy('number')->get();
+        $counted = $run->kind === Run::CORRECTION && $run->corrects_run_id !== null
+            ? RunLine::query()->where('run_id', $run->corrects_run_id)->get(['department_id', 'payroll_employee_id'])
+            : $lines;
+        $headcount = $counted->whereNotNull('department_id')->groupBy('department_id')->map(fn ($rows) => $rows->pluck('payroll_employee_id')->unique()->count());
+        $minimum = (int) config('payroll.department_min_employees', 3);
 
-        foreach (RunLine::query()->where('run_id', $run->id)->orderBy('number')->get() as $line) {
-            $key = ($line->department_id ?? 'none').'|'.$line->pay_currency;
+        foreach ($lines as $line) {
+            $department = $line->department_id !== null && ($headcount[$line->department_id] ?? 0) >= $minimum ? $line->department_id : null;
+            $key = ($department ?? 'none').'|'.$line->pay_currency;
             $groups[$key] ??= [
                 'key' => $key,
-                'department_id' => $line->department_id,
+                'department_id' => $department,
                 'branch_id' => $line->branch_id,
                 'currency' => $line->pay_currency,
                 'fx' => $line->fx[$line->pay_currency.'/'.$line->base_currency] ?? null,
