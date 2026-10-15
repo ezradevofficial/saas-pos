@@ -10,6 +10,7 @@ use Modules\Accounting\Integrations\Integrations;
 use Modules\Accounting\Integrations\InventorySources;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
+use Modules\Manufacturing\Events\ProductionValued;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -87,6 +88,7 @@ class PostModuleEvent implements ShouldQueue
             $event instanceof StockMoved => 'inventory',
             $event instanceof LoyaltyLedgerEvent => 'loyalty',
             $event instanceof StoreConsumptionValued => 'stores',
+            $event instanceof ProductionValued => 'manufacturing',
             str_starts_with($event::class, 'Modules\\Procurement\\') => 'procurement',
             default => null,
         };

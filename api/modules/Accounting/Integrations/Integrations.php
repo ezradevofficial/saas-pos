@@ -17,6 +17,7 @@ use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
+use Modules\Manufacturing\Events\ProductionValued;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -26,7 +27,7 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
- * ACC-25 to ACC-32 (stage 7B): what other modules' events post, in the
+ * ACC-25 to ACC-33 (stage 7B, Manufacturing in 7D): what other modules' events post, in the
  * current tenant. Nothing happens unless Accounting is active (RBAC-08);
  * the raising module was active when the event happened (PostModuleEvent
  * queues only then), whatever it is now. Every source goes through
@@ -54,6 +55,7 @@ class Integrations
         private readonly StoresSources $stores,
         private readonly SupplierInvoices $supplierInvoices,
         private readonly LandedCostSources $landedCosts,
+        private readonly ManufacturingSources $manufacturing,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -72,6 +74,8 @@ class Integrations
             $event instanceof StockMoved => $this->post($this->inventory->stockMoved($event)),
             $event instanceof LoyaltyLedgerEvent => $this->post($this->loyalty->entry($event)),
             $event instanceof StoreConsumptionValued => $this->post($this->stores->consumption($event)),
+            // ACC-33: Manufacturing's valued issues, returns, receipts, variances and recipe backflushes.
+            $event instanceof ProductionValued => $this->post($this->manufacturing->valued($event)),
             // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
             $event instanceof SupplierInvoiceApproved => $this->supplierInvoices->approved($event),
             // Stage 7B closing review: landed costs clear through their bills (procurement.md decision 19).

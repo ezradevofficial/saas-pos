@@ -20,6 +20,8 @@
         {"code": "3", "type": "asset", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "31", "type": "asset", "subtype": "header", "parent": "3", "postable": false, "cash_flow": null},
         {"code": "311", "type": "asset", "subtype": "inventory", "parent": "31", "postable": true, "cash_flow": "operating"},
+        {"code": "34", "type": "asset", "subtype": "header", "parent": "3", "postable": false, "cash_flow": null},
+        {"code": "341", "type": "asset", "subtype": "inventory", "parent": "34", "postable": true, "cash_flow": "operating"},
         {"code": "4", "type": "liability", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "40", "type": "liability", "subtype": "header", "parent": "4", "postable": false, "cash_flow": null},
         {"code": "401", "type": "liability", "subtype": "payable", "parent": "40", "postable": true, "cash_flow": "operating", "control": true},
@@ -84,6 +86,8 @@
         {"code": "758", "type": "income", "subtype": "other_income", "parent": "75", "postable": true, "cash_flow": null},
         {"code": "77", "type": "income", "subtype": "header", "parent": "7", "postable": false, "cash_flow": null},
         {"code": "776", "type": "income", "subtype": "fx", "parent": "77", "postable": true, "cash_flow": null},
+        {"code": "78", "type": "income", "subtype": "header", "parent": "7", "postable": false, "cash_flow": null},
+        {"code": "781", "type": "income", "subtype": "other_income", "parent": "78", "postable": true, "cash_flow": null},
         {"code": "8", "type": "income", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "81", "type": "expense", "subtype": "header", "parent": "8", "postable": false, "cash_flow": null},
         {"code": "811", "type": "expense", "subtype": "expense", "parent": "81", "postable": true, "cash_flow": null},
@@ -386,6 +390,79 @@
                 "field": "amount",
                 "side": "credit",
                 "account": "658"
+            }
+        ],
+        "manufacturing.materials": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "341"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "manufacturing.production": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "341"
+            },
+            {
+                "field": "labour",
+                "side": "debit",
+                "account": "781"
+            },
+            {
+                "field": "overhead",
+                "side": "debit",
+                "account": "781"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
+            }
+        ],
+        "manufacturing.variance": [
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "341"
+            },
+            {
+                "field": "variance",
+                "side": "debit",
+                "account": "658"
+            }
+        ],
+        "manufacturing.backflush": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "311"
+            },
+            {
+                "field": "cost_of_sales",
+                "side": "debit",
+                "account": "603"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "603"
             }
         ],
         "stores.consumption": [
