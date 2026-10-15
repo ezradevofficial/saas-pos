@@ -149,8 +149,12 @@ class PayrollPostingTest extends TestCase
     {
         // ACC-33: one source per department; with no rule, each fails on its own and the list says which department.
         $this->inTenant(fn () => PostingRule::query()->where('event_type', 'payroll.run')->update(['archived_at' => now()]));
-        $this->payrollEmployee('5000000');
-        $this->payrollEmployee('3000000', ['first_name' => 'Juma', 'department_id' => $this->kitchen->id]);
+        // Three employees in each department (payroll.md decision 41: smaller departments post at company level).
+        foreach (['Amina', 'Baraka', 'Chao'] as $name) {
+            $this->payrollEmployee('5000000', ['first_name' => $name]);
+            $this->payrollEmployee('3000000', ['first_name' => "{$name} K", 'department_id' => $this->kitchen->id]);
+        }
+
         $this->postedRun();
 
         $rows = $this->getJson("/api/v1/companies/{$this->acme->id}/accounting/posting-exceptions", $this->headersFor($this->owner))->assertOk()->json('data');
