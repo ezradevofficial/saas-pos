@@ -24,12 +24,16 @@ use Symfony\Component\HttpFoundation\Response;
  *   bulk approve, and the POS's held voids, refunds and cash movements);
  *   payroll runs get the same treatment (PAY-28: creating, calculating,
  *   submitting, posting and correcting a run, so staff are paid);
+ * - what paying staff and filing returns needs (`staff`, stage 7C closing
+ *   review): closing attendance periods, approving timesheets, clocking
+ *   in on the web, cancelling a run and generating statutory returns;
  * - the user's own account: signing out (here or everywhere), revoking a
  *   session, two-factor and their own POS PIN;
  * - the full data export (EXP-02, `tenant-exports`), its download link included;
  * - the till's own sign-in and device security (PIN, overrides, secret);
  * - POS uploads (sales, shifts, voids, refunds, cash movements, number
- *   ranges, payments at the till) for the POS window after read-only
+ *   ranges, payments at the till, and staff clock-ins from tills and
+ *   attendance devices) for the POS window after read-only
  *   starts (`pos_stops_at`); after it they answer 402
  *   `subscription_pos_stopped` and the till shows why.
  *
@@ -50,6 +54,8 @@ class EnforceSubscription
     public const DEVICE = 'device';
 
     public const POS_UPLOAD = 'pos_upload';
+
+    public const STAFF = 'staff';
 
     public const BLOCKED = 'blocked';
 
@@ -82,6 +88,12 @@ class EnforceSubscription
         'POST payroll/runs/{payroll_run}/corrections' => self::APPROVAL,
         'POST payroll/runs/{payroll_run}/submit' => self::APPROVAL,
         'POST payroll/runs/{payroll_run}/post' => self::APPROVAL,
+        // Stage 7C closing review: staff are paid and returns filed in read-only mode.
+        'POST payroll/runs/{payroll_run}/cancel' => self::STAFF,
+        'POST payroll/returns' => self::STAFF,
+        'POST hr/attendance-periods/{hr_attendance_period}/close' => self::STAFF,
+        'POST hr/timesheets/approve' => self::STAFF,
+        'POST hr/me/clock' => self::STAFF,
         'POST me/two-factor/totp' => self::ACCOUNT,
         'POST me/two-factor/totp/confirm' => self::ACCOUNT,
         'POST me/two-factor/sms' => self::ACCOUNT,
@@ -101,6 +113,10 @@ class EnforceSubscription
         'POST pos/voids' => self::POS_UPLOAD,
         'POST pos/refunds' => self::POS_UPLOAD,
         'POST payments/intents' => self::POS_UPLOAD,
+        // HR-22 to HR-24: clock-ins uploaded by tills and attendance devices.
+        'POST hr/till/punches' => self::POS_UPLOAD,
+        'POST hr/till/clock-attempts' => self::POS_UPLOAD,
+        'POST hr/device/punches' => self::POS_UPLOAD,
     ];
 
     public function __construct(private readonly TenantContext $tenants) {}
@@ -115,7 +131,7 @@ class EnforceSubscription
 
         $subscription = Subscription::query()->first(['id', 'status', 'pos_stops_at']);
 
-        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE], true)) {
+        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE, self::STAFF], true)) {
             return $next($request);
         }
 

@@ -442,6 +442,22 @@ describe('sync engine: review fixes', () => {
     expect(engine.getStatus()).toMatchObject({ subscriptionStopped: false, pending: 0 });
   });
 
+  it('a 402 on an HR upload keeps its rows and never pauses selling (SUB-05, HR-22)', async () => {
+    const { server, engine, store } = setup();
+    await engine.enqueue('hr.punches', 'p1', { id: 'p1', employee_id: 'e1', kind: 'in', occurred_at: '2026-10-10T08:00:00Z' });
+    await engine.enqueue('pos.sales', 's1', sale('s1'));
+    server.state.hrOverride = () => ({ status: 402, body: { code: 'subscription_overdue', message: 'Overdue' } });
+
+    const result = await engine.sync();
+
+    expect(result.pushed.stopped ?? null).toBeNull();
+    expect(engine.getStatus().subscriptionStopped).toBe(false);
+    expect(engine.sellingPaused()).toBe(false);
+    expect(server.requestsTo('pos/sales')).toHaveLength(1);
+    const entries = await store.entries();
+    expect(entries.find((entry) => entry.recordId === 'p1')).toMatchObject({ status: OUTBOX.PENDING });
+  });
+
   it('remembers a 402 stop across a restart, keeps retrying, and resumes when a sync shows the subscription paid (SUB-05)', async () => {
     const { server, engine, store, make } = setup();
     await engine.enqueue('pos.sales', 's1', sale('s1'));
