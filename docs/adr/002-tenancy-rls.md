@@ -160,6 +160,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_due_recurring_journals(p_on date)` | `setof uuid` | `accounting:recurring` |
 | `app_tenants_with_due_stage_timers(p_at timestamptz)` | `setof uuid` | `workflow:process-stage-timers` |
 | `app_tenants_with_expired_trials(p_at timestamptz)` | `setof uuid` | trial expiry |
+| `app_tenants_with_hr_identifiers()` | `setof uuid` | `hr:rekey-digests`, every tenant with an employee identifier, suspended and closed ones included (docs/modules/hr.md decision 24) |
 | `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `setof uuid` | `loyalty:reprocess` |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `setof uuid` | `billing:purge-report` |
 | `app_tenants_with_pending_digests()` | `setof uuid` | `notifications:send-digests` |

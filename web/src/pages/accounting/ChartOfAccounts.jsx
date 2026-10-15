@@ -343,7 +343,8 @@ function RulesTab({ company }) {
                 return (
                   <span className="flex flex-col">
                     {to ? <Link to={to} className="text-primary hover:text-primary-hover">{sourceName(t, row.source_type)}</Link> : <span>{sourceName(t, row.source_type)}</span>}
-                    <span className="text-caption text-ink-muted">{row.reference ?? ''}</span>
+                    {/* ACC-33: a payroll run fails per department; say which. */}
+                    <span className="text-caption text-ink-muted">{[row.reference, row.department?.name].filter(Boolean).join(' · ')}</span>
                   </span>
                 )
               } },

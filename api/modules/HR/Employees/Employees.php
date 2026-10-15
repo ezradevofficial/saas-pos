@@ -87,7 +87,7 @@ class Employees
             $this->customFields->fill(EmployeeEntity::KEY, $employee, $data['custom'] ?? null, creating: true);
             $employee->save();
             $this->customFields->saved(EmployeeEntity::KEY, $employee);
-            $this->recordSensitive($employee, array_keys(array_intersect_key($fields, array_flip(Employee::SENSITIVE_COLUMNS))));
+            $this->recordSensitive($employee, array_keys(array_intersect_key($fields, array_flip(Employee::AUDIT_HIDDEN_COLUMNS))));
             $this->placeFrom($employee, $employee->hire_date->toDateString());
 
             if ($this->hrActive()) {
@@ -118,7 +118,7 @@ class Employees
                 $this->customFields->fill(EmployeeEntity::KEY, $employee, $data['custom'], creating: false);
             }
 
-            $sensitive = array_values(array_filter(Employee::SENSITIVE_COLUMNS, fn (string $column) => $employee->isDirty($column)));
+            $sensitive = array_values(array_filter(Employee::AUDIT_HIDDEN_COLUMNS, fn (string $column) => $employee->isDirty($column)));
             $moved = $employee->isDirty('branch_id') || $employee->isDirty('location_id');
             $employee->save();
             $this->customFields->saved(EmployeeEntity::KEY, $employee);

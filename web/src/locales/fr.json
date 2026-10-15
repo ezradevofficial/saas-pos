@@ -8315,7 +8315,11 @@
         "holiday_minutes": "Jour férié",
         "rest_day_minutes": "Jour de repos",
         "late_minutes": "Retard"
-      }
+      },
+      "forceClose": "Clôturer la période maintenant",
+      "offlineTitle": "Des pointages hors ligne peuvent encore arriver",
+      "offlineHelp": "Les caisses et les terminaux peuvent encore envoyer des pointages pour cette période. Indiquez un motif pour la clôturer maintenant.",
+      "forceReason": "Motif de la clôture anticipée"
     },
     "rules": {
       "description": "Comment {{company}} classe le temps travaillé. La paie applique les taux.",
@@ -8561,9 +8565,10 @@
         "inSince": "Entrée pointée à {{time}}",
         "outSince": "Sortie pointée à {{time}}",
         "notYet": "Pas encore pointé aujourd’hui.",
-        "noWebClock": "Vous pointez sur une caisse ou un terminal, pas sur le web.",
+        "noWebClock": "Le pointage sur le web n’est pas activé pour vous",
         "days": "Journées",
-        "punches": "Pointages"
+        "punches": "Pointages",
+        "noWebClockHelp": "Demandez aux RH d’activer le pointage sur le web, ou pointez sur une caisse ou un terminal de présence."
       },
       "swaps": {
         "title": "Mes échanges de quart",
@@ -9615,7 +9620,52 @@
     },
     "missing": {
       "title": "Des valeurs légales manquent",
-      "help": "Les paies de cette société sont refusées tant que l’équipe de la plateforme n’a pas confirmé ces valeurs dans le pack pays. Rien n’est deviné."
+      "help": "Les paies de cette société sont refusées tant que l’équipe de la plateforme n’a pas confirmé ces valeurs dans le pack pays. Rien n’est deviné.",
+      "components": {
+        "pack": "Pack pays",
+        "paye": "PAYE",
+        "personal_relief": "Abattement personnel",
+        "insurance_relief": "Abattement assurance",
+        "nssf": "NSSF",
+        "shif": "SHIF",
+        "ahl": "Taxe logement abordable",
+        "nita": "Taxe NITA",
+        "ipr": "IPR",
+        "ipr_dependants": "Réduction d’IPR pour charges de famille",
+        "cnss": "Pension CNSS",
+        "cnss_risks": "CNSS risques professionnels",
+        "cnss_family": "CNSS prestations familiales",
+        "inpp": "INPP",
+        "onem": "ONEM",
+        "family_allowance": "Allocations familiales"
+      },
+      "fields": {
+        "period": "aucune période en vigueur",
+        "periods_overlap": "périodes qui se chevauchent",
+        "needs_confirmation": "à confirmer",
+        "method": "méthode inconnue",
+        "non_monthly": "règle pour la paie hebdomadaire et bimensuelle",
+        "bands": "tranches",
+        "rounding": "règle d’arrondi",
+        "max_rate": "taux maximal",
+        "employee_rate": "taux salarié",
+        "employer_rate": "taux employeur",
+        "base_cap_minor": "plafond",
+        "employee_min_minor": "montant minimal",
+        "employee_max_minor": "montant maximal",
+        "reduces_taxable": "déductibilité du revenu imposable",
+        "tiers": "paliers",
+        "employee_minor": "montant salarié",
+        "employer_minor": "montant employeur",
+        "brackets": "tranches d’effectif",
+        "amount_minor": "montant",
+        "rate": "taux",
+        "cap_minor": "plafond",
+        "max_dependants": "nombre maximal de personnes à charge",
+        "taxable": "imposabilité",
+        "contributory": "assujettissement aux cotisations"
+      },
+      "item": "{{component}} : {{fields}}"
     },
     "payment": {
       "title": "Fichier de paiement",

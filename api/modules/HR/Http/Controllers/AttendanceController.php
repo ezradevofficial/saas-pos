@@ -146,7 +146,7 @@ class AttendanceController
 
     public function closePeriod(PeriodRequest $request, AttendancePeriod $hrAttendancePeriod, Periods $periods): SetupResource
     {
-        return SetupResource::make($periods->close($hrAttendancePeriod, $request->user()));
+        return SetupResource::make($periods->close($hrAttendancePeriod, $request->user(), $request->boolean('force'), $request->validated('reason')));
     }
 
     public function devices(ListDevicesRequest $request): AnonymousResourceCollection

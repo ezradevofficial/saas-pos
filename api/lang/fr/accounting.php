@@ -281,6 +281,13 @@ return [
         'landed_cost_bill' => 'Frais d’approche :number',
         'procurement_invoice' => 'Facture fournisseur des achats :number',
         'fx_difference' => 'Écart de change sur les paiements',
+        // ACC-33 : libellés des lignes des écritures de paie (les noms des composantes viennent de la Paie).
+        'payroll' => [
+            'gross' => 'Salaire brut',
+            'net_pay' => 'Salaires nets à payer',
+            'loans' => 'Remboursements de prêts au personnel',
+            'employer' => 'Part patronale :name',
+        ],
         // ACC-17 (stage 7B closing review): a posted source's description, by source type.
         'memos' => [
             'pos_sale' => 'Vente au point de vente :reference',

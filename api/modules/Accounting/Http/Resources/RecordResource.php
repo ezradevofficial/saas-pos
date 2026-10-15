@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Resources;
 
+use App\Core\MasterData\Dimensions\Department;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Accounting\Models\BankAccount;
@@ -44,6 +45,9 @@ class RecordResource extends JsonResource
                 'amounts' => $model->payload['amounts'] ?? [], 'currency' => $model->payload['currency'] ?? null, 'date' => $model->payload['date'] ?? null,
                 // ACC-17: where the source opens in its own module.
                 'reference' => $model->payload['reference'] ?? null, 'link' => $model->payload['link'] ?? null,
+                // ACC-33: a payroll run posts one source per department; the row says which.
+                'department' => isset($model->payload['dimensions']['department_id'])
+                    ? Shapes::named(Department::query()->find($model->payload['dimensions']['department_id'], ['id', 'name'])) : null,
             ],
             $model instanceof BankAccount => [
                 'id' => $model->id, 'company_id' => $model->company_id, 'name' => $model->name, 'kind' => $model->kind, 'account_id' => $model->account_id,

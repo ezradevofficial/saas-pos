@@ -17,7 +17,8 @@ use Modules\HR\Support\Errors;
  * HR-22: punches. Stored once per id (uploads carry the device's UUID: a
  * punch already held is answered as stored again, NFR-04); a punch dated in
  * a closed period is kept, flagged `period_closed`, and changes nothing
- * there. Every new punch recomputes its timesheet day (HR-25). Manual
+ * there. Every new punch recomputes its timesheet day (HR-25; an upload
+ * recomputes each touched day once, batch()). Manual
  * punches and voids are audited.
  */
 class Punches
@@ -27,6 +28,36 @@ class Punches
         private readonly Auditor $auditor,
         private readonly TenantContext $tenants,
     ) {}
+
+    /** @var array<string, array<string, true>>|null days touched while batching (employee id => work dates) */
+    private ?array $batched = null;
+
+    /**
+     * HR-22, HR-25: record many punches (an upload) and recompute each
+     * touched day, and each touched ISO week, once at the end instead of
+     * once per punch.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $fn
+     * @return T
+     */
+    public function batch(callable $fn): mixed
+    {
+        if ($this->batched !== null) {
+            return $fn();
+        }
+
+        $this->batched = [];
+
+        try {
+            return $fn();
+        } finally {
+            $days = $this->batched;
+            $this->batched = null;
+            $this->timesheets->touchMany($days);
+        }
+    }
 
     /**
      * Store a punch; returns [punch, created].
@@ -111,7 +142,9 @@ class Punches
             return [$punch, true];
         });
 
-        if ($created) {
+        if ($created && $this->batched !== null) {
+            $this->batched[$employee->id][$punch->work_date->toDateString()] = true;
+        } elseif ($created) {
             $this->timesheets->touch($employee->id, $punch->work_date->toDateString());
         }
 

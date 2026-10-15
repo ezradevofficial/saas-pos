@@ -61,16 +61,17 @@ class AttendanceTest extends TestCase
         $this->assertSame(['absent', ['absent']], [$days[1]['status'], $days[1]['exceptions']]);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.punch.create')->exists()));
 
-        // Close: both days must be approved first.
+        // Close: both days must be approved first. HR-26: the period ended less than 7 days ago, so the close is forced with a reason.
+        $force = ['force' => true, 'reason' => 'Payroll cut-off'];
         $period = $this->postJson('/api/v1/hr/attendance-periods', ['company_id' => $this->acme->id, 'start_date' => '2026-10-01', 'end_date' => '2026-10-10'], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", [], $this->headersFor($this->hrOfficer))->assertUnprocessable()->assertJsonPath('code', 'days_unapproved')->assertJsonPath('count', 2);
-        $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", [], $this->headersFor($this->managerA))->assertForbidden();
+        $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", $force, $this->headersFor($this->hrOfficer))->assertUnprocessable()->assertJsonPath('code', 'days_unapproved')->assertJsonPath('count', 2);
+        $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", $force, $this->headersFor($this->managerA))->assertForbidden();
 
         $ids = $this->inTenant(fn () => AttendanceDay::query()->orderBy('work_date')->pluck('id')->all());
         $this->assertSame('absent', $this->inTenant(fn () => AttendanceDay::query()->find($ids[1])->status));
         $this->postJson('/api/v1/hr/timesheets/approve', ['day_ids' => $ids], $this->headersFor($this->managerA))->assertOk()->assertJsonPath('data.approved', 2);
 
-        $closed = $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", [], $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('data.status', 'closed')->json('data');
+        $closed = $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", $force, $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('data.status', 'closed')->json('data');
         $this->assertEquals([['employee_id' => $this->amina->id, 'days_present' => 1, 'days_absent' => 1, 'days_leave' => 0, 'worked_minutes' => 520, 'regular_minutes' => 480, 'overtime_minutes' => 40, 'night_minutes' => 0, 'holiday_minutes' => 0, 'rest_day_minutes' => 0, 'late_minutes' => 20, 'early_leave_minutes' => 0]], $closed['totals']);
         Event::assertDispatched(AttendancePeriodClosed::class, fn (AttendancePeriodClosed $e) => $e->periodId === $period && $e->employees[0]['overtime_minutes'] === 40 && $e->timezone === 'Africa/Nairobi');
 

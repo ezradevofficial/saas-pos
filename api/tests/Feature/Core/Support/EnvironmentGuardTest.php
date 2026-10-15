@@ -107,6 +107,22 @@ class EnvironmentGuardTest extends TestCase
         $this->assertSame(['HR_DIGEST_KEY is not set (identifier digests, docs/modules/hr.md)'], EnvironmentGuard::problems(config()));
     }
 
+    /** HR-10: a malformed HR_DIGEST_KEY (bad base64, or under 32 bytes) is refused like a missing one. */
+    public function test_a_malformed_hr_digest_key_is_refused(): void
+    {
+        $malformed = 'HR_DIGEST_KEY is malformed: use base64: and a random 32-byte key, or a raw key of at least 32 bytes (docs/modules/hr.md)';
+
+        foreach (['base64:not*valid*base64', 'base64:'.base64_encode(str_repeat('k', 16)), 'short-raw-key'] as $key) {
+            $this->production(['hr.digest_key' => $key]);
+            $this->assertSame([$malformed], EnvironmentGuard::problems(config()), $key);
+        }
+
+        foreach (['base64:'.base64_encode(str_repeat('k', 32)), str_repeat('r', 40)] as $key) {
+            $this->production(['hr.digest_key' => $key]);
+            $this->assertSame([], EnvironmentGuard::problems(config()), $key);
+        }
+    }
+
     public function test_several_problems_are_reported_together(): void
     {
         $this->production(['mail.default' => 'log', 'cache.default' => 'file']);

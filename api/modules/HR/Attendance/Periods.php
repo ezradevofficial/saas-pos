@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Attendance;
 
+use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
@@ -18,12 +19,18 @@ use Modules\HR\Support\Errors;
  * needs a time rule in force on every day of it and every day with a
  * planned shift or punches approved, then freezes the days, keeps the
  * totals per employee and raises AttendancePeriodClosed. Never reopened.
+ *
+ * Tills and devices queue punches offline for up to 7 days (NFR-04,
+ * decision 15), so a period closes only once that window is over for its
+ * last day (`period_offline_window`), unless HR forces the close with a
+ * reason, which is audited (decision 25).
  */
 class Periods
 {
     public function __construct(
         private readonly Timesheets $timesheets,
         private readonly TenantContext $tenants,
+        private readonly Auditor $auditor,
     ) {}
 
     /** @param array{company_id: string, start_date: string, end_date: string} $data */
@@ -44,7 +51,7 @@ class Periods
         }
     }
 
-    public function close(AttendancePeriod $period, User $by): AttendancePeriod
+    public function close(AttendancePeriod $period, User $by, bool $force = false, ?string $reason = null): AttendancePeriod
     {
         if ($period->status !== AttendancePeriod::OPEN) {
             throw Errors::make(409, 'document_not_open');
@@ -59,10 +66,22 @@ class Periods
             throw Errors::make(422, 'period_not_ended', ['date' => $end]);
         }
 
+        // HR-26, NFR-04: tills and devices may still upload punches of the period's last day for 7 days.
+        $windowEnds = $period->end_date->addDays(PunchUploads::OFFLINE_DAYS)->toDateString();
+        $early = CarbonImmutable::now($zone)->toDateString() <= $windowEnds;
+
+        if ($early && ! $force) {
+            throw Errors::make(422, 'period_offline_window', ['date' => $windowEnds], extra: ['window_ends' => $windowEnds]);
+        }
+
+        if ($early && trim((string) $reason) === '') {
+            throw Errors::make(422, 'period_force_reason', field: 'reason');
+        }
+
         $this->assertRules($period->company_id, $start, $end);
         $this->timesheets->recomputeRange($period->company_id, $start, $end);
 
-        return Errors::transaction(function () use ($period, $by, $start, $end) {
+        return Errors::transaction(function () use ($period, $by, $start, $end, $early, $reason, $windowEnds) {
             $period = AttendancePeriod::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
 
             if ($period->status !== AttendancePeriod::OPEN) {
@@ -91,6 +110,10 @@ class Periods
             usort($totals, fn (array $a, array $b) => strcmp($a['employee_id'], $b['employee_id']));
             AttendanceDay::query()->whereKey($days->pluck('id')->all())->update(['period_id' => $period->id, 'updated_at' => now()]);
             $period->fill(['status' => AttendancePeriod::CLOSED, 'closed_by' => $by->id, 'closed_at' => CarbonImmutable::now(), 'totals' => $totals])->save();
+
+            if ($early) {
+                $this->auditor->record('hr.attendance_period.force_close', $period, null, ['reason' => trim((string) $reason), 'offline_window_ends' => $windowEnds]);
+            }
 
             AttendancePeriodClosed::dispatch(
                 $this->tenants->require(), $period->id, $period->company_id, $start, $end,

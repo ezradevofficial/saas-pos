@@ -8,6 +8,8 @@ return [
         'punch_outside_employment' => 'This time is outside the employee’s employment. Check the date.',
         'punch_out_of_window' => 'This punch is more than 7 days old or in the future. Enter it by hand with a note.',
         'period_not_ended' => 'This period runs until :date. Close it after its last day.',
+        'period_offline_window' => 'Tills and devices can still upload offline punches for this period until :date. Close it after that day, or close it now with a reason.',
+        'period_force_reason' => 'Give a reason for closing this period before the offline punches are in.',
         'reviewer_is_employee' => 'The reviewer can’t be the person being appraised. Choose another reviewer.',
         'link_self' => 'You can’t link your own account to an employee. Ask another HR officer.',
         'roster_busy' => 'This roster is being generated right now. Try again in a moment.',

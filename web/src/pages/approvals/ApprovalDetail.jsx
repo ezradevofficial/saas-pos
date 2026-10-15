@@ -9,6 +9,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Icon, Money, StatusBadge } from '@/components/ds'
 import { approvalStatus, useApprovalActions, useApprovalDetail } from '@/lib/approvals'
 import { formatCompanyTime } from './approvalData'
+import { formatDatesIn } from '@/lib/dates'
 import { formatBytes, formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { ApprovalActions } from './ApprovalActions'
@@ -339,7 +340,7 @@ export function ApprovalDetail({ id, decisive = true, onBack }) {
             {approval.document?.type_label}
             {approval.document?.number ? ` · ${approval.document.number}` : ''}
           </span>
-          <h2 className="text-h2 text-ink">{approval.document?.title || approval.document?.number}</h2>
+          <h2 className="text-h2 text-ink">{formatDatesIn(approval.document?.title, locale) || approval.document?.number}</h2>
         </div>
         {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : null}
       </header>

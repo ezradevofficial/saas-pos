@@ -104,6 +104,14 @@ describe('approvals inbox (APR-04)', () => {
     expect(screen.getByTestId('approvals-waiting')).not.toHaveClass('bg-accent')
   })
 
+  it('shows the dates in a document title in the user\'s locale (payroll run)', async () => {
+    const run = approvalItem('f', { document: { ...doc('PR-2026-00003', 'Monthly staff 2026-10-01 – 2026-10-31'), type: 'payroll.run', type_label: 'Payroll run' } })
+    setup({ rows: [run] })
+    renderApp('/approvals')
+    expect(await screen.findByText('Monthly staff 1 Oct 2026 – 31 Oct 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/2026-10-01/)).not.toBeInTheDocument()
+  })
+
   it('sends the tab, filters, search and sort to the API', async () => {
     setup({ permissions: [...ALL_CORE, ...tenantWide(['core.approval.view_all'])] })
     const { router } = renderApp('/approvals')
