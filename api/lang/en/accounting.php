@@ -306,6 +306,7 @@ return [
             'loyalty_credit_adjusted' => 'Customer credit adjusted :reference',
             'stores_consumption' => 'Stores consumption :reference',
             'procurement_landed_cost' => 'Landed cost expensed :reference',
+            'payroll_run' => 'Payroll :reference',
         ],
         'summary_memo' => 'Daily summary of :count POS sales on :date',
         'backfill_from' => 'Give the first day to post with --from=YYYY-MM-DD.',

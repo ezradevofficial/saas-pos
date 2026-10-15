@@ -22,7 +22,8 @@ use Symfony\Component\HttpFoundation\Response;
  * - approvals (LIM-04 is absolute: approving, rejecting, returning,
  *   commenting, asking for information, attaching and reassigning, the
  *   bulk approve, and the POS's held voids, refunds and cash movements);
- *   payroll runs get the same treatment when Payroll lands;
+ *   payroll runs get the same treatment (PAY-28: creating, calculating,
+ *   submitting, posting and correcting a run, so staff are paid);
  * - the user's own account: signing out (here or everywhere), revoking a
  *   session, two-factor and their own POS PIN;
  * - the full data export (EXP-02, `tenant-exports`), its download link included;
@@ -75,6 +76,12 @@ class EnforceSubscription
         'POST pos/refunds/{pos_refund}/reject' => self::APPROVAL,
         'POST pos/cash-movements/{pos_cash_movement}/approve' => self::APPROVAL,
         'POST pos/cash-movements/{pos_cash_movement}/reject' => self::APPROVAL,
+        // PAY-28: payroll runs are never blocked (LIM-04), by limits or by dunning.
+        'POST payroll/runs' => self::APPROVAL,
+        'POST payroll/runs/{payroll_run}/calculate' => self::APPROVAL,
+        'POST payroll/runs/{payroll_run}/corrections' => self::APPROVAL,
+        'POST payroll/runs/{payroll_run}/submit' => self::APPROVAL,
+        'POST payroll/runs/{payroll_run}/post' => self::APPROVAL,
         'POST me/two-factor/totp' => self::ACCOUNT,
         'POST me/two-factor/totp/confirm' => self::ACCOUNT,
         'POST me/two-factor/sms' => self::ACCOUNT,
