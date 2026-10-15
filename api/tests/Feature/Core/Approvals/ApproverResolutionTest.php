@@ -171,7 +171,8 @@ class ApproverResolutionTest extends TestCase
         $this->assertNotEmpty($validate(['approval' => ['approver' => ['type' => 'user', 'user_id' => $other['user']->id]]]));
 
         $meta = $this->getJson('/api/v1/workflow/document-types', $this->headersFor())->assertOk()->json('meta.approver_types');
-        $this->assertSame(['branch_manager', 'department_head', 'cost_centre_owner', 'manager_levels_up', 'role', 'user'], array_column($meta, 'key'));
+        // The core's types, then those modules register (HR: line_manager, docs/modules/hr.md).
+        $this->assertSame(['branch_manager', 'department_head', 'cost_centre_owner', 'manager_levels_up', 'role', 'user', 'line_manager'], array_column($meta, 'key'));
         $this->assertSame('levels', $meta[3]['params'][0]['name']);
     }
 

@@ -22,6 +22,7 @@ class StoreEmployeeRequest extends HrRequest
     use GuardsFieldRules {
         GuardsFieldRules::withValidator as guardFieldRules;
     }
+    use LinksUser;
 
     protected string $fieldRulesResource = Sensitive::RESOURCE;
 

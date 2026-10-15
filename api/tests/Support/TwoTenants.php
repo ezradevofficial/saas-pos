@@ -47,6 +47,7 @@ use Illuminate\Testing\TestResponse;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\HR\Models\Employee;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -981,9 +982,12 @@ final class TwoTenants
         ], $owner), 201)->json('data.id');
         $employee = self::ok($test->postJson('/api/v1/hr/employees', [
             'company_id' => $company, 'first_name' => 'Worker', 'last_name' => $upper, 'hire_date' => '2026-01-05', 'branch_id' => $branch, 'location_id' => $location,
-            'department_id' => $dimensions['department'], 'position_id' => $position, 'user_id' => $ownerId, 'clock_methods' => ['till', 'web', 'device'],
+            'department_id' => $dimensions['department'], 'position_id' => $position, 'clock_methods' => ['till', 'web', 'device'],
             'biometric_ref' => "BIO-{$upper}", 'date_of_birth' => '1990-04-12',
         ], $owner), 201)->json('data.id');
+        // Linked to the Owner for self-service. Nobody links themselves through the API
+        // (hr.employee.link, link_self), so the fixture links in the database.
+        app(TenantContext::class)->run($tenantId, fn () => Employee::query()->whereKey($employee)->update(['user_id' => $ownerId]));
         $peer = self::ok($test->postJson('/api/v1/hr/employees', [
             'company_id' => $company, 'first_name' => 'Peer', 'last_name' => $upper, 'hire_date' => '2026-01-05', 'branch_id' => $branch, 'location_id' => $location, 'reports_to_id' => $employee,
         ], $owner), 201)->json('data.id');

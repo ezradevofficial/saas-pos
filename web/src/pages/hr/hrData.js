@@ -12,6 +12,7 @@ export const PERM = {
   employeeCreate: 'hr.employee.create',
   employeeEdit: 'hr.employee.edit',
   employeeTerminate: 'hr.employee.terminate',
+  employeeLink: 'hr.employee.link',
   contractView: 'hr.contract.view',
   contractManage: 'hr.contract.manage',
   positionView: 'hr.position.view',
@@ -76,7 +77,6 @@ export const STATUS_TONES = {
   absent: 'danger',
   leave: 'info',
   holiday: 'info',
-  rest: 'neutral',
   incomplete: 'warning',
   open: 'info',
   closed: 'neutral',
@@ -98,7 +98,7 @@ export const STATUS_TONES = {
 }
 
 /** HR-25: a timesheet day's exceptions. */
-export const EXCEPTION_TONES = { late: 'warning', early_leave: 'warning', missing_out: 'warning', absent: 'danger', unplanned: 'info' }
+export const EXCEPTION_TONES = { late: 'warning', early_leave: 'warning', missing_in: 'warning', missing_out: 'warning', absent: 'danger', unplanned: 'info', no_time_rule: 'warning' }
 
 export const EMPLOYEE_STATUSES = ['active', 'terminated']
 export const GENDERS = ['female', 'male', 'other']
@@ -112,7 +112,7 @@ export const LEAVE_STATUSES = ['pending', 'approved', 'rejected', 'cancelled']
 export const ACCRUALS = ['none', 'annual', 'monthly']
 export const COUNT_BASES = ['working_days', 'calendar_days']
 export const SWAP_STATUSES = ['awaiting_peer', 'pending', 'approved', 'rejected', 'declined', 'cancelled']
-export const DAY_STATUSES = ['present', 'absent', 'leave', 'holiday', 'rest', 'incomplete']
+export const DAY_STATUSES = ['present', 'absent', 'leave', 'holiday', 'incomplete']
 export const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 export const CHECKLIST_KINDS = ['onboarding', 'offboarding']
 export const CASE_CATEGORIES = ['verbal_warning', 'written_warning', 'final_warning', 'suspension', 'dismissal', 'other']

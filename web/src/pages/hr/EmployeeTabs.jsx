@@ -435,7 +435,7 @@ function PinDialog({ employee, onClose }) {
   const { t } = useTranslation()
   const [pin, setPin] = useState('')
   const save = useHrMutation((body) => api.put(`hr/employees/${employee.id}/clock-pin`, body), { success: t('hr.pin.saved'), onDone: onClose })
-  const errors = save.errors(['pin'])
+  const errors = save.errors(['pin'], { clock_pin_same_as_till: 'pin' })
   return (
     <FormDialog open title={t('hr.pin.setTitle', { name: employee.name })} onClose={onClose} submitLabel={t('hr.pin.save')} pending={save.isPending} disabled={!/^\d{4,6}$/.test(pin)} errors={errors} onSubmit={() => save.mutate({ pin })}>
       <p>{t('hr.pin.setHelp')}</p>

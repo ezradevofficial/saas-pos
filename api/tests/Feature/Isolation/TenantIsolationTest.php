@@ -356,6 +356,8 @@ class TenantIsolationTest extends TestCase
         'role' => 'role',
         'custom_field' => 'custom_field',
         'custom_form_type' => 'custom_form_type',
+        'hr_employee' => 'hr_employee',
+        'hr_disciplinary_case' => 'hr_disciplinary_case',
     ];
 
     /** scope_type => which of B's ids goes in scope_id. */
@@ -1619,10 +1621,11 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/hr/attendance-periods' => ['company_id' => $tenant->id('company'), 'start_date' => '2026-03-01', 'end_date' => '2026-03-31'],
             'POST api/v1/hr/attendance-devices' => ['location_id' => $tenant->id('location'), 'name' => 'Hijack'],
             'POST api/v1/hr/till/punches' => ['punches' => [['id' => (string) Str::uuid7(), 'employee_id' => $tenant->id('hr_employee'), 'kind' => 'in', 'occurred_at' => '2026-10-06T08:00:00+03:00']]],
+            'POST api/v1/hr/till/clock-attempts' => ['reports' => [['employee_id' => $tenant->id('hr_employee'), 'failed_attempts' => 1, 'locked' => false]]],
             'POST api/v1/hr/checklist-templates' => ['company_id' => $tenant->id('company'), 'kind' => 'offboarding', 'name' => 'Hijack', 'items' => [['title' => 'Return keys']]],
             'POST api/v1/hr/disciplinary-cases' => ['employee_id' => $tenant->id('hr_employee'), 'category' => 'other', 'incident_date' => '2026-10-02', 'description' => 'Check'],
             'POST api/v1/hr/appraisal-cycles' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack', 'period_start' => '2027-01-01', 'period_end' => '2027-12-31'],
-            'PATCH api/v1/hr/appraisals/{hr_appraisal}' => ['reviewer_id' => $tenant->id('user')],
+            'PATCH api/v1/hr/appraisals/{hr_appraisal}' => ['reviewer_id' => $tenant->id('manager')],
             // HR-31: the Owner is linked to A's employee.
             'POST api/v1/hr/me/leave-requests' => ['leave_type_id' => $tenant->id('hr_leave_type'), 'start_date' => '2027-01-11', 'end_date' => '2027-01-12'],
             'POST api/v1/hr/me/swaps' => ['roster_shift_id' => $tenant->id('hr_roster_shift'), 'peer_employee_id' => $tenant->id('hr_employee_peer'), 'peer_roster_shift_id' => $tenant->id('hr_roster_shift_peer')],

@@ -378,15 +378,21 @@ function ReviewForm({ appraisal }) {
   const [rating, setRating] = useState(appraisal.manager_rating ? String(appraisal.manager_rating) : '')
   const [comments, setComments] = useState(appraisal.manager_comments ?? '')
   const [completing, setCompleting] = useState(false)
+  const { can } = usePermissions()
+  // HR-30: holders of `hr.appraisal.manage` may hand the review to another user (never the employee's own).
+  const assigns = can(PERM.appraisalManage)
+  const [reviewer, setReviewer] = useState(appraisal.reviewer?.id ?? '')
+  const users = useQuery({ queryKey: ['users', 'options', 'active'], queryFn: () => api.get('users?status=active&per_page=200'), enabled: assigns, retry: false })
   const editable = appraisal.status === 'self_review' || appraisal.status === 'manager_review'
   const save = useHrMutation((body) => api.patch(`hr/appraisals/${appraisal.id}`, body), { success: t('hr.appraisals.saved') })
   const complete = useHrMutation(() => api.post(`hr/appraisals/${appraisal.id}/complete`, {}), { success: t('hr.appraisals.completed'), onDone: () => setCompleting(false) })
-  const errors = save.errors(['manager_rating', 'manager_comments', 'goals', ...goals.flatMap((_, index) => ['title', 'weight', 'rating', 'comment'].map((key) => `goals.${index}.${key}`))])
+  const errors = save.errors(['reviewer_id', 'manager_rating', 'manager_comments', 'goals', ...goals.flatMap((_, index) => ['title', 'weight', 'rating', 'comment'].map((key) => `goals.${index}.${key}`))], { reviewer_is_employee: 'reviewer_id' })
   const setGoal = (index, key, value) => setGoals(goals.map((goal, at) => (at === index ? { ...goal, [key]: value } : goal)))
   const body = () => ({
     goals: goals.filter((goal) => goal.title.trim()).map((goal) => ({ title: goal.title.trim(), weight: goal.weight === '' ? 0 : Number(goal.weight), rating: goal.rating ? Number(goal.rating) : null, comment: goal.comment.trim() || null })),
     manager_rating: rating ? Number(rating) : null,
     manager_comments: comments.trim() || null,
+    ...(assigns && reviewer !== (appraisal.reviewer?.id ?? '') ? { reviewer_id: reviewer || null } : {}),
   })
   return (
     <>
@@ -446,6 +452,18 @@ function ReviewForm({ appraisal }) {
       </Card>
       <Card title={t('hr.appraisals.managerReview')}>
         <div className="flex flex-col gap-3">
+          {assigns ? (
+            <Select
+              label={t('hr.appraisals.reviewer')}
+              placeholder={t('hr.pickers.user')}
+              options={[{ value: '', label: t('hr.appraisals.noReviewer') }, ...(users.data?.data ?? []).map((user) => ({ value: user.id, label: user.name }))]}
+              value={reviewer}
+              disabled={!editable}
+              error={errors.fields.reviewer_id}
+              onChange={(event) => setReviewer(event.target.value)}
+              className="sm:max-w-xs"
+            />
+          ) : null}
           <Select label={t('hr.appraisals.managerRating')} options={ratingOptions(t)} value={rating} disabled={!editable} error={errors.fields.manager_rating} onChange={(event) => setRating(event.target.value)} className="sm:max-w-xs" />
           <TextAreaField label={t('hr.appraisals.managerComments')} value={comments} disabled={!editable} rows={4} maxLength={5000} error={errors.fields.manager_comments} onChange={(event) => setComments(event.target.value)} />
         </div>

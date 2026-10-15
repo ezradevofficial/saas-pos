@@ -180,6 +180,13 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
         return { status: 200, body: { data } };
       }
 
+      // HR-23: wrong clock-in PINs counted on a till; answered in order, by employee.
+      if (method === 'POST' && path === 'hr/till/clock-attempts') {
+        if (state.hrInactive) return { status: 403, body: { code: 'module_inactive', message: 'Inactive' } };
+        state.clockReports = [...(state.clockReports ?? []), ...body.reports];
+        return { status: 200, body: { data: body.reports.map((report) => ({ employee_id: report.employee_id, recorded: true })) } };
+      }
+
       if (method === 'POST' && path.startsWith('pos/')) {
         if (state.uploadOverride) {
           const answer = state.uploadOverride(path, body);

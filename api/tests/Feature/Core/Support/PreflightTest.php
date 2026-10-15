@@ -23,6 +23,8 @@ class PreflightTest extends TestCase
             'payments.drivers' => [],
             'billing.drivers' => [],
             'fiscal.allow_fake' => false,
+            // HR's identifier digest key (HR-10), separate from APP_KEY.
+            'hr.digest_key' => 'base64:'.base64_encode(str_repeat('k', 32)),
         ], $config));
     }
 
@@ -65,12 +67,13 @@ class PreflightTest extends TestCase
             'queue.default' => 'sync',
             'app.debug' => true,
             'app.key' => '',
+            'hr.digest_key' => '',
         ]);
 
         [$code, $output] = $this->preflight();
 
         $this->assertSame(1, $code);
-        foreach (['mail transport is log', 'SMS driver is log', "cache store is 'database'", "queue connection is 'sync'", 'APP_DEBUG is true', 'APP_KEY is not set', '6 check(s) failed'] as $problem) {
+        foreach (['mail transport is log', 'SMS driver is log', "cache store is 'database'", "queue connection is 'sync'", 'APP_DEBUG is true', 'APP_KEY is not set', 'HR_DIGEST_KEY is not set', '7 check(s) failed'] as $problem) {
             $this->assertStringContainsString($problem, $output);
         }
     }

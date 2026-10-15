@@ -8,14 +8,14 @@ import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Checkbox, DataTable, Dialog, ListView, MultiSelect, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatCompanyTime } from '@/lib/companyTime'
-import { localDateTimeIn, zonedToUtc } from '@/lib/dates'
+import { localDateTimeIn } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 import { useServerList } from '@/lib/useServerList'
 import { useCompanyOfRecord, useTimeZone } from '@/lib/useTimeZone'
 import { dateField } from '@/pages/inventory/inventoryHelpers'
 import { ExceptionBadges, ConfirmDialog, EmployeePicker, FormDialog, HrStatus, NoCompany, SectionTabs, TextAreaField } from './HrParts'
 import { DAY_STATUSES, enumLabel, enumOptions, formatMinutes, hrKey, PERM, statusLabel, today, useHrCompany, usePlaces, WEEK_DAYS } from './hrData'
-import { useClock, useDay, useHrMutation } from './hrForms'
+import { useClock, useDay, useHrMutation, withZoneOffset } from './hrForms'
 
 function AttendanceHeader({ description, actions }) {
   const { t } = useTranslation()
@@ -164,7 +164,7 @@ function ManualPunch({ onClose }) {
   const zone = useTimeZone(employee?.company?.id ?? company?.id)
   const [form, setForm] = useState(() => ({ kind: 'in', at: localDateTimeIn(zone), note: '' }))
   const save = useHrMutation((body) => api.post('hr/punches', body), { success: t('hr.punches.added'), onDone: onClose })
-  const errors = save.errors(['employee_id', 'kind', 'occurred_at', 'note'])
+  const errors = save.errors(['employee_id', 'kind', 'occurred_at', 'note'], { punch_outside_employment: 'occurred_at', punch_out_of_window: 'occurred_at' })
   return (
     <FormDialog
       open
@@ -174,7 +174,7 @@ function ManualPunch({ onClose }) {
       pending={save.isPending}
       disabled={!employee || !form.at || !form.note.trim()}
       errors={errors}
-      onSubmit={() => save.mutate({ employee_id: employee.id, kind: form.kind, occurred_at: zonedToUtc(form.at, zone), note: form.note.trim() })}
+      onSubmit={() => save.mutate({ employee_id: employee.id, kind: form.kind, occurred_at: withZoneOffset(form.at, zone), note: form.note.trim() })}
     >
       <EmployeePicker company={company?.id} value={employee} required error={errors.fields.employee_id} onChange={setEmployee} />
       <div className="grid gap-3 sm:grid-cols-2">

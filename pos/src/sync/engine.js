@@ -380,7 +380,7 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     }
 
     const response = await call('POST', kind.path, { body: { [kind.bodyKey]: batch.map((entry) => entry.payload) } });
-    const results = kind.readResults ? kind.readResults(response.body) : Array.isArray(response.body?.results) ? response.body.results : null;
+    const results = kind.readResults ? kind.readResults(response.body, batch.map((entry) => entry.payload)) : Array.isArray(response.body?.results) ? response.body.results : null;
 
     if ((response.status === 200 || response.status === 422) && results) {
       const byId = new Map(results.map((result) => [String(result.id), result]));

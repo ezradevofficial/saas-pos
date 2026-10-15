@@ -6,11 +6,13 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Pin\Pins;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Modules\HR\Models\AttendanceDay;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\EmployeeIdentifier;
 use Modules\HR\Models\LeaveRequest;
@@ -149,7 +151,7 @@ class ReviewAttendanceTest extends TestCase
 
         // HR-25: the out pairs with its in: both on the night's work date, one day of 8 hours.
         $this->assertSame([$in->toDateString(), $in->toDateString()], $this->inTenant(fn () => Punch::query()->orderBy('occurred_at')->get()->map(fn (Punch $p) => $p->work_date->toDateString())->all()));
-        $this->assertSame(480, $this->inTenant(fn () => \Modules\HR\Models\AttendanceDay::query()->sole()->worked_minutes));
+        $this->assertSame(480, $this->inTenant(fn () => AttendanceDay::query()->sole()->worked_minutes));
     }
 
     public function test_an_out_pairs_with_the_open_in_not_with_the_nearest_shift(): void
@@ -174,7 +176,7 @@ class ReviewAttendanceTest extends TestCase
 
         $planned = $this->plan($this->amina, '2026-09-07');
         $period = $this->postJson('/api/v1/hr/attendance-periods', ['company_id' => $this->acme->id, 'start_date' => '2026-09-01', 'end_date' => '2026-09-30'], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
-        $days = $this->inTenant(fn () => \Modules\HR\Models\AttendanceDay::query()->pluck('id')->all());
+        $days = $this->inTenant(fn () => AttendanceDay::query()->pluck('id')->all());
         $this->postJson('/api/v1/hr/timesheets/approve', ['day_ids' => $days], $this->headersFor($this->hrOfficer))->assertOk();
         $this->postJson("/api/v1/hr/attendance-periods/{$period}/close", [], $this->headersFor($this->hrOfficer))->assertOk();
 
@@ -240,7 +242,7 @@ class ReviewAttendanceTest extends TestCase
             if (! $done && str_starts_with($query->sql, 'select') && str_contains($query->sql, 'hr_punches') && in_array($id, $query->bindings, true)) {
                 $done = true;
                 DB::connection('pgsql')->table('hr_punches')->insert([
-                    'id' => $id, 'tenant_id' => app(\App\Core\Tenancy\TenantContext::class)->id(), 'employee_id' => $this->amina->id, 'company_id' => $this->acme->id, 'kind' => 'in',
+                    'id' => $id, 'tenant_id' => app(TenantContext::class)->id(), 'employee_id' => $this->amina->id, 'company_id' => $this->acme->id, 'kind' => 'in',
                     'occurred_at' => now()->subHour(), 'source' => 'till', 'flags' => '[]', 'received_at' => now(), 'work_date' => now()->toDateString(),
                 ]);
             }

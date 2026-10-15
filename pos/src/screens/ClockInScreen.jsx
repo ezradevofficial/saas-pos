@@ -59,8 +59,8 @@ function useBoard() {
 
 const ClockRow = memo(function ClockRow({ member, onSelect }) {
   const { t } = useTranslation();
-  const today = member.today;
-  const state = today ? t(today.kind === 'in' ? 'clockIn.inSince' : 'clockIn.outAt', { time: formatClock(today.occurredAt) }) : null;
+  const latest = member.latest;
+  const state = latest ? t(latest.kind === 'in' ? 'clockIn.inSince' : 'clockIn.outAt', { time: formatClock(latest.occurredAt) }) : null;
   const label = [member.name, member.number, state, member.lockedHere ? t('clockIn.locked') : null].filter(Boolean).join(', ');
   return (
     <Pressable
@@ -75,7 +75,7 @@ const ClockRow = memo(function ClockRow({ member, onSelect }) {
       </View>
       <View className="items-end gap-1">
         {member.lockedHere ? <StatusBadge tone="danger">{t('clockIn.locked')}</StatusBadge> : null}
-        {today?.upload === 'rejected' ? <StatusBadge tone="warning">{t('clockIn.notAccepted')}</StatusBadge> : null}
+        {member.rejected ? <StatusBadge tone="warning">{t('clockIn.notAccepted')}</StatusBadge> : null}
       </View>
     </Pressable>
   );

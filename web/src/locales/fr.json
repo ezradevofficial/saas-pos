@@ -7639,7 +7639,6 @@
       "absent": "Absence",
       "leave": "En congé",
       "holiday": "Jour férié",
-      "rest": "Jour de repos",
       "incomplete": "Incomplet",
       "open": "Ouvert",
       "closed": "Clôturé",
@@ -7664,7 +7663,9 @@
       "early_leave": "Départ anticipé",
       "missing_out": "Sortie manquante",
       "absent": "Absence",
-      "unplanned": "Hors planning"
+      "unplanned": "Hors planning",
+      "missing_in": "Entrée manquante",
+      "no_time_rule": "Aucune règle horaire"
     },
     "genders": {
       "female": "Femme",
@@ -7843,7 +7844,8 @@
       "rotation": "Choisissez un roulement",
       "shift": "Choisissez un quart",
       "template": "Choisissez un modèle",
-      "user": "Choisissez un utilisateur"
+      "user": "Choisissez un utilisateur",
+      "noUser": "Aucun utilisateur"
     },
     "filters": {
       "allBranches": "Toutes les succursales",
@@ -7893,7 +7895,8 @@
       "back": "Retour aux employés",
       "notFound": "Cet employé n’existe pas, ou se trouve hors des lieux dont vous avez la charge.",
       "clockMethodsHelp": "Comment cette personne peut pointer à l’entrée et à la sortie.",
-      "biometricHelp": "La référence que le terminal biométrique utilise pour cette personne."
+      "biometricHelp": "La référence que le terminal biométrique utilise pour cette personne.",
+      "userHelp": "L’utilisateur avec lequel cette personne se connecte au libre-service. Laissez vide si elle n’en a pas."
     },
     "profile": {
       "tabs": {

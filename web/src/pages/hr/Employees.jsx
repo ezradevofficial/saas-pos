@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -8,7 +9,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { useServerList } from '@/lib/useServerList'
 import { Back, CalendarDate, EmployeePicker, HrStatus } from './HrParts'
 import { branchesOf, CLOCK_METHODS, EMPLOYEE_STATUSES, enumOptions, GENDERS, hrKey, locationsOf, PERM, statusLabel, useDepartments, useHrCompany, usePlaces, usePositions } from './hrData'
-import { EMPLOYEE_FIELDS, employeeBody, employeeForm, useHrMutation } from './hrForms'
+import { EMPLOYEE_CODES, EMPLOYEE_FIELDS, employeeBody, employeeForm, useHrMutation } from './hrForms'
 
 /**
  * HR-02, HR-35: employees at the places the user sees, with search
@@ -78,7 +79,7 @@ export default function Employees() {
  * (branch, location), department, position, line manager, work contacts
  * and clock-in methods, all of the employee's company.
  */
-export function EmployeeFields({ form, setForm, errors, companyId, employeeId }) {
+export function EmployeeFields({ form, setForm, errors, companyId, employeeId, link = false }) {
   const { t } = useTranslation()
   const places = usePlaces()
   const departments = useDepartments(companyId)
@@ -152,8 +153,26 @@ export function EmployeeFields({ form, setForm, errors, companyId, employeeId })
         <TextField type="email" label={t('hr.fields.workEmail')} value={form.work_email} error={errors.fields.work_email} onChange={set('work_email')} />
         <TextField label={t('hr.fields.workPhone')} value={form.work_phone} error={errors.fields.work_phone} onChange={set('work_phone')} />
         <TextField label={t('hr.fields.biometricRef')} help={t('hr.employees.biometricHelp')} value={form.biometric_ref} maxLength={64} error={errors.fields.biometric_ref} onChange={set('biometric_ref')} />
+        {link ? <UserPicker value={form.user_id} error={errors.fields.user_id} onChange={(value) => setForm({ ...form, user_id: value })} /> : null}
       </div>
     </>
+  )
+}
+
+/** AUTH-12: the user of the tenant this person signs in as (self-service); only for holders of `hr.employee.link`. */
+export function UserPicker({ value, error, onChange }) {
+  const { t } = useTranslation()
+  const users = useQuery({ queryKey: ['users', 'options', 'active'], queryFn: () => api.get('users?status=active&per_page=200'), retry: false })
+  return (
+    <Select
+      label={t('hr.fields.user')}
+      help={t('hr.employees.userHelp')}
+      placeholder={t('hr.pickers.user')}
+      options={[{ value: '', label: t('hr.pickers.noUser') }, ...(users.data?.data ?? []).map((user) => ({ value: user.id, label: [user.name, user.email ?? user.phone].filter(Boolean).join(' · ') }))]}
+      value={value}
+      error={error}
+      onChange={(event) => onChange(event.target.value)}
+    />
   )
 }
 
@@ -161,6 +180,8 @@ export function EmployeeFields({ form, setForm, errors, companyId, employeeId })
 export function EmployeeForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { can } = usePermissions()
+  const link = can(PERM.employeeLink)
   const places = usePlaces()
   const chosen = useHrCompany()
   const [companyId, setCompanyId] = useState(null)
@@ -171,14 +192,14 @@ export function EmployeeForm() {
     success: (response) => t('hr.employees.hired', { number: response?.data?.number ?? '' }),
     onDone: (response) => navigate(`/hr/employees/${response.data.id}`),
   })
-  const errors = save.errors(EMPLOYEE_FIELDS)
+  const errors = save.errors(EMPLOYEE_FIELDS, EMPLOYEE_CODES)
   const ready = company && form.first_name.trim() && form.last_name.trim() && form.hire_date
   const companies = places.companies.filter((row) => !row.archived_at)
 
   const submit = (event) => {
     event.preventDefault()
     setSubmitted(true)
-    if (ready) save.mutate({ company_id: company, ...employeeBody(form) })
+    if (ready) save.mutate({ company_id: company, ...employeeBody(form, { link }) })
   }
 
   return (
@@ -202,7 +223,7 @@ export function EmployeeForm() {
                 setForm({ ...form, branch_id: '', location_id: '', department_id: '', position_id: '', reports_to: null })
               }}
             />
-            <EmployeeFields form={form} setForm={setForm} errors={errors} companyId={company} />
+            <EmployeeFields form={form} setForm={setForm} errors={errors} companyId={company} link={link} />
           </div>
         </Card>
         <div className="flex flex-wrap gap-2">

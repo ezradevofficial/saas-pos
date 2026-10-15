@@ -37,6 +37,8 @@ class EnvironmentGuardTest extends TestCase
             'payments.drivers' => [],
             'billing.drivers' => [],
             'fiscal.allow_fake' => false,
+            // HR's identifier digest key (HR-10), separate from APP_KEY.
+            'hr.digest_key' => 'base64:'.base64_encode(str_repeat('k', 32)),
         ], $config));
     }
 
@@ -95,6 +97,14 @@ class EnvironmentGuardTest extends TestCase
 
             config(['mail.mailers.smtp.transport' => 'smtp']);
         }
+    }
+
+    /** HR-10: production needs HR_DIGEST_KEY while the HR module is installed. */
+    public function test_a_production_environment_without_the_hr_digest_key_is_refused(): void
+    {
+        $this->production(['hr.digest_key' => '']);
+
+        $this->assertSame(['HR_DIGEST_KEY is not set (identifier digests, docs/modules/hr.md)'], EnvironmentGuard::problems(config()));
     }
 
     public function test_several_problems_are_reported_together(): void

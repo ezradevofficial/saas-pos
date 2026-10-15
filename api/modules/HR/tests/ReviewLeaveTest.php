@@ -9,6 +9,7 @@ use App\Core\Workflow\Calendar\BusinessCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 use Modules\HR\Leave\Accruals;
 use Modules\HR\Leave\LeaveLedger;
 use Modules\HR\Models\AttendanceDay;
@@ -150,7 +151,7 @@ class ReviewLeaveTest extends TestCase
         return $this->inTenant(fn () => LeaveType::query()->findOrFail($id));
     }
 
-    private function request(LeaveType $type, string $start, string $end): \Illuminate\Testing\TestResponse
+    private function request(LeaveType $type, string $start, string $end): TestResponse
     {
         return $this->postJson('/api/v1/hr/leave-requests', ['employee_id' => $this->worker->id, 'leave_type_id' => $type->id, 'start_date' => $start, 'end_date' => $end], $this->headersFor($this->owner));
     }

@@ -10,7 +10,7 @@ import { EmployeeFields } from './Employees'
 import { AppraisalsTab, AttendanceTab, ChecklistsTab, ContractsTab, DisciplinaryTab, DocumentsTab, LeaveTab } from './EmployeeTabs'
 import { Back, CalendarDate, ConfirmDialog, Detail, DetailGrid, DetailState, Empty, FormDialog, HrStatus, PersonalForm, TextAreaField } from './HrParts'
 import { employeeLabel, enumLabel, enumOptions, hrKey, PAY_ACCOUNT_KINDS, PERM, TERMINATION_REASONS, today, useCurrencyCodes } from './hrData'
-import { ADDRESS_FIELDS, EMPLOYEE_FIELDS, employeeBody, employeeForm, PERSONAL_FIELDS, personalBody, personalForm, useHrMutation } from './hrForms'
+import { ADDRESS_FIELDS, EMPLOYEE_CODES, EMPLOYEE_FIELDS, employeeBody, employeeForm, PERSONAL_FIELDS, personalBody, personalForm, useHrMutation } from './hrForms'
 
 /**
  * HR-02 to HR-11: an employee's profile. The API leaves out what the
@@ -128,7 +128,7 @@ function Overview({ employee }) {
         title={t('hr.profile.selfService')}
         subtitle={t('hr.profile.selfServiceHelp')}
         actions={
-          can(PERM.employeeEdit) ? (
+          can(PERM.employeeLink) ? (
             employee.user ? (
               <Button variant="ghost" onClick={() => setDialog('unlink')}>
                 {t('hr.profile.unlinkUser')}
@@ -155,10 +155,13 @@ function Overview({ employee }) {
 function EditEmployee({ employee, onClose }) {
   const { t } = useTranslation()
   const [form, setForm] = useState(() => employeeForm(employee))
+  const { can } = usePermissions()
+  const link = can(PERM.employeeLink)
   const save = useHrMutation((body) => api.patch(`hr/employees/${employee.id}`, body), { success: t('hr.profile.saved'), onDone: onClose })
+  const errors = save.errors(EMPLOYEE_FIELDS, EMPLOYEE_CODES)
   return (
-    <FormDialog open size="lg" title={t('hr.profile.editTitle')} onClose={onClose} submitLabel={t('hr.actions.saveChanges')} pending={save.isPending} errors={save.errors(EMPLOYEE_FIELDS)} onSubmit={() => save.mutate(employeeBody(form))}>
-      <EmployeeFields form={form} setForm={setForm} errors={save.errors(EMPLOYEE_FIELDS)} companyId={employee.company?.id} employeeId={employee.id} />
+    <FormDialog open size="lg" title={t('hr.profile.editTitle')} onClose={onClose} submitLabel={t('hr.actions.saveChanges')} pending={save.isPending} errors={errors} onSubmit={() => save.mutate(employeeBody(form, { link }))}>
+      <EmployeeFields form={form} setForm={setForm} errors={errors} companyId={employee.company?.id} employeeId={employee.id} link={link} />
     </FormDialog>
   )
 }
@@ -206,7 +209,7 @@ function LinkUser({ employee, onClose }) {
   const [userId, setUserId] = useState('')
   const users = useQuery({ queryKey: ['users', 'options', 'active'], queryFn: () => api.get('users?status=active&per_page=200'), retry: false })
   const save = useHrMutation((body) => api.patch(`hr/employees/${employee.id}`, body), { success: t('hr.profile.linked'), onDone: onClose })
-  const errors = save.errors(['user_id'])
+  const errors = save.errors(['user_id'], EMPLOYEE_CODES)
   return (
     <FormDialog open title={t('hr.profile.linkTitle')} onClose={onClose} submitLabel={t('hr.profile.linkUser')} pending={save.isPending} disabled={!userId} errors={errors} onSubmit={() => save.mutate({ user_id: userId })}>
       <p>{t('hr.profile.linkHelp')}</p>

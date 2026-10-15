@@ -4,7 +4,11 @@ namespace Modules\HR\Tests;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
+use App\Core\Rbac\Models\FieldRule;
+use App\Core\Rbac\Models\Role;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\RoleTemplates;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -101,10 +105,10 @@ class ReviewAccessTest extends TestCase
         // An HR clerk: the HR Officer's permissions without hr.employee.link.
         $editor = $this->userWith('hr_officer', Scope::company($this->acme->id));
         $this->inTenant(function () use ($editor) {
-            $role = \App\Core\Rbac\Models\Role::query()->where('template_key', 'hr_officer')->sole();
-            $copy = app(\App\Core\Rbac\RoleTemplates::class)->copy($role, 'HR clerk');
+            $role = Role::query()->where('template_key', 'hr_officer')->sole();
+            $copy = app(RoleTemplates::class)->copy($role, 'HR clerk');
             $copy->setPermissions($copy->permissions()->where('name', '!=', 'hr.employee.link')->get());
-            \App\Core\Rbac\Models\RoleAssignment::query()->where('user_id', $editor->id)->update(['role_id' => $copy->id]);
+            RoleAssignment::query()->where('user_id', $editor->id)->update(['role_id' => $copy->id]);
         });
 
         $this->patchJson("/api/v1/hr/employees/{$employee->id}", ['user_id' => $user->id], $this->headersFor($editor))->assertForbidden();
@@ -121,7 +125,7 @@ class ReviewAccessTest extends TestCase
         $this->assertNotEmpty($this->getJson("/api/v1/history/hr_disciplinary_case/{$case}", $this->headersFor($this->hrOfficer))->assertOk()->json('data'));
         $this->getJson("/api/v1/history/hr_disciplinary_case/{$case}", $this->headersFor($this->managerA))->assertNotFound();
 
-        $this->inTenant(fn () => \App\Core\Rbac\Models\FieldRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'resource' => 'hr_employee', 'field' => 'personal_phone', 'mode' => 'hidden']));
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'resource' => 'hr_employee', 'field' => 'personal_phone', 'mode' => 'hidden']));
         $history = json_encode($this->getJson("/api/v1/history/hr_employee/{$employee->id}", $this->headersFor($this->managerA))->assertOk()->json('data'));
         $this->assertStringNotContainsString('254711000999', $history);
         $this->assertStringContainsString('254711000999', json_encode($this->getJson("/api/v1/history/hr_employee/{$employee->id}", $this->headersFor($this->hrOfficer))->json('data')));

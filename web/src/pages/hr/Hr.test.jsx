@@ -5,7 +5,7 @@
 // (HR-24) and the self-service clock button (HR-31).
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { chooseOption, waitForOption } from '@/test/combobox'
+import { chooseOption, optionTexts, waitForOption } from '@/test/combobox'
 import { openFilters } from '@/test/filters'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { addDays, PERM, today, weekStart } from './hrData'
@@ -97,8 +97,9 @@ describe('HR screens', () => {
     expect(screen.getByText('+254700000001')).toBeInTheDocument()
     expect(screen.queryByText('Date of birth')).not.toBeInTheDocument()
     expect(screen.queryByText('Medical notes')).not.toBeInTheDocument()
-    // Without `hr.employee.edit` the record is read only.
+    // Without `hr.employee.edit` the record is read only; without `hr.employee.link` no user is linked.
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Link a user' })).not.toBeInTheDocument()
   })
 
   it('shows identifiers in full and the date of birth when the API includes them (HR-03, HR-09)', async () => {
@@ -189,13 +190,15 @@ describe('HR screens', () => {
 
   it('approves the selected timesheet days and shows exceptions as dots and words (HR-25)', async () => {
     const day = (id, employee, exceptions) => ({ id, employee, company_id: 'c-1', work_date: '2026-10-12', roster_shift_id: null, first_in: '2026-10-12T05:20:00Z', last_out: '2026-10-12T13:00:00Z', status: 'present', exceptions, approved_at: null, period_id: null, worked_minutes: 430, regular_minutes: 430, overtime_minutes: 0, night_minutes: 0, holiday_minutes: 0, rest_day_minutes: 0, late_minutes: 20, early_leave_minutes: 0 })
-    setup([[/^hr\/timesheets\?/, page([day('ad-1', GRACE, ['late']), day('ad-2', JOSEPH, [])])]], ['hr.attendance.view', 'hr.attendance.manage'])
+    setup([[/^hr\/timesheets\?/, page([day('ad-1', GRACE, ['late']), day('ad-2', JOSEPH, ['missing_in', 'no_time_rule'])])]], ['hr.attendance.view', 'hr.attendance.manage'])
     api.post.mockResolvedValue({ data: { approved: 1 } })
     renderApp('/hr/attendance/timesheets')
     const table = await screen.findByRole('table')
     // The column is called Late too: the exception is the badge.
     expect(await within(table).findByText('Late', { selector: '[data-tone]' })).toHaveAttribute('data-tone', 'warning')
     expect(within(table).getAllByText('7:10')).toHaveLength(2)
+    expect(within(table).getByText('No clock-in', { selector: '[data-tone]' })).toHaveAttribute('data-tone', 'warning')
+    expect(within(table).getByText('No time rule', { selector: '[data-tone]' })).toHaveAttribute('data-tone', 'warning')
     // L10N-03: 05:20 UTC is 08:20 in the company's zone (Africa/Nairobi).
     expect(within(table).getAllByText(/^08:20/)).toHaveLength(2)
 
@@ -206,6 +209,11 @@ describe('HR screens', () => {
     fireEvent.click(approve)
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/timesheets/approve', { day_ids: ['ad-1'] }))
     expect(await screen.findByText('1 day approved')).toBeInTheDocument()
+
+    // HR-25: a day is never "rest" any more; the status filter does not offer it.
+    const statuses = optionTexts(within(openFilters()).getByLabelText('Status'))
+    expect(statuses).toContain('Incomplete')
+    expect(statuses).not.toContain('Rest day')
   })
 
   it('shows a new device token once, and never again (HR-24)', async () => {
@@ -377,5 +385,96 @@ describe('HR screens', () => {
     expect(within(dialog).getByText('160:30')).toBeInTheDocument()
     expect(within(dialog).getByText('10:30')).toBeInTheDocument()
     expect(within(dialog).getByText('0:45')).toBeInTheDocument()
+  })
+
+  it('links a user only with hr.employee.link and shows link_self under the user picker (HR-02, AUTH-12)', async () => {
+    setup([], ['hr.employee.view', 'hr.employee.create'])
+    const { unmount } = renderApp('/hr/employees/new')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hire employee' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^User/)).not.toBeInTheDocument()
+    unmount()
+
+    const access = Object.fromEntries(['identity', 'bank', 'pay', 'medical', 'disciplinary'].map((group) => [group, { view: false, edit: false }]))
+    setup(
+      [
+        ['hr/employees/e-1', { data: { ...EMPLOYEE, has_clock_pin: false, access }, meta: { identifier_types: [] } }],
+        ['users?status=active&per_page=200', { data: [{ id: 'u-1', name: 'Amina Otieno', email: 'amina@example.com' }] }],
+        [/^companies\/c-1\/departments/, { data: [] }],
+        [/^hr\//, page([])],
+      ],
+      ['hr.employee.view', 'hr.employee.edit', 'hr.employee.link'],
+    )
+    api.patch.mockRejectedValue(apiError(422, 'link_self', 'You cannot link your own user to an employee record.'))
+    renderApp('/hr/employees/e-1')
+    expect(await screen.findByRole('button', { name: 'Link a user' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitForOption(within(dialog).getByLabelText(/^User/), 'Amina Otieno · amina@example.com')
+    chooseOption(within(dialog).getByLabelText(/^User/), 'Amina Otieno · amina@example.com')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('hr/employees/e-1', expect.objectContaining({ user_id: 'u-1' })))
+    const message = await within(dialog).findByText('You cannot link your own user to an employee record.')
+    // Under the field, not in the form's alert.
+    expect(message.id).toMatch(/-msg$/)
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('sends a manual punch with its company offset and shows window errors under the time (HR-22)', async () => {
+    setup([[/^hr\/punches\?/, page([])], [/^hr\/employees\?/, page([EMPLOYEE])]], ['hr.attendance.view', 'hr.attendance.manage'])
+    api.post.mockRejectedValue(apiError(422, 'punch_out_of_window', 'This punch is too far from the employee’s shift.'))
+    renderApp('/hr/attendance/punches')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add punch' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitForOption(within(dialog).getByLabelText(/^Employee/), 'EMP-00001 · Grace Achieng')
+    chooseOption(within(dialog).getByLabelText(/^Employee/), 'EMP-00001 · Grace Achieng')
+    fireEvent.change(within(dialog).getByLabelText(/^Date and time/), { target: { value: '2026-10-14T08:00' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Note/), { target: { value: 'Forgot to clock in' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add punch' }))
+    // Africa/Nairobi is UTC+3: an explicit offset, never a naive local time.
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/punches', { employee_id: 'e-1', kind: 'in', occurred_at: '2026-10-14T08:00:00+03:00', note: 'Forgot to clock in' }))
+    expect((await within(dialog).findByText('This punch is too far from the employee’s shift.')).id).toMatch(/-msg$/)
+  })
+
+  it('shows clock_pin_same_as_till under the PIN (HR-23)', async () => {
+    const access = Object.fromEntries(['identity', 'bank', 'pay', 'medical', 'disciplinary'].map((group) => [group, { view: false, edit: false }]))
+    setup([['hr/employees/e-1', { data: { ...EMPLOYEE, has_clock_pin: false, access }, meta: { identifier_types: [] } }], [/^hr\//, page([])]], ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.manage'])
+    api.put.mockRejectedValue(apiError(422, 'clock_pin_same_as_till', 'Choose a clock-in PIN different from the till sign-in PIN.'))
+    renderApp('/hr/employees/e-1?tab=attendance')
+    fireEvent.click(await screen.findByRole('button', { name: 'Set PIN' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/^PIN/), { target: { value: '1234' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save PIN' }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('hr/employees/e-1/clock-pin', { pin: '1234' }))
+    expect((await within(dialog).findByText('Choose a clock-in PIN different from the till sign-in PIN.')).id).toMatch(/-msg$/)
+  })
+
+  it('shows reviewer_is_employee under the reviewer (HR-30)', async () => {
+    const appraisal = { id: 'ap-1', cycle: { id: 'cy-1', name: '2026', status: 'open' }, employee: GRACE, reviewer: named('u-1', 'Amina Otieno'), goals: [], self_rating: null, self_comments: null, manager_rating: null, manager_comments: null, overall_rating: null, status: 'manager_review', completed_at: null, acknowledged_at: null }
+    setup(
+      [
+        ['hr/appraisals/ap-1', { data: appraisal }],
+        ['users?status=active&per_page=200', { data: [{ id: 'u-1', name: 'Amina Otieno' }, { id: 'u-9', name: 'Grace Achieng' }] }],
+      ],
+      ['hr.appraisal.view', 'hr.appraisal.manage'],
+    )
+    api.patch.mockRejectedValue(apiError(422, 'reviewer_is_employee', 'The reviewer cannot be the employee being appraised.'))
+    renderApp('/hr/appraisals/ap-1')
+    await waitForOption(await screen.findByLabelText(/^Reviewer/), 'Grace Achieng')
+    chooseOption(screen.getByLabelText(/^Reviewer/), 'Grace Achieng')
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('hr/appraisals/ap-1', expect.objectContaining({ reviewer_id: 'u-9' })))
+    expect((await screen.findByText('The reviewer cannot be the employee being appraised.')).id).toMatch(/-msg$/)
+  })
+
+  it('says why a period that has not ended cannot close (HR-26)', async () => {
+    const period = { id: 'pe-2', company_id: 'c-1', start_date: '2026-10-01', end_date: '2026-10-31', status: 'open', closed_at: null, totals: null }
+    setup([[/^hr\/attendance-periods\?/, page([period])]], ['hr.attendance.view', 'hr.attendance.close'])
+    api.post.mockRejectedValue(apiError(422, 'period_not_ended', 'This period ends on 31 Oct 2026. Close it after that day.'))
+    renderApp('/hr/attendance/periods')
+    fireEvent.click(await screen.findByRole('button', { name: 'Close period' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close period' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/attendance-periods/pe-2/close', {}))
+    expect(await within(dialog).findByText('This period ends on 31 Oct 2026. Close it after that day.')).toBeInTheDocument()
   })
 })

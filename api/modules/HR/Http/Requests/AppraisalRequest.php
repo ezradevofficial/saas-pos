@@ -32,8 +32,9 @@ class AppraisalRequest extends HrRequest
 
         $manages = $this->access()->can($this->user(), 'hr.appraisal.manage', $employee);
 
-        // HR-30: only HR (hr.appraisal.manage) chooses the reviewer.
-        if ($this->has('reviewer_id') && $this->input('reviewer_id') !== $this->appraisal()->reviewer_id) {
+        // HR-30: only HR (hr.appraisal.manage) chooses the reviewer (a body field of the PATCH).
+        $body = $this->json()->all();
+        if (array_key_exists('reviewer_id', $body) && $body['reviewer_id'] !== $this->appraisal()->reviewer_id) {
             return $manages;
         }
 
@@ -46,7 +47,8 @@ class AppraisalRequest extends HrRequest
             // The reviewer is never the appraised employee's own user.
             $own = Employee::query()->whereKey($this->appraisal()->employee_id)->value('user_id');
 
-            if ($validator->errors()->isEmpty() && $this->filled('reviewer_id') && $own !== null && $this->input('reviewer_id') === $own) {
+            $reviewer = $validator->getData()['reviewer_id'] ?? null;
+            if ($validator->errors()->isEmpty() && $reviewer !== null && $own !== null && $reviewer === $own) {
                 throw Errors::make(422, 'reviewer_is_employee', field: 'reviewer_id');
             }
         }];

@@ -62,8 +62,10 @@ class RosterRequest extends SetupRowRequest
     {
         return [function (Validator $validator) {
             // HR-38: moving a roster to another branch needs hr.roster.manage there too.
-            if ($validator->errors()->isEmpty() && $this->isMethod('PATCH') && $this->filled('branch_id') && $this->input('branch_id') !== $this->row()->branch_id
-                && ! $this->access()->at($this->user(), 'hr.roster.manage', Scope::branch((string) $this->input('branch_id')))) {
+            // (Read from the validator's data: a body field, never a query of the GET.)
+            $branch = $validator->getData()['branch_id'] ?? null;
+            if ($validator->errors()->isEmpty() && $this->isMethod('PATCH') && is_string($branch) && $branch !== $this->row()->branch_id
+                && ! $this->access()->at($this->user(), 'hr.roster.manage', Scope::branch($branch))) {
                 $this->forbid();
             }
         }];

@@ -12,8 +12,8 @@
  * `module` names the module that serves the endpoint (default `pos`): a
  * 403 `module_inactive` from another module's endpoint keeps its rows for
  * later without stopping the run or saying the POS is off. `readResults`
- * turns an endpoint's own answer into the results above, for endpoints
- * that answer in another shape.
+ * (body, payloads sent) turns an endpoint's own answer into the results
+ * above, for endpoints that answer in another shape.
  */
 const kinds = new Map();
 
@@ -48,3 +48,18 @@ export function readHrPunchResults(body) {
 }
 
 registerPushKind('hr.punches', { path: 'hr/till/punches', bodyKey: 'punches', batchSize: 100, module: 'hr', readResults: readHrPunchResults });
+
+/**
+ * HR-23: wrong clock-in PINs and lockouts counted on this till (POST
+ * hr/till/clock-attempts, up to 100 a request). The endpoint answers
+ * `{ data: [{ employee_id, recorded }] }` in the order sent, with no report
+ * id: each answer is matched to the report sent at its position. A report
+ * the server does not record (the employee is not of this company) can
+ * never be, so it counts as done either way.
+ */
+export function readClockAttemptResults(body, payloads = []) {
+  if (!Array.isArray(body?.data)) return null;
+  return body.data.slice(0, payloads.length).map((result, index) => ({ id: payloads[index].id, status: 'stored', recorded: Boolean(result?.recorded) }));
+}
+
+registerPushKind('hr.clock_attempts', { path: 'hr/till/clock-attempts', bodyKey: 'reports', batchSize: 100, module: 'hr', readResults: readClockAttemptResults });

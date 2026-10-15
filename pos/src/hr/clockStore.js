@@ -8,10 +8,14 @@ import { OUTBOX } from '../sync/store';
  * - `hr_punches`: clock-ins and clock-outs made on this till. A punch is
  *   written in the same transaction as its outbox row (engine.enqueue with
  *   `prepare`), never changed afterwards; its upload state is its outbox
- *   row's (pending, failed = not accepted, acknowledged or pruned = stored).
- * - `hr_clock_attempts`: wrong clock-in PINs per employee on this till.
+ *   row's (pending, failed = rejected by the server, acknowledged or pruned
+ *   = stored). A rejected punch is never sent again (the engine never
+ *   resends a failed row) and never decides the next kind.
+ * - `hr_clock_attempts`: wrong clock-in PINs per employee on this till;
+ *   each failure or lockout also queues a report (`hr.clock_attempts`).
  */
 export const PUNCH_KIND = 'hr.punches';
+export const ATTEMPT_KIND = 'hr.clock_attempts';
 
 const CHUNK = 500;
 
@@ -60,16 +64,17 @@ export function createClockStore(database) {
       return record ? { employeeId, failedAttempts: record._raw.failed_attempts, locked: Boolean(record._raw.locked), pinStamp: record._raw.pin_stamp } : null;
     },
 
-    async saveAttempt({ employeeId, failedAttempts, locked, pinStamp }) {
-      await database.write(async () => {
-        const record = await findOne('hr_clock_attempts', employeeId);
-        const columns = { failed_attempts: failedAttempts, locked: Boolean(locked), pin_stamp: pinStamp };
-        await database.batch(
-          record
-            ? record.prepareUpdate((row) => Object.entries(columns).forEach(([key, value]) => row._setRaw(key, value)))
-            : table('hr_clock_attempts').prepareCreateFromDirtyRaw({ id: employeeId, ...columns }),
-        );
-      });
+    /** The count's write, prepared (inside a write: engine.enqueue's `prepare`, or saveAttempt). */
+    async prepareAttempt({ employeeId, failedAttempts, locked, pinStamp }) {
+      const record = await findOne('hr_clock_attempts', employeeId);
+      const columns = { failed_attempts: failedAttempts, locked: Boolean(locked), pin_stamp: pinStamp };
+      return record
+        ? record.prepareUpdate((row) => Object.entries(columns).forEach(([key, value]) => row._setRaw(key, value)))
+        : table('hr_clock_attempts').prepareCreateFromDirtyRaw({ id: employeeId, ...columns });
+    },
+
+    async saveAttempt(attempt) {
+      await database.write(async () => database.batch(await store.prepareAttempt(attempt)));
     },
 
     // -- Punches ---------------------------------------------------------------
@@ -79,12 +84,12 @@ export function createClockStore(database) {
       return table('hr_punches').prepareCreateFromDirtyRaw({ id, employee_id: employeeId, kind, occurred_at: occurredAt });
     },
 
-    /** The employee's latest punch at or after `since` (ms), or null. */
+    /** The employee's latest punch at or after `since` (ms) that the server has not rejected, or null. */
     async lastPunchSince(employeeId, since) {
-      const rows = await table('hr_punches')
-        .query(Q.where('employee_id', employeeId), Q.where('occurred_at', Q.gte(since)), Q.sortBy('occurred_at', Q.desc), Q.take(1))
-        .fetch();
-      return rows[0] ? toPunch(rows[0]) : null;
+      const rows = await table('hr_punches').query(Q.where('employee_id', employeeId), Q.where('occurred_at', Q.gte(since)), Q.sortBy('occurred_at', Q.desc)).fetch();
+      const entries = new Map((await outboxEntries(rows.map((row) => row.id))).map((entry) => [entry._raw.record_id, entry]));
+      const accepted = rows.find((row) => uploadState(entries.get(row.id)).upload !== 'rejected');
+      return accepted ? toPunch(accepted) : null;
     },
 
     /** Punches at or after `since`, newest first, with their upload state. */

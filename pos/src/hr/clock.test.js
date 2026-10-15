@@ -6,8 +6,8 @@ import { createSyncEngine } from '../sync/engine';
 import { OUTBOX, createSyncStore } from '../sync/store';
 import { fakeServer } from '../test/fakeServer';
 import { testDatabase } from '../test/testDatabase';
-import { CLOCK_PREFIX, createClockGate, nextKind, startOfLocalDay } from './clockGate';
-import { PUNCH_KIND, createClockStore } from './clockStore';
+import { CLOCK_PREFIX, createClockGate, isoInstant, nextKind } from './clockGate';
+import { ATTEMPT_KIND, PUNCH_KIND, createClockStore } from './clockStore';
 
 // HR-22, HR-23, NFR-04: clock-in on the till with HR's clock-in PIN, offline, and the punches' upload.
 
@@ -24,6 +24,8 @@ function material(employeeId, pin, { salt = SALT, kid = 'k1' } = {}) {
   return { scheme: PIN_SCHEME, kid, salt: salt.toString('base64url'), iterations: ITERATIONS, verifier };
 }
 
+const HOUR = 60 * 60 * 1000;
+const OFFSET_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$/;
 const row = (id, name, number, pin, extra = {}) => ({ id, number, name, version: 1, pin: material(id, pin), ...extra });
 
 async function setup({ at = new Date(2026, 9, 14, 8, 2).getTime() } = {}) {
@@ -63,8 +65,8 @@ describe('next punch kind', () => {
     expect(nextKind({ kind: 'out' })).toBe('in');
   });
 
-  it('alternates per employee within the local day and starts again with in the next day', async () => {
-    const { clock, gate, clockStore } = await setup();
+  it('alternates per employee and follows only punches of the last 16 hours', async () => {
+    const { clock, gate } = await setup();
 
     const kinds = [];
     for (const [employeeId, pin] of [[AMINA, '2749'], [BARAKA, '508163'], [AMINA, '2749'], [AMINA, '2749']]) {
@@ -74,10 +76,31 @@ describe('next punch kind', () => {
     }
     expect(kinds).toEqual(['A:in', 'B:in', 'A:out', 'A:in']);
 
-    clock.at = new Date(2026, 9, 15, 7, 55).getTime();
+    // Late the same evening, Amina's in of 08:06 still counts (15 hours ago).
+    clock.at += 15 * HOUR;
+    await expect(gate.nextKindFor(AMINA)).resolves.toBe('out');
+    // Just past midnight both punches are older than 16 hours: they no longer count.
+    clock.at += 1 * HOUR + 60000;
+    await expect(gate.nextKindFor(BARAKA)).resolves.toBe('in');
     await expect(gate.nextKindFor(AMINA)).resolves.toBe('in');
     await expect(gate.punch({ employeeId: AMINA, input: '2749' })).resolves.toMatchObject({ ok: true, punch: { kind: 'in', occurredAt: clock.at } });
-    await expect(clockStore.lastPunchSince(AMINA, startOfLocalDay(clock.at))).resolves.toMatchObject({ kind: 'in' });
+  });
+
+  it('leaves punches the server rejected out of the next kind', async () => {
+    const { clock, gate, server, engine } = await setup();
+    const first = await gate.punch({ employeeId: AMINA, input: '2749' });
+    server.state.reject.set(first.punch.id, 'punch_outside_employment');
+    await engine.push();
+
+    clock.at += 60000;
+    await expect(gate.nextKindFor(AMINA)).resolves.toBe('in');
+    await expect(gate.punch({ employeeId: AMINA, input: '2749' })).resolves.toMatchObject({ punch: { kind: 'in' } });
+    const board = await gate.board();
+    expect(board.find((member) => member.id === AMINA)).toMatchObject({ rejected: true, latest: { kind: 'in', upload: 'pending' } });
+  });
+
+  it('sends every time with an explicit UTC offset', () => {
+    expect(isoInstant(Date.UTC(2026, 9, 14, 5, 2))).toBe('2026-10-14T05:02:00.000+00:00');
   });
 });
 
@@ -98,10 +121,50 @@ describe('clock-in lockout', () => {
       ['Baraka Mwangi', false],
     ]);
     await expect(clockStore.attempt(AMINA)).resolves.toMatchObject({ failedAttempts: 5, locked: true });
-    // Nothing about the PIN is kept, and nothing of it queued.
+    // Nothing about the PIN is kept or queued: five reports and Baraka's punch.
     const outbox = await store.entries();
     expect(JSON.stringify(outbox)).not.toContain('2749');
-    expect(outbox).toHaveLength(1);
+    expect(JSON.stringify(outbox)).not.toContain('0000"');
+    expect(outbox.map((entry) => entry.kind)).toEqual([...Array(5).fill(ATTEMPT_KIND), PUNCH_KIND]);
+  });
+
+  it('reports wrong PINs and the lockout, queued offline and uploaded once online', async () => {
+    const { clock, gate, server, engine, store } = await setup();
+    server.goOffline();
+    for (let i = 0; i < 5; i++) {
+      clock.at += 1000;
+      await gate.punch({ employeeId: AMINA, input: '0000' });
+    }
+    await engine.sync();
+    expect(engine.getStatus()).toMatchObject({ pending: 5, network: 'offline' });
+
+    server.goOnline();
+    await engine.sync({ force: true });
+    expect(engine.getStatus()).toMatchObject({ pending: 0, failed: 0 });
+    expect(server.state.clockReports.map((report) => [report.failed_attempts, report.locked])).toEqual([
+      [1, false],
+      [2, false],
+      [3, false],
+      [4, false],
+      [5, true],
+    ]);
+    expect(server.state.clockReports[4]).toMatchObject({ employee_id: AMINA, at: expect.stringMatching(OFFSET_TIME) });
+    expect(server.requestsTo('hr/till/clock-attempts').filter((request) => request.body.reports.length === 5)).toHaveLength(2);
+    await expect(store.entries(OUTBOX.PENDING)).resolves.toEqual([]);
+
+    // Sent once: nothing goes up again.
+    await engine.push({ force: true });
+    expect(server.state.clockReports).toHaveLength(5);
+  });
+
+  it('keeps reports while HR is off, without holding back other uploads', async () => {
+    const { gate, server, engine } = await setup();
+    server.state.hrInactive = true;
+    await gate.punch({ employeeId: AMINA, input: '0000' });
+    await expect(engine.push({ force: true })).resolves.toMatchObject({ retried: 1, stopped: null });
+    server.state.hrInactive = false;
+    await engine.push({ force: true });
+    expect(server.state.clockReports).toEqual([expect.objectContaining({ employee_id: AMINA, failed_attempts: 1, locked: false })]);
   });
 
   it('unlocks when a new PIN arrives through sync', async () => {
@@ -157,7 +220,7 @@ describe('punch upload', () => {
     }
     await engine.sync();
     expect(engine.getStatus()).toMatchObject({ pending: 14, network: 'offline' });
-    const today = await clockStore.punchesSince(startOfLocalDay(clock.at));
+    const today = await clockStore.punchesSince(clock.at - 10 * HOUR);
     expect(today.map((punch) => [punch.kind, punch.upload])).toEqual([
       ['out', 'pending'],
       ['in', 'pending'],
@@ -171,9 +234,10 @@ describe('punch upload', () => {
     const sent = server.requestsTo('hr/till/punches').slice(tried);
     expect(sent).toHaveLength(1);
     expect(sent[0].body.punches).toHaveLength(14);
-    expect(sent[0].body.punches[0]).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), employee_id: AMINA, kind: 'in', occurred_at: new Date(2026, 9, 14, 8, 0).toISOString() });
+    expect(sent[0].body.punches[0]).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), employee_id: AMINA, kind: 'in', occurred_at: isoInstant(new Date(2026, 9, 14, 8, 0).getTime()) });
+    expect(sent[0].body.punches.every((punch) => OFFSET_TIME.test(punch.occurred_at))).toBe(true);
     expect(sent[0].body.punches.map((punch) => punch.kind).join('')).toBe('inout'.repeat(7));
-    await expect(clockStore.punchesSince(startOfLocalDay(clock.at))).resolves.toEqual([expect.objectContaining({ upload: 'stored' }), expect.objectContaining({ upload: 'stored' })]);
+    await expect(clockStore.punchesSince(clock.at - 10 * HOUR)).resolves.toEqual([expect.objectContaining({ upload: 'stored' }), expect.objectContaining({ upload: 'stored' })]);
   });
 
   it('sends at most 100 punches per request', async () => {
@@ -220,7 +284,7 @@ describe('punch upload', () => {
     await expect(clockStore.punch(first.punch.id)).resolves.toMatchObject({ upload: 'rejected', code: 'not_at_device' });
     await expect(clockStore.punch(second.punch.id)).resolves.toMatchObject({ upload: 'stored' });
     const board = await gate.board();
-    expect(board.find((member) => member.id === AMINA).today).toMatchObject({ kind: 'in', upload: 'rejected' });
+    expect(board.find((member) => member.id === AMINA)).toMatchObject({ rejected: true, latest: null });
   });
 
   it('retries after a network error and keeps punches while HR is off, without holding back POS uploads', async () => {

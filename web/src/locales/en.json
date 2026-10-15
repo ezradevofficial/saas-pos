@@ -7639,7 +7639,6 @@
       "absent": "Absent",
       "leave": "On leave",
       "holiday": "Public holiday",
-      "rest": "Rest day",
       "incomplete": "Incomplete",
       "open": "Open",
       "closed": "Closed",
@@ -7664,7 +7663,9 @@
       "early_leave": "Left early",
       "missing_out": "No clock-out",
       "absent": "Absent",
-      "unplanned": "Not rostered"
+      "unplanned": "Not rostered",
+      "missing_in": "No clock-in",
+      "no_time_rule": "No time rule"
     },
     "genders": {
       "female": "Female",
@@ -7843,7 +7844,8 @@
       "rotation": "Choose a rotation",
       "shift": "Choose a shift",
       "template": "Choose a template",
-      "user": "Choose a user"
+      "user": "Choose a user",
+      "noUser": "No user"
     },
     "filters": {
       "allBranches": "All branches",
@@ -7893,7 +7895,8 @@
       "back": "Back to employees",
       "notFound": "This employee is not there, or is outside the places you look after.",
       "clockMethodsHelp": "How this person may clock in and out.",
-      "biometricHelp": "The reference the biometric device uses for this person."
+      "biometricHelp": "The reference the biometric device uses for this person.",
+      "userHelp": "The user this person signs in as for self-service. Leave empty if they have none."
     },
     "profile": {
       "tabs": {
