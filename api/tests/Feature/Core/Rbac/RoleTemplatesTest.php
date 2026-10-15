@@ -113,8 +113,8 @@ class RoleTemplatesTest extends TestCase
         // Procurement (docs/modules/procurement.md): 32 procurement.* permissions (procurement.value.view, decision 27).
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
         // HR (docs/modules/hr.md): 36 hr.* permissions.
-        // Payroll (docs/modules/payroll.md): 14 payroll.* permissions.
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 14, count($names));
+        // Payroll (docs/modules/payroll.md): 15 payroll.* permissions (payroll.pay.view, decision 36).
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 15, count($names));
     }
 
     public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
@@ -287,6 +287,20 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core.dimension.view', 'core.payment_method.view'], $granted('read_only_auditor'));
         $this->assertSame([], $granted('storekeeper'));
+    }
+
+    public function test_hr_and_payroll_officers_read_the_tenant_currencies(): void
+    {
+        // CUR-01, HR-04, HR-07, PAY-01: contract pay, pay accounts, pay
+        // currency, pay items and loans are entered in one of the tenant's
+        // currencies, so both officers read the list (never edit it).
+        $this->enter($this->signUp()->json('challenge_id'));
+        $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.currency.%')->pluck('name')->sort()->values()->all();
+
+        foreach (['hr_officer', 'payroll_officer'] as $key) {
+            $this->assertSame(['core.currency.view'], $granted($key), $key);
+        }
     }
 
     public function test_templates_grant_workflow_permissions_to_owner_and_admin(): void

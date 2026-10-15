@@ -79,7 +79,7 @@ fixed below.
 | HR-23 | **Clock-in on the till with a PIN.** HR keeps a clock-in PIN per employee (4 to 6 digits; set by `hr.attendance.manage`), stored as the core PIN scheme does (AUTH-06: an Argon2id hash and an encrypted PBKDF2 key, never the PIN). A paired POS device of the tenant receives the employees who clock in at its location (sync entity `hr_clock_staff`, a snapshot: id, name, number, and a verifier under the device's current secret), so clocking in works offline for days; five wrong PINs lock the employee on that device until a new PIN is synced. Punches are queued on the device and uploaded (`POST hr/till/punches`, device token) idempotently. | Must |
 | HR-24 | **Biometric device interface.** An attendance device is registered per location (name, an optional vendor label) and gets a bearer token once (shown once, stored hashed, rotatable; suspended or retired devices are refused). The device (or the vendor's bridge) pushes punches (`POST hr/device/punches`: its own event id, the employee's enrolment reference, `in`, `out` or `auto`, the instant): idempotent per device and event id; unknown references are answered `rejected`. No vendor driver is built. `auto` is `out` when the employee's latest punch within the last 16 hours is an `in`, else `in` (see decision 16). Only active employees match an enrolment reference. | Must |
 | HR-25 | **Timesheets, lateness and absence.** One day per employee and work date (the date the shift starts, else the punch's local date): first in, last out, worked minutes (paired in and out punches, minus the shift's unpaid break), regular and overtime minutes (daily, then weekly threshold), night minutes (inside the night window), holiday minutes, rest-day minutes, late and early-leave minutes against the planned shift (beyond the grace), and the day's status (`present`, `absent`, `leave`, `holiday`, `incomplete`; a rest day without punches has no day row, and time worked on a rest day counts as rest-day minutes) with exceptions (`late`, `early_leave`, `missing_in`, `missing_out`, `absent`, `unplanned`, `no_time_rule`). The shift's unpaid break is deducted when the time worked is longer than it. Recomputed whenever its punches, shift or leave change, unless approved or in a closed period. Days are approved by `hr.attendance.manage`; an approved day can be reopened until its period closes. | Must |
-| HR-26 | **Attendance periods and close.** Per company, non-overlapping periods. Closing needs `hr.attendance.close`, a time rule in force (HR-20) and every day with planned shifts or punches approved (`days_unapproved`, with the count). It freezes the period's days and raises `AttendancePeriodClosed` with the totals per employee (HR-33). A closed period is never reopened by HR (Payroll may have used it); corrections are punches in the next period. | Must |
+| HR-26 | **Attendance periods and close.** Per company, non-overlapping periods. Closing needs `hr.attendance.close`, a time rule in force (HR-20), every day with planned shifts or punches approved (`days_unapproved`, with the count) and the tills' offline window over: 7 days after the end date in the company's time zone (`period_offline_window`), unless forced with a reason (decision 25). It freezes the period's days and raises `AttendancePeriodClosed` with the totals per employee (HR-33). A closed period is never reopened by HR (Payroll may have used it); corrections are punches in the next period. | Must |
 | HR-27 | **Documents with restricted access.** Files on an employee (category `contract`, `identity`, `certificate`, `medical`, `disciplinary`, `other`, a title, an optional expiry date), stored through the core file storage (the `media` disk, never public, the custom field file types and size). Category decides who sees it: `contract` needs `hr.pay.view`, `identity` `hr.identity.view`, `medical` `hr.medical.view`, `disciplinary` `hr.disciplinary.view`, others `hr.document.view`. Downloads go through a temporary signed URL bound to the reader, checked again on download and audited (HR-11). Archived, never deleted. | Must |
 | HR-28 | **Onboarding and offboarding checklists.** Templates per company and kind (`onboarding`, `offboarding`) with ordered items (title, days after the start, optional responsible role key). A checklist starts from a template on an employee (and automatically on hire or termination when the company has a default template of that kind); items are completed (who, when, note) or reopened; the checklist completes when every item is done. | Must |
 | HR-29 | **Disciplinary records.** Cases on an employee: number, category (`verbal_warning`, `written_warning`, `final_warning`, `suspension`, `dismissal`, `other`), incident date, description, action taken, status (`open`, `closed`), outcome, closed by and at. Seen and changed only with `hr.disciplinary.view` / `hr.disciplinary.manage` at the employee's place (and not hidden by field rules, field `disciplinary`). | Must |
@@ -238,7 +238,7 @@ marked. Lists follow ADR 008 (`?search`, `?sort`, `?per_page`, `?page`,
 | `GET/POST hr/disciplinary-cases`, `GET/PATCH hr/disciplinary-cases/{hr_disciplinary_case}`, `POST …/close` | `disciplinary.view` / `manage` |
 | `GET/POST hr/appraisal-cycles`, `PATCH hr/appraisal-cycles/{hr_appraisal_cycle}`, `POST …/open`, `/close` | `appraisal.view` / `manage` |
 | `GET hr/appraisals`, `GET/PATCH hr/appraisals/{hr_appraisal}`, `POST …/complete` | `appraisal.view` / the reviewer or `appraisal.manage` |
-| `GET/PATCH hr/me`, `GET hr/me/leave`, `POST hr/me/leave-requests`, `POST hr/me/leave-requests/{hr_leave_request}/cancel`, `GET hr/me/roster`, `GET hr/me/attendance`, `POST hr/me/clock`, `GET/POST hr/me/swaps`, `GET hr/me/swap-peers` (colleagues of the same company and branch with their planned shifts of the next 31 days), `POST hr/me/swaps/{hr_shift_swap}/accept`, `/decline`, `GET hr/me/appraisals`, `PATCH hr/me/appraisals/{hr_appraisal}`, `POST …/acknowledge` | the linked employee (HR-31) |
+| `GET/PATCH hr/me`, `GET hr/me/leave`, `POST hr/me/leave-requests`, `POST hr/me/leave-requests/{hr_leave_request}/cancel`, `GET hr/me/roster`, `GET hr/me/attendance`, `POST hr/me/clock`, `GET/POST hr/me/swaps`, `GET hr/me/swap-peers` (colleagues of the same company and branch with their planned shifts of the next 31 days), `POST hr/me/swaps/{hr_shift_swap}/accept`, `/decline`, `GET hr/me/appraisals`, `PATCH hr/me/appraisals/{hr_appraisal}`, `POST …/acknowledge` | the linked employee (HR-31); `GET hr/me` answers 204 for a user not linked (decision 30) |
 | `GET hr-files/{path}` (public, signed) | the reader the URL was signed for, checked again |
 
 Errors: `place_other_company`, `department_other_company`,
@@ -248,7 +248,7 @@ Errors: `place_other_company`, `department_other_company`,
 `contract_overlap`, `leave_days_needed`, `leave_balance_short`,
 `leave_overlap`, `leave_outside_employment`, `document_not_open`,
 `shift_clash`, `swap_stale`, `time_rules_missing`, `time_rule_overlap`,
-`period_overlap`, `period_closed`, `days_unapproved`, `clock_method_off`,
+`period_overlap`, `period_closed`, `period_offline_window`, `days_unapproved`, `clock_method_off`,
 `not_an_employee`, `device_inactive`, `field_readonly`.
 
 ## Screens (web)
@@ -373,6 +373,72 @@ Decisions taken while building (no owner input asked, per instructions):
     maintenance window. Losing the key loses nothing (the values are
     encrypted under the application key); rerun the command with a new
     one.
+25. **Offline punches before a period closes (decision, owner may
+    change).** Till and device punches may arrive up to 7 days late
+    (decision 15, NFR-04), so a period cannot close until 7 days after its
+    end date in the company's time zone (`period_offline_window`, 422,
+    with `window_ends`). HR may force the close sooner with `force: true`
+    and a `reason` (required), audited as
+    `hr.attendance_period.force_close` with the reason; punches arriving
+    later are flagged `period_closed` as usual. The web close dialog
+    offers the forced close with a reason when that error comes back.
+26. **Punch uploads recompute once (decision, owner may change).** A till
+    or device upload (`hr/till/punches`, `hr/device/punches`, up to 500
+    punches) stores every punch first, then recomputes each touched
+    (employee, work date) day and the later days of each touched ISO week
+    (weekly overtime) once, in date order, instead of once per punch
+    (HR-22, HR-25). A test holds a 500-punch upload under a fixed query
+    budget.
+27. **Personal contact details stay out of the audit log (decision, owner
+    may change).** Personal email, personal phone, address and emergency
+    contacts are left out of the audit values like the sensitive fields
+    (decision 7): a change to one is recorded by name in
+    `hr.employee.sensitive_update`, so audit readers and the record
+    history never see the values. Work email and work phone stay audited.
+28. **`hr:rekey-digests` reaches every tenant (decision, owner may
+    change)** holding an identifier, suspended and closed ones included
+    (`app_tenants_with_hr_identifiers`, ids only, ADR 002), and a
+    malformed `HR_DIGEST_KEY` (`base64:` that is not valid base64, or
+    under 32 bytes either way) fails the boot check (EnvironmentGuard) and
+    is never used to digest.
+29. **Time rules and approvals recompute (decision, owner may change).**
+    Saving a time rule (create or update) recomputes the timesheet days of
+    its dates, before and after the change, up to today, that are not
+    approved and not in a closed period. Approving days recomputes each
+    open one first (with the later days of its week, in date order), so an
+    approval never freezes stale minutes; a day left with nothing to show
+    is removed and not approved.
+30. **`GET hr/me` for a user not linked to an employee (decision, owner
+    may change)** answers 204 No Content instead of 404, so the web's
+    navigation and My HR pages read "not linked" as a normal state (a
+    calm notice saying what to ask HR); the other self-service routes
+    still answer 404 `not_an_employee`. An employee without the `web`
+    clock method is told to ask HR to turn on web clock-in, or to clock in
+    on a till or attendance device.
+31. **Pay account currency (decision, owner may change).** The pay
+    account dialog preselects, once the currency list loads, the
+    employee's contract currency, else the company's base currency (when
+    active), else the first active currency; the user may change it.
+32. **Dates in approval titles (decision, owner may change).** An
+    approval keeps the document title its type's `summary()` gave when it
+    was raised (a payroll run's "Monthly staff 2026-10-01 – 2026-10-31").
+    The web shows every ISO calendar date inside such a title in the
+    user's locale ("1 Oct 2026", "1 oct. 2026") in the inbox, the approval
+    page and the email approval page, for every document type; titles
+    without dates are unchanged. Approval emails keep the stored title.
+33. **Missing statutory values in words (decision, owner may change;
+    Payroll's run page, recorded here to keep payroll.md for the Payroll
+    fixes).** The run page's missing-values alert lists each component
+    and its missing values with the web's en/fr labels (the same words as
+    the API's `payroll.pack.components` and `payroll.pack.fields`), never
+    the stored codes (`paye`, `bands`); an unknown code shows as itself.
+    The API's worded message shows only when there is no list.
+34. **First paint in the remembered language (decision, owner may
+    change).** The web remembers the language last set (the profile's, or
+    the one chosen) in the browser under `app.locale` and starts in it, so
+    "Loading" before the profile arrives is already in the user's
+    language; then the profile wins as before (L10N-01). The page's `lang`
+    attribute follows.
 
 Owner decisions (2026-10-14):
 
@@ -398,3 +464,29 @@ Open for the owner:
 - Identifier formats (KRA PIN, Kenyan national ID, DRC national ID, CNSS
   number): the packs enforce none until confirmed.
 - Decision 16 (next punch kind within 16 hours) against HR-24.
+
+## Stage 7C closing review: Payroll-facing changes
+
+Decisions taken without owner input (each one the owner may change):
+
+- **Incremental read contracts.** `Employees::ofCompany`,
+  `EmploymentContracts` (`forPayrollRun`, `forUser`),
+  `LeaveRecords::unpaidOfCompany` and `AttendanceRecords::closedOfCompany`
+  take an optional `since` and return each row's `updated_at`, so Payroll
+  reads only what changed since its cursor (payroll.md decision 32); the
+  four tables are indexed by company and `updated_at`.
+- **Contract versions.** `hr_contracts.version` is one more on every save
+  and `ContractChanged` carries it, so Payroll never lets a late event
+  overwrite a newer contract (payroll.md decision 31).
+- **Open periods.** `AttendanceRecords::openOverlapping` lists a company's
+  periods still open over a date range, shown on a payroll run's review
+  (payroll.md decision 29).
+- **Batch sensitive reads.** `PayAccounts` and `Identifiers` gain
+  `manyForUser`: the employees whose group the reader sees at their place
+  are read in one audited entry naming them; the others are returned as
+  refused (payroll.md decision 38).
+- **Read-only billing** (SUB-05): closing an attendance period, approving
+  timesheets and clocking in on the web stay allowed; till and device
+  punches and clock-in attempt reports are POS uploads (allowed during the
+  POS window). On the till, a 402 on an HR upload keeps its rows for later
+  and never pauses selling.

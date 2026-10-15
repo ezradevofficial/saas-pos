@@ -8315,7 +8315,11 @@
         "holiday_minutes": "Jour férié",
         "rest_day_minutes": "Jour de repos",
         "late_minutes": "Retard"
-      }
+      },
+      "forceClose": "Clôturer la période maintenant",
+      "offlineTitle": "Des pointages hors ligne peuvent encore arriver",
+      "offlineHelp": "Les caisses et les terminaux peuvent encore envoyer des pointages pour cette période. Indiquez un motif pour la clôturer maintenant.",
+      "forceReason": "Motif de la clôture anticipée"
     },
     "rules": {
       "description": "Comment {{company}} classe le temps travaillé. La paie applique les taux.",
@@ -8561,9 +8565,10 @@
         "inSince": "Entrée pointée à {{time}}",
         "outSince": "Sortie pointée à {{time}}",
         "notYet": "Pas encore pointé aujourd’hui.",
-        "noWebClock": "Vous pointez sur une caisse ou un terminal, pas sur le web.",
+        "noWebClock": "Le pointage sur le web n’est pas activé pour vous",
         "days": "Journées",
-        "punches": "Pointages"
+        "punches": "Pointages",
+        "noWebClockHelp": "Demandez aux RH d’activer le pointage sur le web, ou pointez sur une caisse ou un terminal de présence."
       },
       "swaps": {
         "title": "Mes échanges de quart",
@@ -9582,7 +9587,10 @@
       "againstPrevious": "Comparés à la dernière paie comptabilisée du groupe.",
       "noPrevious": "Aucune paie comptabilisée antérieure de ce groupe à comparer.",
       "gone_one": "{{count}} employé payé la dernière fois n’est pas dans cette paie",
-      "gone_other": "{{count}} employés payés la dernière fois ne sont pas dans cette paie"
+      "gone_other": "{{count}} employés payés la dernière fois ne sont pas dans cette paie",
+      "byDepartment": "Totaux par département",
+      "companyLevel": "Niveau société",
+      "varianceSummary": "Par rapport à la dernière paie comptabilisée : {{new}} nouveaux, {{gone}} partis, {{changed}} avec un net différent (dont {{large}} de plus de 10 %)."
     },
     "lines": {
       "title": "Lignes",
@@ -9594,7 +9602,8 @@
       "errors_one": "{{count}} erreur",
       "errors_other": "{{count}} erreurs",
       "warnings_one": "{{count}} avertissement",
-      "warnings_other": "{{count}} avertissements"
+      "warnings_other": "{{count}} avertissements",
+      "payViewNeeded": "La paie de chaque employé n’est visible que des personnes autorisées à voir la paie. Jugez cette paie sur ses totaux ci-dessus."
     },
     "line": {
       "errorsTitle": "Cette ligne comporte des erreurs",
@@ -9611,7 +9620,52 @@
     },
     "missing": {
       "title": "Des valeurs légales manquent",
-      "help": "Les paies de cette société sont refusées tant que l’équipe de la plateforme n’a pas confirmé ces valeurs dans le pack pays. Rien n’est deviné."
+      "help": "Les paies de cette société sont refusées tant que l’équipe de la plateforme n’a pas confirmé ces valeurs dans le pack pays. Rien n’est deviné.",
+      "components": {
+        "pack": "Pack pays",
+        "paye": "PAYE",
+        "personal_relief": "Abattement personnel",
+        "insurance_relief": "Abattement assurance",
+        "nssf": "NSSF",
+        "shif": "SHIF",
+        "ahl": "Taxe logement abordable",
+        "nita": "Taxe NITA",
+        "ipr": "IPR",
+        "ipr_dependants": "Réduction d’IPR pour charges de famille",
+        "cnss": "Pension CNSS",
+        "cnss_risks": "CNSS risques professionnels",
+        "cnss_family": "CNSS prestations familiales",
+        "inpp": "INPP",
+        "onem": "ONEM",
+        "family_allowance": "Allocations familiales"
+      },
+      "fields": {
+        "period": "aucune période en vigueur",
+        "periods_overlap": "périodes qui se chevauchent",
+        "needs_confirmation": "à confirmer",
+        "method": "méthode inconnue",
+        "non_monthly": "règle pour la paie hebdomadaire et bimensuelle",
+        "bands": "tranches",
+        "rounding": "règle d’arrondi",
+        "max_rate": "taux maximal",
+        "employee_rate": "taux salarié",
+        "employer_rate": "taux employeur",
+        "base_cap_minor": "plafond",
+        "employee_min_minor": "montant minimal",
+        "employee_max_minor": "montant maximal",
+        "reduces_taxable": "déductibilité du revenu imposable",
+        "tiers": "paliers",
+        "employee_minor": "montant salarié",
+        "employer_minor": "montant employeur",
+        "brackets": "tranches d’effectif",
+        "amount_minor": "montant",
+        "rate": "taux",
+        "cap_minor": "plafond",
+        "max_dependants": "nombre maximal de personnes à charge",
+        "taxable": "imposabilité",
+        "contributory": "assujettissement aux cotisations"
+      },
+      "item": "{{component}} : {{fields}}"
     },
     "payment": {
       "title": "Fichier de paiement",
@@ -9871,6 +9925,14 @@
       "todo": "Valeurs à confirmer",
       "todoHelp": "La liste propre au pack pays, pour l’équipe de la plateforme.",
       "returns": "Formats des déclarations"
+    },
+    "review": {
+      "attendanceOpen_one": "Une période de présence qui chevauche cette paie est encore ouverte. Son temps sera payé par une paie suivante, en rappel, une fois clôturée.",
+      "attendanceOpen_other": "{{count}} périodes de présence qui chevauchent cette paie sont encore ouvertes. Leur temps sera payé par une paie suivante, en rappel, une fois clôturées.",
+      "lateChanges_one": "Les RH ont modifié des congés ou des dates d’emploi de {{count}} employé après la comptabilisation de la paie {{run}}. Vérifiez sa paie et faites une correction si elle était fausse.",
+      "lateChanges_other": "Les RH ont modifié des congés ou des dates d’emploi de {{count}} employés après la comptabilisation de la paie {{run}}. Vérifiez leur paie et faites une correction si elle était fausse.",
+      "noPayGroup_one": "{{count}} employé en poste sur cette période n’a pas de groupe de paie, donc aucune paie ne le paie. Indiquez son groupe de paie dans les employés de la paie.",
+      "noPayGroup_other": "{{count}} employés en poste sur cette période n’ont pas de groupe de paie, donc aucune paie ne les paie. Indiquez leur groupe de paie dans les employés de la paie."
     }
   }
 }

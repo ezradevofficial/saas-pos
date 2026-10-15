@@ -159,6 +159,8 @@ return [
         'key' => 'hr_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
+            // CUR-01, HR-04, HR-07: the tenant's currencies, for contract pay and pay accounts.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // IMP-01, HR-34: imports employees (hr.employee.create|edit).
@@ -172,6 +174,8 @@ return [
         'key' => 'payroll_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.user.view',
+            // CUR-01: the tenant's currencies, for pay currency, pay items and loans.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // PAY-01 to PAY-28 (docs/modules/payroll.md); maker-checker: APR-07 keeps the preparer off their own run's approval.
@@ -220,7 +224,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
-            // PAY-16: the payroll runs they approve (field rules may hide the amounts, PAY-23).
+            // PAY-16: the payroll runs they approve, by their totals, department totals and variances
+            // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',
         ],
         'is_owner' => false,
@@ -237,7 +242,7 @@ return [
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
         // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
         'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
-            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.payslip.view', 'payroll.return.view'],
+            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

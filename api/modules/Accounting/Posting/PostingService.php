@@ -118,9 +118,10 @@ class PostingService
 
                 $account = $this->account($company, $line, $field, $key);
                 $foreign = $source->foreign[$field] ?? null;
+                $description = isset($source->labels[$field]) ? mb_substr((string) $source->labels[$field], 0, 255) : $source->reference;
                 $lines[] = is_array($foreign)
                     ? $this->foreignLine($company, $account, $side, $amount, $foreign, $source, $lineDimensions)
-                    : LineInput::signed($account, $side, $amount, $source->fx, $source->reference, $lineDimensions);
+                    : LineInput::signed($account, $side, $amount, $source->fx, $description, $lineDimensions);
             }
         }
 

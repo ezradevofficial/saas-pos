@@ -47,22 +47,22 @@ export function CompanyPicker({ value, onChange, className }) {
 }
 
 /**
- * PAY-08: what the country pack lacks, named in words by the API
- * (`message`), with each component and its missing values listed as the
- * pack names them (technical codes, in mono).
+ * PAY-08: what the country pack lacks: each component and its missing
+ * values in the user's language (stored codes such as `paye` and `bands`
+ * are never shown; an unknown code falls back to itself). The API's
+ * worded `message` shows only when there is no list.
  */
 export function MissingRates({ message, items = [] }) {
   const { t } = useTranslation()
+  const label = (group, code) => t(`payroll.missing.${group}.${code}`, { defaultValue: code })
   return (
     <Alert tone="danger" title={t('payroll.missing.title')}>
       <div className="flex flex-col gap-2">
-        {message ? <p>{message}</p> : null}
+        {message && !items.length ? <p>{message}</p> : null}
         {items.length ? (
           <ul className="flex flex-col gap-1">
             {items.map((item) => (
-              <li key={item.component} className="font-mono text-caption">
-                {`${item.component}: ${(item.fields ?? []).join(', ')}`}
-              </li>
+              <li key={item.component}>{t('payroll.missing.item', { component: label('components', item.component), fields: (item.fields ?? []).map((field) => label('fields', field)).join(', ') })}</li>
             ))}
           </ul>
         ) : null}

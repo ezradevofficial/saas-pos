@@ -260,6 +260,7 @@ export function RunDetail() {
         {status === 'calculated' && run.rejected_at ? <Alert tone="warning" title={t('payroll.run.rejected', { when: when(run.rejected_at, run.company_id) })} /> : null}
         {status === 'pending' ? <Alert tone="info" title={t('payroll.run.pendingTitle')}>{t('payroll.run.pendingHelp')}</Alert> : null}
         {status === 'approved' ? <Alert tone="info" title={t('payroll.run.approvedTitle')}>{t('payroll.run.approvedHelp')}</Alert> : null}
+        {status !== 'posted' && status !== 'cancelled' ? <RunReview review={run.review} /> : null}
         <Card>
           <StageTracker stages={RUN_STAGES.map((name) => t(`payroll.stages.${name}`))} current={t(`payroll.stages.${stage}`)} blocked={status === 'cancelled'} />
         </Card>
@@ -292,7 +293,12 @@ export function RunDetail() {
         </Card>
         {run.totals ? <RunTotals totals={run.totals} /> : null}
         {status === 'posted' && can(PERM.paymentExport) ? <PaymentFilePanel run={run} /> : null}
-        {status !== 'draft' ? <RunLines run={run} /> : null}
+        {status !== 'draft' && can(PERM.payView) ? <RunLines run={run} /> : null}
+        {status !== 'draft' && !can(PERM.payView) ? (
+          <Card title={t('payroll.lines.title')}>
+            <p className="text-body text-ink-muted">{t('payroll.lines.payViewNeeded')}</p>
+          </Card>
+        ) : null}
         {status === 'pending' || status === 'approved' ? <DocumentFlow type="payroll.run" id={run.id} /> : null}
       </div>
       <ConfirmDialog
@@ -318,7 +324,17 @@ export function RunDetail() {
         onConfirm={() => post.mutate()}
         onClose={() => setDialog(null)}
       />
-      {dialog === 'correct' ? <CorrectionDialog run={run} onClose={() => setDialog(null)} onDone={(created) => navigate(`/payroll/runs/${created.id}`)} /> : null}
+      {dialog === 'correct' ? (
+        <CorrectionDialog
+          run={run}
+          onClose={() => setDialog(null)}
+          // PAY-18: the dialog closes before the new correction run opens on the same screen.
+          onDone={(created) => {
+            setDialog(null)
+            navigate(`/payroll/runs/${created.id}`)
+          }}
+        />
+      ) : null}
     </>
   )
 }
@@ -350,9 +366,46 @@ function RunKpis({ run }) {
   )
 }
 
+/**
+ * payroll.md decisions 29, 33 and 40: what the reviewer should know beyond
+ * the lines: attendance periods still open in HR (paid later as arrears),
+ * HR changes after the last posted run (a correction may be needed), and
+ * employees without a pay group (paid by no run).
+ */
+function RunReview({ review }) {
+  const { t } = useTranslation()
+  const day = useDay()
+  if (!review) return null
+  const people = (rows) => rows.map((employee) => [employee.number, employee.name].filter(Boolean).join(' · ')).join(', ')
+  const open = review.attendance_open ?? []
+  const late = review.late_changes ?? []
+  const noGroup = review.no_pay_group ?? []
+  return (
+    <>
+      {open.length ? (
+        <Alert tone="warning" title={t('payroll.review.attendanceOpen', { count: open.length })}>
+          {open.map((period) => t('payroll.run.period', { start: day(period.start_date), end: day(period.end_date) })).join(', ')}
+        </Alert>
+      ) : null}
+      {late.length ? (
+        <Alert tone="warning" title={t('payroll.review.lateChanges', { count: late.length, run: late[0].run_number })}>
+          {people(late)}
+        </Alert>
+      ) : null}
+      {noGroup.length ? (
+        <Alert tone="info" title={t('payroll.review.noPayGroup', { count: noGroup.length })}>
+          {people(noGroup)}
+        </Alert>
+      ) : null}
+    </>
+  )
+}
+
 /** PAY-15: totals per pay currency, the previous posted run's gross and net with the change, and who is no longer paid. */
 function RunTotals({ totals }) {
   const { t } = useTranslation()
+  const departments = (totals.departments ?? []).map((row) => ({ ...row, id: `${row.department?.id ?? 'company'}-${row.currency}` }))
+  const summary = totals.variance
   const rows = (totals.currencies ?? []).map((row) => ({
     ...row,
     id: row.currency,
@@ -381,6 +434,25 @@ function RunTotals({ totals }) {
             { key: 'gross_pct', label: t('payroll.columns.grossPct'), align: 'end', render: (row) => <Pct value={row.grossChange?.pct} /> },
           ]}
         />
+        {summary ? (
+          <p className="text-body text-ink-muted">
+            {t('payroll.totals.varianceSummary', { new: summary.new, gone: summary.gone, changed: summary.changed, large: summary.changed_over_10_pct })}
+          </p>
+        ) : null}
+        {departments.length ? (
+          <DataTable
+            caption={t('payroll.totals.byDepartment')}
+            rows={departments}
+            columns={[
+              { key: 'department', label: t('payroll.columns.department'), render: (row) => row.name ?? <span className="text-ink-muted">{t('payroll.totals.companyLevel')}</span> },
+              { key: 'currency', label: t('payroll.columns.currency') },
+              { key: 'employees', label: t('payroll.columns.employees'), align: 'end', render: (row) => <span className="tabular-nums">{row.employees}</span> },
+              { key: 'gross', label: t('payroll.columns.gross'), align: 'end', render: (row) => <Amount value={row.gross} /> },
+              { key: 'net', label: t('payroll.columns.net'), align: 'end', render: (row) => <Amount value={row.net} /> },
+              { key: 'employer', label: t('payroll.columns.employer'), align: 'end', render: (row) => <Amount value={row.employer} /> },
+            ]}
+          />
+        ) : null}
         {totals.gone?.length ? (
           <div className="flex flex-col gap-1">
             <p className="text-label text-ink">{t('payroll.totals.gone', { count: totals.gone.length })}</p>

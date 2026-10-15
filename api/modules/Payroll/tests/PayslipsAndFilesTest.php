@@ -9,6 +9,7 @@ use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Notification;
 use Modules\HR\Models\Employee;
 use Modules\Payroll\Models\Payslip;
+use Modules\Payroll\Payslips\PayslipSource;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Tests\Concerns\BuildsPayroll;
 use Modules\Payroll\Tests\Concerns\FixturePacks;
@@ -41,6 +42,17 @@ class PayslipsAndFilesTest extends TestCase
 
             return $user;
         });
+    }
+
+    public function test_every_payslip_field_prints_with_a_label_in_both_languages(): void
+    {
+        // PAY-19, L10N-02, TPL-01: a payslip printed its own field paths
+        // ("document.gross") as labels; every field has a printed label.
+        foreach (['en', 'fr'] as $locale) {
+            foreach (array_keys(PayslipSource::FIELDS) as $path) {
+                $this->assertIsString(data_get(__('templates.print', [], $locale), 'fields.'.$path), "{$locale}: {$path}");
+            }
+        }
     }
 
     public function test_payslips_are_seen_by_the_employee_and_payroll_readers_only(): void

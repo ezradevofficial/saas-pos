@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Modules\HR\Attendance\Punches;
 use Modules\HR\Employees\Employees;
 use Modules\HR\Http\Lists\EmployeeList;
@@ -18,6 +19,7 @@ use Modules\HR\Http\Requests\SelfRangeRequest;
 use Modules\HR\Http\Requests\SelfRequest;
 use Modules\HR\Http\Requests\SelfSwapActionRequest;
 use Modules\HR\Http\Requests\SelfSwapRequest;
+use Modules\HR\Http\Requests\ShowSelfRequest;
 use Modules\HR\Http\Requests\UpdateSelfRequest;
 use Modules\HR\Http\Resources\AttendanceDayResource;
 use Modules\HR\Http\Resources\EmployeeResource;
@@ -45,9 +47,12 @@ use Modules\HR\Support\Errors;
 /** HR-31: employee self-service, for the signed-in user's own employee record (AUTH-12). */
 class SelfServiceController
 {
-    public function show(SelfRequest $request): EmployeeResource
+    /** HR-31: the user's own record; 204 when the user is not linked to an active employee (decision 30). */
+    public function show(ShowSelfRequest $request): EmployeeResource|Response
     {
-        return EmployeeResource::make($request->me()->load([...EmployeeList::RELATIONS, 'identifiers', 'payAccounts']))->self();
+        $me = $request->linked();
+
+        return $me === null ? response()->noContent() : EmployeeResource::make($me->load([...EmployeeList::RELATIONS, 'identifiers', 'payAccounts']))->self();
     }
 
     public function update(UpdateSelfRequest $request, Employees $employees): EmployeeResource

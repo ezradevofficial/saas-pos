@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, DataTable, Select, Tabs, TextField } from '@/components/ds'
+import { useCompanies } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
 import { EmployeeFields } from './Employees'
 import { AppraisalsTab, AttendanceTab, ChecklistsTab, ContractsTab, DisciplinaryTab, DocumentsTab, LeaveTab } from './EmployeeTabs'
@@ -476,28 +477,37 @@ function PayAccounts({ employee }) {
   )
 }
 
+/**
+ * HR-04: add or edit a pay account. Until the user picks one, the currency
+ * is the employee's contract currency, else the company's base currency
+ * (when active), else the first active currency, once the list loads.
+ */
 function PayAccountDialog({ employee, account, onClose }) {
   const { t } = useTranslation()
-  const currencies = useCurrencyCodes(null)
+  const { companies } = useCompanies()
+  const company = companies.find((row) => row.id === (employee.company?.id ?? employee.company_id)) ?? null
+  const currencies = useCurrencyCodes(company)
   const [form, setForm] = useState(() => ({
     kind: account?.kind ?? 'bank',
     provider: account?.provider ?? '',
     branch_code: account?.branch_code ?? '',
     account_name: account?.account_name ?? employee.name,
     account_number: '',
-    currency: account?.currency ?? currencies[0] ?? '',
+    currency: account?.currency ?? '',
     is_primary: account?.is_primary ?? false,
   }))
+  const preferred = [employee.pay?.currency, company?.base_currency].find((code) => code && currencies.includes(code)) ?? currencies[0] ?? ''
+  const currency = form.currency || preferred
   const save = useHrMutation((body) => (account ? api.patch(`hr/pay-accounts/${account.id}`, body) : api.post(`hr/employees/${employee.id}/pay-accounts`, body)), {
     success: t('hr.payAccounts.saved'),
     onDone: onClose,
   })
   const errors = save.errors(['kind', 'provider', 'branch_code', 'account_name', 'account_number', 'currency', 'is_primary'])
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value })
-  const ready = form.provider.trim() && form.account_name.trim() && form.currency && (account || form.account_number.trim())
+  const ready = form.provider.trim() && form.account_name.trim() && currency && (account || form.account_number.trim())
   const submit = () => {
     const { account_number: number, ...rest } = form
-    save.mutate({ ...rest, branch_code: rest.branch_code.trim() || null, ...(number.trim() ? { account_number: number.trim() } : {}) })
+    save.mutate({ ...rest, currency, branch_code: rest.branch_code.trim() || null, ...(number.trim() ? { account_number: number.trim() } : {}) })
   }
   return (
     <FormDialog open title={account ? t('hr.payAccounts.editTitle') : t('hr.payAccounts.addTitle')} onClose={onClose} submitLabel={t('hr.actions.saveChanges')} pending={save.isPending} disabled={!ready} errors={errors} onSubmit={submit}>
@@ -516,7 +526,7 @@ function PayAccountDialog({ employee, account, onClose }) {
           error={errors.fields.account_number}
           onChange={set('account_number')}
         />
-        <Select label={t('hr.payAccounts.currency')} options={currencies.map((code) => ({ value: code, label: code }))} value={form.currency} required error={errors.fields.currency} onChange={set('currency')} />
+        <Select label={t('hr.payAccounts.currency')} options={currencies.map((code) => ({ value: code, label: code }))} value={currency} required error={errors.fields.currency} onChange={set('currency')} />
       </div>
       <Checkbox label={t('hr.payAccounts.makePrimary')} checked={form.is_primary} onChange={(event) => setForm({ ...form, is_primary: event.target.checked })} />
     </FormDialog>

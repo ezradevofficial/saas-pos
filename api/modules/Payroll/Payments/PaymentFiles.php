@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Currency\CurrencyDecimals;
 use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Company;
 use Brick\Math\BigInteger;
 use Modules\HR\Contracts\PayAccounts;
@@ -22,7 +23,8 @@ use Modules\Payroll\Support\Errors;
  * primary active account of that kind (HR's `PayAccounts`, read for the
  * user: `hr.bank.view` at the employee's place, audited by HR), in the
  * pay currency when they have one there. Employees without a method or a
- * fitting account are listed, not guessed. Each build is audited and
+ * fitting account, or whose bank details the reader may not see (decision
+ * 38), are listed, not guessed. Accounts are read once per file. Each build is audited and
  * raises PaymentFileGenerated.
  */
 class PaymentFiles
@@ -32,6 +34,7 @@ class PaymentFiles
         private readonly PayAccounts $accounts,
         private readonly CurrencyDecimals $decimals,
         private readonly Auditor $auditor,
+        private readonly ScopeResolver $resolver,
     ) {}
 
     /**
@@ -43,12 +46,23 @@ class PaymentFiles
             throw Errors::make(422, 'run_not_posted');
         }
 
+        // PAY-20: bank details need hr.bank.view; held nowhere, the file is refused (held at some places, decision 38).
+        if (! $this->resolver->can($user, 'hr.bank.view')) {
+            throw Errors::make(403, 'forbidden');
+        }
+
         $lines = RunLine::query()->where('run_id', $run->id)->orderBy('number')->get();
         $employees = PayrollEmployee::query()->whereIn('id', $lines->pluck('payroll_employee_id'))->get()->keyBy('id');
         $rows = [];
         $missing = [];
         $cash = 0;
         $totals = [];
+
+        // Decision 38: the accounts of everyone the file pays, in one audited read; employees whose
+        // bank details the reader may not see are left out and listed.
+        $paid = $lines->filter(fn (RunLine $l) => $l->net_minor > 0 && in_array($employees[$l->payroll_employee_id]?->payment_method, $format->methods(), true));
+        $read = $this->accounts->manyForUser($paid->pluck('employee_id')->unique()->values()->all(), $user);
+        $refused = array_flip($read['refused']);
 
         foreach ($lines as $line) {
             if ($line->net_minor <= 0) {
@@ -73,7 +87,13 @@ class PaymentFiles
                 continue;
             }
 
-            $accounts = array_values(array_filter($this->accounts->forUser($line->employee_id, $user), fn (array $a) => $a['kind'] === $method));
+            if (isset($refused[$line->employee_id])) {
+                $missing[] = ['number' => $line->number, 'name' => $line->name, 'reason' => 'out_of_scope'];
+
+                continue;
+            }
+
+            $accounts = array_values(array_filter($read['read'][$line->employee_id] ?? [], fn (array $a) => $a['kind'] === $method));
             usort($accounts, fn (array $a, array $b) => [($b['currency'] === $line->pay_currency), $b['is_primary']] <=> [($a['currency'] === $line->pay_currency), $a['is_primary']]);
             $account = $accounts[0] ?? null;
 

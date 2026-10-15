@@ -8315,7 +8315,11 @@
         "holiday_minutes": "Public holiday",
         "rest_day_minutes": "Rest day",
         "late_minutes": "Late"
-      }
+      },
+      "forceClose": "Close period now",
+      "offlineTitle": "Offline punches may still arrive",
+      "offlineHelp": "Tills and devices can still upload punches for this period. Give a reason to close it now.",
+      "forceReason": "Reason for closing now"
     },
     "rules": {
       "description": "How {{company}} classifies worked time. Payroll applies the rates.",
@@ -8561,9 +8565,10 @@
         "inSince": "Clocked in at {{time}}",
         "outSince": "Clocked out at {{time}}",
         "notYet": "Not clocked in yet today.",
-        "noWebClock": "You clock in on a till or a device, not on the web.",
+        "noWebClock": "Web clock-in is not turned on for you",
         "days": "Days",
-        "punches": "Punches"
+        "punches": "Punches",
+        "noWebClockHelp": "Ask HR to turn on web clock-in, or clock in on a till or attendance device."
       },
       "swaps": {
         "title": "My shift swaps",
@@ -9582,7 +9587,10 @@
       "againstPrevious": "Compared with the last posted run of the pay group.",
       "noPrevious": "No earlier posted run of this pay group to compare with.",
       "gone_one": "{{count}} employee paid last time is not in this run",
-      "gone_other": "{{count}} employees paid last time are not in this run"
+      "gone_other": "{{count}} employees paid last time are not in this run",
+      "byDepartment": "Totals by department",
+      "companyLevel": "Company level",
+      "varianceSummary": "Against the last posted run: {{new}} new, {{gone}} gone, {{changed}} with a different net pay ({{large}} by more than 10%)."
     },
     "lines": {
       "title": "Lines",
@@ -9594,7 +9602,8 @@
       "errors_one": "{{count}} error",
       "errors_other": "{{count}} errors",
       "warnings_one": "{{count}} warning",
-      "warnings_other": "{{count}} warnings"
+      "warnings_other": "{{count}} warnings",
+      "payViewNeeded": "Each employee’s pay is shown only to people who can view pay. Judge this run by its totals above."
     },
     "line": {
       "errorsTitle": "This line has errors",
@@ -9611,7 +9620,52 @@
     },
     "missing": {
       "title": "Statutory values are missing",
-      "help": "Runs for this company are refused until the platform team confirms these values in the country pack. Nothing is guessed."
+      "help": "Runs for this company are refused until the platform team confirms these values in the country pack. Nothing is guessed.",
+      "components": {
+        "pack": "Country pack",
+        "paye": "PAYE",
+        "personal_relief": "Personal relief",
+        "insurance_relief": "Insurance relief",
+        "nssf": "NSSF",
+        "shif": "SHIF",
+        "ahl": "Affordable Housing Levy",
+        "nita": "NITA levy",
+        "ipr": "IPR",
+        "ipr_dependants": "IPR reduction for dependants",
+        "cnss": "CNSS pension",
+        "cnss_risks": "CNSS occupational risks",
+        "cnss_family": "CNSS family benefits",
+        "inpp": "INPP",
+        "onem": "ONEM",
+        "family_allowance": "Family allowance"
+      },
+      "fields": {
+        "period": "no period in force",
+        "periods_overlap": "periods that overlap",
+        "needs_confirmation": "needs confirmation",
+        "method": "unknown method",
+        "non_monthly": "rule for weekly and bi-weekly pay",
+        "bands": "bands",
+        "rounding": "rounding rule",
+        "max_rate": "maximum rate",
+        "employee_rate": "employee rate",
+        "employer_rate": "employer rate",
+        "base_cap_minor": "ceiling",
+        "employee_min_minor": "minimum",
+        "employee_max_minor": "maximum",
+        "reduces_taxable": "whether it reduces taxable pay",
+        "tiers": "tiers",
+        "employee_minor": "employee amount",
+        "employer_minor": "employer amount",
+        "brackets": "headcount brackets",
+        "amount_minor": "amount",
+        "rate": "rate",
+        "cap_minor": "cap",
+        "max_dependants": "maximum dependants",
+        "taxable": "whether it is taxable",
+        "contributory": "whether contributions apply"
+      },
+      "item": "{{component}}: {{fields}}"
     },
     "payment": {
       "title": "Payment file",
@@ -9871,6 +9925,14 @@
       "todo": "Values to confirm",
       "todoHelp": "The country pack’s own list, for the platform team.",
       "returns": "Return layouts"
+    },
+    "review": {
+      "attendanceOpen_one": "An attendance period overlapping this run is still open. Its time is paid by a later run, as arrears, once it closes.",
+      "attendanceOpen_other": "{{count}} attendance periods overlapping this run are still open. Their time is paid by a later run, as arrears, once they close.",
+      "lateChanges_one": "HR changed leave or employment dates of {{count}} employee after run {{run}} was posted. Check their pay and make a correction if it was wrong.",
+      "lateChanges_other": "HR changed leave or employment dates of {{count}} employees after run {{run}} was posted. Check their pay and make a correction if it was wrong.",
+      "noPayGroup_one": "{{count}} employee employed in this period has no pay group, so no run pays them. Set their pay group in Payroll employees.",
+      "noPayGroup_other": "{{count}} employees employed in this period have no pay group, so no run pays them. Set their pay group in Payroll employees."
     }
   }
 }
