@@ -40,7 +40,7 @@ jobs:
           - name: modules
             pint: false
             command: php artisan test --testsuite=ShardModules --exclude-group=slow
-          # TEN-01 in four shards: the two export tests and the two ID-probe
+          # TEN-01 in five shards: the two export tests and the two ID-probe
           # tests each build the full two-tenant fixture and walk every table or
           # route, so together they outgrow one job's time limit. The third
           # shard is every other isolation test (14 in total across the three).
@@ -53,9 +53,12 @@ jobs:
           - name: isolation lists
             pint: false
             command: php artisan test --testsuite=Isolation --filter='list_routes|every_history_type'
+          - name: isolation tables
+            pint: false
+            command: php artisan test --testsuite=Isolation --filter='suite_runs_as|no_table_shows|every_tenant_table_is_empty'
           - name: isolation rest
             pint: false
-            command: php artisan test --testsuite=Isolation --filter='/^(?!.*(full_export|list_exports|every_route_with_ids|ids_of_tenant_b_in_request_bodies|list_routes|every_history_type)).*$/'
+            command: php artisan test --testsuite=Isolation --filter='/^(?!.*(full_export|list_exports|every_route_with_ids|ids_of_tenant_b_in_request_bodies|list_routes|every_history_type|suite_runs_as|no_table_shows|every_tenant_table_is_empty)).*$/'
           # IMP-03: tests that take minutes (50,000 imported rows) run beside
           # the main job, so a PR still waits for them but not in series.
           - name: slow
