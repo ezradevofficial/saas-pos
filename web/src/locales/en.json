@@ -8565,9 +8565,10 @@
         "inSince": "Clocked in at {{time}}",
         "outSince": "Clocked out at {{time}}",
         "notYet": "Not clocked in yet today.",
-        "noWebClock": "You clock in on a till or a device, not on the web.",
+        "noWebClock": "Web clock-in is not turned on for you",
         "days": "Days",
-        "punches": "Punches"
+        "punches": "Punches",
+        "noWebClockHelp": "Ask HR to turn on web clock-in, or clock in on a till or attendance device."
       },
       "swaps": {
         "title": "My shift swaps",

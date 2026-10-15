@@ -202,12 +202,14 @@ export function useCurrencyCodes(company) {
 }
 
 /**
- * HR-31: the signed-in user's own employee record (GET hr/me). A 404
- * `not_an_employee` means the user is not linked: `linked` is false.
+ * HR-31: the signed-in user's own employee record (GET hr/me). An empty
+ * answer (204, decision 30) means the user is not linked: `linked` is
+ * false and `notLinked` true (an older 404 `not_an_employee` reads the same).
  */
 export function useHrMe({ enabled = true } = {}) {
   const query = useQuery({ queryKey: meKey, queryFn: () => api.get('hr/me'), enabled, retry: false, staleTime: 60_000 })
-  return { query, me: query.data?.data ?? null, linked: query.isSuccess, notLinked: query.error?.code === 'not_an_employee' || query.error?.status === 404 }
+  const me = query.data?.data ?? null
+  return { query, me, linked: query.isSuccess && me !== null, notLinked: (query.isSuccess && me === null) || query.error?.code === 'not_an_employee' || query.error?.status === 404 }
 }
 
 /** Today in the browser's calendar ("2026-10-14"); the API reads the company's day. */

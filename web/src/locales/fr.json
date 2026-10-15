@@ -8565,9 +8565,10 @@
         "inSince": "Entrée pointée à {{time}}",
         "outSince": "Sortie pointée à {{time}}",
         "notYet": "Pas encore pointé aujourd’hui.",
-        "noWebClock": "Vous pointez sur une caisse ou un terminal, pas sur le web.",
+        "noWebClock": "Le pointage sur le web n’est pas activé pour vous",
         "days": "Journées",
-        "punches": "Pointages"
+        "punches": "Pointages",
+        "noWebClockHelp": "Demandez aux RH d’activer le pointage sur le web, ou pointez sur une caisse ou un terminal de présence."
       },
       "swaps": {
         "title": "Mes échanges de quart",

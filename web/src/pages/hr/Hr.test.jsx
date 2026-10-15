@@ -252,8 +252,23 @@ describe('HR screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/me/clock', { kind: 'in' }))
   })
 
+  it('tells an employee without web clock-in what to do (HR-31)', async () => {
+    setup(
+      [
+        ['hr/me', { data: { ...EMPLOYEE, clock_methods: ['till'] } }],
+        [/^hr\/me\/attendance\?/, { data: { days: [], punches: [], can_clock: false, next_kind: 'in' } }],
+      ],
+      [],
+    )
+    renderApp('/hr/me/attendance')
+    expect(await screen.findByText('Web clock-in is not turned on for you')).toBeInTheDocument()
+    expect(screen.getByText('Ask HR to turn on web clock-in, or clock in on a till or attendance device.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clock in' })).not.toBeInTheDocument()
+  })
+
   it('tells a user who is not linked to an employee what to ask for, without My HR (HR-31)', async () => {
-    setup([['hr/me', apiError(404, 'not_an_employee', 'You are not linked to an employee.')]], [])
+    // Decision 30: GET hr/me answers 204 (no body) for a user who is not linked.
+    setup([['hr/me', null]], [])
     renderApp('/hr/me/attendance')
     expect(await screen.findByText('Your account is not linked to an employee record')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clock in' })).not.toBeInTheDocument()

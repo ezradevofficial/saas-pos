@@ -238,7 +238,7 @@ marked. Lists follow ADR 008 (`?search`, `?sort`, `?per_page`, `?page`,
 | `GET/POST hr/disciplinary-cases`, `GET/PATCH hr/disciplinary-cases/{hr_disciplinary_case}`, `POST …/close` | `disciplinary.view` / `manage` |
 | `GET/POST hr/appraisal-cycles`, `PATCH hr/appraisal-cycles/{hr_appraisal_cycle}`, `POST …/open`, `/close` | `appraisal.view` / `manage` |
 | `GET hr/appraisals`, `GET/PATCH hr/appraisals/{hr_appraisal}`, `POST …/complete` | `appraisal.view` / the reviewer or `appraisal.manage` |
-| `GET/PATCH hr/me`, `GET hr/me/leave`, `POST hr/me/leave-requests`, `POST hr/me/leave-requests/{hr_leave_request}/cancel`, `GET hr/me/roster`, `GET hr/me/attendance`, `POST hr/me/clock`, `GET/POST hr/me/swaps`, `GET hr/me/swap-peers` (colleagues of the same company and branch with their planned shifts of the next 31 days), `POST hr/me/swaps/{hr_shift_swap}/accept`, `/decline`, `GET hr/me/appraisals`, `PATCH hr/me/appraisals/{hr_appraisal}`, `POST …/acknowledge` | the linked employee (HR-31) |
+| `GET/PATCH hr/me`, `GET hr/me/leave`, `POST hr/me/leave-requests`, `POST hr/me/leave-requests/{hr_leave_request}/cancel`, `GET hr/me/roster`, `GET hr/me/attendance`, `POST hr/me/clock`, `GET/POST hr/me/swaps`, `GET hr/me/swap-peers` (colleagues of the same company and branch with their planned shifts of the next 31 days), `POST hr/me/swaps/{hr_shift_swap}/accept`, `/decline`, `GET hr/me/appraisals`, `PATCH hr/me/appraisals/{hr_appraisal}`, `POST …/acknowledge` | the linked employee (HR-31); `GET hr/me` answers 204 for a user not linked (decision 30) |
 | `GET hr-files/{path}` (public, signed) | the reader the URL was signed for, checked again |
 
 Errors: `place_other_company`, `department_other_company`,
@@ -408,6 +408,13 @@ Decisions taken while building (no owner input asked, per instructions):
     open one first (with the later days of its week, in date order), so an
     approval never freezes stale minutes; a day left with nothing to show
     is removed and not approved.
+30. **`GET hr/me` for a user not linked to an employee (decision, owner
+    may change)** answers 204 No Content instead of 404, so the web's
+    navigation and My HR pages read "not linked" as a normal state (a
+    calm notice saying what to ask HR); the other self-service routes
+    still answer 404 `not_an_employee`. An employee without the `web`
+    clock method is told to ask HR to turn on web clock-in, or to clock in
+    on a till or attendance device.
 
 Owner decisions (2026-10-14):
 

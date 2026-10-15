@@ -266,7 +266,9 @@ export function MyAttendance() {
               </Button>
             </Card>
           ) : canClock === false ? (
-            <Alert tone="info" title={t('hr.me.attendance.noWebClock')} />
+            <Alert tone="info" title={t('hr.me.attendance.noWebClock')}>
+              {t('hr.me.attendance.noWebClockHelp')}
+            </Alert>
           ) : null}
           <WeekNav from={from} setFrom={setFrom} />
           {query.isError ? <Alert tone="danger" title={errorMessage(query.error)} /> : null}
