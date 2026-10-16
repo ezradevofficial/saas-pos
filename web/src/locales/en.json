@@ -11073,7 +11073,9 @@
       "failed": "Failed",
       "collected": "Collected",
       "refunded": "Refunded",
-      "reversed": "Given back"
+      "reversed": "Given back",
+      "refund_due": "Held for refund",
+      "refunded_excess": "Refunded (excess)"
     },
     "deliveryStatuses": {
       "unassigned": "No rider yet",
@@ -11245,7 +11247,8 @@
         "cancel": "Order cancelled.",
         "return": "Order returned.",
         "refund": "Refund recorded."
-      }
+      },
+      "flagsTitle": "Check this order"
     },
     "deliveries": {
       "title": "Deliveries",
@@ -11378,6 +11381,13 @@
       "webhookOnce": "Give this address to your WhatsApp provider. It is shown only once.",
       "connectWebhook": "Connect WhatsApp",
       "rotateWebhook": "Replace the WhatsApp address"
+    },
+    "flags": {
+      "overpaid": "Paid twice: the extra payment is held for refund",
+      "amount_mismatch": "A payment of the wrong amount is held for refund",
+      "stock_short": "Paid after the stock hold ended and the stock is short: refund it or cancel the order",
+      "paid_after_cancel": "Paid after it was cancelled",
+      "payout_failed": "The refund payout failed: try again or refund by hand"
     }
   },
   "shop": {

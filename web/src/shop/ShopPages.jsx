@@ -9,7 +9,7 @@ import { formatAmount } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { useCart } from './cart'
-import { getShopSession, newOrderKey, setShopSession, shop } from './shopClient'
+import { getShopSession, newOrderKey, requestCode, setShopSession, shop } from './shopClient'
 import { useShop } from './useShop'
 
 const TONES = { placed: 'warning', accepted: 'info', picking: 'info', ready: 'info', out_for_delivery: 'info', delivered: 'success', cancelled: 'neutral', returned: 'danger' }
@@ -402,7 +402,7 @@ export function ShopAccount() {
   const [challenge, setChallenge] = useState(null)
   const [code, setCode] = useState('')
   const account = useQuery({ queryKey: ['shop', handle, 'account'], queryFn: () => shop(handle, 'GET', 'account'), enabled: signedIn, retry: false })
-  const send = useMutation({ mutationFn: () => shop(handle, 'POST', 'auth/code', { body: { contact } }), onSuccess: (response) => setChallenge(response.data) })
+  const send = useMutation({ mutationFn: () => requestCode(handle, contact), onSuccess: (response) => setChallenge(response.data) })
   const verify = useMutation({
     mutationFn: () => shop(handle, 'POST', 'auth/verify', { body: { challenge_id: challenge.challenge_id, code } }),
     onSuccess: (response) => {

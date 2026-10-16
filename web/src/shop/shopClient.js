@@ -73,3 +73,32 @@ export function newOrderKey() {
   window.crypto.getRandomValues(bytes)
   return `web-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
 }
+
+/**
+ * ECOM-08: the answer to a sign-in code challenge (the server asks after a
+ * few codes from one connection): a `solution` such that
+ * sha256("{nonce}:{solution}") starts with `difficulty` zeros. A few
+ * thousand hashes in the browser, nothing sent anywhere else.
+ */
+export async function solveChallenge({ nonce, difficulty }) {
+  const zeros = '0'.repeat(difficulty)
+  const encoder = new TextEncoder()
+  for (let solution = 0; solution < 50_000_000; solution++) {
+    const digest = new Uint8Array(await window.crypto.subtle.digest('SHA-256', encoder.encode(`${nonce}:${solution}`)))
+    const hex = Array.from(digest.slice(0, Math.ceil(difficulty / 2)), (b) => b.toString(16).padStart(2, '0')).join('')
+    if (hex.startsWith(zeros)) return String(solution)
+  }
+  throw new ApiError({ status: 0, code: 'challenge_unsolved', message: i18n.t('errors.generic') })
+}
+
+/** ECOM-08: ask for a sign-in code, answering the server's challenge once when it asks for one. */
+export async function requestCode(store, contact) {
+  try {
+    return await shop(store, 'POST', 'auth/code', { body: { contact } })
+  } catch (error) {
+    const challenge = error?.data?.challenge
+    if (error?.status !== 428 || error.code !== 'challenge_required' || !challenge) throw error
+    const solution = await solveChallenge(challenge)
+    return shop(store, 'POST', 'auth/code', { body: { contact, challenge: { id: challenge.id, solution } } })
+  }
+}

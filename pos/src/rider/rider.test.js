@@ -27,7 +27,10 @@ function fakeRiderServer() {
     async post(path, body) {
       if (server.offline) throw new NetworkError(new Error('offline'));
       server.posts.push({ path, body });
-      if (path === 'auth/sign-in') return { status: 200, body: { token: 'user-token', user: { id: 'u-1', name: 'Juma Rider' } } };
+      if (path === 'auth/sign-in') {
+        const user = body.login.startsWith('amina') ? { id: 'u-2', name: 'Amina Rider' } : { id: 'u-1', name: 'Juma Rider' };
+        return { status: 200, body: { token: `token-${user.id}`, user } };
+      }
       if (path !== 'ecommerce/rider/updates') return { status: 204, body: null };
       const results = body.updates.map((update) => {
         if (applied.has(update.id)) return applied.get(update.id);
@@ -58,10 +61,40 @@ function setup() {
 }
 
 describe('rider queue (ECOM-28, NFR-04)', () => {
+  it('keeps each rider’s queue and deliveries apart and uploads only the signed-in rider’s', async () => {
+    const { server, store, rider } = setup();
+    await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
+    await rider.refresh();
+    server.offline = true;
+    const juma = await rider.record('d-1', 'picked_up');
+    expect((await rider.snapshot()).deliveries).toHaveLength(1);
+
+    // Juma signs out on a shared phone: his deliveries leave the phone, his queue waits for him.
+    await rider.signOut();
+    expect(JSON.stringify(await store.meta())).not.toContain('Wanjiku');
+
+    // Amina signs in on the same phone: she sees none of Juma's, and uploads none of them.
+    server.offline = false;
+    await rider.signIn({ login: 'amina@example.test', password: 'secret-password' });
+    server.deliveries = [];
+    await rider.refresh();
+    const state = await rider.snapshot();
+    expect([state.pending, state.deliveries]).toEqual([0, []]);
+    const sent = () => server.posts.filter((p) => p.path === 'ecommerce/rider/updates').flatMap((p) => p.body.updates.map((u) => u.id));
+    expect(sent()).not.toContain(juma.id);
+
+    // Juma back: his update goes up.
+    await rider.signOut();
+    await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
+    await rider.flush();
+    expect(sent()).toContain(juma.id);
+  });
+
+
   it('signs in with the rider’s own token and keeps the deliveries for offline use', async () => {
     const { server, credentials, rider } = setup();
     expect((await rider.signIn({ login: 'juma@example.test', password: 'secret-password' })).ok).toBe(true);
-    expect(await credentials.token()).toBe('user-token');
+    expect(await credentials.token()).toBe('token-u-1');
     expect(await rider.refresh()).toEqual({ ok: true });
 
     server.offline = true;
@@ -73,6 +106,7 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
 
   it('keeps updates made offline on the phone, in order, and sends them once the server is back', async () => {
     const { server, store, rider } = setup();
+    await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
     await rider.refresh();
     server.offline = true;
     await rider.record('d-1', 'picked_up');
@@ -82,7 +116,7 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
     let state = await rider.snapshot();
     expect(state.pending).toBe(2);
     expect(state.deliveries[0]).toMatchObject({ status: 'delivered', queued: true });
-    expect((await store.meta()).riderQueue).toHaveLength(2);
+    expect((await store.meta())['rider:u-1'].queue).toHaveLength(2);
 
     server.offline = false;
     await rider.flush();
@@ -97,6 +131,7 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
 
   it('resends an update whose answer was lost with the same id, and the server applies it once', async () => {
     const { server, rider } = setup();
+    await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
     await rider.refresh();
     server.loseAnswer = true;
     await rider.record('d-1', 'picked_up');
@@ -112,7 +147,8 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
   });
 
   it('keeps a refused update with its reason for the rider, and drops it from the queue', async () => {
-    const { server, rider } = setup();
+    const { server, store, rider } = setup();
+    await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
     server.deliveries = [{ ...DELIVERY, status: 'picked_up' }];
     await rider.refresh();
     server.refuse.delivered = 'code_invalid';
@@ -122,12 +158,15 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
     const state = await rider.snapshot();
     expect(state.pending).toBe(0);
     expect(state.rejected).toEqual([expect.objectContaining({ error: 'code_invalid', order_number: 'WEB-A-2026-00001', delivery_id: 'd-1' })]);
+    // The customer's code is never kept once the update was answered.
+    expect(state.rejected[0].code).toBeUndefined();
+    expect(JSON.stringify(await store.meta())).not.toContain('"code":');
     await rider.dismiss(state.rejected[0].id);
     expect((await rider.snapshot()).rejected).toEqual([]);
   });
 
   it('signs the rider out on a 401 and keeps the queue on the phone', async () => {
-    const { server, credentials, rider } = setup();
+    const { server, store, credentials, rider } = setup();
     await rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
     await rider.refresh();
     server.post = async () => ({ status: 401, body: { code: 'unauthenticated' } });
@@ -137,6 +176,8 @@ describe('rider queue (ECOM-28, NFR-04)', () => {
     await rider.flush();
     expect(await credentials.token()).toBeNull();
     expect(seen.some((state) => state.signedOut)).toBe(true);
-    expect((await rider.snapshot()).pending).toBe(1);
+    // The queue waits on the phone for the rider's next sign-in; the deliveries are gone.
+    const kept = (await store.meta())['rider:u-1'];
+    expect([kept.queue.length, kept.deliveries]).toEqual([1, []]);
   });
 });

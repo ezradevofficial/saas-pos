@@ -98,6 +98,19 @@ describe('Online orders (ECOM-16 to ECOM-22)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/orders/o-1/cancel', { reason: 'Customer asked' }))
   })
 
+  it('shows money held beyond the order and offers its refund (ECOM-19)', async () => {
+    const paid = {
+      ...ORDER, status: 'accepted', payment_status: 'paid', payment_kind: 'mpesa', flags: [{ code: 'overpaid', detail: { payment: 'p-2' } }],
+      payments: [{ id: 'p-1', kind: 'mpesa', currency: 'KES', amount_minor: '136000', status: 'succeeded', provider_reference: 'QJK1' },
+        { id: 'p-2', kind: 'mpesa', currency: 'KES', amount_minor: '136000', status: 'refund_due', provider_reference: 'QJK2' }],
+    }
+    mockEcommerce([['ecommerce/orders/o-1', { data: paid }]])
+    renderApp('/ecommerce/orders/o-1')
+    expect(await screen.findByText('Paid twice: the extra payment is held for refund')).toBeInTheDocument()
+    expect(screen.getByText(/Held for refund/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Record refund' })).toBeInTheDocument()
+  })
+
   it('hides the actions from a reader without the permissions', async () => {
     mockEcommerce([['ecommerce/orders/o-1', { data: ORDER }]], { permissions: tenantWide(['core.company.view', 'ecommerce.order.view']) })
     renderApp('/ecommerce/orders/o-1')

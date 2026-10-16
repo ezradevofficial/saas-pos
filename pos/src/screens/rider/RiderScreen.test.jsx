@@ -74,7 +74,7 @@ describe('Rider screen (ECOM-28, ECOM-29)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Refresh deliveries' }));
     await waitFor(() => expect(rider.updates).toHaveLength(1));
     expect(rider.updates[0]).toMatchObject({ delivery_id: 'd-1', kind: 'status', status: 'picked_up' });
-    expect((await services.store.meta()).riderQueue).toEqual([]);
+    expect((await services.store.meta())['rider:u-1'].queue).toEqual([]);
   });
 
   it('asks for the 6-digit code and the cash collected before confirming a delivery', async () => {

@@ -18,7 +18,11 @@ import { NetworkError } from '../sync/api';
  * - 401: the rider is signed out; the queue stays on the phone for the next
  *   sign-in.
  *
- * Meta keys: riderQueue, riderRejected, riderDeliveries, riderFetchedAt.
+ * A phone may be shared: everything is kept per rider (meta key
+ * `rider:{user id}`: queue, rejected, deliveries, fetchedAt), only the
+ * signed-in rider's queue is uploaded, and signing out drops their cached
+ * deliveries (customers' names, phones and addresses) from the phone. A
+ * customer's delivery code is kept only until its update is answered.
  */
 export const BATCH = 50;
 
@@ -34,14 +38,34 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
   let flushing = null;
   let network = 'online';
 
+  const keyOf = (userId) => `rider:${userId}`;
+
+  /** The signed-in rider's state (empty while nobody is signed in). */
   async function read() {
-    const meta = await store.meta();
+    const userId = (await credentials.user())?.id ?? null;
+    const mine = userId ? ((await store.meta())[keyOf(userId)] ?? {}) : {};
     return {
-      queue: meta.riderQueue ?? [],
-      rejected: meta.riderRejected ?? [],
-      deliveries: meta.riderDeliveries ?? [],
-      fetchedAt: meta.riderFetchedAt ?? null,
+      userId,
+      queue: mine.queue ?? [],
+      rejected: mine.rejected ?? [],
+      deliveries: mine.deliveries ?? [],
+      fetchedAt: mine.fetchedAt ?? null,
     };
+  }
+
+  /** Merge $patch into $userId's state (call inside locked()). */
+  async function write(userId, patch) {
+    if (!userId) return;
+    const current = (await store.meta())[keyOf(userId)] ?? {};
+    await store.setMeta({ [keyOf(userId)]: { ...current, ...patch } });
+  }
+
+  /** The signed-in rider's cached deliveries leave the phone (their queue stays for them). */
+  async function forgetDeliveries() {
+    await locked(async () => {
+      const { userId } = await read();
+      await write(userId, { deliveries: [], fetchedAt: null });
+    });
   }
 
   async function emit() {
@@ -63,6 +87,7 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
   }
 
   async function signedOut() {
+    await forgetDeliveries();
     await credentials.clear();
     listeners.forEach((listener) => listener({ signedOut: true }));
   }
@@ -73,8 +98,8 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
     flushing = (async () => {
       try {
         for (;;) {
-          const { queue } = await read();
-          if (!queue.length) {
+          const { queue, userId } = await read();
+          if (!userId || !queue.length) {
             network = 'online';
             return { sent: true };
           }
@@ -101,6 +126,7 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
           }
           const removed = await locked(async () => {
             const current = await read();
+            if (current.userId !== userId) return 0;
             const outcome = new Map(results.map((result) => [result.id, result]));
             const stored = new Set();
             const refused = [];
@@ -109,15 +135,17 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
               if (result?.status === 'stored') stored.add(update.id);
               else if (result?.status === 'rejected' && !result.error?.retryable) {
                 stored.add(update.id);
-                refused.push({ ...update, error: result.error?.code ?? 'failed', message: result.error?.message ?? null });
+                // Kept to show the rider why, without the customer's code.
+                const { code: _code, ...kept } = update;
+                refused.push({ ...kept, error: result.error?.code ?? 'failed', message: result.error?.message ?? null });
               }
             }
             // An applied change is the delivery's status until the next fetch (delivered and failed ones drop off).
             const applied = new Map(batch.filter((update) => outcome.get(update.id)?.status === 'stored' && update.kind === 'status').map((update) => [update.delivery_id, update.status]));
-            await store.setMeta({
-              riderDeliveries: current.deliveries.map((delivery) => (applied.has(delivery.id) ? { ...delivery, status: applied.get(delivery.id) } : delivery)),
-              riderQueue: current.queue.filter((update) => !stored.has(update.id)),
-              riderRejected: [...current.rejected, ...refused].slice(-20),
+            await write(userId, {
+              deliveries: current.deliveries.map((delivery) => (applied.has(delivery.id) ? { ...delivery, status: applied.get(delivery.id) } : delivery)),
+              queue: current.queue.filter((update) => !stored.has(update.id)),
+              rejected: [...current.rejected, ...refused].slice(-20),
             });
             return stored.size;
           });
@@ -157,6 +185,7 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
       } catch {
         // offline: the token is dropped on the phone anyway
       }
+      await forgetDeliveries();
       await credentials.clear();
     },
 
@@ -187,7 +216,10 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
         return { ok: false, error: 'signed_out' };
       }
       if (response.status !== 200) return { ok: false, error: response.status === 403 ? 'forbidden' : 'failed' };
-      await locked(() => store.setMeta({ riderDeliveries: response.body?.data ?? [], riderFetchedAt: new Date(now()).toISOString() }));
+      await locked(async () => {
+        const { userId } = await read();
+        await write(userId, { deliveries: response.body?.data ?? [], fetchedAt: new Date(now()).toISOString() });
+      });
       network = 'online';
       await emit();
       return { ok: true };
@@ -207,10 +239,11 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
         ...pick(extra, ['code', 'collected_minor', 'note']),
       };
       await locked(async () => {
-        const { queue, deliveries } = await read();
+        const { queue, deliveries, userId } = await read();
+        if (!userId) throw new Error('rider_signed_out');
         // Kept on the phone only (never sent): the order number to name a refusal by.
         const number = deliveries.find((delivery) => delivery.id === deliveryId)?.order_number ?? null;
-        await store.setMeta({ riderQueue: [...queue, { ...update, order_number: number }] });
+        await write(userId, { queue: [...queue, { ...update, order_number: number }] });
       });
       await emit();
       flush().catch(() => {});
@@ -220,8 +253,8 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
     /** Hide a refusal the rider has read. */
     async dismiss(id) {
       await locked(async () => {
-        const { rejected } = await read();
-        await store.setMeta({ riderRejected: rejected.filter((update) => update.id !== id) });
+        const { rejected, userId } = await read();
+        await write(userId, { rejected: rejected.filter((update) => update.id !== id) });
       });
       await emit();
     },

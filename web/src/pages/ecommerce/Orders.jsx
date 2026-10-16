@@ -136,7 +136,10 @@ export function OrderDetail() {
   if (manage && ((pickup && ['accepted', 'picking', 'ready'].includes(order.status)) || order.status === 'out_for_delivery')) buttons.push(<Button key="deliver" variant="primary" onClick={() => act('deliver', collected ? { collected_minor: collected } : {})}>{t('ecommerce.actions.deliver')}</Button>)
   if (manage && ['out_for_delivery', 'delivered'].includes(order.status)) buttons.push(<Button key="return" variant="danger" onClick={() => setDialog('return')}>{t('ecommerce.actions.return')}</Button>)
   if (can(ORDER_CANCEL) && before.includes(order.status)) buttons.push(<Button key="cancel" variant="danger" onClick={() => setDialog('cancel')}>{t('ecommerce.actions.cancel')}</Button>)
-  if (can(ORDER_REFUND) && order.payment_status === 'refund_due') buttons.push(<Button key="refund" onClick={() => setDialog('refund')}>{t('ecommerce.actions.refund')}</Button>)
+  // ECOM-19: a refund-due order, or money held beyond the order (a second settlement, a wrong amount).
+  const refundDue = order.payment_status === 'refund_due' || (order.payments ?? []).some((payment) => payment.status === 'refund_due')
+  const flags = [...new Set((order.flags ?? []).map((flag) => flag.code))]
+  if (can(ORDER_REFUND) && refundDue) buttons.push(<Button key="refund" onClick={() => setDialog('refund')}>{t('ecommerce.actions.refund')}</Button>)
 
   const totals = order.totals
   const lineColumns = [
@@ -164,6 +167,11 @@ export function OrderDetail() {
         description={`${order.contact_name} · ${order.contact_phone}`}
         actions={buttons.length ? buttons : null}
       />
+      {flags.length ? (
+        <Alert tone="warning" title={t('ecommerce.orders.flagsTitle')}>
+          {flags.map((code) => t(`ecommerce.flags.${code}`, { defaultValue: code })).join(' · ')}
+        </Alert>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
           <Card title={t('ecommerce.orders.lines')} subtitle={<span className="flex gap-3"><OrderStatus status={order.status} /><PaymentStatus status={order.payment_status} /></span>}>

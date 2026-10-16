@@ -11073,7 +11073,9 @@
       "failed": "Échoué",
       "collected": "Encaissé",
       "refunded": "Remboursé",
-      "reversed": "Rendu"
+      "reversed": "Rendu",
+      "refund_due": "Retenu pour remboursement",
+      "refunded_excess": "Remboursé (excédent)"
     },
     "deliveryStatuses": {
       "unassigned": "Sans livreur",
@@ -11245,7 +11247,8 @@
         "cancel": "Commande annulée.",
         "return": "Commande retournée.",
         "refund": "Remboursement enregistré."
-      }
+      },
+      "flagsTitle": "À vérifier"
     },
     "deliveries": {
       "title": "Livraisons",
@@ -11378,6 +11381,13 @@
       "webhookOnce": "Donnez cette adresse à votre fournisseur WhatsApp. Elle n’est affichée qu’une fois.",
       "connectWebhook": "Connecter WhatsApp",
       "rotateWebhook": "Remplacer l’adresse WhatsApp"
+    },
+    "flags": {
+      "overpaid": "Payée deux fois : le paiement en trop est retenu pour remboursement",
+      "amount_mismatch": "Un paiement d’un mauvais montant est retenu pour remboursement",
+      "stock_short": "Payée après la fin de la réservation et le stock manque : remboursez ou annulez la commande",
+      "paid_after_cancel": "Payée après son annulation",
+      "payout_failed": "Le remboursement a échoué : réessayez ou remboursez manuellement"
     }
   },
   "shop": {
