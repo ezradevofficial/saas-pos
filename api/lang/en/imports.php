@@ -223,6 +223,7 @@ return [
         'not_open' => 'This import has already started. Upload the file again to change it.',
     ],
     'usage' => [
+        'fixed_assets_asset' => 'Used in a fixed asset',
         'fixed_assets_item' => 'Flagged as a fixed asset item',
         'crm_opportunity' => 'Used in an opportunity',
         'crm_quote' => 'Used in a quote',
