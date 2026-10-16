@@ -69,14 +69,14 @@ class QuoteInvoices
         }
 
         $major = fn (string $minor) => Money::ofMinor($minor, $event->currency)->toDecimalString($this->decimals);
-        $lines = array_map(function (array $line) use ($account, $major) {
+        $lines = array_map(function (array $line) use ($account, $major, $event) {
             // A discount, or a quantity Accounting's 4 decimals cannot hold: one unit at the line's amount.
             $discounted = $line['discount_minor'] !== '0' || self::finerThanFour($line['qty']);
 
             return [
                 'description' => mb_substr($discounted
                     ? __('accounting.integrations.quote_line_discounted', [
-                        'description' => $line['description'], 'qty' => self::decimal($line['qty']), 'price' => $major($line['unit_price_minor']), 'percent' => self::decimal($line['discount_percent']),
+                        'description' => $line['description'], 'qty' => self::decimal($line['qty']), 'price' => self::display($event->currency, $major($line['unit_price_minor'])), 'percent' => self::decimal($line['discount_percent']),
                     ])
                     : $line['description'], 0, 255),
                 'item_id' => $line['item_id'],
@@ -122,5 +122,16 @@ class QuoteInvoices
     private static function decimal(string $value): string
     {
         return str_contains($value, '.') ? rtrim(rtrim($value, '0'), '.') : $value;
+    }
+
+    /** "KES 1,500.00" (en), "KES 1 500,00" (fr): the currency code first, grouped (CUR-01, CLAUDE.md). */
+    private static function display(string $currency, string $decimal): string
+    {
+        [$whole, $fraction] = array_pad(explode('.', $decimal, 2), 2, '');
+        [$group, $point] = app()->getLocale() === 'fr' ? ["\u{202F}", ','] : [',', '.'];
+        $sign = str_starts_with($whole, '-') ? '-' : '';
+        $whole = (string) preg_replace('/\B(?=(\d{3})+(?!\d))/', $group, ltrim($whole, '-'));
+
+        return $currency.' '.$sign.$whole.($fraction === '' ? '' : $point.$fraction);
     }
 }
