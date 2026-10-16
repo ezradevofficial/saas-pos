@@ -71,6 +71,11 @@ return [
         'cost_adjustment' => 'Frais d’approche ajoutés',
         'store_issue' => 'Sortie de magasin',
         'store_return' => 'Retour au magasin',
+        'production_issue' => 'Sortie en fabrication',
+        'production_return' => 'Retour de fabrication',
+        'production_receipt' => 'Fabriqué',
+        'recipe_consumption' => 'Consommé par une recette',
+        'recipe_return' => 'Recette rendue',
     ],
     'flags' => [
         'negative_stock' => 'Stock passé sous zéro',

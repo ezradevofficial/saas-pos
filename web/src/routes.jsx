@@ -20,6 +20,10 @@ import {
   INVENTORY_STOCK_VIEW,
   INVENTORY_TRANSFER_VIEW,
   INVENTORY_VALUATION_VIEW,
+  MANUFACTURING_BOM_VIEW,
+  MANUFACTURING_ORDER_VIEW,
+  MANUFACTURING_REPORT_VIEW,
+  MANUFACTURING_SETTINGS_VIEW,
   STORES_ISSUE_VIEW,
   STORES_LEDGER_VIEW,
   STORES_REPORT_VIEW,
@@ -114,6 +118,18 @@ import TransferDetail from './pages/inventory/TransferDetail'
 import TransferForm from './pages/inventory/TransferForm'
 import Transfers from './pages/inventory/Transfers'
 import Valuation from './pages/inventory/Valuation'
+import BomDetail from './pages/manufacturing/BomDetail'
+import BomForm from './pages/manufacturing/BomForm'
+import Boms from './pages/manufacturing/Boms'
+import BomVersion from './pages/manufacturing/BomVersion'
+import Backflushes from './pages/manufacturing/Backflushes'
+import MfgConsumption from './pages/manufacturing/Consumption'
+import ManufacturingSettings from './pages/manufacturing/ManufacturingSettings'
+import MfgOrderDetail from './pages/manufacturing/OrderDetail'
+import MfgOrderForm from './pages/manufacturing/OrderForm'
+import MfgOrders from './pages/manufacturing/Orders'
+import RecipeCosting from './pages/manufacturing/RecipeCosting'
+import MfgYield from './pages/manufacturing/Yield'
 import FaAssetDetail from './pages/fixedAssets/AssetDetail'
 import FaAssetForm from './pages/fixedAssets/AssetForm'
 import FaAssets from './pages/fixedAssets/Assets'
@@ -513,6 +529,22 @@ export const routes = [
         ['/stores/ledger', STORES_LEDGER_VIEW, <StoreLedger key="stores-ledger" />],
         ['/stores/stock', STORES_LEDGER_VIEW, <StoreStock key="stores-stock" />],
         ['/stores/consumption', STORES_REPORT_VIEW, <Consumption key="stores-consumption" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Manufacturing (docs/modules/manufacturing.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/manufacturing/boms', MANUFACTURING_BOM_VIEW, <Boms key="mfg-boms" />],
+        ['/manufacturing/boms/new', 'manufacturing.bom.manage', <BomForm key="mfg-bom-new" />],
+        ['/manufacturing/boms/:bomId', MANUFACTURING_BOM_VIEW, <BomDetail key="mfg-bom" />],
+        ['/manufacturing/bom-versions/:versionId', MANUFACTURING_BOM_VIEW, <BomVersion key="mfg-bom-version" />],
+        ['/manufacturing/orders', MANUFACTURING_ORDER_VIEW, <MfgOrders key="mfg-orders" />],
+        ['/manufacturing/orders/new', 'manufacturing.order.create', <MfgOrderForm key="mfg-order-new" />],
+        ['/manufacturing/orders/:orderId', MANUFACTURING_ORDER_VIEW, <MfgOrderDetail key="mfg-order" />],
+        ['/manufacturing/orders/:orderId/edit', 'manufacturing.order.create', <MfgOrderForm key="mfg-order-edit" />],
+        ['/manufacturing/consumption', MANUFACTURING_REPORT_VIEW, <MfgConsumption key="mfg-consumption" />],
+        ['/manufacturing/yield', MANUFACTURING_REPORT_VIEW, <MfgYield key="mfg-yield" />],
+        ['/manufacturing/backflushes', MANUFACTURING_REPORT_VIEW, <Backflushes key="mfg-backflushes" />],
+        ['/manufacturing/recipe-costing', MANUFACTURING_REPORT_VIEW, <RecipeCosting key="mfg-recipe-costing" />],
+        ['/manufacturing/settings', MANUFACTURING_SETTINGS_VIEW, <ManufacturingSettings key="mfg-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // HR (docs/modules/hr.md, Screens): the API answers 403 module_inactive without the module.
       ...[

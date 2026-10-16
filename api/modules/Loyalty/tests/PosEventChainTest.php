@@ -21,6 +21,7 @@ use Modules\Inventory\Stock\StockLedger;
 use Modules\Loyalty\Pos\HandlePosEvents;
 use Modules\Loyalty\Pos\PosSales;
 use Modules\Loyalty\Tests\Concerns\BuildsLoyalty;
+use Modules\Manufacturing\Backflush\BackflushSales;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -37,7 +38,8 @@ class PosEventChainTest extends TestCase
     use BuildsLoyalty, RefreshTenantDatabase;
 
     /** Listeners that run in the request but only queue a job (they carry ids, never the snapshot). */
-    private const DISPATCH_ONLY = [MoveStockForSale::class];
+    /** Listeners that only dispatch a queued job (ids only) and cannot fail the upload. */
+    private const DISPATCH_ONLY = [MoveStockForSale::class, BackflushSales::class];
 
     public function test_every_listener_on_the_sale_events_is_queued_or_only_queues(): void
     {

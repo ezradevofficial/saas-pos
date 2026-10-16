@@ -37,6 +37,7 @@ use Modules\Inventory\Events\StockLow;
 use Modules\Inventory\Imports\OpeningStockImporter;
 use Modules\Inventory\Labels\LabelSource;
 use Modules\Inventory\Listeners\ApplyLandedCost;
+use Modules\Inventory\Listeners\MoveStockForManufacturing;
 use Modules\Inventory\Listeners\MoveStockForOrders;
 use Modules\Inventory\Listeners\MoveStockForSale;
 use Modules\Inventory\Listeners\MoveStockForStores;
@@ -48,6 +49,7 @@ use Modules\Inventory\Stock\OpeningStock;
 use Modules\Inventory\Stock\Places;
 use Modules\Inventory\Stock\Valuer;
 use Modules\Inventory\Sync\StockSource;
+use Modules\Manufacturing\Events\MaterialsMoved;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -139,6 +141,8 @@ class InventoryServiceProvider extends ServiceProvider
         foreach ([OrderFulfilled::class, OrderReturned::class] as $event) {
             Event::listen($event, [MoveStockForOrders::class, 'handle']);
         }
+        // MFG-15: Manufacturing's issues, returns, receipts and recipe backflushes (raised only for Inventory-ledger documents).
+        Event::listen(MaterialsMoved::class, [MoveStockForManufacturing::class, 'handle']);
 
         // INV-15: goods received by Procurement (the contract defined here).
         Event::listen(GoodsReceived::class, [RecordGoodsReceived::class, 'handle']);

@@ -214,6 +214,10 @@ class TenantIsolationTest extends TestCase
         'stores_requisition' => 'stores_requisition',
         'stores_issue' => 'stores_issue',
         'stores_return' => 'stores_return',
+        // Manufacturing (docs/modules/manufacturing.md): a BOM (its draft version), a running order.
+        'mfg_bom' => 'mfg_bom',
+        'mfg_bom_version' => 'mfg_bom_version',
+        'mfg_order' => 'mfg_order',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
         'hr_employee' => 'hr_employee',
         'hr_pay_account' => 'hr_pay_account',
@@ -372,6 +376,14 @@ class TenantIsolationTest extends TestCase
         'order_line_id' => 'procurement_order_line',
         // Stores: the issue line a return gives back to (an issue's requisition_line_id: ROUTE_REFERENCE_FIELDS).
         'issue_line_id' => 'stores_issue_line',
+        // Manufacturing: a BOM version's output unit, a published version an order takes, an order's material,
+        // by-product and issue (an issue line: ROUTE_REFERENCE_FIELDS).
+        'output_uom_id' => 'uom',
+        'bom_version_id' => 'mfg_bom_version_published',
+        'copy_from_id' => 'mfg_bom_version_published',
+        'material_id' => 'mfg_material',
+        'output_id' => 'mfg_output',
+        'issue_id' => 'mfg_issue',
         // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
         'employee_id' => 'hr_employee',
         'reports_to_id' => 'hr_employee',
@@ -428,6 +440,9 @@ class TenantIsolationTest extends TestCase
     public const CONTROL_REFUSALS = [
         'POST api/v1/crm/opportunities/{crm_opportunity}/lose' => ['opportunity_closed', 'CRM-15: the win route, called before it with A\'s ids, won the fixture opportunity, so losing it is refused after validation'],
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
+        'POST api/v1/manufacturing/boms/{mfg_bom}/versions' => ['draft_exists', 'MFG-03: the fixture BOM has its draft open (one draft per BOM); the version copied from is checked first'],
+        'PUT api/v1/manufacturing/orders/{mfg_order}' => ['document_not_open', 'MFG-10: the fixture order is running, so it no longer changes; its unit is checked first'],
+        'POST api/v1/manufacturing/revalue' => ['nothing_to_revalue', 'MFG-15 (review fix 5): the fixture issue is not stuck (valued, or its order keeps no stock), so there is nothing to move again'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/transfers' => ['transfer_pending', 'FA-14: the fixture\'s asset already has a transfer waiting for approval, so another is refused after validation'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/disposals' => ['transfer_pending', 'FA-17: the fixture\'s asset has a transfer waiting for approval, so a disposal is refused after validation'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
@@ -459,6 +474,10 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/payroll/employees/{payroll_employee}/items' => ['item_id' => 'payroll_item'],
         // Stores: an issue takes from a line of the store requisition (REFERENCE_FIELDS' requisition_line_id is Procurement's).
         'POST api/v1/stores/requisitions/{stores_requisition}/issues' => ['requisition_line_id' => 'stores_requisition_line'],
+        // Manufacturing: a return gives back lines of an order's issue (REFERENCE_FIELDS' issue_line_id is Stores').
+        'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_line_id' => 'mfg_issue_line'],
+        // Manufacturing: the stuck document moved and valued again (an issue of the fixture).
+        'POST api/v1/manufacturing/revalue' => ['document_id' => 'mfg_issue'],
         // Fixed assets: `category_id` names an asset category (FA-02), not an item category.
         'POST api/v1/fixed-assets/assets' => ['category_id' => 'fa_category'],
         'PATCH api/v1/fixed-assets/assets/{fa_asset}' => ['category_id' => 'fa_category'],
@@ -557,6 +576,8 @@ class TenantIsolationTest extends TestCase
         ['year' => '2026'],
         // STR-12, STR-14: consumption by cost centre (both tenants issued to theirs), the issue voucher.
         ['group' => 'cost_centre', 'document' => 'issue_voucher'],
+        // MFG-05: an explosion for a quantity at a moment.
+        ['qty' => '2', 'at' => '2026-12-31T00:00:00Z'],
         // FA-12: a month of depreciation (both tenants posted January 2026).
         ['period' => '2026-01'],
         // PAY-05, PAY-14: employees not in a pay group, run lines with errors.
@@ -568,10 +589,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'asset' => 'fa_asset', 'custodian' => 'user', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'store' => 'ecom_store', 'rider' => 'ecom_rider'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'pay_group', 'unassigned', 'errors', 'run', 'asset', 'custodian', 'period', 'owner', 'pipeline', 'store', 'rider', 'payment_status', 'fulfilment'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment'];
 
     private TwoTenants $tenants;
 
@@ -1160,6 +1181,13 @@ class TenantIsolationTest extends TestCase
             'stores/ledger' => ['ITEM-A', 'Store A'],
             'stores/stock' => [],
             'stores/consumption?group=cost_centre' => ['ITEM-A', 'Unit A renamed'],
+            // Manufacturing (MFG-27): its lists.
+            'manufacturing/boms' => ['MFG-PRODUCT-A', 'MFG-MENU-A'],
+            'manufacturing/orders' => ['MFG-PRODUCT-A', 'Outlet A'],
+            'manufacturing/consumption' => ['ITEM-A'],
+            'manufacturing/yield' => ['MFG-PRODUCT-A'],
+            'manufacturing/backflushes' => ['Outlet A'],
+            'manufacturing/recipe-costing' => ['MFG-MENU-A'],
             // HR (HR-35): its lists.
             'hr/employees' => ['Worker A', 'Peer A', 'Cashier A'],
             'hr/leave-requests' => ['Peer A', 'Annual A'],
@@ -1739,6 +1767,22 @@ class TenantIsolationTest extends TestCase
                 'location_id' => $tenant->id('inventory_location'), 'kind' => 'opening',
                 'lines' => [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1']],
             ],
+            // Manufacturing (MFG-02 to MFG-13): a BOM of the serial item from the batch item, the draft's lines,
+            // a new version, an order of the product, its update, issue, return and report.
+            'POST api/v1/manufacturing/boms' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('inventory_serial_item'), 'kind' => 'production', 'version' => [
+                'output_qty' => '1', 'output_uom_id' => $tenant->id('uom'), 'lines' => [['item_id' => $tenant->id('inventory_item'), 'uom_id' => $tenant->id('uom'), 'qty' => '1']],
+            ]],
+            'POST api/v1/manufacturing/boms/{mfg_bom}/versions' => ['copy_from_id' => $tenant->id('mfg_bom_version_published')],
+            'PUT api/v1/manufacturing/bom-versions/{mfg_bom_version}' => ['output_qty' => '1', 'output_uom_id' => $tenant->id('uom'), 'lines' => [
+                ['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom'), 'qty' => '1'],
+            ]],
+            'POST api/v1/manufacturing/orders' => ['location_id' => $tenant->id('location'), 'item_id' => $tenant->id('mfg_product'), 'bom_version_id' => $tenant->id('mfg_bom_version_published'),
+                'uom_id' => $tenant->id('uom'), 'qty' => '1'],
+            'PUT api/v1/manufacturing/orders/{mfg_order}' => ['uom_id' => $tenant->id('uom'), 'qty' => '4'],
+            'POST api/v1/manufacturing/orders/{mfg_order}/issues' => ['lines' => [['material_id' => $tenant->id('mfg_material'), 'uom_id' => $tenant->id('uom'), 'qty' => '1']]],
+            'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_id' => $tenant->id('mfg_issue'), 'reason' => 'unused', 'lines' => [['issue_line_id' => $tenant->id('mfg_issue_line'), 'qty' => '1']]],
+            'POST api/v1/manufacturing/revalue' => ['kind' => 'issue', 'document_id' => $tenant->id('mfg_issue')],
+            'POST api/v1/manufacturing/orders/{mfg_order}/reports' => ['qty_good' => '1', 'by_products' => [['output_id' => $tenant->id('mfg_output'), 'qty' => '1']]],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [
                 'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),

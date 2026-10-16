@@ -7,6 +7,7 @@ return [
     'event_types' => [
         'pos.sale', 'pos.refund', 'pos.void', 'pos.sale_summary',
         'inventory.cost_of_sales', 'inventory.receipt', 'inventory.opening', 'inventory.adjustment', 'inventory.count', 'inventory.transfer_loss', 'inventory.landed_cost', 'stores.consumption',
+        'manufacturing.materials', 'manufacturing.production', 'manufacturing.variance', 'manufacturing.backflush',
         'loyalty.gift_card_sold', 'loyalty.gift_card_redeemed', 'loyalty.gift_card_expired',
         'loyalty.points_earned', 'loyalty.points_redeemed', 'loyalty.points_expired', 'loyalty.points_adjusted',
         'loyalty.credit_charged', 'loyalty.credit_payment_received', 'loyalty.credit_adjusted',

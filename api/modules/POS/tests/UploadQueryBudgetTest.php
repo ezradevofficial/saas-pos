@@ -12,7 +12,7 @@ use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
 // NFR-04, stage 7B performance review: uploading sales with every module
-// on (POS, Inventory, Loyalty, Accounting, Stores, Procurement) costs a
+// on (POS, Inventory, Loyalty, Accounting, Stores, Procurement, Manufacturing) costs a
 // bounded number of queries per sale, and deciding which listeners to
 // queue costs none per sale: module flags are memoised per request and
 // tenant, and listeners already in the event's tenant do not switch to it
@@ -31,7 +31,7 @@ class UploadQueryBudgetTest extends TestCase
         parent::setUp();
         $this->setUpPos();
         $this->inTenant(function () {
-            foreach (['inventory', 'loyalty', 'accounting', 'stores', 'procurement'] as $module) {
+            foreach (['inventory', 'loyalty', 'accounting', 'stores', 'procurement', 'manufacturing'] as $module) {
                 app(ModuleRegistry::class)->activate($module);
             }
 

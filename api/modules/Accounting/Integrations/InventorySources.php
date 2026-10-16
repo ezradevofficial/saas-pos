@@ -26,6 +26,7 @@ use Modules\Inventory\Events\StockMoved;
  * | inventory.count             | inventory.count            | adjustment                 |
  * | inventory.transfer          | inventory.transfer_loss    | loss                       |
  * | stores.* (Stores issues)    | nothing: Stores posts them | (StoreConsumptionValued)   |
+ * | manufacturing.*             | nothing: Manufacturing posts them | (ProductionValued, ACC-33) |
  * | anything else               | inventory.other            | offset                     |
  *
  * A receipt credits GRNI with its goods value and `landed_cost` (the
@@ -68,7 +69,8 @@ class InventorySources
     {
         // Review #5: Stores issues and returns post from Stores' own event (per-line department, cost centre,
         // value and cost variance: StoreConsumptionValued, once feat/stores lands), never from their stock moves.
-        if ($event->movements === [] || str_starts_with($event->sourceType, 'stores.')) {
+        // ACC-33: so do Manufacturing's issues, returns, receipts and backflushes (ProductionValued).
+        if ($event->movements === [] || str_starts_with($event->sourceType, 'stores.') || str_starts_with($event->sourceType, 'manufacturing.')) {
             return null;
         }
 

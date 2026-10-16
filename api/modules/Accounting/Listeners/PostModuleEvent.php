@@ -10,6 +10,7 @@ use Modules\Accounting\Integrations\Integrations;
 use Modules\Accounting\Integrations\InventorySources;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
+use Modules\Manufacturing\Events\ProductionValued;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
@@ -28,7 +29,10 @@ use Modules\Stores\Events\StoreConsumptionValued;
  * moves, transfers within the company, no movements). Once queued, the job
  * posts while Accounting is active, whatever the raising module is by
  * then: the event proves the module was on when it happened (stage 7B
- * closing review, decision; owner may change).
+ * closing review, decision; owner may change). Manufacturing's valued
+ * documents are queued on Accounting alone (review fix 6): they are
+ * valued after Inventory moves them, which may follow Manufacturing
+ * being switched off.
  */
 class PostModuleEvent implements ShouldQueue
 {
@@ -87,6 +91,10 @@ class PostModuleEvent implements ShouldQueue
             $event instanceof StockMoved => 'inventory',
             $event instanceof LoyaltyLedgerEvent => 'loyalty',
             $event instanceof StoreConsumptionValued => 'stores',
+            // Review fix 6: Manufacturing values its documents when Inventory has moved them, which may be
+            // after Manufacturing was switched off; the stock moved, so the ledger follows on Accounting alone.
+            // Manufacturing's API (closed while it is off) raises the rest.
+            $event instanceof ProductionValued => null,
             str_starts_with($event::class, 'Modules\\Payroll\\') => 'payroll',
             str_starts_with($event::class, 'Modules\\Procurement\\') => 'procurement',
             str_starts_with($event::class, 'Modules\\FixedAssets\\') => 'fixed_assets',

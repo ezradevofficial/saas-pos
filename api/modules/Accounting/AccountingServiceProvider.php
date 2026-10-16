@@ -56,6 +56,7 @@ use Modules\Loyalty\Events\PointsAdjusted;
 use Modules\Loyalty\Events\PointsEarned;
 use Modules\Loyalty\Events\PointsExpired;
 use Modules\Loyalty\Events\PointsRedeemed;
+use Modules\Manufacturing\Events\ProductionValued;
 use Modules\Payroll\Events\PayrollPosted;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
@@ -104,6 +105,8 @@ class AccountingServiceProvider extends ServiceProvider
         SupplierInvoiceApproved::class,
         // Stage 7B closing review: landed cost bills and the landed cost of lines no stock journal carries.
         LandedCostAllocated::class, GoodsReceiptPosted::class,
+        // ACC-33: Manufacturing's valued documents (its stock moves post nothing: the same movement).
+        ProductionValued::class,
         // ACC-34: Fixed assets (docs/modules/fixed-assets.md FA-22).
         AssetCapitalised::class, DepreciationPosted::class, DepreciationReversed::class, AssetRevalued::class, AssetImpaired::class, AssetDisposed::class,
         // PAY-22: posted payroll runs (journals per department and pay currency).

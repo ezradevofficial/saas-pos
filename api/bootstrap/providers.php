@@ -36,6 +36,7 @@ use Modules\FixedAssets\FixedAssetsServiceProvider;
 use Modules\HR\HrServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Loyalty\LoyaltyServiceProvider;
+use Modules\Manufacturing\ManufacturingServiceProvider;
 use Modules\Payroll\PayrollServiceProvider;
 use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
@@ -77,6 +78,7 @@ return [
     ProcurementServiceProvider::class,
     StoresServiceProvider::class,
     HrServiceProvider::class,
+    ManufacturingServiceProvider::class,
     FixedAssetsServiceProvider::class,
     CrmServiceProvider::class,
     EcommerceServiceProvider::class,

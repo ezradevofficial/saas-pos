@@ -13,6 +13,7 @@
         {"code": "1230", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"},
         {"code": "1240", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"},
         {"code": "1300", "type": "asset", "subtype": "inventory", "parent": "1100", "postable": true, "cash_flow": "operating"},
+        {"code": "1310", "type": "asset", "subtype": "inventory", "parent": "1100", "postable": true, "cash_flow": "operating"},
         {"code": "1400", "type": "asset", "subtype": "tax", "parent": "1100", "postable": true, "cash_flow": "operating"},
         {"code": "1410", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"},
         {"code": "1500", "type": "asset", "subtype": "header", "parent": "1000", "postable": false, "cash_flow": null},
@@ -51,6 +52,9 @@
         {"code": "5100", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
         {"code": "5200", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
         {"code": "5300", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
+        {"code": "5400", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
+        {"code": "5410", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
+        {"code": "5420", "type": "expense", "subtype": "cost_of_sales", "parent": "5000", "postable": true, "cash_flow": null},
         {"code": "6000", "type": "expense", "subtype": "header", "parent": null, "postable": false, "cash_flow": null},
         {"code": "6100", "type": "expense", "subtype": "expense", "parent": "6000", "postable": true, "cash_flow": null},
         {"code": "6110", "type": "expense", "subtype": "expense", "parent": "6000", "postable": true, "cash_flow": null},
@@ -373,6 +377,79 @@
                 "field": "amount",
                 "side": "credit",
                 "account": "6900"
+            }
+        ],
+        "manufacturing.materials": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "1300"
+            },
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "1310"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "5100"
+            }
+        ],
+        "manufacturing.production": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "1300"
+            },
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "1310"
+            },
+            {
+                "field": "labour",
+                "side": "debit",
+                "account": "5410"
+            },
+            {
+                "field": "overhead",
+                "side": "debit",
+                "account": "5420"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "5100"
+            }
+        ],
+        "manufacturing.variance": [
+            {
+                "field": "wip",
+                "side": "debit",
+                "account": "1310"
+            },
+            {
+                "field": "variance",
+                "side": "debit",
+                "account": "5400"
+            }
+        ],
+        "manufacturing.backflush": [
+            {
+                "field": "stock",
+                "side": "debit",
+                "account": "1300"
+            },
+            {
+                "field": "cost_of_sales",
+                "side": "debit",
+                "account": "5100"
+            },
+            {
+                "field": "cost_variance",
+                "side": "debit",
+                "account": "5100"
             }
         ],
         "stores.consumption": [
