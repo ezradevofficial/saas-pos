@@ -223,6 +223,7 @@ return [
         'not_open' => 'Cet import a déjà commencé. Téléversez à nouveau le fichier pour le modifier.',
     ],
     'usage' => [
+        'fixed_assets_item' => 'Marqué comme article d’immobilisation',
         'crm_opportunity' => 'Utilisé dans une opportunité',
         'crm_quote' => 'Utilisé dans un devis',
         'hr_record' => 'A des données RH',
