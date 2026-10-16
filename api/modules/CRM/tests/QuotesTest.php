@@ -222,6 +222,21 @@ class QuotesTest extends TestCase
         $this->assertSame('approved', $this->api('GET', "crm/quotes/{$quote['id']}", [], $this->repA)->json('data.status'));
     }
 
+    public function test_an_approver_reads_the_quotes_they_approve_at_their_branch(): void
+    {
+        // Review item 12 (stage 7D closing): the Approver template reads quotes (crm.quote.view) at its branch
+        // (crm.scope.branch), not only its own, so it sees what it approves; never another branch's.
+        $quote = $this->draftQuote();
+        $approver = $this->userWith('approver', Scope::branch($this->branchA->id));
+        $elsewhere = $this->userWith('approver', Scope::branch($this->branchB->id));
+
+        $this->api('GET', "crm/quotes/{$quote['id']}", [], $approver)->assertOk()->assertJsonPath('data.id', $quote['id']);
+        $this->assertSame([$quote['id']], array_column($this->api('GET', 'crm/quotes', [], $approver)->assertOk()->json('data'), 'id'));
+        $this->api('GET', "crm/quotes/{$quote['id']}", [], $elsewhere)->assertNotFound();
+        $this->api('POST', 'crm/quotes', ['branch_id' => $this->branchA->id, 'party_id' => $this->customer->id, 'lines' => [['item_id' => $this->widget->id, 'qty' => '1']]], $approver)
+            ->assertForbidden();
+    }
+
     public function test_a_rejected_quote_is_edited_back_into_a_draft_and_submitted_again(): void
     {
         $this->inTenant(fn () => Settings::query()->updateOrCreate(['company_id' => $this->acme->id], ['quote_approval_minor' => 0]));

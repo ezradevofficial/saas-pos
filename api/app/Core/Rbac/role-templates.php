@@ -280,6 +280,8 @@ return [
             'manufacturing.order.view',
             // FA-14, FA-17: the assets whose transfers and disposals they approve, with their values (RBAC-05).
             'fixed_assets.asset.view', 'fixed_assets.value.view',
+            // CRM-21 (stage 7D closing review): the quotes they approve, at the branches they approve for, not only their own (CRM-08).
+            'crm.quote.view', 'crm.scope.branch',
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances
             // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',

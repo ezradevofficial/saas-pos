@@ -204,8 +204,11 @@ manager's role); **Sales Rep** `crm.lead.view|create|edit|convert|archive`,
 `crm.target.view`, the core reads a quote needs and customer create, with
 a 0 % `max_quote_discount_percent` limit rule (decision 1; the Branch
 Manager's is 10 %, decision 15); **Accountant**
-`crm.quote.view`, `crm.quote.convert`, `crm.scope.branch`; **Read-only
-Auditor** `crm.*.view` and `crm.scope.branch`.
+`crm.quote.view`, `crm.quote.convert`, `crm.scope.branch`; **Approver**
+`crm.quote.approve` (its `*.approve`), `crm.quote.view` and
+`crm.scope.branch`, so it reads the quotes it approves at its branches
+(stage 7D closing review); **Read-only Auditor** `crm.*.view` and
+`crm.scope.branch`.
 
 ## API
 
