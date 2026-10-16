@@ -10,7 +10,7 @@ import { filterPairingInput, isPairingCode, pairDevice } from '../device/pairing
 import { AppHeader } from './AppHeader';
 
 /** TEN-05: pair the till with a one-time code, then show where it sells. */
-export function PairingScreen({ onPaired }) {
+export function PairingScreen({ onPaired, onRider }) {
   const { t } = useTranslation();
   const { api, credentials, store, engine } = useServices();
   const [code, setCode] = useState('');
@@ -104,6 +104,11 @@ export function PairingScreen({ onPaired }) {
           <Button variant="primary" block loading={busy} disabled={!isPairingCode(code) || !name.trim()} onPress={submit}>
             {t('pairing.submit')}
           </Button>
+          {onRider ? (
+            <Button variant="ghost" block onPress={onRider}>
+              {t('pairing.rider')}
+            </Button>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>

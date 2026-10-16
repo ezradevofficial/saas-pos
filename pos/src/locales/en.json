@@ -76,7 +76,8 @@
       "failed": "Pairing did not work. Try again, or ask an admin for a new code."
     },
     "unsent_one": "{{count}} record from this till’s earlier pairing was not uploaded. It is kept for review; ask an admin to pair the till as its former device to send it.",
-    "unsent_other": "{{count}} records from this till’s earlier pairing were not uploaded. They are kept for review; ask an admin to pair the till as its former device to send them."
+    "unsent_other": "{{count}} records from this till’s earlier pairing were not uploaded. They are kept for review; ask an admin to pair the till as its former device to send them.",
+    "rider": "Sign in as a rider"
   },
   "signIn": {
     "title": "Who is selling?",
@@ -707,6 +708,77 @@
           "off": "This business does not send sales to the tax authority from the platform yet."
         }
       }
+    }
+  },
+  "rider": {
+    "title": "Deliveries",
+    "signIn": {
+      "title": "Sign in as a rider",
+      "intro": "Use your own email or phone and password. Your deliveries appear after you sign in.",
+      "login": "Email or phone",
+      "password": "Password",
+      "submit": "Sign in",
+      "back": "Pair a till instead"
+    },
+    "network": {
+      "online": "Online · all sent",
+      "syncing": "Sending…",
+      "offline": "Offline · updates are kept"
+    },
+    "pending_one": "{{count}} update waiting",
+    "pending_other": "{{count}} updates waiting",
+    "refresh": "Refresh deliveries",
+    "signOut": "Sign out",
+    "empty": "No deliveries for you right now.",
+    "collect": "Cash to collect",
+    "queued": "Saved on this phone. It is sent when the connection is back.",
+    "statuses": {
+      "assigned": "Assigned",
+      "picked_up": "On the way",
+      "delivered": "Delivered",
+      "failed": "Not delivered"
+    },
+    "actions": {
+      "pickedUp": "Picked up",
+      "delivered": "Delivered",
+      "failed": "Could not deliver"
+    },
+    "delivered": {
+      "title": "Deliver order {{number}}",
+      "code": "Delivery code",
+      "codeHelp": "Ask the customer for the 6-digit code from their message.",
+      "collected": "Cash collected",
+      "collectedHelp": "Change it only if the customer paid a different amount.",
+      "collectedInvalid": "Enter the amount as a number.",
+      "confirm": "Confirm delivery"
+    },
+    "failed": {
+      "title": "Could not deliver order {{number}}",
+      "reason": "What happened",
+      "reasonHelp": "For example: customer not reachable, wrong address.",
+      "confirm": "Mark as not delivered"
+    },
+    "rejected": {
+      "title": "Order {{number}} was not updated",
+      "titleNoNumber": "An update was not saved",
+      "dismiss": "Dismiss",
+      "failed": "The server refused this update. Refresh your deliveries, then try again.",
+      "code_invalid": "The delivery code is wrong. Ask the customer for the code again, then confirm the delivery again.",
+      "code_locked": "Too many wrong codes. Ask the store to confirm this delivery.",
+      "proof_required": "Enter the customer’s delivery code to confirm the delivery.",
+      "delivery_unknown": "This delivery is no longer yours. Refresh your deliveries.",
+      "delivery_status_invalid": "This delivery has changed. Refresh your deliveries.",
+      "payload_mismatch": "This update was already sent with other details. Refresh your deliveries."
+    },
+    "errors": {
+      "offline": "The server cannot be reached. Check the connection, then try again.",
+      "invalid_credentials": "The email, phone or password is wrong. Check them, then try again.",
+      "locked": "Too many tries. Wait a few minutes, then try again.",
+      "two_factor": "Your account uses two-step sign-in, which the rider screen does not support yet. Ask an admin for help.",
+      "forbidden": "You are not set up as a rider. Ask a manager to add you.",
+      "failed": "That did not work. Try again.",
+      "unverified": "Verify your account first, then sign in.",
+      "deactivated": "Your account is switched off. Ask an admin."
     }
   }
 }

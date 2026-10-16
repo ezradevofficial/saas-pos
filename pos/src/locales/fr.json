@@ -76,7 +76,8 @@
       "failed": "L’association a échoué. Réessayez, ou demandez un nouveau code à un administrateur."
     },
     "unsent_one": "{{count}} enregistrement de l’association précédente de cette caisse n’a pas été envoyé. Il est conservé pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour l’envoyer.",
-    "unsent_other": "{{count}} enregistrements de l’association précédente de cette caisse n’ont pas été envoyés. Ils sont conservés pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour les envoyer."
+    "unsent_other": "{{count}} enregistrements de l’association précédente de cette caisse n’ont pas été envoyés. Ils sont conservés pour examen ; demandez à un administrateur d’associer la caisse comme son ancien appareil pour les envoyer.",
+    "rider": "Se connecter comme livreur"
   },
   "signIn": {
     "title": "Qui vend ?",
@@ -707,6 +708,77 @@
           "off": "Cette entreprise n’envoie pas encore ses ventes à l’administration fiscale depuis la plateforme."
         }
       }
+    }
+  },
+  "rider": {
+    "title": "Livraisons",
+    "signIn": {
+      "title": "Se connecter comme livreur",
+      "intro": "Utilisez votre propre e-mail ou téléphone et votre mot de passe. Vos livraisons s’affichent après la connexion.",
+      "login": "E-mail ou téléphone",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
+      "back": "Associer une caisse à la place"
+    },
+    "network": {
+      "online": "En ligne · tout est envoyé",
+      "syncing": "Envoi…",
+      "offline": "Hors ligne · les mises à jour sont conservées"
+    },
+    "pending_one": "{{count}} mise à jour en attente",
+    "pending_other": "{{count}} mises à jour en attente",
+    "refresh": "Actualiser les livraisons",
+    "signOut": "Se déconnecter",
+    "empty": "Aucune livraison pour vous pour le moment.",
+    "collect": "Espèces à encaisser",
+    "queued": "Enregistré sur ce téléphone. Envoyé dès le retour de la connexion.",
+    "statuses": {
+      "assigned": "Attribuée",
+      "picked_up": "En route",
+      "delivered": "Livrée",
+      "failed": "Non livrée"
+    },
+    "actions": {
+      "pickedUp": "Récupérée",
+      "delivered": "Livrée",
+      "failed": "Livraison impossible"
+    },
+    "delivered": {
+      "title": "Livrer la commande {{number}}",
+      "code": "Code de livraison",
+      "codeHelp": "Demandez au client le code à 6 chiffres reçu par message.",
+      "collected": "Espèces encaissées",
+      "collectedHelp": "Modifiez-le seulement si le client a payé un autre montant.",
+      "collectedInvalid": "Saisissez le montant en chiffres.",
+      "confirm": "Confirmer la livraison"
+    },
+    "failed": {
+      "title": "Impossible de livrer la commande {{number}}",
+      "reason": "Ce qui s’est passé",
+      "reasonHelp": "Par exemple : client injoignable, adresse erronée.",
+      "confirm": "Marquer comme non livrée"
+    },
+    "rejected": {
+      "title": "La commande {{number}} n’a pas été mise à jour",
+      "titleNoNumber": "Une mise à jour n’a pas été enregistrée",
+      "dismiss": "Masquer",
+      "failed": "Le serveur a refusé cette mise à jour. Actualisez vos livraisons, puis réessayez.",
+      "code_invalid": "Le code de livraison est erroné. Redemandez le code au client, puis confirmez à nouveau la livraison.",
+      "code_locked": "Trop de codes erronés. Demandez au magasin de confirmer cette livraison.",
+      "proof_required": "Saisissez le code de livraison du client pour confirmer la livraison.",
+      "delivery_unknown": "Cette livraison ne vous est plus attribuée. Actualisez vos livraisons.",
+      "delivery_status_invalid": "Cette livraison a changé. Actualisez vos livraisons.",
+      "payload_mismatch": "Cette mise à jour a déjà été envoyée avec d’autres détails. Actualisez vos livraisons."
+    },
+    "errors": {
+      "offline": "Le serveur est injoignable. Vérifiez la connexion, puis réessayez.",
+      "invalid_credentials": "L’e-mail, le téléphone ou le mot de passe est erroné. Vérifiez-les, puis réessayez.",
+      "locked": "Trop de tentatives. Patientez quelques minutes, puis réessayez.",
+      "two_factor": "Votre compte utilise la connexion en deux étapes, que l’écran livreur ne prend pas encore en charge. Demandez de l’aide à un administrateur.",
+      "forbidden": "Vous n’êtes pas enregistré comme livreur. Demandez à un responsable de vous ajouter.",
+      "failed": "Cela n’a pas fonctionné. Réessayez.",
+      "unverified": "Vérifiez d’abord votre compte, puis connectez-vous.",
+      "deactivated": "Votre compte est désactivé. Contactez un administrateur."
     }
   }
 }
