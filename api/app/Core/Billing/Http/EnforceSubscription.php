@@ -109,6 +109,12 @@ class EnforceSubscription
         'POST pos/override' => self::DEVICE,
         'POST sync/device-secret/rotate' => self::DEVICE,
         'POST sync/device-secret/activate' => self::DEVICE,
+        // RBAC-13: deciding on support access, and a support session ending itself
+        // (support may be what an unpaid or suspended tenant needs).
+        'POST support-access/{support_access_grant}/approve' => self::ACCOUNT,
+        'POST support-access/{support_access_grant}/deny' => self::ACCOUNT,
+        'POST support-access/{support_access_grant}/revoke' => self::ACCOUNT,
+        'POST support-session/end' => self::ACCOUNT,
         'POST tenant-exports' => self::EXPORT,
         'POST tenant-exports/{tenant_export}/link' => self::EXPORT,
         'POST pos/number-ranges' => self::POS_UPLOAD,

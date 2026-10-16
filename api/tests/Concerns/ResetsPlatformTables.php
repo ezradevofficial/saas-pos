@@ -19,7 +19,7 @@ trait ResetsPlatformTables
     /** Restored in this order (deleted in reverse). */
     private static array $catalogueTables = ['catalogue_modules', 'catalogue_bundles', 'catalogue_prices', 'catalogue_annual_discounts', 'catalogue_coupons'];
 
-    private static array $staffTables = ['platform_settings', 'platform_audit_logs', 'platform_access_tokens', 'platform_users'];
+    private static array $staffTables = ['platform_support_requests', 'platform_settings', 'platform_audit_logs', 'platform_access_tokens', 'platform_users'];
 
     protected function setUpResetsPlatformTables(): void
     {

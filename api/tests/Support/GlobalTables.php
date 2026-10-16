@@ -31,6 +31,7 @@ final class GlobalTables
         'catalogue_prices' => 'versioned list prices per country (SUB-01)',
         'catalogue_annual_discounts' => 'the annual discount as data (SUB-01)',
         'catalogue_coupons' => 'coupons, created by platform staff (SUB-01)',
+        'platform_support_requests' => 'the console\'s mirror of support access requests (RBAC-13); the consent is the tenant\'s own row',
     ];
 
     /**

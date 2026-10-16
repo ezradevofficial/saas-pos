@@ -11,6 +11,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\NullSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -47,6 +48,8 @@ class IdentityServiceProvider extends ServiceProvider
             $tokenable = $isValid ? $token->tokenable : null;
 
             $valid = match (true) {
+                // RBAC-13f: a support session's token works only while its grant is approved and not past its end.
+                $tokenable instanceof User && $tokenable->support_grant_id !== null => $tokenable->isActive() && app(SupportAccess::class)->sessionValid($tokenable),
                 $tokenable instanceof User => $tokenable->isActive()
                     && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id)),
                 $tokenable instanceof Device => $tokenable->isActive(),

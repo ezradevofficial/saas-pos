@@ -80,6 +80,7 @@ return [
                 'custom_form_type' => 'Custom form types',
                 'tenant' => 'Full data export',
                 'subscription' => 'Subscription and billing',
+                'support_access' => 'Support access',
             ],
             'pos' => [
                 'sale' => 'Sales',

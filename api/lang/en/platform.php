@@ -40,4 +40,45 @@ return [
             'body' => "Hello {recipient_name},\n\nOur team extended your {app_name} trial to {date}. Reason: {reason}",
         ],
     ],
+    // RBAC-13: support access with consent.
+    'support' => [
+        'request_open' => 'You already have a request or an active session for this tenant. Use it, or end it first.',
+        'not_pending' => 'This request was already decided.',
+        'not_granted' => 'The tenant hasn’t granted this access, or it has ended. Ask again if you still need it.',
+        'not_active' => 'This access isn’t active any more.',
+        'entry_code_invalid' => 'This support session link has expired or was already used. Open the session again from the console.',
+        'ended' => 'This support session has ended. Ask the tenant for access again if you still need it.',
+        'route_refused' => 'A support session can’t use this page. The tenant’s own people manage it.',
+        'read_only' => 'This support session is read-only, so nothing can be changed. Ask the tenant for write access if you need it.',
+        'principal_name' => 'Support: :name',
+        'modes' => [
+            'read' => 'read-only',
+            'write' => 'read and write',
+        ],
+        'end_reasons' => [
+            'revoked' => 'revoked by your team',
+            'expired' => 'its time ran out',
+            'ended_by_staff' => 'ended by our support team',
+            'ended_in_session' => 'ended by our support team',
+            'cancelled' => 'cancelled by our support team',
+            'ended' => 'ended',
+        ],
+        'notifications' => [
+            'requested' => [
+                'label' => 'Support access requested',
+                'subject' => '{staff_name} asks for {mode} access to your account',
+                'body' => "Hello {recipient_name},\n\n{staff_name} from the {app_name} support team asks for {mode} access to your account for {hours} hours. Reason: {reason}\n\nApprove or deny it in Settings, Security, Support access. Nothing is opened until you approve.",
+            ],
+            'started' => [
+                'label' => 'Support session started',
+                'subject' => '{staff_name} started a support session',
+                'body' => "Hello {recipient_name},\n\n{staff_name} from the {app_name} support team started a {mode} support session in your account. It ends at {until} at the latest. You can revoke it at any time in Settings, Security, Support access.",
+            ],
+            'ended' => [
+                'label' => 'Support access ended',
+                'subject' => 'Support access for {staff_name} has ended',
+                'body' => "Hello {recipient_name},\n\nThe support access of {staff_name} has ended: {how}. Everything the session did is in Settings, Security, Support access.",
+            ],
+        ],
+    ],
 ];

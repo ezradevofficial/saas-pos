@@ -6,9 +6,12 @@ use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Notifications\EventTypes;
 use App\Core\Platform\Console\CreatePlatformUser;
 use App\Core\Platform\Console\VerifyPlatformAudit;
+use App\Core\Platform\SupportAccess\Console\ExpireSupportAccess;
+use App\Core\Platform\SupportAccess\SupportNotices;
 use App\Core\Platform\Tenants\PlatformNotices;
 use App\Core\Platform\Tenants\TenantHealthProbes;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -56,9 +59,14 @@ class PlatformServiceProvider extends ServiceProvider
 
         // ADM-01c: what staff did to the account, told to the tenant's Owners.
         PlatformNotices::register($this->app->make(EventTypes::class));
+        // RBAC-13b: support access told to the tenant's Owners and Admins.
+        SupportNotices::register($this->app->make(EventTypes::class));
+
+        // RBAC-13f: approvals past their end are closed every five minutes.
+        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('support:expire')->everyFiveMinutes()->withoutOverlapping());
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class]);
+            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class, ExpireSupportAccess::class]);
         }
     }
 }

@@ -94,6 +94,9 @@ class PermissionRegistry
         // edit: tenant scope; Owner, Admin); the business type and the
         // modules the trial covers (modules: the subscription, Owner only).
         'onboarding' => ['view', 'edit', 'modules'],
+        // RBAC-13: see support access requests and sessions (view); approve,
+        // deny and revoke them (manage). Owner and Admin templates.
+        'support_access' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

@@ -39,6 +39,8 @@ class DueTenantsTest extends TestCase
             'app_tenants_with_due_crm_reminders',
             // ECOM-14.
             'app_tenants_with_expired_ecom_reservations',
+            // RBAC-13f.
+            'app_tenants_with_expired_support_grants',
         ];
         $runtime = DB::selectOne('select current_user as name')->name;
         $owner = config('database.connections.pgsql_owner.username');

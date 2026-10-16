@@ -149,6 +149,12 @@ class DueTenants
         return $this->ids('app_tenants_with_expired_ecom_reservations(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> RBAC-13f: support access grants approved and past their end at $at. */
+    public function withExpiredSupportGrants(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_expired_support_grants(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {
