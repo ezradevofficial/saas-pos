@@ -161,6 +161,15 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     )
   })
 
+  it('adds a component and a by-product line to a draft version (MFG-04, MFG-05)', async () => {
+    setup()
+    renderApp('/manufacturing/bom-versions/v-2')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add by-product' }))
+    expect(await screen.findByRole('listitem', { name: 'Line 3' })).toBeInTheDocument()
+    expect(screen.getByRole('listitem', { name: 'Line 2' })).toBeInTheDocument()
+  })
+
   it('shows consumption against standard and recipe costs', async () => {
     setup(ORDER, [
       [/^manufacturing\/consumption\?/, page([{ id: 'm-1', order: { id: 'o-1', number: 'MO-WL-2026-00001', status: 'in_progress', ledger: 'inventory' }, company: named('c-1', 'Amani Bakery'),
