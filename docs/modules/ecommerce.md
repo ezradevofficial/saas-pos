@@ -311,3 +311,8 @@ report; offline queue). NativeWind tokens; en and fr; 48px targets.
    notifier supports WhatsApp contact addresses (decision 4).
 4. Partial returns and exchanges (decision 10).
 5. A maps provider for live tracking (ECOM-29 leaves a hook).
+6. The rider screen in the mobile app proves delivery by the customer's
+   code only. Photo proof and location reports need a camera and a
+   location library in the app (new dependencies, to be approved). The API
+   already takes both: `POST ecommerce/rider/deliveries/{id}/photo` and
+   `kind: location` updates.
