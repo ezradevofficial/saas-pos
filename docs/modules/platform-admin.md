@@ -52,7 +52,7 @@ session the tenant approved.
 | ADM-04b | **Diff and validation.** On load, the release is validated and diffed against the content in force (the latest published release, else the shipped file). Validation covers: the kind's schema (the existing validators for tax, holidays and charts; schemas for payroll, HR and fixed assets), the code matching the country, overlapping periods of any entry, and missing required values (a period marked confirmed, `needs_confirmation: false`, with a null value is an error; unconfirmed nulls are listed as warnings). The diff lists entries added, removed and changed. A release with errors cannot be approved. | Must |
 | ADM-04c | **Two-person publish.** A release with `platform.packs.manage` is loaded. It is approved by a staff member with `platform.packs.approve` who did not load it. It is published by a staff member with `platform.packs.publish` who did not approve it. Every step is audited in the platform chain. | Must |
 | ADM-04d | **Published releases override the files.** From its effective date, the latest published release of a country and kind is the pack the app reads (`PackDocuments`). This holds for payroll, HR (leave days, identifier types), fixed asset tax classes and chart templates at runtime. For tax and holidays it also holds for the deploy commands `country-packs:publish` and `country-packs:holidays`, which read the release instead of the file. Publishing a tax release also writes the tax pack version (ADR 007) and propagates it to tenants, one queued job per tenant in its context. Publishing a holidays release replaces the country's public holidays. ADR 022 records the design. | Must |
-| ADM-06 | **Reports.** For a date range: MRR now and at the range end, by currency, country, plan and module; trials started and converted; churned accounts and churned MRR; revenue (paid operator invoices, net of tax) by country, module and plan; usage totals per unit across tenants. Computed from the operator tenant's accounts, account events and invoices in the operator's context, and a narrow security-definer aggregate for usage (`app_platform_usage_totals`, totals only). Each report downloads as CSV. | Must |
+| ADM-06 | **Reports.** MRR now, by currency, country, plan and module; for a date range: trials started and converted, churned accounts and churned MRR; revenue (paid operator invoices, net of tax) by country, module and plan; usage totals per unit across tenants. Computed from the operator tenant's accounts, account events and invoices in the operator's context, and a narrow security-definer aggregate for usage (`app_platform_usage_totals`, totals only). Each report downloads as CSV. | Must |
 
 ## Staff permissions (ADM-07)
 
@@ -134,3 +134,13 @@ Tenant (`auth:sanctum`, `tenant`):
 - Deals: a quote and a renewal invoice use the deal's price; an Enterprise deal makes Enterprise priceable for that tenant only.
 - Reports match seeded data.
 - New tenant tables pass the isolation suite, and the new security-definer function passes the lockdown test.
+
+## Status (phase 8, stage 8A, branch `feat/super-admin`)
+
+All requirements above are built and tested. Decisions taken while building:
+
+- **Support principals hold no role.** Field rules hide nothing from them. Limit rules give them nothing, so no discounts or refunds above zero. Workflow stages and custom forms that name roles stay out of reach, because support never approves. Configuration (themes, layouts) resolves for them tenant-wide.
+- **What a suspended tenant can still write.** Its billing, its own accounts, the data export and support-access decisions. Approvals are refused while it is suspended, unlike dunning: LIM-04 covers limits and dunning, not suspension.
+- **Revenue by plan** comes from the bundle line of each paid invoice, or `custom` when there is none. **MRR by module** comes from each paying account's latest period invoice, net of tax and spread over its months.
+- **Usage totals** are taken on the latest metered day on or before the range end.
+- **Pack releases.** A tax or holidays release dated later is written into the pack tables by `country-packs:apply-releases` on its date. The other kinds are read where they are used, from their date (ADR 022).
