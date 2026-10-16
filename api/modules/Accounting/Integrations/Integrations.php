@@ -15,6 +15,7 @@ use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingResult;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\Ecommerce\Events\EcommercePosting;
 use Modules\FixedAssets\Events\FixedAssetPosting;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
@@ -60,6 +61,7 @@ class Integrations
         private readonly ManufacturingSources $manufacturing,
         private readonly FixedAssetSources $fixedAssets,
         private readonly PayrollSources $payroll,
+        private readonly EcommerceSources $ecommerce,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -89,6 +91,8 @@ class Integrations
             $event instanceof FixedAssetPosting => $this->post($this->fixedAssets->source($event)),
             // PAY-22: a posted payroll run, one journal per department and pay currency.
             $event instanceof PayrollPosted => $this->payrollRun($event),
+            // ECOM-32: E-commerce's delivered orders, returns and rider cash-ups.
+            $event instanceof EcommercePosting => $this->post($this->ecommerce->source($event)),
             default => null,
         };
     }

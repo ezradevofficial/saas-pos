@@ -77,7 +77,7 @@ class VoidAndRefundTest extends TestCase
 
     private function limit(string $template, string $key, string $value): void
     {
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get($template)->id, 'key' => $key, 'value' => $value]));
+        $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get($template)->id, 'key' => $key], ['value' => $value]));
     }
 
     public function test_a_cashier_needs_a_manager_to_void_and_both_are_recorded(): void

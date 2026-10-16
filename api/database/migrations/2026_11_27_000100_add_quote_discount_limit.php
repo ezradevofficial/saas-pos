@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 // limit of the same value; the system Sales Rep's till limit (seeded for
 // CRM) goes. Each change is audited on its role as the system
 // (`rbac.role.limits_update`, RBAC-12). The template defaults missing from
-// system roles (Branch Manager 10 %) arrive with `permissions:sync`
+// system roles (Branch Manager: quote discount 10 %, refund 10,000) arrive with `permissions:sync`
 // (RoleTemplates::refresh), which every migrate ends with.
 return new class extends Migration
 {

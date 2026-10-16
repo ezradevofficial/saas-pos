@@ -16,6 +16,8 @@ return [
         'fixed_assets.capitalisation', 'fixed_assets.depreciation', 'fixed_assets.revaluation', 'fixed_assets.impairment', 'fixed_assets.disposal',
         // CRM-24: the revenue account of draft invoices made from CRM quotes (its `revenue` line).
         'crm.quote_invoice',
+        // ECOM-32: E-commerce (docs/modules/ecommerce.md): delivered orders, returns and rider cash-ups.
+        'ecommerce.order', 'ecommerce.return', 'ecommerce.cod_cashup',
     ],
 
     // ACC-24 (stage 7D closing review): rules that only name accounts another posting uses, never a
@@ -29,6 +31,8 @@ return [
         'pos.refund' => ['pos.sale', true],
         'pos.void' => ['pos.sale', true],
         'pos.sale_summary' => ['pos.sale', false],
+        // ECOM-32: a return undoes its delivered order.
+        'ecommerce.return' => ['ecommerce.order', true],
     ],
 
     // ACC-15: the base-currency rounding a manual journal with foreign lines may carry, in minor units.

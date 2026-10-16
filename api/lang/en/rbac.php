@@ -16,6 +16,7 @@ return [
     // RBAC-01: permission catalogue labels (GET permissions).
     'catalogue' => [
         'modules' => [
+            'ecommerce' => 'E-commerce and delivery',
             'crm' => 'CRM and sales',
             'core' => 'Core',
             'pos' => 'Point of sale',
@@ -25,6 +26,16 @@ return [
             'payroll' => 'Payroll',
         ],
         'resources' => [
+            'ecommerce' => [
+                'store' => 'Online stores',
+                'order' => 'Online orders',
+                'delivery' => 'Deliveries',
+                'rider' => 'Riders',
+                'cashup' => 'Rider cash-ups',
+                'whatsapp' => 'WhatsApp inbox',
+                'customer' => 'Online customers',
+                'report' => 'Online store reports',
+            ],
             'crm' => [
                 'lead' => 'Leads',
                 'opportunity' => 'Opportunities',
@@ -127,6 +138,8 @@ return [
             ],
         ],
         'actions' => [
+            'deliver' => 'Deliver',
+            'reply' => 'Reply',
             'convert' => 'Convert',
             'discount' => 'Give discounts',
             'price' => 'Change prices',
@@ -182,6 +195,7 @@ return [
         'admin' => 'Admin',
         'branch_manager' => 'Branch Manager',
         'sales_rep' => 'Sales Rep',
+        'rider' => 'Rider',
         'cashier' => 'Cashier',
         'waiter' => 'Waiter',
         'storekeeper' => 'Storekeeper',

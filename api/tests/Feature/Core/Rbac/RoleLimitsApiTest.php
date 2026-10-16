@@ -71,14 +71,14 @@ class RoleLimitsApiTest extends TestCase
         $manager = $this->roles->get('branch_manager');
 
         $this->getJson("/api/v1/roles/{$manager->id}", $this->headersFor())->assertOk()
-            ->assertJsonPath('data.limits', ['max_quote_discount_percent' => '10']);
+            ->assertJsonPath('data.limits', ['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000']);
         $this->putLimits($manager->id, ['max_quote_discount_percent' => '20'])->assertForbidden()->assertJsonPath('code', 'system_role');
 
         $copy = $this->postJson("/api/v1/roles/{$manager->id}/copy", ['name' => 'Senior manager'], $this->headersFor())
-            ->assertCreated()->assertJsonPath('data.limits', ['max_quote_discount_percent' => '10'])->json('data.id');
+            ->assertCreated()->assertJsonPath('data.limits', ['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'])->json('data.id');
 
         $this->putLimits($copy, ['max_quote_discount_percent' => '20'])->assertOk()->assertJsonPath('data.limits.max_quote_discount_percent', '20');
-        $this->inTenant(fn () => $this->assertSame('10.0000', LimitRule::where('role_id', $manager->id)->sole()->value));
+        $this->inTenant(fn () => $this->assertSame('10.0000', LimitRule::where('role_id', $manager->id)->where('key', 'max_quote_discount_percent')->sole()->value));
     }
 
     public function test_values_are_validated(): void

@@ -327,7 +327,11 @@ SQL, paged and batched; the quote's send activity as a system action
     till keeps `max_discount_percent`, so one role may discount at the till
     and on quotes by different amounts. Defaults: Sales Rep 0 %, Branch
     Manager 10 % (so a manager's own discounted quotes do not all
-    escalate; a default the owner may change). The Owner and Admin edit
+    escalate; a default the owner may change). The Branch Manager also
+    refunds up to 10,000 in the company's base currency
+    (`max_refund_amount`, POS and E-commerce refunds; without it managers
+    could not refund at all; a default the owner may change, and low for a
+    CDF company, where a copy of the role raises it). The Owner and Admin edit
     every limit (till and quote discount, refund, approval amount) of a
     custom role in Settings, Roles (`PUT roles/{role}/limits`, audited as
     `rbac.role.limits_update`); system roles show theirs read-only and are

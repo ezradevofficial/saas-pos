@@ -143,6 +143,12 @@ class DueTenants
         return $this->ids('app_tenants_with_due_crm_reminders(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> ECOM-14: an unpaid online order whose stock reservation expired at $at. */
+    public function withExpiredEcommerceReservations(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_expired_ecom_reservations(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {

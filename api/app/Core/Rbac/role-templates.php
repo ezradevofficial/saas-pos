@@ -42,7 +42,9 @@ return [
             // Fixed assets (docs/modules/fixed-assets.md): reads it all, sets categories and a company's convention, prints labels.
             'fixed_assets.*.view', 'fixed_assets.settings.edit', 'fixed_assets.category.manage', 'fixed_assets.label.print',
             // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
-            'crm.*.view', 'crm.settings.manage', 'crm.scope.branch'],
+            'crm.*.view', 'crm.settings.manage', 'crm.scope.branch',
+            // E-commerce (docs/modules/ecommerce.md): reads it all, sets up stores and riders.
+            'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
@@ -93,12 +95,16 @@ return [
             // CRM (docs/modules/crm.md): the branch's leads, opportunities, quotes (the default quote approver, CRM-21),
             // activities and targets, with the branch scope (CRM-08); the module's settings are the Admin's.
             'crm.*',
+            // E-commerce (docs/modules/ecommerce.md): the branch's online orders, deliveries, riders, cash-ups,
+            // WhatsApp inbox and store settings; riding is the Rider's.
+            'ecommerce.*',
         ],
-        'except' => ['crm.settings.manage'],
-        // RBAC-06, CRM-20 (owner decision A, 2026-10-16, a default the owner may change): a Branch Manager
-        // discounts quotes up to 10 % without approval, so their own discounted quotes do not all escalate.
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver'],
+        // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
+        // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
+        // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
         // The till discount keeps no default (no rule: discounts need a manager's override, POS-07).
-        'limits' => ['max_quote_discount_percent' => '10'],
+        'limits' => ['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -135,7 +141,17 @@ return [
             // LOY-05, LOY-23: sees customers' points and gift card balances at the till. Selling on
             // credit (loyalty.credit.sell) is granted by the tenant, not by this template.
             'loyalty.points.view', 'loyalty.gift_card.view',
+            // ECOM-22, ECOM-25: packs online orders at the outlet, takes phone orders, answers WhatsApp.
+            'ecommerce.order.view', 'ecommerce.order.create', 'ecommerce.order.manage', 'ecommerce.whatsapp.view', 'ecommerce.whatsapp.reply',
         ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // ECOM-28 (docs/modules/ecommerce.md decision 7): a rider sees and updates only their own deliveries,
+        // from the mobile app, signed in as themselves. RBAC-03 does not name this template: flagged for the spec.
+        'key' => 'rider',
+        'permissions' => ['ecommerce.delivery.deliver'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -201,6 +217,8 @@ return [
             'manufacturing.*.view',
             // Fixed assets (docs/modules/fixed-assets.md): the register, categories, runs, revaluations, disposals and the tax book.
             'fixed_assets.*',
+            // ECOM-30, ECOM-32, ECOM-36: online orders, rider cash-ups and reports.
+            'ecommerce.order.view', 'ecommerce.cashup.view', 'ecommerce.cashup.manage', 'ecommerce.report.view',
         ],
         // FA-14, FA-17: transfers and disposals are approved by others.
         'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],

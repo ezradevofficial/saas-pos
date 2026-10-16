@@ -48,7 +48,7 @@ class PaymentsAndFiscalTest extends TestCase
         $this->manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
         $this->inTenant(fn () => $this->vat->forceFill(['fiscal_code' => 'B'])->save());
         // RBAC-06: the manager may approve refunds (a test limit).
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount', 'value' => '100000']));
+        $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount'], ['value' => '100000']));
         $this->ranges()->assertOk();
         $this->ranges('pos.refund')->assertOk();
         $this->shift = $this->openShift();

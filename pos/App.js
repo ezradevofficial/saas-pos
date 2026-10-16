@@ -12,6 +12,7 @@ import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { PosScreen } from './src/screens/pos/PosScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
+import { RiderScreen } from './src/screens/rider/RiderScreen';
 import { StaffSignInScreen } from './src/screens/StaffSignInScreen';
 import { NETWORK } from './src/sync/engine';
 import { useSyncStatus } from './src/sync/useSyncStatus';
@@ -33,26 +34,31 @@ function useLocation(paired) {
 }
 
 /**
- * A small state router: not paired → Pairing; nobody signed in → Staff
+ * A small state router: a rider signed in on an unpaired phone (or one who
+ * chose to sign in as a rider) → Rider; not paired → Pairing; nobody signed in → Staff
  * sign-in; a PIN to change while online → Change PIN; else the till
  * (PosScreen: shift, selling, payment, receipts, returns).
  */
 function Root() {
-  const { credentials, store, scheduler } = useServices();
+  const { credentials, store, scheduler, riderCredentials } = useServices();
   const { user, pinChange } = useSession();
   const sync = useSyncStatus();
   const [paired, setPaired] = useState(null);
+  // ECOM-28: a rider's phone opens on the rider screen while the rider is signed in.
+  const [rider, setRider] = useState(false);
   const location = useLocation(paired);
 
   useEffect(() => {
     let active = true;
-    Promise.all([credentials.token(), store.device()]).then(([token, device]) => {
-      if (active) setPaired(Boolean(token && device));
+    Promise.all([credentials.token(), store.device(), riderCredentials.token()]).then(([token, device, riderToken]) => {
+      if (!active) return;
+      setRider(Boolean(riderToken) && !(token && device));
+      setPaired(Boolean(token && device));
     });
     return () => {
       active = false;
     };
-  }, [credentials, store]);
+  }, [credentials, store, riderCredentials]);
 
   useEffect(() => {
     if (!paired) return undefined;
@@ -67,7 +73,8 @@ function Root() {
       </View>
     );
   }
-  if (!paired) return <PairingScreen onPaired={() => setPaired(true)} />;
+  if (rider) return <RiderScreen onExit={() => setRider(false)} />;
+  if (!paired) return <PairingScreen onPaired={() => setPaired(true)} onRider={() => setRider(true)} />;
   // The sale and the shift live in PosProvider, above sign-in: switching user keeps them (AUTH-07).
   let screen = <PosScreen />;
   if (!user) screen = <StaffSignInScreen location={location} />;

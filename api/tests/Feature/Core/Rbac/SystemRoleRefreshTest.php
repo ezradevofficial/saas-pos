@@ -165,7 +165,7 @@ class SystemRoleRefreshTest extends TestCase
             $limits = fn (string $name) => Role::where('name', $name)->sole()->limits();
 
             $this->assertSame(['max_quote_discount_percent' => '0'], Role::where('template_key', 'sales_rep')->sole()->limits());
-            $this->assertSame(['max_quote_discount_percent' => '10'], Role::where('template_key', 'branch_manager')->sole()->limits());
+            $this->assertSame(['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'], Role::where('template_key', 'branch_manager')->sole()->limits());
             $this->assertSame(['max_discount_percent' => '15', 'max_quote_discount_percent' => '15'], $limits('Quote desk'));
             $this->assertSame(['max_discount_percent' => '5'], $limits('Till lead'));
             $this->assertSame(3, AuditEntry::where('action', 'rbac.role.limits_update')->count());

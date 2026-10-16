@@ -127,5 +127,32 @@ export function memoryBackend(initial = {}) {
   };
 }
 
+const RIDER_KEYS = { token: 'rider.token', user: 'rider.user' };
+
+/**
+ * ECOM-28 (decision 7): a rider signs in as themselves, not as the till: their
+ * own user token sits in the keystore beside the device's, under its own key,
+ * with the name to greet them. Signing out removes both.
+ */
+export function createRiderCredentials(backend = Platform.OS === 'web' ? webStore : nativeStore) {
+  return {
+    token: () => backend.get(RIDER_KEYS.token),
+    async user() {
+      try {
+        return JSON.parse((await backend.get(RIDER_KEYS.user)) ?? 'null');
+      } catch {
+        return null;
+      }
+    },
+    async save({ token, user }) {
+      await backend.set(RIDER_KEYS.token, token);
+      await backend.set(RIDER_KEYS.user, JSON.stringify({ id: user?.id ?? null, name: user?.name ?? null }));
+    },
+    async clear() {
+      await Promise.all(Object.values(RIDER_KEYS).map((key) => backend.remove(key)));
+    },
+  };
+}
+
 /** The keystore entry for a secret, for tests seeding a backend. */
 export const secretEntry = (secret, kid) => ({ [KEYS.secret]: writeSecret({ secret, kid }) });

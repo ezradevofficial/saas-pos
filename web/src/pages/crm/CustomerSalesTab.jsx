@@ -40,6 +40,35 @@ function PosPart({ pos }) {
   )
 }
 
+/** ECOM-34: the customer's online orders (only when the E-commerce part is present). */
+function EcommercePart({ ecommerce }) {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const columns = [
+    { key: 'number', label: t('crm.customer.columns.order'), render: (order) => <Link to={`/ecommerce/orders/${order.id}`} className={`${link} tabular-nums`}>{order.number}</Link> },
+    { key: 'placed_at', label: t('crm.customer.columns.placedAt'), render: (order) => <When value={order.placed_at} /> },
+    { key: 'status', label: t('crm.columns.status'), render: (order) => t(`ecommerce.statuses.${order.status}`, { defaultValue: order.status }) },
+    { key: 'total', label: t('crm.columns.total'), align: 'end', render: (order) => <Money amount={order.total_minor} currency={order.currency} /> },
+  ]
+  return (
+    <Card title={t('crm.customer.ecommerce')} subtitle={ecommerce.last_ordered_at ? <span>{t('crm.customer.lastOrder')} <When value={ecommerce.last_ordered_at} /></span> : null}>
+      <div className="flex flex-col gap-4">
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <dt className="text-caption text-ink-muted">{t('crm.customer.ordersCount')}</dt>
+            <dd className="text-h3 tabular-nums text-ink">{formatInteger(ecommerce.count ?? 0, locale)}</dd>
+          </div>
+          <div className="flex flex-col gap-1">
+            <dt className="text-caption text-ink-muted">{t('crm.customer.ordersTotal')}</dt>
+            <dd><PerCurrency values={ecommerce.totals} field="total_minor" /></dd>
+          </div>
+        </dl>
+        <DataTable caption={t('crm.customer.recentOrders')} columns={columns} rows={ecommerce.recent ?? []} emptyText={t('crm.customer.noOrders')} />
+      </div>
+    </Card>
+  )
+}
+
 /** Loyalty: points and credit balances per company (only when the Loyalty part is present). */
 function LoyaltyPart({ loyalty }) {
   const { t } = useTranslation()
@@ -176,6 +205,7 @@ export function CustomerSalesTab({ party }) {
       {data.pos ? <PosPart pos={data.pos} /> : null}
       {data.loyalty ? <LoyaltyPart loyalty={data.loyalty} /> : null}
       {data.accounting ? <AccountingPart accounting={data.accounting} /> : null}
+      {data.ecommerce ? <EcommercePart ecommerce={data.ecommerce} /> : null}
     </div>
   )
 }
