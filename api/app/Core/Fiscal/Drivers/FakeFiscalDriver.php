@@ -2,6 +2,7 @@
 
 namespace App\Core\Fiscal\Drivers;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Fiscal\Contracts\FiscalDriver;
 use App\Core\Fiscal\FiscalBands;
 use App\Core\Fiscal\FiscalDocument;
@@ -23,9 +24,10 @@ class FakeFiscalDriver implements FiscalDriver
         return 'fake';
     }
 
+    /** Local and testing, or a developer sandbox in any environment (API-05). */
     public function available(): bool
     {
-        return (bool) config('fiscal.allow_fake');
+        return (bool) config('fiscal.allow_fake') || app(Sandbox::class)->active();
     }
 
     public function required(): array

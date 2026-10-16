@@ -50,7 +50,8 @@ class UserLookup implements LookupTarget
     private function visible(User $actor): Builder
     {
         $resolver = app(ScopeResolver::class);
-        $query = User::query();
+        // ADR 020: an API key's principal is not a person to pick.
+        $query = User::query()->where('status', '<>', User::STATUS_SERVICE);
 
         if (! $resolver->can($actor, 'core.user.view')) {
             return $query->whereKey($actor->id);

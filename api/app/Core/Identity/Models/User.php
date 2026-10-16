@@ -36,6 +36,13 @@ class User extends Authenticatable implements HasLocalePreference
 
     public const STATUS_DEACTIVATED = 'deactivated';
 
+    /**
+     * API-02, ADR 020: an API key's service principal, not a person. It
+     * acts through its key only (no email, phone or usable password), and
+     * every list, count or notice meant for people filters on `active`.
+     */
+    public const STATUS_SERVICE = 'service';
+
     protected array $auditHidden = ['password', 'two_factor_secret', 'two_factor_last_used_step'];
 
     protected $fillable = [
@@ -99,9 +106,27 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->two_factor_confirmed_at !== null;
     }
 
+    /** Active, or an API key's principal (whose key the guard and ApiScopes check). */
     public function isActive(): bool
     {
-        return $this->status === self::STATUS_ACTIVE;
+        return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_SERVICE;
+    }
+
+    /** API-02: an API key's service principal (ADR 020). */
+    public function isServicePrincipal(): bool
+    {
+        return $this->status === self::STATUS_SERVICE;
+    }
+
+    /**
+     * `users/{user}` never reaches an API key's principal: keys are managed
+     * through `api-keys` only (ADR 020).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->resolveRouteBindingQuery($this->newQuery(), $value, $field)
+            ->where('status', '<>', self::STATUS_SERVICE)
+            ->first();
     }
 
     public function preferredLocale(): string

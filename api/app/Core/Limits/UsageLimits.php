@@ -2,6 +2,7 @@
 
 namespace App\Core\Limits;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\Models\Overage;
@@ -50,6 +51,7 @@ class UsageLimits
         private readonly OverageCost $cost,
         private readonly UsageNotices $notices,
         private readonly OwnerGuard $owners,
+        private readonly Sandbox $sandbox,
     ) {}
 
     /**
@@ -59,6 +61,11 @@ class UsageLimits
      */
     public function meter(CarbonImmutable $at): array
     {
+        // API-05: a developer sandbox is never metered or billed (ADR 020).
+        if ($this->sandbox->active()) {
+            return [];
+        }
+
         $allowances = $this->plans->for($this->tenants->require());
         $counts = $this->counter->all();
         $cost = null;
@@ -109,6 +116,11 @@ class UsageLimits
 
         if ($db->transactionLevel() === 0) {
             throw new LogicException('ensureCanAdd() must run inside the transaction that adds the item.');
+        }
+
+        // API-05: a developer sandbox has no plan, so nothing is over it (ADR 020).
+        if ($this->sandbox->active()) {
+            return;
         }
 
         $tenantId = $this->tenants->require();

@@ -1,0 +1,56 @@
+<?php
+
+// API-04 : les textes du document OpenAPI (OpenApiDocument), par identifiant
+// d’opération (`<module>.<contrôleur>.<méthode>`, points remplacés par des
+// traits de soulignement). Chaque route publique a un résumé ici et en
+// anglais (`api:docs --check`).
+return [
+    'title' => 'API publique',
+    'description' => 'API REST pour les données de votre organisation, en JSON sur HTTPS. Authentifiez-vous avec une clé d’API comme jeton porteur. Chaque requête est contrôlée avec les mêmes permissions, portées et règles de champs que l’application.',
+    'security' => 'Une clé d’API : `Authorization: Bearer sk_live_<id>_<secret>` (`sk_test_` pour un bac à sable développeur).',
+
+    'operations' => [
+        'core_company_index' => ['summary' => 'Lister les sociétés', 'description' => 'Les sociétés que le rôle de la clé atteint. Filtrez avec `status` (active, archived, all).'],
+        'core_company_show' => ['summary' => 'Obtenir une société'],
+        'core_branch_all' => ['summary' => 'Lister les agences', 'description' => 'Les agences de chaque société que le rôle de la clé atteint.'],
+        'core_branch_index' => ['summary' => 'Lister les agences d’une société'],
+        'core_branch_show' => ['summary' => 'Obtenir une agence'],
+        'core_location_all' => ['summary' => 'Lister les emplacements', 'description' => 'Points de vente, entrepôts et autres emplacements que le rôle de la clé atteint.'],
+        'core_location_index' => ['summary' => 'Lister les emplacements d’une agence'],
+        'core_location_show' => ['summary' => 'Obtenir un emplacement'],
+        'core_tenant_currency_index' => ['summary' => 'Lister les devises de l’organisation'],
+        'core_exchange_rate_index' => ['summary' => 'Lister les taux de change d’une société', 'description' => 'L’historique des taux, du plus récent au plus ancien. Les taux sont des chaînes décimales à 8 décimales.'],
+        'core_exchange_rate_current' => ['summary' => 'Obtenir les taux de change en vigueur'],
+        'core_tax_code_index' => ['summary' => 'Lister les codes de taxe d’une société', 'description' => 'Les codes de taxe avec leurs taux datés, issus du pack pays de la société.'],
+        'core_tax_code_show' => ['summary' => 'Obtenir un code de taxe'],
+        'core_tax_category_index' => ['summary' => 'Lister les catégories de taxe'],
+        'core_tax_category_show' => ['summary' => 'Obtenir une catégorie de taxe'],
+        'core_price_list_index' => ['summary' => 'Lister les listes de prix d’une société'],
+        'core_price_list_show' => ['summary' => 'Obtenir une liste de prix'],
+        'core_item_price_index' => ['summary' => 'Lister les prix d’une liste de prix', 'description' => 'Prix des articles par unité, datés, avec paliers de quantité. Les montants sont des entiers en unités mineures avec leur devise.'],
+        'core_item_price_store' => ['summary' => 'Ajouter un prix à une liste de prix', 'description' => 'Les montants sont des entiers en unités mineures (KES et USD ont 2 décimales, CDF n’en a aucune).'],
+        'core_party_index' => ['summary' => 'Lister les clients, fournisseurs et contacts', 'description' => 'Filtrez par `role`, `tag` ou `company` ; recherchez par nom, téléphone, e-mail ou numéro fiscal.'],
+        'core_party_store' => ['summary' => 'Créer un client, un fournisseur ou un contact', 'description' => 'Répond `meta.possible_duplicates` quand des fiches semblables existent ; ne bloque jamais.'],
+        'core_party_show' => ['summary' => 'Obtenir un client, un fournisseur ou un contact'],
+        'core_party_update' => ['summary' => 'Modifier un client, un fournisseur ou un contact', 'description' => 'N’envoyez que les champs à modifier. Les champs que votre rôle ne peut pas modifier sont refusés avec `field_readonly`.'],
+        'core_party_archive' => ['summary' => 'Archiver un client, un fournisseur ou un contact', 'description' => 'Les fiches sont archivées, jamais supprimées. Restaurez-les pour les retrouver.'],
+        'core_party_restore' => ['summary' => 'Restaurer un client, un fournisseur ou un contact archivé'],
+        'core_uom_index' => ['summary' => 'Lister les unités de mesure'],
+        'core_uom_show' => ['summary' => 'Obtenir une unité de mesure'],
+        'core_item_category_index' => ['summary' => 'Lister les catégories d’articles'],
+        'core_item_category_store' => ['summary' => 'Créer une catégorie d’articles'],
+        'core_item_category_show' => ['summary' => 'Obtenir une catégorie d’articles'],
+        'core_item_category_update' => ['summary' => 'Modifier une catégorie d’articles'],
+        'core_item_category_archive' => ['summary' => 'Archiver une catégorie d’articles'],
+        'core_item_category_restore' => ['summary' => 'Restaurer une catégorie d’articles archivée'],
+        'core_item_index' => ['summary' => 'Lister les articles', 'description' => 'Filtrez par `category`, `type`, `barcode` ou `company` ; recherchez par code, nom ou code-barres.'],
+        'core_item_store' => ['summary' => 'Créer un article', 'description' => 'Les codes et codes-barres sont uniques parmi les articles actifs. Répond `meta.possible_duplicates` quand des articles semblables existent.'],
+        'core_item_show' => ['summary' => 'Obtenir un article'],
+        'core_item_update' => ['summary' => 'Modifier un article'],
+        'core_item_archive' => ['summary' => 'Archiver un article'],
+        'core_item_restore' => ['summary' => 'Restaurer un article archivé'],
+        'pos_sale_index' => ['summary' => 'Lister les ventes du point de vente', 'description' => 'Les ventes terminées envoyées par les caisses, dans les emplacements que le rôle de la clé atteint. Nécessite le module Point de vente.'],
+        'pos_sale_show' => ['summary' => 'Obtenir une vente du point de vente', 'description' => 'Une vente avec ses lignes, ses paiements et son statut fiscal.'],
+        'inventory_stock_index' => ['summary' => 'Lister le stock disponible', 'description' => 'Les quantités par article et par emplacement. Nécessite le module Stocks.'],
+    ],
+];

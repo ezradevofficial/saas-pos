@@ -86,6 +86,7 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_login(p_login text)` | `users` by email (citext) or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `invitations` by token hash |
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `api_keys` by key id, when the tenant's sandbox flag matches the key's `sk_test_` or `sk_live_` prefix (ADR 020) |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
@@ -146,6 +147,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `uuid` | an invitation link |
 | `auth_tenant_for_pairing(p_code_hash text)` | `uuid` | device pairing |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `uuid` | an API key's tenant, only when the tenant's sandbox flag matches the key's prefix (API-02, API-05, ADR 020) |
 | `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
 | `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
 | `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |

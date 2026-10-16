@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Http;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\TenantContext;
@@ -119,11 +120,21 @@ class EnforceSubscription
         'POST hr/device/punches' => self::POS_UPLOAD,
     ];
 
-    public function __construct(private readonly TenantContext $tenants) {}
+    /** API-05: writes that would start billing, refused in a developer sandbox (ADR 020). */
+    public const SANDBOX_REFUSED = ['PUT onboarding/modules'];
+
+    public function __construct(
+        private readonly TenantContext $tenants,
+        private readonly Sandbox $sandbox,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $class = self::classify($request->method(), $request->route());
+
+        if ($this->startsBilling($request, $class) && $this->sandbox->active()) {
+            throw new ApiException(403, 'sandbox_not_billed', __('api.errors.sandbox_not_billed'));
+        }
 
         if ($class === self::ALLOWED || $this->tenants->id() === null) {
             return $next($request);
@@ -144,6 +155,14 @@ class EnforceSubscription
         }
 
         throw new ApiException(402, 'subscription_overdue', __('billing.read_only.message'));
+    }
+
+    /** A subscription write, or choosing modules (which starts a trial). */
+    private function startsBilling(Request $request, string $class): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        return $class === self::BILLING || in_array(strtoupper($request->method()).' '.$uri, self::SANDBOX_REFUSED, true);
     }
 
     /** How a request to $route with $method is treated in read-only mode. */

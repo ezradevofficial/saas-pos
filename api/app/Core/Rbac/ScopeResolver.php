@@ -2,6 +2,7 @@
 
 namespace App\Core\Rbac;
 
+use App\Core\Api\ApiScopes;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -28,6 +29,10 @@ use Spatie\Permission\PermissionRegistrar;
  * assignments there keep granting, so archived records can still be viewed
  * and restored (TEN-06). Hiding archived records is the job of list
  * queries, not of permissions.
+ *
+ * API-02 (ADR 020): an API key's principal is a user too, limited further
+ * by its key's scopes (ApiScopes::permits): a permission whose resource the
+ * key has no scope for grants it nothing, here and in visibleIds().
  */
 class ScopeResolver
 {
@@ -36,6 +41,7 @@ class ScopeResolver
         private readonly PermissionRegistrar $registrar,
         private readonly PermissionRegistry $catalogue,
         private readonly ModuleRegistry $modules,
+        private readonly ApiScopes $apiScopes,
     ) {}
 
     /** @var array<string, true> permission names found missing after a reload, per cache key */
@@ -184,7 +190,7 @@ class ScopeResolver
         $result = [];
 
         foreach ($this->registrar->getPermissions(['guard_name' => Permission::GUARD]) as $permission) {
-            if (! $this->modules->permissionActive($permission->name, $active)) {
+            if (! $this->modules->permissionActive($permission->name, $active) || ! $this->apiScopes->permits($user, $permission->name)) {
                 continue;
             }
 
@@ -215,7 +221,7 @@ class ScopeResolver
      */
     private function assignmentsWith(User $user, string $permission): Collection
     {
-        if (! $this->eligible($user) || ! $this->modules->permissionActive($permission)) {
+        if (! $this->eligible($user) || ! $this->modules->permissionActive($permission) || ! $this->apiScopes->permits($user, $permission)) {
             return collect();
         }
 

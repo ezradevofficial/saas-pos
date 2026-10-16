@@ -47,7 +47,8 @@ class IdentityServiceProvider extends ServiceProvider
             $tokenable = $isValid ? $token->tokenable : null;
 
             $valid = match (true) {
-                $tokenable instanceof User => $tokenable->isActive()
+                // ADR 020: an API key's principal acts through its key only, never a token.
+                $tokenable instanceof User => $tokenable->isActive() && ! $tokenable->isServicePrincipal()
                     && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id)),
                 $tokenable instanceof Device => $tokenable->isActive(),
                 // HR-24: a module's own machine (biometric terminals), while it accepts tokens.
