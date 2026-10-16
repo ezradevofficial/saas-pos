@@ -9674,6 +9674,7 @@
       "issues": "Issues",
       "returns": "Returns",
       "reports": "Production reports",
+      "notReceived": "Not taken into stock: {{items}}",
       "quantitiesOnly": "Quantities only: this order was released while Inventory was off.",
       "edit": "Edit",
       "release": "Release",

@@ -33,7 +33,10 @@ use Modules\Manufacturing\Support\Errors;
  * - an issue or return: each line's value (the sum of its movements,
  *   positive) and cost variance; the materials' and order's values; then
  *   the order's pending reports are costed (Costing);
- * - a report's receipt: each line's cost variance; the report received;
+ * - a report's receipt: each output line's value as Inventory received it
+ *   (nothing for an output it took nothing in for, such as an item no
+ *   longer stocked: flagged `not_received`, its cost left in WIP for the
+ *   close) and cost variance; the report received;
  * - a backflush: each ingredient line's value and cost variance.
  *
  * Then ProductionValued for Accounting. Queued after Inventory's posting
@@ -77,7 +80,7 @@ class RecordValues implements ShouldQueue
 
         $this->tenants->run($event->tenantId, fn () => Errors::transaction(fn () => match ($event->sourceType) {
             MaterialsMoved::SOURCES[MaterialsMoved::ISSUE], MaterialsMoved::SOURCES[MaterialsMoved::RETURN] => $this->materials($event, $values, $variances),
-            MaterialsMoved::SOURCES[MaterialsMoved::RECEIPT] => $this->receipt($event, $variances),
+            MaterialsMoved::SOURCES[MaterialsMoved::RECEIPT] => $this->receipt($event, $values, $variances),
             default => $this->backflush($event, $values, $variances),
         }));
     }
@@ -158,7 +161,7 @@ class RecordValues implements ShouldQueue
         return $flags === [] ? null : $flags;
     }
 
-    private function receipt(StockMoved $event, array $variances): void
+    private function receipt(StockMoved $event, array $values, array $variances): void
     {
         $orderId = Report::query()->whereKey($event->sourceId)->value('order_id');
 
@@ -173,13 +176,22 @@ class RecordValues implements ShouldQueue
             return;
         }
 
-        foreach (ReportLine::query()->where('report_id', $report->id)->get() as $line) {
-            if (isset($variances[$line->id])) {
-                $line->update(['cost_variance_minor' => (string) $variances[$line->id]]);
+        $flags = [];
+
+        foreach (ReportLine::query()->where('report_id', $report->id)->orderBy('line_no')->get() as $line) {
+            if (! in_array($line->kind, [ReportLine::PRODUCT, ReportLine::BY_PRODUCT], true)) {
+                continue;
+            }
+
+            $received = isset($values[$line->id]) ? $values[$line->id]->abs() : BigInteger::zero();
+            $line->update(['value_minor' => (string) $received, 'cost_variance_minor' => (string) ($variances[$line->id] ?? BigInteger::zero())]);
+
+            if (! isset($values[$line->id]) && ! BigInteger::of((string) ($line->cost_minor ?? 0))->isZero()) {
+                $flags[] = ['code' => 'not_received', 'line_id' => (string) $line->id];
             }
         }
 
-        $report->fill(['status' => Report::RECEIVED, 'received_at' => CarbonImmutable::now()])->save();
+        $report->fill(['status' => Report::RECEIVED, 'received_at' => CarbonImmutable::now(), 'flags' => $flags === [] ? null : $flags])->save();
 
         event($this->events->production($report->refresh()));
     }

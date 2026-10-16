@@ -137,6 +137,21 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('manufacturing/orders/o-1/reports', expect.objectContaining({ qty_good: '120' })))
   })
 
+  it('names an output Inventory did not take into stock (MFG-15)', async () => {
+    const report = {
+      id: 'r-1', number: 'PR-1', status: 'received', reported_at: '2026-10-15T08:00:00Z', reported_by: named('u-1', 'Grace Achieng'), qty_good: '120', qty_scrap: '0', scrap_reason: null,
+      labour_minutes: 144, note: null, material_cost: money('311400'), labour_cost: money('288000'), overhead_cost: money('144000'), cost: money('743400'),
+      lines: [
+        { id: 'rl-1', kind: 'product', item: BREAD, qty_base: '120', cost: money('669060'), value: money('669060') },
+        { id: 'rl-2', kind: 'by_product', item: { id: 'i-bran', code: 'BRAN', name: 'Bran', type: 'non_stock' }, qty_base: '6', cost: money('74340'), value: money('0') },
+      ],
+      flags: [{ code: 'not_received', line_id: 'rl-2' }],
+    }
+    setup({ ...ORDER, reports: [report] })
+    renderApp('/manufacturing/orders/o-1')
+    expect(await screen.findByText('Not taken into stock: Bran')).toBeInTheDocument()
+  })
+
   it('hides what the order does not allow and releases a planned one', async () => {
     const planned = { ...ORDER, status: 'planned', ledger: null, can: { ...ORDER.can, release: true, issue: false, report: false, close: false } }
     setup(planned)

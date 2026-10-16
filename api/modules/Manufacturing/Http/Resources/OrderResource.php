@@ -178,7 +178,10 @@ class OrderResource extends JsonResource
                 'lines' => $report->lines->map(fn (ReportLine $line) => [
                     'id' => $line->id, 'kind' => $line->kind, 'item' => Refs::item($line->item), 'qty_base' => Qty::show($line->qty_base),
                     'cost' => $money($line->cost_minor),
+                    // Review item 7: what Inventory received of it.
+                    'value' => $money($line->value_minor),
                 ])->all(),
+                'flags' => $report->flags ?? [],
             ])->all(),
             'can' => [
                 'edit' => $order->status === Order::PLANNED && $may('manufacturing.order.create'),

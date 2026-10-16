@@ -51,7 +51,8 @@ final class ValuedEvents
         return new ProductionValued(
             $this->tenants->require(), ProductionValued::PRODUCTION, $report->id, $report->number, $order->id, $order->number,
             $report->company_id, $report->branch_id, $report->location_id, $report->reported_at->toIso8601String(), (string) ($report->currency ?? $order->currency),
-            $lines->map(fn (ReportLine $line) => self::line($line->id, $line->item_id, $line->cost_minor ?? 0, $line->cost_variance_minor, false))->values()->all(),
+            // Review item 7: what Inventory received (a report received before it was recorded: its cost).
+            $lines->map(fn (ReportLine $line) => self::line($line->id, $line->item_id, $line->value_minor ?? $line->cost_minor ?? 0, $line->cost_variance_minor, false))->values()->all(),
             (string) ($report->labour_cost_minor ?? 0), (string) ($report->overhead_cost_minor ?? 0),
             documentKind: 'manufacturing.report',
         );

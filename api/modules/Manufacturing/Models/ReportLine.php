@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $item_id
  * @property string $qty_base
  * @property int|string|null $cost_minor
+ * @property int|string|null $value_minor what Inventory received (an output line; null before it was recorded)
  * @property int|string $cost_variance_minor
  */
 class ReportLine extends Model

@@ -9674,6 +9674,7 @@
       "issues": "Sorties",
       "returns": "Retours",
       "reports": "Déclarations de production",
+      "notReceived": "Non entré en stock : {{items}}",
       "quantitiesOnly": "Quantités seulement : cet ordre a été lancé quand l’inventaire était désactivé.",
       "edit": "Modifier",
       "release": "Lancer",

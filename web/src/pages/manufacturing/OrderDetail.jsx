@@ -114,7 +114,20 @@ export default function OrderDetail() {
   ]
   const reportColumns = [
     { key: 'number', label: t('manufacturing.columns.number'), render: (row) => <span className="font-medium tabular-nums">{row.number}</span> },
-    { key: 'status', label: t('manufacturing.columns.status'), render: (row) => <MfgStatus status={row.status} /> },
+    {
+      key: 'status',
+      label: t('manufacturing.columns.status'),
+      render: (row) => {
+        // MFG-15 (review item 7): outputs Inventory took nothing in for.
+        const skipped = (row.flags ?? []).filter((flag) => flag.code === 'not_received').map((flag) => row.lines?.find((line) => line.id === flag.line_id)?.item?.name).filter(Boolean)
+        return (
+          <span className="flex flex-col">
+            <MfgStatus status={row.status} />
+            {skipped.length ? <span className="text-caption text-ink-muted">{t('manufacturing.order.notReceived', { items: skipped.join(', ') })}</span> : null}
+          </span>
+        )
+      },
+    },
     { key: 'at', label: t('manufacturing.columns.reportedAt'), render: (row) => <span className="tabular-nums">{when(row.reported_at)}</span> },
     { key: 'by', label: t('manufacturing.columns.by'), render: (row) => row.reported_by?.name ?? '' },
     { key: 'good', label: t('manufacturing.columns.good'), align: 'end', render: (row) => <Qty value={row.qty_good} unit={unit} /> },
