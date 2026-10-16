@@ -42,7 +42,7 @@ export function FormDialog({ open, title, help, confirm, tone = 'primary', metho
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            {t('fixedAssets.actions.keep')}
+            {t('common.cancel')}
           </Button>
           <Button variant={tone} loading={send.isPending} disabled={missing} onClick={() => send.mutate()}>
             {confirm}

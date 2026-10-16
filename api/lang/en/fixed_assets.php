@@ -8,7 +8,7 @@ return [
         'code_taken' => 'Another category of this company has this code. Choose another code.',
         'method_terms' => 'This depreciation method needs this value. Enter it, or choose another method.',
         'tax_class_unknown' => 'This tax class is not in the company’s country pack. Choose one from the list.',
-        'tax_rates_unconfirmed' => 'The tax book cannot be used yet: the rates of :classes are not confirmed in the country pack. Ask the owner to confirm them, and give every category a tax class.',
+        'tax_rates_unconfirmed' => 'The tax book can’t be worked out yet. Missing: :classes. Give every category a tax class. Rates and the first-year rule come from the country pack; until they are confirmed there, the tax book stays off.',
         'custodian_both' => 'Choose a user or an employee as custodian, not both.',
         'custodian_unknown' => 'Choose a custodian who exists in this company.',
         'location_unknown' => 'Choose a location that exists and is not archived.',

@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
-import { Alert, Button, Card, MoneyInput, Select, Switch } from '@/components/ds'
+import { Alert, Button, Card, MoneyInput, Select, Switch, TextField } from '@/components/ds'
 import { useCompanies, useCompanySelection } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
 import { manufacturingKey, SETTINGS_EDIT } from './manufacturingData'
@@ -35,24 +35,26 @@ function SettingsForm({ settings, companyId, canEdit }) {
       <div className="flex flex-col gap-5">
         {errors.form ? <Alert tone="danger" title={errors.form} /> : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <MoneyInput
-            label={t('manufacturing.settings.labourRate')}
-            help={t('manufacturing.settings.rateHelp')}
-            currency={currency}
-            value={labour}
-            disabled={!canEdit}
-            error={errors.fields.labour_rate_minor}
-            onChange={(value) => setLabour(value === '' ? '0' : value)}
-          />
-          <MoneyInput
-            label={t('manufacturing.settings.overheadRate')}
-            help={t('manufacturing.settings.rateHelp')}
-            currency={currency}
-            value={overhead}
-            disabled={!canEdit}
-            error={errors.fields.overhead_rate_minor}
-            onChange={(value) => setOverhead(value === '' ? '0' : value)}
-          />
+          {[
+            ['labour_rate_minor', 'labourRate', labour, setLabour],
+            ['overhead_rate_minor', 'overheadRate', overhead, setOverhead],
+          ].map(([field, label, value, set]) =>
+            // RBAC-05: a reader without costs gets the rates as null: shown as hidden, never as zero.
+            settings[field] === null || settings[field] === undefined ? (
+              <TextField key={field} label={t(`manufacturing.settings.${label}`)} value={t('manufacturing.settings.hidden')} disabled readOnly />
+            ) : (
+              <MoneyInput
+                key={field}
+                label={t(`manufacturing.settings.${label}`)}
+                help={t('manufacturing.settings.rateHelp')}
+                currency={currency}
+                value={value}
+                disabled={!canEdit}
+                error={errors.fields[field]}
+                onChange={(next) => set(next === '' ? '0' : next)}
+              />
+            ),
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <Switch label={t('manufacturing.settings.releaseApproval')} checked={approval} disabled={!canEdit} onChange={setApproval} />

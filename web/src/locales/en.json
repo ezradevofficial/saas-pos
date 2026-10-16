@@ -2159,7 +2159,7 @@
       "weekly": "Weekly digest"
     },
     "digestRequired": "Your organisation requires this email at once.",
-    "saved": "Notification settings saved",
+    "saved": "Notification settings saved.",
     "discard": "Discard changes",
     "empty": "There are no notifications to set up yet."
   },
@@ -2183,19 +2183,19 @@
       "channel": "Your text for this channel"
     },
     "save": "Save template",
-    "saved": "Template saved",
+    "saved": "Template saved.",
     "reset": "Use default",
     "resetTitle": "Use the default text?",
     "resetText": "Your text for this channel is removed. Everyone then receives the default text, in their own language.",
     "keepText": "Keep my text",
     "resetConfirm": "Use default",
-    "resetDone": "Default text restored",
+    "resetDone": "Default text restored.",
     "empty": "There are no notification types yet.",
     "mandatory": {
       "title": "Required channels",
       "description": "Users can’t switch these channels off for this notification.",
       "notAllowed": "This notification can’t be made required.",
-      "saved": "Required channels saved"
+      "saved": "Required channels saved."
     },
     "singleLanguage": "Written once, in your organisation’s language. Everyone receives this text.",
     "defaultTitle": "Built-in default",
@@ -3088,7 +3088,7 @@
       "choose": "Choose a file to attach",
       "progress": "Upload progress",
       "uploading": "Uploading {{name}}, {{percent}}%",
-      "uploaded": "Attached {{name}}",
+      "uploaded": "Attached {{name}}.",
       "tooLarge": "This file is {{size}}. Attach a file of at most {{max}}."
     },
     "toast": {
@@ -3096,7 +3096,7 @@
       "rejected": "Rejected {{name}}",
       "returned": "Returned {{name}} for changes",
       "infoRequested": "Question sent to the requester",
-      "commented": "Comment posted",
+      "commented": "Comment posted.",
       "reassigned": "Reassigned {{name}}"
     },
     "delegation": {
@@ -3119,8 +3119,8 @@
       "startRequired": "Choose the first day.",
       "endRequired": "Choose the last day.",
       "typesRequired": "Choose at least one document type, or delegate all of them.",
-      "created": "Delegation saved",
-      "revoked": "Delegation revoked",
+      "created": "Delegation saved.",
+      "revoked": "Delegation revoked.",
       "listTitle": "Your delegations",
       "none": "You have no delegations.",
       "givenTo": "You to {{name}}",
@@ -3387,7 +3387,7 @@
       "onceTitle": "Copy this secret now",
       "onceBody": "It won’t be shown again. Store it in the receiving system to check each call’s signature.",
       "copy": "Copy secret",
-      "copied": "Secret copied",
+      "copied": "Secret copied.",
       "copyFailed": "The secret couldn’t be copied. Select it and copy it by hand.",
       "isSet": "A secret is set. It was shown once, when it was created.",
       "createdOnSave": "A secret is created when you save this webhook.",
@@ -3500,10 +3500,10 @@
       "saveOff": "Save switched off",
       "enable": "Enable",
       "disable": "Disable",
-      "saved": "Rule saved",
-      "enabled": "Rule enabled",
-      "disabled": "Rule disabled",
-      "archived": "Rule archived",
+      "saved": "Rule saved.",
+      "enabled": "Rule enabled.",
+      "disabled": "Rule disabled.",
+      "archived": "Rule archived.",
       "legend": "Rule settings",
       "tabs": {
         "rule": "Rule",
@@ -4551,8 +4551,8 @@
     }
   },
   "layouts": {
-    "saved": "Draft saved",
-    "published": "Published",
+    "saved": "Draft saved.",
+    "published": "Published.",
     "saveDraft": "Save draft",
     "problems": "Fix these before publishing",
     "scopes": {
@@ -7574,7 +7574,7 @@
       "newTitle": "New requisition",
       "newHelp": "Ask a store for goods for a department. The department head approves it before the store issues anything.",
       "submit": "Send for approval",
-      "created": "Requisition {{number}} sent for approval"
+      "created": "Requisition {{number}} sent for approval."
     },
     "requisition": {
       "eyebrow": "Requisition",
@@ -7588,11 +7588,11 @@
       "cancelTitle": "Cancel {{number}}",
       "cancelHelp": "Nothing will be issued against it. Its approval stops.",
       "confirmCancel": "Cancel requisition",
-      "cancelled": "Requisition cancelled",
+      "cancelled": "Requisition cancelled.",
       "closeTitle": "Close {{number}}",
       "closeHelp": "What is still open will not be issued. What was issued stays.",
       "confirmClose": "Close requisition",
-      "closed": "Requisition closed"
+      "closed": "Requisition closed."
     },
     "issue": {
       "title": "Issue goods",
@@ -7600,7 +7600,7 @@
       "open": "{{qty}} {{unit}} still open",
       "qty": "Issue ({{unit}})",
       "submit": "Issue goods",
-      "done": "Goods issued as {{number}}"
+      "done": "Goods issued as {{number}}."
     },
     "issues": {
       "title": "Issues",
@@ -7618,7 +7618,7 @@
       "acknowledge": "Acknowledge receipt",
       "acknowledgeTitle": "Acknowledge {{number}}",
       "acknowledgeHelp": "Confirm the department received these goods. The store keeps who confirmed and when.",
-      "acknowledged": "Receipt acknowledged",
+      "acknowledged": "Receipt acknowledged.",
       "return": "Return goods",
       "valuing": "Inventory is valuing this issue. Values show once it has."
     },
@@ -7628,7 +7628,7 @@
       "issued": "{{qty}} {{unit}} issued",
       "qty": "Return ({{unit}})",
       "submit": "Return to store",
-      "done": "Goods returned as {{number}}"
+      "done": "Goods returned as {{number}}."
     },
     "returns": {
       "title": "Returns",
@@ -7664,7 +7664,7 @@
       "entryTitle": "Enter stock",
       "entryHelp": "Opening stock, or an adjustment with its reason. Stock never goes below zero.",
       "enter": "Enter stock",
-      "entered": "Stock entered"
+      "entered": "Stock entered."
     },
     "consumption": {
       "title": "Consumption",
@@ -9668,6 +9668,7 @@
     "order": {
       "eyebrow": "Production order",
       "summary": "Summary",
+      "notSet": "Not set",
       "materials": "Materials",
       "noMaterials": "No materials.",
       "outputs": "Output",
@@ -9768,6 +9769,7 @@
       "description": "The company’s labour and overhead rates and whether releasing an order needs approval.",
       "labourRate": "Labour per hour",
       "overheadRate": "Overhead per labour hour",
+      "hidden": "Hidden",
       "rateHelp": "Your own rates, used when an order is released.",
       "currency": "In {{currency}}",
       "releaseApproval": "Releasing an order needs approval",
@@ -11059,8 +11061,7 @@
   "fixedAssets": {
     "chooseCompany": "Choose a company in the switcher to see its fixed assets.",
     "actions": {
-      "back": "Back",
-      "keep": "Keep"
+      "back": "Back"
     },
     "statuses": {
       "draft": "Draft",
@@ -11311,7 +11312,7 @@
       "noSchedules": "No schedules yet.",
       "noOrders": "No work orders yet.",
       "updateTitle": "Update {{number}}",
-      "saved": "Work order saved"
+      "saved": "Work order saved."
     },
     "categories": {
       "title": "Asset categories",
@@ -11328,14 +11329,14 @@
       "archive": "Archive",
       "restore": "Restore",
       "save": "Save category",
-      "saved": "Category saved",
+      "saved": "Category saved.",
       "editTitle": "Edit {{code}}",
       "empty": "No categories yet.",
       "itemsTitle": "Items bought as assets",
       "itemsHelp": "Goods received or invoiced for these items become draft assets.",
       "item": "Item",
       "flag": "Flag as asset",
-      "flagged": "Item flagged as an asset",
+      "flagged": "Item flagged as an asset.",
       "unflag": "Remove",
       "noItems": "No items flagged yet."
     },
@@ -11347,7 +11348,7 @@
       "period": "Month",
       "preview": "Preview",
       "post": "Post {{month}}",
-      "posted": "Depreciation for {{month}} posted",
+      "posted": "Depreciation for {{month}} posted.",
       "postedTitle": "Posted runs",
       "assets": "Assets",
       "total": "Total",
@@ -11365,7 +11366,7 @@
       "reverse": "Reverse run",
       "reverseTitle": "Reverse {{month}}",
       "reverseHelp": "Accumulated depreciation goes back and the journals are reversed.",
-      "reversed": "Run reversed",
+      "reversed": "Run reversed.",
       "reversedBecause": "Reversed because"
     },
     "transfers": {
@@ -11408,7 +11409,7 @@
       "cancel": "Cancel disposal",
       "cancelTitle": "Cancel {{number}}",
       "post": "Post disposal",
-      "postedToast": "Disposal posted",
+      "postedToast": "Disposal posted.",
       "buyer": "Buyer",
       "result": "What it posted",
       "lastCharge": "Last depreciation",
@@ -11480,15 +11481,15 @@
       "conventionHelp": "Fixed once a run is posted.",
       "conventionLocked": "Depreciation is already posted with this convention.",
       "taxBook": "Tax book",
-      "taxBookHelp": "Optional. Computed from the country pack once its rates are confirmed.",
+      "taxBookHelp": "Optional. Wear and tear allowances, available once the country pack’s rates are confirmed.",
       "taxBookOn": "Use the tax book",
-      "unconfirmed": "The country pack's rates are not confirmed yet, so the tax book cannot be used.",
+      "unconfirmed": "The tax book can’t be used yet: the country pack’s wear and tear rates are not confirmed. Give every category a tax class meanwhile.",
       "classes": "Tax classes",
       "rate": "Annual rate",
       "needsConfirmation": "Needs confirmation",
       "noClasses": "This country pack has no tax classes.",
       "toConfirm": "What the owner must confirm",
-      "saved": "Settings saved"
+      "saved": "Settings saved."
     }
   }
 }

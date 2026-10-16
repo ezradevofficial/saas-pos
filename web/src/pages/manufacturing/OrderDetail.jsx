@@ -216,11 +216,15 @@ export default function OrderDetail() {
               <Qty value={order.qty_scrap} unit={unit} />
             </Detail>
             <Detail label={t('manufacturing.fields.plannedDates')}>
-              <span className="flex gap-1">
-                <CalendarDate value={order.planned_start} />
-                <span className="text-ink-muted">–</span>
-                <CalendarDate value={order.planned_end} />
-              </span>
+              {order.planned_start || order.planned_end ? (
+                <span className="flex gap-1">
+                  {order.planned_start ? <CalendarDate value={order.planned_start} /> : <span className="text-ink-muted">{t('manufacturing.order.notSet')}</span>}
+                  <span className="text-ink-muted">–</span>
+                  {order.planned_end ? <CalendarDate value={order.planned_end} /> : <span className="text-ink-muted">{t('manufacturing.order.notSet')}</span>}
+                </span>
+              ) : (
+                <span className="text-ink-muted">{t('manufacturing.order.notSet')}</span>
+              )}
             </Detail>
             <Detail label={t('manufacturing.fields.plannedBy')}>{order.planned_by?.name}</Detail>
             {order.released_at ? (

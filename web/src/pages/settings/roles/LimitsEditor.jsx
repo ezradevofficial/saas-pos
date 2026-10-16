@@ -7,7 +7,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, TextField } from '@/components/ds'
 
 /** RBAC-06 limits the editor offers (owner decision A): percentages first, then base-currency amounts. */
-export const LIMITS = [
+const LIMITS = [
   { key: 'max_discount_percent', percent: true },
   { key: 'max_quote_discount_percent', percent: true },
   { key: 'max_refund_amount', percent: false },

@@ -113,7 +113,7 @@ describe('Navigation editor (LAY-02, LAY-06)', () => {
     fireEvent.change(usersName(), { target: { value: 'Staff members' } })
     finish()
 
-    await screen.findByText('Draft saved')
+    await screen.findByText('Draft saved.')
     expect(usersName()).toHaveValue('Staff members')
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled()
   })

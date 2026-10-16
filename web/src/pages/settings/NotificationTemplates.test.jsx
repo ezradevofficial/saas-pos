@@ -193,7 +193,7 @@ describe('notification templates (NOT-03, NOT-04)', () => {
         body: 'Bonjour {recipient_name}',
       }),
     )
-    expect(await screen.findByText('Template saved')).toBeInTheDocument()
+    expect(await screen.findByText('Template saved.')).toBeInTheDocument()
   })
 
   it('goes back to the default text after confirming in the page', async () => {

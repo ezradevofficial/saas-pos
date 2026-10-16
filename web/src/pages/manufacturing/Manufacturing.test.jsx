@@ -152,6 +152,23 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     expect(await screen.findByText('Not taken into stock: Bran')).toBeInTheDocument()
   })
 
+  it('shows rates hidden from the reader as Hidden, never as zero (RBAC-05)', async () => {
+    setup(ORDER, [
+      ['manufacturing/companies/c-1/settings', { data: { company: named('c-1', 'Amani Bakery'), currency: 'KES', labour_rate_minor: null, overhead_rate_minor: null, release_approval: true } }],
+    ])
+    renderApp('/manufacturing/settings')
+    expect(await screen.findByLabelText('Labour per hour')).toHaveValue('Hidden')
+    expect(screen.getByLabelText('Overhead per labour hour')).toHaveValue('Hidden')
+    expect(screen.queryByText(/KES 0\.00/)).not.toBeInTheDocument()
+  })
+
+  it('says planned dates are not set rather than showing dashes', async () => {
+    setup({ ...ORDER, planned_start: null, planned_end: null })
+    renderApp('/manufacturing/orders/o-1')
+    expect(await screen.findByText('Not set')).toBeInTheDocument()
+    expect(screen.queryByText('–')).not.toBeInTheDocument()
+  })
+
   it('hides what the order does not allow and releases a planned one', async () => {
     const planned = { ...ORDER, status: 'planned', ledger: null, can: { ...ORDER.can, release: true, issue: false, report: false, close: false } }
     setup(planned)
