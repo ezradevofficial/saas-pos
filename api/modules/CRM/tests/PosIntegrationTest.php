@@ -46,10 +46,11 @@ class PosIntegrationTest extends TestCase
 
         $target = $this->postJson('/api/v1/crm/targets', ['company_id' => $this->acme->id, 'subject_type' => 'user', 'subject_id' => $this->owner->id, 'metric' => 'pos_sales',
             'period_start' => now()->startOfMonth()->toDateString(), 'period_end' => now()->endOfMonth()->toDateString(), 'amount_minor' => '450000'], $headers)->assertCreated()->json('data');
-        $this->assertSame(['225000', '50.0', true], [$target['actual_minor'], $target['percent'], $target['available']]);
+        // Before tax (targets are net, stage 7D closing review): KES 2,000.00 of the KES 2,250.00 sold with 12.5 % test VAT.
+        $this->assertSame(['200000', '44.4', true], [$target['actual_minor'], $target['percent'], $target['available']]);
 
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('pos'));
         $this->assertNull($this->getJson("/api/v1/crm/customers/{$customer->id}/overview", $headers)->assertOk()->json('data.pos'));
-        $this->assertFalse($this->getJson('/api/v1/crm/targets', $headers)->assertOk()->json('data.0.available'));
+        $this->assertSame([false, 'module_inactive'], [$this->getJson('/api/v1/crm/targets', $headers)->assertOk()->json('data.0.available'), $this->getJson('/api/v1/crm/targets', $headers)->json('data.0.unavailable')]);
     }
 }

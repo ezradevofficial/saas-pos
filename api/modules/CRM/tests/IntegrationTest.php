@@ -147,7 +147,7 @@ class IntegrationTest extends TestCase
         $this->api('POST', "accounting/documents/{$invoice}/post")->assertOk();
 
         $read = collect($this->api('GET', 'crm/targets')->assertOk()->json('data'))->firstWhere('id', $target['id']);
-        // KES 2,320.00 (two widgets at 16 %) of KES 10,000.00.
-        $this->assertSame([true, '232000', '23.2'], [$read['available'], $read['actual_minor'], $read['percent']]);
+        // Before tax (targets are net, stage 7D closing review): KES 2,000.00 (two widgets; KES 2,320.00 with 16 % VAT) of KES 10,000.00.
+        $this->assertSame([true, '200000', '20.0'], [$read['available'], $read['actual_minor'], $read['percent']]);
     }
 }

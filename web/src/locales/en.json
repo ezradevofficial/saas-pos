@@ -10851,7 +10851,7 @@
       "saved": "Target saved.",
       "archived": "Target archived.",
       "empty": "No targets yet.",
-      "amountHelp": "In the company's base currency.",
+      "amountHelp": "In the company's base currency, before tax. Sales count less refunds, invoices less credit notes.",
       "notAvailable": "Not available",
       "achieved": "{{percent}} achieved",
       "subjects": {

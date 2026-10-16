@@ -3,6 +3,7 @@
 namespace Modules\CRM\Targets;
 
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\VisibleScope;
 use App\Core\Tenancy\Models\Branch;
@@ -50,7 +51,10 @@ use Modules\POS\Contracts\SalesTotals;
  */
 class Targets
 {
-    public function __construct(private readonly CrmAccess $access) {}
+    public function __construct(
+        private readonly CrmAccess $access,
+        private readonly ModuleRegistry $modules,
+    ) {}
 
     /** @param array<string, mixed> $data */
     public function save(?Target $target, array $data, User $by): Target
@@ -190,6 +194,13 @@ class Targets
 
         if ($target->metric === Target::WON_VALUE && $reader !== null && $this->access->hidesValues($reader)) {
             return $none('field_hidden');
+        }
+
+        // Review item 9: a switched-off module says so before any permission is read (its permissions grant nothing then).
+        $module = [Target::POS_SALES => 'pos', Target::INVOICED => 'accounting'][$target->metric] ?? null;
+
+        if ($module !== null && ! $this->modules->isActive($module)) {
+            return $none('module_inactive');
         }
 
         if ($target->metric === Target::POS_SALES && $reader !== null && class_exists(SalesTotals::class)

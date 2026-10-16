@@ -10851,7 +10851,7 @@
       "saved": "Objectif enregistré.",
       "archived": "Objectif archivé.",
       "empty": "Aucun objectif pour l'instant.",
-      "amountHelp": "Dans la devise de base de la société.",
+      "amountHelp": "Dans la devise de base de la société, hors taxes. Les ventes comptent moins les remboursements, les factures moins les avoirs.",
       "notAvailable": "Non disponible",
       "achieved": "{{percent}} atteint",
       "subjects": {

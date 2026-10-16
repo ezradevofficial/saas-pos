@@ -5,6 +5,7 @@ namespace Modules\CRM\Tests;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -130,5 +131,18 @@ class ActivitiesAndTargetsTest extends TestCase
         $lead = $this->api('POST', 'crm/leads', ['branch_id' => $this->branchA->id, 'name' => 'Lead', 'channel' => 'manual'], $this->repA)->assertCreated()->json('data.id');
         $this->inTenant(fn () => DB::table('crm_leads')->where('id', $lead)->update(['party_id' => $this->customer->id]));
         $this->assertSame([$this->customer->id => 'crm_lead'], $usage());
+    }
+
+    public function test_targets_report_a_switched_off_module_before_permissions(): void
+    {
+        // Review item 9 (stage 7D closing): RBAC-08's module_inactive, never a 403 or 404 of the permission check.
+        $target = $this->api('POST', 'crm/targets', ['company_id' => $this->acme->id, 'subject_type' => 'user', 'subject_id' => $this->repA->id,
+            'metric' => 'won_value', 'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'amount_minor' => '1000'])->assertCreated()->json('data.id');
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('crm'));
+
+        foreach ([[$this->owner, 'GET', 'crm/targets'], [$this->repA, 'GET', 'crm/targets'], [$this->repA, 'POST', 'crm/targets'],
+            [$this->repA, 'PATCH', "crm/targets/{$target}"], [$this->repA, 'POST', "crm/targets/{$target}/archive"], [$this->owner, 'PATCH', "crm/targets/{$target}"]] as [$as, $method, $uri]) {
+            $this->api($method, $uri, ['amount_minor' => '5'], $as)->assertForbidden()->assertJsonPath('code', 'module_inactive');
+        }
     }
 }
