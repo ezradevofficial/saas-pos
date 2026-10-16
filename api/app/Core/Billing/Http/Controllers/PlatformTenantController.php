@@ -6,6 +6,8 @@ use App\Core\Billing\Http\Requests\ExtendTrialRequest;
 use App\Core\Billing\Http\Requests\GraceOverrideRequest;
 use App\Core\Billing\Http\Requests\MarkInvoicePaidRequest;
 use App\Core\Billing\Http\Requests\PlatformBillingRequest;
+use App\Core\Billing\Http\Requests\PlatformTenantsRequest;
+use App\Core\Billing\Http\Requests\TenantActionRequest;
 use App\Core\Billing\Http\Requests\UpdateBillingSettingsRequest;
 use App\Core\Billing\Http\SubscriptionPresenter;
 use App\Core\Billing\Models\OperatorAccount;
@@ -15,20 +17,19 @@ use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
-use App\Core\Billing\Subscriptions\BillingTrial;
-use App\Core\Http\ApiException;
 use App\Core\Onboarding\Assisted\AssistedOnboarding;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\Tenants\PlatformTenants;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Platform console (SUB-02..SUB-06, ONB-04): customer tenants from the
- * operator's accounts, a tenant's subscription and invoices, trial
- * extension, grace override, bank transfers marked paid, and the billing
- * settings. Tenant data is read and changed only inside the tenant's own
+ * Platform console (SUB-02..SUB-06, ONB-04, ADM-01): customer tenants from
+ * the operator's accounts (search), a tenant's subscription, usage, health
+ * and invoices, suspend, reactivate and trial extension (PlatformTenants),
+ * grace override, bank transfers marked paid, and the billing settings. Tenant data is read and changed only inside the tenant's own
  * context (or the operator's); every action is audited (PlatformAuditor).
  */
 class PlatformTenantController
@@ -38,27 +39,26 @@ class PlatformTenantController
         private readonly TenantContext $tenants,
         private readonly PlatformAuditor $auditor,
         private readonly Accounts $accounts,
+        private readonly PlatformTenants $platformTenants,
     ) {}
 
-    public function index(PlatformBillingRequest $request): JsonResponse
+    /** ADM-01a: search the customer tenants (the operator's accounts). */
+    public function index(PlatformTenantsRequest $request): JsonResponse
     {
-        if ($this->operator->id() === null) {
-            return response()->json(['data' => []]);
-        }
-
-        $accounts = $this->operator->run(fn () => OperatorAccount::query()->orderBy('name')->get());
+        $accounts = $this->platformTenants->search($request->validated());
 
         return response()->json(['data' => $accounts->map(fn (OperatorAccount $a) => self::account($a))->all()]);
     }
 
-    public function show(PlatformBillingRequest $request, string $tenant): JsonResponse
+    public function show(PlatformTenantsRequest $request, string $tenant): JsonResponse
     {
         return $this->detail($tenant);
     }
 
+    /** ADM-01b: plan, modules, usage, health, subscription, billing and invoices. */
     private function detail(string $tenant): JsonResponse
     {
-        $account = $this->account404($tenant);
+        $account = $this->platformTenants->account404($tenant);
         [$subscription, $assisted] = $this->tenants->run($tenant, fn () => [Subscription::query()->first(), app(AssistedOnboarding::class)->handoverState()]);
         $invoices = $this->operator->run(fn () => OperatorInvoice::query()->where('customer_tenant_id', $tenant)->orderByDesc('issued_at')->limit(100)->get());
 
@@ -68,38 +68,31 @@ class PlatformTenantController
             'grace_days' => $subscription?->grace_days,
             // ONB-08: staff may resend the Owner invitation until handover.
             'assisted' => $assisted,
+            ...$this->platformTenants->overview($tenant),
             'invoices' => $invoices->map(fn (OperatorInvoice $i) => self::invoice($i))->all(),
         ]]);
     }
 
-    /** ONB-04: extend a trial. */
+    /** ONB-04, ADM-01c: extend a trial, with a reason. */
     public function extendTrial(ExtendTrialRequest $request, string $tenant): JsonResponse
     {
-        $this->account404($tenant);
-        $until = CarbonImmutable::parse($request->validated('trial_ends_at'))->utc();
+        $this->platformTenants->extendTrial($tenant, CarbonImmutable::parse($request->validated('trial_ends_at'))->utc(), (string) $request->validated('reason'), $request->staff());
 
-        // Locked, so a racing "Subscribe now" or billing cycle cannot start a period meanwhile.
-        $subscription = $this->tenants->run($tenant, function () use ($until) {
-            $result = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($until) {
-                $subscription = Subscription::query()->lockForUpdate()->firstOrFail();
+        return $this->detail($tenant);
+    }
 
-                if ($subscription->status !== Subscription::TRIAL || $subscription->hasPeriod()) {
-                    throw new ApiException(422, 'not_in_trial', __('billing.errors.not_in_trial'));
-                }
+    /** ADM-01c: suspend a tenant, with a reason. */
+    public function suspend(TenantActionRequest $request, string $tenant): JsonResponse
+    {
+        $this->platformTenants->suspend($tenant, (string) $request->validated('reason'), $request->staff());
 
-                $before = $subscription->trial_ends_at?->toIso8601String();
-                $subscription->fill(['trial_ends_at' => $until])->save();
-                // One trial end: onboarding's record follows the subscription's.
-                BillingTrial::syncOnboarding($subscription);
+        return $this->detail($tenant);
+    }
 
-                return [$subscription, $before];
-            });
-            $this->accounts->sync($result[0]);
-
-            return $result;
-        });
-
-        $this->auditor->record('platform.subscription.trial_extend', $subscription[0], ['tenant_id' => $tenant, 'trial_ends_at' => $subscription[1]], ['tenant_id' => $tenant, 'trial_ends_at' => $until->toIso8601String()]);
+    /** ADM-01c: reactivate a suspended tenant, with a reason. */
+    public function reactivate(TenantActionRequest $request, string $tenant): JsonResponse
+    {
+        $this->platformTenants->reactivate($tenant, (string) $request->validated('reason'), $request->staff());
 
         return $this->detail($tenant);
     }
@@ -155,9 +148,7 @@ class PlatformTenantController
 
     private function account404(string $tenant): OperatorAccount
     {
-        $account = $this->operator->id() === null ? null : $this->operator->run(fn () => OperatorAccount::query()->where('customer_tenant_id', $tenant)->first());
-
-        return $account ?? abort(404);
+        return $this->platformTenants->account404($tenant);
     }
 
     private static function account(OperatorAccount $account): array
@@ -166,7 +157,11 @@ class PlatformTenantController
             'tenant_id' => $account->customer_tenant_id,
             'name' => $account->name,
             'country' => $account->country,
+            'slug' => $account->slug,
             'plan' => $account->plan,
+            'bundle' => $account->bundle,
+            'modules' => $account->modules ?? [],
+            'deal' => $account->deal,
             'cycle' => $account->cycle,
             'status' => $account->status,
             'mrr' => ['amount_minor' => $account->mrr_minor, 'currency' => $account->currency],

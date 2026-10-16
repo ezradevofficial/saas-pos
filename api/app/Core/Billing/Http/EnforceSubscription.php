@@ -4,6 +4,7 @@ namespace App\Core\Billing\Http;
 
 use App\Core\Billing\Models\Subscription;
 use App\Core\Http\ApiException;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -38,6 +39,10 @@ use Symfony\Component\HttpFoundation\Response;
  *   `subscription_pos_stopped` and the till shows why.
  *
  * Everything else is refused, including new records and settings.
+ *
+ * ADM-01c: a tenant suspended by platform staff answers 403
+ * `tenant_suspended` to every write except billing, the user's own
+ * account and the data export.
  */
 class EnforceSubscription
 {
@@ -130,6 +135,16 @@ class EnforceSubscription
         }
 
         $subscription = Subscription::query()->first(['id', 'status', 'pos_stops_at']);
+
+        // ADM-01c: a tenant suspended by platform staff keeps only its billing, its own
+        // account and the data export; everything else (tills included) is refused.
+        if ($subscription?->status === Subscription::SUSPENDED || ($subscription === null && Tenant::query()->whereKey($this->tenants->id())->value('status') === 'suspended')) {
+            if (in_array($class, [self::BILLING, self::ACCOUNT, self::EXPORT], true)) {
+                return $next($request);
+            }
+
+            throw new ApiException(403, 'tenant_suspended', __('platform.tenants.suspended'));
+        }
 
         if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE, self::STAFF], true)) {
             return $next($request);

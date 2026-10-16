@@ -3,8 +3,11 @@
 namespace App\Core\Platform;
 
 use App\Core\Identity\Services\LoginThrottle;
+use App\Core\Notifications\EventTypes;
 use App\Core\Platform\Console\CreatePlatformUser;
 use App\Core\Platform\Console\VerifyPlatformAudit;
+use App\Core\Platform\Tenants\PlatformNotices;
+use App\Core\Platform\Tenants\TenantHealthProbes;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +31,7 @@ class PlatformServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PlatformTokens::class);
+        $this->app->singleton(TenantHealthProbes::class);
     }
 
     public function boot(): void
@@ -49,6 +53,9 @@ class PlatformServiceProvider extends ServiceProvider
             : Limit::none());
 
         RateLimiter::for(self::PUBLIC_CATALOGUE_LIMITER, fn (Request $request) => Limit::perMinute((int) config('platform.public_per_minute', 60))->by('catalogue|'.$request->ip()));
+
+        // ADM-01c: what staff did to the account, told to the tenant's Owners.
+        PlatformNotices::register($this->app->make(EventTypes::class));
 
         if ($this->app->runningInConsole()) {
             $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class]);

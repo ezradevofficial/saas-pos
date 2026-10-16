@@ -11,6 +11,7 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Platform\Tenants\TenantHealthProbes;
 use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -38,6 +39,7 @@ use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SeedModuleRules;
 use Modules\Accounting\Listeners\SettleJournal;
+use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Payments\Payments;
 use Modules\CRM\Events\QuoteConverted;
 use Modules\Ecommerce\Events\EcommercePosting;
@@ -138,6 +140,8 @@ class AccountingServiceProvider extends ServiceProvider
         // SUB-07: Accounting is sold as Essentials or Pro; Pro also unlocks the Pro features.
         $modules->soldAs(self::MODULE, ['accounting_essentials', 'accounting_pro']);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // ADM-01b: open posting exceptions, a count in the console's tenant health.
+        $this->app->make(TenantHealthProbes::class)->register('posting_exceptions', self::MODULE, fn () => PostingException::query()->where('status', PostingException::OPEN)->count());
 
         // NUM-01: journals, documents, receipts and payments, numbered per year.
         $types = $this->app->make(DocumentNumberTypes::class);

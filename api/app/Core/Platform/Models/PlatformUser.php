@@ -9,7 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
 
 /**
- * Platform staff (SUB-01, ADM-07 minimal): our own team, not tenant users.
+ * Platform staff (SUB-01, ADM-07): our own team, not tenant users.
  * Global table without tenant_id or RLS (ADR 013). Two-factor is required:
  * until an authenticator app is confirmed, a staff token can only enrol.
  *
@@ -36,25 +36,51 @@ class PlatformUser extends Authenticatable
 
     public const STATUS_DEACTIVATED = 'deactivated';
 
-    /** Platform roles (minimal; the full staff RBAC of ADM-07 is phase 8). */
+    /** ADM-07: staff roles. The platform owner manages staff. */
     public const ROLE_OWNER = 'owner';
-
-    public const ROLE_BILLING = 'billing';
 
     public const ROLE_SUPPORT = 'support';
 
-    public const ROLES = [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT];
+    public const ROLE_SALES = 'sales';
 
-    /** What each role may do. */
-    private const ABILITIES = [
-        'catalogue.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
-        'catalogue.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
-        // ADR 016: tenants, subscriptions and invoices (view); trial extension,
-        // grace override, bank transfers marked paid, billing settings (manage).
-        'billing.view' => [self::ROLE_OWNER, self::ROLE_BILLING, self::ROLE_SUPPORT],
-        'billing.manage' => [self::ROLE_OWNER, self::ROLE_BILLING],
-        // ONB-08: create a tenant for a customer and hand it over (field sales, support).
-        'tenants.create' => [self::ROLE_OWNER, self::ROLE_SUPPORT],
+    public const ROLE_FINANCE = 'finance';
+
+    public const ROLE_COMPLIANCE = 'compliance';
+
+    public const ROLE_ENGINEERING = 'engineering';
+
+    public const ROLES = [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_SALES, self::ROLE_FINANCE, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING];
+
+    /**
+     * ADM-07 (docs/modules/platform-admin.md): what each role may do,
+     * `platform.<resource>.<action>`. Code, not data: staff are few and
+     * there are no custom staff roles.
+     */
+    public const PERMISSIONS = [
+        'platform.tenants.view' => self::ROLES,
+        // Suspend, reactivate, extend a trial, resend the Owner invitation.
+        'platform.tenants.manage' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_FINANCE],
+        // ONB-08: create a tenant for a customer (field sales, support).
+        'platform.tenants.create' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_SALES],
+        'platform.catalogue.view' => self::ROLES,
+        'platform.catalogue.manage' => [self::ROLE_OWNER, self::ROLE_FINANCE],
+        // ADR 016: subscriptions, invoices and billing settings (view); grace override,
+        // bank transfers marked paid and billing settings (manage).
+        'platform.billing.view' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_SALES, self::ROLE_FINANCE, self::ROLE_COMPLIANCE],
+        'platform.billing.manage' => [self::ROLE_OWNER, self::ROLE_FINANCE],
+        // ADM-02: Enterprise deals, drafted by sales or finance and approved by finance.
+        'platform.deals.manage' => [self::ROLE_OWNER, self::ROLE_SALES, self::ROLE_FINANCE],
+        'platform.deals.approve' => [self::ROLE_OWNER, self::ROLE_FINANCE],
+        // RBAC-13: ask a tenant for time-limited access.
+        'platform.support.request' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_ENGINEERING],
+        // ADM-04: country pack releases; publishing needs two staff.
+        'platform.packs.view' => [self::ROLE_OWNER, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING],
+        'platform.packs.manage' => [self::ROLE_OWNER, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING],
+        'platform.packs.approve' => [self::ROLE_OWNER, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING],
+        'platform.packs.publish' => [self::ROLE_OWNER, self::ROLE_COMPLIANCE],
+        // ADM-06: revenue and usage reports.
+        'platform.reports.view' => [self::ROLE_OWNER, self::ROLE_SALES, self::ROLE_FINANCE, self::ROLE_COMPLIANCE],
+        'platform.staff.manage' => [self::ROLE_OWNER],
     ];
 
     /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */
@@ -93,16 +119,16 @@ class PlatformUser extends Authenticatable
         return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
-    /** May this staff member do $ability (`catalogue.view`, `catalogue.manage`)? */
-    public function allows(string $ability): bool
+    /** ADM-07: may this staff member do $permission (`platform.catalogue.manage`)? */
+    public function allows(string $permission): bool
     {
-        return $this->status === self::STATUS_ACTIVE && in_array($this->role, self::ABILITIES[$ability] ?? [], true);
+        return $this->status === self::STATUS_ACTIVE && in_array($this->role, self::PERMISSIONS[$permission] ?? [], true);
     }
 
-    /** @return list<string> */
+    /** @return list<string> the permissions of the staff member's role */
     public function abilities(): array
     {
-        return array_keys(array_filter(self::ABILITIES, fn (array $roles) => in_array($this->role, $roles, true)));
+        return array_keys(array_filter(self::PERMISSIONS, fn (array $roles) => in_array($this->role, $roles, true)));
     }
 
     public function withAccessToken(?PlatformAccessToken $token): static

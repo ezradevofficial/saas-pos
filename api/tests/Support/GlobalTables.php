@@ -43,5 +43,6 @@ final class GlobalTables
     public const OPERATOR = [
         'operator_invoices' => 'the platform invoices the operator issues to its customers (SUB-03)',
         'operator_accounts' => 'the operator\'s record of each customer for the platform console',
+        'operator_account_events' => 'status changes of each customer\'s account, for the revenue reports (ADM-06)',
     ];
 }

@@ -51,6 +51,9 @@ Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('platf
     Route::get('tenants', [PlatformTenantController::class, 'index']);
     Route::get('tenants/{tenant}', [PlatformTenantController::class, 'show'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/trial', [PlatformTenantController::class, 'extendTrial'])->whereUuid('tenant');
+    // ADM-01c: suspend and reactivate, with a reason.
+    Route::post('tenants/{tenant}/suspend', [PlatformTenantController::class, 'suspend'])->whereUuid('tenant');
+    Route::post('tenants/{tenant}/reactivate', [PlatformTenantController::class, 'reactivate'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/grace', [PlatformTenantController::class, 'grace'])->whereUuid('tenant');
     Route::post('invoices/{operator_invoice}/mark-paid', [PlatformTenantController::class, 'markPaid'])->whereUuid('operator_invoice');
     Route::get('billing-settings', [PlatformTenantController::class, 'settings']);

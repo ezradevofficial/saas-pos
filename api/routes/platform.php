@@ -15,6 +15,7 @@ use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
 use App\Core\Onboarding\Http\Controllers\AssistedTenantController;
 use App\Core\Platform\Http\Controllers\PlatformAuthController;
+use App\Core\Platform\Http\Controllers\PlatformStaffController;
 use App\Core\Platform\Http\Middleware\EnsurePlatformAccess;
 use App\Core\Platform\PlatformServiceProvider;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +48,15 @@ Route::prefix('platform')->group(function () {
         Route::post('auth/sign-out', [PlatformAuthController::class, 'signOut']);
         Route::post('me/two-factor/totp', [PlatformAuthController::class, 'startTotp']);
         Route::post('me/two-factor/totp/confirm', [PlatformAuthController::class, 'confirmTotp'])->middleware($ip);
+    });
+
+    // ADM-07: staff accounts (platform owners).
+    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('staff')->group(function () {
+        Route::get('/', [PlatformStaffController::class, 'index']);
+        Route::post('/', [PlatformStaffController::class, 'store']);
+        Route::patch('{staff}', [PlatformStaffController::class, 'update'])->whereUuid('staff');
+        Route::post('{staff}/deactivate', [PlatformStaffController::class, 'deactivate'])->whereUuid('staff');
+        Route::post('{staff}/reactivate', [PlatformStaffController::class, 'reactivate'])->whereUuid('staff');
     });
 
     // ONB-08: a tenant created for a customer and handed over by invitation.
