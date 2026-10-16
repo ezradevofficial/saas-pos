@@ -50,7 +50,7 @@ return [
         'ended' => 'This support session has ended. Ask the tenant for access again if you still need it.',
         'route_refused' => 'A support session can’t use this page. The tenant’s own people manage it.',
         'read_only' => 'This support session is read-only, so nothing can be changed. Ask the tenant for write access if you need it.',
-        'principal_name' => 'Support: :name',
+        'principal_name' => ':name (support)',
         'modes' => [
             'read' => 'read-only',
             'write' => 'read and write',

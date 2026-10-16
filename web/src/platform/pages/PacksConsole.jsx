@@ -184,9 +184,9 @@ function ReleaseDialog({ id, onClose }) {
           <Card title={t('admin.packs.diff')} subtitle={data.diff.base?.source === 'release' ? t('admin.packs.againstRelease', { version: data.diff.base.version }) : t('admin.packs.againstShipped')}>
             <dl className="grid gap-4 px-5 py-4 sm:grid-cols-3">
               {['added', 'changed', 'removed'].map((part) => (
-                <div key={part} className="flex flex-col gap-1">
+                <div key={part} className="flex min-w-0 flex-col gap-1">
                   <dt className="text-caption text-ink-muted">{t(`admin.packs.${part}`, { count: data.diff[part].length })}</dt>
-                  <dd className="flex flex-col gap-1 font-mono text-caption text-ink">{data.diff[part].length ? data.diff[part].map((entry) => <span key={entry}>{entry}</span>) : '—'}</dd>
+                  <dd className="flex min-w-0 flex-col gap-1 break-all font-mono text-caption text-ink">{data.diff[part].length ? data.diff[part].map((entry) => <span key={entry}>{entry}</span>) : '—'}</dd>
                 </div>
               ))}
             </dl>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { api } from '@/api/client'
+import { api, clearToken } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { Button, StatusBadge } from '@/components/ds'
@@ -26,10 +26,13 @@ export function SupportBanners() {
 function SessionBar({ session }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const { signOut } = useAuth()
+  // The session's token is deleted with it: drop it here and leave the back office.
   const end = useMutation({
     mutationFn: () => api.post('support-session/end'),
-    onSettled: () => signOut(),
+    onSettled: () => {
+      clearToken()
+      window.location.assign('/sign-in')
+    },
   })
   return (
     <div role="status" aria-label={t('supportAccess.session.label')} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface-200 px-4 py-2 md:px-10">

@@ -50,7 +50,7 @@ return [
         'ended' => 'Cette session de support est terminée. Demandez de nouveau l’accès au compte si vous en avez encore besoin.',
         'route_refused' => 'Une session de support ne peut pas utiliser cette page. Les personnes du compte la gèrent elles-mêmes.',
         'read_only' => 'Cette session de support est en lecture seule : rien ne peut être modifié. Demandez au compte un accès en écriture si nécessaire.',
-        'principal_name' => 'Support : :name',
+        'principal_name' => ':name (assistance)',
         'modes' => [
             'read' => 'en lecture seule',
             'write' => 'en lecture et écriture',

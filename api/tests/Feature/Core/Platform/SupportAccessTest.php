@@ -112,7 +112,7 @@ class SupportAccessTest extends TestCase
         $this->getJson('/api/v1/support-access', $session)->assertForbidden();
 
         // The principal is not a user of the tenant's lists, and never signs in by password.
-        $this->assertNotContains('Support: '.$this->agent->name, array_column($this->getJson('/api/v1/users', $this->headersFor())->json('data'), 'name'));
+        $this->assertNotContains($this->agent->name.' (support)', array_column($this->getJson('/api/v1/users', $this->headersFor())->json('data'), 'name'));
         $principal = $this->inTenant(fn () => User::query()->whereNotNull('support_grant_id')->sole());
         $this->postJson('/api/v1/auth/sign-in', ['login' => $principal->email, 'password' => 'anything-at-all-1'])->assertStatus(422);
     }
