@@ -563,12 +563,6 @@
         ],
         "crm.quote_invoice": [
             {
-                "field": "receivable",
-                "side": "debit",
-                "account": "411",
-                "party": true
-            },
-            {
                 "field": "revenue",
                 "side": "credit",
                 "account": "701"

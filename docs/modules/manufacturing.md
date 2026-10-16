@@ -71,7 +71,7 @@ its materials are taken and its products received.
 | MFG-17 | **Without Inventory.** An order released while Inventory is off has the ledger `none`: issues, returns and reports record quantities only, nothing is costed, nothing is posted; the consumption and yield reports show quantities and "not valued". Recipes do not backflush. Switching Inventory on later does not change orders already released (decision 1). | Must |
 | MFG-18 | **Consumption: actual against standard.** Per order and material: the standard quantity for the good output reported (`required × good ÷ planned`, 6 places half up), the actual quantity (issued − returned), the difference and its share, and (valued orders, `manufacturing.cost.view`) the actual value, the standard value at the actual unit cost, and the difference. Filters: company, location, item, order, dates (the order's release), status. Export (EXP-01). | Must |
 | MFG-19 | **Wastage and yield.** Per order: planned, good, scrap and by-product quantities, yield (`good ÷ planned`), scrap share (`scrap ÷ (good + scrap)`), in percent with one place (the expected wastage of each material for the output is in the consumption report, MFG-18), and (valued, with the permission) material, labour, overhead, relieved and variance amounts. Filters and export as MFG-18. | Must |
-| MFG-20 | **Accounting events.** `ProductionValued` (after commit, once per document) carries what Accounting needs: `materials` (an issue or a return: per line its value and Inventory's cost variance), `production` (a report: the received lines' cost and cost variance, the labour and overhead it absorbed), `variance` (an order closed with WIP left), `backflush` (a sale's ingredients consumed or returned). Accounting's listener (in the Accounting module) posts them through its rules, idempotently by document, balanced (ACC-33); Inventory's `StockMoved` for `manufacturing.*` sources posts nothing (the same movement). Valued documents are raised again by the Accounting backfill (ACC-29, core EventReplays). | Must |
+| MFG-20 | **Accounting events.** `ProductionValued` (after commit, once per document) carries what Accounting needs: `materials` (an issue or a return: per line its value and Inventory's cost variance), `production` (a report: the received lines' cost and cost variance, the labour and overhead it absorbed), `variance` (an order closed with WIP left), `backflush` (a sale's ingredients consumed or returned). Accounting's listener (in the Accounting module) posts them through its rules, idempotently by document, balanced (ACC-35); Inventory's `StockMoved` for `manufacturing.*` sources posts nothing (the same movement). Valued documents are raised again by the Accounting backfill (ACC-29, core EventReplays). | Must |
 | MFG-21 | **Scope and costs.** Every list, document and action is scoped by the order's location, a BOM, the company's settings and recipe costing by its company, reached by a holder of the permission anywhere in it (RBAC-04): a record out of the reader's places is not found. Costs and values are shown only to holders of `manufacturing.cost.view` at the place (RBAC-05) and never exported to others. | Must |
 | MFG-22 | **Custom fields** (CF-01, CF-06): BOMs (`manufacturing_bom`) and production orders (`manufacturing_order`) carry custom fields in a `custom` jsonb column (GIN indexed), offered only while the module is active; the order's print shows them. | Must |
 | MFG-23 | **BOM import** (IMP-01, IMP-02). Importer `bom_lines`: one row per line: company, output item code, kind, output quantity and unit, labour minutes, line kind, component item code, quantity, unit, yield, wastage, explode, cost share. Rows go into the item's draft version (the BOM and draft are made when missing); publishing stays a person's act. Undo removes the imported line from a version still draft; a published line cannot be undone (`bom_published`). | Must |
@@ -115,7 +115,7 @@ quantities and values only):
 | `ProductionValued` | Inventory valued an issue, return, report receipt or backflush; an order closed with WIP left | tenant, `kind` (`materials`, `production`, `variance`, `backflush`), document id and number, order id and number, company, branch, location, time, currency, lines `[{line_id, item_id, value_minor, cost_variance_minor}]` (signed as stock movements: out negative), `labour_minor`, `overhead_minor`, `variance_minor` |
 | `ProductionOrderReleased`, `ProductionReported`, `ProductionOrderClosed` | The order is released, a report saved, the order closed | tenant, order id and number, company, location, item, quantities |
 
-**For Accounting (ACC-33).** Each `ProductionValued` is one journal, every
+**For Accounting (ACC-35).** Each `ProductionValued` is one journal, every
 line on the debit side with signed amounts (as Inventory's sources):
 
 | Source type | Fields | Default rule (KE; CD) |
@@ -238,7 +238,7 @@ back-office list patterns as the Stores screens (ADR 008).
   MFG-09). Switches on only when the three modules are active.
 - **Manufacturing → Inventory**: `MaterialsMoved` (MFG-15); values come
   back through `StockMoved`; recipe costing reads `StockCosts` (MFG-06).
-- **Manufacturing → Accounting**: `ProductionValued` (MFG-20, ACC-33).
+- **Manufacturing → Accounting**: `ProductionValued` (MFG-20, ACC-35).
 
 ## Open questions and decisions taken
 

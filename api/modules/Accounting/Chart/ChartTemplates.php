@@ -102,8 +102,10 @@ class ChartTemplates
 
         // ACC-24: default posting rules name accounts of the template by code (structure only).
         foreach ($data['posting_rules'] ?? [] as $type => $lines) {
-            if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/', (string) $type) !== 1 || ! is_array($lines) || count($lines) < 2) {
-                $fail("posting rule {$type}: a type and at least two lines are required.");
+            $minimum = in_array($type, (array) config('accounting.account_only_rules', []), true) ? 1 : 2;
+
+            if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/', (string) $type) !== 1 || ! is_array($lines) || count($lines) < $minimum) {
+                $fail("posting rule {$type}: a type and at least {$minimum} lines are required.");
             }
 
             foreach ($lines as $line) {

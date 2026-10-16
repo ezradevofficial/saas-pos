@@ -26,13 +26,18 @@ use Modules\Accounting\Models\PostingRule;
  * their template code; a rule naming one the chart cannot resolve (its
  * code taken by an account of the tenant's own) is reported in
  * `unresolved`, not saved.
+ *
+ * With $module (a module switched on, review item 13), only that module's
+ * event types (`{module}.…`) that have no rule at all, archived ones
+ * included, are seeded, with only the template accounts those rules name
+ * (and their parents): what the tenant set up or archived stays as it is.
  */
 class PostingDefaults
 {
     public function __construct(private readonly ChartTemplates $templates) {}
 
     /** @return array{accounts: int, rules: int, unresolved: list<array{event_type: string, account: string}>} what was added, and what could not be */
-    public function seed(Company $company, ?User $by = null): array
+    public function seed(Company $company, ?User $by = null, ?string $module = null): array
     {
         $template = AccountingSettings::query()->where('company_id', $company->id)->value('template') ?: (string) $company->country;
 
@@ -40,7 +45,7 @@ class PostingDefaults
             throw LedgerError::make('template_unknown', ['template' => $template], 'template');
         }
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $template, $by) {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $template, $by, $module) {
             DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['acc_chart:'.$company->id]);
 
             if (! Account::query()->where('company_id', $company->id)->exists()) {
@@ -48,6 +53,10 @@ class PostingDefaults
             }
 
             $data = $this->templates->get($template);
+
+            if ($module !== null) {
+                $data = $this->onlyMissing($company, $data, $module);
+            }
             // Review #11: template accounts are known by their template code (a code the tenant renumbered is the same account).
             $ids = Account::query()->where('company_id', $company->id)->whereNotNull('template_code')->pluck('id', 'template_code')->all();
             $codes = Account::query()->where('company_id', $company->id)->pluck('id', 'code')->all();
@@ -121,5 +130,39 @@ class PostingDefaults
 
             return ['accounts' => $accounts, 'rules' => $rules, 'unresolved' => $unresolved];
         });
+    }
+
+    /**
+     * The template narrowed to $module's event types without any rule in
+     * the company, and to the accounts they name and those accounts' parents.
+     *
+     * @param  array{accounts: list<array<string, mixed>>, posting_rules?: array<string, list<array<string, mixed>>>}  $data
+     * @return array{accounts: list<array<string, mixed>>, posting_rules: array<string, list<array<string, mixed>>>}
+     */
+    private function onlyMissing(Company $company, array $data, string $module): array
+    {
+        $existing = PostingRule::query()->where('company_id', $company->id)->pluck('event_type')->all();
+        $rules = array_filter(
+            $data['posting_rules'] ?? [],
+            fn (string $type) => str_starts_with($type, $module.'.') && ! in_array($type, $existing, true),
+            ARRAY_FILTER_USE_KEY,
+        );
+        $parents = array_column($data['accounts'], 'parent', 'code');
+        $needed = [];
+
+        foreach ($rules as $lines) {
+            foreach ($lines as $line) {
+                foreach ([...(isset($line['account']) ? [$line['account']] : []), ...($line['accounts'] ?? [])] as $code) {
+                    for ($at = $code; $at !== null && ! isset($needed[$at]); $at = $parents[$at] ?? null) {
+                        $needed[$at] = true;
+                    }
+                }
+            }
+        }
+
+        return [
+            'accounts' => array_values(array_filter($data['accounts'], fn (array $row) => isset($needed[$row['code']]))),
+            'posting_rules' => $rules,
+        ];
     }
 }

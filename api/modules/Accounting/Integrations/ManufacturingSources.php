@@ -8,7 +8,7 @@ use Modules\Accounting\Posting\SourceDocument;
 use Modules\Manufacturing\Events\ProductionValued;
 
 /**
- * ACC-33 (Manufacturing, MFG-20): a valued Manufacturing document as a
+ * ACC-35 (Manufacturing, MFG-20): a valued Manufacturing document as a
  * posting source, one journal per document (idempotent by its id), in the
  * company's base currency, every line on the debit side with signed
  * amounts (as InventorySources). Each line's value is signed as a stock

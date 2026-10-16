@@ -4,7 +4,10 @@ namespace Modules\Accounting\Http\Requests;
 
 use Illuminate\Validation\Rule;
 
-/** POST companies/{company}/accounting/posting-rules: the rule of an event type (ACC-07); it replaces the active one. */
+/**
+ * POST companies/{company}/accounting/posting-rules: the rule of an event type (ACC-07); it replaces the active one.
+ * Two lines at least, one for a rule that only names accounts (`accounting.account_only_rules`).
+ */
 class StorePostingRuleRequest extends AccountingRequest
 {
     protected function permission(): string
@@ -17,7 +20,7 @@ class StorePostingRuleRequest extends AccountingRequest
         return [
             'event_type' => ['required', 'string', 'max:60', 'regex:/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/'],
             'description' => ['nullable', 'string', 'max:255'],
-            'lines' => ['required', 'array', 'min:2', 'max:50'],
+            'lines' => ['required', 'array', 'min:'.(in_array($this->input('event_type'), (array) config('accounting.account_only_rules', []), true) ? 1 : 2), 'max:50'],
             // ACC-24: `prefix.*` takes every `prefix.{key}` field, to the account its map names for the key, else its default.
             'lines.*.field' => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+)*(\.\*)?\z/'],
             'lines.*.side' => ['required', 'string', Rule::in(['debit', 'credit'])],

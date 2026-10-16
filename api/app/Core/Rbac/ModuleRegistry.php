@@ -2,6 +2,7 @@
 
 namespace App\Core\Rbac;
 
+use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\Models\TenantModule;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -174,13 +175,14 @@ class ModuleRegistry
 
     /**
      * Activate $module for the current tenant. System roles pick up the
-     * module's permissions from their templates (RBAC-03).
+     * module's permissions from their templates (RBAC-03). ModuleActivated
+     * is raised once committed.
      */
     public function activate(string $module): TenantModule
     {
         $this->assertOptional($module);
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($module) {
+        $row = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($module) {
             $row = TenantModule::firstOrNew(['module' => $module]);
             // SUB-07: re-subscribing restores the module with the data it kept.
             $row->fill([
@@ -196,6 +198,10 @@ class ModuleRegistry
 
             return $row;
         });
+
+        DB::connection(TenantContext::CONNECTION)->afterCommit(fn () => event(new ModuleActivated((string) $row->tenant_id, $module)));
+
+        return $row;
     }
 
     public function deactivate(string $module): TenantModule

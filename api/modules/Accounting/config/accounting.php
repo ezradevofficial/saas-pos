@@ -18,6 +18,11 @@ return [
         'crm.quote_invoice',
     ],
 
+    // ACC-24 (stage 7D closing review): rules that only name accounts another posting uses, never a
+    // journal of their own, so one line is enough (a draft invoice from a CRM quote takes its revenue
+    // account from `crm.quote_invoice`; the invoice posts to the receivable control account, ACC-09).
+    'account_only_rules' => ['crm.quote_invoice'],
+
     // ACC-24: a source type without a rule of its own posts with another type's rule,
     // its sides swapped when the flag is true (a refund or void undoes a sale).
     'rule_fallbacks' => [
