@@ -9541,8 +9541,13 @@
       "output": "Production",
       "unitCost": "Coût unitaire",
       "batchCost": "Coût du lot",
+      "materialsCost": "Coût des ingrédients",
+      "labourCost": "Main-d’œuvre",
+      "overheadCost": "Frais généraux",
+      "byProductCredit": "Crédit des sous-produits",
       "price": "Prix",
-      "costOfPrice": "Coût en % du prix",
+      "netPrice": "Prix hors taxes",
+      "costOfPrice": "Coût en % du prix hors taxes",
       "uncosted": "Sans coût"
     },
     "costs": {
@@ -9750,11 +9755,12 @@
     },
     "recipeCosting": {
       "title": "Coût des recettes",
-      "description": "Ce que coûte maintenant chaque nomenclature en vigueur aux coûts actuels du stock.",
+      "description": "Ce que coûte maintenant chaque nomenclature en vigueur : ingrédients aux coûts de stock actuels, plus main-d’œuvre et frais généraux, moins les sous-produits.",
       "search": "Rechercher par article",
       "empty": "Aucune nomenclature en vigueur pour l’instant.",
       "emptyFiltered": "Rien ne correspond à ces filtres.",
-      "inclTax": "TTC"
+      "inclTax": "TTC",
+      "taxUnknown": "Taxe inconnue"
     },
     "settings": {
       "title": "Paramètres de fabrication",

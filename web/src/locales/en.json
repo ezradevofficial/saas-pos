@@ -9541,8 +9541,13 @@
       "output": "Output",
       "unitCost": "Cost per unit",
       "batchCost": "Batch cost",
+      "materialsCost": "Ingredients cost",
+      "labourCost": "Labour",
+      "overheadCost": "Overhead",
+      "byProductCredit": "By-product credit",
       "price": "Price",
-      "costOfPrice": "Cost % of price",
+      "netPrice": "Price before tax",
+      "costOfPrice": "Cost % of price before tax",
       "uncosted": "Without a cost"
     },
     "costs": {
@@ -9750,11 +9755,12 @@
     },
     "recipeCosting": {
       "title": "Recipe costing",
-      "description": "What each BOM in force costs now at current stock costs.",
+      "description": "What each BOM in force costs now: ingredients at current stock costs, plus labour and overhead, less by-products.",
       "search": "Search by item",
       "empty": "No BOMs in force yet.",
       "emptyFiltered": "Nothing matches these filters.",
-      "inclTax": "incl. tax"
+      "inclTax": "incl. tax",
+      "taxUnknown": "Tax not known"
     },
     "settings": {
       "title": "Manufacturing settings",

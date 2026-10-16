@@ -5,6 +5,10 @@ namespace Modules\Manufacturing\Tests;
 use App\Core\CustomFields\CustomFieldDefinition;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\MasterData\Taxes\PriceList;
+use App\Core\MasterData\Taxes\TaxCategory;
+use App\Core\MasterData\Taxes\TaxCategoryCode;
+use App\Core\MasterData\Taxes\TaxCode;
+use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\Scope;
 use Modules\Manufacturing\Tests\Concerns\BuildsManufacturing;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -65,7 +69,7 @@ class ReportsTest extends TestCase
         $this->assertStringContainsString('Wheat flour', $csv);
     }
 
-    public function test_recipe_costing_uses_current_inventory_costs_and_the_price(): void
+    public function test_recipe_costing_uses_current_inventory_costs_and_the_price_before_tax(): void
     {
         $this->burgerRecipe();
         $this->receive($this->patty, '10', 150000);
@@ -77,17 +81,59 @@ class ReportsTest extends TestCase
             ItemPrice::create(['price_list_id' => $list->id, 'item_id' => $this->burger->id, 'uom_id' => $this->each->id, 'amount_minor' => '65000', 'currency' => 'KES', 'effective_from' => '2026-01-01']);
         });
 
+        // Owner decision B (2026-10-16): no tax category, so the tax in KES 650.00 is unknown: no net price, no share.
+        $burger = collect($this->api('GET', 'manufacturing/recipe-costing?kind=recipe')->assertOk()->json('data'))->keyBy('item.code')['BURGER'];
+        $this->assertSame([null, 'tax_category_missing', null, null], [$burger['price']['net_minor'], $burger['price']['net_price_reason'], $burger['net_price'], $burger['cost_share_percent']]);
+
+        $this->inTenant(function () {
+            $vat = TaxCode::create(['company_id' => $this->acme->id, 'code' => 'VAT_M', 'name' => 'VAT menu', 'kind' => 'vat']);
+            TaxRate::create(['tax_code_id' => $vat->id, 'rate' => '16', 'effective_from' => '2026-01-01']);
+            $food = TaxCategory::create(['name' => 'Food']);
+            TaxCategoryCode::create(['tax_category_id' => $food->id, 'company_id' => $this->acme->id, 'tax_code_id' => $vat->id]);
+            $this->burger->update(['tax_category_id' => $food->id]);
+        });
+
         $rows = collect($this->api('GET', 'manufacturing/recipe-costing?kind=recipe')->assertOk()->json('data'))->keyBy('item.code');
 
-        // 15,000 + 2,000 + 0.024 L × 40,000 + 0.0015 kg × 90,000 = 17,000 + 960 + 135 = 18,095 a burger, 27.8% of KES 650.00.
-        $this->assertSame(['18095', '18095', '65000', '27.8'], [$rows['BURGER']['unit_cost']['amount_minor'], $rows['BURGER']['batch_cost']['amount_minor'],
-            $rows['BURGER']['price']['amount_minor'], $rows['BURGER']['cost_share_percent']]);
+        // 15,000 + 2,000 + 0.024 L × 40,000 + 0.0015 kg × 90,000 = 17,000 + 960 + 135 = 18,095 a burger. KES 650.00 includes
+        // 16 % VAT: 65,000 × 16 / 116 = 8,966 tax, so 56,034 before tax, of which the cost is 32.3 %.
+        $this->assertSame(['18095', '18095', '18095', '0', '0', '0', '65000', true, '56034', '56034', '32.3'], [
+            $rows['BURGER']['unit_cost']['amount_minor'], $rows['BURGER']['batch_cost']['amount_minor'], $rows['BURGER']['materials_cost']['amount_minor'],
+            $rows['BURGER']['labour_cost']['amount_minor'], $rows['BURGER']['overhead_cost']['amount_minor'], $rows['BURGER']['by_product_credit']['amount_minor'],
+            $rows['BURGER']['price']['amount_minor'], $rows['BURGER']['price']['tax_inclusive'], $rows['BURGER']['price']['net_minor'],
+            $rows['BURGER']['net_price']['amount_minor'], $rows['BURGER']['cost_share_percent'],
+        ]);
         $this->assertSame([], $rows['BURGER']['uncosted']);
         // The bread's flour, yeast and water have costs; the sauce is a recipe too.
         $this->assertSame('SAUCE', $rows['SAUCE']['item']['code']);
 
         $explode = $this->api('GET', "manufacturing/bom-versions/{$rows['BURGER']['version']['id']}/explode")->assertOk()->json('data.cost');
         $this->assertSame('18095', $explode['total']['amount_minor']);
+    }
+
+    public function test_recipe_costing_adds_labour_and_overhead_and_takes_off_the_by_products(): void
+    {
+        // Owner decision B (2026-10-16): the full cost against the price before tax.
+        $this->api('PUT', "manufacturing/companies/{$this->acme->id}/settings", ['labour_rate_minor' => '120000', 'overhead_rate_minor' => '60000', 'release_approval' => false])->assertOk();
+        $this->inTenant(function () {
+            $list = PriceList::create(['company_id' => $this->acme->id, 'name' => 'Wholesale', 'currency' => 'KES', 'tax_inclusive' => false, 'is_default' => true]);
+            ItemPrice::create(['price_list_id' => $list->id, 'item_id' => $this->bread->id, 'uom_id' => $this->each->id, 'amount_minor' => '12000', 'currency' => 'KES', 'effective_from' => '2026-01-01']);
+        });
+
+        $bread = collect($this->api('GET', 'manufacturing/recipe-costing?kind=production')->assertOk()->json('data'))->keyBy('item.code')['BREAD'];
+
+        // Ingredients 51 kg × 5,000 + 0.5 kg × 3,000 + 30 L × 100 = 259,500; labour 120 min at 120,000 an hour = 240,000;
+        // overhead 120,000; the bran takes 10 % of 619,500 = 61,950; 557,550 for 100 loaves = 5,576 a loaf, 46.5 % of KES 120.00.
+        $money = fn (string $key) => $bread[$key]['amount_minor'];
+        $this->assertSame(['259500', '240000', '120000', '61950', '557550', '5576', '12000', '46.5'], [
+            $money('materials_cost'), $money('labour_cost'), $money('overhead_cost'), $money('by_product_credit'), $money('batch_cost'), $money('unit_cost'),
+            $money('net_price'), $bread['cost_share_percent'],
+        ]);
+
+        // The explosion of half a batch costs half the labour and overhead.
+        $explode = $this->api('GET', "manufacturing/bom-versions/{$bread['version']['id']}/explode?qty=50")->assertOk()->json('data.cost');
+        $this->assertSame(['129750', '120000', '60000', '30975', '278775'], [$explode['materials']['amount_minor'], $explode['labour']['amount_minor'],
+            $explode['overhead']['amount_minor'], $explode['by_product_credit']['amount_minor'], $explode['total']['amount_minor']]);
     }
 
     public function test_settings_are_set_at_the_company_and_audited(): void

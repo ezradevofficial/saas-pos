@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Manufacturing\Http\Resources\RecipeCostingResource;
 
-/** MFG-06: what each BOM in force costs now, per output unit, against its price. */
+/** MFG-06: what each BOM in force costs now (full cost), per output unit, against its price before tax. */
 class RecipeCostingList extends ManufacturingList
 {
     public const RELATIONS = ['company', 'item'];
@@ -58,7 +58,12 @@ class RecipeCostingList extends ManufacturingList
             ListColumn::make('output', 'manufacturing.columns.output', ['output_qty'], fn (array $row) => trim(($row['output_qty'] ?? '').' '.($row['output_uom']['code'] ?? ''))),
             self::money('unit_cost'),
             self::money('batch_cost'),
+            self::money('materials_cost'),
+            self::money('labour_cost'),
+            self::money('overhead_cost'),
+            self::money('by_product_credit'),
             self::money('price'),
+            self::money('net_price'),
             ListColumn::make('cost_share_percent', 'manufacturing.columns.cost_share_percent', ['cost_share_percent'], fn (array $row, $model, ExportValues $values) => $values->decimal($row['cost_share_percent'] ?? null)),
             ListColumn::make('uncosted', 'manufacturing.columns.uncosted', ['uncosted'], fn (array $row) => implode(', ', array_column($row['uncosted'] ?? [], 'name'))),
         ];

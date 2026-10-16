@@ -127,7 +127,7 @@ class BomController
         $exploded = $explosion->explode($version, $qty->multipliedBy($factor), $at);
         $items = Item::query()->whereKey($this->itemIds($exploded['tree'], [...array_column($exploded['leaves'], 'item_id'), ...array_column($exploded['by_products'], 'item_id')]))
             ->with('baseUom')->get()->keyBy('id');
-        $cost = Costs::inCompany($request, $bom->company_id) ? $costing->cost($bom->company_id, $exploded['leaves'], $version, $bom->item_id) : null;
+        $cost = Costs::inCompany($request, $bom->company_id) ? $costing->cost($bom->company_id, $exploded['leaves'], $version, $bom->item_id, $exploded['by_products'], $qty->multipliedBy($factor), $at) : null;
 
         return new JsonResponse(['data' => [
             'version' => BomResource::version($version),
@@ -145,6 +145,10 @@ class BomController
             'cost' => $cost === null ? null : [
                 'currency' => $cost['currency'],
                 'total' => Costs::money($cost['batch_cost_minor'], $cost['currency']),
+                'materials' => Costs::money($cost['materials_cost_minor'], $cost['currency']),
+                'labour' => Costs::money($cost['labour_cost_minor'], $cost['currency']),
+                'overhead' => Costs::money($cost['overhead_cost_minor'], $cost['currency']),
+                'by_product_credit' => Costs::money($cost['by_product_credit_minor'], $cost['currency']),
                 'leaves' => array_map(fn (array $leaf) => ['item_id' => $leaf['item_id'], 'unit_cost_minor' => $leaf['unit_cost_minor'], 'cost' => Costs::money($leaf['cost_minor'], $cost['currency'])], $cost['leaves']),
                 'uncosted' => $cost['uncosted'],
             ],

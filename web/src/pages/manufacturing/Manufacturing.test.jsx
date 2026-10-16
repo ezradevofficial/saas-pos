@@ -177,7 +177,11 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
         valued: true, actual_value: money('525000'), standard_value: money('382500'), value_variance: money('142500') }])],
       [/^manufacturing\/recipe-costing\?/, page([{ id: 'b-9', kind: 'recipe', company: named('c-1', 'Amani Bakery'), item: { id: 'i-burger', code: 'BURGER', name: 'Burger', type: 'kit' },
         version: { id: 'v-9', version_no: 1 }, output_qty: '1', output_uom: EA, error: null, unit_cost: money('18095'), batch_cost: money('18095'),
-        price: { amount_minor: '65000', currency: 'KES', tax_inclusive: true }, cost_share_percent: '27.8', leaves: [], uncosted: [] }])],
+        materials_cost: money('18095'), labour_cost: money('0'), overhead_cost: money('0'), by_product_credit: money('0'),
+        price: { amount_minor: '65000', currency: 'KES', tax_inclusive: true, net_minor: '56034' }, net_price: money('56034'), cost_share_percent: '32.3', leaves: [], uncosted: [] },
+        { id: 'b-10', kind: 'recipe', company: named('c-1', 'Amani Bakery'), item: { id: 'i-tea', code: 'TEA', name: 'Tea', type: 'kit' },
+        version: { id: 'v-10', version_no: 1 }, output_qty: '1', output_uom: EA, error: null, unit_cost: money('3000'), batch_cost: money('3000'),
+        price: { amount_minor: '10000', currency: 'KES', tax_inclusive: true, net_minor: null, net_price_reason: 'tax_category_missing' }, net_price: null, cost_share_percent: null, leaves: [], uncosted: [] }])],
     ])
     const { unmount } = renderApp('/manufacturing/consumption')
     expect(await screen.findByText('76.5')).toBeInTheDocument()
@@ -185,6 +189,10 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     unmount()
     renderApp('/manufacturing/recipe-costing')
     expect(await screen.findByText('Burger')).toBeInTheDocument()
-    expect(screen.getByText('27.8')).toBeInTheDocument()
+    // Owner decision B: the share is of the price before tax; a price whose tax is not known has none.
+    expect(screen.getByRole('columnheader', { name: /Price before tax/ })).toBeInTheDocument()
+    expect(screen.getByText(/560\.34/)).toBeInTheDocument()
+    expect(screen.getByText('32.3')).toBeInTheDocument()
+    expect(screen.getByText('Tax not known')).toBeInTheDocument()
   })
 })
