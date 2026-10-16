@@ -244,15 +244,18 @@ function UsageCard({ keys }) {
         />
         {query.isError ? <Alert tone="danger" title={errorMessage(query.error)} /> : null}
         {query.data ? (
+          // The chart scales to its box: kept to a readable width on wide screens.
+          <div className="max-w-xl">
           <Chart
             type="bar"
             points={points}
             title={t('apiKeys.usage.title')}
             valueLabel={t('apiKeys.usage.requests')}
             formatValue={(value) => formatInteger(value, locale)}
-            formatAxis={(value) => formatInteger(value, locale)}
+            formatAxis={(value) => (Number.isInteger(value) ? formatInteger(value, locale) : '')}
             formatLabel={(label) => formatCalendarDate(label, locale)}
           />
+          </div>
         ) : null}
       </div>
     </Card>
@@ -273,8 +276,11 @@ function SandboxCard() {
   })
 
   return (
-    <Card title={t('apiKeys.sandbox.title')} subtitle={t('apiKeys.sandbox.text')} actions={<Button onClick={() => setConfirming(true)}>{t('apiKeys.sandbox.reset')}</Button>}>
-      {reset.isSuccess ? <Alert tone="success" title={t('apiKeys.sandbox.done')} /> : null}
+    <Card title={t('apiKeys.sandbox.title')} actions={<Button onClick={() => setConfirming(true)}>{t('apiKeys.sandbox.reset')}</Button>}>
+      <div className="flex flex-col gap-3">
+        <p className="text-ink-muted">{t('apiKeys.sandbox.text')}</p>
+        {reset.isSuccess ? <Alert tone="success" title={t('apiKeys.sandbox.done')} /> : null}
+      </div>
       <Dialog
         open={confirming}
         title={t('apiKeys.sandbox.confirmTitle')}
