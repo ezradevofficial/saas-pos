@@ -31,7 +31,8 @@ function Form({ asset }) {
     serial_number: asset?.serial_number ?? '',
     acquired_on: asset?.acquired_on ?? '',
     in_service_on: asset?.in_service_on ?? '',
-    currency: asset?.cost?.currency ?? money.currency ?? '',
+    // Empty until chosen: the company's base currency applies once it has loaded (below).
+    currency: asset?.cost?.currency ?? '',
     cost_minor: asset?.cost?.amount_minor ?? '',
     supplier_reference: asset?.supplier_reference ?? '',
     warranty_until: asset?.warranty_until ?? '',
@@ -42,11 +43,14 @@ function Form({ asset }) {
     declining_rate: asset?.declining_rate ?? '',
     total_units: asset?.total_units ?? '',
   }))
+  // CUR-01: the base currency is known only once companies and currencies load; on a direct
+  // load the first render had neither and the form started in another currency (stage 7D walkthrough).
+  const currency = values.currency || money.currency
   const set = (name) => (value) => setValues((current) => ({ ...current, [name]: value }))
   const onInput = (name) => (event) => set(name)(event.target.value)
   const save = useMutation({
     mutationFn: () => {
-      const body = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '' && value !== null))
+      const body = Object.fromEntries(Object.entries({ ...values, currency }).filter(([, value]) => value !== '' && value !== null))
       if (body.useful_life_months) body.useful_life_months = Number.parseInt(body.useful_life_months, 10)
       // A category's terms apply unless the form names its own method.
       if (!values.method) {
@@ -99,11 +103,11 @@ function Form({ asset }) {
           <Select
             label={t('fixedAssets.fields.currency')}
             options={money.options.map((code) => ({ value: code, label: code }))}
-            value={values.currency}
+            value={currency}
             error={errors.fields.currency}
             onChange={onInput('currency')}
           />
-          <MoneyInput label={t('fixedAssets.fields.cost')} currency={values.currency} value={values.cost_minor} error={errors.fields.cost_minor} onChange={(value) => set('cost_minor')(value ?? '')} />
+          <MoneyInput label={t('fixedAssets.fields.cost')} currency={currency} value={values.cost_minor} error={errors.fields.cost_minor} onChange={(value) => set('cost_minor')(value ?? '')} />
           <TextField label={t('fixedAssets.fields.supplierReference')} value={values.supplier_reference} maxLength={120} error={errors.fields.supplier_reference} onChange={onInput('supplier_reference')} />
           <TextField type="date" label={t('fixedAssets.fields.warrantyUntil')} value={values.warranty_until} error={errors.fields.warranty_until} onChange={onInput('warranty_until')} />
         </div>
@@ -126,7 +130,7 @@ function Form({ asset }) {
           {method === 'units_of_production' ? (
             <DecimalInput label={t('fixedAssets.fields.totalUnits')} value={values.total_units} maxDecimals={6} error={errors.fields.total_units} onChange={(value) => set('total_units')(value ?? '')} />
           ) : null}
-          <MoneyInput label={t('fixedAssets.fields.residual')} help={t('fixedAssets.form.residualHelp')} currency={values.currency} value={values.residual_minor} error={errors.fields.residual_minor} onChange={(value) => set('residual_minor')(value ?? '')} />
+          <MoneyInput label={t('fixedAssets.fields.residual')} help={t('fixedAssets.form.residualHelp')} currency={currency} value={values.residual_minor} error={errors.fields.residual_minor} onChange={(value) => set('residual_minor')(value ?? '')} />
         </div>
       </Card>
       <div className="flex gap-2">
