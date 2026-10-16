@@ -603,6 +603,11 @@
           "issued_by": "Issued by",
           "received_by": "Received by",
           "total_value": "Total value",
+          "asset_name": "Asset",
+          "tag": "Tag",
+          "serial_number": "Serial number",
+          "category": "Category",
+          "location": "Location",
           "employee_number": "Employee number",
           "pay_date": "Pay date",
           "run": "Payroll run",
@@ -610,12 +615,7 @@
           "net": "Net pay",
           "employer_contributions": "Employer contributions",
           "taxable_pay": "Taxable pay",
-          "rates": "Statutory rates",
-          "asset_name": "Asset",
-          "tag": "Tag",
-          "serial_number": "Serial number",
-          "category": "Category",
-          "location": "Location"
+          "rates": "Statutory rates"
         },
         "customer": {
           "name": "Customer",
