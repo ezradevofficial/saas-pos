@@ -116,7 +116,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -144,12 +143,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -157,12 +154,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -192,6 +187,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "description": "Branches of every company the key’s role reaches.",
@@ -215,7 +213,6 @@
                         "name": "branch",
                         "in": "path",
                         "required": true,
-                        "description": "The branch ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -246,6 +243,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a branch",
@@ -268,7 +268,6 @@
                         "name": "branch",
                         "in": "path",
                         "required": true,
-                        "description": "The branch ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -365,7 +364,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -393,12 +391,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -406,12 +402,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -444,6 +438,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a branch’s locations",
@@ -553,7 +550,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -581,12 +577,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -594,12 +588,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -629,6 +621,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List companies",
@@ -653,7 +648,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -684,6 +678,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a company",
@@ -706,7 +703,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -803,7 +799,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -831,12 +826,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -844,12 +837,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -882,6 +873,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a company’s branches",
@@ -904,7 +898,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -1025,7 +1018,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -1053,12 +1045,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -1066,12 +1056,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -1122,6 +1110,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a company’s exchange rates",
@@ -1146,7 +1137,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -1272,6 +1262,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get the exchange rates in force",
@@ -1294,7 +1287,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -1378,7 +1370,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -1406,12 +1397,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -1419,12 +1408,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -1475,6 +1462,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a company’s price lists",
@@ -1497,7 +1487,6 @@
                         "name": "company",
                         "in": "path",
                         "required": true,
-                        "description": "The company ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -1581,7 +1570,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -1609,12 +1597,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -1622,12 +1608,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -1678,6 +1662,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a company’s tax codes",
@@ -1881,7 +1868,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -1909,12 +1895,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -1922,12 +1906,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -1975,6 +1957,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List stock on hand",
@@ -2124,7 +2109,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -2152,12 +2136,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -2165,12 +2147,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -2218,6 +2198,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List item categories",
@@ -2270,6 +2253,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Create an item category",
@@ -2292,7 +2278,6 @@
                         "name": "itemCategory",
                         "in": "path",
                         "required": true,
-                        "description": "The item category ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2329,6 +2314,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get an item category",
@@ -2349,7 +2337,6 @@
                         "name": "itemCategory",
                         "in": "path",
                         "required": true,
-                        "description": "The item category ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2395,6 +2382,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Update an item category",
@@ -2418,7 +2408,6 @@
                         "name": "itemCategory",
                         "in": "path",
                         "required": true,
-                        "description": "The item category ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2455,6 +2444,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "x-scope": "core.item_category.write",
@@ -2476,7 +2468,6 @@
                         "name": "itemCategory",
                         "in": "path",
                         "required": true,
-                        "description": "The item category ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2513,6 +2504,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Restore an archived item category",
@@ -2593,7 +2587,6 @@
                     {
                         "name": "barcode",
                         "in": "query",
-                        "description": "RBAC-05: a filter on a hidden field is refused like a sort on it.",
                         "schema": {
                             "type": "string",
                             "maxLength": 64
@@ -2602,7 +2595,6 @@
                     {
                         "name": "category",
                         "in": "query",
-                        "description": "A category shared or of a company whose items the user lists:\nanother is refused as unknown (the filter summary names it).",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2624,7 +2616,6 @@
                     {
                         "name": "company",
                         "in": "query",
-                        "description": "MD-03 follow-up: items a company can sell (shared or its own), e.g. to price them in its lists.",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2633,7 +2624,6 @@
                     {
                         "name": "custom[]",
                         "in": "query",
-                        "description": "CF-03: `?custom[key]=value` or `?custom[key][min|max]=` (CustomFieldLists).",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -2711,7 +2701,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -2739,12 +2728,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -2752,12 +2739,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -2805,6 +2790,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List items",
@@ -2874,6 +2862,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Create an item",
@@ -2899,7 +2890,6 @@
                         "name": "item",
                         "in": "path",
                         "required": true,
-                        "description": "The item ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -2936,6 +2926,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "x-scope": "core.item.read",
@@ -2955,7 +2948,6 @@
                         "name": "item",
                         "in": "path",
                         "required": true,
-                        "description": "The item ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3016,6 +3008,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Update an item",
@@ -3038,7 +3033,6 @@
                         "name": "item",
                         "in": "path",
                         "required": true,
-                        "description": "The item ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3090,6 +3084,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Archive an item",
@@ -3113,7 +3110,6 @@
                         "name": "item",
                         "in": "path",
                         "required": true,
-                        "description": "The item ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3165,6 +3161,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "x-scope": "core.item.write",
@@ -3274,7 +3273,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -3302,12 +3300,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -3315,12 +3311,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -3350,6 +3344,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "description": "Outlets, warehouses and other locations the key’s role reaches.",
@@ -3373,7 +3370,6 @@
                         "name": "location",
                         "in": "path",
                         "required": true,
-                        "description": "The location ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3404,6 +3400,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a location",
@@ -3505,7 +3504,6 @@
                     {
                         "name": "custom[]",
                         "in": "query",
-                        "description": "CF-03: `?custom[key]=value` or `?custom[key][min|max]=` (CustomFieldLists).",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -3583,7 +3581,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -3611,12 +3608,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -3624,12 +3619,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -3677,6 +3670,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List customers, suppliers and contacts",
@@ -3762,6 +3758,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Create a customer, supplier or contact",
@@ -3786,7 +3785,6 @@
                         "name": "party",
                         "in": "path",
                         "required": true,
-                        "description": "The party ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3854,6 +3852,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a customer, supplier or contact",
@@ -3874,7 +3875,6 @@
                         "name": "party",
                         "in": "path",
                         "required": true,
-                        "description": "The party ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -3951,6 +3951,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Update a customer, supplier or contact",
@@ -3975,7 +3978,6 @@
                         "name": "party",
                         "in": "path",
                         "required": true,
-                        "description": "The party ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4043,6 +4045,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Archive a customer, supplier or contact",
@@ -4067,7 +4072,6 @@
                         "name": "party",
                         "in": "path",
                         "required": true,
-                        "description": "The party ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4135,6 +4139,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Restore an archived customer, supplier or contact",
@@ -4353,7 +4360,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -4381,12 +4387,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -4394,12 +4398,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -4447,6 +4449,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List point of sale sales",
@@ -4471,7 +4476,6 @@
                         "name": "posSale",
                         "in": "path",
                         "required": true,
-                        "description": "The pos sale ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4505,6 +4509,9 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a point of sale sale",
@@ -4529,7 +4536,6 @@
                         "name": "priceList",
                         "in": "path",
                         "required": true,
-                        "description": "The price list ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4566,6 +4572,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a price list",
@@ -4588,7 +4597,6 @@
                         "name": "priceList",
                         "in": "path",
                         "required": true,
-                        "description": "The price list ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4684,7 +4692,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -4712,12 +4719,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -4725,12 +4730,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 },
                                                 "today": {
@@ -4789,6 +4792,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List a price list’s prices",
@@ -4812,7 +4818,6 @@
                         "name": "priceList",
                         "in": "path",
                         "required": true,
-                        "description": "The price list ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -4851,6 +4856,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "description": "Amounts are integers in minor units (KES and USD have 2 decimals, CDF has none).",
@@ -4881,7 +4889,6 @@
                     {
                         "name": "company",
                         "in": "query",
-                        "description": "A company the user reaches; any other (another tenant's, one out of reach, none) gets the same answer.",
                         "schema": {
                             "type": "string"
                         }
@@ -4956,7 +4963,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -4984,12 +4990,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -4997,12 +5001,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -5050,6 +5052,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List tax categories",
@@ -5072,7 +5077,6 @@
                         "name": "taxCategory",
                         "in": "path",
                         "required": true,
-                        "description": "The tax category ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -5109,6 +5113,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a tax category",
@@ -5131,7 +5138,6 @@
                         "name": "taxCode",
                         "in": "path",
                         "required": true,
-                        "description": "The tax code ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -5168,6 +5174,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a tax code",
@@ -5287,6 +5296,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List the organisation’s currencies",
@@ -5434,7 +5446,6 @@
                                                 },
                                                 "links": {
                                                     "type": "array",
-                                                    "description": "Generated paginator links.",
                                                     "items": {
                                                         "type": "object",
                                                         "properties": {
@@ -5462,12 +5473,10 @@
                                                     "type": [
                                                         "string",
                                                         "null"
-                                                    ],
-                                                    "description": "Base path for paginator generated URLs."
+                                                    ]
                                                 },
                                                 "per_page": {
                                                     "type": "integer",
-                                                    "description": "Number of items shown per page.",
                                                     "minimum": 0
                                                 },
                                                 "to": {
@@ -5475,12 +5484,10 @@
                                                         "integer",
                                                         "null"
                                                     ],
-                                                    "description": "Number of the last item in the slice.",
                                                     "minimum": 1
                                                 },
                                                 "total": {
                                                     "type": "integer",
-                                                    "description": "Total number of items being paginated.",
                                                     "minimum": 0
                                                 }
                                             },
@@ -5528,6 +5535,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "List units of measure",
@@ -5550,7 +5560,6 @@
                         "name": "uom",
                         "in": "path",
                         "required": true,
-                        "description": "The uom ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -5587,6 +5596,9 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
                     }
                 },
                 "summary": "Get a unit of measure",
@@ -5612,7 +5624,6 @@
                     },
                     "company": {
                         "type": "object",
-                        "description": "The parent's name, so a branch-scoped user can label the tree.",
                         "properties": {
                             "id": {
                                 "type": "string"
@@ -5749,8 +5760,7 @@
                         "type": [
                             "string",
                             "null"
-                        ],
-                        "description": "With `?pair=`: `direct` (stored as asked) or `inverse` (stored the other way); null otherwise."
+                        ]
                     },
                     "base": {
                         "type": "string"
@@ -6146,7 +6156,6 @@
                                 ]
                             },
                             "tenders": {
-                                "description": "Phase 4 Task 6: what was tendered, per method type and currency (when payments are loaded).",
                                 "type": [
                                     "string",
                                     "object"
@@ -6468,7 +6477,6 @@
                                 ]
                             },
                             "tenders": {
-                                "description": "Phase 4 Task 6: what was tendered, per method type and currency (when payments are loaded).",
                                 "type": [
                                     "string",
                                     "object"
@@ -6512,7 +6520,6 @@
             },
             "SetItemPriceRequest": {
                 "type": "object",
-                "description": "MD-03 follow-up: set one price (`core.price.edit` at the list's company):\nthe active price with the same item, unit, start date and quantity break\ngets the amount, else a price is added (PriceRules, PriceWriter).",
                 "properties": {
                     "item_id": {
                         "type": "string",
@@ -6684,7 +6691,6 @@
             },
             "StoreItemCategoryRequest": {
                 "type": "object",
-                "description": "MD-02: a new item category, shared (`core.item_category.create`\nanywhere) or one company's (`core.item_category.create` at a scope\ntouching it), following the items sharing mode (TEN-08).",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -6719,7 +6725,6 @@
             },
             "StoreItemRequest": {
                 "type": "object",
-                "description": "MD-02: a new item. Shared (no `company_id`): `core.item.create`\nanywhere in the tenant; a company's: `core.item.create` at a scope\ntouching that company (TEN-08). A company the user does not reach is not\nfound; an unknown or other tenant's company fails validation (422).",
                 "properties": {
                     "company_id": {
                         "type": [
@@ -6735,7 +6740,6 @@
                     },
                     "name": {
                         "type": "string",
-                        "description": "MD-02: one name, in the language the business types it.",
                         "maxLength": 255
                     },
                     "category_id": {
@@ -6836,7 +6840,6 @@
             },
             "StorePartyRequest": {
                 "type": "object",
-                "description": "MD-01: a new party. Shared (no `company_id`): `core.party.create`\nanywhere in the tenant; a company's: `core.party.create` at a scope\ntouching that company (TEN-08). A company the user does not reach is not\nfound; an unknown or other tenant's company fails validation (422).",
                 "properties": {
                     "company_id": {
                         "type": [
@@ -7302,7 +7305,6 @@
             },
             "UpdateItemCategoryRequest": {
                 "type": "object",
-                "description": "MD-02: rename, recolour or move an item category within its scope (`core.item_category.edit`).",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -7327,7 +7329,6 @@
             },
             "UpdateItemRequest": {
                 "type": "object",
-                "description": "MD-02: change an item (`core.item.edit`). `uoms` and `barcodes` given\nreplace the stored ones. Moving it to another company (items kept per\ncompany) needs `core.item.edit` covering that company too (TEN-08).",
                 "properties": {
                     "company_id": {
                         "type": [
@@ -7343,7 +7344,6 @@
                     },
                     "name": {
                         "type": "string",
-                        "description": "MD-02: one name, in the language the business types it.",
                         "maxLength": 255
                     },
                     "category_id": {
@@ -7438,7 +7438,6 @@
             },
             "UpdatePartyRequest": {
                 "type": "object",
-                "description": "MD-01: change a party (`core.party.edit`). Lists given (phones, emails,\naddresses, tags, roles) replace the stored ones. Moving it to another\ncompany needs `core.party.edit` there too; roles that become all shared\nmake it shared (TEN-08).",
                 "properties": {
                     "company_id": {
                         "type": [
@@ -7645,54 +7644,60 @@
                     }
                 },
                 "title": "UpdatePartyRequest"
+            },
+            "Problem": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "examples": [
+                            "/developers/errors#api_scope_missing"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "integer"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string",
+                        "examples": [
+                            "api_scope_missing"
+                        ]
+                    },
+                    "errors": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "message",
+                    "code"
+                ]
             }
         },
         "responses": {
             "AuthenticationException": {
                 "description": "Unauthenticated",
                 "content": {
-                    "application/json": {
+                    "application/problem+json": {
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
-            "ValidationException": {
-                "description": "Validation error",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Errors overview."
-                                },
-                                "errors": {
-                                    "type": "object",
-                                    "description": "A detailed description of each field that failed validation.",
-                                    "additionalProperties": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            },
-                            "required": [
-                                "message",
-                                "errors"
-                            ]
+                            "$ref": "#/components/schemas/Problem"
                         }
                     }
                 }
@@ -7700,18 +7705,9 @@
             "AuthorizationException": {
                 "description": "Authorization error",
                 "content": {
-                    "application/json": {
+                    "application/problem+json": {
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
+                            "$ref": "#/components/schemas/Problem"
                         }
                     }
                 }
@@ -7719,18 +7715,36 @@
             "ModelNotFoundException": {
                 "description": "Not found",
                 "content": {
-                    "application/json": {
+                    "application/problem+json": {
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
+                            "$ref": "#/components/schemas/Problem"
+                        }
+                    }
+                }
+            },
+            "RateLimited": {
+                "description": "Too many requests",
+                "headers": {
+                    "Retry-After": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "content": {
+                    "application/problem+json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Problem"
+                        }
+                    }
+                }
+            },
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/problem+json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Problem"
                         }
                     }
                 }

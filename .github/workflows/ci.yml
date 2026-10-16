@@ -150,6 +150,14 @@ jobs:
         if: matrix.suite.pint
         run: vendor/bin/pint --test
 
+      # API-04 (ADR 020): every public route documented in English and French,
+      # the committed OpenAPI document current, and no operation or parameter
+      # removed without a deprecation entry. Needs the migrated schema (Scramble
+      # reads models' column types).
+      - name: OpenAPI document
+        if: matrix.suite.pint
+        run: php artisan api:docs --check
+
       - name: Tests (${{ matrix.suite.name }})
         run: ${{ matrix.suite.command }}
 

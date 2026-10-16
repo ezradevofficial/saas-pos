@@ -66,6 +66,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/auth/invitations/{token}' => 'the 40-character invitation token is the credential',
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
+        'GET api/v1/developers/openapi.json' => 'API-04: the committed OpenAPI document of the public routes, the same for everyone; no tenant data; rate-limited per IP',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
@@ -138,6 +139,7 @@ class TenantIsolationTest extends TestCase
         'uom' => 'uom',
         'item_image' => 'item_image',
         'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
+        'api_key' => 'api_key', // API-02: api-keys/{api_key}
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',

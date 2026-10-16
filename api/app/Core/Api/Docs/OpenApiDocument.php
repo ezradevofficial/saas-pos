@@ -69,11 +69,89 @@ class OpenApiDocument
         }
 
         ksort($paths);
-        $spec['paths'] = $paths;
+        [$spec, $paths] = self::withErrorShape($spec, $paths);
+        $spec['paths'] = self::withoutCodeNotes($paths, map: true);
+        $spec['components']['schemas'] = self::withoutCodeNotes($spec['components']['schemas'] ?? [], map: true);
         $spec['tags'] = collect($operations)->pluck('resource')->unique()->sort()->values()
             ->map(fn (string $resource) => ['name' => $resource])->all();
 
         return $spec;
+    }
+
+    /**
+     * ADR 020: every error a key client receives is `application/problem+json`
+     * with `code` to branch on; Scramble's error responses get that schema,
+     * and every operation documents the 429 of the rate limits (API-03).
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, mixed>  $paths
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    private static function withErrorShape(array $spec, array $paths): array
+    {
+        $spec['components']['schemas']['Problem'] = [
+            'type' => 'object',
+            'properties' => [
+                'type' => ['type' => 'string', 'examples' => ['/developers/errors#api_scope_missing']],
+                'title' => ['type' => 'string'],
+                'status' => ['type' => 'integer'],
+                'detail' => ['type' => 'string'],
+                'message' => ['type' => 'string'],
+                'code' => ['type' => 'string', 'examples' => ['api_scope_missing']],
+                'errors' => ['type' => 'object', 'additionalProperties' => ['type' => 'array', 'items' => ['type' => 'string']]],
+            ],
+            'required' => ['type', 'title', 'status', 'message', 'code'],
+        ];
+        $problem = ['application/problem+json' => ['schema' => ['$ref' => '#/components/schemas/Problem']]];
+
+        foreach ($spec['components']['responses'] ?? [] as $name => $response) {
+            $spec['components']['responses'][$name]['content'] = $problem;
+        }
+
+        $spec['components']['responses']['RateLimited'] = [
+            'description' => 'Too many requests',
+            'headers' => ['Retry-After' => ['schema' => ['type' => 'integer']]],
+            'content' => $problem,
+        ];
+        ksort($spec['components']['responses']);
+
+        foreach ($paths as $path => $methods) {
+            foreach (array_keys($methods) as $method) {
+                $paths[$path][$method]['responses']['429'] = ['$ref' => '#/components/responses/RateLimited'];
+            }
+        }
+
+        return [$spec, $paths];
+    }
+
+    /**
+     * Scramble copies code comments into schema and parameter descriptions:
+     * internal notes (requirement ids, implementation details), English
+     * only. They are left out; the public texts are the operations' own
+     * (api_reference.php, en and fr). Response descriptions stay (OpenAPI
+     * requires them).
+     *
+     * @param  array<mixed>  $node
+     * @return array<mixed>
+     */
+    private static function withoutCodeNotes(array $node, bool $map = false): array
+    {
+        // A map of names (`properties`, the schemas, the paths): its keys are names, never keywords.
+        if (! $map) {
+            $schemaLike = array_intersect(['type', '$ref', 'properties', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'in'], array_keys($node)) !== [];
+
+            if ($schemaLike && ! isset($node['operationId']) && ! isset($node['content'])) {
+                unset($node['description']);
+            }
+        }
+
+        foreach ($node as $key => $child) {
+            if (is_array($child) && $key !== 'x-i18n') {
+                $node[$key] = self::withoutCodeNotes($child, ! $map && in_array($key, ['properties', 'responses', 'headers'], true));
+            }
+        }
+
+        return $node;
     }
 
     /**

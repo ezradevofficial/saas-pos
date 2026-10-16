@@ -19,7 +19,10 @@ use Illuminate\Console\Command;
  */
 class ApiDocsCommand extends Command
 {
-    protected $signature = 'api:docs {--write : Write the generated document to the baseline} {--check : Fail on undocumented routes, removals without a deprecation and a stale baseline}';
+    protected $signature = 'api:docs
+        {--write : Write the generated document to the baseline}
+        {--check : Fail on undocumented routes, removals without a deprecation and a stale baseline}
+        {--baseline= : Another baseline file to compare with (tests)}';
 
     protected $description = 'Generate or check the public API\'s OpenAPI document (API-04).';
 
@@ -27,7 +30,7 @@ class ApiDocsCommand extends Command
     {
         $spec = $document->generate();
         $json = json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n";
-        $path = base_path(OpenApiDocument::BASELINE);
+        $path = is_string($this->option('baseline')) ? $this->option('baseline') : base_path(OpenApiDocument::BASELINE);
 
         if ($this->option('write')) {
             if (! is_dir(dirname($path))) {
