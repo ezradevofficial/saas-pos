@@ -7,6 +7,7 @@ use App\Core\Rbac\Http\Requests\CopyRoleRequest;
 use App\Core\Rbac\Http\Requests\ListRolesRequest;
 use App\Core\Rbac\Http\Requests\RoleActionRequest;
 use App\Core\Rbac\Http\Requests\StoreRoleRequest;
+use App\Core\Rbac\Http\Requests\UpdateRoleLimitsRequest;
 use App\Core\Rbac\Http\Requests\UpdateRoleRequest;
 use App\Core\Rbac\Http\Resources\RoleResource;
 use App\Core\Rbac\Models\Role;
@@ -47,19 +48,25 @@ class RoleController
     {
         abort_unless($request->user()->can('view', $role), 403);
 
-        return RoleResource::make($role->load('permissions'));
+        return RoleResource::make($role->load('permissions'))->withLimits();
     }
 
     public function update(UpdateRoleRequest $request, Role $role): RoleResource
     {
-        return RoleResource::make($this->manager->update($request->user(), $role, $request->validated())->load('permissions'));
+        return RoleResource::make($this->manager->update($request->user(), $role, $request->validated())->load('permissions'))->withLimits();
+    }
+
+    /** RBAC-06 (owner decision A): a custom role's limits; system roles are copied first. */
+    public function limits(UpdateRoleLimitsRequest $request, Role $role): RoleResource
+    {
+        return RoleResource::make($this->manager->updateLimits($request->user(), $role, $request->limits())->load('permissions'))->withLimits();
     }
 
     public function copy(CopyRoleRequest $request, Role $role): JsonResponse
     {
         $copy = $this->manager->copy($request->user(), $role, $request->validated('name'));
 
-        return RoleResource::make($copy->load('permissions'))->response()->setStatusCode(201);
+        return RoleResource::make($copy->load('permissions'))->withLimits()->response()->setStatusCode(201);
     }
 
     public function archive(RoleActionRequest $request, Role $role): RoleResource

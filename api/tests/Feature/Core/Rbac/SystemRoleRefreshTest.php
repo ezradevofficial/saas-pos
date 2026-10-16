@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Rbac;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\PermissionRegistry;
@@ -139,6 +140,41 @@ class SystemRoleRefreshTest extends TestCase
         $audits = $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.permissions_update')->count());
         Artisan::call('migrate', ['--database' => 'pgsql_owner', '--force' => true]);
         $this->assertSame($audits, $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.permissions_update')->count()));
+    }
+
+    public function test_quote_discount_limits_move_to_their_own_key_and_missing_template_limits_arrive_with_the_sync(): void
+    {
+        // RBAC-06, CRM-20 (owner decision A, 2026-10-16): a tenant provisioned before quotes had their own limit.
+        $tenant = $this->signUp('q@example.com', 'Quote Stores');
+        $this->asTenant($tenant, function () {
+            LimitRule::query()->get()->each->delete();
+            $rep = Role::where('template_key', 'sales_rep')->sole();
+            $rep->limitRules()->create(['key' => 'max_discount_percent', 'value' => '0']);
+            $desk = Role::create(['name' => 'Quote desk', 'guard_name' => 'web']);
+            $desk->setPermissions(['crm.quote.view', 'crm.quote.discount']);
+            $desk->limitRules()->create(['key' => 'max_discount_percent', 'value' => '15']);
+            $till = Role::create(['name' => 'Till lead', 'guard_name' => 'web']);
+            $till->setPermissions(['pos.sale.view']);
+            $till->limitRules()->create(['key' => 'max_discount_percent', 'value' => '5']);
+        });
+
+        DB::usingConnection('pgsql_owner', fn () => (require database_path('migrations/2026_11_27_000100_add_quote_discount_limit.php'))->up());
+        Artisan::call('permissions:sync');
+
+        $this->asTenant($tenant, function () {
+            $limits = fn (string $name) => Role::where('name', $name)->sole()->limits();
+
+            $this->assertSame(['max_quote_discount_percent' => '0'], Role::where('template_key', 'sales_rep')->sole()->limits());
+            $this->assertSame(['max_quote_discount_percent' => '10'], Role::where('template_key', 'branch_manager')->sole()->limits());
+            $this->assertSame(['max_discount_percent' => '15', 'max_quote_discount_percent' => '15'], $limits('Quote desk'));
+            $this->assertSame(['max_discount_percent' => '5'], $limits('Till lead'));
+            $this->assertSame(3, AuditEntry::where('action', 'rbac.role.limits_update')->count());
+        });
+
+        // Idempotent.
+        DB::usingConnection('pgsql_owner', fn () => (require database_path('migrations/2026_11_27_000100_add_quote_discount_limit.php'))->up());
+        Artisan::call('permissions:sync');
+        $this->assertSame(3, $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.limits_update')->count()));
     }
 
     /**

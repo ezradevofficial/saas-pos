@@ -21,7 +21,10 @@ class Limits
         private readonly ScopeResolver $resolver,
     ) {}
 
-    /** The user's `max_discount_percent` at the branch: null when none (no discount), `unlimited` for an Owner. */
+    /**
+     * The user's `max_quote_discount_percent` at the branch (the quote's own limit; the till's
+     * `max_discount_percent` is POS's, owner decision A): null when none (no discount), `unlimited` for an Owner.
+     */
     public function maxDiscount(User $user, string $branchId): ?string
     {
         $scope = Scope::branch($branchId);
@@ -30,7 +33,7 @@ class Limits
             return 'unlimited';
         }
 
-        return $this->limits->max($user, 'max_discount_percent', $scope);
+        return $this->limits->max($user, 'max_quote_discount_percent', $scope);
     }
 
     public function withinDiscount(User $user, string $branchId, BigDecimal $percent): bool

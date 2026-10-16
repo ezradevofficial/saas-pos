@@ -193,8 +193,11 @@ class RoleTemplatesTest extends TestCase
         foreach (['crm.scope.team', 'crm.scope.branch', 'crm.lead.assign', 'crm.opportunity.assign', 'crm.quote.approve', 'crm.quote.price', 'crm.target.manage', 'crm.settings.manage'] as $name) {
             $this->assertNotContains($name, $crm, $name);
         }
-        $this->assertSame([['max_discount_percent', 0.0]], LimitRule::where('role_id', $rep->id)->get()->map(fn (LimitRule $rule) => [$rule->key, (float) $rule->value])->all());
-        $this->assertSame(0, LimitRule::where('role_id', '!=', $rep->id)->count(), 'other templates seed no limits');
+        // Owner decision A (2026-10-16): quotes have their own limit; the till's max_discount_percent is not seeded.
+        $this->assertSame(['max_quote_discount_percent' => '0'], $rep->limits());
+        $manager = Role::where('template_key', 'branch_manager')->sole();
+        $this->assertSame(['max_quote_discount_percent' => '10'], $manager->limits(), 'a Branch Manager discounts quotes up to 10 % without approval');
+        $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id])->count(), 'other templates seed no limits');
     }
 
     public function test_templates_grant_party_permissions_by_job(): void

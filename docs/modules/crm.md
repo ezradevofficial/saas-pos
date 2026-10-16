@@ -73,7 +73,7 @@ Six parts:
 | CRM-17 | **Quotes.** A quote for a customer, optionally from an opportunity, at a branch: currency (the party's, else the company's base), price list (the party's in that currency, else the company's default in that currency), tax inclusive per the price list, quote date, valid until (date + validity days), terms, notes, lines, owner, team. Numbered at submission with `crm.quote` (`QT-{BRANCH}-{YYYY}-{00001}`, yearly, NUM-01). Audited; cancelled, never deleted. | Must |
 | CRM-18 | **Quote lines and maths (ADR 003).** A line names an item and unit (or a description), a quantity (decimal string, up to 6 places), a unit price and a discount percent (0 to 100, up to 2 places). For an item the price comes from the quote's price list (PriceResolver: quantity breaks, unit factors); a typed price other than the list price needs `crm.quote.price` (`price_override_not_allowed`); a line without a list price needs a typed price (`price_required`). gross = round_half_up(qty × unit price); discount = round_half_up(gross × percent ÷ 100); amount = gross − discount; tax on the amount from the core tax calculator, inclusive or exclusive (MD-03). Totals: subtotal = Σ gross, discount = Σ discount, tax = Σ tax, total = Σ line totals. All in minor units of the quote currency; never floats. | Must |
 | CRM-19 | **Tax from core, never invented.** An item line's tax code is the company's code for the item's tax category (ItemTaxStatus); a description line takes a tax code of the company (required). An item whose category has no code (`tax_category_missing`, `tax_code_missing`) is refused on the line. A code without a confirmed rate on the quote date is kept in a draft without tax and shown as "Rate needed"; submitting refuses it (`tax_rate_missing`, naming the code). | Must |
-| CRM-20 | **Discount limits (RBAC-06).** A line discount needs `crm.quote.discount` (`discount_not_allowed`). A discount above the saver's `max_discount_percent` at the quote's branch (no rule: 0 %) is saved but marks the quote `discount_over_limit`; submitting then routes it through the `crm.quote` flow whatever the threshold, with the reason `discount_above_limit`, so a manager approves it before it can be sent (owner decision A). The preview names the limit (`discount_needs_approval`). The Owner has no limit. Checked on every save by the person saving; an edit reads list prices again (date, currency or price list changed) for lines whose price was the list price. | Must |
+| CRM-20 | **Discount limits (RBAC-06).** A line discount needs `crm.quote.discount` (`discount_not_allowed`). A discount above the saver's `max_quote_discount_percent` at the quote's branch (no rule: 0 %; the till's `max_discount_percent` never counts, owner decision A 2026-10-16) is saved but marks the quote `discount_over_limit`; submitting then routes it through the `crm.quote` flow whatever the threshold, with the reason `discount_above_limit`, so a manager approves it before it can be sent (owner decision A). The preview names the limit (`discount_needs_approval`). The Owner has no limit. Checked on every save by the person saving; an edit reads list prices again (date, currency or price list changed) for lines whose price was the list price. | Must |
 | CRM-21 | **Quote approval (WF-01, APR-01..APR-07).** Submitting freezes the base amounts at the company's rate on the quote date (CUR-04), numbers the quote and starts the `crm.quote` flow. The default flow (WF-02) asks a Branch Manager at the branch (escalated to the Admins after two business days) when the base total is above the company's threshold or a discount is above the saver's limit (`needs_approval`, with `approval_reason` `amount_above_threshold` or `discount_above_limit`), else approves at once. Tenants may route on the totals, the largest discount, the customer, the branch and custom fields. The creator never approves their own quote (APR-07). Approved → `approved`; rejected → `rejected` (editable again as a new draft by copying). `QuoteApproved` is raised. | Must |
 | CRM-22 | **Quote output (TPL-01, TPL-04).** The PDF prints from the `sales.quote` template (CRM is its live data source): lines with discount and tax rate, totals, valid until, terms. Approved quotes can be emailed with the PDF (core DocumentEmails: queued, rate-limited, audited) and shared by a public link for WhatsApp (core DocumentShares: 7 days, revocable, opens audited). Sending marks the quote `sent` and logs an email activity as a system action (`crm.quote.send` alone suffices). | Must |
 | CRM-23 | **Acceptance.** A sent (or approved) quote is accepted or declined (with a reason) as the customer answered; an expired one (valid until passed) cannot be accepted (`quote_expired`). Accepting can win its opportunity in the same step. `QuoteAccepted` is raised. | Must |
@@ -98,7 +98,10 @@ Six parts:
    (2026-10-15): a **Sales Rep** system template works its own leads,
    opportunities, quotes and activities (no team or branch scope, no
    assigning, no approving), with quote discounts within a
-   `max_discount_percent` limit rule seeded at 0 % that the tenant edits.
+   `max_quote_discount_percent` limit rule seeded at 0 % (owner decision
+   A, 2026-10-16: quotes have their own limit, apart from the till's
+   `max_discount_percent`; a tenant raises it on a copy of the role,
+   RBAC-02).
    Sales managers use **Branch Manager** (`crm.scope.branch`). RBAC-03's
    list in the platform core spec does not name a sales rep: flagged for
    the spec.
@@ -186,7 +189,7 @@ Consumed: `WorkflowCompleted`, `WorkflowCancelled` (the quote's flow).
 | --- | --- |
 | `crm.lead.view`, `.create`, `.edit`, `.assign`, `.convert`, `.archive` | Read; capture; change (status, details); give to another owner or team; convert; disqualify, archive and restore |
 | `crm.opportunity.view`, `.create`, `.edit`, `.assign`, `.close`, `.archive` | Read; create; change and move stages; give to another owner or team; win, lose and reopen; archive and restore |
-| `crm.quote.view`, `.create`, `.discount`, `.price`, `.approve`, `.send`, `.convert`, `.cancel` | Read; draft, edit, submit, accept and decline; give line discounts (within `max_discount_percent`); change a list price; act on the quote flow (WF-08); PDF, email and share; convert; cancel |
+| `crm.quote.view`, `.create`, `.discount`, `.price`, `.approve`, `.send`, `.convert`, `.cancel` | Read; draft, edit, submit, accept and decline; give line discounts (within `max_quote_discount_percent`); change a list price; act on the quote flow (WF-08); PDF, email and share; convert; cancel |
 | `crm.activity.view`, `.manage` | Read; create, change, complete and cancel activities, send and log emails |
 | `crm.target.view`, `.manage` | Read targets; set them |
 | `crm.settings.manage` | Settings, pipelines, stages, options, teams, assignment rules, lead forms |
@@ -199,7 +202,8 @@ manager's role); **Sales Rep** `crm.lead.view|create|edit|convert|archive`,
 `crm.opportunity.view|create|edit|close`,
 `crm.quote.view|create|discount|send|cancel`, `crm.activity.*`,
 `crm.target.view`, the core reads a quote needs and customer create, with
-a 0 % `max_discount_percent` limit rule (decision 1); **Accountant**
+a 0 % `max_quote_discount_percent` limit rule (decision 1; the Branch
+Manager's is 10 %, decision 15); **Accountant**
 `crm.quote.view`, `crm.quote.convert`, `crm.scope.branch`; **Read-only
 Auditor** `crm.*.view` and `crm.scope.branch`.
 
@@ -261,7 +265,7 @@ value and my targets. Tokens only; en and fr.
    decimals, CDF with none), inclusive and exclusive, with discounts; an
    item whose tax rate is "Rate needed" saves as a draft and refuses to
    submit (`tax_rate_missing`).
-3. A discount above the user's `max_discount_percent` (0 % without a
+3. A discount above the user's `max_quote_discount_percent` (0 % without a
    rule) is saved and the quote waits for a manager's approval before it
    can be sent; the Owner is not limited.
 4. A quote above the threshold waits for a Branch Manager; below it is
@@ -315,6 +319,21 @@ SQL, paged and batched; the quote's send activity as a system action
     logged as a done email activity.
 14. **The public lead form's token hash is never exported** (EXP-02,
     `ExportColumns::DENIED`).
+15. **Quote discount limits are their own and editable** (owner decision
+    A, 2026-10-16, RBAC-06). Quotes read `max_quote_discount_percent`; the
+    till keeps `max_discount_percent`, so one role may discount at the till
+    and on quotes by different amounts. Defaults: Sales Rep 0 %, Branch
+    Manager 10 % (so a manager's own discounted quotes do not all
+    escalate; a default the owner may change). The Owner and Admin edit
+    every limit (till and quote discount, refund, approval amount) of a
+    custom role in Settings, Roles (`PUT roles/{role}/limits`, audited as
+    `rbac.role.limits_update`); system roles show theirs read-only and are
+    copied to change them (RBAC-02, RBAC-03). An actor who is not an Owner
+    raises a limit only up to their own at tenant scope
+    (`cannot_grant_limit`). Existing tenants keep what they had: roles
+    with `crm.quote.discount` and a till limit got a quote limit of the
+    same value, and template limits a system role lacks arrive with
+    `permissions:sync`.
 
 ## Deferred
 

@@ -313,6 +313,7 @@
     "codes": {
       "last_owner": "Votre organisation doit garder au moins un propriétaire actif. Donnez d’abord le rôle Propriétaire à quelqu’un d’autre.",
       "cannot_grant": "Vous ne pouvez donner que des rôles dont vous détenez les autorisations, là où vous gérez les accès. Seul un propriétaire peut donner ou retirer le rôle Propriétaire.",
+      "cannot_grant_limit": "Vous ne pouvez relever une limite que jusqu’à la vôtre. Demandez à un propriétaire de fixer une limite plus élevée.",
       "invitation_stale": "Cette invitation ne correspond plus à la configuration de l’organisation. Demandez à votre administrateur de vous en envoyer une nouvelle.",
       "contact_unverified": "Cette personne n’a jamais vérifié d’e-mail ni de numéro de téléphone : elle ne peut pas être réactivée. Invitez-la de nouveau.",
       "system_role": "Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.",
@@ -1047,7 +1048,27 @@
       "custom": "Personnalisé"
     },
     "searchPlaceholder": "Nom ou description",
-    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
+    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots.",
+    "limits": {
+      "title": "Limites",
+      "subtitle": "Laissez une limite vide pour n’en fixer aucune. Au-delà d’une limite, une personne ayant une limite plus élevée approuve ou autorise.",
+      "saved": "Limites enregistrées.",
+      "save": "Enregistrer les limites",
+      "none": "Aucune limite",
+      "noneSet": "Ce rôle n’a aucune limite.",
+      "fields": {
+        "max_discount_percent": "Remise en caisse",
+        "max_quote_discount_percent": "Remise sur devis",
+        "max_refund_amount": "Montant de remboursement",
+        "max_approval_amount": "Montant d’approbation"
+      },
+      "help": {
+        "max_discount_percent": "Plus forte remise de ligne en caisse.",
+        "max_quote_discount_percent": "Plus forte remise de ligne sur un devis avant qu’il ne demande une approbation.",
+        "max_refund_amount": "Plus fort remboursement, dans la devise de base de l’entreprise.",
+        "max_approval_amount": "Plus fort montant que ce rôle approuve, dans la devise de base de l’entreprise."
+      }
+    }
   },
   "security": {
     "title": "Sécurité",

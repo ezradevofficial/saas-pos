@@ -95,13 +95,18 @@ return [
             'crm.*',
         ],
         'except' => ['crm.settings.manage'],
+        // RBAC-06, CRM-20 (owner decision A, 2026-10-16, a default the owner may change): a Branch Manager
+        // discounts quotes up to 10 % without approval, so their own discounted quotes do not all escalate.
+        // The till discount keeps no default (no rule: discounts need a manager's override, POS-07).
+        'limits' => ['max_quote_discount_percent' => '10'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
     [
         // Owner decision B (2026-10-15, docs/modules/crm.md): a sales rep works their own leads, opportunities,
         // quotes and activities (no team or branch scope, CRM-08). Quote discounts stay within the role's
-        // max_discount_percent, seeded at 0 % for the tenant to raise; above it the quote goes for approval.
+        // max_quote_discount_percent, seeded at 0 % (tenants raise it on a copy of the role, RBAC-02); above it
+        // the quote goes for approval.
         // Sales managers use the Branch Manager role (crm.scope.branch).
         'key' => 'sales_rep',
         'permissions' => [
@@ -112,7 +117,7 @@ return [
             'crm.quote.view', 'crm.quote.create', 'crm.quote.discount', 'crm.quote.send', 'crm.quote.cancel',
             'crm.activity.view', 'crm.activity.manage', 'crm.target.view',
         ],
-        'limits' => ['max_discount_percent' => '0'],
+        'limits' => ['max_quote_discount_percent' => '0'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

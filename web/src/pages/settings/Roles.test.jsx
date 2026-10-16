@@ -4,7 +4,7 @@ import { apiError, mockApi, renderApp, resetSession, signedIn } from '@/test/ren
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), download: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), download: vi.fn() },
 }))
 
 const tenant = (names) => names.map((name) => ({ name, scopes: [{ type: 'tenant', id: 't-1' }] }))
@@ -19,6 +19,7 @@ const CASHIER = {
   requires_two_factor: false,
   archived_at: null,
   permissions: ['core.device.view', 'core.location.view'],
+  limits: { max_quote_discount_percent: '10' },
 }
 const SUPERVISOR = {
   id: 'r-sup',
@@ -29,6 +30,7 @@ const SUPERVISOR = {
   requires_two_factor: true,
   archived_at: null,
   permissions: ['core.location.view'],
+  limits: { max_discount_percent: '5', max_refund_amount: '20000' },
 }
 const action = (resource, name, label) => ({ action: name, name: `core.${resource}.${name}`, label })
 const CATALOGUE = {
@@ -164,6 +166,53 @@ describe('Roles', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: 'POS devices: Pair' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('You can only give roles whose permissions you hold')
+  })
+
+  it('shows a system role’s limits read-only (RBAC-06)', async () => {
+    roles()
+    renderApp('/settings/roles/r-cashier')
+
+    const limits = (await screen.findByRole('heading', { name: 'Limits' })).closest('section') ?? document.body
+    expect(within(limits).getByLabelText(/Quote discount/)).toHaveValue('10')
+    expect(within(limits).getByLabelText(/Quote discount/)).toBeDisabled()
+    expect(within(limits).getByLabelText(/Till discount/)).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Save limits' })).not.toBeInTheDocument()
+  })
+
+  it('edits a custom role’s limits; an empty field clears one (RBAC-06, owner decision A)', async () => {
+    roles()
+    api.put.mockResolvedValue({ data: { ...SUPERVISOR, limits: { max_discount_percent: '12.5', max_quote_discount_percent: '3' } } })
+    renderApp('/settings/roles/r-sup')
+
+    const till = await screen.findByLabelText(/Till discount/)
+    expect(till).toHaveValue('5')
+    expect(screen.getByLabelText(/Refund amount/)).toHaveValue('20000')
+    fireEvent.change(till, { target: { value: '12.5' } })
+    fireEvent.change(screen.getByLabelText(/Quote discount/), { target: { value: ' 3 ' } })
+    fireEvent.change(screen.getByLabelText(/Refund amount/), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('roles/r-sup/limits', {
+        limits: { max_discount_percent: '12.5', max_quote_discount_percent: '3', max_refund_amount: null, max_approval_amount: null },
+      }),
+    )
+    expect(await screen.findByText('Limits saved.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Refund amount/)).toHaveValue('')
+  })
+
+  it('shows a limit’s error under its field and cannot_grant_limit as a sentence', async () => {
+    roles()
+    api.put.mockRejectedValueOnce(apiError(422, 'validation_failed', 'Invalid.', { 'limits.max_discount_percent': ['The till discount may not be greater than 100.'] }))
+    renderApp('/settings/roles/r-sup')
+
+    fireEvent.change(await screen.findByLabelText(/Till discount/), { target: { value: '120' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByText('The till discount may not be greater than 100.')).toBeInTheDocument()
+
+    api.put.mockRejectedValueOnce(apiError(403, 'cannot_grant_limit', 'x'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('You can only raise a limit up to your own')
   })
 
   it('archives a custom role after confirming', async () => {

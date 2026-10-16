@@ -8,6 +8,7 @@ use App\Core\Http\ApiException;
 use App\Core\Rbac\Policies\RolePolicy;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,7 +27,9 @@ use Spatie\Permission\Models\Role as SpatieRole;
  *
  * Permission changes go through setPermissions(), which records
  * `rbac.role.permissions_update` with the sorted names before and after
- * (Spatie writes role_has_permissions without model events).
+ * (Spatie writes role_has_permissions without model events). Limit
+ * changes go through setLimits(), which records `rbac.role.limits_update`
+ * (RBAC-06, RBAC-12).
  */
 #[UsePolicy(RolePolicy::class)]
 class Role extends SpatieRole
@@ -133,5 +136,52 @@ class Role extends SpatieRole
     public function limitRules(): HasMany
     {
         return $this->hasMany(LimitRule::class);
+    }
+
+    /**
+     * RBAC-06: the role's limits by key, sorted, as plain decimal strings
+     * (no trailing zeros: `10`, `12.5`).
+     *
+     * @return array<string, string>
+     */
+    public function limits(): array
+    {
+        return $this->limitRules()->get()
+            ->mapWithKeys(fn (LimitRule $rule) => [$rule->key => (string) BigDecimal::of($rule->value)->strippedOfTrailingZeros()])
+            ->sortKeys()->all();
+    }
+
+    /**
+     * RBAC-06, RBAC-12: set the limits named in $limits (a null value
+     * removes one; keys left out stay) and audit the change once, on the
+     * role, with every limit before and after. Callers check who may.
+     *
+     * @param  array<string, string|int|null>  $limits
+     */
+    public function setLimits(array $limits): static
+    {
+        return $this->getConnection()->transaction(function () use ($limits) {
+            $before = $this->limits();
+
+            foreach ($limits as $key => $value) {
+                $rule = $this->limitRules()->where('key', $key)->first();
+
+                if ($value === null) {
+                    $rule?->delete();
+                } elseif ($rule === null) {
+                    $this->limitRules()->create(['key' => $key, 'value' => (string) $value]);
+                } elseif (! BigDecimal::of($rule->value)->isEqualTo((string) $value)) {
+                    $rule->update(['value' => (string) $value]);
+                }
+            }
+
+            $after = $this->limits();
+
+            if ($before !== $after) {
+                app(Auditor::class)->record('rbac.role.limits_update', $this, ['limits' => $before], ['limits' => $after]);
+            }
+
+            return $this;
+        });
     }
 }

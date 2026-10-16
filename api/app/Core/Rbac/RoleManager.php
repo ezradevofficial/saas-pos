@@ -2,12 +2,14 @@
 
 namespace App\Core\Rbac;
 
+use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\TwoFactor;
 use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\TenantContext;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +27,8 @@ class RoleManager
         private readonly RoleTemplates $templates,
         private readonly TwoFactor $twoFactor,
         private readonly ModuleRegistry $modules,
+        private readonly LimitRules $limits,
+        private readonly ScopeResolver $resolver,
     ) {}
 
     /** @param array{name: string, description?: ?string, requires_two_factor?: bool, permissions?: list<string>} $data */
@@ -82,6 +86,36 @@ class RoleManager
 
             return $role;
         }));
+    }
+
+    /**
+     * RBAC-06 (owner decision A, 2026-10-16): set a custom role's limits
+     * (403 `system_role` for system roles, RBAC-02; copy them instead). A
+     * null value removes a limit. No escalation: an actor who is not an
+     * Owner at tenant scope may lower or remove any limit, but may raise one
+     * only up to their own limit at tenant scope (403 `cannot_grant_limit`).
+     * Audited once on the role (RBAC-12).
+     *
+     * @param  array<string, string|null>  $limits
+     */
+    public function updateLimits(User $actor, Role $role, array $limits): Role
+    {
+        $role->assertEditable();
+
+        if (! $this->isTenantOwner($actor)) {
+            $current = $role->limits();
+
+            foreach ($limits as $key => $value) {
+                $raised = $value !== null && (! isset($current[$key]) || BigDecimal::of($value)->isGreaterThan($current[$key]));
+                $own = $raised ? $this->limits->max($actor, $key, Scope::tenant()) : null;
+
+                if ($raised && ($own === null || BigDecimal::of($value)->isGreaterThan($own))) {
+                    throw new ApiException(403, 'cannot_grant_limit', __('rbac.errors.cannot_grant_limit'));
+                }
+            }
+        }
+
+        return $role->setLimits($limits);
     }
 
     /** An editable copy of $role; $actor must hold its permissions (no escalation). */
@@ -162,6 +196,13 @@ class RoleManager
             $this->owners->assertAssignmentRemovable($assignment);
             $assignment->delete();
         });
+    }
+
+    private function isTenantOwner(User $actor): bool
+    {
+        $roles = $this->resolver->roleIds($actor, Scope::tenant());
+
+        return $roles !== [] && Role::query()->whereKey($roles)->where('is_owner', true)->exists();
     }
 
     /**

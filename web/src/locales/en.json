@@ -313,6 +313,7 @@
     "codes": {
       "last_owner": "Your organisation needs at least one active Owner. Give the Owner role to someone else first.",
       "cannot_grant": "You can only give roles whose permissions you hold, where you manage access. Only an Owner can give or remove the Owner role.",
+      "cannot_grant_limit": "You can only raise a limit up to your own. Ask an Owner to set a higher limit.",
       "invitation_stale": "This invitation no longer matches your organisation’s setup. Ask your administrator to send a new one.",
       "contact_unverified": "This person never verified an email or phone number, so they can’t be reactivated. Invite them again instead.",
       "system_role": "System roles can’t be changed. Copy the role to customise it.",
@@ -1047,7 +1048,27 @@
       "custom": "Custom"
     },
     "searchPlaceholder": "Name or description",
-    "emptyFiltered": "No role matches this search. Try other words."
+    "emptyFiltered": "No role matches this search. Try other words.",
+    "limits": {
+      "title": "Limits",
+      "subtitle": "Leave a limit empty for none. Above a limit, someone with a higher one approves or overrides.",
+      "saved": "Limits saved.",
+      "save": "Save limits",
+      "none": "No limit set",
+      "noneSet": "This role has no limits.",
+      "fields": {
+        "max_discount_percent": "Till discount",
+        "max_quote_discount_percent": "Quote discount",
+        "max_refund_amount": "Refund amount",
+        "max_approval_amount": "Approval amount"
+      },
+      "help": {
+        "max_discount_percent": "Largest line discount at the till.",
+        "max_quote_discount_percent": "Largest line discount on a quote before it needs approval.",
+        "max_refund_amount": "Largest refund, in the company’s base currency.",
+        "max_approval_amount": "Largest amount this role approves, in the company’s base currency."
+      }
+    }
   },
   "security": {
     "title": "Security",

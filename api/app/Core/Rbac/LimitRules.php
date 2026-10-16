@@ -13,7 +13,16 @@ use InvalidArgumentException;
  */
 class LimitRules
 {
-    public const KEYS = ['max_discount_percent', 'max_refund_amount', 'max_approval_amount', 'credit_limit_override'];
+    /**
+     * `max_discount_percent` is the till's (POS); `max_quote_discount_percent`
+     * is CRM's quote discount (owner decision A, 2026-10-16): one role may
+     * discount at the till and on quotes by different amounts. Amounts are in
+     * the base currency of the company where they are used (CUR-04).
+     */
+    public const KEYS = ['max_discount_percent', 'max_quote_discount_percent', 'max_refund_amount', 'max_approval_amount', 'credit_limit_override'];
+
+    /** Limits that are percentages (0 to 100); the others are amounts. */
+    public const PERCENT_KEYS = ['max_discount_percent', 'max_quote_discount_percent'];
 
     public function __construct(private readonly ScopeResolver $resolver) {}
 
