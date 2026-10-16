@@ -3,12 +3,12 @@
 namespace Modules\Ecommerce\WhatsApp;
 
 use Illuminate\Contracts\Container\Container;
-use RuntimeException;
 
 /**
  * ECOM-24: the configured WhatsApp driver (`ecommerce.whatsapp.driver`).
  * A real provider registers its class here; `fake` is refused outside
- * local work and tests (NFR-06), and no driver means WhatsApp is off.
+ * local work and tests (NFR-06), and no driver (or a refused one) means
+ * WhatsApp is off: the webhook answers 401.
  */
 final class WhatsAppProviders
 {
@@ -31,8 +31,10 @@ final class WhatsAppProviders
             return null;
         }
 
-        if ($name === 'fake' && ! config('ecommerce.whatsapp.allow_fake')) {
-            throw new RuntimeException('The fake WhatsApp driver is only available in local and testing.');
+        // NFR-06: the fake driver accepts messages nobody sent: only in local and testing (a hard
+        // check of the environment, whatever the switch says), and refused like any unverified call.
+        if ($name === 'fake' && (! app()->environment(['local', 'testing']) || ! config('ecommerce.whatsapp.allow_fake'))) {
+            return null;
         }
 
         return $this->container->make($this->drivers[$name]);

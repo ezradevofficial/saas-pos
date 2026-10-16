@@ -31,6 +31,8 @@ final class Cashups
     {
         return Delivery::query()->whereIn('rider_id', $riderIds)->where('status', Delivery::DELIVERED)
             ->whereNotNull('cod_collected_minor')->where('cod_due_minor', '>', 0)->whereNull('cashup_id')
+            // Decision 11: only cash the rider took (staff-confirmed cash is the staff member's).
+            ->whereExists(fn ($q) => $q->selectRaw('1')->from('ecom_riders')->whereColumn('ecom_riders.id', 'ecom_deliveries.rider_id')->whereColumn('ecom_riders.user_id', 'ecom_deliveries.collected_by'))
             ->groupBy('rider_id', 'currency')->orderBy('rider_id')->orderBy('currency')
             ->selectRaw('rider_id, currency, count(*) as deliveries, sum(cod_due_minor) as expected')->get()
             ->map(fn ($row) => ['rider_id' => $row->rider_id, 'currency' => $row->currency, 'deliveries' => (int) $row->deliveries, 'expected_minor' => (string) $row->expected])
@@ -42,7 +44,7 @@ final class Cashups
         return Tx::run(function () use ($rider, $currency, $counted, $note, $by) {
             Rider::query()->whereKey($rider->id)->lockForUpdate()->firstOrFail();
             $deliveries = Delivery::query()->where('rider_id', $rider->id)->where('status', Delivery::DELIVERED)->where('currency', $currency)
-                ->whereNotNull('cod_collected_minor')->where('cod_due_minor', '>', 0)->whereNull('cashup_id')->lockForUpdate()->get();
+                ->whereNotNull('cod_collected_minor')->where('cod_due_minor', '>', 0)->whereNull('cashup_id')->where('collected_by', $rider->user_id)->lockForUpdate()->get();
 
             if ($deliveries->isEmpty()) {
                 throw EcomError::make('cashup_nothing_pending');

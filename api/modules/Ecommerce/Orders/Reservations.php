@@ -2,9 +2,13 @@
 
 namespace Modules\Ecommerce\Orders;
 
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
+use Modules\Ecommerce\Catalogue\Availability;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\Reservation;
+use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Support\Tx;
 
 /**
@@ -44,6 +48,48 @@ final class Reservations
                 'expires_at' => $expiresAt,
             ]);
         }
+    }
+
+    /**
+     * ECOM-14: whether an order whose reservation lapsed can still have its
+     * stock: under the location and item locks, what is free (on hand −
+     * other active reservations − buffer) covers each tracked line.
+     */
+    public function stillAvailable(Order $order): bool
+    {
+        $reservations = Reservation::query()->where('order_id', $order->id)->whereNull('released_at')->whereNull('consumed_at')->get();
+
+        if ($reservations->isEmpty()) {
+            return true;
+        }
+
+        $this->lock($order->location_id, $reservations->pluck('item_id')->all());
+        $store = Store::query()->findOrFail($order->store_id);
+        $products = Product::query()->where('store_id', $store->id)->whereIn('item_id', $reservations->pluck('item_id'))->with('item')->get();
+        $available = app(Availability::class)->of($store, $products);
+
+        foreach ($reservations->groupBy('item_id') as $itemId => $rows) {
+            $product = $products->firstWhere('item_id', $itemId);
+            $free = $product === null ? null : $available[$product->id];
+
+            if ($free !== null && $free['tracked'] && BigDecimal::of((string) $free['available'])->isLessThan(self::sum($rows))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @param iterable<Reservation> $rows */
+    private static function sum(iterable $rows): BigDecimal
+    {
+        $total = BigDecimal::zero();
+
+        foreach ($rows as $row) {
+            $total = $total->plus((string) $row->qty_base);
+        }
+
+        return $total;
     }
 
     /** A paid or cash on delivery order holds its stock until hand-over. */

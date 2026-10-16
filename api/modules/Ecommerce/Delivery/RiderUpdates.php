@@ -23,8 +23,9 @@ use Modules\Ecommerce\Support\Tx;
  * - `picked_up` (assigned): the order goes out for delivery (hand-over,
  *   OrderFlow::dispatch), the customer gets the delivery code.
  * - `delivered` (picked up): proof by the customer's delivery code
- *   (checked here, never on the phone; 5 wrong codes lock the delivery for
- *   staff) or a photo uploaded first; cash collected for a COD order
+ *   (checked here, never on the phone; wrong codes are counted under the
+ *   delivery's row lock and 5 lock it: then no delivered update is taken,
+ *   a photo neither, and staff confirm it) or a photo uploaded first; cash collected for a COD order
  *   (the amount due unless the rider says otherwise; a difference is
  *   flagged on the delivery).
  * - `failed`: before pick-up the delivery goes back to unassigned; after
@@ -81,7 +82,8 @@ final class RiderUpdates
         $error = null;
 
         try {
-            Tx::run(function () use ($update, $delivery, $user, $at) {
+            // A wrong code is a refusal that commits (its attempt counts), so it is returned, not thrown.
+            $error = Tx::run(function () use ($update, $delivery, $user, $at) {
                 $delivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
 
                 if ($update['kind'] === 'location') {
@@ -89,10 +91,10 @@ final class RiderUpdates
                         $delivery->forceFill(['last_latitude' => $update['latitude'], 'last_longitude' => $update['longitude'], 'located_at' => $at])->save();
                     }
 
-                    return;
+                    return null;
                 }
 
-                $this->status($delivery, $update, $user, $at);
+                return $this->status($delivery, $update, $user, $at);
             });
         } catch (ApiException $e) {
             $error = $e->errorCode;
@@ -122,15 +124,18 @@ final class RiderUpdates
         return $error === null ? ['id' => $id, 'status' => 'stored'] : self::rejected($id, $error);
     }
 
-    /** @param array<string, mixed> $update */
-    private function status(Delivery $delivery, array $update, User $user, CarbonImmutable $at): void
+    /**
+     * @param  array<string, mixed>  $update
+     * @return ?string a refusal that keeps what was counted (`code_invalid`)
+     */
+    private function status(Delivery $delivery, array $update, User $user, CarbonImmutable $at): ?string
     {
         $order = Order::query()->findOrFail($delivery->order_id);
 
         switch ($update['status']) {
             case 'picked_up':
                 if ($delivery->status === Delivery::PICKED_UP) {
-                    return;
+                    return null;
                 }
 
                 if ($delivery->status !== Delivery::ASSIGNED) {
@@ -139,28 +144,30 @@ final class RiderUpdates
 
                 $this->flow->dispatch($order, $user, $at);
 
-                return;
+                return null;
 
             case 'delivered':
                 if ($delivery->status === Delivery::DELIVERED) {
-                    return;
+                    return null;
                 }
 
                 if ($delivery->status !== Delivery::PICKED_UP) {
                     throw EcomError::make('delivery_status_invalid', status: 409);
                 }
 
+                // Locked after five wrong codes: no delivered update at all, a photo neither (staff confirm it).
+                if ($delivery->code_locked) {
+                    throw EcomError::make('code_locked');
+                }
+
                 $code = isset($update['code']) ? (string) $update['code'] : null;
 
                 if ($code !== null) {
-                    $attempts = DeliveryUpdate::query()->where('delivery_id', $delivery->id)->where('error', 'code_invalid')->count();
-
-                    if ($attempts >= self::MAX_CODE_ATTEMPTS) {
-                        throw EcomError::make('code_locked');
-                    }
-
                     if (! hash_equals((string) $order->delivery_code_hash, OrderFlow::codeHash($order->id, $code))) {
-                        throw EcomError::make('code_invalid');
+                        $attempts = $delivery->code_attempts + 1;
+                        $delivery->forceFill(['code_attempts' => $attempts, 'code_locked' => $attempts >= self::MAX_CODE_ATTEMPTS])->save();
+
+                        return 'code_invalid';
                     }
 
                     $delivery->proof_kind = 'code';
@@ -171,7 +178,7 @@ final class RiderUpdates
                 $delivery->forceFill(['status' => Delivery::DELIVERED, 'delivered_at' => $at])->save();
                 $this->flow->deliver($order, $user, $at, isset($update['collected_minor']) ? (int) $update['collected_minor'] : null);
 
-                return;
+                return null;
 
             case 'failed':
                 $reason = trim((string) ($update['note'] ?? '')) ?: __('ecommerce.deliveries.failed_default');
@@ -179,7 +186,7 @@ final class RiderUpdates
                 if ($delivery->status === Delivery::ASSIGNED) {
                     $delivery->forceFill(['status' => Delivery::UNASSIGNED, 'rider_id' => null, 'assigned_at' => null, 'reason' => mb_substr($reason, 0, 500)])->save();
 
-                    return;
+                    return null;
                 }
 
                 if ($delivery->status !== Delivery::PICKED_UP) {
@@ -188,8 +195,10 @@ final class RiderUpdates
 
                 $this->flow->return($order, $user, $reason);
 
-                return;
+                return null;
         }
+
+        return null;
     }
 
     private static function rejected(string $id, string $code): array

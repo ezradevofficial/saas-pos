@@ -55,6 +55,9 @@ class EcommerceServiceProvider extends ServiceProvider
 
     public const WHATSAPP_LIMITER = 'ecommerce-whatsapp';
 
+    /** ECOM-08: sign-in code checks, apart from code requests. */
+    public const VERIFY_LIMITER = 'ecommerce-verify';
+
     /** RBAC-01: the module's permission catalogue (`ecommerce.resource.action`). */
     public const PERMISSIONS = [
         'store' => ['view', 'manage'],
@@ -124,7 +127,12 @@ class EcommerceServiceProvider extends ServiceProvider
         RateLimiter::for(self::SHOP_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.per_ip_per_minute', 120))->by(self::SHOP_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::CHECKOUT_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.checkout_per_ip_per_minute', 10))->by(self::CHECKOUT_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::CODES_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.codes_per_ip_per_minute', 10))->by(self::CODES_LIMITER.'|'.$request->ip()));
-        RateLimiter::for(self::WHATSAPP_LIMITER, fn (Request $request) => Limit::perMinute($config('whatsapp.per_minute', 120))->by(self::WHATSAPP_LIMITER.'|'.hash('sha256', (string) $request->route('token'))));
+        RateLimiter::for(self::VERIFY_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.verify_per_ip_per_minute', 10))->by(self::VERIFY_LIMITER.'|'.$request->ip()));
+        // ECOM-24: per store token, and per calling address (unknown tokens included).
+        RateLimiter::for(self::WHATSAPP_LIMITER, fn (Request $request) => [
+            Limit::perMinute($config('whatsapp.per_minute', 120))->by(self::WHATSAPP_LIMITER.'|'.hash('sha256', (string) $request->route('token'))),
+            Limit::perMinute($config('whatsapp.per_ip_per_minute', 300))->by(self::WHATSAPP_LIMITER.'|ip|'.$request->ip()),
+        ]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([ExpireCommand::class]);

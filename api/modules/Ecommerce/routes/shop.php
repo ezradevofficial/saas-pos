@@ -32,7 +32,7 @@ Route::middleware([ShopSecurityHeaders::class, 'throttle:'.EcommerceServiceProvi
         Route::post('orders/{number}/pay', [ShopController::class, 'pay'])->where('number', '[A-Za-z0-9-]{1,80}')->middleware('throttle:'.EcommerceServiceProvider::CHECKOUT_LIMITER);
         Route::post('orders/{number}/check', [ShopController::class, 'check'])->where('number', '[A-Za-z0-9-]{1,80}');
         Route::post('auth/code', [ShopAuthController::class, 'code'])->middleware('throttle:'.EcommerceServiceProvider::CODES_LIMITER);
-        Route::post('auth/verify', [ShopAuthController::class, 'verify'])->middleware('throttle:'.EcommerceServiceProvider::CODES_LIMITER);
+        Route::post('auth/verify', [ShopAuthController::class, 'verify'])->middleware('throttle:'.EcommerceServiceProvider::VERIFY_LIMITER);
         Route::post('auth/sign-out', [ShopAuthController::class, 'signOut']);
         Route::get('account', [ShopAuthController::class, 'account']);
     });

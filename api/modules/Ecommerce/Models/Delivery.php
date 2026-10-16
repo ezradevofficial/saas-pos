@@ -13,7 +13,7 @@ class Delivery extends EcomModel
 
     protected function casts(): array
     {
-        return ['flags' => 'array', 'assigned_at' => 'immutable_datetime', 'picked_up_at' => 'immutable_datetime', 'delivered_at' => 'immutable_datetime', 'failed_at' => 'immutable_datetime', 'located_at' => 'immutable_datetime', 'collected_at' => 'immutable_datetime', 'cod_due_minor' => 'integer', 'cod_collected_minor' => 'integer'];
+        return ['flags' => 'array', 'assigned_at' => 'immutable_datetime', 'picked_up_at' => 'immutable_datetime', 'delivered_at' => 'immutable_datetime', 'failed_at' => 'immutable_datetime', 'located_at' => 'immutable_datetime', 'collected_at' => 'immutable_datetime', 'cod_due_minor' => 'integer', 'cod_collected_minor' => 'integer', 'code_attempts' => 'integer', 'code_locked' => 'boolean'];
     }
 
     public const UNASSIGNED = 'unassigned';

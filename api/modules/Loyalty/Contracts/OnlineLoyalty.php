@@ -73,12 +73,39 @@ final class OnlineLoyalty
         return $coupon !== null && ($coupon->max_uses === null || $coupon->uses < $coupon->max_uses);
     }
 
-    /** LOY-09: count one use of each code an order applied. */
+    /**
+     * LOY-09: count one use of each code an order applied, atomically (one
+     * `update … where uses < max_uses`): a code another order used up in
+     * the meantime updates no row and the order is refused.
+     *
+     * @throws ApiException coupon_used_up
+     */
     public function useCoupons(string $companyId, array $codes): void
     {
-        foreach (array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), $codes)) as $code) {
-            Coupon::query()->where('company_id', $companyId)->where('code', $code)->increment('uses');
+        foreach (self::codes($codes) as $code) {
+            $updated = Coupon::query()->where('company_id', $companyId)->where('code', $code)->whereNull('archived_at')
+                ->where(fn ($q) => $q->whereNull('max_uses')->orWhereColumn('uses', '<', 'max_uses'))
+                ->update(['uses' => DB::raw('uses + 1'), 'updated_at' => now()]);
+
+            if ($updated === 0) {
+                throw self::refusal('coupon_used_up');
+            }
         }
+    }
+
+    /** LOY-09: an order cancelled or expired gives its coupon uses back (never below zero). */
+    public function releaseCoupons(string $companyId, array $codes): void
+    {
+        foreach (self::codes($codes) as $code) {
+            Coupon::query()->where('company_id', $companyId)->where('code', $code)->where('uses', '>', 0)
+                ->update(['uses' => DB::raw('uses - 1'), 'updated_at' => now()]);
+        }
+    }
+
+    /** @return list<string> */
+    private static function codes(array $codes): array
+    {
+        return array_values(array_unique(array_map(fn ($code) => PromotionEngine::normaliseCode((string) $code), $codes)));
     }
 
     /**

@@ -15,8 +15,9 @@ use Modules\Ecommerce\Orders\OrderFlow;
  * ECOM-14: unpaid online orders whose reservation time has passed are
  * cancelled (`payment_timeout`) and their stock released. The tenants come
  * from a security-definer function (ADR 002), each handled in its own
- * context under row-level security. A payment that still arrives later is
- * marked for refund (OrderPayments).
+ * context under row-level security. The payment status is read again
+ * under the order's lock (an order paid meanwhile stays). A payment that
+ * still arrives later is marked for refund (OrderPayments).
  */
 class ExpireCommand extends Command
 {
@@ -40,7 +41,7 @@ class ExpireCommand extends Command
 
                 foreach ($orders as $order) {
                     rescue(function () use ($flow, $order, &$count) {
-                        $flow->cancel($order, null, __('ecommerce.orders.payment_timeout'));
+                        $flow->cancel($order, null, __('ecommerce.orders.payment_timeout'), unpaidOnly: true);
                         $count++;
                     }, report: true);
                 }

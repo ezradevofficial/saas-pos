@@ -125,11 +125,11 @@ class OrderController
     public function refund(OrderActionRequest $request, Order $ecomOrder): JsonResponse
     {
         return $this->act($request, $ecomOrder, 'ecommerce.order.refund', function () use ($request, $ecomOrder) {
-            if ($ecomOrder->payment_status !== 'refund_due') {
+            if (! OrderPayments::refundDue($ecomOrder)) {
                 throw EcomError::make('refund_not_due', status: 409);
             }
 
-            $this->payments->refund($ecomOrder, $request->user()->id, $request->validated('reference'));
+            $this->payments->refund($ecomOrder, $request->user(), $request->validated('reference'));
 
             return $ecomOrder->refresh();
         });

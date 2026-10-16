@@ -82,11 +82,11 @@ class PaymentsTest extends TestCase
 
         $cashier = $this->riderUser;
         $this->api('POST', "ecommerce/orders/{$id}/refund", [], $cashier)->assertNotFound();
-        $this->api('POST', "ecommerce/orders/{$id}/refund", [], $this->manager)->assertOk()->assertJsonPath('data.payment_status', 'refunded');
+        $this->api('POST', "ecommerce/orders/{$id}/refund")->assertOk()->assertJsonPath('data.payment_status', 'refunded');
 
         $payout = $this->inTenant(fn () => PaymentIntent::query()->where('reference_type', 'ecommerce.refund')->where('reference', $id)->sole());
         $this->assertSame(['refund', 'payout', 'succeeded', 136000], [$payout->purpose, $payout->mode, $payout->status, (int) $payout->amount_minor]);
-        $this->api('POST', "ecommerce/orders/{$id}/refund", [], $this->manager)->assertStatus(409)->assertJsonPath('code', 'refund_not_due');
+        $this->api('POST', "ecommerce/orders/{$id}/refund")->assertStatus(409)->assertJsonPath('code', 'refund_not_due');
     }
 
     public function test_a_card_order_gets_the_checkout_page(): void

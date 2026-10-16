@@ -147,12 +147,25 @@ final class OrderFlow
         }, OrderNotices::DELIVERED);
     }
 
-    public function cancel(Order $order, ?User $by, string $reason): Order
+    /**
+     * $unpaidOnly (the expiry): the payment status is read again under the
+     * order's lock, so an order paid since it was read is never cancelled.
+     */
+    public function cancel(Order $order, ?User $by, string $reason, bool $unpaidOnly = false): Order
     {
-        return $this->step($order, Order::OPEN, Order::CANCELLED, $by, $reason, function (Order $order) use ($by, $reason) {
+        return $this->step($order, Order::OPEN, Order::CANCELLED, $by, $reason, function (Order $order) use ($by, $reason, $unpaidOnly) {
+            if ($unpaidOnly && ! in_array($order->payment_status, ['pending', 'failed'], true)) {
+                throw EcomError::make('payment_settled', status: 409);
+            }
+
             $order->forceFill(['cancelled_at' => CarbonImmutable::now(), 'cancelled_by' => $by?->id, 'cancel_reason' => mb_substr($reason, 0, 500), 'reserved_until' => null]);
             $this->reservations->release($order);
             $this->giveBackLoyalty($order);
+
+            // LOY-09: the coupon's use comes back (cancelled or expired).
+            if ($order->coupon !== null && class_exists(OnlineLoyalty::class)) {
+                app(OnlineLoyalty::class)->releaseCoupons($order->company_id, [$order->coupon]);
+            }
 
             if (Payment::query()->where('order_id', $order->id)->whereIn('kind', ['mpesa', 'card'])->where('status', 'succeeded')->exists()) {
                 $order->payment_status = 'refund_due';
@@ -174,7 +187,7 @@ final class OrderFlow
         $delivered = $order->status === Order::DELIVERED;
 
         if ($delivered && $by !== null) {
-            $this->assertRefundLimit($order, $by, $fee);
+            $this->assertRefundLimit($order, $by, $order->total_minor - ($fee ? 0 : $order->delivery_fee_minor + $order->delivery_tax_minor));
         }
 
         return $this->step($order, [Order::OUT_FOR_DELIVERY, Order::DELIVERED], Order::RETURNED, $by, $reason, function (Order $order) use ($by, $reason, $fee, $delivered) {
@@ -205,7 +218,13 @@ final class OrderFlow
         });
     }
 
-    /** ECOM-30: cash collected on delivery or at pickup (a short or over amount is flagged on the delivery). */
+    /**
+     * ECOM-30: cash collected on delivery or at pickup (a short or over
+     * amount is flagged on the delivery). Decision 11: the cash is the
+     * person's who confirmed the delivery (`collected_by`): the rider's
+     * (their cash-up), or the staff member's who confirmed it in the back
+     * office (never the rider's to hand in).
+     */
     public function collect(Order $order, ?User $by, int $collected): void
     {
         $payment = Payment::query()->where('order_id', $order->id)->where('kind', 'cod')->where('status', 'pending')->lockForUpdate()->first();
@@ -226,7 +245,7 @@ final class OrderFlow
                 $flags[] = ['code' => $collected < $payment->amount_minor ? 'cod_short' : 'cod_over', 'detail' => ['due' => (string) $payment->amount_minor, 'collected' => (string) $collected]];
             }
 
-            $delivery->forceFill(['cod_collected_minor' => $collected, 'collected_at' => CarbonImmutable::now(), 'flags' => $flags])->save();
+            $delivery->forceFill(['cod_collected_minor' => $collected, 'collected_at' => CarbonImmutable::now(), 'collected_by' => $by?->id, 'flags' => $flags])->save();
         }
     }
 
@@ -235,8 +254,13 @@ final class OrderFlow
         return hash_hmac('sha256', $orderId.'|'.$code, (string) config('app.key'));
     }
 
-    /** RBAC-06: a return of a delivered order refunds within the user's `max_refund_amount` (base currency, major units); an Owner has no limit. */
-    private function assertRefundLimit(Order $order, User $by, bool $fee): void
+    /**
+     * RBAC-06: $amount (minor units of the order's currency) is refunded
+     * (a return, or money paid back) within the user's `max_refund_amount`
+     * (base currency, major units, at the order's rate); an Owner has no
+     * limit.
+     */
+    public function assertRefundLimit(Order $order, User $by, int $amount): void
     {
         $scope = Scope::location($order->location_id);
         $roles = $this->resolver->roleIds($by, $scope);
@@ -246,7 +270,7 @@ final class OrderFlow
         }
 
         $max = $this->limits->max($by, 'max_refund_amount', $scope);
-        $total = $order->total_minor - ($fee ? 0 : $order->delivery_fee_minor + $order->delivery_tax_minor);
+        $total = $amount;
         $base = $order->total_minor === 0 ? BigDecimal::zero() : BigDecimal::of($order->base_total_minor)->multipliedBy($total)->dividedBy($order->total_minor, 0, RoundingMode::HalfUp);
         $decimals = app(CurrencyDecimals::class)->for($order->base_currency);
 

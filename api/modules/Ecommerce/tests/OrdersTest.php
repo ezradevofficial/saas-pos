@@ -138,7 +138,8 @@ class OrdersTest extends TestCase
         ], $this->manager)->assertCreated()->json('data');
 
         $this->assertSame(['phone', 'cod', '+254722000222'], [$order['channel'], $order['payment_status'], $order['contact_phone']]);
-        $this->assertNotNull($order['party_id'], 'MD-01: the customer is a core party');
+        // ECOM-08: a phone order names no customer or party (only a verified sign-in does).
+        $this->assertNull($order['party_id']);
 
         // Without ecommerce.order.create: refused.
         $riderHeaders = $this->riderUser;
@@ -174,8 +175,10 @@ class OrdersTest extends TestCase
         $order = $this->api('POST', "ecommerce/orders/{$id}/return", ['reason' => 'Damaged'])->assertOk()->json('data');
         $this->assertSame(['returned', 'refund_due'], [$order['status'], $order['payment_status']]);
 
-        $this->api('POST', "ecommerce/orders/{$id}/refund", [], $this->manager)->assertUnprocessable()->assertJsonPath('code', 'refund_reference_required');
-        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'], $this->manager)->assertOk()->assertJsonPath('data.payment_status', 'refunded');
+        // RBAC-06: the refund keeps to the limit too (the manager has none; the Owner has no limit).
+        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'], $this->manager)->assertForbidden()->assertJsonPath('code', 'refund_above_limit');
+        $this->api('POST', "ecommerce/orders/{$id}/refund")->assertUnprocessable()->assertJsonPath('code', 'refund_reference_required');
+        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'])->assertOk()->assertJsonPath('data.payment_status', 'refunded');
     }
 
     /** A COD delivery order delivered by the rider through the back office; its id. */

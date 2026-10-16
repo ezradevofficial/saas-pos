@@ -20,7 +20,9 @@ use Modules\Ecommerce\Support\Tx;
  * ECOM-08: customers sign in with a one-time code, with core's OTP rules
  * (AUTH-01, AUTH-10; decision 3): 6 digits, valid 30 minutes, single use,
  * 5 attempts, at most 5 codes an hour and 60 seconds between codes per
- * contact and store, kept only as an HMAC bound to the code's id. Asking
+ * contact and store, and at most `codes_per_store_per_hour` per store
+ * (plus a per-address challenge, CodeChallenges); kept only as an HMAC
+ * bound to the code's id. Asking
  * for a code answers the same whether or not the contact is a customer
  * (the customer is created on the first sign-in). A session is
  * `ecs_` + 48 characters, stored as sha256, 30 days, extended on use,
@@ -61,6 +63,13 @@ final class CustomerAuth
                 throw self::tooMany((int) CarbonImmutable::now()->diffInSeconds($recent->last()->created_at->addHour()));
             }
 
+            // What the store pays for in an hour, across all contacts.
+            $storeHour = CustomerCode::query()->where('store_id', $store->id)->where('created_at', '>=', CarbonImmutable::now()->subHour());
+
+            if ($storeHour->count() >= max(1, (int) config('ecommerce.shop.codes_per_store_per_hour', 300))) {
+                throw self::tooMany((int) max(1, CarbonImmutable::now()->diffInSeconds($storeHour->min('created_at') === null ? CarbonImmutable::now() : CarbonImmutable::parse($storeHour->min('created_at'))->addHour())));
+            }
+
             CustomerCode::query()->where('store_id', $store->id)->where('contact', $to)->whereNull('consumed_at')->update(['consumed_at' => now()]);
             $code = str_pad((string) random_int(0, 999_999), 6, '0', STR_PAD_LEFT);
             $id = (string) Str::uuid7();
@@ -98,7 +107,7 @@ final class CustomerAuth
             }
 
             $challenge->forceFill(['consumed_at' => CarbonImmutable::now()])->save();
-            $customer = $this->customers->forContact($company, $challenge->channel === 'sms' ? $challenge->contact : null, $challenge->channel === 'email' ? $challenge->contact : null, null);
+            $customer = $this->customers->forVerifiedContact($company, $challenge->channel, $challenge->contact);
             $customer->forceFill(['last_signed_in_at' => CarbonImmutable::now()])->save();
             $token = self::PREFIX.Str::random(48);
             CustomerSession::create([

@@ -8,7 +8,6 @@ use App\Core\Rbac\ModuleRegistry;
 use Modules\Accounting\Chart\Charts;
 use Modules\Accounting\Chart\ChartTemplates;
 use Modules\Accounting\Models\Journal;
-use Modules\Accounting\Models\JournalLine;
 use Modules\Ecommerce\Contracts\CustomerOrders;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
@@ -63,7 +62,7 @@ class IntegrationsTest extends TestCase
     {
         $this->withAccounting();
         $id = $this->dispatched('1');
-        $this->api('POST', "ecommerce/orders/{$id}/deliver", [], $this->manager)->assertOk();
+        $this->riderDelivers($id);
 
         // KES 1,000.00 + 16 % + KES 200.00 delivery, cash on delivery to the COD clearing account.
         $this->assertSame(['1270' => [136000, 0], '2200' => [0, 16000], '4100' => [0, 100000], '4200' => [0, 20000]], $this->ledger('ecommerce.order'));
@@ -84,7 +83,7 @@ class IntegrationsTest extends TestCase
     public function test_without_accounting_nothing_posts(): void
     {
         $id = $this->dispatched('1');
-        $this->api('POST', "ecommerce/orders/{$id}/deliver", [], $this->manager)->assertOk();
+        $this->riderDelivers($id);
         $this->api('POST', 'ecommerce/cashups', ['rider_id' => $this->rider->id, 'currency' => 'KES', 'counted_minor' => '136000'], $this->manager)->assertCreated();
 
         $this->assertSame(0, $this->inTenant(fn () => Journal::query()->count()));
@@ -129,7 +128,9 @@ class IntegrationsTest extends TestCase
         $quote = $this->shopCall('POST', 'duka/quote', $this->cart([[$this->widgetProduct, '1']]))->json('data');
         $this->assertSame(['10000', '14400', '124400'], [$quote['lines'][0]['discount_minor'], $quote['lines'][0]['tax_minor'], $quote['totals']['total_minor']]);
 
-        $id = $this->dispatched('1');
+        // ECOM-33: points need the member's own session (a guest earns nothing).
+        $member = $this->shopSignIn('0712345678');
+        $id = $this->dispatched('1', $member);
         $this->api('POST', "ecommerce/orders/{$id}/deliver", [], $this->manager)->assertOk();
         $this->assertSame(['1270' => [124400, 0], '2200' => [0, 14400], '4100' => [0, 100000], '4200' => [0, 20000], '4300' => [10000, 0]], $this->ledger('ecommerce.order'));
 
@@ -138,7 +139,7 @@ class IntegrationsTest extends TestCase
         $this->assertSame('12', $this->inTenant(fn () => (string) Account::query()->where('party_id', $party)->where('kind', 'points')->value('balance')));
 
         // The next order pays 10 points (KES 1.00) and the rest cash on delivery.
-        $second = $this->placeOrder($this->cart([[$this->widgetProduct, '1']], ['points' => '10']))->assertCreated()->json('data');
+        $second = $this->placeOrder($this->cart([[$this->widgetProduct, '1']], ['points' => '10']), headers: $member)->assertCreated()->json('data');
         $this->assertSame(['100', '124300'], [$second['totals']['loyalty_paid_minor'], $second['totals']['due_minor']]);
         $this->assertSame('2', $this->inTenant(fn () => (string) Account::query()->where('party_id', $party)->where('kind', 'points')->value('balance')));
 
@@ -150,7 +151,7 @@ class IntegrationsTest extends TestCase
 
     public function test_crm_reads_a_customers_orders_through_the_contract(): void
     {
-        $id = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->json('data.number'));
+        $id = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, '1']]), headers: $this->shopSignIn('0712345678'))->json('data.number'));
         $party = $this->inTenant(fn () => Order::query()->findOrFail($id)->party_id);
         $read = fn ($user) => $this->inTenant(fn () => app(CustomerOrders::class)->forCustomer($user, $party));
 
@@ -190,23 +191,15 @@ class IntegrationsTest extends TestCase
     }
 
     /** An order of $qty widgets accepted, assigned and handed to the rider; its id. */
-    private function dispatched(string $qty): string
+    private function dispatched(string $qty, array $headers = []): string
     {
-        $id = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, $qty]]))->assertCreated()->json('data.number'));
+        $id = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, $qty]]), headers: $headers)->assertCreated()->json('data.number'));
         $this->api('POST', "ecommerce/orders/{$id}/accept", [], $this->manager)->assertOk();
         $delivery = $this->inTenant(fn () => Delivery::query()->where('order_id', $id)->sole());
         $this->api('POST', "ecommerce/deliveries/{$delivery->id}/assign", ['rider_id' => $this->rider->id], $this->manager)->assertOk();
         $this->api('POST', "ecommerce/orders/{$id}/dispatch", [], $this->manager)->assertOk();
 
         return $id;
-    }
-
-    private function withAccounting(): void
-    {
-        $this->inTenant(function () {
-            app(ModuleRegistry::class)->activate('accounting');
-            app(Charts::class)->fromTemplate($this->acme);
-        });
     }
 
     private function withLoyalty(): PaymentMethod
@@ -218,30 +211,6 @@ class IntegrationsTest extends TestCase
             $this->shop->forceFill(['payment_methods' => [...$this->shop->payment_methods, ['kind' => 'points', 'payment_method_id' => $points->id]]])->save();
 
             return $points;
-        });
-    }
-
-    /** @return array<string, array{0: int, 1: int}> account code => [debit, credit] of the posted journals of $sourceType (each balanced) */
-    private function ledger(string $sourceType): array
-    {
-        return $this->inTenant(function () use ($sourceType) {
-            $totals = [];
-
-            foreach (Journal::query()->where('source_type', $sourceType)->where('status', 'posted')->get() as $journal) {
-                $lines = JournalLine::query()->where('journal_id', $journal->id)->with('account')->get();
-                $this->assertSame((int) $lines->sum('base_debit_minor'), (int) $lines->sum('base_credit_minor'), "journal of {$sourceType} balances");
-
-                foreach ($lines as $line) {
-                    $code = $line->account->code;
-                    $totals[$code] ??= [0, 0];
-                    $totals[$code][0] += (int) $line->base_debit_minor;
-                    $totals[$code][1] += (int) $line->base_credit_minor;
-                }
-            }
-
-            ksort($totals);
-
-            return $totals;
         });
     }
 }

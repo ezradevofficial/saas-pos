@@ -4,6 +4,7 @@ namespace Modules\Ecommerce\Http\Controllers\Shop;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Modules\Ecommerce\Customers\CodeChallenges;
 use Modules\Ecommerce\Customers\CustomerAuth;
 use Modules\Ecommerce\Http\Requests\CustomerCodeRequest;
 use Modules\Ecommerce\Http\Requests\CustomerSignOutRequest;
@@ -20,11 +21,21 @@ use Modules\Ecommerce\Support\EcomError;
  */
 class ShopAuthController
 {
-    public function __construct(private readonly CustomerAuth $auth) {}
+    public function __construct(private readonly CustomerAuth $auth, private readonly CodeChallenges $challenges) {}
 
+    /** ECOM-08: past a few codes from one address, a challenge is answered first (428 carries it). */
     public function code(CustomerCodeRequest $request): JsonResponse
     {
-        return response()->json(['data' => $this->auth->start(ShopController::store($request), (string) $request->validated('contact'))], 201);
+        $ip = (string) $request->ip();
+
+        if ($this->challenges->required($ip) && ! $this->challenges->passes($request->validated('challenge'))) {
+            throw $this->challenges->refusal();
+        }
+
+        $result = $this->auth->start(ShopController::store($request), (string) $request->validated('contact'));
+        $this->challenges->count($ip);
+
+        return response()->json(['data' => $result], 201);
     }
 
     public function verify(CustomerVerifyRequest $request): JsonResponse

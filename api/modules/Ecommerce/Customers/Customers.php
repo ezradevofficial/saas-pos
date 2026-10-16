@@ -13,11 +13,12 @@ use Modules\Ecommerce\Models\Customer;
 use Modules\Ecommerce\Support\EcomError;
 
 /**
- * ECOM-08, MD-01: online customers and their core party. A customer is
- * found by phone, else email, in the store's company, or created; its
- * party is the customer party with that phone (or email) the company
- * reaches, else a new person through the core party writer (the customer
- * role, the company's sharing mode, TEN-08). Names are stored as typed.
+ * ECOM-08, MD-01: online customers and their core party. A customer
+ * exists only for a contact proven by a sign-in code, and is found by
+ * that contact alone; its party is the customer party with that phone (or
+ * email) the company reaches, else a new person through the core party
+ * writer (the customer role, the company's sharing mode, TEN-08). Guest
+ * orders have no customer and no party.
  */
 final class Customers
 {
@@ -38,42 +39,19 @@ final class Customers
         return $email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false ? null : $email;
     }
 
-    /** The customer of a contact (phone or email), creating it when $create. */
-    public function forContact(Company $company, ?string $phone, ?string $email, ?string $name, bool $create = true): ?Customer
+    /**
+     * The customer a verified contact signs in as (ECOM-08): found by that
+     * contact alone (`sms`: phone, `email`: email), else created with it.
+     * Called only after a code sent to the contact was verified, so a
+     * contact never joins a customer it was not proven for: a guest order
+     * names no customer, and never adds a phone or an email to one.
+     */
+    public function forVerifiedContact(Company $company, string $channel, string $contact): Customer
     {
-        $customer = null;
+        $column = $channel === 'sms' ? 'phone' : 'email';
 
-        if ($phone !== null) {
-            $customer = Customer::query()->where('company_id', $company->id)->where('phone', $phone)->first();
-        }
-
-        if ($customer === null && $email !== null) {
-            $customer = Customer::query()->where('company_id', $company->id)->where('email', $email)->first();
-        }
-
-        if ($customer === null) {
-            if (! $create) {
-                return null;
-            }
-
-            return Customer::create([
-                'company_id' => $company->id,
-                'name' => mb_substr(trim((string) $name) ?: ($phone ?? $email ?? ''), 0, 160),
-                'phone' => $phone,
-                'email' => $email,
-            ]);
-        }
-
-        $changes = array_filter([
-            'phone' => $customer->phone === null && $phone !== null && ! Customer::query()->where('company_id', $company->id)->where('phone', $phone)->exists() ? $phone : null,
-            'email' => $customer->email === null && $email !== null && ! Customer::query()->where('company_id', $company->id)->where('email', $email)->exists() ? $email : null,
-        ]);
-
-        if ($changes !== []) {
-            $customer->fill($changes)->save();
-        }
-
-        return $customer;
+        return Customer::query()->where('company_id', $company->id)->where($column, $contact)->first()
+            ?? Customer::create(['company_id' => $company->id, 'name' => mb_substr($contact, 0, 160), $column => $contact]);
     }
 
     /** MD-01: the customer's core party (customer role), linked once. */

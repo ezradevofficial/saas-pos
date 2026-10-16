@@ -11,7 +11,7 @@ use Modules\Ecommerce\Models\Store;
  * ECOM-24, NFR-06: a WhatsApp provider for local work and tests (never in a
  * real environment: `ecommerce.whatsapp.allow_fake`). A request is genuine
  * when its `X-Fake-Signature` is the HMAC-SHA256 of the body with
- * `ecommerce.whatsapp.fake_secret`; the body is
+ * `ecommerce.whatsapp.fake_secret` (no default: unset, nothing verifies); the body is
  * `{messages: [{id, from, name?, text, at?}]}`. Replies are kept in
  * memory ($sent) and always succeed, except to a number ending in 000.
  */
@@ -28,8 +28,9 @@ class FakeWhatsAppProvider implements WhatsAppProvider
     public function verify(Request $request, Store $store): bool
     {
         $signature = (string) $request->headers->get('X-Fake-Signature', '');
+        $expected = self::sign($request->getContent());
 
-        return $signature !== '' && hash_equals(self::sign($request->getContent()), $signature);
+        return $signature !== '' && $expected !== '' && hash_equals($expected, $signature);
     }
 
     public function messages(Request $request): array
@@ -65,8 +66,11 @@ class FakeWhatsAppProvider implements WhatsAppProvider
         return ['id' => $id, 'sent' => true, 'error' => null];
     }
 
+    /** The signature of $body; empty (nothing verifies) while no secret is configured: there is no default. */
     public static function sign(string $body): string
     {
-        return hash_hmac('sha256', $body, (string) config('ecommerce.whatsapp.fake_secret'));
+        $secret = (string) config('ecommerce.whatsapp.fake_secret');
+
+        return $secret === '' ? '' : hash_hmac('sha256', $body, $secret);
     }
 }

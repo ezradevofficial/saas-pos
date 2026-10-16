@@ -13,13 +13,21 @@ use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
+use App\Core\Notifications\Drivers\ChannelDrivers;
+use App\Core\Notifications\Drivers\FakeChannelDriver;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Modules\Accounting\Chart\Charts;
+use Modules\Accounting\Models\Journal;
+use Modules\Accounting\Models\JournalLine;
+use Modules\Ecommerce\Customers\CustomerCodeNotification;
+use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\Rider;
@@ -166,9 +174,30 @@ trait BuildsEcommerce
     }
 
     /** Place an order on the storefront; returns the response's data. */
-    protected function placeOrder(array $cart, string $payment = 'cod', ?string $key = null, array $extra = []): TestResponse
+    /** @param array<string, string> $headers e.g. a customer session (shopSignIn) */
+    protected function placeOrder(array $cart, string $payment = 'cod', ?string $key = null, array $extra = [], array $headers = []): TestResponse
     {
-        return $this->shopCall('POST', 'duka/orders', $this->checkout($cart, $payment, $extra), ['Idempotency-Key' => $key ?? 'key-'.Str::random(20)]);
+        return $this->shopCall('POST', 'duka/orders', $this->checkout($cart, $payment, $extra), [...$headers, 'Idempotency-Key' => $key ?? 'key-'.Str::random(20)]);
+    }
+
+    /** The rider delivers order $id (handed over) with the customer's code: the cash is theirs to hand in. */
+    protected function riderDelivers(string $id): void
+    {
+        $delivery = $this->inTenant(fn () => Delivery::query()->where('order_id', $id)->sole());
+        $this->api('POST', 'ecommerce/rider/updates', ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $delivery->id, 'kind' => 'status', 'status' => 'delivered',
+            'code' => $this->sentDeliveryCode(), 'occurred_at' => CarbonImmutable::now()->toIso8601String()]]], $this->riderUser)->assertOk();
+    }
+
+    /** The delivery code in the last out-for-delivery SMS (a secret: in the message only, never stored). */
+    protected function sentDeliveryCode(): string
+    {
+        $driver = app(ChannelDrivers::class)->for('sms');
+        $this->assertInstanceOf(FakeChannelDriver::class, $driver);
+        $bodies = array_values(array_filter(array_map(fn ($m) => $m->body, $driver->sent), fn (string $b) => preg_match('/: (\d{6})$/', $b) === 1));
+        $this->assertNotEmpty($bodies, 'the out-for-delivery message was sent with its code');
+        preg_match('/: (\d{6})$/', end($bodies), $match);
+
+        return $match[1];
     }
 
     /** Inventory switched on, with $qty widgets on hand at Outlet A (opening stock at KES 400.00 each). */
@@ -177,6 +206,59 @@ trait BuildsEcommerce
         $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
         $this->postJson('/api/v1/inventory/opening-stock', ['item_id' => ($item ?? $this->widget)->id, 'location_id' => $this->locationA->id, 'qty' => $qty, 'unit_cost' => '400'],
             $this->headersFor())->assertCreated();
+    }
+
+    /**
+     * ECOM-08: sign in on the storefront with a code sent to $contact (a
+     * phone or an email); the session's Authorization header.
+     *
+     * @return array{Authorization: string}
+     */
+    protected function shopSignIn(string $contact): array
+    {
+        $challenge = $this->shopCall('POST', 'duka/auth/code', ['contact' => $contact])->assertCreated()->json('data.challenge_id');
+        $code = null;
+
+        foreach (Notification::sent(new AnonymousNotifiable, CustomerCodeNotification::class) as $notification) {
+            $code = $notification->code;
+        }
+
+        $this->assertNotNull($code, 'a code was sent');
+        $token = $this->shopCall('POST', 'duka/auth/verify', ['challenge_id' => $challenge, 'code' => $code])->assertOk()->json('data.token');
+
+        return ['Authorization' => "Bearer {$token}"];
+    }
+
+    protected function withAccounting(): void
+    {
+        $this->inTenant(function () {
+            app(ModuleRegistry::class)->activate('accounting');
+            app(Charts::class)->fromTemplate($this->acme);
+        });
+    }
+
+    /** @return array<string, array{0: int, 1: int}> account code => [debit, credit] of the posted journals of $sourceType (each balanced) */
+    protected function ledger(string $sourceType): array
+    {
+        return $this->inTenant(function () use ($sourceType) {
+            $totals = [];
+
+            foreach (Journal::query()->where('source_type', $sourceType)->where('status', 'posted')->get() as $journal) {
+                $lines = JournalLine::query()->where('journal_id', $journal->id)->with('account')->get();
+                $this->assertSame((int) $lines->sum('base_debit_minor'), (int) $lines->sum('base_credit_minor'), "journal of {$sourceType} balances");
+
+                foreach ($lines as $line) {
+                    $code = $line->account->code;
+                    $totals[$code] ??= [0, 0];
+                    $totals[$code][0] += (int) $line->base_debit_minor;
+                    $totals[$code][1] += (int) $line->base_credit_minor;
+                }
+            }
+
+            ksort($totals);
+
+            return $totals;
+        });
     }
 
     protected function orderId(string $number): string

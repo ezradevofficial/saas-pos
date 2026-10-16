@@ -74,7 +74,8 @@ final class Placement
             return ['order' => $existing, 'created' => false, 'token' => null];
         }
 
-        $phone = Customers::phone($input['contact']['phone'] ?? null, $company);
+        // ECOM-25: a chat's order is the chat's: its phone is the conversation's, whatever was typed.
+        $phone = $conversation !== null ? $conversation->phone : Customers::phone($input['contact']['phone'] ?? null, $company);
         $email = Customers::email($input['contact']['email'] ?? null);
 
         if ($phone === null) {
@@ -90,10 +91,29 @@ final class Placement
                 }
             }
 
+            // ECOM-25: one order per chat: the conversation is locked and its status read again.
+            if ($conversation !== null) {
+                $conversation = Conversation::query()->whereKey($conversation->id)->lockForUpdate()->firstOrFail();
+
+                if ($conversation->status === 'converted' && $conversation->order_id !== null) {
+                    throw EcomError::make('conversation_converted', status: 409);
+                }
+            }
+
             $kind = (string) ($input['payment'] ?? '');
             $now = CarbonImmutable::now();
-            $customer = $signedIn ?? $this->customers->forContact($company, $phone, $email, $input['contact']['name'] ?? null);
-            $partyId = $this->customers->party($customer, $company);
+            // ECOM-08, ECOM-33: only a signed-in customer's order names a customer and its party (for
+            // points, member promotions and store credit); a guest order names neither, and its
+            // contact never reaches an existing customer.
+            $customer = $signedIn;
+            $typedName = mb_substr(trim((string) ($input['contact']['name'] ?? '')), 0, 160);
+
+            // A customer created at sign-in is named by its contact until they give their name.
+            if ($customer !== null && $typedName !== '' && in_array($customer->name, array_filter([$customer->phone, $customer->email]), true)) {
+                $customer->forceFill(['name' => $typedName])->save();
+            }
+
+            $partyId = $customer === null ? null : $this->customers->party($customer, $company);
 
             // ECOM-14: lock the location and items before availability is read.
             $itemIds = Product::query()->where('store_id', $store->id)->whereKey(array_values(array_filter(array_column($input['lines'], 'product_id'), Str::isUuid(...))))->pluck('item_id')->all();
@@ -137,9 +157,9 @@ final class Placement
                 'location_id' => $store->location_id,
                 'number' => $this->numbering->next(self::NUMBER_TYPE, new NumberContext($company, Branch::query()->find($store->branch_id), at: $now))->number,
                 'channel' => $channel,
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'party_id' => $partyId,
-                'contact_name' => mb_substr(trim((string) ($input['contact']['name'] ?? $customer->name)), 0, 160) ?: $customer->name,
+                'contact_name' => mb_substr(trim((string) ($input['contact']['name'] ?? '')), 0, 160) ?: ($customer?->name ?? $phone),
                 'contact_phone' => $phone,
                 'contact_email' => $email,
                 'locale' => in_array($locale, ['en', 'fr'], true) ? $locale : 'en',
@@ -218,7 +238,7 @@ final class Placement
     }
 
     /** ECOM-33: points and the gift card are redeemed now, in the placing transaction. */
-    private function loyalty(Store $store, Order $order, array $quote, string $partyId): void
+    private function loyalty(Store $store, Order $order, array $quote, ?string $partyId): void
     {
         $paid = $quote['loyalty'];
 
@@ -232,7 +252,7 @@ final class Placement
             $loyalty->useCoupons($store->company_id, [$quote['coupon']]);
         }
 
-        if ($paid['points_minor'] > 0) {
+        if ($paid['points_minor'] > 0 && $partyId !== null) {
             $value = $loyalty->redeemPoints($store->company_id, $partyId, (string) $paid['points'], $order->id, $store->currency);
             Payment::create(['order_id' => $order->id, 'kind' => 'points', 'payment_method_id' => $store->methodFor('points'), 'currency' => $store->currency,
                 'amount_minor' => (int) $value, 'status' => 'succeeded', 'detail' => ['points' => (string) $paid['points']]]);

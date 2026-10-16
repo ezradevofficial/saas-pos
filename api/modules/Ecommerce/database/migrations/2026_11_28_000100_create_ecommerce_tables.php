@@ -410,7 +410,8 @@ return new class extends Migration
             $table->uuid('payment_intent_id')->nullable();
             $currency($table, 'currency');
             $table->bigInteger('amount_minor');
-            $table->string('status', 12);
+            // refund_due / refunded_excess: money beyond the order (a second settlement, a wrong amount), held for refund and never posted.
+            $table->string('status', 15);
             $table->string('provider_reference', 120)->nullable();
             $table->jsonb('detail')->nullable();
             $userRef($table, 'collected_by');
@@ -422,7 +423,7 @@ return new class extends Migration
             $table->index(['tenant_id', 'payment_intent_id']);
         });
         $check('ecom_payments', 'kind', $in('kind', ['mpesa', 'card', 'cod', 'points', 'gift_card']));
-        $check('ecom_payments', 'status', $in('status', ['pending', 'succeeded', 'failed', 'collected', 'refunded', 'reversed']));
+        $check('ecom_payments', 'status', $in('status', ['pending', 'succeeded', 'failed', 'collected', 'refunded', 'reversed', 'refund_due', 'refunded_excess']));
         $check('ecom_payments', 'amount', 'amount_minor >= 0');
         Rls::enable('ecom_payments');
 
@@ -444,7 +445,7 @@ return new class extends Migration
         Rls::enable('ecom_order_events');
 
         // ECOM-27 to ECOM-30: deliveries.
-        Schema::create('ecom_deliveries', function (Blueprint $table) use ($currency) {
+        Schema::create('ecom_deliveries', function (Blueprint $table) use ($currency, $userRef) {
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->foreignUuid('order_id')->unique()->constrained('ecom_orders')->restrictOnDelete();
@@ -459,6 +460,9 @@ return new class extends Migration
             $table->string('reason', 500)->nullable();
             $table->string('proof_kind', 5)->nullable();
             $table->string('proof_photo_path', 255)->nullable();
+            // ECOM-29: wrong delivery codes, counted under the delivery's row lock; locked at five (staff confirm).
+            $table->smallInteger('code_attempts')->default(0);
+            $table->boolean('code_locked')->default(false);
             $table->decimal('last_latitude', 9, 6)->nullable();
             $table->decimal('last_longitude', 9, 6)->nullable();
             $table->timestampTz('located_at')->nullable();
@@ -466,6 +470,8 @@ return new class extends Migration
             $table->bigInteger('cod_due_minor')->default(0);
             $table->bigInteger('cod_collected_minor')->nullable();
             $table->timestampTz('collected_at')->nullable();
+            // ECOM-30 (decision 11): who took the cash: the rider, or the staff member who confirmed the delivery.
+            $userRef($table, 'collected_by');
             $table->foreignUuid('cashup_id')->nullable()->constrained('ecom_cashups')->restrictOnDelete();
             $table->jsonb('flags')->default('[]');
             $table->timestampsTz();

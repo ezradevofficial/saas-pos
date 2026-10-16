@@ -3,6 +3,8 @@
 namespace Modules\Ecommerce\Orders;
 
 use App\Core\Currency\Money;
+use App\Core\Http\ApiErrorRenderer;
+use App\Core\Http\ApiException;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Prices\PriceResolver;
@@ -16,6 +18,7 @@ use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Modules\Ecommerce\Catalogue\Availability;
 use Modules\Ecommerce\Models\Product;
@@ -335,11 +338,28 @@ final class Pricing
         }
 
         if ($card !== '') {
+            // A gift card is a bearer code: failed lookups are limited per address and per store, so codes cannot be guessed.
+            $keys = ['ecom-gift-card|ip|'.(request()?->ip() ?? 'none') => (int) config('ecommerce.shop.gift_card_failures_per_ip_per_hour', 10),
+                'ecom-gift-card|store|'.$store->id => (int) config('ecommerce.shop.gift_card_failures_per_store_per_hour', 100)];
+
+            foreach ($keys as $key => $max) {
+                if (RateLimiter::tooManyAttempts($key, max(1, $max))) {
+                    $seconds = max(1, RateLimiter::availableIn($key));
+
+                    throw new ApiException(429, 'too_many_requests', ApiErrorRenderer::retryMessage($seconds), headers: ['Retry-After' => $seconds]);
+                }
+            }
+
             $balance = $loyalty !== null && $store->methodFor('gift_card') !== null ? $loyalty->giftCardBalance($store->company_id, $card, $store->currency) : null;
 
             if ($balance === null || $balance === '0') {
+                foreach (array_keys($keys) as $key) {
+                    RateLimiter::hit($key, 3600);
+                }
+
                 $problem('gift_card_unusable');
             } else {
+                // Only what the order uses is shown (never the card's balance).
                 $paid['gift_card'] = $card;
                 $paid['gift_card_minor'] = min((int) $balance, $total - $paid['points_minor']);
             }

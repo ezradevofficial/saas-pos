@@ -12,6 +12,7 @@ use Modules\Ecommerce\Models\Message;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
+use Modules\Ecommerce\WhatsApp\WhatsAppProviders;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -59,6 +60,42 @@ class WhatsAppAndCustomersTest extends TestCase
 
         // Another branch's manager does not see the inbox of this store.
         $this->assertSame([], $this->api('GET', 'ecommerce/conversations?status=all', [], $this->userWith('branch_manager', Scope::branch($this->branchB->id)))->json('data'));
+    }
+
+    public function test_the_fake_driver_is_refused_outside_local_and_testing_with_a_401(): void
+    {
+        $token = $this->api('POST', "ecommerce/stores/{$this->shop->id}/whatsapp-token")->assertCreated()->json('data.token');
+        $body = (string) json_encode(['messages' => [['id' => 'wamid.prod.1', 'from' => '254711000501', 'text' => 'Hello']]]);
+        $send = fn () => $this->call('POST', "/api/v1/shop/whatsapp/{$token}", [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_FAKE_SIGNATURE' => FakeWhatsAppProvider::sign($body)], $body);
+
+        // Production, even with the switch on: the hard environment check refuses the driver.
+        $this->app['env'] = 'production';
+        config(['ecommerce.whatsapp.allow_fake' => true]);
+        $this->assertNull(app(WhatsAppProviders::class)->current());
+        $this->app['env'] = 'testing';
+
+        // A refused driver answers 401, not 500.
+        config(['ecommerce.whatsapp.allow_fake' => false]);
+        $send()->assertUnauthorized()->assertJsonPath('code', 'webhook_unverified');
+
+        // No secret configured: nothing verifies (there is no default).
+        config(['ecommerce.whatsapp.allow_fake' => true, 'ecommerce.whatsapp.fake_secret' => null]);
+        $unsigned = $this->call('POST', "/api/v1/shop/whatsapp/{$token}", [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_FAKE_SIGNATURE' => hash_hmac('sha256', $body, '')], $body);
+        $unsigned->assertUnauthorized();
+        $this->assertSame(0, $this->inTenant(fn () => Message::query()->count()));
+    }
+
+    public function test_the_webhook_is_limited_per_address(): void
+    {
+        config(['ecommerce.whatsapp.per_ip_per_minute' => 2]);
+
+        foreach (['A', 'B'] as $n) {
+            $this->postJson('/api/v1/shop/whatsapp/'.str_repeat($n, 40), [])->assertNotFound();
+        }
+
+        $this->postJson('/api/v1/shop/whatsapp/'.str_repeat('C', 40), [])->assertStatus(429);
     }
 
     public function test_a_customer_signs_in_with_a_code_and_sees_their_orders(): void
@@ -122,9 +159,12 @@ class WhatsAppAndCustomersTest extends TestCase
 
     public function test_online_customers_are_listed_in_the_back_office(): void
     {
-        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->assertCreated();
+        // ECOM-08: a customer exists once signed in with a code; a guest order adds none.
+        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), extra: ['contact' => ['name' => 'Guest', 'phone' => '0712000777']])->assertCreated();
+        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), headers: $this->shopSignIn('0712345678'))->assertCreated();
 
         $customers = $this->api('GET', 'ecommerce/customers', [], $this->manager)->assertOk()->json('data');
+        $this->assertCount(1, $customers);
         $this->assertSame(['Wanjiku Kamau', '+254712345678', 1], [$customers[0]['name'], $customers[0]['phone'], $customers[0]['orders']]);
         $this->api('GET', 'ecommerce/customers', [], $this->riderUser)->assertForbidden();
     }

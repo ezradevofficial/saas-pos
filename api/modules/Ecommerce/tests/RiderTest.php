@@ -2,8 +2,6 @@
 
 namespace Modules\Ecommerce\Tests;
 
-use App\Core\Notifications\Drivers\ChannelDrivers;
-use App\Core\Notifications\Drivers\FakeChannelDriver;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -97,6 +95,42 @@ class RiderTest extends TestCase
         $this->updates([$this->update($delivery, 'status', ['status' => 'delivered', 'code' => $this->sentDeliveryCode()])])->assertJsonPath('results.0.error.code', 'code_locked');
     }
 
+    public function test_a_locked_delivery_refuses_every_delivered_update_even_with_a_photo(): void
+    {
+        Storage::fake('local');
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $wrong = $this->sentDeliveryCode() === '999999' ? '888888' : '999999';
+
+        // Five wrong codes in one upload: counted under the delivery's lock, then locked.
+        $this->updates(array_map(fn () => $this->update($delivery, 'status', ['status' => 'delivered', 'code' => $wrong]), range(1, 6)))
+            ->assertJsonPath('results.4.error.code', 'code_invalid')->assertJsonPath('results.5.error.code', 'code_locked');
+        $this->assertSame([5, true], [$delivery->refresh()->code_attempts, $delivery->code_locked]);
+
+        // A photo does not get round the lock.
+        $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'delivered'])])->assertJsonPath('results.0.error.code', 'code_locked');
+        $this->assertSame(Delivery::PICKED_UP, $delivery->refresh()->status);
+    }
+
+    public function test_cash_confirmed_by_staff_is_the_staff_members_not_the_riders(): void
+    {
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->api('POST', "ecommerce/orders/{$delivery->order_id}/deliver", [], $this->manager)->assertOk();
+
+        $delivery->refresh();
+        $this->assertSame($this->manager->id, $delivery->collected_by);
+        $this->assertSame([], $this->api('GET', 'ecommerce/cashups/pending', [], $this->manager)->assertOk()->json('data'), 'nothing for the rider to hand in');
+
+        // A rider's own delivery is theirs to cash up.
+        $second = $this->assigned();
+        $this->updates([$this->update($second, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->updates([$this->update($second, 'status', ['status' => 'delivered', 'code' => $this->sentDeliveryCode()])])->assertOk();
+        $this->assertSame($this->riderUser->id, $second->refresh()->collected_by);
+        $this->assertSame('136000', $this->api('GET', 'ecommerce/cashups/pending', [], $this->manager)->assertOk()->json('data.0.expected_minor'));
+    }
+
     public function test_a_photo_proves_delivery_and_a_failed_delivery_returns_the_order(): void
     {
         Storage::fake('local');
@@ -168,17 +202,5 @@ class RiderTest extends TestCase
     private function updates(array $updates, $as = null)
     {
         return $this->api('POST', 'ecommerce/rider/updates', ['updates' => $updates], $as ?? $this->riderUser);
-    }
-
-    /** The delivery code in the last out-for-delivery SMS (a secret: in the message only, never stored). */
-    private function sentDeliveryCode(): string
-    {
-        $driver = app(ChannelDrivers::class)->for('sms');
-        $this->assertInstanceOf(FakeChannelDriver::class, $driver);
-        $bodies = array_values(array_filter(array_map(fn ($m) => $m->body, $driver->sent), fn (string $b) => preg_match('/: (\d{6})$/', $b) === 1));
-        $this->assertNotEmpty($bodies, 'the out-for-delivery message was sent with its code');
-        preg_match('/: (\d{6})$/', end($bodies), $match);
-
-        return $match[1];
     }
 }
