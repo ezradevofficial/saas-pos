@@ -321,6 +321,20 @@ Decisions taken while building (no owner input asked, per instructions):
     Inventory posts once and Manufacturing values once, so nothing counts
     twice (review fix 5).
 
+17. **Recipe costing is full cost against the price before tax** (owner
+    decision B, 2026-10-16; MFG-06): ingredients, plus labour and
+    overhead at the company's rates, less the by-products' credit, as a
+    share of the net price; a tax-inclusive price is netted with the
+    item's core tax code, and a price whose tax is unknown shows no share.
+18. **A receipt posts what Inventory received** (stage 7D closing review):
+    each output line keeps Inventory's received value; an output it took
+    nothing in for is valued at nothing and flagged `not_received`, its
+    cost left in WIP for the close.
+19. **Lists load per page**: the BOM list batches its versions in force
+    and drafts, the order list its releasers and closers. Accounting's
+    integration with Manufacturing is numbered ACC-35 (it shared ACC-33
+    with Payroll).
+
 Open for the owner:
 
 - Should a production order be able to raise a Stores requisition or an

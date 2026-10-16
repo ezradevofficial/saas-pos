@@ -339,6 +339,23 @@ effective dates:
 16. **The custodians list is open to whoever manages assets anywhere in the company** (at it, a branch or a location), since they choose custodians.
 17. **Labels print only for assets where the reader holds `fixed_assets.label.print`** at the asset's location, not merely somewhere.
 
+18. **Stock never becomes an asset too** (stage 7D closing, 2026-10-16). A
+    receipt or invoice line Procurement booked as stock, or whose item is a
+    stock item now, gives no draft; while the module is active an item
+    flagged as an asset cannot be made a stock item (`item_is_asset`,
+    core's item type guards: unflag it first).
+19. **A draft projects its schedule** from its acquisition date with its
+    category's terms and residual share, when its cost is in the company's
+    base currency (another currency needs the rate fixed at activation).
+20. **Parties named by disposals, work orders and postings keep their
+    import from being undone** (IMP-02: `fixed_assets_disposal`,
+    `fixed_assets_work_order`, `fixed_assets_posting`).
+21. **The register's export is in the isolation suite**, and the suite now
+    fails if any list export is left out of it.
+22. **Assets register their custom fields like other modules**
+    (`CustomFieldEntity::module()`), and the reminder schedule lives in the
+    module's provider.
+
 ## Open questions
 
 1. Should a revaluation or disposal require approval above an amount
