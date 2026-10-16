@@ -147,7 +147,7 @@ export default function CatalogueConsole() {
   const { can } = usePlatformAuth()
   const [tab, setTab] = useState('modules')
   const [priceFor, setPriceFor] = useState(null)
-  const canManage = can('catalogue.manage')
+  const canManage = can('platform.catalogue.manage')
 
   return (
     <>

@@ -13,7 +13,7 @@ vi.mock('./platformClient', async (importOriginal) => ({
   platformApi: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }))
 
-const STAFF = { id: 's-1', name: 'Wanjiru Kamau', email: 'wanjiru@example.com', role: 'owner', status: 'active', two_factor_enabled: true, abilities: ['catalogue.view', 'catalogue.manage'] }
+const STAFF = { id: 's-1', name: 'Wanjiru Kamau', email: 'wanjiru@example.com', role: 'owner', status: 'active', two_factor_enabled: true, abilities: ['platform.catalogue.view', 'platform.catalogue.manage'] }
 
 const prices = (country, currency, amount, extra = {}) => ({ [country]: { current: { country, currency, amount, minimum_amount: null, extra_outlet_amount: null, effective_from: '2026-10-01', ...extra }, next: null } })
 
@@ -159,7 +159,7 @@ describe('Platform console', () => {
 
   it('hides the new coupon and new price actions from support staff', async () => {
     setPlatformToken('plat_full|s')
-    mockConsole({ 'platform/me': { data: { ...STAFF, role: 'support', abilities: ['catalogue.view'] } } })
+    mockConsole({ 'platform/me': { data: { ...STAFF, role: 'support', abilities: ['platform.catalogue.view'] } } })
     renderApp('/platform/catalogue')
     await screen.findByText('Point of sale')
     expect(screen.queryByRole('button', { name: 'New price' })).not.toBeInTheDocument()
