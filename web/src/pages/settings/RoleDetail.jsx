@@ -235,7 +235,7 @@ export default function RoleDetail() {
       {creating || tab === 'details' ? (
         <>
           <RoleForm key={data?.id ?? 'new'} role={data} catalogue={catalogue.data?.data ?? {}} editable={editable} />
-          {creating ? null : <LimitsEditor key={data.id} role={data} editable={editable} />}
+          {creating ? null : <LimitsEditor key={`limits-${data.id}`} role={data} editable={editable} />}
         </>
       ) : (
         <Card>
