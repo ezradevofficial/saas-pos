@@ -10766,6 +10766,7 @@
       "convert": "Convert to invoice",
       "converted": "Draft invoice created.",
       "convertedTo": "Converted to",
+      "openInvoice": "Open the invoice",
       "cancel": "Cancel quote",
       "cancelTitle": "Cancel {{number}}",
       "cancelHelp": "A cancelled quote stays on record and can no longer change.",

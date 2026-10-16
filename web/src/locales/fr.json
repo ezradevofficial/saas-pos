@@ -10766,6 +10766,7 @@
       "convert": "Convertir en facture",
       "converted": "Facture brouillon créée.",
       "convertedTo": "Converti en",
+      "openInvoice": "Ouvrir la facture",
       "cancel": "Annuler le devis",
       "cancelTitle": "Annuler {{number}}",
       "cancelHelp": "Un devis annulé reste enregistré et ne peut plus changer.",

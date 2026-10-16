@@ -170,6 +170,13 @@ describe('Quote page (CRM-21..CRM-24)', () => {
     expect(await screen.findByText('Accounting is not active. Turn it on to turn quotes into invoices.')).toBeInTheDocument()
   })
 
+  it('links a converted quote to its draft invoice, which has no number yet (CRM-24)', async () => {
+    const converted = { ...QUOTE, status: 'converted', converted_to: 'invoice', converted_ref: { id: 'doc-1', type: 'accounting.invoice', label: null }, can: { ...QUOTE.can, convert: false, send: false } }
+    mockCrm(api, [['crm/quotes/q-1', { data: converted }], ['crm/quotes/q-1/shares', { data: [] }]])
+    renderApp('/crm/quotes/q-1')
+    expect(await screen.findByRole('link', { name: 'Open the invoice' })).toHaveAttribute('href', '/accounting/documents/doc-1')
+  })
+
   it('sends by email in a chosen language, shares on WhatsApp and revokes a share link (CRM-22)', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null)
     const share = { id: 'sh-1', status: 'active', created_at: '2026-10-12T08:00:00Z', expires_at: '2026-10-19T08:00:00Z', revoked_at: null, access_count: 3 }
