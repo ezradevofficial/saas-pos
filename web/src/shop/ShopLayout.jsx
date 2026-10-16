@@ -54,7 +54,7 @@ export function ShopLayout() {
         {store ? <Outlet /> : null}
       </main>
       <footer className="border-t border-border px-4 py-4 text-center text-caption text-ink-muted md:px-6">
-        {store?.contact_phone ? <span>{t('shop.contact', { phone: store.contact_phone })} · </span> : null}
+        {store?.contact_phone ? <span>{t('shop.contact', { phone: store.contact_phone })}{store.whatsapp ? ' · ' : ''}</span> : null}
         {store?.whatsapp ? <a className="text-primary hover:underline" href={store.whatsapp} target="_blank" rel="noreferrer noopener">{t('shop.whatsappUs')}</a> : null}
         <PoweredBy className="mt-2 text-ink-muted" />
       </footer>
