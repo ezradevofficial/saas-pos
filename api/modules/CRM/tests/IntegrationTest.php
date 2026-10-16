@@ -64,7 +64,7 @@ class IntegrationTest extends TestCase
             [$document->id, $document->kind, $document->status, $document->party_id, $document->currency, $document->branch_id]);
         $this->assertSame([(int) $quote['totals']['tax_minor'], (int) $quote['totals']['total_minor']], [$document->tax_minor, $document->total_minor]);
         // The discounted line is one unit at its discounted amount; the other keeps its quantity and price.
-        $this->assertSame(['1.0000', 277500, 'Widget (3 × 1000.00, 7.5% off)'], [(string) $lines[0]->qty, $lines[0]->unit_price_minor, $lines[0]->description]);
+        $this->assertSame(['1.0000', 277500, 'Widget (3 × KES 1,000.00, 7.5% off)'], [(string) $lines[0]->qty, $lines[0]->unit_price_minor, $lines[0]->description]);
         $this->assertSame(['2.0000', 33333], [(string) $lines[1]->qty, $lines[1]->unit_price_minor]);
         $this->assertStringContainsString($quote['number'], (string) $document->memo);
 
@@ -147,7 +147,7 @@ class IntegrationTest extends TestCase
         $this->api('POST', "accounting/documents/{$invoice}/post")->assertOk();
 
         $read = collect($this->api('GET', 'crm/targets')->assertOk()->json('data'))->firstWhere('id', $target['id']);
-        // KES 2,320.00 (two widgets at 16 %) of KES 10,000.00.
-        $this->assertSame([true, '232000', '23.2'], [$read['available'], $read['actual_minor'], $read['percent']]);
+        // Before tax (targets are net, stage 7D closing review): KES 2,000.00 (two widgets; KES 2,320.00 with 16 % VAT) of KES 10,000.00.
+        $this->assertSame([true, '200000', '20.0'], [$read['available'], $read['actual_minor'], $read['percent']]);
     }
 }

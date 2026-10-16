@@ -77,7 +77,7 @@ class VoidAndRefundTest extends TestCase
 
     private function limit(string $template, string $key, string $value): void
     {
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get($template)->id, 'key' => $key, 'value' => $value]));
+        $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get($template)->id, 'key' => $key], ['value' => $value]));
     }
 
     public function test_a_cashier_needs_a_manager_to_void_and_both_are_recorded(): void
@@ -113,7 +113,9 @@ class VoidAndRefundTest extends TestCase
     {
         Event::fake([SaleRefunded::class]);
 
-        // The branch manager template has no refund limit: no rule means not allowed (RBAC-06).
+        // The Branch Manager template refunds up to 10,000 by default (owner decision A, 2026-10-16); without a rule
+        // a refund is not allowed (RBAC-06).
+        $this->inTenant(fn () => LimitRule::where('role_id', $this->roles->get('branch_manager')->id)->where('key', 'max_refund_amount')->delete());
         $this->refund($this->refundBody('1', '56250'))->assertUnprocessable()->assertJsonPath('results.0.error.code', 'override_limit_exceeded');
 
         // A KES 500.00 limit is below KES 562.50; KES 1,000.00 covers it.

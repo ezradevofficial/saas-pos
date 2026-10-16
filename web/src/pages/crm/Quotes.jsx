@@ -68,6 +68,9 @@ export default function Quotes() {
 
 let nextKey = 0
 /** An editable quote line; `typed` marks a price the user typed (else the price list's applies). */
+/** Conversion targets that are Accounting invoices (CRM-24). */
+const INVOICE_REFS = ['accounting.invoice', 'invoice']
+
 const blankLine = (extra = {}) => ({ key: `quote-line-${(nextKey += 1)}`, item: null, description: '', uom_id: '', qty: '1', price_minor: '', typed: false, seed: '', discount_percent: '', tax_code_id: '', ...extra })
 
 /** A saved line as an editable one (a price other than the list price was typed). */
@@ -628,7 +631,10 @@ export function QuoteDetail() {
             ) : null}
             {quote.converted_ref ? (
               <Detail label={t('crm.quote.convertedTo')}>
-                {quote.converted_ref.type === 'invoice' ? <Link to={`/accounting/documents/${quote.converted_ref.id}`} className="text-primary hover:text-primary-hover">{quote.converted_ref.label}</Link> : quote.converted_ref.label}
+                {/* CRM-24: Accounting answers `accounting.invoice` with no label while the invoice is a draft (no number yet). */}
+                {INVOICE_REFS.includes(quote.converted_ref.type) ? (
+                  <Link to={`/accounting/documents/${quote.converted_ref.id}`} className="text-primary hover:text-primary-hover">{quote.converted_ref.label ?? t('crm.quote.openInvoice')}</Link>
+                ) : (quote.converted_ref.label ?? '—')}
               </Detail>
             ) : null}
             {quote.cancelled_at ? (

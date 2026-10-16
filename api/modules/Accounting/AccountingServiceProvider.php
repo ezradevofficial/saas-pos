@@ -11,6 +11,7 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -35,6 +36,7 @@ use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\JournalType;
 use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Listeners\QueueFiscalDocument;
+use Modules\Accounting\Listeners\SeedModuleRules;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Payments\Payments;
 use Modules\CRM\Events\QuoteConverted;
@@ -105,7 +107,7 @@ class AccountingServiceProvider extends ServiceProvider
         SupplierInvoiceApproved::class,
         // Stage 7B closing review: landed cost bills and the landed cost of lines no stock journal carries.
         LandedCostAllocated::class, GoodsReceiptPosted::class,
-        // ACC-33: Manufacturing's valued documents (its stock moves post nothing: the same movement).
+        // ACC-35: Manufacturing's valued documents (its stock moves post nothing: the same movement).
         ProductionValued::class,
         // ACC-34: Fixed assets (docs/modules/fixed-assets.md FA-22).
         AssetCapitalised::class, DepreciationPosted::class, DepreciationReversed::class, AssetRevalued::class, AssetImpaired::class, AssetDisposed::class,
@@ -155,6 +157,9 @@ class AccountingServiceProvider extends ServiceProvider
         $usage->register('party', 'accounting_document', fn (array $ids) => DB::table('acc_documents')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
         $usage->register('party', 'accounting_payment', fn (array $ids) => DB::table('acc_payments')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
         $usage->register('item', 'accounting_document', fn (array $ids) => DB::table('acc_document_lines')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
+
+        // ACC-24 (review item 13): a module switched on later gets its default posting rules in charts that exist.
+        Event::listen(ModuleActivated::class, SeedModuleRules::class);
 
         // ACC-04, WF-01: manual journals go through their flow.
         $this->app->make(DocumentTypeRegistry::class)->register(JournalType::class);

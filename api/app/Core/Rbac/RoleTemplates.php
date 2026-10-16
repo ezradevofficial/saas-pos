@@ -97,8 +97,11 @@ class RoleTemplates
 
     /**
      * Re-apply the templates to the current tenant's system roles, so they
-     * pick up permissions registered since they were seeded. Changes are
-     * audited (RBAC-12).
+     * pick up permissions registered since they were seeded, and the
+     * template limits they lack (RBAC-06: a default added after the tenant
+     * was provisioned, such as the Branch Manager's quote discount). A limit
+     * a system role already has is never changed. Changes are audited
+     * (RBAC-12).
      */
     public function refresh(): void
     {
@@ -110,6 +113,12 @@ class RoleTemplates
                 ->each(function (Role $role) use ($templates) {
                     if ($template = $templates->get($role->template_key)) {
                         $role->setPermissions($this->expand($template['permissions'], $template['except'] ?? []));
+
+                        $missing = array_diff_key($template['limits'] ?? [], $role->limits());
+
+                        if ($missing !== []) {
+                            $role->setLimits($missing);
+                        }
                     }
                 });
         });

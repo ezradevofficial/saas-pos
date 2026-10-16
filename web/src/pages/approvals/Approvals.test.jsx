@@ -362,6 +362,6 @@ describe('approval detail (APR-03, APR-04, APR-06)', () => {
     fireEvent.change(await within(pane).findByLabelText('Choose a file to attach'), { target: { files: [file] } })
     await waitFor(() => expect(api.upload).toHaveBeenCalledWith('approvals/a/attachments', expect.any(FormData), expect.objectContaining({ onProgress: expect.any(Function) })))
     expect(api.upload.mock.calls[0][1].get('file')).toBe(file)
-    expect(await screen.findByText('Attached invoice.pdf')).toBeInTheDocument()
+    expect(await screen.findByText('Attached invoice.pdf.')).toBeInTheDocument()
   })
 })

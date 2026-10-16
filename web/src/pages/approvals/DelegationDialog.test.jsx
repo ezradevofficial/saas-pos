@@ -98,7 +98,7 @@ describe('delegation (APR-06)', () => {
         note: 'On leave',
       }),
     )
-    expect(await screen.findByText('Delegation saved')).toBeInTheDocument()
+    expect(await screen.findByText('Delegation saved.')).toBeInTheDocument()
   })
 
   it('searches colleagues on the server as the user types', async () => {
@@ -163,6 +163,6 @@ describe('delegation (APR-06)', () => {
 
     fireEvent.click(within(given).getByRole('button', { name: 'Revoke the delegation to Brian Kiprop' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('me/delegations/d-1/revoke'))
-    expect(await screen.findByText('Delegation revoked')).toBeInTheDocument()
+    expect(await screen.findByText('Delegation revoked.')).toBeInTheDocument()
   })
 })

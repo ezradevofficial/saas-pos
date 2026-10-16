@@ -40,10 +40,11 @@ jobs:
           - name: modules
             pint: false
             command: php artisan test --testsuite=ShardModules --exclude-group=slow
-          # TEN-01 in five shards: the two export tests and the two ID-probe
-          # tests each build the full two-tenant fixture and walk every table or
-          # route, so together they outgrow one job's time limit. The third
-          # shard is every other isolation test (14 in total across the three).
+          # TEN-01 in five shards: every isolation test builds the full
+          # two-tenant fixture, and the export, ID-probe, list and table tests
+          # walk every table, route or export, so together they outgrow one
+          # job's time limit. The fifth shard is every other isolation test
+          # (14 in total across the five).
           - name: isolation exports
             pint: false
             command: php artisan test --testsuite=Isolation --filter='full_export|list_exports'

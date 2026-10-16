@@ -11,7 +11,8 @@ use Modules\Accounting\Models\Document;
  * Read contract (docs/modules/crm.md, CRM-30): what a company invoiced in
  * a period, in its base currency, for another module's figures (CRM sales
  * targets), so it never reads `acc_*` tables itself: posted customer
- * invoices less posted customer credit notes by issue date, optionally
+ * invoices less posted customer credit notes by issue date, before tax
+ * (their base subtotals: CRM targets are net, stage 7D closing review), optionally
  * only those created by some users and/or at a branch. Null while
  * Accounting is off. The caller decides who may see the figure.
  */
@@ -37,7 +38,7 @@ final class InvoiceTotals
             ->whereBetween('issue_date', [$from, $to])
             ->when($createdBy !== null, fn ($q) => $q->whereIn('created_by', $createdBy))
             ->when($branchId !== null, fn ($q) => $q->where('branch_id', $branchId))
-            ->sum('base_total_minor');
+            ->sum('base_subtotal_minor');
 
         return (string) BigInteger::of($sum('customer_invoice'))->minus($sum('customer_credit'));
     }

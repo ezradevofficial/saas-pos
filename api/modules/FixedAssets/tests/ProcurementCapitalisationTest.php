@@ -77,6 +77,31 @@ class ProcurementCapitalisationTest extends TestCase
         $this->api('POST', "fixed-assets/assets/{$drafts[0]->id}/activate")->assertOk()->assertJsonPath('data.status', 'active');
     }
 
+    public function test_an_asset_item_cannot_become_stock_and_one_that_did_is_never_capitalised(): void
+    {
+        // Review item 2 (stage 7D closing): stock stays in the stock ledger.
+        $flag = $this->flag($this->laptop)->assertCreated()->json('data.id');
+        $this->api('PATCH', "items/{$this->laptop->id}", ['type' => 'stock'])->assertUnprocessable()
+            ->assertJsonPath('code', 'item_is_asset')->assertJsonValidationErrors(['type']);
+        $this->assertSame('non_stock', $this->inTenant(fn () => $this->laptop->fresh()->type));
+        $this->api('PATCH', "items/{$this->laptop->id}", ['name' => 'Laptop 14"'])->assertOk();
+
+        // Made stock while the module was off (no guard then): its GRN lines give no drafts.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('fixed_assets'));
+        $this->api('PATCH', "items/{$this->laptop->id}", ['type' => 'stock'])->assertOk();
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('fixed_assets'));
+        $order = $this->approvedOrder([], [['item_id' => $this->laptop->id, 'qty' => '2', 'unit_price_minor' => '100000']]);
+        $this->postedReceipt($order, [['order_line_id' => $order['lines'][0]['id'], 'received_qty' => '2']]);
+        $this->assertSame([], $this->drafts());
+
+        // Unflagged, an item may become stock.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('fixed_assets'));
+        $this->api('PATCH', "items/{$this->laptop->id}", ['type' => 'non_stock'])->assertOk();
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('fixed_assets'));
+        $this->api('POST', "fixed-assets/item-categories/{$flag}/archive")->assertOk();
+        $this->api('PATCH', "items/{$this->laptop->id}", ['type' => 'stock'])->assertOk();
+    }
+
     public function test_an_invoice_makes_drafts_only_for_what_no_grn_did(): void
     {
         $this->flag($this->laptop)->assertCreated();

@@ -19,7 +19,7 @@ use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
 /**
- * ACC-33 (docs/modules/manufacturing.md MFG-20): a production order posts
+ * ACC-35 (docs/modules/manufacturing.md MFG-20): a production order posts
  * its materials into work in progress, its receipts out of it with the
  * labour and overhead they absorbed, and what is left at close to
  * production variances; a sale's recipe ingredients post to cost of sales.

@@ -100,13 +100,19 @@ return [
             'ecommerce.*',
         ],
         'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver'],
+        // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
+        // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
+        // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
+        // The till discount keeps no default (no rule: discounts need a manager's override, POS-07).
+        'limits' => ['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
     [
         // Owner decision B (2026-10-15, docs/modules/crm.md): a sales rep works their own leads, opportunities,
         // quotes and activities (no team or branch scope, CRM-08). Quote discounts stay within the role's
-        // max_discount_percent, seeded at 0 % for the tenant to raise; above it the quote goes for approval.
+        // max_quote_discount_percent, seeded at 0 % (tenants raise it on a copy of the role, RBAC-02); above it
+        // the quote goes for approval.
         // Sales managers use the Branch Manager role (crm.scope.branch).
         'key' => 'sales_rep',
         'permissions' => [
@@ -117,7 +123,7 @@ return [
             'crm.quote.view', 'crm.quote.create', 'crm.quote.discount', 'crm.quote.send', 'crm.quote.cancel',
             'crm.activity.view', 'crm.activity.manage', 'crm.target.view',
         ],
-        'limits' => ['max_discount_percent' => '0'],
+        'limits' => ['max_quote_discount_percent' => '0'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -292,6 +298,8 @@ return [
             'manufacturing.order.view',
             // FA-14, FA-17: the assets whose transfers and disposals they approve, with their values (RBAC-05).
             'fixed_assets.asset.view', 'fixed_assets.value.view',
+            // CRM-21 (stage 7D closing review): the quotes they approve, at the branches they approve for, not only their own (CRM-08).
+            'crm.quote.view', 'crm.scope.branch',
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances
             // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',

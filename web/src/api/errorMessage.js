@@ -6,6 +6,7 @@ import i18n from '@/i18n'
 const KNOWN = new Set([
   'last_owner',
   'cannot_grant',
+  'cannot_grant_limit',
   'invitation_stale',
   'contact_unverified',
   'system_role',

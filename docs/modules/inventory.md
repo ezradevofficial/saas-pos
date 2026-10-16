@@ -232,7 +232,7 @@ only, en/fr, back-office list patterns as the POS screens (ADR 008).
   production order's materials and output and a POS sale's recipe
   ingredients; `StockMoved` (sources `manufacturing.*`) carries the
   values back, and Accounting posts Manufacturing's `ProductionValued`
-  instead (ACC-33). Recipe costing reads current unit costs through the
+  instead (ACC-35). Recipe costing reads current unit costs through the
   read contract `Contracts\StockCosts`. Made-to-order menu items are
   `kit` or `non_stock` items, which the POS listener never moves: their
   ingredients move through their recipe (MFG-09).

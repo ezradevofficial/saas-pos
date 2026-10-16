@@ -37,7 +37,7 @@ class GoodsReceiptPosted implements ShouldDispatchAfterCommit
         public readonly array $dimensions,
         public readonly string $reference,
         public readonly string $orderId,
-        /** Fixed assets (FA-21): the accepted lines {line_id, order_line_id, item_id, description, qty, base_value_minor, landed_minor, serials, location_id}. */
+        /** Fixed assets (FA-21): the accepted lines {line_id, order_line_id, item_id, description, qty, base_value_minor, landed_minor, serials, location_id, kind (`stock` or `expense`)}. */
         public readonly array $lines = [],
     ) {}
 }

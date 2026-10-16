@@ -8,10 +8,12 @@ import { Amount, InventoryOffNote, Qty } from './ManufacturingParts'
 import { BOM_KINDS, kindFilter, kindLabel, manufacturingKey } from './manufacturingData'
 
 /**
- * MFG-06, MFG-27: what each BOM in force costs now from Inventory's
- * current unit costs: per output unit and per batch, the menu item's
- * price (noted when it includes tax) and the cost's share of it, and the
- * items without a cost; kind and company filters, sort and export.
+ * MFG-06, MFG-27 (owner decision B, 2026-10-16): what each BOM in force
+ * costs now: ingredients at Inventory's current unit costs, plus labour and
+ * overhead where the company sets them, less the by-products' credit, per
+ * output unit and per batch; the menu item's price, its price before tax
+ * and the cost's share of that; the items without a cost. Kind and company
+ * filters, sort and export.
  */
 export default function RecipeCosting() {
   const { t } = useTranslation()
@@ -43,6 +45,10 @@ export default function RecipeCosting() {
     },
     { key: 'unit_cost', label: t('manufacturing.columns.unitCost'), align: 'end', render: (row) => <Amount value={row.unit_cost} className="font-medium" /> },
     { key: 'batch_cost', label: t('manufacturing.columns.batchCost'), align: 'end', render: (row) => <Amount value={row.batch_cost} /> },
+    { key: 'materials_cost', label: t('manufacturing.columns.materialsCost'), align: 'end', defaultHidden: true, render: (row) => <Amount value={row.materials_cost} /> },
+    { key: 'labour_cost', label: t('manufacturing.columns.labourCost'), align: 'end', defaultHidden: true, render: (row) => <Amount value={row.labour_cost} /> },
+    { key: 'overhead_cost', label: t('manufacturing.columns.overheadCost'), align: 'end', defaultHidden: true, render: (row) => <Amount value={row.overhead_cost} /> },
+    { key: 'by_product_credit', label: t('manufacturing.columns.byProductCredit'), align: 'end', defaultHidden: true, render: (row) => <Amount value={row.by_product_credit} /> },
     {
       key: 'price',
       label: t('manufacturing.columns.price'),
@@ -53,6 +59,19 @@ export default function RecipeCosting() {
             <Amount value={row.price} />
             {row.price.tax_inclusive ? <span className="text-caption text-ink-muted">{t('manufacturing.recipeCosting.inclTax')}</span> : null}
           </span>
+        ) : (
+          <span className="text-ink-muted">—</span>
+        ),
+    },
+    {
+      key: 'net_price',
+      label: t('manufacturing.columns.netPrice'),
+      align: 'end',
+      render: (row) =>
+        row.net_price ? (
+          <Amount value={row.net_price} />
+        ) : row.price ? (
+          <span className="text-caption text-ink-muted">{t('manufacturing.recipeCosting.taxUnknown')}</span>
         ) : (
           <span className="text-ink-muted">—</span>
         ),

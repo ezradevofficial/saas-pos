@@ -492,6 +492,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('roles', [RoleController::class, 'store']);
     Route::get('roles/{role}', [RoleController::class, 'show']);
     Route::patch('roles/{role}', [RoleController::class, 'update']);
+    // RBAC-06 (owner decision A): a custom role's limits.
+    Route::put('roles/{role}/limits', [RoleController::class, 'limits']);
     Route::post('roles/{role}/copy', [RoleController::class, 'copy']);
     Route::post('roles/{role}/archive', [RoleController::class, 'archive']);
     Route::get('permissions', PermissionCatalogueController::class);

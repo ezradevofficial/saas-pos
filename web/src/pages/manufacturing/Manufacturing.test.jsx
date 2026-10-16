@@ -137,6 +137,38 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('manufacturing/orders/o-1/reports', expect.objectContaining({ qty_good: '120' })))
   })
 
+  it('names an output Inventory did not take into stock (MFG-15)', async () => {
+    const report = {
+      id: 'r-1', number: 'PR-1', status: 'received', reported_at: '2026-10-15T08:00:00Z', reported_by: named('u-1', 'Grace Achieng'), qty_good: '120', qty_scrap: '0', scrap_reason: null,
+      labour_minutes: 144, note: null, material_cost: money('311400'), labour_cost: money('288000'), overhead_cost: money('144000'), cost: money('743400'),
+      lines: [
+        { id: 'rl-1', kind: 'product', item: BREAD, qty_base: '120', cost: money('669060'), value: money('669060') },
+        { id: 'rl-2', kind: 'by_product', item: { id: 'i-bran', code: 'BRAN', name: 'Bran', type: 'non_stock' }, qty_base: '6', cost: money('74340'), value: money('0') },
+      ],
+      flags: [{ code: 'not_received', line_id: 'rl-2' }],
+    }
+    setup({ ...ORDER, reports: [report] })
+    renderApp('/manufacturing/orders/o-1')
+    expect(await screen.findByText('Not taken into stock: Bran')).toBeInTheDocument()
+  })
+
+  it('shows rates hidden from the reader as Hidden, never as zero (RBAC-05)', async () => {
+    setup(ORDER, [
+      ['manufacturing/companies/c-1/settings', { data: { company: named('c-1', 'Amani Bakery'), currency: 'KES', labour_rate_minor: null, overhead_rate_minor: null, release_approval: true } }],
+    ])
+    renderApp('/manufacturing/settings')
+    expect(await screen.findByLabelText('Labour per hour')).toHaveValue('Hidden')
+    expect(screen.getByLabelText('Overhead per labour hour')).toHaveValue('Hidden')
+    expect(screen.queryByText(/KES 0\.00/)).not.toBeInTheDocument()
+  })
+
+  it('says planned dates are not set rather than showing dashes', async () => {
+    setup({ ...ORDER, planned_start: null, planned_end: null })
+    renderApp('/manufacturing/orders/o-1')
+    expect(await screen.findByText('Not set')).toBeInTheDocument()
+    expect(screen.queryByText('–')).not.toBeInTheDocument()
+  })
+
   it('hides what the order does not allow and releases a planned one', async () => {
     const planned = { ...ORDER, status: 'planned', ledger: null, can: { ...ORDER.can, release: true, issue: false, report: false, close: false } }
     setup(planned)
@@ -161,6 +193,15 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     )
   })
 
+  it('adds a component and a by-product line to a draft version (MFG-04, MFG-05)', async () => {
+    setup()
+    renderApp('/manufacturing/bom-versions/v-2')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add component' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add by-product' }))
+    expect(await screen.findByRole('listitem', { name: 'Line 3' })).toBeInTheDocument()
+    expect(screen.getByRole('listitem', { name: 'Line 2' })).toBeInTheDocument()
+  })
+
   it('shows consumption against standard and recipe costs', async () => {
     setup(ORDER, [
       [/^manufacturing\/consumption\?/, page([{ id: 'm-1', order: { id: 'o-1', number: 'MO-WL-2026-00001', status: 'in_progress', ledger: 'inventory' }, company: named('c-1', 'Amani Bakery'),
@@ -168,7 +209,11 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
         valued: true, actual_value: money('525000'), standard_value: money('382500'), value_variance: money('142500') }])],
       [/^manufacturing\/recipe-costing\?/, page([{ id: 'b-9', kind: 'recipe', company: named('c-1', 'Amani Bakery'), item: { id: 'i-burger', code: 'BURGER', name: 'Burger', type: 'kit' },
         version: { id: 'v-9', version_no: 1 }, output_qty: '1', output_uom: EA, error: null, unit_cost: money('18095'), batch_cost: money('18095'),
-        price: { amount_minor: '65000', currency: 'KES', tax_inclusive: true }, cost_share_percent: '27.8', leaves: [], uncosted: [] }])],
+        materials_cost: money('18095'), labour_cost: money('0'), overhead_cost: money('0'), by_product_credit: money('0'),
+        price: { amount_minor: '65000', currency: 'KES', tax_inclusive: true, net_minor: '56034' }, net_price: money('56034'), cost_share_percent: '32.3', leaves: [], uncosted: [] },
+        { id: 'b-10', kind: 'recipe', company: named('c-1', 'Amani Bakery'), item: { id: 'i-tea', code: 'TEA', name: 'Tea', type: 'kit' },
+        version: { id: 'v-10', version_no: 1 }, output_qty: '1', output_uom: EA, error: null, unit_cost: money('3000'), batch_cost: money('3000'),
+        price: { amount_minor: '10000', currency: 'KES', tax_inclusive: true, net_minor: null, net_price_reason: 'tax_category_missing' }, net_price: null, cost_share_percent: null, leaves: [], uncosted: [] }])],
     ])
     const { unmount } = renderApp('/manufacturing/consumption')
     expect(await screen.findByText('76.5')).toBeInTheDocument()
@@ -176,6 +221,10 @@ describe('Manufacturing (MFG-02 to MFG-19)', () => {
     unmount()
     renderApp('/manufacturing/recipe-costing')
     expect(await screen.findByText('Burger')).toBeInTheDocument()
-    expect(screen.getByText('27.8')).toBeInTheDocument()
+    // Owner decision B: the share is of the price before tax; a price whose tax is not known has none.
+    expect(screen.getByRole('columnheader', { name: /Price before tax/ })).toBeInTheDocument()
+    expect(screen.getByText(/560\.34/)).toBeInTheDocument()
+    expect(screen.getByText('32.3')).toBeInTheDocument()
+    expect(screen.getByText('Tax not known')).toBeInTheDocument()
   })
 })

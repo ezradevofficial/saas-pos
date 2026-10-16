@@ -137,7 +137,7 @@ describe('Stores (STR-02 to STR-06, STR-12)', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Acknowledge receipt' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('stores/issues/s-1/acknowledge', {}))
-    expect(await screen.findByText('Receipt acknowledged')).toBeInTheDocument()
+    expect(await screen.findByText('Receipt acknowledged.')).toBeInTheDocument()
 
     api.post.mockResolvedValueOnce({ data: { id: 'n-1', number: 'SRN-WL-2026-00001' } })
     fireEvent.click(screen.getByRole('button', { name: 'Return goods' }))

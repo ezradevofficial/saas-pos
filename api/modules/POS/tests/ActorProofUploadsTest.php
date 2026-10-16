@@ -120,7 +120,7 @@ class ActorProofUploadsTest extends TestCase
     public function test_refunds_by_a_verified_actor_are_applied_within_their_limit_only(): void
     {
         // RBAC-06: KES 500.00 is below the KES 562.50 refund: refused as before, proof or not.
-        $limit = $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount', 'value' => '500']));
+        $limit = $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount'], ['value' => '500']));
         $sale = $this->sale(1);
         $this->refund($sale, 1, $this->actorProof($this->manager->id))->assertUnprocessable()->assertJsonPath('results.0.error.code', 'limit_exceeded');
 

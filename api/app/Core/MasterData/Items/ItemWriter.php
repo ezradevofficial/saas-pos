@@ -29,6 +29,7 @@ class ItemWriter
         private readonly Auditor $auditor,
         private readonly ItemReferences $references,
         private readonly CustomFieldWriter $customFields,
+        private readonly ItemTypeGuards $typeGuards,
     ) {}
 
     public function create(array $data): Item
@@ -90,6 +91,12 @@ class ItemWriter
             );
 
             $item->fill(['company_id' => $companyId, ...ItemRules::attributes($data)]);
+
+            if ($item->isDirty('type')) {
+                // MD-02: a module relying on the type may refuse (e.g. an asset item made stock, FA-21).
+                $this->typeGuards->assert($item, (string) $item->type);
+            }
+
             $this->customFields->fill(ItemEntity::KEY, $item, $data['custom'] ?? null, creating: false);
             $item->save();
             $this->customFields->saved(ItemEntity::KEY, $item);

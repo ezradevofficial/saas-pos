@@ -13,6 +13,7 @@ import { useErrorFocus } from '@/lib/useErrorFocus'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
 import { CopyRoleDialog } from './roles/CopyRoleDialog'
+import { LimitsEditor } from './roles/LimitsEditor'
 import { PermissionMatrix } from './roles/PermissionMatrix'
 
 /**
@@ -140,7 +141,7 @@ function RoleForm({ role, catalogue, editable }) {
   )
 }
 
-/** RBAC-02..RBAC-04, RBAC-12: one role: details, two-factor and the permission matrix. System roles are read-only. */
+/** RBAC-02..RBAC-06, RBAC-12: one role: details, two-factor, the permission matrix and its limits. System roles are read-only. */
 export default function RoleDetail() {
   const { t } = useTranslation()
   const { roleId } = useParams()
@@ -232,7 +233,10 @@ export default function RoleDetail() {
         />
       )}
       {creating || tab === 'details' ? (
-        <RoleForm key={data?.id ?? 'new'} role={data} catalogue={catalogue.data?.data ?? {}} editable={editable} />
+        <>
+          <RoleForm key={data?.id ?? 'new'} role={data} catalogue={catalogue.data?.data ?? {}} editable={editable} />
+          {creating ? null : <LimitsEditor key={`limits-${data.id}`} role={data} editable={editable} />}
+        </>
       ) : (
         <Card>
           <HistoryPanel type="role" recordId={data.id} timeZone={timeZone} />

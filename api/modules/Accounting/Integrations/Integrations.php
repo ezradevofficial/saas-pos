@@ -30,7 +30,7 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
 use Modules\Stores\Events\StoreConsumptionValued;
 
 /**
- * ACC-25 to ACC-33 (stage 7B, Manufacturing in 7D): what other modules' events post, in the
+ * ACC-25 to ACC-33 (stage 7B; Payroll ACC-33 in 7C; Manufacturing ACC-35 in 7D): what other modules' events post, in the
  * current tenant. Nothing happens unless Accounting is active (RBAC-08);
  * the raising module was active when the event happened (PostModuleEvent
  * queues only then), whatever it is now. Every source goes through
@@ -80,7 +80,7 @@ class Integrations
             $event instanceof StockMoved => $this->post($this->inventory->stockMoved($event)),
             $event instanceof LoyaltyLedgerEvent => $this->post($this->loyalty->entry($event)),
             $event instanceof StoreConsumptionValued => $this->post($this->stores->consumption($event)),
-            // ACC-33: Manufacturing's valued issues, returns, receipts, variances and recipe backflushes.
+            // ACC-35: Manufacturing's valued issues, returns, receipts, variances and recipe backflushes.
             $event instanceof ProductionValued => $this->post($this->manufacturing->valued($event)),
             // ACC-32: an approved Procurement invoice becomes a posted Accounting supplier invoice.
             $event instanceof SupplierInvoiceApproved => $this->supplierInvoices->approved($event),

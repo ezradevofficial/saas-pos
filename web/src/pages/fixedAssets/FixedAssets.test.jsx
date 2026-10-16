@@ -89,6 +89,14 @@ describe('Fixed assets (FA-04, FA-05, FA-12, FA-17, FA-20)', () => {
     expect(within(table).getByText('Draft').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning')
   })
 
+  it('starts a new asset in the company base currency on a direct load (CUR-01)', async () => {
+    setup()
+    renderApp('/fixed-assets/assets/new')
+    const cost = await screen.findByRole('textbox', { name: 'Cost' })
+    await waitFor(() => expect(cost.parentElement).toHaveTextContent('KES'))
+    expect(cost.parentElement).not.toHaveTextContent('CDF')
+  })
+
   it('activates a draft with the decisive action', async () => {
     setup()
     api.post.mockResolvedValue({ data: ACTIVE })
@@ -108,6 +116,8 @@ describe('Fixed assets (FA-04, FA-05, FA-12, FA-17, FA-20)', () => {
     renderApp('/fixed-assets/assets/a-1')
     fireEvent.click(await screen.findByRole('button', { name: 'Dispose' }))
     const dialog = await screen.findByRole('dialog')
+    // Walkthrough (stage 7D closing): a dialog's way out says Cancel.
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     chooseOption(within(dialog).getByLabelText(/^Kind/), 'Scrap')
     fireEvent.change(within(dialog).getByLabelText(/^Disposal date/), { target: { value: '2026-10-01' } })
     fireEvent.change(within(dialog).getByLabelText(/^Reason/), { target: { value: 'Crashed' } })

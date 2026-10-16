@@ -6,7 +6,7 @@ use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * MFG-20, ACC-33: a Manufacturing document's value, once, for Accounting:
+ * MFG-20, ACC-35: a Manufacturing document's value, once, for Accounting:
  *
  * - `materials`: an issue (lines out, negative) or a return (back,
  *   positive) Inventory valued;

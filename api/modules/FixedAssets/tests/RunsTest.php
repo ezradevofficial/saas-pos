@@ -153,6 +153,18 @@ class RunsTest extends TestCase
         $this->assertSame('12000000', end($schedule['projected'])['book_value']);
     }
 
+    public function test_a_draft_straight_line_asset_projects_its_schedule_from_its_acquisition(): void
+    {
+        // Walkthrough (stage 7D closing): a draft shows what it will charge once in service, from its acquisition date.
+        $draft = $this->draft();
+
+        $schedule = $this->api('GET', "assets/{$draft['id']}/schedule")->assertOk()->json('data');
+        $this->assertSame([[], true], [$schedule['posted'], $schedule['projectable']]);
+        $this->assertSame('2026-01-01', $schedule['projected'][0]['from']);
+        $this->assertSame(108000000, array_sum(array_map(fn (array $row) => (int) $row['amount'], $schedule['projected'])));
+        $this->assertSame('12000000', end($schedule['projected'])['book_value']);
+    }
+
     public function test_run_permissions_and_scope(): void
     {
         $this->active();

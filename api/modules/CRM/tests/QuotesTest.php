@@ -7,6 +7,7 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Rbac\Scope;
 use Illuminate\Support\Facades\Event;
 use Modules\CRM\Events\QuoteApproved;
 use Modules\CRM\Models\Quote;
@@ -116,10 +117,25 @@ class QuotesTest extends TestCase
         // The rep's limit is 10 %: within it, nothing to approve.
         $this->assertFalse($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '10']])['discount_over_limit']);
 
-        // The branch manager holds crm.quote.discount but no limit rule (0 %): any discount goes for approval.
-        $this->assertTrue($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '1']], as: $this->manager)['discount_over_limit']);
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_discount_percent', 'value' => '30']));
+        // Owner decision A (2026-10-16): the Branch Manager template allows 10 % on quotes; above it, approval.
+        $this->assertFalse($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '10']], as: $this->manager)['discount_over_limit']);
+        $this->assertTrue($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '10.5']], as: $this->manager)['discount_over_limit']);
+
+        // Quotes read their own limit, never the till's: a 30 % till discount leaves the quote limit at 10 %.
+        $tillRole = $this->inTenant(function () {
+            $role = $this->role('Till lead', ['pos.sale.view']);
+            $role->limitRules()->create(['key' => 'max_discount_percent', 'value' => '30']);
+            $this->assign($this->manager, $role, Scope::branch($this->branchA->id));
+
+            return $role;
+        });
+        $this->assertTrue($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '30']], as: $this->manager)['discount_over_limit']);
+        $this->inTenant(fn () => $tillRole->limitRules()->create(['key' => 'max_quote_discount_percent', 'value' => '30']));
         $this->assertFalse($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '30']], as: $this->manager)['discount_over_limit']);
+
+        // A role holding crm.quote.discount without a quote rule allows none.
+        $this->inTenant(fn () => $this->repRole->limitRules()->delete());
+        $this->assertTrue($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '1']])['discount_over_limit']);
 
         // The Owner has no limit.
         $this->assertFalse($this->draftQuote(lines: [['item_id' => $this->widget->id, 'qty' => '1', 'discount_percent' => '80']], as: $this->owner)['discount_over_limit']);
@@ -204,6 +220,21 @@ class QuotesTest extends TestCase
         $this->assertContains($this->api('POST', "approvals/{$approval}/approve", [], $this->repA)->getStatusCode(), [403, 404, 422]);
         $this->approveFlow(QuoteType::KEY, $quote['id']);
         $this->assertSame('approved', $this->api('GET', "crm/quotes/{$quote['id']}", [], $this->repA)->json('data.status'));
+    }
+
+    public function test_an_approver_reads_the_quotes_they_approve_at_their_branch(): void
+    {
+        // Review item 12 (stage 7D closing): the Approver template reads quotes (crm.quote.view) at its branch
+        // (crm.scope.branch), not only its own, so it sees what it approves; never another branch's.
+        $quote = $this->draftQuote();
+        $approver = $this->userWith('approver', Scope::branch($this->branchA->id));
+        $elsewhere = $this->userWith('approver', Scope::branch($this->branchB->id));
+
+        $this->api('GET', "crm/quotes/{$quote['id']}", [], $approver)->assertOk()->assertJsonPath('data.id', $quote['id']);
+        $this->assertSame([$quote['id']], array_column($this->api('GET', 'crm/quotes', [], $approver)->assertOk()->json('data'), 'id'));
+        $this->api('GET', "crm/quotes/{$quote['id']}", [], $elsewhere)->assertNotFound();
+        $this->api('POST', 'crm/quotes', ['branch_id' => $this->branchA->id, 'party_id' => $this->customer->id, 'lines' => [['item_id' => $this->widget->id, 'qty' => '1']]], $approver)
+            ->assertForbidden();
     }
 
     public function test_a_rejected_quote_is_edited_back_into_a_draft_and_submitted_again(): void

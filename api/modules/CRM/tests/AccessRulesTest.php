@@ -97,10 +97,13 @@ class AccessRulesTest extends TestCase
                 'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'amount_minor' => '100000'])->assertCreated();
         }
 
-        $rows = $this->api('GET', 'crm/targets', [], $viewer)->assertOk()->json('data');
-        $this->assertCount(2, $rows);
-        foreach ($rows as $row) {
-            $this->assertSame([null, false, 'not_permitted'], [$row['actual_minor'], $row['available'], $row['unavailable']], $row['metric']);
+        // Review item 9 (stage 7D closing): with POS and Accounting off, the module is what is missing, for anyone.
+        foreach ([$viewer, $this->owner] as $reader) {
+            $rows = $this->api('GET', 'crm/targets', [], $reader)->assertOk()->json('data');
+            $this->assertCount(2, $rows);
+            foreach ($rows as $row) {
+                $this->assertSame([null, false, 'module_inactive'], [$row['actual_minor'], $row['available'], $row['unavailable']], $row['metric']);
+            }
         }
         // With Accounting on, the Owner (accounting.invoice.view) reads the invoiced actual; the viewer still does not.
         $this->inTenant(function () {

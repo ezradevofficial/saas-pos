@@ -43,7 +43,7 @@ export function ReasonDialog({ open, title, help, confirm, tone = 'danger', path
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            {t('fixedAssets.actions.keep')}
+            {t('common.cancel')}
           </Button>
           <Button variant={tone} loading={send.isPending} disabled={!reason.trim()} onClick={() => send.mutate()}>
             {confirm}

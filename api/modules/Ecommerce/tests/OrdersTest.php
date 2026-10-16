@@ -175,10 +175,10 @@ class OrdersTest extends TestCase
         $order = $this->api('POST', "ecommerce/orders/{$id}/return", ['reason' => 'Damaged'])->assertOk()->json('data');
         $this->assertSame(['returned', 'refund_due'], [$order['status'], $order['payment_status']]);
 
-        // RBAC-06: the refund keeps to the limit too (the manager has none; the Owner has no limit).
-        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'], $this->manager)->assertForbidden()->assertJsonPath('code', 'refund_above_limit');
-        $this->api('POST', "ecommerce/orders/{$id}/refund")->assertUnprocessable()->assertJsonPath('code', 'refund_reference_required');
-        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'])->assertOk()->assertJsonPath('data.payment_status', 'refunded');
+        // RBAC-06: the refund keeps to the limit too: the Branch Manager template refunds up to 10,000 in the base
+        // currency (owner decision A, 2026-10-16), so the manager refunds this order.
+        $this->api('POST', "ecommerce/orders/{$id}/refund", [], $this->manager)->assertUnprocessable()->assertJsonPath('code', 'refund_reference_required');
+        $this->api('POST', "ecommerce/orders/{$id}/refund", ['reference' => 'CASH-RET-1'], $this->manager)->assertOk()->assertJsonPath('data.payment_status', 'refunded');
     }
 
     /** A COD delivery order delivered by the rider through the back office; its id. */

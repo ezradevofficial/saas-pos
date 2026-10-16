@@ -12,7 +12,7 @@ use Modules\Manufacturing\Http\Resources\OrderResource;
 /** MFG-10 to MFG-14, MFG-27: production orders, newest first. */
 class OrderList extends ManufacturingList
 {
-    public const RELATIONS = ['company', 'branch', 'location', 'item', 'uom', 'planner'];
+    public const RELATIONS = ['company', 'branch', 'location', 'item', 'uom', 'planner', 'releaser', 'closer'];
 
     public function name(): string
     {

@@ -35,6 +35,8 @@ use Modules\Procurement\Events\SupplierInvoiceApproved;
  * line whose PO line already gave drafts from an invoice is skipped, and
  * the other way round, each line under a transaction-scoped advisory lock
  * on its PO line so a GRN and an invoice never capitalise it side by side.
+ * A line Procurement booked as stock (`kind` `stock`), or whose item is a
+ * stock item now, is skipped: stock stays in the stock ledger (FA-21).
  */
 class CapitaliseFromProcurement implements ShouldQueue
 {
@@ -147,7 +149,12 @@ class CapitaliseFromProcurement implements ShouldQueue
     {
         $itemId = $line['item_id'] ?? null;
 
-        if ($itemId === null || ! isset($flagged[$itemId]) || $baseValue <= 0) {
+        if ($itemId === null || ! isset($flagged[$itemId]) || $baseValue <= 0 || ($line['kind'] ?? null) === 'stock') {
+            return;
+        }
+
+        // FA-21: an item made a stock item since it was flagged is Inventory's, never an asset too.
+        if (Item::query()->whereKey($itemId)->value('type') === 'stock') {
             return;
         }
 

@@ -15,6 +15,7 @@ use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -1094,9 +1095,15 @@ class TenantIsolationTest extends TestCase
         // MD-04: payment method settings and credentials never reach an export, A's own included.
         $secrets = ['key-a', 'secret-a', 'pass-a', '17437a'];
 
+        $this->assertSame([], $this->unlistedExports($a), 'every route that exports a list (ListExport) is in exportedLists');
+
+        // Exports offering only some formats.
+        $formats = ['procurement/supplier-performance' => ['csv']];
+
         foreach ($this->exportedLists($a) as $list => $ours) {
-            foreach (['csv', 'xlsx', 'pdf'] as $format) {
-                $response = $this->get("/api/v1/{$list}".(str_contains($list, '?') ? '&' : '?')."format={$format}", $a->bearer())->assertOk();
+            foreach ($formats[$list] ?? ['csv', 'xlsx', 'pdf'] as $format) {
+                $response = $this->get("/api/v1/{$list}".(str_contains($list, '?') ? '&' : '?')."format={$format}", $a->bearer());
+                $this->assertSame(200, $response->getStatusCode(), "{$list} {$format}: ".($response->baseResponse instanceof StreamedResponse ? '' : $response->getContent()));
                 $body = $response->streamedContent();
 
                 if ($format === 'pdf') {
@@ -1120,6 +1127,44 @@ class TenantIsolationTest extends TestCase
                 }
             }
         }
+    }
+
+    /**
+     * GET routes whose action takes a ListExport (EXP-01) and that no entry
+     * of exportedLists() reaches, so a new export cannot skip the check.
+     *
+     * @return list<string> route URIs
+     */
+    private function unlistedExports(TenantFixture $a): array
+    {
+        $routes = Route::getRoutes();
+        $listed = [];
+
+        foreach (array_keys($this->exportedLists($a)) as $list) {
+            $listed[] = $routes->match(Request::create('/api/v1/'.strtok($list, '?'), 'GET'))->uri();
+        }
+
+        $unlisted = [];
+
+        foreach ($routes->getRoutes() as $route) {
+            $action = $route->getActionName();
+
+            if (! in_array('GET', $route->methods(), true) || ! str_starts_with($route->uri(), 'api/v1/') || $action === 'Closure') {
+                continue;
+            }
+
+            [$class, $method] = str_contains($action, '@') ? explode('@', $action, 2) : [$action, '__invoke'];
+            $exports = collect((new ReflectionMethod($class, $method))->getParameters())
+                ->contains(fn ($parameter) => $parameter->getType() instanceof ReflectionNamedType && $parameter->getType()->getName() === ListExport::class);
+
+            if ($exports && ! in_array($route->uri(), $listed, true)) {
+                $unlisted[] = $route->uri();
+            }
+        }
+
+        sort($unlisted);
+
+        return $unlisted;
     }
 
     /**
@@ -1220,6 +1265,22 @@ class TenantIsolationTest extends TestCase
             'crm/opportunities?status=all' => ['Deal A', 'Customer A'],
             'crm/quotes?status=all' => ['Customer A'],
             'crm/activities' => ['Call A', 'Hello A'],
+            // Fixed assets (FA-26): the register.
+            'fixed-assets/assets' => ['Van A', 'Truck A'],
+            // Stage 7D closing review: every other list export (unlistedExports() keeps this complete).
+            'credit-limit-changes' => ['Customer A', 'Season A'],
+            'custom-fields' => ['Colour A', 'Manual A'],
+            "custom-form-types/{$a->id('custom_form_type')}/records" => ['Branch A'],
+            'imports' => ['customers-a.csv'],
+            "inventory/items/{$a->id('item')}/movements" => ['Outlet A', 'Opening stock'],
+            "price-lists/{$a->id('price_list')}/prices" => ['ITEM-A', 'BOX'],
+            'workflows' => ['Company A'],
+            'procurement/supplier-performance' => ['Supplier A'],
+            'subscription/invoices' => ['KES'],
+            'payroll/employees' => ['Worker A', 'Peer A'],
+            'payroll/loans' => ['LN-A'],
+            'payroll/runs' => ['Monthly A'],
+            "payroll/runs/{$a->id('payroll_run')}/lines" => ['Worker A'],
             // E-commerce (ECOM-22): the orders list.
             'ecommerce/orders?status=all' => ['Shopper A'],
         ];

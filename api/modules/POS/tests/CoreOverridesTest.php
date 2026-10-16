@@ -197,7 +197,7 @@ class CoreOverridesTest extends TestCase
     public function test_a_refund_with_an_offline_override_flags_its_sale_and_reopens_a_reviewed_one(): void
     {
         $this->ranges('pos.refund', token: $this->paired['token'])->assertOk();
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount', 'value' => '100000']));
+        $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount'], ['value' => '100000']));
         $sale = $this->sale(1);
 
         $first = $this->refund($sale['id'], 1);

@@ -96,7 +96,7 @@ describe('my notification settings (NOT-04, NOT-05)', () => {
         { event_type: 'core.notification.test', channels: { in_app: true, email: true }, digest: 'daily' },
       ],
     })
-    expect(await screen.findByText('Notification settings saved')).toBeInTheDocument()
+    expect(await screen.findByText('Notification settings saved.')).toBeInTheDocument()
   })
 
   it('shows why a save failed', async () => {

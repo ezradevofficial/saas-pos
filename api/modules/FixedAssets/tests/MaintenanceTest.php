@@ -4,6 +4,7 @@ namespace Modules\FixedAssets\Tests;
 
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Scope;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Modules\FixedAssets\Tests\Concerns\BuildsFixedAssets;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -67,5 +68,15 @@ class MaintenanceTest extends TestCase
         $atB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
         $this->api('POST', "assets/{$asset['id']}/work-orders", ['title' => 'x'], $atB)->assertNotFound();
         $this->api('GET', 'work-orders', [], $this->userWith('cashier', Scope::location($this->locationA->id)))->assertForbidden();
+    }
+
+    public function test_the_module_schedules_its_reminders_daily(): void
+    {
+        // Review item 11 (stage 7D closing): the schedule lives with the module, once.
+        $events = collect(app(Schedule::class)->events())->filter(fn ($event) => str_contains($event->command ?? '', 'fixed-assets:maintenance-reminders'))->values();
+
+        $this->assertCount(1, $events);
+        $this->assertSame('30 6 * * *', $events[0]->expression);
+        $this->assertStringNotContainsString('fixed-assets:', (string) file_get_contents(base_path('routes/console.php')));
     }
 }

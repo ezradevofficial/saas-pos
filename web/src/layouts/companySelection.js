@@ -18,6 +18,12 @@ export function chooseCompany(id) {
   for (const listener of listeners) listener()
 }
 
+/** True when every grant of core.company.view is tenant-wide or for whole companies. */
+function companyViewer(permissions) {
+  const scopes = permissions.find((permission) => permission.name === 'core.company.view')?.scopes ?? []
+  return scopes.length > 0 && scopes.every((scope) => scope.type === 'tenant' || scope.type === 'company')
+}
+
 /**
  * Companies for the switcher: those the user can view (core.company.view),
  * else (a branch Accountant or Branch Manager) those the user holds any
@@ -25,8 +31,11 @@ export function chooseCompany(id) {
  * company-scoped screen always has one to show.
  */
 export function useCompanies() {
-  const { can, isLoading } = usePermissions()
-  const viewer = !isLoading && can('core.company.view')
+  const { permissions, isLoading } = usePermissions()
+  // GET companies lists the companies the user views at tenant or company
+  // scope only; a Sales Rep or Branch Manager holds core.company.view at a
+  // branch and would get none (stage 7D walkthrough), so they use me/companies.
+  const viewer = !isLoading && companyViewer(permissions)
   const query = useQuery({
     queryKey: ['companies', 'switcher', viewer ? 'all' : 'mine'],
     queryFn: () => api.get(viewer ? 'companies?per_page=200' : 'me/companies'),

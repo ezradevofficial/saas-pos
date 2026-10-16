@@ -111,7 +111,7 @@ trait BuildsCrm
             $this->customer = Party::create(['kind' => 'organisation', 'name' => 'Duka Moja Ltd', 'roles' => ['customer'], 'company_id' => $this->acme->id,
                 'emails' => [['address' => 'buyer@duka.example.com', 'label' => null]]]);
             $this->repRole = $this->role('Sales rep', self::REP_PERMISSIONS);
-            LimitRule::create(['role_id' => $this->repRole->id, 'key' => 'max_discount_percent', 'value' => '10']);
+            LimitRule::create(['role_id' => $this->repRole->id, 'key' => 'max_quote_discount_percent', 'value' => '10']);
         });
 
         $this->rate('USD', 'KES', '130', at: '2026-10-01T00:00:00Z');

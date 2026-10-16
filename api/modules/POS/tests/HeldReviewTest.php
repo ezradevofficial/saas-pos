@@ -41,7 +41,7 @@ class HeldReviewTest extends TestCase
         $this->setUpPos();
         $this->cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->manager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
-        $this->inTenant(fn () => LimitRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount', 'value' => '100000']));
+        $this->inTenant(fn () => LimitRule::query()->updateOrCreate(['role_id' => $this->roles->get('branch_manager')->id, 'key' => 'max_refund_amount'], ['value' => '100000']));
         $this->ranges()->assertOk();
         $this->ranges('pos.refund')->assertOk();
         $this->shift = $this->openShift();

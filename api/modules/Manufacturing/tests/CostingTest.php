@@ -172,6 +172,31 @@ class CostingTest extends TestCase
         $this->assertSame('200', $this->onHand($this->flour));
     }
 
+    public function test_a_receipt_posts_what_inventory_received_and_flags_an_output_it_skipped(): void
+    {
+        // Review item 7 (stage 7D closing): the bran became a non-stock item after release, so Inventory takes in
+        // the bread only. The report posts the bread at what Inventory received and nothing to stock for the bran,
+        // which stays in WIP (cleared at the close) and is flagged.
+        Event::fake([ProductionValued::class]);
+        $order = $this->released($this->bread, '200');
+        $order = $this->issueAll($order, [$this->flour->id => '102', $this->yeast->id => '1', $this->water->id => '60'])->assertCreated()->json('data');
+        $this->inTenant(fn () => $this->bran->update(['type' => 'non_stock']));
+        $bran = collect($order['outputs'])->firstWhere('kind', 'by_product')['id'];
+
+        $report = $this->api('POST', "manufacturing/orders/{$order['id']}/reports", [
+            'qty_good' => '120', 'by_products' => [['output_id' => $bran, 'qty' => '6']],
+        ])->assertCreated()->json('data.reports.0');
+
+        $this->assertSame('received', $report['status']);
+        $lines = collect($report['lines'])->keyBy('kind');
+        $this->assertSame(['669060', '74340'], [$this->money($lines['product']['cost']), $this->money($lines['by_product']['cost'])]);
+        $this->assertSame(['669060', '0'], [$this->money($lines['product']['value']), $this->money($lines['by_product']['value'])]);
+        $this->assertSame([['code' => 'not_received', 'line_id' => $lines['by_product']['id']]], $report['flags']);
+        $this->assertSame('0', $this->onHand($this->bran));
+        Event::assertDispatched(ProductionValued::class, fn (ProductionValued $e) => $e->kind === ProductionValued::PRODUCTION
+            && array_column($e->lines, 'value_minor') === ['669060', '0']);
+    }
+
     public function test_a_stuck_document_is_moved_and_valued_again_by_an_administrator(): void
     {
         $order = $this->released($this->bread, '100');

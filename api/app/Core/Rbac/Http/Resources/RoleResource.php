@@ -8,11 +8,21 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A role and its permission names, sorted (RBAC-02). Load `permissions`.
+ * withLimits() adds its limits by key (RBAC-06), for one role.
  *
  * @mixin Role
  */
 class RoleResource extends JsonResource
 {
+    private bool $limits = false;
+
+    public function withLimits(): static
+    {
+        $this->limits = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -25,6 +35,8 @@ class RoleResource extends JsonResource
             'requires_two_factor' => $this->requires_two_factor,
             'archived_at' => $this->archived_at?->toIso8601String(),
             'permissions' => $this->whenLoaded('permissions', fn () => $this->permissions->pluck('name')->sort()->values()->all()),
+            // An object even when empty (JSON `{}`), keyed by limit.
+            'limits' => $this->when($this->limits, fn () => (object) $this->resource->limits()),
         ];
     }
 }

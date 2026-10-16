@@ -39,6 +39,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|string|null $cost_minor
  * @property string $reported_by
  * @property ?string $currency
+ * @property ?list<array{code: string, line_id: string}> $flags outputs Inventory took nothing in for (`not_received`)
  */
 class Report extends Model implements HasScope
 {
@@ -66,7 +67,7 @@ class Report extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['labour_minutes' => 'integer', 'reported_at' => 'immutable_datetime', 'costed_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime'];
+        return ['labour_minutes' => 'integer', 'reported_at' => 'immutable_datetime', 'costed_at' => 'immutable_datetime', 'received_at' => 'immutable_datetime', 'flags' => 'array'];
     }
 
     public function scope(): Scope

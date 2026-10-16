@@ -144,6 +144,8 @@ class CrmServiceProvider extends ServiceProvider
         $usage = $this->app->make(RecordUsage::class);
         $usage->register('party', 'crm_opportunity', fn (array $ids) => DB::table('crm_opportunities')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
         $usage->register('party', 'crm_quote', fn (array $ids) => DB::table('crm_quotes')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('party', 'crm_lead', fn (array $ids) => DB::table('crm_leads')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('party', 'crm_activity', fn (array $ids) => DB::table('crm_activities')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
         $usage->register('item', 'crm_quote', fn (array $ids) => DB::table('crm_quote_lines')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
 
         // CRM-06: the public lead form's rate limits, per IP and per form token.

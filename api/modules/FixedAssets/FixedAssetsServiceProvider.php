@@ -8,16 +8,18 @@ use App\Core\DocumentTemplates\DataSources;
 use App\Core\Imports\ImportRegistry;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\ListViewCatalogue;
+use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemTypeGuards;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
-use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -34,7 +36,9 @@ use Modules\FixedAssets\Listeners\CancelDraftsOfReceipt;
 use Modules\FixedAssets\Listeners\CapitaliseFromProcurement;
 use Modules\FixedAssets\Listeners\SettleFixedAssetDocument;
 use Modules\FixedAssets\Maintenance\Reminders;
+use Modules\FixedAssets\Models\ItemCategory;
 use Modules\FixedAssets\Postings\Postings;
+use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\Numbers;
 use Modules\FixedAssets\TaxBook\TaxClasses;
 use Modules\Procurement\Events\GoodsReceiptCancelled;
@@ -120,6 +124,14 @@ class FixedAssetsServiceProvider extends ServiceProvider
             }
         }
 
+        // FA-21: an item flagged as an asset stays non-stock while the module is active (unflag it first).
+        $this->app->make(ItemTypeGuards::class)->register(function (Item $item, string $type) {
+            if ($type === 'stock' && $this->app->make(ModuleRegistry::class)->isActive(self::MODULE)
+                && ItemCategory::query()->where('item_id', $item->id)->whereNull('archived_at')->exists()) {
+                throw FaError::make('item_is_asset', field: 'type');
+            }
+        });
+
         if (class_exists(GoodsReceiptCancelled::class)) {
             Event::listen(GoodsReceiptCancelled::class, CancelDraftsOfReceipt::class);
         }
@@ -131,10 +143,8 @@ class FixedAssetsServiceProvider extends ServiceProvider
             $numbers->register($type);
         }
 
-        // CF-01, FA-23: assets carry custom fields while the tenant has the module (RBAC-08).
-        $this->app->make(CustomFieldEntities::class)->registerSource(function () {
-            return $this->app->make(TenantContext::class)->id() !== null && $this->app->make(ModuleRegistry::class)->isActive(self::MODULE) ? [new AssetEntity] : [];
-        });
+        // CF-01, FA-23: assets carry custom fields (offered while the module is active, CustomFieldEntity::module(), RBAC-08).
+        $this->app->make(CustomFieldEntities::class)->register(new AssetEntity);
 
         // TPL-01, FA-25: asset labels print through document templates.
         $this->app->make(DataSources::class)->register(new LabelSource);
@@ -163,6 +173,9 @@ class FixedAssetsServiceProvider extends ServiceProvider
         $usage = $this->app->make(RecordUsage::class);
         $usage->register('item', 'fixed_assets_item', fn (array $ids) => DB::table('fa_item_categories')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
         $usage->register('party', 'fixed_assets_asset', fn (array $ids) => DB::table('fa_assets')->whereIn('supplier_id', $ids)->distinct()->pluck('supplier_id')->all());
+        $usage->register('party', 'fixed_assets_disposal', fn (array $ids) => DB::table('fa_disposals')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('party', 'fixed_assets_work_order', fn (array $ids) => DB::table('fa_work_orders')->whereIn('vendor_id', $ids)->distinct()->pluck('vendor_id')->all());
+        $usage->register('party', 'fixed_assets_posting', fn (array $ids) => DB::table('fa_postings')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
 
         // CUR-01: once an amount is stored in a currency, its decimals are locked.
         $this->app->make(CurrencyUsage::class)->register(fn (string $code) => DB::table('fa_assets')->where('currency', $code)->exists()
@@ -172,6 +185,11 @@ class FixedAssetsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([MaintenanceRemindersCommand::class]);
         }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // FA-19: maintenance falling due, reminded once a day.
+            $schedule->command('fixed-assets:maintenance-reminders')->dailyAt('06:30')->withoutOverlapping()->onOneServer();
+        });
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 

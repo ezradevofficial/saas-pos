@@ -38,9 +38,23 @@ class CustomFieldApiTest extends TestCase
         $this->assertNotContains('procurement_requisition', $keys());
         $this->create(['entity' => 'procurement_requisition', 'key' => 'budget_line', 'label' => 'Budget line'])->assertUnprocessable()->assertJsonValidationErrors('entity');
 
+        // Review item 10 (stage 7D closing): nor are its schema and field list read.
+        foreach (['procurement_requisition', 'fixed_assets_asset', 'crm_lead'] as $entity) {
+            $this->getJson("/api/v1/custom-fields/schema?entity={$entity}", $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('entity');
+            $this->getJson("/api/v1/custom-fields?entity={$entity}", $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('entity');
+        }
+
         $this->inTenant(fn () => app(ModuleRegistry::class)->activate('procurement'));
         $this->assertContains('procurement_requisition', $keys());
         $this->create(['entity' => 'procurement_requisition', 'key' => 'budget_line', 'label' => 'Budget line'])->assertCreated();
+        $this->getJson('/api/v1/custom-fields/schema?entity=procurement_requisition', $this->headersFor())->assertOk();
+        $this->getJson('/api/v1/custom-fields?entity=procurement_requisition', $this->headersFor())->assertOk()->assertJsonPath('data.0.key', 'budget_line');
+
+        // Fixed assets registers its asset like every module (CustomFieldEntity::module()), offered once active.
+        $this->assertNotContains('fixed_assets_asset', $keys());
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('fixed_assets'));
+        $this->assertContains('fixed_assets_asset', $keys());
+        $this->getJson('/api/v1/custom-fields/schema?entity=fixed_assets_asset', $this->headersFor())->assertOk();
     }
 
     public function test_the_owner_adds_lists_changes_archives_and_restores_a_field(): void

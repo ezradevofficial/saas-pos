@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Alert, Button, Checkbox, DecimalInput, Select, TextField } from '@/components/ds'
+import { blankLine } from './bomLinesData'
 import { ItemPicker } from './ManufacturingParts'
 import { kindLabel, LINE_KINDS, useLineUnits } from './manufacturingData'
 

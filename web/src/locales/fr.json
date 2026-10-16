@@ -313,6 +313,7 @@
     "codes": {
       "last_owner": "Votre organisation doit garder au moins un propriétaire actif. Donnez d’abord le rôle Propriétaire à quelqu’un d’autre.",
       "cannot_grant": "Vous ne pouvez donner que des rôles dont vous détenez les autorisations, là où vous gérez les accès. Seul un propriétaire peut donner ou retirer le rôle Propriétaire.",
+      "cannot_grant_limit": "Vous ne pouvez relever une limite que jusqu’à la vôtre. Demandez à un propriétaire de fixer une limite plus élevée.",
       "invitation_stale": "Cette invitation ne correspond plus à la configuration de l’organisation. Demandez à votre administrateur de vous en envoyer une nouvelle.",
       "contact_unverified": "Cette personne n’a jamais vérifié d’e-mail ni de numéro de téléphone : elle ne peut pas être réactivée. Invitez-la de nouveau.",
       "system_role": "Les rôles système ne peuvent pas être modifiés. Copiez le rôle pour le personnaliser.",
@@ -1055,7 +1056,27 @@
       "custom": "Personnalisé"
     },
     "searchPlaceholder": "Nom ou description",
-    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots."
+    "emptyFiltered": "Aucun rôle ne correspond à cette recherche. Essayez d’autres mots.",
+    "limits": {
+      "title": "Limites",
+      "subtitle": "Laissez une limite vide pour n’en fixer aucune. Au-delà d’une limite, une personne ayant une limite plus élevée approuve ou autorise.",
+      "saved": "Limites enregistrées.",
+      "save": "Enregistrer les limites",
+      "none": "Aucune limite",
+      "noneSet": "Ce rôle n’a aucune limite.",
+      "fields": {
+        "max_discount_percent": "Remise en caisse",
+        "max_quote_discount_percent": "Remise sur devis",
+        "max_refund_amount": "Montant de remboursement",
+        "max_approval_amount": "Montant d’approbation"
+      },
+      "help": {
+        "max_discount_percent": "Plus forte remise de ligne en caisse.",
+        "max_quote_discount_percent": "Plus forte remise de ligne sur un devis avant qu’il ne demande une approbation.",
+        "max_refund_amount": "Plus fort remboursement, dans la devise de base de l’entreprise.",
+        "max_approval_amount": "Plus fort montant que ce rôle approuve, dans la devise de base de l’entreprise."
+      }
+    }
   },
   "security": {
     "title": "Sécurité",
@@ -2146,7 +2167,7 @@
       "weekly": "Résumé hebdomadaire"
     },
     "digestRequired": "Votre organisation exige cet e-mail immédiatement.",
-    "saved": "Paramètres de notification enregistrés",
+    "saved": "Paramètres de notification enregistrés.",
     "discard": "Annuler les modifications",
     "empty": "Il n’y a encore aucune notification à configurer."
   },
@@ -2170,19 +2191,19 @@
       "channel": "Votre texte pour ce canal"
     },
     "save": "Enregistrer le modèle",
-    "saved": "Modèle enregistré",
+    "saved": "Modèle enregistré.",
     "reset": "Utiliser le texte par défaut",
     "resetTitle": "Utiliser le texte par défaut ?",
     "resetText": "Votre texte pour ce canal est supprimé. Chacun reçoit alors le texte par défaut, dans sa propre langue.",
     "keepText": "Garder mon texte",
     "resetConfirm": "Utiliser le texte par défaut",
-    "resetDone": "Texte par défaut rétabli",
+    "resetDone": "Texte par défaut rétabli.",
     "empty": "Il n’y a encore aucun type de notification.",
     "mandatory": {
       "title": "Canaux obligatoires",
       "description": "Les utilisateurs ne peuvent pas désactiver ces canaux pour cette notification.",
       "notAllowed": "Cette notification ne peut pas être rendue obligatoire.",
-      "saved": "Canaux obligatoires enregistrés"
+      "saved": "Canaux obligatoires enregistrés."
     },
     "singleLanguage": "Rédigé une seule fois, dans la langue de votre organisation. Tout le monde reçoit ce texte.",
     "defaultTitle": "Texte par défaut intégré",
@@ -3075,7 +3096,7 @@
       "choose": "Choisir un fichier à joindre",
       "progress": "Progression de l’envoi",
       "uploading": "Envoi de {{name}}, {{percent}} %",
-      "uploaded": "{{name}} joint",
+      "uploaded": "{{name}} joint.",
       "tooLarge": "Ce fichier fait {{size}}. Joignez un fichier de {{max}} au plus."
     },
     "toast": {
@@ -3083,7 +3104,7 @@
       "rejected": "{{name}} rejeté",
       "returned": "{{name}} renvoyé pour modification",
       "infoRequested": "Question envoyée au demandeur",
-      "commented": "Commentaire publié",
+      "commented": "Commentaire publié.",
       "reassigned": "{{name}} réattribué"
     },
     "delegation": {
@@ -3106,8 +3127,8 @@
       "startRequired": "Choisissez le premier jour.",
       "endRequired": "Choisissez le dernier jour.",
       "typesRequired": "Choisissez au moins un type de document, ou déléguez-les tous.",
-      "created": "Délégation enregistrée",
-      "revoked": "Délégation révoquée",
+      "created": "Délégation enregistrée.",
+      "revoked": "Délégation révoquée.",
       "listTitle": "Vos délégations",
       "none": "Vous n’avez aucune délégation.",
       "givenTo": "De vous à {{name}}",
@@ -3374,7 +3395,7 @@
       "onceTitle": "Copiez ce secret maintenant",
       "onceBody": "Il ne sera plus affiché. Enregistrez-le dans le système destinataire pour vérifier la signature de chaque appel.",
       "copy": "Copier le secret",
-      "copied": "Secret copié",
+      "copied": "Secret copié.",
       "copyFailed": "Le secret n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
       "isSet": "Un secret est défini. Il a été affiché une seule fois, à sa création.",
       "createdOnSave": "Un secret est créé quand vous enregistrez ce webhook.",
@@ -3487,10 +3508,10 @@
       "saveOff": "Enregistrer désactivée",
       "enable": "Activer",
       "disable": "Désactiver",
-      "saved": "Règle enregistrée",
-      "enabled": "Règle activée",
-      "disabled": "Règle désactivée",
-      "archived": "Règle archivée",
+      "saved": "Règle enregistrée.",
+      "enabled": "Règle activée.",
+      "disabled": "Règle désactivée.",
+      "archived": "Règle archivée.",
       "legend": "Réglages de la règle",
       "tabs": {
         "rule": "Règle",
@@ -4538,8 +4559,8 @@
     }
   },
   "layouts": {
-    "saved": "Brouillon enregistré",
-    "published": "Publié",
+    "saved": "Brouillon enregistré.",
+    "published": "Publié.",
     "saveDraft": "Enregistrer le brouillon",
     "problems": "Corrigez ces points avant de publier",
     "scopes": {
@@ -7561,7 +7582,7 @@
       "newTitle": "Nouvelle demande",
       "newHelp": "Demandez des articles au magasin pour un service. Le chef de service l’approuve avant toute sortie.",
       "submit": "Envoyer pour approbation",
-      "created": "Demande {{number}} envoyée pour approbation"
+      "created": "Demande {{number}} envoyée pour approbation."
     },
     "requisition": {
       "eyebrow": "Demande",
@@ -7575,11 +7596,11 @@
       "cancelTitle": "Annuler {{number}}",
       "cancelHelp": "Rien ne sera sorti pour elle. Son approbation s’arrête.",
       "confirmCancel": "Annuler la demande",
-      "cancelled": "Demande annulée",
+      "cancelled": "Demande annulée.",
       "closeTitle": "Clôturer {{number}}",
       "closeHelp": "Ce qui reste ne sera pas sorti. Ce qui a été sorti reste.",
       "confirmClose": "Clôturer la demande",
-      "closed": "Demande clôturée"
+      "closed": "Demande clôturée."
     },
     "issue": {
       "title": "Sortir des articles",
@@ -7587,7 +7608,7 @@
       "open": "Reste {{qty}} {{unit}} à sortir",
       "qty": "Sortir ({{unit}})",
       "submit": "Sortir les articles",
-      "done": "Articles sortis sous {{number}}"
+      "done": "Articles sortis sous {{number}}."
     },
     "issues": {
       "title": "Sorties",
@@ -7605,7 +7626,7 @@
       "acknowledge": "Accuser réception",
       "acknowledgeTitle": "Accuser réception de {{number}}",
       "acknowledgeHelp": "Confirmez que le service a reçu ces articles. Le magasin garde qui a confirmé et quand.",
-      "acknowledged": "Réception confirmée",
+      "acknowledged": "Réception confirmée.",
       "return": "Retourner des articles",
       "valuing": "Le module Stocks valorise cette sortie. Les valeurs apparaissent ensuite."
     },
@@ -7615,7 +7636,7 @@
       "issued": "{{qty}} {{unit}} sortis",
       "qty": "Retourner ({{unit}})",
       "submit": "Retourner au magasin",
-      "done": "Articles retournés sous {{number}}"
+      "done": "Articles retournés sous {{number}}."
     },
     "returns": {
       "title": "Retours",
@@ -7651,7 +7672,7 @@
       "entryTitle": "Saisir du stock",
       "entryHelp": "Stock initial, ou ajustement avec son motif. Le stock ne passe jamais sous zéro.",
       "enter": "Saisir le stock",
-      "entered": "Stock saisi"
+      "entered": "Stock saisi."
     },
     "consumption": {
       "title": "Consommation",
@@ -9528,8 +9549,13 @@
       "output": "Production",
       "unitCost": "Coût unitaire",
       "batchCost": "Coût du lot",
+      "materialsCost": "Coût des ingrédients",
+      "labourCost": "Main-d’œuvre",
+      "overheadCost": "Frais généraux",
+      "byProductCredit": "Crédit des sous-produits",
       "price": "Prix",
-      "costOfPrice": "Coût en % du prix",
+      "netPrice": "Prix hors taxes",
+      "costOfPrice": "Coût en % du prix hors taxes",
       "uncosted": "Sans coût"
     },
     "costs": {
@@ -9650,12 +9676,14 @@
     "order": {
       "eyebrow": "Ordre de fabrication",
       "summary": "Résumé",
+      "notSet": "Non défini",
       "materials": "Matières",
       "noMaterials": "Aucune matière.",
       "outputs": "Production",
       "issues": "Sorties",
       "returns": "Retours",
       "reports": "Déclarations de production",
+      "notReceived": "Non entré en stock : {{items}}",
       "quantitiesOnly": "Quantités seulement : cet ordre a été lancé quand l’inventaire était désactivé.",
       "edit": "Modifier",
       "release": "Lancer",
@@ -9737,17 +9765,19 @@
     },
     "recipeCosting": {
       "title": "Coût des recettes",
-      "description": "Ce que coûte maintenant chaque nomenclature en vigueur aux coûts actuels du stock.",
+      "description": "Ce que coûte maintenant chaque nomenclature en vigueur : ingrédients aux coûts de stock actuels, plus main-d’œuvre et frais généraux, moins les sous-produits.",
       "search": "Rechercher par article",
       "empty": "Aucune nomenclature en vigueur pour l’instant.",
       "emptyFiltered": "Rien ne correspond à ces filtres.",
-      "inclTax": "TTC"
+      "inclTax": "TTC",
+      "taxUnknown": "Taxe inconnue"
     },
     "settings": {
       "title": "Paramètres de fabrication",
       "description": "Les taux de main-d’œuvre et de frais généraux de la société, et si le lancement d’un ordre demande une approbation.",
       "labourRate": "Main-d’œuvre par heure",
       "overheadRate": "Frais généraux par heure de main-d’œuvre",
+      "hidden": "Masqué",
       "rateHelp": "Vos propres taux, utilisés au lancement d’un ordre.",
       "currency": "En {{currency}}",
       "releaseApproval": "Le lancement d’un ordre demande une approbation",
@@ -10774,6 +10804,7 @@
       "convert": "Convertir en facture",
       "converted": "Facture brouillon créée.",
       "convertedTo": "Converti en",
+      "openInvoice": "Ouvrir la facture",
       "cancel": "Annuler le devis",
       "cancelTitle": "Annuler {{number}}",
       "cancelHelp": "Un devis annulé reste enregistré et ne peut plus changer.",
@@ -10830,7 +10861,7 @@
       "saved": "Objectif enregistré.",
       "archived": "Objectif archivé.",
       "empty": "Aucun objectif pour l'instant.",
-      "amountHelp": "Dans la devise de base de la société.",
+      "amountHelp": "Dans la devise de base de la société, hors taxes. Les ventes comptent moins les remboursements, les factures moins les avoirs.",
       "notAvailable": "Non disponible",
       "achieved": "{{percent}} atteint",
       "subjects": {
@@ -11046,8 +11077,7 @@
   "fixedAssets": {
     "chooseCompany": "Choisissez une société dans le sélecteur pour voir ses immobilisations.",
     "actions": {
-      "back": "Retour",
-      "keep": "Conserver"
+      "back": "Retour"
     },
     "statuses": {
       "draft": "Brouillon",
@@ -11298,7 +11328,7 @@
       "noSchedules": "Aucun plan pour l’instant.",
       "noOrders": "Aucun ordre de maintenance pour l’instant.",
       "updateTitle": "Mettre à jour {{number}}",
-      "saved": "Ordre de maintenance enregistré"
+      "saved": "Ordre de maintenance enregistré."
     },
     "categories": {
       "title": "Catégories d’immobilisations",
@@ -11315,14 +11345,14 @@
       "archive": "Archiver",
       "restore": "Restaurer",
       "save": "Enregistrer la catégorie",
-      "saved": "Catégorie enregistrée",
+      "saved": "Catégorie enregistrée.",
       "editTitle": "Modifier {{code}}",
       "empty": "Aucune catégorie pour l’instant.",
       "itemsTitle": "Articles achetés comme immobilisations",
       "itemsHelp": "Les marchandises reçues ou facturées pour ces articles deviennent des immobilisations en brouillon.",
       "item": "Article",
       "flag": "Désigner comme immobilisation",
-      "flagged": "Article désigné comme immobilisation",
+      "flagged": "Article désigné comme immobilisation.",
       "unflag": "Retirer",
       "noItems": "Aucun article désigné pour l’instant."
     },
@@ -11334,7 +11364,7 @@
       "period": "Mois",
       "preview": "Prévisualiser",
       "post": "Comptabiliser {{month}}",
-      "posted": "Amortissements de {{month}} comptabilisés",
+      "posted": "Amortissements de {{month}} comptabilisés.",
       "postedTitle": "Calculs comptabilisés",
       "assets": "Immobilisations",
       "total": "Total",
@@ -11352,7 +11382,7 @@
       "reverse": "Annuler le calcul",
       "reverseTitle": "Annuler {{month}}",
       "reverseHelp": "Les amortissements cumulés reviennent en arrière et les écritures sont contrepassées.",
-      "reversed": "Calcul annulé",
+      "reversed": "Calcul annulé.",
       "reversedBecause": "Annulé pour"
     },
     "transfers": {
@@ -11395,7 +11425,7 @@
       "cancel": "Annuler la sortie",
       "cancelTitle": "Annuler {{number}}",
       "post": "Comptabiliser la sortie",
-      "postedToast": "Sortie comptabilisée",
+      "postedToast": "Sortie comptabilisée.",
       "buyer": "Acheteur",
       "result": "Ce qui a été comptabilisé",
       "lastCharge": "Dernier amortissement",
@@ -11467,15 +11497,15 @@
       "conventionHelp": "Figée une fois un calcul comptabilisé.",
       "conventionLocked": "Des amortissements sont déjà comptabilisés avec cette convention.",
       "taxBook": "Amortissement fiscal",
-      "taxBookHelp": "Facultatif. Calculé à partir du pack pays une fois ses taux confirmés.",
+      "taxBookHelp": "Facultatif. Amortissements fiscaux, disponibles une fois les taux du pack pays confirmés.",
       "taxBookOn": "Utiliser l’amortissement fiscal",
-      "unconfirmed": "Les taux du pack pays ne sont pas encore confirmés, l’amortissement fiscal n’est pas utilisable.",
+      "unconfirmed": "L’amortissement fiscal n’est pas encore utilisable : les taux du pack pays ne sont pas confirmés. Donnez en attendant une classe fiscale à chaque catégorie.",
       "classes": "Classes fiscales",
       "rate": "Taux annuel",
       "needsConfirmation": "À confirmer",
       "noClasses": "Ce pack pays n’a pas de classes fiscales.",
       "toConfirm": "Ce que le propriétaire doit confirmer",
-      "saved": "Paramètres enregistrés"
+      "saved": "Paramètres enregistrés."
     }
   },
   "ecommerce": {
