@@ -92,6 +92,10 @@
   "M{{number}}",
   "Dates",
   "Stock",
-  "Version",
-  "Note"
+  "Maintenance",
+  "Acquisition",
+  "Documents",
+  "Note",
+  "Convention",
+  "Version"
 ]

@@ -1,0 +1,26 @@
+{
+    "code": "CD",
+    "notes": "Fixed assets tax book reference data for Congolese companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
+    "sources": [],
+    "todo": [
+        "Code des impôts: confirm the classes of fiscally deductible depreciation (amortissements) and which assets fall in each.",
+        "buildings (constructions): method (linéaire or dégressif with its coefficient), annual rate and effective date, with the legal reference.",
+        "machinery (matériel et outillage): method, annual rate and effective date.",
+        "motor_vehicles (matériel de transport): method, annual rate and effective date.",
+        "computers (matériel informatique): method, annual rate and effective date.",
+        "furniture (mobilier et matériel de bureau): method, annual rate and effective date.",
+        "other: any other class, its method and rate.",
+        "acquisition_rule: whether the year of acquisition counts as a full year (full_year) or pro rata by months in service (pro_rata_months), with the legal reference.",
+        "Disposals: the tax treatment in the year of disposal (until confirmed the tax book gives no allowance that year and computes no adjustment).",
+        "Any accelerated or exceptional depreciation."
+    ],
+    "acquisition_rule": {"value": null, "needs_confirmation": true},
+    "classes": [
+        {"key": "buildings", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "machinery", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "motor_vehicles", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "computers", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "furniture", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
+        {"key": "other", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+    ]
+}

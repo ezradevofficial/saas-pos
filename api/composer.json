@@ -52,6 +52,7 @@
             "Modules\\Stores\\Tests\\": "modules/Stores/tests/",
             "Modules\\HR\\Tests\\": "modules/HR/tests/",
             "Modules\\Manufacturing\\Tests\\": "modules/Manufacturing/tests/",
+            "Modules\\FixedAssets\\Tests\\": "modules/FixedAssets/tests/",
             "Modules\\CRM\\Tests\\": "modules/CRM/tests/",
             "Modules\\Payroll\\Tests\\": "modules/Payroll/tests/"
         }

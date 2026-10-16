@@ -132,7 +132,7 @@ class ReportsTest extends TestCase
         $this->rate('USD', 'KES', '129.5', at: '2026-09-01T00:00:00Z', company: $congo);
         $dueFrom = $this->api('POST', $this->companyUri('accounts'), ['code' => '1250', 'name' => 'Due from Acme Congo', 'type' => 'asset', 'subtype' => 'intercompany',
             'parent_id' => $this->account('1100')->id, 'counterparty_company_id' => $congo->id])->assertCreated()->json('data.id');
-        $dueTo = $this->api('POST', "companies/{$congo->id}/accounting/accounts", ['code' => '481', 'name' => 'Due to Acme', 'type' => 'liability', 'subtype' => 'intercompany',
+        $dueTo = $this->api('POST', "companies/{$congo->id}/accounting/accounts", ['code' => '4621', 'name' => 'Due to Acme', 'type' => 'liability', 'subtype' => 'intercompany',
             'counterparty_company_id' => $this->acme->id])->assertCreated()->json('data.id');
 
         $this->inTenant(function () use ($congo, $dueFrom, $dueTo) {

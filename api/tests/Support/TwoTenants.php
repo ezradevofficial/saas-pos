@@ -21,6 +21,7 @@ use App\Core\Limits\Allowances;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
+use App\Core\MasterData\Items\Item;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
@@ -579,6 +580,10 @@ final class TwoTenants
         // punch, a period, an attendance device, a document, a disciplinary
         // case and an open appraisal cycle.
         $hr = self::hr($test, [...$owner, 'Accept' => 'application/json'], $tenantId, $ownerId, $company, $branch, $location, $dimensions, $upper);
+        // Fixed assets (docs/modules/fixed-assets.md): the module switched on; settings, a
+        // category, a flagged item, two active assets, a posted run, an impairment, a reading,
+        // a document, a schedule and a work order, a pending transfer and a pending disposal.
+        $fixedAssets = self::fixedAssets($test, [...$owner, 'Accept' => 'application/json'], $tenantId, $ownerId, $company, $location, $dimensions, $party, $uoms['EA'], $upper);
         // CRM (docs/modules/crm.md): the module switched on; settings, a team, a rule, a public
         // lead form and its lead, leads (one converted), opportunities, a draft quote, an activity,
         // a logged email and a target.
@@ -673,6 +678,7 @@ final class TwoTenants
                 ...$stores,
                 ...$manufacturing,
                 ...$hr,
+                ...$fixedAssets,
                 ...$crm,
                 ...$payroll,
                 ...$accounting,
@@ -1273,6 +1279,64 @@ final class TwoTenants
             'hr_appraisal_cycle' => $cycle,
             'hr_appraisal' => $appraisal,
             'hr_document' => $document,
+        ];
+    }
+
+    /**
+     * The Fixed assets fixture of one tenant, made through its API as the Owner.
+     *
+     * @param  array<string, string>  $dimensions
+     * @return array<string, string>
+     */
+    private static function fixedAssets(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $location, array $dimensions, string $party, string $each, string $upper): array
+    {
+        [$item, $spare] = app(TenantContext::class)->run($tenantId, function () use ($upper, $each) {
+            app(ModuleRegistry::class)->activate('fixed_assets');
+
+            return [
+                Item::create(['code' => "FA-{$upper}", 'name' => "Laptop {$upper}", 'type' => 'non_stock', 'base_uom_id' => $each])->id,
+                Item::create(['code' => "FA-SPARE-{$upper}", 'name' => "Printer {$upper}", 'type' => 'non_stock', 'base_uom_id' => $each])->id,
+            ];
+        });
+
+        self::ok($test->putJson("/api/v1/fixed-assets/companies/{$company}/settings", ['convention' => 'days'], $owner));
+        $category = self::ok($test->postJson('/api/v1/fixed-assets/categories', [
+            'company_id' => $company, 'code' => "VEH-{$upper}", 'name' => "Vehicles {$upper}", 'method' => 'straight_line', 'useful_life_months' => 60,
+        ], $owner), 201)->json('data.id');
+        $itemCategory = self::ok($test->postJson('/api/v1/fixed-assets/item-categories', ['company_id' => $company, 'item_id' => $item, 'category_id' => $category], $owner), 201)->json('data.id');
+        $asset = function (string $name) use ($test, $owner, $location, $category, $ownerId, $dimensions, $party) {
+            $draft = self::ok($test->postJson('/api/v1/fixed-assets/assets', [
+                'location_id' => $location, 'name' => $name, 'category_id' => $category, 'custodian_user_id' => $ownerId,
+                'cost_centre_id' => $dimensions['cost_centre'], 'department_id' => $dimensions['department'], 'supplier_id' => $party,
+                'acquired_on' => '2026-01-01', 'cost_minor' => 12000000, 'serial_number' => "SN-{$name}",
+            ], $owner), 201)->json('data.id');
+            self::ok($test->postJson("/api/v1/fixed-assets/assets/{$draft}/activate", [], $owner));
+
+            return $draft;
+        };
+        $van = $asset("Van {$upper}");
+        $truck = $asset("Truck {$upper}");
+        $run = self::ok($test->postJson('/api/v1/fixed-assets/runs', ['company_id' => $company, 'period' => '2026-01'], $owner), 201)->json('data.id');
+        self::ok($test->postJson("/api/v1/fixed-assets/assets/{$van}/revaluations", ['kind' => 'impairment', 'revalued_on' => '2026-02-15', 'value_minor' => 10000000, 'reason' => "Dent {$upper}"], $owner), 201);
+        self::ok($test->postJson("/api/v1/fixed-assets/assets/{$van}/readings", ['read_on' => '2026-02-16', 'reading' => '12000'], $owner), 201);
+        $document = self::ok($test->post("/api/v1/fixed-assets/assets/{$van}/documents", ['file' => UploadedFile::fake()->create("logbook-{$upper}.pdf", 4, 'application/pdf')], $owner), 201)->json('data.id');
+        $schedule = self::ok($test->postJson("/api/v1/fixed-assets/assets/{$van}/schedules", ['name' => "Service {$upper}", 'basis' => 'time', 'interval_days' => 90], $owner), 201)->json('data.id');
+        $workOrder = self::ok($test->postJson("/api/v1/fixed-assets/assets/{$van}/work-orders", ['title' => "Service {$upper}", 'schedule_id' => $schedule, 'vendor_id' => $party], $owner), 201)->json('data.id');
+        $transfer = self::ok($test->postJson("/api/v1/fixed-assets/assets/{$van}/transfers", ['to_cost_centre_id' => null, 'transfer_date' => '2026-02-20', 'reason' => "Pool {$upper}"], $owner), 201)->json('data.id');
+        $disposal = self::ok($test->postJson("/api/v1/fixed-assets/assets/{$truck}/disposals", ['kind' => 'scrap', 'disposal_date' => '2026-02-20', 'reason' => "Crash {$upper}"], $owner), 201)->json('data.id');
+
+        return [
+            'fa_category' => $category,
+            'fa_item_category' => $itemCategory,
+            'fa_item_spare' => $spare,
+            'fa_asset' => $van,
+            'fa_asset_truck' => $truck,
+            'fa_run' => $run,
+            'fa_document' => $document,
+            'fa_schedule' => $schedule,
+            'fa_work_order' => $workOrder,
+            'fa_transfer' => $transfer,
+            'fa_disposal' => $disposal,
         ];
     }
 

@@ -39,6 +39,8 @@ return [
             'hr.*.view',
             // MFG-02, MFG-29: keeps BOMs and recipes and a company's production rates; reads orders, reports and costs.
             'manufacturing.*.view', 'manufacturing.bom.manage', 'manufacturing.settings.edit',
+            // Fixed assets (docs/modules/fixed-assets.md): reads it all, sets categories and a company's convention, prints labels.
+            'fixed_assets.*.view', 'fixed_assets.settings.edit', 'fixed_assets.category.manage', 'fixed_assets.label.print',
             // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
             'crm.*.view', 'crm.settings.manage', 'crm.scope.branch'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
@@ -84,6 +86,10 @@ return [
             // company's rates is company-level: Admin, Owner).
             'manufacturing.bom.view', 'manufacturing.order.*', 'manufacturing.material.*', 'manufacturing.production.*',
             'manufacturing.report.view', 'manufacturing.cost.view',
+            // Fixed assets (docs/modules/fixed-assets.md): the branch's assets, transfers (the default approver, FA-14),
+            // disposal requests, maintenance, labels, reports and values.
+            'fixed_assets.asset.*', 'fixed_assets.transfer.*', 'fixed_assets.disposal.request', 'fixed_assets.maintenance.*',
+            'fixed_assets.label.print', 'fixed_assets.report.view', 'fixed_assets.value.view',
             // CRM (docs/modules/crm.md): the branch's leads, opportunities, quotes (the default quote approver, CRM-21),
             // activities and targets, with the branch scope (CRM-08); the module's settings are the Admin's.
             'crm.*',
@@ -188,7 +194,11 @@ return [
             'stores.*.view',
             // MFG-16, MFG-18, MFG-19: production orders, their costs and the consumption and variance reports.
             'manufacturing.*.view',
+            // Fixed assets (docs/modules/fixed-assets.md): the register, categories, runs, revaluations, disposals and the tax book.
+            'fixed_assets.*',
         ],
+        // FA-14, FA-17: transfers and disposals are approved by others.
+        'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -263,6 +273,8 @@ return [
             'hr.leave.view', 'hr.roster.view',
             // MFG-11: the production orders whose release they approve.
             'manufacturing.order.view',
+            // FA-14, FA-17: the assets whose transfers and disposals they approve, with their values (RBAC-05).
+            'fixed_assets.asset.view', 'fixed_assets.value.view',
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances
             // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',

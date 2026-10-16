@@ -24,6 +24,7 @@ final class DefaultTemplates
             'blocks' => match (true) {
                 $type === 'pos.receipt' || $type === 'pos.refund_receipt' => self::receipt($type),
                 $type === 'inventory.label' => self::label(),
+                $type === 'fixed_assets.label' => self::assetLabel(),
                 default => self::a4($type, $language),
             },
             'variants' => [],
@@ -40,6 +41,19 @@ final class DefaultTemplates
             ['id' => 'code', 'type' => 'text', 'text' => '{{document.item_code}} · {{document.unit}}', 'align' => 'center', 'size' => 'small', 'weight' => 'regular'],
             ['id' => 'batch', 'type' => 'field', 'field' => 'document.batch', 'label' => true],
             ['id' => 'expiry', 'type' => 'field', 'field' => 'document.expires_on', 'label' => true],
+        ];
+    }
+
+    /** FA-25: an asset tag: the asset's name, its tag as a barcode, the tag, serial number and place. */
+    private static function assetLabel(): array
+    {
+        return [
+            ['id' => 'company', 'type' => 'text', 'text' => '{{company.name}}', 'align' => 'center', 'size' => 'small', 'weight' => 'regular'],
+            ['id' => 'name', 'type' => 'text', 'text' => '{{document.asset_name}}', 'align' => 'center', 'size' => 'normal', 'weight' => 'medium'],
+            ['id' => 'barcode', 'type' => 'barcode', 'content' => '{{document.barcode}}'],
+            ['id' => 'tag', 'type' => 'text', 'text' => '{{document.tag}}', 'align' => 'center', 'size' => 'small', 'weight' => 'regular'],
+            ['id' => 'serial', 'type' => 'field', 'field' => 'document.serial_number', 'label' => true],
+            ['id' => 'location', 'type' => 'field', 'field' => 'document.location', 'label' => true],
         ];
     }
 

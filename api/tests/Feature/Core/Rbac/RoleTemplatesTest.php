@@ -117,7 +117,8 @@ class RoleTemplatesTest extends TestCase
         // Manufacturing (docs/modules/manufacturing.md): 14 manufacturing.* permissions.
         // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
         // Payroll (docs/modules/payroll.md): 15 payroll.* permissions (payroll.pay.view, decision 36).
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 15 + 14, count($names));
+        // Fixed assets (docs/modules/fixed-assets.md): 17 fixed_assets.* permissions.
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 15 + 17 + 14, count($names));
     }
 
     public function test_sign_up_provisions_fourteen_system_roles_and_an_owner_assignment(): void
@@ -147,7 +148,8 @@ class RoleTemplatesTest extends TestCase
         // HR: hr.*.view without the five sensitive groups (9), HR-09.
         // Manufacturing: the views (4), BOMs and the company's rates (2), MFG-02, MFG-29.
         // CRM: the five views, the settings and the branch scope (7), CRM-08.
-        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 10 + 6 + 9 + 7 + 6, $admin->permissions()->count());
+        // Fixed assets: the 6 views, settings, categories and labels (9).
+        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 10 + 6 + 9 + 7 + 9 + 6, $admin->permissions()->count());
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
         $this->assertFalse($admin->hasPermissionTo('core.onboarding.modules'));
         $this->assertTrue($owner->hasPermissionTo('core.onboarding.modules'));

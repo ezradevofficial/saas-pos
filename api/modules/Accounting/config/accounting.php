@@ -12,6 +12,8 @@ return [
         'loyalty.points_earned', 'loyalty.points_redeemed', 'loyalty.points_expired', 'loyalty.points_adjusted',
         'loyalty.credit_charged', 'loyalty.credit_payment_received', 'loyalty.credit_adjusted',
         'procurement.supplier_invoice', 'procurement.landed_cost', 'procurement.landed_cost_bill', 'payroll.run',
+        // ACC-34: Fixed assets (docs/modules/fixed-assets.md FA-22).
+        'fixed_assets.capitalisation', 'fixed_assets.depreciation', 'fixed_assets.revaluation', 'fixed_assets.impairment', 'fixed_assets.disposal',
         // CRM-24: the revenue account of draft invoices made from CRM quotes (its `revenue` line).
         'crm.quote_invoice',
     ],

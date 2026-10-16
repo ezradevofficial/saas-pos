@@ -46,6 +46,8 @@ final class DocumentTypes
         'letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'core'],
         // INV-21: barcode labels, one page per label on a label roll.
         'inventory.label' => ['paper' => '58mm', 'fiscal' => false, 'module' => 'inventory'],
+        // FA-25: the Fixed assets module's asset labels, one page per label on a label roll.
+        'fixed_assets.label' => ['paper' => '58mm', 'fiscal' => false, 'module' => 'fixed_assets'],
     ];
 
     /** @return list<string> */

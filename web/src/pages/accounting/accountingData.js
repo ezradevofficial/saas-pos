@@ -98,6 +98,13 @@ export function moduleLink(link) {
       return `/procurement/receipts/${id}`
     case 'loyalty.customer':
       return `/contacts/customers/${id}?tab=loyalty`
+    // ACC-34: a fixed asset's journal opens the asset, its run or its disposal.
+    case 'fixed_assets.asset':
+      return `/fixed-assets/assets/${id}`
+    case 'fixed_assets.run':
+      return `/fixed-assets/runs/${id}`
+    case 'fixed_assets.disposal':
+      return `/fixed-assets/disposals/${id}`
     // ACC-33, PAY-22: a payroll journal (one per department and currency) opens its run.
     case 'payroll.run':
       return `/payroll/runs/${id}`

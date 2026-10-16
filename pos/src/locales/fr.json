@@ -612,6 +612,11 @@
           "status": "Statut",
           "planned_by": "Planifié par",
           "note": "Note",
+          "asset_name": "Immobilisation",
+          "tag": "Numéro d’inventaire",
+          "serial_number": "Numéro de série",
+          "category": "Catégorie",
+          "location": "Emplacement",
           "employee_number": "Matricule",
           "pay_date": "Date de paie",
           "run": "Paie",
@@ -658,7 +663,8 @@
         "payroll_payslip": "Bulletin de paie",
         "party_statement": "Relevé",
         "letter": "Référence",
-        "inventory_label": "Étiquette"
+        "inventory_label": "Étiquette",
+        "fixed_assets_label": "Immobilisation"
       },
       "columns": {
         "item_name": "Article",

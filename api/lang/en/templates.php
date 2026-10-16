@@ -21,6 +21,7 @@ return [
         'party_statement' => 'Customer statement',
         'letter' => 'Letter',
         'inventory_label' => 'Barcode label',
+        'fixed_assets_label' => 'Asset label',
         'accounting_invoice' => 'Invoice',
         'accounting_credit_note' => 'Credit note',
         'accounting_statement' => 'Account statement',
@@ -108,6 +109,11 @@ return [
                 'status' => 'Status',
                 'planned_by' => 'Planned by',
                 'note' => 'Note',
+                'asset_name' => 'Asset',
+                'tag' => 'Tag',
+                'serial_number' => 'Serial number',
+                'category' => 'Category',
+                'location' => 'Location',
                 // PAY-19: the payslip's fields (PayslipSource).
                 'employee_number' => 'Employee number',
                 'pay_date' => 'Pay date',
@@ -156,6 +162,7 @@ return [
             'party_statement' => 'Statement',
             'letter' => 'Reference',
             'inventory_label' => 'Label',
+            'fixed_assets_label' => 'Asset',
         ],
         'columns' => [
             'item_name' => 'Item',
