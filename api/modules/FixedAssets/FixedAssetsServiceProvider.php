@@ -16,7 +16,6 @@ use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
-use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -143,10 +142,8 @@ class FixedAssetsServiceProvider extends ServiceProvider
             $numbers->register($type);
         }
 
-        // CF-01, FA-23: assets carry custom fields while the tenant has the module (RBAC-08).
-        $this->app->make(CustomFieldEntities::class)->registerSource(function () {
-            return $this->app->make(TenantContext::class)->id() !== null && $this->app->make(ModuleRegistry::class)->isActive(self::MODULE) ? [new AssetEntity] : [];
-        });
+        // CF-01, FA-23: assets carry custom fields (offered while the module is active, CustomFieldEntity::module(), RBAC-08).
+        $this->app->make(CustomFieldEntities::class)->register(new AssetEntity);
 
         // TPL-01, FA-25: asset labels print through document templates.
         $this->app->make(DataSources::class)->register(new LabelSource);

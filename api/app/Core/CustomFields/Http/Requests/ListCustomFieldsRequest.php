@@ -33,7 +33,8 @@ class ListCustomFieldsRequest extends FormRequest
     {
         return [
             ...$this->listRules(),
-            'entity' => ['sometimes', 'string', Rule::in(app(CustomFieldEntities::class)->keys())],
+            // RBAC-08: only the entities offered now (core and active modules').
+            'entity' => ['sometimes', 'string', Rule::in(array_keys(app(CustomFieldEntities::class)->offered()))],
             'type' => ['sometimes', 'string', Rule::in(CustomFieldTypes::ALL)],
             'search' => ['sometimes', 'string', 'max:100'],
         ];
