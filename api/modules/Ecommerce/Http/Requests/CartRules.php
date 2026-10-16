@@ -12,11 +12,12 @@ final class CartRules
     {
         return [
             'lines' => ['required', 'array', 'min:1', 'max:100'],
-            'lines.*.product_id' => ['required', 'uuid'],
+            // Under the tenant's row-level security: another tenant's ids do not exist (422).
+            'lines.*.product_id' => ['required', 'uuid', Rule::exists('ecom_products', 'id')],
             'lines.*.qty' => ['required', 'string', 'max:12'],
             'fulfilment' => ['sometimes', 'string', Rule::in(['delivery', 'pickup'])],
-            'zone_id' => ['sometimes', 'nullable', 'uuid'],
-            'pickup_location_id' => ['sometimes', 'nullable', 'uuid'],
+            'zone_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('ecom_zones', 'id')],
+            'pickup_location_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('locations', 'id')],
             'coupon' => ['sometimes', 'nullable', 'string', 'max:40'],
             'points' => ['sometimes', 'nullable', 'string', 'regex:/^\\d{1,10}$/'],
             'gift_card' => ['sometimes', 'nullable', 'string', 'max:40'],

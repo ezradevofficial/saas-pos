@@ -93,6 +93,21 @@ class TenantIsolationTest extends TestCase
         'PUT api/v1/supplier-portal/bid' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
         'POST api/v1/supplier-portal/bid/files' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
         'POST api/v1/supplier-portal/bid/withdraw' => 'PRC-09: the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
+        // E-commerce (docs/modules/ecommerce.md): the storefront, its images and the WhatsApp webhook.
+        'GET api/v1/shop/{store}' => 'ECOM-05: the public face of the store; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'GET api/v1/shop/{store}/products' => 'ECOM-02: published products; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'GET api/v1/shop/{store}/products/{slug}' => 'ECOM-02: one published product; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/quote' => 'ECOM-09: a cart priced by the server; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/orders' => 'ECOM-11 to ECOM-13: placing an order (Idempotency-Key); the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'GET api/v1/shop/{store}/orders/{number}' => 'ECOM-21: tracking needs the 40-character tracking token (sha256) or the session of its customer; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/orders/{number}/pay' => 'ECOM-15: a payment retry, with the tracking token; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/orders/{number}/check' => 'ECOM-15: the payment check, with the tracking token; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/auth/code' => 'ECOM-08: a sign-in code to a contact (core OTP rules); the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/auth/verify' => 'ECOM-08: a sign-in code exchanged for a customer session; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/{store}/auth/sign-out' => 'ECOM-08: ends the customer session; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'GET api/v1/shop/{store}/account' => 'ECOM-08: the own orders of the signed-in customer; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; a bearer token must be a customer session of that store (`ecs_`, sha256), a tenant user token is refused; rate-limited (StorefrontTest)',
+        'POST api/v1/shop/whatsapp/{token}' => 'ECOM-24: the inbound WhatsApp webhook; the 40-character token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; the provider driver verifies the request; rate-limited per token (WhatsAppAndCustomersTest)',
+        'GET api/v1/shop-media/{image}' => 'ECOM-02: an item image of a published product behind a temporary signed URL (the signature is the credential); the signed tenant is entered (ShopImageController)',
         // CRM (docs/modules/crm.md): the public lead form, tested by modules/CRM/tests/LeadsTest.php.
         'POST api/v1/crm/forms/{token}' => 'CRM-06: a public web form posting a lead; the 40-character form token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; answers only {received: true} (or 404); rate-limited per IP and per form',
         'DELETE api/v1/supplier-portal/bid/files/{file}' => 'PRC-09: removes one of the session bidder\'s own unsubmitted uploads; the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
@@ -244,6 +259,14 @@ class TenantIsolationTest extends TestCase
         'crm_quote' => 'crm_quote',
         'crm_activity' => 'crm_activity',
         'crm_target' => 'crm_target',
+        // E-commerce (docs/modules/ecommerce.md): a store, its product and zone, an accepted order and its assigned delivery, a rider, a WhatsApp chat.
+        'ecom_store' => 'ecom_store',
+        'ecom_product' => 'ecom_product',
+        'ecom_zone' => 'ecom_zone',
+        'ecom_order' => 'ecom_order',
+        'ecom_delivery' => 'ecom_delivery',
+        'ecom_rider' => 'ecom_rider',
+        'ecom_conversation' => 'ecom_conversation',
         // Payroll (docs/modules/payroll.md): setup, an employee's pay setup and item, a loan, a posted run, its payslip and a return.
         'payroll_pay_group' => 'payroll_pay_group',
         'payroll_item' => 'payroll_item',
@@ -386,6 +409,14 @@ class TenantIsolationTest extends TestCase
         // Payroll: an employee's pay setup and a pay group.
         'payroll_employee_id' => 'payroll_employee',
         'pay_group_id' => 'payroll_pay_group',
+        // E-commerce: a store, its products and zones, a pickup point, a rider, a delivery, the tax code of the delivery fee.
+        'store_id' => 'ecom_store',
+        'product_id' => 'ecom_product',
+        'zone_id' => 'ecom_zone',
+        'pickup_location_id' => 'location',
+        'rider_id' => 'ecom_rider',
+        'delivery_id' => 'ecom_delivery',
+        'delivery_tax_code_id' => 'tax_code',
         'scope_id' => null,
     ];
 
@@ -537,10 +568,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'asset' => 'fa_asset', 'custodian' => 'user', 'owner' => 'user', 'pipeline' => 'crm_pipeline'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'asset' => 'fa_asset', 'custodian' => 'user', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'store' => 'ecom_store', 'rider' => 'ecom_rider'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'pay_group', 'unassigned', 'errors', 'run', 'asset', 'custodian', 'period', 'owner', 'pipeline'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'pay_group', 'unassigned', 'errors', 'run', 'asset', 'custodian', 'period', 'owner', 'pipeline', 'store', 'rider', 'payment_status', 'fulfilment'];
 
     private TwoTenants $tenants;
 
@@ -702,7 +733,7 @@ class TenantIsolationTest extends TestCase
                     // is isolation, not a bad URL.
                     if ($method === 'GET') {
                         $control = $this->json('GET', $this->uriWith($route, $a).$suffix, [], $this->bearerFor($route, $a));
-                        $query === [] ? $control->assertOk() : $this->assertContains($control->getStatusCode(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->getStatusCode()}");
+                        $query === [] ? $this->assertSame(200, $control->getStatusCode(), "GET {$this->uriWith($route, $a)} with A's own ids answered {$control->getStatusCode()}: {$control->getContent()}") : $this->assertContains($control->getStatusCode(), [200, 422], "GET {$this->uriWith($route, $a)}{$suffix} answered {$control->getStatusCode()}");
                         $this->assertBodyHasNothingOf($b, $control, "GET {$this->uriWith($route, $a)}{$suffix}");
                     }
                 }
@@ -1161,6 +1192,8 @@ class TenantIsolationTest extends TestCase
             'crm/opportunities?status=all' => ['Deal A', 'Customer A'],
             'crm/quotes?status=all' => ['Customer A'],
             'crm/activities' => ['Call A', 'Hello A'],
+            // E-commerce (ECOM-22): the orders list.
+            'ecommerce/orders?status=all' => ['Shopper A'],
         ];
     }
 
@@ -1875,6 +1908,26 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/crm/targets' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'subject_type' => 'user', 'subject_id' => $tenant->id('user'),
                 'metric' => 'won_value', 'period_start' => '2026-01-01', 'period_end' => '2026-12-31', 'amount_minor' => '1000'],
             'PATCH api/v1/crm/targets/{crm_target}' => ['branch_id' => $tenant->id('branch'), 'subject_id' => $tenant->id('user')],
+            // E-commerce (docs/modules/ecommerce.md): stores, phone and WhatsApp orders, rider assignment, riders, cash-ups, rider updates.
+            'POST api/v1/ecommerce/stores' => ['company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'location_id' => $tenant->id('location'),
+                'handle' => 'hijack-'.substr($tenant->tenantId, 0, 8), 'name' => 'Hijack store', 'currency' => 'KES', 'price_list_id' => $tenant->id('price_list'),
+                'delivery_tax_code_id' => $tenant->id('tax_code'), 'payment_methods' => [['kind' => 'mpesa', 'payment_method_id' => $tenant->id('payment_method')]]],
+            'PATCH api/v1/ecommerce/stores/{ecom_store}' => ['branch_id' => $tenant->id('branch'), 'location_id' => $tenant->id('location'), 'price_list_id' => $tenant->id('price_list'),
+                'delivery_tax_code_id' => $tenant->id('tax_code')],
+            'POST api/v1/ecommerce/stores/{ecom_store}/quote' => ['lines' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']], 'fulfilment' => 'delivery', 'zone_id' => $tenant->id('ecom_zone'),
+                'pickup_location_id' => $tenant->id('location')],
+            'POST api/v1/ecommerce/orders' => ['store_id' => $tenant->id('ecom_store'), 'lines' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']], 'fulfilment' => 'delivery',
+                'zone_id' => $tenant->id('ecom_zone'), 'pickup_location_id' => $tenant->id('location'), 'payment' => 'cod', 'contact' => ['name' => 'Phone order', 'phone' => '0712000999'],
+                'address' => ['line' => 'Hijack road 1'], 'expected_total_minor' => '31250'],
+            'POST api/v1/ecommerce/conversations/{ecom_conversation}/order' => ['lines' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']], 'fulfilment' => 'delivery',
+                'zone_id' => $tenant->id('ecom_zone'), 'pickup_location_id' => $tenant->id('location'), 'payment' => 'cod', 'contact' => ['name' => 'Chat order', 'phone' => '0712000998'],
+                'address' => ['line' => 'Hijack road 2'], 'expected_total_minor' => '31250'],
+            'POST api/v1/ecommerce/deliveries/{ecom_delivery}/assign' => ['rider_id' => $tenant->id('ecom_rider')],
+            'POST api/v1/ecommerce/riders' => ['company_id' => $tenant->id('company'), 'user_id' => $tenant->id('manager'), 'employee_id' => $tenant->id('hr_employee')],
+            'PATCH api/v1/ecommerce/riders/{ecom_rider}' => ['employee_id' => $tenant->id('hr_employee'), 'vehicle' => 'Motorbike'],
+            'POST api/v1/ecommerce/cashups' => ['rider_id' => $tenant->id('ecom_rider'), 'currency' => 'KES', 'counted_minor' => '32656'],
+            'POST api/v1/ecommerce/rider/updates' => ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $tenant->id('ecom_delivery'), 'kind' => 'location',
+                'latitude' => '-1.28', 'longitude' => '36.82', 'occurred_at' => now()->toIso8601String()]]],
             default => null,
         };
     }
