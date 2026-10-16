@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Ecommerce\Customers\CustomerAuth;
 use Modules\Ecommerce\Http\Requests\CustomerCodeRequest;
+use Modules\Ecommerce\Http\Requests\CustomerSignOutRequest;
 use Modules\Ecommerce\Http\Requests\CustomerVerifyRequest;
 use Modules\Ecommerce\Models\Address;
 use Modules\Ecommerce\Models\Order;
@@ -33,7 +34,7 @@ class ShopAuthController
         return response()->json(['data' => ['token' => $result['token'], 'customer' => ['name' => $result['customer']->name, 'phone' => $result['customer']->phone, 'email' => $result['customer']->email]]]);
     }
 
-    public function signOut(Request $request): JsonResponse
+    public function signOut(CustomerSignOutRequest $request): JsonResponse
     {
         $session = ShopController::session($request) ?? throw EcomError::make('customer_session_required', status: 401);
         $this->auth->signOut($session);

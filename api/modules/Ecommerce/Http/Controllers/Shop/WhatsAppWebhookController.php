@@ -4,7 +4,7 @@ namespace Modules\Ecommerce\Http\Controllers\Shop;
 
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Modules\Ecommerce\Http\Requests\WhatsAppWebhookRequest;
 use Modules\Ecommerce\WhatsApp\Inbox;
 
 /**
@@ -15,7 +15,7 @@ use Modules\Ecommerce\WhatsApp\Inbox;
  */
 class WhatsAppWebhookController
 {
-    public function __invoke(Request $request, string $token, Inbox $inbox, TenantContext $tenants): JsonResponse
+    public function __invoke(WhatsAppWebhookRequest $request, string $token, Inbox $inbox, TenantContext $tenants): JsonResponse
     {
         try {
             $store = $inbox->storeFor($token);
