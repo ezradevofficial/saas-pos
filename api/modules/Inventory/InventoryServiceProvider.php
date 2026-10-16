@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Ecommerce\Events\OrderFulfilled;
+use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Inventory\Dashboards\LowStock;
 use Modules\Inventory\Dashboards\StockValue;
@@ -35,6 +37,7 @@ use Modules\Inventory\Events\StockLow;
 use Modules\Inventory\Imports\OpeningStockImporter;
 use Modules\Inventory\Labels\LabelSource;
 use Modules\Inventory\Listeners\ApplyLandedCost;
+use Modules\Inventory\Listeners\MoveStockForOrders;
 use Modules\Inventory\Listeners\MoveStockForSale;
 use Modules\Inventory\Listeners\MoveStockForStores;
 use Modules\Inventory\Listeners\NotifyLowStock;
@@ -130,6 +133,11 @@ class InventoryServiceProvider extends ServiceProvider
         // STR-08: Stores' issues and returns (when both modules are active, checked per tenant).
         foreach ([StoreIssued::class, StoreReturned::class] as $event) {
             Event::listen($event, [MoveStockForStores::class, 'handle']);
+        }
+
+        // ECOM-18 (docs/modules/ecommerce.md): online orders' hand-overs and returns (while Inventory is active, checked per tenant).
+        foreach ([OrderFulfilled::class, OrderReturned::class] as $event) {
+            Event::listen($event, [MoveStockForOrders::class, 'handle']);
         }
 
         // INV-15: goods received by Procurement (the contract defined here).

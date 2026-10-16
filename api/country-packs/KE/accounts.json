@@ -74,7 +74,8 @@
         {"code": "3400", "type": "equity", "subtype": "equity", "parent": "3000", "postable": true, "cash_flow": "non_cash"},
         {"code": "4920", "type": "income", "subtype": "other_income", "parent": "4000", "postable": true, "cash_flow": null},
         {"code": "6510", "type": "expense", "subtype": "expense", "parent": "6000", "postable": true, "cash_flow": null},
-        {"code": "7400", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null}
+        {"code": "7400", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null},
+        {"code": "1270", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"}
     ],
     "roles": {
         "receivable": "1200",
@@ -622,6 +623,69 @@
                 "field": "surplus",
                 "side": "credit",
                 "account": "3200"
+            }
+        ],
+        "ecommerce.order": [
+            {
+                "field": "tender.*",
+                "side": "debit",
+                "by": "payment_method",
+                "accounts": {
+                    "type:cash": "1110",
+                    "type:mobile_money": "1130",
+                    "type:card": "1120",
+                    "type:bank_transfer": "1120",
+                    "type:voucher": "1230",
+                    "type:points": "1230",
+                    "type:credit": "1230"
+                }
+            },
+            {
+                "field": "cod",
+                "side": "debit",
+                "account": "1270"
+            },
+            {
+                "field": "revenue.*",
+                "side": "credit",
+                "account": "4100"
+            },
+            {
+                "field": "promotion",
+                "side": "debit",
+                "account": "4300"
+            },
+            {
+                "field": "delivery",
+                "side": "credit",
+                "account": "4200"
+            },
+            {
+                "field": "tax.*",
+                "side": "credit",
+                "account": "2200"
+            }
+        ],
+        "ecommerce.cod_cashup": [
+            {
+                "field": "cash",
+                "side": "debit",
+                "account": "1110"
+            },
+            {
+                "field": "shortage",
+                "side": "debit",
+                "account": "6900"
+            },
+            {
+                "field": "cod",
+                "side": "credit",
+                "account": "1270"
+            },
+            {
+                "field": "overage",
+                "side": "credit",
+                "account": "4900"
             }
         ]
     }

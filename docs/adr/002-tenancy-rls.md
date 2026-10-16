@@ -87,6 +87,8 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_invitation(p_token_hash text)` | `invitations` by token hash |
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
+| `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
+| `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
 
 Each function is `language sql stable security definer`:
 
@@ -116,6 +118,7 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_due_recurring_journals(p_on date)` | `accounting:recurring` (ACC-06; Accounting migration `2026_11_05_000100`) | an active recurring journal due on or before `p_on` |
 | `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `loyalty:reprocess` (LOY-03; Loyalty migration `2026_11_06_000200`) | a Loyalty sale `failed` whose next attempt is due at `p_at` (backoff 5 min, 15 min, 1 h, 6 h, 24 h, then `failed_permanently`), or left `pending` since before `p_pending_before` |
 | `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `crm:remind` (CRM-27; CRM migration `2026_11_25_000100`) | an open CRM activity whose reminder is due at `p_at` and not yet sent |
+| `app_tenants_with_expired_ecom_reservations(p_at timestamptz)` | `ecommerce:expire` (ECOM-14; E-commerce migration `2026_11_28_000100`) | an unpaid online order (`placed`, payment `pending` or `failed`) whose stock reservation ended at or before `p_at` |
 
 A module's scheduler function lives in that module's migrations, and its command calls it through `DueTenants` like the core ones. Modules register their schedules in their own service providers (`callAfterResolving(Schedule::class)`), never in `routes/console.php`.
 
@@ -127,6 +130,8 @@ Two more functions answer for hosts, before any tenant is known:
 
 - `app_tenant_for_verified_domain(p_host text)` returns the tenant id of a verified, not archived custom domain of an active tenant. The TLS ask endpoint only checks that one exists.
 - `app_public_branding(p_slug text, p_host text)` returns a table of public fields, not ids: the tenant's name, its published tenant-wide theme's look (`scope_id is null`, live, not archived version), the welcome text, the storage paths of its logos, favicon and background, and the "hide platform" flag. It never returns the tenant id, document or asset ids.
+
+**The storefront (ECOM-06) uses the same hosts.** `ecom_store_tenant` returns only a tenant id, and only for a live store: the host is not a credential (any client can send any host), so it only chooses whose public catalogue is read, under that tenant's row-level security, and the tenant is left at the end of the request (`ResolveShop`).
 
 **Tenant names behind a slug are public by design.** Anyone who knows or guesses `{slug}.{APP_BASE_DOMAIN}` (or a verified domain) sees that business's name and look on its sign-in page, as on any branded login page. Nothing else about the tenant is reachable this way. Subdomains are chosen by the business; it should not pick one it wants kept secret.
 
@@ -144,6 +149,8 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
 | `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
 | `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |
+| `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | `uuid` | the public storefront, by host and store handle (ECOM-06) |
+| `ecom_whatsapp_tenant(p_token_hash text)` | `uuid` | a store's inbound WhatsApp webhook (ECOM-24) |
 | `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
 | `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
@@ -157,6 +164,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
 | `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
 | `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `setof uuid` | `crm:remind` |
+| `app_tenants_with_expired_ecom_reservations(p_at timestamptz)` | `setof uuid` | `ecommerce:expire` |
 | `app_tenants_with_due_automation(p_kind text, p_at timestamptz)` | `setof uuid` | `automation:scan` |
 | `app_tenants_with_due_exports(p_at timestamptz, p_running_before timestamptz, p_queued_before timestamptz)` | `setof uuid` | `exports:expire` (ADR 015) |
 | `app_tenants_with_due_fiscal_submissions(p_at timestamptz, p_stale_before timestamptz)` | `setof uuid` | fiscal submissions (KRA eTIMS, DGI) |

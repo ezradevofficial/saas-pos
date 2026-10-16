@@ -18,6 +18,7 @@ use Modules\Inventory\Events\StockMoved;
  *
  * | Inventory source            | Source type                | Counter field              |
  * | pos.sale, pos.refund, void  | inventory.cost_of_sales    | cost_of_sales.{sale line}  |
+ * | ecommerce.order, .return    | inventory.cost_of_sales    | cost_of_sales.{order line} |
  * | procurement.goods_receipt   | inventory.receipt          | grni, landed_cost          |
  * | procurement.landed_cost     | inventory.landed_cost      | landed_cost                |
  * | inventory.opening, .import  | inventory.opening          | opening                    |
@@ -47,6 +48,9 @@ class InventorySources
         'pos.sale' => ['inventory.cost_of_sales', 'cost_of_sales'],
         'pos.refund' => ['inventory.cost_of_sales', 'cost_of_sales'],
         'pos.void' => ['inventory.cost_of_sales', 'cost_of_sales'],
+        // ECOM-32: online orders handed over and returned (docs/modules/ecommerce.md).
+        'ecommerce.order' => ['inventory.cost_of_sales', 'cost_of_sales'],
+        'ecommerce.return' => ['inventory.cost_of_sales', 'cost_of_sales'],
         'procurement.goods_receipt' => ['inventory.receipt', 'grni'],
         // INV-25: landed costs allocated after a receipt (value-only cost adjustments).
         'procurement.landed_cost' => ['inventory.landed_cost', 'landed_cost'],

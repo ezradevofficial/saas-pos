@@ -38,6 +38,7 @@ use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Payments\Payments;
 use Modules\CRM\Events\QuoteConverted;
+use Modules\Ecommerce\Events\EcommercePosting;
 use Modules\FixedAssets\Events\AssetCapitalised;
 use Modules\FixedAssets\Events\AssetDisposed;
 use Modules\FixedAssets\Events\AssetImpaired;
@@ -107,6 +108,8 @@ class AccountingServiceProvider extends ServiceProvider
         AssetCapitalised::class, DepreciationPosted::class, DepreciationReversed::class, AssetRevalued::class, AssetImpaired::class, AssetDisposed::class,
         // PAY-22: posted payroll runs (journals per department and pay currency).
         PayrollPosted::class,
+        // ECOM-32: E-commerce's delivered orders, returns and rider cash-ups.
+        EcommercePosting::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */

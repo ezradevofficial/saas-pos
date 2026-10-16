@@ -53,6 +53,7 @@
             "Modules\\HR\\Tests\\": "modules/HR/tests/",
             "Modules\\FixedAssets\\Tests\\": "modules/FixedAssets/tests/",
             "Modules\\CRM\\Tests\\": "modules/CRM/tests/",
+            "Modules\\Ecommerce\\Tests\\": "modules/Ecommerce/tests/",
             "Modules\\Payroll\\Tests\\": "modules/Payroll/tests/"
         }
     },

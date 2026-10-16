@@ -1,0 +1,205 @@
+<?php
+
+// Module e-commerce et livraison (docs/modules/ecommerce.md).
+return [
+    'errors' => [
+        'forbidden' => 'Vous ne pouvez pas faire cela ici. Demandez l’accès à un administrateur.',
+        'product_unavailable' => 'Ce produit n’est plus vendu en ligne. Retirez-le du panier.',
+        'qty_invalid' => 'Saisissez une quantité valide pour :product.',
+        'price_missing' => ':product n’a pas encore de prix en ligne. Retirez-le du panier ou demandez au magasin de fixer un prix.',
+        'tax_rate_missing' => ':product ne peut pas être vendu tant que son taux de taxe n’est pas confirmé. Retirez-le du panier.',
+        'tax_code_missing' => ':product n’a pas encore de code de taxe. Retirez-le du panier ou demandez au magasin d’en définir un.',
+        'out_of_stock' => 'Pas assez de :product en stock. Réduisez la quantité ou retirez-le.',
+        'coupon_invalid' => 'Ce code promo n’est pas valide ou a été épuisé. Vérifiez le code ou retirez-le.',
+        'coupon_not_applicable' => 'Ce code promo ne s’applique pas aux articles de votre panier.',
+        'delivery_tax_rate_missing' => 'Le taux de taxe des frais de livraison n’est pas confirmé. Choisissez le retrait ou contactez le magasin.',
+        'cart_empty' => 'Votre panier est vide. Ajoutez d’abord un produit.',
+        'below_minimum' => 'La commande minimale est de :amount. Ajoutez des articles à votre panier.',
+        'pickup_unavailable' => 'Le retrait n’est pas proposé à cet endroit. Choisissez un autre point de retrait ou la livraison.',
+        'delivery_unavailable' => 'Ce magasin ne livre pas. Choisissez le retrait.',
+        'zone_required' => 'Choisissez votre zone de livraison.',
+        'zone_unknown' => 'Cette zone de livraison n’est pas disponible. Choisissez-en une autre.',
+        'points_unavailable' => 'Les points ne peuvent pas être utilisés pour cette commande.',
+        'points_insufficient' => 'Vous n’avez pas autant de points. Utilisez-en moins.',
+        'points_below_minimum' => 'Utilisez au moins :points points, ou aucun.',
+        'points_exceed_total' => 'Ces points valent plus que la commande. Utilisez-en moins.',
+        'gift_card_unusable' => 'Cette carte cadeau ne peut pas être utilisée. Vérifiez le code, sa devise et son solde.',
+        'gift_card_insufficient' => 'Le solde de la carte cadeau est trop faible. Utilisez un montant plus petit.',
+        'total_changed' => 'Le total a changé depuis votre dernier affichage. Vérifiez le nouveau total et passez la commande à nouveau.',
+        'payment_unavailable' => 'Choisissez un moyen de paiement proposé par ce magasin.',
+        'address_required' => 'Saisissez l’adresse de livraison.',
+        'phone_invalid' => 'Saisissez un numéro de téléphone valide, par exemple 0812 345 678.',
+        'rate_unavailable' => 'Il n’y a pas de taux de change pour :pair aujourd’hui. Demandez au magasin d’en définir un.',
+        'idempotency_mismatch' => 'Cette commande a déjà été envoyée avec d’autres informations. Rechargez la page et passez-la à nouveau.',
+        'idempotency_key_required' => 'La clé de commande manque à la demande. Rechargez la page et réessayez.',
+        'idempotency_key_invalid' => 'La clé de commande n’est pas valide. Utilisez de 16 à 100 lettres, chiffres, tirets ou traits de soulignement.',
+        'customer_party_failed' => 'Votre fiche client n’a pas pu être créée. Réessayez ou contactez le magasin.',
+        'payment_not_open' => 'Cette commande n’a pas de paiement à effectuer maintenant.',
+        'payment_method_unavailable' => 'Ce moyen de paiement n’est pas disponible pour le moment. Choisissez-en un autre ou contactez le magasin.',
+        'refund_reference_required' => 'Saisissez la référence du remboursement effectué.',
+        'order_unpaid' => 'Cette commande n’est pas encore payée. Attendez le paiement ou annulez-la.',
+        'not_a_delivery' => 'Cette commande est à retirer. Marquez-la livrée quand le client la récupère.',
+        'rider_required' => 'Affectez un livreur avant le départ de la commande.',
+        'status_invalid' => 'Impossible tant que la commande est au statut « :status ».',
+        'refund_above_limit' => 'Ce remboursement dépasse votre limite. Demandez à un responsable de le faire.',
+        'delivery_not_assignable' => 'Cette livraison ne peut pas être affectée maintenant : elle est en route, terminée, ou sa commande n’est pas prête.',
+        'rider_unavailable' => 'Choisissez un livreur actif de cette société.',
+        'delivery_unknown' => 'Cette livraison ne vous est pas affectée. Actualisez votre liste.',
+        'delivery_status_invalid' => 'Cette livraison a changé de statut. Actualisez votre liste.',
+        'code_locked' => 'Trop de codes de livraison erronés. Demandez au magasin de confirmer cette livraison.',
+        'code_invalid' => 'Le code n’est pas correct. Vérifiez-le et réessayez.',
+        'proof_required' => 'Saisissez d’abord le code de livraison du client ou prenez une photo.',
+        'payload_mismatch' => 'Cette mise à jour a déjà été envoyée avec d’autres informations. Actualisez votre liste.',
+        'cashup_nothing_pending' => 'Ce livreur n’a pas d’espèces à remettre dans cette devise.',
+        'contact_invalid' => 'Saisissez un numéro de téléphone ou une adresse e-mail valide.',
+        'customer_session_invalid' => 'Vous avez été déconnecté. Reconnectez-vous.',
+        'customer_session_required' => 'Connectez-vous d’abord.',
+        'webhook_unverified' => 'La demande n’a pas pu être vérifiée.',
+        'whatsapp_unavailable' => 'WhatsApp n’est pas encore configuré. Demandez à un administrateur de connecter un fournisseur.',
+        'branch_not_of_company' => 'Choisissez une agence de cette société.',
+        'location_not_of_branch' => 'Choisissez un site de cette agence.',
+        'location_not_of_company' => 'Choisissez des sites de cette société.',
+        'handle_taken' => 'Un autre magasin utilise déjà cette adresse web. Choisissez-en une autre.',
+        'price_list_invalid' => 'Choisissez une liste de prix de cette société dans la devise du magasin.',
+        'tax_code_not_of_company' => 'Choisissez un code de taxe de cette société.',
+        'payment_method_invalid' => 'Choisissez un moyen de paiement de cette société qui accepte :kind.',
+        'store_not_ready' => 'Avant la mise en ligne, ajoutez un moyen de paiement et proposez la livraison ou le retrait (avec un point de retrait).',
+        'item_not_sellable' => 'Choisissez des articles actifs de cette société (les kits ne peuvent pas encore être vendus en ligne).',
+        'slug_taken' => 'Un autre produit de ce magasin utilise déjà cette adresse web. Choisissez-en une autre.',
+        'rider_user_invalid' => 'Choisissez un utilisateur actif comme livreur.',
+        'rider_exists' => 'Cette personne est déjà livreur de cette société.',
+        'employee_invalid' => 'Choisissez un employé de cette société.',
+        'conversation_converted' => 'Cette discussion est déjà devenue une commande.',
+        'refund_not_due' => 'Aucun remboursement n’est en attente sur cette commande.',
+        'loyalty_inactive' => 'La fidélité n’est pas active.',
+    ],
+
+    'statuses' => [
+        'placed' => 'Passée',
+        'accepted' => 'Acceptée',
+        'picking' => 'En préparation',
+        'ready' => 'Prête',
+        'out_for_delivery' => 'En livraison',
+        'delivered' => 'Livrée',
+        'cancelled' => 'Annulée',
+        'returned' => 'Retournée',
+    ],
+
+    'payment_statuses' => [
+        'pending' => 'Paiement en attente',
+        'paid' => 'Payée',
+        'cod' => 'Paiement à la livraison',
+        'cod_collected' => 'Espèces encaissées',
+        'failed' => 'Paiement échoué',
+        'refund_due' => 'Remboursement dû',
+        'refunded' => 'Remboursée',
+    ],
+
+    'channels' => [
+        'web' => 'Boutique en ligne',
+        'phone' => 'Téléphone',
+        'whatsapp' => 'WhatsApp',
+    ],
+
+    'fulfilments' => [
+        'delivery' => 'Livraison',
+        'pickup' => 'Retrait',
+    ],
+
+    'payment_kinds' => [
+        'mpesa' => 'M-Pesa',
+        'card' => 'Carte',
+        'cod' => 'Paiement à la livraison',
+        'points' => 'Points',
+        'gift_card' => 'Carte cadeau',
+        'loyalty' => 'Points et cartes cadeaux',
+    ],
+
+    'columns' => [
+        'number' => 'Numéro',
+        'store' => 'Magasin',
+        'status' => 'Statut',
+        'payment_status' => 'Paiement',
+        'channel' => 'Canal',
+        'fulfilment' => 'Remise',
+        'contact_name' => 'Client',
+        'contact_phone' => 'Téléphone',
+        'total' => 'Total',
+        'placed_at' => 'Passée le',
+    ],
+
+    'lists' => [
+        'orders' => 'Commandes en ligne',
+    ],
+
+    'numbering' => [
+        'order' => 'Commandes en ligne',
+    ],
+
+    'orders' => [
+        'payment_timeout' => 'Non payée à temps',
+    ],
+
+    'deliveries' => [
+        'failed_default' => 'Livraison échouée',
+    ],
+
+    'fiscal' => [
+        'delivery' => 'Livraison',
+    ],
+
+    'customers' => [
+        'code' => [
+            'subject' => 'Votre code de connexion pour :store',
+            'line' => 'Votre code est :code.',
+            'expiry' => 'Il est valable :minutes minutes.',
+            'ignore' => 'Si vous ne l’avez pas demandé, ignorez ce message.',
+            'sms' => ':store : votre code de connexion est :code. Il est valable :minutes minutes.',
+        ],
+    ],
+
+    'notifications' => [
+        'placed' => [
+            'label' => 'Commande en ligne passée',
+            'subject' => '{store_name} : commande {order_number} reçue',
+            'body' => "Bonjour {recipient_name},\n\nMerci pour votre commande {order_number} de {total}. Nous vous tiendrons informé de son avancement.\n\nSuivez-la ici : {tracking_url}",
+            'sms' => '{store_name} : commande {order_number} de {total} reçue. Suivez-la : {tracking_url}',
+        ],
+        'paid' => [
+            'label' => 'Commande en ligne payée',
+            'subject' => '{store_name} : paiement reçu pour {order_number}',
+            'body' => "Bonjour {recipient_name},\n\nNous avons reçu votre paiement de {total} pour la commande {order_number}.\n\nSuivez-la ici : {tracking_url}",
+            'sms' => '{store_name} : paiement de {total} reçu pour {order_number}.',
+        ],
+        'accepted' => [
+            'label' => 'Commande en ligne acceptée',
+            'subject' => '{store_name} : commande {order_number} acceptée',
+            'body' => "Bonjour {recipient_name},\n\nNous préparons votre commande {order_number}.\n\nSuivez-la ici : {tracking_url}",
+            'sms' => '{store_name} : nous préparons la commande {order_number}.',
+        ],
+        'ready' => [
+            'label' => 'Commande en ligne prête à retirer',
+            'subject' => '{store_name} : la commande {order_number} est prête',
+            'body' => "Bonjour {recipient_name},\n\nVotre commande {order_number} est prête à être retirée.\n\nDétails : {tracking_url}",
+            'sms' => '{store_name} : la commande {order_number} est prête à être retirée.',
+        ],
+        'dispatched' => [
+            'label' => 'Commande en ligne en livraison',
+            'subject' => '{store_name} : la commande {order_number} est en route',
+            'body' => "Bonjour {recipient_name},\n\nVotre commande {order_number} est en route. Donnez ce code de livraison au livreur : {delivery_code}\n\nSuivez-la ici : {tracking_url}",
+            'sms' => '{store_name} : la commande {order_number} est en route. Code de livraison : {delivery_code}',
+        ],
+        'delivered' => [
+            'label' => 'Commande en ligne livrée',
+            'subject' => '{store_name} : commande {order_number} livrée',
+            'body' => "Bonjour {recipient_name},\n\nVotre commande {order_number} a été livrée. Merci pour votre achat.",
+            'sms' => '{store_name} : commande {order_number} livrée. Merci.',
+        ],
+        'cancelled' => [
+            'label' => 'Commande en ligne annulée',
+            'subject' => '{store_name} : commande {order_number} annulée',
+            'body' => "Bonjour {recipient_name},\n\nVotre commande {order_number} a été annulée. Si vous avez payé, l’argent vous sera rendu.\n\nDétails : {tracking_url}",
+            'sms' => '{store_name} : la commande {order_number} a été annulée.',
+        ],
+    ],
+];

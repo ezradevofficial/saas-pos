@@ -97,7 +97,8 @@
         {"code": "481", "type": "liability", "subtype": "current_liability", "parent": "48", "postable": true, "cash_flow": "investing"},
         {"code": "485", "type": "asset", "subtype": "current_asset", "parent": "47", "postable": true, "cash_flow": "investing"},
         {"code": "69", "type": "expense", "subtype": "header", "parent": "6", "postable": false, "cash_flow": null},
-        {"code": "691", "type": "expense", "subtype": "expense", "parent": "69", "postable": true, "cash_flow": null}
+        {"code": "691", "type": "expense", "subtype": "expense", "parent": "69", "postable": true, "cash_flow": null},
+        {"code": "4712", "type": "asset", "subtype": "current_asset", "parent": "47", "postable": true, "cash_flow": "operating"}
     ],
     "roles": {
         "receivable": "411",
@@ -653,6 +654,69 @@
                 "field": "surplus",
                 "side": "credit",
                 "account": "121"
+            }
+        ],
+        "ecommerce.order": [
+            {
+                "field": "tender.*",
+                "side": "debit",
+                "by": "payment_method",
+                "accounts": {
+                    "type:cash": "571",
+                    "type:mobile_money": "551",
+                    "type:card": "521",
+                    "type:bank_transfer": "521",
+                    "type:voucher": "4711",
+                    "type:points": "4711",
+                    "type:credit": "4711"
+                }
+            },
+            {
+                "field": "cod",
+                "side": "debit",
+                "account": "4712"
+            },
+            {
+                "field": "revenue.*",
+                "side": "credit",
+                "account": "701"
+            },
+            {
+                "field": "promotion",
+                "side": "debit",
+                "account": "7019"
+            },
+            {
+                "field": "delivery",
+                "side": "credit",
+                "account": "706"
+            },
+            {
+                "field": "tax.*",
+                "side": "credit",
+                "account": "443"
+            }
+        ],
+        "ecommerce.cod_cashup": [
+            {
+                "field": "cash",
+                "side": "debit",
+                "account": "571"
+            },
+            {
+                "field": "shortage",
+                "side": "debit",
+                "account": "658"
+            },
+            {
+                "field": "cod",
+                "side": "credit",
+                "account": "4712"
+            },
+            {
+                "field": "overage",
+                "side": "credit",
+                "account": "758"
             }
         ]
     }

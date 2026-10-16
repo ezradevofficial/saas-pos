@@ -31,6 +31,7 @@ use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
 use Modules\Accounting\AccountingServiceProvider;
 use Modules\CRM\CrmServiceProvider;
+use Modules\Ecommerce\EcommerceServiceProvider;
 use Modules\FixedAssets\FixedAssetsServiceProvider;
 use Modules\HR\HrServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
@@ -78,6 +79,7 @@ return [
     HrServiceProvider::class,
     FixedAssetsServiceProvider::class,
     CrmServiceProvider::class,
+    EcommerceServiceProvider::class,
     PayrollServiceProvider::class,
     HorizonServiceProvider::class,
 ];
