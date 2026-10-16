@@ -132,6 +132,10 @@ final class OrderFlow
 
             if ($order->fulfilment === 'pickup') {
                 $this->handOver($order, $by);
+            } else {
+                // Confirmed by staff (the rider's own proof sets it first).
+                Delivery::query()->where('order_id', $order->id)->where('status', Delivery::PICKED_UP)->lockForUpdate()->get()
+                    ->each(fn (Delivery $d) => $d->forceFill(['status' => Delivery::DELIVERED, 'delivered_at' => $order->delivered_at])->save());
             }
 
             if ($order->payment_status === 'cod') {

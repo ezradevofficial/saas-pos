@@ -43,7 +43,7 @@ class RiderController
 
     public function store(RiderRequest $request): JsonResponse
     {
-        $this->access->assertAtCompany($request->user(), 'ecommerce.rider.manage', (string) $request->validated('company_id'));
+        $this->access->assertInCompany($request->user(), 'ecommerce.rider.manage', (string) $request->validated('company_id'));
         $user = User::query()->whereKey($request->validated('user_id'))->where('status', User::STATUS_ACTIVE)->first();
 
         if ($user === null) {
@@ -92,9 +92,9 @@ class RiderController
 
     private function manage($request, Rider $rider): void
     {
-        abort_unless($this->access->atCompany($request->user(), 'ecommerce.rider.manage', $rider->company_id)
-            || $this->access->atCompany($request->user(), 'ecommerce.delivery.view', $rider->company_id), 404);
-        $this->access->assertAtCompany($request->user(), 'ecommerce.rider.manage', $rider->company_id);
+        abort_unless($this->access->inCompany($request->user(), 'ecommerce.rider.manage', $rider->company_id)
+            || $this->access->inCompany($request->user(), 'ecommerce.delivery.view', $rider->company_id), 404);
+        $this->access->assertInCompany($request->user(), 'ecommerce.rider.manage', $rider->company_id);
     }
 
     /** The HR employee of the company (HR active), or a refusal; null clears the link. */

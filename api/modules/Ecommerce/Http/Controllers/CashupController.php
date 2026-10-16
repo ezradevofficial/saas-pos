@@ -43,8 +43,8 @@ class CashupController
     public function store(CashupRequest $request): JsonResponse
     {
         $rider = Rider::query()->findOrFail($request->validated('rider_id'));
-        abort_unless($this->access->atCompany($request->user(), 'ecommerce.cashup.view', $rider->company_id), 404);
-        $this->access->assertAtCompany($request->user(), 'ecommerce.cashup.manage', $rider->company_id);
+        abort_unless($this->access->inCompany($request->user(), 'ecommerce.cashup.view', $rider->company_id), 404);
+        $this->access->assertInCompany($request->user(), 'ecommerce.cashup.manage', $rider->company_id);
         $cashup = $this->cashups->close($rider, strtoupper((string) $request->validated('currency')), (int) $request->validated('counted_minor'), $request->validated('note'), $request->user());
 
         return response()->json(['data' => Present::cashup($cashup)], 201);

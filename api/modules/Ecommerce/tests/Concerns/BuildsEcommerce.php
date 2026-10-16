@@ -171,6 +171,14 @@ trait BuildsEcommerce
         return $this->shopCall('POST', 'duka/orders', $this->checkout($cart, $payment, $extra), ['Idempotency-Key' => $key ?? 'key-'.Str::random(20)]);
     }
 
+    /** Inventory switched on, with $qty widgets on hand at Outlet A (opening stock at KES 400.00 each). */
+    protected function stockUp(string $qty, ?Item $item = null): void
+    {
+        $this->inTenant(fn () => app(ModuleRegistry::class)->activate('inventory'));
+        $this->postJson('/api/v1/inventory/opening-stock', ['item_id' => ($item ?? $this->widget)->id, 'location_id' => $this->locationA->id, 'qty' => $qty, 'unit_cost' => '400'],
+            $this->headersFor())->assertCreated();
+    }
+
     protected function orderId(string $number): string
     {
         return $this->inTenant(fn () => Order::query()->where('number', $number)->value('id'));

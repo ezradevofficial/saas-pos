@@ -34,6 +34,22 @@ final class Access
         return $this->resolver->can($user, $permission, Scope::company($companyId));
     }
 
+    /** Whether $user holds $permission anywhere in the company (at it, or at one of its branches or locations; TEN-08). */
+    public function inCompany(User $user, string $permission, string $companyId): bool
+    {
+        $scope = $this->resolver->visibleIds($user, $permission);
+
+        return $scope->all || in_array($companyId, $scope->companiesTouched() ?? [], true);
+    }
+
+    /** @throws AuthorizationException */
+    public function assertInCompany(User $user, string $permission, string $companyId): void
+    {
+        if (! $this->inCompany($user, $permission, $companyId)) {
+            throw new AuthorizationException(__('ecommerce.errors.forbidden'));
+        }
+    }
+
     /** @throws AuthorizationException */
     public function assertAtLocation(User $user, string $permission, string $locationId): void
     {
