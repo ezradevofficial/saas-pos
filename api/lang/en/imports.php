@@ -254,6 +254,7 @@ return [
         'crm_lead' => 'Linked to a lead',
         'crm_activity' => 'Linked to an activity',
         'ecommerce_product' => 'Sold online as a product',
+        'ecommerce_order' => 'Used in an online order',
         'hr_record' => 'Has HR records',
         'sale' => 'Used in a sale',
         'price' => 'Has a price',

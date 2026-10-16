@@ -254,6 +254,7 @@ return [
         'crm_lead' => 'Lié à un prospect',
         'crm_activity' => 'Lié à une activité',
         'ecommerce_product' => 'Vendu en ligne comme produit',
+        'ecommerce_order' => 'Utilisé dans une commande en ligne',
         'hr_record' => 'A des données RH',
         'sale' => 'Utilisé dans une vente',
         'price' => 'A un prix',
