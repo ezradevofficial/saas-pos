@@ -19,6 +19,7 @@ use App\Core\Support\EventReplays;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -184,6 +185,11 @@ class FixedAssetsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([MaintenanceRemindersCommand::class]);
         }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // FA-19: maintenance falling due, reminded once a day.
+            $schedule->command('fixed-assets:maintenance-reminders')->dailyAt('06:30')->withoutOverlapping()->onOneServer();
+        });
 
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
 
