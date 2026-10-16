@@ -8,6 +8,7 @@ use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -40,6 +41,7 @@ use Modules\Payroll\Runs\RunType;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Support\Numbers;
 use Modules\Payroll\Support\PayFields;
+use Modules\Payroll\Webhooks\PayrollWebhookEvents;
 
 /**
  * The Payroll module (docs/modules/payroll.md). Registered for every
@@ -98,6 +100,9 @@ class PayrollServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        PayrollWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 

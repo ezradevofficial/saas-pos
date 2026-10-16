@@ -105,16 +105,18 @@ class WebhookSender
      * The request options for a call to $target: HTTPS only, no redirects,
      * no proxy, timeouts, and for a host name the checked address pinned
      * (CURLOPT_RESOLVE; an IP literal needs no pin). The curl handler is
-     * forced by send(), so the pin always applies.
+     * forced by post(), so the pin always applies. Plain HTTP is allowed
+     * only for a target built for it (HOOK-01's local development hosts,
+     * WebhookEndpoints), never through target().
      */
-    public function options(WebhookTarget $target): array
+    public function options(WebhookTarget $target, ?int $timeout = null, ?int $connectTimeout = null): array
     {
-        $timeout = (int) config('automation.webhook_timeout', 5);
+        $timeout ??= (int) config('automation.webhook_timeout', 5);
         $options = [
             'allow_redirects' => false,
-            'protocols' => ['https'],
+            'protocols' => [$target->plainHttp ? 'http' : 'https'],
             'timeout' => $timeout,
-            'connect_timeout' => $timeout,
+            'connect_timeout' => min($timeout, $connectTimeout ?? $timeout),
             'proxy' => '',
         ];
 
@@ -126,23 +128,41 @@ class WebhookSender
     }
 
     /**
-     * POST the signed JSON body through curl. Returns the status and the
-     * first `automation.webhook_response_bytes` of the answer; an answer
-     * larger than `automation.webhook_max_download` is cut off (its status
-     * is kept, its body dropped). Throws WebhookUnreachable when no answer
-     * came (refused, timed out, TLS failure).
+     * AUTO-03: POST the signed JSON body (X-Webhook-* headers, Signature).
      *
      * @return array{status: int, body: string}
      */
     public function send(WebhookTarget $target, string $body, string $secret, string $id, ?int $timestamp = null): array
     {
         $timestamp ??= time();
+
+        return $this->post($target, $body, [
+            'User-Agent' => 'automation-webhook/1',
+            Signature::ID_HEADER => $id,
+            Signature::TIMESTAMP_HEADER => (string) $timestamp,
+            Signature::SIGNATURE_HEADER => Signature::sign($secret, $timestamp, $body),
+        ]);
+    }
+
+    /**
+     * POST a JSON body with $headers through curl. Returns the status and
+     * the first $responseBytes (default `automation.webhook_response_bytes`)
+     * of the answer; an answer larger than `automation.webhook_max_download`
+     * is cut off (its status is kept, its body dropped). Throws
+     * WebhookUnreachable when no answer came (refused, timed out, TLS
+     * failure).
+     *
+     * @param  array<string, string>  $headers
+     * @return array{status: int, body: string}
+     */
+    public function post(WebhookTarget $target, string $body, array $headers, ?int $timeout = null, ?int $connectTimeout = null, ?int $responseBytes = null): array
+    {
         $cap = (int) config('automation.webhook_max_download', 65536);
         $status = null;
         $tooLarge = false;
 
         $options = [
-            ...$this->options($target),
+            ...$this->options($target, $timeout, $connectTimeout),
             'on_headers' => function (ResponseInterface $response) use (&$status, &$tooLarge, $cap) {
                 $status = $response->getStatusCode();
                 $length = $response->getHeaderLine('Content-Length');
@@ -155,12 +175,7 @@ class WebhookSender
         try {
             $response = Http::setHandler(new CurlHandler)
                 ->withOptions($options)
-                ->withHeaders([
-                    'User-Agent' => 'automation-webhook/1',
-                    Signature::ID_HEADER => $id,
-                    Signature::TIMESTAMP_HEADER => (string) $timestamp,
-                    Signature::SIGNATURE_HEADER => Signature::sign($secret, $timestamp, $body),
-                ])
+                ->withHeaders($headers)
                 ->withBody($body, 'application/json')
                 ->post($target->url);
         } catch (Throwable $e) {
@@ -172,9 +187,15 @@ class WebhookSender
             throw new WebhookUnreachable($e);
         }
 
-        $limit = (int) config('automation.webhook_response_bytes', 1024);
+        $limit = $responseBytes ?? (int) config('automation.webhook_response_bytes', 1024);
 
         return ['status' => $response->status(), 'body' => mb_scrub(substr($response->body(), 0, $limit), 'UTF-8')];
+    }
+
+    /** The host of a URL as it is compared and resolved (lower case, no IPv6 brackets). */
+    public static function hostOf(string $url): string
+    {
+        return self::host((string) (parse_url($url, PHP_URL_HOST) ?? ''));
     }
 
     private static function host(string $host): string

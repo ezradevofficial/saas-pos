@@ -10,6 +10,8 @@ final class WebhookTarget
         public readonly string $host,
         public readonly int $port,
         public readonly string $ip,
+        /** HOOK-01 local development hosts only (WebhookEndpoints); WebhookSender::target() never sets it. */
+        public readonly bool $plainHttp = false,
     ) {}
 
     /** The CURLOPT_RESOLVE entry pinning the host to the checked address. */

@@ -42,6 +42,10 @@ final class ExportColumns
         'company_fiscal_settings.credentials' => 'tax authority credentials (encrypted)',
         'automation_rules.webhook_secret' => 'webhook signing secret (AUTO-03, encrypted)',
         'automation_webhook_deliveries.url' => 'the webhook URL called, which may carry a token (AUTO-03, encrypted)',
+        // HOOK-01: webhook URLs carry secrets (the Phase 6 rule); signing secrets are shown once.
+        'webhook_subscriptions.url' => 'a webhook subscription\'s endpoint URL, which may carry a token (HOOK-01, encrypted)',
+        'webhook_subscriptions.secret' => 'a webhook subscription\'s signing secret (HOOK-01, encrypted)',
+        'webhook_subscriptions.previous_secret' => 'a webhook subscription\'s previous signing secret during a rotation (HOOK-01, encrypted)',
         // Denied rather than decrypted: the app only ever shows it masked, and
         // decrypting would put the application key in the export path.
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
