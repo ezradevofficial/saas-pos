@@ -8,6 +8,8 @@ return [
         'punch_outside_employment' => 'Cette heure est en dehors de la période d’emploi de l’employé. Vérifiez la date.',
         'punch_out_of_window' => 'Ce pointage date de plus de 7 jours ou est dans le futur. Saisissez-le à la main avec une note.',
         'period_not_ended' => 'Cette période court jusqu’au :date. Clôturez-la après son dernier jour.',
+        'period_offline_window' => 'Les caisses et les terminaux peuvent encore envoyer des pointages hors ligne pour cette période jusqu’au :date. Clôturez-la après ce jour, ou clôturez-la maintenant en indiquant un motif.',
+        'period_force_reason' => 'Indiquez un motif pour clôturer cette période avant l’arrivée des pointages hors ligne.',
         'reviewer_is_employee' => 'L’évaluateur ne peut pas être la personne évaluée. Choisissez un autre évaluateur.',
         'link_self' => 'Vous ne pouvez pas lier votre propre compte à un employé. Demandez à un autre responsable RH.',
         'roster_busy' => 'Ce planning est en cours de génération. Réessayez dans un instant.',

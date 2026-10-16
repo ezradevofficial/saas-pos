@@ -30,6 +30,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
 use Modules\Accounting\AccountingServiceProvider;
+use Modules\CRM\CrmServiceProvider;
 use Modules\HR\HrServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Loyalty\LoyaltyServiceProvider;
@@ -76,6 +77,7 @@ return [
     StoresServiceProvider::class,
     HrServiceProvider::class,
     ManufacturingServiceProvider::class,
+    CrmServiceProvider::class,
     PayrollServiceProvider::class,
     HorizonServiceProvider::class,
 ];

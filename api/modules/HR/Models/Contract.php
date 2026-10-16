@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $pay_minor
  * @property string $currency
  * @property string $status
+ * @property int $version one more on every save (Payroll applies ContractChanged in version order)
  */
 class Contract extends Model
 {
@@ -45,6 +46,16 @@ class Contract extends Model
     protected array $auditHidden = ['pay_minor'];
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        // Stage 7C closing review: a ContractChanged that arrives late never overwrites a newer one.
+        static::saving(function (self $contract) {
+            if ($contract->exists && $contract->isDirty()) {
+                $contract->version = (int) $contract->getOriginal('version') + 1;
+            }
+        });
+    }
 
     protected function casts(): array
     {

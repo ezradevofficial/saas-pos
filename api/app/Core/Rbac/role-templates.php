@@ -38,7 +38,9 @@ return [
             // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
             'hr.*.view',
             // MFG-02, MFG-29: keeps BOMs and recipes and a company's production rates; reads orders, reports and costs.
-            'manufacturing.*.view', 'manufacturing.bom.manage', 'manufacturing.settings.edit'],
+            'manufacturing.*.view', 'manufacturing.bom.manage', 'manufacturing.settings.edit',
+            // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
+            'crm.*.view', 'crm.settings.manage', 'crm.scope.branch'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
@@ -82,7 +84,29 @@ return [
             // company's rates is company-level: Admin, Owner).
             'manufacturing.bom.view', 'manufacturing.order.*', 'manufacturing.material.*', 'manufacturing.production.*',
             'manufacturing.report.view', 'manufacturing.cost.view',
+            // CRM (docs/modules/crm.md): the branch's leads, opportunities, quotes (the default quote approver, CRM-21),
+            // activities and targets, with the branch scope (CRM-08); the module's settings are the Admin's.
+            'crm.*',
         ],
+        'except' => ['crm.settings.manage'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // Owner decision B (2026-10-15, docs/modules/crm.md): a sales rep works their own leads, opportunities,
+        // quotes and activities (no team or branch scope, CRM-08). Quote discounts stay within the role's
+        // max_discount_percent, seeded at 0 % for the tenant to raise; above it the quote goes for approval.
+        // Sales managers use the Branch Manager role (crm.scope.branch).
+        'key' => 'sales_rep',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.currency.view', 'core.exchange_rate.view', 'core.tax.view', 'core.price_list.view', 'core.price.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view',
+            'crm.lead.view', 'crm.lead.create', 'crm.lead.edit', 'crm.lead.convert', 'crm.lead.archive',
+            'crm.opportunity.view', 'crm.opportunity.create', 'crm.opportunity.edit', 'crm.opportunity.close',
+            'crm.quote.view', 'crm.quote.create', 'crm.quote.discount', 'crm.quote.send', 'crm.quote.cancel',
+            'crm.activity.view', 'crm.activity.manage', 'crm.target.view',
+        ],
+        'limits' => ['max_discount_percent' => '0'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -154,6 +178,8 @@ return [
             'accounting.*', 'sales.*.view', 'pos.*.view', 'reports.*',
             // PRC-15, PRC-17: supplier invoices (match, approval, exceptions) and landed costs; reads procurement.
             'procurement.*.view', 'procurement.invoice.*', 'procurement.landed_cost.*',
+            // CRM-24: reads quotes and turns accepted ones into draft invoices.
+            'crm.quote.view', 'crm.quote.convert', 'crm.scope.branch',
             // LOY-14..LOY-18: customer credit (accounts, payments, adjustments, statements, ageing).
             'loyalty.credit.view', 'loyalty.credit.manage', 'loyalty.credit.receive', 'loyalty.credit.adjust', 'loyalty.*.view',
             // INV-20: stock, its value and the valuation report.
@@ -170,6 +196,8 @@ return [
         'key' => 'hr_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.dimension.view',
+            // CUR-01, HR-04, HR-07: the tenant's currencies, for contract pay and pay accounts.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // IMP-01, HR-34: imports employees (hr.employee.create|edit).
@@ -183,6 +211,8 @@ return [
         'key' => 'payroll_officer',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.user.view',
+            // CUR-01: the tenant's currencies, for pay currency, pay items and loans.
+            'core.currency.view',
             // LAY-06: sees layouts and keeps personal copies (dashboards, list views).
             'core.config.view',
             // PAY-01 to PAY-28 (docs/modules/payroll.md); maker-checker: APR-07 keeps the preparer off their own run's approval.
@@ -233,7 +263,8 @@ return [
             'hr.leave.view', 'hr.roster.view',
             // MFG-11: the production orders whose release they approve.
             'manufacturing.order.view',
-            // PAY-16: the payroll runs they approve (field rules may hide the amounts, PAY-23).
+            // PAY-16: the payroll runs they approve, by their totals, department totals and variances
+            // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',
         ],
         'is_owner' => false,
@@ -247,10 +278,11 @@ return [
     ],
     [
         'key' => 'read_only_auditor',
-        'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*'],
+        // CRM-08: an auditor reads every CRM record, not only their own.
+        'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*', 'crm.scope.branch'],
         // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
         'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
-            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.payslip.view', 'payroll.return.view'],
+            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

@@ -98,6 +98,9 @@ export function moduleLink(link) {
       return `/procurement/receipts/${id}`
     case 'loyalty.customer':
       return `/contacts/customers/${id}?tab=loyalty`
+    // ACC-33, PAY-22: a payroll journal (one per department and currency) opens its run.
+    case 'payroll.run':
+      return `/payroll/runs/${id}`
     default:
       return null
   }

@@ -249,6 +249,16 @@ class DunningTest extends TestCase
             'POST payroll/runs/{payroll_run}/corrections' => 'approval',
             'POST payroll/runs/{payroll_run}/post' => 'approval',
             'POST payroll/runs/{payroll_run}/submit' => 'approval',
+            // Stage 7C closing: staff are paid and returns filed in read-only mode too.
+            'POST payroll/runs/{payroll_run}/cancel' => 'staff',
+            'POST payroll/returns' => 'staff',
+            'POST hr/attendance-periods/{hr_attendance_period}/close' => 'staff',
+            'POST hr/timesheets/approve' => 'staff',
+            'POST hr/me/clock' => 'staff',
+            // Till and device clock-ins are POS uploads (allowed during the POS window).
+            'POST hr/till/punches' => 'pos_upload',
+            'POST hr/till/clock-attempts' => 'pos_upload',
+            'POST hr/device/punches' => 'pos_upload',
             'POST pos/cash-movements/{pos_cash_movement}/approve' => 'approval',
             'POST pos/cash-movements/{pos_cash_movement}/reject' => 'approval',
             'POST pos/refunds/{pos_refund}/approve' => 'approval',

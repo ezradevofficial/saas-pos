@@ -420,6 +420,13 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     }
 
     if (response.status === 402 && (error.code === 'subscription_pos_stopped' || error.code === 'subscription_overdue')) {
+      // SUB-05: another module's rows (HR punches) wait on their own: a 402 there says nothing
+      // about selling, so the till keeps selling and uploading its sales.
+      if (kind.module !== 'pos') {
+        summary.retried += batch.length;
+        await retryLater(batch, error);
+        return null;
+      }
       // SUB-05: the subscription is overdue and the POS window is over. Keep everything; it
       // uploads once the invoice is paid. The till says why.
       update({ subscriptionStopped: true });

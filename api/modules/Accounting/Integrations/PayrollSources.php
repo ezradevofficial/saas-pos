@@ -22,7 +22,9 @@ use Ramsey\Uuid\Uuid;
  * deduction + loans + net_pay, so each journal balances; a correction's
  * amounts are signed differences (a negative amount posts on the other
  * side). The department is a dimension; the pay currency's rate to the
- * base is the run's (CUR-04).
+ * base is the run's (CUR-04). Each line names its component (`labels`:
+ * "Gross pay", "PAYE", "NSSF employer share", "Net pay payable"; the
+ * component names come with the event, accounting.md decision 33).
  */
 class PayrollSources
 {
@@ -50,9 +52,34 @@ class PayrollSources
                 reference: mb_substr($event->number, 0, 80),
                 memo: Integrations::memo('payroll.run', $event->number),
                 link: ['kind' => 'payroll.run', 'id' => $event->runId],
+                labels: $this->labels(array_keys($amounts), (array) ($group['labels'] ?? [])),
             );
         }
 
         return $sources;
+    }
+
+    /**
+     * ACC-33: a description for each field's lines.
+     *
+     * @param  list<string>  $fields
+     * @param  array<string, string>  $names  component code => name
+     * @return array<string, string>
+     */
+    private function labels(array $fields, array $names): array
+    {
+        $labels = [];
+
+        foreach ($fields as $field) {
+            [$prefix, $code] = str_contains($field, '.') ? explode('.', $field, 2) : [$field, null];
+            $name = $code === null ? null : ($names[$code] ?? strtoupper($code));
+            $labels[$field] = match ($prefix) {
+                'gross', 'net_pay', 'loans' => __('accounting.integrations.payroll.'.$prefix),
+                'employer' => __('accounting.integrations.payroll.employer', ['name' => $name]),
+                default => (string) $name,
+            };
+        }
+
+        return $labels;
     }
 }

@@ -86,6 +86,7 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_login(p_login text)` | `users` by email (citext) or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `invitations` by token hash |
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
+| `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
 
 Each function is `language sql stable security definer`:
 
@@ -114,6 +115,7 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_operator_tenant_id()` | billing (ADR 016) | the operator tenant, the platform's seller (at most one) |
 | `app_tenants_with_due_recurring_journals(p_on date)` | `accounting:recurring` (ACC-06; Accounting migration `2026_11_05_000100`) | an active recurring journal due on or before `p_on` |
 | `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `loyalty:reprocess` (LOY-03; Loyalty migration `2026_11_06_000200`) | a Loyalty sale `failed` whose next attempt is due at `p_at` (backoff 5 min, 15 min, 1 h, 6 h, 24 h, then `failed_permanently`), or left `pending` since before `p_pending_before` |
+| `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `crm:remind` (CRM-27; CRM migration `2026_11_25_000100`) | an open CRM activity whose reminder is due at `p_at` and not yet sent |
 
 A module's scheduler function lives in that module's migrations, and its command calls it through `DueTenants` like the core ones. Modules register their schedules in their own service providers (`callAfterResolving(Schedule::class)`), never in `routes/console.php`.
 
@@ -141,6 +143,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `auth_tenant_for_pairing(p_code_hash text)` | `uuid` | device pairing |
 | `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
 | `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
+| `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |
 | `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
 | `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
@@ -153,6 +156,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_billing_due(p_at timestamptz)` | `setof uuid` | `billing:cycle` |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
 | `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
+| `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `setof uuid` | `crm:remind` |
 | `app_tenants_with_due_automation(p_kind text, p_at timestamptz)` | `setof uuid` | `automation:scan` |
 | `app_tenants_with_due_exports(p_at timestamptz, p_running_before timestamptz, p_queued_before timestamptz)` | `setof uuid` | `exports:expire` (ADR 015) |
 | `app_tenants_with_due_fiscal_submissions(p_at timestamptz, p_stale_before timestamptz)` | `setof uuid` | fiscal submissions (KRA eTIMS, DGI) |
@@ -160,6 +164,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_due_recurring_journals(p_on date)` | `setof uuid` | `accounting:recurring` |
 | `app_tenants_with_due_stage_timers(p_at timestamptz)` | `setof uuid` | `workflow:process-stage-timers` |
 | `app_tenants_with_expired_trials(p_at timestamptz)` | `setof uuid` | trial expiry |
+| `app_tenants_with_hr_identifiers()` | `setof uuid` | `hr:rekey-digests`, every tenant with an employee identifier, suspended and closed ones included (docs/modules/hr.md decision 24) |
 | `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `setof uuid` | `loyalty:reprocess` |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `setof uuid` | `billing:purge-report` |
 | `app_tenants_with_pending_digests()` | `setof uuid` | `notifications:send-digests` |

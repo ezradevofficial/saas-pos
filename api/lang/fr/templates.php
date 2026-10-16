@@ -108,6 +108,15 @@ return [
                 'status' => 'Statut',
                 'planned_by' => 'Planifié par',
                 'note' => 'Note',
+                // PAY-19: the payslip's fields (PayslipSource).
+                'employee_number' => 'Matricule',
+                'pay_date' => 'Date de paie',
+                'run' => 'Paie',
+                'gross' => 'Salaire brut',
+                'net' => 'Salaire net',
+                'employer_contributions' => 'Cotisations patronales',
+                'taxable_pay' => 'Revenu imposable',
+                'rates' => 'Barèmes légaux',
             ],
             'customer' => [
                 'name' => 'Client',

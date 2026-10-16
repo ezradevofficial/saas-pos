@@ -24,7 +24,8 @@ final class DocumentTypes
         'pos.receipt' => ['paper' => '80mm', 'fiscal' => true, 'module' => 'pos'],
         'pos.refund_receipt' => ['paper' => '80mm', 'fiscal' => true, 'module' => 'pos'],
         'sales.invoice' => ['paper' => 'A4', 'fiscal' => true, 'module' => 'sales'],
-        'sales.quote' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'sales'],
+        // CRM-22: the CRM module's quotes.
+        'sales.quote' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'crm'],
         'procurement.po' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],
         // PRC-12: the Procurement module's award and regret letters to bidders.
         'procurement.award_letter' => ['paper' => 'A4', 'fiscal' => false, 'module' => 'procurement'],

@@ -532,6 +532,19 @@
                 "party": true
             }
         ],
+        "crm.quote_invoice": [
+            {
+                "field": "receivable",
+                "side": "debit",
+                "account": "1200",
+                "party": true
+            },
+            {
+                "field": "revenue",
+                "side": "credit",
+                "account": "4100"
+            }
+        ],
         "payroll.run": [
             {
                 "field": "gross",

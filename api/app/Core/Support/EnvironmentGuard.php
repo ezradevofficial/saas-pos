@@ -37,6 +37,9 @@ final class EnvironmentGuard
     /** Long-running console entry points, checked before they start. */
     public const RUNTIME_COMMANDS = ['schedule:run', 'schedule:work', 'queue:work', 'queue:listen', 'horizon'];
 
+    /** HR-10: the shortest HR_DIGEST_KEY accepted, in bytes. */
+    private const DIGEST_KEY_BYTES = 32;
+
     /** Mail transports that deliver nothing. */
     private const DEVELOPMENT_MAIL_TRANSPORTS = ['log', 'array'];
 
@@ -134,10 +137,26 @@ final class EnvironmentGuard
                 ? 'PAYROLL_PACK_DIR is set (test statutory packs, docs/modules/payroll.md); unset it'
                 : null,
             // HR-10: identifier digests need their own key (the HR module's config).
-            'HR digest key' => $config->has('hr') && (string) $config->get('hr.digest_key') === ''
-                ? 'HR_DIGEST_KEY is not set (identifier digests, docs/modules/hr.md)'
-                : null,
+            'HR digest key' => $config->has('hr') ? self::digestKeyProblem((string) $config->get('hr.digest_key')) : null,
         ];
+    }
+
+    /**
+     * HR-10: HR_DIGEST_KEY is set and well formed, read as the HR module's
+     * Digest reads it: `base64:` and valid base64 of at least 32 bytes, or
+     * a raw key of at least 32 bytes.
+     */
+    private static function digestKeyProblem(string $key): ?string
+    {
+        if ($key === '') {
+            return 'HR_DIGEST_KEY is not set (identifier digests, docs/modules/hr.md)';
+        }
+
+        $bytes = str_starts_with($key, 'base64:') ? base64_decode(substr($key, 7), true) : $key;
+
+        return $bytes === false || strlen($bytes) < self::DIGEST_KEY_BYTES
+            ? 'HR_DIGEST_KEY is malformed: use base64: and a random 32-byte key, or a raw key of at least 32 bytes (docs/modules/hr.md)'
+            : null;
     }
 
     /**

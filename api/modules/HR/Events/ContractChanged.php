@@ -36,5 +36,7 @@ class ContractChanged implements ShouldDispatchAfterCommit
         public readonly ?string $hoursPerWeek,
         public readonly ?string $positionId,
         public readonly ?string $departmentId,
+        // Stage 7C closing review: the contract's version (one more on every save), so Payroll applies events in order.
+        public readonly int $version = 1,
     ) {}
 }

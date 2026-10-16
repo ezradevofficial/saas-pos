@@ -64,6 +64,8 @@ class PayrollServiceProvider extends ServiceProvider
         'loan' => ['view', 'manage'],
         // PAY-14 to PAY-18: `approve` acts on the run's flow (WF-08), `post` locks and posts.
         'run' => ['view', 'prepare', 'approve', 'post'],
+        // Decision 36: per-employee pay in a run (its lines); approvers judge runs by their totals without it.
+        'pay' => ['view'],
         // PAY-19: payslips of others (the employee sees their own without it, PAY-24).
         'payslip' => ['view'],
         // PAY-20.

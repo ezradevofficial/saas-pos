@@ -140,7 +140,8 @@ describe('the till theme (BR-01, BR-02)', () => {
     await render(<App services={services} />);
     await pairAndSignIn();
     await screen.findByTestId('brand-logo');
-    expect(await services.store.cachedMedia(`brand:${LOGO}`)).toBe(LOGO_URI);
+    // The logo can show from memory before its offline copy is written.
+    await waitFor(async () => expect(await services.store.cachedMedia(`brand:${LOGO}`)).toBe(LOGO_URI));
     expect(server.requestsTo(`sync/brand-assets/${LOGO}`)).toHaveLength(1);
   });
 

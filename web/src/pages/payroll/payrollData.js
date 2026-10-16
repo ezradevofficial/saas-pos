@@ -18,6 +18,8 @@ export const PERM = {
   runPrepare: 'payroll.run.prepare',
   runApprove: 'payroll.run.approve',
   runPost: 'payroll.run.post',
+  // payroll.md decision 36: per-employee lines of a run (approvers judge runs by their totals without it).
+  payView: 'payroll.pay.view',
   payslipView: 'payroll.payslip.view',
   paymentExport: 'payroll.payment.export',
   returnView: 'payroll.return.view',

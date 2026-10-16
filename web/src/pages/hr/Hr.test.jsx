@@ -252,8 +252,44 @@ describe('HR screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/me/clock', { kind: 'in' }))
   })
 
+  it('preselects the contract currency in the pay account dialog once the currencies load (HR-04)', async () => {
+    const bank = { bank: { view: true, edit: true } }
+    setup(
+      [
+        ['hr/employees/e-1', { data: { ...EMPLOYEE, pay: { amount_minor: '6000000', currency: 'USD', basis: 'monthly' }, pay_accounts: [], has_clock_pin: false, access: bank }, meta: { identifier_types: [] } }],
+        ['hr/employees/e-1/pay-accounts', { data: [] }],
+        ['tenant/currencies', { data: [{ code: 'KES', active: true }, { code: 'USD', active: true }] }],
+      ],
+      ['hr.employee.view', 'hr.bank.view', 'hr.bank.edit'],
+    )
+    api.post.mockResolvedValue({ data: { id: 'pa-2' } })
+    renderApp('/hr/employees/e-1?tab=payAccounts')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add account' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(within(dialog).getByLabelText(/^Currency/)).toHaveValue('USD'))
+    fireEvent.change(within(dialog).getByLabelText(/^Bank or wallet/), { target: { value: 'Equity' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Account number/), { target: { value: '0123456789' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/employees/e-1/pay-accounts', expect.objectContaining({ currency: 'USD', provider: 'Equity' })))
+  })
+
+  it('tells an employee without web clock-in what to do (HR-31)', async () => {
+    setup(
+      [
+        ['hr/me', { data: { ...EMPLOYEE, clock_methods: ['till'] } }],
+        [/^hr\/me\/attendance\?/, { data: { days: [], punches: [], can_clock: false, next_kind: 'in' } }],
+      ],
+      [],
+    )
+    renderApp('/hr/me/attendance')
+    expect(await screen.findByText('Web clock-in is not turned on for you')).toBeInTheDocument()
+    expect(screen.getByText('Ask HR to turn on web clock-in, or clock in on a till or attendance device.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clock in' })).not.toBeInTheDocument()
+  })
+
   it('tells a user who is not linked to an employee what to ask for, without My HR (HR-31)', async () => {
-    setup([['hr/me', apiError(404, 'not_an_employee', 'You are not linked to an employee.')]], [])
+    // Decision 30: GET hr/me answers 204 (no body) for a user who is not linked.
+    setup([['hr/me', null]], [])
     renderApp('/hr/me/attendance')
     expect(await screen.findByText('Your account is not linked to an employee record')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clock in' })).not.toBeInTheDocument()
@@ -476,5 +512,21 @@ describe('HR screens', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close period' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hr/attendance-periods/pe-2/close', {}))
     expect(await within(dialog).findByText('This period ends on 31 Oct 2026. Close it after that day.')).toBeInTheDocument()
+  })
+
+  it('offers to close a period inside the offline window with a reason (HR-26, NFR-04)', async () => {
+    const period = { id: 'pe-3', company_id: 'c-1', start_date: '2026-10-01', end_date: '2026-10-10', status: 'open', closed_at: null, totals: null }
+    setup([[/^hr\/attendance-periods\?/, page([period])]], ['hr.attendance.view', 'hr.attendance.close'])
+    api.post.mockRejectedValueOnce(apiError(422, 'period_offline_window', 'Tills and devices can still upload offline punches for this period until 17 Oct 2026.')).mockResolvedValueOnce({ data: { ...period, status: 'closed' } })
+    renderApp('/hr/attendance/periods')
+    fireEvent.click(await screen.findByRole('button', { name: 'Close period' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close period' }))
+    expect(await within(dialog).findByText('Tills and devices can still upload offline punches for this period until 17 Oct 2026.')).toBeInTheDocument()
+    const force = within(dialog).getByRole('button', { name: 'Close period now' })
+    expect(force).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(/^Reason for closing now/), { target: { value: 'Payroll cut-off' } })
+    fireEvent.click(force)
+    await waitFor(() => expect(api.post).toHaveBeenLastCalledWith('hr/attendance-periods/pe-3/close', { force: true, reason: 'Payroll cut-off' }))
   })
 })

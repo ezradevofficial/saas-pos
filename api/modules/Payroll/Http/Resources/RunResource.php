@@ -47,6 +47,12 @@ class RunResource extends JsonResource
             ],
             // Review fix 5: the statutory pack the run was calculated from.
             'pack' => $run->inputs['pack'] ?? null,
+            // Decisions 29, 33, 40: open attendance periods, late HR changes since the last run, employees without a pay group.
+            'review' => [
+                'attendance_open' => $run->inputs['review']['attendance_open'] ?? [],
+                'late_changes' => $run->inputs['review']['late_changes'] ?? [],
+                'no_pay_group' => $run->inputs['review']['no_pay_group'] ?? [],
+            ],
             'note' => $run->note,
             'prepared_by' => $user($run->calculated_by),
             'calculated_at' => $run->calculated_at?->toIso8601String(),
@@ -100,6 +106,17 @@ class RunResource extends JsonResource
             ],
             'previous_run_id' => $totals['previous']['run_id'] ?? null,
             'gone' => $totals['previous']['gone'] ?? [],
+            // Decision 36: what an approver without payroll.pay.view judges the run by.
+            'departments' => array_map(fn (array $d) => [
+                'department' => $d['department_id'] === null ? null : ['id' => $d['department_id'], 'name' => $d['name']],
+                'name' => $d['name'],
+                'currency' => $d['currency'],
+                'employees' => $d['employees'],
+                'gross' => Refs::money($d['gross_minor'], $d['currency']),
+                'net' => Refs::money($d['net_minor'], $d['currency']),
+                'employer' => Refs::money($d['employer_minor'], $d['currency']),
+            ], $totals['departments'] ?? []),
+            'variance' => $totals['variance'] ?? null,
         ];
     }
 }

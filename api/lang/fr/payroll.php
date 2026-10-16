@@ -37,12 +37,13 @@ return [
         'anchor_required' => 'Un groupe de paie hebdomadaire ou bimensuel a besoin de la date de début de sa première période.',
         'pay_group_has_runs' => 'Ce groupe de paie a des paies : ses périodes ne peuvent plus bouger. Créez plutôt un nouveau groupe.',
         'return_period' => 'Saisissez la période au format AAAA-MM (ou AAAA pour une déclaration annuelle).',
+        'run_stale' => 'Des congés, des présences ou des dates d’emploi ont changé dans les RH depuis le calcul de cette paie. Recalculez-la.',
     ],
 
     'line_errors' => [
         'monthly_days_missing' => 'Le congé sans solde nécessite le nombre de jours mensuels standard dans les réglages de paie.',
         'monthly_hours_missing' => 'Les heures supplémentaires nécessitent les heures hebdomadaires du contrat ou les heures mensuelles standard dans les réglages de paie.',
-        'currency_mismatch' => 'Une rubrique ou un prêt n’est pas dans la devise de paie de l’employé.',
+        'currency_mismatch' => 'Une rubrique, un prêt ou la paie comptabilisée n’est pas dans la devise de paie de l’employé. Corrigez dans cette devise, ou annulez d’abord la paie comptabilisée.',
         'rate_missing' => 'Il manque un taux de change pour la date de paie. Ajoutez-le dans les taux de change.',
         'paid_in_other_run' => 'Déjà dans la paie d’un autre groupe pour ces jours. Retirez l’employé de l’un des groupes.',
         'net_negative' => 'Le net à payer est négatif. Réduisez une retenue ou une mensualité de prêt.',
@@ -64,6 +65,7 @@ return [
         'night' => 'Majoration de nuit',
         'holiday' => 'Majoration jour férié',
         'rest_day' => 'Majoration jour de repos',
+        'arrears' => ':line (rappel)',
     ],
 
     'statuses' => [
@@ -124,6 +126,7 @@ return [
             'no_method' => 'Aucun mode de paiement dans le paramétrage de paie.',
             'no_account' => 'Aucun compte actif de ce type dans les RH.',
             'account_currency' => 'Aucun compte dans la devise de paie.',
+            'out_of_scope' => 'Vous ne pouvez pas voir les coordonnées bancaires de cet employé. Demandez à une personne habilitée de générer le fichier.',
         ],
     ],
 

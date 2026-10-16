@@ -30,12 +30,14 @@ use Modules\Accounting\Events\DocumentPosted;
 use Modules\Accounting\Fiscal\AccountingFiscalSource;
 use Modules\Accounting\Imports\ChartOfAccountsImporter;
 use Modules\Accounting\Imports\OpeningBalancesImporter;
+use Modules\Accounting\Integrations\QuoteInvoices;
 use Modules\Accounting\Ledger\JournalPoster;
 use Modules\Accounting\Ledger\JournalType;
 use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Payments\Payments;
+use Modules\CRM\Events\QuoteConverted;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\CreditAdjusted;
 use Modules\Loyalty\Events\CreditCharged;
@@ -176,6 +178,11 @@ class AccountingServiceProvider extends ServiceProvider
             if (class_exists($event)) {
                 Event::listen($event, PostModuleEvent::class);
             }
+        }
+
+        // CRM-24: an accepted CRM quote converted to an invoice becomes a draft customer invoice, in the converting transaction.
+        if (class_exists(QuoteConverted::class)) {
+            Event::listen(QuoteConverted::class, [QuoteInvoices::class, 'handle']);
         }
 
         if ($this->app->runningInConsole()) {

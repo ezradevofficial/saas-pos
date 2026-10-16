@@ -1,4 +1,9 @@
 import {
+  CalendarDays,
+  FilePen,
+  Handshake,
+  Target,
+  UserPlus,
   ClipboardList,
   Gavel,
   MessageSquareQuote,
@@ -218,6 +223,12 @@ const ICONS = {
   supplierInvoices: ReceiptText,
   landedCosts: Ship,
   performance: Gauge,
+  // CRM and sales module (docs/modules/crm.md).
+  leads: UserPlus,
+  opportunities: Handshake,
+  quotes: FilePen,
+  calendar: CalendarDays,
+  targets: Target,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

@@ -1,6 +1,6 @@
 import en from '../locales/en.json'
 import fr from '../locales/fr.json'
-import i18n, { resolveLocale, setLocale } from './index'
+import i18n, { initialLocale, LOCALE_STORAGE_KEY, resolveLocale, setLocale } from './index'
 
 function flatten(object, prefix = '') {
   return Object.entries(object).flatMap(([key, value]) =>
@@ -49,5 +49,15 @@ describe('i18n', () => {
     expect(resolveLocale('fr-CD', 'en')).toBe('fr')
     expect(resolveLocale(undefined, 'de-DE', 'fr')).toBe('fr')
     expect(resolveLocale('de', null)).toBe('en')
+  })
+
+  it('paints first in the remembered language, then the browser\'s (L10N-01)', () => {
+    setLocale('fr')
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('fr')
+    expect(document.documentElement.lang).toBe('fr')
+    expect(initialLocale('en-GB')).toBe('fr')
+    window.localStorage.removeItem(LOCALE_STORAGE_KEY)
+    expect(initialLocale('fr-CD')).toBe('fr')
+    expect(initialLocale('sw-KE')).toBe('en')
   })
 })

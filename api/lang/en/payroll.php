@@ -36,12 +36,13 @@ return [
         'anchor_required' => 'A weekly or bi-weekly pay group needs its first period start date.',
         'pay_group_has_runs' => 'This pay group has runs, so its periods can no longer move. Create a new pay group instead.',
         'return_period' => 'Enter the period as YYYY-MM (or YYYY for a yearly return).',
+        'run_stale' => 'Leave, attendance or employment dates in HR changed since this run was calculated. Calculate it again.',
     ],
 
     'line_errors' => [
         'monthly_days_missing' => 'Unpaid leave needs the standard monthly days in payroll settings.',
         'monthly_hours_missing' => 'Overtime needs the contract’s weekly hours or the standard monthly hours in payroll settings.',
-        'currency_mismatch' => 'An item or loan isn’t in the employee’s pay currency.',
+        'currency_mismatch' => 'An item, a loan or the posted pay isn’t in the employee’s pay currency. Correct it in that currency, or reverse the posted pay first.',
         'rate_missing' => 'An exchange rate for the pay date is missing. Add it in exchange rates.',
         'paid_in_other_run' => 'Already in another pay group’s run for these days. Take them out of one pay group.',
         'net_negative' => 'Net pay is below zero. Reduce a deduction or a loan instalment.',
@@ -63,6 +64,7 @@ return [
         'night' => 'Night premium',
         'holiday' => 'Public holiday premium',
         'rest_day' => 'Rest day premium',
+        'arrears' => ':line (arrears)',
     ],
 
     'statuses' => [
@@ -123,6 +125,7 @@ return [
             'no_method' => 'No payment method in the pay setup.',
             'no_account' => 'No active account of this kind in HR.',
             'account_currency' => 'No account in the pay currency.',
+            'out_of_scope' => 'You can’t see this employee’s bank details. Ask someone who can to build the file.',
         ],
     ],
 

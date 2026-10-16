@@ -197,7 +197,7 @@ export function Periods() {
   const company = useHrCompany()
   const [dialog, setDialog] = useState(null)
   const query = useQuery({ queryKey: [...hrKey, 'periods', company?.id], queryFn: () => api.get(`hr/attendance-periods?company=${company.id}&per_page=100`), enabled: Boolean(company) })
-  const close = useHrMutation((row) => api.post(`hr/attendance-periods/${row.id}/close`, {}), { success: t('hr.periods.closed'), onDone: () => setDialog(null) })
+  const close = useHrMutation(({ row, body }) => api.post(`hr/attendance-periods/${row.id}/close`, body), { success: t('hr.periods.closed'), onDone: () => setDialog(null) })
   if (!company) return <NoCompany />
   return (
     <>
@@ -246,41 +246,73 @@ export function Periods() {
       />
       {dialog?.kind === 'add' ? <PeriodDialog company={company} onClose={() => setDialog(null)} /> : null}
       {dialog?.kind === 'totals' ? <PeriodTotals period={dialog.row} onClose={() => setDialog(null)} /> : null}
-      {dialog?.kind === 'close' ? (
-        <Dialog
-          open
-          title={t('hr.periods.closeTitle', { from: day(dialog.row.start_date), to: day(dialog.row.end_date) })}
-          onClose={() => setDialog(null)}
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setDialog(null)}>
-                {t('hr.actions.keep')}
-              </Button>
-              <Button variant="pay" loading={close.isPending} onClick={() => close.mutate(dialog.row)}>
-                {t('hr.periods.close')}
-              </Button>
-            </>
-          }
-        >
-          <div className="flex flex-col gap-4">
-            <p>{t('hr.periods.closeHelp')}</p>
-            {close.isError ? (
-              <Alert tone="danger" title={errorMessage(close.error)}>
-                {close.error?.code === 'days_unapproved' ? (
-                  <Link to={`/hr/attendance/timesheets?from=${dialog.row.start_date}&to=${dialog.row.end_date}`} className="text-label text-primary hover:text-primary-hover">
-                    {t('hr.periods.openTimesheets')}
-                  </Link>
-                ) : close.error?.code === 'time_rules_missing' ? (
-                  <Link to="/hr/attendance/rules" className="text-label text-primary hover:text-primary-hover">
-                    {t('hr.periods.openRules')}
-                  </Link>
-                ) : null}
-              </Alert>
-            ) : null}
-          </div>
-        </Dialog>
-      ) : null}
+      {dialog?.kind === 'close' ? <ClosePeriodDialog period={dialog.row} close={close} onClose={() => setDialog(null)} /> : null}
     </>
+  )
+}
+
+/**
+ * HR-26: closing a period. Inside the tills' offline window (7 days after
+ * its last day, NFR-04) the API answers `period_offline_window`; the
+ * dialog then offers to close it now with a reason, which is audited.
+ */
+function ClosePeriodDialog({ period, close, onClose }) {
+  const { t } = useTranslation()
+  const day = useDay()
+  const [forcing, setForcing] = useState(false)
+  const [reason, setReason] = useState('')
+  const offline = close.error?.code === 'period_offline_window'
+  const errors = close.errors(['reason'])
+  const submit = () => {
+    if (forcing || offline) {
+      setForcing(true)
+      close.mutate({ row: period, body: { force: true, reason } })
+    } else {
+      close.mutate({ row: period, body: {} })
+    }
+  }
+  const showForce = forcing || offline
+  return (
+    <Dialog
+      open
+      title={t('hr.periods.closeTitle', { from: day(period.start_date), to: day(period.end_date) })}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('hr.actions.keep')}
+          </Button>
+          <Button variant="pay" loading={close.isPending} disabled={showForce && reason.trim() === ''} onClick={submit}>
+            {showForce ? t('hr.periods.forceClose') : t('hr.periods.close')}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p>{t('hr.periods.closeHelp')}</p>
+        {showForce ? (
+          <>
+            <Alert tone="warning" title={t('hr.periods.offlineTitle')}>
+              {offline ? errorMessage(close.error) : t('hr.periods.offlineHelp')}
+            </Alert>
+            <TextAreaField label={t('hr.periods.forceReason')} required value={reason} maxLength={500} error={errors.fields.reason} onChange={(event) => setReason(event.target.value)} />
+          </>
+        ) : null}
+        {close.isError && !offline && !errors.fields.reason ? (
+          <Alert tone="danger" title={errorMessage(close.error)}>
+            {close.error?.code === 'days_unapproved' ? (
+              <Link to={`/hr/attendance/timesheets?from=${period.start_date}&to=${period.end_date}`} className="text-label text-primary hover:text-primary-hover">
+                {t('hr.periods.openTimesheets')}
+              </Link>
+            ) : close.error?.code === 'time_rules_missing' ? (
+              <Link to="/hr/attendance/rules" className="text-label text-primary hover:text-primary-hover">
+                {t('hr.periods.openRules')}
+              </Link>
+            ) : null}
+          </Alert>
+        ) : null}
+      </div>
+    </Dialog>
   )
 }
 

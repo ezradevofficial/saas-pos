@@ -602,7 +602,24 @@
           "cost_centre": "Cost centre",
           "issued_by": "Issued by",
           "received_by": "Received by",
-          "total_value": "Total value"
+          "total_value": "Total value",
+          "product": "Product",
+          "product_code": "Product code",
+          "quantity": "Quantity",
+          "planned_start": "Planned start",
+          "planned_end": "Planned end",
+          "version": "Version",
+          "status": "Status",
+          "planned_by": "Planned by",
+          "note": "Note",
+          "employee_number": "Employee number",
+          "pay_date": "Pay date",
+          "run": "Payroll run",
+          "gross": "Gross pay",
+          "net": "Net pay",
+          "employer_contributions": "Employer contributions",
+          "taxable_pay": "Taxable pay",
+          "rates": "Statutory rates"
         },
         "customer": {
           "name": "Customer",
@@ -636,6 +653,8 @@
         "procurement_regret_letter": "Tender",
         "stores_delivery_note": "Delivery note",
         "stores_issue_voucher": "Issue voucher",
+        "manufacturing_production_order": "Production order",
+        "manufacturing_pick_list": "Pick list",
         "payroll_payslip": "Payslip",
         "party_statement": "Statement",
         "letter": "Reference",
@@ -658,7 +677,10 @@
         "credit": "Credit",
         "balance": "Balance",
         "unit_cost": "Unit cost",
-        "value": "Value"
+        "value": "Value",
+        "required": "Required",
+        "issued": "Issued",
+        "to_issue": "To issue"
       },
       "totals": {
         "subtotal": "Subtotal",

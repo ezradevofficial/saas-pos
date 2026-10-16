@@ -28,7 +28,14 @@ final class Digest
         $key = (string) config('hr.digest_key');
 
         if ($key !== '') {
-            return str_starts_with($key, 'base64:') ? (string) base64_decode(substr($key, 7), true) : $key;
+            // EnvironmentGuard refuses a malformed key at boot; never digest under an empty or short one.
+            $bytes = str_starts_with($key, 'base64:') ? base64_decode(substr($key, 7), true) : $key;
+
+            if ($bytes === false || strlen($bytes) < 32) {
+                throw new \RuntimeException('HR_DIGEST_KEY is malformed.');
+            }
+
+            return $bytes;
         }
 
         if (! app()->environment(['local', 'testing'])) {
