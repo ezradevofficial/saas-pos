@@ -2,6 +2,8 @@
 
 namespace App\Core\Platform;
 
+use App\Core\CountryPacks\Console\ApplyPackReleases;
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\Identity\Services\LoginThrottle;
 use App\Core\Notifications\EventTypes;
 use App\Core\Platform\Console\CreatePlatformUser;
@@ -35,6 +37,8 @@ class PlatformServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PlatformTokens::class);
         $this->app->singleton(TenantHealthProbes::class);
+        // ADM-04: the schema of each pack kind; modules register theirs.
+        $this->app->singleton(PackSchemas::class);
     }
 
     public function boot(): void
@@ -63,10 +67,14 @@ class PlatformServiceProvider extends ServiceProvider
         SupportNotices::register($this->app->make(EventTypes::class));
 
         // RBAC-13f: approvals past their end are closed every five minutes.
-        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('support:expire')->everyFiveMinutes()->withoutOverlapping());
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('support:expire')->everyFiveMinutes()->withoutOverlapping();
+            // ADM-04d: tax and holidays releases are written into the pack tables on their date.
+            $schedule->command('country-packs:apply-releases')->dailyAt('00:10')->withoutOverlapping();
+        });
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class, ExpireSupportAccess::class]);
+            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class, ExpireSupportAccess::class, ApplyPackReleases::class]);
         }
     }
 }

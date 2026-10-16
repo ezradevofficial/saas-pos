@@ -13,11 +13,13 @@ use App\Core\Billing\Catalogue\Models\CatalogueBundle;
 use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Billing\Catalogue\Models\CataloguePrice;
+use App\Core\CountryPacks\Http\Controllers\PlatformPackController;
 use App\Core\Onboarding\Http\Controllers\AssistedTenantController;
 use App\Core\Platform\Http\Controllers\PlatformAuthController;
 use App\Core\Platform\Http\Controllers\PlatformStaffController;
 use App\Core\Platform\Http\Middleware\EnsurePlatformAccess;
 use App\Core\Platform\PlatformServiceProvider;
+use App\Core\Platform\Reports\Http\PlatformReportsController;
 use Illuminate\Support\Facades\Route;
 
 Route::model('catalogue_module', CatalogueModule::class);
@@ -57,6 +59,23 @@ Route::prefix('platform')->group(function () {
         Route::patch('{staff}', [PlatformStaffController::class, 'update'])->whereUuid('staff');
         Route::post('{staff}/deactivate', [PlatformStaffController::class, 'deactivate'])->whereUuid('staff');
         Route::post('{staff}/reactivate', [PlatformStaffController::class, 'reactivate'])->whereUuid('staff');
+    });
+
+    // ADM-04: country pack releases (load, approve, publish: two people).
+    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('packs')->group(function () {
+        Route::get('/', [PlatformPackController::class, 'index']);
+        Route::get('current', [PlatformPackController::class, 'current']);
+        Route::post('/', [PlatformPackController::class, 'store']);
+        Route::get('{release}', [PlatformPackController::class, 'show'])->whereUuid('release');
+        Route::post('{release}/approve', [PlatformPackController::class, 'approve'])->whereUuid('release');
+        Route::post('{release}/reject', [PlatformPackController::class, 'reject'])->whereUuid('release');
+        Route::post('{release}/publish', [PlatformPackController::class, 'publish'])->whereUuid('release');
+    });
+
+    // ADM-06: revenue and usage reports, and their CSV downloads.
+    Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('reports')->group(function () {
+        Route::get('summary', [PlatformReportsController::class, 'summary']);
+        Route::get('{report}.csv', [PlatformReportsController::class, 'csv'])->whereIn('report', PlatformReportsController::REPORTS);
     });
 
     // ONB-08: a tenant created for a customer and handed over by invitation.

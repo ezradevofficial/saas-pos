@@ -2,6 +2,7 @@
 
 namespace Modules\Payroll\Statutory;
 
+use App\Core\CountryPacks\PackDocuments;
 use Carbon\CarbonImmutable;
 
 /**
@@ -40,7 +41,7 @@ class PayrollPack
 
     /**
      * Review fix 5: where $country's pack was read from (`shipped`,
-     * `override` or `test`), its file and the sha256 of its content, stamped
+     * `override`, `release` (ADM-04) or `test`), its file and the sha256 of its content, stamped
      * on each run it calculates.
      *
      * @return array{country: string, source: string, file: ?string, sha256: ?string}
@@ -63,6 +64,23 @@ class PayrollPack
 
         $override = config('payroll.pack_dir');
         $overridden = is_string($override) && $override !== '' && app()->environment(self::OVERRIDE_ENVIRONMENTS);
+
+        // ADM-04d (ADR 022): a published release in force replaces the shipped file.
+        $release = $overridden || preg_match('/^[A-Z]{2}\z/', $code) !== 1 ? null : app(PackDocuments::class)->release($code, 'payroll');
+
+        if ($release !== null) {
+            $key = 'release|'.$release->id;
+
+            if (($this->packs[$code]['key'] ?? null) === $key) {
+                return $this->packs[$code];
+            }
+
+            return $this->packs[$code] = [
+                'key' => $key,
+                'pack' => $release->content,
+                'source' => ['country' => $code, 'source' => 'release', 'file' => null, 'sha256' => $release->content_hash, 'version' => $release->version],
+            ];
+        }
         $dir = $overridden ? rtrim($override, '/') : base_path('country-packs');
         $file = preg_match('/^[A-Z]{2}\z/', $code) === 1 ? "{$dir}/{$code}/payroll.json" : null;
 

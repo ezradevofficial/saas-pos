@@ -72,6 +72,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. `app` may only read it; `permissions:sync` writes it as the owner. |
 | `currencies` | The ISO 4217 catalogue (CUR-01), the same for every tenant and with no `tenant_id`. `app` may only read it; `currencies:sync` writes it as the owner. The currencies a tenant uses (`tenant_currencies`) and a company's reporting currencies (`company_reporting_currencies`) are tenant tables. |
 | `platform_*`, `catalogue_*` | Platform staff, their tokens and audit log, and the plan catalogue (ADR 013). No `tenant_id`; staff belong to no tenant and the catalogue is the same for every tenant. Listed in `GlobalTables::PLATFORM`. Grants keep them apart instead of RLS: only role `app_platform` reaches the staff tables and writes the catalogue; `app` only reads the catalogue. |
+| `country_pack_releases` | Country pack releases loaded and published by platform staff (ADM-04, ADR 022): reference data, the same for every tenant. The platform role writes it; `app` only reads it. Listed in `GlobalTables::PLATFORM`. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.
@@ -139,7 +140,7 @@ Two more functions answer for hosts, before any tenant is known:
 
 ### Every security-definer function (stage 7B closing review)
 
-Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid` (the one documented exception: `app_public_branding`, public fields of a sign-in page, above).
+Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type).
 
 | Function | Returns | Used for |
 | --- | --- | --- |
@@ -156,6 +157,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
 | `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
 | `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
+| `app_platform_usage_totals(p_day date)` | a table of `(unit, tenants, total)` | ADM-06: usage totals for the platform's reports, per unit on the latest metered day on or before `p_day`; counts only, never a tenant id or row; documented exception |
 | `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
 | `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |
 | `app_tenants_awaiting_handover(p_before timestamptz)` | `setof uuid` | assisted onboarding handovers |

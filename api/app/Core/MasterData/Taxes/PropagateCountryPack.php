@@ -42,10 +42,22 @@ class PropagateCountryPack
      */
     public function run(CountryPack $pack): array
     {
+        return $this->runFor($pack, DB::connection(SyncPermissions::OWNER_CONNECTION)->table('tenants')->orderBy('id')->pluck('id'));
+    }
+
+    /**
+     * The same, for the tenants in $ids: a pack release published by staff
+     * (ADM-04, ADR 022) lists them through `app_active_tenant_ids`, never
+     * the owner connection.
+     *
+     * @param  iterable<string>  $ids
+     * @return array{tenants: int, updated: int, skipped: int, conflicts: list<string>}
+     */
+    public function runFor(CountryPack $pack, iterable $ids): array
+    {
         // The system acts: no user, device or request is recorded (AUD-02).
         $this->audit->reset();
-
-        $ids = DB::connection(SyncPermissions::OWNER_CONNECTION)->table('tenants')->orderBy('id')->pluck('id');
+        $ids = collect($ids)->values();
 
         // Seeding runs with the owner as the default connection; tenant rows
         // must be read and written by the runtime role, under row-level security.

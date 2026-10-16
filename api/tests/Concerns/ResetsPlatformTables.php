@@ -17,9 +17,11 @@ use Illuminate\Support\Facades\DB;
 trait ResetsPlatformTables
 {
     /** Restored in this order (deleted in reverse). */
-    private static array $catalogueTables = ['catalogue_modules', 'catalogue_bundles', 'catalogue_prices', 'catalogue_annual_discounts', 'catalogue_coupons'];
+    private static array $catalogueTables = ['catalogue_modules', 'catalogue_bundles', 'catalogue_prices', 'catalogue_annual_discounts', 'catalogue_coupons',
+        // ADR 022: publishing a tax or holidays release writes these on the platform connection.
+        'country_packs', 'country_pack_tax_codes', 'public_holidays'];
 
-    private static array $staffTables = ['platform_support_requests', 'platform_settings', 'platform_audit_logs', 'platform_access_tokens', 'platform_users'];
+    private static array $staffTables = ['country_pack_releases', 'platform_support_requests', 'platform_settings', 'platform_audit_logs', 'platform_access_tokens', 'platform_users'];
 
     protected function setUpResetsPlatformTables(): void
     {
